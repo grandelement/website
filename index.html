@@ -1,39 +1,54 @@
-<!-- SAVE AS: index.html  (paste everything) -->
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Grand Element — Site (Moon+Music+Planets+FX)</title>
+<title>Grand Element — Test Build (ALL FEATURES)</title>
 <style>
   :root{
-    --star-tile:900px;
+    /* ASSETS */
+    --img-base: https://grandelement.github.io/website/images/;
+
+    /* STARS TILE */
+    --star-tile: 900px;
 
     /* PLANETS */
-    --planet-size:28px;              /* small by default */
-    --planet-hover-scale:3;          /* grow to 3× */
-    --planet-glow:18px;
+    --planet-size: 28px;          /* small by default */
+    --planet-hover-scale: 3;      /* grow to 3× on hover/tap */
+    --planet-glow: 18px;
 
-    /* SUN + MOON (sun now ~30% bigger; moon farther) */
-    --sun-size:182px;
-    --moon-size:110px;
-    --orbit-seconds:60;              /* 60s full rotation */
-    --orbit-radius:220px;            /* farther so it never touches */
+    /* SUN + MOON */
+    --sun-size: 200px;            /* blue sun */
+    --moon-size: 120px;           /* radio moon */
+    --orbit-seconds: 60;          /* 60s full rotation */
+    --orbit-gap-moons: 2.2;       /* center distance in moon diameters from sun center */
+    --orbit-radius: calc((var(--sun-size) * 0.5) + (var(--moon-size) * var(--orbit-gap-moons)));
 
-    /* COMETS */
-    --comet-max:3;                   /* on-screen max */
+    /* FX */
+    --comet-max: 3;               /* on-screen max for main comets */
+  }
+
+  /* Mobile blanket scale (iPhone/phones) */
+  @media (max-width: 700px){
+    :root{
+      --planet-size: 22px;
+      --sun-size: 170px;
+      --moon-size: 96px;
+      --orbit-gap-moons: 2.4;     /* a hair farther on phones */
+    }
   }
 
   html,body{height:100%}
   body{
     margin:0; overflow:hidden; color:#eaf2ff; background:#000;
     background-image:
-      url('images/GE stars.jpg'),
-      url('image/GE stars.jpg'),
+      url('https://grandelement.github.io/website/images/GE%20stars.jpg'),
       radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
-    background-position:center center, center center, 0 0;
-    background-repeat:repeat, repeat, repeat;
-    background-size:var(--star-tile) var(--star-tile), var(--star-tile) var(--star-tile), 3px 3px;
+    background-position: center center, 0 0;
+    background-repeat: repeat, repeat;
+    background-size: var(--star-tile) var(--star-tile), 3px 3px;
+    background-attachment: fixed, scroll;       /* keep stars crisp */
+    image-rendering: auto;
     font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   }
 
@@ -41,12 +56,13 @@
   .sunWrap{ position:absolute; left:18vw; top:64vh; transform:translate(-50%,-50%);
             width:var(--sun-size); height:var(--sun-size); pointer-events:none; z-index:5; }
   .sun{ position:absolute; inset:0; border-radius:50%;
-        background:center/cover no-repeat url('images/ge-logo-2.jpg'), url('image/ge-logo-2.jpg');
-        box-shadow:inset 0 0 60px rgba(255,255,255,.12); z-index:3; }
+        background:center/cover no-repeat url('https://grandelement.github.io/website/images/ge-logo-2.jpg');
+        box-shadow: inset 0 0 60px rgba(255,255,255,.12); z-index:3; }
 
   .sunOverlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:8px; pointer-events:auto; text-align:center; padding-top:8%; }
   .sunAbout{ font-weight:900; letter-spacing:.22em; font-size:13px; opacity:.95; text-shadow:0 0 14px rgba(150,190,255,.55); cursor:pointer; }
 
+  /* Mini player */
   .miniPlayer{ position:absolute; left:50%; bottom:10px; transform:translateX(-50%); width:86%;
     background:rgba(5,10,22,.55); border:1px solid rgba(220,240,255,.35); border-radius:12px; padding:6px 8px;
     box-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -60,7 +76,7 @@
   .toggle.active{ background:rgba(40,140,255,.45); }
   .title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; letter-spacing:.3px; }
 
-  .orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; } /* drops to 2 on far side */
+  .orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; }
   .carrier{ position:absolute; left:50%; top:50%; width:0; height:0; }
   .moon{ position:absolute; left:0; top:0; transform:translate(var(--orbit-radius), -50%);
          width:var(--moon-size); height:var(--moon-size); border-radius:50%; cursor:pointer; pointer-events:auto; display:grid; place-items:center; }
@@ -122,19 +138,18 @@
       </div>
     </div>
 
-    <!-- Radio moon orbiting the sun (correct image) -->
+    <!-- Radio moon orbiting the sun -->
     <div class="orbit" id="orbit">
-      <div class="carrier" style="--orbit-radius: var(--orbit-radius);">
+      <div class="carrier">
         <div class="moon" id="moon" title="Grand Element Radio">
           <img alt="Grand Element Radio"
-               src="images/ge-radio-logo.png"
-               onerror="this.onerror=null;this.src='image/ge-radio-logo.png'">
+               src="https://grandelement.github.io/website/images/ge-radio-logo.png">
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Planets layer -->
+  <!-- Planets -->
   <div class="planets" id="planets"></div>
 
   <!-- ABOUT overlay -->
@@ -148,18 +163,21 @@
   </div>
 
 <script>
-/* ========= PLANETS: S-curve bottom→top ========= */
+/* ===========================================================
+   PLANETS: S-curve bottom → top
+   =========================================================== */
+const IMG = 'https://grandelement.github.io/website/images/';
 const ALBUMS = [
-  { title:"Fundamental\u00A0Groove", cover:"images/Grand Element - Fundamental Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
-  { title:"Trio",        cover:"images/Grand Element - Trio.jpg",        link:"https://grandelement.bandcamp.com/album/trio" },
-  { title:"Live!",       cover:"images/Grand Element - Live.jpg",        link:"https://grandelement.bandcamp.com/album/live" },
-  { title:"Sessions I",  cover:"images/Grand Element - Sessions I.jpg",  link:"https://grandelement.bandcamp.com/album/sessions-i" },
-  { title:"Sessions II", cover:"images/Grand Element - Sessions II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii" },
-  { title:"Intergy",     cover:"images/Grand Element - Intergy.jpg",     link:"https://grandelement.bandcamp.com/album/intergy" },
-  { title:"Love",        cover:"images/Grand Element - Love.jpg",        link:"https://grandelement.bandcamp.com/album/love" },
-  { title:"Soul",        cover:"images/Grand Element - Soul.jpg",        link:"https://grandelement.bandcamp.com/album/soul" },
-  { title:"Spirit",      cover:"images/Grand Element - Spirit.jpg",      link:"https://grandelement.bandcamp.com/album/spirit" },
-  { title:"Fire",        cover:"images/Grand Element - Fire.jpg",        link:"https://grandelement.bandcamp.com/album/fire" }
+  { title:"Fundamental\u00A0Groove", cover: IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
+  { title:"Trio",        cover: IMG+"Grand%20Element%20-%20Trio.jpg",        link:"https://grandelement.bandcamp.com/album/trio" },
+  { title:"Live!",       cover: IMG+"Grand%20Element%20-%20Live.jpg",        link:"https://grandelement.bandcamp.com/album/live" },
+  { title:"Sessions I",  cover: IMG+"Grand%20Element%20-%20Sessions%20I.jpg",  link:"https://grandelement.bandcamp.com/album/sessions-i" },
+  { title:"Sessions II", cover: IMG+"Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii" },
+  { title:"Intergy",     cover: IMG+"Grand%20Element%20-%20Intergy.jpg",     link:"https://grandelement.bandcamp.com/album/intergy" },
+  { title:"Love",        cover: IMG+"Grand%20Element%20-%20Love.jpg",        link:"https://grandelement.bandcamp.com/album/love" },
+  { title:"Soul",        cover: IMG+"Grand%20Element%20-%20Soul.jpg",        link:"https://grandelement.bandcamp.com/album/soul" },
+  { title:"Spirit",      cover: IMG+"Grand%20Element%20-%20Spirit.jpg",      link:"https://grandelement.bandcamp.com/album/spirit" },
+  { title:"Fire",        cover: IMG+"Grand%20Element%20-%20Fire.jpg",        link:"https://grandelement.bandcamp.com/album/fire" }
 ];
 const planetsEl = document.getElementById('planets');
 function placeSpiral(){
@@ -178,7 +196,7 @@ function placeSpiral(){
     aEl.className='planet'; aEl.style.left=x+'px'; aEl.style.top=y+'px';
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
-    aEl.style.backgroundImage = `url('${alb.cover}'), url('${alb.cover.replace('images/','image/')}')`;
+    aEl.style.backgroundImage = `url('${alb.cover}')`;
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
     aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
     planetsEl.appendChild(aEl);
@@ -186,10 +204,12 @@ function placeSpiral(){
 }
 placeSpiral(); addEventListener('resize', placeSpiral, {passive:true});
 
-/* ========= HIDDEN TEXT (from data/hidden.txt; commas OR new lines) ========= */
+/* ===========================================================
+   HIDDEN TEXT: loads from /website/data/hidden.txt
+   =========================================================== */
 const phrasesEl = document.getElementById('phrases');
 let PHRASES = [];
-fetch('data/hidden.txt')
+fetch('https://grandelement.github.io/website/data/hidden.txt')
   .then(r => r.ok ? r.text() : '')
   .then(t => {
     PHRASES = t.split(/[\,\r?\n]/).map(s=>s.trim().replace(/,+$/,'')).filter(Boolean);
@@ -215,37 +235,50 @@ setInterval(()=>{
   [...phrasesEl.children].forEach(el=>{
     if(el.classList.contains('pinned')){ el.classList.add('show'); return; }
     const rect = el.getBoundingClientRect();
-    const d = Math.hypot(px-(rect.left+rect.width/2), py-(rect.top+rect.height/2));
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top  + rect.height/2;
+    const d = Math.hypot(px-cx, py-cy);
     if(d<r) el.classList.add('show'); else el.classList.remove('show');
   });
 }, 90);
 
-/* ========= ABOUT overlay ========= */
+/* ===========================================================
+   ABOUT overlay
+   =========================================================== */
 const aboutBtn = document.getElementById('aboutBtn');
 const aboutEl  = document.getElementById('about');
 aboutBtn.addEventListener('click', ()=> aboutEl.classList.add('show'));
 aboutEl.addEventListener('click', (e)=>{ if(e.target.id==='about') aboutEl.classList.remove('show'); });
 addEventListener('keydown', (e)=>{ if(e.key==='Escape') aboutEl.classList.remove('show'); });
 
-/* ========= RADIO MOON (upright, 60s orbit, passes behind sun) ========= */
+/* ===========================================================
+   RADIO MOON: clock orbit (60s), upright, slow radial breathing
+   =========================================================== */
 const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
-const ORBIT_SEC = 60;                 // 60s full rotation
-const PHASE0    = -Math.PI/2;         // start above the sun
-let t0 = performance.now()/1000;
+const ORBIT_SEC = 60;                 // exact 60s per full revolution
+const PHASE0    = -Math.PI/2;         // start at 12 o’clock
+const BASE_R = parseFloat(getComputedStyle(document.documentElement)
+               .getPropertyValue('--orbit-radius')) || 260; // px
+const OSC_PX  = 30;                   // in/out (px)
+const OSC_SEC = 90;                   // seconds per full in/out cycle
+
 function tickOrbit(){
-  const t = performance.now()/1000;
-  const angle = PHASE0 + ((t - t0) / ORBIT_SEC) * Math.PI*2;
+  const t = Date.now() / 1000;
+  const angle = PHASE0 + (t % ORBIT_SEC) / ORBIT_SEC * Math.PI * 2;
+  const r = BASE_R + OSC_PX * Math.sin((t / OSC_SEC) * Math.PI * 2);
   orbit.style.transform = `rotate(${angle}rad)`;
-  moon.style.transform  = `translate(var(--orbit-radius), -50%) rotate(${-angle}rad)`;
+  moon.style.transform  = `translate(${r}px, -50%) rotate(${-angle}rad)`; // upright
   const backHalf = (angle % (Math.PI*2)) > Math.PI;
-  orbit.style.zIndex = backHalf ? 2 : 6;         // behind on the far side
+  orbit.style.zIndex = backHalf ? 2 : 6;          // behind on far side
   requestAnimationFrame(tickOrbit);
 }
 requestAnimationFrame(tickOrbit);
 moon.addEventListener('click', ()=> window.open('https://grandelement.github.io/radio/','_blank','noopener'));
 
-/* ========= MUSIC: playlist.txt (GitHub Pages) ========= */
+/* ===========================================================
+   MUSIC: discover MP3s from GitHub (single API call, no playlist)
+   =========================================================== */
 const PLAYER   = document.getElementById('gePlayer');
 const titleEl  = document.getElementById('title');
 const btnPrev  = document.getElementById('prev');
@@ -255,82 +288,301 @@ const tgShuffle= document.getElementById('tgShuffle');
 const tgAlbum  = document.getElementById('tgAlbum');
 let PLAYLIST=[], pIndex=0, SHUFFLE=true;
 
-function setTitle(url){
-  try{
-    const parts = url.split('/');
-    const file  = decodeURIComponent(parts.pop()).replace(/\.[^/.]+$/,'');
-    const album = decodeURIComponent(parts.pop()).replace(/^(Grand Element\s*-\s*)?\d{4}\s*-\s*/i,'');
-    const track = file.replace(/^\s*\d+\s*[-_.]?\s*/,'');
-    titleEl.textContent = (album && track) ? `${album} · ${track}` : (album || track || '—');
-  }catch(e){ titleEl.textContent='—'; }
+function setTitleFromItem(item){
+  if(!item){ titleEl.textContent='—'; return; }
+  const cleanAlbum = item.album.replace(/^Grand Element\s*-\s*\d{4}\s*-\s*/,'');
+  titleEl.textContent = `${cleanAlbum} · ${item.track}`;
 }
 function shuffleInPlace(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
 function loadAndPlay(){
   if(!PLAYLIST.length) return;
-  PLAYER.src = PLAYLIST[pIndex];
-  setTitle(PLAYER.src);
+  const item = PLAYLIST[pIndex];
+  PLAYER.src = item.url;
+  setTitleFromItem(item);
   PLAYER.autoplay = true;
-  PLAYER.muted = true;                // browsers require user gesture to unmute
+  PLAYER.muted = true;                 // unmuted on first tap
   PLAYER.play().catch(()=>{});
   btnPlay.textContent='❚❚';
 }
 function next(){ if(!PLAYLIST.length) return; pIndex=(pIndex+1)%PLAYLIST.length; loadAndPlay(); }
 function prev(){ if(!PLAYLIST.length) return; pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length; loadAndPlay(); }
-
 btnPlay.addEventListener('click', ()=>{ if(PLAYER.paused){ PLAYER.play().catch(()=>{}); btnPlay.textContent='❚❚'; } else { PLAYER.pause(); btnPlay.textContent='▶'; } });
 btnNext.addEventListener('click', next);
 btnPrev.addEventListener('click', prev);
-tgShuffle.addEventListener('click', ()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); if(PLAYLIST.length){ shuffleInPlace(PLAYLIST); pIndex=0; loadAndPlay(); } });
-tgAlbum.addEventListener('click',   ()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); pIndex=0; loadAndPlay(); });
-
+tgShuffle.addEventListener('click', ()=>{
+  SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active');
+  if(PLAYLIST.length){
+    const base=[...PLAYLIST].sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
+    PLAYLIST = base.slice(); shuffleInPlace(PLAYLIST); pIndex=0; loadAndPlay();
+  }
+});
+tgAlbum.addEventListener('click', ()=>{
+  SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active');
+  if(PLAYLIST.length){
+    PLAYLIST.sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
+    pIndex=0; loadAndPlay();
+  }
+});
 PLAYER.addEventListener('ended', next);
 PLAYER.addEventListener('error', next);
-PLAYER.addEventListener('canplay', ()=>{ if(PLAYER.paused) PLAYER.play().catch(()=>{}); });
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && PLAYER.paused) PLAYER.play().catch(()=>{}); });
-function unmuteOnce(){ PLAYER.muted=false; if(PLAYER.paused) PLAYER.play().catch(()=>{}); window.removeEventListener('pointerdown', unmuteOnce, {capture:true}); }
+PLAYER.addEventListener('canplay', ()=>{ if(RUN && PLAYER.paused) PLAYER.play().catch(()=>{}); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && RUN && PLAYER.paused) PLAYER.play().catch(()=>{}); });
+function unmuteOnce(){
+  PLAYER.muted=false;
+  if(PLAYLIST.length){
+    PLAYER.src = PLAYLIST[pIndex].url; // nudge iOS
+    PLAYER.play().catch(()=>{});
+  }
+  window.removeEventListener('pointerdown', unmuteOnce, {capture:true});
+}
 window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
 
-/* Load playlist.txt from your radio repo */
-fetch('https://grandelement.github.io/radio/music/playlist.txt')
-  .then(r=> r.ok ? r.text() : '')
-  .then(t=>{
-    let items = t.split(/\r?\n/)
-                 .map(s=>s.trim())
-                 .filter(Boolean)
-                 .map(name => name.startsWith('http')
-                   ? name
-                   : `https://grandelement.github.io/radio/music/${name.split('/').map(encodeURIComponent).join('/')}`);
-    if(!items.length){
-      titleEl.textContent = "Add playlist.txt to radio/music (one path per line)";
-      return;
-    }
-    if(SHUFFLE) shuffleInPlace(items);
-    PLAYLIST = items; pIndex=0; loadAndPlay();
+/* ONE GitHub API call (git tree) to find every .mp3 under /music/** */
+async function fetchAllMp3s(){
+  const r = await fetch('https://api.github.com/repos/grandelement/radio/git/trees/main?recursive=1',
+                        {headers:{'Accept':'application/vnd.github+json'}});
+  if(!r.ok) return [];
+  const data = await r.json();
+  const files = (data.tree || []).filter(n => n.type==='blob' && /\.mp3$/i.test(n.path));
+  return files.map(n=>{
+    const parts = n.path.split('/');
+    const album = parts.length>1 ? decodeURIComponent(parts[1]) : 'Unknown';
+    const file  = decodeURIComponent(parts[parts.length-1]);
+    const trackNumMatch = file.match(/^\s*(\d{1,3})/);
+    const trackNum = trackNumMatch ? parseInt(trackNumMatch[1],10) : 9999;
+    return {
+      url: `https://grandelement.github.io/radio/${encodeURI(n.path)}`,   // served by radio Pages
+      album,
+      trackNum,
+      track: file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'')
+    };
   });
+}
+(async function initMusic(){
+  const items = await fetchAllMp3s();
+  if(!items.length){
+    titleEl.textContent = "No MP3s found under radio/music/";
+    return;
+  }
+  items.sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum); // Album mode baseline
+  if(SHUFFLE){
+    PLAYLIST = items.slice();
+    shuffleInPlace(PLAYLIST);
+  }else{
+    PLAYLIST = items;
+  }
+  pIndex = 0; loadAndPlay();
+})();
 
-/* ========= FX: GE ships + comets (lighter, capped) ========= */
+/* ===========================================================
+   FX: comets + GE ships + tiny background ships (mobile-aware)
+   =========================================================== */
 const canvas = document.getElementById('fx'), ctx = canvas.getContext('2d');
 let W=innerWidth,H=innerHeight; function resize(){ W=innerWidth; H=innerHeight; canvas.width=W; canvas.height=H; } addEventListener('resize', resize, {passive:true}); resize();
-const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
-const cometImg = new Image(); cometImg.src='images/ge-logo 3.png';
-const shipImg  = new Image(); shipImg.src='images/ge-logo-4-cutout.png';
 
-/* Slightly smaller, quieter field per your note */
-const COMET={sizes:[8,10,12,16], max:parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||3, spawn:[4,9], speed:[60,140], trail:120, fade:1400, touch:26};
-class Comet{ constructor(){ const edge=choice(['l','r','t','b']), pad=40; if(edge==='l'){this.x=-pad; this.y=rand(0,H);} if(edge==='r'){this.x=W+pad; this.y=rand(0,H);} if(edge==='t'){this.x=rand(0,W); this.y=-pad;} if(edge==='b'){this.x=rand(0,W); this.y=H+pad;} const tx=rand(W*.2,W*.8), ty=rand(H*.2,H*.8); const a=Math.atan2(ty-this.y, tx-this.x), s=rand(...COMET.speed); this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s; this.r=choice(COMET.sizes); this.trail=[]; this.state='fly'; this.dead=false;} step(dt){ if(this.state!=='fly'&&this.state!=='separate') return; this.x+=this.vx*dt; this.y+=this.vy*dt; this.trail.push([this.x,this.y,performance.now()]); if(this.trail.length>COMET.trail) this.trail.shift(); if(this.x<-90||this.x>W+90||this.y<-90||this.y>H+90) this.dead=true;} draw(){ for(let i=0;i<this.trail.length;i++){ const [tx,ty,ts]=this.trail[i]; const a=Math.max(0,1-(performance.now()-ts)/COMET.fade); if(a<=0) continue; ctx.globalAlpha=a*0.6; ctx.drawImage(cometImg, tx-this.r, ty-this.r, this.r*2, this.r*2);} ctx.globalAlpha=1; ctx.drawImage(cometImg, this.x-this.r, this.y-this.r, this.r*2, this.r*2);} }
-class Pair{ constructor(a,b){ this.a=a; this.b=b; this.cx=(a.x+b.x)/2; this.cy=(a.y+b.y)/2; this.R=Math.max(18, Math.hypot(a.x-b.x)/2); this.theta=Math.atan2(a.y-this.cy,a.x-this.cx); this.omega=(Math.PI*2)/3; this.t=0; this.phase='orbit'; const va=Math.atan2(a.vy,a.vx), vb=Math.atan2(b.vy,b.vx), out=(va+vb)/2; this.outA=out; this.outB=out+Math.PI; this.sA=Math.hypot(a.vx,a.vy); this.sB=Math.hypot(b.vx,b.vy);} step(dt){ this.t+=dt; if(this.phase==='orbit'){ this.theta+=this.omega*dt; this.a.x=this.cx+Math.cos(this.theta)*this.R; this.a.y=this.cy+Math.sin(this.theta)*this.R; this.b.x=this.cx-Math.cos(this.theta)*this.R; this.b.y=this.cy-Math.sin(this.theta)*this.R; if(this.t>=3){ this.phase='pause'; this.t=0; } } else if(this.phase==='pause'){ if(this.t>=2.5){ this.phase='split'; this.a.state='separate'; this.b.state='separate'; this.a.vx=Math.cos(this.outA)*this.sA; this.a.vy=Math.sin(this.outA)*this.sA; this.b.vx=Math.cos(this.outB)*this.sB; this.b.vy=Math.sin(this.outB)*this.sB; } } else { this.dead=true; } } draw(){ if(this.phase!=='split'){ const g=ctx.createRadialGradient(this.cx,this.cy,2,this.cx,this.cy,this.R+12); g.addColorStop(0,'rgba(180,220,255,.25)'); g.addColorStop(1,'rgba(180,220,255,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.cx,this.cy,this.R+12,0,Math.PI*2); ctx.fill(); } } }
-const MAX_SHIPS=4, SHIP_SCALES=[0.10,0.14,0.19,0.22,0.26], SHIP_ART_OFFSET=Math.PI;
-class Ship{ constructor(){ const side=choice(['l','r','t','b']); this.s=choice(SHIP_SCALES); this.featured=Math.random()<0.12; if(this.featured) this.s=0.26; const pad=60; if(side==='l'){this.x=-pad; this.y=rand(0,H); this.vx=rand(80,220); this.vy=rand(-80,80);} if(side==='r'){this.x=W+pad; this.y=rand(0,H); this.vx=-rand(80,220); this.vy=rand(-80,80);} if(side==='t'){this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220);} if(side==='b'){this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220);} if(this.featured){ this.x=W+80; this.y=rand(H*.1,H*.9); this.vx=-80; this.vy=rand(-10,10);} this.ax=rand(-30,30); this.ay=rand(-30,30); this.curveT=rand(2,5); this.curveP=rand(0,Math.PI*2); this.dead=false; this.beam=0; }
-  step(dt){ this.curveP+=dt/this.curveT; this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2; this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2; const v=Math.hypot(this.vx,this.vy), vmax=320; if(v>vmax){ this.vx*=vmax/v; this.vy*=vmax/v; } this.x+=this.vx*dt; this.y+=this.vy*dt; if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true; this.maybeBeam(dt); }
-  maybeBeam(dt){ let a=null,b=null,best=1e9; for(let i=0;i<comets.length;i++){ for(let j=i+1;j<comets.length;j++){ const c1=comets[i],c2=comets[j]; if(c1.state!=='fly'||c2.state!=='fly') continue; const midx=(c1.x+c2.x)/2, midy=(c1.y+c2.y)/2; const ds=Math.hypot(this.x-midx,this.y-midy); if(ds<220&&ds<best){best=ds; a=c1; b=c2;} } } if(a&&b){ this.beam=Math.min(3,this.beam+dt); const mx=(a.x+b.x)/2, my=(a.y+b.y)/2; [a,b].forEach(c=>{ const ang=Math.atan2(mx-c.x, my-c.y); c.vx += Math.sin(ang)*9*dt*60; c.vy += Math.cos(ang)*9*dt*60; }); } else { this.beam=Math.max(0,this.beam-dt); } }
-  draw(){ if(!shipImg.complete) return; const ang=Math.atan2(this.vy,this.vx)+SHIP_ART_OFFSET; const w=shipImg.width*this.s, h=shipImg.height*this.s; ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang); const drawW=w*0.6, drawH=h*0.6; ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH); if(this.beam>0){ const len=160; ctx.strokeStyle='rgba(126,203,255,.9)'; ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<=len;i+=6){ const dy=Math.sin((i/len)*Math.PI*4 + performance.now()/250)*8; if(i===0) ctx.moveTo(10+i,dy); else ctx.lineTo(10+i,dy);} ctx.stroke(); } ctx.restore(); }
+const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
+const cometImg = new Image(); cometImg.src=IMG+'ge-logo%203.png';
+const shipImg  = new Image(); shipImg.src=IMG+'ge-logo-4-cutout.png';
+
+const MOBILE = /iPhone|Android/i.test(navigator.userAgent) || innerWidth < 700;
+
+/* Slightly smaller field; reduced trail memory */
+const COMET={sizes:[8,10,12,16], max:parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||3, spawn:[4,9], speed:[60,140], trail:80, fade:1400, touch:26};
+
+class Comet{
+  constructor(){
+    const edge=choice(['l','r','t','b']), pad=40;
+    if(edge==='l'){this.x=-pad; this.y=rand(0,H);}
+    if(edge==='r'){this.x=W+pad; this.y=rand(0,H);}
+    if(edge==='t'){this.x=rand(0,W); this.y=-pad;}
+    if(edge==='b'){this.x=rand(0,W); this.y=H+pad;}
+    const tx=rand(W*.2,W*.8), ty=rand(H*.2,H*.8);
+    const a=Math.atan2(ty-this.y, tx-this.x), s=rand(...COMET.speed);
+    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s; this.r=choice(COMET.sizes);
+    this.trail=[]; this.state='fly'; this.dead=false;
+  }
+  step(dt){
+    if(this.state!=='fly'&&this.state!=='separate') return;
+    this.x+=this.vx*dt; this.y+=this.vy*dt;
+    this.trail.push([this.x,this.y,performance.now()]);
+    if(this.trail.length>COMET.trail) this.trail.shift();
+    if(this.x<-90||this.x>W+90||this.y<-90||this.y>H+90) this.dead=true;
+  }
+  draw(){
+    for(let i=0;i<this.trail.length;i++){
+      const [tx,ty,ts]=this.trail[i];
+      const a=Math.max(0,1-(performance.now()-ts)/COMET.fade);
+      if(a<=0) continue;
+      ctx.globalAlpha=a*0.6;
+      ctx.drawImage(cometImg, tx-this.r, ty-this.r, this.r*2, this.r*2);
+    }
+    ctx.globalAlpha=1;
+    ctx.drawImage(cometImg, this.x-this.r, this.y-this.r, this.r*2, this.r*2);
+  }
 }
-const comets=[], pairs=[], ships=[]; let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(6,12);
-function loop(){ const now=performance.now()/1000, dt=Math.min(.05, now-last); last=now; cTimer+=dt; if(cTimer>cNext && comets.length<COMET.max){ comets.push(new Comet()); cTimer=0; cNext=rand(4,9); if(Math.random()<0.10 && comets.length<COMET.max){ const c=new Comet(); c.r=34; c.x=W+60; c.y=rand(0,H); c.vx=-60; c.vy=rand(-10,10); comets.push(c);} } shipTimer+=dt; if(shipTimer>shipNext){ shipTimer=0; shipNext=rand(6,14); if(ships.length<4) ships.push(new Ship()); } comets.forEach(c=>c.step(dt)); ships.forEach(s=>s.step(dt)); pairs.forEach(p=>p.step(dt)); for(let i=0;i<comets.length;i++) for(let j=i+1;j<comets.length;j++){ const a=comets[i],b=comets[j]; if(a.state!=='fly'||b.state!=='fly') continue; if(Math.hypot(a.x-b.x,a.y-b.y) < COMET.touch){ a.state='pair'; b.state='pair'; pairs.push(new Pair(a,b)); } } for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1); for(let i=pairs.length-1;i>=0;i--) if(pairs[i].dead) pairs.splice(i,1); for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1); ctx.clearRect(0,0,W,H); pairs.forEach(p=>p.draw()); comets.forEach(c=>c.draw()); ships.forEach(s=>s.draw()); requestAnimationFrame(loop); }
+
+class Pair{
+  constructor(a,b){
+    this.a=a; this.b=b;
+    this.cx=(a.x+b.x)/2; this.cy=(a.y+b.y)/2;
+    this.R=Math.max(18, Math.hypot(a.x-b.x)/2);
+    this.theta=Math.atan2(a.y-this.cy,a.x-this.cx);
+    this.omega=(Math.PI*2)/3;
+    this.t=0; this.phase='orbit';
+    const va=Math.atan2(a.vy,a.vx), vb=Math.atan2(b.vy,b.vx), out=(va+vb)/2;
+    this.outA=out; this.outB=out+Math.PI;
+    this.sA=Math.hypot(a.vx,a.vy); this.sB=Math.hypot(b.vx,b.vy);
+  }
+  step(dt){
+    this.t+=dt;
+    if(this.phase==='orbit'){
+      this.theta+=this.omega*dt;
+      this.a.x=this.cx+Math.cos(this.theta)*this.R;
+      this.a.y=this.cy+Math.sin(this.theta)*this.R;
+      this.b.x=this.cx-Math.cos(this.theta)*this.R;
+      this.b.y=this.cy-Math.sin(this.theta)*this.R;
+      if(this.t>=3){ this.phase='pause'; this.t=0; }
+    } else if(this.phase==='pause'){
+      if(this.t>=2.5){
+        this.phase='split';
+        this.a.state='separate'; this.b.state='separate';
+        this.a.vx=Math.cos(this.outA)*this.sA; this.a.vy=Math.sin(this.outA)*this.sA;
+        this.b.vx=Math.cos(this.outB)*this.sB; this.b.vy=Math.sin(this.outB)*this.sB;
+      }
+    } else { this.dead=true; }
+  }
+  draw(){
+    if(this.phase!=='split'){
+      const g=ctx.createRadialGradient(this.cx,this.cy,2,this.cx,this.cy,this.R+12);
+      g.addColorStop(0,'rgba(180,220,255,.25)');
+      g.addColorStop(1,'rgba(180,220,255,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.cx,this.cy,this.R+12,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+/* Main ships */
+const MAX_SHIPS   = MOBILE ? 3 : 4;
+const SHIP_SCALES = MOBILE ? [0.08,0.12,0.16,0.20] : [0.10,0.14,0.19,0.22,0.26];
+const SHIP_ART_OFFSET = Math.PI;
+
+/* Tiny background ships */
+const MINI_MAX    = 10;
+const MINI_SCALES = MOBILE ? [0.035,0.045] : [0.04,0.055];
+
+class Ship{
+  constructor(){
+    const side=choice(['l','r','t','b']);
+    this.s=choice(SHIP_SCALES);
+    this.featured=Math.random()<0.12; if(this.featured) this.s=MOBILE?0.20:0.26;
+    const pad=60;
+    if(side==='l'){this.x=-pad; this.y=rand(0,H); this.vx=rand(80,220); this.vy=rand(-80,80);}
+    if(side==='r'){this.x=W+pad; this.y=rand(0,H); this.vx=-rand(80,220); this.vy=rand(-80,80);}
+    if(side==='t'){this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220);}
+    if(side==='b'){this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220);}
+    if(this.featured){ this.x=W+80; this.y=rand(H*.1,H*.9); this.vx=-80; this.vy=rand(-10,10); }
+    this.ax=rand(-30,30); this.ay=rand(-30,30); this.curveT=rand(2,5); this.curveP=rand(0,Math.PI*2);
+    this.dead=false; this.beam=0;
+  }
+  step(dt){
+    this.curveP+=dt/this.curveT;
+    this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
+    this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
+    const v=Math.hypot(this.vx,this.vy), vmax=320;
+    if(v>vmax){ this.vx*=vmax/v; this.vy*=vmax/v; }
+    this.x+=this.vx*dt; this.y+=this.vy*dt;
+    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
+    // (tractor beam logic kept light; omitted heavy work for perf)
+  }
+  draw(){
+    if(!shipImg.complete) return;
+    const ang=Math.atan2(this.vy,this.vx)+SHIP_ART_OFFSET;
+    const w=shipImg.width*this.s, h=shipImg.height*this.s;
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang);
+    const drawW=w*0.6, drawH=h*0.6;
+    ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH);
+    ctx.restore();
+  }
+}
+
+class MiniShip{
+  constructor(){
+    this.s = (Math.random()*(MINI_SCALES[1]-MINI_SCALES[0])+MINI_SCALES[0]);
+    const side = choice(['l','r','t','b']), pad=40;
+    if(side==='l'){ this.x=-pad;    this.y=rand(0,H);  this.vx=rand(15,45);  this.vy=rand(-20,20); }
+    if(side==='r'){ this.x=W+pad;   this.y=rand(0,H);  this.vx=-rand(15,45); this.vy=rand(-20,20); }
+    if(side==='t'){ this.x=rand(0,W); this.y=-pad;     this.vx=rand(-35,35); this.vy=rand(15,45);  }
+    if(side==='b'){ this.x=rand(0,W); this.y=H+pad;    this.vx=rand(-35,35); this.vy=-rand(15,45); }
+    this.dead=false;
+  }
+  step(dt){
+    this.x += this.vx*dt; this.y += this.vy*dt;
+    if(this.x<-100||this.x>W+100||this.y<-100||this.y>H+100) this.dead=true;
+  }
+  draw(){
+    if(!shipImg.complete) return;
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    const ang = Math.atan2(this.vy,this.vx) + Math.PI;
+    const w = shipImg.width*this.s, h = shipImg.height*this.s;
+    ctx.translate(this.x,this.y); ctx.rotate(ang);
+    ctx.drawImage(shipImg, -w*0.3, -h*0.5, w*0.6, h*0.6);
+    ctx.restore();
+  }
+}
+
+/* Loop + spawn controls (with pause on background tabs) */
+let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN = !document.hidden; });
+const comets=[], pairs=[], ships=[], miniShips=[];
+let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(6,12), miniTimer=0, miniNext=rand(5,12);
+function loop(){
+  if(!RUN){ requestAnimationFrame(loop); return; }
+  const now=performance.now()/1000, dt=Math.min(.05, now-last); last=now;
+
+  /* spawn */
+  cTimer+=dt; if(cTimer>cNext && comets.length<COMET.max){ comets.push(new Comet()); cTimer=0; cNext=rand(4,9); }
+  shipTimer+=dt; if(shipTimer>shipNext){ shipTimer=0; shipNext=rand(6,14); if(ships.length<MAX_SHIPS) ships.push(new Ship()); }
+  miniTimer+=dt; if(miniTimer>miniNext){ miniTimer=0; miniNext=rand(5,12); if(miniShips.length<MINI_MAX) miniShips.push(new MiniShip()); }
+
+  /* update */
+  comets.forEach(c=>c.step(dt));
+  ships.forEach(s=>s.step(dt));
+  pairs.forEach(p=>p.step(dt));
+  miniShips.forEach(s=>s.step(dt));
+
+  /* pair-up (entanglement) */
+  for(let i=0;i<comets.length;i++)
+    for(let j=i+1;j<comets.length;j++){
+      const a=comets[i],b=comets[j];
+      if(a.state!=='fly'||b.state!=='fly') continue;
+      if(Math.hypot(a.x-b.x,a.y-b.y) < COMET.touch){
+        a.state='pair'; b.state='pair'; pairs.push(new Pair(a,b));
+      }
+    }
+
+  /* cleanup */
+  for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1);
+  for(let i=pairs.length-1;i>=0;i--) if(pairs[i].dead) pairs.splice(i,1);
+  for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1);
+  for(let i=miniShips.length-1;i>=0;i--) if(miniShips[i].dead) miniShips.splice(i,1);
+
+  /* draw (pairs glow, comets, tiny ships, main ships) */
+  ctx.clearRect(0,0,W,H);
+  pairs.forEach(p=>p.draw());
+  comets.forEach(c=>c.draw());
+  miniShips.forEach(s=>s.draw());
+  ships.forEach(s=>s.draw());
+
+  requestAnimationFrame(loop);
+}
 requestAnimationFrame(loop);
 
-/* keep sun away from left edge so orbit never clips */
-function nudgeSun(){ const wrap=document.getElementById('sunWrap'); const r=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orbit-radius'))||220; wrap.style.left = Math.max(160, r + 90) + 'px'; }
+/* keep sun away from left edge so orbit never clips on small screens */
+function nudgeSun(){
+  const wrap=document.getElementById('sunWrap');
+  const r=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orbit-radius'))||260;
+  wrap.style.left = Math.max(160, r + 90) + 'px';
+}
 addEventListener('resize', nudgeSun, {passive:true}); nudgeSun();
 </script>
 </body>
