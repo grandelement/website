@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Grand Element — Performance-Safe (Hidden Text + Working Player)</title>
+<style>
+  :root{
+    /* Assets */
+    --imgRoot: https://grandelement.github.io/website/images/;
+
+    /* Background */
+    --star-tile: 900px;
+
+    /* Planets */
+    --planet-size: 32px;
+    --planet-hover-scale: 3;
+    --planet-glow: 18px;
+
+    /* Sun/Moon */
+    --sun-size: 260px;         /* desktop */
+    --moon-size: 110px;
+    --orbit-seconds: 60;       /* full rotation */
+    --orbit-gap: 1.65;         /* ~25% closer */
+    --orbit-radius: calc((var(--sun-size)*0.5) + var(--moon-size)*var(--orbit-gap));
+
+    /* FX */
+    --comet-max: 3;
+  }
+
+  @media (max-width: 820px){
+    :root{
+      --planet-size: 24px;
+      --sun-size: 130px;       /* ~half size on mobile */
+      --moon-size: 90px;
+      --orbit-gap: 1.8;
+      --orbit-radius: calc((var(--sun-size)*0.5) + var(--moon-size)*var(--orbit-gap));
+    }
+  }
+
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden; color:#eaf2ff; background:#000;
+    background-image:
+      url('https://grandelement.github.io/website/images/GE%20stars.jpg'),
+      radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
+    background-position:center center,0 0;
+    background-repeat:repeat,repeat;
+    background-size:var(--star-tile) var(--star-tile),3px 3px;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+
+  /* Layers */
+  #fx{ position:fixed; inset:0; z-index:1; }
+  .layer-hiddentext{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+  .phrase{ position:absolute; color:#cfe9ff; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.9); opacity:0; transition:opacity .5s ease; }
+  .phrase.show{ opacity:1; }
+  .phrase.pinned{ color:#fff; text-decoration:underline; }
+
+  /* Sun + Moon */
+  .sunWrap{ position:absolute; left:18vw; top:64vh; transform:translate(-50%,-50%); width:var(--sun-size); height:var(--sun-size); z-index:5; }
+  .sun{ position:absolute; inset:0; border-radius:50%;
+        background:center/cover no-repeat url('https://grandelement.github.io/website/images/ge-logo-2.jpg');
+        box-shadow: inset 0 0 60px rgba(255,255,255,.12);
+        cursor:grab; }
+  .sun.dragging{ cursor:grabbing; }
+  .sunOverlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:8px; text-align:center; padding-top:8%; pointer-events:none; }
+  .sunAbout{ pointer-events:auto; font-weight:900; letter-spacing:.22em; font-size:13px; opacity:.95; text-shadow:0 0 14px rgba(150,190,255,.55); cursor:pointer; }
+
+  /* Controls toggle button (inside sun) */
+  .controlsToggle{ pointer-events:auto; margin-top:6px; font-weight:800; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none; }
+  .controlsToggle:active{ transform:translateY(1px); }
+
+  /* Mini player — pinned to LOWER HALF of the sun */
+  .miniPlayer{
+    position:absolute; left:50%; bottom:6%; transform:translateX(-50%);
+    width:86%;
+    background:rgba(5,10,22,.55); border:1px solid rgba(220,240,255,.35); border-radius:12px; padding:6px 8px;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);
+    display:none; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; font-size:12px; pointer-events:auto;
+  }
+  .miniPlayer.show{ display:grid; }
+  .controls{ display:flex; gap:8px; }
+  .btn{ width:28px; height:28px; border-radius:8px; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); color:#eaf2ff; font-weight:900; display:grid; place-items:center; cursor:pointer; user-select:none; }
+  .btn:active{ transform:translateY(1px); }
+  .toggles{ display:flex; gap:8px; }
+  .toggle{ padding:4px 8px; border-radius:999px; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); cursor:pointer; }
+  .toggle.active{ background:rgba(40,140,255,.45); }
+  .title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; letter-spacing:.3px; }
+
+  /* Seek + Volume row inside mini */
+  .miniRow{ grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .range{ -webkit-appearance:none; width:100%; height:6px; background:rgba(200,230,255,.25); border-radius:999px; outline:none; }
+  .range::-webkit-slider-thumb{ -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#bfe2ff; border:1px solid #6fb7ff; }
+
+  /* Orbit */
+  .orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; will-change: transform; }
+  .carrier{ position:absolute; left:50%; top:50%; width:0; height:0; }
+  .moon{
+    position:absolute; left:0; top:0;
+    transform: translate(var(--orbit-radius), -50%);
+    width:var(--moon-size); height:var(--moon-size); border-radius:50%;
+    cursor:pointer; pointer-events:auto; display:grid; place-items:center;
+    background: radial-gradient(circle, rgba(160,210,255,.55) 0%, rgba(160,210,255,.25) 60%, rgba(160,210,255,0) 70%), center/cover no-repeat url('https://grandelement.github.io/website/images/ge-radio-logo.png');
+    box-shadow:0 0 10px 4px rgba(140,200,255,.35); border:1px solid rgba(160,210,255,.55);
+    will-change: transform;
+  }
+
+  /* About overlay */
+  .overlay{ position:fixed; inset:0; display:none; place-items:center; z-index:10; }
+  .overlay.show{ display:grid; }
+  .aboutText{ max-width:min(90vw, 820px); margin:0 16px; text-align:center; color:#eaf2ff; font-size:18px; line-height:1.6; text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25); }
+
+  /* Planets layer */
+  .planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
+  .planet{ position:absolute; width:var(--planet-size); height:var(--planet-size); border-radius:50%; pointer-events:auto; overflow:hidden; cursor:grab;
+           background:#32406b center/cover no-repeat; box-shadow:0 0 10px rgba(255,255,255,.2); transition: transform .2s ease, box-shadow .18s ease; }
+  .planet.drag{ cursor:grabbing; }
+  .planet:hover, .planet.touchZoom{ transform:scale(var(--planet-hover-scale)); box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset; }
+  .labelAlways{ position:absolute; left:50%; top:calc(100% + 8px); transform:translateX(-50%); padding:4px 8px; border-radius:999px; white-space:nowrap;
+                 background:rgba(15,25,50,.35); border:1px solid rgba(200,220,255,.5); backdrop-filter:blur(2px); font-size:12px; letter-spacing:.3px; font-weight:700; }
+
+  /* Mobile tweaks */
+  @media (max-width: 820px){
+    .sunWrap{ left:22vw; top:72vh; }
+    .miniPlayer{ width:92%; bottom:4%; font-size:11px; transform:translateX(-50%) scale(.86); }
+    .labelAlways{ font-size:11px; top:calc(100% + 6px); }
+  }
+</style>
+</head>
+<body>
+  <canvas id="fx"></canvas>
+  <div class="layer-hiddentext" id="phrases"></div>
+
+  <!-- SUN + OVERLAY + MOON -->
+  <div class="sunWrap" id="sunWrap">
+    <div class="sun" id="sun" title="Drag me">
+      <div class="sunOverlay">
+        <div class="sunAbout" id="aboutBtn">ABOUT</div>
+        <div class="controlsToggle" id="togglePanel">Music Controls</div>
+        <div class="miniPlayer" id="mini">
+          <div class="controls">
+            <div class="btn" id="prev" title="Prev">◀</div>
+            <div class="btn" id="play" title="Play/Pause">▶</div>
+            <div class="btn" id="next" title="Next">▶▶</div>
+          </div>
+          <div class="title" id="title">—</div>
+          <div class="toggles">
+            <div class="toggle active" id="tgShuffle">Shuffle</div>
+            <div class="toggle" id="tgAlbum">Album</div>
+          </div>
+          <audio id="gePlayer" preload="auto" playsinline></audio>
+          <div class="miniRow">
+            <input class="range" id="seek" type="range" min="0" max="100" value="0">
+            <input class="range" id="vol"  type="range" min="0" max="1" step="0.02" value="0.9" style="width:90px;">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="orbit" id="orbit">
+      <div class="carrier"><div class="moon" id="moon" title="Grand Element Radio"></div></div>
+    </div>
+  </div>
+
+  <!-- PLANETS -->
+  <div class="planets" id="planets"></div>
+
+  <!-- ABOUT -->
+  <div class="overlay" id="about">
+    <div class="aboutText">
+      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey into the soul. Created with one vision: the listener is the "GRAND ELEMENT".
+      Hypnotic rhythms and spacious soundscapes leave room for reflection, opening the body and soul to the voice of energy—reminding us that we are all one, all energy, and all love.
+      <br><br>
+      <a href="mailto:info@grandelement.com" style="color:#dff3ff; font-weight:800; text-decoration:none;">✉ Contact</a>
+    </div>
+  </div>
+
+<script>
+/* ---------------- Helpers ---------------- */
+const IMG = 'https://grandelement.github.io/website/images/';
+const MOBILE = /iPhone|Android/i.test(navigator.userAgent) || innerWidth < 700;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}};
+
+/* ---------------- Planets (S curve, draggable with click-vs-drag) ---------------- */
+const ALBUMS = [
+  { title:"Fundamental\u00A0Groove", cover: "Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
+  { title:"Trio",        cover: "Grand%20Element%20-%20Trio.jpg",        link:"https://grandelement.bandcamp.com/album/trio" },
+  { title:"Live!",       cover: "Grand%20Element%20-%20Live.jpg",        link:"https://grandelement.bandcamp.com/album/live" },
+  { title:"Sessions I",  cover: "Grand%20Element%20-%20Sessions%20I.jpg",  link:"https://grandelement.bandcamp.com/album/sessions-i" },
+  { title:"Sessions II", cover: "Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii" },
+  { title:"Intergy",     cover: "Grand%20Element%20-%20Intergy.jpg",     link:"https://grandelement.bandcamp.com/album/intergy" },
+  { title:"Love",        cover: "Grand%20Element%20-%20Love.jpg",        link:"https://grandelement.bandcamp.com/album/love" },
+  { title:"Soul",        cover: "Grand%20Element%20-%20Soul.jpg",        link:"https://grandelement.bandcamp.com/album/soul" },
+  { title:"Spirit",      cover: "Grand%20Element%20-%20Spirit.jpg",      link:"https://grandelement.bandcamp.com/album/spirit" },
+  { title:"Fire",        cover: "Grand%20Element%20-%20Fire.jpg",        link:"https://grandelement.bandcamp.com/album/fire" }
+];
+
+const planetsEl = document.getElementById('planets');
+function placeSpiral(){
+  planetsEl.innerHTML="";
+  const w = innerWidth, h = innerHeight;
+  const xCenter = w * 0.56, yBottom = h * 0.88, yTop = h * 0.14;
+  const amp = Math.max(80, w * 0.12), waves = 1.2;
+  ALBUMS.forEach((alb,i)=>{
+    const t = i/(ALBUMS.length-1);
+    const y = yBottom - t*(yBottom - yTop);
+    const x = xCenter + amp * Math.sin((t * Math.PI * 2 * waves) - Math.PI/2);
+    const a = document.createElement('a');
+    a.className='planet'; a.style.left=x+'px'; a.style.top=y+'px';
+    a.href=alb.link; a.target='_blank'; a.rel='noopener'; a.title=alb.title;
+    a.style.backgroundImage = `url('${IMG}${alb.cover}')`;
+    a.innerHTML = `<div class="labelAlways">${alb.title}</div>`;
+    planetsEl.appendChild(a);
+  });
+}
+placeSpiral(); addEventListener('resize', placeSpiral, {passive:true});
+
+/* Click vs drag: only click without significant movement opens link; dragging moves it */
+planetsEl.addEventListener('pointerdown', e=>{
+  const a = e.target.closest('a.planet'); if(!a) return;
+  const startX=e.clientX, startY=e.clientY; let moved=false;
+  const move = ev=>{ if(Math.hypot(ev.clientX-startX, ev.clientY-startY) > 7) moved=true; a.style.left=(ev.clientX-16)+'px'; a.style.top=(ev.clientY-16)+'px'; };
+  const up = ev=>{
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    if(!moved) a.click(); ev.preventDefault();
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  e.preventDefault();
+}, true);
+
+/* ---------------- Hidden text (from repo file) ---------------- */
+const phrasesEl = document.getElementById('phrases');
+let PHRASES=[];
+fetch('https://grandelement.github.io/website/data/hidden.txt')
+  .then(r=>r.ok?r.text():'')
+  .then(t=>{
+    PHRASES = t.split(/[\,\r?\n]/).map(s=>s.trim().replace(/,+$/,'')).filter(Boolean);
+    const n=Math.max(10, PHRASES.length||10);
+    for(let i=0;i<n;i++){
+      const el=document.createElement('div'); el.className='phrase';
+      el.textContent=PHRASES[i % (PHRASES.length||1)]||'';
+      el.style.left=(10+Math.random()*(innerWidth-220))+'px';
+      el.style.top =(10+Math.random()*(innerHeight-120))+'px';
+      el.addEventListener('click',()=>el.classList.toggle('pinned'));
+      phrasesEl.appendChild(el);
+    }
+    startPhrasesTimer();
+  });
+let mouseX=-9999, mouseY=-9999; addEventListener('pointermove',e=>{mouseX=e.clientX; mouseY=e.clientY;},{passive:true});
+let _phrasesTimer=null;
+function startPhrasesTimer(){ if(_phrasesTimer) return; _phrasesTimer=setInterval(()=>{
+  const r=Math.min(innerWidth,innerHeight)*.12;
+  [...phrasesEl.children].forEach(el=>{
+    if(el.classList.contains('pinned')){el.classList.add('show'); return;}
+    const b=el.getBoundingClientRect(), cx=b.left+b.width/2, cy=b.top+b.height/2;
+    (Math.hypot(mouseX-cx, mouseY-cy)<r) ? el.classList.add('show') : el.classList.remove('show');
+  });
+},120);} // slightly slower, cooler
+function stopPhrasesTimer(){ if(_phrasesTimer){ clearInterval(_phrasesTimer); _phrasesTimer=null; } }
+
+/* ---------------- About overlay ---------------- */
+const aboutBtn=document.getElementById('aboutBtn'), aboutEl=document.getElementById('about');
+aboutBtn.addEventListener('click',()=>aboutEl.classList.add('show'));
+aboutEl.addEventListener('click',e=>{if(e.target.id==='about') aboutEl.classList.remove('show');});
+addEventListener('keydown',e=>{if(e.key==='Escape') aboutEl.classList.remove('show');});
+
+/* ---------------- Blue Sun drag ---------------- */
+const sunWrap=document.getElementById('sunWrap'), sun=document.getElementById('sun');
+let sDrag=false,sx=0,sy=0,ox=0,oy=0;
+sun.addEventListener('pointerdown',e=>{
+  const r=sunWrap.getBoundingClientRect(); sDrag=true; sun.classList.add('dragging');
+  sx=e.clientX; sy=e.clientY; ox=r.left+r.width/2; oy=r.top+r.height/2; sun.setPointerCapture(e.pointerId);
+});
+sun.addEventListener('pointermove',e=>{
+  if(!sDrag) return; const nx=ox+(e.clientX-sx), ny=oy+(e.clientY-sy);
+  sunWrap.style.left=clamp(nx,100,innerWidth-100)+'px';
+  sunWrap.style.top =clamp(ny,100,innerHeight-100)+'px';
+});
+sun.addEventListener('pointerup',()=>{ sDrag=false; sun.classList.remove('dragging'); });
+
+/* ---------------- Radio Moon (60s orbit, upright, behind on far side) ---------------- */
+const orbit=document.getElementById('orbit'), moon=document.getElementById('moon');
+const ORBIT_SEC=60, PHASE0=-Math.PI/2;
+function tickOrbit(){
+  const t=performance.now()/1000, angle=PHASE0 + (t%ORBIT_SEC)/ORBIT_SEC*Math.PI*2;
+  orbit.style.transform=`rotate(${angle}rad)`;
+  moon.style.transform=`translate(var(--orbit-radius), -50%) rotate(${-angle}rad)`;
+  orbit.style.zIndex = (angle%(Math.PI*2))>Math.PI ? 2 : 6;
+  requestAnimationFrame(tickOrbit);
+}
+requestAnimationFrame(tickOrbit);
+moon.addEventListener('click',()=>window.open('https://grandelement.github.io/radio/','_blank','noopener'));
+
+/* ---------------- Music player (resilient) ---------------- */
+const PLAYER=document.getElementById('gePlayer');
+const titleEl=document.getElementById('title');
+const prevBtn=document.getElementById('prev'), playBtn=document.getElementById('play'), nextBtn=document.getElementById('next');
+const tgShuffle=document.getElementById('tgShuffle'), tgAlbum=document.getElementById('tgAlbum');
+const seek=document.getElementById('seek'), vol=document.getElementById('vol');
+const togglePanel=document.getElementById('togglePanel'), mini=document.getElementById('mini');
+togglePanel.addEventListener('click', ()=> mini.classList.toggle('show'));
+
+let PLAYLIST=[], pIndex=0, SHUFFLE=true, USER_STARTED=false;
+
+function setTitleFromURL(u){
+  try{
+    const parts=u.split('/'); const fn=decodeURIComponent(parts.pop());
+    const album=decodeURIComponent(parts.pop()).replace(/^Grand Element\s*-\s*\d{4}\s*-\s*/,'');
+    const name=fn.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'').replace(/[_-]/g,' ');
+    titleEl.textContent=`${album} · ${name}`;
+  }catch(e){ titleEl.textContent='—'; }
+}
+function loadAndPlay(i=pIndex){
+  if(!PLAYLIST.length) return;
+  pIndex=(i+PLAYLIST.length)%PLAYLIST.length;
+  const src=PLAYLIST[pIndex];
+  if(PLAYER.src!==src){ PLAYER.src=src; PLAYER.load(); }
+  setTitleFromURL(src);
+  if(USER_STARTED){ PLAYER.play().catch(()=>{}); playBtn.textContent='❚❚'; }
+}
+function next(){ if(!PLAYLIST.length) return; pIndex=(pIndex+1)%PLAYLIST.length; loadAndPlay(); }
+function prev(){ if(!PLAYLIST.length) return; pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length; loadAndPlay(); }
+
+playBtn.onclick=()=>{ USER_STARTED=true; if(PLAYER.paused){ PLAYER.play().catch(()=>{}); playBtn.textContent='❚❚'; } else { PLAYER.pause(); playBtn.textContent='▶'; } };
+nextBtn.onclick=()=>{ USER_STARTED=true; next(); };
+prevBtn.onclick=()=>{ USER_STARTED=true; prev(); };
+
+tgShuffle.onclick=()=>{ SHUFFLE=true; tgShuffle.classList.add('active'); tgAlbum.classList.remove('active');
+  if(PLAYLIST.length){ PLAYLIST = [...PLAYLIST].sort(); shuffle(PLAYLIST); pIndex=0; loadAndPlay(); } };
+
+tgAlbum.onclick=()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); pIndex=0; loadAndPlay(); };
+
+vol.addEventListener('input', ()=>{ PLAYER.volume = parseFloat(vol.value||'0.9'); });
+PLAYER.addEventListener('timeupdate', ()=>{
+  if(!isNaN(PLAYER.duration) && PLAYER.duration>0){
+    seek.value = Math.round((PLAYER.currentTime/PLAYER.duration)*100);
+  }
+});
+seek.addEventListener('input', ()=>{
+  if(!isNaN(PLAYER.duration) && PLAYER.duration>0){
+    PLAYER.currentTime = (parseFloat(seek.value)/100) * PLAYER.duration;
+  }
+});
+PLAYER.addEventListener('ended', next);
+PLAYER.addEventListener('error', next);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ /* optionally pause */ } else if(USER_STARTED && PLAYER.paused) PLAYER.play().catch(()=>{}); });
+function unmuteOnce(){ PLAYER.muted=false; USER_STARTED=true; if(PLAYER.paused) PLAYER.play().catch(()=>{}); window.removeEventListener('pointerdown', unmuteOnce, {capture:true}); }
+window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
+
+/* Primary: playlist.txt (simple, reliable). Fallback: GitHub API scan. */
+async function loadPlaylist(){
+  try{
+    const r=await fetch('https://grandelement.github.io/radio/music/playlist.txt');
+    if(r.ok){
+      const t=await r.text();
+      const items=t.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)
+        .map(name=> name.startsWith('http') ? name : `https://grandelement.github.io/radio/music/${encodeURIComponent(name)}`);
+      if(items.length){ if(SHUFFLE) shuffle(items); PLAYLIST=items; pIndex=0; loadAndPlay(); return; }
+    }
+  }catch(e){}
+  // Fallback: scan repo tree for MP3s
+  try{
+    const r=await fetch('https://api.github.com/repos/grandelement/radio/git/trees/main?recursive=1', {headers:{'Accept':'application/vnd.github+json'}});
+    if(!r.ok) throw 0; const data=await r.json();
+    let items=(data.tree||[]).filter(n=>n.type==='blob' && /\.mp3$/i.test(n.path)).map(n=>`https://grandelement.github.io/radio/${encodeURI(n.path)}`);
+    if(items.length){ if(SHUFFLE) shuffle(items); PLAYLIST=items; pIndex=0; loadAndPlay(); return; }
+  }catch(e){}
+  titleEl.textContent='No music found (playlist.txt or repo scan)';
+}
+loadPlaylist();
+
+/* ---------------- Canvas FX: comets + ships (with wave beam) + Performance guard ---------------- */
+const canvas=document.getElementById('fx'), ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight; const DPR=Math.min(1.5, window.devicePixelRatio||1);
+function resize(){ W=innerWidth; H=innerHeight; canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',resize,{passive:true}); resize();
+const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
+const cometImg=new Image(); cometImg.src=IMG+'ge-logo%203.png';
+const shipImg =new Image(); shipImg.src =IMG+'ge-logo-4-cutout.png';
+const COMET={sizes:[8,10,12,16], max:parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||3, spawn:[4,9], speed:[60,140], trail:100, fade:1200, touch:26};
+
+class Comet{
+  constructor(){
+    const edge=choice(['l','r','t','b']), pad=40;
+    if(edge==='l'){this.x=-pad; this.y=rand(0,H);} if(edge==='r'){this.x=W+pad; this.y=rand(0,H);} if(edge==='t'){this.x=rand(0,W); this.y=-pad;} if(edge==='b'){this.x=rand(0,W); this.y=H+pad;}
+    const tx=rand(W*.2,W*.8), ty=rand(H*.2,H*.8), a=Math.atan2(ty-this.y, tx-this.x), s=rand(...COMET.speed);
+    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s; this.r=choice(COMET.sizes); this.trail=[]; this.dead=false; this.state='fly';
+  }
+  step(dt){ if(this.state!=='fly'&&this.state!=='separate') return; this.x+=this.vx*dt; this.y+=this.vy*dt; this.trail.push([this.x,this.y,performance.now()]); if(this.trail.length>COMET.trail) this.trail.shift();
+            if(this.x<-90||this.x>W+90||this.y<-90||this.y>H+90) this.dead=true; }
+  draw(){ for(const [tx,ty,ts] of this.trail){ const a=Math.max(0,1-(performance.now()-ts)/COMET.fade); if(a<=0) continue; ctx.globalAlpha=a*.6; ctx.drawImage(cometImg,tx-this.r,ty-this.r,this.r*2,this.r*2); }
+         ctx.globalAlpha=1; ctx.drawImage(cometImg,this.x-this.r,this.y-this.r,this.r*2,this.r*2); }
+}
+
+const SHIP_ART_OFFSET=Math.PI;
+class Ship{
+  constructor(){
+    const side=choice(['l','r','t','b']); this.s=choice(MOBILE?[0.08,0.12,0.16,0.20]:[0.10,0.14,0.19,0.22,0.26]);
+    const pad=60;
+    if(side==='l'){this.x=-pad; this.y=rand(0,H); this.vx=rand(80,220); this.vy=rand(-80,80);} if(side==='r'){this.x=W+pad; this.y=rand(0,H); this.vx=-rand(80,220); this.vy=rand(-80,80);} if(side==='t'){this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220);} if(side==='b'){this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220);}
+    this.dead=false; this.beam=0; this.waveT=rand(200,320);
+  }
+  step(dt){ this.x+=this.vx*dt; this.y+=this.vy*dt; if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true; this.beam=Math.max(0,this.beam-dt); if(Math.random()<0.02) this.beam=rand(.6,1.6); }
+  draw(){ if(!shipImg.complete) return; const ang=Math.atan2(this.vy,this.vx)+SHIP_ART_OFFSET; const w=shipImg.width*this.s, h=shipImg.height*this.s; ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang); ctx.drawImage(shipImg,-w*.3,-h*.5,w*.6,h*.6);
+          if(this.beam>0){ const len=220; ctx.strokeStyle='rgba(126,203,255,.9)'; ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<=len;i+=6){ const dy=Math.sin((i/len)*Math.PI*4 + performance.now()/this.waveT)*8; if(i===0) ctx.moveTo(10+i,dy); else ctx.lineTo(10+i,dy);} ctx.stroke(); }
+          ctx.restore(); }
+}
+
+const comets=[], ships=[];
+let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(6,12);
+let _spawnEnabled = true; // visibility guard
+let _lastActive = Date.now();
+['pointerdown','pointermove','keydown','touchstart'].forEach(evt=>{ addEventListener(evt, ()=>{ _lastActive = Date.now(); }, {passive:true}); });
+document.addEventListener('visibilitychange', ()=>{ const hidden=document.hidden; _spawnEnabled = !hidden; if(hidden){ stopPhrasesTimer(); } else { startPhrasesTimer(); } });
+
+function loop(){
+  const now=performance.now()/1000, dt=Math.min(.05, now-last); last=now;
+  const idleSec = (Date.now() - _lastActive)/1000, powerSave = idleSec > 120; // 2 min idle
+  const maxComets = powerSave ? 1 : (COMET.max || 3);
+  const wantShips = powerSave ? 2 : 4;
+
+  cTimer+=dt; if(_spawnEnabled && cTimer>cNext && comets.length<maxComets){ comets.push(new Comet()); cTimer=0; cNext=rand(4,9); }
+  shipTimer+=dt; if(_spawnEnabled && shipTimer>shipNext){ shipTimer=0; shipNext= powerSave ? rand(10,18) : rand(6,14); if(ships.length<wantShips) ships.push(new Ship()); }
+
+  comets.forEach(c=>c.step(dt)); ships.forEach(s=>s.step(dt));
+  for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1);
+  for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1);
+
+  ctx.clearRect(0,0,W,H);
+  comets.forEach(c=>c.draw()); ships.forEach(s=>s.draw());
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* Grab & fling comets */
+let grab=null, lastPts=[];
+canvas.addEventListener('pointerdown',e=>{
+  const x=e.clientX,y=e.clientY; let best=null,bd=1e9;
+  for(const c of comets){ const d=Math.hypot(x-c.x,y-c.y); if(d<Math.max(26,c.r*1.6) && d<bd){bd=d; best=c;} }
+  if(best){ grab=best; lastPts.length=0; }
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!grab) return; grab.x=e.clientX; grab.y=e.clientY; lastPts.push([e.clientX,e.clientY,performance.now()]); if(lastPts.length>5) lastPts.shift();
+});
+canvas.addEventListener('pointerup',()=>{
+  if(!grab) return;
+  if(lastPts.length>=2){ const a=lastPts[0], b=lastPts[lastPts.length-1]; const dt=(b[2]-a[2])/1000||.016; grab.vx=(b[0]-a[0])/dt; grab.vy=(b[1]-a[1])/dt; }
+  grab=null; lastPts.length=0;
+});
+
+/* Keep sun away from left edge so orbit never clips */
+function nudgeSun(){ const r=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orbit-radius'))||260; const rect=sunWrap.getBoundingClientRect(); if(rect.left<r+90) { sunWrap.style.left=(r+120)+'px'; } }
+addEventListener('resize', nudgeSun, {passive:true}); nudgeSun();
+
+/* Minimal debug */
+window.addEventListener('error', e=>console.log('[GE DEBUG]', e.message));
+</script>
+</body>
+</html>
