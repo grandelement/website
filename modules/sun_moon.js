@@ -1,82 +1,117 @@
-// modules/sun_moon.js
-import { isMobile, setVars } from './core.js';
+// Grand Element — Sun ↔ Moon (clock-orbit, 60s, ~1in offset, draggable sun)
+// Assumes the HTML structure contains #sunWrap (positioned), #sun (the blue sun),
+// and #moon (radio logo). Works standalone; no other modules required.
 
-const SUN_PX   = isMobile() ? 220 : 260;   // make the sun a touch smaller
-const MOON_PX  = isMobile() ? 90  : 110;
-const ORBIT_S  = 60_000;                   // 60s full revolution
-const RATIO    = 3.5;                      // “3.5 times itself from the center of the sun”
-let   ORBIT_R  = Math.round(MOON_PX * RATIO);
+(() => {
+  const wrap = document.getElementById('sunWrap');
+  const sun  = document.getElementById('sun');
+  const moon = document.getElementById('moon');
 
-setVars({
-  '--sun-size':  `${SUN_PX}px`,
-  '--moon-size': `${MOON_PX}px`
-});
+  if (!wrap || !sun || !moon) {
+    console.warn('[sun_moon] Required elements not found.');
+    return;
+  }
 
-const sunWrap = document.getElementById('sunWrap');   // positioned box for the sun
-const moon    = document.getElementById('moon');
+  // --- CONFIG ---
+  const SECONDS_PER_REV = 60;     // 60s per full orbit
+  const PIXEL_OFFSET    = 96;     // ≈ 1 inch extra beyond sun edge
+  const KEEP_UPRIGHT    = true;   // counter-rotate the moon so text stays upright
 
-let orbitCenter = { x: 0, y: 0 };   // screen-space center of the sun
-let startT = performance.now();
+  // --- helpers ---
+  const now = () => performance.now() / 1000;
+  let t0 = now();
 
-// compute sun center in screen space
-function updateOrbitCenter(){
-  const r = sunWrap.getBoundingClientRect();
-  orbitCenter.x = r.left + r.width  / 2;
-  orbitCenter.y = r.top  + r.height / 2;
-}
-updateOrbitCenter();
+  function getSunCenter() {
+    // sun is inside wrap, and wrap is positioned via left/top.
+    // We'll use the wrap's box to compute center in local coords.
+    // Moon will be absolutely positioned INSIDE wrap.
+    const rect = sun.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    // Center relative to wrap (wrap is the containing block)
+    return { cx: w / 2, cy: h / 2, r: Math.min(w, h) / 2 };
+  }
 
-// animate the orbit (clock-hand)
-function tick(now){
-  const t = (now - startT) % ORBIT_S;
-  const a = (t / ORBIT_S) * Math.PI * 2; // 0..2π
+  // Ensure wrap is a positioning context for the orbit.
+  wrap.style.position = 'absolute';
+  sun.style.position  = 'absolute';
+  sun.style.inset     = '0';
+  // Make sure moon is absolutely positioned inside wrap.
+  moon.style.position = 'absolute';
+  moon.style.transformOrigin = '50% 50%';
 
-  // counter-rotate the moon texture so text stays upright
-  const counter = -a;
+  // We'll drive orbit by rotating an invisible carrier angle and placing the moon at:
+  //   x = cx + cos(theta) * (sunR + PIXEL_OFFSET) - moonW/2
+  //   y = cy + sin(theta) * (sunR + PIXEL_OFFSET) - moonH/2
+  function placeMoon(theta) {
+    const { cx, cy, r: sunR } = getSunCenter();
+    const mRect = moon.getBoundingClientRect();
+    const mW = mRect.width  || moon.offsetWidth  || 0;
+    const mH = mRect.height || moon.offsetHeight || 0;
 
-  // compute position around the sun center
-  const x = orbitCenter.x + Math.cos(a) * ORBIT_R;
-  const y = orbitCenter.y + Math.sin(a) * ORBIT_R;
+    const R = sunR + PIXEL_OFFSET;
+    const x = cx + Math.cos(theta) * R - mW / 2;
+    const y = cy + Math.sin(theta) * R - mH / 2;
 
-  // place the moon with CSS transform
-  moon.style.transform = `translate(${x}px, ${y}px) rotate(${counter}rad)`;
+    moon.style.left = `${x}px`;
+    moon.style.top  = `${y}px`;
 
-  // send behind the sun on the far side
-  moon.style.zIndex = (Math.sin(a) < 0) ? 1 : 10;
+    if (KEEP_UPRIGHT) {
+      // Counter-rotate so the face stays upright
+      moon.style.rotate = `${-theta}rad`;
+    }
+  }
 
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
+  // Animate
+  function animate() {
+    const elapsed = now() - t0;
+    const theta = (elapsed / SECONDS_PER_REV) * Math.PI * 2; // 0..2π in 60s
+    placeMoon(theta);
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
 
-// click = open radio
-moon.addEventListener('click', () => {
-  window.open('https://grandelement.github.io/radio/', '_blank', 'noopener');
-});
+  // --- Drag the sun (wrap) and keep moon orbiting relative to it ---
+  let dragging = false;
+  let grabDX = 0, grabDY = 0;
 
-// ===== Drag the sun; moon re-locks automatically =====
-let dragging = false, offsetX = 0, offsetY = 0;
+  // Improve drag on touch devices
+  wrap.style.touchAction = 'none'; 
 
-sunWrap.style.cursor = 'grab';
-sunWrap.addEventListener('pointerdown', (e)=>{
-  dragging = true;
-  sunWrap.setPointerCapture(e.pointerId);
-  sunWrap.style.cursor = 'grabbing';
-  const r = sunWrap.getBoundingClientRect();
-  offsetX = e.clientX - r.left;
-  offsetY = e.clientY - r.top;
-});
-window.addEventListener('pointermove', (e)=>{
-  if(!dragging) return;
-  const x = e.clientX - offsetX;
-  const y = e.clientY - offsetY;
-  sunWrap.style.left = x + 'px';
-  sunWrap.style.top  = y + 'px';
-  updateOrbitCenter();
-});
-window.addEventListener('pointerup', ()=>{
-  dragging = false;
-  sunWrap.style.cursor = 'grab';
-});
+  function onDown(e) {
+    dragging = true;
+    const isTouch = e.touches && e.touches[0];
+    const x = isTouch ? e.touches[0].clientX : e.clientX;
+    const y = isTouch ? e.touches[0].clientY : e.clientY;
 
-// responsiveness
-window.addEventListener('resize', updateOrbitCenter, {passive:true});
+    const rect = wrap.getBoundingClientRect();
+    grabDX = x - rect.left;
+    grabDY = y - rect.top;
+
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const isTouch = e.touches && e.touches[0];
+    const x = isTouch ? e.touches[0].clientX : e.clientX;
+    const y = isTouch ? e.touches[0].clientY : e.clientY;
+
+    // Position the wrap so its top-left keeps our grab point under the cursor
+    const newLeft = x - grabDX;
+    const newTop  = y - grabDY;
+
+    wrap.style.left = `${newLeft}px`;
+    wrap.style.top  = `${newTop}px`;
+  }
+  function onUp() {
+    dragging = false;
+  }
+
+  wrap.addEventListener('pointerdown', onDown, { passive: false });
+  window.addEventListener('pointermove', onMove, { passive: false });
+  window.addEventListener('pointerup', onUp, { passive: true });
+  window.addEventListener('pointercancel', onUp, { passive: true });
+
+  // Make sure the moon renders above the starfield but below overlays
+  moon.style.zIndex = '6';
+})();
