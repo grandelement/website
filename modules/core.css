@@ -1,166 +1,107 @@
-/* ===== Core styles for Grand Element (modular build) ===== */
-
 :root{
-  --star-tile: 900px;        /* size of the tiled star texture */
-  --sun-size: 260px;         /* desktop blue sun diameter */
-  --moon-size: 110px;        /* radio moon diameter */
-  --planet-size: 36px;       /* album planets diameter */
-  --planet-hover-scale: 3;   /* how much a planet grows on hover */
-  --planet-glow: 18px;       /* planet hover glow */
-  --orbit-seconds: 60;       /* moon period (kept for reference) */
+  --star-tile: 900px;
+  --planet-hover-scale: 3;
+  --planet-glow: 18px;
 }
 
-/* Page base */
-html, body { height:100%; }
-* { box-sizing: border-box; }
+/* Background: repeat tile (NO stretch) */
+html,body{height:100%}
 body{
-  margin:0;
-  color:#eaf2ff;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow:hidden;
-
-  /* Background: non-stretched starfield (tile + subtle twinkle dots) */
-  background-color:#000;
+  margin:0; overflow:hidden; color:#eaf2ff; background:#000;
   background-image:
-    url('../images/GE stars.jpg'),
+    url("../images/GE%20stars.jpg"),
     radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
-  background-repeat: repeat, repeat;
-  background-position: center center, 0 0;
-  background-size: var(--star-tile) var(--star-tile), 3px 3px;
+  background-position:center center,0 0;
+  background-repeat:repeat,repeat;
+  background-size:var(--star-tile) var(--star-tile),3px 3px;
+  background-attachment:fixed,scroll;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* ===== Layers ===== */
-#fx{ position:fixed; inset:0; display:block; z-index:1; }             /* canvas FX */
+/* Layers */
+#fx{ position:fixed; inset:0; z-index:1; }
 .layer-hiddentext{ position:fixed; inset:0; pointer-events:none; z-index:0; }
+.phrase{ position:absolute; color:#cfe9ff; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.9); opacity:0; transition:opacity .5s }
+.phrase.show{ opacity:1 } .phrase.pinned{ color:#fff; text-decoration:underline }
 
-/* ===== Sun + Moon ===== */
-.sunWrap{
+/* Sun / Moon */
+#sunWrap{
   position:absolute;
-  left:16vw; top:66vh;                 /* initial placement; JS will clamp */
-  width:var(--sun-size); height:var(--sun-size);
+  width:var(--sun-size);
+  height:var(--sun-size);
+  left:16vw; top:66vh;                 /* initial spot */
   transform:translate(-50%,-50%);
-  pointer-events:none;
   z-index:5;
 }
-.sun{
-  position:absolute; inset:0;
-  border-radius:50%;
-  background:center/cover no-repeat url('../images/ge-logo-2.jpg');
-  box-shadow: inset 0 0 60px rgba(255,255,255,.12);
-  z-index:3;
-}
-.orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:2; pointer-events:none; }
-.carrier{ position:absolute; left:50%; top:50%; width:0; height:0; }
-.moon{
-  position:absolute;
-  left:0; top:0;
-  width:var(--moon-size); height:var(--moon-size);
-  border-radius:50%;
-  cursor:pointer; pointer-events:auto;
-  background:
-    center/cover no-repeat url('../images/ge-radio-logo.png'),
-    radial-gradient(circle, rgba(160,210,255,.55) 0%, rgba(160,210,255,.25) 60%, rgba(160,210,255,0) 70%);
-  box-shadow:0 0 10px 4px rgba(140,200,255,.35);
-  border:1px solid rgba(160,210,255,.55);
-  z-index:7;
+.sun{ position:absolute; inset:0; border-radius:50%;
+  background:center/cover no-repeat url("../images/ge-logo-2.jpg");
+  box-shadow:inset 0 0 60px rgba(255,255,255,.12); cursor:grab; }
+.sun.dragging{ cursor:grabbing; }
+
+.sunOverlay{ position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:flex-start; gap:8px; text-align:center; padding-top:8%;
+  pointer-events:none; }
+.sunAbout{ pointer-events:auto; font-weight:900; letter-spacing:.22em; font-size:13px;
+  text-shadow:0 0 14px rgba(150,190,255,.55); cursor:pointer; }
+
+/* Button anchored to BOTTOM HALF of sun */
+.controlsToggle{
+  position:absolute; left:50%; bottom:14%; transform:translateX(-50%);
+  pointer-events:auto; font-weight:800; border:1px solid rgba(220,240,255,.35);
+  background:rgba(12,24,40,.6); padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none;
 }
 
-/* ===== Sun overlay (About + Now Playing + Music Controls) ===== */
-.sunOverlay{
-  position:absolute; inset:0;
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-  gap:8px; padding-top:10%;
-  opacity:0; pointer-events:none; transition:opacity .15s ease;
-}
-.sunOverlay.show{ opacity:1; pointer-events:auto; }
-.sunAbout{ font-weight:900; letter-spacing:.22em; font-size:13px; opacity:.9;
-  text-shadow:0 0 14px rgba(150,190,255,.45); cursor:pointer; }
-.nowTitle{ font-weight:700; letter-spacing:.3px; font-size:12px; opacity:.95;
-  text-shadow:0 0 12px rgba(160,200,255,.5); }
-.pill{ padding:6px 10px; border-radius:999px; border:1px solid rgba(220,240,255,.35);
-  background:rgba(10,22,40,.6); color:#eaf2ff; font-weight:800; cursor:pointer; }
-.pill:active{ transform:translateY(1px); }
-
-/* ===== Mini Player (inside sun, bottom) ===== */
+/* Mini player panel */
 .miniPlayer{
-  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
-  width:min(86%, 520px);
-  display:grid; grid-template-columns:auto 1fr auto; grid-auto-rows:auto; gap:10px; align-items:center;
-  background:rgba(5,10,22,.60);
-  border:1px solid rgba(220,240,255,.35);
-  border-radius:14px; padding:10px;
-  box-shadow:0 10px 22px rgba(0,0,0,.45);
-  z-index:9;
+  position:absolute; left:50%; bottom:6%; transform:translateX(-50%);
+  width:86%; background:rgba(5,10,22,.55);
+  border:1px solid rgba(220,240,255,.35); border-radius:12px; padding:6px 8px;
+  box-shadow:0 8px 20px rgba(0,0,0,.45);
+  display:none; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; font-size:12px; pointer-events:auto;
 }
-.miniPlayer .controls{ display:flex; gap:8px; }
-.miniPlayer .btn{
-  width:32px; height:32px; border-radius:8px;
-  border:1px solid rgba(220,240,255,.35);
-  background:rgba(12,24,40,.6); color:#eaf2ff; font-weight:900;
-  display:grid; place-items:center; cursor:pointer; user-select:none;
-}
-.miniPlayer .btn:active{ transform:translateY(1px); }
-.miniPlayer .title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; letter-spacing:.3px; }
-.miniPlayer .toggles{ display:flex; gap:8px; }
-.miniPlayer .toggle{
-  padding:4px 8px; border-radius:999px; border:1px solid rgba(220,240,255,.35);
-  background:rgba(12,24,40,.6); cursor:pointer;
-}
-.miniPlayer .toggle.active{ background:rgba(40,140,255,.45); }
-.miniPlayer .sliders{ grid-column:1/-1; display:flex; gap:12px; align-items:center; padding-top:4px; }
-.miniPlayer input[type=range]{ width:100%; }
+.miniPlayer.show{ display:grid }
+.controls{ display:flex; gap:8px }
+.btn{ width:28px; height:28px; border-radius:8px; border:1px solid rgba(220,240,255,.35);
+  background:rgba(12,24,40,.6); display:grid; place-items:center; font-weight:900; cursor:pointer; user-select:none }
+.btn:active{ transform:translateY(1px) }
+.title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; letter-spacing:.3px }
+.toggles{ display:flex; gap:8px }
+.toggle{ padding:4px 8px; border-radius:999px; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); cursor:pointer }
+.toggle.active{ background:rgba(40,140,255,.45) }
+.miniRow{ grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:6px }
+.range{ -webkit-appearance:none; width:100%; height:6px; background:rgba(200,230,255,.25); border-radius:999px; outline:none }
+.range::-webkit-slider-thumb{ -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#bfe2ff; border:1px solid #6fb7ff }
 
-/* ===== Planets ===== */
-.planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
-.planet{
-  position:absolute; width:var(--planet-size); height:var(--planet-size);
-  border-radius:50%; pointer-events:auto; overflow:hidden; cursor:pointer;
-  background:#32406b; background-size:cover; background-position:center;
-  box-shadow:0 0 10px rgba(255,255,255,.2);
-  transition: transform .2s ease, box-shadow .18s ease;
+/* Orbit */
+.orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; will-change:transform }
+.carrier{ position:absolute; left:50%; top:50%; width:0; height:0 }
+.moon{
+  position:absolute; left:0; top:0; transform:translate(var(--orbit-radius),-50%);
+  border-radius:50%; pointer-events:auto; cursor:pointer;
+  background:
+    radial-gradient(circle, rgba(160,210,255,.55) 0%, rgba(160,210,255,.25) 60%, rgba(160,210,255,0) 70%),
+    center/cover no-repeat url("../images/ge-radio-logo.png");
+  box-shadow:0 0 10px 4px rgba(140,200,255,.35); border:1px solid rgba(160,210,255,.55);
 }
-.planet:hover{
-  transform: scale(var(--planet-hover-scale));
-  box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset;
-}
-.planet .label{
-  position:absolute; left:50%; top:-12px; transform:translate(-50%,-100%);
-  padding:6px 10px; border-radius:999px; white-space:nowrap;
-  background:rgba(15,25,50,.35); border:1px solid rgba(200,220,255,.5);
-  backdrop-filter:blur(2px); font-size:12px; letter-spacing:.3px; font-weight:700;
-  opacity:0; pointer-events:none; transition:opacity .12s ease;
-}
-.planet:hover .label{ opacity:1; }
 
-/* ===== Hidden text phrases ===== */
-.phrase{
-  position:absolute; color:#cfe9ff; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.9);
-  opacity:0; transition:opacity .5s ease;
-}
-.phrase.show{ opacity:1; }
-.phrase.pinned{ color:#fff; text-decoration:underline; }
+/* Planets */
+.planets{ position:fixed; inset:0; pointer-events:none; z-index:4 }
+.planet{ position:absolute; border-radius:50%; pointer-events:auto; overflow:hidden; cursor:grab;
+  background:#32406b center/cover no-repeat; box-shadow:0 0 10px rgba(255,255,255,.2); transition:transform .2s, box-shadow .18s }
+.planet.drag{ cursor:grabbing }
+.planet:hover, .planet.touchZoom{ transform:scale(var(--planet-hover-scale)); box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset }
+.labelAlways{ position:absolute; left:50%; top:calc(100% + 8px); transform:translateX(-50%);
+  padding:4px 8px; border-radius:999px; white-space:nowrap; background:rgba(15,25,50,.35);
+  border:1px solid rgba(200,220,255,.5); backdrop-filter:blur(2px); font-size:12px; letter-spacing:.3px; font-weight:700 }
 
-/* ===== “Boot” overlay (module status) ===== */
-#boot{
-  position:fixed; left:12px; top:12px; z-index:99;
-  font: 600 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  color:#eaf2ff; background:rgba(10,20,40,.7); border:1px solid rgba(200,220,255,.3);
-  border-radius:10px; padding:10px 12px; min-width:220px; backdrop-filter: blur(2px);
-}
-#boot h3{ margin:0 0 6px 0; font-weight:800; letter-spacing:.03em; }
-#boot .ok{ color:#87ffa5; }  /* success check */
-#boot .err{ color:#ff8896; } /* failure X */
-#boot pre{ margin:6px 0 0; white-space:pre-wrap; }
+/* About */
+.overlay{ position:fixed; inset:0; display:none; place-items:center; z-index:10; background:rgba(0,0,0,.25) }
+.overlay.show{ display:grid }
+.aboutText{ max-width:min(90vw, 820px); margin:0 16px; text-align:center; color:#eaf2ff; font-size:18px; line-height:1.6;
+  text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25) }
 
-/* ===== Responsive tweaks (mobile) ===== */
-@media (max-width: 768px){
-  :root{
-    --sun-size: 180px;
-    --moon-size: 88px;
-    --planet-size: 28px;
-  }
-  #boot{ transform: scale(.9); transform-origin: top left; }
-  .sunOverlay{ padding-top:12%; }
-  .nowTitle{ font-size:11px; }
-  .miniPlayer{ width:min(92%, 420px); }
+@media (max-width:820px){
+  .sunWrap{ left:22vw; top:72vh }
+  .miniPlayer{ width:92%; bottom:4%; font-size:11px; transform:translateX(-50%) scale(.86) }
+  .labelAlways{ font-size:11px; top:calc(100% + 6px) }
 }
