@@ -1,117 +1,120 @@
-// Grand Element — Sun ↔ Moon (clock-orbit, 60s, ~1in offset, draggable sun)
-// Assumes the HTML structure contains #sunWrap (positioned), #sun (the blue sun),
-// and #moon (radio logo). Works standalone; no other modules required.
+/* SUN + MOON — circular orbit, upright moon, draggable sun, hover/tap UI */
+const $ = (sel, root=document) => root.querySelector(sel);
 
-(() => {
-  const wrap = document.getElementById('sunWrap');
-  const sun  = document.getElementById('sun');
-  const moon = document.getElementById('moon');
+/* --- elements --- */
+const sunWrap  = $('#sunWrap') || (()=>{ const d=document.createElement('div'); d.id='sunWrap'; d.className='sunWrap'; document.body.appendChild(d); return d; })();
+const sun      = $('#sun')     || (()=>{ const d=document.createElement('div'); d.id='sun'; d.className='sun'; sunWrap.appendChild(d); return d; })();
+const orbit    = $('#orbit')   || (()=>{ const d=document.createElement('div'); d.id='orbit'; d.className='orbit'; sunWrap.appendChild(d); return d; })();
+const carrier  = $('.carrier', orbit) || (()=>{ const d=document.createElement('div'); d.className='carrier'; d.style.setProperty('--orbit-radius','0px'); orbit.appendChild(d); return d; })();
+const moon     = $('#moon')    || (()=>{ const d=document.createElement('div'); d.id='moon'; d.className='moon'; carrier.appendChild(d); return d; })();
 
-  if (!wrap || !sun || !moon) {
-    console.warn('[sun_moon] Required elements not found.');
-    return;
-  }
+/* overlay buttons inside the sun */
+let overlay = $('.sunOverlay', sun);
+if(!overlay){
+  overlay = document.createElement('div');
+  overlay.className = 'sunOverlay';
+  overlay.innerHTML = `
+    <div class="sunAbout" id="aboutBtn">ABOUT</div>
+    <div id="nowTitle" class="nowTitle">—</div>
+    <button class="pill" id="musicBtn">Music Controls</button>
+  `;
+  sun.appendChild(overlay);
+}
+const aboutBtn = $('#aboutBtn');
+const musicBtn = $('#musicBtn');
+const nowTitle = $('#nowTitle');
 
-  // --- CONFIG ---
-  const SECONDS_PER_REV = 60;     // 60s per full orbit
-  const PIXEL_OFFSET    = 96;     // ≈ 1 inch extra beyond sun edge
-  const KEEP_UPRIGHT    = true;   // counter-rotate the moon so text stays upright
+/* show overlay only when hovering/tapping the sun */
+const isTouch = matchMedia('(pointer:coarse)').matches;
+let overlayPinned = false;
+function showOverlay(on){ if(on || overlayPinned){ overlay.classList.add('show'); } else { overlay.classList.remove('show'); } }
+if(!isTouch){
+  sun.addEventListener('mouseenter', ()=>showOverlay(true));
+  sun.addEventListener('mouseleave', ()=>showOverlay(false));
+}else{
+  sun.addEventListener('click', (e)=>{ overlayPinned = !overlayPinned; showOverlay(true); e.stopPropagation(); }, {passive:false});
+  document.addEventListener('click', ()=>{ overlayPinned=false; showOverlay(false); }, {passive:true});
+}
 
-  // --- helpers ---
-  const now = () => performance.now() / 1000;
-  let t0 = now();
+/* ---- DRAG SUN (keep pointer offset so it grabs from where you clicked) ---- */
+let dragging=false, grabDX=0, grabDY=0;
+function sunRect(){ return sunWrap.getBoundingClientRect(); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function placeSun(x,y){
+  const r = sunRect();
+  const w = r.width, h=r.height;
+  const left = clamp(x - grabDX, 60, innerWidth - w - 60);
+  const top  = clamp(y - grabDY, 60, innerHeight - h - 60);
+  sunWrap.style.left = left+'px';
+  sunWrap.style.top  = top +'px';
+}
+function onDown(e){
+  dragging=true;
+  const p = (e.touches? e.touches[0]: e);
+  const r = sunRect();
+  grabDX = p.clientX - r.left;
+  grabDY = p.clientY - r.top;
+  sunWrap.style.cursor='grabbing';
+  e.preventDefault();
+}
+function onMove(e){
+  if(!dragging) return;
+  const p = (e.touches? e.touches[0]: e);
+  placeSun(p.clientX, p.clientY);
+}
+function onUp(){
+  dragging=false;
+  sunWrap.style.cursor='';
+}
+sun.addEventListener('mousedown', onDown); window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+sun.addEventListener('touchstart', onDown, {passive:false}); window.addEventListener('touchmove', onMove, {passive:false}); window.addEventListener('touchend', onUp);
 
-  function getSunCenter() {
-    // sun is inside wrap, and wrap is positioned via left/top.
-    // We'll use the wrap's box to compute center in local coords.
-    // Moon will be absolutely positioned INSIDE wrap.
-    const rect = sun.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    // Center relative to wrap (wrap is the containing block)
-    return { cx: w / 2, cy: h / 2, r: Math.min(w, h) / 2 };
-  }
+/* ---- MOON ORBIT: perfect circle, 60s period, upright, constant gap ---- */
+const PERIOD = 60;               // seconds per full revolution
+let t0 = performance.now()/1000; // start time
+function computeRadius(){
+  const s = sunRect();
+  const m = moon.getBoundingClientRect();
+  const sunR  = s.width/2;
+  const moonR = m.width/2 || 55;
+  const gap   = Math.max( moonR*0.5, sunR*0.25 );  // ~ “an inch” off edge, scales with size
+  return sunR + gap + moonR;                       // center-to-center radius
+}
+function sunCenter(){
+  const s = sunRect();
+  return { cx: s.left + s.width/2, cy: s.top + s.height/2 };
+}
+function tick(){
+  // angle = -90° at start so moon begins at the right side like a clock “3”
+  const t = performance.now()/1000;
+  const angle = (-Math.PI/2) + ((t - t0) * 2*Math.PI / PERIOD);
+  const R = computeRadius();
+  const {cx, cy} = sunCenter();
 
-  // Ensure wrap is a positioning context for the orbit.
-  wrap.style.position = 'absolute';
-  sun.style.position  = 'absolute';
-  sun.style.inset     = '0';
-  // Make sure moon is absolutely positioned inside wrap.
-  moon.style.position = 'absolute';
-  moon.style.transformOrigin = '50% 50%';
+  // position
+  const mx = cx + Math.cos(angle) * R;
+  const my = cy + Math.sin(angle) * R;
 
-  // We'll drive orbit by rotating an invisible carrier angle and placing the moon at:
-  //   x = cx + cos(theta) * (sunR + PIXEL_OFFSET) - moonW/2
-  //   y = cy + sin(theta) * (sunR + PIXEL_OFFSET) - moonH/2
-  function placeMoon(theta) {
-    const { cx, cy, r: sunR } = getSunCenter();
-    const mRect = moon.getBoundingClientRect();
-    const mW = mRect.width  || moon.offsetWidth  || 0;
-    const mH = mRect.height || moon.offsetHeight || 0;
+  // place the moon element
+  const w = moon.offsetWidth, h = moon.offsetHeight;
+  moon.style.transform = `translate(${mx - w/2}px, ${my - h/2}px) rotate(${-angle}rad)`; // counter-rotate to keep text upright
 
-    const R = sunR + PIXEL_OFFSET;
-    const x = cx + Math.cos(theta) * R - mW / 2;
-    const y = cy + Math.sin(theta) * R - mH / 2;
+  // go behind the sun on the back half
+  const behind = ( (angle % (2*Math.PI)) > Math.PI );
+  moon.style.zIndex = behind ? 3 : 7;
 
-    moon.style.left = `${x}px`;
-    moon.style.top  = `${y}px`;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
 
-    if (KEEP_UPRIGHT) {
-      // Counter-rotate so the face stays upright
-      moon.style.rotate = `${-theta}rad`;
-    }
-  }
+/* ---- Moon click → open Radio site in new tab ---- */
+moon.addEventListener('click', (e)=>{
+  window.open('https://grandelement.github.io/radio/', '_blank', 'noopener');
+  e.stopPropagation();
+});
 
-  // Animate
-  function animate() {
-    const elapsed = now() - t0;
-    const theta = (elapsed / SECONDS_PER_REV) * Math.PI * 2; // 0..2π in 60s
-    placeMoon(theta);
-    requestAnimationFrame(animate);
-  }
-  requestAnimationFrame(animate);
-
-  // --- Drag the sun (wrap) and keep moon orbiting relative to it ---
-  let dragging = false;
-  let grabDX = 0, grabDY = 0;
-
-  // Improve drag on touch devices
-  wrap.style.touchAction = 'none'; 
-
-  function onDown(e) {
-    dragging = true;
-    const isTouch = e.touches && e.touches[0];
-    const x = isTouch ? e.touches[0].clientX : e.clientX;
-    const y = isTouch ? e.touches[0].clientY : e.clientY;
-
-    const rect = wrap.getBoundingClientRect();
-    grabDX = x - rect.left;
-    grabDY = y - rect.top;
-
-    e.preventDefault();
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    const isTouch = e.touches && e.touches[0];
-    const x = isTouch ? e.touches[0].clientX : e.clientX;
-    const y = isTouch ? e.touches[0].clientY : e.clientY;
-
-    // Position the wrap so its top-left keeps our grab point under the cursor
-    const newLeft = x - grabDX;
-    const newTop  = y - grabDY;
-
-    wrap.style.left = `${newLeft}px`;
-    wrap.style.top  = `${newTop}px`;
-  }
-  function onUp() {
-    dragging = false;
-  }
-
-  wrap.addEventListener('pointerdown', onDown, { passive: false });
-  window.addEventListener('pointermove', onMove, { passive: false });
-  window.addEventListener('pointerup', onUp, { passive: true });
-  window.addEventListener('pointercancel', onUp, { passive: true });
-
-  // Make sure the moon renders above the starfield but below overlays
-  moon.style.zIndex = '6';
-})();
+/* ---- expose a tiny API used by the player to show the track title ---- */
+export function setNowPlayingTitle(text){
+  nowTitle.textContent = text || '—';
+}
+export const SunMoonAPI = { setNowPlayingTitle };
