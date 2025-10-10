@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GE Background</title>
+<meta name="robots" content="noindex" />
+<style>
+html,body{height:100%;margin:0}
+body{ background:#000 center/cover no-repeat fixed; }
+#gif{ position:fixed; inset:0; width:100%; height:100%;
+      object-fit:cover; object-position:center; pointer-events:none; }
+.fade{ animation:fadein .6s ease both; }
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body class="fade">
+<script>
+// ---- Minimal, isolated background engine ----
+// Tries GitHub folder list; falls back to static list.
+// You can drop new images into /img and they’ll be picked up automatically.
+
+/* Fallback static list (always works) — edit if you want */
+const BACKGROUNDS_FALLBACK = [
+  "img/1.gif", "img/2.gif", "img/3.gif", "img/4.gif", "img/5.gif", "img/logo.png"
+];
+
+let LIST = [];
+let i = -1;
+
+async function listViaAPI(){
+  try{
+    const r = await fetch('https://api.github.com/repos/grandelement/radio/contents/img', {cache:'no-store'});
+    if(!r.ok) throw 0;
+    const files = await r.json();
+    const imgs = files.filter(f=>f.type==='file' && /\.(gif|png|jpe?g|webp)$/i.test(f.name) && f.name.toLowerCase()!=='logo.png')
+                      .map(f=>'img/'+f.name);
+    return imgs.length ? imgs : BACKGROUNDS_FALLBACK;
+  }catch{ return BACKGROUNDS_FALLBACK; }
+}
+
+function show(url){
+  const isGif = /\.gif(\?|$)/i.test(url);
+  if(isGif){
+    let gif = document.getElementById('gif');
+    if(!gif){
+      gif = new Image();
+      gif.id='gif';
+      document.body.appendChild(gif);
+    }
+    gif.src = url + (url.includes('?')?'&':'?') + 't=' + Date.now(); // bust when same filename updates
+    document.body.style.backgroundImage = '';
+  }else{
+    const gif = document.getElementById('gif');
+    if(gif) gif.remove();
+    document.body.style.backgroundImage = `url("${url}")`;
+  }
+}
+
+async function pickFirst(){
+  LIST = await listViaAPI();
+  if(!LIST.length) LIST = BACKGROUNDS_FALLBACK;
+  i = Math.floor(Math.random()*LIST.length);
+  show(LIST[i]);
+}
+
+function nextBg(){
+  if(!LIST.length) return;
+  i = (i+1) % LIST.length;
+  show(LIST[i]);
+}
+
+// Receive "Change background" from index.html
+addEventListener('message', (e)=>{
+  if(e?.data?.type === 'BG_NEXT'){ nextBg(); }
+});
+
+// Go!
+pickFirst();
+</script>
+</body>
+</html>
