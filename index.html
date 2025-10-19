@@ -3,35 +3,32 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>GE Universe — Modular Loader</title>
+<title>GE Universe — Modular Bundle</title>
+<link rel="stylesheet" href="modules/core.css">
 <style>
-  :root { --ok:#38d99f; --warn:#ffcc66; --err:#ff6b6b; --ink:#eaf2ff; --glass:rgba(10,18,30,.9); --line:rgba(200,220,255,.35) }
-  html,body{height:100%}
-  body{margin:0; background:#000 url("images/GE%20stars.jpg") center/cover no-repeat fixed; color:var(--ink);
-       font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden}
-  #stage{position:fixed; inset:0}
-  #bg,#fx,#ripple{position:absolute; inset:0}
-  #bg{z-index:0} #fx{z-index:2} #ripple{z-index:3; pointer-events:none}
-  #diag{position:fixed; right:10px; top:10px; z-index:9999; width:380px; max-height:72dvh; overflow:auto;
-        background:var(--glass); border:1px solid var(--line); border-radius:12px; padding:10px 12px; box-shadow:0 12px 32px rgba(0,0,0,.45)}
-  #diag h1{margin:0 0 8px 0; font-size:14px; letter-spacing:.15em; opacity:.9}
-  .controls{display:flex; gap:8px; margin:8px 0 4px}
-  button{background:#0f2238; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer}
-  button:active{transform:translateY(1px)}
-  #list .row{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:start; padding:6px 0; border-top:1px dashed rgba(200,220,255,.2)}
-  #list .row:first-of-type{border-top:0}
-  .name{font-weight:600; word-break:break-all}
-  .badge{padding:3px 8px; border-radius:999px; font-weight:700; font-size:12px; white-space:nowrap}
-  .ok{background:rgba(56,217,159,.15); border:1px solid rgba(56,217,159,.45); color:var(--ok)}
-  .warn{background:rgba(255,204,102,.12); border:1px solid rgba(255,204,102,.45); color:var(--warn)}
-  .err{background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.45); color:var(--err)}
-  .msg{grid-column:1/-1; opacity:.9; font-size:12px; margin-top:4px; white-space:pre-wrap}
-  #foot{position:fixed; left:10px; bottom:10px; font-size:12px; opacity:.85; background:var(--glass); border:1px solid var(--line); border-radius:999px; padding:6px 10px}
+  body{ background:#000 url("images/GE%20stars.jpg") center/cover no-repeat fixed; }
+  #stage{ position:fixed; inset:0 }
+  #bg,#fx,#ripple{ position:absolute; inset:0 }
+  #fx{ z-index:2 } #ripple{ z-index:3; pointer-events:none }
+  #diag{ position:fixed; right:10px; top:10px; z-index:9999; width:380px; max-height:72dvh; overflow:auto;
+    background:rgba(10,18,30,.9); border:1px solid rgba(200,220,255,.35); border-radius:12px; padding:10px 12px; color:#eaf2ff; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif }
+  #diag h1{ margin:0 0 8px 0; font-size:14px; letter-spacing:.15em; opacity:.9 }
+  .controls{ display:flex; gap:8px; margin:8px 0 4px }
+  button{ background:#0f2238; color:#eaf2ff; border:1px solid rgba(200,220,255,.35); border-radius:8px; padding:6px 10px; cursor:pointer }
+  .row{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:start; padding:6px 0; border-top:1px dashed rgba(200,220,255,.2) }
+  .row:first-of-type{ border-top:0 }
+  .name{ font-weight:600; word-break:break-all }
+  .badge{ padding:3px 8px; border-radius:999px; font-weight:700; font-size:12px; white-space:nowrap }
+  .ok{ background:rgba(56,217,159,.15); border:1px solid rgba(56,217,159,.45); color:#38d99f }
+  .warn{ background:rgba(255,204,102,.12); border:1px solid rgba(255,204,102,.45); color:#ffcc66 }
+  .err{ background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.45); color:#ff6b6b }
+  .msg{ grid-column:1/-1; opacity:.9; font-size:12px; margin-top:4px; white-space:pre-wrap }
+  #foot{ position:fixed; left:10px; bottom:10px; font-size:12px; opacity:.85; background:rgba(10,18,30,.9); border:1px solid rgba(200,220,255,.35); border-radius:999px; padding:6px 10px; color:#eaf2ff }
 </style>
 </head>
 <body>
 
-<div id="stage" aria-hidden="true">
+<div id="stage">
   <canvas id="bg"></canvas>
   <canvas id="fx"></canvas>
   <canvas id="ripple"></canvas>
@@ -40,43 +37,25 @@
 <div id="diag" role="region" aria-label="Module diagnostics">
   <h1>GE Loader • modules/</h1>
   <div class="controls">
-    <button id="reload">Reload modules</button>
-    <button id="toggle">Minimize</button>
+    <button id="reload">Reload</button>
+    <button id="min">Minimize</button>
   </div>
   <div id="list"></div>
 </div>
-
 <div id="foot">Starting…</div>
 
 <script>
-/* -------- PATH AUTODETECT -------- */
-const BASE = location.hostname.includes('github.io')
-  ? 'https://grandelement.github.io/website/modules/'
-  : 'modules/';
+/* ---------- PATHS ---------- */
+const BASE = 'modules/'; // change to 'https://grandelement.github.io/website/modules/' for live GitHub Pages
 
-/* -------- Module list (ordered) -------- */
-const CANDIDATES = [
-  { name:'core.css',      type:'css',  required:true,  note:'Base styles for site.' },
-  { name:'core.js',       type:'js',   required:true,  note:'Core utilities & globals.' },
-  { name:'background.js', type:'js',   required:false, note:'Star/background manager.' },
-  { name:'sun_moon.js',   type:'js',   required:false, note:'Blue sun + orbiting moon.' },
-  { name:'planets.js',    type:'js',   required:false, note:'Album planets & physics.' },
-  { name:'fx.js',         type:'js',   required:false, note:'Ripple / links / visual FX.' },
-  { name:'game.js',       type:'js',   required:false, note:'Comets & quantum interactions.' },
-  { name:'hidden_text.js',type:'js',   required:false, note:'Hidden text layer.' },
-  { name:'mini_player.js',type:'js',   required:false, note:'Audio player (shuffle/album).' },
-  { name:'app.js',        type:'js',   required:false, note:'App bootstrap / wiring.' },
-];
-
-/* -------- Shared SDK for modules -------- */
+/* ---------- SHARED SDK ---------- */
 window.GE_ENV = {
   BASE, IMAGES:'images/', DATA:'data/',
-  // modules can call GE_ENV.mark('planets.js','started') to signal init success
   marks:{}, mark:(name,msg)=>{ GE_ENV.marks[name]=msg||'started'; },
   readyHooks:[], log:(...a)=>console.log('[GE]',...a), error:(...a)=>console.error('[GE]',...a)
 };
 
-/* -------- Canvases so modules can draw -------- */
+/* ---------- CANVASES ---------- */
 (function bootstrapStage(){
   const bg = document.getElementById('bg');
   const fx = document.getElementById('fx');
@@ -86,127 +65,77 @@ window.GE_ENV = {
   window.GE_CANVAS = { bg, fx, ripple: rp, bgCtx:bg.getContext('2d'), fxCtx:fx.getContext('2d'), rippleCtx:rp.getContext('2d') };
 })();
 
-/* -------- Diagnostic UI helpers -------- */
+/* ---------- DIAG UI ---------- */
 const $ = (s,p=document)=>p.querySelector(s), list=$('#list'), foot=$('#foot');
 function rowFor(item){ const r=document.createElement('div'); r.className='row';
   r.innerHTML=`<div class="name">${item.name}</div><div class="badge warn">…</div><div class="msg">${item.note||''}</div>`; return r; }
-function setBadge(row,cls,txt){ const b=$('.badge',row); b.className='badge '+cls; b.textContent=txt; }
-function setMsg(row,msg){ $('.msg',row).textContent=msg||''; }
-$('#toggle').onclick=()=>{ const d=$('#diag'); if(d.style.height==='28px'){ d.style.height=''; d.style.overflow='auto'; $('#toggle').textContent='Minimize'; }
-  else { d.style.height='28px'; d.style.overflow='hidden'; $('#toggle').textContent='Expand'; }};
-$('#reload').onclick=()=>runLoader(true);
+function setBadge(row,cls,txt){ const b=row.querySelector('.badge'); b.className='badge '+cls; b.textContent=txt; }
+function setMsg(row,msg){ row.querySelector('.msg').textContent=msg||''; }
+document.getElementById('min').onclick=()=>{ const d=document.getElementById('diag'); if(d.style.height==='28px'){ d.style.height=''; d.style.overflow='auto'; } else { d.style.height='28px'; d.style.overflow='hidden'; } };
+document.getElementById('reload').onclick=()=>runLoader(true);
 
-/* -------- Loader: sniff classic vs ES module, show reasons -------- */
-async function fetchHeadOrBody(url){
-  // Some hosts block HEAD; use GET but don't consume fully
-  try{
-    const r=await fetch(url,{method:'GET',cache:'no-store'});
-    if(!r.ok) return {ok:false,status:r.status, statusText:r.statusText};
-    const ct=r.headers.get('content-type')||'';
-    return {ok:true, contentType:ct};
-  }catch(e){ return {ok:false, error:String(e&&e.message||e)}; }
-}
+/* ---------- MODULES TO LOAD ---------- */
+const CANDIDATES = [
+  { name:'core.js',       note:'Core utilities & globals.', required:true },
+  { name:'background.js', note:'Starfield + ships.', required:false },
+  { name:'fx.js',         note:'Ripple + background shuffle.', required:false },
+  { name:'sun_moon.js',   note:'Blue sun + 60s moon orbit.', required:false },
+  { name:'planets.js',    note:'Albums (grab/throw/bounce).', required:false },
+  { name:'game.js',       note:'Comets with tails + bounce.', required:false },
+  { name:'hidden_text.js',note:'Hidden phrases layer.', required:false },
+  { name:'mini_player.js',note:'Audio player.', required:false },
+  { name:'app.js',        note:'App wiring.', required:false }
+];
 
 async function fetchText(url){
   try{
-    const r=await fetch(url,{method:'GET',cache:'no-store'});
+    const r=await fetch(url,{cache:'no-store'});
     if(!r.ok) return {ok:false,status:r.status,statusText:r.statusText};
-    const t=await r.text(); return {ok:true,text:t};
-  }catch(e){ return {ok:false,error:String(e&&e.message||e)}; }
+    return {ok:true,text:await r.text()};
+  }catch(e){ return {ok:false,error:String(e)}; }
 }
 
-function loadCSS(url){
-  return new Promise(res=>{ const link=document.createElement('link'); link.rel='stylesheet'; link.href=url;
-    link.onload=()=>res({ok:true}); link.onerror=()=>res({ok:false,error:'link onerror (path/CORS)'}); document.head.appendChild(link); });
-}
-
-function loadJS_byURL(url, asModule){
-  return new Promise(res=>{ const s=document.createElement('script'); s.src=url; if(asModule) s.type='module'; s.defer=true;
-    s.onload=()=>res({ok:true, asModule}); s.onerror=()=>res({ok:false, error:`script onerror (${asModule?'module':'classic'})`}); document.head.appendChild(s); });
-}
-
-// When we sniff, we inline-wrap the code so we can set type and add //sourceURL for better stack traces
 function loadJS_inline(name, code, asModule){
   return new Promise(res=>{
-    const blob = new Blob([code + `\n//# sourceURL=${name}`], {type:'text/javascript'});
-    const url = URL.createObjectURL(blob);
+    const blob=new Blob([code+`\\n//# sourceURL=${name}`],{type:'text/javascript'});
+    const url=URL.createObjectURL(blob);
     const s=document.createElement('script'); s.src=url; if(asModule) s.type='module'; s.defer=true;
-    s.onload=()=>{ URL.revokeObjectURL(url); res({ok:true, asModule, inline:true}); };
-    s.onerror=()=>{ URL.revokeObjectURL(url); res({ok:false, error:`inline script onerror (${asModule?'module':'classic'})`}); };
+    s.onload=()=>{ URL.revokeObjectURL(url); res({ok:true}); };
+    s.onerror=()=>{ URL.revokeObjectURL(url); res({ok:false,error:'inline script error'}); };
     document.head.appendChild(s);
   });
 }
 
 async function tryLoad(item, row){
-  const url = BASE + item.name;
-  setBadge(row,'warn','checking');
-  const probe = await fetchHeadOrBody(url);
-  if(!probe.ok){
-    const why = probe.status ? `${probe.status} ${probe.statusText||''}`.trim() : (probe.error||'network error');
-    setBadge(row, item.required ? 'err':'warn', item.required ? 'required missing':'missing');
-    setMsg(row, (item.required?'Required ':'Optional ') + `module not found or blocked: ${why}`);
-    return { ok:false };
-  }
-
-  if(item.type==='css'){
-    setBadge(row,'warn','loading'); const out=await loadCSS(url);
-    if(out.ok){ setBadge(row,'ok','loaded'); return {ok:true}; }
-    setBadge(row,item.required?'err':'warn', item.required?'failed':'failed (optional)'); setMsg(row,out.error); return {ok:false};
-  }
-
-  // JS: sniff import/export to decide module vs classic
-  setBadge(row,'warn','sniffing');
-  const code = await fetchText(url);
-  if(!code.ok){ setBadge(row,'err','read failed'); setMsg(row, code.status?`${code.status} ${code.statusText||''}`:code.error); return {ok:false}; }
-  const src = code.text;
-  const hasES = /(^\s*import\s+|\bexport\s+)/m.test(src);
-  setMsg(row, hasES ? 'Detected ES module.' : 'Detected classic script.');
-
   setBadge(row,'warn','loading');
-  // Prefer inline to avoid mixed CORS / MIME issues and guarantee module type
-  const wrapped = hasES ? src : `try{(function(){\n${src}\n})();}catch(e){console.error('GE classic error in ${item.name}:',e);}`;
+  const url = BASE + item.name;
+  const r = await fetchText(url);
+  if(!r.ok){ setBadge(row,item.required?'err':'warn',item.required?'missing':'missing'); setMsg(row, r.status?`${r.status} ${r.statusText}`:r.error); return false; }
+  const src=r.text;
+  const hasES = /(^\\s*import\\s+|\\bexport\\s+)/m.test(src);
+  const wrapped = hasES ? src : `try{(function(){\\n${src}\\n})();}catch(e){console.error('GE classic error in ${item.name}:',e);}`;
   const out = await loadJS_inline(item.name, wrapped, hasES);
-
-  if(out.ok){
-    // Give the module ~1s to mark itself
-    setBadge(row,'ok','loaded');
-    setTimeout(()=>{
-      if(!GE_ENV.marks[item.name]){
-        setBadge(row,'warn','no init');
-        setMsg(row, (hasES?'Module':'Script')+' loaded but did not call GE_ENV.mark("'+item.name+'").');
-      } else {
-        setBadge(row,'ok','started');
-        setMsg(row, GE_ENV.marks[item.name]);
-      }
-    }, 1000);
-    return {ok:true, asModule:out.asModule};
-  } else {
-    setBadge(row,item.required?'err':'warn', item.required?'failed':'failed (optional)');
-    setMsg(row, out.error||'unknown load failure');
-    return {ok:false};
-  }
+  if(!out.ok){ setBadge(row,item.required?'err':'warn','failed'); setMsg(row,out.error||'load error'); return false; }
+  setBadge(row,'ok','loaded');
+  setTimeout(()=>{ // give the module a moment to call GE_ENV.mark()
+    if(!GE_ENV.marks[item.name]){ setBadge(row,'warn','no init'); setMsg(row,'Module loaded but did not call GE_ENV.mark("'+item.name+'").'); }
+    else { setBadge(row,'ok','started'); setMsg(row, GE_ENV.marks[item.name]); }
+  }, 600);
+  return true;
 }
 
 async function runLoader(reset=false){
   if(reset){ list.innerHTML=''; foot.textContent='Reloading…'; }
   const rows={}; for(const it of CANDIDATES){ const r=rowFor(it); list.appendChild(r); rows[it.name]=r; }
-
-  let failures=0;
+  let fail=0;
   for(const it of CANDIDATES){
-    const r = await tryLoad(it, rows[it.name]);
-    if(!r.ok && it.required) failures++;
+    const ok = await tryLoad(it, rows[it.name]);
+    if(!ok && it.required) fail++;
   }
-  foot.textContent = failures ? `Loaded with ${failures} required error(s).` : 'All required modules loaded.';
+  foot.textContent = fail ? `Loaded with ${fail} required error(s).` : 'All required modules loaded.';
   try{ (GE_ENV.readyHooks||[]).forEach(fn=>{ try{ fn&&fn(); }catch(e){ console.error('readyHook error',e); } }); }
   finally{ foot.textContent += ' Post-inits done.'; }
 }
-
-/* report runtime errors in-panel */
-addEventListener('error', e=>{
-  const row=document.createElement('div'); row.className='row';
-  row.innerHTML=`<div class="name">runtime</div><div class="badge err">error</div><div class="msg">${e.message}</div>`; list.appendChild(row);
-});
-
 runLoader();
 </script>
 </body>
