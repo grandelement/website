@@ -11,6 +11,21 @@
     return {g,cols,rows};
   }
 
+// modules/app.js
+(function(){
+  const fxLayer = GE_CANVAS.fx;
+  fxLayer.addEventListener('click', e=>{
+    const ships = (window.GE_BG && GE_BG.ships) || [];
+    let closest=null, best=24;
+    for(const s of ships){
+      const d = Math.hypot(s.x-e.clientX, s.y-e.clientY);
+      if(d<best){ best=d; closest=s; }
+    }
+    if(closest && window.GE_FX) GE_FX.nextFrom(closest.x, closest.y);
+  });
+  if (window.GE_ENV?.mark) GE_ENV.mark('app.js','wired ship click → bg change');
+})();
+
   function loop(){
     ctx.clearRect(0,0,innerWidth,innerHeight);
     // stars
