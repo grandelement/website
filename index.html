@@ -57,8 +57,8 @@
   /* FX canvas */
   #fx{ position:fixed; inset:0; display:block; z-index:3; }
 
-  /* Hidden text (above background, below objects) */
-  .layer-hiddentext{ position:fixed; inset:0; pointer-events:none; z-index:2; }
+  /* Hidden text (above FX, below objects) */
+  .layer-hiddentext{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   .phrase{ position:absolute; color:#cfe9ff; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.9); opacity:0; transition:opacity .5s ease; pointer-events:auto; }
   .phrase.show{ opacity:1; }
   .phrase.pinned{ color:#fff; text-decoration:underline; }
@@ -89,12 +89,25 @@
     pointer-events:auto;
     font-weight:800; letter-spacing:.2px;
     background:var(--blue-sun); color:var(--blue-sun-text);
-    padding:4px 8px; border-radius:10px; max-width:88%;
+    padding:3px 6px; border-radius:10px;
+    max-width:72%;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    position:relative;
+    font-size:11px;
   }
   .toggle{ pointer-events:auto; padding:6px 12px; border-radius:999px; border:1px solid rgba(220,240,255,.35);
            background:rgba(12,24,40,.6); cursor:pointer; }
   .toggle.active{ background:rgba(40,140,255,.45); }
+
+  /* Now Playing ticker (scroll inside pill when needed) */
+  .npTicker{position:relative; display:block; white-space:nowrap;}
+  .npRun{display:inline-block; padding-right:32px;}
+  .npAnim{animation:np-marq 12s linear infinite;}
+  .npAnim:hover{animation-play-state:paused;}
+  @keyframes np-marq{
+    from{transform:translateX(0);}
+    to{transform:translateX(-50%);}
+  }
 
   /* Collapsible player: BELOW the Music button (below the Sun) */
   .miniPlayer{
@@ -158,6 +171,35 @@
                   background:rgba(15,25,50,.35); border:1px solid rgba(200,220,255,.5); backdrop-filter:blur(2px); font-size:12px; letter-spacing:.3px; font-weight:700;
                   opacity:0; pointer-events:none; transition:opacity .12s ease; }
   .planet:hover .label, .planet.touchZoom .label{ opacity:1; }
+
+  /* Active album planet glow */
+  .planet--activeAlbum{
+    box-shadow:
+      0 0 6px rgba(255,255,255,.6),
+      0 0 18px rgba(255,255,255,.5),
+      0 0 var(--planet-glow) rgba(255,255,255,.7);
+    animation:planetActivePulse 2.4s ease-in-out infinite;
+  }
+  @keyframes planetActivePulse{
+    0%{
+      box-shadow:
+        0 0 6px rgba(255,255,255,.6),
+        0 0 18px rgba(255,255,255,.5),
+        0 0 var(--planet-glow) rgba(255,255,255,.7);
+    }
+    50%{
+      box-shadow:
+        0 0 14px rgba(255,255,255,1),
+        0 0 32px rgba(255,255,255,.9),
+        0 0 calc(var(--planet-glow) * 1.4) rgba(255,255,255,1);
+    }
+    100%{
+      box-shadow:
+        0 0 6px rgba(255,255,255,.6),
+        0 0 18px rgba(255,255,255,.5),
+        0 0 var(--planet-glow) rgba(255,255,255,.7);
+    }
+  }
 </style>
 </head>
 <body>
@@ -227,10 +269,8 @@
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
-          <!-- Edit this list freely; safe placeholders -->
           <ul>
             <li>GE — Founder / composer / multi-instrumentalist</li>
-            <!-- Add more members/roles here -->
           </ul>
         </div>
       </div>
@@ -264,6 +304,10 @@ const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-b
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
 const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
 
+/* Album → planet mapping for glow */
+const albumPlanets = {};
+let activeAlbumPlanet = null;
+
 /* ========= PLANETS — spiral placement ========= */
 const ALBUMS = [
   { title:"Fundamental\u00A0Groove", cover: IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
@@ -295,6 +339,8 @@ function placeSpiral(){
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
+    // register for album glow
+    albumPlanets[alb.title] = aEl;
     // touch zoom
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
     aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
@@ -377,7 +423,40 @@ moon.addEventListener('click', ()=>{
   let PLAYLIST=[], pIndex=0, SHUFFLE=true;
   const fmt=t=>{ t=t|0; const m=(t/60)|0, s=(t%60)|0; return `${m}:${s.toString().padStart(2,'0')}`; };
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
-  const setTitle = it => nowPlaying.textContent = it ? it.track : '—';
+
+  function setTitle(it){
+    const txt = it && it.track ? it.track : '—';
+    nowPlaying.innerHTML = '';
+    const probe = document.createElement('span');
+    probe.className = 'npRun';
+    probe.textContent = txt;
+    nowPlaying.appendChild(probe);
+    const needsScroll = probe.scrollWidth > nowPlaying.clientWidth;
+    if(needsScroll){
+      const wrap = document.createElement('div');
+      wrap.className = 'npTicker npAnim';
+      wrap.appendChild(probe);
+      const clone = probe.cloneNode(true);
+      wrap.appendChild(clone);
+      nowPlaying.innerHTML = '';
+      nowPlaying.appendChild(wrap);
+    } else {
+      nowPlaying.textContent = txt;
+    }
+  }
+
+  function highlightAlbum(albumName){
+    if(!albumName) return;
+    if(activeAlbumPlanet){
+      activeAlbumPlanet.classList.remove('planet--activeAlbum');
+      activeAlbumPlanet = null;
+    }
+    const el = albumPlanets[albumName];
+    if(el){
+      el.classList.add('planet--activeAlbum');
+      activeAlbumPlanet = el;
+    }
+  }
 
   async function fetchAllMp3s(){
     const r = await fetch('https://api.github.com/repos/grandelement/radio/git/trees/main?recursive=1',
@@ -392,6 +471,7 @@ moon.addEventListener('click', ()=>{
         const file  = decodeURIComponent(parts[parts.length-1]);
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
+
         return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, trackNum, track };
       });
   }
@@ -409,7 +489,9 @@ moon.addEventListener('click', ()=>{
   function startCurrent(){
     const it = PLAYLIST[pIndex];
     if(!it) return;
-    player.src = it.url; setTitle(it);
+    player.src = it.url;
+    setTitle(it);
+    highlightAlbum(it.album);
     player.play().catch(()=>{});
     btnPlay.textContent='❚❚';
   }
@@ -432,6 +514,9 @@ moon.addEventListener('click', ()=>{
   function unmuteOnce(){ player.muted=false; window.removeEventListener('pointerdown', unmuteOnce, {capture:true}); }
   window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
   player.muted=true;
+
+  // Re-evaluate ticker width on resize
+  addEventListener('resize', ()=>{ if(PLAYLIST.length){ setTitle(PLAYLIST[pIndex]); } }, {passive:true});
 
   fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
@@ -699,7 +784,6 @@ class Ship{
 
     // Reel in targets if any
     if (this.targets.length){
-      // centroid between ship and targets
       const cx = this.targets.reduce((s,c)=>s+c.x,0)/this.targets.length;
       const cy = this.targets.reduce((s,c)=>s+c.y,0)/this.targets.length;
       const midX = (this.x + cx)/2, midY = (this.y + cy)/2;
@@ -711,7 +795,6 @@ class Ship{
         c.vy = (c.vy*damp) + (dy/dist)*k;
         if (dist < this.captureRadius) c.state='captured';
       }
-      // entangle when tight
       const tight = this.targets.length>=2 && this.targets.every(c=>c.state==='captured');
       if (tight){
         pairs.push(new Pair(this.targets[0], this.targets[1]));
@@ -722,7 +805,6 @@ class Ship{
       this.beam = Math.max(0, this.beam - dt*1.2);
     }
 
-    // forced beam time window
     if (performance.now() < this.forceBeamUntil) this.beam = 1;
   }
   draw(){
@@ -732,7 +814,6 @@ class Ship{
     ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang);
     const drawW=w*0.6, drawH=h*0.6; ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH);
 
-    // beams to all targets
     if(this.beam>0 && this.targets.length){
       for(const c of this.targets){
         const mx=c.x - this.x, my=c.y - this.y, len=Math.hypot(mx,my);
@@ -751,10 +832,10 @@ class Ship{
   }
 }
 
-/* Background mini-ships: small, click-to-tether (scaled) */
+/* Background mini-ships */
 class MiniShip{
   constructor(){
-    this.s = rand(0.015,0.05); // sizes ~1–5
+    this.s = rand(0.015,0.05);
     const side=choice(['l','r','t','b']), pad=40;
     if(side==='l'){ this.x=-pad;    this.y=rand(0,H);  this.vx=rand(12,38);  this.vy=rand(-18,18); }
     if(side==='r'){ this.x=W+pad;   this.y=rand(0,H);  this.vx=-rand(12,38); this.vy=rand(-18,18); }
@@ -780,7 +861,6 @@ class MiniShip{
     ctx.save(); ctx.globalAlpha=.45;
     const ang=Math.atan2(this.vy,this.vx)+Math.PI; const w=shipImg.width*this.s,h=shipImg.height*this.s;
     ctx.translate(this.x,this.y); ctx.rotate(ang); ctx.drawImage(shipImg,-w*0.3,-h*0.5,w*0.6,h*0.6);
-    // beams
     if(this.beam>0 && this.targets.length){
       for(const c of this.targets){
         const mx=c.x - this.x, my=c.y - this.y, len=Math.hypot(mx,my);
@@ -799,7 +879,6 @@ class MiniShip{
   }
 }
 
-/* Arrays + main loop with adaptivity */
 const comets=[], pairs=[], ships=[], miniShips=[];
 let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(7,14), miniTimer=0, miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
@@ -861,7 +940,7 @@ function collideElastic(a,b,rest=0.98){
   b.vy = bn2*ny + bt*( nx);
 }
 
-/* Drag & throw for comets (bounce while dragging too) */
+/* Drag & throw for comets */
 let drag={obj:null,kind:null,hist:[]};
 function nearestPick(x,y){
   let best=null,bestD=1e9,kind=null;
@@ -879,10 +958,9 @@ canvas.addEventListener('pointermove', (e)=>{
   if(!drag.obj) return; const x=e.clientX,y=e.clientY,now=performance.now();
   drag.obj.x=x; drag.obj.y=y; drag.hist.push({x,y,t:now}); while(drag.hist.length && now-drag.hist[0].t>160) drag.hist.shift();
   if(drag.kind==='comet' && drag.obj.trail){ drag.obj.trail.push([x,y,now]); if(drag.obj.trail.length>120) drag.obj.trail.shift(); }
-  // While dragging: bounce off other comets & planets & sun/moon
   if (drag.kind==='comet') {
     for (const c of comets) { if(c!==drag.obj) collideElastic(drag.obj, c, 0.95); }
-    if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x, y:p.y, r:p.r, vx:0, vy:0}, 0.95); }
+    if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
     if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
@@ -897,20 +975,19 @@ canvas.addEventListener('pointerup', (e)=>{
   drag.obj.dragging=false; drag={obj:null,kind:null,hist:[]}; e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId);
 });
 
-/* Click near ship/mini-ship → add another comet tether (up to 3) */
+/* Click near ship/mini-ship → add tether */
 canvas.addEventListener('pointerdown', (e)=>{
-  // nearest main ship or mini ship
   let nearest=null, best=28, isMini=false;
   for(const s of ships){ const d=Math.hypot(s.x-e.clientX,s.y-e.clientY); if(d<best){ best=d; nearest=s; isMini=false; } }
   for(const m of miniShips){ const d=Math.hypot(m.x-e.clientX,m.y-e.clientY); if(d<best){ best=d; nearest=m; isMini=true; } }
   if(nearest){
-    const until = performance.now()+2200; // hold beams ~2.2s
+    const until = performance.now()+2200;
     nearest.forceBeamUntil = until;
     if (typeof nearest.captureNextComet === 'function') nearest.captureNextComet();
   }
 },{passive:true});
 
-/* Main loop (adaptive counts) */
+/* Main loop */
 const MAX_SHIPS   = MOBILE ? 2 : 3;
 const MINI_MAX    = MOBILE ? 10 : 20;
 function loop(){
@@ -931,8 +1008,6 @@ function loop(){
   pairs.forEach(p=>p.step(dt));
   miniShips.forEach(s=>s.step(dt));
 
-  /* comet collisions while flying */
-  // comet vs comet
   for(let i=0;i<comets.length;i++){
     for(let j=i+1;j<comets.length;j++){
       const a=comets[i], b=comets[j];
@@ -940,7 +1015,6 @@ function loop(){
       collideElastic(a,b,0.96);
     }
   }
-  // comet vs planets/sun/moon
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
@@ -952,7 +1026,6 @@ function loop(){
     if(mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
   }
 
-  // entanglement touch
   for(let i=0;i<comets.length;i++)
     for(let j=i+1;j<comets.length;j++){
       const a=comets[i], b=comets[j];
@@ -962,7 +1035,6 @@ function loop(){
       }
     }
 
-  // cleanup
   for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1);
   for(let i=pairs.length-1;i>=0;i--) if(pairs[i].dead) pairs.splice(i,1);
   for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1);
@@ -979,7 +1051,7 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-/* Sun dragging — allow offscreen but keep ≥25% visible; click = TELEPORT */
+/* Sun dragging */
 (function enableDragSun(){
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dx=0, dy=0, moved=false;
@@ -1006,7 +1078,6 @@ requestAnimationFrame(loop);
   }, {passive:true});
   addEventListener('pointerup', (e)=>{
     if(dragging && !moved){
-      // single click → teleport ripple from Sun center
       const rect=wrap.getBoundingClientRect();
       rippleAndNext(rect.left+rect.width/2, rect.top+rect.height/2);
     }
@@ -1014,7 +1085,7 @@ requestAnimationFrame(loop);
   }, {passive:true});
 })();
 
-/* PLANET PHYSICS — pool-ball impulse; stay on screen; bounce sun/moon */
+/* PLANET PHYSICS */
 const planetNodes = [];
 function buildPlanetPhysics(){
   planetNodes.length=0;
@@ -1049,8 +1120,8 @@ addEventListener('pointerup', (e)=>{
 function planetStep(){
   const sunRect  = document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect = document.querySelector('.moon')?.getBoundingClientRect();
-  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
+  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
+  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.width/2:0, mr=moonRect?moonRect.width/2:0;
 
   for(const p of planetNodes){
     if(p.dragging) continue;
@@ -1086,8 +1157,6 @@ function nudgeSunNow(){
   wrap.style.transform='translate(-50%,-50%)';
 }
 addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
-
-/* Teleport now only on Sun click (handled in sun drag block) */
 </script>
 </body>
 </html>

@@ -57,8 +57,8 @@
   /* FX canvas */
   #fx{ position:fixed; inset:0; display:block; z-index:3; }
 
-  /* Hidden text (above background, below objects) */
-  .layer-hiddentext{ position:fixed; inset:0; pointer-events:none; z-index:2; }
+  /* Hidden text (above FX, below objects) */
+  .layer-hiddentext{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   .phrase{ position:absolute; color:#cfe9ff; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.9); opacity:0; transition:opacity .5s ease; pointer-events:auto; }
   .phrase.show{ opacity:1; }
   .phrase.pinned{ color:#fff; text-decoration:underline; }
@@ -89,12 +89,25 @@
     pointer-events:auto;
     font-weight:800; letter-spacing:.2px;
     background:var(--blue-sun); color:var(--blue-sun-text);
-    padding:4px 8px; border-radius:10px; max-width:88%;
+    padding:3px 6px; border-radius:10px;
+    max-width:72%;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    position:relative;
+    font-size:11px;
   }
   .toggle{ pointer-events:auto; padding:6px 12px; border-radius:999px; border:1px solid rgba(220,240,255,.35);
            background:rgba(12,24,40,.6); cursor:pointer; }
   .toggle.active{ background:rgba(40,140,255,.45); }
+
+  /* Now Playing ticker (scroll inside pill when needed) */
+  .npTicker{position:relative; display:block; white-space:nowrap;}
+  .npRun{display:inline-block; padding-right:32px;}
+  .npAnim{animation:np-marq 12s linear infinite;}
+  .npAnim:hover{animation-play-state:paused;}
+  @keyframes np-marq{
+    from{transform:translateX(0);}
+    to{transform:translateX(-50%);}
+  }
 
   /* Collapsible player: BELOW the Music button (below the Sun) */
   .miniPlayer{
@@ -159,38 +172,37 @@
                   opacity:0; pointer-events:none; transition:opacity .12s ease; }
   .planet:hover .label, .planet.touchZoom .label{ opacity:1; }
 
-  /* ===== Planet Game HUD (non-destructive) ===== */
-  #geHUD{
-    position:fixed; top:16px; left:16px; z-index:1000;
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    padding:10px 12px; border-radius:12px;
-    background:rgba(8,14,24,.82); border:1px solid rgba(180,210,255,.25);
-    box-shadow:0 8px 22px rgba(0,0,0,.35); font-size:14px;
+  /* Active album planet glow */
+  .planet--activeAlbum{
+    box-shadow:
+      0 0 6px rgba(255,255,255,.6),
+      0 0 18px rgba(255,255,255,.5),
+      0 0 var(--planet-glow) rgba(255,255,255,.7);
+    animation:planetActivePulse 2.4s ease-in-out infinite;
   }
-  #geHUD .pill{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
-    background:rgba(15,25,45,.65); border:1px solid rgba(200,220,255,.28); font-weight:800; }
-  #geHUD .btn{ cursor:pointer; user-select:none; display:inline-flex; align-items:center; justify-content:center;
-    padding:8px 12px; border-radius:10px; border:1px solid rgba(200,220,255,.3); background:rgba(10,20,38,.7);
-    color:#eaf2ff; font-weight:900; letter-spacing:.2px; min-width:96px; max-width:200px; line-height:1.1; white-space:normal; word-break:break-word; }
-  #geHUD .btn.primary{ background:rgba(50,130,255,.28); border-color:rgba(120,180,255,.45) }
-  #geCountdown{ position:fixed; inset:0; display:none; place-items:center; z-index:1200; background:rgba(0,0,0,.35) }
-  #geCountdownNum{ font-size:8vw; font-weight:900; text-shadow:0 0 40px rgba(120,180,255,.6) }
-  .moon{ transition: opacity 1.2s ease } .moon.is-fading{ opacity:0; pointer-events:none }
-  .geScore{ font-weight:900; font-size:16px; letter-spacing:.2px }
-  .geRed{ color:#ef4444 } .geBlue{ color:#60a5fa }
-
+  @keyframes planetActivePulse{
+    0%{
+      box-shadow:
+        0 0 6px rgba(255,255,255,.6),
+        0 0 18px rgba(255,255,255,.5),
+        0 0 var(--planet-glow) rgba(255,255,255,.7);
+    }
+    50%{
+      box-shadow:
+        0 0 14px rgba(255,255,255,1),
+        0 0 32px rgba(255,255,255,.9),
+        0 0 calc(var(--planet-glow) * 1.4) rgba(255,255,255,1);
+    }
+    100%{
+      box-shadow:
+        0 0 6px rgba(255,255,255,.6),
+        0 0 18px rgba(255,255,255,.5),
+        0 0 var(--planet-glow) rgba(255,255,255,.7);
+    }
+  }
 </style>
 </head>
 <body>
-
-  <!-- ===== Planet Game HUD ===== -->
-  <nav id="geHUD" aria-label="Planet Game HUD">
-    <span class="pill" title="Red Score"><b id="geScoreRed" class="geScore geRed">0</b></span>
-    <span class="pill" title="Blue Score"><b id="geScoreBlue" class="geScore geBlue">0</b></span>
-    <button class="btn primary" id="geStartStop">Start</button>
-  </nav>
-  <div id="geCountdown"><div id="geCountdownNum">3</div></div>
-
   <canvas id="fx"></canvas>
   <div class="layer-hiddentext" id="phrases"></div>
 
@@ -257,19 +269,9 @@
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
-          <!-- Edit this list freely; safe placeholders -->
-          
           <ul>
-            <li>Scott Gregory Rundquist – founder, keyboards, composition, vocals (energy voice), producer</li>
-            <li>Mike Venniro – drums, percussion</li>
-            <li>Evan Donahue – guitar</li>
-            <li>Wills Blackmore – drums, percussion, sound engineering</li>
-            <li>Shane Willy – bass guitar</li>
-            <li>Latheori Trice – bass guitar (early member)</li>
-            <li>Ronaldo Elliott – drums (reggae influence)</li>
-            <li>Elizabeth “Liz” Washington – vocals</li>
+            <li>GE — Founder / composer / multi-instrumentalist</li>
           </ul>
-
         </div>
       </div>
 
@@ -302,6 +304,10 @@ const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-b
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
 const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
 
+/* Album → planet mapping for glow */
+const albumPlanets = {};
+let activeAlbumPlanet = null;
+
 /* ========= PLANETS — spiral placement ========= */
 const ALBUMS = [
   { title:"Fundamental\u00A0Groove", cover: IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
@@ -333,6 +339,8 @@ function placeSpiral(){
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
+    // register for album glow
+    albumPlanets[alb.title] = aEl;
     // touch zoom
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
     aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
@@ -415,7 +423,40 @@ moon.addEventListener('click', ()=>{
   let PLAYLIST=[], pIndex=0, SHUFFLE=true;
   const fmt=t=>{ t=t|0; const m=(t/60)|0, s=(t%60)|0; return `${m}:${s.toString().padStart(2,'0')}`; };
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
-  const setTitle = it => nowPlaying.textContent = it ? it.track : '—';
+
+  function setTitle(it){
+    const txt = it && it.track ? it.track : '—';
+    nowPlaying.innerHTML = '';
+    const probe = document.createElement('span');
+    probe.className = 'npRun';
+    probe.textContent = txt;
+    nowPlaying.appendChild(probe);
+    const needsScroll = probe.scrollWidth > nowPlaying.clientWidth;
+    if(needsScroll){
+      const wrap = document.createElement('div');
+      wrap.className = 'npTicker npAnim';
+      wrap.appendChild(probe);
+      const clone = probe.cloneNode(true);
+      wrap.appendChild(clone);
+      nowPlaying.innerHTML = '';
+      nowPlaying.appendChild(wrap);
+    } else {
+      nowPlaying.textContent = txt;
+    }
+  }
+
+  function highlightAlbum(albumName){
+    if(!albumName) return;
+    if(activeAlbumPlanet){
+      activeAlbumPlanet.classList.remove('planet--activeAlbum');
+      activeAlbumPlanet = null;
+    }
+    const el = albumPlanets[albumName];
+    if(el){
+      el.classList.add('planet--activeAlbum');
+      activeAlbumPlanet = el;
+    }
+  }
 
   async function fetchAllMp3s(){
     const r = await fetch('https://api.github.com/repos/grandelement/radio/git/trees/main?recursive=1',
@@ -430,6 +471,7 @@ moon.addEventListener('click', ()=>{
         const file  = decodeURIComponent(parts[parts.length-1]);
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
+
         return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, trackNum, track };
       });
   }
@@ -447,7 +489,9 @@ moon.addEventListener('click', ()=>{
   function startCurrent(){
     const it = PLAYLIST[pIndex];
     if(!it) return;
-    player.src = it.url; setTitle(it);
+    player.src = it.url;
+    setTitle(it);
+    highlightAlbum(it.album);
     player.play().catch(()=>{});
     btnPlay.textContent='❚❚';
   }
@@ -470,6 +514,9 @@ moon.addEventListener('click', ()=>{
   function unmuteOnce(){ player.muted=false; window.removeEventListener('pointerdown', unmuteOnce, {capture:true}); }
   window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
   player.muted=true;
+
+  // Re-evaluate ticker width on resize
+  addEventListener('resize', ()=>{ if(PLAYLIST.length){ setTitle(PLAYLIST[pIndex]); } }, {passive:true});
 
   fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
@@ -737,7 +784,6 @@ class Ship{
 
     // Reel in targets if any
     if (this.targets.length){
-      // centroid between ship and targets
       const cx = this.targets.reduce((s,c)=>s+c.x,0)/this.targets.length;
       const cy = this.targets.reduce((s,c)=>s+c.y,0)/this.targets.length;
       const midX = (this.x + cx)/2, midY = (this.y + cy)/2;
@@ -749,7 +795,6 @@ class Ship{
         c.vy = (c.vy*damp) + (dy/dist)*k;
         if (dist < this.captureRadius) c.state='captured';
       }
-      // entangle when tight
       const tight = this.targets.length>=2 && this.targets.every(c=>c.state==='captured');
       if (tight){
         pairs.push(new Pair(this.targets[0], this.targets[1]));
@@ -760,7 +805,6 @@ class Ship{
       this.beam = Math.max(0, this.beam - dt*1.2);
     }
 
-    // forced beam time window
     if (performance.now() < this.forceBeamUntil) this.beam = 1;
   }
   draw(){
@@ -770,7 +814,6 @@ class Ship{
     ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang);
     const drawW=w*0.6, drawH=h*0.6; ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH);
 
-    // beams to all targets
     if(this.beam>0 && this.targets.length){
       for(const c of this.targets){
         const mx=c.x - this.x, my=c.y - this.y, len=Math.hypot(mx,my);
@@ -789,10 +832,10 @@ class Ship{
   }
 }
 
-/* Background mini-ships: small, click-to-tether (scaled) */
+/* Background mini-ships */
 class MiniShip{
   constructor(){
-    this.s = rand(0.015,0.05); // sizes ~1–5
+    this.s = rand(0.015,0.05);
     const side=choice(['l','r','t','b']), pad=40;
     if(side==='l'){ this.x=-pad;    this.y=rand(0,H);  this.vx=rand(12,38);  this.vy=rand(-18,18); }
     if(side==='r'){ this.x=W+pad;   this.y=rand(0,H);  this.vx=-rand(12,38); this.vy=rand(-18,18); }
@@ -818,7 +861,6 @@ class MiniShip{
     ctx.save(); ctx.globalAlpha=.45;
     const ang=Math.atan2(this.vy,this.vx)+Math.PI; const w=shipImg.width*this.s,h=shipImg.height*this.s;
     ctx.translate(this.x,this.y); ctx.rotate(ang); ctx.drawImage(shipImg,-w*0.3,-h*0.5,w*0.6,h*0.6);
-    // beams
     if(this.beam>0 && this.targets.length){
       for(const c of this.targets){
         const mx=c.x - this.x, my=c.y - this.y, len=Math.hypot(mx,my);
@@ -837,7 +879,6 @@ class MiniShip{
   }
 }
 
-/* Arrays + main loop with adaptivity */
 const comets=[], pairs=[], ships=[], miniShips=[];
 let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(7,14), miniTimer=0, miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
@@ -899,7 +940,7 @@ function collideElastic(a,b,rest=0.98){
   b.vy = bn2*ny + bt*( nx);
 }
 
-/* Drag & throw for comets (bounce while dragging too) */
+/* Drag & throw for comets */
 let drag={obj:null,kind:null,hist:[]};
 function nearestPick(x,y){
   let best=null,bestD=1e9,kind=null;
@@ -917,10 +958,9 @@ canvas.addEventListener('pointermove', (e)=>{
   if(!drag.obj) return; const x=e.clientX,y=e.clientY,now=performance.now();
   drag.obj.x=x; drag.obj.y=y; drag.hist.push({x,y,t:now}); while(drag.hist.length && now-drag.hist[0].t>160) drag.hist.shift();
   if(drag.kind==='comet' && drag.obj.trail){ drag.obj.trail.push([x,y,now]); if(drag.obj.trail.length>120) drag.obj.trail.shift(); }
-  // While dragging: bounce off other comets & planets & sun/moon
   if (drag.kind==='comet') {
     for (const c of comets) { if(c!==drag.obj) collideElastic(drag.obj, c, 0.95); }
-    if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x, y:p.y, r:p.r, vx:0, vy:0}, 0.95); }
+    if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
     if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
@@ -935,20 +975,19 @@ canvas.addEventListener('pointerup', (e)=>{
   drag.obj.dragging=false; drag={obj:null,kind:null,hist:[]}; e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId);
 });
 
-/* Click near ship/mini-ship → add another comet tether (up to 3) */
+/* Click near ship/mini-ship → add tether */
 canvas.addEventListener('pointerdown', (e)=>{
-  // nearest main ship or mini ship
   let nearest=null, best=28, isMini=false;
   for(const s of ships){ const d=Math.hypot(s.x-e.clientX,s.y-e.clientY); if(d<best){ best=d; nearest=s; isMini=false; } }
   for(const m of miniShips){ const d=Math.hypot(m.x-e.clientX,m.y-e.clientY); if(d<best){ best=d; nearest=m; isMini=true; } }
   if(nearest){
-    const until = performance.now()+2200; // hold beams ~2.2s
+    const until = performance.now()+2200;
     nearest.forceBeamUntil = until;
     if (typeof nearest.captureNextComet === 'function') nearest.captureNextComet();
   }
 },{passive:true});
 
-/* Main loop (adaptive counts) */
+/* Main loop */
 const MAX_SHIPS   = MOBILE ? 2 : 3;
 const MINI_MAX    = MOBILE ? 10 : 20;
 function loop(){
@@ -969,8 +1008,6 @@ function loop(){
   pairs.forEach(p=>p.step(dt));
   miniShips.forEach(s=>s.step(dt));
 
-  /* comet collisions while flying */
-  // comet vs comet
   for(let i=0;i<comets.length;i++){
     for(let j=i+1;j<comets.length;j++){
       const a=comets[i], b=comets[j];
@@ -978,7 +1015,6 @@ function loop(){
       collideElastic(a,b,0.96);
     }
   }
-  // comet vs planets/sun/moon
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
@@ -990,7 +1026,6 @@ function loop(){
     if(mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
   }
 
-  // entanglement touch
   for(let i=0;i<comets.length;i++)
     for(let j=i+1;j<comets.length;j++){
       const a=comets[i], b=comets[j];
@@ -1000,7 +1035,6 @@ function loop(){
       }
     }
 
-  // cleanup
   for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1);
   for(let i=pairs.length-1;i>=0;i--) if(pairs[i].dead) pairs.splice(i,1);
   for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1);
@@ -1017,7 +1051,7 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-/* Sun dragging — allow offscreen but keep ≥25% visible; click = TELEPORT */
+/* Sun dragging */
 (function enableDragSun(){
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dx=0, dy=0, moved=false;
@@ -1044,7 +1078,6 @@ requestAnimationFrame(loop);
   }, {passive:true});
   addEventListener('pointerup', (e)=>{
     if(dragging && !moved){
-      // single click → teleport ripple from Sun center
       const rect=wrap.getBoundingClientRect();
       rippleAndNext(rect.left+rect.width/2, rect.top+rect.height/2);
     }
@@ -1052,7 +1085,7 @@ requestAnimationFrame(loop);
   }, {passive:true});
 })();
 
-/* PLANET PHYSICS — pool-ball impulse; stay on screen; bounce sun/moon */
+/* PLANET PHYSICS */
 const planetNodes = [];
 function buildPlanetPhysics(){
   planetNodes.length=0;
@@ -1087,8 +1120,8 @@ addEventListener('pointerup', (e)=>{
 function planetStep(){
   const sunRect  = document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect = document.querySelector('.moon')?.getBoundingClientRect();
-  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
+  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
+  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.width/2:0, mr=moonRect?moonRect.width/2:0;
 
   for(const p of planetNodes){
     if(p.dragging) continue;
@@ -1124,304 +1157,6 @@ function nudgeSunNow(){
   wrap.style.transform='translate(-50%,-50%)';
 }
 addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
-
-/* Teleport now only on Sun click (handled in sun drag block) */
 </script>
-
-<script>
-/* ===== Planet Game overlay (non-destructive) ===== */
-(function(){
-  const scoreR = document.getElementById('geScoreRed');
-  const scoreB = document.getElementById('geScoreBlue');
-  const btnSS  = document.getElementById('geStartStop');
-  const overlay= document.getElementById('geCountdown');
-  const counter= document.getElementById('geCountdownNum');
-
-  window.GAME = window.GAME || { active:false, starting:false, totalSpawned:0 };
-
-  function setScore(which, val){ val=Math.max(0, val|0); if(which==='red') scoreR.textContent=val; if(which==='blue') scoreB.textContent=val; }
-  function getScore(){ return { red:+(scoreR.textContent||0), blue:+(scoreB.textContent||0) }; }
-  window.GEHUD = { start:()=>{btnSS?.click();}, stop:()=>{ if(btnSS&&/stop/i.test(btnSS.textContent||'')) btnSS.click(); }, score:{set:setScore,get:getScore} };
-
-  function startSequence(){
-    if(GAME.starting || GAME.active) return;
-    GAME.starting = true; overlay.style.display='grid';
-    const nums=['3','2','1','GO']; let i=0; counter.textContent=nums[i];
-    const id=setInterval(()=>{
-      i++; if(i<nums.length){ counter.textContent=nums[i]; }
-      else { clearInterval(id); overlay.style.display='none'; GAME.active=true; GAME.starting=false; GAME.totalSpawned=0; btnSS.textContent='Stop'; document.dispatchEvent(new Event('ge:game-start')); }
-    }, 650);
-  }
-  btnSS?.addEventListener('click', ()=>{
-    if(/start/i.test(btnSS.textContent||'')) startSequence();
-    else { GAME.active=false; btnSS.textContent='Start'; document.dispatchEvent(new Event('ge:game-stop')); }
-  });
-
-  // Fade big ships/comets + moon; keep background/mini-ships running
-  (function(){
-    const moon=document.querySelector('.moon'); let fadeStart=0, fading=false;
-    function wrapDraw(cls){
-      try{
-        const C = window[cls]; if(!C || !C.prototype || !C.prototype.draw) return;
-        const _d = C.prototype.draw;
-        C.prototype.draw = function(){
-          if(fading){
-            const k=Math.max(0,1-(performance.now()-fadeStart)/1200);
-            if(k<=0){ this.dead=true; return; }
-            ctx.save(); ctx.globalAlpha*=k; _d.call(this); ctx.restore();
-          } else { _d.call(this); }
-        };
-      }catch(_){}
-    }
-    wrapDraw('Comet'); wrapDraw('Ship');
-    document.addEventListener('ge:game-start', ()=>{ fading=true; fadeStart=performance.now(); moon?.classList.add('is-fading'); });
-    document.addEventListener('ge:game-stop',  ()=>{ fading=false;                moon?.classList.remove('is-fading'); });
-
-    // suspend big ship/comet stepping when game active (mini-ships untouched)
-    const _loop = window.loop;
-    if(typeof _loop==='function'){
-      window.loop = function(){
-        const cs = (window.Comet && Comet.prototype.step) ? Comet.prototype.step : null;
-        const ss = (window.Ship  && Ship.prototype.step)  ? Ship.prototype.step  : null;
-        if(window.GAME && GAME.active){
-          if(cs) Comet.prototype.step = function(){};
-          if(ss) Ship.prototype.step  = function(){};
-        }
-        _loop();
-        if(cs) Comet.prototype.step = cs;
-        if(ss) Ship.prototype.step  = ss;
-      };
-    }
-  })();
-
-  // Cue balls = existing NET.mini (red/blue) with drag/throw/bounce + scoring
-  (function(){
-    const fx = document.getElementById('fx'); if(!fx) return;
-    const DPR = Math.max(1, window.devicePixelRatio||1);
-    const rect = ()=>fx.getBoundingClientRect();
-    function ensure(){
-      if(!window.NET || !Array.isArray(NET.mini)) return false;
-      for(const m of NET.mini){
-        if(typeof m.r!=='number') m.r=12;
-        if(typeof m.vx!=='number') m.vx=0;
-        if(typeof m.vy!=='number') m.vy=0;
-        if(!m.color) m.color = (m.h && (m.h<30||m.h>330)) ? 'red' : 'blue';
-      }
-      return true;
-    }
-    ensure();
-    let drag={obj:null,lastX:0,lastY:0};
-    fx.addEventListener('pointerdown', e=>{
-      if(!ensure()) return;
-      const R=rect(), x=e.clientX-R.left, y=e.clientY-R.top;
-      let hit=null; for(const m of NET.mini){ if(Math.hypot(x-m.x,y-m.y) <= (m.r||12)+8){ hit=m; break; } }
-      if(hit){ drag.obj=hit; drag.lastX=x; drag.lastY=y; hit.touched=true; try{fx.setPointerCapture(e.pointerId);}catch(_){}
-        try{ const b=document.getElementById('geStartStop'); if(b && /start/i.test(b.textContent||'')) b.click(); }catch(_){}
-      }
-    }, {passive:true});
-    fx.addEventListener('pointermove', e=>{
-      if(!drag.obj) return;
-      const R=rect(), x=e.clientX-R.left, y=e.clientY-R.top;
-      const dx=x-drag.lastX, dy=y-drag.lastY; drag.lastX=x; drag.lastY=y;
-      drag.obj.x=x; drag.obj.y=y; drag.obj.vx=dx*8; drag.obj.vy=dy*8;
-    });
-    fx.addEventListener('pointerup', e=>{ if(!drag.obj) return; try{fx.releasePointerCapture(e.pointerId);}catch(_){}
-      drag.obj=null; });
-
-    function resolveCueVsPlanet(b,p){
-      const dx=(b.x||0)-p.x, dy=(b.y||0)-p.y;
-      const dist=Math.hypot(dx,dy)||0.0001, sumR=(b.r||12)+(p.r||0);
-      if(dist>=sumR) return false;
-      const nx=dx/dist, ny=dy/dist, overlap=sumR-dist;
-      b.x += nx*overlap; b.y += ny*overlap;
-      const rvx=(b.vx||0)-(p.vx||0), rvy=(b.vy||0)-(p.vy||0);
-      const vn=rvx*nx + rvy*ny; if(vn>0) return true;
-      const e=0.9, j=-(1+e)*vn;
-      b.vx = (b.vx||0)+j*nx; b.vy = (b.vy||0)+j*ny;
-      return true;
-    }
-
-    const lastHit = new Map();
-    function step(dt){
-      if(!ensure()) return;
-      const w=fx.width/DPR, h=fx.height/DPR;
-      for(const m of NET.mini){
-        if(m===drag.obj) continue;
-        m.x+=(m.vx||0)*dt; m.y+=(m.vy||0)*dt; m.vx*=0.985; m.vy*=0.985;
-        if(m.x-m.r<0){ m.x=m.r;     m.vx*=-0.9; }
-        if(m.x+m.r>w){ m.x=w-m.r;   m.vx*=-0.9; }
-        if(m.y-m.r<0){ m.y=m.r;     m.vy*=-0.9; }
-        if(m.y+m.r>h){ m.y=h-m.r;   m.vy*=-0.9; }
-      }
-      try{
-        const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
-        const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-        const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-        const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
-        for(const b of NET.mini){
-          if(window.planetNodes){
-            for(let i=0;i<planetNodes.length;i++){
-              const p=planetNodes[i];
-              if(resolveCueVsPlanet(b,p)){
-                const key=(b.color||'cue')+':'+i, now=performance.now();
-                if((now-(lastHit.get(key)||0))>800){ lastHit.set(key,now);
-                  const s=GEHUD.score.get(); if((b.color||'blue')==='red') GEHUD.score.set('red', s.red+1); else GEHUD.score.set('blue', s.blue+1);
-                }
-              }
-              if(typeof collideElastic==='function') collideElastic(b,{x:p.x,y:p.y,r:p.r,vx:p.vx||0,vy:p.vy||0},1.08);
-            }
-          }
-          if(sr && typeof collideElastic==='function') collideElastic(b,{x:sx,y:sy,r:sr,vx:0,vy:0},1.08);
-          if(mr && typeof collideElastic==='function') collideElastic(b,{x:mx,y:my,r:mr,vx:0,vy:0},1.08);
-          if(window.comets && typeof collideElastic==='function') for(const c of comets) collideElastic(b,c,1.04);
-        }
-        if(NET.mini.length>=2 && typeof collideElastic==='function') collideElastic(NET.mini[0], NET.mini[1], 1.02);
-      }catch(_){}
-    }
-
-    // integrate before your loop runs
-    const _loop = window.loop;
-    window.loop = function(){
-      const now=performance.now(), dt=(window.__cueTs?(now-window.__cueTs):16)/1000; window.__cueTs=now;
-      step(dt);
-      if(typeof _loop==='function') _loop();
-    };
-  })();
-
-  // IMPORTANT: No background shuffle tied to game-start here.
-  // If you want manual shuffle, call window.shuffleStars?.()
-})();
-</script>
-
-
-<script>
-(function(){
-  const fx = document.getElementById('fx');
-  if(!fx || !window.NET) return;
-
-  function getScale(){
-    const r = fx.getBoundingClientRect();
-    const sx = fx.width  / (r.width  || 1);
-    const sy = fx.height / (r.height || 1);
-    return (sx+sy)/2;
-  }
-
-  (function(){
-    const hud=document.getElementById('geHUD');
-    if(hud){ hud.style.opacity='1'; hud.style.pointerEvents='auto'; }
-  })();
-
-  (function ensureFades(){
-    const moon = document.querySelector('.moon');
-    let fading=false, t0=0;
-    function patchDraw(proto){
-      if(!proto || !proto.draw || proto.__ge_patched) return;
-      const _d = proto.draw;
-      proto.draw = function(){
-        if(fading){
-          const k = Math.max(0, 1 - (performance.now()-t0)/1200);
-          if(k<=0){ this.dead=true; return; }
-          try{ ctx.save(); ctx.globalAlpha *= k; _d.call(this); ctx.restore(); } catch(_){ _d.call(this); }
-        } else { _d.call(this); }
-      };
-      proto.__ge_patched = true;
-    }
-    try{ patchDraw(window.Comet && window.Comet.prototype); }catch(_){}
-    try{ patchDraw(window.Ship  && window.Ship.prototype); }catch(_){}
-
-    document.addEventListener('ge:game-start', ()=>{ fading=true; t0=performance.now(); moon?.classList.add('is-fading'); });
-    document.addEventListener('ge:game-stop',  ()=>{ fading=false;                moon?.classList.remove('is-fading'); });
-  })();
-
-  function ensureMini(){
-    if(!NET || !Array.isArray(NET.mini)) return false;
-    for(const m of NET.mini){
-      if(typeof m.r!=='number') m.r=12;
-      if(typeof m.vx!=='number') m.vx=0;
-      if(typeof m.vy!=='number') m.vy=0;
-      if(!m.color){ m.color=(m.h && (m.h<30 || m.h>330)) ? 'red' : 'blue'; }
-    }
-    return true;
-  }
-  ensureMini();
-
-  const rect = ()=>fx.getBoundingClientRect();
-  let drag={obj:null,lastX:0,lastY:0};
-  fx.addEventListener('pointerdown', e=>{
-    if(!ensureMini()) return;
-    const R=rect(), x=e.clientX-R.left, y=e.clientY-R.top;
-    let hit=null; for(const m of NET.mini){ if(Math.hypot(x-m.x,y-m.y) <= (m.r||12)+10){ hit=m; break; } }
-    if(hit){
-      drag.obj=hit; drag.lastX=x; drag.lastY=y; hit.touched=true; try{fx.setPointerCapture(e.pointerId);}catch(_){}
-      try{ const b=document.getElementById('geStartStop'); if(b && /start/i.test(b.textContent||'')) b.click(); }catch(_){}
-    }
-  }, {passive:true});
-  fx.addEventListener('pointermove', e=>{
-    if(!drag.obj) return;
-    const R=rect(), x=e.clientX-R.left, y=e.clientY-R.top;
-    const dx=x-drag.lastX, dy=y-drag.lastY; drag.lastX=x; drag.lastY=y;
-    drag.obj.x=x; drag.obj.y=y; drag.obj.vx=dx*8; drag.obj.vy=dy*8;
-  });
-  fx.addEventListener('pointerup', e=>{ if(!drag.obj) return; try{fx.releasePointerCapture(e.pointerId);}catch(_){}
-    drag.obj=null; });
-
-  function resolveCueVsPlanet(b,p,scale){
-    const px=p.x/scale, py=p.y/scale, pr=(p.r||0)/scale;
-    const dx=(b.x||0)-px, dy=(b.y||0)-py;
-    const dist=Math.hypot(dx,dy)||0.0001, sumR=(b.r||12)+pr;
-    if(dist>=sumR) return false;
-    const nx=dx/dist, ny=dy/dist, overlap=sumR-dist;
-    b.x += nx*overlap; b.y += ny*overlap;
-    const rvx=(b.vx||0)-(p.vx||0)/scale, rvy=(b.vy||0)-(p.vy||0)/scale;
-    const vn=rvx*nx + rvy*ny; if(vn>0) return true;
-    const e=0.92, j=-(1+e)*vn;
-    b.vx = (b.vx||0)+j*nx; b.vy = (b.vy||0)+j*ny;
-    return true;
-  }
-
-  const lastHit=new Map();
-  const DPR=Math.max(1,window.devicePixelRatio||1);
-  const _loop = window.loop;
-  window.loop = function(){
-    const now=performance.now();
-    const dt=(window.__cueTs?(now-window.__cueTs):16)/1000;
-    window.__cueTs=now;
-
-    if(ensureMini()){
-      const w = fx.width/DPR, h=fx.height/DPR, scale=getScale();
-      for(const m of NET.mini){
-        if(m===drag.obj) continue;
-        m.x+=(m.vx||0)*dt; m.y+=(m.vy||0)*dt; m.vx*=0.985; m.vy*=0.985;
-        if(m.x-m.r<0){m.x=m.r;m.vx*=-0.9;} if(m.x+m.r>w){m.x=w-m.r;m.vx*=-0.9;}
-        if(m.y-m.r<0){m.y=m.r;m.vy*=-0.9;} if(m.y+m.r>h){m.y=h-m.r;m.vy*=-0.9;}
-      }
-      try{
-        if(window.planetNodes){
-          for(const b of NET.mini){
-            for(let i=0;i<planetNodes.length;i++){
-              const p=planetNodes[i];
-              if(resolveCueVsPlanet(b,p,scale)){
-                const key=(b.color||'cue')+':'+i, t=performance.now();
-                if((t-(lastHit.get(key)||0))>800){
-                  lastHit.set(key,t);
-                  const s=GEHUD.score.get(); if((b.color||'blue')==='red') GEHUD.score.set('red',s.red+1); else GEHUD.score.set('blue',s.blue+1);
-                }
-              }
-              if(typeof collideElastic==='function'){
-                const bb={x:b.x*scale,y:b.y*scale,r:(b.r||12)*scale,vx:(b.vx||0)*scale,vy:(b.vy||0)*scale};
-                collideElastic(bb,{x:p.x,y:p.y,r:p.r,vx:p.vx||0,vy:p.vy||0},1.05);
-                b.vx=bb.vx/scale; b.vy=bb.vy/scale;
-              }
-            }
-          }
-        }
-      }catch(_){}
-    }
-
-    if(typeof _loop==='function') _loop();
-  };
-})();
-</script>
-
 </body>
 </html>
