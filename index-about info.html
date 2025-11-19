@@ -3,8 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="description" content="Grand Element is the official music project of GE Studios. Listen to albums, explore the universe, and experience Grand Element Radio.">
+<meta name="description" content="Grand Element is the official music project of GE Studios. Listen to albums, explore the universe, and experience the Grand Element Radio." />
 <title>Grand Element — Official Website</title>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"MusicGroup","name":"Grand Element","url":"https://www.grandelement.com/","genre":["Ambient","Electronic","Cinematic"],"memberOf":{"@type":"Organization","name":"GE Studios","url":"https://www.grandelement.com/"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Organization","name":"GE Studios","url":"https://www.grandelement.com/","brand":{"@type":"Brand","name":"Grand Element","url":"https://www.grandelement.com/"},"owns":{"@type":"MusicGroup","name":"Grand Element","url":"https://www.grandelement.com/"}}
+</script>
+
 <style>
   :root{
     --img-base: https://grandelement.github.io/website/images/;
@@ -30,12 +37,15 @@
     /* Brand blues */
     --blue-sun: #6fb8ff;
     --blue-sun-text: #06121f;
+
+    /* Now Playing pill width */
+    --nowplaying-pill-width: 280px;
   }
 
   /* “Mini” layout — roughly half-sized on mobile */
   @media (max-width: 700px){
     :root{
-      --planet-size: 18px;
+      --planet-size: 12px;
       --sun-size: 120px;
       --moon-size: 72px;
       --orbit-gap-moons: 2.4;
@@ -156,7 +166,7 @@
   .aboutSection{margin-top:18px; text-align:left}
   .aboutSection h3{margin:0 0 6px 0; font-size:18px; text-align:center}
   .kv{display:flex; gap:10px; justify-content:center; margin-top:10px}
-  .kv .pill{padding:6px 10px; border:1px solid rgba(220,240,255,.35); border-radius:999px; background:rgba(10,20,36,.6)}
+  .kv .pill{padding:6px 10px; border:1px solid rgba(220,240,255,.35); border-radius:999px; background:rgba(10,20,36,.6); max-width:var(--nowplaying-pill-width); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .details{margin:8px auto 0; max-width:640px; background:rgba(10,20,36,.55); padding:10px 12px; border-radius:12px; border:1px solid rgba(220,240,255,.25)}
   .details ul{margin:6px 0 0 18px}
   .toggleRow{display:flex; justify-content:center; margin-top:12px}
@@ -264,8 +274,10 @@
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey into the soul. Created with one vision: the listener is the "GRAND ELEMENT".
-      Hypnotic rhythms and spacious soundscapes leave room for reflection, opening the body and soul to the voice of energy—reminding us that we are all one, all energy, and all love.
+      Grand Element began in the summer of 2005 in Las Vegas, Nevada, as an experimental ambient and electronic music project built around spacious textures, hypnotic rhythms, and cinematic dynamics. Created and produced by Scott Gregory under GE Studios, the project treats the listener as the "GRAND ELEMENT" at the center of the universe, with each album exploring a different layer of energy, memory, and emotion.
+      Focused on the empty space the music pushes the listener into that open space, resonance, and subtle shift in tone, inviting reflection, tranformation and connection with the larger perpective of energy and your manifistations—reminding us that we are all connected as one, all energy, and all love. Enjoy!!
+
+Much Love!! 
 
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
@@ -280,13 +292,11 @@
             <li>Elizabeth “Liz” Washington — vocals</li>
             <li>Jordan Rosenthal — drums (featured across the Spirit album)</li>
           </ul>
-          <p style="margin-top:8px;opacity:.85;font-size:0.9em;">
+          <p style="margin-top:8px; opacity:.8; font-size:13px;">
             Credits evolve over time and can vary by album or era. Session players, collaborators, and future contributors will be added here as the project grows.
           </p>
         </div>
       </div>
-      </div>
-
       <div class="aboutSection">
         <div class="toggleRow">
           <div class="pill">Background Controls</div>
@@ -437,19 +447,22 @@ moon.addEventListener('click', ()=>{
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
 
   function setTitle(it){
-    let txt = '—';
-    if (it) {
-      const album = it.album || 'Unknown';
-      const song  = it.track || '';
-      const num   = it.trackNum || 0;
+let txt = '—';
+if (it) {
+  const album = it.album || 'Unknown';
+  const song  = it.track || '';
+  const num   = it.trackNum || 0;
 
-      if (!SHUFFLE && num) {
-        const padded = String(num).padStart(2,'0');
-        txt = `${album} • ${padded} • ${song}`;
-      } else {
-        txt = `${album} • ${song}`;
-      }
-    }
+  if (!SHUFFLE && num) {
+    // Album mode: Album • 01 • Song
+    const padded = String(num).padStart(2,'0');
+    txt = `${album} • ${padded} • ${song}`;
+  } else {
+    // Shuffle mode: Album • Song
+    txt = `${album} • ${song}`;
+  }
+}
+
     nowPlaying.innerHTML = '';
     const probe = document.createElement('span');
     probe.className = 'npRun';
@@ -465,9 +478,6 @@ moon.addEventListener('click', ()=>{
       nowPlaying.innerHTML = '';
       nowPlaying.appendChild(wrap);
     } else {
-      nowPlaying.textContent = txt;
-    }
-  } else {
       nowPlaying.textContent = txt;
     }
   }
