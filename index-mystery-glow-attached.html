@@ -154,13 +154,14 @@
   /* Planets */
   .planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   
+  
   @keyframes planetPulse {
-    0%   { box-shadow:0 0 10px rgba(120,190,255,.4); }
-    50%  { box-shadow:0 0 26px rgba(80,220,255,.95); }
-    100% { box-shadow:0 0 10px rgba(120,190,255,.4); }
+    0%   { box-shadow:0 0 8px rgba(120,190,255,.35); }
+    50%  { box-shadow:0 0 26px rgba(120,220,255,1); }
+    100% { box-shadow:0 0 8px rgba(120,190,255,.35); }
   }
   .planet.playing{
-    animation:planetPulse 1.6s ease-in-out infinite;
+    animation:planetPulse 3.4s ease-in-out infinite;
   }
 .planet{ position:absolute; width:var(--planet-size); height:var(--planet-size); border-radius:50%; pointer-events:auto; overflow:hidden; cursor:pointer;
            background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 10px rgba(255,255,255,.2);
@@ -241,16 +242,7 @@
         <div class="details" id="membersList">
           <!-- Edit this list freely; safe placeholders -->
           <ul>
-            <li>
-    Scott Gregory — keyboards, guitar, drums, vocals <li>
-    Mike Venniro — drums  <li>
-    Evan Donahue — guitar <li>
-    Wills Blackmore — drums <li>
-    Shane Willy — bass guitar <li>
-    Ronaldo Elliott — drums <li>
-    Elizabeth “Liz” Washington — vocals <li>
-    Jordan Rosenthal — drums  
-</li>
+            <li>GE — Founder / composer / multi-instrumentalist</li>
             <!-- Add more members/roles here -->
           </ul>
         </div>
@@ -331,7 +323,11 @@ placeSpiral(); addEventListener('resize', placeSpiral, {passive:true});
 
 
 function normalizeAlbumName(name){
-  return String(name||'').replace(/\u00A0/g,' ').replace(/[_-]+/g,' ').trim().toLowerCase();
+  let s = String(name||'').replace(/\u00A0/g,' ').replace(/[_-]+/g,' ');
+  // Strip leading "Grand Element - YYYY -" or "Grand Element -"
+  s = s.replace(/grand\s*element\s*-\s*\d{4}\s*-\s*/i,'');
+  s = s.replace(/grand\s*element\s*-/i,'');
+  return s.trim().toLowerCase();
 }
 function highlightAlbum(albumName){
   const target = normalizeAlbumName(albumName);
@@ -415,19 +411,8 @@ moon.addEventListener('click', ()=>{
   const fmt=t=>{ t=t|0; const m=(t/60)|0, s=(t%60)|0; return `${m}:${s.toString().padStart(2,'0')}`; };
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
   function setTitle(it){
-    let txt = '—';
-    if (it) {
-      const album = it.album || 'Unknown';
-      const song  = it.track || '';
-      const num   = it.trackNum || 0;
-      if (!SHUFFLE && num) {
-        const padded = String(num).padStart(2,'0');
-        txt = `${album} • ${padded} • ${song}`;
-      } else {
-        txt = `${album} • ${song}`;
-      }
-    }
-    nowPlaying.textContent = txt;
+    // Website version: keep it mysterious — no track names.
+    nowPlaying.textContent = 'Now Playing';
     highlightAlbum(it && it.album);
   }
 
