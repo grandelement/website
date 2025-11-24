@@ -3,14 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Grand Element — Official Website</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="manifest" href="/site.webmanifest">
-<link rel="shortcut icon" href="/favicon.ico">
+<title>Grand Element — Master</title>
 <style>
-
   :root{
     --img-base: https://grandelement.github.io/website/images/;
 
@@ -18,7 +12,7 @@
     --star-tile: 900px;
 
     /* Planets (album dots) */
-    --planet-size: 35px;
+    --planet-size: 50px;
     --planet-hover-scale: 3;
     --planet-glow: 18px;
 
@@ -30,7 +24,7 @@
     --orbit-radius: calc((var(--sun-size) * 0.5) + (var(--moon-size) * var(--orbit-gap-moons)));
 
     /* FX */
-    --comet-max: 12;
+    --comet-max: 3;
 
     /* Brand blues */
     --blue-sun: #6fb8ff;
@@ -99,6 +93,8 @@
   .toggle.active{ background:rgba(40,140,255,.45); }
 
   /* Now Playing ticker (scroll inside pill when needed) */
+  .npTicker{position:relative; display:block; white-space:nowrap;}
+  .npRun{display:inline-block; padding-right:32px;}
   .npAnim{animation:np-marq 12s linear infinite;}
   .npAnim:hover{animation-play-state:paused;}
   @keyframes np-marq{
@@ -116,19 +112,19 @@
     display:none; flex-direction:column; gap:10px; align-items:stretch; font-size:12px;
     z-index:8; pointer-events:auto;
   }
+
+  /* Hide shuffle / album row and first track time/seek row on website */
+  .miniPlayer > .row:first-of-type,
+  .miniPlayer > .controls:last-of-type{
+    display:none !important;
+  }
+
+
   .controls{ display:flex; gap:6px; justify-content:center; }
   .btn{ width:26px; height:26px; border-radius:8px; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); color:#eaf2ff; font-weight:900; display:grid; place-items:center; cursor:pointer; user-select:none; }
   .btn:active{ transform:translateY(1px); }
   .row{ display:flex; gap:10px; align-items:center; }
   .row input[type="range"]{ flex:1; }
-
-  /* Hide track seek row and Shuffle/Album controls row */
-  .miniPlayer .row:first-of-type{
-    display:none !important;
-  }
-  .miniPlayer .controls:nth-of-type(2){
-    display:none !important;
-  }
 
   .orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; }
   .carrier{ position:absolute; left:50%; top:50%; width:0; height:0; }
@@ -274,15 +270,19 @@
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
+          <!-- Edit this list freely; safe placeholders -->
           <ul>
-            <li>Scott Gregory — keyboards, guitar, drums, vocals</li>
-            <li>Mike Venniro — drums</li>
-            <li>Evan Donahue — guitar</li>
-            <li>Wills Blackmore — drums</li>
-            <li>Shane Willy — bass guitar</li>
-            <li>Ronaldo Elliott — drums</li>
-            <li>Elizabeth “Liz” Washington — vocals</li>
-            <li>Jordan Rosenthal — drums</li>
+            <li>
+    Scott Gregory — keyboards (guitar, bass, drums, vocals) <li>
+    Mike Venniro — drums  <li>
+    Evan Donahue — guitar <li>
+    Wills Blackmore — drums <li>
+    Elizabeth “Liz” Washington — vocals <li>
+    Shane Willy — bass guitar <li>
+    Ronaldo Elliott — drums <li>
+    Jordan Rosenthal — drums  
+</li>
+            <!-- Add more members/roles here -->
           </ul>
         </div>
       </div>
@@ -313,9 +313,15 @@
 <script>
 /* ============== helpers ============== */
 const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-base').trim() || 'https://grandelement.github.io/website/images/';
+function normAlbumName(name){
+  let s = String(name||'').replace(/\u00A0/g,' ').toLowerCase();
+  s = s.replace(/grand\s*element\s*-\s*\d{4}\s*-\s*/, '');
+  s = s.replace(/grand\s*element\s*-\s*/, '');
+  return s.replace(/[^a-z0-9]/g,'');
+}
+
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
 const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
-const normAlbumName = s => (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 
 /* Album → planet mapping for glow */
 const albumPlanets = {};
@@ -352,7 +358,7 @@ function placeSpiral(){
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
-    // register for album glow with normalized key
+    // register for album glow
     albumPlanets[normAlbumName(alb.title)] = aEl;
     // touch zoom
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
@@ -438,17 +444,33 @@ moon.addEventListener('click', ()=>{
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
 
   function setTitle(it){
-    // Mystery mode: no track text on website, just glow the album planet.
-    highlightAlbum(it && it.albumKey);
+    const txt = it && it.track ? it.track : '—';
+    nowPlaying.innerHTML = '';
+    const probe = document.createElement('span');
+    probe.className = 'npRun';
+    probe.textContent = txt;
+    nowPlaying.appendChild(probe);
+    const needsScroll = probe.scrollWidth > nowPlaying.clientWidth;
+    if(needsScroll){
+      const wrap = document.createElement('div');
+      wrap.className = 'npTicker npAnim';
+      wrap.appendChild(probe);
+      const clone = probe.cloneNode(true);
+      wrap.appendChild(clone);
+      nowPlaying.innerHTML = '';
+      nowPlaying.appendChild(wrap);
+    } else {
+      nowPlaying.textContent = txt;
+    }
   }
 
-  function highlightAlbum(albumKey){
-    if(!albumKey) return;
+  function highlightAlbum(albumName){
+    if(!albumName) return;
     if(activeAlbumPlanet){
       activeAlbumPlanet.classList.remove('planet--activeAlbum');
       activeAlbumPlanet = null;
     }
-    const el = albumPlanets[albumKey];
+    const el = albumPlanets[normAlbumName(albumName)];
     if(el){
       el.classList.add('planet--activeAlbum');
       activeAlbumPlanet = el;
@@ -469,8 +491,7 @@ moon.addEventListener('click', ()=>{
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
 
-        const albumKey = normAlbumName(album);
-        return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, albumKey, trackNum, track };
+        return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, trackNum, track };
       });
   }
 
@@ -489,7 +510,7 @@ moon.addEventListener('click', ()=>{
     if(!it) return;
     player.src = it.url;
     setTitle(it);
-    highlightAlbum(it.albumKey);
+    highlightAlbum(it.album);
     player.play().catch(()=>{});
     btnPlay.textContent='❚❚';
   }
@@ -498,12 +519,8 @@ moon.addEventListener('click', ()=>{
 
   btnNext.onclick=next; btnPrev.onclick=prev;
   btnPlay.onclick=()=>{ if(player.paused){ player.play().catch(()=>{}); btnPlay.textContent='❚❚'; } else { player.pause(); btnPlay.textContent='▶'; } };
-
-  // Shuffle/Album toggles still wired, but hidden in CSS
-  if (tgShuffle && tgAlbum) {
-    tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
-    tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
-  }
+  tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
+  tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
 
   vol.addEventListener('input', ()=>{ player.volume = +vol.value; });
   player.addEventListener('loadedmetadata', ()=>{ seek.max=player.duration||1000; tMax.textContent=fmt(player.duration||0); });
@@ -526,38 +543,33 @@ moon.addEventListener('click', ()=>{
   });
 })();
 
-/* ========= HIDDEN TEXT — 10 static phrases, scattered each refresh ========= */
+/* ========= HIDDEN TEXT — proximity reveal + click to pin; Starfield dblclick = reveal-all ========= */
 (function(){
   const layer = document.getElementById('phrases');
-  const PHRASES = [
-    'everything is energy',
-    'BE FREE',
-    'Be yourself',
-    'frequency is the experience',
-    'YOU are the GRAND ELEMENT',
-    'This is the LIGHT!!',
-    'You are Love',
-    'soul remembers',
-    'learn to set yourself free',
-    'follow your soul',
-    'You are energy'
-  ];
+  const URL_TXT = 'https://grandelement.github.io/website/data/hidden.txt';
+  let PHRASES=[];
+  fetch(URL_TXT).then(r=>r.ok?r.text():'').then(t=>{
+    PHRASES = t.split(/[,\r?\n]/).map(s=>s.trim()).filter(Boolean);
+    if(!PHRASES.length) PHRASES = [
+      'you are the grand element','energy in motion','silence between notes',
+      'frequency is the vehicle','listen inward','breathe the rhythm','love is the key',
+      'soul remembers','spirit moves','fire awakens'
+    ];
+    scatter();
+  });
   function scatter(){
     layer.innerHTML='';
-    const n = PHRASES.length;
+    const n=Math.max(10, PHRASES.length);
     for(let i=0;i<n;i++){
       const el=document.createElement('div');
-      el.className='phrase';
-      el.textContent=PHRASES[i];
+      el.className='phrase'; el.textContent=PHRASES[i%PHRASES.length];
       el.style.left=(10+Math.random()*(innerWidth-220))+'px';
       el.style.top =(10+Math.random()*(innerHeight-120))+'px';
       el.onclick=()=> el.classList.toggle('pinned');
       layer.appendChild(el);
     }
   }
-  scatter();
-  let px=-9999, py=-9999;
-  addEventListener('pointermove',e=>{px=e.clientX;py=e.clientY;},{passive:true});
+  let px=-9999, py=-9999; addEventListener('pointermove',e=>{px=e.clientX;py=e.clientY;},{passive:true});
   setInterval(()=>{
     const r=Math.min(innerWidth,innerHeight)*0.14;
     [...layer.children].forEach(el=>{
@@ -675,16 +687,7 @@ function netStepDraw(dt){
 }
 
 /* Comets */
-const COMET={
-  sizes:[8,10,12,16],
-  // Higher max so we get a steady stream of comets instead of just 2.
-  max:(innerWidth<700 ? 4 : (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||12)),
-  spawn:[4,9],
-  speed:[60,140],
-  trail:90,
-  fade:1500,
-  touch:26
-};;
+const COMET={sizes:[8,10,12,16], max:(innerWidth<700?2: (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||3)), spawn:[4,9], speed:[60,140], trail:90, fade:1500, touch:26};
 class Comet{
   constructor(){
     const edge=choice(['l','r','t','b']), pad=40;
@@ -896,7 +899,7 @@ class MiniShip{
 }
 
 const comets=[], pairs=[], ships=[], miniShips=[];
-let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(7,14), miniTimer=0, miniNext=rand(4,9);
+let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(10,20), miniTimer=0, miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
 
 /* Ripple teleport + backgrounds */
@@ -979,7 +982,7 @@ canvas.addEventListener('pointermove', (e)=>{
     if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-    if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.width/2,r:sunRect.width/2},0.95); }
+    if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
     if(moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
   }
 },{passive:true});
@@ -1004,7 +1007,7 @@ canvas.addEventListener('pointerdown', (e)=>{
 },{passive:true});
 
 /* Main loop */
-const MAX_SHIPS   = MOBILE ? 2 : 3;
+const MAX_SHIPS   = MOBILE ? 1 : 2;
 const MINI_MAX    = MOBILE ? 10 : 20;
 function loop(){
   if(!RUN){ requestAnimationFrame(loop); return; }
@@ -1033,7 +1036,7 @@ function loop(){
   }
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
+  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
   const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
   for(const c of comets){
     if(c.dragging) continue;
