@@ -24,7 +24,7 @@
     --orbit-radius: calc((var(--sun-size) * 0.5) + (var(--moon-size) * var(--orbit-gap-moons)));
 
     /* FX */
-    --comet-max: 3;
+    --comet-max: 6;
 
     /* Brand blues */
     --blue-sun: #6fb8ff;
@@ -50,7 +50,7 @@
     background-position: center center, 0 0;
     background-repeat: no-repeat, repeat;
     background-size: cover, 3px 3px;
-    background-attachment: fixed, scroll;
+    background-attachment: scroll, scroll;
     font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   }
 
@@ -118,7 +118,6 @@
   .miniPlayer > .controls:last-of-type{
     display:none !important;
   }
-
 
   .controls{ display:flex; gap:6px; justify-content:center; }
   .btn{ width:26px; height:26px; border-radius:8px; border:1px solid rgba(220,240,255,.35); background:rgba(12,24,40,.6); color:#eaf2ff; font-weight:900; display:grid; place-items:center; cursor:pointer; user-select:none; }
@@ -201,6 +200,20 @@
         0 0 var(--planet-glow) rgba(255,255,255,.7);
     }
   }
+
+  /* Footer copyright */
+  footer.ge-footer{
+    position:fixed;
+    left:50%;
+    bottom:6px;
+    transform:translateX(-50%);
+    font-size:11px;
+    opacity:0.7;
+    color:#cbd8ff;
+    z-index:2;
+    pointer-events:none;
+    text-shadow:0 0 6px rgba(0,0,0,.8);
+  }
 </style>
 </head>
 <body>
@@ -270,19 +283,15 @@
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
-          <!-- Edit this list freely; safe placeholders -->
           <ul>
-            <li>
-    Scott Gregory — keyboards (guitar, bass, drums, vocals) <li>
-    Mike Venniro — drums  <li>
-    Evan Donahue — guitar <li>
-    Wills Blackmore — drums <li>
-    Elizabeth “Liz” Washington — vocals <li>
-    Shane Willy — bass guitar <li>
-    Ronaldo Elliott — drums <li>
-    Jordan Rosenthal — drums  
-</li>
-            <!-- Add more members/roles here -->
+            <li>Scott Gregory — keyboards, guitar, drums, vocals</li>
+            <li>Mike Venniro — drums</li>
+            <li>Evan Donahue — guitar</li>
+            <li>Wills Blackmore — drums</li>
+            <li>Shane Willy — bass guitar</li>
+            <li>Ronaldo Elliott — drums</li>
+            <li>Elizabeth “Liz” Washington — vocals</li>
+            <li>Jordan Rosenthal — drums</li>
           </ul>
         </div>
       </div>
@@ -297,7 +306,7 @@
             <li><b>Drag Blue Sun</b>: Move it; at least 25% stays on-screen.</li>
             <li><b>Hover/Click Moon</b>: 60s orbit; click opens Radio (site music pauses).</li>
             <li><b>Planets</b>: Click (no drag) → Bandcamp. Drag/throw → pool-ball physics.</li>
-            <li><b>Comets</b>: Drag/throw to bounce off planets/sun/moon & other comets.</li>
+            <li><b>Comets</b>: Drag/throw to bounce off planets/sun/moon and other comets.</li>
             <li><b>Ships</b>: Click to fire “sound-wave” tethers; click again to add more (up to 3).</li>
             <li><b>Hidden text</b>: Appears near cursor; click to pin/unpin.</li>
             <li><b>Starfield</b>: Double-click to reveal all hidden text briefly.</li>
@@ -309,6 +318,10 @@
       <a href="mailto:info@grandelement.com" style="color:#dff3ff; font-weight:800; text-decoration:none;">✉ Contact</a>
     </div>
   </div>
+
+  <footer class="ge-footer">
+    Copyright GE Studios and Grand Element. All rights reserved.
+  </footer>
 
 <script>
 /* ============== helpers ============== */
@@ -358,12 +371,9 @@ function placeSpiral(){
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
-    // register for album glow
     albumPlanets[normAlbumName(alb.title)] = aEl;
-    // touch zoom
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
     aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
-    // click-vs-drag for desktop: prevent link if thrown
     let downPos=null, dragged=false;
     aEl.addEventListener('pointerdown',e=>{ downPos={x:e.clientX,y:e.clientY}; dragged=false; });
     aEl.addEventListener('pointermove',e=>{ if(!downPos) return; if(Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y)>6) dragged=true; });
@@ -389,7 +399,7 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
   }
 })();
 
-/* ========= RADIO MOON — 60s orbit; pause site audio on click ========= */
+/* ========= RADIO MOON ========= */
 const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
 const ORBIT_SEC = 60, PHASE0 = -Math.PI/2;
@@ -411,7 +421,7 @@ moon.addEventListener('click', ()=>{
   window.open('https://grandelement.github.io/radio/','_blank','noopener');
 });
 
-/* ========= MUSIC (panel below button, fully interactive) ========= */
+/* ========= MUSIC ========= */
 (function(){
   const mini   = document.getElementById('mini');
   const player = document.getElementById('gePlayer');
@@ -428,13 +438,11 @@ moon.addEventListener('click', ()=>{
   const tgShuffle = document.getElementById('tgShuffle');
   const tgAlbum   = document.getElementById('tgAlbum');
 
-  // Open/close panel without covering the Music button
   btnMusic.addEventListener('click', (e)=>{
     e.stopPropagation();
     mini.style.display = (mini.style.display==='none' || mini.style.display==='') ? 'flex' : 'none';
   });
 
-  // Prevent Sun drag from swallowing slider/panel events
   ['pointerdown','pointermove','touchstart'].forEach(ev=>{
     mini.addEventListener(ev, e=>{ e.stopPropagation(); }, {passive:false});
   });
@@ -534,7 +542,6 @@ moon.addEventListener('click', ()=>{
   window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
   player.muted=true;
 
-  // Re-evaluate ticker width on resize
   addEventListener('resize', ()=>{ if(PLAYLIST.length){ setTitle(PLAYLIST[pIndex]); } }, {passive:true});
 
   fetchAllMp3s().then(list=>{
@@ -543,7 +550,7 @@ moon.addEventListener('click', ()=>{
   });
 })();
 
-/* ========= HIDDEN TEXT — proximity reveal + click to pin; Starfield dblclick = reveal-all ========= */
+/* ========= HIDDEN TEXT ========= */
 (function(){
   const layer = document.getElementById('phrases');
   const URL_TXT = 'https://grandelement.github.io/website/data/hidden.txt';
@@ -581,7 +588,6 @@ moon.addEventListener('click', ()=>{
   }, 100);
   addEventListener('resize', ()=>requestAnimationFrame(scatter), {passive:true});
 
-  // Double-click the canvas to reveal all temporarily
   const fx = document.getElementById('fx');
   fx.addEventListener('dblclick', ()=>{
     const nodes=[...layer.children];
@@ -599,54 +605,20 @@ let W=innerWidth,H=innerHeight; function resize(){ W=innerWidth; H=innerHeight; 
 const cometImg = new Image(); cometImg.src=IMG+'ge-logo%203.png';
 const shipImg  = new Image(); shipImg.src=IMG+'ge-logo-4-cutout.png';
 
-/* Adaptive performance guardrails */
 const PERF = {dt:0.016, heat:0, targetFPS:60};
 function perfHeat(dt){ const target=1/PERF.targetFPS; PERF.heat = Math.max(0, Math.min(1, PERF.heat + (dt-target)*3)); }
 
-/* Star-network — dense net + two cue-balls (blue/red) */
-const NET = { pts:[], links:64, r:36, mini:[] };
+/* Star-network */
+const NET = { pts:[], links:64, r:36 };
 (function initNet(){
   const base = Math.round(Math.min(180, (innerWidth*innerHeight)/28000));
-  let count = base*5;                 // ~5× density
+  let count = Math.round(base*5);      // already dense
   if (innerWidth < 700) count = Math.max(120, Math.round(count*0.4));
   NET.pts = Array.from({length:count}, ()=>({
     x:Math.random()*W, y:Math.random()*H,
     vx:(Math.random()-.5)*0.06, vy:(Math.random()-.5)*0.06
   }));
-  // EXACTLY one blue + one red cue-ball
-  NET.mini = [
-    { x:Math.random()*W, y:Math.random()*H, r:12, color:'blue', dragging:false, vx:rand(-20,20), vy:rand(-20,20) },
-    { x:Math.random()*W, y:Math.random()*H, r:12, color:'red',  dragging:false, vx:rand(-20,20), vy:rand(-20,20) }
-  ];
 })();
-let dragMini=null, miniHist=[];
-canvas.addEventListener('pointerdown', e=>{
-  for(const m of NET.mini){
-    if(Math.hypot(e.clientX-m.x,e.clientY-m.y)<m.r+8){ dragMini=m; m.dragging=true; miniHist=[{x:e.clientX,y:e.clientY,t:performance.now()}]; e.preventDefault(); return; }
-  }
-},{passive:false});
-canvas.addEventListener('pointermove', e=>{
-  if(!dragMini) return;
-  dragMini.x=e.clientX; dragMini.y=e.clientY; const now=performance.now();
-  miniHist.push({x:e.clientX,y:e.clientY,t:now}); while(miniHist.length && now-miniHist[0].t>160) miniHist.shift();
-
-  // Cue-ball effect while dragging: collide with planets and comets
-  if (window.planetNodes){
-    for (const p of planetNodes){
-      collideElastic(dragMini, {x:p.x, y:p.y, r:p.r, vx:p.vx||0, vy:p.vy||0}, 0.98);
-    }
-  }
-  for (const c of comets){
-    collideElastic(dragMini, c, 0.96);
-  }
-},{passive:true});
-canvas.addEventListener('pointerup', e=>{
-  if(!dragMini) return;
-  const now=performance.now(); const last=miniHist[miniHist.length-1], first=miniHist[0]||last; const dt=Math.max(16,last.t-first.t);
-  dragMini.vx=(last.x-first.x)/dt*600; dragMini.vy=(last.y-first.y)/dt*600;
-  dragMini.dragging=false; dragMini=null;
-});
-
 function netStepDraw(dt){
   const linkMult = PERF.heat>0.5 ? 0.6 : 1;
   const r2 = (NET.r*linkMult)*(NET.r*linkMult);
@@ -668,26 +640,19 @@ function netStepDraw(dt){
   }
   ctx.globalAlpha = 0.7; ctx.fillStyle='#cfe9ff';
   for(const p of NET.pts){ ctx.beginPath(); ctx.arc(p.x,p.y,0.7,0,Math.PI*2); ctx.fill(); }
-
-  // mini blue/red cue-balls
-  for(const m of NET.mini){
-    if(!m.dragging){ m.x+=m.vx*dt; m.y+=m.vy*dt; m.vx*=0.995; m.vy*=0.995; }
-    if(m.x<-40)m.x=W+40; if(m.x>W+40)m.x=-40; if(m.y<-40)m.y=H+40; if(m.y>H+40)m.y=-40;
-
-    const tint = (m.color==='red') ? 'rgba(255,120,120,0.9)' : 'rgba(120,190,255,0.9)';
-    const aura = (m.color==='red') ? 'rgba(255,120,120,0)'   : 'rgba(120,190,255,0)';
-    const grd = ctx.createRadialGradient(m.x,m.y,2, m.x,m.y,m.r+10);
-    grd.addColorStop(0, tint); grd.addColorStop(1, aura);
-    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(m.x,m.y,m.r+10,0,Math.PI*2); ctx.fill();
-
-    ctx.fillStyle = (m.color==='red') ? '#ff6b6b' : '#6fb8ff';
-    ctx.beginPath(); ctx.arc(m.x,m.y,m.r,0,Math.PI*2); ctx.fill();
-  }
   ctx.restore();
 }
 
 /* Comets */
-const COMET={sizes:[8,10,12,16], max:(innerWidth<700?2: (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||3)), spawn:[4,9], speed:[60,140], trail:90, fade:1500, touch:26};
+const COMET={
+  sizes:[3,4,6,8,10,12,16],
+  max:(innerWidth<700?3: (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||6)),
+  spawn:[4,9],
+  speed:[60,140],
+  trail:90,
+  fade:1500,
+  touch:26
+};
 class Comet{
   constructor(){
     const edge=choice(['l','r','t','b']), pad=40;
@@ -752,7 +717,7 @@ class Pair{
   }
 }
 
-/* Ships (cursor-follow field + click-to-tether up to 3) */
+/* Ships */
 let mouseX=-9999, mouseY=-9999;
 addEventListener('pointermove', e=>{ mouseX=e.clientX; mouseY=e.clientY; }, {passive:true});
 
@@ -776,22 +741,21 @@ class Ship{
     this.beam = 1;
   }
   step(dt){
-    // wandering + cursor follow
     this.curveP+=dt/this.curveT;
     this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
     this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
 
     const shipR = (shipImg.height||100)*this.s*0.3;
-    const outer = shipR*2.2, inner = shipR*0.9;
+    const outer = shipR*2.2, inner = shipR*1.6;
     const dx = mouseX-this.x, dy = mouseY-this.y, d = Math.hypot(dx,dy);
     if(d < outer){
       const dir = Math.atan2(dy,dx);
       const k = Math.max(0, Math.min(1, (d-inner) / (outer-inner)));
       const followSpeed = 180*k;
-      const stopDamp    = (d<inner ? 0.85 : 0.98);
+      const stopDamp    = (d<inner ? 0.80 : 0.98);
       this.vx = this.vx*stopDamp + Math.cos(dir)*followSpeed*dt;
       this.vy = this.vy*stopDamp + Math.sin(dir)*followSpeed*dt;
-      if(d<inner*0.6){ this.vx*=0.6; this.vy*=0.6; }
+      if(d<inner*0.6){ this.vx*=0.5; this.vy*=0.5; }
     }
 
     const v=Math.hypot(this.vx,this.vy); const vmin=50, vmax=320;
@@ -801,7 +765,6 @@ class Ship{
     this.x+=this.vx*dt; this.y+=this.vy*dt;
     if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
 
-    // Reel in targets if any
     if (this.targets.length){
       const cx = this.targets.reduce((s,c)=>s+c.x,0)/this.targets.length;
       const cy = this.targets.reduce((s,c)=>s+c.y,0)/this.targets.length;
@@ -917,6 +880,7 @@ function setBG(i){
     document.body.style.backgroundPosition = 'center center, 0 0';
     document.body.style.backgroundRepeat   = 'no-repeat, repeat';
     document.body.style.backgroundSize     = 'cover, 3px 3px';
+    document.body.style.backgroundAttachment = 'scroll, scroll';
   };
   testImg.src = url;
 }
@@ -938,7 +902,7 @@ function rippleAndNext(x,y){
   requestAnimationFrame(draw);
 }
 
-/* Elastic collisions (equal mass) */
+/* Elastic collisions */
 function collideElastic(a,b,rest=0.98){
   const dx=a.x-b.x, dy=a.y-b.y, dist=Math.hypot(dx,dy) || 1;
   const R=(a.r||10) + (b.r||10);
@@ -996,9 +960,9 @@ canvas.addEventListener('pointerup', (e)=>{
 
 /* Click near ship/mini-ship → add tether */
 canvas.addEventListener('pointerdown', (e)=>{
-  let nearest=null, best=28, isMini=false;
-  for(const s of ships){ const d=Math.hypot(s.x-e.clientX,s.y-e.clientY); if(d<best){ best=d; nearest=s; isMini=false; } }
-  for(const m of miniShips){ const d=Math.hypot(m.x-e.clientX,m.y-e.clientY); if(d<best){ best=d; nearest=m; isMini=true; } }
+  let nearest=null, best=28;
+  for(const s of ships){ const d=Math.hypot(s.x-e.clientX,s.y-e.clientY); if(d<best){ best=d; nearest=s; } }
+  for(const m of miniShips){ const d=Math.hypot(m.x-e.clientX,m.y-e.clientY); if(d<best){ best=d; nearest=m; } }
   if(nearest){
     const until = performance.now()+2200;
     nearest.forceBeamUntil = until;
@@ -1036,8 +1000,8 @@ function loop(){
   }
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
+  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
+  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.width/2:0, mr=moonRect?moonRect.width/2:0;
   for(const c of comets){
     if(c.dragging) continue;
     if (window.planetNodes) { for (const p of planetNodes) collideElastic(c, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
