@@ -99,6 +99,8 @@
   .toggle.active{ background:rgba(40,140,255,.45); }
 
   /* Now Playing ticker (scroll inside pill when needed) */
+  
+  
   .npAnim{animation:np-marq 12s linear infinite;}
   .npAnim:hover{animation-play-state:paused;}
   @keyframes np-marq{
@@ -121,14 +123,6 @@
   .btn:active{ transform:translateY(1px); }
   .row{ display:flex; gap:10px; align-items:center; }
   .row input[type="range"]{ flex:1; }
-
-  /* Hide track seek row and Shuffle/Album controls row */
-  .miniPlayer .row:first-of-type{
-    display:none !important;
-  }
-  .miniPlayer .controls:nth-of-type(2){
-    display:none !important;
-  }
 
   .orbit{ position:absolute; inset:0; transform-origin:50% 50%; z-index:6; pointer-events:none; }
   .carrier{ position:absolute; left:50%; top:50%; width:0; height:0; }
@@ -274,15 +268,19 @@
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
+          <!-- Edit this list freely; safe placeholders -->
           <ul>
-            <li>Scott Gregory — keyboards, guitar, drums, vocals</li>
-            <li>Mike Venniro — drums</li>
-            <li>Evan Donahue — guitar</li>
-            <li>Wills Blackmore — drums</li>
-            <li>Shane Willy — bass guitar</li>
-            <li>Ronaldo Elliott — drums</li>
-            <li>Elizabeth “Liz” Washington — vocals</li>
-            <li>Jordan Rosenthal — drums</li>
+            <li>
+    Scott Gregory — keyboards (guitar, bass, drums, vocals) <li>
+    Mike Venniro — drums  <li>
+    Evan Donahue — guitar <li>
+    Wills Blackmore — drums <li>
+    Shane Willy — bass guitar <li>
+    Ronaldo Elliott — drums <li>
+    Elizabeth “Liz” Washington — vocals <li>
+    Jordan Rosenthal — drums  
+</li>
+            <!-- Add more members/roles here -->
           </ul>
         </div>
       </div>
@@ -315,7 +313,6 @@
 const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-base').trim() || 'https://grandelement.github.io/website/images/';
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
 const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
-const normAlbumName = s => (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 
 /* Album → planet mapping for glow */
 const albumPlanets = {};
@@ -352,8 +349,8 @@ function placeSpiral(){
     aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
-    // register for album glow with normalized key
-    albumPlanets[normAlbumName(alb.title)] = aEl;
+    // register for album glow
+    albumPlanets[alb.title] = aEl;
     // touch zoom
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
     aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
@@ -439,16 +436,16 @@ moon.addEventListener('click', ()=>{
 
   function setTitle(it){
     // Mystery mode: no track text on website, just glow the album planet.
-    highlightAlbum(it && it.albumKey);
+    highlightAlbum(it && it.album);
   }
 
-  function highlightAlbum(albumKey){
-    if(!albumKey) return;
+  function highlightAlbum(albumName){
+    if(!albumName) return;
     if(activeAlbumPlanet){
       activeAlbumPlanet.classList.remove('planet--activeAlbum');
       activeAlbumPlanet = null;
     }
-    const el = albumPlanets[albumKey];
+    const el = albumPlanets[albumName];
     if(el){
       el.classList.add('planet--activeAlbum');
       activeAlbumPlanet = el;
@@ -469,8 +466,7 @@ moon.addEventListener('click', ()=>{
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
 
-        const albumKey = normAlbumName(album);
-        return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, albumKey, trackNum, track };
+        return { url:`https://grandelement.github.io/radio/${encodeURI(n.path)}`, album, trackNum, track };
       });
   }
 
@@ -489,7 +485,7 @@ moon.addEventListener('click', ()=>{
     if(!it) return;
     player.src = it.url;
     setTitle(it);
-    highlightAlbum(it.albumKey);
+    highlightAlbum(it.album);
     player.play().catch(()=>{});
     btnPlay.textContent='❚❚';
   }
@@ -498,12 +494,8 @@ moon.addEventListener('click', ()=>{
 
   btnNext.onclick=next; btnPrev.onclick=prev;
   btnPlay.onclick=()=>{ if(player.paused){ player.play().catch(()=>{}); btnPlay.textContent='❚❚'; } else { player.pause(); btnPlay.textContent='▶'; } };
-
-  // Shuffle/Album toggles still wired, but hidden in CSS
-  if (tgShuffle && tgAlbum) {
-    tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
-    tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
-  }
+  tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
+  tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
 
   vol.addEventListener('input', ()=>{ player.volume = +vol.value; });
   player.addEventListener('loadedmetadata', ()=>{ seek.max=player.duration||1000; tMax.textContent=fmt(player.duration||0); });
@@ -979,7 +971,7 @@ canvas.addEventListener('pointermove', (e)=>{
     if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-    if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.width/2,r:sunRect.width/2},0.95); }
+    if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
     if(moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
   }
 },{passive:true});
@@ -1033,7 +1025,7 @@ function loop(){
   }
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
+  const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
   const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
   for(const c of comets){
     if(c.dragging) continue;
