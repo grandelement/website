@@ -201,6 +201,32 @@
     }
   }
 
+  /* Cue balls (DOM, not canvas) */
+  .cueBall{
+    position:fixed;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    z-index:4;
+    pointer-events:auto;
+  }
+  .cueBall--blue{
+    left:64vw;
+    top:10vh;
+    background:
+      radial-gradient(circle at 30% 30%, #ffffff, rgba(255,255,255,0) 55%),
+      radial-gradient(circle, #7fd2ff 0%, #2b6bb5 65%, #10233f 100%);
+    box-shadow:0 0 18px rgba(120,200,255,.85);
+  }
+  .cueBall--red{
+    left:52vw;
+    top:55vh;
+    background:
+      radial-gradient(circle at 30% 30%, #ffffff, rgba(255,255,255,0) 55%),
+      radial-gradient(circle, #ff9d9d 0%, #c53838 65%, #400c0c 100%);
+    box-shadow:0 0 18px rgba(255,120,120,.9);
+  }
+
   /* Footer copyright */
   footer.ge-footer{
     position:fixed;
@@ -272,6 +298,10 @@
 
   <!-- Planets -->
   <div class="planets" id="planets"></div>
+
+  <!-- Cue balls -->
+  <div class="cueBall cueBall--blue" id="cueBlue" title="Blue cue"></div>
+  <div class="cueBall cueBall--red" id="cueRed" title="Red cue"></div>
 
   <!-- ABOUT -->
   <div class="overlay" id="about">
@@ -447,7 +477,7 @@ moon.addEventListener('click', ()=>{
     mini.addEventListener(ev, e=>{ e.stopPropagation(); }, {passive:false});
   });
 
-  let PLAYLIST=[], pIndex=0, SHUFFLE=true;
+  let PLAYLIST=[], pIndex=0, SHUFFLE=true, started=false;
   const fmt=t=>{ t=t|0; const m=(t/60)|0, s=(t%60)|0; return `${m}:${s.toString().padStart(2,'0')}`; };
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
 
@@ -485,6 +515,33 @@ moon.addEventListener('click', ()=>{
     }
   }
 
+  function updateMediaSession(it){
+    if(!('mediaSession' in navigator) || !it) return;
+    try{
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: it.track || 'Grand Element',
+        artist: 'Grand Element',
+        album: it.album || '',
+        artwork: [
+          { src: IMG + 'Grand%20Element%20-%20Fundamental%20Groove.jpg', sizes:'512x512', type:'image/jpeg' }
+        ]
+      });
+      navigator.mediaSession.setActionHandler('play', ()=>{
+        player.play().then(()=>{
+          navigator.mediaSession.playbackState='playing';
+        }).catch(()=>{});
+        btnPlay.textContent='❚❚';
+      });
+      navigator.mediaSession.setActionHandler('pause', ()=>{
+        player.pause();
+        btnPlay.textContent='▶';
+        navigator.mediaSession.playbackState='paused';
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', prev);
+      navigator.mediaSession.setActionHandler('nexttrack', next);
+    }catch(e){}
+  }
+
   async function fetchAllMp3s(){
     const r = await fetch('https://api.github.com/repos/grandelement/radio/git/trees/main?recursive=1',
                           {headers:{'Accept':'application/vnd.github+json'}});
@@ -504,13 +561,19 @@ moon.addEventListener('click', ()=>{
   }
 
   function applyOrder(){
+    if(!PLAYLIST.length) return;
     if (SHUFFLE) {
       const base=[...PLAYLIST].sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
       PLAYLIST = base; shuffle(PLAYLIST);
     } else {
       PLAYLIST.sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
     }
-    pIndex=0; startCurrent();
+    if(started){
+      if(pIndex>=PLAYLIST.length) pIndex=0;
+      startCurrent();
+    } else {
+      pIndex=0;
+    }
   }
 
   function startCurrent(){
@@ -519,14 +582,39 @@ moon.addEventListener('click', ()=>{
     player.src = it.url;
     setTitle(it);
     highlightAlbum(it.album);
-    player.play().catch(()=>{});
+    updateMediaSession(it);
+    player.play().then(()=>{
+      if('mediaSession' in navigator){
+        navigator.mediaSession.playbackState='playing';
+      }
+    }).catch(()=>{});
     btnPlay.textContent='❚❚';
   }
   function next(){ if(!PLAYLIST.length) return; pIndex=(pIndex+1)%PLAYLIST.length; startCurrent(); }
   function prev(){ if(!PLAYLIST.length) return; pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length; startCurrent(); }
 
-  btnNext.onclick=next; btnPrev.onclick=prev;
-  btnPlay.onclick=()=>{ if(player.paused){ player.play().catch(()=>{}); btnPlay.textContent='❚❚'; } else { player.pause(); btnPlay.textContent='▶'; } };
+  btnNext.onclick=next;
+  btnPrev.onclick=prev;
+  btnPlay.onclick=()=>{
+    if(!PLAYLIST.length) return;
+    if(player.paused && !started){
+      started=true;
+      applyOrder(); // this will call startCurrent()
+    } else if(player.paused){
+      player.play().then(()=>{
+        if('mediaSession' in navigator){
+          navigator.mediaSession.playbackState='playing';
+        }
+      }).catch(()=>{});
+      btnPlay.textContent='❚❚';
+    } else {
+      player.pause();
+      btnPlay.textContent='▶';
+      if('mediaSession' in navigator){
+        navigator.mediaSession.playbackState='paused';
+      }
+    }
+  };
   tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
   tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
 
@@ -538,7 +626,9 @@ moon.addEventListener('click', ()=>{
   player.addEventListener('ended', next);
   player.addEventListener('error', next);
 
-  function unmuteOnce(){ player.muted=false; window.removeEventListener('pointerdown', unmuteOnce, {capture:true}); }
+  function unmuteOnce(){
+    player.muted=false;
+  }
   window.addEventListener('pointerdown', unmuteOnce, {capture:true, once:true});
   player.muted=true;
 
@@ -546,7 +636,8 @@ moon.addEventListener('click', ()=>{
 
   fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
-    PLAYLIST = list; applyOrder();
+    PLAYLIST = list;
+    applyOrder(); // will NOT start playback until started=true
   });
 })();
 
@@ -555,15 +646,30 @@ moon.addEventListener('click', ()=>{
   const layer = document.getElementById('phrases');
   const URL_TXT = 'https://grandelement.github.io/website/data/hidden.txt';
   let PHRASES=[];
-  fetch(URL_TXT).then(r=>r.ok?r.text():'').then(t=>{
-    PHRASES = t.split(/[,\r?\n]/).map(s=>s.trim()).filter(Boolean);
-    if(!PHRASES.length) PHRASES = [
-      'you are the grand element','energy in motion','silence between notes',
-      'frequency is the vehicle','listen inward','breathe the rhythm','love is the key',
-      'soul remembers','spirit moves','fire awakens'
-    ];
+  const DEFAULTS = [
+    'you are the grand element','energy in motion','silence between notes',
+    'frequency is the vehicle','listen inward','breathe the rhythm','love is the key',
+    'soul remembers','spirit moves','fire awakens'
+  ];
+
+  function useDefault(){
+    PHRASES = DEFAULTS.slice();
     scatter();
-  });
+  }
+
+  fetch(URL_TXT)
+    .then(r=>r.ok ? r.text() : '')
+    .then(t=>{
+      t = t || '';
+      PHRASES = t.split(/[,\r?\n]/).map(s=>s.trim()).filter(Boolean);
+      if(!PHRASES.length){
+        useDefault();
+      }else{
+        scatter();
+      }
+    })
+    .catch(useDefault);
+
   function scatter(){
     layer.innerHTML='';
     const n=Math.max(10, PHRASES.length);
@@ -684,7 +790,7 @@ class Pair{
   constructor(a,b){
     this.a=a; this.b=b; this.t=0;
     this.cx=(a.x+b.x)/2; this.cy=(a.y+b.y)/2;
-    this.R=Math.max(18, Math.hypot(a.x-b.x,a.y-b.y)/2);
+    this.R=Math.max(18, Math.hypot(a.x-b.x)/2);
     this.theta=Math.atan2(a.y-this.cy,a.x-this.cx);
     this.omega=(Math.PI*2)/3;
     const va=Math.atan2(a.vy,a.vx), vb=Math.atan2(b.vy,b.vx), out=(va+vb)/2;
@@ -948,6 +1054,10 @@ canvas.addEventListener('pointermove', (e)=>{
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
     if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
     if(moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
+    const blueRect=document.getElementById('cueBlue')?.getBoundingClientRect();
+    const redRect=document.getElementById('cueRed')?.getBoundingClientRect();
+    if(blueRect){ collideElastic(drag.obj,{x:blueRect.left+blueRect.width/2,y:blueRect.top+blueRect.height/2,r:blueRect.width/2},0.95); }
+    if(redRect){ collideElastic(drag.obj,{x:redRect.left+redRect.width/2,y:redRect.top+redRect.height/2,r:redRect.width/2},0.95); }
   }
 },{passive:true});
 canvas.addEventListener('pointerup', (e)=>{
@@ -1002,11 +1112,18 @@ function loop(){
   const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
   const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.width/2:0, mr=moonRect?moonRect.width/2:0;
+  const blueRect=document.getElementById('cueBlue')?.getBoundingClientRect();
+  const redRect=document.getElementById('cueRed')?.getBoundingClientRect();
+  const bx=blueRect?blueRect.left+blueRect.width/2:0, by=blueRect?blueRect.top+blueRect.height/2:0, br=blueRect?blueRect.width/2:0;
+  const rx=redRect?redRect.left+redRect.width/2:0, ry=redRect?redRect.top+redRect.height/2:0, rr=redRect?redRect.width/2:0;
+
   for(const c of comets){
     if(c.dragging) continue;
     if (window.planetNodes) { for (const p of planetNodes) collideElastic(c, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     if(sr) collideElastic(c,{x:sx,y:sy,r:sr},0.95);
     if(mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
+    if(br) collideElastic(c,{x:bx,y:by,r:br},0.95);
+    if(rr) collideElastic(c,{x:rx,y:ry,r:rr},0.95);
   }
 
   for(let i=0;i<comets.length;i++)
@@ -1104,7 +1221,11 @@ function planetStep(){
   const sunRect  = document.getElementById('sunWrap')?.getBoundingClientRect();
   const moonRect = document.querySelector('.moon')?.getBoundingClientRect();
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.width/2:0, sr=sunRect?sunRect.width/2:0;
-  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.width/2:0, mr=moonRect?moonRect.width/2:0;
+  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
+  const blueRect=document.getElementById('cueBlue')?.getBoundingClientRect();
+  const redRect=document.getElementById('cueRed')?.getBoundingClientRect();
+  const bx=blueRect?blueRect.left+blueRect.width/2:0, by=blueRect?blueRect.top+blueRect.height/2:0, br=blueRect?blueRect.width/2:0;
+  const rx=redRect?redRect.left+redRect.width/2:0, ry=redRect?redRect.top+redRect.height/2:0, rr=redRect?redRect.width/2:0;
 
   for(const p of planetNodes){
     if(p.dragging) continue;
@@ -1118,6 +1239,8 @@ function planetStep(){
 
     if(sr) collideElastic(p,{x:sx,y:sy,r:sr},0.98);
     if(mr) collideElastic(p,{x:mx,y:my,r:mr},0.98);
+    if(br) collideElastic(p,{x:bx,y:by,r:br},0.98);
+    if(rr) collideElastic(p,{x:rx,y:ry,r:rr},0.98);
 
     p.el.style.left=(p.x-p.r)+'px'; p.el.style.top=(p.y-p.r)+'px';
   }
