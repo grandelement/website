@@ -64,7 +64,7 @@
   .phrase.pinned{ color:#fff; text-decoration:underline; }
 
   /* Sun + Moon */
-  .sunWrap{ position:absolute; left:18vw; top:54vh; transform:translate(-50%,-50%);
+  .sunWrap{ position:absolute; left:18vw; top:64vh; transform:translate(-50%,-50%);
             width:var(--sun-size); height:var(--sun-size); pointer-events:auto; z-index:5; cursor:grab; }
   .sunWrap.dragging{ cursor:grabbing; }
 
@@ -88,9 +88,9 @@
   #nowPlaying{
     display:none !important;
   }
-  .toggle{ pointer-events:auto; padding:6px 12px; border-radius:999px; border:1px solid rgba(220,240,255,.65);
-           background:rgba(120,190,255,.85); cursor:pointer; }
-  .toggle.active{ background:rgba(40,140,255,.65); }
+  .toggle{ pointer-events:auto; padding:6px 12px; border-radius:999px; border:1px solid rgba(220,240,255,.35);
+           background:rgba(12,24,40,.6); cursor:pointer; }
+  .toggle.active{ background:rgba(40,140,255,.45); }
 
   /* Now Playing ticker (scroll inside pill when needed) */
   .npTicker{position:relative; display:block; white-space:nowrap;}
@@ -106,7 +106,7 @@
   .miniPlayer{
     position:absolute; left:50%; top:calc(100% + 12px); transform:translate(-50%,0);
     width:86vw; max-width:360px;
-    background:rgba(5,10,22,.4);
+    background:rgba(5,10,22,.92);
     border:1px solid rgba(220,240,255,.35); border-radius:16px; padding:10px 12px;
     box-shadow:0 10px 24px rgba(0,0,0,.55);
     display:none; flex-direction:column; gap:10px; align-items:stretch; font-size:12px;
@@ -201,34 +201,7 @@
     }
   }
 
-  /* Cue balls (DOM, not canvas) */
-  .cueBall{
-    position:fixed;
-    width:32px;
-    height:32px;
-    border-radius:50%;
-    z-index:4;
-    pointer-events:none;
-    display:none;
-  }
-  .cueBall--blue{
-    left:64vw;
-    top:10vh;
-    background:
-      radial-gradient(circle at 30% 30%, #ffffff, rgba(255,255,255,0) 55%),
-      radial-gradient(circle, #7fd2ff 0%, #2b6bb5 65%, #10233f 100%);
-    box-shadow:0 0 18px rgba(120,200,255,.85);
-  }
-  .cueBall--red{
-    left:52vw;
-    top:55vh;
-    background:
-      radial-gradient(circle at 30% 30%, #ffffff, rgba(255,255,255,0) 55%),
-      radial-gradient(circle, #ff9d9d 0%, #c53838 65%, #400c0c 100%);
-    box-shadow:0 0 18px rgba(255,120,120,.9);
-  }
-
-  /* Footer copyright */
+    /* Footer copyright */
   footer.ge-footer{
     position:fixed;
     left:50%;
@@ -299,10 +272,6 @@
 
   <!-- Planets -->
   <div class="planets" id="planets"></div>
-
-  <!-- Cue balls -->
-  <div class="cueBall cueBall--blue" id="cueBlue" title="Blue cue"></div>
-  <div class="cueBall cueBall--red" id="cueRed" title="Red cue"></div>
 
   <!-- ABOUT -->
   <div class="overlay" id="about">
@@ -412,7 +381,7 @@ function placeSpiral(){
     planetsEl.appendChild(aEl);
   });
 }
-placeSpiral(); addEventListener('resize', placeSpiral, {passive:true});
+placeSpiral();
 
 /* ========= ABOUT ========= */
 document.getElementById('aboutBtn').addEventListener('click', ()=> document.getElementById('about').classList.add('show'));
@@ -715,11 +684,26 @@ moon.addEventListener('click', ()=>{
     const r=Math.min(innerWidth,innerHeight)*0.03;
     [...layer.children].forEach(el=>{
       if(el.classList.contains('pinned')){ el.classList.add('show'); return; }
+      if(el.dataset.autoShow === '1'){ el.classList.add('show'); return; }
       const rect=el.getBoundingClientRect(), cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
       const d=Math.hypot(px-cx,py-cy);
       if(d<r) el.classList.add('show'); else el.classList.remove('show');
     });
   }, 100);
+
+  // Auto cycle: every 30s, fade in one random phrase for ~6s
+  setInterval(()=>{
+    const nodes = [...layer.children].filter(el=>!el.classList.contains('pinned'));
+    if(!nodes.length) return;
+    const el = nodes[Math.floor(Math.random()*nodes.length)];
+    el.dataset.autoShow = '1';
+    el.classList.add('show');
+    setTimeout(()=>{
+      if(el.classList.contains('pinned')) return;
+      el.dataset.autoShow = '';
+      el.classList.remove('show');
+    }, 6000);
+  }, 30000);
   addEventListener('resize', ()=>requestAnimationFrame(scatter), {passive:true});
 
   const fx = document.getElementById('fx');
@@ -779,10 +763,10 @@ function netStepDraw(dt){
 
 /* Comets */
 const COMET={
-  sizes:[1,2,3,4,6,8,10,12,16],
+  sizes:[6,7,8,9,10],
   max:(innerWidth<700?3: (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||6)),
-  spawn:[20,40],
-  speed:[60,140],
+  spawn:[4,9],
+  speed:[35,90],
   trail:90,
   fade:1500,
   touch:26
@@ -865,8 +849,7 @@ class Ship{
     if(side==='t'){ this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220); }
     if(side==='b'){ this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220); }
     this.ax=rand(-30,30); this.ay=rand(-30,30); this.curveT=rand(2,5); this.curveP=rand(0,Math.PI*2);
-    this.state='normal'; this.angle=Math.atan2(this.vy,this.vx)+Math.PI;
-    this.dead=false; this.beam=0; this.targets=[]; this.forceBeamUntil=0; this.maxTargets=8; this.captureRadius=26;
+    this.dead=false; this.beam=0; this.targets=[]; this.forceBeamUntil=0; this.maxTargets=3; this.captureRadius=18;
   }
   captureNextComet(){
     const pool = comets.filter(c => c.state==='fly' && !this.targets.includes(c));
@@ -876,65 +859,46 @@ class Ship{
     this.beam = 1;
   }
   step(dt){
+    this.curveP+=dt/this.curveT;
+    this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
+    this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
+
     const shipR = (shipImg.height||100)*this.s*0.3;
     const outer = shipR*2.2, inner = shipR*1.6;
     const dx = mouseX-this.x, dy = mouseY-this.y, d = Math.hypot(dx,dy);
-    const stopRadius = inner*0.45;
-
-    let moving = true;
-
-    if(this.state === 'frozen'){
-      // Stay frozen unless cursor re-enters steering band outside the stop radius
-      if(d >= stopRadius && d < outer){
-        this.state = 'normal';
-      } else {
-        moving = false;
-        this.vx = 0;
-        this.vy = 0;
-      }
+    if(d < outer){
+      const dir = Math.atan2(dy,dx);
+      const k = Math.max(0, Math.min(1, (d-inner) / (outer-inner)));
+      const followSpeed = 180*k;
+      const stopDamp    = (d<inner ? 0.80 : 0.98);
+      this.vx = this.vx*stopDamp + Math.cos(dir)*followSpeed*dt;
+      this.vy = this.vy*stopDamp + Math.sin(dir)*followSpeed*dt;
+      if(d<inner*0.6){ this.vx*=0.5; this.vy*=0.5; }
     }
 
-    if(moving){
-      // Background wobble + drift
-      this.curveP+=dt/this.curveT;
-      this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
-      this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
+    const v=Math.hypot(this.vx,this.vy); const vmin=50, vmax=320;
+    if(v<vmin){ const a=Math.atan2(this.vy,this.vx)||rand(-Math.PI,Math.PI); this.vx=Math.cos(a)*vmin; this.vy=Math.sin(a)*vmin; }
+    if(v>vmax){ this.vx*=vmax/v; this.vy*=vmax/v; }
 
-      // Cursor steering: ship follows cursor like a guided craft
-      if(d < outer){
-        const dir = Math.atan2(dy,dx);
-        const k = Math.max(0, Math.min(1, (d-inner) / (outer-inner)));
-        const followSpeed = 180*k;
-        const stopDamp    = (d<inner ? 0.80 : 0.98);
-        this.vx = this.vx*stopDamp + Math.cos(dir)*followSpeed*dt;
-        this.vy = this.vy*stopDamp + Math.sin(dir)*followSpeed*dt;
-
-        // Deep center: enter frozen state and stop immediately without changing angle
-        if(d < stopRadius){
-          this.state = 'frozen';
+    // Harbor zone around the blue sun: dramatically damp ship speed so they can "stop"
+    const sunRect = document.getElementById('sunWrap')?.getBoundingClientRect();
+    if(sunRect){
+      const hx = sunRect.left + sunRect.width/2;
+      const hy = sunRect.top  + sunRect.height/2;
+      const hr = sunRect.width * 0.7; // radius of stop area
+      const dHarbor = Math.hypot(this.x-hx, this.y-hy);
+      if(dHarbor < hr){
+        this.vx *= 0.3;
+        this.vy *= 0.3;
+        if(Math.hypot(this.vx,this.vy) < 8){
           this.vx = 0;
           this.vy = 0;
-          moving = false;
         }
       }
-
-      const v=Math.hypot(this.vx,this.vy);
-      const vmin=50, vmax=320;
-      if(v<vmin){
-        const a=Math.atan2(this.vy,this.vx)||rand(-Math.PI,Math.PI);
-        this.vx=Math.cos(a)*vmin; this.vy=Math.sin(a)*vmin;
-      }
-      if(v>vmax){ this.vx*=vmax/v; this.vy*=vmax/v; }
-
-      this.x+=this.vx*dt; this.y+=this.vy*dt;
-      if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
-
-      // Update angle only when moving, so a docked ship keeps its last orientation
-      const speed = Math.hypot(this.vx,this.vy);
-      if(speed>1){
-        this.angle = Math.atan2(this.vy,this.vx)+Math.PI;
-      }
     }
+
+    this.x+=this.vx*dt; this.y+=this.vy*dt;
+    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
 
     if (this.targets.length){
       const cx = this.targets.reduce((s,c)=>s+c.x,0)/this.targets.length;
@@ -962,7 +926,7 @@ class Ship{
   }
   draw(){
     if(!shipImg.complete) return;
-    const ang=this.angle!=null ? this.angle : Math.atan2(this.vy,this.vx)+Math.PI;
+    const ang=Math.atan2(this.vy,this.vx)+Math.PI;
     const w=shipImg.width*this.s, h=shipImg.height*this.s;
     ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang);
     const drawW=w*0.6, drawH=h*0.6; ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH);
@@ -1113,26 +1077,12 @@ canvas.addEventListener('pointermove', (e)=>{
   drag.obj.x=x; drag.obj.y=y; drag.hist.push({x,y,t:now}); while(drag.hist.length && now-drag.hist[0].t>160) drag.hist.shift();
   if(drag.kind==='comet' && drag.obj.trail){ drag.obj.trail.push([x,y,now]); if(drag.obj.trail.length>120) drag.obj.trail.shift(); }
   if (drag.kind==='comet') {
-    const r = drag.obj.r || 0;
-    const tiny = r <= 3;
-    const big  = r >= 10;
-
-    for (const c of comets) {
-      if(c!==drag.obj) collideElastic(drag.obj, c, 0.95);
-    }
-
-    // Planets: only non-tiny comets collide while dragging
-    if (window.planetNodes && !tiny) {
-      for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95);
-    }
-
+    for (const c of comets) { if(c!==drag.obj) collideElastic(drag.obj, c, 0.95); }
+    if (window.planetNodes) { for (const p of planetNodes) collideElastic(drag.obj, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-
-    // Sun and moon: only big foreground comets collide while dragging
-    if(big && sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
-    if(big && moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
-
+    if(sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
+    if(moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
     const blueRect=document.getElementById('cueBlue')?.getBoundingClientRect();
     const redRect=document.getElementById('cueRed')?.getBoundingClientRect();
     if(blueRect){ collideElastic(drag.obj,{x:blueRect.left+blueRect.width/2,y:blueRect.top+blueRect.height/2,r:blueRect.width/2},0.95); }
@@ -1198,20 +1148,9 @@ function loop(){
 
   for(const c of comets){
     if(c.dragging) continue;
-    const r = c.r || 0;
-    const tiny = r <= 3;
-    const big  = r >= 10;
-
-    // Planets: only non-tiny comets collide
-    if (window.planetNodes && !tiny) {
-      for (const p of planetNodes) collideElastic(c, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95);
-    }
-
-    // Sun and moon: only big foreground comets collide
-    if(big && sr) collideElastic(c,{x:sx,y:sy,r:sr},0.95);
-    if(big && mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
-
-    // Cue balls: still collide with all comets (if present)
+    if (window.planetNodes) { for (const p of planetNodes) collideElastic(c, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95); }
+    if(sr) collideElastic(c,{x:sx,y:sy,r:sr},0.95);
+    if(mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
     if(br) collideElastic(c,{x:bx,y:by,r:br},0.95);
     if(rr) collideElastic(c,{x:rx,y:ry,r:rr},0.95);
   }
@@ -1267,8 +1206,7 @@ requestAnimationFrame(loop);
     wrap.style.transform='translate(-50%,-50%)';
   }, {passive:true});
   addEventListener('pointerup', (e)=>{
-    // Only trigger teleport ripple when clicking the central sun, not the ABOUT or Music buttons
-    if(dragging && !moved && e.target && e.target.id === 'sun'){
+    if(dragging && !moved){
       const rect=wrap.getBoundingClientRect();
       rippleAndNext(rect.left+rect.width/2, rect.top+rect.height/2);
     }
@@ -1321,7 +1259,7 @@ function planetStep(){
   for(const p of planetNodes){
     if(p.dragging) continue;
     p.x+=p.vx*(1/60); p.y+=p.vy*(1/60);
-    p.vx*=0.985; p.vy*=0.985; if(Math.hypot(p.vx,p.vy)<5){ p.vx=0; p.vy=0; }
+    p.vx*=0.985; p.vy*=0.985; if(Math.hypot(p.vx,p.vy)<8){ p.vx=0; p.vy=0; }
 
     if(p.x-p.r<0){ p.x=p.r; p.vx=Math.abs(p.vx)*0.98; }
     if(p.x+p.r>innerWidth){ p.x=innerWidth-p.r; p.vx=-Math.abs(p.vx)*0.98; }
@@ -1348,7 +1286,7 @@ function nudgeSunNow(){
   const wrap=document.getElementById('sunWrap');
   const w=wrap.offsetWidth, h=wrap.offsetHeight;
   const L = Math.max(-w*0.25, Math.min(innerWidth - w*0.75, wrap.offsetLeft||innerWidth*0.18));
-  const T = Math.max(-h*0.25, Math.min(innerHeight - h*0.75, wrap.offsetTop || innerHeight*0.54));
+  const T = Math.max(-h*0.25, Math.min(innerHeight - h*0.75, wrap.offsetTop || innerHeight*0.64));
   wrap.style.left = (L + w/2) + 'px';
   wrap.style.top  = (T + h/2) + 'px';
   wrap.style.transform='translate(-50%,-50%)';
