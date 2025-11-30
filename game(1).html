@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Grand Element • Planet Bank Game</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root{
+      --bg-stars: url('../images/GE stars.jpg');
+      --ui-font: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      height:100%;
+      width:100%;
+      overflow:hidden;
+      background:#000;
+      color:#eaf2ff;
+      font-family:var(--ui-font);
+    }
+    body{
+      margin:0;
+      overflow:hidden;
+      background-image:
+        var(--bg-stars),
+        radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
+      background-position: center center, 0 0;
+      background-repeat: no-repeat, repeat;
+      background-size: cover, 3px 3px;
+      background-attachment: fixed, fixed;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+    }
+    .game-shell{
+      position:relative;
+      flex:1;
+    }
+    canvas{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    /* Score bar */
+    .scorebar{
+      position:absolute;
+      top:10px;
+      left:50%;
+      transform:translateX(-50%);
+      display:flex;
+      gap:10px;
+      padding:6px 10px;
+      background:rgba(5,10,22,.85);
+      border-radius:999px;
+      border:1px solid rgba(210,230,255,.5);
+      box-shadow:0 8px 18px rgba(0,0,0,.7);
+      font-size:12px;
+      z-index:10;
+      backdrop-filter:blur(8px);
+    }
+    .score-pill{
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid transparent;
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    .score-pill .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+    }
+    .p1 .dot{background:#54a9ff;}
+    .p2 .dot{background:#ff6666;}
+    .score-pill.active{
+      border-color:rgba(255,255,255,.9);
+      background:rgba(140,190,255,.22);
+      box-shadow:0 0 8px rgba(255,255,255,.6);
+    }
+
+    /* HUD */
+    .hud{
+      position:absolute;
+      top:46px;
+      left:14px;
+      padding:8px 12px 10px;
+      background:rgba(0,0,0,.75);
+      border-radius:10px;
+      font-size:12px;
+      max-width:280px;
+      line-height:1.4;
+      z-index:9;
+      backdrop-filter:blur(6px);
+    }
+    .hud strong{font-size:13px;}
+    .hud-close{
+      position:absolute;
+      top:4px;
+      right:6px;
+      font-size:11px;
+      cursor:pointer;
+      color:#9fb6ff;
+      padding:2px 4px;
+      border-radius:4px;
+    }
+    .hud-close:hover{
+      background:rgba(255,255,255,.12);
+    }
+    .hud-bottom{
+      position:absolute;
+      bottom:12px;
+      left:50%;
+      transform:translateX(-50%);
+      padding:6px 10px;
+      background:rgba(0,0,0,.65);
+      border-radius:999px;
+      font-size:11px;
+      text-align:center;
+      pointer-events:none;
+      white-space:nowrap;
+      backdrop-filter:blur(6px);
+      z-index:9;
+    }
+    .badge-row{
+      margin-top:4px;
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .badge{
+      padding:2px 6px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      font-size:10px;
+    }
+    .hud small{
+      font-size:11px;
+      opacity:.85;
+    }
+
+    /* GE-style blue sun overlay – single visible sun only */
+    .sunWrap{
+      position:absolute;
+      left:18vw;
+      top:54vh;
+      transform:translate(-50%,-50%);
+      width:170px;
+      height:170px;
+      pointer-events:none;
+      z-index:5;
+    }
+    .sunCore{
+      position:absolute;
+      inset:0;
+      border-radius:50%;
+      background:center/cover no-repeat url('../images/ge-logo-2.jpg');
+      box-shadow:inset 0 0 70px rgba(255,255,255,.18);
+    }
+    .sunHalo{
+      position:absolute;
+      inset:-24px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(130,195,255,.95) 0%, rgba(20,60,120,.0) 60%);
+      opacity:.95;
+      filter:blur(1px);
+      pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <canvas id="game"></canvas>
+
+    <!-- GE-style blue sun visual overlay (only one visible sun now) -->
+    <div class="sunWrap">
+      <div class="sunHalo"></div>
+      <div class="sunCore" title="GE Sun Bumper"></div>
+    </div>
+
+    <!-- Scorebar -->
+    <div class="scorebar" id="scorebar">
+      <div class="score-pill p1 active" id="p1Label"><div class="dot"></div>P1 (Blue) <span id="p1Score">0</span></div>
+      <div class="score-pill p2" id="p2Label"><div class="dot"></div>P2 (Red) <span id="p2Score">0</span></div>
+    </div>
+
+    <!-- HUD text -->
+    <div class="hud" id="hud">
+      <div class="hud-close" id="hudClose">✕</div>
+      <strong>Planet Bank • GE Albums</strong><br>
+      Object: push the cue ball to bank album planets into the <b>GE sun bumper</b>.<br>
+      Each hit on the sun = <b>1 point</b> + <b>1 per bank</b> that shot.<br>
+      <small>(Only the cue ball scores on the sun.)</small>
+      <div class="badge-row">
+        <div class="badge" id="shotLabel">Shot 1 • P1</div>
+        <div class="badge" id="bankLabel">Banks this shot: 0</div>
+      </div>
+    </div>
+    <div class="hud-bottom" id="status">P1: Drag from the cue ball to aim. Longer drag = more power.</div>
+  </div>
+
+  <script>
+  (function(){
+    const CONFIG = {
+      cueMass: 3.2,
+      planetMass: 3.0,
+      cueRadius: 20,
+      planetRadiusMin: 24,
+      planetRadiusMax: 30,
+      powerScale: 0.08,     // more power
+      powerMax: 420,        // higher cap
+      friction: 0.98,       // stops faster
+      minSpeed: 0.05,       // cut micro-movement sooner
+      sunRadius: 80,
+      sunXFactor: 0.22,
+      sunYFactor: 0.5
+    };
+
+    const IMAGE_BASE = '../images/';
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const hud = document.getElementById('hud');
+    const hudClose = document.getElementById('hudClose');
+    const hudStatus = document.getElementById('status');
+    const shotLabel = document.getElementById('shotLabel');
+    const bankLabel = document.getElementById('bankLabel');
+
+    const p1Label = document.getElementById('p1Label');
+    const p2Label = document.getElementById('p2Label');
+    const p1ScoreEl = document.getElementById('p1Score');
+    const p2ScoreEl = document.getElementById('p2Score');
+
+    hudClose.addEventListener('click', () => {
+      hud.style.display = 'none';
+    });
+
+    let dpr = window.devicePixelRatio || 1;
+    let width = 0, height = 0;
+
+    const blueSun = {
+      x:0,
+      y:0,
+      radius:CONFIG.sunRadius
+    };
+
+    const players = [
+      { name:'P1', color:'#54a9ff', score:0, shots:0, bestBanks:0 },
+      { name:'P2', color:'#ff5555', score:0, shots:0, bestBanks:0 }
+    ];
+    let currentPlayer = 0;
+
+    let cueBall = null;
+    const bodies = [];
+    const planets = [];
+
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      width  = rect.width;
+      height = rect.height;
+      canvas.width  = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      blueSun.x = width * CONFIG.sunXFactor;
+      blueSun.y = height * CONFIG.sunYFactor;
+
+      if(cueBall){
+        cueBall.x = width * 0.74;
+        cueBall.y = height * 0.5;
+      }
+    }
+    window.addEventListener('resize', resize, {passive:true});
+
+    const BALL_TYPES = { CUE:'cue', PLANET:'planet' };
+
+    // Explicit mapping to your real album images
+    const albumDefs = [
+      { title:'Grand Element - Fire',          src: IMAGE_BASE + 'Grand Element - Fire.jpg' },
+      { title:'Grand Element - Fundamental Groove', src: IMAGE_BASE + 'Grand Element - Fundamental Groove.jpg' },
+      { title:'Grand Element - Intergy',       src: IMAGE_BASE + 'Grand Element - Intergy.jpg' },
+      { title:'Grand Element - Live',          src: IMAGE_BASE + 'Grand Element - Live.jpg' },
+      { title:'Grand Element - Love',          src: IMAGE_BASE + 'Grand Element - Love.jpg' },
+      { title:'Grand Element - Sessions I',    src: IMAGE_BASE + 'Grand Element - Sessions I.jpg' },
+      { title:'Grand Element - Sessions II',   src: IMAGE_BASE + 'Grand Element - Sessions II.jpg' },
+      { title:'Grand Element - Soul',          src: IMAGE_BASE + 'Grand Element - Soul.jpg' },
+      { title:'Grand Element - Spirit',        src: IMAGE_BASE + 'Grand Element - Spirit.jpg' },
+      { title:'Grand Element - Trio',          src: IMAGE_BASE + 'Grand Element - Trio.jpg' }
+    ];
+
+    const albumImages = albumDefs.map(def => {
+      const img = new Image();
+      img.src = def.src;
+      return img;
+    });
+
+    function makeBall(opts){
+      return Object.assign({
+        x:0,y:0,vx:0,vy:0,
+        radius:CONFIG.planetRadiusMin,
+        mass:1,
+        type:BALL_TYPES.PLANET,
+        color:'#fff',
+        albumIndex:null
+      }, opts);
+    }
+
+    function updateScorebar(){
+      p1Label.classList.toggle('active', currentPlayer === 0);
+      p2Label.classList.toggle('active', currentPlayer === 1);
+      p1ScoreEl.textContent = players[0].score;
+      p2ScoreEl.textContent = players[1].score;
+
+      shotLabel.textContent = 'Shot ' + (players[0].shots + players[1].shots + 1) + ' • ' + players[currentPlayer].name;
+    }
+
+    function nextPlayer(){
+      currentPlayer = currentPlayer === 0 ? 1 : 0;
+      hudStatus.textContent = players[currentPlayer].name + ': Your turn. Drag from the cue ball to aim.';
+      updateScorebar();
+    }
+
+    function resetLevel(){
+      bodies.length = 0;
+      planets.length = 0;
+
+      const cx = width/2;
+      const cy = height/2;
+
+      cueBall = makeBall({
+        x: width*0.74,
+        y: cy,
+        radius: CONFIG.cueRadius,
+        mass: CONFIG.cueMass,
+        type: BALL_TYPES.CUE,
+        color: players[currentPlayer].color
+      });
+      bodies.push(cueBall);
+
+      const planetCount = 10;
+      const ringRadiusX = width * 0.22;
+      const ringRadiusY = height * 0.26;
+      for(let i=0;i<planetCount;i++){
+        const defIndex = i % albumDefs.length;
+        const angle = (i / planetCount) * Math.PI * 2;
+        const px = width*0.40 + Math.cos(angle) * ringRadiusX;
+        const py = cy + Math.sin(angle) * ringRadiusY;
+        const p = makeBall({
+          x: px,
+          y: py,
+          radius: CONFIG.planetRadiusMin + ((i % 3) * 2),
+          mass: CONFIG.planetMass,
+          type: BALL_TYPES.PLANET,
+          color:'#f8f2ff',
+          albumIndex:defIndex
+        });
+        planets.push(p);
+        bodies.push(p);
+      }
+
+      blueSun.x = width*CONFIG.sunXFactor;
+      blueSun.y = height*CONFIG.sunYFactor;
+
+      currentShotBanks = 0;
+      shotActive = false;
+      sunHitThisShot = false;
+      updateScorebar();
+    }
+
+    let lastTime = performance.now();
+    let currentShotBanks = 0;
+    let shotActive = false;
+    let sunHitThisShot = false;
+
+    let aiming = false;
+    let aimStart = null;
+    let aimCurrent = null;
+    let canShoot = true;
+
+    function screenToWorld(x,y){
+      const rect = canvas.getBoundingClientRect();
+      return {x: x - rect.left, y: y - rect.top};
+    }
+
+    function pointerDown(e){
+      e.preventDefault();
+      if(!cueBall || !canShoot) return;
+      const isTouch = e.type.startsWith('touch');
+      const point = isTouch ? e.touches[0] : e;
+      const pos = screenToWorld(point.clientX, point.clientY);
+
+      aiming = true;
+      aimStart = {x: cueBall.x, y: cueBall.y};
+      aimCurrent = pos;
+    }
+
+    function pointerMove(e){
+      if(!aiming) return;
+      const isTouch = e.type.startsWith('touch');
+      const point = isTouch ? e.touches[0] : e;
+      const pos = screenToWorld(point.clientX, point.clientY);
+      aimCurrent = pos;
+    }
+
+    function pointerUp(e){
+      if(!aiming) return;
+      e.preventDefault();
+      const isTouch = e.type.startsWith('touch');
+      const point = isTouch ? (isTouch && e.changedTouches[0]) : e;
+      const pos = screenToWorld(point.clientX, point.clientY);
+      aimCurrent = pos;
+
+      const dx = aimCurrent.x - aimStart.x;
+      const dy = aimCurrent.y - aimStart.y;
+      const dist = Math.hypot(dx,dy);
+
+      const clamped = Math.min(dist, CONFIG.powerMax);
+      if(clamped > 6){
+        const angle = Math.atan2(dy,dx);
+        const mag = clamped * CONFIG.powerScale;
+        cueBall.vx = Math.cos(angle)*mag;
+        cueBall.vy = Math.sin(angle)*mag;
+        canShoot = false;
+        shotActive = true;
+        sunHitThisShot = false;
+        players[currentPlayer].shots++;
+        currentShotBanks = 0;
+        hudStatus.textContent = players[currentPlayer].name + ': Shot in motion…';
+        updateScorebar();
+      }else{
+        hudStatus.textContent = 'Drag farther from the cue ball for more power.';
+      }
+
+      aiming = false;
+      aimStart = null;
+      aimCurrent = null;
+    }
+
+    canvas.addEventListener('mousedown', pointerDown);
+    canvas.addEventListener('mousemove', pointerMove);
+    window.addEventListener('mouseup', pointerUp);
+
+    canvas.addEventListener('touchstart', pointerDown, {passive:false});
+    canvas.addEventListener('touchmove', pointerMove, {passive:false});
+    canvas.addEventListener('touchend', pointerUp, {passive:false});
+    canvas.addEventListener('touchcancel', pointerUp, {passive:false});
+
+    function anyBodiesMoving(){
+      return bodies.some(b => Math.hypot(b.vx,b.vy) > CONFIG.minSpeed*0.5);
+    }
+
+    function handleShotFinished(){
+      canShoot = true;
+      shotActive = false;
+
+      if(currentShotBanks > 0){
+        if(currentShotBanks > players[currentPlayer].bestBanks){
+          players[currentPlayer].bestBanks = currentShotBanks;
+        }
+        bankLabel.textContent = 'Banks this shot: ' + currentShotBanks;
+      }else if(!sunHitThisShot){
+        bankLabel.textContent = 'Banks this shot: 0';
+      }
+
+      nextPlayer();
+    }
+
+    function bounceOffSun(ball){
+      const dx = ball.x - blueSun.x;
+      const dy = ball.y - blueSun.y;
+      const dist = Math.hypot(dx,dy);
+      const minDist = ball.radius + blueSun.radius;
+      if(dist === 0 || dist >= minDist) return false;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Push ball out of the sun bumper
+      const overlap = minDist - dist;
+      ball.x += nx * overlap;
+      ball.y += ny * overlap;
+
+      // Reflect velocity like a bumper
+      const dot = ball.vx * nx + ball.vy * ny;
+      if(dot < 0){
+        ball.vx -= 2 * dot * nx;
+        ball.vy -= 2 * dot * ny;
+      }
+      return true;
+    }
+
+    function step(dt){
+      const wasMoving = anyBodiesMoving();
+
+      for(const b of bodies){
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        b.vx *= CONFIG.friction;
+        b.vy *= CONFIG.friction;
+
+        const speed = Math.hypot(b.vx,b.vy);
+        if(speed < CONFIG.minSpeed){
+          b.vx = 0;
+          b.vy = 0;
+        }
+
+        if(b.x - b.radius < 0){
+          b.x = b.radius;
+          b.vx = -b.vx;
+        }else if(b.x + b.radius > width){
+          b.x = width - b.radius;
+          b.vx = -b.vx;
+        }
+        if(b.y - b.radius < 0){
+          b.y = b.radius;
+          b.vy = -b.vy;
+        }else if(b.y + b.radius > height){
+          b.y = height - b.radius;
+          b.vy = -b.vy;
+        }
+
+        // Sun bumper: bounce everything
+        if(bounceOffSun(b) && shotActive && b.type === BALL_TYPES.CUE){
+          if(!sunHitThisShot){
+            sunHitThisShot = true;
+            let gained = 1 + currentShotBanks;
+            players[currentPlayer].score += gained;
+            hudStatus.textContent = players[currentPlayer].name + ' hit the GE sun! +' + gained + ' points';
+            bankLabel.textContent = 'Banks this shot: ' + currentShotBanks;
+            updateScorebar();
+          }
+        }
+      }
+
+      for(let i=0;i<bodies.length;i++){
+        for(let j=i+1;j<bodies.length;j++){
+          const a = bodies[i];
+          const b = bodies[j];
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx,dy);
+          const minDist = a.radius + b.radius;
+
+          if(dist > 0 && dist < minDist){
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            const overlap = (minDist - dist);
+            const totalMass = a.mass + b.mass;
+            const pushA = overlap * (b.mass/totalMass);
+            const pushB = overlap * (a.mass/totalMass);
+
+            a.x -= nx * pushA;
+            a.y -= ny * pushA;
+            b.x += nx * pushB;
+            b.y += ny * pushB;
+
+            const av = a.vx * nx + a.vy * ny;
+            const bv = b.vx * nx + b.vy * ny;
+            const relVel = bv - av;
+
+            if(relVel < 0){
+              const impulse = (2 * relVel) / (a.mass + b.mass);
+              a.vx += impulse * b.mass * nx;
+              a.vy += impulse * b.mass * ny;
+              b.vx -= impulse * a.mass * nx;
+              b.vy -= impulse * a.mass * ny;
+
+              if(shotActive){
+                const planetHit =
+                  (a.type === BALL_TYPES.PLANET && b.type !== BALL_TYPES.PLANET) ||
+                  (b.type === BALL_TYPES.PLANET && a.type !== BALL_TYPES.PLANET);
+                if(planetHit){
+                  currentShotBanks++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if(shotActive && wasMoving && !anyBodiesMoving()){
+        handleShotFinished();
+      }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,width,height);
+
+      const grd = ctx.createRadialGradient(
+        width/2,height/2,Math.min(width,height)*0.2,
+        width/2,height/2,Math.max(width,height)*0.7
+      );
+      grd.addColorStop(0,'rgba(0,0,0,0)');
+      grd.addColorStop(1,'rgba(0,0,0,0.85)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0,0,width,height);
+
+      // Planets with album art
+      for(const p of planets){
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+        ctx.clip();
+
+        let drawn = false;
+        if(typeof p.albumIndex === 'number'){
+          const img = albumImages[p.albumIndex];
+          if(img && img.complete && img.naturalWidth>0){
+            const size = p.radius*2;
+            ctx.drawImage(img, p.x-p.radius, p.y-p.radius, size, size);
+            drawn = true;
+          }
+        }
+        if(!drawn){
+          const pg = ctx.createRadialGradient(p.x-4,p.y-6,p.radius*0.2,p.x,p.y,p.radius);
+          pg.addColorStop(0,'rgba(255,255,255,1)');
+          pg.addColorStop(1,'rgba(150,130,255,1)');
+          ctx.fillStyle = pg;
+          ctx.fillRect(p.x-p.radius,p.y-p.radius,p.radius*2,p.radius*2);
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.radius+1.5,0,Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if(cueBall){
+        ctx.save();
+        ctx.shadowColor = players[currentPlayer].color;
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = players[currentPlayer].color;
+        ctx.beginPath();
+        ctx.arc(cueBall.x,cueBall.y,cueBall.radius,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        if(Math.hypot(cueBall.vx,cueBall.vy) > 0.04){
+          const trailLen = 24;
+          const ang = Math.atan2(cueBall.vy,cueBall.vx);
+          const tx = cueBall.x - Math.cos(ang)*trailLen;
+          const ty = cueBall.y - Math.sin(ang)*trailLen;
+          ctx.strokeStyle = players[currentPlayer].color;
+          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(cueBall.x, cueBall.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      if(aiming && aimStart && aimCurrent && cueBall){
+        const dx = aimCurrent.x - aimStart.x;
+        const dy = aimCurrent.y - aimStart.y;
+        const dist = Math.hypot(dx,dy);
+        const maxLen = CONFIG.powerMax;
+        const scale = (dist>0 ? Math.min(dist,maxLen)/dist : 0);
+        const ex = cueBall.x + dx*scale;
+        const ey = cueBall.y + dy*scale;
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6,4]);
+        ctx.beginPath();
+        ctx.moveTo(cueBall.x, cueBall.y);
+        ctx.lineTo(ex,ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+        ctx.textAlign = 'center';
+        ctx.fillText('Aim & power', ex, ey-10);
+      }
+    }
+
+    function loop(now){
+      const dt = Math.min((now - lastTime)/16.67, 2);
+      lastTime = now;
+
+      step(dt*0.9);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    resize();
+    resetLevel();
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
