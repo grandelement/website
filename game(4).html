@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     :root{
-      --bg-stars: url('../images/GE stars.jpg');
+      --bg-stars: url('https://grandelement.github.io/website/images/GE%20stars.jpg');
       --ui-font: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
     }
     *{box-sizing:border-box;margin:0;padding:0;}
@@ -142,7 +142,7 @@
       opacity:.85;
     }
 
-    /* GE-style blue sun overlay – single visible sun only */
+    /* GE-style blue sun overlay */
     .sunWrap{
       position:absolute;
       left:18vw;
@@ -157,7 +157,7 @@
       position:absolute;
       inset:0;
       border-radius:50%;
-      background:center/cover no-repeat url('../images/ge-logo-2.jpg');
+      background:center/cover no-repeat url('https://grandelement.github.io/website/images/ge-logo-2.jpg');
       box-shadow:inset 0 0 70px rgba(255,255,255,.18);
     }
     .sunHalo{
@@ -175,7 +175,7 @@
   <div class="game-shell">
     <canvas id="game"></canvas>
 
-    <!-- GE-style blue sun visual overlay (only one visible sun now) -->
+    <!-- Visible GE sun bumper -->
     <div class="sunWrap">
       <div class="sunHalo"></div>
       <div class="sunCore" title="GE Sun Bumper"></div>
@@ -191,9 +191,9 @@
     <div class="hud" id="hud">
       <div class="hud-close" id="hudClose">✕</div>
       <strong>Planet Bank • GE Albums</strong><br>
-      Object: push the cue ball to bank album planets into the <b>GE sun bumper</b>.<br>
-      Each hit on the sun = <b>1 point</b> + <b>1 per bank</b> that shot.<br>
-      <small>(Only the cue ball scores on the sun.)</small>
+      Object: use the cue ball to knock <b>album planets</b> into the <b>GE sun bumper</b>.<br>
+      Each time a planet hits the sun you score <b>1 point</b> + <b>1 per bank</b> that shot.<br>
+      <small>(Cue ball never scores, only planets.)</small>
       <div class="badge-row">
         <div class="badge" id="shotLabel">Shot 1 • P1</div>
         <div class="badge" id="bankLabel">Banks this shot: 0</div>
@@ -210,16 +210,16 @@
       cueRadius: 20,
       planetRadiusMin: 24,
       planetRadiusMax: 30,
-      powerScale: 0.08,     // more power
-      powerMax: 420,        // higher cap
-      friction: 0.98,       // stops faster
-      minSpeed: 0.05,       // cut micro-movement sooner
+      powerScale: 0.08,
+      powerMax: 420,
+      friction: 0.98,
+      minSpeed: 0.05,
       sunRadius: 80,
       sunXFactor: 0.22,
       sunYFactor: 0.5
     };
 
-    const IMAGE_BASE = '../images/';
+    const IMAGE_BASE = 'https://grandelement.github.io/website/images/';
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -278,18 +278,18 @@
 
     const BALL_TYPES = { CUE:'cue', PLANET:'planet' };
 
-    // Explicit mapping to your real album images
+    // Use your exact album art filenames from /website/images
     const albumDefs = [
-      { title:'Grand Element - Fire',          src: IMAGE_BASE + 'Grand Element - Fire.jpg' },
-      { title:'Grand Element - Fundamental Groove', src: IMAGE_BASE + 'Grand Element - Fundamental Groove.jpg' },
-      { title:'Grand Element - Intergy',       src: IMAGE_BASE + 'Grand Element - Intergy.jpg' },
-      { title:'Grand Element - Live',          src: IMAGE_BASE + 'Grand Element - Live.jpg' },
-      { title:'Grand Element - Love',          src: IMAGE_BASE + 'Grand Element - Love.jpg' },
-      { title:'Grand Element - Sessions I',    src: IMAGE_BASE + 'Grand Element - Sessions I.jpg' },
-      { title:'Grand Element - Sessions II',   src: IMAGE_BASE + 'Grand Element - Sessions II.jpg' },
-      { title:'Grand Element - Soul',          src: IMAGE_BASE + 'Grand Element - Soul.jpg' },
-      { title:'Grand Element - Spirit',        src: IMAGE_BASE + 'Grand Element - Spirit.jpg' },
-      { title:'Grand Element - Trio',          src: IMAGE_BASE + 'Grand Element - Trio.jpg' }
+      { title:'Grand Element - Fire',          src: IMAGE_BASE + 'Grand%20Element%20-%20Fire.jpg' },
+      { title:'Grand Element - Fundamental Groove', src: IMAGE_BASE + 'Grand%20Element%20-%20Fundamental%20Groove.jpg' },
+      { title:'Grand Element - Intergy',       src: IMAGE_BASE + 'Grand%20Element%20-%20Intergy.jpg' },
+      { title:'Grand Element - Live',          src: IMAGE_BASE + 'Grand%20Element%20-%20Live.jpg' },
+      { title:'Grand Element - Love',          src: IMAGE_BASE + 'Grand%20Element%20-%20Love.jpg' },
+      { title:'Grand Element - Sessions I',    src: IMAGE_BASE + 'Grand%20Element%20-%20Sessions%20I.jpg' },
+      { title:'Grand Element - Sessions II',   src: IMAGE_BASE + 'Grand%20Element%20-%20Sessions%20II.jpg' },
+      { title:'Grand Element - Soul',          src: IMAGE_BASE + 'Grand%20Element%20-%20Soul.jpg' },
+      { title:'Grand Element - Spirit',        src: IMAGE_BASE + 'Grand%20Element%20-%20Spirit.jpg' },
+      { title:'Grand Element - Trio',          src: IMAGE_BASE + 'Grand%20Element%20-%20Trio.jpg' }
     ];
 
     const albumImages = albumDefs.map(def => {
@@ -305,7 +305,8 @@
         mass:1,
         type:BALL_TYPES.PLANET,
         color:'#fff',
-        albumIndex:null
+        albumIndex:null,
+        hasHitSunThisShot:false
       }, opts);
     }
 
@@ -367,14 +368,12 @@
 
       currentShotBanks = 0;
       shotActive = false;
-      sunHitThisShot = false;
       updateScorebar();
     }
 
     let lastTime = performance.now();
     let currentShotBanks = 0;
     let shotActive = false;
-    let sunHitThisShot = false;
 
     let aiming = false;
     let aimStart = null;
@@ -426,9 +425,10 @@
         cueBall.vy = Math.sin(angle)*mag;
         canShoot = false;
         shotActive = true;
-        sunHitThisShot = false;
         players[currentPlayer].shots++;
         currentShotBanks = 0;
+        // reset sun-hit flags for all planets
+        planets.forEach(p => p.hasHitSunThisShot = false);
         hudStatus.textContent = players[currentPlayer].name + ': Shot in motion…';
         updateScorebar();
       }else{
@@ -458,11 +458,8 @@
       shotActive = false;
 
       if(currentShotBanks > 0){
-        if(currentShotBanks > players[currentPlayer].bestBanks){
-          players[currentPlayer].bestBanks = currentShotBanks;
-        }
         bankLabel.textContent = 'Banks this shot: ' + currentShotBanks;
-      }else if(!sunHitThisShot){
+      }else{
         bankLabel.textContent = 'Banks this shot: 0';
       }
 
@@ -479,12 +476,10 @@
       const nx = dx / dist;
       const ny = dy / dist;
 
-      // Push ball out of the sun bumper
       const overlap = minDist - dist;
       ball.x += nx * overlap;
       ball.y += ny * overlap;
 
-      // Reflect velocity like a bumper
       const dot = ball.vx * nx + ball.vy * ny;
       if(dot < 0){
         ball.vx -= 2 * dot * nx;
@@ -525,13 +520,13 @@
         }
 
         // Sun bumper: bounce everything
-        if(bounceOffSun(b) && shotActive && b.type === BALL_TYPES.CUE){
-          if(!sunHitThisShot){
-            sunHitThisShot = true;
-            let gained = 1 + currentShotBanks;
+        if(bounceOffSun(b) && shotActive){
+          // scoring ONLY when a PLANET hits the sun, and only once per planet per shot
+          if(b.type === BALL_TYPES.PLANET && !b.hasHitSunThisShot){
+            b.hasHitSunThisShot = true;
+            const gained = 1 + currentShotBanks;
             players[currentPlayer].score += gained;
-            hudStatus.textContent = players[currentPlayer].name + ' hit the GE sun! +' + gained + ' points';
-            bankLabel.textContent = 'Banks this shot: ' + currentShotBanks;
+            hudStatus.textContent = players[currentPlayer].name + ' scored! Planet hit GE sun for +' + gained + ' points';
             updateScorebar();
           }
         }
