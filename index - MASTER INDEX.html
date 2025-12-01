@@ -635,7 +635,12 @@ moon.addEventListener('click', ()=>{
   fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
     PLAYLIST = list;
-    applyOrder(); // will NOT start playback until started=true
+    // Auto-start playback once tracks are loaded (still starts muted; first click unmutes)
+    started = true;
+    applyOrder(); // will call startCurrent() and player.play()
+  }).catch(err=>{
+    console.error('Playlist load failed', err);
+    nowPlaying.textContent = 'Error loading tracks.';
   });
 })();
 
@@ -778,7 +783,7 @@ function netStepDraw(dt){
 const COMET={
   sizes:[1,2,3,4,6,8,10,12,16],
   max:(innerWidth<700?3: (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--comet-max'))||6)),
-  spawn:[20,40],
+  spawn:[10,24],
   speed:[60,140],
   trail:90,
   fade:1500,
@@ -1011,7 +1016,7 @@ class MiniShip{
 }
 
 const comets=[], pairs=[], ships=[], miniShips=[];
-let last=performance.now()/1000, cTimer=0, cNext=rand(4,9), shipTimer=0, shipNext=rand(10,20), miniTimer=0, miniNext=rand(4,9);
+let last=performance.now()/1000, cTimer=0, cNext=rand(2,5), shipTimer=0, shipNext=rand(10,20), miniTimer=0, miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
 
 /* Ripple teleport + backgrounds */
