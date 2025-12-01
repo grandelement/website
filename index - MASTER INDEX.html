@@ -241,23 +241,10 @@
     pointer-events:none;
     text-shadow:0 0 6px rgba(0,0,0,.8);
   }
-
-  /* Game overlay canvas: transparent, full viewport */
-  #gameCanvas{
-    position:fixed;
-    inset:0;
-    width:100vw;
-    height:100vh;
-    pointer-events:auto;
-    z-index:6; /* above fx, below sunHUD if needed */
-    background:transparent;
-    display:block;
-  }
 </style>
 </head>
 <body>
   <canvas id="fx"></canvas>
-  <canvas id="gameCanvas"></canvas>
   <div class="layer-hiddentext" id="phrases"></div>
 
   <!-- Sun + Moon -->
@@ -321,15 +308,15 @@
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey into the soul. Created with one vision: the listener is the "GRAND ELEMENT".
-      Hypnotic rhythms and spacious soundscapes leave room for reflection, opening the body and soul to the voice of energy..reminding us that we are all one, all energy, and all love.
+      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey of a soul. Created with one vision: YOU the listener are the GRAND ELEMENT.
+      Hypnotic rhythms and spacious soundscapes entrance the body to speak directly to the soul as the voice of ENERGY leaving room for reflection, reopening the body, mind and soul to the voice of energy..reminding us that we are all one, all energy, and all love.
 
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
           <ul>
             <li>Mike Venniro — drums</li>
-            <li>Evan Donahue — guitar</li>
+            <li>Evan Donoghue — guitar</li>
             <li>Wills Blackmore — drums</li>
             <li>Shane Willy — bass guitar</li>
             <li>Ronaldo Elliott — drums</li>
@@ -1345,193 +1332,6 @@ function nudgeSunNow(){
   wrap.style.transform='translate(-50%,-50%)';
 }
 addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
-</script>
-
-<script>
-(function(){
-  const canvas = document.getElementById('gameCanvas');
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  function resize(){
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
-  }
-  addEventListener('resize', resize);
-  resize();
-
-  const balls = [];
-  const R = 14;
-
-  // Create a cue ball and some target balls
-  function resetBalls(){
-    balls.length = 0;
-    const cx = canvas.width*0.6;
-    const cy = canvas.height*0.5;
-    balls.push({x:canvas.width*0.25, y:canvas.height*0.5, vx:0, vy:0, r:R, cue:true, color:'#ffffff'});
-    const colors = ['#ffcc33','#ff66cc','#66ddff','#88ff66','#ff6666'];
-    for(let i=0;i<5;i++){
-      const row = i<3 ? 0 : 1;
-      const col = i%3;
-      balls.push({
-        x: cx + col*R*2.2 + row*R*1.1,
-        y: cy + (col-1)*R*2.1 + row*R,
-        vx:0,
-        vy:0,
-        r:R,
-        cue:false,
-        color: colors[i%colors.length]
-      });
-    }
-  }
-  resetBalls();
-
-  let dragging = false;
-  let dragBall = null;
-  let dragStart = null;
-  let dragPos = null;
-
-  canvas.addEventListener('pointerdown', (e)=>{
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    for(const b of balls){
-      if(!b.cue) continue;
-      const d = Math.hypot(x-b.x, y-b.y);
-      if(d <= b.r*1.4){
-        dragging = true;
-        dragBall = b;
-        dragStart = {x:b.x, y:b.y};
-        dragPos = {x:x, y:y};
-        break;
-      }
-    }
-  });
-
-  canvas.addEventListener('pointermove', (e)=>{
-    if(!dragging || !dragBall) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    dragPos = {x,y};
-  });
-
-  canvas.addEventListener('pointerup', (e)=>{
-    if(!dragging || !dragBall) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    dragPos = {x,y};
-
-    // Launch cue ball in opposite direction of drag line
-    const dx = dragPos.x - dragBall.x;
-    const dy = dragPos.y - dragBall.y;
-    const power = Math.min(1, Math.hypot(dx,dy) / 260);
-    const ang = Math.atan2(dy,dx);
-    const speed = 900*power;
-    dragBall.vx = Math.cos(ang) * speed * -1;
-    dragBall.vy = Math.sin(ang) * speed * -1;
-
-    dragging = false;
-    dragBall = null;
-    dragStart = null;
-    dragPos = null;
-  });
-
-  function step(dt){
-    const friction = 0.985;
-    // Integrate motion
-    for(const b of balls){
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      b.vx *= friction;
-      b.vy *= friction;
-
-      // Stop when very slow
-      const v = Math.hypot(b.vx,b.vy);
-      if(v < 5){
-        b.vx = 0;
-        b.vy = 0;
-      }
-
-      // Wall collisions
-      if(b.x - b.r < 0){ b.x = b.r; b.vx *= -0.9; }
-      if(b.x + b.r > canvas.width){ b.x = canvas.width-b.r; b.vx *= -0.9; }
-      if(b.y - b.r < 0){ b.y = b.r; b.vy *= -0.9; }
-      if(b.y + b.r > canvas.height){ b.y = canvas.height-b.r; b.vy *= -0.9; }
-    }
-
-    // Ball-ball collisions
-    for(let i=0;i<balls.length;i++){
-      for(let j=i+1;j<balls.length;j++){
-        const a = balls[i], b = balls[j];
-        const dx = b.x-a.x, dy = b.y-a.y;
-        const dist = Math.hypot(dx,dy);
-        const minDist = a.r + b.r;
-        if(dist>0 && dist < minDist){
-          const nx = dx/dist, ny = dy/dist;
-          const overlap = minDist - dist;
-          a.x -= nx*overlap*0.5;
-          a.y -= ny*overlap*0.5;
-          b.x += nx*overlap*0.5;
-          b.y += ny*overlap*0.5;
-          const dvx = b.vx - a.vx;
-          const dvy = b.vy - a.vy;
-          const rel = dvx*nx + dvy*ny;
-          if(rel < 0){
-            const imp = -rel*0.95;
-            const ix = imp*nx, iy = imp*ny;
-            a.vx -= ix; a.vy -= iy;
-            b.vx += ix; b.vy += iy;
-          }
-        }
-      }
-    }
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // Draw aim line while dragging
-    if(dragging && dragBall && dragPos){
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6,4]);
-      ctx.beginPath();
-      ctx.moveTo(dragBall.x, dragBall.y);
-      ctx.lineTo(dragPos.x, dragPos.y);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Draw balls
-    for(const b of balls){
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
-      const grad = ctx.createRadialGradient(b.x-b.r*0.4,b.y-b.r*0.4,b.r*0.1,b.x,b.y,b.r);
-      grad.addColorStop(0,'#ffffff');
-      grad.addColorStop(0.3,b.cue ? '#ffffff' : b.color);
-      grad.addColorStop(1,'#000000');
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  let last = performance.now();
-  function loop(now){
-    const dt = Math.min(0.04, (now-last)/1000);
-    last = now;
-    step(dt);
-    draw();
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-})();
 </script>
 </body>
 </html>
