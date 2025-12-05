@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Grand Element Radio — Radio 7</title>
+<title>Grand Element Radio — Radio 6</title>
 <style>
   :root{ --fg:#e8f6ff; --muted:#a6bdd0; --accent:#00ffa8; --band:#ff4f1f; --btn-bg:#0d1b26; --btn-br:#27455e; }
   html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; overflow-x:hidden; overscroll-behavior-x:none;}
@@ -25,6 +25,7 @@
     position:relative;
   }
   .logo{width:100%;height:100%;object-fit:cover;object-position:center}
+  
 
   h1{margin:6px 0 0 0;font-size:clamp(20px,4.2vw,32px)}
   .tag{opacity:.9;font-size:clamp(14px,3.6vw,18px)}
@@ -54,11 +55,11 @@
   #player{position:relative;z-index:2;background:rgba(0,0,0,.25);width:min(720px,94vw)}
 
   #now{opacity:.98}
-  /* Song title ~25% smaller */
+  /* Bigger song title */
   #titleBtn{
     appearance:none;background:rgba(24,28,34,.55);color:var(--fg);
     border:1px solid rgba(80,110,140,.45); padding:10px 16px; border-radius:999px;
-    font-weight:700; font-size:clamp(9px,2.4vw,11px);
+    font-weight:700; font-size:clamp(12px,3.2vw,15px);
     cursor:pointer; max-width:min(720px,90vw);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     backdrop-filter:saturate(1.1) blur(2px);
@@ -72,10 +73,10 @@
   #trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:8px 10px;cursor:pointer;border-radius:8px}
   #trackList button:hover{ background:rgba(255,255,255,.06) }
 
-  .bc-btn{display:inline-block;padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;letter-spacing:.2px;text-decoration:none;border:0.5px solid rgba(0,0,0,35);box-shadow:0 10px 28px rgba(255,79,31,45), 0 2px 0 rgba(0,0,0,2) inset;font-size:14px}
+  .bc-btn{display:inline-block;padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;letter-spacing:.2px;text-decoration:none;border:0.5px solid rgba(0,0,0,.35);box-shadow:0 10px 28px rgba(255,79,31,.45), 0 2px 0 rgba(0,0,0,.2) inset;font-size:14px}
   .offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
-  .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer}
-  .offline-btn.active{background:#0e2f1f;border-color:#1f6b4d;box-shadow:0 0 12px rgba(0,255,168,25) inset;color:#b8ffdf}
+  .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,.64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer}
+  .offline-btn.active{background:#0e2f1f;border-color:#1f6b4d;box-shadow:0 0 12px rgba(0,255,168,.25) inset;color:#b8ffdf}
   .offline-btn.downloading{background:#2a2130;border-color:#5b3a5f}
   progress{width:min(640px,80vw);height:12px;border:0;background:#0b1b26;border-radius:999px}
   progress::-webkit-progress-bar{background:#0b1b26;border-radius:999px}
@@ -120,36 +121,19 @@
 
     <div id="trackList"></div>
 
-    <div class="row">
-      <div class="group" id="bgGroup">
-        <span class="section-label">Backgrounds</span>
-        <div class="row" style="gap:10px">
-          <button class="btn" id="bgPrev">Prev</button>
-          <button class="btn" id="bgNext">Next</button>
-        </div>
-        <div class="row" style="gap:10px;width:100%;justify-content:center;margin-top:4px">
-          <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
-          <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
-          <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
-        </div>
-      </div>
-    </div>
+    <div class="row"><div class="group" id="bgGroup"><span class="section-label">Backgrounds</span><div class="row" style="gap:10px"><button class="btn" id="bgPrev">Prev</button><button class="btn" id="bgNext">Next</button></div><div class="row" style="gap:10px;width:100%;justify-content:center;margin-top:4px"><button class="btn tgl" id="bgOff" aria-pressed="false">Off</button><button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button><button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button></div></div></div>
 
     <div style="margin-top:10px;opacity:.9">If you would like to support the project, click the link below.</div>
-    <div style="margin-top:6px">
-      <a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a>
-    </div>
+    <div style="margin-top:6px"><a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a></div>
 
     <div class="offline-row">
       <button class="offline-btn" id="offlineBtn">Go Offline</button>
       <progress id="offlineProgress" max="100" value="0"></progress>
     </div>
-
     <footer>Much Love!!</footer>
   </div>
 
 <script>
-/* Name parsing / title formatting */
 function parseName(url){
   const base=(decodeURI((url||'').split('?')[0]).split('/').pop()||'').replace(/\.[a-z0-9]+$/i,'');
   const m = base.match(/^([^\d]+)\s*(\d{1,3})\s*(.*)$/);
@@ -169,7 +153,6 @@ function formatTitle(url, mode){
 function folderBase(){ return location.origin + location.pathname.replace(/[^/]+$/,''); }
 function resolveURL(p){ return /^https?:/i.test(p)? p : folderBase() + p.replace(/^\.?\//,''); }
 
-/* Music discovery with manifest fallback */
 async function loadMusicListFast(){
   const CACHEKEY='GE_MUSIC_LIST_V1';
   try{
@@ -187,20 +170,11 @@ async function loadMusicListFast(){
   const LIMIT=16, MAX=180, EXTS=['mp3','m4a','ogg','wav'];
   const tasks=[]; const found=[];
   function head(u){ return fetch(u,{method:'HEAD',cache:'no-store'}).then(r=>r.ok).catch(()=>false); }
-  for(let n=1;n<=MAX;n++){
-    for(const e of EXTS){
-      const url = resolveURL(`music/${n}.${e}`);
-      tasks.push(async ()=>{ if(await head(url)) found.push(url); });
-    }
-  }
-  let i=0;
-  await Promise.all(new Array(LIMIT).fill(0).map(async ()=>{
-    while(i<tasks.length){ await tasks[i++](); }
-  }));
+  for(let n=1;n<=MAX;n++){ for(const e of EXTS){ const url = resolveURL(`music/${n}.${e}`); tasks.push(async ()=>{ if(await head(url)) found.push(url); }); } }
+  let i=0; await Promise.all(new Array(LIMIT).fill(0).map(async ()=>{ while(i<tasks.length){ await tasks[i++](); } }));
   found.sort(); localStorage.setItem(CACHEKEY, JSON.stringify(found)); return found;
 }
 
-/* Player / queue / Media Session */
 (function(){
   const player = document.getElementById('player');
   const titleBtn = document.getElementById('titleBtn');
@@ -253,17 +227,12 @@ async function loadMusicListFast(){
     renderList();
   }
 
-  // NEW: always prefer cached audio when available (for stronger offline/lock-screen behavior)
   async function urlForPlayback(url){
-    if ('caches' in window){
-      try{
-        const cache = await caches.open('ge-radio-v1');
-        const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
-        if (hit){
-          const blob = await hit.blob();
-          return URL.createObjectURL(blob);
-        }
-      }catch(_){}
+    const offlineOn = localStorage.getItem('GE_OFFLINE_ACTIVE') === '1';
+    if (offlineOn && 'caches' in window) {
+      const cache = await caches.open('ge-radio-v1');
+      const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
+      if (hit) { const blob = await hit.blob(); return URL.createObjectURL(blob); }
     }
     return url;
   }
@@ -289,8 +258,7 @@ async function loadMusicListFast(){
     if('mediaSession' in navigator){
       try{
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: titleBtn.textContent,
-          artist:'Grand Element Radio',
+          title: titleBtn.textContent, artist:'Grand Element Radio',
           artwork:[{src:resolveURL('img/logo.png'),sizes:'512x512',type:'image/png'}]
         });
         const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
@@ -304,29 +272,16 @@ async function loadMusicListFast(){
     try{
       if (player.dataset.objurl) { URL.revokeObjectURL(player.dataset.objurl); player.dataset.objurl=''; }
       const playURL = await urlForPlayback(url);
-      if (playURL && playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
+      if (playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
       player.src = playURL;
       await player.play().catch(()=>{});
-    }catch(_){
-      // hard skip on failure
-      play(idx+1);
-    }
+    }catch(_){ play(idx+1); }
   }
 
   prevBtn.addEventListener('click', ()=> play(idx-1));
   nextBtn.addEventListener('click', ()=> play(idx+1));
   player.addEventListener('ended', ()=> play(idx+1));
   player.addEventListener('error', ()=> play(idx+1));
-
-  // NEW: keep Media Session playbackState in sync for lock-screen controls
-  function setPlaybackState(state){
-    if ('mediaSession' in navigator){
-      try{ navigator.mediaSession.playbackState = state; }catch(_){}
-    }
-  }
-  player.addEventListener('play', ()=> setPlaybackState('playing'));
-  player.addEventListener('pause', ()=> setPlaybackState('paused'));
-  player.addEventListener('ended', ()=> setPlaybackState('none'));
 
   titleBtn.addEventListener('click', ()=>{
     const open = listEl.style.display === 'block';
@@ -352,7 +307,6 @@ async function loadMusicListFast(){
     const list = (await loadMusicListFast()).filter(u=>!isStationID(u));
     albumList = list;
     setMode('shuffle');
-    // auto-start is already the behavior you wanted
     play(0);
   })();
 })();
@@ -480,7 +434,7 @@ async function loadMusicListFast(){
     });
   }
 
-  async function initBG(){
+  async function init(){
     // restore last position
     const stored = parseInt(localStorage.getItem('bgPos') || '0', 10);
     if (Number.isFinite(stored)) pos = stored; else pos = 0;
@@ -516,9 +470,8 @@ async function loadMusicListFast(){
   }
 
   reflect();
-  initBG();
+  init();
 })();
-
 /* HUD idle hide/show */
 (function(){
   const IDLE_MS = 15000;
@@ -539,7 +492,7 @@ async function loadMusicListFast(){
   if (tap){ tap.addEventListener('pointerdown', (e)=>{ e.preventDefault(); show(); mark(); }, {passive:false}); }
 })();
 
-/* Offline prefetch + SW registration */
+/* Offline prefetch */
 (function(){
   const btn = document.getElementById('offlineBtn');
   const bar = document.getElementById('offlineProgress');
@@ -566,10 +519,8 @@ async function loadMusicListFast(){
     let done=0; bar.value=0; btn.classList.add('downloading');
     for(const u of assets){
       if(dlAbort.signal.aborted) break;
-      try{
-        const res = await fetch(u, {signal: dlAbort.signal});
-        if(res.ok){ await cache.put(u, res.clone()); }
-      }catch(_){ /* ignore */ }
+      try{ const res = await fetch(u, {signal: dlAbort.signal}); if(res.ok){ await cache.put(u, res.clone()); } }
+      catch(_){ /* ignore */ }
       done++; bar.value = Math.round(done*100/assets.length);
     }
     btn.classList.remove('downloading');
@@ -617,6 +568,7 @@ async function loadMusicListFast(){
   });
 })();
 </script>
+
 
 </body>
 </html>
