@@ -165,21 +165,12 @@ function formatTitle(url, mode){
 function folderBase(){ return location.origin + location.pathname.replace(/[^/]+$/,''); }
 function resolveURL(p){ return /^https?:/i.test(p)? p : folderBase() + p.replace(/^\.?\//,''); }
 
-function isOfflineLocked(){
-  try{ return localStorage.getItem('GE_OFFLINE_ACTIVE') === '1'; }catch(_){ return false; }
-}
-
 async function loadMusicListFast(){
   const CACHEKEY='GE_MUSIC_LIST_V1';
-  const offline = isOfflineLocked();
   try{
     const cached = JSON.parse(localStorage.getItem(CACHEKEY)||'null');
     if (Array.isArray(cached) && cached.length) return cached;
   }catch(_){}
-  if (offline) {
-    // In strict offline mode, do NOT hit the network to discover music.
-    return [];
-  }
   try{
     const r = await fetch('music/manifest.json',{cache:'no-store'});
     if(r.ok){
@@ -257,21 +248,16 @@ async function loadMusicListFast(){
   }
 
   async function urlForPlayback(url){
-    if (isOfflineLocked()){
-      if ('caches' in window){
-        try{
-          const cache = await caches.open('ge-radio-v1');
-          const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
-          if (hit){
-            const blob = await hit.blob();
-            return URL.createObjectURL(blob);
-          }
-        }catch(_){}
-      }
-      // In strict offline mode, refuse network if not cached.
-      throw new Error('Offline mode: track not cached');
+    if ('caches' in window){
+      try{
+        const cache = await caches.open('ge-radio-v1');
+        const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
+        if (hit){
+          const blob = await hit.blob();
+          return URL.createObjectURL(blob);
+        }
+      }catch(_){}
     }
-    // Online mode: direct URL; SW will handle network-first + cache update.
     return url;
   }
 
@@ -315,7 +301,6 @@ async function loadMusicListFast(){
       player.src = playURL;
       await player.play().catch(()=>{});
     }catch(_){
-      // In offline mode if a track isn't cached, just skip.
       play(idx+1);
     }
   }
@@ -358,7 +343,6 @@ async function loadMusicListFast(){
     const list = (await loadMusicListFast()).filter(u=>!isStationID(u));
     albumList = list;
     setMode('shuffle');
-    // auto-start
     play(0);
   })();
 })();
@@ -590,42 +574,28 @@ async function loadMusicListFast(){
   btn.addEventListener('click', async ()=>{
     if(btn.classList.contains('downloading')){
       dlAbort?.abort();
-      // Abort and HARD RESET if you tap while downloading.
-      try{
+      if(confirm('Stop downloading and remove all cached files?')){
         const keys = await caches.keys();
         for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
-      }catch(_){}
-      setActive(false);
-      bar.value=0;
-      location.reload();
-      return;
+        setActive(false); bar.value=0; return;
+      } else {
+        return;
+      }
     }
 
-    const currentlyOn = btn.classList.contains('active');
-
-    if(!currentlyOn){
-      // Turning Offline ON: prefetch everything, then lock.
+    if(!btn.classList.contains('active')){
       btn.disabled=true;
       const ok = await prefetchAll();
       btn.disabled=false;
-      if(ok){
-        setActive(true);
-        bar.value=100;
-        alert('Offline ready. You can reload or go offline now.');
-      }
+      if(ok){ setActive(true); bar.value=100; alert('Offline ready. You can reload or go offline now.'); }
       return;
     }
 
-    // Turning Offline OFF: HARD RESET MODE (Option B)
-    btn.disabled = true;
-    try{
-      const keys = await caches.keys();
-      for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
-    }catch(_){}
+    if(!confirm('Remove all offline files and cache?')) return;
+    const keys = await caches.keys();
+    for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+    for(let v=100; v>=0; v-=5){ bar.value=v; await new Promise(r=>setTimeout(r,8)); }
     setActive(false);
-    bar.value = 0;
-    btn.disabled = false;
-    location.reload();
   });
 })();
 </script>

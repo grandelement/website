@@ -23,32 +23,12 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  const dest = req.destination;
-
-  if (dest === 'document') {
-    event.respondWith(
-      caches.match(req, {ignoreVary:true, ignoreSearch:true}).then(cached => {
-        if (cached) return cached;
-        return fetch(req).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, copy));
-          return res;
-        }).catch(() => cached || Response.error());
-      })
-    );
-    return;
-  }
-
-  if (['audio','image','style','script','font'].includes(dest) || url.pathname.endsWith('.m4a') || url.pathname.endsWith('.mp3')) {
-    event.respondWith(
-      caches.match(req, {ignoreVary:true, ignoreSearch:true}).then(cached => {
-        if (cached) return cached;
-        return fetch(req).then(res => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, copy));
-          return res;
-        });
-      })
-    );
-  }
+  // Network-first: always try live version, fall back to cache when offline.
+  event.respondWith(
+    fetch(req).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then(c => c.put(req, copy));
+      return res;
+    }).catch(() => caches.match(req, {ignoreVary:true, ignoreSearch:true}))
+  );
 });
