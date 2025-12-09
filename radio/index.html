@@ -83,8 +83,8 @@
   .live-on .logo-wrap { position:relative; }
   .live-on .logo-wrap > canvas#live-glow { position:absolute; inset:0; pointer-events:none; }
   #bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
-  .ghost{ display:inline-block; width:92px; height:40px; }
-  @media (max-width:420px){ .ghost{ width:78px; height:36px; } }
+  .ghost{display:none;}
+  @media (max-width:420px){ .ghost{display:none;} }
 </style>
 </head>
 <body>
@@ -121,14 +121,12 @@
       <div class="group" id="bgGroup">
         <span class="section-label">Backgrounds</span>
         <div class="row" style="gap:10px;justify-content:center;margin-top:0">
-          <button class="btn" id="bgPrev">Prev</button>
-          <button class="btn" id="bgNext">Next</button>
-        </div>
-        <div class="row" style="gap:10px;justify-content:center;margin-top:4px">
           <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
-          <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
-          <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
-        </div>
+<button class="btn" id="bgPrev">Prev</button>
+<button class="btn" id="bgNext">Next</button>
+<button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
+<button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
+</div>
       </div>
     </div>
 
@@ -293,20 +291,27 @@ async function loadMusicListFast(){
       localStorage.setItem('GE_untilNextID', String(untilNextID));
     }
 
-    if('mediaSession' in navigator){
-      try{
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: titleBtn.textContent,
-          artist:'Grand Element Radio',
-          artwork:[{src:resolveURL('img/logo.png'),sizes:'512x512',type:'image/png'}]
-        });
-        const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
-        safe('previoustrack', ()=> prevBtn.click());
-        safe('nexttrack', ()=> nextBtn.click());
-        safe('play', ()=> player.play());
-        safe('pause', ()=> player.pause());
-      }catch(_){}
-    }
+if('mediaSession' in navigator){
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: titleBtn.textContent,
+      artist: 'Grand Element Radio',
+      artwork: [{ src: resolveURL('img/logo.png'), sizes: '512x512', type: 'image/png' }]
+    });
+    const safe = (name, fn) => { try { navigator.mediaSession.setActionHandler(name, fn); } catch (_) {} };
+
+    // Track controls
+    safe('previoustrack', () => prevBtn.click());
+    safe('nexttrack',    () => nextBtn.click());
+    safe('play',         () => player.play());
+    safe('pause',        () => player.pause());
+
+    // On iOS the visible buttons are seekback/seekforward (10s) – hijack them to act as prev/next.
+    safe('seekbackward', () => prevBtn.click());
+    safe('seekforward',  () => nextBtn.click());
+  } catch (_) {}
+}
+
 
     try{
       if (player.dataset.objurl) { URL.revokeObjectURL(player.dataset.objurl); player.dataset.objurl=''; }
