@@ -74,24 +74,7 @@
   #trackList button:hover{ background:rgba(255,255,255,.06) }
 
   .bc-btn{display:inline-block;padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;letter-spacing:.2px;text-decoration:none;border:0.5px solid rgba(0,0,0,.35);box-shadow:0 10px 28px rgba(255,79,31,.45), 0 2px 0 rgba(0,0,0,.2) inset;font-size:14px}
-  #bgGroup{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-#bgGroup .bg-row{
-  display:flex;
-  flex-wrap:nowrap;
-  justify-content:center;
-  gap:8px;
-}
-@media (max-width:480px){
-  #bgGroup .bg-row{
-    gap:4px;
-  }
-}
-
-.offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
+  .offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
   .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,.64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer}
   .offline-btn.active{background:#0e2f1f;border-color:#1f6b4d;box-shadow:0 0 12px rgba(0,255,168,.25) inset;color:#b8ffdf}
   .offline-btn.downloading{background:#2a2130;border-color:#5b3a5f}
@@ -103,7 +86,36 @@
   /* Live overlay alignment helper: if LiveCanvas injects a canvas with this id, pin it over the sun */
   .live-on .logo-wrap { position:relative; }
   .live-on .logo-wrap > canvas#live-glow { position:absolute; inset:0; pointer-events:none; }
-  #bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
+  #bgGroup{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  text-align:center;
+  width:fit-content;
+  max-width:94vw;
+  margin:0 auto;
+}
+#bgGroup .row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+@media (max-width:480px){
+  #bgGroup .row{
+    gap:4px;
+  }
+  #bgGroup button.btn{
+    transform:scale(0.8);
+    padding:6px 8px;
+    font-size:0.8em;
+  }
+}
+
+#bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
   .ghost{display:none;}
   @media (max-width:420px){ .ghost{display:none;} }
 </style>
@@ -125,7 +137,7 @@
       <button id="titleBtn" type="button" aria-expanded="false" title="Tap to choose a specific track">loading…</button>
     </div>
 
-    <audio id="player" controls preload="auto" playsinline autoplay></audio>
+    <audio id="player" controls preload="auto" playsinline></audio>
 
     <div class="row"><div id="musicGroup">
       <button class="btn" id="prevBtn">Prev</button>
@@ -140,13 +152,14 @@
 
     <div class="row"><div class="group" id="bgGroup">
   <span class="section-label">Backgrounds</span>
-  <div class="row bg-row">
+  <div class="row">
     <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
     <button class="btn" id="bgPrev">Prev</button>
     <button class="btn" id="bgNext">Next</button>
     <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
     <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
   </div>
+</div>
 </div></div>
 
     <div style="margin-top:10px;opacity:.9">If you would like to support the project, click the link below.</div>
@@ -289,12 +302,9 @@ async function loadMusicListFast(){
         });
         const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
         safe('previoustrack', ()=> prevBtn.click());
-        safe('nexttrack',  ()=> nextBtn.click());
-        safe('play',       ()=> player.play());
-        safe('pause',      ()=> player.pause());
-        // iOS lock screen usually only shows seekback/forward; hijack to act as prev/next
-        safe('seekbackward', ()=> prevBtn.click());
-        safe('seekforward',  ()=> nextBtn.click());
+        safe('nexttrack', ()=> nextBtn.click());
+        safe('play', ()=> player.play());
+        safe('pause', ()=> player.pause());
       }catch(_){}
     }
 
