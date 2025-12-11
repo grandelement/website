@@ -864,11 +864,8 @@ class Pair{
 }
 
 /* Ships */
-let mouseX=-9999, mouseY=-9999, mouseActive=false;
+let mouseX=-9999, mouseY=-9999;
 addEventListener('pointermove', e=>{ mouseX=e.clientX; mouseY=e.clientY; }, {passive:true});
-addEventListener('pointerdown', e=>{ mouseActive=true; mouseX=e.clientX; mouseY=e.clientY; }, {passive:true});
-addEventListener('pointerup',   e=>{ mouseActive=false; }, {passive:true});
-addEventListener('pointercancel', e=>{ mouseActive=false; }, {passive:true});
 
 class Ship{
   constructor(){
@@ -896,23 +893,23 @@ class Ship{
     this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
 
     const shipR = (shipImg.height||100)*this.s*0.3;
-    const outer = shipR*3.2, inner = shipR*2.4;
+    const outer = shipR*2.2, inner = shipR*1.6;
     const dx = mouseX-this.x, dy = mouseY-this.y, d = Math.hypot(dx,dy);
-    const stopRegion = mouseActive && d < inner*0.7;
+    const stopRegion = d < inner*0.6;
 
     // Cursor steering and slow-down near center
     if(d < outer){
       const dir = Math.atan2(dy,dx);
       const k = Math.max(0, Math.min(1, (d-inner) / (outer-inner)));
-      const followSpeed = 260*k;
-      const stopDamp    = (d<inner ? 0.78 : 0.98);
+      const followSpeed = 180*k;
+      const stopDamp    = (d<inner ? 0.80 : 0.98);
       this.vx = this.vx*stopDamp + Math.cos(dir)*followSpeed*dt;
       this.vy = this.vy*stopDamp + Math.sin(dir)*followSpeed*dt;
 
       // Deep center: heavy damping so the ship glides to a stop without jerking
       if(stopRegion){
-        this.vx *= 0.3;
-        this.vy *= 0.3;
+        this.vx *= 0.5;
+        this.vy *= 0.5;
       }
     }
 
