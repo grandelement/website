@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>Grand Element — Master</title>
 <style>
   :root{
@@ -32,19 +32,13 @@
   }
 
   /* “Mini” layout — roughly half-sized on mobile */
-  @media (max-width: 1024px){
+  @media (max-width: 700px){
     :root{
       --planet-size: 21px;
       --sun-size: 100px;
       --moon-size: 50px;
       --orbit-gap-moons: 1.1;
     }
-  }
-
-  /* sun text scale mobile */
-  @media (max-width: 1024px){
-    .sunAbout{ font-size:11px; }
-    .toggle{ font-size:12px; padding:5px 10px; }
   }
 
   html,body{height:100%}
@@ -140,11 +134,10 @@
     background: radial-gradient(circle, rgba(160,210,255,.55) 0%, rgba(160,210,255,.25) 60%, rgba(160,210,255,0) 70%);
   }
 
-  .overlay{ position:fixed; inset:0; display:none; place-items:center; z-index:10; padding:16px; }
+  .overlay{ position:fixed; inset:0; display:none; place-items:center; z-index:10; }
   .overlay.show{ display:grid; }
   .aboutText{ max-width:min(90vw, 820px); margin:0 16px; text-align:center; color:#eaf2ff; font-size:18px; line-height:1.6;
-              text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25); position:relative;
-              max-height:80vh; overflow-y:auto; overscroll-behavior:contain; }
+              text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25); position:relative; }
 
   /* ABOUT close button */
   .aboutClose{
@@ -548,7 +541,7 @@ moon.addEventListener('click', ()=>{
   }
 
   async function fetchAllMp3s(){
-    const r = await fetch('https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
+    const r = await fetch('https://api.github.com/repos/grandelement/website/radio/git/trees/main?recursive=1',
                           {headers:{'Accept':'application/vnd.github+json'}});
     if(!r.ok) return [];
     const data = await r.json();
@@ -561,7 +554,7 @@ moon.addEventListener('click', ()=>{
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
 
-        return { url:`https://grandelement.github.io/website/${encodeURI(n.path)}`, album, trackNum, track };
+        return { url:`https://grandelement.github.io/website/radio/${encodeURI(n.path)}`, album, trackNum, track };
       });
   }
 
@@ -1041,7 +1034,7 @@ function setBG(i){
     document.body.style.backgroundPosition = 'center center, 0 0';
     document.body.style.backgroundRepeat   = 'no-repeat, repeat';
     document.body.style.backgroundSize     = 'cover, 3px 3px';
-    document.body.style.backgroundAttachment = 'fixed, fixed';
+    document.body.style.backgroundAttachment = 'scroll, scroll';
   };
   testImg.src = url;
 }
@@ -1343,7 +1336,7 @@ function nudgeSunNow(){
   wrap.style.top  = (T + h/2) + 'px';
   wrap.style.transform='translate(-50%,-50%)';
 }
-nudgeSunNow();
+addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
 </script>
 </body>
 </html>
