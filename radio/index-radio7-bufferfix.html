@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Grand Element Radio — Radio 6</title>
+<title>Grand Element Radio — Radio 7</title>
 <style>
   :root{ --fg:#e8f6ff; --muted:#a6bdd0; --accent:#00ffa8; --band:#ff4f1f; --btn-bg:#0d1b26; --btn-br:#27455e; }
   html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; overflow-x:hidden; overscroll-behavior-x:none;}
@@ -17,7 +17,6 @@
   .wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px;text-align:center;max-width:840px;margin:0 auto;box-sizing:border-box;transition:opacity .25s ease}
   body.hud-hidden .wrap{opacity:0;pointer-events:none}
 
-  /* Bigger sun */
   .logo-wrap{
     width:min(260px,28vw); height:min(260px,28vw);
     border-radius:50%; overflow:hidden; display:block; margin:0 auto;
@@ -25,7 +24,6 @@
     position:relative;
   }
   .logo{width:100%;height:100%;object-fit:cover;object-position:center}
-  
 
   h1{margin:6px 0 0 0;font-size:clamp(20px,4.2vw,32px)}
   .tag{opacity:.9;font-size:clamp(14px,3.6vw,18px)}
@@ -55,11 +53,10 @@
   #player{position:relative;z-index:2;background:rgba(0,0,0,.25);width:min(720px,94vw)}
 
   #now{opacity:.98}
-  /* Bigger song title */
   #titleBtn{
     appearance:none;background:rgba(24,28,34,.55);color:var(--fg);
     border:1px solid rgba(80,110,140,.45); padding:10px 16px; border-radius:999px;
-    font-weight:700; font-size:clamp(12px,3.2vw,15px);
+    font-weight:700; font-size:clamp(9px,2.4vw,11px);
     cursor:pointer; max-width:min(720px,90vw);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     backdrop-filter:saturate(1.1) blur(2px);
@@ -83,41 +80,11 @@
   progress::-webkit-progress-value{background:linear-gradient(90deg,#0dffa3,#26e0ff);border-radius:999px}
   progress::-moz-progress-bar{background:linear-gradient(90deg,#0dffa3,#26e0ff);border-radius:999px}
 
-  /* Live overlay alignment helper: if LiveCanvas injects a canvas with this id, pin it over the sun */
   .live-on .logo-wrap { position:relative; }
   .live-on .logo-wrap > canvas#live-glow { position:absolute; inset:0; pointer-events:none; }
-  #bgGroup{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  text-align:center;
-  width:fit-content;
-  max-width:94vw;
-  margin:0 auto;
-}
-#bgGroup .row{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  flex-wrap:nowrap;
-}
-@media (max-width:480px){
-  #bgGroup .row{
-    gap:4px;
-  }
-  #bgGroup button.btn{
-    transform:scale(0.8);
-    padding:6px 8px;
-    font-size:0.8em;
-  }
-}
-
-#bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
-  .ghost{display:none;}
-  @media (max-width:420px){ .ghost{display:none;} }
+  #bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
+  .ghost{ display:inline-block; width:92px; height:40px; }
+  @media (max-width:420px){ .ghost{ width:78px; height:36px; } }
 </style>
 </head>
 <body>
@@ -137,7 +104,7 @@
       <button id="titleBtn" type="button" aria-expanded="false" title="Tap to choose a specific track">loading…</button>
     </div>
 
-    <audio id="player" controls preload="auto" playsinline autoplay></audio>
+    <audio id="player" controls preload="auto" playsinline></audio>
 
     <div class="row"><div id="musicGroup">
       <button class="btn" id="prevBtn">Prev</button>
@@ -150,24 +117,31 @@
 
     <div id="trackList"></div>
 
-    <div class="row"><div class="group" id="bgGroup">
-  <span class="section-label">Backgrounds</span>
-  <div class="row">
-    <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
-    <button class="btn" id="bgPrev">Prev</button>
-    <button class="btn" id="bgNext">Next</button>
-    <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
-    <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
-  </div>
-</div></div></div>
+    <div class="row">
+      <div class="group" id="bgGroup">
+        <span class="section-label">Backgrounds</span>
+        <div class="row" style="gap:10px;justify-content:center;margin-top:0">
+          <button class="btn" id="bgPrev">Prev</button>
+          <button class="btn" id="bgNext">Next</button>
+        </div>
+        <div class="row" style="gap:10px;justify-content:center;margin-top:4px">
+          <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
+          <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
+          <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
+        </div>
+      </div>
+    </div>
 
     <div style="margin-top:10px;opacity:.9">If you would like to support the project, click the link below.</div>
-    <div style="margin-top:6px"><a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a></div>
+    <div style="margin-top:6px">
+      <a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a>
+    </div>
 
     <div class="offline-row">
       <button class="offline-btn" id="offlineBtn">Go Offline</button>
       <progress id="offlineProgress" max="100" value="0"></progress>
     </div>
+
     <footer>Much Love!!</footer>
   </div>
 
@@ -191,12 +165,21 @@ function formatTitle(url, mode){
 function folderBase(){ return location.origin + location.pathname.replace(/[^/]+$/,''); }
 function resolveURL(p){ return /^https?:/i.test(p)? p : folderBase() + p.replace(/^\.?\//,''); }
 
+function isOfflineLocked(){
+  try{ return localStorage.getItem('GE_OFFLINE_ACTIVE') === '1'; }catch(_){ return false; }
+}
+
 async function loadMusicListFast(){
   const CACHEKEY='GE_MUSIC_LIST_V1';
+  const offline = isOfflineLocked();
   try{
     const cached = JSON.parse(localStorage.getItem(CACHEKEY)||'null');
     if (Array.isArray(cached) && cached.length) return cached;
   }catch(_){}
+  if (offline) {
+    // In strict offline mode, do NOT hit the network to discover music.
+    return [];
+  }
   try{
     const r = await fetch('music/manifest.json',{cache:'no-store'});
     if(r.ok){
@@ -208,8 +191,16 @@ async function loadMusicListFast(){
   const LIMIT=16, MAX=180, EXTS=['mp3','m4a','ogg','wav'];
   const tasks=[]; const found=[];
   function head(u){ return fetch(u,{method:'HEAD',cache:'no-store'}).then(r=>r.ok).catch(()=>false); }
-  for(let n=1;n<=MAX;n++){ for(const e of EXTS){ const url = resolveURL(`music/${n}.${e}`); tasks.push(async ()=>{ if(await head(url)) found.push(url); }); } }
-  let i=0; await Promise.all(new Array(LIMIT).fill(0).map(async ()=>{ while(i<tasks.length){ await tasks[i++](); } }));
+  for(let n=1;n<=MAX;n++){
+    for(const e of EXTS){
+      const url = resolveURL(`music/${n}.${e}`);
+      tasks.push(async ()=>{ if(await head(url)) found.push(url); });
+    }
+  }
+  let i=0;
+  await Promise.all(new Array(LIMIT).fill(0).map(async ()=>{
+    while(i<tasks.length){ await tasks[i++](); }
+  }));
   found.sort(); localStorage.setItem(CACHEKEY, JSON.stringify(found)); return found;
 }
 
@@ -266,12 +257,21 @@ async function loadMusicListFast(){
   }
 
   async function urlForPlayback(url){
-    const offlineOn = localStorage.getItem('GE_OFFLINE_ACTIVE') === '1';
-    if (offlineOn && 'caches' in window) {
-      const cache = await caches.open('ge-radio-v1');
-      const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
-      if (hit) { const blob = await hit.blob(); return URL.createObjectURL(blob); }
+    if (isOfflineLocked()){
+      if ('caches' in window){
+        try{
+          const cache = await caches.open('ge-radio-v1');
+          const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
+          if (hit){
+            const blob = await hit.blob();
+            return URL.createObjectURL(blob);
+          }
+        }catch(_){}
+      }
+      // In strict offline mode, refuse network if not cached.
+      throw new Error('Offline mode: track not cached');
     }
+    // Online mode: direct URL; SW will handle network-first + cache update.
     return url;
   }
 
@@ -293,36 +293,103 @@ async function loadMusicListFast(){
       localStorage.setItem('GE_untilNextID', String(untilNextID));
     }
 
-    if('mediaSession' in navigator){
-      try{
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: titleBtn.textContent, artist:'Grand Element Radio',
-          artwork:[{src:resolveURL('img/logo.png'),sizes:'512x512',type:'image/png'}]
-        });
-        const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
-        safe('previoustrack', ()=> prevBtn.click());
-        safe('nexttrack', ()=> nextBtn.click());
-        safe('play', ()=> player.play());
-        safe('pause', ()=> player.pause());
-        // iOS lock screen only shows seekback/forward; hijack to act as prev/next
-        safe('seekbackward', ()=> prevBtn.click());
-        safe('seekforward',  ()=> nextBtn.click());
-      }catch(_){}
-    }
+if('mediaSession' in navigator){
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: titleBtn.textContent,
+      artist: 'Grand Element Radio',
+      artwork: [{ src: resolveURL('img/logo.png'), sizes: '512x512', type: 'image/png' }]
+    });
+    const safe = (name, fn) => { try { navigator.mediaSession.setActionHandler(name, fn); } catch (_) {} };
+
+    // Track controls
+    safe('previoustrack', () => prevBtn.click());
+    safe('nexttrack',    () => nextBtn.click());
+    safe('play',         () => player.play());
+    safe('pause',        () => player.pause());
+
+    // On iOS the visible buttons are seekback/seekforward (10s) – hijack them to act as prev/next.
+    safe('seekbackward', () => prevBtn.click());
+    safe('seekforward',  () => nextBtn.click());
+  } catch (_) {}
+}
+
 
     try{
       if (player.dataset.objurl) { URL.revokeObjectURL(player.dataset.objurl); player.dataset.objurl=''; }
       const playURL = await urlForPlayback(url);
-      if (playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
+      if (playURL && playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
       player.src = playURL;
       await player.play().catch(()=>{});
-    }catch(_){ play(idx+1); }
+    }catch(_){
+      // In offline mode if a track isn't cached, just skip.
+      play(idx+1);
+    }
   }
+
+// --- Playback stability: avoid instant skipping on transient buffer/error ---
+let _retrying = false;
+let _stallTimer = null;
+
+function clearStall(){
+  if(_stallTimer){ clearTimeout(_stallTimer); _stallTimer=null; }
+}
+function armStall(){
+  clearStall();
+  // If the browser is "waiting" too long, try to recover before skipping.
+  _stallTimer = setTimeout(async ()=>{
+    // If already playing again, do nothing.
+    if(!player.paused && player.readyState >= 3) return;
+    // Attempt a soft resume first.
+    try{ await player.play(); return; }catch(_){}
+    // Retry the same track once.
+    if(!_retrying){
+      _retrying = true;
+      const current = queue[idx];
+      try{
+        const playURL = await urlForPlayback(current);
+        if (playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
+        player.src = playURL;
+        await player.play().catch(()=>{});
+        _retrying = false;
+        return;
+      }catch(_){ /* fall through */ }
+      _retrying = false;
+    }
+    // If recovery fails, advance.
+    safeNext('stall-timeout');
+  }, 12000);
+}
+
+function safeNext(reason){
+  clearStall();
+  _retrying = false;
+  play(idx+1);
+}
 
   prevBtn.addEventListener('click', ()=> play(idx-1));
   nextBtn.addEventListener('click', ()=> play(idx+1));
-  player.addEventListener('ended', ()=> play(idx+1));
-  player.addEventListener('error', ()=> play(idx+1));
+
+player.addEventListener('waiting', armStall);
+player.addEventListener('stalled', armStall);
+player.addEventListener('playing', clearStall);
+player.addEventListener('canplay', clearStall);
+player.addEventListener('error', ()=>{
+  // Don't instantly skip; arm a short recovery window.
+  armStall();
+});
+
+
+  player.addEventListener('ended', ()=> safeNext('ended'));
+
+function setPlaybackState(state){
+    if ('mediaSession' in navigator){
+      try{ navigator.mediaSession.playbackState = state; }catch(_){}
+    }
+  }
+  player.addEventListener('play', ()=> setPlaybackState('playing'));
+  player.addEventListener('pause', ()=> setPlaybackState('paused'));
+  player.addEventListener('ended', ()=> setPlaybackState('none'));
 
   titleBtn.addEventListener('click', ()=>{
     const open = listEl.style.display === 'block';
@@ -348,11 +415,11 @@ async function loadMusicListFast(){
     const list = (await loadMusicListFast()).filter(u=>!isStationID(u));
     albumList = list;
     setMode('shuffle');
+    // auto-start
     play(0);
   })();
 })();
 
-/* Backgrounds */
 (function(){
   const bg = document.getElementById('bg');
   const $  = id=>document.getElementById(id);
@@ -364,14 +431,13 @@ async function loadMusicListFast(){
   const OFFLINE_KEY = 'GE_OFFLINE_ACTIVE';
   const offlineActive = (localStorage.getItem(OFFLINE_KEY) === '1');
 
-  // Offline visual pack: 1.gif always first, 47.png always second
   const OFFLINE_FILES = [
     '1.gif','47.png','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png',
     '15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif',
     '30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'
   ];
 
-  let files = OFFLINE_FILES.slice(); // default; replaced by manifest list in online mode
+  let files = OFFLINE_FILES.slice();
   let order = files.slice();
   let pos = 0;
   let perSong = true;
@@ -379,7 +445,6 @@ async function loadMusicListFast(){
   let off = false;
   let timer = null;
 
-  // Restore toggle state
   const lsPer  = localStorage.getItem('bgPerSong');
   const lsShuf = localStorage.getItem('bgShuffle');
   const lsOff  = localStorage.getItem('bgOff');
@@ -475,13 +540,11 @@ async function loadMusicListFast(){
     });
   }
 
-  async function init(){
-    // restore last position
+  async function initBG(){
     const stored = parseInt(localStorage.getItem('bgPos') || '0', 10);
     if (Number.isFinite(stored)) pos = stored; else pos = 0;
 
     if (offlineActive){
-      // Hard offline: only use OFFLINE_FILES and force start at 1.gif
       files = OFFLINE_FILES.slice();
       order = files.slice();
       pos = 0;
@@ -490,7 +553,6 @@ async function loadMusicListFast(){
       return;
     }
 
-    // Online: load from img manifest if available so any filename works (including dashes)
     try{
       const resp = await fetch('img/manifest.json', {cache:'no-store'});
       if (resp.ok){
@@ -511,9 +573,9 @@ async function loadMusicListFast(){
   }
 
   reflect();
-  init();
+  initBG();
 })();
-/* HUD idle hide/show */
+
 (function(){
   const IDLE_MS = 15000;
   let hudHidden=false, lastActivity=Date.now();
@@ -533,7 +595,6 @@ async function loadMusicListFast(){
   if (tap){ tap.addEventListener('pointerdown', (e)=>{ e.preventDefault(); show(); mark(); }, {passive:false}); }
 })();
 
-/* Offline prefetch */
 (function(){
   const btn = document.getElementById('offlineBtn');
   const bar = document.getElementById('offlineProgress');
@@ -560,8 +621,10 @@ async function loadMusicListFast(){
     let done=0; bar.value=0; btn.classList.add('downloading');
     for(const u of assets){
       if(dlAbort.signal.aborted) break;
-      try{ const res = await fetch(u, {signal: dlAbort.signal}); if(res.ok){ await cache.put(u, res.clone()); } }
-      catch(_){ /* ignore */ }
+      try{
+        const res = await fetch(u, {signal: dlAbort.signal});
+        if(res.ok){ await cache.put(u, res.clone()); }
+      }catch(_){ }
       done++; bar.value = Math.round(done*100/assets.length);
     }
     btn.classList.remove('downloading');
@@ -584,32 +647,45 @@ async function loadMusicListFast(){
   btn.addEventListener('click', async ()=>{
     if(btn.classList.contains('downloading')){
       dlAbort?.abort();
-      if(confirm('Stop downloading and remove all cached files?')){
+      // Abort and HARD RESET if you tap while downloading.
+      try{
         const keys = await caches.keys();
         for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
-        setActive(false); bar.value=0; return;
-      } else {
-        return;
-      }
-    }
-
-    if(!btn.classList.contains('active')){
-      btn.disabled=true;
-      const ok = await prefetchAll();
-      btn.disabled=false;
-      if(ok){ setActive(true); bar.value=100; alert('Offline ready. You can reload or go offline now.'); }
+      }catch(_){}
+      setActive(false);
+      bar.value=0;
+      location.reload();
       return;
     }
 
-    if(!confirm('Remove all offline files and cache?')) return;
-    const keys = await caches.keys();
-    for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
-    for(let v=100; v>=0; v-=5){ bar.value=v; await new Promise(r=>setTimeout(r,8)); }
+    const currentlyOn = btn.classList.contains('active');
+
+    if(!currentlyOn){
+      // Turning Offline ON: prefetch everything, then lock.
+      btn.disabled=true;
+      const ok = await prefetchAll();
+      btn.disabled=false;
+      if(ok){
+        setActive(true);
+        bar.value=100;
+        alert('Offline ready. You can reload or go offline now.');
+      }
+      return;
+    }
+
+    // Turning Offline OFF: HARD RESET MODE (Option B)
+    btn.disabled = true;
+    try{
+      const keys = await caches.keys();
+      for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+    }catch(_){}
     setActive(false);
+    bar.value = 0;
+    btn.disabled = false;
+    location.reload();
   });
 })();
 </script>
-
 
 </body>
 </html>

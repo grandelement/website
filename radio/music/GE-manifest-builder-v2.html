@@ -1,0 +1,135 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GE Radio — Manifest Builder</title>
+<style>
+  html,body{font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#0b0e17;color:#e7e7e7}
+  .wrap{max-width:980px;margin:40px auto;padding:24px;background:#121522;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  h1{margin:0 0 12px;font-size:22px}
+  label{display:block;margin:14px 0 6px;font-weight:600}
+  input[type=text]{width:100%;padding:.6rem .75rem;border-radius:10px;border:1px solid #263045;background:#0e1220;color:#e7e7e7}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  button{padding:.6rem .9rem;border-radius:10px;border:1px solid #3a445e;background:#1a2237;color:#fff;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  pre{background:#0e1220;border:1px solid #263045;border-radius:10px;padding:12px;overflow:auto;max-height:360px;margin-top:12px}
+  .small{font-size:12px;opacity:.8}
+  code{background:#0e1220;border:1px solid #263045;border-radius:6px;padding:0 .35rem}
+</style>
+
+<div class="wrap">
+  <h1>GE Radio — Build <code>music/manifest.json</code></h1>
+
+  <div class="grid">
+    <div>
+      <label>GitHub owner</label>
+      <input id="owner" type="text" placeholder="grandelement" value="grandelement">
+    </div>
+    <div>
+      <label>GitHub repo</label>
+      <input id="repo" type="text" placeholder="website" value="website">
+    </div>
+
+    <div>
+      <label>Branch</label>
+      <input id="branch" type="text" placeholder="main" value="main">
+    </div>
+    <div>
+      <label>Base folder in repo (where your Radio lives)</label>
+      <input id="base" type="text" placeholder="website/radio" value="website/radio">
+      <div class="small">We will scan <code>&lt;base&gt;/music/</code> and <code>&lt;base&gt;/clips/</code> and write paths relative to <code>&lt;base&gt;/</code>.</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="scan">Scan repo</button>
+    <button id="dl" disabled>Download manifest.json</button>
+    <label class="small" style="margin:0;display:flex;gap:8px;align-items:center">
+      <input id="includeClips" type="checkbox" checked>
+      Include clips/
+    </label>
+    <label class="small" style="margin:0;display:flex;gap:8px;align-items:center">
+      <input id="sortAlpha" type="checkbox" checked>
+      Sort alphabetically
+    </label>
+  </div>
+
+  <div class="small">
+    This uses GitHub’s public tree API: <code>/repos/:owner/:repo/git/trees/:branch?recursive=1</code>. No token needed for light use.
+    If GitHub rate-limits you, wait a bit or use a logged-in browser session.
+  </div>
+
+  <pre id="log">Ready.</pre>
+</div>
+
+<script>
+(function(){
+  const logEl = document.getElementById('log');
+  const log = (m)=>{ logEl.textContent = (typeof m==='string') ? m : String(m); };
+
+  const AUDIO=/\.(mp3|m4a|aac|ogg|oga|wav|aif|aiff|flac)$/i;
+
+  function normPath(p){
+    p = (p||'').trim().replace(/\\/g,'/').replace(/^\/+|\/+$/g,'');
+    return p;
+  }
+
+  async function scan(){
+    const owner = normPath(document.getElementById('owner').value) || 'grandelement';
+    const repo  = normPath(document.getElementById('repo').value)  || 'website';
+    const branch= normPath(document.getElementById('branch').value)|| 'main';
+    const base  = normPath(document.getElementById('base').value)  || 'website/radio';
+
+    const includeClips = document.getElementById('includeClips').checked;
+    const sortAlpha = document.getElementById('sortAlpha').checked;
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+    log(`Fetching tree…\n${url}`);
+
+    let r;
+    try{
+      r = await fetch(url, {headers:{'Accept':'application/vnd.github+json'}});
+    }catch(e){
+      log('Fetch failed: '+e);
+      return;
+    }
+    if(!r.ok){
+      log('GitHub API error: '+r.status+' '+r.statusText+'\nTry again later (rate limit) or confirm owner/repo/branch.');
+      return;
+    }
+    const j = await r.json();
+    const tree = Array.isArray(j.tree) ? j.tree : [];
+
+    const basePrefix = base ? (base + '/') : '';
+    const musicPrefix = basePrefix + 'music/';
+    const clipsPrefix = basePrefix + 'clips/';
+
+    // pick audio blobs under base/music and optionally base/clips
+    let pick = tree
+      .filter(t => t.type === 'blob' && AUDIO.test(t.path))
+      .map(t => t.path)
+      .filter(p => p.startsWith(musicPrefix) || (includeClips && p.startsWith(clipsPrefix)))
+      // store relative to base/
+      .map(p => p.slice(basePrefix.length));
+
+    if(sortAlpha) pick.sort((a,b)=>a.localeCompare(b));
+
+    const txt = JSON.stringify(pick, null, 2);
+
+    log(txt);
+
+    const dl = document.getElementById('dl');
+    dl.disabled = false;
+    dl.onclick = ()=>{
+      const blob = new Blob([txt], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'manifest.json';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+    };
+  }
+
+  document.getElementById('scan').addEventListener('click', scan);
+})();
+</script>
