@@ -315,8 +315,8 @@
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey of a soul. Created with one vision: YOU the listener are the GRAND ELEMENT.
-      Hypnotic rhythms and spacious soundscapes entrance the body to speak directly to the soul as the voice of ENERGY leaving room for reflection, reopening the body, mind and soul to the voice of energy..reminding us that we are all one, all energy, and all love.
+      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey into the soul. YOU the listener are the GRAND ELEMENT.
+      Hypnotic rhythms and spacious soundscapes designed to entrance the body to speak directly to the soul leaving room for reflection, reopening the body, mind and soul to the voice of ENERGY.. reminding us that we are all one, all energy, and all love.
 
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
@@ -329,7 +329,7 @@
             <li>Ronaldo Elliott — drums</li>
             <li>Elizabeth “Liz” Washington — vocals</li>
             <li>Jordan Rosenthal — drums</li>
-            <li>Scott Gregory — keyboards (guitar, drums, vocals)</li>
+            <li>Scott Gregory — keyboards, guitar, drums, vocals</li>
           </ul>
         </div>
       </div>
@@ -469,7 +469,7 @@ function tickOrbit(){
 requestAnimationFrame(tickOrbit);
 moon.addEventListener('click', ()=>{
   try{ document.getElementById('gePlayer')?.pause(); }catch(e){}
-  window.open('https://grandelement.github.io/website/radio/','_blank','noopener');
+  window.open('/radio/','_blank','noopener');
 });
 
 /* ========= MUSIC ========= */
@@ -613,7 +613,7 @@ moon.addEventListener('click', ()=>{
   }
 
 
-  function applyOrder(){
+  function applyOrder(forcePlay=true){
     if(!PLAYLIST.length) return;
     if (SHUFFLE) {
       const base=[...PLAYLIST].sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
@@ -623,7 +623,7 @@ moon.addEventListener('click', ()=>{
     }
     if(started){
       if(pIndex>=PLAYLIST.length) pIndex=0;
-      startCurrent();
+      if(forcePlay) startCurrent(); else updateNowPlaying();
     } else {
       pIndex=0;
     }
@@ -648,7 +648,7 @@ moon.addEventListener('click', ()=>{
 
   btnNext.onclick=next;
   btnPrev.onclick=prev;
-  btnPlay.onclick=()=>{
+  btnPlay.onclick = ()=>{ if(awaitingUserGesture){ awaitingUserGesture=false; try{ startCurrent(); }catch(e){} attemptAutoplay(); return; }
     if(!PLAYLIST.length) return;
     if(player.paused && !started){
       started=true;
@@ -677,7 +677,7 @@ moon.addEventListener('click', ()=>{
   seek.addEventListener('input', ()=>{ try{ player.currentTime = +seek.value; }catch(e){} });
 
   player.addEventListener('ended', next);
-  player.addEventListener('error', next);
+  player.addEventListener('error', ()=>{ if(awaitingUserGesture) return; next(); });
 
   function unmuteOnce(){
     player.muted=false;
@@ -1464,6 +1464,17 @@ nudgeSunNow();
   navigator.serviceWorker.register('https://grandelement.github.io/website/ge-radio-sw.js', {scope:'/website/'})
     .catch(()=>{});
 })();
+
+
+// One-time gesture unlock for iOS / in-app browsers
+function resumeOnFirstGesture(){
+  if(!awaitingUserGesture) return;
+  awaitingUserGesture=false;
+  try{ startCurrent(); }catch(e){}
+  attemptAutoplay();
+}
+window.addEventListener('touchstart', resumeOnFirstGesture, {passive:true, once:true});
+window.addEventListener('pointerdown', resumeOnFirstGesture, {passive:true, once:true});
 
 </script>
 </body>
