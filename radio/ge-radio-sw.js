@@ -1,84 +1,83 @@
-/* GE Radio Service Worker — range-safe cache */
-const CACHE_NAME = 'ge-radio-v1';
+// ge-radio-sw-v2.js
+// Purpose: keep the RADIO SHELL fresh, and allow offline fallback without trying to cache gigabytes of audio.
+// Strategy:
+//   - Same-origin navigation + assets: network-first, fall back to cache.
+//   - Cache updates automatically.
+//   - Cross-origin (raw.githubusercontent.com etc.): passthrough (no caching) to avoid range/CORS pain.
 
-// Helper: detect audio
-function isAudio(url){
-  return /\.(mp3|m4a|aac|ogg|wav|flac)$/i.test(url.pathname);
+const CACHE_NAME = 'ge-radio-shell-v2';
+
+const SHELL_URLS = [
+  './',
+  './index.html',
+  './ge-radio-sw.js',
+  './music/manifest.json',
+  './img/manifest.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    try { await cache.addAll(SHELL_URLS); } catch (_) { /* ignore */ }
+    self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k === CACHE_NAME ? null : caches.delete(k))));
+    self.clients.claim();
+  })());
+});
+
+function sameOrigin(req){
+  try { return new URL(req.url).origin === self.location.origin; }
+  catch { return false; }
 }
 
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const req = event.request;
-  const url = new URL(req.url);
+  if (req.method !== 'GET') return;
 
-  // Only handle same-origin
-  if (url.origin !== self.location.origin) return;
-
-  // Range requests need special handling (especially for audio)
-  const rangeHeader = req.headers.get('range');
+  // Do not cache cross-origin (music/images repos)
+  if (!sameOrigin(req)) return;
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
 
-    // AUDIO: cache-first with range support; network fallback.
-    if (isAudio(url)) {
-      const cached = await cache.match(req.url, { ignoreSearch: true, ignoreVary: true });
-      if (cached) {
-        // If no range header, return full cached response
-        if (!rangeHeader) return cached;
-
-        // Range requested: slice cached body and return 206
-        try{
-          const buf = await cached.arrayBuffer();
-          const size = buf.byteLength;
-          // Parse "bytes=start-end"
-          const m = /bytes=(\d+)-(\d+)?/i.exec(rangeHeader);
-          if (!m) return cached;
-          const start = parseInt(m[1], 10);
-          const end = m[2] ? Math.min(parseInt(m[2], 10), size - 1) : size - 1;
-          if (start >= size || start > end) {
-            return new Response(null, { status: 416, statusText: 'Range Not Satisfiable' });
-          }
-          const sliced = buf.slice(start, end + 1);
-          const headers = new Headers(cached.headers);
-          headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
-          headers.set('Accept-Ranges', 'bytes');
-          headers.set('Content-Length', String(sliced.byteLength));
-          // Some caches lose content-type; ensure it exists
-          if (!headers.get('Content-Type')) headers.set('Content-Type', 'audio/mpeg');
-          return new Response(sliced, { status: 206, statusText: 'Partial Content', headers });
-        }catch(e){
-          // Fallback to cached full response
-          return cached;
-        }
+    // Network-first for same-origin so updates land quickly.
+    try {
+      const fresh = await fetch(req, { cache: 'no-store' });
+      // cache only OK basic responses
+      if (fresh && fresh.ok && (fresh.type === 'basic' || fresh.type === 'default')) {
+        cache.put(req, fresh.clone()).catch(()=>{});
       }
+      return fresh;
+    } catch (e) {
+      const cached = await cache.match(req);
+      if (cached) return cached;
 
-      // Not cached: go to network (do not cache range responses)
-      const net = await fetch(req);
-      try{
-        // Cache only full (200) responses to avoid truncation
-        if (net.ok && net.status === 200) {
-          cache.put(req.url, net.clone());
-        }
-      }catch(_){}
-      return net;
+      // If navigation fails, fall back to cached index if available
+      if (req.mode === 'navigate') {
+        const fallback = await cache.match('./index.html');
+        if (fallback) return fallback;
+      }
+      throw e;
     }
-
-    // NON-AUDIO: cache-first, network fallback; update cache on success.
-    const hit = await cache.match(req, { ignoreSearch: true, ignoreVary: true });
-    if (hit) return hit;
-
-    const net = await fetch(req);
-    try{
-      if (net.ok && net.status === 200) cache.put(req, net.clone());
-    }catch(_){}
-    return net;
   })());
+});
+
+self.addEventListener('message', event => {
+  const msg = event.data || {};
+  if (msg && msg.type === 'CLEAR_OFFLINE_CACHE') {
+    event.waitUntil((async () => {
+      await caches.delete(CACHE_NAME);
+      const cache = await caches.open(CACHE_NAME);
+      try { await cache.addAll(SHELL_URLS); } catch (_) {}
+      // notify clients
+      const clients = await self.clients.matchAll({ includeUncontrolled: true });
+      clients.forEach(c => c.postMessage({ type: 'CACHE_CLEARED' }));
+    })());
+  }
 });
