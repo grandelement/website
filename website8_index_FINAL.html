@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Grand Element (Official Site) - Welcome!</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./music-manifest.webmanifest?v=8">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="./favicon.ico">
+
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+  /* Keep your existing background; this is a safe fallback only */
+  body{
+    background-image: url("./images/background.jpg");
+    background-size: cover;
+    background-position: center center;
+  }
+  #stage{position:fixed;inset:0}
+  #ui{position:fixed;left:14px;bottom:14px;z-index:50;max-width:92vw}
+  .pill{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;background:rgba(15,25,40,.62);backdrop-filter:blur(8px);border:1px solid rgba(140,180,255,.22)}
+  .pill button{appearance:none;border:0;background:transparent;color:#cfe7ff;font-weight:700;font-size:16px}
+  .pill button:active{transform:scale(.98)}
+  #logo{width:34px;height:34px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 18px rgba(80,170,255,.55);object-fit:cover;background:rgba(0,0,0,.2)}
+  #player{margin-top:10px;padding:12px;border-radius:16px;background:rgba(15,25,40,.58);backdrop-filter:blur(10px);border:1px solid rgba(140,180,255,.18);display:none}
+  #row{display:flex;align-items:center;gap:10px}
+  #playBtn{appearance:none;border:1px solid rgba(140,180,255,.35);background:rgba(10,20,40,.55);color:#eaf4ff;padding:10px 12px;border-radius:12px;font-weight:800}
+  #status{font-size:13px;opacity:.86}
+  #track{font-size:12px;opacity:.8;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:88vw}
+  #vol{width:180px}
+  #about{position:fixed;left:14px;top:14px;z-index:50;max-width:min(560px,92vw);padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(10px)}
+  #about h3{margin:0 0 6px 0;letter-spacing:.16em;font-size:12px;opacity:.9}
+  #about p{margin:0;font-size:13px;line-height:1.35;opacity:.88}
+  #corner{position:fixed;right:14px;top:14px;z-index:50;display:flex;gap:10px}
+  .mini{appearance:none;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.35);color:#fff;padding:8px 10px;border-radius:12px;font-weight:700}
+  .mini:active{transform:scale(.98)}
+  #copyright{position:fixed;left:0;right:0;bottom:6px;z-index:10;text-align:center;font-size:12px;opacity:.65;pointer-events:none}
+</style>
+</head>
+
+<body>
+<div id="stage"></div>
+
+<div id="corner">
+  <button class="mini" id="hardRefresh">Hard Refresh</button>
+  <button class="mini" id="openBuilder">Music Manifest</button>
+</div>
+
+<div id="about">
+  <h3>ABOUT</h3>
+  <p>Music for your soul. Experiments in sound and communication.<br>
+  YOU (the listener) are the GRAND</p>
+</div>
+
+<div id="ui">
+  <div class="pill">
+    <img id="logo" alt="Grand Element">
+    <button id="musicBtn" type="button">Music</button>
+  </div>
+
+  <div id="player">
+    <div id="row">
+      <button id="playBtn" type="button">Play</button>
+      <input id="vol" type="range" min="0" max="1" step="0.01" value="0.85">
+      <div id="status">Ready (tap Music).</div>
+    </div>
+    <div id="track"></div>
+  </div>
+</div>
+
+<div id="copyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
+
+<script>
+/*
+  WEBSITE 8 STABILITY RULES:
+  - iPhone autoplay is NOT reliable. "Tap Music" must trigger play.
+  - Old service workers/manifest caches poison paths. We provide a Hard Refresh nuke.
+  - Blue sun logo: we try multiple candidate filenames inside ./images/ so you don't have to guess.
+*/
+
+// 1) Blue Sun / logo fallback chain (same directory as your planet images)
+const logoCandidates = [
+  "./images/ge_logo.png",
+  "./images/ge-logo.png",
+  "./images/ge_logo_128.png",
+  "./images/ge_logo_64.png",
+  "./images/ge_logo 1 128 x 128.png",
+  "./images/Original Image GE 1 128 x 128.png",
+  "./images/favicon_source.png",
+  "./favicon.ico",
+  "/favicon.ico"
+];
+
+function setLogoFromCandidates() {
+  const img = document.getElementById("logo");
+  let i = 0;
+  const tryNext = () => {
+    if (i >= logoCandidates.length) return;
+    const src = logoCandidates[i++];
+    const test = new Image();
+    test.onload = () => { img.src = src; };
+    test.onerror = tryNext;
+    test.src = src + (src.includes("?") ? "" : ("?v=" + Date.now()));
+  };
+  tryNext();
+}
+
+// 2) Hard refresh nukes SW + caches for THIS origin (kills stale path poisoning)
+async function hardRefresh() {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches && caches.keys) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {}
+  location.reload(true);
+}
+
+// 3) Audio: tap-to-start (works on iPhone, Firefox, Messenger browser)
+const audio = new Audio();
+audio.preload = "none";
+audio.crossOrigin = "anonymous";
+audio.loop = false;
+
+let playlist = [];
+let current = -1;
+
+function setStatus(t){ document.getElementById("status").textContent = t; }
+
+function pickNext() {
+  if (!playlist.length) return -1;
+  current = (current + 1) % playlist.length;
+  return current;
+}
+
+async function loadPlaylist() {
+  // Primary: your music manifest JSON (you control it)
+  // Put at: /website/music-manifest.json
+  const urlsToTry = [
+    "./music-manifest.json?v=8",
+    "./radio-manifest.json?v=8",
+    "./music/manifest.json?v=8"
+  ];
+  for (const u of urlsToTry) {
+    try {
+      const r = await fetch(u, {cache:"no-store"});
+      if (!r.ok) continue;
+      const j = await r.json();
+      const list = Array.isArray(j.tracks) ? j.tracks : (Array.isArray(j) ? j : []);
+      if (list.length) {
+        playlist = list.map(x => (typeof x === "string" ? x : x.url)).filter(Boolean);
+        return true;
+      }
+    } catch (e) {}
+  }
+  return false;
+}
+
+async function playNow() {
+  if (!playlist.length) {
+    setStatus("Loading music list…");
+    const ok = await loadPlaylist();
+    if (!ok) {
+      setStatus("No music manifest found (paths wrong).");
+      document.getElementById("track").textContent =
+        "Fix: upload /website/music-manifest.json (use the Music Manifest builder button).";
+      return;
+    }
+  }
+  if (current < 0) pickNext();
+  const url = playlist[current];
+  audio.src = url;
+  try {
+    await audio.play();
+    setStatus("Playing");
+    document.getElementById("track").textContent = url;
+  } catch (e) {
+    setStatus("Tap Play (browser blocked).");
+  }
+}
+
+audio.addEventListener("ended", () => { pickNext(); playNow(); });
+audio.addEventListener("error", () => {
+  setStatus("Track failed (404/path). Skipping…");
+  pickNext();
+  playNow();
+});
+
+document.getElementById("musicBtn").addEventListener("click", async () => {
+  document.getElementById("player").style.display = "block";
+  // This click IS the "user gesture" that unlocks audio on iPhone
+  if (audio.paused) await playNow();
+});
+
+document.getElementById("playBtn").addEventListener("click", async () => {
+  if (audio.paused) { await playNow(); }
+  else { audio.pause(); setStatus("Paused"); }
+  document.getElementById("playBtn").textContent = audio.paused ? "Play" : "Pause";
+});
+
+document.getElementById("vol").addEventListener("input", (e) => {
+  audio.volume = Number(e.target.value);
+});
+
+document.getElementById("hardRefresh").addEventListener("click", hardRefresh);
+document.getElementById("openBuilder").addEventListener("click", () => {
+  window.open("./GE_music_manifest_creator.html", "_blank");
+});
+
+setLogoFromCandidates();
+setStatus("Ready (tap Music).");
+</script>
+</body>
+</html>
