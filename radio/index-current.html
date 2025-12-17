@@ -195,17 +195,7 @@ async function loadMusicListFast(){
     // Fix: fetch manifest from the correct repo base
     const r = await fetch(resolveURL('music/manifest.json'),{cache:'no-store'});
     if(r.ok){
-      const j = await r.json();
-      // Support both formats:
-      // 1) Array of file paths: ["music/...", ...] or ["ge-music/music/...", ...]
-      // 2) Object with a 'files' array: { files: ["ge-music/music/...", ...], ... }
-      const list = Array.isArray(j) ? j : (Array.isArray(j.files) ? j.files : []);
-      // Convert absolute repo paths into the player-relative scheme ("music/..." and "clips/...").
-      const arr = list.map((p)=>{
-        p = String(p||'').replace(/^\//,'');
-        p = p.replace(/^ge-music\//,''); // strip leading folder if present
-        return resolveURL(p);
-      });
+      const arr = (await r.json()).map(resolveURL);
       localStorage.setItem(CACHEKEY, JSON.stringify(arr));
       return arr;
     }
