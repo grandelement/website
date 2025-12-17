@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GE Radio — Manifest Builder (v3)</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;max-width:900px}
+  h1{font-size:20px;margin:0 0 10px}
+  label{display:block;margin:10px 0 6px;font-weight:600}
+  input[type=text]{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{padding:10px 14px;border:0;border-radius:10px;background:#111;color:#fff;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .small{color:#444;font-size:13px;line-height:1.35}
+  pre{background:#0b1020;color:#d7e3ff;padding:12px;border-radius:12px;overflow:auto;white-space:pre-wrap}
+  .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef3ff;border:1px solid #cfe0ff;font-size:12px}
+  a{color:#1a56db}
+</style>
+</head>
+<body>
+<h1>GE Radio — Manifest Builder (v3)</h1>
+<div class="small">
+  <span class="pill">Fixes the “can’t find directories” problem</span><br>
+  This version does <b>not</b> guess <code>/music</code> or <code>/clips</code>. You tell it the exact folder roots.
+</div>
+
+<div class="row">
+  <div>
+    <label for="owner">Owner</label>
+    <input id="owner" type="text" value="grandelement">
+  </div>
+  <div>
+    <label for="repo">Repo</label>
+    <input id="repo" type="text" value="website">
+  </div>
+</div>
+
+<div class="row">
+  <div>
+    <label for="branch">Branch</label>
+    <input id="branch" type="text" value="main">
+  </div>
+  <div>
+    <label for="mode">Mode</label>
+    <input id="mode" type="text" value="manifest.json">
+    <div class="small">Download filename. Keep as <b>manifest.json</b> unless your index expects something else.</div>
+  </div>
+</div>
+
+<label for="musicRoot">Music root folder (exact)</label>
+<input id="musicRoot" type="text" value="ge-music/music">
+<div class="small">Based on your screenshot: <code>ge-music/music/Grand Element - 2005 - Fundamental Groove/...</code></div>
+
+<label for="clipsRoot">Clips root folder (optional)</label>
+<input id="clipsRoot" type="text" value="ge-music/clips">
+<div class="small">Leave blank if you don’t want clips mixed in.</div>
+
+<div class="row">
+  <div>
+    <label for="includeM4A">Include m4a/aac?</label>
+    <input id="includeM4A" type="text" value="yes">
+    <div class="small">Set to <code>no</code> to only include mp3/wav/ogg.</div>
+  </div>
+  <div>
+    <label>&nbsp;</label>
+    <button id="scan">Scan GitHub</button>
+    <button id="dl" disabled style="margin-left:10px;background:#0a7a2f">Download</button>
+  </div>
+</div>
+
+<div class="small" style="margin-top:10px">
+  Quick API test link (opens JSON): <a id="apiLink" href="#" target="_blank" rel="noopener">open GitHub tree</a>
+</div>
+
+<h2 style="font-size:16px;margin:16px 0 8px">Log</h2>
+<pre id="log">Ready.</pre>
+
+<script>
+(function(){
+  const logEl = document.getElementById('log');
+  const dlBtn = document.getElementById('dl');
+  const scanBtn = document.getElementById('scan');
+  const apiLink = document.getElementById('apiLink');
+
+  function log(msg){ logEl.textContent = msg; }
+
+  function normFolder(s){
+    s = (s||'').trim();
+    s = s.replace(/^\/+/, '');     // no leading slash
+    s = s.replace(/\/+$/, '');     // no trailing slash
+    return s;
+  }
+
+  function setApiLink(url){
+    apiLink.href = url;
+    apiLink.textContent = url;
+  }
+
+  async function scan(){
+    dlBtn.disabled = true;
+    dlBtn.onclick = null;
+
+    const owner = document.getElementById('owner').value.trim();
+    const repo = document.getElementById('repo').value.trim();
+    const branch = document.getElementById('branch').value.trim() || 'main';
+    const outName = (document.getElementById('mode').value.trim() || 'manifest.json').replace(/[^\w\-.]/g,'_');
+
+    const musicRoot = normFolder(document.getElementById('musicRoot').value);
+    const clipsRoot = normFolder(document.getElementById('clipsRoot').value);
+    const includeM4A = (document.getElementById('includeM4A').value || 'yes').toLowerCase().startsWith('y');
+
+    if(!owner || !repo){ log('Enter Owner and Repo.'); return; }
+    if(!musicRoot){ log('Enter the Music root folder (exact). Example: ge-music/music'); return; }
+
+    const api = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+    setApiLink(api);
+
+    log('Fetching GitHub tree...\n' + api);
+
+    let r;
+    try{
+      r = await fetch(api, {cache:'no-store'});
+    }catch(e){
+      log('Network error fetching GitHub API.\n\n' + (e && e.message ? e.message : e));
+      return;
+    }
+
+    if(!r.ok){
+      const txt = await r.text().catch(()=> '');
+      log('GitHub API error: ' + r.status + ' ' + r.statusText + '\n\n' +
+          'Most common cause: rate limit (403).\n' +
+          'If you see "API rate limit exceeded", wait ~1 hour or use a token version later.\n\n' +
+          'Response:\n' + txt.slice(0,1200));
+      return;
+    }
+
+    const j = await r.json();
+    const tree = Array.isArray(j.tree) ? j.tree : [];
+
+    const audioExt = includeM4A ? /\.(mp3|m4a|aac|wav|ogg|flac)$/i : /\.(mp3|wav|ogg|flac)$/i;
+
+    const musicPrefix = musicRoot + '/';
+    const clipsPrefix = clipsRoot ? (clipsRoot + '/') : '';
+
+    const picks = tree
+      .filter(t => t.type === 'blob' && audioExt.test(t.path))
+      .map(t => t.path)
+      .filter(p => p.startsWith(musicPrefix) || (clipsPrefix && p.startsWith(clipsPrefix)));
+
+    const musicCount = picks.filter(p=>p.startsWith(musicPrefix)).length;
+    const clipsCount = clipsPrefix ? picks.filter(p=>p.startsWith(clipsPrefix)).length : 0;
+
+    if(!picks.length){
+      log('Found 0 audio files under the roots you provided.\n\n' +
+          'You set:\n' +
+          '- Music root: ' + musicRoot + '\n' +
+          (clipsRoot ? ('- Clips root: ' + clipsRoot + '\n') : '- Clips root: (none)\n') +
+          '\nCheck that your repo paths really start with those prefixes.\n' +
+          'Tip: open the API link above and Ctrl+F for "' + musicRoot + '/"');
+      return;
+    }
+
+    // Sort so the manifest is stable
+    picks.sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+
+    const manifest = {
+      name: "music manifest",
+      generatedAt: new Date().toISOString(),
+      owner, repo, branch,
+      musicRoot, clipsRoot: clipsRoot || null,
+      files: picks
+    };
+
+    const txt = JSON.stringify(manifest, null, 2);
+    log('OK. Found ' + picks.length + ' audio files.\n' +
+        '- Music: ' + musicCount + '\n' +
+        (clipsPrefix ? ('- Clips: ' + clipsCount + '\n') : '') +
+        '\nNext: click Download, then upload it to /website/ as ' + outName + '\n\n' +
+        'First 5 files:\n' + picks.slice(0,5).join('\n'));
+
+    dlBtn.disabled = false;
+    dlBtn.onclick = ()=>{
+      const blob = new Blob([txt], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = outName;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+    };
+  }
+
+  scanBtn.addEventListener('click', scan);
+
+  // init API link
+  setApiLink('https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1');
+})();
+</script>
+</body>
+</html>
