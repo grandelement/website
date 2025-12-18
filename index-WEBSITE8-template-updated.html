@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Grand Element (Official Site) - Welcome! </title>
+<title>Grand Element - Welcome! (Official Site)</title>
 <style>
   :root{
     --img-base: ge-images/images/;
@@ -21,6 +21,9 @@
     --moon-size: 120px;
     --orbit-seconds: 60;
     --orbit-gap-moons: 2.2;
+    --orbit-distance-desktop: 2.2;
+    --orbit-distance-mobile: 0.55; /* 75% closer than 2.2 */
+    --pulse: 0; /* 0..1 from audio */
     --orbit-radius: calc((var(--sun-size) * 0.5) + (var(--moon-size) * var(--orbit-gap-moons)));
 
     /* FX */
@@ -164,7 +167,7 @@
   /* Planets */
   .planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   .planet{ position:absolute; width:var(--planet-size); height:var(--planet-size); border-radius:50%; pointer-events:auto; overflow:hidden; cursor:pointer;
-           background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 10px rgba(255,255,255,.2);
+           background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 calc(10px + (var(--pulse) * 26px)) rgba(255,255,255,.25), 0 0 calc(2px + (var(--pulse) * 12px)) rgba(0,170,255,.35);
            transition: transform .2s ease, box-shadow .18s ease; }
   .planet:hover, .planet.touchZoom{ transform:scale(var(--planet-hover-scale)); box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset; }
   .planet .label{ position:absolute; left:50%; top:-12px; transform:translate(-50%,-100%); padding:6px 10px; border-radius:999px; white-space:nowrap;
@@ -283,7 +286,7 @@
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
 
-        <audio id="gePlayer" preload="auto" playsinline></audio>
+        <audio id="gePlayer" preload="auto" playsinline crossorigin="anonymous"></audio>
       </div>
     </div>
 
@@ -308,8 +311,12 @@
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      Started the summer of 2005 in Las Vegas, Nevada. Experiments in sound and communication. A journey of a soul. Created with one vision: YOU the listener are the GRAND ELEMENT.
-      Hypnotic rhythms and spacious soundscapes entrance the body to speak directly to the soul as the voice of ENERGY leaving room for reflection, reopening the body, mind and soul to the voice of energy..reminding us that we are all one, all energy, and all love.
+      <li>Music for your soul. Experiments in sound and communication.  <li>
+<li>  YOU (the listener) are the GRAND ELEMENT.  <li>
+ <li>All things come from you. <li> 
+<li>Remember what you are. <li>
+      <li>Hypnotic rhythms and spacious soundscapes designed to entrance the body to speak directly to the soul leaving room for reflection, reopening the body, mind and soul to the voice of ENERGY.. reminding us that we are all one, all energy, and all love.  <li>
+<li>Enjoy!! <li>
 
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
@@ -318,11 +325,11 @@
             <li>Mike Venniro — drums</li>
             <li>Evan Donoghue — guitar</li>
             <li>Wills Blackmore — drums</li>
-            <li>Shane Willy — bass guitar</li>
+            <li>Shane Willy — bass</li>
             <li>Ronaldo Elliott — drums</li>
             <li>Elizabeth “Liz” Washington — vocals</li>
             <li>Jordan Rosenthal — drums</li>
-            <li>Scott Gregory — keyboards (guitar, drums, vocals)</li>
+            <li>Scott Gregory — keyboards, drums, bass, guitar, vocals</li>
           </ul>
         </div>
       </div>
@@ -373,6 +380,31 @@ function normAlbumName(name){
   s = s.replace(/grand\s*element\s*-\s*\d{4}\s*-\s*/, '');
   s = s.replace(/grand\s*element\s*-\s*/, '');
   return s.replace(/[^a-z0-9]/g,'');
+
+function parseAlbumFromPath(p){
+  // Expect paths like: ge-music/music/<Album Folder>/<Track>.mp3
+  const raw = decodeURIComponent(String(p||'')).replace(/^\/+/, '');
+  // strip optional leading "website/"
+  const s = raw.replace(/^website\//,'');
+  const parts = s.split('/').filter(Boolean);
+  // Find album folder after "ge-music/music"
+  let albumFolder = '';
+  const i = parts.indexOf('ge-music');
+  if(i>=0 && parts[i+1]==='music' && parts[i+2]) albumFolder = parts[i+2];
+  else if(parts[0]==='ge-music' && parts[1]==='music' && parts[2]) albumFolder = parts[2];
+  else {
+    // fallback: if "music" appears, take next segment
+    const j = parts.indexOf('music');
+    if(j>=0 && parts[j+1]) albumFolder = parts[j+1];
+    else albumFolder = parts[parts.length-2] || 'Unknown';
+  }
+  // Normalize folder naming to match your ALBUMS titles
+  let name = albumFolder.replace(/\u00A0/g,' ');
+  name = name.replace(/grand\s*element\s*-\s*\d{4}\s*-\s*/i, '');
+  name = name.replace(/grand\s*element\s*-\s*/i, '');
+  name = name.trim();
+  return name || 'Unknown';
+}
 }
 
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
@@ -445,12 +477,17 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
 const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
 const ORBIT_SEC = 60, PHASE0 = -Math.PI/2;
-const BASE_R = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orbit-radius')) || 260;
 const OSC_PX = 30, OSC_SEC = 90;
 function tickOrbit(){
   const t = Date.now()/1000;
   const angle = PHASE0 + (t % ORBIT_SEC) / ORBIT_SEC * Math.PI*2;
-  const r = BASE_R + OSC_PX * Math.sin((t/OSC_SEC)*Math.PI*2);
+  const css = getComputedStyle(document.documentElement);
+  const sun = parseFloat(css.getPropertyValue('--sun-size')) || 200;
+  const moonSize = parseFloat(css.getPropertyValue('--moon-size')) || 120;
+  const gap = MOBILE ? (parseFloat(css.getPropertyValue('--orbit-distance-mobile')) || 0.55)
+                     : (parseFloat(css.getPropertyValue('--orbit-distance-desktop')) || 2.2);
+  const baseR = (sun * 0.5) + (moonSize * gap);
+  const r = baseR + OSC_PX * Math.sin((t/OSC_SEC)*Math.PI*2);
   orbit.style.transform = `rotate(${angle}rad)`;
   moon.style.transform  = `translate(${r}px,-50%) rotate(${-angle}rad)`;
   const backHalf = (angle % (Math.PI*2)) > Math.PI;
@@ -459,8 +496,31 @@ function tickOrbit(){
 }
 requestAnimationFrame(tickOrbit);
 moon.addEventListener('click', ()=>{
-  try{ document.getElementById('gePlayer')?.pause(); }catch(e){}
-  window.open('https://grandelement.github.io/website/radio/','_blank','noopener');
+  // Stop website music completely before entering Radio
+  try{
+    const p = document.getElementById('gePlayer');
+    if(p){
+      p.pause();
+      p.currentTime = 0;
+      p.removeAttribute('src');
+      p.load();
+    }
+  }catch(e){}
+
+  // Clear iOS lock-screen session (best effort)
+  try{
+    if('mediaSession' in navigator){
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+      ['play','pause','previoustrack','nexttrack','seekbackward','seekforward','seekto','stop'].forEach(a=>{
+        try{ navigator.mediaSession.setActionHandler(a, null); }catch(e){}
+      });
+    }
+  }catch(e){}
+
+  // Navigate to Radio on the same host (works for GitHub Pages and custom domain)
+  const radioPath = location.pathname.startsWith('/website') ? '/website/radio/' : '/radio/';
+  location.href = radioPath;
 });
 
 /* ========= MUSIC ========= */
@@ -480,6 +540,13 @@ moon.addEventListener('click', ()=>{
   const tgShuffle = document.getElementById('tgShuffle');
   const tgAlbum   = document.getElementById('tgAlbum');
 
+  // Base path selector: GitHub Pages serves under /website/, custom domain may serve at /
+  const BASE_PATH = (location.pathname.startsWith('/website/')) ? '/website/' : '/';
+  const ASSET_BASE = (BASE_PATH === '/' ? '' : BASE_PATH.slice(0,-1));
+  // Ensure image paths work on both /website/ (GitHub Pages) and domain root
+  try{ document.documentElement.style.setProperty('--img-base', ASSET_BASE + '/ge-images/images/'); }catch(e){}
+
+
   btnMusic.addEventListener('click', (e)=>{
     e.stopPropagation();
     mini.style.display = (mini.style.display==='none' || mini.style.display==='') ? 'flex' : 'none';
@@ -490,6 +557,45 @@ moon.addEventListener('click', ()=>{
   });
 
   let PLAYLIST=[], pIndex=0, SHUFFLE=true, started=false;
+
+  // Audio-reactive shading (WebAudio analyser). Must be created on a user gesture (iOS rule).
+  let audioCtx=null, analyser=null, dataArr=null, pulse=0;
+  function ensureAudioGraph(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx){
+        audioCtx = new AC();
+      }
+      if(audioCtx.state === 'suspended'){
+        audioCtx.resume().catch(()=>{});
+      }
+      if(!analyser){
+        const srcNode = audioCtx.createMediaElementSource(player);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        dataArr = new Uint8Array(analyser.frequencyBinCount);
+        srcNode.connect(analyser);
+        // CRITICAL: connect to destination so sound is audible
+        /* analyser is a tap (not in the audible path) */
+        try{ srcNode.connect(audioCtx.destination); }catch(e){}
+        const tick=()=>{
+          if(analyser && dataArr){
+            analyser.getByteFrequencyData(dataArr);
+            let sum=0;
+            // focus on lows/mids for "beat"
+            const n=Math.min(dataArr.length, 128);
+            for(let i=0;i<n;i++){ sum += dataArr[i]; }
+            const avg = (sum / n) / 255; // 0..1
+            pulse = (pulse*0.85) + (avg*0.15);
+            document.documentElement.style.setProperty('--pulse', String(pulse));
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }catch(e){}
+  }
   const fmt=t=>{ t=t|0; const m=(t/60)|0, s=(t%60)|0; return `${m}:${s.toString().padStart(2,'0')}`; };
   const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } };
 
@@ -539,6 +645,8 @@ moon.addEventListener('click', ()=>{
         ]
       });
       navigator.mediaSession.setActionHandler('play', ()=>{
+        ensureAudioGraph();
+        try{ player.muted=false; player.volume=Math.max(player.volume||0, 1); }catch(e){}
         player.play().then(()=>{
           navigator.mediaSession.playbackState='playing';
         }).catch(()=>{});
@@ -557,7 +665,7 @@ moon.addEventListener('click', ()=>{
   async function fetchAllMp3s(){
     // Prefer local manifest.json (fast + no GitHub API limits)
     try{
-      const manifestUrl = new URL('radio/manifest.json?cache=' + Date.now(), location.href).toString();
+      const manifestUrl = location.origin + BASE_PATH + 'radio/manifest.json';
       const mr = await fetch(manifestUrl, {cache:'no-store'});
       if(mr.ok){
         const mj = await mr.json();
@@ -566,7 +674,9 @@ moon.addEventListener('click', ()=>{
           .filter(p => /\.(mp3|m4a|wav)$/i.test(p))
           .map(p=>{
             const clean = String(p).replace(/^website\//,'');
-            const url   = new URL(encodeURI(clean), location.href).toString();
+            const base = location.origin + (BASE_PATH.endsWith('/') ? BASE_PATH : (BASE_PATH + '/'));
+            const rel  = encodeURI(String(clean).replace(/^\/+/, '').replace(/^website\//,''));
+            const url  = base + rel;
             const album = parseAlbumFromPath(clean);
             const file  = decodeURIComponent(String(clean).split('/').pop()||'');
             const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
@@ -584,12 +694,13 @@ moon.addEventListener('click', ()=>{
       .filter(n=>n.type==='blob' && /\.mp3$/i.test(n.path))
       .map(n=>{
         const parts=n.path.split('/');
-        const album = decodeURIComponent(parts[1]||'Unknown');
+        const album = decodeURIComponent((parts[1]==='music' ? parts[2] : parts[1]) || parts[2] || 'Unknown');
         const file  = decodeURIComponent(parts[parts.length-1]);
         const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
         const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/,'');
 
-        return { url:new URL(encodeURI(n.path), location.origin + '/website/').toString(), album, trackNum, track };
+        const base = location.origin + (BASE_PATH.endsWith('/') ? BASE_PATH : (BASE_PATH + '/'));
+        return { url: base + encodeURI(n.path), album, trackNum, track };
       });
   }
 
@@ -616,6 +727,8 @@ moon.addEventListener('click', ()=>{
     setTitle(it);
     highlightAlbum(it.album);
     updateMediaSession(it);
+    ensureAudioGraph();
+    try{ player.muted=false; player.volume=Math.max(player.volume||0, 1); }catch(e){}
     player.play().then(()=>{
       if('mediaSession' in navigator){
         navigator.mediaSession.playbackState='playing';
@@ -634,6 +747,8 @@ moon.addEventListener('click', ()=>{
       started=true;
       applyOrder(); // this will call startCurrent()
     } else if(player.paused){
+      ensureAudioGraph();
+      try{ player.muted=false; player.volume=Math.max(player.volume||0, 1); }catch(e){}
       player.play().then(()=>{
         if('mediaSession' in navigator){
           navigator.mediaSession.playbackState='playing';
