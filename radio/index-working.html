@@ -220,6 +220,31 @@ async function loadMusicListFast(){
 
 (function(){
   const player = document.getElementById('player');
+  const homeLink = document.querySelector('a.logo-wrap');
+  if (homeLink) {
+    // Stop radio immediately when returning Home (prevents iOS Safari background stream)
+    homeLink.removeAttribute('target');
+    homeLink.addEventListener('click', (e) => {
+      try { e.preventDefault(); } catch(_) {}
+      try {
+        if (player) {
+          try { player.pause(); } catch(_) {}
+          try {
+            if (player.dataset && player.dataset.objurl) {
+              try { URL.revokeObjectURL(player.dataset.objurl); } catch(_) {}
+              player.dataset.objurl = '';
+            }
+          } catch(_) {}
+          try { player.removeAttribute('src'); } catch(_) {}
+          try { player.src = ''; } catch(_) {}
+          try { player.load(); } catch(_) {}
+        }
+      } catch(_) {}
+      window.location.href = homeLink.href || 'https://www.grandelement.com/';
+    }, { passive: false });
+  }
+
+
   const titleBtn = document.getElementById('titleBtn');
   const listEl  = document.getElementById('trackList');
   const prevBtn = document.getElementById('prevBtn');
@@ -236,41 +261,6 @@ async function loadMusicListFast(){
   const STATION_IDS = Array.from({length: 10}, (_, i) =>
     resolveURL(`clips/GE Station Identification - ${i}.m4a`)
   );
-
-  async function pickArtwork(url){
-    const fallback = resolveURL('img/logo.png');
-    try{
-      if(isStationID(url)) return fallback;
-      const base = String(url||'').split('?')[0];
-      if(base.startsWith('blob:')) return fallback;
-
-      // Replace the filename with common cover names inside the same album folder
-      const parts = base.split('/');
-      const folder = parts.slice(0,-1).join('/');
-      const candidates = [
-        folder + '/cover.jpg',
-        folder + '/cover.png',
-        folder + '/cover.jpeg',
-        folder + '/folder.jpg',
-        folder + '/folder.png',
-        folder + '/folder.jpeg'
-      ];
-      for (const c of candidates){
-        try{
-          const r = await fetch(c, { method:'HEAD', cache:'no-store' });
-          if (r && r.ok) return c;
-        }catch(_){}
-      }
-    }catch(_){}
-    return fallback;
-  }
-
-  function artworkType(url){
-    const u = String(url||'').toLowerCase();
-    if(u.endsWith('.png')) return 'image/png';
-    if(u.endsWith('.jpg') || u.endsWith('.jpeg')) return 'image/jpeg';
-    return 'image/png';
-  }
 
   function fisher(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
 
@@ -335,10 +325,9 @@ async function loadMusicListFast(){
 
     if('mediaSession' in navigator){
       try{
-        const artSrc = await pickArtwork(url);
         navigator.mediaSession.metadata = new MediaMetadata({
           title: titleBtn.textContent, artist:'Grand Element Radio',
-          artwork:[{src:artSrc,sizes:'512x512',type:artworkType(artSrc)}]
+          artwork:[{src:resolveURL('img/logo.png'),sizes:'512x512',type:'image/png'}]
         });
         const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
         safe('previoustrack', ()=> prevBtn.click());
