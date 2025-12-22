@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Grand Element Radio</title>
+<style>
+  :root{ --fg:#e8f6ff; --muted:#a6bdd0; --accent:#00ffa8; --band:#ff4f1f; --btn-bg:#0d1b26; --btn-br:#27455e; }
+  html,body{height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; overflow-x:hidden; overscroll-behavior-x:none;}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); touch-action:manipulation;}
+  *{ touch-action:manipulation; -ms-overflow-style:none; scrollbar-width:none; }
+  ::-webkit-scrollbar{ display:none; }
+
+  #bg{position:fixed;inset:0;z-index:0;background:#000 center/cover no-repeat;pointer-events:none}
+  #hudTap{position:fixed;inset:0;z-index:9999;display:none;background:transparent}
+  body.hud-hidden #hudTap{display:block}
+  .wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px;text-align:center;max-width:840px;margin:0 auto;box-sizing:border-box;transition:opacity .25s ease}
+  body.hud-hidden .wrap{opacity:0;pointer-events:none}
+
+  .logo-wrap{
+    width:min(260px,28vw); height:min(260px,28vw);
+    border-radius:50%; overflow:hidden; display:block; margin:0 auto;
+    box-shadow:0 0 0 2px rgba(255,255,255,.15) inset, 0 8px 28px rgba(0,0,0,.6);
+    position:relative;
+  }
+  .logo{width:100%;height:100%;object-fit:cover;object-position:center}
+
+  h1{margin:6px 0 0 0;font-size:clamp(20px,4.2vw,32px)}
+  .tag{opacity:.9;font-size:clamp(14px,3.6vw,18px)}
+  .row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px}
+
+  .group{
+    display:inline-flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;
+    padding:10px 12px;border-radius:14px;
+    background:rgba(24,28,34,.55);
+    border:1px solid rgba(80,110,140,.45);
+    box-sizing:border-box;max-width:min(720px,94vw);backdrop-filter:saturate(1.1) blur(2px);
+  }
+  #musicGroup{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;padding:0;background:transparent;border:0;box-shadow:none}
+  .section-label{opacity:.9;font-weight:800;white-space:nowrap}
+
+  button.btn{
+    appearance:none;border:1px solid var(--btn-br);
+    background:rgba(13,27,38,.64);
+    color:var(--fg);padding:10px 14px;border-radius:10px;
+    font-weight:700;letter-spacing:.3px;cursor:pointer;white-space:nowrap;
+    box-shadow:0 0 0 rgba(0,0,0,0);
+  }
+  button.btn:hover{background:rgba(21,40,56,.78)}
+  button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 18px rgba(0,255,168,.18) inset}
+
+  .sep{opacity:.4}
+  #player{position:relative;z-index:2;background:rgba(0,0,0,.25);width:min(720px,94vw)}
+
+  #now{opacity:.98}
+  #titleBtn{
+    appearance:none;background:rgba(24,28,34,.55);color:var(--fg);
+    border:1px solid rgba(80,110,140,.45); padding:10px 16px; border-radius:999px;
+    font-weight:700; font-size:clamp(12px,3.2vw,15px);
+    cursor:pointer; max-width:min(720px,90vw);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    backdrop-filter:saturate(1.1) blur(2px);
+  }
+
+  #trackList{
+    max-height:40vh; overflow:auto; width:min(720px,94vw); text-align:left;
+    background:rgba(24,28,34,.66); border:1px solid rgba(80,110,140,.45);
+    border-radius:12px; padding:8px; display:none; box-sizing:border-box; backdrop-filter:saturate(1.1) blur(2px);
+  }
+  #trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:8px 10px;cursor:pointer;border-radius:8px}
+  #trackList button:hover{ background:rgba(255,255,255,.06) }
+
+  .bc-btn{display:inline-block;padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;letter-spacing:.2px;text-decoration:none;border:0.5px solid rgba(0,0,0,.35);box-shadow:0 10px 28px rgba(255,79,31,.45), 0 2px 0 rgba(0,0,0,.2) inset;font-size:14px}
+  #bgGroup{display:flex;flex-direction:column;align-items:center;}
+  #bgGroup .bg-row{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;}
+  @media (max-width:480px){ #bgGroup .bg-row{gap:4px;} }
+
+  .offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
+  .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,.64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer}
+  .offline-btn.active{background:#0e2f1f;border-color:#1f6b4d;box-shadow:0 0 12px rgba(0,255,168,.25) inset;color:#b8ffdf}
+  .offline-btn.downloading{background:#2a2130;border-color:#5b3a5f}
+  progress{width:min(640px,80vw);height:12px;border:0;background:#0b1b26;border-radius:999px}
+  progress::-webkit-progress-bar{background:#0b1b26;border-radius:999px}
+  progress::-webkit-progress-value{background:linear-gradient(90deg,#0dffa3,#26e0ff);border-radius:999px}
+  progress::-moz-progress-bar{background:linear-gradient(90deg,#0dffa3,#26e0ff);border-radius:999px}
+
+  .live-on .logo-wrap { position:relative; }
+  .live-on .logo-wrap > canvas#live-glow { position:absolute; inset:0; pointer-events:none; }
+  #bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
+  .ghost{display:none;}
+  @media (max-width:420px){ .ghost{display:none;} }
+</style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="hudTap" title="Tap to show controls"></div>
+
+  <div class="wrap">
+    <header>
+      <a class="logo-wrap" id="homeLink" href="https://www.grandelement.com/" rel="noopener">
+        <img class="logo" id="geLogo" src="" alt="Grand Element logo (cropped)">
+      </a>
+      <h1>Grand Element Radio</h1>
+      <div class="tag">music to set your soul free</div>
+    </header>
+
+    <div id="now">
+      <button id="titleBtn" type="button" aria-expanded="false" title="Tap to choose a specific track">loading…</button>
+    </div>
+
+    <audio id="player" controls preload="auto" playsinline autoplay></audio>
+
+    <div class="row"><div id="musicGroup">
+      <button class="btn" id="prevBtn">Prev</button>
+      <button class="btn" id="nextBtn">Next</button>
+      <span class="sep">|</span>
+      <button class="btn tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
+      <button class="btn tgl" id="albumBtn" aria-pressed="false">Album</button>
+      <span class="ghost" aria-hidden="true"></span>
+    </div></div>
+
+    <div id="trackList"></div>
+
+    <div class="row"><div class="group" id="bgGroup">
+      <span class="section-label">Backgrounds</span>
+      <div class="row bg-row">
+        <button class="btn tgl" id="bgOff" aria-pressed="false">Off</button>
+        <button class="btn" id="bgPrev">Prev</button>
+        <button class="btn" id="bgNext">Next</button>
+        <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
+        <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
+        <button class="btn tgl" id="bgAuto" aria-pressed="true">Auto</button>
+      </div>
+    </div></div>
+
+    <div style="margin-top:10px;opacity:.9">If you would like to support the project, click the link below.</div>
+    <div style="margin-top:6px"><a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a></div>
+
+    <div class="offline-row">
+      <button class="offline-btn" id="offlineBtn">Go Offline</button>
+      <progress id="offlineProgress" max="100" value="0"></progress>
+    </div>
+    <footer>Much Love!!</footer>
+  </div>
+
+<script>
+function parseName(url){
+  const base=(decodeURI((url||'').split('?')[0]).split('/').pop()||'').replace(/\.[a-z0-9]+$/i,'');
+  const m = base.match(/^([^\d]+)\s*(\d{1,3})\s*(.*)$/);
+  if(m){ return {album:m[1].replace(/[_-]+/g,' ').trim(), track:m[2], song:(m[3]||'').replace(/[_-]+/g,' ').trim()}; }
+  const parts = base.replace(/[_-]+/g,' ').trim().split(/\s+/);
+  return {album:parts.shift()||'Album', track:'', song:parts.join(' ')||'Track'};
+}
+function isStationID(url){
+  const u = decodeURI(url || '');
+  return u.includes('/clips/') && /GE Station Identification/i.test(u);
+}
+function formatTitle(url, mode){
+  if(isStationID(url)) return 'GE Station Identification';
+  const t=parseName(url);
+  return (mode==='album' && t.track) ? `${t.album} • ${t.track} • ${t.song}` : `${t.album} • ${t.song}`;
+}
+function folderBase(){ return location.origin + location.pathname.replace(/[^/]+$/,''); }
+
+/*
+  QUICK SETTINGS
+*/
+const CONFIG = {
+  // Local paths relative to /radio/ so this works on both grandelement.com and GitHub Pages (/website/)
+  MUSIC_BASE: '../ge-music/',
+  IMAGES_BASE: '../ge-images/',
+  COVER_BACKGROUND_PICTURE: '',
+  OFFLINE_EST_GB: 1.0,
+  OFFLINE_EST_MINUTES: 5,
+  BG_AUTO_SECONDS: 33
+};
+function resolveURL(p){
+  if (/^https?:/i.test(p)) return p;
+  p = String(p||'').replace(/^\.?\//,'');
+  // This file lives in /radio/. Music and images live next to it at repo root.
+  if (p.startsWith('music/') || p.startsWith('clips/')) return folderBase() + CONFIG.MUSIC_BASE + p;
+  if (p.startsWith('img/')) return folderBase() + CONFIG.IMAGES_BASE + p;
+  return folderBase() + p;
+}
+
+// Logo
+(function(){
+  const logo = document.getElementById('geLogo');
+  if (logo) logo.src = resolveURL('img/logo.png');
+})();
+
+// Stop audio when clicking Home
+(function(){
+  const a = document.getElementById('homeLink');
+  const p = document.getElementById('player');
+  if(!a || !p) return;
+  a.addEventListener('click', (e)=>{
+    e.preventDefault();
+    try{ p.pause(); }catch(_){}
+    try{ p.removeAttribute('src'); p.load(); }catch(_){}
+    location.href = 'https://www.grandelement.com/';
+  });
+})();
+
+async function loadMusicListFast(){
+  const CACHEKEY='GE_MUSIC_LIST_V2';
+  try{
+    const cached = JSON.parse(localStorage.getItem(CACHEKEY)||'null');
+    if (Array.isArray(cached) && cached.length) return cached;
+  }catch(_){}
+  try{
+    const r = await fetch(resolveURL('manifest.json'),{cache:'no-store'});
+    if(r.ok){
+      const j = await r.json();
+      const list = Array.isArray(j) ? j : (Array.isArray(j.files) ? j.files : []);
+      const arr = list.map((p)=>{
+        p = String(p||'').replace(/^\//,'');
+        p = p.replace(/^ge-music\//,'');
+        return resolveURL(p);
+      });
+      localStorage.setItem(CACHEKEY, JSON.stringify(arr));
+      return arr;
+    }
+  }catch(_){}
+  const LIMIT=16, MAX=180, EXTS=['mp3','m4a','ogg','wav'];
+  const tasks=[]; const found=[];
+  function head(u){ return fetch(u,{method:'HEAD',cache:'no-store'}).then(r=>r.ok).catch(()=>false); }
+  for(let n=1;n<=MAX;n++){ for(const e of EXTS){ const url = resolveURL(`music/${n}.${e}`); tasks.push(async ()=>{ if(await head(url)) found.push(url); }); } }
+  let i=0; await Promise.all(new Array(LIMIT).fill(0).map(async ()=>{ while(i<tasks.length){ await tasks[i++](); } }));
+  found.sort(); localStorage.setItem(CACHEKEY, JSON.stringify(found)); return found;
+}
+
+(function(){
+  const player = document.getElementById('player');
+  const titleBtn = document.getElementById('titleBtn');
+  const listEl  = document.getElementById('trackList');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const albumBtn= document.getElementById('albumBtn');
+  const shuffleBtn=document.getElementById('shuffleBtn');
+
+  // iOS autoplay unlock: first user gesture forces play
+  let unlocked=false;
+  function unlockAutoplay(){
+    if(unlocked) return;
+    unlocked=true;
+    try{ player.play(); }catch(_){}
+    window.removeEventListener('pointerdown', unlockAutoplay);
+    window.removeEventListener('touchstart', unlockAutoplay);
+  }
+  window.addEventListener('pointerdown', unlockAutoplay, {once:true});
+  window.addEventListener('touchstart', unlockAutoplay, {once:true});
+
+  let albumList=[], queue=[], idx=0;
+  let mode='shuffle';
+  let untilNextID = parseInt(localStorage.getItem('GE_untilNextID') || '', 10);
+  if (!Number.isFinite(untilNextID) || untilNextID < 1) {
+    untilNextID = Math.floor(4 + Math.random() * 3);
+  }
+  const STATION_IDS = Array.from({length: 10}, (_, i) =>
+    resolveURL(`clips/GE Station Identification - ${i}.m4a`)
+  );
+
+  function fisher(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
+
+  function setMode(m){
+    const current = queue[idx] || null;
+    mode=m;
+    albumBtn.setAttribute('aria-pressed', String(m==='album'));
+    shuffleBtn.setAttribute('aria-pressed', String(m==='shuffle'));
+
+    if (mode === 'album' && current){
+      const cur = parseName(current);
+      const sameAlbum = albumList
+        .filter(u => !isStationID(u) && parseName(u).album.toLowerCase() === cur.album.toLowerCase())
+        .sort((a,b)=>{
+          const ta = parseInt(parseName(a).track||'0')||0;
+          const tb = parseInt(parseName(b).track||'0')||0;
+          return ta - tb;
+        });
+      queue = sameAlbum.length ? sameAlbum : albumList.slice();
+    } else {
+      queue = albumList.slice();
+      fisher(queue);
+    }
+
+    if (current){
+      const stay = queue.indexOf(current);
+      idx = stay >= 0 ? stay : 0;
+      titleBtn.textContent = formatTitle(current, mode);
+    } else {
+      idx = 0;
+    }
+    renderList();
+  }
+
+  async function urlForPlayback(url){
+    const offlineOn = localStorage.getItem('GE_OFFLINE_ACTIVE') === '1';
+    if (offlineOn && 'caches' in window) {
+      const cache = await caches.open('ge-radio-v1');
+      const hit = await cache.match(url, {ignoreVary:true, ignoreSearch:true});
+      if (hit) { const blob = await hit.blob(); return URL.createObjectURL(blob); }
+    }
+    return url;
+  }
+
+  async function play(n){
+    if(!queue.length) return;
+    idx=(n%queue.length+queue.length)%queue.length;
+
+    if(untilNextID<=0 && STATION_IDS.length){
+      untilNextID = Math.floor(4 + Math.random()*3);
+      localStorage.setItem('GE_untilNextID', String(untilNextID));
+      const idUrl = STATION_IDS[(Math.random()*STATION_IDS.length)|0];
+      queue.splice(idx,0,idUrl);
+    }
+    const url = queue[idx];
+    const isID = isStationID(url);
+    titleBtn.textContent = formatTitle(url, mode);
+    if(!isID){
+      untilNextID--;
+      localStorage.setItem('GE_untilNextID', String(untilNextID));
+    }
+
+    if('mediaSession' in navigator){
+      try{
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: titleBtn.textContent, artist:'Grand Element Radio',
+          artwork:[{src:resolveURL('img/logo.png'),sizes:'512x512',type:'image/png'}]
+        });
+        const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
+        safe('previoustrack', ()=> prevBtn.click());
+        safe('nexttrack',  ()=> nextBtn.click());
+        safe('play',       ()=> player.play());
+        safe('pause',      ()=> player.pause());
+        safe('seekbackward', ()=> prevBtn.click());
+        safe('seekforward',  ()=> nextBtn.click());
+      }catch(_){}
+    }
+
+    try{
+      if (player.dataset.objurl) { URL.revokeObjectURL(player.dataset.objurl); player.dataset.objurl=''; }
+      const playURL = await urlForPlayback(url);
+      if (playURL.startsWith && playURL.startsWith('blob:')) player.dataset.objurl = playURL;
+      player.src = playURL;
+      await player.play().catch(()=>{});
+    }catch(_){ play(idx+1); }
+  }
+
+  prevBtn.addEventListener('click', ()=> play(idx-1));
+  nextBtn.addEventListener('click', ()=> play(idx+1));
+  player.addEventListener('ended', ()=> play(idx+1));
+  player.addEventListener('error', ()=>{
+    const key = 'GE_ERR_RETRY_' + idx;
+    const tried = sessionStorage.getItem(key)==='1';
+    if (!tried) {
+      sessionStorage.setItem(key,'1');
+      try{ player.load(); }catch(_){ }
+      player.play().catch(()=> play(idx+1));
+    } else {
+      play(idx+1);
+    }
+  });
+
+  titleBtn.addEventListener('click', ()=>{
+    const open = listEl.style.display === 'block';
+    listEl.style.display = open ? 'none' : 'block';
+    titleBtn.setAttribute('aria-expanded', String(!open));
+  });
+
+  albumBtn.addEventListener('click', ()=> setMode('album'));
+  shuffleBtn.addEventListener('click', ()=> setMode('shuffle'));
+
+  function renderList(){
+    const clean = albumList.filter(u=>!isStationID(u));
+    listEl.innerHTML = clean.map((u)=>`<button data-u="${u}">${formatTitle(u,'shuffle')}</button>`).join('');
+    listEl.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{
+      const url=b.getAttribute('data-u');
+      const i=queue.indexOf(url);
+      play(i>=0?i:0);
+      listEl.style.display='none'; titleBtn.setAttribute('aria-expanded','false');
+    }));
+  }
+
+  (async function init(){
+    const list = (await loadMusicListFast()).filter(u=>!isStationID(u));
+    albumList = list;
+    setMode('shuffle');
+    play(0);
+  })();
+})();
+
+/* Backgrounds */
+(function(){
+  const bg = document.getElementById('bg');
+  const $  = id=>document.getElementById(id);
+  const btnPrev=$('bgPrev'), btnNext=$('bgNext');
+  const btnOff =$('bgOff'),  btnPer =$('bgPer'),  btnShuf=$('bgShuf'), btnAuto=$('bgAuto');
+  if (!bg || !btnPrev || !btnNext || !btnOff || !btnPer || !btnShuf || !btnAuto) return;
+
+  const ABS_BASE = resolveURL('img/');
+  const OFFLINE_KEY = 'GE_OFFLINE_ACTIVE';
+  const offlineActive = (localStorage.getItem(OFFLINE_KEY) === '1');
+
+  const OFFLINE_FILES = [
+    '1.gif','47.png','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png',
+    '15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif',
+    '30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'
+  ];
+
+  let files = OFFLINE_FILES.slice();
+  let order = files.slice();
+  let pos = 0;
+
+  // Persisted states
+  let perSong = true;
+  let shuffle = false;
+  let off = false;
+  let autoMode = true; // AUTO ON by default
+  let autoTimer = null;
+
+  const lsPer  = localStorage.getItem('bgPerSong');
+  const lsShuf = localStorage.getItem('bgShuffle');
+  const lsOff  = localStorage.getItem('bgOff');
+  const lsAuto = localStorage.getItem('bgAuto');
+
+  perSong  = (lsPer  === null) ? true  : (lsPer  === '1');
+  shuffle  = (lsShuf === null) ? false : (lsShuf === '1');
+  off      = (lsOff  === null) ? false : (lsOff  === '1');
+  autoMode = (lsAuto === null) ? true  : (lsAuto === '1');
+
+  // Rule: when AUTO is on, it owns timed changes, and disables Per Song and Shuffle
+  if (autoMode){
+    perSong = false;
+    shuffle = false;
+  }
+
+  function persist(){
+    try{
+      localStorage.setItem('bgPerSong', perSong ? '1' : '0');
+      localStorage.setItem('bgShuffle', shuffle ? '1' : '0');
+      localStorage.setItem('bgOff',     off     ? '1' : '0');
+      localStorage.setItem('bgAuto',    autoMode? '1' : '0');
+      localStorage.setItem('bgPos', String(pos));
+    }catch(_){}
+  }
+
+  function setBGByIndex(i){
+    if (!order.length) { bg.style.backgroundImage = 'none'; return; }
+    pos = (i % order.length + order.length) % order.length;
+    const fname = order[pos];
+    bg.style.backgroundImage = off ? 'none' : `url("${ABS_BASE + fname}")`;
+    persist();
+  }
+
+  function pickNextIndex(){
+    if (!order.length) return 0;
+    if (shuffle) return (Math.random()*order.length)|0;
+    return pos + 1;
+  }
+
+  function reflect(){
+    btnPer.setAttribute('aria-pressed', String(perSong));
+    btnShuf.setAttribute('aria-pressed', String(shuffle));
+    btnOff.setAttribute('aria-pressed', String(off));
+    btnAuto.setAttribute('aria-pressed', String(autoMode));
+  }
+
+  function stopAuto(){
+    if (autoTimer){ clearInterval(autoTimer); autoTimer = null; }
+  }
+  function startAuto(){
+    stopAuto();
+    if (autoMode && !off && order.length){
+      autoTimer = setInterval(()=> setBGByIndex(pickNextIndex()), CONFIG.BG_AUTO_SECONDS*1000);
+    }
+  }
+
+  function nextManual(){
+    off = false; reflect();
+    setBGByIndex(pickNextIndex());
+  }
+  function prevManual(){
+    off = false; reflect();
+    setBGByIndex(pos-1);
+  }
+
+  btnPrev.addEventListener('click', ()=>{ nextManual(); });
+  btnNext.addEventListener('click', ()=>{ prevManual(); });
+
+  btnOff.addEventListener('click', ()=>{
+    off = !off; reflect();
+    if (off){ bg.style.backgroundImage = 'none'; stopAuto(); }
+    else { setBGByIndex(pos); if (autoMode) startAuto(); }
+  });
+
+  btnPer.addEventListener('click', ()=>{
+    perSong = !perSong;
+    if (perSong){
+      autoMode = false;
+      stopAuto();
+    }
+    reflect();
+    if (!off) setBGByIndex(pos);
+  });
+
+  btnShuf.addEventListener('click', ()=>{
+    shuffle = !shuffle;
+    if (shuffle){
+      autoMode = false;
+      stopAuto();
+    }
+    reflect();
+    if (!off) setBGByIndex(pos);
+  });
+
+  btnAuto.addEventListener('click', ()=>{
+    autoMode = !autoMode;
+    if (autoMode){
+      perSong = false;
+      shuffle = false;
+      if (!off) startAuto();
+    } else {
+      stopAuto();
+    }
+    reflect();
+    if (!off) setBGByIndex(pos);
+  });
+
+  // Per Song must react to end, Next, Prev
+  const audio = document.getElementById('player');
+  const nextTrackBtn = document.getElementById('nextBtn');
+  const prevTrackBtn = document.getElementById('prevBtn');
+
+  if (audio){
+    audio.addEventListener('ended', ()=>{
+      if (perSong && !off && !autoMode){ setBGByIndex(pickNextIndex()); }
+    });
+  }
+  if (nextTrackBtn){
+    nextTrackBtn.addEventListener('click', ()=>{
+      if (perSong && !off && !autoMode){ setBGByIndex(pickNextIndex()); }
+    });
+  }
+  if (prevTrackBtn){
+    prevTrackBtn.addEventListener('click', ()=>{
+      if (perSong && !off && !autoMode){ setBGByIndex(pickNextIndex()); }
+    });
+  }
+
+  async function init(){
+    const stored = parseInt(localStorage.getItem('bgPos') || '0', 10);
+    if (Number.isFinite(stored)) pos = stored; else pos = 0;
+
+    if (offlineActive){
+      files = OFFLINE_FILES.slice();
+      order = files.slice();
+      pos = 0;
+      reflect();
+      if (!off) setBGByIndex(pos);
+      if (autoMode && !off) startAuto();
+      return;
+    }
+
+    try{
+      const resp = await fetch(resolveURL('img/manifest.json'), {cache:'no-store'});
+      if (resp.ok){
+        const arr = await resp.json();
+        if (Array.isArray(arr)){
+          const imgs = arr.filter(name => /\.(gif|png|jpe?g|webp)$/i.test(name));
+          if (imgs.length){
+            files = imgs;
+            order = files.slice();
+            if (pos >= order.length) pos = 0;
+          }
+        }
+      }
+    }catch(_){}
+    reflect();
+    if (!off) setBGByIndex(pos);
+    if (autoMode && !off) startAuto();
+  }
+
+  reflect();
+  init();
+})();
+
+/* HUD idle hide/show */
+(function(){
+  const IDLE_MS = 15000;
+  let hudHidden=false, lastActivity=Date.now();
+  const body=document.body;
+  function hide(){ body.classList.add('hud-hidden'); hudHidden=true; }
+  function show(){ body.classList.remove('hud-hidden'); hudHidden=false; }
+  function mark(){ lastActivity = Date.now(); }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>{ show(); mark(); }, {once:true});
+  else { show(); mark(); }
+
+  ['pointerdown','pointermove','wheel','keydown','touchstart','scroll'].forEach(evt=>{
+    window.addEventListener(evt, ()=>{ show(); mark(); }, {passive:true});
+  });
+  setInterval(()=>{ const idle = Date.now() - lastActivity; if(!hudHidden && idle >= IDLE_MS) hide(); }, 1000);
+  const tap = document.getElementById('hudTap');
+  if (tap){ tap.addEventListener('pointerdown', (e)=>{ e.preventDefault(); show(); mark(); }, {passive:false}); }
+})();
+
+/* Offline prefetch */
+(function(){
+  const btn = document.getElementById('offlineBtn');
+  const bar = document.getElementById('offlineProgress');
+  if(!btn || !bar) return;
+
+  const CACHE='ge-radio-v1';
+  const KEY  ='GE_OFFLINE_ACTIVE';
+
+  let dlAbort=null;
+
+  async function collectMusic(){ try{ return (await loadMusicListFast()); } catch(_){ return []; } }
+
+  async function prefetchAll(){
+    const cache = await caches.open(CACHE);
+    const music = await collectMusic();
+
+    const BG_FILES = ['0.gif','1.gif','47.png','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'].map(f => resolveURL('img/' + f));
+    const ID_FILES = Array.from({length:10}, (_,i)=> resolveURL('clips/GE Station Identification - ' + i + '.m4a'));
+    const assets = [location.href, resolveURL('img/logo.png'), ...BG_FILES, ...music, ...ID_FILES];
+
+    dlAbort = new AbortController();
+    let done=0; bar.value=0; btn.classList.add('downloading');
+    for(const u of assets){
+      if(dlAbort.signal.aborted) break;
+      try{ const res = await fetch(u, {signal: dlAbort.signal}); if(res.ok){ await cache.put(u, res.clone()); } }
+      catch(_){}
+      done++; bar.value = Math.round(done*100/assets.length);
+    }
+    btn.classList.remove('downloading');
+    return done>0;
+  }
+
+  function setActive(on){
+    btn.classList.toggle('active', !!on);
+    btn.textContent = on ? 'Offline (On)' : 'Go Offline';
+    try{ localStorage.setItem(KEY, on?'1':'0'); }catch(_){}
+  }
+  setActive(localStorage.getItem(KEY)==='1');
+
+  btn.addEventListener('click', async ()=>{
+    if(btn.classList.contains('downloading')){
+      dlAbort?.abort();
+      if(confirm('Stop downloading and remove all cached files?')){
+        const keys = await caches.keys();
+        for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+        setActive(false); bar.value=0; return;
+      } else { return; }
+    }
+
+    if(!btn.classList.contains('active')){
+      const estGB = (CONFIG.OFFLINE_EST_GB || 1).toFixed(1).replace(/\.0$/,'');
+      const estMin = CONFIG.OFFLINE_EST_MINUTES || 5;
+      const msg =
+        `Offline download is about ${estGB} GB.\n` +
+        `Make sure you have at least 1 GB free space.\n` +
+        `Wi Fi is recommended.\n` +
+        `Estimated time: about ${estMin} minutes (depends on your connection).\n\n` +
+        `Press OK to start downloading.`;
+      if(!confirm(msg)) return;
+
+      btn.disabled=true;
+      const ok = await prefetchAll();
+      btn.disabled=false;
+      if(ok){ setActive(true); bar.value=100; alert('Offline ready. You can reload or go offline now.'); }
+      return;
+    }
+
+    if(!confirm('Remove all offline files and cache?')) return;
+    const keys = await caches.keys();
+    for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+    for(let v=100; v>=0; v-=5){ bar.value=v; await new Promise(r=>setTimeout(r,8)); }
+    setActive(false);
+  });
+})();
+</script>
+</body>
+</html>
