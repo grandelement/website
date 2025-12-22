@@ -3,7 +3,26 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Grand Element - Welcome! (Official Site)</title>
+<title>Grand Element (Official Site) - Welcome!</title>
+
+  <!-- Social preview + icons -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Grand Element (Official Site) - Welcome!">
+  <meta property="og:description" content="The official home of Grand Element. Music, albums, and immersive soundscapes.">
+  <meta property="og:url" content="https://www.grandelement.com/">
+  <meta property="og:image" content="https://www.grandelement.com/ge-images/images/Welcome.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Grand Element (Official Site) - Welcome!">
+  <meta name="twitter:description" content="The official home of Grand Element. Welcome!">
+  <meta name="twitter:image" content="https://www.grandelement.com/ge-images/images/Welcome.jpg">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
 <style>
   :root{
     --img-base: ge-images/images/;
@@ -48,7 +67,7 @@
   body{
     margin:0; overflow:hidden; color:#eaf2ff; background:#000;
     background-image:
-      url('https://grandelement.github.io/website/ge-images/images/GE%20stars.jpg'),
+      url('ge-images/images/GE stars.jpg'),
       radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
     background-position: center center, 0 0;
     background-repeat: no-repeat, repeat;
@@ -72,7 +91,7 @@
   .sunWrap.dragging{ cursor:grabbing; }
 
   .sun{ position:absolute; inset:0; border-radius:50%;
-        background:center/cover no-repeat url('https://grandelement.github.io/website/ge-images/images/ge-logo-2.jpg');
+        background:center/cover no-repeat url('ge-images/images/ge-logo-2.jpg');
         box-shadow: inset 0 0 60px rgba(255,255,255,.12); z-index:3; pointer-events:auto; }
 
   /* ABOUT at top of sun */
@@ -167,7 +186,7 @@
   /* Planets */
   .planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   .planet{ position:absolute; width:var(--planet-size); height:var(--planet-size); border-radius:50%; pointer-events:auto; overflow:hidden; cursor:pointer;
-           background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 calc(10px + (var(--pulse) * 26px)) rgba(255,255,255,.25), 0 0 calc(2px + (var(--pulse) * 12px)) rgba(0,170,255,.35);
+           background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 10px rgba(255,255,255,.25);
            transition: transform .2s ease, box-shadow .18s ease; }
   .planet:hover, .planet.touchZoom{ transform:scale(var(--planet-hover-scale)); box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset; }
   .planet .label{ position:absolute; left:50%; top:-12px; transform:translate(-50%,-100%); padding:6px 10px; border-radius:999px; white-space:nowrap;
@@ -182,7 +201,8 @@
       0 0 18px rgba(255,255,255,.5),
       0 0 var(--planet-glow) rgba(255,255,255,.7);
     animation:planetActivePulse 2.4s ease-in-out infinite;
-  }
+    box-shadow:0 0 calc(10px + (var(--pulse) * 26px)) rgba(255,255,255,.25), 0 0 calc(2px + (var(--pulse) * 12px)) rgba(0,170,255,.35);
+}
   @keyframes planetActivePulse{
     0%{
       box-shadow:
@@ -294,7 +314,7 @@
     <div class="orbit" id="orbit">
       <div class="carrier">
         <div class="moon" id="moon" title="Grand Element Radio">
-          <img alt="Grand Element Radio" src="https://grandelement.github.io/website/ge-images/images/ge-radio-logo.png">
+          <img alt="Grand Element Radio" src="ge-images/images/ge-radio-logo.png">
         </div>
       </div>
     </div>
@@ -519,7 +539,7 @@ moon.addEventListener('click', ()=>{
   }catch(e){}
 
   // Navigate to Radio on the same host (works for GitHub Pages and custom domain)
-  const radioPath = location.pathname.startsWith('/website') ? '/website/radio/' : '/radio/';
+  const radioPath = location.pathname.startsWith('/website') ? '/radio/' : '/radio/';
   location.href = radioPath;
 });
 
@@ -540,10 +560,10 @@ moon.addEventListener('click', ()=>{
   const tgShuffle = document.getElementById('tgShuffle');
   const tgAlbum   = document.getElementById('tgAlbum');
 
-  // Base path selector: GitHub Pages serves under /website/, custom domain may serve at /
-  const BASE_PATH = (location.pathname.startsWith('/website/')) ? '/website/' : '/';
+  // Base path selector: GitHub Pages serves under /, custom domain may serve at /
+  const BASE_PATH = (location.pathname.startsWith('/')) ? '/' : '/';
   const ASSET_BASE = (BASE_PATH === '/' ? '' : BASE_PATH.slice(0,-1));
-  // Ensure image paths work on both /website/ (GitHub Pages) and domain root
+  // Ensure image paths work on both / (GitHub Pages) and domain root
   try{ document.documentElement.style.setProperty('--img-base', ASSET_BASE + '/ge-images/images/'); }catch(e){}
 
 
@@ -557,15 +577,6 @@ moon.addEventListener('click', ()=>{
   });
 
   let PLAYLIST=[], pIndex=0, SHUFFLE=true, started=false;
-
-  // Cross-page audio control: when the website loads, tell the Radio page to stop.
-  // (Works across tabs/windows on the same origin.)
-  try{
-    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('GE_AUDIO') : null;
-    if(bc){ bc.postMessage({type:'STOP_RADIO', t:Date.now()}); bc.close(); }
-    // Fallback for browsers without BroadcastChannel
-    localStorage.setItem('GE_STOP_RADIO', String(Date.now()));
-  }catch(e){}
 
   // Audio-reactive shading (WebAudio analyser). Must be created on a user gesture (iOS rule).
   let audioCtx=null, analyser=null, dataArr=null, pulse=0;
@@ -674,7 +685,7 @@ moon.addEventListener('click', ()=>{
   async function fetchAllMp3s(){
     // Prefer local manifest.json (fast + no GitHub API limits)
     try{
-      const manifestUrl = location.origin + BASE_PATH + 'radio/manifest.json';
+      const manifestUrl = location.origin + '/radio/manifest.json';
       const mr = await fetch(manifestUrl, {cache:'no-store'});
       if(mr.ok){
         const mj = await mr.json();
@@ -695,7 +706,7 @@ moon.addEventListener('click', ()=>{
       }
     }catch(e){}
 
-    const r = await fetch('https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
+    const r = await fetch('https://api.github.com/repos/grandelement/git/trees/main?recursive=1',
                           {headers:{'Accept':'application/vnd.github+json'}});
     if(!r.ok) return [];
     const data = await r.json();
@@ -790,11 +801,9 @@ moon.addEventListener('click', ()=>{
   fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
     PLAYLIST = list;
+    btnPlay.textContent='▶';
+    started = false;
     pIndex = 0;
-    started = true;
-    btnPlay.textContent='❚❚';
-    // Autostart like the Radio page
-    applyOrder();
   }).catch(err=>{
     console.error('Playlist load failed', err);
     nowPlaying.textContent = 'Error loading tracks.';
@@ -1514,6 +1523,70 @@ function nudgeSunNow(){
   wrap.style.transform='translate(-50%,-50%)';
 }
 addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
+
+// ---- Autostart + iOS unlock (best-effort; iOS may require a tap) ----
+let __autostartTried = false;
+
+async function tryAutoStart() {
+  if (__autostartTried) return;
+  __autostartTried = true;
+
+  try {
+    // build playlist first
+    if (!PLAYLIST || !PLAYLIST.length) {
+      await loadPlaylist();
+    }
+    if (!PLAYLIST || !PLAYLIST.length) return;
+
+    // iOS: attempt muted start so the element is "playing", then unmute on first gesture
+    if (player) {
+      player.muted = true;
+      player.volume = 1;
+    }
+
+    started = true;
+    if (typeof applyOrder === 'function') applyOrder();
+
+    await player.play();
+    if (navigator.mediaSession) navigator.mediaSession.playbackState = 'playing';
+
+  } catch (e) {
+    // silently fail: iOS will block until user gesture
+  }
+}
+
+function unlockAudio() {
+  try {
+    ensureAudioGraph();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {}
+
+  if (player) {
+    player.muted = false;
+  }
+
+  // if it still isn't playing, try once more after the gesture
+  if (player && player.paused) {
+    try { player.play(); } catch (e) {}
+  }
+}
+
+window.addEventListener('load', () => {
+  // Autostart attempt (desktop usually works; iOS may block until a tap)
+  tryAutoStart();
+
+  // First user gesture unlocks real audio (required on iPhone)
+  const once = () => {
+    unlockAudio();
+    window.removeEventListener('pointerdown', once, true);
+    window.removeEventListener('touchstart', once, true);
+    window.removeEventListener('keydown', once, true);
+  };
+  window.addEventListener('pointerdown', once, true);
+  window.addEventListener('touchstart', once, true);
+  window.addEventListener('keydown', once, true);
+});
+
 </script>
 </body>
 </html>
