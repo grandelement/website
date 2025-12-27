@@ -11,6 +11,18 @@
   *{ touch-action:manipulation; -ms-overflow-style:none; scrollbar-width:none; }
   ::-webkit-scrollbar{ display:none; }
 
+/* Safari top chrome separator masking (prevents the thin white line effect) */
+  body::before{
+    content:"";
+    position:fixed;
+    top:0; left:0; right:0;
+    height: env(safe-area-inset-top);
+    background:#000;
+    z-index:3;
+    pointer-events:none;
+  }
+
+
   #bg{position:fixed;inset:0;z-index:0;background:#000 center/cover no-repeat;pointer-events:none}
   #hudTap{position:fixed;inset:0;z-index:9999;display:none;background:transparent}
   body.hud-hidden #hudTap{display:block}
@@ -72,8 +84,12 @@
 
   .bc-btn{display:inline-block;padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;letter-spacing:.2px;text-decoration:none;border:0.5px solid rgba(0,0,0,.35);box-shadow:0 10px 28px rgba(255,79,31,.45), 0 2px 0 rgba(0,0,0,.2) inset;font-size:14px}
   #bgGroup{display:flex;flex-direction:column;align-items:center;}
-  #bgGroup .bg-row{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;}
-  @media (max-width:480px){ #bgGroup .bg-row{gap:4px;} }
+  #bgGroup .bg-row{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;width:100%;}
+  #bgGroup .bg-row .btn{flex:1 1 auto;min-width:0;text-align:center;}
+
+  @media (max-width:480px){ #bgGroup .bg-row{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;width:100%;}
+  #bgGroup .bg-row .btn{flex:1 1 auto;min-width:0;text-align:center;}
+ }
 
   .offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
   .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,.64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer}
@@ -86,7 +102,6 @@
 
   .live-on .logo-wrap { position:relative; }
   .live-on .logo-wrap > canvas#live-glow { position:absolute; inset:0; pointer-events:none; }
-  #bgGroup button.btn{ transform: scale(0.85); transform-origin:center; font-size:0.9em; padding:8px 10px; }
   .ghost{display:none;}
   @media (max-width:420px){ .ghost{display:none;} }
 </style>
@@ -172,7 +187,14 @@ const CONFIG = {
   COVER_BACKGROUND_PICTURE: '',
   OFFLINE_EST_GB: 1.0,
   OFFLINE_EST_MINUTES: 5,
-  BG_AUTO_SECONDS: 33
+  BG_AUTO_SECONDS: 33,
+  // Weighted shuffle: promote these albums ~2/3 of the time in Shuffle mode
+  WEIGHTED_SHUFFLE_ON: true,
+  PRIORITY_ALBUMS: ['Energy','Love','Spirit','Fire'],
+  PRIORITY_WEIGHT: 0.66,
+  AVOID_REPEAT_LAST_N: 3,
+  // Force Auto backgrounds ON (overrides saved toggle)
+  FORCE_BG_AUTO_ON: true
 };
 function resolveURL(p){
   if (/^https?:/i.test(p)) return p;
@@ -252,6 +274,14 @@ async function loadMusicListFast(){
   window.addEventListener('touchstart', unlockAutoplay, {once:true});
 
   let albumList=[], queue=[], idx=0;
+  let recentHistory = [];
+  function pushHistory(url){
+    if(!url || isStationID(url)) return;
+    const keep = Math.max(1, Number(CONFIG.AVOID_REPEAT_LAST_N)||1);
+    recentHistory = [url, ...recentHistory.filter(u=>u!==url)].slice(0, keep);
+  }
+  function historySet(){ return new Set(recentHistory); }
+
   let mode='shuffle';
   let untilNextID = parseInt(localStorage.getItem('GE_untilNextID') || '', 10);
   if (!Number.isFinite(untilNextID) || untilNextID < 1) {
@@ -314,10 +344,18 @@ async function loadMusicListFast(){
       const idUrl = STATION_IDS[(Math.random()*STATION_IDS.length)|0];
       queue.splice(idx,0,idUrl);
     }
-    const url = queue[idx];
+    let url;
+    if(mode==='shuffle'){
+      url = pickWeightedNext(historySet()) || queue[idx];
+      const found = queue.indexOf(url);
+      if(found>=0) idx = found;
+    } else {
+      url = queue[idx];
+    }
     const isID = isStationID(url);
     titleBtn.textContent = formatTitle(url, mode);
     if(!isID){
+      pushHistory(url);
       untilNextID--;
       localStorage.setItem('GE_untilNextID', String(untilNextID));
     }
@@ -333,8 +371,9 @@ async function loadMusicListFast(){
         safe('nexttrack',  ()=> nextBtn.click());
         safe('play',       ()=> player.play());
         safe('pause',      ()=> player.pause());
-        safe('seekbackward', ()=> prevBtn.click());
-        safe('seekforward',  ()=> nextBtn.click());
+        // Remove iOS 10-second seek controls
+        try{ navigator.mediaSession.setActionHandler('seekbackward', null); }catch(_){ }
+        try{ navigator.mediaSession.setActionHandler('seekforward',  null); }catch(_){ }
       }catch(_){}
     }
 
@@ -428,6 +467,7 @@ async function loadMusicListFast(){
   shuffle  = (lsShuf === null) ? false : (lsShuf === '1');
   off      = (lsOff  === null) ? false : (lsOff  === '1');
   autoMode = (lsAuto === null) ? true  : (lsAuto === '1');
+  if (CONFIG.FORCE_BG_AUTO_ON) { autoMode = true; }
 
   // Rule: when AUTO is on, it owns timed changes, and disables Per Song and Shuffle
   if (autoMode){
@@ -485,8 +525,8 @@ async function loadMusicListFast(){
     setBGByIndex(pos-1);
   }
 
-  btnPrev.addEventListener('click', ()=>{ nextManual(); });
-  btnNext.addEventListener('click', ()=>{ prevManual(); });
+  btnPrev.addEventListener('click', ()=>{ prevManual(); });
+  btnNext.addEventListener('click', ()=>{ nextManual(); });
 
   btnOff.addEventListener('click', ()=>{
     off = !off; reflect();
