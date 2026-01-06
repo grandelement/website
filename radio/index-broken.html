@@ -100,7 +100,7 @@
 
   .offline-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap;width:min(720px,94vw)}
   .offline-btn{appearance:none;border:1px solid var(--btn-br);background:rgba(13,27,38,.64);color:var(--fg);padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .offline-btn.active{background:#0e2f1f;border-color:#1f6b4d;box-shadow:0 0 12px rgba(0,255,168,.25) inset;color:#b8ffdf}
+  .offline-btn.active{background:#0b6a3a;border-color:#19a35f;box-shadow:0 0 14px rgba(0,255,168,.30) inset;color:#eafff6}
   .offline-btn.downloading{background:#2a2130;border-color:#5b3a5f}
   progress{width:min(640px,80vw);height:12px;border:0;background:#0b1b26;border-radius:999px}
   progress::-webkit-progress-bar{background:#0b1b26;border-radius:999px}
@@ -183,8 +183,8 @@
         <button class="btn" id="bgPrev">Prev</button>
         <button class="btn" id="bgNext">Next</button>
         <button class="btn tgl" id="bgPer" aria-pressed="true">Per Song</button>
-        <button class="btn tgl" id="bgShuf" aria-pressed="false">Shuffle</button>
-        <button class="btn tgl" id="bgAuto" aria-pressed="true">Auto</button>
+        <button class="btn tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
+        <button class="btn tgl" id="bgAuto" aria-pressed="false">Auto</button>
       </div>
     </div></div>
 
@@ -314,18 +314,8 @@ async function loadMusicListFast(){
       const j = await r.json();
       const list = Array.isArray(j) ? j : (Array.isArray(j.files) ? j.files : []);
       const arr = list.map((p)=>{
-        p = String(p||'').trim();
-        // Normalize various manifest styles to real URLs
-        if (/^https?:\/\//i.test(p)) return p;
-        p = p.replace(/^\/+/, ''); // drop leading slash
-        if (p.startsWith('../')) return resolveURL(p);
-        // common cases:
-        //  - ge-music/music/...   (repo root)
-        //  - music/... or clips/... (inside ge-music)
-        //  - ge-images/img/...   (repo root)
-        if (p.startsWith('ge-music/')) p = '../' + p;
-        else if (p.startsWith('music/') || p.startsWith('clips/')) p = '../ge-music/' + p;
-        else if (p.startsWith('ge-images/')) p = '../' + p;
+        p = String(p||'').replace(/^\//,'');
+        p = p.replace(/^ge-music\//,'');
         return resolveURL(p);
       });
       localStorage.setItem(CACHEKEY, JSON.stringify(arr));
@@ -443,7 +433,7 @@ async function loadMusicListFast(){
     untilNextID = Math.floor(4 + Math.random() * 3);
   }
   const STATION_IDS = Array.from({length: 10}, (_, i) =>
-    resolveURL(`../ge-music/clips/GE Station Identification - ${i}.m4a`)
+    resolveURL(`clips/GE Station Identification - ${i}.m4a`)
   );
 
   function fisher(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
@@ -606,23 +596,50 @@ async function loadMusicListFast(){
   let order = files.slice();
   let pos = 0;
 
-  // Persisted states
-  let perSong = true;
-  let shuffle = false;
-  let off = false;
-  let autoMode = false; // AUTO ON by default
-  let autoTimer = null;
+  // Persisted states (single source of truth — no duplicate keys)
+  const LS_BG_PER   = 'GE_BG_PER_SONG';
+  const LS_BG_SHUF  = 'GE_BG_SHUFFLE';
+  const LS_BG_AUTO  = 'GE_BG_AUTO';
+  const LS_BG_OFF   = 'GE_BG_OFF';
+  const LS_BG_POS   = 'GE_BG_POS';
 
-  const lsPer  = localStorage.getItem('bgPerSong');
-  const lsShuf = localStorage.getItem('bgShuffle');
-  const lsOff  = localStorage.getItem('bgOff');
-  const lsAuto = localStorage.getItem('bgAuto');
+  // Clean up legacy keys from older builds (prevents “why isn’t it default?” bugs)
+  ['bgPerSong','bgShuffle','bgAutoMode','bgOff','bgPos',
+   'ge_bg_perSong','ge_bg_shuffle','ge_bg_autoMode','ge_bg_off','ge_bg_pos'
+  ].forEach(k => { try{ localStorage.removeItem(k); }catch(_){ } });
 
-  perSong  = (lsPer  === null) ? true  : (lsPer  === '1');
-  shuffle  = (lsShuf === null) ? false : (lsShuf === '1');
-  off      = (lsOff  === null) ? false : (lsOff  === '1');
-  autoMode = (lsAuto === null) ? true  : (lsAuto === '1');
-  if (CONFIG.FORCE_BG_AUTO_ON) { autoMode = false; }
+  // Defaults (what you want on first load)
+  let bgOff    = false;
+  let perSong  = true;
+  let bgShuffle= true;
+  let autoMode = false; // AUTO is a separate mode — not default
+
+  // Apply stored preferences if present
+  try{
+    const lsPer  = localStorage.getItem(LS_BG_PER);
+    const lsShuf = localStorage.getItem(LS_BG_SHUF);
+    const lsAuto = localStorage.getItem(LS_BG_AUTO);
+    const lsOff  = localStorage.getItem(LS_BG_OFF);
+
+    if(lsPer  !== null) perSong   = (lsPer  === '1');
+    if(lsShuf !== null) bgShuffle = (lsShuf === '1');
+    if(lsAuto !== null) autoMode  = (lsAuto === '1');
+    if(lsOff  !== null) bgOff     = (lsOff  === '1');
+  }catch(_){}
+
+  // Hard defaults you asked for (force on every fresh load)
+  perSong   = true;
+  bgShuffle = true;
+  autoMode  = false;
+  bgOff     = false;
+
+  // Persist the forced defaults immediately so Desktop and iPhone behave the same
+  try{
+    localStorage.setItem(LS_BG_PER,  '1');
+    localStorage.setItem(LS_BG_SHUF, '1');
+    localStorage.setItem(LS_BG_AUTO, '0');
+    localStorage.setItem(LS_BG_OFF,  '0');
+  }catch(_){}
 
   // Rule: when AUTO is on, it owns timed changes, and disables Per Song and Shuffle
   if (autoMode){
@@ -632,11 +649,11 @@ async function loadMusicListFast(){
 
   function persist(){
     try{
-      localStorage.setItem('bgPerSong', perSong ? '1' : '0');
-      localStorage.setItem('bgShuffle', shuffle ? '1' : '0');
-      localStorage.setItem('bgOff',     off     ? '1' : '0');
+      localStorage.setItem(LS_BG_PER, perSong ? '1' : '0');
+      localStorage.setItem(LS_BG_SHUF, shuffle ? '1' : '0');
+      localStorage.setItem(LS_BG_OFF,     off     ? '1' : '0');
       localStorage.setItem('bgAuto',    autoMode? '1' : '0');
-      localStorage.setItem('bgPos', String(pos));
+      localStorage.setItem(LS_BG_POS, String(pos));
     }catch(_){}
   }
 
@@ -744,7 +761,7 @@ async function loadMusicListFast(){
   }
 
   async function init(){
-    const stored = parseInt(localStorage.getItem('bgPos') || '0', 10);
+    const stored = parseInt(localStorage.getItem(LS_BG_POS) || '0', 10);
     if (Number.isFinite(stored)) pos = stored; else pos = 0;
 
     if (offlineActive){
@@ -808,56 +825,42 @@ async function loadMusicListFast(){
 /* Offline prefetch */
 (function(){
   const btn   = document.getElementById('offlineBtn');
+  const bar   = document.getElementById('offlineProgress');
   const wrap  = document.getElementById('offlineProgressWrap');
+  const fill  = document.getElementById('offlineProgressBar');
   const label = document.getElementById('offlineProgressLabel');
-  const bar   = document.getElementById('offlineProgressBar');
   const count = document.getElementById('offlineProgressCount');
-  if(!btn || !wrap || !label || !bar || !count) return;
+  if(!btn || !bar) return;
 
   const CACHE='ge-radio-v1';
-  const KEY_ACTIVE='GE_OFFLINE_ACTIVE';
-  const KEY_DONE='GE_OFFLINE_DONE';
-  const KEY_TOTAL='GE_OFFLINE_TOTAL';
+  const KEY  ='GE_OFFLINE_ACTIVE';
 
   let dlAbort=null;
 
-  function setBar(pct){
-    const clamped = Math.max(0, Math.min(100, pct));
-    bar.style.width = clamped + '%';
-  }
-  function setCounts(done,total){
-    done = Number(done)||0; total = Number(total)||0;
-    count.textContent = total ? `${done}/${total}` : '';
-    localStorage.setItem(KEY_DONE, String(done));
-    localStorage.setItem(KEY_TOTAL, String(total));
-    if(total && done >= total){
-      btn.classList.add('offline');
-      btn.textContent = 'Offline (On)';
-      label.textContent = 'Offline cache ready';
-      wrap.style.display = 'block';
-      setBar(100);
+  const ui = {
+    show(on){
+      if(wrap) wrap.style.display = on ? 'block' : 'none';
+      bar.style.display = on ? 'block' : 'none';
+    },
+    set(pct, text, done, total){
+      const p = Math.max(0, Math.min(100, pct|0));
+      bar.value = p;
+      if(fill)  fill.style.width = p + '%';
+      if(label) label.textContent = text || '';
+      if(count){
+        if(typeof done === 'number' && typeof total === 'number' && total > 0){
+          count.textContent = done + ' / ' + total;
+        }else{
+          count.textContent = '';
+        }
+      }
+    },
+    setFullReady(){
+      ui.show(true);
+      ui.set(100, 'Offline ready', 100, 100);
+      if(fill) fill.style.background = 'linear-gradient(90deg, #00ff9a, #00c97a)';
     }
-  }
-  function renderFromStorage(){
-    const active = localStorage.getItem(KEY_ACTIVE)==='1';
-    const done = Number(localStorage.getItem(KEY_DONE)||0);
-    const total = Number(localStorage.getItem(KEY_TOTAL)||0);
-    if(active){
-      wrap.style.display = 'block';
-      btn.classList.add('offline');
-      btn.textContent = 'Offline (On)';
-      label.textContent = (total && done<total) ? 'Offline cache (resume)' : 'Offline cache ready';
-      setBar(total ? (done/total*100) : 0);
-      count.textContent = total ? `${done}/${total}` : '';
-    } else {
-      // keep hidden unless downloading
-      wrap.style.display = 'none';
-      btn.classList.remove('offline');
-      btn.textContent = 'Go Offline';
-      setBar(0);
-      count.textContent = '';
-    }
-  }
+  };
 
   async function collectMusic(){ try{ return (await loadMusicListFast()); } catch(_){ return []; } }
 
@@ -865,85 +868,105 @@ async function loadMusicListFast(){
     const cache = await caches.open(CACHE);
     const music = await collectMusic();
 
-    const BG_FILES = ['0.gif','1.gif','47.png','32.jpeg','46.gif','41.gif','14.gif','24.gif']
-      .map(f => resolveURL('img/' + f));
+    // images used as backgrounds
+    const bg = (typeof BG_IMAGES !== 'undefined' && BG_IMAGES.length) ? BG_IMAGES : [];
+    const assets = [...bg, ...music.map(x=>x.url)].filter(Boolean);
 
-    const ID_FILES = Array.from({length:10}, (_,i)=>
-      resolveURL('../ge-music/clips/GE Station Identification - ' + i + '.m4a')
-    );
-
-    // Dedup
-    const assets = Array.from(new Set([
-      location.href,
-      resolveURL('img/logo.png'),
-      ...BG_FILES,
-      ...music,
-      ...ID_FILES
-    ]));
+    // Deduplicate
+    const seen = new Set();
+    const list = [];
+    for(const u of assets){ if(!seen.has(u)){ seen.add(u); list.push(u); } }
 
     dlAbort = new AbortController();
-    localStorage.setItem(KEY_ACTIVE,'1');
     btn.classList.add('downloading');
-    wrap.style.display='block';
+    btn.textContent = 'Downloading…';
+    ui.show(true);
+    ui.set(0, 'Preparing…', 0, list.length);
 
     let done = 0;
-    const total = assets.length;
-    setCounts(done,total);
-    label.textContent = 'Downloading…';
-
-    for(const u of assets){
-      if(dlAbort.signal.aborted) break;
+    for(const url of list){
+      if(dlAbort.signal.aborted) throw new Error('aborted');
       try{
-        const req = new Request(u, {cache:'reload'});
-        const res = await fetch(req, {signal: dlAbort.signal});
-        if(res && res.ok){
-          await cache.put(req, res.clone());
-        }
-      }catch(_){}
+        const req = new Request(url, { cache:'reload' });
+        const res = await fetch(req, { signal: dlAbort.signal });
+        if(res && res.ok) await cache.put(req, res.clone());
+      }catch(_){
+        // keep going — we just won’t cache that one
+      }
       done++;
-      setCounts(done,total);
-      label.textContent = (done>=total) ? 'Offline cache ready' : 'Downloading…';
-      setBar(total ? (done/total*100) : 0);
-    }
-
-    btn.classList.remove('downloading');
-    if(done>=total){
-      btn.classList.add('offline');
-      btn.textContent = 'Offline (On)';
-      setBar(100);
+      ui.set(Math.round(done / list.length * 100), 'Downloading…', done, list.length);
     }
   }
 
-  btn.addEventListener('click', async ()=>{
-    const active = localStorage.getItem(KEY_ACTIVE)==='1';
-    if(active){
-      // turn off
-      localStorage.setItem(KEY_ACTIVE,'0');
-      if(dlAbort) try{ dlAbort.abort(); }catch(_){}
-      btn.classList.remove('offline','downloading');
+  function setActive(on){
+    if(on){
+      btn.classList.add('active');
+      btn.classList.remove('downloading');
+      btn.textContent = 'Offline (On)';
+      try{ localStorage.setItem(KEY,'1'); }catch(_){}
+      ui.setFullReady(); // always show full green bar after reload, too
+    }else{
+      btn.classList.remove('active','downloading');
       btn.textContent = 'Go Offline';
-      wrap.style.display='none';
-      setBar(0);
-      count.textContent='';
-      label.textContent='';
+      try{ localStorage.setItem(KEY,'0'); }catch(_){}
+      ui.show(false);
+      ui.set(0,'',0,0);
+      if(fill) fill.style.background = '';
+    }
+  }
+
+  // Restore persisted offline state on load
+  setActive(localStorage.getItem(KEY)==='1');
+
+  btn.addEventListener('click', async ()=>{
+    // Cancel download + clear cache path
+    if(btn.classList.contains('downloading')){
+      dlAbort?.abort();
+      if(confirm('Stop downloading and remove all cached files?')){
+        const keys = await caches.keys();
+        for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+        setActive(false);
+        return;
+      }
       return;
     }
-    await prefetchAll();
-  });
 
-  renderFromStorage();
-})();;
+    // Enable offline
+    if(!btn.classList.contains('active')){
+      const estGB  = (CONFIG.OFFLINE_EST_GB || 1).toFixed(1).replace(/\.0$/,'');
+      const estMin = (CONFIG.OFFLINE_EST_MIN || 5);
+      const msg =
+        'Offline mode will download about ' + estGB + ' GB of data.
+' +
+        'Wi‑Fi is recommended.
+' +
+        'Make sure you have at least 1 GB free space.
+' +
+        'Estimated time: ~' + estMin + ' minutes (depends on your connection).
 
-  // Fallback: if UI indicates Offline (On) but no SW message arrived, show full bar.
-  setTimeout(()=>{
-    try{
-      const txt = (offlineBtn && offlineBtn.textContent || '').toLowerCase();
-      if(txt.includes('offline') && txt.includes('on')){
-        showProgressWrap(true);
-        setProgress(100,'Offline ready', 100, 100);
+' +
+        'Continue?';
+      if(!confirm(msg)) return;
+
+      try{
+        await prefetchAll();
+        setActive(true);
+      }catch(e){
+        setActive(false);
+      }finally{
+        btn.classList.remove('downloading');
+        if(!btn.classList.contains('active')) btn.textContent='Go Offline';
       }
-    }catch(_){}
-  }, 400);
+      return;
+    }
+
+    // Disable offline
+    if(!confirm('Remove all offline files and cache?')) return;
+    const keys = await caches.keys();
+    for(const k of keys) if(k.startsWith('ge-radio')) await caches.delete(k);
+    setActive(false);
+  });
+})();
 
 </script>
 </body>
