@@ -158,18 +158,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:28px;backgrou
 html, body { background:#000; margin:0; padding:0; }
 :root { --safe-top: env(safe-area-inset-top, 0px); --ui-offset: 12px; }
 #content { padding-top: calc(var(--safe-top) + var(--ui-offset)); }
-#bg { position: fixed; top: calc(-1 * var(--safe-top) - 8px); left:-8px; right:-8px; height: calc(100vh + var(--safe-top) + 16px); width: calc(100vw + 16px); background-size: cover; background-position: center; transform: translateZ(0); }
-
-/* Hard mask to eliminate any remaining 1px iOS seam at the very top */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:2px;background:#000;z-index:999999;pointer-events:none;}
-
-/* Hide iOS/Safari 10-second seek buttons when possible */
-audio::-webkit-media-controls-seek-back-button,
-audio::-webkit-media-controls-seek-forward-button,
-audio::-webkit-media-controls-rewind-button,
-audio::-webkit-media-controls-fast-forward-button{
-  display:none !important;
-}
+#bg { position: fixed; top: calc(-1 * var(--safe-top) - 1px); left:0; right:0; height: calc(100vh + var(--safe-top) + 2px); width: 100vw; background-size: cover; background-position: center; transform: translateZ(0); }
 
 </style>
 </head>
@@ -554,8 +543,7 @@ let directPickActive = false;
       if (found >= 0) idx = found;
       else { queue.splice(idx,0,forceUrl); idx = queue.indexOf(forceUrl); }
       url = forceUrl;
-    /* If the user directly picked a track (forceUrl/userPick), do NOT let shuffle override it. */
-    } else if(mode==='shuffle' && !directPickUrl && !forceUrl && !userPick){
+    } else if(mode==='shuffle' && !directPickUrl){
       url = pickWeightedNext(historySet()) || queue[idx];
       const found = queue.indexOf(url);
       if(found>=0) idx = found;
@@ -574,7 +562,7 @@ let directPickActive = false;
       try{
         navigator.mediaSession.metadata = new MediaMetadata({
           title: titleBtn.textContent, artist:'Grand Element Radio',
-          artwork:[{src:resolveURL('../ge-images/images/ge-logo-2.jpg'),sizes:'512x512',type:'image/jpeg'}]
+          artwork:[{src:resolveURL('../ge-images/images/ge-logo-2.jpg'),sizes:'512x512',type:'image/png'}]
         });
         const safe = (name,fn)=>{ try{ navigator.mediaSession.setActionHandler(name,fn);}catch(_){} };
         safe('previoustrack', ()=> prevBtn.click());
