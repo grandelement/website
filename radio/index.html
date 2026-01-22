@@ -47,7 +47,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:28px;backgrou
     border:1px solid rgba(80,110,140,.45);
     box-sizing:border-box;max-width:min(720px,94vw);backdrop-filter:saturate(1.1) blur(2px);
   }
-  #musicGroup{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
+  #musicGroup{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
   #musicGroup > button.btn{display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color: transparent;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1;gap:6px;padding:10px 10px;border-radius:14px;border:1px solid rgba(160,200,255,.28);background:rgba(10,20,35,.45);color:#eaf3ff;font-weight:600;font-size:14px;letter-spacing:.2px;user-select:none;min-height:42px;white-space:nowrap;display:flex;align-items:center;justify-content:center;}
   #musicGroup > .sep{flex:0 0 auto;}
 
@@ -111,14 +111,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:28px;backgrou
   .ghost{display:none;}
   @media (max-width:420px){ .ghost{display:none;} }
 @media (max-width:420px){
-    #musicGroup{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
+    #musicGroup{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
     #bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;}
   }
 
   #musicGroup .sep{display:none}
 
 @media (max-width:360px){
-    #musicGroup{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
+    #musicGroup{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:stretch;width:min(720px,94vw);margin:0 auto;padding:0;background:transparent;border:0;box-shadow:none}
     #bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;}
     #bgGroup .bg-row .btn{display:flex;align-items:center;justify-content:center;flex:1 1 45%}
     #musicGroup > button.btn{display:flex;align-items:center;justify-content:center;flex:1 1 45%}
@@ -171,6 +171,14 @@ audio::-webkit-media-controls-fast-forward-button{
   display:none !important;
 }
 
+
+  .sheet{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);z-index:9999}
+  .sheet.show{display:flex}
+  .sheetCard{width:min(520px,96vw);background:rgba(0,0,0,.88);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:14px 14px 18px;margin:12px;backdrop-filter:blur(10px)}
+  .sheetTitle{font-weight:700;text-align:center;margin:6px 0 10px}
+  .sheetRow{display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+  .sheetHint{opacity:.85;font-size:12px;text-align:center;margin-top:10px;min-height:16px}
+  .disabledLink{pointer-events:none;opacity:.45;filter:saturate(.2)}
 </style>
 </head>
 <body>
@@ -199,6 +207,7 @@ audio::-webkit-media-controls-fast-forward-button{
       <button class="btn tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
       <button class="btn tgl" id="albumBtn" aria-pressed="false">Album</button>
       <button class="btn tgl" id="autoPlayBtn" aria-pressed="true">Autoplay</button>
+      <button class="btn" id="shareBtn">Share</button>
 </div></div>
 
     <div id="trackList"></div>
@@ -216,7 +225,7 @@ audio::-webkit-media-controls-fast-forward-button{
     </div></div>
 
     <div style="margin-top:10px;opacity:.9">If you would like to support the project, click the link below.</div>
-    <div style="margin-top:6px"><a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a></div>
+    <div style="margin-top:6px"><a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener" data-external-link="1">Buy on Bandcamp</a></div>
 
     <div class="offline-row">
       <button class="offline-btn" id="offlineBtn">Go Offline</button>
@@ -738,6 +747,142 @@ async function loadMusicListFast(){
 
 })();
 
+
+  // ===== Offline link disabling (prevents breaking offline experience) =====
+  function setExternalLinksDisabled(disabled){
+    const external = document.querySelectorAll('[data-external-link="1"]');
+    external.forEach(el=>{
+      if(disabled){
+        el.classList.add('disabledLink');
+        el.setAttribute('aria-disabled','true');
+        el.dataset.hrefBackup = el.getAttribute('href') || el.dataset.hrefBackup || '';
+        el.removeAttribute('href');
+      }else{
+        el.classList.remove('disabledLink');
+        el.removeAttribute('aria-disabled');
+        const back = el.dataset.hrefBackup;
+        if(back) el.setAttribute('href', back);
+      }
+    });
+  }
+
+  function offlineActive(){
+    const flag = localStorage.getItem('GE_OFFLINE_ACTIVE');
+    if(flag === '1') return true;
+    return (navigator.onLine === false);
+  }
+
+  function refreshOfflineLinkState(){
+    setExternalLinksDisabled(offlineActive());
+  }
+
+  window.addEventListener('online', refreshOfflineLinkState);
+  window.addEventListener('offline', refreshOfflineLinkState);
+
+  // ===== Share button =====
+  const shareBtn = document.getElementById('shareBtn');
+  const shareSheet = document.getElementById('shareSheet');
+  const shareHint = document.getElementById('shareHint');
+  const shareSongBtn = document.getElementById('shareSongBtn');
+  const shareSiteBtn = document.getElementById('shareSiteBtn');
+  const shareImgBtn  = document.getElementById('shareImgBtn');
+  const shareLogoBtn = document.getElementById('shareLogoBtn');
+  const shareCloseBtn = document.getElementById('shareCloseBtn');
+
+  function sheetShow(){
+    shareSheet.classList.add('show');
+    shareSheet.setAttribute('aria-hidden','false');
+    if(shareHint) shareHint.textContent = '';
+  }
+  function sheetHide(){
+    shareSheet.classList.remove('show');
+    shareSheet.setAttribute('aria-hidden','true');
+    if(shareHint) shareHint.textContent = '';
+  }
+
+  if(shareBtn) shareBtn.addEventListener('click', sheetShow);
+  if(shareCloseBtn) shareCloseBtn.addEventListener('click', sheetHide);
+  if(shareSheet) shareSheet.addEventListener('click', (e)=>{ if(e.target === shareSheet) sheetHide(); });
+
+  function currentTrackUrl(){
+    try{ return (queue && queue[idx]) ? queue[idx] : ''; }catch(_){ return ''; }
+  }
+
+  function currentBackgroundUrl(){
+    const bg = document.querySelector('#bg');
+    if(bg){
+      const s = bg.style.backgroundImage || '';
+      const m = s.match(/url\(["']?(.*?)["']?\)/i);
+      if(m && m[1]) return m[1];
+    }
+    return '';
+  }
+
+  function siteUrl(){
+    try{ return (location.origin + location.pathname).replace(/index\.html$/,''); }catch(_){ return ''; }
+  }
+
+  async function doShare(payload){
+    try{
+      if(navigator.share){
+        await navigator.share(payload);
+        if(shareHint) shareHint.textContent = 'Shared.';
+      }else{
+        const text = payload.url || payload.text || '';
+        await navigator.clipboard.writeText(text);
+        if(shareHint) shareHint.textContent = 'Link copied.';
+      }
+    }catch(_){}
+  }
+
+  async function shareAsFile(imageUrl, nameHint){
+    try{
+      const res = await fetch(imageUrl, {mode:'cors'});
+      const blob = await res.blob();
+      const ext = (blob.type === 'image/png') ? 'png' : 'jpg';
+      const file = new File([blob], (nameHint||'image') + '.' + ext, {type: blob.type || 'image/jpeg'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Grand Element', text:'Grand Element'});
+        if(shareHint) shareHint.textContent = 'Shared image.';
+      }else{
+        await navigator.clipboard.writeText(imageUrl);
+        if(shareHint) shareHint.textContent = 'Image link copied.';
+      }
+    }catch(_){
+      try{
+        await navigator.clipboard.writeText(imageUrl);
+        if(shareHint) shareHint.textContent = 'Image link copied.';
+      }catch(__){}
+    }
+  }
+
+  if(shareSiteBtn) shareSiteBtn.addEventListener('click', ()=> doShare({
+    title: 'Grand Element Radio',
+    text: 'Grand Element Radio',
+    url: siteUrl()
+  }));
+
+  if(shareSongBtn) shareSongBtn.addEventListener('click', ()=>{
+    const u = currentTrackUrl();
+    const base = siteUrl();
+    const link = u ? (base + (base.includes('?')?'&':'?') + 'track=' + encodeURIComponent(u)) : base;
+    doShare({title:'Grand Element Radio', text:'Listening now', url: link});
+  });
+
+  if(shareImgBtn) shareImgBtn.addEventListener('click', ()=>{
+    const img = currentBackgroundUrl();
+    if(!img){ if(shareHint) shareHint.textContent = 'No image found.'; return; }
+    shareAsFile(img, 'ge-background');
+  });
+
+  if(shareLogoBtn) shareLogoBtn.addEventListener('click', ()=>{
+    const logo = resolveURL('../ge-images/images/ge-logo-2.jpg');
+    shareAsFile(logo, 'ge-logo');
+  });
+
+  refreshOfflineLinkState();
+
+
 /* Backgrounds */
 (function(){
   const bg = document.getElementById('bg');
@@ -1070,5 +1215,25 @@ async function loadMusicListFast(){
   }, 400);
 
 </script>
+
+  <!-- Share Sheet -->
+  <div id="shareSheet" class="sheet" aria-hidden="true">
+    <div class="sheetCard" role="dialog" aria-modal="true" aria-label="Share">
+      <div class="sheetTitle">Share</div>
+      <div class="sheetRow">
+        <button class="btn" id="shareSongBtn">Song</button>
+        <button class="btn" id="shareSiteBtn">Site</button>
+      </div>
+      <div class="sheetRow">
+        <button class="btn" id="shareImgBtn">Current Image</button>
+        <button class="btn" id="shareLogoBtn">Logo</button>
+      </div>
+      <div class="sheetRow">
+        <button class="btn" id="shareCloseBtn">Close</button>
+      </div>
+      <div class="sheetHint" id="shareHint"></div>
+    </div>
+  </div>
+
 </body>
 </html>
