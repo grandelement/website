@@ -171,33 +171,12 @@ audio::-webkit-media-controls-fast-forward-button{
   display:none !important;
 }
 
-
-  #resumeGate{
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    padding:24px;
-    font-size:20px;
-    font-weight:700;
-    backdrop-filter: blur(6px);
-    background: rgba(0,0,0,0.65);
-    z-index:9999;
-    cursor:pointer;
-    user-select:none;
-  }
-  #resumeGate.show{ display:flex; }
-
 </style>
 </head>
 <body>
   
   <div id="bg"></div>
   <div id="hudTap" title="Tap to show controls"></div>
-<div id="resumeGate" role="button" aria-label="Tap to resume audio">Tap to resume audio</div>
-
 
   <div class="wrap">
     <header>
@@ -405,7 +384,7 @@ async function loadMusicListFast(){
   // Best compromise: try to start MUTED on load, then unmute on the first touch anywhere.
   // This avoids needing to press the play button, while staying inside iOS rules.
 
-  const AUTOPLAY_ON_LOAD = false;
+  const AUTOPLAY_ON_LOAD = true;
   const AUTOPLAY_START_MUTED = true;
 
   async function playMuted(){
@@ -428,42 +407,7 @@ async function loadMusicListFast(){
     }catch(_){
       return false;
     }
-  
-  // One play authority. If play() is blocked, we show a single tap gate.
-  const resumeGate = document.getElementById('resumeGate');
-  let playBlocked = false;
-
-  function showResumeGate(show){
-    if(!resumeGate) return;
-    resumeGate.classList.toggle('show', !!show);
   }
-
-  async function ensurePlay(){
-    try{
-      const p = player.play();
-      if(p && typeof p.then === 'function') await p;
-      playBlocked = false;
-      showResumeGate(false);
-      return true;
-    }catch(_){
-      playBlocked = true;
-      showResumeGate(true);
-      return false;
-    }
-  }
-
-  if(resumeGate){
-    const kick = async ()=>{
-      showResumeGate(false);
-      // Try again with sound
-      try{ player.muted = false; }catch(_){}
-      const ok = await ensurePlay();
-      if(!ok) showResumeGate(true);
-    };
-    resumeGate.addEventListener('click', kick);
-    resumeGate.addEventListener('touchstart', (e)=>{ e.preventDefault(); kick(); }, {passive:false});
-  }
-}
 
   function armFirstGesture(handler){
     const opts = {capture:true, passive:true, once:true};
@@ -542,23 +486,6 @@ async function loadMusicListFast(){
     recentHistory = [url, ...recentHistory.filter(u=>u!==url)].slice(0, keep);
   }
   function historySet(){ return new Set(recentHistory); }
-
-  // Playback stack so Prev in Shuffle goes back to the actual prior song
-  let playStack = [];
-  function stackPush(url){
-    if(!url || isStationID(url)) return;
-    const last = playStack[playStack.length-1];
-    if(last === url) return;
-    playStack.push(url);
-    if(playStack.length > 200) playStack = playStack.slice(-200);
-  }
-  function stackPrevUrl(){
-    if(playStack.length < 2) return null;
-    // Drop the current item first
-    playStack.pop();
-    // Previous real track (Station IDs are never pushed)
-    return playStack.length ? playStack[playStack.length-1] : null;
-  }
 
   // Station IDs
   let untilNextID = parseInt(localStorage.getItem('GE_untilNextID') || '', 10);
@@ -746,9 +673,7 @@ async function loadMusicListFast(){
       const playURL = await urlForPlayback(url);
       if (String(playURL).startsWith('blob:')) player.dataset.objurl = playURL;
       player.src = playURL;
-      await ensurePlay();
-      // Remember what actually played so Prev works in Shuffle
-      if(!isStationID(url)) stackPush(url);
+      await player.play().catch(()=>{});
     }catch(_){
       // skip bad file
       playAt(idx+1);
@@ -760,22 +685,8 @@ async function loadMusicListFast(){
   }
 
   // Controls
-  prevBtn.addEventListener('click', ()=>{
-    if(!queue.length) return;
-    const back = stackPrevUrl();
-    if(back){
-      const at = queue.indexOf(back);
-      playAt(at >= 0 ? at : idx, {userPick:true, forceUrl: back});
-      return;
-    }
-    const n = (idx - 1 + queue.length) % queue.length;
-    playAt(n, {userPick:true, forceUrl: queue[n]});
-  });
-  nextBtn.addEventListener('click', ()=>{
-    if(!queue.length) return;
-    const n = (idx + 1) % queue.length;
-    playAt(n, {userPick:true, forceUrl: queue[n]});
-  });
+  prevBtn.addEventListener('click', ()=> playAt(idx-1));
+  nextBtn.addEventListener('click', ()=> playAt(idx+1));
 
   player.addEventListener('ended', ()=>{
     if(!autoplayOn) return;
@@ -1206,13 +1117,7 @@ async function loadMusicListFast(){
       const ok = await prefetchAll();
       btn.disabled=false;
       await refreshOfflineBar();
-      if(ok){
-        setActive(true);
-        bar.value=100;
-        await refreshOfflineBar();
-        const reloadNow = confirm('Offline download complete. Press OK to reload into offline mode now. Press Cancel to keep playing and switch offline on the next track.');
-        if(reloadNow) location.reload();
-      }
+      if(ok){ setActive(true); bar.value=100; alert('Offline ready. You can reload or go offline now.'); }
       return;
     }
 
