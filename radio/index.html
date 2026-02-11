@@ -191,12 +191,14 @@ audio::-webkit-media-controls-fast-forward-button{
       <button id="titleBtn" type="button" aria-expanded="false" title="Tap to choose a specific track">loading…</button>
     </div>
 
-    <audio id="player" controlsList="nodownload noplaybackrate" playsinline playsinline controls preload="auto" playsinline></audio>
+    <audio id="player" controlsList="nodownload noplaybackrate" playsinline playsinline controls preload="auto" playsinline autoplay></audio>
 
     <div class="row"><div id="musicGroup">
       <button class="btn" id="prevBtn">Prev</button>
       <button class="btn" id="nextBtn">Next</button>
       <button class="btn tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
+      <button class="btn tgl" id="albumBtn" aria-pressed="false">Album</button>
+      <button class="btn tgl" id="autoPlayBtn" aria-pressed="true">Autoplay</button>
 </div></div>
 
     <div class="row">
@@ -373,59 +375,110 @@ async function loadMusicListFast(){
 
 (function(){
   const player = document.getElementById('player');
-const titleBtn = document.getElementById('titleBtn');
+
+
+  // ===== Autoplay (minimal cooks) =====
+  // Reality check:
+  // • Desktop browsers usually allow autoplay.
+  // • iPhone Safari does NOT allow autoplay with sound unless there has been a user gesture.
+  // Best compromise: try to start MUTED on load, then unmute on the first touch anywhere.
+  // This avoids needing to press the play button, while staying inside iOS rules.
+
+  const AUTOPLAY_ON_LOAD = true;
+  const AUTOPLAY_START_MUTED = true;
+
+  async function playMuted(){
+    try{
+      player.muted = true;
+      const p = player.play();
+      if(p && typeof p.then === 'function') await p;
+      return true;
+    }catch(_){
+      return false;
+    }
+  }
+
+  async function playUnmuted(){
+    try{
+      player.muted = false;
+      const p = player.play();
+      if(p && typeof p.then === 'function') await p;
+      return true;
+    }catch(_){
+      return false;
+    }
+  }
+
+  function armFirstGesture(handler){
+    const opts = {capture:true, passive:true, once:true};
+    window.addEventListener('touchstart', handler, opts);
+    window.addEventListener('pointerdown', handler, opts);
+    window.addEventListener('mousedown', handler, opts);
+    window.addEventListener('keydown', handler, opts);
+  }
+
+  function armUnmuteOnGesture(){
+    armFirstGesture(async ()=>{
+      // If iOS paused us, kick play again, then unmute.
+      try{ if(player.paused) await playMuted(); }catch(_){ }
+      try{ player.muted = false; }catch(_){ }
+    });
+  }
+
+  (async function bootAutoplay(){
+    if(!AUTOPLAY_ON_LOAD) return;
+
+    // Try starting immediately.
+    // Browser policies may still block sound on load (especially iOS).
+    let ok = false;
+
+    if(AUTOPLAY_START_MUTED){
+      ok = await playMuted();
+      if(ok){
+        // Try to unmute shortly after we have a running media element.
+        // If the browser blocks unmute, we stay muted and unmute on first gesture.
+        setTimeout(()=>{
+          try{
+            player.muted = false;
+            const p = player.play();
+            if(p && typeof p.catch === 'function') p.catch(()=>{ armUnmuteOnGesture(); });
+          }catch(_){
+            armUnmuteOnGesture();
+          }
+        }, 400);
+        return;
+      }
+    }
+
+    // Fallback: try unmuted (may be blocked). If blocked, arm first gesture.
+    ok = await playUnmuted();
+    if(!ok){
+      armFirstGesture(async ()=>{ await playUnmuted(); });
+    }
+  })();
+
+  const titleBtn = document.getElementById('titleBtn');
   const listEl  = document.getElementById('trackList');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const shuffleBtn = document.getElementById('shuffleBtn');
-let albumList = [];       // full list from manifest (no clips)
+  const albumBtn = document.getElementById('albumBtn');
+  const autoPlayBtn = document.getElementById('autoPlayBtn');
+
+  let albumList = [];       // full list from manifest (no clips)
   let queue = [];           // current playback queue (songs plus injected station IDs)
   let idx = 0;              // index within queue
   let lastAlbumName = '';   // used for Album mode
 
   // Playback mode flags
   let shuffleOn = true;     // default ON
-  let albumOn = false; // album mode is implied when shuffle is off
-// default OFF
-  const autoplayOn = true; // always on
-// default ON
+  let albumOn = false;      // default OFF
+  let autoplayOn = true;    // default ON
 
   // Direct pick (dropdown) must never be overridden
   let directPickActive = false;
 
   // Simple history of real songs only (for repeat avoidance and back feeling)
-
-// Shuffle navigation history (real songs only)
-let navHistory = [];
-let navPos = -1;
-let navLock = false; // prevents history rewrite when navigating back or forward
-
-function navReset(){
-  navHistory = [];
-  navPos = -1;
-  navLock = false;
-}
-function navPush(url){
-  if(!shuffleOn || albumOn) return;
-  if(!url || isStationID(url)) return;
-  if(navLock) return;
-  // if we went back, trim forward history
-  if(navPos >= 0 && navPos < navHistory.length - 1){
-    navHistory = navHistory.slice(0, navPos + 1);
-  }
-  // avoid double push of same url
-  if(navHistory[navHistory.length - 1] !== url){
-    navHistory.push(url);
-    navPos = navHistory.length - 1;
-  } else {
-    navPos = navHistory.length - 1;
-  }
-}
-function navCanPrev(){ return shuffleOn && !albumOn && navPos > 0; }
-function navCanNext(){ return shuffleOn && !albumOn && navPos >= 0 && navPos < navHistory.length - 1; }
-function navPrevUrl(){ return navCanPrev() ? navHistory[navPos - 1] : null; }
-function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
-
   let recentHistory = [];
   function pushHistory(url){
     if(!url || isStationID(url)) return;
@@ -458,7 +511,10 @@ function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
   }
 
   function syncButtons(){
-    setPressed(shuffleBtn, shuffleOn);}
+    setPressed(shuffleBtn, shuffleOn);
+    setPressed(albumBtn, albumOn);
+    setPressed(autoPlayBtn, autoplayOn);
+  }
 
   function currentSongUrl(){
     const u = queue[idx] || '';
@@ -508,8 +564,6 @@ function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
     // Update title immediately
     const shown = queue[idx] || '';
     titleBtn.textContent = shown ? formatTitle(shown, albumOn ? 'album' : 'shuffle') : 'loading…';
-    if(shuffleOn && !albumOn){ /* keep history */ }
-    else { navReset(); }
     renderList();
   }
 
@@ -587,7 +641,6 @@ function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
 
     if(!isID){
       pushHistory(url);
-      navPush(url);
       untilNextID--;
       localStorage.setItem('GE_untilNextID', String(untilNextID));
       lastAlbumName = parseName(url).album || lastAlbumName;
@@ -632,35 +685,11 @@ function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
   }
 
   // Controls
-  prevBtn.addEventListener('click', ()=>{
-    const u = navPrevUrl();
-    if(u){
-      navLock = true;
-      navPos -= 1;
-      // ensure the queue contains the url
-      if(queue.indexOf(u) < 0) queue.unshift(u);
-      idx = queue.indexOf(u);
-      playAt(idx, {forceUrl:u});
-      navLock = false;
-      return;
-    }
-    playAt(idx-1);
-  });
-  nextBtn.addEventListener('click', ()=>{
-    const u = navNextUrl();
-    if(u){
-      navLock = true;
-      navPos += 1;
-      if(queue.indexOf(u) < 0) queue.push(u);
-      idx = queue.indexOf(u);
-      playAt(idx, {forceUrl:u});
-      navLock = false;
-      return;
-    }
-    playAt(idx+1);
-  });
+  prevBtn.addEventListener('click', ()=> playAt(idx-1));
+  nextBtn.addEventListener('click', ()=> playAt(idx+1));
 
   player.addEventListener('ended', ()=>{
+    if(!autoplayOn) return;
     playAt(idx+1);
   });
 
@@ -704,13 +733,20 @@ function navNextUrl(){ return navCanNext() ? navHistory[navPos + 1] : null; }
   // Button toggles
   shuffleBtn.addEventListener('click', ()=>{
     shuffleOn = !shuffleOn;
-    albumOn = !shuffleOn;
     rebuildQueue(true);
     syncButtons();
   });
-syncButtons();
+
+  albumBtn.addEventListener('click', ()=>{
+    albumOn = !albumOn;
+    rebuildQueue(true);
+    syncButtons();
   });
-});
+
+  autoPlayBtn.addEventListener('click', ()=>{
+    autoplayOn = !autoplayOn;
+    syncButtons();
+  });
 
   // Init
   (async function init(){
@@ -720,8 +756,8 @@ syncButtons();
     // Default modes: shuffle ON, album OFF, autoplay ON
     shuffleOn = true;
     albumOn = false;
-    navReset();
-syncButtons();
+    autoplayOn = true;
+    syncButtons();
     rebuildQueue(false);
     playAt(0);
   })();
