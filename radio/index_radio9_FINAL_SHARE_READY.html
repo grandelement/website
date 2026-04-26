@@ -171,6 +171,13 @@ audio::-webkit-media-controls-fast-forward-button{
   display:none !important;
 }
 
+
+  /* Radio 9 controls layout */
+  #musicGroup{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; width:100%;}
+  #musicGroup .btn{min-width:78px;}
+  /* Shuffle button centered, no switch dot */
+  #shuffleBtn{min-width:120px;}
+
 </style>
 </head>
 <body>
@@ -197,8 +204,7 @@ audio::-webkit-media-controls-fast-forward-button{
       <button class="btn" id="prevBtn">Prev</button>
       <button class="btn" id="nextBtn">Next</button>
       <button class="btn tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
-      <button class="btn tgl" id="albumBtn" aria-pressed="false">Album</button>
-      <button class="btn tgl" id="autoPlayBtn" aria-pressed="true">Autoplay</button>
+      <button class="btn" id="shareBtn">Share</button>
 </div></div>
 
     <div class="row">
@@ -375,159 +381,131 @@ async function loadMusicListFast(){
 
 (function(){
   const player = document.getElementById('player');
-  // ===== Playback start and browser policy handling =====
-  // Goal:
-  // 1) Avoid multiple overlapping play attempts.
-  // 2) Start automatically when allowed.
-  // 3) When blocked (common on iPhone Safari), show one clear tap gate.
 
-  // Remove autoplay attribute from markup is handled separately. We control play here.
 
-  const AUDIO_GATE_ID = 'geAudioGate';
+  // ===== Autoplay (minimal cooks) =====
+  // Reality check:
+  // • Desktop browsers usually allow autoplay.
+  // • iPhone Safari does NOT allow autoplay with sound unless there has been a user gesture.
+  // Best compromise: try to start MUTED on load, then unmute on the first touch anywhere.
+  // This avoids needing to press the play button, while staying inside iOS rules.
 
-  function showAudioGate(message){
-    let gate = document.getElementById(AUDIO_GATE_ID);
-    if(!gate){
-      gate = document.createElement('div');
-      gate.id = AUDIO_GATE_ID;
-      gate.style.cssText =
-        'position:fixed;inset:0;z-index:1000000;display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(0,0,0,.55);backdrop-filter:blur(2px);';
-      gate.innerHTML =
-        '<div style="max-width:520px;width:min(520px,88vw);padding:18px 16px;border-radius:16px;' +
-        'background:rgba(13,27,38,.78);border:1px solid rgba(80,110,140,.45);text-align:center;">' +
-        '<div style="font-weight:900;font-size:16px;margin-bottom:8px;">Audio paused by your browser</div>' +
-        '<div id="geAudioGateMsg" style="opacity:.9;font-size:13px;margin-bottom:12px;"></div>' +
-        '<button id="geAudioGateBtn" class="btn" type="button" style="margin:0 auto;">Tap to start</button>' +
-        '</div>';
-      document.body.appendChild(gate);
-      gate.querySelector('#geAudioGateBtn').addEventListener('click', async ()=>{
-        hideAudioGate();
-        // Try unmuted first, then muted fallback.
-        const ok = await tryPlay({unmutedFirst:true});
-        if(!ok) showAudioGate('Tap again to allow audio.');
-      });
+  const AUTOPLAY_ON_LOAD = true;
+  const AUTOPLAY_START_MUTED = true;
+
+  async function playMuted(){
+    try{
+      player.muted = true;
+      const p = player.play();
+      if(p && typeof p.then === 'function') await p;
+      return true;
+    }catch(_){
+      return false;
     }
-    const msg = gate.querySelector('#geAudioGateMsg');
-    if(msg) msg.textContent = message || 'Tap once to allow audio playback.';
-    gate.style.display = 'flex';
   }
 
-  function hideAudioGate(){
-    const gate = document.getElementById(AUDIO_GATE_ID);
-    if(gate) gate.style.display = 'none';
+  async function playUnmuted(){
+    try{
+      player.muted = false;
+      const p = player.play();
+      if(p && typeof p.then === 'function') await p;
+      return true;
+    }catch(_){
+      return false;
+    }
   }
 
-  let playInFlight = null;
+  function armFirstGesture(handler){
+    const opts = {capture:true, passive:true, once:true};
+    window.addEventListener('touchstart', handler, opts);
+    window.addEventListener('pointerdown', handler, opts);
+    window.addEventListener('mousedown', handler, opts);
+    window.addEventListener('keydown', handler, opts);
+  }
 
-  async function tryPlay(opts){
-    const options = opts || {};
-    if(playInFlight) return playInFlight;
+  function armUnmuteOnGesture(){
+    armFirstGesture(async ()=>{
+      // If iOS paused us, kick play again, then unmute.
+      try{ if(player.paused) await playMuted(); }catch(_){ }
+      try{ player.muted = false; }catch(_){ }
+    });
+  }
 
-    playInFlight = (async ()=>{
-      try{
-        // If we have no src yet, do nothing.
-        if(!player.src) return false;
+  (async function bootAutoplay(){
+    if(!AUTOPLAY_ON_LOAD) return;
 
-        const attempt = async (muted)=>{
+    // Try starting immediately.
+    // Browser policies may still block sound on load (especially iOS).
+    let ok = false;
+
+    if(AUTOPLAY_START_MUTED){
+      ok = await playMuted();
+      if(ok){
+        // Try to unmute shortly after we have a running media element.
+        // If the browser blocks unmute, we stay muted and unmute on first gesture.
+        setTimeout(()=>{
           try{
-            player.muted = !!muted;
-            const pr = player.play();
-            if(pr && typeof pr.then === 'function') await pr;
-            return true;
+            player.muted = false;
+            const p = player.play();
+            if(p && typeof p.catch === 'function') p.catch(()=>{ armUnmuteOnGesture(); });
           }catch(_){
-            return false;
+            armUnmuteOnGesture();
           }
-        };
-
-        // Preferred order: unmuted then muted, or muted then unmuted.
-        let ok = false;
-
-        if(options.unmutedFirst){
-          ok = await attempt(false);
-          if(!ok) ok = await attempt(true);
-        } else {
-          ok = await attempt(true);
-          // Try to unmute once running, if policy allows it.
-          if(ok){
-            try{ player.muted = false; }catch(_){}
-            const pr = player.play();
-            if(pr && typeof pr.catch === 'function'){
-              pr.catch(()=>{ /* ignore */ });
-            }
-          }
-        }
-
-        if(ok){
-          hideAudioGate();
-          return true;
-        }
-
-        showAudioGate('Tap once to start audio.');
-        return false;
-      } finally {
-        playInFlight = null;
+        }, 400);
+        return;
       }
-    })();
+    }
 
-    return playInFlight;
-  }
-
-  // If the user touches anywhere and audio is blocked, use that gesture to resume.
-  window.addEventListener('pointerdown', ()=>{ if(player.paused) tryPlay({unmutedFirst:true}); }, {passive:true});
-  window.addEventListener('touchstart',  ()=>{ if(player.paused) tryPlay({unmutedFirst:true}); }, {passive:true});
+    // Fallback: try unmuted (may be blocked). If blocked, arm first gesture.
+    ok = await playUnmuted();
+    if(!ok){
+      armFirstGesture(async ()=>{ await playUnmuted(); });
+    }
+  })();
 
   const titleBtn = document.getElementById('titleBtn');
- = document.getElementById('titleBtn');
   const listEl  = document.getElementById('trackList');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const shuffleBtn = document.getElementById('shuffleBtn');
-  const albumBtn = document.getElementById('albumBtn');
-  const autoPlayBtn = document.getElementById('autoPlayBtn');
 
   let albumList = [];       // full list from manifest (no clips)
   let queue = [];           // current playback queue (songs plus injected station IDs)
   let idx = 0;              // index within queue
+  let currentTrackUrl = ''; // actual logical track currently playing
   let lastAlbumName = '';   // used for Album mode
 
   // Playback mode flags
   let shuffleOn = true;     // default ON
   let albumOn = false;      // default OFF
-  let autoplayOn = true;    // default ON
+  let autoplayOn = true; // always on
 
   // Direct pick (dropdown) must never be overridden
   let directPickActive = false;
 
-  // Simple history of real songs only (for repeat avoidance and back feeling)
+  // True shuffle history for Prev / Next navigation
+  let playHistory = [];
+  let historyPos = -1;
+  let navDirection = 0; // -1 prev through history, +1 next through history, 0 normal
+
+  // Separate short memory used only to avoid immediate repeats when picking a fresh shuffle song
   let recentHistory = [];
-  // Shuffle navigation history (real songs only). This makes Prev and Next stable in Shuffle mode.
-  let shuffleHistory = [];
-  let shufflePos = -1;
-
-  function pushShuffleNav(url){
-    if(!url || isStationID(url)) return;
-    // If user went back then hits Next, we move forward in history instead of picking a new random song.
-    if (shufflePos < shuffleHistory.length - 1){
-      shuffleHistory = shuffleHistory.slice(0, shufflePos + 1);
-    }
-    if (shuffleHistory[shuffleHistory.length - 1] !== url){
-      shuffleHistory.push(url);
-    }
-    shufflePos = shuffleHistory.length - 1;
-  }
-  function resetShuffleNav(url){
-    if(!url || isStationID(url)) return;
-    shuffleHistory = [url];
-    shufflePos = 0;
-  }
-
-  function pushHistory(url){
+  function rememberRecent(url){
     if(!url || isStationID(url)) return;
     const keep = Math.max(1, Number(CONFIG.AVOID_REPEAT_LAST_N)||1);
     recentHistory = [url, ...recentHistory.filter(u=>u!==url)].slice(0, keep);
   }
   function historySet(){ return new Set(recentHistory); }
+
+  function pushPlayHistory(url){
+    if(!url || isStationID(url)) return;
+    if(historyPos < playHistory.length - 1){
+      playHistory = playHistory.slice(0, historyPos + 1);
+    }
+    playHistory.push(url);
+    historyPos = playHistory.length - 1;
+    rememberRecent(url);
+  }
 
   // Station IDs
   let untilNextID = parseInt(localStorage.getItem('GE_untilNextID') || '', 10);
@@ -554,8 +532,6 @@ async function loadMusicListFast(){
 
   function syncButtons(){
     setPressed(shuffleBtn, shuffleOn);
-    setPressed(albumBtn, albumOn);
-    setPressed(autoPlayBtn, autoplayOn);
   }
 
   function currentSongUrl(){
@@ -604,9 +580,6 @@ async function loadMusicListFast(){
     }
 
     // Update title immediately
-    if (shuffleOn && !albumOn){
-      try{ resetShuffleNav(queue[idx] || ''); }catch(_){ }
-    }
     const shown = queue[idx] || '';
     titleBtn.textContent = shown ? formatTitle(shown, albumOn ? 'album' : 'shuffle') : 'loading…';
     renderList();
@@ -681,12 +654,12 @@ async function loadMusicListFast(){
       }
     }
 
+    currentTrackUrl = url;
     const isID = isStationID(url);
     titleBtn.textContent = formatTitle(url, albumOn ? 'album' : 'shuffle');
 
     if(!isID){
-      pushHistory(url);
-      pushShuffleNav(url);
+      if(navDirection===0) pushPlayHistory(url); else rememberRecent(url);
       untilNextID--;
       localStorage.setItem('GE_untilNextID', String(untilNextID));
       lastAlbumName = parseName(url).album || lastAlbumName;
@@ -719,11 +692,13 @@ async function loadMusicListFast(){
       const playURL = await urlForPlayback(url);
       if (String(playURL).startsWith('blob:')) player.dataset.objurl = playURL;
       player.src = playURL;
-      await tryPlay();
+      await player.play().catch(()=>{});
     }catch(_){
       // skip bad file
+      navDirection = 0;
       playAt(idx+1);
     }finally{
+      navDirection = 0;
       if(userPick || forceUrl){
         directPickActive = false;
       }
@@ -731,70 +706,42 @@ async function loadMusicListFast(){
   }
 
   // Controls
-  function nextTrack(){
-    // If a Station ID is currently playing, treat Next as skipping it.
-    const cur = player.currentSrc || '';
-    const curIsID = isStationID(cur);
-    if (shuffleOn && !albumOn){
-      if (shufflePos >= 0 && shufflePos < shuffleHistory.length - 1){
-        shufflePos++;
-        const url = shuffleHistory[shufflePos];
-        const at = queue.indexOf(url);
-        if (at >= 0) idx = at;
-        else { queue.push(url); idx = queue.length - 1; }
-        playAt(idx, {forceUrl:url});
-        return;
-      }
-      // Pick a new next song, avoiding recent repeats.
-      const url = pickWeightedNext(historySet()) || currentSongUrl() || queue[(idx+1)%queue.length];
-      // If we somehow picked the current song, fall back to a simple step.
-      const use = (url && url !== currentSongUrl()) ? url : queue[(idx+1)%queue.length];
-      shuffleHistory = shuffleHistory.slice(0, shufflePos + 1);
-      shuffleHistory.push(use);
-      shufflePos = shuffleHistory.length - 1;
-      const at = queue.indexOf(use);
-      if (at >= 0) idx = at;
-      else { queue.push(use); idx = queue.length - 1; }
-      playAt(idx, {forceUrl:use});
+  function findPrevRealIndex(fromIdx){
+    if(!queue.length) return fromIdx;
+    let j = (fromIdx-1+queue.length)%queue.length;
+    for(let k=0;k<queue.length;k++){
+      const u = queue[j];
+      if(u && !isStationID(u)) return j;
+      j = (j-1+queue.length)%queue.length;
+    }
+    return fromIdx;
+  }
+
+  prevBtn.addEventListener('click', ()=>{
+    if(historyPos > 0){
+      historyPos--;
+      navDirection = -1;
+      playAt(0, { forceUrl: playHistory[historyPos] });
       return;
     }
-    // Album or non shuffle behavior
-    if (curIsID){
-      // Skip the ID and go forward one real song
-      playAt(idx+1);
+    if(historyPos === 0 && playHistory[0]){
+      navDirection = -1;
+      playAt(0, { forceUrl: playHistory[0] });
+      return;
+    }
+    const target = findPrevRealIndex(idx);
+    playAt(target);
+  });
+
+  nextBtn.addEventListener('click', ()=>{
+    if(historyPos >= 0 && historyPos < playHistory.length - 1){
+      historyPos++;
+      navDirection = 1;
+      playAt(0, { forceUrl: playHistory[historyPos] });
       return;
     }
     playAt(idx+1);
-  }
-
-  function prevTrack(){
-    const cur = player.currentSrc || '';
-    const curIsID = isStationID(cur);
-    if (shuffleOn && !albumOn){
-      if (shufflePos > 0){
-        shufflePos--;
-        const url = shuffleHistory[shufflePos];
-        const at = queue.indexOf(url);
-        if (at >= 0) idx = at;
-        else { queue.push(url); idx = queue.length - 1; }
-        playAt(idx, {forceUrl:url});
-        return;
-      }
-      // No history, restart current real song
-      const url = currentSongUrl() || queue[idx];
-      if (url) playAt(idx, {forceUrl:url});
-      return;
-    }
-    if (curIsID){
-      // If the ID is playing, go back to the last real song.
-      playAt(idx-1);
-      return;
-    }
-    playAt(idx-1);
-  }
-
-  prevBtn.addEventListener('click', prevTrack);
-  nextBtn.addEventListener('click', nextTrack);
+  });
 
   player.addEventListener('ended', ()=>{
     if(!autoplayOn) return;
@@ -826,7 +773,6 @@ async function loadMusicListFast(){
     listEl.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{
       const url = b.getAttribute('data-u');
       directPickActive = true;
-      resetShuffleNav(url);
       // Ensure queue contains it so next/prev works sensibly
       if(queue.indexOf(url) < 0){
         // keep current mode queue, but insert picked song at current idx
@@ -841,19 +787,18 @@ async function loadMusicListFast(){
 
   // Button toggles
   shuffleBtn.addEventListener('click', ()=>{
+    const anchor = (!isStationID(currentTrackUrl) && currentTrackUrl)
+      ? currentTrackUrl
+      : ((historyPos >= 0 && playHistory[historyPos]) ? playHistory[historyPos] : currentSongUrl());
     shuffleOn = !shuffleOn;
+    albumOn = !shuffleOn;
     rebuildQueue(true);
-    syncButtons();
-  });
-
-  albumBtn.addEventListener('click', ()=>{
-    albumOn = !albumOn;
-    rebuildQueue(true);
-    syncButtons();
-  });
-
-  autoPlayBtn.addEventListener('click', ()=>{
-    autoplayOn = !autoplayOn;
+    if(anchor){
+      const at = queue.indexOf(anchor);
+      if(at >= 0) idx = at;
+      currentTrackUrl = anchor;
+      titleBtn.textContent = formatTitle(anchor, albumOn ? 'album' : 'shuffle');
+    }
     syncButtons();
   });
 
@@ -1238,16 +1183,64 @@ async function loadMusicListFast(){
   });
 })();
 
-  // Fallback: if UI indicates Offline (On) but no SW message arrived, show full bar.
-  setTimeout(()=>{
+// ===== SHARE (FULL CROSS PLATFORM) =====
+const shareBtn = document.getElementById('shareBtn');
+
+function buildShareLink(){
+  const song = (queue[idx]||'').split('/').pop();
+  const bgEl = document.getElementById('bg');
+  let bg = '';
+  const match = (bgEl.style.backgroundImage||'').match(/url\("?(.+?)"?\)/);
+  if(match && match[1]){
+    bg = match[1].split('/').pop();
+  }
+  const url = new URL(window.location.href);
+  if(song) url.searchParams.set('song', song);
+  if(bg) url.searchParams.set('bg', bg);
+  return url.toString();
+}
+
+if(shareBtn){
+  shareBtn.addEventListener('click', async ()=>{
+    const link = buildShareLink();
+
     try{
-      const txt = (offlineBtn && offlineBtn.textContent || '').toLowerCase();
-      if(txt.includes('offline') && txt.includes('on')){
-        showProgressWrap(true);
-        setProgress(100,'Offline ready', 100, 100);
+      if(navigator.share){
+        await navigator.share({
+          title:'Grand Element Radio',
+          text:'Listen to this track',
+          url:link
+        });
+        return;
       }
-    }catch(_){}
-  }, 400);
+
+      if(navigator.clipboard && location.protocol.startsWith('http')){
+        await navigator.clipboard.writeText(link);
+        alert('Link copied');
+        return;
+      }
+    }catch(e){}
+
+    prompt('Copy this link:', link);
+  });
+}
+
+// ===== LOAD FROM LINK =====
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const startSong = params.get('song');
+  const startBg = params.get('bg');
+
+  if(startSong){
+    const i = albumList.findIndex(u => u.includes(startSong));
+    if(i !== -1) idx = i;
+  }
+
+  if(startBg){
+    const bgEl = document.getElementById('bg');
+    bgEl.style.backgroundImage = `url("${resolveURL('img/' + startBg)}")`;
+  }
+})();
 
 </script>
 </body>

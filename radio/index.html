@@ -1183,7 +1183,7 @@ async function loadMusicListFast(){
   });
 })();
 
-// SHARE BUTTON
+// ===== SHARE (FULL CROSS PLATFORM) =====
 const shareBtn = document.getElementById('shareBtn');
 
 function buildShareLink(){
@@ -1201,26 +1201,46 @@ function buildShareLink(){
 }
 
 if(shareBtn){
-  shareBtn.addEventListener('click', ()=>{
+  shareBtn.addEventListener('click', async ()=>{
     const link = buildShareLink();
-    navigator.clipboard.writeText(link).then(()=> alert('Link copied'));
+
+    try{
+      if(navigator.share){
+        await navigator.share({
+          title:'Grand Element Radio',
+          text:'Listen to this track',
+          url:link
+        });
+        return;
+      }
+
+      if(navigator.clipboard && location.protocol.startsWith('http')){
+        await navigator.clipboard.writeText(link);
+        alert('Link copied');
+        return;
+      }
+    }catch(e){}
+
+    prompt('Copy this link:', link);
   });
 }
 
-// LOAD FROM LINK
-const params = new URLSearchParams(window.location.search);
-const startSong = params.get('song');
-const startBg = params.get('bg');
+// ===== LOAD FROM LINK =====
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const startSong = params.get('song');
+  const startBg = params.get('bg');
 
-if(startSong){
-  const i = albumList.findIndex(u => u.includes(startSong));
-  if(i !== -1) idx = i;
-}
+  if(startSong){
+    const i = albumList.findIndex(u => u.includes(startSong));
+    if(i !== -1) idx = i;
+  }
 
-if(startBg){
-  const bgEl = document.getElementById('bg');
-  bgEl.style.backgroundImage = `url("${resolveURL('img/' + startBg)}")`;
-}
+  if(startBg){
+    const bgEl = document.getElementById('bg');
+    bgEl.style.backgroundImage = `url("${resolveURL('img/' + startBg)}")`;
+  }
+})();
 
 </script>
 </body>
