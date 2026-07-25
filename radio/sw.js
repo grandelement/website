@@ -1,6 +1,6 @@
 /* Grand Element Radio service worker */
 'use strict';
-const VERSION='2026.07.24-pwa-clean-1';
+const VERSION='2026.07.25-pwa-clean-2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4';
 const SHELL=[
