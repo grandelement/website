@@ -49,7 +49,7 @@
   body{
     margin:0; overflow:hidden; color:#eaf2ff; background:#000;
     background-image:
-      url('ge-images/images/stars%20backgrounds/1.jpeg'),
+      url('https://grandelement.github.io/website/ge-images/images/GE%20stars.jpg'),
       radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px);
     background-position: center center, 0 0;
     background-repeat: no-repeat, repeat;
@@ -176,22 +176,6 @@
                   opacity:0; pointer-events:none; transition:opacity .12s ease; }
   .planet:hover .label, .planet.touchZoom .label{ opacity:1; }
 
-
-  /* Five-album kundalini motion */
-  .planet{
-    animation:kundaliniDrift 18s ease-in-out infinite alternate;
-  }
-  .planet:nth-child(2){ animation-delay:-3.6s; }
-  .planet:nth-child(3){ animation-delay:-7.2s; }
-  .planet:nth-child(4){ animation-delay:-10.8s; }
-  .planet:nth-child(5){ animation-delay:-14.4s; }
-
-  @keyframes kundaliniDrift{
-    0%   { translate:-3px 0; }
-    50%  { translate: 3px -4px; }
-    100% { translate:-2px 3px; }
-  }
-
   /* Active album planet glow */
   .planet--activeAlbum{
     box-shadow:
@@ -264,49 +248,15 @@
 
 @media (max-width: 900px) and (orientation: landscape){
   :root{
-    --sun-size: 100px;
-    --moon-size: 50px;
-    --planet-size: 21px;
-    --orbit-gap-moons: 1.35;
+    --sun-size: 200px;
+    --moon-size: 110px;
+    --planet-size: 43px;
   }
 }
 
-/* ABOUT uses its own independent mobile scroll layer */
-#about{
-  overflow-y:auto;
-  overflow-x:hidden;
-  overscroll-behavior:contain;
-  -webkit-overflow-scrolling:touch;
-  touch-action:pan-y;
-  align-items:start;
-  padding:64px 0 40px;
-  box-sizing:border-box;
-}
-#about .aboutText{
-  width:min(90vw,820px);
-  max-height:none;
-  margin:auto;
-  padding:0 12px 60px;
-  box-sizing:border-box;
-}
-#about .aboutIntro{
-  list-style:none;
-  margin:0;
-  padding:0;
-}
-#about .aboutIntro li{
-  margin:0 0 12px;
-}
-
-  /* Mobile ship control tuning */
-  :root{
-    --ship-touch-radius: 34px;
-  }
-  @media (max-width:700px){
-    :root{ --ship-touch-radius: 90px; }
-    #fx{ touch-action:none; }
-  }
-
+/* Ensure ABOUT is scrollable on mobile */
+#aboutOverlay, #aboutModal{overflow: auto; -webkit-overflow-scrolling: touch;}
+#aboutContent{max-height: 80vh; overflow: auto; -webkit-overflow-scrolling: touch;}
 </style>
 </head>
 <body>
@@ -349,7 +299,7 @@
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
 
-        <audio id="gePlayer" preload="auto" playsinline autoplay crossorigin="anonymous"></audio>
+        <audio id="gePlayer" preload="auto" playsinline crossorigin="anonymous"></audio>
       </div>
     </div>
 
@@ -374,19 +324,24 @@
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      <ul class="aboutIntro">
-        <li>Music for your soul. Experiments in sound and communication.</li>
-        <li>YOU, the listener, are the GRAND ELEMENT.</li>
-        <li>All things come from you.</li>
-        <li>Remember what you are.</li>
-        <li>Hypnotic rhythms and spacious soundscapes designed to entrance the body, speak directly to the soul, leave room for reflection, and reopen the body, mind, and soul to the voice of ENERGY, reminding us that we are all one, all energy, and all love.</li>
-        <li>Enjoy!!</li>
-      </ul>
+      <li>Music for your soul. Experiments in sound and communication.  <li>
+<li>  YOU (the listener) are the GRAND ELEMENT.  <li>
+ <li>All things come from you. <li> 
+<li>Remember what you are. <li>
+      <li>Hypnotic rhythms and spacious soundscapes designed to entrance the body to speak directly to the soul leaving room for reflection, reopening the body, mind and soul to the voice of ENERGY.. reminding us that we are all one, all energy, and all love.  <li>
+<li>Enjoy!! <li>
 
       <div class="aboutSection" id="aboutMembers">
         <h3>Band Members (all eras)</h3>
         <div class="details" id="membersList">
           <ul>
+            <li>Mike Venniro — drums</li>
+            <li>Evan Donoghue — guitar</li>
+            <li>Wills Blackmore — drums</li>
+            <li>Shane Willy — bass</li>
+            <li>Ronaldo Elliott — drums</li>
+            <li>Elizabeth “Liz” Washington — vocals</li>
+            <li>Jordan Rosenthal — drums</li>
             <li>Scott Gregory — keyboards, drums, bass, guitar, vocals</li>
           </ul>
         </div>
@@ -417,7 +372,20 @@
   </footer>
 
 <script>
-// WEBSITE 9: leave the existing radio service worker and caches intact.
+// WEBSITE 8: purge any stale service workers / caches from earlier builds
+(async ()=>{
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const r of regs){ try{ await r.unregister(); }catch(e){} }
+    }
+    if('caches' in window){
+      const keys = await caches.keys();
+      for(const k of keys){ try{ await caches.delete(k); }catch(e){} }
+    }
+  }catch(e){}
+})();
+
 /* ============== helpers ============== */
 const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-base').trim() || 'ge-images/images/';
 function normAlbumName(name){
@@ -425,7 +393,6 @@ function normAlbumName(name){
   s = s.replace(/grand\s*element\s*-\s*\d{4}\s*-\s*/, '');
   s = s.replace(/grand\s*element\s*-\s*/, '');
   return s.replace(/[^a-z0-9]/g,'');
-}
 
 function parseAlbumFromPath(p){
   // Expect paths like: ge-music/music/<Album Folder>/<Track>.mp3
@@ -451,6 +418,7 @@ function parseAlbumFromPath(p){
   name = name.trim();
   return name || 'Unknown';
 }
+}
 
 const MOBILE = innerWidth < 700 || /iPhone|Android/i.test(navigator.userAgent);
 const rand=(a,b)=>Math.random()*(b-a)+a, choice=a=>a[(Math.random()*a.length)|0];
@@ -460,132 +428,47 @@ const albumPlanets = {};
 let activeAlbumPlanet = null;
 
 /* ========= PLANETS — spiral placement ========= */
-
-/*******************************************************
- * PLANET PLACEMENT SETTINGS
- *
- * CHANGE THIS ONE NUMBER:
- *
- * 1 = RANDOM PLACEMENT ON EVERY PAGE LOAD
- * 2 = DEFAULT KUNDALINI PLACEMENT
- *******************************************************/
-const PLANET_LAYOUT_MODE = 1;
-
-/* RANDOM MODE SETTINGS */
-const PLANET_RANDOM_EDGE_MARGIN = 55;
-const PLANET_RANDOM_MIN_GAP = 95;
-const PLANET_RANDOM_ATTEMPTS = 250;
-
-/* DEFAULT KUNDALINI MODE SETTINGS */
-const PLANET_DEFAULT_CENTER_X = 0.55;
-const PLANET_DEFAULT_TOP_Y = 0.22;
-const PLANET_DEFAULT_BOTTOM_Y = 0.78;
-const PLANET_DEFAULT_SWIRL_WIDTH = 0.085;
-const PLANET_DEFAULT_SWIRL_TURNS = 1.18;
-
 const ALBUMS = [
-  { title:"Intergy", cover: IMG+"Grand%20Element%20-%20Intergy.jpg", link:"https://grandelement.bandcamp.com/album/intergy" },
-  { title:"Love",    cover: IMG+"Grand%20Element%20-%20Love.jpg",    link:"https://grandelement.bandcamp.com/album/love" },
-  { title:"Soul",    cover: IMG+"Grand%20Element%20-%20Soul.jpg",    link:"https://grandelement.bandcamp.com/album/soul" },
-  { title:"Spirit",  cover: IMG+"Grand%20Element%20-%20Spirit.jpg",  link:"https://grandelement.bandcamp.com/album/spirit" },
-  { title:"Fire",    cover: IMG+"Grand%20Element%20-%20Fire.jpg",    link:"https://grandelement.bandcamp.com/album/fire" }
+  { title:"Fundamental\u00A0Groove", cover: IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove" },
+  { title:"Trio",        cover: IMG+"Grand%20Element%20-%20Trio.jpg",        link:"https://grandelement.bandcamp.com/album/trio" },
+  { title:"Live!",       cover: IMG+"Grand%20Element%20-%20Live.jpg",        link:"https://grandelement.bandcamp.com/album/live" },
+  { title:"Sessions I",  cover: IMG+"Grand%20Element%20-%20Sessions%20I.jpg",  link:"https://grandelement.bandcamp.com/album/sessions-i" },
+  { title:"Sessions II", cover: IMG+"Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii" },
+  { title:"Intergy",     cover: IMG+"Grand%20Element%20-%20Intergy.jpg",     link:"https://grandelement.bandcamp.com/album/intergy" },
+  { title:"Love",        cover: IMG+"Grand%20Element%20-%20Love.jpg",        link:"https://grandelement.bandcamp.com/album/love" },
+  { title:"Soul",        cover: IMG+"Grand%20Element%20-%20Soul.jpg",        link:"https://grandelement.bandcamp.com/album/soul" },
+  { title:"Spirit",      cover: IMG+"Grand%20Element%20-%20Spirit.jpg",      link:"https://grandelement.bandcamp.com/album/spirit" },
+  { title:"Fire",        cover: IMG+"Grand%20Element%20-%20Fire.jpg",        link:"https://grandelement.bandcamp.com/album/fire" }
 ];
 const planetsEl = document.getElementById('planets');
-function placePlanets(){
+function placeSpiral(){
   planetsEl.innerHTML="";
-  for(const key of Object.keys(albumPlanets)) delete albumPlanets[key];
-
-  const w = innerWidth;
-  const h = innerHeight;
-  const mobile = w < 700;
-  const positions = [];
-
-  function randomPosition(){
-    const margin = Math.min(
-      PLANET_RANDOM_EDGE_MARGIN,
-      Math.max(18, Math.min(w, h) * 0.08)
-    );
-
-    for(let attempt=0; attempt<PLANET_RANDOM_ATTEMPTS; attempt++){
-      const x = margin + Math.random() * Math.max(1, w - margin * 2);
-      const y = margin + Math.random() * Math.max(1, h - margin * 2);
-
-      const clearOfSun = (()=>{
-        const sun = document.getElementById('sunWrap');
-        if(!sun) return true;
-        const r = sun.getBoundingClientRect();
-        const cx = r.left + r.width/2;
-        const cy = r.top + r.height/2;
-        return Math.hypot(x-cx, y-cy) > (r.width/2 + 45);
-      })();
-
-      const clearOfOtherPlanets = positions.every(p =>
-        Math.hypot(x-p.x, y-p.y) >= PLANET_RANDOM_MIN_GAP
-      );
-
-      if(clearOfSun && clearOfOtherPlanets) return {x,y};
-    }
-
-    return {
-      x: margin + Math.random() * Math.max(1, w - margin * 2),
-      y: margin + Math.random() * Math.max(1, h - margin * 2)
-    };
-  }
-
-  function defaultPosition(i){
-    const t = ALBUMS.length === 1 ? 0.5 : i/(ALBUMS.length-1);
-    const xCenter = w * PLANET_DEFAULT_CENTER_X;
-    const yBottom = h * PLANET_DEFAULT_BOTTOM_Y;
-    const yTop = h * PLANET_DEFAULT_TOP_Y;
-    const amplitude = Math.max(
-      mobile ? 42 : 75,
-      w * PLANET_DEFAULT_SWIRL_WIDTH
-    );
-    const wave = Math.sin((t * Math.PI * 2 * PLANET_DEFAULT_SWIRL_TURNS) - Math.PI/2);
-    const taper = 0.78 + 0.22 * Math.sin(Math.PI * t);
-
-    return {
-      x: xCenter + amplitude * wave * taper,
-      y: yBottom - t * (yBottom-yTop)
-    };
-  }
-
+  const w = innerWidth, h = innerHeight;
+  const xCenter = w * 0.56;
+  const yBottom = h * 0.88;
+  const yTop    = h * 0.14;
+  const amp     = Math.max(80, w * 0.12);
+  const waves   = 1.2;
   ALBUMS.forEach((alb,i)=>{
-    const pos = PLANET_LAYOUT_MODE === 1 ? randomPosition() : defaultPosition(i);
-    positions.push(pos);
-
+    const t = i/(ALBUMS.length-1);
+    const y = yBottom - t*(yBottom - yTop);
+    const x = xCenter + amp * Math.sin((t * Math.PI * 2 * waves) - Math.PI/2);
     const aEl = document.createElement('a');
-    aEl.className='planet';
-    aEl.style.left=pos.x+'px';
-    aEl.style.top=pos.y+'px';
-    aEl.href=alb.link;
-    aEl.target='_blank';
-    aEl.rel='noopener';
-    aEl.title=alb.title;
+    aEl.className='planet'; aEl.style.left=x+'px'; aEl.style.top=y+'px';
+    aEl.href=alb.link; aEl.target='_blank'; aEl.rel='noopener'; aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
     albumPlanets[normAlbumName(alb.title)] = aEl;
-
     aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
-    aEl.addEventListener('touchend', ()=> aEl.classList.remove('touchZoom'), {passive:true});
-
+    aEl.addEventListener('touchend',   ()=> aEl.classList.remove('touchZoom'), {passive:true});
     let downPos=null, dragged=false;
     aEl.addEventListener('pointerdown',e=>{ downPos={x:e.clientX,y:e.clientY}; dragged=false; });
-    aEl.addEventListener('pointermove',e=>{
-      if(!downPos) return;
-      if(Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y)>6) dragged=true;
-    });
-    aEl.addEventListener('click',e=>{
-      if(dragged){
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    });
-
+    aEl.addEventListener('pointermove',e=>{ if(!downPos) return; if(Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y)>6) dragged=true; });
+    aEl.addEventListener('click',e=>{ if(dragged){ e.preventDefault(); e.stopPropagation(); } });
     planetsEl.appendChild(aEl);
   });
 }
-placePlanets(); addEventListener('resize', placePlanets, {passive:true});
+placeSpiral(); addEventListener('resize', placeSpiral, {passive:true});
 
 /* ========= ABOUT ========= */
 document.getElementById('aboutBtn').addEventListener('click', ()=> document.getElementById('about').classList.add('show'));
@@ -789,9 +672,11 @@ moon.addEventListener('click', ()=>{
         player.play().then(()=>{
           navigator.mediaSession.playbackState='playing';
         }).catch(()=>{});
+        btnPlay.textContent='❚❚';
       });
       navigator.mediaSession.setActionHandler('pause', ()=>{
         player.pause();
+        btnPlay.textContent='▶';
         navigator.mediaSession.playbackState='paused';
       });
       navigator.mediaSession.setActionHandler('previoustrack', prev);
@@ -807,19 +692,14 @@ moon.addEventListener('click', ()=>{
       if(mr.ok){
         const mj = await mr.json();
         const list = Array.isArray(mj) ? mj : (mj && Array.isArray(mj.files) ? mj.files : []);
-        const allowedAlbums = new Set(['intergy','love','soul','spirit','fire']);
         return (list||[])
           .filter(p => /\.(mp3|m4a|wav)$/i.test(p))
           .map(p=>{
             const clean = String(p).replace(/^website\//,'');
-            const album = parseAlbumFromPath(clean);
-            return {p, clean, album};
-          })
-          .filter(item => allowedAlbums.has(normAlbumName(item.album)))
-          .map(({p, clean, album})=>{
             const base = location.origin + (BASE_PATH.endsWith('/') ? BASE_PATH : (BASE_PATH + '/'));
             const rel  = encodeURI(String(clean).replace(/^\/+/, '').replace(/^website\//,''));
             const url  = base + rel;
+            const album = parseAlbumFromPath(clean);
             const file  = decodeURIComponent(String(clean).split('/').pop()||'');
             const trackNum = (/^\s*(\d{1,3})/.exec(file)?.[1]??'9999')|0;
             const track = file.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*[-_.]?\s*/, '');
@@ -862,37 +742,47 @@ moon.addEventListener('click', ()=>{
     }
   }
 
-  async function startCurrent(){
+  function startCurrent(){
     const it = PLAYLIST[pIndex];
-    if(!it) return false;
+    if(!it) return;
     player.src = it.url;
-    player.muted = false;
-    player.volume = Number(vol.value || 0.8);
     setTitle(it);
     highlightAlbum(it.album);
     updateMediaSession(it);
-    try{
-      await player.play();
-      return true;
-    }catch(err){
-      console.warn('Track start failed:', err);
-      return false;
-    }
+    ensureAudioGraph();
+    try{ player.muted=false; player.volume=Math.max(player.volume||0, 1); }catch(e){}
+    player.play().then(()=>{
+      if('mediaSession' in navigator){
+        navigator.mediaSession.playbackState='playing';
+      }
+    }).catch(()=>{});
+    btnPlay.textContent='❚❚';
   }
   function next(){ if(!PLAYLIST.length) return; pIndex=(pIndex+1)%PLAYLIST.length; startCurrent(); }
   function prev(){ if(!PLAYLIST.length) return; pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length; startCurrent(); }
 
   btnNext.onclick=next;
   btnPrev.onclick=prev;
-  btnPlay.onclick=async ()=>{
+  btnPlay.onclick=()=>{
     if(!PLAYLIST.length) return;
-    if(player.paused){
-      if(!player.src) await startCurrent();
-      else {
-        try{ await player.play(); }catch(err){ console.warn('Manual play failed:', err); }
-      }
-    }else{
+    if(player.paused && !started){
+      started=true;
+      applyOrder(); // this will call startCurrent()
+    } else if(player.paused){
+      ensureAudioGraph();
+      try{ player.muted=false; player.volume=Math.max(player.volume||0, 1); }catch(e){}
+      player.play().then(()=>{
+        if('mediaSession' in navigator){
+          navigator.mediaSession.playbackState='playing';
+        }
+      }).catch(()=>{});
+      btnPlay.textContent='❚❚';
+    } else {
       player.pause();
+      btnPlay.textContent='▶';
+      if('mediaSession' in navigator){
+        navigator.mediaSession.playbackState='paused';
+      }
     }
   };
   tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
@@ -911,54 +801,82 @@ moon.addEventListener('click', ()=>{
   addEventListener('resize', ()=>{ if(PLAYLIST.length){ setTitle(PLAYLIST[pIndex]); } }, {passive:true});
 
   
-  // --- ONE audio startup path ---
+  // --- Radio-style autostart + UI sync (single source of truth) ---
   function setPlayUI(isPlaying){
     btnPlay.textContent = isPlaying ? '❚❚' : '▶';
   }
+  player.addEventListener('play', ()=>{ started = true; setPlayUI(true); });
+  player.addEventListener('pause', ()=>{ setPlayUI(false); });
+  player.addEventListener('ended', ()=>{ setPlayUI(false); });
 
-  player.addEventListener('playing', ()=>{
-    started = true;
-    setPlayUI(true);
-    ensureAudioGraph();
-    if('mediaSession' in navigator){
-      try{ navigator.mediaSession.playbackState = 'playing'; }catch(e){}
-    }
-  });
-
-  player.addEventListener('pause', ()=>{
-    setPlayUI(false);
-    if('mediaSession' in navigator){
-      try{ navigator.mediaSession.playbackState = 'paused'; }catch(e){}
-    }
-  });
-
-  async function startWebsiteAudioOnce(){
-    if(!PLAYLIST.length) return false;
-    pIndex = Math.max(0, Math.min(pIndex, PLAYLIST.length - 1));
-    const it = PLAYLIST[pIndex];
-    player.src = it.url;
-    player.preload = 'auto';
-    player.muted = false;
-    player.volume = Number(vol.value || 0.8);
-    setTitle(it);
-    highlightAlbum(it.album);
-    updateMediaSession(it);
+  async function safePlay({muted=false}={}){
     try{
-      await player.play();
-      return true;
-    }catch(err){
-      console.warn('Initial website audio start was blocked or failed:', err);
-      setPlayUI(false);
+      player.muted = !!muted;
+      const p = player.play();
+      if(p && typeof p.then === 'function'){ await p; }
+      return !player.paused;
+    }catch(e){
       return false;
     }
   }
-  // --- end single startup path ---
-fetchAllMp3s().then(async list=>{
+
+  function showTapToUnmute(){
+    const id = 'geTapUnmute';
+    let el = document.getElementById(id);
+    if(!el){
+      el = document.createElement('div');
+      el.id = id;
+      el.textContent = 'Tap to enable sound';
+      el.style.position = 'fixed';
+      el.style.left = '50%';
+      el.style.bottom = '18px';
+      el.style.transform = 'translateX(-50%)';
+      el.style.zIndex = '99999';
+      el.style.padding = '10px 14px';
+      el.style.borderRadius = '999px';
+      el.style.backdropFilter = 'blur(10px)';
+      el.style.background = 'rgba(0,0,0,0.55)';
+      el.style.color = '#fff';
+      el.style.fontSize = '14px';
+      el.style.pointerEvents = 'none';
+      document.body.appendChild(el);
+    }
+    const once = async ()=>{
+      try{
+        player.muted = false;
+        await safePlay({muted:false});
+      }finally{
+        const n = document.getElementById(id);
+        if(n) n.remove();
+      }
+    };
+    window.addEventListener('pointerdown', once, { once:true, passive:true });
+    window.addEventListener('touchstart', once, { once:true, passive:true });
+  }
+
+  async function radioStyleAutostart(){
+    if(!PLAYLIST || !PLAYLIST.length) return;
+
+    // Ensure a track is selected
+    if(!player.src){
+      try{ startCurrent(); }catch(e){}
+    }
+
+    // 1) Try audible
+    if(await safePlay({muted:false})) return;
+
+    // 2) Fallback: start muted (Safari often allows this), then ask for one tap to unmute
+    if(await safePlay({muted:true})){
+      showTapToUnmute();
+    }
+  }
+  // --- end autostart block ---
+fetchAllMp3s().then(list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
     PLAYLIST = list;
     pIndex = 0;
-    if(SHUFFLE) shuffle(PLAYLIST);
-    await startWebsiteAudioOnce();
+    applyOrder();
+    radioStyleAutostart();
 }).catch(err=>{
     console.error('Playlist load failed', err);
     nowPlaying.textContent = 'Error loading tracks.';
@@ -1191,7 +1109,7 @@ class Ship{
     if(side==='t'){ this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220); }
     if(side==='b'){ this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220); }
     this.ax=rand(-30,30); this.ay=rand(-30,30); this.curveT=rand(2,5); this.curveP=rand(0,Math.PI*2);
-    this.angle=0; this.dead=false; this.beam=0; this.targets=[]; this.forceBeamUntil=0; this.maxTargets=8; this.captureRadius=26; this.touchGuided=false;
+    this.angle=0; this.dead=false; this.beam=0; this.targets=[]; this.forceBeamUntil=0; this.maxTargets=8; this.captureRadius=26;
   }
   captureNextComet(){
     const pool = comets.filter(c => c.state==='fly' && !this.targets.includes(c));
@@ -1201,15 +1119,6 @@ class Ship{
     this.beam = 1;
   }
   step(dt){
-    if(this.touchGuided){
-      this.x += this.vx * dt;
-      this.y += this.vy * dt;
-      this.vx *= MOBILE ? 0.965 : 0.985;
-      this.vy *= MOBILE ? 0.965 : 0.985;
-      const speedForAngle=Math.hypot(this.vx,this.vy);
-      if(speedForAngle>1) this.angle=Math.atan2(this.vy,this.vx)+Math.PI;
-      return;
-    }
     // Base drift wobble
     this.curveP+=dt/this.curveT;
     this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
@@ -1383,6 +1292,7 @@ function setBG(i){
   };
   testImg.src = url;
 }
+setBG(bgIndex);
 function rippleAndNext(x,y){
   const start=performance.now(), dur=1200, D=Math.hypot(innerWidth,innerHeight);
   function draw(now){
@@ -1420,69 +1330,6 @@ function collideElastic(a,b,rest=0.98){
   b.vx = bn2*nx + bt*(-ny);
   b.vy = bn2*ny + bt*( nx);
 }
-
-
-/* Mobile ship control:
-   Touch near a ship to stop it immediately.
-   Drag from that point to choose a slow direction.
-   Release to let it glide with friction. */
-let shipTouch = null;
-function nearestShipForTouch(x,y){
-  const radius = MOBILE ? 90 : 34;
-  let best = null;
-  let bestD = radius;
-  for(const s of ships){
-    const d = Math.hypot(s.x-x, s.y-y);
-    if(d < bestD){ best=s; bestD=d; }
-  }
-  return best;
-}
-canvas.addEventListener('pointerdown', e=>{
-  const s = nearestShipForTouch(e.clientX,e.clientY);
-  if(!s) return;
-  shipTouch = {ship:s, startX:e.clientX, startY:e.clientY, moved:false};
-  s.touchGuided = true;
-  s.vx = 0;
-  s.vy = 0;
-  try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
-  e.preventDefault();
-  e.stopImmediatePropagation();
-}, {passive:false});
-
-canvas.addEventListener('pointermove', e=>{
-  if(!shipTouch) return;
-  const dx = e.clientX - shipTouch.startX;
-  const dy = e.clientY - shipTouch.startY;
-  const distance = Math.hypot(dx,dy);
-  shipTouch.moved = shipTouch.moved || distance > 6;
-  const maxSpeed = MOBILE ? 72 : 150;
-  const scale = Math.min(1, distance / (MOBILE ? 120 : 80));
-  if(distance > 0){
-    shipTouch.ship.vx = (dx / distance) * maxSpeed * scale;
-    shipTouch.ship.vy = (dy / distance) * maxSpeed * scale;
-  }
-  e.preventDefault();
-  e.stopImmediatePropagation();
-}, {passive:false});
-
-function releaseShipTouch(e){
-  if(!shipTouch) return;
-  const s = shipTouch.ship;
-  s.touchGuided = false;
-  if(!shipTouch.moved){
-    s.vx = 0;
-    s.vy = 0;
-    s.forceBeamUntil = performance.now()+2200;
-    s.captureNextComet();
-  }
-  shipTouch = null;
-  try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
-  e.preventDefault();
-  e.stopImmediatePropagation();
-}
-canvas.addEventListener('pointerup', releaseShipTouch, {passive:false});
-canvas.addEventListener('pointercancel', releaseShipTouch, {passive:false});
-
 
 /* Drag & throw for comets */
 let drag={obj:null,kind:null,hist:[]};
@@ -1748,7 +1595,7 @@ function nudgeSunNow(){
   wrap.style.top  = (T + h/2) + 'px';
   wrap.style.transform='translate(-50%,-50%)';
 }
-nudgeSunNow();
+addEventListener('resize', nudgeSunNow, {passive:true}); nudgeSunNow();
 </script>
 </body>
 </html>
