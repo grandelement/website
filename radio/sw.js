@@ -1,14 +1,19 @@
 /* Grand Element Radio service worker */
 'use strict';
-const VERSION='2026.07.25-pwa-clean-2';
+const VERSION='2026.07.28-pwa-clean-3';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4';
 const SHELL=[
   './',
   './index.html',
   './manifest.webmanifest',
+  './favicon.ico',
+  './icons/favicon-16.png',
+  './icons/favicon-32.png',
+  './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
   '../ge-images/images/ge-logo-2.jpg'
 ];
 

@@ -8,10 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="GE Radio">
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" href="./favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>Grand Element Radio</title>
 <style>
 :root{
@@ -152,7 +150,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.07.28-pwa-clean-3',
+  APP_VERSION: '2026.07.25-pwa-clean-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
@@ -754,7 +752,7 @@ async function registerServiceWorker(){
   registerServiceWorker();
   state.catalog=(await loadMusicManifest()).sort(orderedSort);
   rebuildQueue('');
-  const start=matchingStartSong() || (state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0] || ''));
+  const start=matchingStartSong() || allowedCatalog()[0] || '';
   if(!start){ titleBtn.textContent='No music files found'; setStatus('The radio manifest could not be loaded.'); return; }
   if(state.shuffle) recordHistory(start);
   await playURL(start,{record:false,backgroundChange:false});
