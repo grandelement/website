@@ -138,6 +138,7 @@ footer{padding-top:4px}
 
   <div class="offline-row">
     <button id="offlineBtn">Go Offline</button>
+    <button id="reloadBtn">Reload Library</button>
     <button id="installBtn">Install App</button>
   </div>
   <div id="offlinePanel">
@@ -152,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.07.28-pwa-clean-3',
+  APP_VERSION: '2026.08.07-reload-library-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
@@ -429,10 +430,15 @@ function renderTrackList(){
   trackList.appendChild(fragment);
 }
 
-async function loadMusicManifest(){
+async function loadMusicManifest(forceFresh=false){
   const cacheKey='GE_MUSIC_LIST_CLEAN_V1';
   try{
-    const response=await fetch(absolute(CONFIG.MUSIC_MANIFEST),{cache:'no-store'});
+    const manifestURL=new URL(absolute(CONFIG.MUSIC_MANIFEST));
+    if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
+    const response=await fetch(manifestURL.href,{
+      cache:'no-store',
+      headers:forceFresh?{'X-GE-Reload':'1'}:{}
+    });
     if(response.ok){
       const data=await response.json();
       const raw=Array.isArray(data)?data:(Array.isArray(data.files)?data.files:[]);
@@ -613,13 +619,19 @@ audio.addEventListener('canplay',()=>{
     search.set('bgoff',bg.off?'1':'0');
     search.set('bgx',focal.x); search.set('bgy',focal.y); search.set('bgshift',focal.shift); search.set('bgscale',focal.scale);
   }
-  async function loadFiles(){
+  async function loadFiles(forceFresh=false){
     let files=[];
     try{
-      const response=await fetch(absolute(CONFIG.IMAGE_MANIFEST),{cache:'no-store'});
+      const manifestURL=new URL(absolute(CONFIG.IMAGE_MANIFEST));
+      if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
+      const response=await fetch(manifestURL.href,{
+        cache:'no-store',
+        headers:forceFresh?{'X-GE-Reload':'1'}:{}
+      });
       if(response.ok){ const data=await response.json(); if(Array.isArray(data)) files=data.filter(name=>/\.(gif|png|jpe?g|webp)$/i.test(name)); }
     }catch(_e){}
-    if(!files.length) files=['1.gif','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'];
+    if(!files.length) files=['1.gif','47.gif','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'];
+    if(!files.some(name=>String(name).toLowerCase()==='47.gif')) files.splice(Math.min(1,files.length),0,'47.gif');
     bg.files=files;
     const requested=params.get('bg');
     const stored=Number(localStorage.getItem('GE_BG_POS_V2'));
@@ -637,8 +649,13 @@ audio.addEventListener('canplay',()=>{
   buttons.per.addEventListener('click',()=>{ bg.perSong=!bg.perSong; if(bg.perSong){ bg.auto=false; stopTimer(); } reflect(); persist(); });
   buttons.shuffle.addEventListener('click',()=>{ bg.shuffle=!bg.shuffle; if(bg.shuffle){ bg.auto=false; stopTimer(); } reflect(); persist(); });
   buttons.auto.addEventListener('click',()=>{ bg.auto=!bg.auto; if(bg.auto){ bg.perSong=false; bg.shuffle=false; startTimer(); }else stopTimer(); reflect(); persist(); });
-  window.GEBackgrounds={onSongStart,writeShareState,getFiles:()=>bg.files.slice()};
-  loadFiles();
+  window.GEBackgrounds={
+    onSongStart,
+    writeShareState,
+    getFiles:()=>bg.files.slice(),
+    reloadFiles:async()=>{ await loadFiles(true); return bg.files.slice(); }
+  };
+  loadFiles(false);
 })();
 
 // HUD controller.
@@ -705,31 +722,52 @@ async function registerServiceWorker(){
     const shell=['./','./index.html','./manifest.webmanifest','./sw.js','./icons/icon-192.png','./icons/icon-512.png',CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST].map(absolute);
     return [...new Set([...shell,...backgrounds,...songs,...stationIDs])];
   }
-  async function download(){
+  async function cacheMissingAssets({quiet=false}={}){
     await registerServiceWorker();
     if(navigator.storage?.persist) try{ await navigator.storage.persist(); }catch(_e){}
     const cache=await caches.open(CONFIG.OFFLINE_CACHE);
     const assets=await buildAssetList();
+    const missing=[];
+    for(const url of assets){
+      const hit=await cache.match(url,{ignoreSearch:true});
+      if(!hit) missing.push(url);
+    }
+    if(!missing.length){
+      if(!quiet){
+        setActive(true);
+        progress(assets.length,assets.length,'Offline ready.');
+        setStatus('Offline library is already current.');
+      }
+      return {added:0,failed:0,total:assets.length};
+    }
     abortController=new AbortController();
     button.classList.add('downloading');
     button.textContent='Stop Download';
     let done=0,failed=0;
-    for(const url of assets){
+    for(const url of missing){
       if(abortController.signal.aborted) break;
       try{
         const response=await fullFetch(url,abortController.signal);
         await cache.put(url,response.clone());
       }catch(_e){ failed++; }
-      done++; progress(done,assets.length,'Downloading');
+      done++;
+      if(!quiet) progress(done,missing.length,'Updating');
     }
     button.classList.remove('downloading');
     abortController=null;
-    if(done>0 && done>failed){
-      setActive(true);
-      progress(assets.length,assets.length,failed?`Ready with ${failed} unavailable files.`:'Offline ready.');
-      setStatus('Offline radio is ready. Open the website bookmark or installed app without Internet.');
-    }else{
-      setActive(false); text.textContent='The offline download did not complete.';
+    const added=done-failed;
+    if(added>0 || missing.length===0) setActive(true);
+    if(!quiet){
+      progress(missing.length,missing.length,failed?`Updated with ${failed} unavailable files.`:'Offline updated.');
+      setStatus(added?`Added ${added} new offline file${added===1?'':'s'}.`:'Offline library is current.');
+    }
+    return {added,failed,total:assets.length};
+  }
+  async function download(){
+    const result=await cacheMissingAssets({quiet:false});
+    if(result.total===0){
+      setActive(false);
+      text.textContent='The offline download did not complete.';
     }
   }
   async function remove(){
@@ -745,7 +783,66 @@ async function registerServiceWorker(){
     if(confirm('Download the music, station IDs, backgrounds, and radio app for offline use? This may use about 1 GB of storage.')) await download();
   });
   setActive(localStorage.getItem(CONFIG.OFFLINE_KEY)==='1');
+  window.GEOffline={
+    isActive:()=>localStorage.getItem(CONFIG.OFFLINE_KEY)==='1',
+    updateMissing:()=>cacheMissingAssets({quiet:true})
+  };
 })();
+
+
+// Manual library updater.
+$('reloadBtn').addEventListener('click',async()=>{
+  const button=$('reloadBtn');
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent='Checking...';
+
+  const previousURL=state.currentURL;
+  const previousCount=state.catalog.length;
+  const previousBackgrounds=window.GEBackgrounds?window.GEBackgrounds.getFiles().length:0;
+
+  try{
+    if('serviceWorker' in navigator){
+      try{
+        const registration=await navigator.serviceWorker.getRegistration('./');
+        if(registration) await registration.update();
+      }catch(_e){}
+    }
+
+    const freshCatalog=(await loadMusicManifest(true)).sort(orderedSort);
+    if(freshCatalog.length){
+      state.catalog=freshCatalog;
+      rebuildQueue(previousURL);
+    }
+
+    let newBackgroundCount=previousBackgrounds;
+    if(window.GEBackgrounds?.reloadFiles){
+      const freshBackgrounds=await window.GEBackgrounds.reloadFiles();
+      newBackgroundCount=freshBackgrounds.length;
+    }
+
+    let offlineAdded=0;
+    if(window.GEOffline?.isActive()){
+      const result=await window.GEOffline.updateMissing();
+      offlineAdded=result?.added||0;
+    }
+
+    const songChange=Math.max(0,state.catalog.length-previousCount);
+    const bgChange=Math.max(0,newBackgroundCount-previousBackgrounds);
+
+    setStatus(`Library updated. ${songChange} new song${songChange===1?'':'s'}, ${bgChange} new image${bgChange===1?'':'s'}${offlineAdded?`, ${offlineAdded} new offline file${offlineAdded===1?'':'s'} saved`:''}.`);
+
+    button.textContent='Updated';
+    setTimeout(()=>{ button.textContent=original; },1800);
+  }catch(error){
+    console.error('GE library reload failed',error);
+    setStatus('Library update could not finish. Check the Internet connection and try again.');
+    button.textContent='Try Again';
+    setTimeout(()=>{ button.textContent=original; },2200);
+  }finally{
+    button.disabled=false;
+  }
+});
 
 (async function boot(){
   $('geLogo').src=absolute(CONFIG.LOGO_SRC);

@@ -1,6 +1,6 @@
 /* Grand Element Radio service worker */
 'use strict';
-const VERSION='2026.07.28-pwa-clean-3';
+const VERSION='2026.08.07-reload-library-1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4';
 const SHELL=[
@@ -95,6 +95,18 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET') return;
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  if(request.headers.get('X-GE-Reload')==='1'){
+    event.respondWith((async()=>{
+      const network=await fetch(request,{cache:'no-store'});
+      if(network.ok){
+        const cache=await caches.open(SHELL_CACHE);
+        cache.put(request,network.clone()).catch(()=>{});
+      }
+      return network;
+    })());
+    return;
+  }
   if(request.mode==='navigate'){
     event.respondWith(navigationResponse(request));
     return;
