@@ -22,7 +22,7 @@
   --btn-br:#27455e;
   --bg-x:50%;
   --bg-y:50%;
-  --bg-shift-y:4vh;
+  --bg-shift-y:0vh;
   --bg-scale:1.08;
 }
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
@@ -48,7 +48,7 @@ body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-i
 body.hud-hidden #hudTap{display:block}
 .wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:15px;padding:28px 18px 36px;text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
 body.hud-hidden .wrap{opacity:0;pointer-events:none}
-.logo-wrap{width:min(260px,28vw);height:min(260px,28vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
+.logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
 .logo{width:100%;height:100%;object-fit:cover;object-position:center}
 h1{margin:6px 0 0;font-size:clamp(20px,4.2vw,32px)}
 .tag{opacity:.9;font-size:clamp(14px,3.6vw,18px)}
@@ -87,7 +87,7 @@ footer{padding-top:4px}
   #musicGroup button{font-size:12px;padding:9px 4px}
   #bgGroup .bg-row{gap:4px}
   #bgGroup button{font-size:11px;padding:9px 3px}
-  .logo-wrap{width:min(220px,45vw);height:min(220px,45vw)}
+  .logo-wrap{width:min(198px,40.5vw);height:min(198px,40.5vw)}
 }
 </style>
 </head>
@@ -153,8 +153,9 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.07-reload-library-1',
+  APP_VERSION: '2026.08.07-share-preview-center-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
+  HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
   IMAGE_MANIFEST: '../ge-images/img/manifest.json',
@@ -163,7 +164,7 @@ const CONFIG = Object.freeze({
   BG_AUTO_SECONDS: 33,
   BG_X: '50%',
   BG_Y: '50%',
-  BG_SHIFT_Y: '4vh',
+  BG_SHIFT_Y: '0vh',
   BG_SCALE: '1.08',
   STATION_ID_FILES: [0,1,2,3,4,5,6,9],
   STATION_ID_MIN_SONGS: 4,
@@ -176,7 +177,7 @@ const CONFIG = Object.freeze({
   BACKGROUND_FOCAL: {
     // This creates real movement even when cover has no vertical crop.
     // Add a filename here when one picture needs its own optical adjustment.
-    '17.gif': {x:'50%', y:'50%', shift:'5vh', scale:'1.10'}
+    '17.gif': {x:'50%', y:'50%', shift:'0vh', scale:'1.10'}
   }
 });
 
@@ -469,18 +470,37 @@ function loadSharedState(){
   if(params.has('legacy')) state.legacy=params.get('legacy')==='1';
 }
 
+function appendShareState(target){
+  target.searchParams.set('shuffle',state.shuffle?'1':'0');
+  target.searchParams.set('legacy',state.legacy?'1':'0');
+  target.searchParams.set('statev','3');
+  target.searchParams.set('at',String(Date.now()));
+  if(window.GEBackgrounds) window.GEBackgrounds.writeShareState(target.searchParams);
+  target.searchParams.set('hudhide',$('hudAutoHide').checked?'1':'0');
+  return target;
+}
 function shareURL(){
   const filename=fileName(state.currentURL);
   if(!filename || isStationID(state.currentURL)) return location.href;
   const slug=stripExtension(filename).replace(/^.*?[_ -](\d+)[_ -]/,'').replace(/[_+]+/g,' ').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-  const target=new URL(`./share/${slug}.html`,location.href);
-  target.searchParams.set('shuffle',state.shuffle?'1':'0');
-  target.searchParams.set('legacy',state.legacy?'1':'0');
-  target.searchParams.set('statev','2');
-  target.searchParams.set('at',String(Date.now()));
-  if(window.GEBackgrounds) window.GEBackgrounds.writeShareState(target.searchParams);
-  target.searchParams.set('hudhide',$('hudAutoHide').checked?'1':'0');
-  return target.href;
+  return appendShareState(new URL(`./share/${slug}.html`,location.href)).href;
+}
+function directTrackURL(){
+  const filename=fileName(state.currentURL);
+  const target=new URL('./',location.href);
+  if(filename && !isStationID(state.currentURL)) target.searchParams.set('song',filename);
+  return appendShareState(target).href;
+}
+async function resolvedShareURL(){
+  const staticURL=shareURL();
+  if(staticURL===location.href) return staticURL;
+  try{
+    const page=new URL(staticURL);
+    page.search='';
+    const response=await fetch(page.href,{method:'HEAD',cache:'no-store'});
+    if(response.ok) return staticURL;
+  }catch(_e){}
+  return directTrackURL();
 }
 
 $('prevBtn').addEventListener('click',()=>previousTrack(true));
@@ -517,9 +537,13 @@ titleBtn.addEventListener('click',()=>{
   }
 });
 $('shareBtn').addEventListener('click',async()=>{
-  const url=shareURL();
+  const url=await resolvedShareURL();
+  const song=isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song;
   try{
-    if(navigator.share){ await navigator.share({title:'Grand Element Radio',text:'Listen to this track',url}); return; }
+    if(navigator.share){
+      await navigator.share({title:song,url});
+      return;
+    }
     await navigator.clipboard.writeText(url);
     setStatus('Share link copied.');
   }catch(_e){ prompt('Copy this link:',url); }
@@ -846,6 +870,7 @@ $('reloadBtn').addEventListener('click',async()=>{
 
 (async function boot(){
   $('geLogo').src=absolute(CONFIG.LOGO_SRC);
+  $('homeLink').href=CONFIG.HOME_URL;
   loadSharedState();
   syncModeButtons();
   registerServiceWorker();
