@@ -1,6 +1,6 @@
 /* Grand Element Radio service worker */
 'use strict';
-const VERSION='2026.08.10-reload-reset-defaults-1';
+const VERSION='2026.08.10-sha-versioned-audio-1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4';
 const SHELL=[
@@ -68,9 +68,19 @@ async function navigationResponse(request){
   }
 }
 async function mediaResponse(request){
-  const cached=await cachedResponse(request);
+  const url=new URL(request.url);
+  const versioned=url.searchParams.has('v');
+
+  // SHA-versioned media must match its FULL URL. Using ignoreSearch:true here
+  // would allow an older same-filename MP3 to satisfy the new request.
+  const cached=versioned
+    ? ((await caches.match(request,{ignoreSearch:false})) ||
+       (await caches.match(request.url,{ignoreSearch:false})))
+    : await cachedResponse(request);
+
   if(cached) return rangeFromCache(request,cached);
-  const network=await fetch(request);
+
+  const network=await fetch(request,{cache:versioned?'no-store':'default'});
   if(network.ok && network.status===200 && request.method==='GET'){
     const cache=await caches.open(MEDIA_CACHE);
     cache.put(request.url,network.clone()).catch(()=>{});
@@ -101,9 +111,7 @@ self.addEventListener('fetch',event=>{
       const network=await fetch(request,{cache:'no-store'});
       if(network.ok && network.status===200){
         const cache=await caches.open(MEDIA_CACHE);
-        const cleanURL=new URL(request.url);
-        cleanURL.searchParams.delete('_ge_reload');
-        cache.put(cleanURL.href,network.clone()).catch(()=>{});
+        cache.put(request.url,network.clone()).catch(()=>{});
       }
       return network;
     })());

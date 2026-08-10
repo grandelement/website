@@ -153,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.10-reload-reset-defaults-1',
+  APP_VERSION: '2026.08.10-sha-versioned-audio-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -244,6 +244,18 @@ function shuffleArray(items){
 function repoPathToURL(path){
   return absolute('../'+String(path||'').replace(/^\/+/,''));
 }
+function repoPathToVersionedURL(path,sha){
+  const target=new URL(repoPathToURL(path));
+  if(sha) target.searchParams.set('v',String(sha));
+  return target.href;
+}
+function applyKnownMediaVersions(catalog,shaMap){
+  return (catalog||[]).map(url=>{
+    const path=urlToRepoPath(url);
+    const sha=shaMap?.[path];
+    return sha?repoPathToVersionedURL(path,sha):url;
+  });
+}
 function urlToRepoPath(url){
   try{
     return decodeURIComponent(new URL(url,location.href).pathname).replace(/^\/+/,'');
@@ -274,7 +286,7 @@ function libraryFromRepositoryTree(tree){
     if(isAudio && (lower.startsWith('ge-music/music/') || lower.startsWith('ge-music/clips/'))){
       tracked[path]=item.sha||'';
       if(lower.startsWith('ge-music/music/')){
-        const url=repoPathToURL(path);
+        const url=repoPathToVersionedURL(path,item.sha||'');
         if(!isStationID(url) && !isSingles(url)) audioItems.push(url);
       }
       continue;
@@ -328,6 +340,16 @@ async function cachedFileLooksChanged(url,cache){
     }
   }
   return false;
+}
+async function purgeCachedMediaPath(cache,path){
+  const keys=await cache.keys();
+  let removed=0;
+  for(const request of keys){
+    if(urlToRepoPath(request.url)===path){
+      if(await cache.delete(request,{ignoreSearch:false})) removed++;
+    }
+  }
+  return removed;
 }
 async function fetchFreshMedia(url){
   const response=await fetch(url,{
@@ -392,14 +414,14 @@ async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=fals
   let failed=0;
 
   for(const path of removedPaths){
-    const url=repoPathToURL(path);
-    if(await cache.delete(url,{ignoreSearch:true})) removed++;
+    removed+=await purgeCachedMediaPath(cache,path);
   }
 
   const refreshSet=[...new Set(changedPaths)];
   for(const path of refreshSet){
-    const url=repoPathToURL(path);
+    const url=repoPathToVersionedURL(path,newShaMap[path]||'');
     try{
+      await purgeCachedMediaPath(cache,path);
       const response=await fetchFreshMedia(url);
       await cache.put(url,response.clone());
       refreshed++;
@@ -409,8 +431,9 @@ async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=fals
   if(offlineActive){
     const addSet=[...new Set(addedPaths.filter(path=>!refreshSet.includes(path)))];
     for(const path of addSet){
-      const url=repoPathToURL(path);
+      const url=repoPathToVersionedURL(path,newShaMap[path]||'');
       try{
+        await purgeCachedMediaPath(cache,path);
         const response=await fetchFreshMedia(url);
         await cache.put(url,response.clone());
         addedOffline++;
@@ -1169,7 +1192,10 @@ $('reloadBtn').addEventListener('click',async()=>{
   loadSharedState();
   syncModeButtons();
   registerServiceWorker();
-  state.catalog=(await loadMusicManifest()).sort(orderedSort);
+  state.catalog=applyKnownMediaVersions(
+    (await loadMusicManifest()).sort(orderedSort),
+    loadMediaShaMap()
+  ).sort(orderedSort);
   rebuildQueue('');
   const start=matchingStartSong() || (state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0] || ''));
   if(!start){ titleBtn.textContent='No music files found'; setStatus('The radio manifest could not be loaded.'); return; }
