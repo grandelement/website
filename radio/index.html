@@ -153,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.09-smart-reload-1',
+  APP_VERSION: '2026.08.10-reload-reset-defaults-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -530,7 +530,7 @@ function updateCurrentRow(){
 }
 function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.onSongStart(); }
 
-async function playURL(url,{record=false,backgroundChange=false,userAction=false}={}){
+async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(!url) return;
   const token=++state.playToken;
   state.currentURL=url;
@@ -547,7 +547,14 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     audio.defaultMuted=false;
     audio.volume=1;
     audio.autoplay=true;
-    if(audio.src!==url){
+    if(forceReload || audio.src!==url){
+      // Clearing first forces iOS/Safari and installed PWAs to discard any
+      // already-buffered bytes from an older same-filename recording.
+      if(forceReload){
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
       audio.src=url;
       audio.load();
     }
@@ -823,6 +830,31 @@ audio.addEventListener('canplay',()=>{
     if(bg.auto && !bg.off) bg.timer=setInterval(()=>apply(bg.position+1),CONFIG.BG_AUTO_SECONDS*1000);
   }
   function onSongStart(){ if(bg.perSong && !bg.off && !bg.auto) apply(randomOrNext()); }
+  function resetDefaults(){
+    // A shared URL is a snapshot only. Reload Library returns the radio to
+    // its normal defaults instead of continuing to obey that snapshot.
+    ['bg','bgper','bgshuf','bgauto','bgoff','bgx','bgy','bgshift','bgscale'].forEach(key=>params.delete(key));
+    bg.off=false;
+    bg.perSong=true;
+    bg.shuffle=true;
+    bg.auto=false;
+    stopTimer();
+
+    document.documentElement.style.setProperty('--bg-x',CONFIG.BG_X);
+    document.documentElement.style.setProperty('--bg-y',CONFIG.BG_Y);
+    document.documentElement.style.setProperty('--bg-shift-y',CONFIG.BG_SHIFT_Y);
+    document.documentElement.style.setProperty('--bg-scale',CONFIG.BG_SCALE);
+
+    if(bg.files.length){
+      bg.position=Math.floor(Math.random()*bg.files.length);
+      apply(bg.position);
+    }else{
+      image.style.opacity='0';
+      persist();
+    }
+    reflect();
+    persist();
+  }
   function writeShareState(search){
     const filename=bg.files[bg.position]||'';
     const focal=focalFor(filename);
@@ -869,7 +901,8 @@ audio.addEventListener('canplay',()=>{
     onSongStart,
     writeShareState,
     getFiles:()=>bg.files.slice(),
-    reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); }
+    reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); },
+    resetDefaults
   };
   loadFiles(false);
 })();
@@ -1007,16 +1040,15 @@ async function registerServiceWorker(){
 
 
 // Manual library updater.
-// Uses the actual public GitHub repository tree, so it can discover files even
-// when manifest.json has not been rebuilt yet. Blob SHAs let it detect a
-// replacement that keeps the exact same filename.
+// Reload Library means UPDATE + RESET TO NORMAL RADIO.
+// Shared links remain exact snapshots when opened, but pressing Reload Library
+// leaves that snapshot and returns to the normal randomized station defaults.
 $('reloadBtn').addEventListener('click',async()=>{
   const button=$('reloadBtn');
   const original=button.textContent;
   button.disabled=true;
-  button.textContent='Checking...';
+  button.textContent='Updating...';
 
-  const previousURL=state.currentURL;
   const previousCatalog=new Set(state.catalog);
   const previousBackgrounds=new Set(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]);
 
@@ -1028,6 +1060,8 @@ $('reloadBtn').addEventListener('click',async()=>{
       }catch(_e){}
     }
 
+    // Read the actual repository tree. This is what detects new files,
+    // deleted files, and same-filename replacements by Git blob SHA.
     let library=null;
     try{
       const tree=await fetchRepositoryTree();
@@ -1042,8 +1076,6 @@ $('reloadBtn').addEventListener('click',async()=>{
       state.catalog=(await loadMusicManifest(true)).sort(orderedSort);
     }
 
-    rebuildQueue(previousURL);
-
     let freshBackgrounds=[];
     if(library && library.backgrounds.length){
       freshBackgrounds=await window.GEBackgrounds.reloadFiles(library.backgrounds);
@@ -1051,7 +1083,11 @@ $('reloadBtn').addEventListener('click',async()=>{
       freshBackgrounds=await window.GEBackgrounds.reloadFiles();
     }
 
-    let mediaResult={refreshed:0,addedOffline:0,removed:0,failed:0,changedPaths:[],addedPaths:[],removedPaths:[]};
+    let mediaResult={
+      refreshed:0,addedOffline:0,removed:0,failed:0,
+      changedPaths:[],addedPaths:[],removedPaths:[]
+    };
+
     if(library){
       const oldShaMap=loadMediaShaMap();
       mediaResult=await refreshMediaCacheFromTree(oldShaMap,library.shaMap,{
@@ -1065,35 +1101,60 @@ $('reloadBtn').addEventListener('click',async()=>{
     const newImages=freshBackgrounds.filter(name=>!previousBackgrounds.has(name)).length;
     const removedImages=[...previousBackgrounds].filter(name=>!freshBackgrounds.includes(name)).length;
 
-    // If the exact currently playing file was replaced, reload that source now
-    // so the listener hears the new file immediately.
-    const currentPath=urlToRepoPath(previousURL);
-    if(previousURL && mediaResult.changedPaths.includes(currentPath)){
-      const wasPlaying=!audio.paused;
-      await playURL(previousURL,{record:false,backgroundChange:false,userAction:false});
-      if(!wasPlaying) audio.pause();
-    }else if(previousURL && !isStationID(previousURL) && !state.catalog.includes(previousURL)){
-      const fallback=allowedCatalog()[0]||'';
-      if(fallback) await playURL(fallback,{record:false,backgroundChange:true,userAction:false});
+    // -------- RESET THE RADIO TO ITS NORMAL DEFAULT STATE --------
+    // A shared URL is only the saved snapshot that opened the radio.
+    // Once Reload Library is pressed, remove that snapshot from the address.
+    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
+
+    state.shuffle=true;
+    state.legacy=false;
+    state.history=[];
+    state.historyPos=-1;
+    state.recent=[];
+    state.pendingAfterStation=null;
+    state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
+
+    syncModeButtons();
+    rebuildQueue('');
+
+    if(window.GEBackgrounds?.resetDefaults){
+      window.GEBackgrounds.resetDefaults();
+    }
+
+    // Return Hide Text to the normal default as well.
+    $('hudAutoHide').checked=true;
+    localStorage.setItem(CONFIG.HUD_KEY,'1');
+    document.body.classList.remove('hud-hidden');
+
+    const start=pickWeightedShuffle();
+    if(start){
+      recordHistory(start);
+      // forceReload is important if the random song happens to be a file that
+      // was just replaced while keeping the same filename.
+      await playURL(start,{
+        record:false,
+        backgroundChange:false,
+        userAction:true,
+        forceReload:true
+      });
     }
 
     const totalChanges=
       newSongs+removedSongs+newImages+removedImages+
       mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed;
 
-    button.textContent=totalChanges?`Updated ${totalChanges}`:'Up to Date';
+    button.textContent=totalChanges?`Updated ${totalChanges}`:'Reset & Ready';
 
     setStatus(
-      `Reload complete. ${newSongs} new song${newSongs===1?'':'s'}, `+
+      `Radio reset. ${newSongs} new song${newSongs===1?'':'s'}, `+
       `${removedSongs} removed song${removedSongs===1?'':'s'}, `+
       `${mediaResult.refreshed} replaced file${mediaResult.refreshed===1?'':'s'} refreshed, `+
-      `${newImages} new image${newImages===1?'':'s'}.`+
-      (mediaResult.failed?` ${mediaResult.failed} file${mediaResult.failed===1?'':'s'} could not refresh.`:'')
+      `${newImages} new image${newImages===1?'':'s'}.`
     );
 
     setTimeout(()=>{ button.textContent=original; },2200);
   }catch(error){
-    console.error('GE smart reload failed',error);
+    console.error('GE reload/reset failed',error);
     setStatus('Library update could not finish. Check the Internet connection and try again.');
     button.textContent='Try Again';
     setTimeout(()=>{ button.textContent=original; },2200);
