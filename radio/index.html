@@ -153,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.07-share-preview-center-2',
+  APP_VERSION: '2026.08.09-smart-reload-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -174,6 +174,8 @@ const CONFIG = Object.freeze({
   OFFLINE_KEY: 'GE_OFFLINE_ACTIVE_V4',
   HUD_KEY: 'GE_HUD_AUTOHIDE_V2',
   HUD_IDLE_MS: 15000,
+  GITHUB_TREE_API: 'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
+  MEDIA_SHA_KEY: 'GE_REPO_MEDIA_SHA_V1',
   BACKGROUND_FOCAL: {
     // This creates real movement even when cover has no vertical crop.
     // Add a filename here when one picture needs its own optical adjustment.
@@ -237,6 +239,194 @@ function shuffleArray(items){
   const copy=items.slice();
   for(let i=copy.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; }
   return copy;
+}
+
+function repoPathToURL(path){
+  return absolute('../'+String(path||'').replace(/^\/+/,''));
+}
+function urlToRepoPath(url){
+  try{
+    return decodeURIComponent(new URL(url,location.href).pathname).replace(/^\/+/,'');
+  }catch(_e){ return ''; }
+}
+async function fetchRepositoryTree(){
+  const target=new URL(CONFIG.GITHUB_TREE_API);
+  target.searchParams.set('_ge_reload',String(Date.now()));
+  const response=await fetch(target.href,{cache:'no-store'});
+  if(!response.ok) throw new Error(`GitHub tree ${response.status}`);
+  const data=await response.json();
+  if(!data || !Array.isArray(data.tree)) throw new Error('GitHub tree response was incomplete');
+  return data.tree;
+}
+function libraryFromRepositoryTree(tree){
+  const audioItems=[];
+  const backgroundItems=[];
+  const tracked={};
+
+  for(const item of tree){
+    if(!item || item.type!=='blob' || !item.path) continue;
+    const path=String(item.path);
+    const lower=path.toLowerCase();
+
+    const isAudio=/\.(mp3|m4a|ogg|wav)$/i.test(path);
+    const isImage=/\.(gif|png|jpe?g|webp)$/i.test(path);
+
+    if(isAudio && (lower.startsWith('ge-music/music/') || lower.startsWith('ge-music/clips/'))){
+      tracked[path]=item.sha||'';
+      if(lower.startsWith('ge-music/music/')){
+        const url=repoPathToURL(path);
+        if(!isStationID(url) && !isSingles(url)) audioItems.push(url);
+      }
+      continue;
+    }
+
+    if(isImage && lower.startsWith('ge-images/img/')){
+      tracked[path]=item.sha||'';
+      backgroundItems.push(path.slice('ge-images/img/'.length));
+    }
+  }
+
+  return {
+    catalog:[...new Set(audioItems)].sort(orderedSort),
+    backgrounds:[...new Set(backgroundItems)].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})),
+    shaMap:tracked
+  };
+}
+function loadMediaShaMap(){
+  try{
+    const value=JSON.parse(localStorage.getItem(CONFIG.MEDIA_SHA_KEY)||'{}');
+    return value && typeof value==='object' && !Array.isArray(value) ? value : {};
+  }catch(_e){ return {}; }
+}
+function saveMediaShaMap(map){
+  try{ localStorage.setItem(CONFIG.MEDIA_SHA_KEY,JSON.stringify(map||{})); }catch(_e){}
+}
+function comparableHeader(response,name){
+  return String(response?.headers?.get(name)||'').trim();
+}
+async function networkHead(url){
+  try{
+    const response=await fetch(url,{method:'HEAD',cache:'no-store'});
+    return response.ok?response:null;
+  }catch(_e){ return null; }
+}
+async function cachedFileLooksChanged(url,cache){
+  const cached=await cache.match(url,{ignoreSearch:true});
+  if(!cached) return false;
+
+  const head=await networkHead(url);
+  if(!head) return false;
+
+  const keys=['etag','last-modified','content-length'];
+  let comparable=0;
+  for(const key of keys){
+    const oldValue=comparableHeader(cached,key);
+    const newValue=comparableHeader(head,key);
+    if(oldValue && newValue){
+      comparable++;
+      if(oldValue!==newValue) return true;
+    }
+  }
+  return false;
+}
+async function fetchFreshMedia(url){
+  const response=await fetch(url,{
+    cache:'no-store',
+    headers:{'X-GE-Reload-Media':'1'}
+  });
+  if(!response.ok) throw new Error(`${response.status} ${url}`);
+  return response;
+}
+async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=false}={}){
+  const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+  const oldKeys=Object.keys(oldShaMap||{});
+  const newKeys=Object.keys(newShaMap||{});
+  const hasOldBaseline=oldKeys.length>0;
+
+  const changedPaths=[];
+  const addedPaths=[];
+  const removedPaths=[];
+
+  if(hasOldBaseline){
+    for(const path of newKeys){
+      if(!(path in oldShaMap)) addedPaths.push(path);
+      else if(oldShaMap[path]!==newShaMap[path]) changedPaths.push(path);
+    }
+    for(const path of oldKeys){
+      if(!(path in newShaMap)) removedPaths.push(path);
+    }
+  }else{
+    // First run after installing this smarter updater:
+    // compare cached response metadata with the live file so same-name
+    // replacements that happened before this version can still be found.
+    const cachedKeys=await cache.keys();
+    const candidates=cachedKeys
+      .map(request=>request.url)
+      .filter(url=>{
+        const path=urlToRepoPath(url);
+        return path in newShaMap;
+      });
+
+    const workers=6;
+    let cursor=0;
+    async function worker(){
+      while(cursor<candidates.length){
+        const url=candidates[cursor++];
+        if(await cachedFileLooksChanged(url,cache)){
+          changedPaths.push(urlToRepoPath(url));
+        }
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(workers,candidates.length||1)},worker));
+
+    for(const path of newKeys){
+      const url=repoPathToURL(path);
+      const hit=await cache.match(url,{ignoreSearch:true});
+      if(!hit) addedPaths.push(path);
+    }
+  }
+
+  let refreshed=0;
+  let addedOffline=0;
+  let removed=0;
+  let failed=0;
+
+  for(const path of removedPaths){
+    const url=repoPathToURL(path);
+    if(await cache.delete(url,{ignoreSearch:true})) removed++;
+  }
+
+  const refreshSet=[...new Set(changedPaths)];
+  for(const path of refreshSet){
+    const url=repoPathToURL(path);
+    try{
+      const response=await fetchFreshMedia(url);
+      await cache.put(url,response.clone());
+      refreshed++;
+    }catch(_e){ failed++; }
+  }
+
+  if(offlineActive){
+    const addSet=[...new Set(addedPaths.filter(path=>!refreshSet.includes(path)))];
+    for(const path of addSet){
+      const url=repoPathToURL(path);
+      try{
+        const response=await fetchFreshMedia(url);
+        await cache.put(url,response.clone());
+        addedOffline++;
+      }catch(_e){ failed++; }
+    }
+  }
+
+  return {
+    refreshed,
+    addedOffline,
+    removed,
+    failed,
+    changedPaths:[...new Set(changedPaths)],
+    addedPaths:[...new Set(addedPaths)],
+    removedPaths:[...new Set(removedPaths)]
+  };
 }
 
 const state = {
@@ -643,9 +833,10 @@ audio.addEventListener('canplay',()=>{
     search.set('bgoff',bg.off?'1':'0');
     search.set('bgx',focal.x); search.set('bgy',focal.y); search.set('bgshift',focal.shift); search.set('bgscale',focal.scale);
   }
-  async function loadFiles(forceFresh=false){
-    let files=[];
+  async function loadFiles(forceFresh=false,suppliedFiles=null){
+    let files=Array.isArray(suppliedFiles)?suppliedFiles.slice():[];
     try{
+      if(!files.length){
       const manifestURL=new URL(absolute(CONFIG.IMAGE_MANIFEST));
       if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
       const response=await fetch(manifestURL.href,{
@@ -653,6 +844,7 @@ audio.addEventListener('canplay',()=>{
         headers:forceFresh?{'X-GE-Reload':'1'}:{}
       });
       if(response.ok){ const data=await response.json(); if(Array.isArray(data)) files=data.filter(name=>/\.(gif|png|jpe?g|webp)$/i.test(name)); }
+      }
     }catch(_e){}
     if(!files.length) files=['1.gif','47.gif','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'];
     if(!files.some(name=>String(name).toLowerCase()==='47.gif')) files.splice(Math.min(1,files.length),0,'47.gif');
@@ -677,7 +869,7 @@ audio.addEventListener('canplay',()=>{
     onSongStart,
     writeShareState,
     getFiles:()=>bg.files.slice(),
-    reloadFiles:async()=>{ await loadFiles(true); return bg.files.slice(); }
+    reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); }
   };
   loadFiles(false);
 })();
@@ -815,6 +1007,9 @@ async function registerServiceWorker(){
 
 
 // Manual library updater.
+// Uses the actual public GitHub repository tree, so it can discover files even
+// when manifest.json has not been rebuilt yet. Blob SHAs let it detect a
+// replacement that keeps the exact same filename.
 $('reloadBtn').addEventListener('click',async()=>{
   const button=$('reloadBtn');
   const original=button.textContent;
@@ -822,8 +1017,8 @@ $('reloadBtn').addEventListener('click',async()=>{
   button.textContent='Checking...';
 
   const previousURL=state.currentURL;
-  const previousCount=state.catalog.length;
-  const previousBackgrounds=window.GEBackgrounds?window.GEBackgrounds.getFiles().length:0;
+  const previousCatalog=new Set(state.catalog);
+  const previousBackgrounds=new Set(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]);
 
   try{
     if('serviceWorker' in navigator){
@@ -833,33 +1028,72 @@ $('reloadBtn').addEventListener('click',async()=>{
       }catch(_e){}
     }
 
-    const freshCatalog=(await loadMusicManifest(true)).sort(orderedSort);
-    if(freshCatalog.length){
-      state.catalog=freshCatalog;
-      rebuildQueue(previousURL);
+    let library=null;
+    try{
+      const tree=await fetchRepositoryTree();
+      library=libraryFromRepositoryTree(tree);
+    }catch(error){
+      console.warn('GitHub tree reload failed; using manifests.',error);
     }
 
-    let newBackgroundCount=previousBackgrounds;
-    if(window.GEBackgrounds?.reloadFiles){
-      const freshBackgrounds=await window.GEBackgrounds.reloadFiles();
-      newBackgroundCount=freshBackgrounds.length;
+    if(library && library.catalog.length){
+      state.catalog=library.catalog.slice().sort(orderedSort);
+    }else{
+      state.catalog=(await loadMusicManifest(true)).sort(orderedSort);
     }
 
-    let offlineAdded=0;
-    if(window.GEOffline?.isActive()){
-      const result=await window.GEOffline.updateMissing();
-      offlineAdded=result?.added||0;
+    rebuildQueue(previousURL);
+
+    let freshBackgrounds=[];
+    if(library && library.backgrounds.length){
+      freshBackgrounds=await window.GEBackgrounds.reloadFiles(library.backgrounds);
+    }else if(window.GEBackgrounds?.reloadFiles){
+      freshBackgrounds=await window.GEBackgrounds.reloadFiles();
     }
 
-    const songChange=Math.max(0,state.catalog.length-previousCount);
-    const bgChange=Math.max(0,newBackgroundCount-previousBackgrounds);
+    let mediaResult={refreshed:0,addedOffline:0,removed:0,failed:0,changedPaths:[],addedPaths:[],removedPaths:[]};
+    if(library){
+      const oldShaMap=loadMediaShaMap();
+      mediaResult=await refreshMediaCacheFromTree(oldShaMap,library.shaMap,{
+        offlineActive:!!window.GEOffline?.isActive()
+      });
+      saveMediaShaMap(library.shaMap);
+    }
 
-    setStatus(`Library updated. ${songChange} new song${songChange===1?'':'s'}, ${bgChange} new image${bgChange===1?'':'s'}${offlineAdded?`, ${offlineAdded} new offline file${offlineAdded===1?'':'s'} saved`:''}.`);
+    const newSongs=state.catalog.filter(url=>!previousCatalog.has(url)).length;
+    const removedSongs=[...previousCatalog].filter(url=>!state.catalog.includes(url)).length;
+    const newImages=freshBackgrounds.filter(name=>!previousBackgrounds.has(name)).length;
+    const removedImages=[...previousBackgrounds].filter(name=>!freshBackgrounds.includes(name)).length;
 
-    button.textContent='Updated';
-    setTimeout(()=>{ button.textContent=original; },1800);
+    // If the exact currently playing file was replaced, reload that source now
+    // so the listener hears the new file immediately.
+    const currentPath=urlToRepoPath(previousURL);
+    if(previousURL && mediaResult.changedPaths.includes(currentPath)){
+      const wasPlaying=!audio.paused;
+      await playURL(previousURL,{record:false,backgroundChange:false,userAction:false});
+      if(!wasPlaying) audio.pause();
+    }else if(previousURL && !isStationID(previousURL) && !state.catalog.includes(previousURL)){
+      const fallback=allowedCatalog()[0]||'';
+      if(fallback) await playURL(fallback,{record:false,backgroundChange:true,userAction:false});
+    }
+
+    const totalChanges=
+      newSongs+removedSongs+newImages+removedImages+
+      mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed;
+
+    button.textContent=totalChanges?`Updated ${totalChanges}`:'Up to Date';
+
+    setStatus(
+      `Reload complete. ${newSongs} new song${newSongs===1?'':'s'}, `+
+      `${removedSongs} removed song${removedSongs===1?'':'s'}, `+
+      `${mediaResult.refreshed} replaced file${mediaResult.refreshed===1?'':'s'} refreshed, `+
+      `${newImages} new image${newImages===1?'':'s'}.`+
+      (mediaResult.failed?` ${mediaResult.failed} file${mediaResult.failed===1?'':'s'} could not refresh.`:'')
+    );
+
+    setTimeout(()=>{ button.textContent=original; },2200);
   }catch(error){
-    console.error('GE library reload failed',error);
+    console.error('GE smart reload failed',error);
     setStatus('Library update could not finish. Check the Internet connection and try again.');
     button.textContent='Try Again';
     setTimeout(()=>{ button.textContent=original; },2200);
