@@ -78,7 +78,7 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 #offlinePanel{display:none;width:min(760px,96vw);padding:10px 12px;border-radius:12px;background:rgba(24,28,34,.72);border:1px solid rgba(80,110,140,.45)}
 #offlineBarTrack{height:11px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden}
 #offlineBar{height:100%;width:0;background:#1fd15b;border-radius:999px;transition:width .15s linear}
-#offlineText{display:none!important}
+#offlineText{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--fg);white-space:pre-line}
 #status{display:none!important}
 footer{padding-top:4px}
 @media(max-width:520px){
@@ -153,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.10-sha-versioned-audio-1',
+  APP_VERSION: '2026.08.16-offline-repair-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -172,6 +172,8 @@ const CONFIG = Object.freeze({
   SHUFFLE_AVOID_LAST: 4,
   OFFLINE_CACHE: 'ge-radio-media-v4',
   OFFLINE_KEY: 'GE_OFFLINE_ACTIVE_V4',
+  OFFLINE_PLAYABLE_KEY: 'GE_OFFLINE_PLAYABLE_V5',
+  OFFLINE_STATIONS_KEY: 'GE_OFFLINE_STATIONS_V5',
   HUD_KEY: 'GE_HUD_AUTOHIDE_V2',
   HUD_IDLE_MS: 15000,
   GITHUB_TREE_API: 'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
@@ -402,8 +404,8 @@ async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=fals
     await Promise.all(Array.from({length:Math.min(workers,candidates.length||1)},worker));
 
     for(const path of newKeys){
-      const url=repoPathToURL(path);
-      const hit=await cache.match(url,{ignoreSearch:true});
+      const url=repoPathToVersionedURL(path,newShaMap[path]||'');
+      const hit=await cache.match(url,{ignoreSearch:false});
       if(!hit) addedPaths.push(path);
     }
   }
@@ -467,8 +469,30 @@ const state = {
   userStarted:false
 };
 
+function loadStringSet(key){
+  try{
+    const raw=JSON.parse(localStorage.getItem(key)||'[]');
+    return new Set(Array.isArray(raw)?raw:[]);
+  }catch(_e){ return new Set(); }
+}
+const offlineAvailability={
+  songs:loadStringSet(CONFIG.OFFLINE_PLAYABLE_KEY),
+  stations:loadStringSet(CONFIG.OFFLINE_STATIONS_KEY)
+};
+function saveOfflineAvailability(){
+  try{
+    localStorage.setItem(CONFIG.OFFLINE_PLAYABLE_KEY,JSON.stringify([...offlineAvailability.songs]));
+    localStorage.setItem(CONFIG.OFFLINE_STATIONS_KEY,JSON.stringify([...offlineAvailability.stations]));
+  }catch(_e){}
+}
+function offlinePlaybackMode(){ return navigator.onLine===false; }
+
 function allowedCatalog(){
-  return state.catalog.filter(url=>!isSingles(url) && (isCore(url) || (state.legacy && isLegacy(url)))).sort(orderedSort);
+  let list=state.catalog.filter(url=>!isSingles(url) && (isCore(url) || (state.legacy && isLegacy(url))));
+  if(offlinePlaybackMode() && offlineAvailability.songs.size){
+    list=list.filter(url=>offlineAvailability.songs.has(url));
+  }
+  return list.sort(orderedSort);
 }
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
@@ -528,8 +552,11 @@ function shouldInsertStation(){
   return state.stationCountdown<=0 && CONFIG.STATION_ID_FILES.length>0;
 }
 function stationURL(){
-  const number=CONFIG.STATION_ID_FILES[Math.floor(Math.random()*CONFIG.STATION_ID_FILES.length)];
-  return absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
+  const all=CONFIG.STATION_ID_FILES.map(number=>absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`));
+  const pool=offlinePlaybackMode()
+    ? all.filter(url=>offlineAvailability.stations.has(url))
+    : all;
+  return pool.length?pool[Math.floor(Math.random()*pool.length)]:'';
 }
 
 function updateMediaSession(url){
@@ -611,10 +638,14 @@ async function advanceFromEnded(){
   if(!next.url) return;
   if(!isStationID(state.currentURL)) state.stationCountdown--;
   if(shouldInsertStation()){
+    const ident=stationURL();
+    if(ident){
+      state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
+      state.pendingAfterStation=next;
+      await playURL(ident,{record:false,backgroundChange:false});
+      return;
+    }
     state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
-    state.pendingAfterStation=next;
-    await playURL(stationURL(),{record:false,backgroundChange:false});
-    return;
   }
   await playURL(next.url,{record:next.record,backgroundChange:true});
 }
@@ -964,100 +995,378 @@ async function registerServiceWorker(){
   }catch(error){ setStatus('Offline app setup could not start in this browser.'); return null; }
 }
 
-// Offline downloader. The service worker serves these exact URLs, including audio Range requests.
+// Offline downloader.
+// Exact SHA-versioned song URLs are authoritative. Partial downloads remain playable.
 (function createOfflineController(){
   const button=$('offlineBtn');
   const panel=$('offlinePanel');
   const bar=$('offlineBar');
   const text=$('offlineText');
   let abortController=null;
-  function setActive(on){
-    button.classList.toggle('active',on);
-    button.textContent=on?'Offline Ready':'Go Offline';
+  let currentAudit=null;
+
+  const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire'];
+  const LEGACY_DOWNLOAD_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II'];
+
+  function formatBytes(bytes){
+    if(!Number.isFinite(bytes) || bytes<=0) return '0 MB';
+    const units=['B','KB','MB','GB'];
+    let value=bytes, unit=0;
+    while(value>=1024 && unit<units.length-1){ value/=1024; unit++; }
+    return `${value>=100 || unit<2?value.toFixed(0):value.toFixed(1)} ${units[unit]}`;
+  }
+  function formatSpeed(bytesPerSecond){
+    if(!Number.isFinite(bytesPerSecond) || bytesPerSecond<=0) return 'calculating';
+    return `${formatBytes(bytesPerSecond)}/s`;
+  }
+  function formatETA(seconds){
+    if(!Number.isFinite(seconds) || seconds<0) return 'calculating';
+    seconds=Math.max(0,Math.round(seconds));
+    if(seconds<60) return `${seconds}s`;
+    const minutes=Math.floor(seconds/60);
+    const remain=seconds%60;
+    if(minutes<60) return `${minutes}m ${remain}s`;
+    const hours=Math.floor(minutes/60);
+    return `${hours}h ${minutes%60}m`;
+  }
+  function setEnabled(on){
     localStorage.setItem(CONFIG.OFFLINE_KEY,on?'1':'0');
+    button.classList.toggle('active',on);
   }
-  function progress(done,total,label){
+  function isEnabled(){ return localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'; }
+
+  function reflectButton(audit=currentAudit){
+    const enabled=isEnabled();
+    button.classList.toggle('active',enabled);
+    if(button.classList.contains('downloading')) return;
+    if(!enabled){ button.textContent='Go Offline'; return; }
+    if(audit?.complete){ button.textContent='Offline Ready'; return; }
+    if(audit?.cachedSongs>0){ button.textContent=`Resume Offline (${audit.cachedSongs})`; return; }
+    button.textContent='Resume Offline';
+  }
+
+  function renderProgress({percent=0,doneBytes=0,totalBytes=0,speed=0,eta=NaN,line2='' }={}){
     panel.style.display='block';
-    const percent=total?Math.round(done/total*100):0;
-    bar.style.width=`${percent}%`;
-    text.textContent=`${label} ${done} of ${total}`;
+    const safe=Math.max(0,Math.min(100,Number(percent)||0));
+    bar.style.width=`${safe}%`;
+    const totalText=totalBytes>0 ? `${formatBytes(doneBytes)} / ${formatBytes(totalBytes)}` : '';
+    const speedText=speed>0 ? formatSpeed(speed) : 'calculating speed';
+    const etaText=Number.isFinite(eta) ? `${formatETA(eta)} left` : 'estimating time';
+    text.textContent=`${Math.round(safe)}%${totalText?` • ${totalText}`:''} • ${speedText} • ${etaText}${line2?`\n${line2}`:''}`;
   }
-  async function fullFetch(url,signal){
-    const response=await fetch(url,{cache:'no-store',signal,headers:{'X-GE-Offline':'1'}});
-    if(!response.ok) throw new Error(`${response.status} ${url}`);
-    return response;
+
+  function songDownloadRank(url){
+    const album=albumNameFromURL(url);
+    let rank=CORE_DOWNLOAD_ORDER.findIndex(name=>name.toLowerCase()===album.toLowerCase());
+    if(rank>=0) return rank;
+    rank=LEGACY_DOWNLOAD_ORDER.findIndex(name=>name.toLowerCase()===album.toLowerCase());
+    return rank>=0?100+rank:999;
   }
+  function songOrder(a,b){
+    const rank=songDownloadRank(a)-songDownloadRank(b);
+    if(rank) return rank;
+    const track=parseTrack(a).track-parseTrack(b).track;
+    return track || a.localeCompare(b);
+  }
+
+  async function getRepositorySizeMap(){
+    const map={};
+    try{
+      const tree=await fetchRepositoryTree();
+      for(const item of tree){
+        if(item?.type==='blob' && item.path && Number.isFinite(item.size)){
+          map[String(item.path)]=Number(item.size);
+        }
+      }
+    }catch(_e){}
+    return map;
+  }
+
   async function buildAssetList(){
-    const songs=state.catalog.slice();
-    const backgrounds=window.GEBackgrounds?window.GEBackgrounds.getFiles().map(name=>absolute(CONFIG.IMAGE_BASE+name)):[];
-    const stationIDs=CONFIG.STATION_ID_FILES.map(number=>absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`));
-    const shell=['./','./index.html','./manifest.webmanifest','./sw.js','./icons/icon-192.png','./icons/icon-512.png',CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST].map(absolute);
-    return [...new Set([...shell,...backgrounds,...songs,...stationIDs])];
+    const sizeMap=await getRepositorySizeMap();
+    const shell=[
+      './','./index.html','./manifest.webmanifest','./sw.js',
+      './icons/icon-192.png','./icons/icon-512.png',
+      CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST
+    ].map(url=>({url:absolute(url),type:'shell',album:'App',label:fileName(absolute(url))||'Radio app',size:0}));
+
+    const core=state.catalog
+      .filter(url=>isCore(url) && !isSingles(url))
+      .sort(songOrder)
+      .map(url=>({
+        url,type:'song',album:albumNameFromURL(url),label:parseTrack(url).song,
+        size:sizeMap[urlToRepoPath(url)]||0
+      }));
+
+    const stations=CONFIG.STATION_ID_FILES.map(number=>{
+      const url=absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
+      return {url,type:'station',album:'Station IDs',label:`Station ID ${number}`,size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    const backgrounds=(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]).map(name=>{
+      const url=absolute(CONFIG.IMAGE_BASE+name);
+      return {url,type:'background',album:'Backgrounds',label:name,size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    const legacy=state.catalog
+      .filter(url=>isLegacy(url) && !isSingles(url))
+      .sort(songOrder)
+      .map(url=>({
+        url,type:'song',album:albumNameFromURL(url),label:parseTrack(url).song,
+        size:sizeMap[urlToRepoPath(url)]||0
+      }));
+
+    const seen=new Set();
+    return [...shell,...core,...stations,...backgrounds,...legacy].filter(item=>{
+      if(seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
   }
-  async function cacheMissingAssets({quiet=false}={}){
+
+  async function exactMatchInAnyCache(url){
+    const names=await caches.keys();
+    for(const name of names){
+      try{
+        const cache=await caches.open(name);
+        const hit=await cache.match(url,{ignoreSearch:false});
+        if(hit) return {name,response:hit};
+      }catch(_e){}
+    }
+    return null;
+  }
+
+  async function auditAssets(assets,{copyExisting=true}={}){
+    const active=await caches.open(CONFIG.OFFLINE_CACHE);
+    const missing=[];
+    const songs=new Set();
+    const stations=new Set();
+    let existingBytes=0;
+    let totalBytes=0;
+    let cachedSongs=0;
+
+    for(const item of assets){
+      totalBytes+=item.size||0;
+      let hit=await active.match(item.url,{ignoreSearch:false});
+      if(!hit && copyExisting){
+        const found=await exactMatchInAnyCache(item.url);
+        if(found){
+          hit=found.response;
+          try{ await active.put(item.url,hit.clone()); }catch(_e){}
+        }
+      }
+      if(hit){
+        existingBytes+=item.size||Number(hit.headers.get('content-length'))||0;
+        if(item.type==='song'){ songs.add(item.url); cachedSongs++; }
+        if(item.type==='station') stations.add(item.url);
+      }else{
+        missing.push(item);
+      }
+    }
+
+    offlineAvailability.songs=songs;
+    offlineAvailability.stations=stations;
+    saveOfflineAvailability();
+
+    const complete=missing.length===0;
+    currentAudit={missing,total:assets.length,cachedSongs,complete,existingBytes,totalBytes};
+    reflectButton(currentAudit);
+    return currentAudit;
+  }
+
+  async function fetchAndCache(item,cache,signal,onChunk){
+    const response=await fetch(item.url,{
+      cache:'no-store',
+      signal,
+      headers:{'X-GE-Offline':'1'}
+    });
+    if(!response.ok) throw new Error(`${response.status} ${item.url}`);
+
+    const headerLength=Number(response.headers.get('content-length'))||0;
+    const expected=item.size||headerLength||0;
+    const headers=new Headers(response.headers);
+
+    if(response.body?.getReader){
+      const reader=response.body.getReader();
+      const chunks=[];
+      let loaded=0;
+      while(true){
+        const {done,value}=await reader.read();
+        if(done) break;
+        chunks.push(value);
+        loaded+=value.byteLength;
+        onChunk(loaded,expected);
+      }
+      const blob=new Blob(chunks,{type:headers.get('content-type')||'application/octet-stream'});
+      headers.set('Content-Length',String(blob.size));
+      await cache.put(item.url,new Response(blob,{status:200,statusText:'OK',headers}));
+      return blob.size;
+    }
+
+    const blob=await response.blob();
+    onChunk(blob.size,expected||blob.size);
+    headers.set('Content-Length',String(blob.size));
+    await cache.put(item.url,new Response(blob,{status:200,statusText:'OK',headers}));
+    return blob.size;
+  }
+
+  function albumPosition(item,assets){
+    if(item.type!=='song') return '';
+    const albumItems=assets.filter(x=>x.type==='song' && x.album===item.album);
+    const index=albumItems.findIndex(x=>x.url===item.url);
+    return index>=0?`${item.album} • ${index+1}/${albumItems.length} • ${item.label}`:`${item.album} • ${item.label}`;
+  }
+
+  async function cacheMissingAssets({quiet=false,reason='manual'}={}){
     await registerServiceWorker();
     if(navigator.storage?.persist) try{ await navigator.storage.persist(); }catch(_e){}
-    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+
     const assets=await buildAssetList();
-    const missing=[];
-    for(const url of assets){
-      const hit=await cache.match(url,{ignoreSearch:true});
-      if(!hit) missing.push(url);
-    }
-    if(!missing.length){
+    let audit=await auditAssets(assets,{copyExisting:true});
+
+    if(!audit.missing.length){
+      setEnabled(true);
+      currentAudit=audit;
+      reflectButton(audit);
       if(!quiet){
-        setActive(true);
-        progress(assets.length,assets.length,'Offline ready.');
-        setStatus('Offline library is already current.');
+        renderProgress({percent:100,doneBytes:audit.totalBytes,totalBytes:audit.totalBytes,speed:0,eta:0,line2:'Offline library is complete.'});
+        setStatus('Offline library is current.');
       }
-      return {added:0,failed:0,total:assets.length};
+      return {added:0,failed:0,total:assets.length,complete:true};
     }
+
+    setEnabled(true);
     abortController=new AbortController();
     button.classList.add('downloading');
     button.textContent='Stop Download';
-    let done=0,failed=0;
-    for(const url of missing){
+
+    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+    const started=performance.now();
+    let downloadedBytes=0;
+    let completedFiles=0;
+    let failed=0;
+    let lastKnownTotal=audit.totalBytes;
+    let baseBytes=audit.existingBytes;
+
+    for(const item of audit.missing){
       if(abortController.signal.aborted) break;
+      const line2=albumPosition(item,assets) || `${item.album} • ${item.label}`;
+      let currentLoaded=0;
+      let currentExpected=item.size||0;
+
       try{
-        const response=await fullFetch(url,abortController.signal);
-        await cache.put(url,response.clone());
-      }catch(_e){ failed++; }
-      done++;
-      if(!quiet) progress(done,missing.length,'Updating');
+        const bytes=await fetchAndCache(item,cache,abortController.signal,(loaded,expected)=>{
+          currentLoaded=loaded;
+          currentExpected=expected||currentExpected;
+          if(currentExpected && !item.size){
+            lastKnownTotal+=currentExpected;
+            item.size=currentExpected;
+          }
+          const elapsed=Math.max(.25,(performance.now()-started)/1000);
+          const transferred=downloadedBytes+loaded;
+          const speed=transferred/elapsed;
+          const doneBytes=baseBytes+transferred;
+          const remaining=Math.max(0,lastKnownTotal-doneBytes);
+          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):((completedFiles/audit.missing.length)*100);
+          if(!quiet) renderProgress({percent,doneBytes,totalBytes:lastKnownTotal,speed,eta:speed>0?remaining/speed:NaN,line2});
+        });
+        downloadedBytes+=bytes;
+        completedFiles++;
+        if(item.type==='song') offlineAvailability.songs.add(item.url);
+        if(item.type==='station') offlineAvailability.stations.add(item.url);
+        saveOfflineAvailability();
+      }catch(error){
+        if(abortController.signal.aborted) break;
+        failed++;
+      }
     }
+
+    const wasAborted=!!abortController?.signal.aborted;
     button.classList.remove('downloading');
     abortController=null;
-    const added=done-failed;
-    if(added>0 || missing.length===0) setActive(true);
+
+    audit=await auditAssets(assets,{copyExisting:false});
+    setEnabled(audit.cachedSongs>0 || audit.complete);
+    reflectButton(audit);
+
     if(!quiet){
-      progress(missing.length,missing.length,failed?`Updated with ${failed} unavailable files.`:'Offline updated.');
-      setStatus(added?`Added ${added} new offline file${added===1?'':'s'}.`:'Offline library is current.');
+      const elapsed=Math.max(.25,(performance.now()-started)/1000);
+      const speed=downloadedBytes/elapsed;
+      const doneBytes=audit.totalBytes>0?audit.totalBytes-Math.max(0,audit.missing.reduce((sum,item)=>sum+(item.size||0),0)):0;
+      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):((assets.length-audit.missing.length)/assets.length*100);
+      const remaining=Math.max(0,audit.totalBytes-doneBytes);
+      renderProgress({
+        percent:audit.complete?100:percent,
+        doneBytes:audit.complete?audit.totalBytes:doneBytes,
+        totalBytes:audit.totalBytes,
+        speed,
+        eta:audit.complete?0:(speed>0?remaining/speed:NaN),
+        line2:audit.complete
+          ? 'Offline library complete.'
+          : wasAborted
+            ? `Stopped. ${audit.cachedSongs} songs are available offline. Tap Resume Offline later.`
+            : `${audit.cachedSongs} songs available offline. ${audit.missing.length} files still missing.`
+      });
+      setStatus(audit.complete?'Offline library is ready.':`Partial offline library saved: ${audit.cachedSongs} songs.`);
     }
-    return {added,failed,total:assets.length};
+
+    return {added:completedFiles,failed,total:assets.length,complete:audit.complete,cachedSongs:audit.cachedSongs};
   }
-  async function download(){
-    const result=await cacheMissingAssets({quiet:false});
-    if(result.total===0){
-      setActive(false);
-      text.textContent='The offline download did not complete.';
-    }
-  }
+
   async function remove(){
     await caches.delete(CONFIG.OFFLINE_CACHE);
-    setActive(false); bar.style.width='0'; text.textContent='Offline music removed. The small app shell may remain installed.';
+    offlineAvailability.songs.clear();
+    offlineAvailability.stations.clear();
+    saveOfflineAvailability();
+    localStorage.removeItem(CONFIG.OFFLINE_KEY);
+    currentAudit={missing:[],cachedSongs:0,complete:false};
+    button.classList.remove('active','downloading');
+    button.textContent='Go Offline';
+    bar.style.width='0';
+    text.textContent='Offline music removed. The small app shell remains installed.';
   }
+
   button.addEventListener('click',async()=>{
-    if(button.classList.contains('downloading')){ abortController?.abort(); button.classList.remove('downloading'); setActive(false); return; }
-    if(localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'){
+    if(button.classList.contains('downloading')){
+      abortController?.abort();
+      return;
+    }
+
+    if(isEnabled()){
+      const assets=await buildAssetList();
+      const audit=await auditAssets(assets,{copyExisting:true});
+      if(!audit.complete){
+        await cacheMissingAssets({quiet:false,reason:'resume'});
+        return;
+      }
       if(confirm('Remove the downloaded offline music and backgrounds?')) await remove();
       return;
     }
-    if(confirm('Download the music, station IDs, backgrounds, and radio app for offline use? This may use about 1 GB of storage.')) await download();
+
+    if(confirm('Download Grand Element Radio for offline use? Core albums download first: Intergy, Love, Soul, Spirit, Fire. Legacy albums download last.')) {
+      await cacheMissingAssets({quiet:false,reason:'manual'});
+    }
   });
-  setActive(localStorage.getItem(CONFIG.OFFLINE_KEY)==='1');
+
+  window.addEventListener('offline',()=>{
+    rebuildQueue(state.currentURL);
+    if(state.currentURL && !isStationID(state.currentURL) && !offlineAvailability.songs.has(state.currentURL)){
+      const fallback=allowedCatalog()[0]||'';
+      if(fallback) playURL(fallback,{record:false,backgroundChange:false,userAction:false});
+    }
+  });
+  window.addEventListener('online',()=>rebuildQueue(state.currentURL));
+
+  (async()=>{
+    const assets=await buildAssetList();
+    await auditAssets(assets,{copyExisting:true});
+    if(isEnabled()) reflectButton(currentAudit);
+  })();
+
   window.GEOffline={
-    isActive:()=>localStorage.getItem(CONFIG.OFFLINE_KEY)==='1',
-    updateMissing:()=>cacheMissingAssets({quiet:true})
+    isActive:isEnabled,
+    updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'reload',...options}),
+    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
   };
 })();
 
@@ -1114,9 +1423,13 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(library){
       const oldShaMap=loadMediaShaMap();
       mediaResult=await refreshMediaCacheFromTree(oldShaMap,library.shaMap,{
-        offlineActive:!!window.GEOffline?.isActive()
+        offlineActive:false
       });
       saveMediaShaMap(library.shaMap);
+    }
+
+    if(window.GEOffline?.isActive()){
+      await window.GEOffline.updateMissing({quiet:false,reason:'reload'});
     }
 
     const newSongs=state.catalog.filter(url=>!previousCatalog.has(url)).length;
