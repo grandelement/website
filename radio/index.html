@@ -153,7 +153,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.08.16-offline-repair-1',
+  APP_VERSION: '2026.09.02-offline-music-first-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -172,8 +172,8 @@ const CONFIG = Object.freeze({
   SHUFFLE_AVOID_LAST: 4,
   OFFLINE_CACHE: 'ge-radio-media-v4',
   OFFLINE_KEY: 'GE_OFFLINE_ACTIVE_V4',
-  OFFLINE_PLAYABLE_KEY: 'GE_OFFLINE_PLAYABLE_V5',
-  OFFLINE_STATIONS_KEY: 'GE_OFFLINE_STATIONS_V5',
+  OFFLINE_PLAYABLE_KEY: 'GE_OFFLINE_PLAYABLE_V6',
+  OFFLINE_STATIONS_KEY: 'GE_OFFLINE_STATIONS_V6',
   HUD_KEY: 'GE_HUD_AUTOHIDE_V2',
   HUD_IDLE_MS: 15000,
   GITHUB_TREE_API: 'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
@@ -553,9 +553,7 @@ function shouldInsertStation(){
 }
 function stationURL(){
   const all=CONFIG.STATION_ID_FILES.map(number=>absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`));
-  const pool=offlinePlaybackMode()
-    ? all.filter(url=>offlineAvailability.stations.has(url))
-    : all;
+  const pool=offlinePlaybackMode()?all.filter(url=>offlineAvailability.stations.has(url)):all;
   return pool.length?pool[Math.floor(Math.random()*pool.length)]:'';
 }
 
@@ -996,7 +994,7 @@ async function registerServiceWorker(){
 }
 
 // Offline downloader.
-// Exact SHA-versioned song URLs are authoritative. Partial downloads remain playable.
+// Music is always protected first. Backgrounds are optional and download last.
 (function createOfflineController(){
   const button=$('offlineBtn');
   const panel=$('offlinePanel');
@@ -1007,6 +1005,9 @@ async function registerServiceWorker(){
 
   const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire'];
   const LEGACY_DOWNLOAD_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II'];
+  const MAX_RETRIES=3;
+
+  function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
 
   function formatBytes(bytes){
     if(!Number.isFinite(bytes) || bytes<=0) return '0 MB';
@@ -1029,22 +1030,24 @@ async function registerServiceWorker(){
     const hours=Math.floor(minutes/60);
     return `${hours}h ${minutes%60}m`;
   }
+
+  function isEnabled(){ return localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'; }
   function setEnabled(on){
     localStorage.setItem(CONFIG.OFFLINE_KEY,on?'1':'0');
     button.classList.toggle('active',on);
   }
-  function isEnabled(){ return localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'; }
 
   function reflectButton(audit=currentAudit){
     const enabled=isEnabled();
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
     if(!enabled){ button.textContent='Go Offline'; return; }
-    if(audit?.complete){ button.textContent='Offline Ready'; return; }
+    if(audit?.musicComplete){ button.textContent='Offline Ready'; return; }
     if(audit?.cachedSongs>0){ button.textContent=`Resume Offline (${audit.cachedSongs})`; return; }
     button.textContent='Resume Offline';
   }
 
+  // No album names or track names are displayed here.
   function renderProgress({percent=0,doneBytes=0,totalBytes=0,speed=0,eta=NaN,line2='' }={}){
     panel.style.display='block';
     const safe=Math.max(0,Math.min(100,Number(percent)||0));
@@ -1069,55 +1072,59 @@ async function registerServiceWorker(){
     return track || a.localeCompare(b);
   }
 
-  async function getRepositorySizeMap(){
-    const map={};
+  async function repositorySnapshot(){
+    const sizeMap={};
+    let library=null;
     try{
       const tree=await fetchRepositoryTree();
+      library=libraryFromRepositoryTree(tree);
       for(const item of tree){
         if(item?.type==='blob' && item.path && Number.isFinite(item.size)){
-          map[String(item.path)]=Number(item.size);
+          sizeMap[String(item.path)]=Number(item.size);
         }
       }
+      if(library?.catalog?.length){
+        state.catalog=library.catalog.slice().sort(orderedSort);
+        saveMediaShaMap(library.shaMap||{});
+        rebuildQueue(state.currentURL);
+      }
     }catch(_e){}
-    return map;
+    return {sizeMap,library};
   }
 
   async function buildAssetList(){
-    const sizeMap=await getRepositorySizeMap();
+    const {sizeMap}=await repositorySnapshot();
+
     const shell=[
       './','./index.html','./manifest.webmanifest','./sw.js',
       './icons/icon-192.png','./icons/icon-512.png',
       CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST
-    ].map(url=>({url:absolute(url),type:'shell',album:'App',label:fileName(absolute(url))||'Radio app',size:0}));
+    ].map(url=>({url:absolute(url),type:'shell',size:0}));
 
     const core=state.catalog
       .filter(url=>isCore(url) && !isSingles(url))
       .sort(songOrder)
-      .map(url=>({
-        url,type:'song',album:albumNameFromURL(url),label:parseTrack(url).song,
-        size:sizeMap[urlToRepoPath(url)]||0
-      }));
-
-    const stations=CONFIG.STATION_ID_FILES.map(number=>{
-      const url=absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
-      return {url,type:'station',album:'Station IDs',label:`Station ID ${number}`,size:sizeMap[urlToRepoPath(url)]||0};
-    });
-
-    const backgrounds=(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]).map(name=>{
-      const url=absolute(CONFIG.IMAGE_BASE+name);
-      return {url,type:'background',album:'Backgrounds',label:name,size:sizeMap[urlToRepoPath(url)]||0};
-    });
+      .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
 
     const legacy=state.catalog
       .filter(url=>isLegacy(url) && !isSingles(url))
       .sort(songOrder)
-      .map(url=>({
-        url,type:'song',album:albumNameFromURL(url),label:parseTrack(url).song,
-        size:sizeMap[urlToRepoPath(url)]||0
-      }));
+      .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
 
+    const stations=CONFIG.STATION_ID_FILES.map(number=>{
+      const url=absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
+      return {url,type:'station',size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    const backgrounds=(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]).map(name=>{
+      const url=absolute(CONFIG.IMAGE_BASE+name);
+      return {url,type:'background',size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    // IMPORTANT: all music downloads before station IDs/backgrounds.
+    // This prevents large GIFs from consuming browser storage before the final songs.
     const seen=new Set();
-    return [...shell,...core,...stations,...backgrounds,...legacy].filter(item=>{
+    return [...shell,...core,...legacy,...stations,...backgrounds].filter(item=>{
       if(seen.has(item.url)) return false;
       seen.add(item.url);
       return true;
@@ -1136,6 +1143,26 @@ async function registerServiceWorker(){
     return null;
   }
 
+  async function purgeStaleSongVersions(url){
+    const path=urlToRepoPath(url);
+    if(!path) return 0;
+    let removed=0;
+    const names=await caches.keys();
+    for(const name of names){
+      if(!name.startsWith('ge-radio-media')) continue;
+      try{
+        const cache=await caches.open(name);
+        const keys=await cache.keys();
+        for(const request of keys){
+          if(request.url!==url && urlToRepoPath(request.url)===path){
+            if(await cache.delete(request,{ignoreSearch:false})) removed++;
+          }
+        }
+      }catch(_e){}
+    }
+    return removed;
+  }
+
   async function auditAssets(assets,{copyExisting=true}={}){
     const active=await caches.open(CONFIG.OFFLINE_CACHE);
     const missing=[];
@@ -1144,9 +1171,12 @@ async function registerServiceWorker(){
     let existingBytes=0;
     let totalBytes=0;
     let cachedSongs=0;
+    let totalSongs=0;
 
     for(const item of assets){
       totalBytes+=item.size||0;
+      if(item.type==='song') totalSongs++;
+
       let hit=await active.match(item.url,{ignoreSearch:false});
       if(!hit && copyExisting){
         const found=await exactMatchInAnyCache(item.url);
@@ -1155,6 +1185,7 @@ async function registerServiceWorker(){
           try{ await active.put(item.url,hit.clone()); }catch(_e){}
         }
       }
+
       if(hit){
         existingBytes+=item.size||Number(hit.headers.get('content-length'))||0;
         if(item.type==='song'){ songs.add(item.url); cachedSongs++; }
@@ -1168,13 +1199,20 @@ async function registerServiceWorker(){
     offlineAvailability.stations=stations;
     saveOfflineAvailability();
 
+    const missingSongs=missing.filter(item=>item.type==='song').length;
+    const missingOptional=missing.filter(item=>item.type==='background').length;
+    const musicComplete=totalSongs>0 && missingSongs===0;
     const complete=missing.length===0;
-    currentAudit={missing,total:assets.length,cachedSongs,complete,existingBytes,totalBytes};
+
+    currentAudit={
+      missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,
+      musicComplete,complete,existingBytes,totalBytes
+    };
     reflectButton(currentAudit);
     return currentAudit;
   }
 
-  async function fetchAndCache(item,cache,signal,onChunk){
+  async function cacheResponseStreaming(item,cache,signal,onChunk){
     const response=await fetch(item.url,{
       cache:'no-store',
       signal,
@@ -1186,21 +1224,26 @@ async function registerServiceWorker(){
     const expected=item.size||headerLength||0;
     const headers=new Headers(response.headers);
 
-    if(response.body?.getReader){
-      const reader=response.body.getReader();
-      const chunks=[];
+    // Stream into Cache Storage while separately counting bytes.
+    // This avoids holding an entire MP3/WAV/GIF in memory before cache.put().
+    if(response.body?.tee){
+      const [cacheStream,monitorStream]=response.body.tee();
+      const cacheResponse=new Response(cacheStream,{
+        status:response.status,
+        statusText:response.statusText,
+        headers
+      });
+      const cachePromise=cache.put(item.url,cacheResponse);
+      const reader=monitorStream.getReader();
       let loaded=0;
       while(true){
         const {done,value}=await reader.read();
         if(done) break;
-        chunks.push(value);
         loaded+=value.byteLength;
         onChunk(loaded,expected);
       }
-      const blob=new Blob(chunks,{type:headers.get('content-type')||'application/octet-stream'});
-      headers.set('Content-Length',String(blob.size));
-      await cache.put(item.url,new Response(blob,{status:200,statusText:'OK',headers}));
-      return blob.size;
+      await cachePromise;
+      return loaded;
     }
 
     const blob=await response.blob();
@@ -1210,11 +1253,21 @@ async function registerServiceWorker(){
     return blob.size;
   }
 
-  function albumPosition(item,assets){
-    if(item.type!=='song') return '';
-    const albumItems=assets.filter(x=>x.type==='song' && x.album===item.album);
-    const index=albumItems.findIndex(x=>x.url===item.url);
-    return index>=0?`${item.album} • ${index+1}/${albumItems.length} • ${item.label}`:`${item.album} • ${item.label}`;
+  async function fetchWithRetry(item,cache,signal,onChunk){
+    let lastError=null;
+    for(let attempt=1;attempt<=MAX_RETRIES;attempt++){
+      if(signal.aborted) throw new DOMException('Aborted','AbortError');
+      try{
+        if(item.type==='song') await purgeStaleSongVersions(item.url);
+        return await cacheResponseStreaming(item,cache,signal,onChunk);
+      }catch(error){
+        lastError=error;
+        if(signal.aborted) throw error;
+        if(error?.name==='QuotaExceededError') throw error;
+        if(attempt<MAX_RETRIES) await sleep(750*attempt);
+      }
+    }
+    throw lastError||new Error('Download failed');
   }
 
   async function cacheMissingAssets({quiet=false,reason='manual'}={}){
@@ -1226,10 +1279,12 @@ async function registerServiceWorker(){
 
     if(!audit.missing.length){
       setEnabled(true);
-      currentAudit=audit;
       reflectButton(audit);
       if(!quiet){
-        renderProgress({percent:100,doneBytes:audit.totalBytes,totalBytes:audit.totalBytes,speed:0,eta:0,line2:'Offline library is complete.'});
+        renderProgress({
+          percent:100,doneBytes:audit.totalBytes,totalBytes:audit.totalBytes,speed:0,eta:0,
+          line2:`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`
+        });
         setStatus('Offline library is current.');
       }
       return {added:0,failed:0,total:assets.length,complete:true};
@@ -1245,18 +1300,16 @@ async function registerServiceWorker(){
     let downloadedBytes=0;
     let completedFiles=0;
     let failed=0;
+    let quotaStoppedOptional=false;
     let lastKnownTotal=audit.totalBytes;
     let baseBytes=audit.existingBytes;
 
     for(const item of audit.missing){
       if(abortController.signal.aborted) break;
-      const line2=albumPosition(item,assets) || `${item.album} • ${item.label}`;
-      let currentLoaded=0;
-      let currentExpected=item.size||0;
 
+      let currentExpected=item.size||0;
       try{
-        const bytes=await fetchAndCache(item,cache,abortController.signal,(loaded,expected)=>{
-          currentLoaded=loaded;
+        const bytes=await fetchWithRetry(item,cache,abortController.signal,(loaded,expected)=>{
           currentExpected=expected||currentExpected;
           if(currentExpected && !item.size){
             lastKnownTotal+=currentExpected;
@@ -1267,16 +1320,31 @@ async function registerServiceWorker(){
           const speed=transferred/elapsed;
           const doneBytes=baseBytes+transferred;
           const remaining=Math.max(0,lastKnownTotal-doneBytes);
-          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):((completedFiles/audit.missing.length)*100);
-          if(!quiet) renderProgress({percent,doneBytes,totalBytes:lastKnownTotal,speed,eta:speed>0?remaining/speed:NaN,line2});
+          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
+          if(!quiet){
+            renderProgress({
+              percent,doneBytes,totalBytes:lastKnownTotal,speed,
+              eta:speed>0?remaining/speed:NaN,
+              line2:`${offlineAvailability.songs.size} of ${audit.totalSongs} songs available offline.`
+            });
+          }
         });
+
         downloadedBytes+=bytes;
         completedFiles++;
         if(item.type==='song') offlineAvailability.songs.add(item.url);
         if(item.type==='station') offlineAvailability.stations.add(item.url);
         saveOfflineAvailability();
+
       }catch(error){
         if(abortController.signal.aborted) break;
+
+        // If browser storage fills up AFTER the music is complete, stop wasting
+        // time on optional backgrounds. The music remains fully usable offline.
+        if(error?.name==='QuotaExceededError' && item.type==='background'){
+          quotaStoppedOptional=true;
+          break;
+        }
         failed++;
       }
     }
@@ -1286,31 +1354,48 @@ async function registerServiceWorker(){
     abortController=null;
 
     audit=await auditAssets(assets,{copyExisting:false});
-    setEnabled(audit.cachedSongs>0 || audit.complete);
+    setEnabled(audit.cachedSongs>0 || audit.musicComplete || audit.complete);
     reflectButton(audit);
 
     if(!quiet){
       const elapsed=Math.max(.25,(performance.now()-started)/1000);
       const speed=downloadedBytes/elapsed;
-      const doneBytes=audit.totalBytes>0?audit.totalBytes-Math.max(0,audit.missing.reduce((sum,item)=>sum+(item.size||0),0)):0;
-      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):((assets.length-audit.missing.length)/assets.length*100);
+      const missingBytes=audit.missing.reduce((sum,item)=>sum+(item.size||0),0);
+      const doneBytes=Math.max(0,audit.totalBytes-missingBytes);
+      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
       const remaining=Math.max(0,audit.totalBytes-doneBytes);
+
+      let line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`;
+      if(audit.missing.length){
+        line2+=` ${audit.missing.length} file${audit.missing.length===1?'':'s'} still missing.`;
+      }
+      if(quotaStoppedOptional && audit.musicComplete){
+        line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline. Optional backgrounds stopped at the browser storage limit.`;
+      }else if(wasAborted){
+        line2=`Stopped. ${audit.cachedSongs} of ${audit.totalSongs} songs are available offline. Tap Resume Offline later.`;
+      }
+
       renderProgress({
         percent:audit.complete?100:percent,
         doneBytes:audit.complete?audit.totalBytes:doneBytes,
         totalBytes:audit.totalBytes,
         speed,
         eta:audit.complete?0:(speed>0?remaining/speed:NaN),
-        line2:audit.complete
-          ? 'Offline library complete.'
-          : wasAborted
-            ? `Stopped. ${audit.cachedSongs} songs are available offline. Tap Resume Offline later.`
-            : `${audit.cachedSongs} songs available offline. ${audit.missing.length} files still missing.`
+        line2
       });
-      setStatus(audit.complete?'Offline library is ready.':`Partial offline library saved: ${audit.cachedSongs} songs.`);
+
+      setStatus(
+        audit.musicComplete
+          ? 'All music is available offline.'
+          : `Partial offline library saved: ${audit.cachedSongs} of ${audit.totalSongs} songs.`
+      );
     }
 
-    return {added:completedFiles,failed,total:assets.length,complete:audit.complete,cachedSongs:audit.cachedSongs};
+    return {
+      added:completedFiles,failed,total:assets.length,
+      complete:audit.complete,musicComplete:audit.musicComplete,
+      cachedSongs:audit.cachedSongs,totalSongs:audit.totalSongs
+    };
   }
 
   async function remove(){
@@ -1319,7 +1404,7 @@ async function registerServiceWorker(){
     offlineAvailability.stations.clear();
     saveOfflineAvailability();
     localStorage.removeItem(CONFIG.OFFLINE_KEY);
-    currentAudit={missing:[],cachedSongs:0,complete:false};
+    currentAudit={missing:[],cachedSongs:0,totalSongs:0,musicComplete:false,complete:false};
     button.classList.remove('active','downloading');
     button.textContent='Go Offline';
     bar.style.width='0';
@@ -1343,7 +1428,7 @@ async function registerServiceWorker(){
       return;
     }
 
-    if(confirm('Download Grand Element Radio for offline use? Core albums download first: Intergy, Love, Soul, Spirit, Fire. Legacy albums download last.')) {
+    if(confirm('Download Grand Element Radio for offline use? All music downloads before backgrounds so the songs cannot be crowded out by large image files.')){
       await cacheMissingAssets({quiet:false,reason:'manual'});
     }
   });

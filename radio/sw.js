@@ -1,6 +1,6 @@
 /* Grand Element Radio service worker */
 'use strict';
-const VERSION='2026.08.16-offline-repair-1';
+const VERSION='2026.09.02-offline-music-first-2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4';
 const SHELL=[
@@ -105,6 +105,11 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET') return;
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  if(request.headers.get('X-GE-Offline')==='1'){
+    event.respondWith(fetch(request,{cache:'no-store'}));
+    return;
+  }
 
   if(request.headers.get('X-GE-Reload-Media')==='1'){
     event.respondWith((async()=>{
