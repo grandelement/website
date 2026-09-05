@@ -27,8 +27,9 @@
 }
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
 *::-webkit-scrollbar{display:none}
-html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
-body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
+html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
+html{min-height:100svh}
+body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
 #bgImage{
   position:fixed;
   inset:0;
@@ -46,12 +47,13 @@ body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-i
 #shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
 #hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
 body.hud-hidden #hudTap{display:block}
-.wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:15px;padding:28px 18px 36px;text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
+.wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.25svh,13px);padding:clamp(10px,2svh,24px) 18px clamp(18px,3svh,32px);text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
 body.hud-hidden .wrap{opacity:0;pointer-events:none}
-.logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
+header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin:0;padding:0}
+.logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto 2px;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
 .logo{width:100%;height:100%;object-fit:cover;object-position:center}
-h1{margin:6px 0 0;font-size:clamp(20px,4.2vw,32px)}
-.tag{opacity:.9;font-size:clamp(14px,3.6vw,18px)}
+h1{margin:0;font-size:clamp(20px,4.2vw,32px);line-height:1.08}
+.tag{margin:0;opacity:.9;font-size:clamp(14px,3.6vw,18px);line-height:1.08}
 .row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;width:100%}
 .group{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;padding:10px 12px;border-radius:14px;background:rgba(24,28,34,.60);border:1px solid rgba(80,110,140,.45);width:min(760px,96vw);backdrop-filter:blur(3px)}
 button,.button-link{appearance:none;border:1px solid var(--btn-br);background:var(--btn-bg);color:var(--fg);padding:10px 13px;border-radius:11px;font-weight:750;letter-spacing:.2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:42px;-webkit-tap-highlight-color:transparent}
@@ -61,15 +63,18 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 #musicGroup button{min-width:0;padding-inline:8px}
 #player{width:min(760px,96vw);background:rgba(0,0,0,.35)}
 #titleBtn{max-width:min(760px,92vw);border-radius:999px;overflow:hidden;text-overflow:ellipsis}
-#trackList{display:none;max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;width:min(760px,96vw);text-align:left;background:rgba(24,28,34,.78);border:1px solid rgba(80,110,140,.45);border-radius:13px;padding:8px;backdrop-filter:blur(4px)}
-#trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:9px 11px;min-height:0;border-radius:8px;font-weight:600;white-space:normal}
+#trackBackdrop{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.50);backdrop-filter:blur(2px);touch-action:none}
+#trackBackdrop.open{display:block}
+#trackList{display:none;position:fixed;z-index:10001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,92vw);max-height:min(72dvh,620px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;text-align:left;background:rgba(18,24,30,.96);border:1px solid rgba(80,110,140,.65);border-radius:15px;padding:8px;box-shadow:0 18px 60px rgba(0,0,0,.65)}
+#trackList.open{display:block}
+#trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:10px 11px;min-height:40px;border-radius:8px;font-weight:600;white-space:normal;touch-action:manipulation}
 #trackList button.current{background:rgba(0,255,168,.15);outline:1px solid rgba(0,255,168,.55)}
 #bgGroup{display:flex;flex-direction:column;gap:10px}
 #bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%}
 #bgGroup button{min-width:0;padding-inline:6px}
 .section-label{font-weight:800}
-.settings-row{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;background:rgba(24,28,34,.56);padding:8px 12px;border-radius:12px}
-.settings-row label{display:flex;gap:9px;align-items:center;font-weight:750}
+.settings-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:transparent;padding:0;border-radius:12px}
+#hudAutoHide{padding:9px 16px;min-height:40px}
 .bc-btn{padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;text-decoration:none;box-shadow:0 10px 28px rgba(255,79,31,.38)}
 .offline-row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(760px,96vw)}
 #offlineBtn.active{background:#0e2f1f;border-color:#1f6b4d;color:#b8ffdf}
@@ -82,12 +87,36 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 #status{display:none!important}
 footer{padding-top:4px}
 @media(max-width:520px){
-  .wrap{padding-inline:10px}
+  .wrap{padding-inline:10px;gap:clamp(7px,1.05svh,11px)}
   #musicGroup{gap:5px}
-  #musicGroup button{font-size:12px;padding:9px 4px}
+  #musicGroup button{font-size:12px;padding:8px 4px;min-height:40px}
+  #bgGroup{gap:7px;padding:8px 10px}
   #bgGroup .bg-row{gap:4px}
-  #bgGroup button{font-size:11px;padding:9px 3px}
-  .logo-wrap{width:min(198px,40.5vw);height:min(198px,40.5vw)}
+  #bgGroup button{font-size:11px;padding:8px 3px;min-height:38px}
+  .logo-wrap{width:clamp(154px,38vw,198px);height:clamp(154px,38vw,198px)}
+  .bc-btn{padding:12px 24px}
+  #offlinePanel{padding:8px 10px}
+}
+@media(orientation:landscape) and (max-height:620px){
+  .wrap{gap:6px;padding:6px max(10px,env(safe-area-inset-right)) 12px max(10px,env(safe-area-inset-left));max-width:1000px}
+  header{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;row-gap:0;width:min(760px,94vw);align-items:center}
+  .logo-wrap{grid-row:1/3;width:76px;height:76px;margin:0}
+  h1{font-size:20px;align-self:end;line-height:1.02}
+  .tag{font-size:13px;align-self:start;line-height:1.02}
+  #titleBtn{min-height:34px;padding:6px 12px}
+  #player{width:min(760px,94vw)}
+  #musicGroup{width:min(760px,94vw);gap:4px}
+  #musicGroup button{min-height:34px;padding:6px 4px;font-size:11px}
+  #hudAutoHide{min-height:34px;padding:6px 12px;font-size:12px}
+  #bgGroup{width:min(760px,94vw);padding:6px 8px;gap:5px}
+  #bgGroup .section-label{font-size:13px}
+  #bgGroup button{min-height:32px;padding:5px 3px;font-size:10px}
+  .bc-btn{padding:8px 18px;font-size:13px}
+  .offline-row button{min-height:34px;padding:6px 10px;font-size:11px}
+  #offlinePanel{padding:6px 8px}
+  #offlineText{margin-top:5px;font-size:11px}
+  footer{font-size:12px}
+  #trackList{max-height:82dvh;width:min(780px,88vw)}
 }
 </style>
 </head>
@@ -95,6 +124,8 @@ footer{padding-top:4px}
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
+<div id="trackBackdrop" aria-hidden="true"></div>
+<div id="trackList" role="dialog" aria-modal="true" aria-label="Choose a track"></div>
 <main class="wrap">
   <header>
     <a class="logo-wrap" id="homeLink" href="https://www.grandelement.com/" rel="noopener">
@@ -116,10 +147,8 @@ footer{padding-top:4px}
   </div>
 
   <div class="settings-row">
-    <label><input type="checkbox" id="hudAutoHide" checked> Hide text</label>
+    <button class="tgl" id="hudAutoHide" type="button" aria-pressed="true">Hide text</button>
   </div>
-
-  <div id="trackList"></div>
 
   <section class="group" id="bgGroup">
     <span class="section-label">Backgrounds</span>
@@ -153,7 +182,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.03-restore-lockscreen-controls-1',
+  APP_VERSION: '2026.09.04-responsive-offline-ui-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -713,8 +742,7 @@ function renderTrackList(){
       state.pendingAfterStation=null;
       if(state.shuffle) recordHistory(url);
       playURL(url,{record:false,backgroundChange:true,userAction:true});
-      trackList.style.display='none';
-      titleBtn.setAttribute('aria-expanded','false');
+      closeTrackPicker();
     });
     fragment.appendChild(button);
   }
@@ -766,7 +794,7 @@ function appendShareState(target){
   target.searchParams.set('statev','3');
   target.searchParams.set('at',String(Date.now()));
   if(window.GEBackgrounds) window.GEBackgrounds.writeShareState(target.searchParams);
-  target.searchParams.set('hudhide',$('hudAutoHide').checked?'1':'0');
+  target.searchParams.set('hudhide',localStorage.getItem(CONFIG.HUD_KEY)==='0'?'0':'1');
   return target;
 }
 function shareURL(){
@@ -817,14 +845,27 @@ $('legacyBtn').addEventListener('click',()=>{
     if(fallback) playURL(fallback,{record:state.shuffle,backgroundChange:true,userAction:true});
   }
 });
+const trackBackdrop=$('trackBackdrop');
+function closeTrackPicker(){
+  trackList.classList.remove('open');
+  trackBackdrop.classList.remove('open');
+  titleBtn.setAttribute('aria-expanded','false');
+}
+function openTrackPicker(){
+  document.body.classList.remove('hud-hidden');
+  trackList.classList.add('open');
+  trackBackdrop.classList.add('open');
+  titleBtn.setAttribute('aria-expanded','true');
+  const current=trackList.querySelector('button.current');
+  if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
+}
 titleBtn.addEventListener('click',()=>{
-  const open=trackList.style.display==='block';
-  trackList.style.display=open?'none':'block';
-  titleBtn.setAttribute('aria-expanded',String(!open));
-  if(!open){
-    const current=trackList.querySelector('button.current');
-    if(current) setTimeout(()=>current.scrollIntoView({block:'center'}),0);
-  }
+  if(trackList.classList.contains('open')) closeTrackPicker();
+  else openTrackPicker();
+});
+trackBackdrop.addEventListener('click',closeTrackPicker);
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && trackList.classList.contains('open')) closeTrackPicker();
 });
 $('shareBtn').addEventListener('click',async()=>{
   const url=await resolvedShareURL();
@@ -1001,17 +1042,42 @@ audio.addEventListener('canplay',()=>{
 })();
 
 // HUD controller.
+// Hide Text is now an actual button: pressing it immediately hides the HUD.
+// Tapping the screen reveals the controls again, and the existing idle-hide
+// behavior remains available.
 (function createHUDController(){
-  const checkbox=$('hudAutoHide');
+  const button=$('hudAutoHide');
   const params=new URLSearchParams(location.search);
   let enabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)!=='0';
   let lastActivity=Date.now();
-  checkbox.checked=enabled;
-  function show(){ document.body.classList.remove('hud-hidden'); lastActivity=Date.now(); }
-  checkbox.addEventListener('change',()=>{ enabled=checkbox.checked; localStorage.setItem(CONFIG.HUD_KEY,enabled?'1':'0'); show(); });
-  ['pointerdown','pointermove','wheel','keydown','touchstart','scroll'].forEach(name=>window.addEventListener(name,show,{passive:true}));
-  $('hudTap').addEventListener('pointerdown',event=>{ event.preventDefault(); show(); });
-  setInterval(()=>{ if(enabled && Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS) document.body.classList.add('hud-hidden'); },1000);
+
+  setPressed(button,enabled);
+  function show(){
+    document.body.classList.remove('hud-hidden');
+    lastActivity=Date.now();
+  }
+  function hideNow(){
+    if(enabled && !trackList.classList.contains('open')) document.body.classList.add('hud-hidden');
+  }
+
+  button.addEventListener('click',event=>{
+    event.stopPropagation();
+    enabled=true;
+    localStorage.setItem(CONFIG.HUD_KEY,'1');
+    setPressed(button,true);
+    lastActivity=Date.now();
+    setTimeout(hideNow,80);
+  });
+
+  ['pointermove','wheel','keydown','scroll'].forEach(name=>window.addEventListener(name,show,{passive:true}));
+  $('hudTap').addEventListener('pointerdown',event=>{
+    event.preventDefault();
+    show();
+  });
+
+  setInterval(()=>{
+    if(enabled && Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS) hideNow();
+  },1000);
 })();
 
 // PWA registration and install prompt.
@@ -1072,6 +1138,80 @@ async function registerServiceWorker(){
     return `${hours}h ${minutes%60}m`;
   }
 
+  async function estimateConnectionSpeed(){
+    // Prefer the browser's own estimate where available (Chrome/Android).
+    try{
+      const downlink=Number(navigator.connection?.downlink);
+      if(Number.isFinite(downlink) && downlink>0) return downlink*125000;
+    }catch(_e){}
+
+    // Safari does not expose Network Information. Measure a fresh GitHub API
+    // response outside the service-worker scope for a rough pre-download rate.
+    try{
+      const target=new URL(CONFIG.GITHUB_TREE_API);
+      target.searchParams.set('_ge_speed',String(Date.now()));
+      const started=performance.now();
+      const response=await fetch(target.href,{cache:'no-store'});
+      if(!response.ok) return 0;
+      const bytes=(await response.arrayBuffer()).byteLength;
+      const seconds=Math.max(.08,(performance.now()-started)/1000);
+      return bytes/seconds;
+    }catch(_e){ return 0; }
+  }
+
+  function remainingBytes(audit){
+    return (audit?.missing||[]).reduce((sum,item)=>sum+(Number(item.size)||0),0);
+  }
+
+  async function scanExistingAssets(){
+    const assets=await buildAssetList();
+    const audit=await auditAssets(assets,{copyExisting:true});
+    if(audit.cachedSongs>0 || audit.complete) setEnabled(true);
+    currentAudit=audit;
+    reflectButton(audit);
+    return {assets,audit};
+  }
+
+  async function showPreDownloadEstimate(prepared){
+    const {audit}=prepared;
+    const bytes=remainingBytes(audit);
+    button.disabled=true;
+    const previous=button.textContent;
+    button.textContent='Checking Speed...';
+    panel.style.display='block';
+    text.textContent='Checking current download speed…';
+
+    const speed=await estimateConnectionSpeed();
+    const eta=speed>0 && bytes>0 ? bytes/speed : NaN;
+    const done=Math.max(0,audit.totalBytes-bytes);
+    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : 0;
+
+    renderProgress({
+      percent,
+      doneBytes:done,
+      totalBytes:audit.totalBytes,
+      speed,
+      eta
+    });
+
+    button.disabled=false;
+    button.textContent=previous;
+
+    const estimate=speed>0
+      ? `Current rate: ${formatSpeed(speed)}\nEstimated remaining time: ${formatETA(eta)}`
+      : 'Current rate could not be measured.';
+
+    return {
+      speed,
+      approved:confirm(
+        `Grand Element Radio offline download\n\n`+
+        `Remaining: ${formatBytes(bytes)}\n`+
+        `${estimate}\n\n`+
+        `All music downloads before backgrounds. Start now?`
+      )
+    };
+  }
+
   function isEnabled(){ return localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'; }
   function setEnabled(on){
     localStorage.setItem(CONFIG.OFFLINE_KEY,on?'1':'0');
@@ -1083,8 +1223,8 @@ async function registerServiceWorker(){
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
     if(!enabled){ button.textContent='Go Offline'; return; }
-    if(audit?.musicComplete){ button.textContent='Offline Ready'; return; }
-    if(audit?.cachedSongs>0){ button.textContent=`Resume Offline (${audit.cachedSongs})`; return; }
+    if(audit?.complete){ button.textContent='Offline Ready'; return; }
+    if(audit?.cachedSongs>0){ button.textContent='Resume Offline'; return; }
     button.textContent='Resume Offline';
   }
 
@@ -1311,12 +1451,12 @@ async function registerServiceWorker(){
     throw lastError||new Error('Download failed');
   }
 
-  async function cacheMissingAssets({quiet=false,reason='manual'}={}){
+  async function cacheMissingAssets({quiet=false,reason='manual',prepared=null,initialSpeed=0}={}){
     await registerServiceWorker();
     if(navigator.storage?.persist) try{ await navigator.storage.persist(); }catch(_e){}
 
-    const assets=await buildAssetList();
-    let audit=await auditAssets(assets,{copyExisting:true});
+    const assets=prepared?.assets || await buildAssetList();
+    let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
 
     if(!audit.missing.length){
       setEnabled(true);
@@ -1358,7 +1498,8 @@ async function registerServiceWorker(){
           }
           const elapsed=Math.max(.25,(performance.now()-started)/1000);
           const transferred=downloadedBytes+loaded;
-          const speed=transferred/elapsed;
+          const measured=transferred/elapsed;
+          const speed=measured>0?measured:initialSpeed;
           const doneBytes=baseBytes+transferred;
           const remaining=Math.max(0,lastKnownTotal-doneBytes);
           const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
@@ -1458,20 +1599,25 @@ async function registerServiceWorker(){
       return;
     }
 
-    if(isEnabled()){
-      const assets=await buildAssetList();
-      const audit=await auditAssets(assets,{copyExisting:true});
-      if(!audit.complete){
-        await cacheMissingAssets({quiet:false,reason:'resume'});
-        return;
-      }
+    const prepared=await scanExistingAssets();
+
+    if(prepared.audit.complete){
       if(confirm('Remove the downloaded offline music and backgrounds?')) await remove();
       return;
     }
 
-    if(confirm('Download Grand Element Radio for offline use? All music downloads before backgrounds so the songs cannot be crowded out by large image files.')){
-      await cacheMissingAssets({quiet:false,reason:'manual'});
+    const estimate=await showPreDownloadEstimate(prepared);
+    if(!estimate.approved){
+      reflectButton(prepared.audit);
+      return;
     }
+
+    await cacheMissingAssets({
+      quiet:false,
+      reason:isEnabled()?'resume':'manual',
+      prepared,
+      initialSpeed:estimate.speed
+    });
   });
 
   window.addEventListener('offline',()=>{
@@ -1484,14 +1630,13 @@ async function registerServiceWorker(){
   window.addEventListener('online',()=>rebuildQueue(state.currentURL));
 
   (async()=>{
-    const assets=await buildAssetList();
-    await auditAssets(assets,{copyExisting:true});
-    if(isEnabled()) reflectButton(currentAudit);
+    try{ await scanExistingAssets(); }catch(_e){}
   })();
 
   window.GEOffline={
     isActive:isEnabled,
-    updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'reload',...options}),
+    scan:scanExistingAssets,
+    updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
     audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
   };
 })();
@@ -1554,9 +1699,11 @@ $('reloadBtn').addEventListener('click',async()=>{
       saveMediaShaMap(library.shaMap);
     }
 
-    if(window.GEOffline?.isActive()){
-      await window.GEOffline.updateMissing({quiet:false,reason:'reload'});
-    }
+    // Reload discovers what is already offline but does NOT start a large
+    // download. The Offline button downloads only the missing files when pressed.
+    try{
+      if(window.GEOffline?.scan) await window.GEOffline.scan();
+    }catch(_e){}
 
     const newSongs=state.catalog.filter(url=>!previousCatalog.has(url)).length;
     const removedSongs=[...previousCatalog].filter(url=>!state.catalog.includes(url)).length;
@@ -1584,7 +1731,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     }
 
     // Return Hide Text to the normal default as well.
-    $('hudAutoHide').checked=true;
+    setPressed($('hudAutoHide'),true);
     localStorage.setItem(CONFIG.HUD_KEY,'1');
     document.body.classList.remove('hud-hidden');
 
