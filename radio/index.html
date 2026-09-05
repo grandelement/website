@@ -27,9 +27,33 @@
 }
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
 *::-webkit-scrollbar{display:none}
-html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
-html{min-height:100svh}
-body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
+html,body{
+  width:100%;
+  height:100%;
+  margin:0;
+  background:#000;
+  color:var(--fg);
+  font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+html{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+}
+body{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  touch-action:none;
+  overscroll-behavior:none;
+}
 #bgImage{
   position:fixed;
   inset:0;
@@ -47,7 +71,24 @@ body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-righ
 #shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
 #hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
 body.hud-hidden #hudTap{display:block}
-.wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.25svh,13px);padding:clamp(10px,2svh,24px) 18px clamp(18px,3svh,32px);text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
+.wrap{
+  position:relative;
+  z-index:2;
+  width:100%;
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:clamp(8px,1.25dvh,13px);
+  padding:clamp(10px,2dvh,24px) 18px clamp(10px,2dvh,22px);
+  text-align:center;
+  max-width:900px;
+  margin:0 auto;
+  transition:opacity .25s ease;
+  touch-action:none;
+}
 body.hud-hidden .wrap{opacity:0;pointer-events:none}
 header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin:0;padding:0}
 .logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto 2px;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
@@ -56,12 +97,12 @@ h1{margin:0;font-size:clamp(20px,4.2vw,32px);line-height:1.08}
 .tag{margin:0;opacity:.9;font-size:clamp(14px,3.6vw,18px);line-height:1.08}
 .row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;width:100%}
 .group{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;padding:10px 12px;border-radius:14px;background:rgba(24,28,34,.60);border:1px solid rgba(80,110,140,.45);width:min(760px,96vw);backdrop-filter:blur(3px)}
-button,.button-link{appearance:none;border:1px solid var(--btn-br);background:var(--btn-bg);color:var(--fg);padding:10px 13px;border-radius:11px;font-weight:750;letter-spacing:.2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:42px;-webkit-tap-highlight-color:transparent}
+button,.button-link{appearance:none;border:1px solid var(--btn-br);background:var(--btn-bg);color:var(--fg);padding:10px 13px;border-radius:11px;font-weight:750;letter-spacing:.2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:42px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button:active,.button-link:active{transform:scale(.97)}
 button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 18px rgba(0,255,168,.20) inset}
 #musicGroup{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:min(760px,96vw)}
 #musicGroup button{min-width:0;padding-inline:8px}
-#player{width:min(760px,96vw);background:rgba(0,0,0,.35)}
+#player{width:min(760px,96vw);background:rgba(0,0,0,.35);touch-action:manipulation}
 #titleBtn{max-width:min(760px,92vw);border-radius:999px;overflow:hidden;text-overflow:ellipsis}
 #trackBackdrop{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.50);backdrop-filter:blur(2px);touch-action:none}
 #trackBackdrop.open{display:block}
@@ -73,8 +114,22 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 #bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%}
 #bgGroup button{min-width:0;padding-inline:6px}
 .section-label{font-weight:800}
-.settings-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:transparent;padding:0;border-radius:12px}
-#hudAutoHide{padding:9px 16px;min-height:40px}
+.settings-row{display:flex;gap:9px;align-items:center;justify-content:center;flex-wrap:wrap;background:transparent;padding:0;border-radius:12px;touch-action:manipulation}
+#hudHideNow{padding:9px 16px;min-height:40px}
+.auto-hide-option{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 11px;
+  min-height:40px;
+  border:1px solid var(--btn-br);
+  border-radius:11px;
+  background:var(--btn-bg);
+  font-weight:700;
+  white-space:nowrap;
+  touch-action:manipulation;
+}
+.auto-hide-option input{width:18px;height:18px;margin:0;accent-color:#18a8ff;touch-action:manipulation}
 .bc-btn{padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;text-decoration:none;box-shadow:0 10px 28px rgba(255,79,31,.38)}
 .offline-row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(760px,96vw)}
 #offlineBtn.active{background:#0e2f1f;border-color:#1f6b4d;color:#b8ffdf}
@@ -85,9 +140,9 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 #offlineBar{height:100%;width:0;background:#1fd15b;border-radius:999px;transition:width .15s linear}
 #offlineText{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--fg);white-space:pre-line}
 #status{display:none!important}
-footer{padding-top:4px}
+footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
 @media(max-width:520px){
-  .wrap{padding-inline:10px;gap:clamp(7px,1.05svh,11px)}
+  .wrap{padding-inline:10px;gap:clamp(7px,1.05dvh,11px)}
   #musicGroup{gap:5px}
   #musicGroup button{font-size:12px;padding:8px 4px;min-height:40px}
   #bgGroup{gap:7px;padding:8px 10px}
@@ -96,28 +151,170 @@ footer{padding-top:4px}
   .logo-wrap{width:clamp(154px,38vw,198px);height:clamp(154px,38vw,198px)}
   .bc-btn{padding:12px 24px}
   #offlinePanel{padding:8px 10px}
+  .settings-row{gap:6px}
+  #hudHideNow,.auto-hide-option{min-height:38px;padding-top:7px;padding-bottom:7px}
 }
-@media(orientation:landscape) and (max-height:620px){
-  .wrap{gap:6px;padding:6px max(10px,env(safe-area-inset-right)) 12px max(10px,env(safe-area-inset-left));max-width:1000px}
-  header{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;row-gap:0;width:min(760px,94vw);align-items:center}
-  .logo-wrap{grid-row:1/3;width:76px;height:76px;margin:0}
-  h1{font-size:20px;align-self:end;line-height:1.02}
-  .tag{font-size:13px;align-self:start;line-height:1.02}
-  #titleBtn{min-height:34px;padding:6px 12px}
-  #player{width:min(760px,94vw)}
-  #musicGroup{width:min(760px,94vw);gap:4px}
-  #musicGroup button{min-height:34px;padding:6px 4px;font-size:11px}
-  #hudAutoHide{min-height:34px;padding:6px 12px;font-size:12px}
-  #bgGroup{width:min(760px,94vw);padding:6px 8px;gap:5px}
-  #bgGroup .section-label{font-size:13px}
-  #bgGroup button{min-height:32px;padding:5px 3px;font-size:10px}
-  .bc-btn{padding:8px 18px;font-size:13px}
-  .offline-row button{min-height:34px;padding:6px 10px;font-size:11px}
-  #offlinePanel{padding:6px 8px}
-  #offlineText{margin-top:5px;font-size:11px}
+
+/* Short portrait phones automatically compact enough to remain locked
+   inside the viewport instead of becoming a scrollable page. */
+@media(orientation:portrait) and (max-height:760px){
+  .wrap{gap:5px;padding-top:7px;padding-bottom:7px}
+  .logo-wrap{width:132px;height:132px}
+  h1{font-size:19px}
+  .tag{font-size:13px}
+  #titleBtn{min-height:35px;padding:6px 11px;font-size:12px}
+  #musicGroup button{min-height:34px;padding:5px 3px;font-size:10px}
+  #hudHideNow,.auto-hide-option{min-height:33px;padding:5px 8px;font-size:10px}
+  .auto-hide-option input{width:15px;height:15px}
+  #bgGroup{padding:5px 7px;gap:4px}
+  #bgGroup .section-label{font-size:12px}
+  #bgGroup button{min-height:31px;padding:4px 2px;font-size:9px}
+  .bc-btn{padding:8px 18px;font-size:12px}
+  .offline-row button{min-height:33px;padding:5px 9px;font-size:10px}
+  #offlinePanel{padding:5px 7px}
+  #offlineText{margin-top:4px;font-size:10px}
   footer{font-size:12px}
-  #trackList{max-height:82dvh;width:min(780px,88vw)}
 }
+
+/* Landscape becomes a three-column console:
+   backgrounds = left rail, player/sun = center, music = right rail. */
+@media(orientation:landscape){
+  body{height:100dvh}
+
+  .wrap{
+    width:100%;
+    max-width:none;
+    height:100%;
+    min-height:0;
+    padding:6px clamp(155px,18vw,210px);
+    gap:4px;
+    justify-content:center;
+    overflow:hidden;
+  }
+
+  header{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+    width:100%;
+  }
+  .logo-wrap{
+    width:clamp(88px,15dvh,128px);
+    height:clamp(88px,15dvh,128px);
+    margin:0 auto 2px;
+  }
+  h1{font-size:clamp(18px,3.2dvh,28px);line-height:1}
+  .tag{font-size:clamp(11px,2.1dvh,16px);line-height:1}
+
+  #titleBtn{
+    width:auto;
+    max-width:min(540px,calc(100vw - 390px));
+    min-height:32px;
+    padding:5px 12px;
+    font-size:12px;
+  }
+  #player{
+    width:min(650px,calc(100vw - 390px));
+    min-width:280px;
+  }
+
+  /* Right vertical MUSIC rail. */
+  #musicGroup{
+    position:fixed;
+    z-index:4;
+    right:max(10px,env(safe-area-inset-right));
+    top:50%;
+    transform:translateY(-50%);
+    width:clamp(125px,15vw,180px);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  #musicGroup::before{
+    content:'Music';
+    display:block;
+    padding:3px;
+    font-size:12px;
+    font-weight:800;
+  }
+  #musicGroup button{
+    width:100%;
+    min-height:36px;
+    padding:6px 7px;
+    font-size:11px;
+  }
+
+  /* Left vertical BACKGROUND rail. */
+  #bgGroup{
+    position:fixed;
+    z-index:4;
+    left:max(10px,env(safe-area-inset-left));
+    top:50%;
+    transform:translateY(-50%);
+    width:clamp(125px,15vw,180px);
+    padding:8px;
+    gap:6px;
+    background:rgba(24,28,34,.70);
+  }
+  #bgGroup .section-label{font-size:12px}
+  #bgGroup .bg-row{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    gap:5px;
+  }
+  #bgGroup button{
+    width:100%;
+    min-height:33px;
+    padding:5px 5px;
+    font-size:10px;
+  }
+
+  .settings-row{gap:6px}
+  #hudHideNow,.auto-hide-option{
+    min-height:32px;
+    padding:5px 9px;
+    font-size:10px;
+  }
+  .auto-hide-option input{width:15px;height:15px}
+
+  #supportText{font-size:12px;line-height:1}
+  .bc-btn{padding:7px 16px;font-size:11px}
+  .offline-row{gap:6px}
+  .offline-row button{min-height:31px;padding:5px 9px;font-size:10px}
+  #offlinePanel{
+    width:min(520px,calc(100vw - 390px));
+    padding:5px 7px;
+  }
+  #offlineText{margin-top:4px;font-size:10px}
+  footer{font-size:11px;margin-top:0;padding-top:0}
+
+  /* The song picker is the ONLY vertically scrollable surface. */
+  #trackList{
+    max-height:82dvh;
+    width:min(660px,calc(100vw - 330px));
+    touch-action:pan-y;
+  }
+}
+
+/* Very short landscape phones get a slightly smaller center stack. */
+@media(orientation:landscape) and (max-height:430px){
+  .wrap{gap:2px;padding-top:3px;padding-bottom:3px}
+  .logo-wrap{width:70px;height:70px}
+  h1{font-size:16px}
+  .tag{font-size:10px}
+  #titleBtn{min-height:28px;padding:3px 9px;font-size:10px}
+  #player{height:34px}
+  #musicGroup,#bgGroup{top:50%}
+  #musicGroup button,#bgGroup button{min-height:28px;padding:3px 4px;font-size:9px}
+  #hudHideNow,.auto-hide-option{min-height:28px;padding:3px 7px;font-size:9px}
+  .bc-btn{padding:5px 13px;font-size:10px}
+  .offline-row button{min-height:28px;padding:3px 7px;font-size:9px}
+  footer{font-size:9px}
+}
+
 </style>
 </head>
 <body>
@@ -147,7 +344,11 @@ footer{padding-top:4px}
   </div>
 
   <div class="settings-row">
-    <button class="tgl" id="hudAutoHide" type="button" aria-pressed="true">Hide text</button>
+    <button id="hudHideNow" type="button">Hide text</button>
+    <label class="auto-hide-option">
+      <input type="checkbox" id="hudAutoHide" checked>
+      Auto hide 15s
+    </label>
   </div>
 
   <section class="group" id="bgGroup">
@@ -162,7 +363,7 @@ footer{padding-top:4px}
     </div>
   </section>
 
-  <div>Support the project below.</div>
+  <div id="supportText">Support the project below.</div>
   <a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a>
 
   <div class="offline-row">
@@ -182,7 +383,7 @@ footer{padding-top:4px}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.04-responsive-offline-ui-1',
+  APP_VERSION: '2026.09.04-locked-viewport-landscape-rails-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -794,7 +995,7 @@ function appendShareState(target){
   target.searchParams.set('statev','3');
   target.searchParams.set('at',String(Date.now()));
   if(window.GEBackgrounds) window.GEBackgrounds.writeShareState(target.searchParams);
-  target.searchParams.set('hudhide',localStorage.getItem(CONFIG.HUD_KEY)==='0'?'0':'1');
+  target.searchParams.set('hudhide',$('hudAutoHide').checked?'1':'0');
   return target;
 }
 function shareURL(){
@@ -867,6 +1068,13 @@ trackBackdrop.addEventListener('click',closeTrackPicker);
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape' && trackList.classList.contains('open')) closeTrackPicker();
 });
+
+// The radio page itself is a fixed console. Prevent iOS rubber-band/page
+// scrolling while still allowing finger scrolling inside the track picker.
+document.addEventListener('touchmove',event=>{
+  if(trackList.classList.contains('open') && trackList.contains(event.target)) return;
+  event.preventDefault();
+},{passive:false});
 $('shareBtn').addEventListener('click',async()=>{
   const url=await resolvedShareURL();
   const song=isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song;
@@ -1042,41 +1250,54 @@ audio.addEventListener('canplay',()=>{
 })();
 
 // HUD controller.
-// Hide Text is now an actual button: pressing it immediately hides the HUD.
-// Tapping the screen reveals the controls again, and the existing idle-hide
-// behavior remains available.
+// Hide Text hides immediately.
+// Auto hide 15s is independent and can be disabled with the checkbox.
 (function createHUDController(){
-  const button=$('hudAutoHide');
+  const hideButton=$('hudHideNow');
+  const autoCheckbox=$('hudAutoHide');
   const params=new URLSearchParams(location.search);
-  let enabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)!=='0';
+  let autoEnabled=params.has('hudhide')
+    ? params.get('hudhide')==='1'
+    : localStorage.getItem(CONFIG.HUD_KEY)!=='0';
   let lastActivity=Date.now();
 
-  setPressed(button,enabled);
+  autoCheckbox.checked=autoEnabled;
+
   function show(){
     document.body.classList.remove('hud-hidden');
     lastActivity=Date.now();
   }
-  function hideNow(){
-    if(enabled && !trackList.classList.contains('open')) document.body.classList.add('hud-hidden');
+  function hide(){
+    if(!trackList.classList.contains('open')){
+      document.body.classList.add('hud-hidden');
+    }
   }
 
-  button.addEventListener('click',event=>{
+  hideButton.addEventListener('click',event=>{
+    event.preventDefault();
     event.stopPropagation();
-    enabled=true;
-    localStorage.setItem(CONFIG.HUD_KEY,'1');
-    setPressed(button,true);
-    lastActivity=Date.now();
-    setTimeout(hideNow,80);
+    hide();
   });
 
-  ['pointermove','wheel','keydown','scroll'].forEach(name=>window.addEventListener(name,show,{passive:true}));
+  autoCheckbox.addEventListener('change',event=>{
+    event.stopPropagation();
+    autoEnabled=autoCheckbox.checked;
+    localStorage.setItem(CONFIG.HUD_KEY,autoEnabled?'1':'0');
+    show();
+  });
+
+  // Movement/taps on actual controls keep the 15-second clock current.
+  ['pointerdown','keydown'].forEach(name=>{
+    document.querySelector('.wrap').addEventListener(name,show,{passive:true});
+  });
+
   $('hudTap').addEventListener('pointerdown',event=>{
     event.preventDefault();
     show();
   });
 
   setInterval(()=>{
-    if(enabled && Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS) hideNow();
+    if(autoEnabled && Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS) hide();
   },1000);
 })();
 
@@ -1731,7 +1952,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     }
 
     // Return Hide Text to the normal default as well.
-    setPressed($('hudAutoHide'),true);
+    $('hudAutoHide').checked=true;
     localStorage.setItem(CONFIG.HUD_KEY,'1');
     document.body.classList.remove('hud-hidden');
 
