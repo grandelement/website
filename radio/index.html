@@ -176,8 +176,14 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
   footer{font-size:12px}
 }
 
-/* Landscape becomes a three-column console:
-   backgrounds = left rail, player/sun = center, music = right rail. */
+
+/* =========================================================
+   LANDSCAPE COCKPIT MODE
+   The live GE background remains behind this CSS-only frame.
+   Hiding the HUD fades this entire cockpit away.
+   ========================================================= */
+.cockpit-only{display:none}
+
 @media(orientation:landscape){
   body{height:100dvh}
 
@@ -186,133 +192,442 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
     max-width:none;
     height:100%;
     min-height:0;
-    padding:6px clamp(155px,18vw,210px);
-    gap:4px;
-    justify-content:center;
+    padding:0;
+    gap:0;
+    justify-content:flex-start;
     overflow:hidden;
   }
 
-  header{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:0;
-    width:100%;
-  }
-  .logo-wrap{
-    width:clamp(88px,15dvh,128px);
-    height:clamp(88px,15dvh,128px);
-    margin:0 auto 2px;
-  }
-  h1{font-size:clamp(18px,3.2dvh,28px);line-height:1}
-  .tag{font-size:clamp(11px,2.1dvh,16px);line-height:1}
-
-  #titleBtn{
-    width:auto;
-    max-width:min(540px,calc(100vw - 390px));
-    min-height:32px;
-    padding:5px 12px;
-    font-size:12px;
-  }
-  #player{
-    width:min(650px,calc(100vw - 390px));
-    min-width:280px;
-  }
-
-  /* Right vertical MUSIC rail. */
-  #musicGroup{
+  /* A subtle ship shell. The center remains mostly transparent so the
+     selected GE background is the actual view through the window. */
+  .wrap::before{
+    content:'';
     position:fixed;
-    z-index:4;
-    right:max(10px,env(safe-area-inset-right));
-    top:50%;
-    transform:translateY(-50%);
-    width:clamp(125px,15vw,180px);
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-  #musicGroup::before{
-    content:'Music';
-    display:block;
-    padding:3px;
-    font-size:12px;
-    font-weight:800;
-  }
-  #musicGroup button{
-    width:100%;
-    min-height:36px;
-    padding:6px 7px;
-    font-size:11px;
+    z-index:-1;
+    inset:0;
+    pointer-events:none;
+    background:
+      linear-gradient(90deg,
+        rgba(2,12,25,.96) 0 3.2%,
+        rgba(4,18,34,.82) 3.2% 11.8%,
+        transparent 15.5% 84.5%,
+        rgba(4,18,34,.82) 88.2% 96.8%,
+        rgba(2,12,25,.96) 96.8% 100%),
+      linear-gradient(180deg,
+        rgba(2,12,25,.96) 0 7%,
+        transparent 13% 73%,
+        rgba(3,13,27,.94) 82% 100%);
   }
 
-  /* Left vertical BACKGROUND rail. */
+  .wrap::after{
+    content:'';
+    position:fixed;
+    z-index:-1;
+    left:12.4%;
+    right:12.4%;
+    top:6.4%;
+    bottom:20%;
+    pointer-events:none;
+    border:2px solid rgba(42,160,255,.55);
+    border-radius:4.5vw 4.5vw 8vw 8vw;
+    box-shadow:
+      0 0 12px rgba(0,160,255,.32),
+      inset 0 0 18px rgba(0,120,255,.10);
+    clip-path:polygon(3% 0,97% 0,100% 11%,96% 100%,4% 100%,0 11%);
+  }
+
+  .cockpit-only{display:block}
+
+  /* Title mounted inside the upper ship frame. */
+  header{
+    position:fixed;
+    z-index:6;
+    top:max(4px,env(safe-area-inset-top));
+    left:50%;
+    transform:translateX(-50%);
+    width:clamp(300px,38vw,560px);
+    min-height:42px;
+    padding:5px 18px 7px;
+    border:1px solid rgba(40,147,235,.45);
+    border-radius:0 0 24px 24px;
+    background:linear-gradient(180deg,rgba(4,15,30,.92),rgba(5,25,45,.78));
+    box-shadow:0 5px 20px rgba(0,0,0,.38),inset 0 -1px rgba(0,190,255,.25);
+  }
+  header .logo-wrap{
+    position:fixed;
+    z-index:-1;
+    left:50%;
+    top:clamp(54px,8dvh,68px);
+    transform:translateX(-50%);
+    width:clamp(130px,30dvh,250px);
+    height:clamp(130px,30dvh,250px);
+    margin:0;
+    box-shadow:
+      0 0 0 2px rgba(0,190,255,.20) inset,
+      0 0 30px rgba(0,160,255,.28);
+  }
+  header h1{
+    margin:0;
+    font-size:clamp(18px,3.3dvh,30px);
+    line-height:1.05;
+    white-space:nowrap;
+  }
+  header .tag{display:none}
+
+  /* Current track sits below the expanded center window. */
+  #titleBtn{
+    position:fixed;
+    z-index:7;
+    left:50%;
+    bottom:clamp(124px,21dvh,172px);
+    transform:translateX(-50%);
+    width:auto;
+    min-width:clamp(260px,28vw,440px);
+    max-width:44vw;
+    min-height:42px;
+    padding:8px 18px;
+    border-radius:999px;
+    font-size:clamp(12px,2.2dvh,17px);
+    background:linear-gradient(180deg,rgba(6,25,47,.92),rgba(4,18,35,.90));
+    border-color:rgba(36,160,244,.75);
+    box-shadow:0 0 14px rgba(0,160,255,.24);
+  }
+
+  /* Native audio stays available to the platform but is visually replaced
+     in landscape by the cockpit transport below. */
+  #player{
+    position:fixed;
+    width:1px;
+    height:1px;
+    opacity:.001;
+    pointer-events:none;
+    left:-5px;
+    bottom:-5px;
+  }
+
+  /* LEFT: backgrounds. Slightly larger than the prior version. */
   #bgGroup{
     position:fixed;
-    z-index:4;
-    left:max(10px,env(safe-area-inset-left));
+    z-index:8;
+    left:max(8px,env(safe-area-inset-left));
     top:50%;
     transform:translateY(-50%);
-    width:clamp(125px,15vw,180px);
-    padding:8px;
-    gap:6px;
-    background:rgba(24,28,34,.70);
+    width:clamp(150px,13.8vw,205px);
+    padding:10px;
+    gap:7px;
+    border-radius:0 26px 26px 0;
+    background:linear-gradient(90deg,rgba(4,18,34,.96),rgba(5,28,52,.83));
+    border:1px solid rgba(38,145,230,.62);
+    box-shadow:0 0 18px rgba(0,110,220,.18);
   }
-  #bgGroup .section-label{font-size:12px}
+  #bgGroup .section-label{
+    font-size:clamp(12px,2.2dvh,16px);
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
   #bgGroup .bg-row{
     display:flex;
     flex-direction:column;
     width:100%;
-    gap:5px;
+    gap:7px;
   }
   #bgGroup button{
     width:100%;
-    min-height:33px;
-    padding:5px 5px;
-    font-size:10px;
+    min-height:clamp(42px,7.3dvh,54px);
+    padding:8px 8px;
+    font-size:clamp(11px,2.2dvh,15px);
+    border-radius:14px;
   }
 
-  .settings-row{gap:6px}
+  /* RIGHT: music. */
+  #musicGroup{
+    position:fixed;
+    z-index:8;
+    right:max(8px,env(safe-area-inset-right));
+    top:50%;
+    transform:translateY(-50%);
+    width:clamp(150px,13.8vw,205px);
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    padding:10px;
+    border-radius:26px 0 0 26px;
+    background:linear-gradient(270deg,rgba(4,18,34,.96),rgba(5,28,52,.83));
+    border:1px solid rgba(38,145,230,.62);
+    box-shadow:0 0 18px rgba(0,110,220,.18);
+  }
+  #musicGroup::before{
+    content:'MUSIC';
+    display:block;
+    padding:2px 3px 5px;
+    font-size:clamp(12px,2.2dvh,16px);
+    font-weight:800;
+    letter-spacing:.14em;
+  }
+  #musicGroup button{
+    width:100%;
+    min-height:clamp(42px,7.3dvh,54px);
+    padding:8px;
+    font-size:clamp(11px,2.2dvh,15px);
+    border-radius:14px;
+  }
+
+  /* Cockpit transport at bottom center. */
+  #cockpitTransport{
+    display:flex;
+    position:fixed;
+    z-index:9;
+    left:50%;
+    bottom:clamp(58px,8.7dvh,78px);
+    transform:translateX(-50%);
+    width:min(58vw,760px);
+    min-width:420px;
+    height:clamp(78px,14dvh,112px);
+    align-items:center;
+    justify-content:center;
+    gap:clamp(12px,2vw,26px);
+    padding:11px clamp(18px,3vw,38px) 10px;
+    background:
+      linear-gradient(180deg,rgba(5,25,47,.95),rgba(2,12,25,.96));
+    border:1px solid rgba(35,151,240,.72);
+    border-radius:42% 42% 18px 18px / 32% 32% 18px 18px;
+    box-shadow:
+      0 0 22px rgba(0,145,255,.20),
+      inset 0 1px rgba(90,210,255,.18);
+  }
+
+  #cockpitPrev,#cockpitNext{
+    width:clamp(48px,7.7dvh,64px);
+    min-width:clamp(48px,7.7dvh,64px);
+    height:clamp(48px,7.7dvh,64px);
+    min-height:0;
+    padding:0;
+    border-radius:50%;
+    font-size:clamp(21px,4dvh,29px);
+  }
+  #cockpitPlay{
+    width:clamp(64px,10dvh,82px);
+    min-width:clamp(64px,10dvh,82px);
+    height:clamp(64px,10dvh,82px);
+    min-height:0;
+    padding:0;
+    border-radius:50%;
+    font-size:clamp(26px,5dvh,38px);
+    border-color:rgba(70,205,255,.95);
+    box-shadow:
+      0 0 16px rgba(0,195,255,.48),
+      inset 0 0 18px rgba(0,160,255,.16);
+  }
+
+  #cockpitTimeline{
+    position:absolute;
+    left:5%;
+    right:5%;
+    bottom:8px;
+    display:grid;
+    grid-template-columns:auto minmax(100px,1fr) auto;
+    align-items:center;
+    gap:10px;
+    font-size:clamp(9px,1.7dvh,12px);
+    color:#d9efff;
+  }
+  #cockpitSeek{
+    width:100%;
+    accent-color:#16cfff;
+    touch-action:manipulation;
+  }
+
+  /* Minimal moving ship sensors. */
+  #sensorLeft,#sensorRight{
+    display:block;
+    position:fixed;
+    z-index:7;
+    bottom:clamp(69px,10dvh,88px);
+    width:clamp(92px,10vw,145px);
+    height:clamp(62px,9dvh,88px);
+    opacity:.82;
+    pointer-events:none;
+  }
+  #sensorLeft{left:clamp(170px,15.5vw,230px)}
+  #sensorRight{right:clamp(170px,15.5vw,230px)}
+
+  .radar{
+    position:absolute;
+    left:4px;
+    bottom:2px;
+    width:clamp(56px,7dvh,72px);
+    height:clamp(56px,7dvh,72px);
+    border:1px solid rgba(44,201,255,.54);
+    border-radius:50%;
+    background:
+      radial-gradient(circle,transparent 0 28%,rgba(25,181,255,.20) 29% 31%,transparent 32% 58%,rgba(25,181,255,.18) 59% 61%,transparent 62%),
+      linear-gradient(90deg,transparent 49%,rgba(43,199,255,.23) 50% 51%,transparent 52%),
+      linear-gradient(0deg,transparent 49%,rgba(43,199,255,.23) 50% 51%,transparent 52%);
+  }
+  .radar::after{
+    content:'';
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:45%;
+    height:1px;
+    transform-origin:left center;
+    background:linear-gradient(90deg,rgba(46,230,255,.9),transparent);
+    box-shadow:0 0 7px rgba(0,220,255,.6);
+  }
+  .radar-dot{
+    position:absolute;
+    width:6px;height:6px;
+    border-radius:50%;
+    background:#24e6ff;
+    box-shadow:0 0 6px #24e6ff;
+  }
+  .radar-dot.d1{left:21%;top:33%}
+  .radar-dot.d2{right:17%;bottom:24%}
+
+  .signal-bars{
+    position:absolute;
+    right:3px;
+    bottom:5px;
+    width:74%;
+    height:60%;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    gap:4px;
+  }
+  .signal-bars i{
+    display:block;
+    width:7%;
+    min-width:4px;
+    height:25%;
+    border-radius:2px 2px 0 0;
+    background:#20dfff;
+    box-shadow:0 0 5px rgba(32,223,255,.42);
+  }
+
+  body.is-playing .radar::after{animation:geRadarSweep 3.3s linear infinite}
+  body.is-playing .radar-dot.d1{animation:geBlink 2.1s ease-in-out infinite}
+  body.is-playing .radar-dot.d2{animation:geBlink 2.8s ease-in-out infinite .4s}
+  body.is-playing .signal-bars i:nth-child(1){animation:geMeter 1.35s ease-in-out infinite}
+  body.is-playing .signal-bars i:nth-child(2){animation:geMeter .95s ease-in-out infinite .12s}
+  body.is-playing .signal-bars i:nth-child(3){animation:geMeter 1.2s ease-in-out infinite .28s}
+  body.is-playing .signal-bars i:nth-child(4){animation:geMeter .82s ease-in-out infinite .08s}
+  body.is-playing .signal-bars i:nth-child(5){animation:geMeter 1.55s ease-in-out infinite .35s}
+  body.is-playing .signal-bars i:nth-child(6){animation:geMeter 1.05s ease-in-out infinite .18s}
+  body.is-playing .signal-bars i:nth-child(7){animation:geMeter 1.32s ease-in-out infinite .44s}
+
+  @keyframes geRadarSweep{to{transform:rotate(360deg)}}
+  @keyframes geBlink{0%,100%{opacity:.28}45%{opacity:1}65%{opacity:.48}}
+  @keyframes geMeter{
+    0%,100%{height:18%}
+    35%{height:82%}
+    63%{height:38%}
+    82%{height:66%}
+  }
+
+  /* Support/status pod at the very bottom. */
+  #supportText{display:none}
+  .bc-btn{
+    position:fixed;
+    z-index:9;
+    left:50%;
+    bottom:8px;
+    transform:translateX(-150%);
+    padding:9px 18px;
+    font-size:clamp(10px,1.9dvh,13px);
+    border-radius:12px;
+  }
+  .offline-row{
+    position:fixed;
+    z-index:9;
+    left:50%;
+    bottom:8px;
+    width:auto;
+    transform:translateX(-5%);
+    flex-wrap:nowrap;
+    gap:9px;
+  }
+  .offline-row button{
+    min-height:38px;
+    padding:7px 13px;
+    font-size:clamp(10px,1.9dvh,13px);
+  }
+  #offlinePanel{
+    position:fixed;
+    z-index:10;
+    left:50%;
+    bottom:52px;
+    transform:translateX(-50%);
+    width:min(46vw,610px);
+    padding:5px 8px;
+  }
+  #offlineText{margin-top:4px;font-size:10px}
+
+  /* Manual hide / auto-hide remains accessible inside lower console. */
+  .settings-row{
+    position:fixed;
+    z-index:10;
+    right:calc(50% - min(29vw,385px));
+    bottom:clamp(72px,10dvh,92px);
+    gap:5px;
+  }
   #hudHideNow,.auto-hide-option{
-    min-height:32px;
+    min-height:34px;
     padding:5px 9px;
     font-size:10px;
   }
   .auto-hide-option input{width:15px;height:15px}
 
-  #supportText{font-size:12px;line-height:1}
-  .bc-btn{padding:7px 16px;font-size:11px}
-  .offline-row{gap:6px}
-  .offline-row button{min-height:31px;padding:5px 9px;font-size:10px}
-  #offlinePanel{
-    width:min(520px,calc(100vw - 390px));
-    padding:5px 7px;
-  }
-  #offlineText{margin-top:4px;font-size:10px}
-  footer{font-size:11px;margin-top:0;padding-top:0}
+  footer{display:none}
 
-  /* The song picker is the ONLY vertically scrollable surface. */
+  /* The song picker is still the only scrollable surface. */
   #trackList{
     max-height:82dvh;
-    width:min(660px,calc(100vw - 330px));
+    width:min(680px,68vw);
     touch-action:pan-y;
   }
 }
 
-/* Very short landscape phones get a slightly smaller center stack. */
+/* Compact landscape phones: preserve thumb targets, trim decoration first. */
 @media(orientation:landscape) and (max-height:430px){
-  .wrap{gap:2px;padding-top:3px;padding-bottom:3px}
-  .logo-wrap{width:70px;height:70px}
-  h1{font-size:16px}
-  .tag{font-size:10px}
-  #titleBtn{min-height:28px;padding:3px 9px;font-size:10px}
-  #player{height:34px}
-  #musicGroup,#bgGroup{top:50%}
-  #musicGroup button,#bgGroup button{min-height:28px;padding:3px 4px;font-size:9px}
-  #hudHideNow,.auto-hide-option{min-height:28px;padding:3px 7px;font-size:9px}
-  .bc-btn{padding:5px 13px;font-size:10px}
-  .offline-row button{min-height:28px;padding:3px 7px;font-size:9px}
-  footer{font-size:9px}
+  header{min-height:34px;padding:3px 14px 5px}
+  header h1{font-size:16px}
+  header .logo-wrap{
+    top:41px;
+    width:112px;
+    height:112px;
+  }
+  #bgGroup,#musicGroup{
+    width:142px;
+    padding:7px;
+    gap:5px;
+  }
+  #bgGroup button,#musicGroup button{
+    min-height:36px;
+    font-size:10px;
+    padding:5px;
+  }
+  #titleBtn{
+    bottom:105px;
+    min-height:34px;
+    font-size:10px;
+  }
+  #cockpitTransport{
+    bottom:45px;
+    min-width:390px;
+    width:54vw;
+    height:72px;
+  }
+  #cockpitPrev,#cockpitNext{width:44px;min-width:44px;height:44px;font-size:19px}
+  #cockpitPlay{width:56px;min-width:56px;height:56px;font-size:25px}
+  #cockpitTimeline{bottom:4px;font-size:8px}
+  #sensorLeft,#sensorRight{display:none}
+  .settings-row{display:none}
+  .bc-btn{bottom:5px;padding:6px 12px}
+  .offline-row{bottom:5px}
+  .offline-row button{min-height:30px;padding:4px 8px}
+  #offlinePanel{bottom:39px}
 }
 
 </style>
@@ -334,6 +649,30 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
   <audio id="player" controls preload="auto" playsinline controlslist="nodownload noplaybackrate"></audio>
+
+  <div id="sensorLeft" class="cockpit-only" aria-hidden="true">
+    <div class="radar">
+      <span class="radar-dot d1"></span>
+      <span class="radar-dot d2"></span>
+    </div>
+  </div>
+
+  <div id="sensorRight" class="cockpit-only" aria-hidden="true">
+    <div class="signal-bars">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+  </div>
+
+  <div id="cockpitTransport" class="cockpit-only" aria-label="Landscape music controls">
+    <button id="cockpitPrev" type="button" aria-label="Previous track">◀</button>
+    <button id="cockpitPlay" type="button" aria-label="Play">▶</button>
+    <button id="cockpitNext" type="button" aria-label="Next track">▶</button>
+    <div id="cockpitTimeline">
+      <span id="cockpitCurrent">0:00</span>
+      <input id="cockpitSeek" type="range" min="0" max="1000" value="0" aria-label="Track position">
+      <span id="cockpitRemaining">-0:00</span>
+    </div>
+  </div>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
@@ -383,7 +722,7 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.04-locked-viewport-landscape-rails-1',
+  APP_VERSION: '2026.09.04-cockpit-landscape-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -837,11 +1176,30 @@ function updateMediaSession(url){
       album:isStationID(url)?'Grand Element Radio':parseTrack(url).album,
       artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
     });
+
+    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+
     const safe=(action,handler)=>{ try{ navigator.mediaSession.setActionHandler(action,handler); }catch(_e){} };
-    safe('previoustrack',()=>previousTrack(true));
-    safe('nexttrack',()=>nextTrack(true));
-    safe('play',()=>resumeAudio());
-    safe('pause',()=>audio.pause());
+
+    if(isIOS){
+      // Prefer the browser/OS native play/pause behavior on iPhone/iPad.
+      // Explicitly clear handlers that previous versions may have installed.
+      safe('previoustrack',null);
+      safe('nexttrack',null);
+      safe('play',null);
+      safe('pause',null);
+      safe('seekbackward',null);
+      safe('seekforward',null);
+      safe('seekto',null);
+      safe('stop',null);
+    }else{
+      // Android/desktop can expose richer transport controls.
+      safe('previoustrack',()=>previousTrack(true));
+      safe('nexttrack',()=>nextTrack(true));
+      safe('play',()=>resumeAudio());
+      safe('pause',()=>audio.pause());
+    }
   }catch(_e){}
 }
 function updateCurrentRow(){
@@ -1089,9 +1447,62 @@ $('shareBtn').addEventListener('click',async()=>{
 });
 $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} });
 
+const cockpitPlay=$('cockpitPlay');
+const cockpitPrev=$('cockpitPrev');
+const cockpitNext=$('cockpitNext');
+const cockpitSeek=$('cockpitSeek');
+const cockpitCurrent=$('cockpitCurrent');
+const cockpitRemaining=$('cockpitRemaining');
+
+function formatClock(seconds){
+  seconds=Math.max(0,Math.floor(Number(seconds)||0));
+  const minutes=Math.floor(seconds/60);
+  const remain=seconds%60;
+  return `${minutes}:${String(remain).padStart(2,'0')}`;
+}
+function syncCockpitTransport(){
+  if(!cockpitSeek) return;
+  const duration=Number(audio.duration);
+  const current=Number(audio.currentTime)||0;
+  const valid=Number.isFinite(duration) && duration>0;
+  cockpitSeek.value=valid?String(Math.round((current/duration)*1000)):'0';
+  cockpitCurrent.textContent=formatClock(current);
+  cockpitRemaining.textContent=valid?`-${formatClock(Math.max(0,duration-current))}`:'-0:00';
+  cockpitPlay.textContent=audio.paused?'▶':'Ⅱ';
+  cockpitPlay.setAttribute('aria-label',audio.paused?'Play':'Pause');
+}
+cockpitPlay?.addEventListener('click',()=>{
+  state.userStarted=true;
+  if(audio.paused) resumeAudio();
+  else audio.pause();
+});
+cockpitPrev?.addEventListener('click',()=>previousTrack(true));
+cockpitNext?.addEventListener('click',()=>nextTrack(true));
+cockpitSeek?.addEventListener('input',()=>{
+  const duration=Number(audio.duration);
+  if(Number.isFinite(duration) && duration>0){
+    audio.currentTime=(Number(cockpitSeek.value)/1000)*duration;
+    syncCockpitTransport();
+  }
+});
+
 audio.addEventListener('ended',advanceFromEnded);
-audio.addEventListener('play',()=>{ setStatus('Playing'); try{ navigator.mediaSession.playbackState='playing'; }catch(_e){} });
-audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus('Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} });
+audio.addEventListener('play',()=>{
+  document.body.classList.add('is-playing');
+  setStatus('Playing');
+  syncCockpitTransport();
+  try{ navigator.mediaSession.playbackState='playing'; }catch(_e){}
+});
+audio.addEventListener('pause',()=>{
+  document.body.classList.remove('is-playing');
+  if(!audio.ended) setStatus('Paused');
+  syncCockpitTransport();
+  try{ navigator.mediaSession.playbackState='paused'; }catch(_e){}
+});
+audio.addEventListener('timeupdate',syncCockpitTransport);
+audio.addEventListener('loadedmetadata',syncCockpitTransport);
+audio.addEventListener('durationchange',syncCockpitTransport);
+audio.addEventListener('seeked',syncCockpitTransport);
 audio.addEventListener('error',()=>{
   setStatus('That file could not play. Moving to the next track.');
   setTimeout(()=>nextTrack(false),250);
