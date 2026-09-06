@@ -133,9 +133,6 @@ button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 1
 .bc-btn{padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;text-decoration:none;box-shadow:0 10px 28px rgba(255,79,31,.38)}
 #bottomActions{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(760px,96vw)}
 #bottomActions .ship-btn,#bottomActions .bc-btn{flex:0 1 auto}
-.ship-btn, #musicGroup button, #bgGroup button, #cockpitPrev, #cockpitPlay, #cockpitNext{position:relative;overflow:hidden}
-.ship-btn::after, #musicGroup button::after, #bgGroup button::after, #cockpitPrev::after, #cockpitPlay::after, #cockpitNext::after{content:'';position:absolute;top:7px;right:9px;width:8px;height:8px;border-radius:50%;background:#28e8ff;opacity:.16;box-shadow:0 0 8px rgba(40,232,255,.35);transition:opacity .25s ease, box-shadow .25s ease, transform .25s ease}
-.ship-btn.led-on::after, #musicGroup button.led-on::after, #bgGroup button.led-on::after, #cockpitPrev.led-on::after, #cockpitPlay.led-on::after, #cockpitNext.led-on::after{opacity:1;box-shadow:0 0 12px rgba(40,232,255,.8),0 0 22px rgba(40,232,255,.35);transform:scale(1.2)}
 .offline-row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(760px,96vw)}
 #offlineBtn.active{background:#0e2f1f;border-color:#1f6b4d;color:#b8ffdf}
 #offlineBtn.downloading{background:#2a2130;border-color:#5b3a5f}
@@ -390,6 +387,19 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
   }
 
   /* MAIN TRANSPORT — lower, clearer, no overlap with track title. */
+
+  /* Lower console plates like the reference cockpit drawing. */
+  #sensorLeft::before,#sensorRight::before{
+    content:'';
+    position:absolute;
+    inset:-16px -26px -18px -18px;
+    z-index:-1;
+    border:1px solid rgba(40,148,225,.25);
+    background:linear-gradient(180deg,rgba(4,20,38,.34),rgba(3,13,27,.68));
+    box-shadow:inset 0 0 16px rgba(0,141,235,.08);
+    clip-path:polygon(8% 0,92% 0,100% 18%,94% 100%,6% 100%,0 18%);
+  }
+
   #cockpitTransport{
     display:flex;
     position:fixed;
@@ -555,7 +565,74 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
   .t1{left:18%;top:16%}.t2{left:24%;bottom:24%}.t3{left:76%;top:18%}.t4{right:18%;bottom:24%}
   .t5{left:33%;top:11%}.t6{right:33%;top:11%}.t7{left:36%;bottom:18%}.t8{right:36%;bottom:18%}
 
-  body.is-playing .radar::after{animation:geRadarSweep 3.6s linear infinite}
+  /* Decorative ship instrumentation only. These are NOT buttons. */
+  .frame-lights{
+    position:fixed;
+    z-index:7;
+    display:flex;
+    flex-direction:column;
+    gap:clamp(8px,1.6dvh,14px);
+    top:19%;
+    pointer-events:none;
+  }
+  .frame-left{left:11.15%}
+  .frame-right{right:11.15%}
+  .frame-lights i{
+    width:clamp(5px,.55vw,9px);
+    height:clamp(12px,2dvh,20px);
+    border-radius:999px;
+    background:rgba(27,208,255,.14);
+    box-shadow:0 0 5px rgba(27,208,255,.18);
+    transform:skewY(-14deg);
+    transition:opacity .2s ease,background .2s ease,box-shadow .2s ease,transform .2s ease;
+  }
+  .frame-right i{transform:skewY(14deg)}
+
+  .console-pips{
+    position:fixed;
+    z-index:7;
+    bottom:17.5%;
+    display:flex;
+    gap:6px;
+    pointer-events:none;
+  }
+  .console-left{left:22%}
+  .console-right{right:22%}
+  .console-pips i{
+    width:8px;height:5px;
+    border-radius:2px;
+    background:rgba(31,219,255,.14);
+    box-shadow:0 0 5px rgba(31,219,255,.18);
+    transition:opacity .2s ease,background .2s ease,box-shadow .2s ease,transform .2s ease;
+  }
+
+  .mini-status{
+    position:fixed;
+    z-index:7;
+    bottom:10.8%;
+    display:grid;
+    grid-template-columns:repeat(4,8px);
+    gap:5px;
+    pointer-events:none;
+  }
+  .status-a{left:15.4%}
+  .status-b{right:15.4%}
+  .mini-status i{
+    height:4px;
+    border-radius:999px;
+    background:rgba(32,223,255,.15);
+    box-shadow:0 0 4px rgba(32,223,255,.16);
+    transition:opacity .2s ease,background .2s ease,box-shadow .2s ease,transform .2s ease;
+  }
+
+  .instrument-lit{
+    opacity:1 !important;
+    background:#25e6ff !important;
+    box-shadow:0 0 9px rgba(37,230,255,.9),0 0 18px rgba(37,230,255,.30) !important;
+    transform:scale(1.18);
+  }
+
+  body.is-playing .radar::after{animation:geRadarSweep var(--radar-speed,3.6s) linear infinite}
   body.is-playing .scan-spark.s1{animation:geBlink 2.2s ease-in-out infinite}
   body.is-playing .scan-spark.s2{animation:geBlink 2.9s ease-in-out infinite .4s}
   body.is-playing .signal-bars i:nth-child(1){animation:geMeter 1.35s ease-in-out infinite}
@@ -566,6 +643,7 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
   body.is-playing .signal-bars i:nth-child(6){animation:geMeter 1.05s ease-in-out infinite .18s}
   body.is-playing .signal-bars i:nth-child(7){animation:geMeter 1.32s ease-in-out infinite .44s}
 
+  .radar.radar-reverse::after{animation-direction:reverse !important}
   @keyframes geRadarSweep{to{transform:rotate(360deg)}}
   @keyframes geBlink{0%,100%{opacity:.25}45%{opacity:1}65%{opacity:.42}}
   @keyframes geMeter{0%,100%{height:18%}35%{height:80%}63%{height:36%}82%{height:64%}}
@@ -733,6 +811,23 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
   <div id="ambientLights" class="cockpit-only" aria-hidden="true">
     <i class="twinkle t1"></i><i class="twinkle t2"></i><i class="twinkle t3"></i><i class="twinkle t4"></i>
     <i class="twinkle t5"></i><i class="twinkle t6"></i><i class="twinkle t7"></i><i class="twinkle t8"></i>
+
+    <div class="frame-lights frame-left">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="frame-lights frame-right">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+
+    <div class="console-pips console-left">
+      <i></i><i></i><i></i>
+    </div>
+    <div class="console-pips console-right">
+      <i></i><i></i><i></i>
+    </div>
+
+    <div class="mini-status status-a"><i></i><i></i><i></i><i></i></div>
+    <div class="mini-status status-b"><i></i><i></i><i></i><i></i></div>
   </div>
 
   <div id="cockpitTransport" class="cockpit-only" aria-label="Landscape music controls">
@@ -793,7 +888,7 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.05-cockpit-enhanced-3',
+  APP_VERSION: '2026.09.06-cockpit-instrument-lights-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -1578,20 +1673,69 @@ cockpitSeek?.addEventListener('pointermove',event=>{
 });
 
 (function initCockpitAmbience(){
-  const blinkers=[...document.querySelectorAll('#ambientLights .twinkle, .aux-grid span, .scan-spark, #musicGroup button, #bgGroup button, #bottomActions .ship-btn, #cockpitPrev, #cockpitPlay, #cockpitNext')];
-  function flashRandom(){
-    const count=Math.max(1,Math.min(4,Math.floor(Math.random()*4)+1));
+  // Only decorative ship instrumentation is randomized.
+  // Music/background/transport/action buttons are deliberately excluded.
+  const lights=[...document.querySelectorAll(
+    '#ambientLights .twinkle,'+
+    '#ambientLights .frame-lights i,'+
+    '#ambientLights .console-pips i,'+
+    '#ambientLights .mini-status i,'+
+    '.aux-grid span,'+
+    '.scan-spark'
+  )];
+
+  const radar=document.querySelector('.radar');
+  const radarPlanet=document.querySelector('.radar-planet');
+  const orbitMoon=document.querySelector('.orbit-moon');
+
+  function randomBetween(min,max){
+    return min+Math.random()*(max-min);
+  }
+
+  function lightPulse(){
+    if(!lights.length) return;
+
+    const count=Math.floor(randomBetween(1,Math.min(5,lights.length)+1));
     const picks=[];
-    for(let i=0;i<count;i++) {
-      const node=blinkers[Math.floor(Math.random()*blinkers.length)];
+
+    for(let i=0;i<count;i++){
+      const node=lights[Math.floor(Math.random()*lights.length)];
       if(node && !picks.includes(node)) picks.push(node);
     }
-    picks.forEach(node=>node.classList.add('led-on','lit'));
-    const offDelay=220+Math.random()*1150;
-    setTimeout(()=>picks.forEach(node=>node.classList.remove('led-on','lit')), offDelay);
-    setTimeout(flashRandom, 260+Math.random()*2200);
+
+    picks.forEach(node=>node.classList.add('instrument-lit','lit'));
+
+    setTimeout(()=>{
+      picks.forEach(node=>node.classList.remove('instrument-lit','lit'));
+    },randomBetween(120,1250));
+
+    setTimeout(lightPulse,randomBetween(180,3100));
   }
-  flashRandom();
+
+  // Occasionally change the radar's sweep speed and direction so it never
+  // feels like an obvious repeating clockwork loop.
+  function randomizeRadar(){
+    if(radar){
+      const duration=randomBetween(2.4,6.8);
+      const reverse=Math.random()<.30;
+      radar.style.setProperty('--radar-speed',`${duration}s`);
+      radar.classList.toggle('radar-reverse',reverse);
+    }
+
+    if(radarPlanet){
+      const duration=randomBetween(24,46);
+      radarPlanet.style.animationDuration=`${duration}s`;
+    }
+
+    if(orbitMoon){
+      orbitMoon.style.animationDuration=`${randomBetween(10,28)}s, ${randomBetween(24,46)}s`;
+    }
+
+    setTimeout(randomizeRadar,randomBetween(5000,15000));
+  }
+
+  lightPulse();
+  randomizeRadar();
 })();
 
 audio.addEventListener('ended',advanceFromEnded);
