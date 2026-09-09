@@ -336,8 +336,7 @@
   body.game-mode-active .sunHUD,
   body.game-mode-active .miniPlayer,
   body.game-mode-active footer.ge-footer{ display:none !important; }
-  body.game-mode-active .sunWrap{ cursor:grab; }
-  body.game-mode-active .sunWrap.dragging{ cursor:grabbing; }
+  body.game-mode-active .sunWrap{ cursor:default; }
 
   .gamePrompt,
   .roundPrompt,
@@ -500,28 +499,6 @@
   }
   .gameHudBtn.active{ background:rgba(55,126,205,.82); }
 
-
-  .gameBgControls{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:4px;
-    flex:0 0 auto;
-  }
-  .gameBgBtn{
-    height:30px;
-    padding:0 8px;
-    border-radius:999px;
-    border:1px solid rgba(220,240,255,.4);
-    background:rgba(8,18,34,.92);
-    color:#eaf2ff;
-    font-size:9px;
-    font-weight:900;
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .gameBgBtn.active{ background:rgba(55,126,205,.82); }
-
   #gameNotice{
     position:fixed;
     left:50%;
@@ -609,9 +586,7 @@
     #activePlayerName{ max-width:94px; white-space:normal; line-height:1.08; }
     .roundBadge{ width:88px; height:38px; box-sizing:border-box; padding:0 5px; }
     .gameHudBtn{ width:88px; padding:0 5px; }
-    .gameBgControls{ width:88px; flex-wrap:wrap; gap:3px; }
-    .gameBgBtn{ height:27px; padding:0 6px; font-size:8px; }
-    #gameNotice{ left:50%; top:12px; transform:translateX(-50%); }
+    #gameNotice{ left:120px; top:12px; transform:none; }
   }
 
   @media (max-width:700px) and (orientation:portrait){
@@ -620,7 +595,6 @@
     #activePlayerName{ max-width:105px; font-size:9px; }
     .roundBadge{ height:32px;padding:0 8px; }
     .gameHudBtn{ height:32px;padding:0 8px;font-size:9px; }
-    .gameBgBtn{ height:28px;padding:0 6px;font-size:8px; }
     #gameNotice{ top:86px; }
   }
 
@@ -733,11 +707,6 @@
     </div>
     <button class="gameHudBtn active" id="gameStartBtn" type="button">PAUSE</button>
     <button class="gameHudBtn" id="gameOptionsBtn" type="button">OPTIONS</button>
-    <div class="gameBgControls" aria-label="Game background controls">
-      <button class="gameBgBtn" id="gameBgPrev" type="button">BG ◀</button>
-      <button class="gameBgBtn" id="gameBgNext" type="button">BG ▶</button>
-      <button class="gameBgBtn" id="gameBgOff" type="button">BG OFF</button>
-    </div>
   </div>
   <div id="gameNotice"></div>
 
@@ -2240,6 +2209,7 @@ requestAnimationFrame(loop);
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dx=0, dy=0, moved=false;
   wrap.addEventListener('pointerdown', (e)=>{
+    if(document.body.classList.contains('game-mode-active')) return;
     dragging=true; moved=false; wrap.classList.add('dragging');
     const rect=wrap.getBoundingClientRect();
     dx=e.clientX-rect.left; dy=e.clientY-rect.top;
@@ -2250,21 +2220,10 @@ requestAnimationFrame(loop);
     const w=wrap.offsetWidth, h=wrap.offsetHeight;
     const keep = 0.25;
     let L=e.clientX-dx, T=e.clientY-dy;
-    let minL = -w*(1-keep);
-    let maxL = innerWidth - w*keep;
-    let minT = -h*(1-keep);
-    let maxT = innerHeight - h*keep;
-
-    // In Game Mode the black rail is outside the legal playfield.
-    // The sun may still be moved almost anywhere, but at least 25% remains reachable.
-    if(document.body.classList.contains('game-mode-active') && typeof getPlanetPlayBounds==='function'){
-      const b=getPlanetPlayBounds();
-      minL = b.left - w*(1-keep);
-      maxL = b.right - w*keep;
-      minT = b.top - h*(1-keep);
-      maxT = b.bottom - h*keep;
-    }
-
+    const minL = -w*(1-keep);
+    const maxL = innerWidth - w*keep;
+    const minT = -h*(1-keep);
+    const maxT = innerHeight - h*keep;
     L=Math.max(minL, Math.min(maxL, L));
     T=Math.max(minT, Math.min(maxT, T));
     wrap.style.left = (L + w/2) + 'px';
@@ -2286,44 +2245,6 @@ sunEl.addEventListener('click', (e)=>{
   rippleAndNext(rect.left + rect.width/2, rect.top + rect.height/2);
 }, {passive:true});
 })();
-
-
-/* Game sun collision: full separation + reflected velocity.
-   This prevents album planets from sinking into / sticking to the blue sun. */
-function collideStaticCircle(obj,cx,cy,r,rest=0.90){
-  const dx=obj.x-cx, dy=obj.y-cy;
-  let dist=Math.hypot(dx,dy);
-  const R=(obj.r||10)+r;
-  if(dist>=R) return false;
-
-  let nx,ny;
-  if(dist<0.0001){
-    const a=Math.atan2(obj.vy||0,obj.vx||1);
-    nx=Math.cos(a); ny=Math.sin(a); dist=0.0001;
-  }else{
-    nx=dx/dist; ny=dy/dist;
-  }
-
-  // Push the moving planet completely outside the fixed sun.
-  const overlap=R-dist+0.75;
-  obj.x+=nx*overlap;
-  obj.y+=ny*overlap;
-
-  // Reflect only when the planet is moving into the sun.
-  const vn=(obj.vx||0)*nx+(obj.vy||0)*ny;
-  if(vn<0){
-    obj.vx=(obj.vx||0)-(1+rest)*vn*nx;
-    obj.vy=(obj.vy||0)-(1+rest)*vn*ny;
-  }else{
-    // If numerical overlap happened at very low speed, give it a tiny outward release.
-    const speed=Math.hypot(obj.vx||0,obj.vy||0);
-    if(speed<8){
-      obj.vx=(obj.vx||0)+nx*18;
-      obj.vy=(obj.vy||0)+ny*18;
-    }
-  }
-  return true;
-}
 
 /* PLANET PHYSICS */
 const planetNodes = [];
@@ -2416,16 +2337,7 @@ function planetStep(){
     if(p.y-p.r<bounds.top){ p.y=bounds.top+p.r; p.vy=Math.abs(p.vy)*0.98; }
     if(p.y+p.r>bounds.bottom){ p.y=bounds.bottom-p.r; p.vy=-Math.abs(p.vy)*0.98; }
 
-    if(sr){
-      if(document.body.classList.contains('game-mode-active')){
-        const hitSun=collideStaticCircle(p,sx,sy,sr,0.90);
-        if(hitSun && window.GE_GAME && typeof window.GE_GAME.sunCollision==='function'){
-          window.GE_GAME.sunCollision(p);
-        }
-      }else{
-        collideElastic(p,{x:sx,y:sy,r:sr},0.98);
-      }
-    }
+    if(sr) collideElastic(p,{x:sx,y:sy,r:sr},0.98);
     if(mr) collideElastic(p,{x:mx,y:my,r:mr},0.98);
     if(br) collideElastic(p,{x:bx,y:by,r:br},0.98);
     if(rr) collideElastic(p,{x:rx,y:ry,r:rr},0.98);
@@ -2524,12 +2436,6 @@ const GE_GAME = (()=>{
   const playersDown=document.getElementById('playersDown');
   const playersUp=document.getElementById('playersUp');
   const playerCountLabel=document.getElementById('playerCountLabel');
-  const gameBgPrev=document.getElementById('gameBgPrev');
-  const gameBgNext=document.getElementById('gameBgNext');
-  const gameBgOff=document.getElementById('gameBgOff');
-  let gameBgIndex=typeof bgIndex==='number'?bgIndex:0;
-  let gameBgIsOff=false;
-  let savedWebsiteBackground=null;
 
   const playerPanel=document.getElementById('playerOptionsPanel');
   const playerTitle=document.getElementById('playerOptionsTitle');
@@ -2616,51 +2522,6 @@ const GE_GAME = (()=>{
     }
   }
 
-
-  function saveWebsiteBackground(){
-    if(savedWebsiteBackground) return;
-    savedWebsiteBackground={
-      image:document.body.style.backgroundImage,
-      position:document.body.style.backgroundPosition,
-      repeat:document.body.style.backgroundRepeat,
-      size:document.body.style.backgroundSize,
-      attachment:document.body.style.backgroundAttachment,
-      color:document.body.style.backgroundColor
-    };
-  }
-  function restoreWebsiteBackground(){
-    if(!savedWebsiteBackground) return;
-    document.body.style.backgroundImage=savedWebsiteBackground.image;
-    document.body.style.backgroundPosition=savedWebsiteBackground.position;
-    document.body.style.backgroundRepeat=savedWebsiteBackground.repeat;
-    document.body.style.backgroundSize=savedWebsiteBackground.size;
-    document.body.style.backgroundAttachment=savedWebsiteBackground.attachment;
-    document.body.style.backgroundColor=savedWebsiteBackground.color;
-    savedWebsiteBackground=null;
-  }
-  function setGameBackgroundIndex(i){
-    if(!Array.isArray(BG_LIST) || !BG_LIST.length) return;
-    gameBgIndex=(i%BG_LIST.length+BG_LIST.length)%BG_LIST.length;
-    gameBgIsOff=false;
-    const url=BG_LIST[gameBgIndex];
-    document.body.style.backgroundColor='#000';
-    document.body.style.backgroundImage=`url("${url}")`;
-    document.body.style.backgroundPosition='center center';
-    document.body.style.backgroundRepeat='no-repeat';
-    document.body.style.backgroundSize='cover';
-    document.body.style.backgroundAttachment='scroll';
-    gameBgOff?.classList.remove('active');
-  }
-  function setGameBackgroundOff(){
-    gameBgIsOff=true;
-    document.body.style.backgroundColor='#000';
-    document.body.style.backgroundImage='none';
-    gameBgOff?.classList.add('active');
-  }
-  gameBgPrev?.addEventListener('click',()=>setGameBackgroundIndex(gameBgIndex-1));
-  gameBgNext?.addEventListener('click',()=>setGameBackgroundIndex(gameBgIndex+1));
-  gameBgOff?.addEventListener('click',()=>setGameBackgroundOff());
-
   function clampPlayfield(){
     if(!state.active) return;
     const b=getPlanetPlayBounds();
@@ -2685,7 +2546,6 @@ const GE_GAME = (()=>{
   }
 
   function startGame(){
-    saveWebsiteBackground();
     state.active=true;
     state.running=true;
     state.completed=false;
@@ -2713,7 +2573,6 @@ const GE_GAME = (()=>{
     playerPanel.classList.remove('show');
     roundPrompt.classList.remove('show');
     notice.classList.remove('show');
-    restoreWebsiteBackground();
   }
 
   function resetRound(sameRound=true){
@@ -2931,21 +2790,6 @@ const GE_GAME = (()=>{
     if(state.scores[i]>=100){ completeRound(i); }
   }
 
-
-  function sunCollision(p){
-    if(!state.active || !state.running || !p) return;
-    let ps=state.planetState.get(p);
-    if(!ps){
-      ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false};
-      state.planetState.set(p,ps);
-    }
-    if(ps.armed && !ps.scored){
-      pointForHit(p,ps);
-    }
-    // The physical collision has already expelled the planet, so do not leave it latched "inside".
-    ps.inSun=false;
-  }
-
   /* 0-player mode periodically launches a planet. */
   function autoShoot(now){
     if(state.players!==0 || !state.active || !state.running || now<state.autoNext || !planetNodes.length) return;
@@ -3006,7 +2850,7 @@ const GE_GAME = (()=>{
   addEventListener('orientationchange',()=>setTimeout(reflow,180),{passive:true});
 
   updateHUD();
-  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision};
+  return {start:startGame,exit:exitGame,state,registerThrow,reflow};
 })();
 window.GE_GAME=GE_GAME;
 
