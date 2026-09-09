@@ -311,10 +311,9 @@
 
 
   /* ==========================
-     OPTIONAL GAME MODE LAYER V3
-     The normal website is untouched until Game Mode is active.
-     Portrait: solid-black game rail across the top.
-     Landscape: solid-black game rail down the left side.
+     OPTIONAL GAME MODE LAYER
+     Normal website behavior remains unchanged until a real planet drag
+     activates the invitation and the visitor chooses Start Game.
      ========================== */
   .planet.gameDragSmall,
   .planet.gameDragSmall:hover,
@@ -322,27 +321,10 @@
     transform:scale(1) !important;
   }
 
-  /* No planet enlargement while actually playing. */
-  body.game-mode-active .planet,
-  body.game-mode-active .planet:hover,
-  body.game-mode-active .planet.touchZoom,
-  body.game-mode-active .planet.justDragged{
-    transform:scale(1) !important;
-  }
-  body.game-mode-active .planet .label{ opacity:0 !important; }
-
-  /* In Game Mode the playfield is deliberately stripped to planets + blue sun. */
-  body.game-mode-active .sunOverlayTop,
-  body.game-mode-active .sunHUD,
-  body.game-mode-active .miniPlayer,
-  body.game-mode-active footer.ge-footer{ display:none !important; }
-  body.game-mode-active .sunWrap{ cursor:default; }
-
   .gamePrompt,
   .roundPrompt,
   .gameOptionsPanel,
-  .scoreArchivePanel,
-  .playerOptionsPanel{
+  .scoreArchivePanel{
     position:fixed;
     inset:0;
     z-index:60;
@@ -354,8 +336,7 @@
   .gamePrompt.show,
   .roundPrompt.show,
   .gameOptionsPanel.show,
-  .scoreArchivePanel.show,
-  .playerOptionsPanel.show{ display:grid; }
+  .scoreArchivePanel.show{ display:grid; }
 
   .gameCard{
     width:min(88vw,520px);
@@ -363,7 +344,7 @@
     padding:22px;
     border-radius:20px;
     border:1px solid rgba(190,225,255,.5);
-    background:rgba(5,12,26,.96);
+    background:rgba(5,12,26,.94);
     box-shadow:0 18px 55px rgba(0,0,0,.68),0 0 30px rgba(90,175,255,.16);
     text-align:center;
   }
@@ -384,96 +365,73 @@
   .gameButton:hover{ background:rgba(35,72,118,.96); }
   .gameRemember{ display:flex; gap:8px; justify-content:center; align-items:center; margin-top:14px; font-size:13px; opacity:.86; }
 
-  /* Solid game rail. Its inner edge is also the physical cushion for planets. */
+  /* Game HUD: deliberately separate from all normal website controls */
   #gameHUD{
     position:fixed;
-    left:0;
-    top:0;
-    right:0;
-    height:calc(82px + env(safe-area-inset-top,0px));
-    box-sizing:border-box;
+    left:50%;
+    top:14px;
+    transform:translateX(-50%);
     z-index:40;
     display:none;
     align-items:center;
-    gap:7px;
-    padding:calc(7px + env(safe-area-inset-top,0px)) 10px 7px;
-    background:#000;
-    border-bottom:1px solid rgba(160,205,255,.34);
-    box-shadow:0 5px 15px rgba(0,0,0,.62);
+    gap:8px;
     pointer-events:auto;
-    overflow:hidden;
   }
   #gameHUD.show{ display:flex; }
 
+  /* Player score comets. One marker for solo play; more appear for multiplayer. */
   .gameScoreCluster{
-    min-width:0;
-    flex:1 1 auto;
     display:flex;
     align-items:center;
-    gap:6px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    scrollbar-width:none;
-    padding:3px 2px;
+    gap:7px;
+    max-width:min(70vw,760px);
+    flex-wrap:wrap;
+    justify-content:center;
   }
-  .gameScoreCluster::-webkit-scrollbar{ display:none; }
-
-  /* Small white player balls. Active player's ball becomes the blue Grand Element sun. */
-  .playerDot{
-    width:34px;
-    height:34px;
-    min-width:34px;
-    border-radius:50%;
-    border:1px solid rgba(255,255,255,.85);
-    background:#fff;
+  .playerComet{
+    position:relative;
+    min-width:68px;
+    height:36px;
+    padding:0 14px 0 20px;
+    border-radius:0 999px 999px 0;
+    border:1px solid rgba(255,255,255,.65);
+    background:linear-gradient(90deg,rgba(255,255,255,.10),rgba(255,255,255,.92) 30%,#fff 100%);
     color:#07121d;
-    display:grid;
-    place-items:center;
-    padding:0;
-    font-size:11px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    box-sizing:border-box;
     font-weight:950;
-    line-height:1;
-    cursor:pointer;
-    box-shadow:0 0 7px rgba(255,255,255,.28);
-    transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
+    box-shadow:0 4px 14px rgba(0,0,0,.42),0 0 10px rgba(255,255,255,.18);
+    transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+    user-select:none;
   }
-  .playerDot.activeTurn{
-    color:#fff;
-    border-color:rgba(170,220,255,.95);
-    background:#247ed0 center/cover no-repeat url('https://grandelement.github.io/website/ge-images/images/ge-logo-2.jpg');
-    text-shadow:0 1px 5px #000,0 0 4px #000;
-    transform:scale(1.12);
-    box-shadow:0 0 8px #fff,0 0 20px rgba(83,174,255,.95);
+  .playerComet::before{
+    content:'';
+    position:absolute;
+    left:-23px;
+    top:8px;
+    width:29px;
+    height:20px;
+    clip-path:polygon(100% 0,100% 100%,0 50%);
+    background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.9));
+    filter:drop-shadow(0 0 4px rgba(255,255,255,.35));
   }
-  .playerDot.autoDot{ font-size:8px; letter-spacing:.04em; }
-
-  #activePlayerName{
-    flex:0 0 auto;
-    max-width:150px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-    font-size:10px;
-    font-weight:900;
-    letter-spacing:.05em;
-    color:#e9f5ff;
-    text-align:center;
-    text-shadow:0 0 8px rgba(100,180,255,.55);
+  .playerComet .playerName{font-size:9px;letter-spacing:.1em;opacity:.68}
+  .playerComet .playerScore{font-size:15px;line-height:1}
+  .playerComet.activeTurn{
+    transform:translateY(-2px) scale(1.06);
+    box-shadow:0 5px 18px rgba(0,0,0,.5),0 0 8px #fff,0 0 22px rgba(111,184,255,.95),0 0 36px rgba(255,111,40,.45);
+    filter:brightness(1.12);
   }
-  #activePlayerName.flashName{ animation:activeNameFlash .65s ease; }
-  @keyframes activeNameFlash{
-    0%{opacity:.25;transform:scale(.94)}
-    45%{opacity:1;transform:scale(1.08)}
-    100%{opacity:1;transform:scale(1)}
-  }
-
   .roundBadge{
     height:36px;
     border-radius:999px;
     border:1px solid rgba(220,240,255,.45);
-    background:rgba(8,18,34,.9);
+    background:rgba(5,12,26,.82);
     color:#eaf2ff;
-    padding:0 11px;
+    padding:0 12px;
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -483,26 +441,25 @@
     white-space:nowrap;
   }
   .roundBadge .scoreBig{font-size:11px;font-weight:950}
-  .roundBadge .scoreSmall{font-size:8px;letter-spacing:.08em;opacity:.72}
+  .roundBadge .scoreSmall{font-size:8px;letter-spacing:.1em;opacity:.72}
 
   .gameHudBtn{
-    height:34px;
-    padding:0 11px;
+    height:36px;
+    padding:0 12px;
     border-radius:999px;
     border:1px solid rgba(220,240,255,.45);
-    background:rgba(8,18,34,.92);
+    background:rgba(5,12,26,.82);
     color:#eaf2ff;
-    font-size:10px;
+    font-size:11px;
     font-weight:900;
     cursor:pointer;
-    white-space:nowrap;
   }
-  .gameHudBtn.active{ background:rgba(55,126,205,.82); }
+  .gameHudBtn.active{ background:rgba(55,126,205,.78); }
 
   #gameNotice{
     position:fixed;
     left:50%;
-    top:92px;
+    top:64px;
     transform:translateX(-50%);
     z-index:39;
     color:#fff;
@@ -518,17 +475,6 @@
   .optionGrid{ text-align:left; margin:16px auto 0; max-width:390px; }
   .optionGrid label{ display:flex; justify-content:space-between; gap:16px; align-items:center; margin:10px 0; }
   .optionGrid input[type="range"]{ width:170px; }
-  .optionGrid input[type="text"],
-  .optionGrid select{
-    width:180px;
-    box-sizing:border-box;
-    padding:8px 10px;
-    border-radius:10px;
-    border:1px solid rgba(220,240,255,.35);
-    background:rgba(255,255,255,.06);
-    color:#fff;
-  }
-  .optionGrid select option{ color:#000; }
 
   .playerStepper{
     display:flex;
@@ -559,43 +505,13 @@
   .scoreRecord:last-child{ border-bottom:0; }
   .cosmicLine{ font-size:11px; opacity:.7; margin-top:3px; }
 
-  /* Landscape preserves vertical playing room by moving the game rail to the left. */
-  @media (orientation:landscape){
-    #gameHUD{
-      right:auto;
-      bottom:0;
-      width:calc(108px + env(safe-area-inset-left,0px));
-      height:100dvh;
-      flex-direction:column;
-      padding:10px 7px 8px calc(7px + env(safe-area-inset-left,0px));
-      border-bottom:0;
-      border-right:1px solid rgba(160,205,255,.34);
-      box-shadow:5px 0 15px rgba(0,0,0,.62);
-      overflow:hidden;
-    }
-    .gameScoreCluster{
-      width:100%;
-      min-height:0;
-      flex:1 1 auto;
-      flex-direction:column;
-      overflow-y:auto;
-      overflow-x:hidden;
-      justify-content:flex-start;
-      padding:4px 0;
-    }
-    #activePlayerName{ max-width:94px; white-space:normal; line-height:1.08; }
-    .roundBadge{ width:88px; height:38px; box-sizing:border-box; padding:0 5px; }
-    .gameHudBtn{ width:88px; padding:0 5px; }
-    #gameNotice{ left:120px; top:12px; transform:none; }
-  }
-
-  @media (max-width:700px) and (orientation:portrait){
-    #gameHUD{ height:calc(78px + env(safe-area-inset-top,0px)); padding-left:7px; padding-right:7px; gap:5px; }
-    .playerDot{ width:31px;height:31px;min-width:31px;font-size:10px; }
-    #activePlayerName{ max-width:105px; font-size:9px; }
-    .roundBadge{ height:32px;padding:0 8px; }
-    .gameHudBtn{ height:32px;padding:0 8px;font-size:9px; }
-    #gameNotice{ top:86px; }
+  @media (max-width:700px){
+    #gameHUD{ top:8px; gap:5px; }
+    .playerComet{ min-width:58px; height:32px; padding-right:10px; }
+    .playerComet::before{ left:-18px; width:24px; height:16px; top:8px; }
+    .playerComet .playerScore{ font-size:13px; }
+    .roundBadge{ height:32px; padding:0 9px; }
+    .gameHudBtn{ height:32px; padding:0 9px; font-size:10px; }
   }
 
 </style>
@@ -699,8 +615,7 @@
 
   <!-- OPTIONAL GAME MODE: hidden until the visitor accepts the planet-drag invitation -->
   <div id="gameHUD" aria-hidden="true">
-    <div class="gameScoreCluster" id="gameScoreCluster" title="Tap a player ball for name and handicap"></div>
-    <div id="activePlayerName">PLAYER 1 · TURN 1/3</div>
+    <div class="gameScoreCluster" id="gameScoreCluster" title="Grand Element Game Scores"></div>
     <div class="roundBadge">
       <span class="scoreBig" id="gameRound">ROUND 1</span>
       <span class="scoreSmall" id="gameRule">DIRECT OK</span>
@@ -750,8 +665,7 @@
         <div id="playerCountLabel">1 PLAYER</div>
         <button class="stepArrow" id="playersUp" type="button" aria-label="More players">›</button>
       </div>
-      <div class="small">0 PLAYERS = AUTO / DEMO MODE · Each player gets 3 throws per turn set.</div>
-      <div class="small" style="margin-top:7px">Tap any player ball in the black game rail to enter a name or set a preset handicap.</div>
+      <div class="small">0 PLAYERS = AUTO / DEMO MODE</div>
       <div class="optionGrid">
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
@@ -760,28 +674,6 @@
         <button class="gameButton" id="gameScoresBtn" type="button">HIGH SCORES</button>
         <button class="gameButton" id="gameExitBtn" type="button">EXIT GAME</button>
         <button class="gameButton" id="gameOptionsClose" type="button">CLOSE</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="playerOptionsPanel" id="playerOptionsPanel" role="dialog" aria-modal="true" aria-labelledby="playerOptionsTitle">
-    <div class="gameCard">
-      <h2 id="playerOptionsTitle">Player Options</h2>
-      <div class="optionGrid">
-        <label><span>Name</span><input type="text" id="playerNameInput" maxlength="18" placeholder="Player name"></label>
-        <label><span>Handicap</span><input type="checkbox" id="playerHandicapCheck"></label>
-        <label><span>Score multiplier</span>
-          <select id="playerMultiplier">
-            <option value="2">2×</option>
-            <option value="3">3×</option>
-            <option value="4">4×</option>
-          </select>
-        </label>
-      </div>
-      <p class="small">Handicap uses whole-number preset multipliers so the score never turns into decimals.</p>
-      <div class="gameButtons">
-        <button class="gameButton" id="playerSaveBtn" type="button">SAVE PLAYER</button>
-        <button class="gameButton" id="playerCancelBtn" type="button">CANCEL</button>
       </div>
     </div>
   </div>
@@ -2209,7 +2101,6 @@ requestAnimationFrame(loop);
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dx=0, dy=0, moved=false;
   wrap.addEventListener('pointerdown', (e)=>{
-    if(document.body.classList.contains('game-mode-active')) return;
     dragging=true; moved=false; wrap.classList.add('dragging');
     const rect=wrap.getBoundingClientRect();
     dx=e.clientX-rect.left; dy=e.clientY-rect.top;
@@ -2237,7 +2128,6 @@ requestAnimationFrame(loop);
 // Teleport only when clicking the *center sun body* (not ABOUT / Music / player panel)
 const sunEl = document.getElementById('sun');
 sunEl.addEventListener('click', (e)=>{
-  if(document.body.classList.contains('game-mode-active')) return;
   if(e.target.closest('#aboutBtn')) return;
   if(e.target.closest('#btnMusic')) return;
   if(e.target.closest('#mini')) return;
@@ -2288,7 +2178,6 @@ addEventListener('pointerup', (e)=>{
     pDrag.vx=(last.x-ref.x)/dt*900; pDrag.vy=(last.y-ref.y)/dt*900;
   }
   pDrag.dragging=false;
-  const releasedPlanet = pDrag;
   const releasedEl = pDrag.el;
   releasedEl.classList.remove('draggingPlanet','touchZoom','gameDragSmall');
   if(wasDragged){
@@ -2296,24 +2185,8 @@ addEventListener('pointerup', (e)=>{
     releasedEl.addEventListener('pointerleave', ()=>releasedEl.classList.remove('justDragged'), {once:true});
     setTimeout(()=>releasedEl.classList.remove('justDragged'), 1200);
   }
-  if(wasDragged && window.GE_GAME && typeof window.GE_GAME.registerThrow==='function'){
-    window.GE_GAME.registerThrow(releasedPlanet);
-  }
   pDrag=null;
 });
-
-/* The black Game Mode rail is a real physical boundary, not an overlay planets can hide behind. */
-function getPlanetPlayBounds(){
-  const full={left:0,top:0,right:innerWidth,bottom:innerHeight};
-  if(!document.body.classList.contains('game-mode-active')) return full;
-  const hud=document.getElementById('gameHUD');
-  if(!hud || !hud.classList.contains('show')) return full;
-  const r=hud.getBoundingClientRect();
-  if(innerWidth>innerHeight){
-    return {left:Math.max(0,r.right),top:0,right:innerWidth,bottom:innerHeight};
-  }
-  return {left:0,top:Math.max(0,r.bottom),right:innerWidth,bottom:innerHeight};
-}
 
 function planetStep(){
   const sunRect  = document.getElementById('sunWrap')?.getBoundingClientRect();
@@ -2328,14 +2201,12 @@ function planetStep(){
   for(const p of planetNodes){
     if(p.dragging) continue;
     p.x+=p.vx*(1/60); p.y+=p.vy*(1/60);
-    /* Thicker-pool-table feel: roughly half the old coast time. */
-    p.vx*=0.970; p.vy*=0.970; if(Math.hypot(p.vx,p.vy)<5){ p.vx=0; p.vy=0; }
+    p.vx*=0.985; p.vy*=0.985; if(Math.hypot(p.vx,p.vy)<5){ p.vx=0; p.vy=0; }
 
-    const bounds=getPlanetPlayBounds();
-    if(p.x-p.r<bounds.left){ p.x=bounds.left+p.r; p.vx=Math.abs(p.vx)*0.98; }
-    if(p.x+p.r>bounds.right){ p.x=bounds.right-p.r; p.vx=-Math.abs(p.vx)*0.98; }
-    if(p.y-p.r<bounds.top){ p.y=bounds.top+p.r; p.vy=Math.abs(p.vy)*0.98; }
-    if(p.y+p.r>bounds.bottom){ p.y=bounds.bottom-p.r; p.vy=-Math.abs(p.vy)*0.98; }
+    if(p.x-p.r<0){ p.x=p.r; p.vx=Math.abs(p.vx)*0.98; }
+    if(p.x+p.r>innerWidth){ p.x=innerWidth-p.r; p.vx=-Math.abs(p.vx)*0.98; }
+    if(p.y-p.r<0){ p.y=p.r; p.vy=Math.abs(p.vy)*0.98; }
+    if(p.y+p.r>innerHeight){ p.y=innerHeight-p.r; p.vy=-Math.abs(p.vy)*0.98; }
 
     if(sr) collideElastic(p,{x:sx,y:sy,r:sr},0.98);
     if(mr) collideElastic(p,{x:mx,y:my,r:mr},0.98);
@@ -2354,15 +2225,15 @@ requestAnimationFrame(planetStep);
 
 
 /* ============================================================
-   GRAND ELEMENT OPTIONAL GAME MODE V3
-   Observes the existing website. The normal site remains normal until
-   the visitor accepts Game Mode.
+   GRAND ELEMENT OPTIONAL GAME MODE
+   This module observes the EXISTING website physics. It does not
+   replace planetStep(), the music player, ship/comet logic, orbit,
+   hidden text, About, or normal planet throwing.
    ============================================================ */
 const GE_GAME = (()=>{
   const STORAGE_PROMPT='GE_GAME_PROMPT_CHOICE_V1';
-  const STORAGE_SCORES='GE_GAME_SCORES_V3';
+  const STORAGE_SCORES='GE_GAME_SCORES_V2';
   const STORAGE_PLAYERS='GE_GAME_PLAYERS_V1';
-  const STORAGE_PROFILES='GE_GAME_PLAYER_PROFILES_V1';
 
   const state={
     active:false,
@@ -2370,10 +2241,7 @@ const GE_GAME = (()=>{
     score:0,
     scores:[0],
     players:1,
-    profiles:[],
     activePlayer:0,
-    turnInSet:0,
-    turnsPerPlayer:3,
     round:1,
     requiredBanks:0,
     notices:true,
@@ -2387,28 +2255,10 @@ const GE_GAME = (()=>{
     const saved=Number(localStorage.getItem(STORAGE_PLAYERS));
     if(Number.isFinite(saved) && saved>=0) state.players=Math.min(12,Math.floor(saved));
   }catch(e){}
-
-  function defaultProfile(i){ return {name:'P'+(i+1),handicap:false,multiplier:2}; }
-  try{
-    const saved=JSON.parse(localStorage.getItem(STORAGE_PROFILES)||'[]');
-    if(Array.isArray(saved)) state.profiles=saved.map((p,i)=>({
-      name:String(p?.name||('P'+(i+1))).slice(0,18),
-      handicap:!!p?.handicap,
-      multiplier:[2,3,4].includes(Number(p?.multiplier))?Number(p.multiplier):2
-    }));
-  }catch(e){}
-  function ensureProfiles(){
-    for(let i=state.profiles.length;i<12;i++) state.profiles.push(defaultProfile(i));
-  }
-  function persistProfiles(){
-    try{ localStorage.setItem(STORAGE_PROFILES,JSON.stringify(state.profiles)); }catch(e){}
-  }
-  ensureProfiles();
   state.scores=Array.from({length:Math.max(1,state.players)},()=>0);
 
   const hud=document.getElementById('gameHUD');
   const scoreCluster=document.getElementById('gameScoreCluster');
-  const activeNameEl=document.getElementById('activePlayerName');
   const roundEl=document.getElementById('gameRound');
   const ruleEl=document.getElementById('gameRule');
   const startBtn=document.getElementById('gameStartBtn');
@@ -2437,25 +2287,7 @@ const GE_GAME = (()=>{
   const playersUp=document.getElementById('playersUp');
   const playerCountLabel=document.getElementById('playerCountLabel');
 
-  const playerPanel=document.getElementById('playerOptionsPanel');
-  const playerTitle=document.getElementById('playerOptionsTitle');
-  const playerNameInput=document.getElementById('playerNameInput');
-  const playerHandicapCheck=document.getElementById('playerHandicapCheck');
-  const playerMultiplier=document.getElementById('playerMultiplier');
-  const playerSave=document.getElementById('playerSaveBtn');
-  const playerCancel=document.getElementById('playerCancelBtn');
-  let editingPlayer=0;
-
-  function playerLabel(i){
-    if(state.players===0) return 'AUTO';
-    const n=String(state.profiles[i]?.name||'').trim();
-    return n || ('P'+(i+1));
-  }
-  function playerMultiplierValue(i){
-    if(state.players===0) return 1;
-    const p=state.profiles[i]||defaultProfile(i);
-    return p.handicap ? ([2,3,4].includes(Number(p.multiplier))?Number(p.multiplier):2) : 1;
-  }
+  function playerLabel(i){ return state.players===0 ? 'AUTO' : 'P'+(i+1); }
   function rebuildScores(reset=false){
     const n=Math.max(1,state.players);
     const prev=state.scores.slice();
@@ -2463,42 +2295,27 @@ const GE_GAME = (()=>{
     state.activePlayer=Math.min(state.activePlayer,n-1);
     state.score=state.scores[state.activePlayer]||0;
   }
-  function flashActiveName(){
-    activeNameEl.classList.remove('flashName');
-    void activeNameEl.offsetWidth;
-    activeNameEl.classList.add('flashName');
-  }
-  function renderScoreDots(){
+  function renderScoreComets(){
     scoreCluster.innerHTML='';
     const n=Math.max(1,state.players);
     for(let i=0;i<n;i++){
-      const el=document.createElement('button');
-      el.type='button';
-      el.className='playerDot'+(i===state.activePlayer?' activeTurn':'')+(state.players===0?' autoDot':'');
-      el.textContent=state.players===0?'AUTO':String(state.scores[i]||0);
-      el.title=state.players===0?'Automatic demo player':`${playerLabel(i)} — ${state.scores[i]||0} points`;
-      if(state.players>0) el.addEventListener('click',()=>openPlayerOptions(i));
+      const el=document.createElement('div');
+      el.className='playerComet'+(i===state.activePlayer?' activeTurn':'');
+      el.innerHTML=`<span class="playerName">${playerLabel(i)}</span><span class="playerScore">${state.scores[i]||0}</span>`;
       scoreCluster.appendChild(el);
     }
   }
   function updatePlayerOption(){
     playerCountLabel.textContent=state.players===0?'0 PLAYERS · AUTO':`${state.players} PLAYER${state.players===1?'':'S'}`;
   }
-  function updateHUD(animateName=false){
+  function updateHUD(){
     rebuildScores(false);
-    renderScoreDots();
+    renderScoreComets();
     roundEl.textContent='ROUND '+state.round;
     ruleEl.textContent=state.requiredBanks===0 ? 'DIRECT OK' : (state.requiredBanks+' BANK'+(state.requiredBanks===1?'':'S')+' MIN');
     startBtn.textContent=state.running?'PAUSE':'START';
     startBtn.classList.toggle('active',state.running);
     updatePlayerOption();
-    if(state.players===0){
-      activeNameEl.textContent='AUTO / DEMO';
-    }else{
-      const mult=playerMultiplierValue(state.activePlayer);
-      activeNameEl.textContent=`${playerLabel(state.activePlayer)} · TURN ${state.turnInSet+1}/${state.turnsPerPlayer}${mult>1?' · '+mult+'×':''}`;
-    }
-    if(animateName) flashActiveName();
   }
 
   let noticeTimer=0;
@@ -2507,7 +2324,7 @@ const GE_GAME = (()=>{
     notice.textContent=msg;
     notice.classList.add('show');
     clearTimeout(noticeTimer);
-    noticeTimer=setTimeout(()=>notice.classList.remove('show'),1050);
+    noticeTimer=setTimeout(()=>notice.classList.remove('show'),1000);
   }
 
   function setCleanGameScene(on){
@@ -2522,42 +2339,16 @@ const GE_GAME = (()=>{
     }
   }
 
-  function clampPlayfield(){
-    if(!state.active) return;
-    const b=getPlanetPlayBounds();
-    for(const p of planetNodes){
-      p.x=Math.max(b.left+p.r,Math.min(b.right-p.r,p.x));
-      p.y=Math.max(b.top+p.r,Math.min(b.bottom-p.r,p.y));
-      p.el.style.left=(p.x-p.r)+'px';
-      p.el.style.top=(p.y-p.r)+'px';
-      p.el.classList.remove('touchZoom','gameDragSmall');
-    }
-    const wrap=document.getElementById('sunWrap');
-    if(wrap){
-      const r=wrap.getBoundingClientRect();
-      const hw=r.width/2, hh=r.height/2, margin=8;
-      let cx=r.left+hw, cy=r.top+hh;
-      cx=Math.max(b.left+hw+margin,Math.min(b.right-hw-margin,cx));
-      cy=Math.max(b.top+hh+margin,Math.min(b.bottom-hh-margin,cy));
-      wrap.style.left=cx+'px';
-      wrap.style.top=cy+'px';
-      wrap.style.transform='translate(-50%,-50%)';
-    }
-  }
-
   function startGame(){
     state.active=true;
     state.running=true;
     state.completed=false;
-    state.turnInSet=0;
     state.autoNext=performance.now()+900;
-    document.body.classList.add('game-mode-active');
     setCleanGameScene(true);
     hud.classList.add('show');
     hud.setAttribute('aria-hidden','false');
     prompt.classList.remove('show');
-    updateHUD(true);
-    requestAnimationFrame(()=>{ clampPlayfield(); requestAnimationFrame(clampPlayfield); });
+    updateHUD();
     flash('ROUND '+state.round+' — '+(state.requiredBanks?state.requiredBanks+' bank minimum':'direct hits allowed'));
   }
 
@@ -2565,12 +2356,10 @@ const GE_GAME = (()=>{
     state.active=false;
     state.running=false;
     state.completed=false;
-    document.body.classList.remove('game-mode-active');
     setCleanGameScene(false);
     hud.classList.remove('show');
     hud.setAttribute('aria-hidden','true');
     optionsPanel.classList.remove('show');
-    playerPanel.classList.remove('show');
     roundPrompt.classList.remove('show');
     notice.classList.remove('show');
   }
@@ -2580,15 +2369,13 @@ const GE_GAME = (()=>{
     state.requiredBanks=Math.max(0,state.round-1);
     state.scores=Array.from({length:Math.max(1,state.players)},()=>0);
     state.activePlayer=0;
-    state.turnInSet=0;
     state.score=0;
     state.completed=false;
     state.running=true;
     state.planetState=new WeakMap();
     state.autoNext=performance.now()+900;
     roundPrompt.classList.remove('show');
-    updateHUD(true);
-    requestAnimationFrame(clampPlayfield);
+    updateHUD();
   }
 
   function promptFromPlanetDrag(){
@@ -2623,40 +2410,13 @@ const GE_GAME = (()=>{
 
   function setPlayers(n){
     state.players=Math.max(0,Math.min(12,n|0));
-    ensureProfiles();
-    state.activePlayer=0;
-    state.turnInSet=0;
     rebuildScores(false);
     try{ localStorage.setItem(STORAGE_PLAYERS,String(state.players)); }catch(e){}
-    updateHUD(true);
-    flash(state.players===0?'AUTO / DEMO MODE':`${state.players} player${state.players===1?'':'s'} · 3 throws each`);
+    updateHUD();
+    flash(state.players===0?'AUTO / DEMO MODE':`${state.players} player${state.players===1?'':'s'}`);
   }
   playersDown.addEventListener('click',()=>setPlayers(state.players-1));
   playersUp.addEventListener('click',()=>setPlayers(state.players+1));
-
-  function openPlayerOptions(i){
-    if(state.players===0) return;
-    editingPlayer=Math.max(0,Math.min(state.players-1,i|0));
-    const p=state.profiles[editingPlayer]||defaultProfile(editingPlayer);
-    playerTitle.textContent='Player '+(editingPlayer+1)+' Options';
-    playerNameInput.value=p.name||('P'+(editingPlayer+1));
-    playerHandicapCheck.checked=!!p.handicap;
-    playerMultiplier.value=String([2,3,4].includes(Number(p.multiplier))?Number(p.multiplier):2);
-    playerMultiplier.disabled=!playerHandicapCheck.checked;
-    playerPanel.classList.add('show');
-  }
-  playerHandicapCheck.addEventListener('change',()=>{ playerMultiplier.disabled=!playerHandicapCheck.checked; });
-  playerSave.addEventListener('click',()=>{
-    const p=state.profiles[editingPlayer]||defaultProfile(editingPlayer);
-    p.name=(playerNameInput.value.trim()||('P'+(editingPlayer+1))).slice(0,18);
-    p.handicap=playerHandicapCheck.checked;
-    p.multiplier=[2,3,4].includes(Number(playerMultiplier.value))?Number(playerMultiplier.value):2;
-    state.profiles[editingPlayer]=p;
-    persistProfiles();
-    playerPanel.classList.remove('show');
-    updateHUD(true);
-  });
-  playerCancel.addEventListener('click',()=>playerPanel.classList.remove('show'));
 
   /* A real drag, not a tap, is the invitation trigger. */
   let watchedDrag=null;
@@ -2674,30 +2434,6 @@ const GE_GAME = (()=>{
   },{passive:true});
   addEventListener('pointerup',()=>{ watchedDrag=null; },{passive:true});
   addEventListener('pointercancel',()=>{ watchedDrag=null; },{passive:true});
-
-  function registerThrow(p){
-    if(!state.active || !state.running || state.players===0 || !p) return;
-    let ps=state.planetState.get(p);
-    if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0}; }
-    const shooter=state.activePlayer;
-    ps.owner=shooter;
-    ps.banks=0;
-    ps.inSun=false;
-    ps.scored=false;
-    ps.armed=true;
-    state.planetState.set(p,ps);
-
-    state.turnInSet++;
-    const shotNo=state.turnInSet;
-    flash(`${playerLabel(shooter)} · throw ${shotNo}/${state.turnsPerPlayer}`);
-    if(state.turnInSet>=state.turnsPerPlayer){
-      state.turnInSet=0;
-      if(state.players>1) state.activePlayer=(state.activePlayer+1)%state.players;
-      updateHUD(true);
-    }else{
-      updateHUD(false);
-    }
-  }
 
   function julianDate(date){ return date.getTime()/86400000 + 2440587.5; }
   function norm360(v){ return ((v%360)+360)%360; }
@@ -2720,17 +2456,7 @@ const GE_GAME = (()=>{
   function loadScores(){ try{ return JSON.parse(localStorage.getItem(STORAGE_SCORES)||'[]'); }catch(e){ return []; } }
   function saveRecord(name){
     const cosmic=cosmicContext(new Date());
-    const record={
-      name:(name||'Anonymous').trim().slice(0,32)||'Anonymous',
-      score:Math.max(...state.scores),
-      scores:state.scores.slice(),
-      players:state.players,
-      playerNames:state.players>0?state.profiles.slice(0,state.players).map((p,i)=>p.name||('P'+(i+1))):['AUTO'],
-      handicaps:state.players>0?state.profiles.slice(0,state.players).map(p=>p.handicap?Number(p.multiplier||2):1):[1],
-      round:state.round,
-      completedAt:cosmic.utc,
-      cosmic
-    };
+    const record={name:(name||'Anonymous').trim().slice(0,32)||'Anonymous',score:Math.max(...state.scores),scores:state.scores.slice(),players:state.players,round:state.round,completedAt:cosmic.utc,cosmic};
     const records=loadScores();
     records.push(record);
     records.sort((a,b)=>(b.round-a.round)||(b.score-a.score)||String(b.completedAt).localeCompare(String(a.completedAt)));
@@ -2746,20 +2472,18 @@ const GE_GAME = (()=>{
     records.forEach((r,i)=>{
       const d=document.createElement('div'); d.className='scoreRecord';
       const scores=Array.isArray(r.scores)?` · [${r.scores.join(' / ')}]`:'';
-      const names=Array.isArray(r.playerNames)?` · ${r.playerNames.join(', ')}`:'';
-      d.innerHTML=`<b>${i+1}. ${escapeHtml(r.name)}</b> — Round ${r.round}, ${r.score} points${scores}${escapeHtml(names)}<div class="cosmicLine">${escapeHtml(cosmicText(r.cosmic))}</div>`;
+      d.innerHTML=`<b>${i+1}. ${escapeHtml(r.name)}</b> — Round ${r.round}, ${r.score} points${scores}<div class="cosmicLine">${escapeHtml(cosmicText(r.cosmic))}</div>`;
       archive.appendChild(d);
     });
   }
   scoresBtn.addEventListener('click',()=>{ renderArchive(); archivePanel.classList.add('show'); });
   archiveClose.addEventListener('click',()=>archivePanel.classList.remove('show'));
 
-  function completeRound(winnerIndex){
+  function completeRound(){
     if(state.completed) return;
     state.completed=true; state.running=false; updateHUD();
     const cosmic=cosmicContext(new Date());
-    const winner=state.players===0?'AUTO':playerLabel(winnerIndex);
-    roundSummary.textContent=`${winner} reached 100 points in Round ${state.round}.`;
+    roundSummary.textContent=state.players>1?`A player reached 100 points in Round ${state.round}.`:`Round ${state.round} reached 100 points.`;
     cosmicSnapshot.textContent=cosmicText(cosmic);
     roundReplay.textContent='Replay Round '+state.round;
     roundNext.textContent='Go to Round '+(state.round+1);
@@ -2768,47 +2492,41 @@ const GE_GAME = (()=>{
   roundReplay.addEventListener('click',()=>{ saveRecord(scoreName.value); scoreName.value=''; resetRound(true); });
   roundNext.addEventListener('click',()=>{ saveRecord(scoreName.value); scoreName.value=''; resetRound(false); });
 
+  function advancePlayer(){
+    if(state.players<=1) return;
+    state.activePlayer=(state.activePlayer+1)%state.players;
+    state.score=state.scores[state.activePlayer]||0;
+  }
   function pointForHit(p,ps){
     const banks=ps.banks||0;
     if(banks < state.requiredBanks){
       flash(`${banks} bank${banks===1?'':'s'} — need ${state.requiredBanks}`);
-      ps.banks=0;
-      return;
+      ps.banks=0; return;
     }
-    const i=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
-    const basePoints=banks+1;
-    const mult=playerMultiplierValue(i);
-    const points=basePoints*mult;
+    const points=banks+1;
+    const i=state.activePlayer;
     state.scores[i]=(state.scores[i]||0)+points;
-    if(state.scores[i]>100) state.scores[i]=100;
-    state.score=state.scores[state.activePlayer]||0;
-    ps.scored=true;
-    ps.armed=false;
-    flash(`${playerLabel(i)} +${points}${mult>1?' ('+mult+'× handicap)':''}${state.showBanks?' · '+banks+' bank'+(banks===1?'':'s'):''}`);
+    state.score=state.scores[i];
+    flash(`${playerLabel(i)} +${points}${state.showBanks?' · '+banks+' bank'+(banks===1?'':'s'):''}`);
     ps.banks=0;
-    updateHUD(false);
-    if(state.scores[i]>=100){ completeRound(i); }
+    if(state.scores[i]>=100){ state.scores[i]=100; state.score=100; updateHUD(); completeRound(); return; }
+    advancePlayer(); updateHUD();
   }
 
-  /* 0-player mode periodically launches a planet. */
+  /* 0-player mode periodically launches a planet. Physics and scoring stay identical. */
   function autoShoot(now){
     if(state.players!==0 || !state.active || !state.running || now<state.autoNext || !planetNodes.length) return;
-    state.autoNext=now+rand(1500,2700);
+    state.autoNext=now+rand(1400,2800);
     const p=choice(planetNodes.filter(x=>!x.dragging)); if(!p) return;
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect(); if(!sunRect) return;
-    const b=getPlanetPlayBounds();
     const sx=sunRect.left+sunRect.width/2, sy=sunRect.top+sunRect.height/2;
     let tx=sx,ty=sy;
+    // Later rounds deliberately aim at a wall first so the required banks can occur.
     if(state.requiredBanks>0){
       const side=choice(['l','r','t','b']);
-      if(side==='l'){tx=b.left-120;ty=rand(b.top+30,b.bottom-30);}
-      if(side==='r'){tx=b.right+120;ty=rand(b.top+30,b.bottom-30);}
-      if(side==='t'){tx=rand(b.left+30,b.right-30);ty=b.top-120;}
-      if(side==='b'){tx=rand(b.left+30,b.right-30);ty=b.bottom+120;}
+      if(side==='l'){tx=-120;ty=rand(30,innerHeight-30);} if(side==='r'){tx=innerWidth+120;ty=rand(30,innerHeight-30);}
+      if(side==='t'){tx=rand(30,innerWidth-30);ty=-120;} if(side==='b'){tx=rand(30,innerWidth-30);ty=innerHeight+120;}
     }
-    let ps=state.planetState.get(p)||{vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0};
-    ps.owner=0; ps.banks=0; ps.scored=false; ps.armed=true; ps.inSun=false;
-    state.planetState.set(p,ps);
     const a=Math.atan2(ty-p.y,tx-p.x),speed=rand(460,720);
     p.vx=Math.cos(a)*speed; p.vy=Math.sin(a)*speed;
   }
@@ -2817,22 +2535,16 @@ const GE_GAME = (()=>{
     if(state.active && state.running && Array.isArray(planetNodes)){
       const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
       const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-      const bounds=getPlanetPlayBounds();
       const now=performance.now(); autoShoot(now);
       for(const p of planetNodes){
         let ps=state.planetState.get(p);
-        if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false}; state.planetState.set(p,ps); }
-        const nearL=p.x-p.r<=bounds.left+1.5, nearR=p.x+p.r>=bounds.right-1.5;
-        const nearT=p.y-p.r<=bounds.top+1.5, nearB=p.y+p.r>=bounds.bottom-1.5;
+        if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0}; state.planetState.set(p,ps); }
+        const nearL=p.x-p.r<=1.5, nearR=p.x+p.r>=innerWidth-1.5, nearT=p.y-p.r<=1.5, nearB=p.y+p.r>=innerHeight-1.5;
         let banked=0;
         if((nearL||nearR)&&Math.sign(ps.vx)!==0&&Math.sign(p.vx)!==0&&Math.sign(ps.vx)!==Math.sign(p.vx)) banked++;
         if((nearT||nearB)&&Math.sign(ps.vy)!==0&&Math.sign(p.vy)!==0&&Math.sign(ps.vy)!==Math.sign(p.vy)) banked++;
-        if(ps.armed && banked && now-ps.lastBank>90){ ps.banks+=banked; ps.lastBank=now; if(state.showBanks) flash(`${ps.banks} bank${ps.banks===1?'':'s'}`); }
-        if(sr){
-          const touching=Math.hypot(p.x-sx,p.y-sy)<=(p.r+sr);
-          if(ps.armed && !ps.scored && touching && !ps.inSun) pointForHit(p,ps);
-          ps.inSun=touching;
-        }
+        if(banked&&now-ps.lastBank>90){ ps.banks+=banked; ps.lastBank=now; if(state.showBanks) flash(`${ps.banks} bank${ps.banks===1?'':'s'}`); }
+        if(sr){ const touching=Math.hypot(p.x-sx,p.y-sy)<=(p.r+sr); if(touching&&!ps.inSun) pointForHit(p,ps); ps.inSun=touching; }
         ps.vx=p.vx||0; ps.vy=p.vy||0;
       }
     }
@@ -2840,19 +2552,9 @@ const GE_GAME = (()=>{
   }
   requestAnimationFrame(scoreLoop);
 
-  let resizeTimer=0;
-  function reflow(){
-    if(!state.active) return;
-    clearTimeout(resizeTimer);
-    resizeTimer=setTimeout(()=>{ clampPlayfield(); updateHUD(false); },100);
-  }
-  addEventListener('resize',reflow,{passive:true});
-  addEventListener('orientationchange',()=>setTimeout(reflow,180),{passive:true});
-
   updateHUD();
-  return {start:startGame,exit:exitGame,state,registerThrow,reflow};
+  return {start:startGame,exit:exitGame,state};
 })();
-window.GE_GAME=GE_GAME;
 
 /* Keep Sun placed reasonably on first load */
 function nudgeSunNow(){
@@ -2865,21 +2567,6 @@ function nudgeSunNow(){
   wrap.style.transform='translate(-50%,-50%)';
 }
 nudgeSunNow();
-
-/* Orientation safety: outside Game Mode keep at least half of the blue sun reachable. */
-function keepBlueSunReachable(){
-  if(document.body.classList.contains('game-mode-active')) return;
-  const wrap=document.getElementById('sunWrap'); if(!wrap) return;
-  const r=wrap.getBoundingClientRect();
-  const keepX=r.width*0.5, keepY=r.height*0.5;
-  let cx=r.left+r.width/2, cy=r.top+r.height/2;
-  cx=Math.max(-r.width/2+keepX,Math.min(innerWidth+r.width/2-keepX,cx));
-  cy=Math.max(-r.height/2+keepY,Math.min(innerHeight+r.height/2-keepY,cy));
-  wrap.style.left=cx+'px'; wrap.style.top=cy+'px'; wrap.style.transform='translate(-50%,-50%)';
-}
-let geSunResizeTimer=0;
-addEventListener('resize',()=>{ clearTimeout(geSunResizeTimer); geSunResizeTimer=setTimeout(keepBlueSunReachable,140); },{passive:true});
-addEventListener('orientationchange',()=>setTimeout(keepBlueSunReachable,240),{passive:true});
 </script>
 </body>
 </html>
