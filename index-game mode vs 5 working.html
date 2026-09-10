@@ -327,104 +327,6 @@
 
 
 
-
-  /* Game music dock: opposite the main game rail. */
-  #gameMusicDock{
-    position:fixed;
-    left:0;
-    right:0;
-    bottom:0;
-    height:calc(var(--ge-music-bar-portrait,58px) + env(safe-area-inset-bottom,0px));
-    box-sizing:border-box;
-    z-index:40;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px));
-    background:#000;
-    border-top:1px solid rgba(160,205,255,.34);
-    box-shadow:0 -5px 15px rgba(0,0,0,.62);
-  }
-  body.game-mode-active #gameMusicDock{ display:flex; }
-
-  .gameMusicLabel{
-    font-size:9px;
-    font-weight:900;
-    letter-spacing:.12em;
-    color:#dcecff;
-    opacity:.8;
-    white-space:nowrap;
-  }
-  .gameMusicBtn{
-    width:34px;
-    height:34px;
-    border-radius:50%;
-    border:1px solid rgba(220,240,255,.45);
-    background:rgba(8,18,34,.94);
-    color:#eaf2ff;
-    display:grid;
-    place-items:center;
-    font-size:12px;
-    font-weight:900;
-    cursor:pointer;
-    padding:0;
-  }
-  .gameMusicVol{
-    width:min(28vw,130px);
-  }
-
-  @media (orientation:landscape){
-    #gameMusicDock{
-      left:auto;
-      top:0;
-      bottom:0;
-      right:0;
-      width:calc(var(--ge-music-bar-landscape,92px) + env(safe-area-inset-right,0px));
-      height:100dvh;
-      flex-direction:column;
-      padding:10px calc(7px + env(safe-area-inset-right,0px)) 10px 7px;
-      border-top:0;
-      border-left:1px solid rgba(160,205,255,.34);
-      box-shadow:-5px 0 15px rgba(0,0,0,.62);
-    }
-    .gameMusicVol{
-      width:72px;
-      transform:rotate(-90deg);
-      margin:24px 0;
-    }
-  }
-
-  /* Portrait soul buttons run horizontally and leave room for default Soul names. */
-  @media (orientation:portrait){
-    .gameScoreCluster{
-      flex-direction:row !important;
-      align-items:center;
-      justify-content:flex-start;
-      overflow-x:auto;
-      overflow-y:hidden;
-    }
-    .playerScoreItem{
-      min-width:96px;
-      width:auto;
-      flex:0 0 auto;
-    }
-    .playerScoreLabel{
-      max-width:72px;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-  }
-
-  /* Keep the normal website copyright on one line whenever it can fit. */
-  footer.ge-footer{
-    white-space:nowrap;
-    width:max-content;
-    max-width:96vw;
-    font-size:clamp(8px,2.25vw,11px);
-  }
-
-
   /* ==========================
      OPTIONAL GAME MODE LAYER V3
      The normal website is untouched until Game Mode is active.
@@ -506,7 +408,7 @@
     left:0;
     top:0;
     right:0;
-    height:calc(var(--ge-game-bar-portrait,78px) + env(safe-area-inset-top,0px));
+    height:calc(82px + env(safe-area-inset-top,0px));
     box-sizing:border-box;
     z-index:40;
     display:none;
@@ -721,7 +623,7 @@
     #gameHUD{
       right:auto;
       bottom:0;
-      width:calc(var(--ge-game-bar-landscape,108px) + env(safe-area-inset-left,0px));
+      width:calc(108px + env(safe-area-inset-left,0px));
       height:100dvh;
       flex-direction:column;
       padding:10px 7px 8px calc(7px + env(safe-area-inset-left,0px));
@@ -754,7 +656,7 @@
   }
 
   @media (max-width:700px) and (orientation:portrait){
-    #gameHUD{ height:calc(var(--ge-game-bar-portrait,78px) + env(safe-area-inset-top,0px)); padding-left:7px; padding-right:7px; gap:5px; }
+    #gameHUD{ height:calc(78px + env(safe-area-inset-top,0px)); padding-left:7px; padding-right:7px; gap:5px; }
     .playerDot{ width:31px;height:31px;min-width:31px;font-size:10px; }
     .playerScoreLabel{ font-size:8px; }
     .playerScoreLabel .psScore{ font-size:10px; }
@@ -766,35 +668,6 @@
   }
 
 </style>
-
-<script>
-/* ============================================================
-   GRAND ELEMENT — EASY SETTINGS
-   Change these numbers here instead of hunting through the file.
-   ============================================================ */
-window.GE_EASY_SETTINGS = {
-  // PLANET / POOL FEEL
-  PLANET_THROW_POWER: 1050,      // higher = faster throws
-  PLANET_FRICTION: 0.973,        // closer to 1 = rolls longer; lower = stops sooner
-  PLANET_STOP_SPEED: 5,          // below this speed the planet is considered stopped
-
-  // GAME
-  TURNS_PER_SOUL: 3,
-  MAX_SOULS: 12,
-  SUN_VISIBLE_FRACTION: 0.25,    // 0.25 = at least 25% of blue sun stays reachable
-
-  // AUTO / DEMO
-  AUTO_THROW_DELAY_MIN_MS: 900,
-  AUTO_THROW_DELAY_MAX_MS: 1800,
-
-  // GAME BARS
-  GAME_BAR_PORTRAIT_PX: 78,
-  GAME_BAR_LANDSCAPE_PX: 108,
-  MUSIC_BAR_PORTRAIT_PX: 58,
-  MUSIC_BAR_LANDSCAPE_PX: 92
-};
-</script>
-
 </head>
 <body>
   <div id="gameBackground" aria-hidden="true"></div>
@@ -887,16 +760,6 @@ window.GE_EASY_SETTINGS = {
         </div>
       </div>
 
-
-      <div class="aboutSection">
-        <div class="toggleRow">
-          <div class="pill" id="gameInviteResetBtn" style="cursor:pointer">Play the Game</div>
-        </div>
-        <div class="details" id="gameInviteResetStatus" style="display:none;text-align:center">
-          Game invitation restored. Drag a planet and the Start Game question will appear again.
-        </div>
-      </div>
-
       <br>
       <a href="mailto:info@grandelement.com" style="color:#dff3ff; font-weight:800; text-decoration:none;">✉ Contact</a>
     </div>
@@ -906,8 +769,8 @@ window.GE_EASY_SETTINGS = {
 
   <!-- OPTIONAL GAME MODE: hidden until the visitor accepts the planet-drag invitation -->
   <div id="gameHUD" aria-hidden="true">
-    <div class="gameScoreCluster" id="gameScoreCluster" title="Tap a soul for name and handicap"></div>
-    <div id="activePlayerName">SOUL 1 · TURN 1/3</div>
+    <div class="gameScoreCluster" id="gameScoreCluster" title="Tap a player ball for name and handicap"></div>
+    <div id="activePlayerName">PLAYER 1 · TURN 1/3</div>
     <div class="roundBadge">
       <span class="scoreBig" id="gameRound">ROUND 1</span>
       <span class="scoreSmall" id="gameRule">DIRECT OK</span>
@@ -921,16 +784,6 @@ window.GE_EASY_SETTINGS = {
     </div>
   </div>
   <div id="gameNotice"></div>
-
-  <!-- Game-only music controls. Uses the existing website audio player. -->
-  <div id="gameMusicDock" aria-label="Music controls">
-    <span class="gameMusicLabel">MUSIC</span>
-    <button class="gameMusicBtn" id="gameMusicPrev" type="button" aria-label="Previous track">◀</button>
-    <button class="gameMusicBtn" id="gameMusicPlay" type="button" aria-label="Play or pause">▶</button>
-    <button class="gameMusicBtn" id="gameMusicNext" type="button" aria-label="Next track">▶▶</button>
-    <input class="gameMusicVol" id="gameMusicVol" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Music volume">
-  </div>
-
 
   <div class="gamePrompt" id="gamePrompt" role="dialog" aria-modal="true" aria-labelledby="gamePromptTitle">
     <div class="gameCard">
@@ -967,13 +820,13 @@ window.GE_EASY_SETTINGS = {
   <div class="gameOptionsPanel" id="gameOptionsPanel" role="dialog" aria-modal="true" aria-labelledby="gameOptionsTitle">
     <div class="gameCard">
       <h2 id="gameOptionsTitle">Game Options</h2>
-      <div class="playerStepper" aria-label="Number of souls">
-        <button class="stepArrow" id="playersDown" type="button" aria-label="Fewer souls">‹</button>
-        <div id="playerCountLabel">1 SOUL</div>
-        <button class="stepArrow" id="playersUp" type="button" aria-label="More souls">›</button>
+      <div class="playerStepper" aria-label="Number of players">
+        <button class="stepArrow" id="playersDown" type="button" aria-label="Fewer players">‹</button>
+        <div id="playerCountLabel">1 PLAYER</div>
+        <button class="stepArrow" id="playersUp" type="button" aria-label="More players">›</button>
       </div>
-      <div class="small">0 SOULS = AUTO / DEMO MODE · Each soul gets 3 throws per turn set.</div>
-      <div class="small" style="margin-top:7px">Tap any soul circle in the black game rail to enter a name or set a preset handicap.</div>
+      <div class="small">0 PLAYERS = AUTO / DEMO MODE · Each player gets 3 throws per turn set.</div>
+      <div class="small" style="margin-top:7px">Tap any player ball in the black game rail to enter a name or set a preset handicap.</div>
       <div class="optionGrid">
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
@@ -988,9 +841,9 @@ window.GE_EASY_SETTINGS = {
 
   <div class="playerOptionsPanel" id="playerOptionsPanel" role="dialog" aria-modal="true" aria-labelledby="playerOptionsTitle">
     <div class="gameCard">
-      <h2 id="playerOptionsTitle">Soul Options</h2>
+      <h2 id="playerOptionsTitle">Player Options</h2>
       <div class="optionGrid">
-        <label><span>Name</span><input type="text" id="playerNameInput" maxlength="18" placeholder="Soul name"></label>
+        <label><span>Name</span><input type="text" id="playerNameInput" maxlength="18" placeholder="Player name"></label>
         <label><span>Handicap</span><input type="checkbox" id="playerHandicapCheck"></label>
         <label><span>Score multiplier</span>
           <select id="playerMultiplier">
@@ -1002,7 +855,7 @@ window.GE_EASY_SETTINGS = {
       </div>
       <p class="small">Handicap uses whole-number preset multipliers so the score never turns into decimals.</p>
       <div class="gameButtons">
-        <button class="gameButton" id="playerSaveBtn" type="button">SAVE SOUL</button>
+        <button class="gameButton" id="playerSaveBtn" type="button">SAVE PLAYER</button>
         <button class="gameButton" id="playerCancelBtn" type="button">CANCEL</button>
       </div>
     </div>
@@ -1025,17 +878,6 @@ window.GE_EASY_SETTINGS = {
 
 <script>
 // WEBSITE 9: leave the existing radio service worker and caches intact.
-
-// Apply easy rail settings to CSS variables.
-(function(){
-  const s=window.GE_EASY_SETTINGS||{};
-  const root=document.documentElement;
-  root.style.setProperty('--ge-game-bar-portrait',(s.GAME_BAR_PORTRAIT_PX ?? 78)+'px');
-  root.style.setProperty('--ge-game-bar-landscape',(s.GAME_BAR_LANDSCAPE_PX ?? 108)+'px');
-  root.style.setProperty('--ge-music-bar-portrait',(s.MUSIC_BAR_PORTRAIT_PX ?? 58)+'px');
-  root.style.setProperty('--ge-music-bar-landscape',(s.MUSIC_BAR_LANDSCAPE_PX ?? 92)+'px');
-})();
-
 /* ============== helpers ============== */
 const IMG = getComputedStyle(document.documentElement).getPropertyValue('--img-base').trim() || 'ge-images/images/';
 function normAlbumName(name){
@@ -1219,18 +1061,6 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
     pill.style.cursor='pointer';
     pill.addEventListener('click', ()=> panel.style.display = (panel.style.display==='none'||panel.style.display==='')?'block':'none');
   }
-})();
-
-
-// ABOUT: restore the optional Game Mode invitation after "Don't ask again".
-(function(){
-  const btn=document.getElementById('gameInviteResetBtn');
-  const status=document.getElementById('gameInviteResetStatus');
-  if(!btn) return;
-  btn.addEventListener('click',()=>{
-    try{ localStorage.removeItem('GE_GAME_PROMPT_CHOICE_V1'); }catch(e){}
-    if(status) status.style.display='block';
-  });
 })();
 
 /* ========= RADIO MOON ========= */
@@ -1597,41 +1427,6 @@ fetchAllMp3s().then(async list=>{
     console.error('Playlist load failed', err);
     nowPlaying.textContent = 'Error loading tracks.';
   });
-})();
-
-
-/* Game Music Dock: controls the existing website audio player, not a second player. */
-(function(){
-  const gp=document.getElementById('gameMusicPlay');
-  const gn=document.getElementById('gameMusicNext');
-  const gb=document.getElementById('gameMusicPrev');
-  const gv=document.getElementById('gameMusicVol');
-  const player=document.getElementById('gePlayer');
-  const originalPlay=document.getElementById('play');
-  const originalNext=document.getElementById('next');
-  const originalPrev=document.getElementById('prev');
-  const originalVol=document.getElementById('vol');
-
-  if(!player || !gp) return;
-
-  function sync(){
-    gp.textContent=player.paused?'▶':'❚❚';
-    if(gv) gv.value=String(player.volume);
-  }
-  gp.addEventListener('click',()=>originalPlay?.click());
-  gn?.addEventListener('click',()=>originalNext?.click());
-  gb?.addEventListener('click',()=>originalPrev?.click());
-
-  gv?.addEventListener('input',()=>{
-    const v=Number(gv.value);
-    player.volume=v;
-    if(originalVol) originalVol.value=String(v);
-  });
-
-  player.addEventListener('playing',sync);
-  player.addEventListener('pause',sync);
-  player.addEventListener('volumechange',sync);
-  sync();
 })();
 
 /* ========= HIDDEN TEXT ========= */
@@ -2497,7 +2292,7 @@ requestAnimationFrame(loop);
   addEventListener('pointermove', (e)=>{
     if(!dragging) return; moved=true;
     const w=wrap.offsetWidth, h=wrap.offsetHeight;
-    const keep = (window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
+    const keep = 0.25;
     let L=e.clientX-dx, T=e.clientY-dy;
 
     // L/T are the element's top-left before translate(-50%,-50%) is reapplied below.
@@ -2613,9 +2408,7 @@ addEventListener('pointerup', (e)=>{
     const now=performance.now(); const last=pHist[pHist.length-1]||{x:pDrag.x,y:pDrag.y,t:now}; let ref=pHist[0]||last;
     for(let i=pHist.length-1;i>=0;i--) if(now-pHist[i].t>=60){ ref=pHist[i]; break; }
     const dt=Math.max(16,last.t-ref.t);
-    const throwPower=(window.GE_EASY_SETTINGS?.PLANET_THROW_POWER ?? 1050);
-    pDrag.vx=(last.x-ref.x)/dt*throwPower;
-    pDrag.vy=(last.y-ref.y)/dt*throwPower;
+    pDrag.vx=(last.x-ref.x)/dt*900; pDrag.vy=(last.y-ref.y)/dt*900;
   }
   pDrag.dragging=false;
   const releasedPlanet = pDrag;
@@ -2636,24 +2429,13 @@ addEventListener('pointerup', (e)=>{
 function getPlanetPlayBounds(){
   const full={left:0,top:0,right:innerWidth,bottom:innerHeight};
   if(!document.body.classList.contains('game-mode-active')) return full;
-
   const hud=document.getElementById('gameHUD');
-  const musicDock=document.getElementById('gameMusicDock');
-  let left=0, top=0, right=innerWidth, bottom=innerHeight;
-
-  if(hud && hud.classList.contains('show')){
-    const r=hud.getBoundingClientRect();
-    if(innerWidth>innerHeight) left=Math.max(left,r.right);
-    else top=Math.max(top,r.bottom);
+  if(!hud || !hud.classList.contains('show')) return full;
+  const r=hud.getBoundingClientRect();
+  if(innerWidth>innerHeight){
+    return {left:Math.max(0,r.right),top:0,right:innerWidth,bottom:innerHeight};
   }
-
-  if(musicDock){
-    const r=musicDock.getBoundingClientRect();
-    if(innerWidth>innerHeight) right=Math.min(right,r.left);
-    else bottom=Math.min(bottom,r.top);
-  }
-
-  return {left,top,right,bottom};
+  return {left:0,top:Math.max(0,r.bottom),right:innerWidth,bottom:innerHeight};
 }
 
 function planetStep(){
@@ -2669,11 +2451,8 @@ function planetStep(){
   for(const p of planetNodes){
     if(p.dragging) continue;
     p.x+=p.vx*(1/60); p.y+=p.vy*(1/60);
-    const planetFriction=(window.GE_EASY_SETTINGS?.PLANET_FRICTION ?? 0.973);
-    const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? 5);
-    p.vx*=planetFriction;
-    p.vy*=planetFriction;
-    if(Math.hypot(p.vx,p.vy)<planetStopSpeed){ p.vx=0; p.vy=0; }
+    /* Thicker-pool-table feel: roughly half the old coast time. */
+    p.vx*=0.970; p.vy*=0.970; if(Math.hypot(p.vx,p.vy)<5){ p.vx=0; p.vy=0; }
 
     const bounds=getPlanetPlayBounds();
     if(p.x-p.r<bounds.left){ p.x=bounds.left+p.r; p.vx=Math.abs(p.vx)*0.98; }
@@ -2726,7 +2505,7 @@ const GE_GAME = (()=>{
     profiles:[],
     activePlayer:0,
     turnInSet:0,
-    turnsPerPlayer:(window.GE_EASY_SETTINGS?.TURNS_PER_SOUL ?? 3),
+    turnsPerPlayer:3,
     round:1,
     requiredBanks:0,
     notices:true,
@@ -2741,15 +2520,11 @@ const GE_GAME = (()=>{
     if(Number.isFinite(saved) && saved>=0) state.players=Math.min(12,Math.floor(saved));
   }catch(e){}
 
-  function defaultProfile(i){ return {name:'Soul '+(i+1),handicap:false,multiplier:2}; }
+  function defaultProfile(i){ return {name:'P'+(i+1),handicap:false,multiplier:2}; }
   try{
     const saved=JSON.parse(localStorage.getItem(STORAGE_PROFILES)||'[]');
     if(Array.isArray(saved)) state.profiles=saved.map((p,i)=>({
-      name:(()=>{
-        const old=String(p?.name||'').trim();
-        const migrated=/^P\d+$/i.test(old) ? ('Soul '+(i+1)) : old;
-        return String(migrated||('Soul '+(i+1))).slice(0,18);
-      })(),
+      name:String(p?.name||('P'+(i+1))).slice(0,18),
       handicap:!!p?.handicap,
       multiplier:[2,3,4].includes(Number(p?.multiplier))?Number(p.multiplier):2
     }));
@@ -2813,7 +2588,7 @@ const GE_GAME = (()=>{
   function playerLabel(i){
     if(state.players===0) return 'AUTO';
     const n=String(state.profiles[i]?.name||'').trim();
-    return n || ('Soul '+(i+1));
+    return n || ('P'+(i+1));
   }
   function playerMultiplierValue(i){
     if(state.players===0) return 1;
@@ -2860,7 +2635,7 @@ const GE_GAME = (()=>{
     }
   }
   function updatePlayerOption(){
-    playerCountLabel.textContent=state.players===0?'0 SOULS · AUTO':`${state.players} SOUL${state.players===1?'':'S'}`;
+    playerCountLabel.textContent=state.players===0?'0 PLAYERS · AUTO':`${state.players} PLAYER${state.players===1?'':'S'}`;
   }
   function updateHUD(animateName=false){
     rebuildScores(false);
@@ -2954,11 +2729,10 @@ const GE_GAME = (()=>{
 
       // Rotation/resize safety only: do NOT center the sun.
       // Correct it only if less than 25% would remain inside the playable area.
-      const visibleFraction=(window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
-      const minCx=b.left - w*(1-visibleFraction);
-      const maxCx=b.right + w*(1-visibleFraction);
-      const minCy=b.top - h*(1-visibleFraction);
-      const maxCy=b.bottom + h*(1-visibleFraction);
+      const minCx=b.left - w*0.25;
+      const maxCx=b.right + w*0.25;
+      const minCy=b.top - h*0.25;
+      const maxCy=b.bottom + h*0.25;
 
       cx=Math.max(minCx,Math.min(maxCx,cx));
       cy=Math.max(minCy,Math.min(maxCy,cy));
@@ -2977,7 +2751,7 @@ const GE_GAME = (()=>{
     state.running=true;
     state.completed=false;
     state.turnInSet=0;
-    state.autoNext=performance.now()+(window.GE_EASY_SETTINGS?.AUTO_THROW_DELAY_MIN_MS ?? 900);
+    state.autoNext=performance.now()+900;
     document.body.classList.add('game-mode-active');
     setCleanGameScene(true);
     hud.classList.add('show');
@@ -3013,7 +2787,7 @@ const GE_GAME = (()=>{
     state.completed=false;
     state.running=true;
     state.planetState=new WeakMap();
-    state.autoNext=performance.now()+(window.GE_EASY_SETTINGS?.AUTO_THROW_DELAY_MIN_MS ?? 900);
+    state.autoNext=performance.now()+900;
     roundPrompt.classList.remove('show');
     updateHUD(true);
     requestAnimationFrame(clampPlayfield);
@@ -3050,14 +2824,14 @@ const GE_GAME = (()=>{
   optBanks.addEventListener('change',()=>state.showBanks=optBanks.checked);
 
   function setPlayers(n){
-    state.players=Math.max(0,Math.min((window.GE_EASY_SETTINGS?.MAX_SOULS ?? 12),n|0));
+    state.players=Math.max(0,Math.min(12,n|0));
     ensureProfiles();
     state.activePlayer=0;
     state.turnInSet=0;
     rebuildScores(false);
     try{ localStorage.setItem(STORAGE_PLAYERS,String(state.players)); }catch(e){}
     updateHUD(true);
-    flash(state.players===0?'AUTO / DEMO MODE':`${state.players} soul${state.players===1?'':'s'} · ${state.turnsPerPlayer} throws each`);
+    flash(state.players===0?'AUTO / DEMO MODE':`${state.players} player${state.players===1?'':'s'} · 3 throws each`);
   }
   playersDown.addEventListener('click',()=>setPlayers(state.players-1));
   playersUp.addEventListener('click',()=>setPlayers(state.players+1));
@@ -3066,8 +2840,8 @@ const GE_GAME = (()=>{
     if(state.players===0) return;
     editingPlayer=Math.max(0,Math.min(state.players-1,i|0));
     const p=state.profiles[editingPlayer]||defaultProfile(editingPlayer);
-    playerTitle.textContent='Soul '+(editingPlayer+1)+' Options';
-    playerNameInput.value=p.name||('Soul '+(editingPlayer+1));
+    playerTitle.textContent='Player '+(editingPlayer+1)+' Options';
+    playerNameInput.value=p.name||('P'+(editingPlayer+1));
     playerHandicapCheck.checked=!!p.handicap;
     playerMultiplier.value=String([2,3,4].includes(Number(p.multiplier))?Number(p.multiplier):2);
     playerMultiplier.disabled=!playerHandicapCheck.checked;
@@ -3076,7 +2850,7 @@ const GE_GAME = (()=>{
   playerHandicapCheck.addEventListener('change',()=>{ playerMultiplier.disabled=!playerHandicapCheck.checked; });
   playerSave.addEventListener('click',()=>{
     const p=state.profiles[editingPlayer]||defaultProfile(editingPlayer);
-    p.name=(playerNameInput.value.trim()||('Soul '+(editingPlayer+1))).slice(0,18);
+    p.name=(playerNameInput.value.trim()||('P'+(editingPlayer+1))).slice(0,18);
     p.handicap=playerHandicapCheck.checked;
     p.multiplier=[2,3,4].includes(Number(playerMultiplier.value))?Number(playerMultiplier.value):2;
     state.profiles[editingPlayer]=p;
@@ -3153,7 +2927,7 @@ const GE_GAME = (()=>{
       score:Math.max(...state.scores),
       scores:state.scores.slice(),
       players:state.players,
-      playerNames:state.players>0?state.profiles.slice(0,state.players).map((p,i)=>p.name||('Soul '+(i+1))):['AUTO'],
+      playerNames:state.players>0?state.profiles.slice(0,state.players).map((p,i)=>p.name||('P'+(i+1))):['AUTO'],
       handicaps:state.players>0?state.profiles.slice(0,state.players).map(p=>p.handicap?Number(p.multiplier||2):1):[1],
       round:state.round,
       completedAt:cosmic.utc,
@@ -3236,7 +3010,7 @@ const GE_GAME = (()=>{
   /* 0-player mode periodically launches a planet. */
   function autoShoot(now){
     if(state.players!==0 || !state.active || !state.running || now<state.autoNext || !planetNodes.length) return;
-    state.autoNext=now+rand((window.GE_EASY_SETTINGS?.AUTO_THROW_DELAY_MIN_MS ?? 900),(window.GE_EASY_SETTINGS?.AUTO_THROW_DELAY_MAX_MS ?? 1800));
+    state.autoNext=now+rand(1500,2700);
     const p=choice(planetNodes.filter(x=>!x.dragging)); if(!p) return;
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect(); if(!sunRect) return;
     const b=getPlanetPlayBounds();
@@ -3314,8 +3088,7 @@ function keepBlueSunReachable(){
   if(document.body.classList.contains('game-mode-active')) return;
   const wrap=document.getElementById('sunWrap'); if(!wrap) return;
   const r=wrap.getBoundingClientRect();
-  const f=(window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
-  const keepX=r.width*f, keepY=r.height*f;
+  const keepX=r.width*0.25, keepY=r.height*0.25;
   let cx=r.left+r.width/2, cy=r.top+r.height/2;
   cx=Math.max(-r.width/2+keepX,Math.min(innerWidth+r.width/2-keepX,cx));
   cy=Math.max(-r.height/2+keepY,Math.min(innerHeight+r.height/2-keepY,cy));
