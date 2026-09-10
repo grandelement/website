@@ -69,7 +69,15 @@ body{
   transition:opacity .2s ease;
 }
 #shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
-#hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
+#hudTap{
+  position:fixed;
+  inset:0;
+  z-index:20000;
+  display:none;
+  background:transparent;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
 body.hud-hidden #hudTap{display:block}
 .wrap{
   position:relative;
@@ -261,6 +269,19 @@ body.view-player #supportText{display:block}
     width:min(100vw,calc(100dvh * var(--ship-ratio)));
     height:min(100dvh,calc(100vw / var(--ship-ratio)));
     aspect-ratio:1672/941;overflow:hidden;background:#020b18;
+    opacity:1;
+    transition:opacity .28s ease;
+  }
+  body.view-ship.hud-hidden #shipStage{
+    opacity:0!important;
+    pointer-events:none!important;
+  }
+  body.view-ship.hud-hidden #bgImage{
+    opacity:1!important;
+  }
+  body.view-ship.hud-hidden #viewToggle{
+    opacity:0!important;
+    pointer-events:none!important;
   }
   #shipWindowBg,#shipCockpitArt{
     position:absolute;inset:0;width:100%;height:100%;display:block;
@@ -344,6 +365,7 @@ body.view-player #supportText{display:block}
 <body>
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
+<div id="hudTap" title="Tap to show controls" aria-label="Show controls"></div>
 <div id="shipStage" aria-hidden="false">
   <img id="shipWindowBg" alt="" aria-hidden="true">
   <img id="shipCockpitArt" src="./cockpit-landscape.png" alt="" aria-hidden="true">
@@ -465,7 +487,7 @@ body.view-player #supportText{display:block}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.10-landscape-ship-ios-audio-1',
+  APP_VERSION: '2026.09.10-control-recovery-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -563,6 +585,7 @@ $('shipTrackTitle')?.addEventListener('click',()=>titleBtn.click());
 $('shipHideControl')?.addEventListener('click',event=>{
   const shipAuto=$('shipAutoHide');
   if(event.target===shipAuto) return;
+  event.preventDefault();
   document.body.classList.add('hud-hidden');
 });
 $('shipAutoHide')?.addEventListener('change',()=>{
@@ -1586,10 +1609,14 @@ setInterval(()=>{
     document.querySelector('.wrap').addEventListener(name,show,{passive:true});
   });
 
-  $('hudTap').addEventListener('pointerdown',event=>{
+  $('hudTap')?.addEventListener('pointerdown',event=>{
     event.preventDefault();
     show();
   });
+  $('hudTap')?.addEventListener('touchend',event=>{
+    event.preventDefault();
+    show();
+  },{passive:false});
 
   setInterval(()=>{
     if(autoEnabled && Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS) hide();
