@@ -328,103 +328,6 @@
 
 
 
-
-  /* Game-only planet tracer layer. It is completely dormant outside Game Mode. */
-  #gameTrails{
-    position:fixed;
-    inset:0;
-    width:100%;
-    height:100%;
-    z-index:2;
-    display:none;
-    pointer-events:none;
-    mix-blend-mode:screen;
-  }
-  body.game-mode-active #gameTrails{ display:block; }
-
-  /* Soul score butterfly / comet pop-out */
-  #soulInfoFlyout{
-    position:fixed;
-    z-index:75;
-    display:none;
-    pointer-events:none;
-    min-width:150px;
-    max-width:min(280px,70vw);
-    padding:10px 18px 10px 28px;
-    border-radius:0 999px 999px 0;
-    background:
-      linear-gradient(90deg,
-        rgba(255,255,255,.92) 0%,
-        rgba(210,237,255,.82) 15%,
-        rgba(70,158,255,.28) 58%,
-        rgba(70,158,255,0) 100%);
-    color:#fff;
-    text-shadow:0 1px 5px #000,0 0 10px rgba(80,175,255,.8);
-    filter:drop-shadow(0 0 10px rgba(140,210,255,.65));
-    opacity:0;
-    transform:translateX(-8px) scaleX(.45);
-    transform-origin:left center;
-  }
-  #soulInfoFlyout.show{
-    display:block;
-    animation:soulFlyIn .55s cubic-bezier(.18,.8,.25,1) forwards;
-  }
-  #soulInfoFlyout.fade{
-    display:block;
-    animation:soulFlyOut var(--soul-fade-ms,1300ms) ease forwards;
-  }
-  #soulInfoFlyout::before,
-  #soulInfoFlyout::after{
-    content:"";
-    position:absolute;
-    left:3px;
-    width:34px;
-    height:18px;
-    border-radius:70% 15% 70% 20%;
-    border:1px solid rgba(220,245,255,.75);
-    background:radial-gradient(ellipse at center,rgba(255,255,255,.7),rgba(80,170,255,.08) 62%,transparent 70%);
-    box-shadow:0 0 12px rgba(120,205,255,.55);
-    opacity:.8;
-  }
-  #soulInfoFlyout::before{ top:-12px; transform:rotate(-24deg); }
-  #soulInfoFlyout::after{ bottom:-12px; transform:rotate(24deg); }
-
-  .soulFlyName{
-    font-size:12px;
-    font-weight:950;
-    letter-spacing:.06em;
-    white-space:nowrap;
-  }
-  .soulFlyScore{
-    margin-top:2px;
-    font-size:10px;
-    font-weight:900;
-    letter-spacing:.08em;
-    opacity:.92;
-  }
-  .soulFlyTrail{
-    position:absolute;
-    right:92%;
-    top:50%;
-    width:100px;
-    height:2px;
-    transform:translateY(-50%);
-    background:linear-gradient(90deg,transparent,rgba(130,205,255,.15),rgba(255,255,255,.88));
-    box-shadow:0 0 7px rgba(120,200,255,.8);
-    opacity:.85;
-  }
-  @keyframes soulFlyIn{
-    0%{opacity:0;transform:translateX(-16px) scaleX(.18);filter:blur(4px) drop-shadow(0 0 2px rgba(140,210,255,.2))}
-    45%{opacity:1;transform:translateX(8px) scaleX(1.08);filter:blur(0) drop-shadow(0 0 18px rgba(140,210,255,.9))}
-    70%{transform:translateX(-2px) scaleX(.98)}
-    100%{opacity:1;transform:translateX(0) scaleX(1)}
-  }
-  @keyframes soulFlyOut{
-    0%{opacity:1;transform:translateX(0) scaleX(1)}
-    55%{opacity:.72;filter:blur(.5px) drop-shadow(0 0 18px rgba(140,210,255,.75))}
-    100%{opacity:0;transform:translateX(46px) scaleX(1.28);filter:blur(4px) drop-shadow(0 0 4px rgba(140,210,255,.2))}
-  }
-
   /* Game music dock: opposite the main game rail. */
   #gameMusicDock{
     position:fixed;
@@ -467,6 +370,9 @@
     cursor:pointer;
     padding:0;
   }
+  .gameMusicVol{
+    width:min(28vw,130px);
+  }
 
   @media (orientation:landscape){
     #gameMusicDock{
@@ -482,72 +388,16 @@
       border-left:1px solid rgba(160,205,255,.34);
       box-shadow:-5px 0 15px rgba(0,0,0,.62);
     }
-  }
-
-
-  .gameSeekWrap{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    flex:1 1 auto;
-    min-width:120px;
-    max-width:520px;
-    font-size:8px;
-    font-variant-numeric:tabular-nums;
-    color:#dcecff;
-  }
-  #gameSeek{
-    flex:1 1 auto;
-    min-width:80px;
-  }
-  @media (orientation:landscape){
-    .gameSeekWrap{
-      width:78px;
-      min-width:78px;
-      max-width:78px;
-      flex-direction:column;
-      gap:4px;
-      margin-top:6px;
-    }
-    #gameSeek{
+    .gameMusicVol{
       width:72px;
+      transform:rotate(-90deg);
+      margin:24px 0;
     }
   }
 
   /* Portrait soul buttons run horizontally and leave room for default Soul names. */
   @media (orientation:portrait){
-  
-  .gameScoreWrap{
-    min-width:0;
-    flex:1 1 auto;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    gap:1px;
-    overflow:hidden;
-  }
-  .gameScoreTitle{
-    font-size:7px;
-    font-weight:950;
-    letter-spacing:.18em;
-    color:#b9d8f5;
-    opacity:.75;
-    line-height:1;
-    padding-left:3px;
-  }
-  @media (orientation:landscape){
-    .gameScoreWrap{
-      width:100%;
-      flex:1 1 auto;
-    }
-    .gameScoreTitle{
-      text-align:center;
-      padding-left:0;
-      margin-bottom:3px;
-    }
-  }
-
-  .gameScoreCluster{
+    .gameScoreCluster{
       flex-direction:row !important;
       align-items:center;
       justify-content:flex-start;
@@ -715,7 +565,7 @@
     display:grid;
     place-items:center;
     padding:0;
-    font-size:12px;
+    font-size:11px;
     font-weight:950;
     line-height:1;
     cursor:pointer;
@@ -941,30 +791,13 @@ window.GE_EASY_SETTINGS = {
   GAME_BAR_PORTRAIT_PX: 78,
   GAME_BAR_LANDSCAPE_PX: 108,
   MUSIC_BAR_PORTRAIT_PX: 58,
-  MUSIC_BAR_LANDSCAPE_PX: 92,
-
-  // DESKTOP MUSIC KEYS
-  KEY_VOLUME_STEP: 0.08,         // Up/Down arrow volume change
-  NUMBER_KEY_TIMEOUT_MS: 3000,   // time allowed for typing track 11, 12, etc.
-
-  // SOUL SCORE POP-OUT
-  SOUL_CARD_HOLD_MS: 3800,        // how long name/score stays open
-  SOUL_CARD_FADE_MS: 1300,        // slow fade after the hold
-
-  // GAME PLANET TRACERS
-  TRACERS_ON: true,
-  TRACER_WIDTH: 3.0,
-  TRACER_ALPHA: 0.58,
-  TRACER_GLOW: 16,
-  TRACER_FADE_SECONDS: 5.5,       // fade begins only after every planet has stopped
-  TRACER_MIN_SPEED: 8             // don't draw tracer for tiny resting jitter
+  MUSIC_BAR_LANDSCAPE_PX: 92
 };
 </script>
 
 </head>
 <body>
   <div id="gameBackground" aria-hidden="true"></div>
-  <canvas id="gameTrails" aria-hidden="true"></canvas>
   <canvas id="fx"></canvas>
   <div class="layer-hiddentext" id="phrases"></div>
 
@@ -1073,10 +906,7 @@ window.GE_EASY_SETTINGS = {
 
   <!-- OPTIONAL GAME MODE: hidden until the visitor accepts the planet-drag invitation -->
   <div id="gameHUD" aria-hidden="true">
-    <div class="gameScoreWrap">
-      <div class="gameScoreTitle">SCORES</div>
-      <div class="gameScoreCluster" id="gameScoreCluster" title="Tap a soul for name and handicap"></div>
-    </div>
+    <div class="gameScoreCluster" id="gameScoreCluster" title="Tap a soul for name and handicap"></div>
     <div id="activePlayerName">SOUL 1 · TURN 1/3</div>
     <div class="roundBadge">
       <span class="scoreBig" id="gameRound">ROUND 1</span>
@@ -1091,11 +921,6 @@ window.GE_EASY_SETTINGS = {
     </div>
   </div>
   <div id="gameNotice"></div>
-  <div id="soulInfoFlyout" aria-hidden="true">
-    <div class="soulFlyTrail"></div>
-    <div class="soulFlyName" id="soulFlyName">Soul 1</div>
-    <div class="soulFlyScore" id="soulFlyScore">0 POINTS</div>
-  </div>
 
   <!-- Game-only music controls. Uses the existing website audio player. -->
   <div id="gameMusicDock" aria-label="Music controls">
@@ -1103,11 +928,7 @@ window.GE_EASY_SETTINGS = {
     <button class="gameMusicBtn" id="gameMusicPrev" type="button" aria-label="Previous track">◀</button>
     <button class="gameMusicBtn" id="gameMusicPlay" type="button" aria-label="Play or pause">▶</button>
     <button class="gameMusicBtn" id="gameMusicNext" type="button" aria-label="Next track">▶▶</button>
-    <div class="gameSeekWrap">
-      <span id="gameTimeCur">0:00</span>
-      <input id="gameSeek" type="range" min="0" max="1000" value="0" aria-label="Track position">
-      <span id="gameTimeMax">0:00</span>
-    </div>
+    <input class="gameMusicVol" id="gameMusicVol" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Music volume">
   </div>
 
 
@@ -1152,7 +973,7 @@ window.GE_EASY_SETTINGS = {
         <button class="stepArrow" id="playersUp" type="button" aria-label="More souls">›</button>
       </div>
       <div class="small">0 SOULS = AUTO / DEMO MODE · Each soul gets 3 throws per turn set.</div>
-      <div class="small" style="margin-top:7px">Tap a soul circle to reveal its name and score. Tap the name beside it to edit the soul name or handicap.</div>
+      <div class="small" style="margin-top:7px">Tap any soul circle in the black game rail to enter a name or set a preset handicap.</div>
       <div class="optionGrid">
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
@@ -1692,42 +1513,6 @@ moon.addEventListener('click', ()=>{
 
   btnNext.onclick=next;
   btnPrev.onclick=prev;
-
-  function selectTrackNumberWithinCurrentAlbum(trackNumber){
-    const n=Number(trackNumber);
-    if(!Number.isInteger(n) || n<1 || !PLAYLIST.length) return false;
-    const current=PLAYLIST[pIndex];
-    if(!current) return false;
-    const albumKey=normAlbumName(current.album);
-    const matches=PLAYLIST
-      .map((it,idx)=>({it,idx}))
-      .filter(x=>normAlbumName(x.it.album)===albumKey)
-      .sort((a,b)=>(a.it.trackNum||9999)-(b.it.trackNum||9999));
-
-    let found=matches.find(x=>Number(x.it.trackNum)===n);
-    if(!found && n<=matches.length) found=matches[n-1];
-    if(!found) return false;
-
-    pIndex=found.idx;
-    startCurrent();
-    return true;
-  }
-
-  window.GE_MUSIC_CONTROLLER={
-    playPause:()=>btnPlay.click(),
-    next:()=>next(),
-    prev:()=>prev(),
-    volumeDelta:(delta)=>{
-      const v=Math.max(0,Math.min(1,(player.volume||0)+Number(delta||0)));
-      player.volume=v;
-      vol.value=String(v);
-      return v;
-    },
-    selectTrackNumber:(n)=>selectTrackNumberWithinCurrentAlbum(n),
-    getCurrent:()=>PLAYLIST[pIndex]||null
-  };
-
-
   btnPlay.onclick=async ()=>{
     if(!PLAYLIST.length) return;
     if(player.paused){
@@ -1820,120 +1605,33 @@ fetchAllMp3s().then(async list=>{
   const gp=document.getElementById('gameMusicPlay');
   const gn=document.getElementById('gameMusicNext');
   const gb=document.getElementById('gameMusicPrev');
-  const gs=document.getElementById('gameSeek');
-  const gc=document.getElementById('gameTimeCur');
-  const gm=document.getElementById('gameTimeMax');
+  const gv=document.getElementById('gameMusicVol');
   const player=document.getElementById('gePlayer');
+  const originalPlay=document.getElementById('play');
+  const originalNext=document.getElementById('next');
+  const originalPrev=document.getElementById('prev');
+  const originalVol=document.getElementById('vol');
 
   if(!player || !gp) return;
 
-  const fmt=t=>{
-    t=Math.max(0,Number(t)||0)|0;
-    return `${(t/60)|0}:${String(t%60).padStart(2,'0')}`;
-  };
-
-  function ctl(){ return window.GE_MUSIC_CONTROLLER; }
-
   function sync(){
     gp.textContent=player.paused?'▶':'❚❚';
-    const dur=Number(player.duration)||0;
-    const cur=Number(player.currentTime)||0;
-    if(gs){
-      gs.max=dur||1000;
-      if(!gs.matches(':active')) gs.value=cur;
-    }
-    if(gc) gc.textContent=fmt(cur);
-    if(gm) gm.textContent=fmt(dur);
+    if(gv) gv.value=String(player.volume);
   }
+  gp.addEventListener('click',()=>originalPlay?.click());
+  gn?.addEventListener('click',()=>originalNext?.click());
+  gb?.addEventListener('click',()=>originalPrev?.click());
 
-  gp.addEventListener('click',()=>ctl()?.playPause());
-  gn?.addEventListener('click',()=>ctl()?.next());
-  gb?.addEventListener('click',()=>ctl()?.prev());
-
-  gs?.addEventListener('input',()=>{
-    try{ player.currentTime=Number(gs.value)||0; }catch(e){}
+  gv?.addEventListener('input',()=>{
+    const v=Number(gv.value);
+    player.volume=v;
+    if(originalVol) originalVol.value=String(v);
   });
 
   player.addEventListener('playing',sync);
   player.addEventListener('pause',sync);
-  player.addEventListener('loadedmetadata',sync);
-  player.addEventListener('timeupdate',sync);
+  player.addEventListener('volumechange',sync);
   sync();
-
-  // Desktop keyboard controls.
-  let numberBuffer='';
-  let numberTimer=0;
-
-  function textEntryFocused(){
-    const a=document.activeElement;
-    return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=='range';
-  }
-
-  function commitNumber(){
-    if(!numberBuffer) return;
-    const n=parseInt(numberBuffer,10);
-    numberBuffer='';
-    clearTimeout(numberTimer);
-    ctl()?.selectTrackNumber(n);
-  }
-
-  addEventListener('keydown',(e)=>{
-    if(innerWidth<700 || textEntryFocused()) return;
-
-    if(/^[0-9]$/.test(e.key)){
-      numberBuffer+=e.key;
-      clearTimeout(numberTimer);
-      numberTimer=setTimeout(commitNumber,(window.GE_EASY_SETTINGS?.NUMBER_KEY_TIMEOUT_MS ?? 3000));
-      e.preventDefault();
-      return;
-    }
-
-    if(numberBuffer) commitNumber();
-
-    if(e.code==='Space'){
-      ctl()?.playPause();
-      e.preventDefault();
-      return;
-    }
-    if(e.key==='ArrowRight'){
-      ctl()?.next();
-      e.preventDefault();
-      return;
-    }
-    if(e.key==='ArrowLeft'){
-      ctl()?.prev();
-      e.preventDefault();
-      return;
-    }
-    if(e.key==='ArrowUp'){
-      ctl()?.volumeDelta(window.GE_EASY_SETTINGS?.KEY_VOLUME_STEP ?? 0.08);
-      e.preventDefault();
-      return;
-    }
-    if(e.key==='ArrowDown'){
-      ctl()?.volumeDelta(-(window.GE_EASY_SETTINGS?.KEY_VOLUME_STEP ?? 0.08));
-      e.preventDefault();
-      return;
-    }
-
-    // Game background quick keys: + next, - previous, T teleport/next.
-    if(document.body.classList.contains('game-mode-active')){
-      if(e.key==='+' || e.key==='='){
-        document.getElementById('gameBgNext')?.click();
-        e.preventDefault();
-        return;
-      }
-      if(e.key==='-' || e.key==='_'){
-        document.getElementById('gameBgPrev')?.click();
-        e.preventDefault();
-        return;
-      }
-      if(e.key.toLowerCase()==='t'){
-        document.getElementById('gameBgNext')?.click();
-        e.preventDefault();
-      }
-    }
-  });
 })();
 
 /* ========= HIDDEN TEXT ========= */
@@ -2876,16 +2574,6 @@ function collideStaticCircle(obj,cx,cy,r,rest=0.90){
   return true;
 }
 
-
-/* Game Mode: album planets are game pieces, not Bandcamp links. */
-document.getElementById('planets').addEventListener('click',(e)=>{
-  if(!document.body.classList.contains('game-mode-active')) return;
-  const planet=e.target.closest('.planet');
-  if(!planet) return;
-  e.preventDefault();
-  e.stopPropagation();
-}, true);
-
 /* PLANET PHYSICS */
 const planetNodes = [];
 function buildPlanetPhysics(){
@@ -3077,11 +2765,6 @@ const GE_GAME = (()=>{
 
   const hud=document.getElementById('gameHUD');
   const scoreCluster=document.getElementById('gameScoreCluster');
-  const soulFlyout=document.getElementById('soulInfoFlyout');
-  const soulFlyName=document.getElementById('soulFlyName');
-  const soulFlyScore=document.getElementById('soulFlyScore');
-  let soulFlyTimer=0;
-  let soulFadeTimer=0;
   const activeNameEl=document.getElementById('activePlayerName');
   const roundEl=document.getElementById('gameRound');
   const ruleEl=document.getElementById('gameRule');
@@ -3149,45 +2832,6 @@ const GE_GAME = (()=>{
     void activeNameEl.offsetWidth;
     activeNameEl.classList.add('flashName');
   }
-
-  function showSoulFlyout(index,anchor){
-    if(!soulFlyout || !anchor) return;
-    clearTimeout(soulFlyTimer);
-    clearTimeout(soulFadeTimer);
-
-    const score=state.scores[index]||0;
-    const name=state.players===0?'AUTO':playerLabel(index);
-    soulFlyName.textContent=name;
-    soulFlyScore.textContent=score+' POINT'+(score===1?'':'S');
-
-    const r=anchor.getBoundingClientRect();
-    const landscape=innerWidth>innerHeight;
-
-    soulFlyout.classList.remove('show','fade');
-    soulFlyout.style.setProperty('--soul-fade-ms',(window.GE_EASY_SETTINGS?.SOUL_CARD_FADE_MS ?? 1300)+'ms');
-
-    if(landscape){
-      soulFlyout.style.left=Math.min(innerWidth-180,r.right+8)+'px';
-      soulFlyout.style.top=Math.max(8,Math.min(innerHeight-72,r.top+r.height/2-26))+'px';
-    }else{
-      soulFlyout.style.left=Math.max(8,Math.min(innerWidth-180,r.left))+'px';
-      soulFlyout.style.top=Math.min(innerHeight-72,r.bottom+7)+'px';
-    }
-
-    void soulFlyout.offsetWidth;
-    soulFlyout.classList.add('show');
-
-    const hold=(window.GE_EASY_SETTINGS?.SOUL_CARD_HOLD_MS ?? 3800);
-    soulFlyTimer=setTimeout(()=>{
-      soulFlyout.classList.remove('show');
-      soulFlyout.classList.add('fade');
-      soulFadeTimer=setTimeout(()=>{
-        soulFlyout.classList.remove('fade');
-        soulFlyout.style.display='none';
-      },(window.GE_EASY_SETTINGS?.SOUL_CARD_FADE_MS ?? 1300)+60);
-    },hold);
-  }
-
   function renderScoreDots(){
     scoreCluster.innerHTML='';
     const n=Math.max(1,state.players);
@@ -3198,22 +2842,16 @@ const GE_GAME = (()=>{
       const el=document.createElement('button');
       el.type='button';
       el.className='playerDot'+(i===state.activePlayer?' activeTurn':'')+(state.players===0?' autoDot':'');
-      const visibleScore=state.scores[i]||0;
-      el.textContent=String(visibleScore);
-      el.title=state.players===0
-        ? `Automatic demo — ${visibleScore} points`
-        : `${playerLabel(i)} — ${visibleScore} points`;
+      el.textContent=state.players===0?'A':String(i+1);
+      el.title=state.players===0?'Automatic demo player':`${playerLabel(i)} — ${state.scores[i]||0} points`;
 
       const lab=document.createElement('div');
       lab.className='playerScoreLabel';
       if(state.players===0){
-        lab.innerHTML='<span class="psName">AUTO</span>';
-        el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showSoulFlyout(0,el); });
+        lab.innerHTML='<span class="psName">AUTO</span> <span class="psScore">'+String(state.scores[0]||0)+'</span>';
       }else{
-        lab.innerHTML='<span class="psName">'+escapeHtml(playerLabel(i))+'</span>';
-        el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showSoulFlyout(i,el); });
-        lab.style.cursor='pointer';
-        lab.addEventListener('click',(ev)=>{ ev.stopPropagation(); openPlayerOptions(i); });
+        lab.innerHTML='<span class="psName">'+escapeHtml(playerLabel(i))+'</span> <span class="psScore">'+String(state.scores[i]||0)+'</span>';
+        el.addEventListener('click',()=>openPlayerOptions(i));
       }
 
       item.appendChild(el);
@@ -3331,7 +2969,6 @@ const GE_GAME = (()=>{
   }
 
   function startGame(){
-    try{ window.GE_CLEAR_GAME_TRAILS?.(); }catch(e){}
     saveWebsiteBackground();
     if(gameBackground){
       setGameBackgroundIndex(gameBgIndex);
@@ -3352,7 +2989,6 @@ const GE_GAME = (()=>{
   }
 
   function exitGame(){
-    try{ window.GE_CLEAR_GAME_TRAILS?.(); }catch(e){}
     state.active=false;
     state.running=false;
     state.completed=false;
