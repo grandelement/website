@@ -58,23 +58,6 @@
     font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   }
 
-
-  /* Dedicated Game Mode background layer.
-     It is fixed to the viewport and never attached to the sun/moon/orbit DOM. */
-  #gameBackground{
-    position:fixed;
-    inset:0;
-    z-index:1;
-    display:none;
-    pointer-events:none;
-    background-color:#000;
-    background-position:center center;
-    background-repeat:no-repeat;
-    background-size:cover;
-    transform:none !important;
-  }
-  body.game-mode-active #gameBackground{ display:block; }
-
   /* FX canvas */
   #fx{ position:fixed; inset:0; display:block; z-index:3; }
 
@@ -436,25 +419,6 @@
   }
   .gameScoreCluster::-webkit-scrollbar{ display:none; }
 
-
-  .playerScoreItem{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    flex:0 0 auto;
-    min-width:0;
-  }
-  .playerScoreLabel{
-    color:#fff;
-    font-size:9px;
-    font-weight:900;
-    letter-spacing:.03em;
-    white-space:nowrap;
-    text-shadow:0 1px 5px #000;
-  }
-  .playerScoreLabel .psName{ opacity:.82; }
-  .playerScoreLabel .psScore{ font-size:11px; margin-left:3px; }
-
   /* Small white player balls. Active player's ball becomes the blue Grand Element sun. */
   .playerDot{
     width:34px;
@@ -640,13 +604,8 @@
       overflow-y:auto;
       overflow-x:hidden;
       justify-content:flex-start;
-      align-items:flex-start;
-      padding:8px 4px;
-      box-sizing:border-box;
-      gap:8px;
+      padding:4px 0;
     }
-    .playerScoreItem{ width:100%; }
-    .playerScoreLabel{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; }
     #activePlayerName{ max-width:94px; white-space:normal; line-height:1.08; }
     .roundBadge{ width:88px; height:38px; box-sizing:border-box; padding:0 5px; }
     .gameHudBtn{ width:88px; padding:0 5px; }
@@ -658,8 +617,6 @@
   @media (max-width:700px) and (orientation:portrait){
     #gameHUD{ height:calc(78px + env(safe-area-inset-top,0px)); padding-left:7px; padding-right:7px; gap:5px; }
     .playerDot{ width:31px;height:31px;min-width:31px;font-size:10px; }
-    .playerScoreLabel{ font-size:8px; }
-    .playerScoreLabel .psScore{ font-size:10px; }
     #activePlayerName{ max-width:105px; font-size:9px; }
     .roundBadge{ height:32px;padding:0 8px; }
     .gameHudBtn{ height:32px;padding:0 8px;font-size:9px; }
@@ -670,7 +627,6 @@
 </style>
 </head>
 <body>
-  <div id="gameBackground" aria-hidden="true"></div>
   <canvas id="fx"></canvas>
   <div class="layer-hiddentext" id="phrases"></div>
 
@@ -2294,20 +2250,20 @@ requestAnimationFrame(loop);
     const w=wrap.offsetWidth, h=wrap.offsetHeight;
     const keep = 0.25;
     let L=e.clientX-dx, T=e.clientY-dy;
+    let minL = -w*(1-keep);
+    let maxL = innerWidth - w*keep;
+    let minT = -h*(1-keep);
+    let maxT = innerHeight - h*keep;
 
-    // L/T are the element's top-left before translate(-50%,-50%) is reapplied below.
-    // Keep at least 25% of the sun visible. In Game Mode use the legal playfield,
-    // otherwise use the viewport.
-    let leftBound=0, rightBound=innerWidth, topBound=0, bottomBound=innerHeight;
+    // In Game Mode the black rail is outside the legal playfield.
+    // The sun may still be moved almost anywhere, but at least 25% remains reachable.
     if(document.body.classList.contains('game-mode-active') && typeof getPlanetPlayBounds==='function'){
       const b=getPlanetPlayBounds();
-      leftBound=b.left; rightBound=b.right; topBound=b.top; bottomBound=b.bottom;
+      minL = b.left - w*(1-keep);
+      maxL = b.right - w*keep;
+      minT = b.top - h*(1-keep);
+      maxT = b.bottom - h*keep;
     }
-
-    const minL = leftBound - w*(1-keep);
-    const maxL = rightBound - w*keep;
-    const minT = topBound - h*(1-keep);
-    const maxT = bottomBound - h*keep;
 
     L=Math.max(minL, Math.min(maxL, L));
     T=Math.max(minT, Math.min(maxT, T));
@@ -2571,7 +2527,6 @@ const GE_GAME = (()=>{
   const gameBgPrev=document.getElementById('gameBgPrev');
   const gameBgNext=document.getElementById('gameBgNext');
   const gameBgOff=document.getElementById('gameBgOff');
-  const gameBackground=document.getElementById('gameBackground');
   let gameBgIndex=typeof bgIndex==='number'?bgIndex:0;
   let gameBgIsOff=false;
   let savedWebsiteBackground=null;
@@ -2611,27 +2566,13 @@ const GE_GAME = (()=>{
     scoreCluster.innerHTML='';
     const n=Math.max(1,state.players);
     for(let i=0;i<n;i++){
-      const item=document.createElement('div');
-      item.className='playerScoreItem';
-
       const el=document.createElement('button');
       el.type='button';
       el.className='playerDot'+(i===state.activePlayer?' activeTurn':'')+(state.players===0?' autoDot':'');
-      el.textContent=state.players===0?'A':String(i+1);
+      el.textContent=state.players===0?'AUTO':String(state.scores[i]||0);
       el.title=state.players===0?'Automatic demo player':`${playerLabel(i)} — ${state.scores[i]||0} points`;
-
-      const lab=document.createElement('div');
-      lab.className='playerScoreLabel';
-      if(state.players===0){
-        lab.innerHTML='<span class="psName">AUTO</span> <span class="psScore">'+String(state.scores[0]||0)+'</span>';
-      }else{
-        lab.innerHTML='<span class="psName">'+escapeHtml(playerLabel(i))+'</span> <span class="psScore">'+String(state.scores[i]||0)+'</span>';
-        el.addEventListener('click',()=>openPlayerOptions(i));
-      }
-
-      item.appendChild(el);
-      item.appendChild(lab);
-      scoreCluster.appendChild(item);
+      if(state.players>0) el.addEventListener('click',()=>openPlayerOptions(i));
+      scoreCluster.appendChild(el);
     }
   }
   function updatePlayerOption(){
@@ -2677,34 +2618,43 @@ const GE_GAME = (()=>{
 
 
   function saveWebsiteBackground(){
-    // Game backgrounds no longer modify the website body background.
-    // Keep this function as a harmless compatibility hook.
+    if(savedWebsiteBackground) return;
+    savedWebsiteBackground={
+      image:document.body.style.backgroundImage,
+      position:document.body.style.backgroundPosition,
+      repeat:document.body.style.backgroundRepeat,
+      size:document.body.style.backgroundSize,
+      attachment:document.body.style.backgroundAttachment,
+      color:document.body.style.backgroundColor
+    };
   }
   function restoreWebsiteBackground(){
-    if(gameBackground){
-      gameBackground.style.backgroundImage='';
-      gameBackground.style.backgroundColor='#000';
-    }
+    if(!savedWebsiteBackground) return;
+    document.body.style.backgroundImage=savedWebsiteBackground.image;
+    document.body.style.backgroundPosition=savedWebsiteBackground.position;
+    document.body.style.backgroundRepeat=savedWebsiteBackground.repeat;
+    document.body.style.backgroundSize=savedWebsiteBackground.size;
+    document.body.style.backgroundAttachment=savedWebsiteBackground.attachment;
+    document.body.style.backgroundColor=savedWebsiteBackground.color;
+    savedWebsiteBackground=null;
   }
   function setGameBackgroundIndex(i){
-    if(!Array.isArray(BG_LIST) || !BG_LIST.length || !gameBackground) return;
+    if(!Array.isArray(BG_LIST) || !BG_LIST.length) return;
     gameBgIndex=(i%BG_LIST.length+BG_LIST.length)%BG_LIST.length;
     gameBgIsOff=false;
     const url=BG_LIST[gameBgIndex];
-    gameBackground.style.backgroundColor='#000';
-    gameBackground.style.backgroundImage=`url("${url}")`;
-    gameBackground.style.backgroundPosition='center center';
-    gameBackground.style.backgroundRepeat='no-repeat';
-    gameBackground.style.backgroundSize='cover';
-    gameBackground.style.transform='none';
+    document.body.style.backgroundColor='#000';
+    document.body.style.backgroundImage=`url("${url}")`;
+    document.body.style.backgroundPosition='center center';
+    document.body.style.backgroundRepeat='no-repeat';
+    document.body.style.backgroundSize='cover';
+    document.body.style.backgroundAttachment='scroll';
     gameBgOff?.classList.remove('active');
   }
   function setGameBackgroundOff(){
-    if(!gameBackground) return;
     gameBgIsOff=true;
-    gameBackground.style.backgroundColor='#000';
-    gameBackground.style.backgroundImage='none';
-    gameBackground.style.transform='none';
+    document.body.style.backgroundColor='#000';
+    document.body.style.backgroundImage='none';
     gameBgOff?.classList.add('active');
   }
   gameBgPrev?.addEventListener('click',()=>setGameBackgroundIndex(gameBgIndex-1));
@@ -2724,18 +2674,10 @@ const GE_GAME = (()=>{
     const wrap=document.getElementById('sunWrap');
     if(wrap){
       const r=wrap.getBoundingClientRect();
-      const w=r.width, h=r.height;
-      let cx=r.left+w/2, cy=r.top+h/2;
-
-      // Rotation/resize safety only: do NOT center the sun.
-      // Correct it only if less than 25% would remain inside the playable area.
-      const minCx=b.left - w*0.25;
-      const maxCx=b.right + w*0.25;
-      const minCy=b.top - h*0.25;
-      const maxCy=b.bottom + h*0.25;
-
-      cx=Math.max(minCx,Math.min(maxCx,cx));
-      cy=Math.max(minCy,Math.min(maxCy,cy));
+      const hw=r.width/2, hh=r.height/2, margin=8;
+      let cx=r.left+hw, cy=r.top+hh;
+      cx=Math.max(b.left+hw+margin,Math.min(b.right-hw-margin,cx));
+      cy=Math.max(b.top+hh+margin,Math.min(b.bottom-hh-margin,cy));
       wrap.style.left=cx+'px';
       wrap.style.top=cy+'px';
       wrap.style.transform='translate(-50%,-50%)';
@@ -2744,9 +2686,6 @@ const GE_GAME = (()=>{
 
   function startGame(){
     saveWebsiteBackground();
-    if(gameBackground){
-      setGameBackgroundIndex(gameBgIndex);
-    }
     state.active=true;
     state.running=true;
     state.completed=false;
@@ -3061,7 +3000,7 @@ const GE_GAME = (()=>{
   function reflow(){
     if(!state.active) return;
     clearTimeout(resizeTimer);
-    resizeTimer=setTimeout(()=>{ if(gameBackground) gameBackground.style.transform='none'; clampPlayfield(); updateHUD(false); },100);
+    resizeTimer=setTimeout(()=>{ clampPlayfield(); updateHUD(false); },100);
   }
   addEventListener('resize',reflow,{passive:true});
   addEventListener('orientationchange',()=>setTimeout(reflow,180),{passive:true});
@@ -3083,12 +3022,12 @@ function nudgeSunNow(){
 }
 nudgeSunNow();
 
-/* Orientation safety: outside Game Mode keep at least 25% of the blue sun reachable. */
+/* Orientation safety: outside Game Mode keep at least half of the blue sun reachable. */
 function keepBlueSunReachable(){
   if(document.body.classList.contains('game-mode-active')) return;
   const wrap=document.getElementById('sunWrap'); if(!wrap) return;
   const r=wrap.getBoundingClientRect();
-  const keepX=r.width*0.25, keepY=r.height*0.25;
+  const keepX=r.width*0.5, keepY=r.height*0.5;
   let cx=r.left+r.width/2, cy=r.top+r.height/2;
   cx=Math.max(-r.width/2+keepX,Math.min(innerWidth+r.width/2-keepX,cx));
   cy=Math.max(-r.height/2+keepY,Math.min(innerHeight+r.height/2-keepY,cy));
