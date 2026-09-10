@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
 <title>Grand Element (Official Site) - Welcome!</title>
 <style>
   :root{
@@ -186,13 +186,16 @@
   .planets{ position:fixed; inset:0; pointer-events:none; z-index:4; }
   .planet{ position:absolute; width:var(--planet-size); height:var(--planet-size); border-radius:50%; pointer-events:auto; overflow:hidden; cursor:pointer;
            background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 calc(10px + (var(--pulse) * 26px)) rgba(255,255,255,.25), 0 0 calc(2px + (var(--pulse) * 12px)) rgba(0,170,255,.35);
-           transition: transform .2s ease, box-shadow .18s ease; }
-  .planet:hover, .planet.touchZoom{ transform:scale(var(--planet-hover-scale)); box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset; }
+           transition: transform var(--planet-preview-ms,850ms) ease, box-shadow .5s ease; }
+  .planet.previewZoom{
+    transform:scale(var(--planet-hover-scale));
+    box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset;
+  }
   .planet.draggingPlanet, .planet.justDragged, .planet.justDragged:hover{ transform:scale(1) !important; }
   .planet .label{ position:absolute; left:50%; top:-12px; transform:translate(-50%,-100%); padding:6px 10px; border-radius:999px; white-space:nowrap;
                   background:rgba(15,25,50,.35); border:1px solid rgba(200,220,255,.5); backdrop-filter:blur(2px); font-size:12px; letter-spacing:.3px; font-weight:700;
                   opacity:0; pointer-events:none; transition:opacity .12s ease; }
-  .planet:hover .label, .planet.touchZoom .label{ opacity:1; }
+  .planet.previewZoom .label{ opacity:1; }
 
 
   /* Five-album kundalini motion */
@@ -703,6 +706,144 @@
   .playerScoreLabel .psName{ opacity:.82; }
   .playerScoreLabel .psScore{ font-size:11px; margin-left:3px; }
 
+
+  /* V8 score rail: white cue balls with the SCORE inside and player number beside it. */
+  .playerScoreItem{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex:0 0 auto;
+    min-width:54px;
+  }
+  .playerScoreLabel{
+    color:#dcecff;
+    font-size:10px;
+    font-weight:950;
+    line-height:1;
+    min-width:10px;
+    text-align:center;
+    text-shadow:0 1px 5px #000;
+  }
+  .playerDot{
+    position:relative;
+    isolation:isolate;
+    overflow:visible;
+    width:36px;
+    height:36px;
+    min-width:36px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,.92);
+    background:
+      radial-gradient(circle at 31% 27%,#fff 0%,#fff 28%,#e8eef5 64%,#c7d0da 100%);
+    color:#07121d;
+    display:grid;
+    place-items:center;
+    padding:0;
+    font-size:12px;
+    font-weight:1000;
+    line-height:1;
+    cursor:pointer;
+    box-shadow:inset -2px -3px 6px rgba(20,40,60,.20),0 0 7px rgba(255,255,255,.25);
+  }
+  .playerDot.activeTurn{
+    background:
+      radial-gradient(circle at 31% 27%,#fff 0%,#fff 28%,#e8eef5 64%,#c7d0da 100%) !important;
+    color:#07121d !important;
+    border-color:#dff4ff !important;
+    text-shadow:none !important;
+    transform:none !important;
+    box-shadow:
+      inset -2px -3px 6px rgba(20,40,60,.20),
+      0 0 8px #fff,
+      0 0 16px rgba(75,180,255,.95),
+      0 0 28px rgba(40,135,255,.65) !important;
+  }
+  .playerDot.activeTurn::before,
+  .playerDot.activeTurn::after{
+    content:"";
+    position:absolute;
+    inset:-7px;
+    z-index:-1;
+    border-radius:50%;
+    border:2px solid rgba(105,205,255,.88);
+    box-shadow:0 0 9px rgba(95,195,255,.85);
+    animation:soulElectricRing 1.35s linear infinite;
+  }
+  .playerDot.activeTurn::after{
+    inset:-11px;
+    border-style:dashed;
+    border-width:1px;
+    opacity:.55;
+    animation-direction:reverse;
+    animation-duration:2.1s;
+  }
+  @keyframes soulElectricRing{
+    from{transform:rotate(0deg) scale(.96);filter:brightness(1)}
+    50%{transform:rotate(180deg) scale(1.05);filter:brightness(1.45)}
+    to{transform:rotate(360deg) scale(.96);filter:brightness(1)}
+  }
+
+  /* Two compact rows in portrait so controls never float over the playfield. */
+  @media (orientation:portrait){
+    #gameHUD{
+      height:calc(94px + env(safe-area-inset-top,0px)) !important;
+      display:none;
+      grid-template-columns:minmax(0,1fr) auto auto;
+      grid-template-rows:46px 34px;
+      column-gap:6px;
+      row-gap:3px;
+      align-items:center;
+      padding:calc(6px + env(safe-area-inset-top,0px)) 7px 5px !important;
+    }
+    #gameHUD.show{display:grid !important;}
+    .gameScoreWrap{
+      grid-column:1 / -1;
+      grid-row:1;
+      flex-direction:row;
+      align-items:center;
+      gap:6px;
+      overflow:hidden;
+    }
+    .gameScoreTitle{display:none;}
+    .gameScoreCluster{
+      flex:1 1 auto;
+      display:flex;
+      flex-direction:row !important;
+      align-items:center;
+      justify-content:flex-start;
+      gap:9px;
+      overflow-x:auto;
+      overflow-y:hidden;
+      padding:4px 8px 4px 4px;
+    }
+    #activePlayerName{display:none;}
+    .roundBadge{grid-column:1;grid-row:2;justify-self:start;}
+    #gameStartBtn{grid-column:2;grid-row:2;}
+    #gameOptionsBtn{grid-column:3;grid-row:2;}
+    .gameBgControls{
+      position:absolute;
+      right:7px;
+      top:calc(6px + env(safe-area-inset-top,0px));
+      transform:translateY(48px);
+      gap:3px;
+      pointer-events:auto;
+    }
+    .gameBgBtn{height:24px;padding:0 6px;font-size:7px;}
+    .roundBadge{height:26px;padding:0 7px;}
+    .roundBadge .scoreBig{font-size:9px;}
+    .roundBadge .scoreSmall{font-size:7px;}
+    .gameHudBtn{height:26px;padding:0 7px;font-size:8px;}
+    #gameNotice{top:102px !important;}
+  }
+
+  /* On landscape the same cue balls stack cleanly in the left rail. */
+  @media (orientation:landscape){
+    .playerScoreItem{width:auto !important;min-width:48px;}
+    .playerScoreLabel{font-size:9px;}
+    .playerDot{width:34px;height:34px;min-width:34px;font-size:11px;}
+  }
+
   /* Small white player balls. Active player's ball becomes the blue Grand Element sun. */
   .playerDot{
     width:34px;
@@ -915,6 +1056,97 @@
     #gameNotice{ top:86px; }
   }
 
+
+  html,body{ touch-action:manipulation; }
+  #about{ touch-action:pan-y; }
+
+  /* Futuristic normal-site album scan card. */
+  #albumScan{
+    position:fixed;
+    inset:0;
+    z-index:80;
+    display:none;
+    place-items:center;
+    background:rgba(0,0,0,.48);
+    backdrop-filter:blur(4px);
+  }
+  #albumScan.show{display:grid;}
+  .albumScanCard{
+    width:min(86vw,480px);
+    box-sizing:border-box;
+    padding:18px;
+    border-radius:22px;
+    border:1px solid rgba(140,215,255,.62);
+    background:
+      linear-gradient(145deg,rgba(8,20,39,.97),rgba(8,20,39,.88)),
+      repeating-linear-gradient(90deg,transparent 0 8px,rgba(100,200,255,.03) 8px 9px);
+    box-shadow:0 0 26px rgba(75,170,255,.25),inset 0 0 34px rgba(75,170,255,.08);
+    color:#eaf6ff;
+    text-align:left;
+  }
+  .albumScanTop{display:flex;gap:14px;align-items:center;}
+  .albumScanCover{
+    width:82px;height:82px;border-radius:50%;object-fit:cover;
+    box-shadow:0 0 16px rgba(125,210,255,.42);
+  }
+  .albumScanTitle{font-size:20px;font-weight:950;letter-spacing:.04em;}
+  .albumScanMeta{font-size:10px;opacity:.72;margin-top:4px;letter-spacing:.08em;}
+  .albumScanBio{font-size:13px;line-height:1.5;margin:14px 0;color:#d9ebff;}
+  .albumScanActions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+  .albumScanBtn{
+    border:1px solid rgba(185,225,255,.48);
+    border-radius:999px;
+    padding:8px 13px;
+    background:rgba(22,59,96,.82);
+    color:#fff;
+    font-weight:850;
+    cursor:pointer;
+    text-decoration:none;
+  }
+
+  /* Arcade point burst. */
+  #pointBurst{
+    position:fixed;
+    left:50%;
+    top:48%;
+    z-index:90;
+    pointer-events:none;
+    opacity:0;
+    transform:translate(-50%,-50%) scale(.15);
+    font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;
+    font-size:clamp(54px,16vw,150px);
+    letter-spacing:.02em;
+    color:#fff;
+    text-shadow:
+      0 0 6px #fff,
+      0 0 14px #7ad7ff,
+      0 0 30px #348cff,
+      0 7px 0 rgba(0,0,0,.35);
+  }
+  #pointBurst.show{animation:pointBurstAnim 1.25s ease-out forwards;}
+  #pointBurst.penalty{color:#ffd6d6;text-shadow:0 0 7px #fff,0 0 18px #ff5b5b,0 0 34px #ff2a2a;}
+  #pointBurst::before,
+  #pointBurst::after{
+    content:"";
+    position:absolute;
+    left:50%;top:50%;
+    width:190px;height:190px;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.9) 0 2deg,transparent 2deg 14deg);
+    mask:radial-gradient(circle,transparent 0 42%,#000 44% 48%,transparent 50%);
+    -webkit-mask:radial-gradient(circle,transparent 0 42%,#000 44% 48%,transparent 50%);
+    opacity:.7;
+  }
+  #pointBurst::after{width:260px;height:260px;opacity:.34;transform:translate(-50%,-50%) rotate(11deg);}
+  @keyframes pointBurstAnim{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.12) rotate(-5deg);filter:blur(6px)}
+    25%{opacity:1;transform:translate(-50%,-50%) scale(1.22) rotate(2deg);filter:blur(0)}
+    48%{transform:translate(-50%,-50%) scale(.94)}
+    70%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-58%) scale(1.08)}
+  }
+
 </style>
 
 <script>
@@ -957,7 +1189,40 @@ window.GE_EASY_SETTINGS = {
   TRACER_ALPHA: 0.58,
   TRACER_GLOW: 16,
   TRACER_FADE_SECONDS: 5.5,       // fade begins only after every planet has stopped
-  TRACER_MIN_SPEED: 8             // don't draw tracer for tiny resting jitter
+  TRACER_MIN_SPEED: 8,            // don't draw tracer for tiny resting jitter
+
+  // NORMAL WEBSITE PLANET PREVIEW
+  PLANET_PREVIEW_SCALE: 3,
+  PLANET_PREVIEW_ZOOM_MS: 850,
+  PLANET_PREVIEW_HOLD_MS: 3000,
+  PLANET_PREVIEW_SHRINK_MS: 1100,
+
+  // GAME SCORE / CONTACT RULES
+  CONTACT_BONUS_POINTS: 1,
+  CONTACT_PENALTY_POINTS: 1,
+  POINT_BURST_HOLD_MS: 1250,
+
+  // NORMAL WEBSITE — BODIES / SOULS
+  SOUL_START_MIN: 0,
+  SOUL_START_MAX: 2,
+  SOUL_MAX_ACTIVE: 140,
+  SOUL_SPAWN_MIN_SEC: 1.4,
+  SOUL_SPAWN_MAX_SEC: 4.8,
+
+  SHIP_CENTER_RADIUS_FACTOR: 0.34,
+  SHIP_RAY_RADIUS_FACTOR: 1.05,
+  SHIP_RAY_DURATION_MS: 2400,
+  SHIP_RAY_WIDTH: 8,
+  SHIP_MAX_SOULS: 120,
+
+  HALO_BASE_RADIUS: 28,
+  HALO_RING_GAP: 9,
+  HALO_ORBIT_SPEED: 0.55,
+
+  QUANTUM_SIZE_TOLERANCE: 0.22,
+  QUANTUM_NORMAL_RADIUS: 18,
+  QUANTUM_RARE_RADIUS: 78,
+  QUANTUM_RARE_CHANCE: 0.05
 };
 </script>
 
@@ -1025,6 +1290,24 @@ window.GE_EASY_SETTINGS = {
   <div class="cueBall cueBall--blue" id="cueBlue" title="Blue cue"></div>
   <div class="cueBall cueBall--red" id="cueRed" title="Red cue"></div>
 
+
+  <div id="albumScan" role="dialog" aria-modal="true" aria-labelledby="albumScanTitle">
+    <div class="albumScanCard">
+      <div class="albumScanTop">
+        <img class="albumScanCover" id="albumScanCover" alt="">
+        <div>
+          <div class="albumScanTitle" id="albumScanTitle">Album</div>
+          <div class="albumScanMeta" id="albumScanMeta">GRAND ELEMENT ARCHIVE</div>
+        </div>
+      </div>
+      <div class="albumScanBio" id="albumScanBio"></div>
+      <div class="albumScanActions">
+        <button class="albumScanBtn" id="albumScanClose" type="button">CLOSE</button>
+        <a class="albumScanBtn" id="albumScanBandcamp" href="#" target="_blank" rel="noopener">BANDCAMP</a>
+      </div>
+    </div>
+  </div>
+
   <!-- ABOUT -->
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
@@ -1047,8 +1330,8 @@ window.GE_EASY_SETTINGS = {
           <ul>
             <li><b>Blue Sun</b>: "Click" Teleport to another dimension. Move wherever you want.</li>
             <li><b>Album Planets</b>: Shadows under current song playing. "Click" for album link. Drag/throw for pool-ball physics.</li>
-            <li><b>GE Soul particles (Comets)</b>: "Click" and throw.</li>
-            <li><b>GE Bodies (Ships)</b>: Click to send sound-wave tethers on souls. Two souls entagled = quantum reaction</li>
+            <li><b>GE Soul particles (Comets)</b>: Continuous random flow. Click and throw. Similar apparent sizes can enter quantum reactions; rare souls have larger interaction fields.</li>
+            <li><b>GE Bodies (Ships)</b>: Tap the center to stop/start a body. Tap the outer part of the ship to fire a ray in that direction. A soul is grabbed only if it crosses the ray. Captured souls collect into an orbiting halo.</li>
             <li><b>Hidden text</b>: Appears near cursor, and randomly on its own; click to pin/unpin.</li>
           </ul>
         </div>
@@ -1091,6 +1374,7 @@ window.GE_EASY_SETTINGS = {
     </div>
   </div>
   <div id="gameNotice"></div>
+  <div id="pointBurst" aria-hidden="true">+1</div>
   <div id="soulInfoFlyout" aria-hidden="true">
     <div class="soulFlyTrail"></div>
     <div class="soulFlyName" id="soulFlyName">Soul 1</div>
@@ -1156,6 +1440,24 @@ window.GE_EASY_SETTINGS = {
       <div class="optionGrid">
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
+
+        <label><span>Game style</span>
+          <select id="optGameStyle">
+            <option value="bank">Bank Run</option>
+            <option value="bonus">Soul Contact Bonus</option>
+            <option value="penalty">Soul Contact Penalty</option>
+            <option value="low">Low Score Trap</option>
+            <option value="carom">Carom Soul</option>
+          </select>
+        </label>
+        <div class="details" id="gameRuleHelp" style="display:block;margin-top:10px">
+          <b>Bank Run:</b> hit the blue sun. Each cushion bank adds a point. Later rounds require more banks.<br><br>
+          <b>Soul Contact Bonus:</b> each different planet touched during your shot adds 1 bonus point.<br><br>
+          <b>Soul Contact Penalty:</b> each different planet touched during your shot subtracts 1 point.<br><br>
+          <b>Low Score Trap:</b> every bank and planet contact adds to your total. After every Soul has three throws, the lowest score wins the round. Use the other planets as obstacles.<br><br>
+          <b>Carom Soul:</b> your moving planet must touch two different planets before reaching the blue sun. Inspired by carom billiards, where a scoring shot contacts multiple object balls.
+        </div>
+
       </div>
       <div class="gameButtons">
         <button class="gameButton" id="gameScoresBtn" type="button">HIGH SCORES</button>
@@ -1363,8 +1665,33 @@ function placePlanets(){
     aEl.style.backgroundImage = `url('${alb.cover}')`;
     albumPlanets[normAlbumName(alb.title)] = aEl;
 
-    aEl.addEventListener('touchstart', ()=> aEl.classList.add('touchZoom'), {passive:true});
-    aEl.addEventListener('touchend', ()=> aEl.classList.remove('touchZoom'), {passive:true});
+    let previewReady=false, previewTimer=0, previewHoldTimer=0;
+    const previewMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_ZOOM_MS ?? 850);
+    const holdMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_HOLD_MS ?? 3000);
+    const shrinkMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_SHRINK_MS ?? 1100);
+    aEl.style.setProperty('--planet-preview-ms',previewMs+'ms');
+
+    function endPreview(){
+      clearTimeout(previewTimer); clearTimeout(previewHoldTimer);
+      previewReady=false;
+      aEl.style.transitionDuration=shrinkMs+'ms';
+      aEl.classList.remove('previewZoom');
+      setTimeout(()=>{ aEl.style.transitionDuration=''; },shrinkMs+30);
+    }
+    function beginPreview(){
+      if(document.body.classList.contains('game-mode-active')) return;
+      clearTimeout(previewTimer); clearTimeout(previewHoldTimer);
+      aEl.style.transitionDuration=previewMs+'ms';
+      aEl.classList.add('previewZoom');
+      previewReady=false;
+      previewTimer=setTimeout(()=>{
+        previewReady=true;
+        previewHoldTimer=setTimeout(endPreview,holdMs);
+      },previewMs);
+    }
+
+    aEl.addEventListener('pointerenter',beginPreview,{passive:true});
+    aEl.addEventListener('touchstart',()=>{ if(!document.body.classList.contains('game-mode-active')) beginPreview(); },{passive:true});
 
     let downPos=null, dragged=false;
     aEl.addEventListener('pointerdown',e=>{ downPos={x:e.clientX,y:e.clientY}; dragged=false; });
@@ -1373,16 +1700,73 @@ function placePlanets(){
       if(Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y)>6) dragged=true;
     });
     aEl.addEventListener('click',e=>{
-      if(dragged){
-        e.preventDefault();
-        e.stopPropagation();
+      if(document.body.classList.contains('game-mode-active')){
+        e.preventDefault(); e.stopPropagation(); return;
       }
+      e.preventDefault();
+      if(dragged){
+        e.stopPropagation();
+        endPreview();
+        return;
+      }
+      if(previewReady){
+        clearTimeout(previewHoldTimer);
+        if(typeof window.GE_SHOW_ALBUM_SCAN==='function') window.GE_SHOW_ALBUM_SCAN(alb);
+        previewHoldTimer=setTimeout(endPreview,holdMs);
+      }else{
+        beginPreview();
+      }
+    });
+
+    aEl.addEventListener('dblclick',e=>{
+      if(document.body.classList.contains('game-mode-active')) return;
+      e.preventDefault(); e.stopPropagation();
+      window.open(alb.link,'_blank','noopener');
     });
 
     planetsEl.appendChild(aEl);
   });
 }
 placePlanets(); addEventListener('resize', placePlanets, {passive:true});
+
+
+/* Normal-site album scan panel.
+   Archive years / intention notes were not available in the current project context,
+   so this keeps those fields explicit rather than inventing them. */
+(function(){
+  const panel=document.getElementById('albumScan');
+  const cover=document.getElementById('albumScanCover');
+  const title=document.getElementById('albumScanTitle');
+  const meta=document.getElementById('albumScanMeta');
+  const bio=document.getElementById('albumScanBio');
+  const bandcamp=document.getElementById('albumScanBandcamp');
+  const close=document.getElementById('albumScanClose');
+  if(!panel) return;
+
+  const notes={
+    intergy:{year:'Archive year pending',bio:'Grand Element album archive entry. Detailed writing-year and intention notes can be added here when you supply them.'},
+    love:{year:'Archive year pending',bio:'Grand Element album archive entry. Detailed writing-year and intention notes can be added here when you supply them.'},
+    soul:{year:'Archive year pending',bio:'Grand Element album archive entry. Detailed writing-year and intention notes can be added here when you supply them.'},
+    spirit:{year:'Archive year pending',bio:'Grand Element album archive entry. Detailed writing-year and intention notes can be added here when you supply them.'},
+    fire:{year:'Archive year pending',bio:'Grand Element album archive entry. Detailed writing-year and intention notes can be added here when you supply them.'}
+  };
+
+  window.GE_SHOW_ALBUM_SCAN=(alb)=>{
+    if(document.body.classList.contains('game-mode-active')) return;
+    const key=normAlbumName(alb?.title);
+    const n=notes[key]||{year:'Archive year pending',bio:'Grand Element album archive entry.'};
+    cover.src=alb.cover;
+    cover.alt=alb.title;
+    title.textContent=alb.title;
+    meta.textContent='GRAND ELEMENT · '+n.year;
+    bio.textContent=n.bio;
+    bandcamp.href=alb.link;
+    panel.classList.add('show');
+  };
+  close.addEventListener('click',()=>panel.classList.remove('show'));
+  panel.addEventListener('click',e=>{ if(e.target===panel) panel.classList.remove('show'); });
+  addEventListener('keydown',e=>{ if(e.key==='Escape') panel.classList.remove('show'); });
+})();
 
 /* ========= ABOUT ========= */
 document.getElementById('aboutBtn').addEventListener('click', ()=> document.getElementById('about').classList.add('show'));
@@ -2100,12 +2484,19 @@ class Comet{
     this.magnetStrength=rand(0.18,0.72);
     this.mass=rand(0.55,1.8);
     this.affinity=rand(0.15,1);
+    this.quantumRadius=Math.random()<(window.GE_EASY_SETTINGS?.QUANTUM_RARE_CHANCE??0.05)
+      ? (window.GE_EASY_SETTINGS?.QUANTUM_RARE_RADIUS??78)
+      : (window.GE_EASY_SETTINGS?.QUANTUM_NORMAL_RADIUS??18);
+    this.quantumStyle=choice(['swirl','double','straight']);
     this.trail=[]; this.state='fly'; this.dead=false; this.dragging=false;
+    this.capturedBy=null;
   }
   step(dt){
-    if(!this.dragging){ this.x+=this.vx*dt; this.y+=this.vy*dt; }
+    if(!this.dragging && this.state!=='captured' && this.state!=='tethered'){
+      this.x+=this.vx*dt; this.y+=this.vy*dt;
+    }
     this.trail.push([this.x,this.y,performance.now()]); if(this.trail.length>COMET.trail) this.trail.shift();
-    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
+    if(this.state==='fly' && (this.x<-140||this.x>W+140||this.y<-140||this.y>H+140)) this.dead=true;
     const speedForAngle = Math.hypot(this.vx,this.vy);
     if(speedForAngle>1){ this.angle = Math.atan2(this.vy,this.vx)+Math.PI; }
 
@@ -2124,35 +2515,56 @@ class Pair{
   constructor(a,b){
     this.a=a; this.b=b; this.t=0;
     this.cx=(a.x+b.x)/2; this.cy=(a.y+b.y)/2;
-    this.R=Math.max(18, Math.hypot(a.x-b.x)/2);
+    this.R=Math.max(10,Math.hypot(a.x-b.x,a.y-b.y)/2);
     this.theta=Math.atan2(a.y-this.cy,a.x-this.cx);
-    this.omega=(Math.PI*2)/3;
-    const va=Math.atan2(a.vy,a.vx), vb=Math.atan2(b.vy,b.vx), out=(va+vb)/2;
-    this.outA=out; this.outB=out+Math.PI;
-    this.sA=Math.hypot(a.vx,a.vy); this.sB=Math.hypot(b.vx,b.vy);
+    this.omega=choice([-1,1])*rand(1.35,2.65);
+    this.style=choice([a.quantumStyle||'swirl',b.quantumStyle||'straight','swirl','double','straight']);
+    this.sA=Math.max(35,Math.hypot(a.vx,a.vy));
+    this.sB=Math.max(35,Math.hypot(b.vx,b.vy));
+    const va=Math.atan2(a.vy,a.vx), vb=Math.atan2(b.vy,b.vx);
+    this.outA=Math.atan2(Math.sin(va)+Math.sin(vb),Math.cos(va)+Math.cos(vb));
+    this.orbitFor=this.style==='swirl'?rand(2.4,4.6):rand(1.1,2.8);
+    this.pauseFor=this.style==='double'?rand(.7,1.7):rand(.25,1.0);
     this.phase='orbit';
   }
   step(dt){
     this.t+=dt;
     if(this.phase==='orbit'){
+      if(this.style==='swirl') this.R=Math.max(5,this.R*(1-dt*.22));
       this.theta+=this.omega*dt;
-      this.a.x=this.cx+Math.cos(this.theta)*this.R; this.a.y=this.cy+Math.sin(this.theta)*this.R;
-      this.b.x=this.cx-Math.cos(this.theta)*this.R; this.b.y=this.cy-Math.sin(this.theta)*this.R;
-      if(this.t>=3){ this.phase='pause'; this.t=0; }
+      this.a.x=this.cx+Math.cos(this.theta)*this.R;
+      this.a.y=this.cy+Math.sin(this.theta)*this.R;
+      this.b.x=this.cx-Math.cos(this.theta)*this.R;
+      this.b.y=this.cy-Math.sin(this.theta)*this.R;
+      if(this.t>=this.orbitFor){this.phase='pause';this.t=0;}
     }else if(this.phase==='pause'){
-      if(this.t>=2.5){
+      if(this.t>=this.pauseFor){
         this.phase='split';
-        this.a.state='separate'; this.b.state='separate';
-        this.a.vx=Math.cos(this.outA)*this.sA; this.a.vy=Math.sin(this.outA)*this.sA;
-        this.b.vx=Math.cos(this.outB)*this.sB; this.b.vy=Math.sin(this.outB)*this.sB;
+        this.a.state='fly'; this.b.state='fly';
+        if(this.style==='double'){
+          const a=this.outA+rand(-.10,.10), b=this.outA+rand(-.10,.10);
+          this.a.vx=Math.cos(a)*this.sA; this.a.vy=Math.sin(a)*this.sA;
+          this.b.vx=Math.cos(b)*this.sB; this.b.vy=Math.sin(b)*this.sB;
+        }else if(this.style==='straight'){
+          this.a.vx=Math.cos(this.outA)*this.sA; this.a.vy=Math.sin(this.outA)*this.sA;
+          this.b.vx=Math.cos(this.outA+.08)*this.sB; this.b.vy=Math.sin(this.outA+.08)*this.sB;
+        }else{
+          const a=this.theta;
+          this.a.vx=Math.cos(a)*this.sA*1.35; this.a.vy=Math.sin(a)*this.sA*1.35;
+          this.b.vx=-Math.cos(a)*this.sB*1.35; this.b.vy=-Math.sin(a)*this.sB*1.35;
+        }
       }
-    }else{ this.dead=true; }
+    }else{
+      this.dead=true;
+    }
   }
   draw(){
     if(this.phase!=='split'){
-      const g=ctx.createRadialGradient(this.cx,this.cy,2,this.cx,this.cy,this.R+12);
-      g.addColorStop(0,'rgba(180,220,255,.25)'); g.addColorStop(1,'rgba(180,220,255,0)');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.cx,this.cy,this.R+12,0,Math.PI*2); ctx.fill();
+      const g=ctx.createRadialGradient(this.cx,this.cy,2,this.cx,this.cy,this.R+14);
+      g.addColorStop(0,'rgba(180,220,255,.28)');
+      g.addColorStop(1,'rgba(180,220,255,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,this.R+14,0,Math.PI*2); ctx.fill();
     }
   }
 }
@@ -2163,234 +2575,182 @@ addEventListener('pointermove', e=>{ mouseX=e.clientX; mouseY=e.clientY; }, {pas
 
 class Ship{
   constructor(){
-    const side = choice(['l','r','t','b']);
-    this.s = MOBILE ? 0.16 : 0.2;
+    const side=choice(['l','r','t','b']);
+    this.s=MOBILE?0.16:0.2;
     const pad=60;
-    if(side==='l'){ this.x=-pad; this.y=rand(0,H); this.vx=rand(80,220); this.vy=rand(-80,80); }
-    if(side==='r'){ this.x=W+pad; this.y=rand(0,H); this.vx=-rand(80,220); this.vy=rand(-80,80); }
-    if(side==='t'){ this.x=rand(0,W); this.y=-pad; this.vx=rand(-180,180); this.vy=rand(80,220); }
-    if(side==='b'){ this.x=rand(0,W); this.y=H+pad; this.vx=rand(-180,180); this.vy=-rand(80,220); }
-    this.ax=rand(-30,30); this.ay=rand(-30,30); this.curveT=rand(2,5); this.curveP=rand(0,Math.PI*2);
-    this.angle=0; this.dead=false; this.beam=0; this.targets=[]; this.forceBeamUntil=0; this.maxTargets=8; this.captureRadius=22; this.touchGuided=false; this.paused=false; this.savedVx=this.vx; this.savedVy=this.vy;
-    // Autonomous body/soul behavior. Manual click control still overrides this.
-    this.aiState='cruise';
-    this.aiTarget=null;
-    this.aiScan=rand(.25,1.2);
-    this.aiScanEvery=rand(.7,1.8);
-    this.sensorRange=rand(120,300);
+    if(side==='l'){this.x=-pad;this.y=rand(0,H);this.vx=rand(80,220);this.vy=rand(-80,80);}
+    if(side==='r'){this.x=W+pad;this.y=rand(0,H);this.vx=-rand(80,220);this.vy=rand(-80,80);}
+    if(side==='t'){this.x=rand(0,W);this.y=-pad;this.vx=rand(-180,180);this.vy=rand(80,220);}
+    if(side==='b'){this.x=rand(0,W);this.y=H+pad;this.vx=rand(-180,180);this.vy=-rand(80,220);}
+    this.ax=rand(-30,30);this.ay=rand(-30,30);this.curveT=rand(2,5);this.curveP=rand(0,Math.PI*2);
+    this.angle=0;this.dead=false;this.paused=false;this.savedVx=this.vx;this.savedVy=this.vy;
+    this.targets=[];this.beam=0;this.manualRay=null;
+    this.maxTargets=window.GE_EASY_SETTINGS?.SHIP_MAX_SOULS??120;
+    this.captureRadius=22;
+    this.haloPhase=rand(0,Math.PI*2);
     this.magnetRadius=rand(28,65);
     this.attraction=rand(.28,.9);
-    this.huntChance=rand(.35,.78);
-    this.waitChance=rand(.15,.52);
-    this.patience=rand(1.3,4.5);
-    this.aiUntil=0;
-    this.naturalContactUntil=0;
   }
-  cometAhead(c){
-    const dx=c.x-this.x, dy=c.y-this.y, d=Math.hypot(dx,dy)||1;
-    if(d>this.sensorRange) return false;
-    const speed=Math.hypot(this.vx,this.vy)||1;
-    const dot=(this.vx/speed)*(dx/d)+(this.vy/speed)*(dy/d);
-    return dot>0.18;
+  fireRay(angle){
+    this.manualRay={
+      angle,
+      until:performance.now()+(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400),
+      hit:new Set()
+    };
   }
-  pickRadarTarget(){
-    const pool=comets.filter(c=>c.state==='fly' && !this.targets.includes(c) && this.cometAhead(c));
-    if(!pool.length) return null;
-    pool.sort((a,b)=>{
-      const da=Math.hypot(a.x-this.x,a.y-this.y), db=Math.hypot(b.x-this.x,b.y-this.y);
-      return (da/(.4+a.affinity))-(db/(.4+b.affinity));
-    });
-    return pool[0]||null;
+  rayLength(){return Math.hypot(W,H)*1.25;}
+  rayHitTest(c){
+    if(!this.manualRay||c.dead||c.dragging||c.state!=='fly') return false;
+    const ux=Math.cos(this.manualRay.angle),uy=Math.sin(this.manualRay.angle);
+    const dx=c.x-this.x,dy=c.y-this.y;
+    const along=dx*ux+dy*uy;
+    if(along<0||along>this.rayLength()) return false;
+    const perp=Math.abs(dx*uy-dy*ux);
+    return perp <= (window.GE_EASY_SETTINGS?.SHIP_RAY_WIDTH??8)+Math.max(2,c.r);
   }
-  beginAutoTrack(c){
-    if(!c) return;
-    this.aiTarget=c;
-    const incoming=((c.x-this.x)*c.vx+(c.y-this.y)*c.vy)<0;
-    this.aiState=(incoming && Math.random()<this.waitChance)?'wait':'track';
-    this.aiUntil=performance.now()+this.patience*1000;
-  }
-  autoThink(dt){
-    if(this.forceBeamUntil>performance.now() || this.targets.length) return;
-    this.aiScan-=dt;
-    if(this.aiState==='cruise' && this.aiScan<=0){
-      this.aiScan=this.aiScanEvery*rand(.7,1.4);
-      const c=this.pickRadarTarget();
-      if(c && Math.random()<this.huntChance) this.beginAutoTrack(c);
-    }
-    const c=this.aiTarget;
-    if((this.aiState==='track'||this.aiState==='wait') && (!c || c.dead || c.state!=='fly' || performance.now()>this.aiUntil)){
-      this.aiState='cruise'; this.aiTarget=null; return;
-    }
-    if(!c) return;
-    const dx=c.x-this.x, dy=c.y-this.y, dist=Math.hypot(dx,dy)||1;
-    const ux=dx/dist, uy=dy/dist;
-    if(this.aiState==='track'){
-      // Visible radar acquisition: brake first, then curve toward the soul.
-      this.vx*=Math.pow(.80,dt*2.2); this.vy*=Math.pow(.80,dt*2.2);
-      const steer=72*this.attraction;
-      this.vx+=ux*steer*dt; this.vy+=uy*steer*dt;
-    }else if(this.aiState==='wait'){
-      // Sometimes the body recognizes an incoming soul and simply waits for it.
-      this.vx*=Math.pow(.42,dt*3.0); this.vy*=Math.pow(.42,dt*3.0);
-      this.vx+=ux*8*dt; this.vy+=uy*8*dt;
-    }
-    const tetherRange=38 + c.magnetRadius + this.magnetRadius*.45;
-    if(dist<tetherRange){
-      this.targets.push(c); this.beam=1; this.aiState='tether'; this.aiTarget=null;
+  scanManualRay(){
+    if(!this.manualRay) return;
+    if(performance.now()>this.manualRay.until){this.manualRay=null;return;}
+    for(const c of comets){
+      if(this.targets.length>=this.maxTargets) break;
+      if(this.manualRay.hit.has(c)) continue;
+      if(this.rayHitTest(c)){
+        this.manualRay.hit.add(c);
+        c.state='tethered';
+        c.capturedBy=this;
+        if(!this.targets.includes(c)) this.targets.push(c);
+        this.beam=1;
+      }
     }
   }
-  captureNextComet(){
-    const pool = comets.filter(c => c.state==='fly' && !this.targets.includes(c));
-    if (!pool.length || this.targets.length >= this.maxTargets) return;
-    pool.sort((a,b)=> (Math.hypot(a.x-this.x,a.y-this.y) - Math.hypot(b.x-this.x,b.y-this.y)));
-    this.targets.push(pool[0]);
-    this.beam = 1;
+  updateHalo(dt){
+    this.haloPhase+=dt*(window.GE_EASY_SETTINGS?.HALO_ORBIT_SPEED??.55);
+    let capturedIndex=0;
+    for(const c of this.targets){
+      if(c.dead) continue;
+      if(c.state==='tethered'){
+        const dx=this.x-c.x,dy=this.y-c.y,dist=Math.hypot(dx,dy)||1;
+        const pull=95+Math.min(160,dist*.28);
+        c.vx=c.vx*.90+(dx/dist)*pull*dt*8;
+        c.vy=c.vy*.90+(dy/dist)*pull*dt*8;
+        c.x+=c.vx*dt;c.y+=c.vy*dt;
+        if(dist<this.captureRadius+c.r+5){c.state='captured';c.vx=0;c.vy=0;}
+      }
+      if(c.state==='captured'){
+        const i=capturedIndex++;
+        const base=window.GE_EASY_SETTINGS?.HALO_BASE_RADIUS??28;
+        const gap=window.GE_EASY_SETTINGS?.HALO_RING_GAP??9;
+        const ring=Math.floor(Math.sqrt(i/6));
+        const radius=base+ring*gap;
+        const slots=Math.max(8,Math.floor((Math.PI*2*radius)/Math.max(7,c.r*2.8)));
+        const slot=i%slots;
+        const dir=ring%2?-1:1;
+        const phase=(slot/slots)*Math.PI*2+this.haloPhase*dir*(1+(ring%3)*.16);
+        c.x=this.x+Math.cos(phase)*radius;
+        c.y=this.y+Math.sin(phase)*radius;
+        c.vx=0;c.vy=0;
+      }
+    }
+    this.targets=this.targets.filter(c=>!c.dead&&(c.state==='tethered'||c.state==='captured'));
+  }
+  releaseHalo(){
+    for(const c of this.targets){
+      if(c.dead) continue;
+      const a=Math.atan2(c.y-this.y,c.x-this.x)+rand(-.28,.28);
+      const speed=rand(55,190);
+      c.state='fly';c.capturedBy=null;
+      c.vx=Math.cos(a)*speed;c.vy=Math.sin(a)*speed;
+    }
+    this.targets.length=0;this.beam=0;
   }
   step(dt){
-    if(this.touchGuided){
-      this.x += this.vx * dt;
-      this.y += this.vy * dt;
-      this.vx *= MOBILE ? 0.965 : 0.985;
-      this.vy *= MOBILE ? 0.965 : 0.985;
-      const speedForAngle=Math.hypot(this.vx,this.vy);
-      if(speedForAngle>1) this.angle=Math.atan2(this.vy,this.vx)+Math.PI;
-      return;
-    }
     if(this.paused){
-      this.vx = 0; this.vy = 0;
-      if (this.targets.length){
-        const cx = this.targets.reduce((sum,c)=>sum+c.x,0)/this.targets.length;
-        const cy = this.targets.reduce((sum,c)=>sum+c.y,0)/this.targets.length;
-        const midX = (this.x + cx)/2, midY = (this.y + cy)/2;
-        for (const c of this.targets){
-          const dx = midX - c.x, dy = midY - c.y;
-          const dist = Math.hypot(dx,dy) || 1;
-          const k = 60, damp = 0.90;
-          c.vx = (c.vx*damp) + (dx/dist)*k;
-          c.vy = (c.vy*damp) + (dy/dist)*k;
-          if (dist < this.captureRadius) c.state='captured';
-        }
-      }
-      if (performance.now() < this.forceBeamUntil) this.beam = 1;
+      this.vx=0;this.vy=0;
+      this.scanManualRay();
+      this.updateHalo(dt);
       return;
     }
-    // Base drift wobble
+
     this.curveP+=dt/this.curveT;
-    this.vx+=Math.sin(this.curveP)*18*dt + this.ax*dt*.2;
-    this.vy+=Math.cos(this.curveP)*18*dt + this.ay*dt*.2;
+    this.vx+=Math.sin(this.curveP)*18*dt+this.ax*dt*.2;
+    this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
 
-    this.autoThink(dt);
-
-    const shipR = (shipImg.height||100)*this.s*0.3;
-    const outer = shipR*2.2, inner = shipR*1.6;
-    const dx = mouseX-this.x, dy = mouseY-this.y, d = Math.hypot(dx,dy);
-    const stopRegion = d < inner*0.6;
-
-    // Cursor steering and slow-down near center
-    if(d < outer){
-      const dir = Math.atan2(dy,dx);
-      const k = Math.max(0, Math.min(1, (d-inner) / (outer-inner)));
-      const followSpeed = 180*k;
-      const stopDamp    = (d<inner ? 0.80 : 0.98);
-      this.vx = this.vx*stopDamp + Math.cos(dir)*followSpeed*dt;
-      this.vy = this.vy*stopDamp + Math.sin(dir)*followSpeed*dt;
-
-      // Deep center: heavy damping so the ship glides to a stop without jerking
-      if(stopRegion){
-        this.vx *= 0.5;
-        this.vy *= 0.5;
-      }
-    }
-
-    const v=Math.hypot(this.vx,this.vy); const vmin=50, vmax=320;
-    // Do NOT re-kick minimum speed when we're in the stop region
-    if(v<vmin && !stopRegion){
+    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=320;
+    if(v<vmin){
       const a=Math.atan2(this.vy,this.vx);
-      this.vx=Math.cos(a||0)*vmin; this.vy=Math.sin(a||0)*vmin;
+      this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
     }
-    if(v>vmax){ this.vx*=vmax/v; this.vy*=vmax/v; }
+    if(v>vmax){this.vx*=vmax/v;this.vy*=vmax/v;}
 
-    this.x+=this.vx*dt; this.y+=this.vy*dt;
-    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140) this.dead=true;
-    const speedForAngle=Math.hypot(this.vx,this.vy);
-    if(speedForAngle>1){ this.angle=Math.atan2(this.vy,this.vx)+Math.PI; }
-
-    if (this.targets.length){
-      for (const c of this.targets){
-        const dx = this.x - c.x, dy = this.y - c.y;
-        const dist = Math.hypot(dx,dy) || 1;
-        // Soft attraction: almost nothing at the edge, stronger near the body.
-        const field=Math.max(0,1-dist/Math.max(24,this.magnetRadius+c.magnetRadius));
-        const k = 34 + 88*field*field*this.attraction*c.magnetStrength;
-        const damp = 0.91;
-        c.vx = (c.vx*damp) + (dx/dist)*k;
-        c.vy = (c.vy*damp) + (dy/dist)*k;
-        if (dist < this.captureRadius + c.r) c.state='captured';
+    this.x+=this.vx*dt;this.y+=this.vy*dt;
+    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140){
+      if(this.targets.length){
+        // Keep a body with a halo around long enough to remain usable.
+        this.x=Math.max(-40,Math.min(W+40,this.x));
+        this.y=Math.max(-40,Math.min(H+40,this.y));
+        this.vx*=-.65;this.vy*=-.65;
+      }else{
+        this.dead=true;
       }
-      // Once one soul is close, the body can begin looking for a second one.
-      if(this.targets.length===1 && this.targets[0].state==='captured' && Math.random()<dt*.55){
-        const second=this.pickRadarTarget();
-        if(second){ this.aiTarget=second; this.aiState='track'; this.aiUntil=performance.now()+this.patience*1000; }
-      }
-      if(this.aiTarget && this.targets.length===1){
-        const c=this.aiTarget, dx=c.x-this.x,dy=c.y-this.y,dist=Math.hypot(dx,dy)||1;
-        this.vx=this.vx*.985+(dx/dist)*58*dt; this.vy=this.vy*.985+(dy/dist)*58*dt;
-        if(dist < 38+c.magnetRadius+this.magnetRadius*.35){ this.targets.push(c); this.aiTarget=null; this.aiState='tether'; }
-      }
-      const tight = this.targets.length>=2 && this.targets.slice(0,2).every(c=>c.state==='captured');
-      if (tight){
-        pairs.push(new Pair(this.targets[0], this.targets[1]));
-        if (this.targets[2]) pairs.push(new Pair(this.targets[1], this.targets[2]));
-        setTimeout(()=>{ this.targets.forEach(c=>{if(!c.dead)c.state='fly';}); this.targets.length=0; this.beam=0; this.aiState='cruise'; }, 1800);
-      }
-    } else {
-      this.beam = Math.max(0, this.beam - dt*1.2);
     }
 
-    if (performance.now() < this.forceBeamUntil) this.beam = 1;
+    const sp=Math.hypot(this.vx,this.vy);
+    if(sp>1)this.angle=Math.atan2(this.vy,this.vx)+Math.PI;
+
+    this.scanManualRay();
+    this.updateHalo(dt);
+    if(!this.targets.length)this.beam=Math.max(0,this.beam-dt*1.2);
   }
   draw(){
-    if(!shipImg.complete) return;
-    const ang=(this.angle!=null ? this.angle : Math.atan2(this.vy,this.vx)+Math.PI);
-    const w=shipImg.width*this.s, h=shipImg.height*this.s;
-    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(ang);
-    const drawW=w*0.6, drawH=h*0.6; ctx.drawImage(shipImg,-drawW*0.3,-drawH*0.5,drawW,drawH);
+    if(!shipImg.complete)return;
+    const ang=this.angle!=null?this.angle:Math.atan2(this.vy,this.vx)+Math.PI;
+    const w=shipImg.width*this.s,h=shipImg.height*this.s;
+    ctx.save();ctx.translate(this.x,this.y);ctx.rotate(ang);
+    const drawW=w*.6,drawH=h*.6;
+    ctx.drawImage(shipImg,-drawW*.3,-drawH*.5,drawW,drawH);
 
-    if(this.beam>0 && this.targets.length){
+    if(this.manualRay&&performance.now()<this.manualRay.until){
+      const len=this.rayLength();
+      const remaining=Math.max(0,(this.manualRay.until-performance.now())/(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400));
+      ctx.save();
+      ctx.rotate(this.manualRay.angle-ang);
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=.2+.4*remaining;
+      ctx.strokeStyle='rgba(110,195,255,.95)';
+      ctx.lineWidth=window.GE_EASY_SETTINGS?.SHIP_RAY_WIDTH??8;
+      ctx.shadowColor='rgba(110,195,255,.95)';
+      ctx.shadowBlur=18;
+      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(len,0);ctx.stroke();
+      ctx.globalAlpha=.95;
+      ctx.strokeStyle='rgba(230,250,255,.98)';
+      ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(len,0);ctx.stroke();
+      ctx.restore();
+    }
+
+    if(this.targets.length){
       for(const c of this.targets){
-        const mx=c.x - this.x, my=c.y - this.y, len=Math.hypot(mx,my);
-        ctx.save(); ctx.rotate(Math.atan2(my,mx));
-        const phase = performance.now()/220;
-        // Outer energy ribbon
-        ctx.globalAlpha = 0.28 * this.beam;
-        ctx.strokeStyle='rgba(126,203,255,.9)'; ctx.lineWidth=6;
+        if(c.state!=='tethered')continue;
+        const mx=c.x-this.x,my=c.y-this.y,len=Math.hypot(mx,my);
+        ctx.save();ctx.rotate(Math.atan2(my,mx)-ang);
+        const phase=performance.now()/220;
+        ctx.globalAlpha=.30;
+        ctx.strokeStyle='rgba(126,203,255,.95)';ctx.lineWidth=6;
         ctx.beginPath();
         for(let i=12;i<=len;i+=5){
-          const u = len ? i/len : 1;
-          const envelope = Math.sin(Math.PI*u); // zero wiggle at ship and comet so it visibly attaches
-          const dy=Math.sin(u*Math.PI*5 + phase)*8*envelope*(0.55+0.45*this.beam);
-          if(i===12) ctx.moveTo(i,dy); else ctx.lineTo(i,dy);
+          const u=len?i/len:1;
+          const envelope=Math.sin(Math.PI*u);
+          const yy=Math.sin(u*Math.PI*5+phase)*8*envelope;
+          if(i===12)ctx.moveTo(i,yy);else ctx.lineTo(i,yy);
         }
-        ctx.lineTo(len,0); ctx.stroke();
-        // Bright core tether
-        ctx.globalAlpha = 0.9 * this.beam;
-        ctx.strokeStyle='rgba(210,240,255,.98)'; ctx.lineWidth=1.5;
-        ctx.beginPath();
-        for(let i=12;i<=len;i+=5){
-          const u = len ? i/len : 1;
-          const envelope = Math.sin(Math.PI*u);
-          const dy=Math.sin(u*Math.PI*5 + phase)*5*envelope;
-          if(i===12) ctx.moveTo(i,dy); else ctx.lineTo(i,dy);
-        }
-        ctx.lineTo(len,0); ctx.stroke();
-        // Attachment point on the comet
-        const pulse = 4 + Math.sin(performance.now()/120)*1.5;
-        ctx.globalAlpha = 0.95 * this.beam;
-        ctx.fillStyle='rgba(220,245,255,.95)';
-        ctx.beginPath(); ctx.arc(len,0,Math.max(2,pulse),0,Math.PI*2); ctx.fill();
-        ctx.globalAlpha = 0.35 * this.beam;
-        ctx.strokeStyle='rgba(126,203,255,.95)'; ctx.lineWidth=2;
-        ctx.beginPath(); ctx.arc(len,0,9+Math.sin(performance.now()/160)*2,0,Math.PI*2); ctx.stroke();
+        ctx.lineTo(len,0);ctx.stroke();
+
+        ctx.globalAlpha=.95;
+        ctx.strokeStyle='rgba(225,248,255,.98)';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(len,0);ctx.stroke();
+
+        ctx.fillStyle='rgba(230,250,255,.98)';
+        ctx.beginPath();ctx.arc(len,0,4,0,Math.PI*2);ctx.fill();
         ctx.restore();
       }
     }
@@ -2453,8 +2813,15 @@ class MiniShip{
 }
 
 const comets=[], pairs=[], ships=[], miniShips=[];
-for(let i=0;i<3;i++) comets.push(new Comet());
-let last=performance.now()/1000, cTimer=0, cNext=rand(2,5), shipTimer=0, shipNext=rand(10,20), miniTimer=0, miniNext=rand(4,9);
+const initialSoulCount=Math.floor(rand(
+  window.GE_EASY_SETTINGS?.SOUL_START_MIN??0,
+  (window.GE_EASY_SETTINGS?.SOUL_START_MAX??2)+1
+));
+for(let i=0;i<initialSoulCount;i++)comets.push(new Comet());
+let last=performance.now()/1000,cTimer=0,
+    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
+               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8),
+    shipTimer=0,shipNext=rand(10,20),miniTimer=0,miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
 
 /* Ripple teleport + backgrounds */
@@ -2530,78 +2897,49 @@ function collideElastic(a,b,rest=0.98){
 }
 
 
-/* Mobile ship control:
-   Touch near a ship to stop it immediately.
-   Drag from that point to choose a slow direction.
-   Release to let it glide with friction. */
-let shipTouch = null;
-function nearestShipForTouch(x,y){
-  const radius = MOBILE ? 90 : 34;
-  let best = null;
-  let bestD = radius;
+/* Ship control:
+   CENTER tap = stop/start the body.
+   OUTER ship tap = fire one directional ray.
+   Cursor/pointer movement by itself never sends a ray. */
+function shipHitGeometry(s,x,y){
+  const visualR=Math.max(24,(shipImg.height||100)*s.s*.32);
+  const d=Math.hypot(x-s.x,y-s.y);
+  const centerR=visualR*(window.GE_EASY_SETTINGS?.SHIP_CENTER_RADIUS_FACTOR??.34);
+  const rayR=visualR*(window.GE_EASY_SETTINGS?.SHIP_RAY_RADIUS_FACTOR??1.05);
+  if(d<=centerR)return{zone:'center',d};
+  if(d<=rayR)return{zone:'ray',d};
+  return null;
+}
+function nearestShipHit(x,y){
+  let best=null,bestD=Infinity;
   for(const s of ships){
-    const d = Math.hypot(s.x-x, s.y-y);
-    if(d < bestD){ best=s; bestD=d; }
+    const hit=shipHitGeometry(s,x,y);
+    if(hit&&hit.d<bestD){best={ship:s,...hit};bestD=hit.d;}
   }
   return best;
 }
-canvas.addEventListener('pointerdown', e=>{
-  const s = nearestShipForTouch(e.clientX,e.clientY);
-  if(!s) return;
-  shipTouch = {ship:s, startX:e.clientX, startY:e.clientY, moved:false, preVx:s.vx, preVy:s.vy, wasPaused:s.paused};
-  s.touchGuided = true;
-  s.vx = 0;
-  s.vy = 0;
-  try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
-  e.preventDefault();
-  e.stopImmediatePropagation();
-}, {passive:false});
+canvas.addEventListener('pointerdown',e=>{
+  if(document.body.classList.contains('game-mode-active'))return;
+  const hit=nearestShipHit(e.clientX,e.clientY);
+  if(!hit)return;
+  const s=hit.ship;
 
-canvas.addEventListener('pointermove', e=>{
-  if(!shipTouch) return;
-  const dx = e.clientX - shipTouch.startX;
-  const dy = e.clientY - shipTouch.startY;
-  const distance = Math.hypot(dx,dy);
-  shipTouch.moved = shipTouch.moved || distance > 6;
-  const maxSpeed = MOBILE ? 72 : 150;
-  const scale = Math.min(1, distance / (MOBILE ? 120 : 80));
-  if(distance > 0){
-    shipTouch.ship.vx = (dx / distance) * maxSpeed * scale;
-    shipTouch.ship.vy = (dy / distance) * maxSpeed * scale;
-  }
-  e.preventDefault();
-  e.stopImmediatePropagation();
-}, {passive:false});
-
-function releaseShipTouch(e){
-  if(!shipTouch) return;
-  const s = shipTouch.ship;
-  s.touchGuided = false;
-  if(!shipTouch.moved){
-    if(shipTouch.wasPaused){
-      s.paused = false;
-      s.vx = Math.abs(shipTouch.preVx) + Math.abs(shipTouch.preVy) > 1 ? shipTouch.preVx : (s.savedVx || -120);
-      s.vy = Math.abs(shipTouch.preVx) + Math.abs(shipTouch.preVy) > 1 ? shipTouch.preVy : (s.savedVy || 0);
+  if(hit.zone==='center'){
+    if(s.paused){
+      s.paused=false;
+      s.vx=Math.abs(s.savedVx||0)+Math.abs(s.savedVy||0)>2?s.savedVx:rand(-150,150);
+      s.vy=Math.abs(s.savedVx||0)+Math.abs(s.savedVy||0)>2?s.savedVy:rand(-80,80);
     }else{
-      s.savedVx = Math.abs(shipTouch.preVx) > 1 ? shipTouch.preVx : (s.savedVx || -120);
-      s.savedVy = Math.abs(shipTouch.preVy) > 1 ? shipTouch.preVy : (s.savedVy || 0);
-      s.paused = true;
-      s.vx = 0;
-      s.vy = 0;
+      s.savedVx=s.vx;s.savedVy=s.vy;
+      s.paused=true;s.vx=0;s.vy=0;
     }
-    s.forceBeamUntil = performance.now()+2200;
-    s.captureNextComet();
   }else{
-    s.paused = false;
+    s.fireRay(Math.atan2(e.clientY-s.y,e.clientX-s.x));
   }
-  shipTouch = null;
-  try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
+
   e.preventDefault();
   e.stopImmediatePropagation();
-}
-canvas.addEventListener('pointerup', releaseShipTouch, {passive:false});
-canvas.addEventListener('pointercancel', releaseShipTouch, {passive:false});
-
+},{passive:false});
 
 /* Drag & throw for comets */
 let drag={obj:null,kind:null,hist:[]};
@@ -2656,17 +2994,6 @@ canvas.addEventListener('pointerup', (e)=>{
   drag.obj.dragging=false; drag={obj:null,kind:null,hist:[]}; e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId);
 });
 
-/* Click near ship/mini-ship → add tether */
-canvas.addEventListener('pointerdown', (e)=>{
-  let nearest=null, best=28;
-  for(const s of ships){ const d=Math.hypot(s.x-e.clientX,s.y-e.clientY); if(d<best){ best=d; nearest=s; } }
-  for(const m of miniShips){ const d=Math.hypot(m.x-e.clientX,m.y-e.clientY); if(d<best){ best=d; nearest=m; } }
-  if(nearest){
-    const until = performance.now()+2200;
-    nearest.forceBeamUntil = until;
-    if (typeof nearest.captureNextComet === 'function') nearest.captureNextComet();
-  }
-},{passive:true});
 
 /* Body / soul proximity field. This is intentionally subtle and local. */
 function bodySoulField(dt){
@@ -2683,13 +3010,10 @@ function bodySoulField(dt){
         c.vx+=(dx/dist)*force*dt;
         c.vy+=(dy/dist)*force*dt;
       }
-      // A soul can naturally fly into a body without a ray.
+      // Proximity can bend a soul slightly, but capture requires a ray crossing.
       if(c.state==='fly' && dist < shipBodyR + Math.max(2,c.r)){
-        c.state='captured';
-        c.vx=s.vx*.25; c.vy=s.vy*.25;
-        if(!s.targets.includes(c)) s.targets.push(c);
-        s.naturalContactUntil=performance.now()+1200;
-        s.aiState='tether';
+        c.vx+=(dx/dist)*3*dt;
+        c.vy+=(dy/dist)*3*dt;
       }
     }
   }
@@ -2710,11 +3034,17 @@ function loop(){
   }
 
   const hot = PERF.heat>0.6;
-  const wantComets = 3;
+  const maxComets = window.GE_EASY_SETTINGS?.SOUL_MAX_ACTIVE ?? 140;
   const wantShips  = hot ? Math.max(1, MAX_SHIPS-1) : MAX_SHIPS;
   const wantMini   = hot ? Math.max(6, MINI_MAX-6) : MINI_MAX;
 
-  cTimer+=dt; if(cTimer>cNext && comets.length<wantComets){ comets.push(new Comet()); cTimer=0; cNext=rand(...COMET.spawn); }
+  cTimer+=dt;
+  if(cTimer>cNext && comets.length<maxComets){
+    comets.push(new Comet());
+    cTimer=0;
+    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
+               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8);
+  }
   shipTimer+=dt; if(shipTimer>shipNext){ shipTimer=0; shipNext=rand(7,14); if(ships.length<wantShips) ships.push(new Ship()); }
   miniTimer+=dt; if(miniTimer>miniNext){ miniTimer=0; miniNext=rand(4,9); if(miniShips.length<wantMini) miniShips.push(new MiniShip()); }
 
@@ -2760,17 +3090,28 @@ function loop(){
     if(rr) collideElastic(c,{x:rx,y:ry,r:rr},0.95);
   }
 
-  for(let i=0;i<comets.length;i++)
+  for(let i=0;i<comets.length;i++){
     for(let j=i+1;j<comets.length;j++){
-      const a=comets[i], b=comets[j];
-      if(a.state!=='fly'||b.state!=='fly') continue;
-      if(Math.hypot(a.x-b.x) < COMET.touch){
-        a.state='pair'; b.state='pair'; pairs.push(new Pair(a,b));
+      const a=comets[i],b=comets[j];
+      if(a.state!=='fly'||b.state!=='fly')continue;
+
+      const ratio=Math.min(a.r,b.r)/Math.max(a.r,b.r);
+      const tolerance=window.GE_EASY_SETTINGS?.QUANTUM_SIZE_TOLERANCE??.22;
+      if(ratio<1-tolerance)continue;
+
+      const field=Math.max(
+        (a.r+b.r)*1.15,
+        Math.min(a.quantumRadius||18,b.quantumRadius||18)
+      );
+      const dist=Math.hypot(a.x-b.x,a.y-b.y);
+      if(dist<field){
+        a.state='pair';b.state='pair';
+        pairs.push(new Pair(a,b));
       }
     }
+  }
 
   for(let i=comets.length-1;i>=0;i--) if(comets[i].dead) comets.splice(i,1);
-  while(comets.length < 3) comets.push(new Comet());
   for(let i=pairs.length-1;i>=0;i--) if(pairs[i].dead) pairs.splice(i,1);
   for(let i=ships.length-1;i>=0;i--) if(ships[i].dead) ships.splice(i,1);
   for(let i=miniShips.length-1;i>=0;i--) if(miniShips[i].dead) miniShips.splice(i,1);
@@ -3009,9 +3350,16 @@ function planetStep(){
 
     p.el.style.left=(p.x-p.r)+'px'; p.el.style.top=(p.y-p.r)+'px';
   }
-  for(let i=0;i<planetNodes.length;i++)
-    for(let j=i+1;j<planetNodes.length;j++)
-      collideElastic(planetNodes[i], planetNodes[j], 0.98);
+  for(let i=0;i<planetNodes.length;i++){
+    for(let j=i+1;j<planetNodes.length;j++){
+      const a=planetNodes[i], b=planetNodes[j];
+      const touchingBefore=Math.hypot(a.x-b.x,a.y-b.y) < (a.r+b.r);
+      if(touchingBefore && window.GE_GAME && typeof window.GE_GAME.planetContact==='function'){
+        window.GE_GAME.planetContact(a,b);
+      }
+      collideElastic(a,b,0.98);
+    }
+  }
 
   requestAnimationFrame(planetStep);
 }
@@ -3043,6 +3391,8 @@ const GE_GAME = (()=>{
     requiredBanks:0,
     notices:true,
     showBanks:true,
+    gameStyle:'bank',
+    lowRoundPending:false,
     completed:false,
     planetState:new WeakMap(),
     autoNext:0
@@ -3096,6 +3446,8 @@ const GE_GAME = (()=>{
   const exitBtn=document.getElementById('gameExitBtn');
   const optNotices=document.getElementById('optNotices');
   const optBanks=document.getElementById('optBanks');
+  const optGameStyle=document.getElementById('optGameStyle');
+  const pointBurst=document.getElementById('pointBurst');
   const notice=document.getElementById('gameNotice');
   const roundPrompt=document.getElementById('roundPrompt');
   const roundSummary=document.getElementById('roundSummary');
@@ -3207,13 +3559,11 @@ const GE_GAME = (()=>{
       const lab=document.createElement('div');
       lab.className='playerScoreLabel';
       if(state.players===0){
-        lab.innerHTML='<span class="psName">AUTO</span>';
+        lab.textContent='A';
         el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showSoulFlyout(0,el); });
       }else{
-        lab.innerHTML='<span class="psName">'+escapeHtml(playerLabel(i))+'</span>';
+        lab.textContent=String(i+1);
         el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showSoulFlyout(i,el); });
-        lab.style.cursor='pointer';
-        lab.addEventListener('click',(ev)=>{ ev.stopPropagation(); openPlayerOptions(i); });
       }
 
       item.appendChild(el);
@@ -3236,9 +3586,23 @@ const GE_GAME = (()=>{
       activeNameEl.textContent='AUTO / DEMO';
     }else{
       const mult=playerMultiplierValue(state.activePlayer);
-      activeNameEl.textContent=`${playerLabel(state.activePlayer)} · TURN ${state.turnInSet+1}/${state.turnsPerPlayer}${mult>1?' · '+mult+'×':''}`;
+      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · TURN ${state.turnInSet+1}/${state.turnsPerPlayer}${mult>1?' · '+mult+'×':''}`;
     }
     if(animateName) flashActiveName();
+  }
+
+
+  let pointBurstTimer=0;
+  function showPointBurst(points,kind='score'){
+    if(!pointBurst) return;
+    clearTimeout(pointBurstTimer);
+    pointBurst.classList.remove('show','penalty');
+    pointBurst.textContent=(points>0?'+':'')+String(points);
+    if(points<0 || kind==='penalty') pointBurst.classList.add('penalty');
+    void pointBurst.offsetWidth;
+    pointBurst.classList.add('show');
+    pointBurstTimer=setTimeout(()=>pointBurst.classList.remove('show','penalty'),
+      window.GE_EASY_SETTINGS?.POINT_BURST_HOLD_MS ?? 1250);
   }
 
   let noticeTimer=0;
@@ -3284,6 +3648,8 @@ const GE_GAME = (()=>{
     gameBackground.style.backgroundRepeat='no-repeat';
     gameBackground.style.backgroundSize='cover';
     gameBackground.style.transform='none';
+    const trails=document.getElementById('gameTrails');
+    if(trails) trails.style.filter=`hue-rotate(${(gameBgIndex*23)%360}deg) saturate(1.18)`;
     gameBgOff?.classList.remove('active');
   }
   function setGameBackgroundOff(){
@@ -3292,6 +3658,8 @@ const GE_GAME = (()=>{
     gameBackground.style.backgroundColor='#000';
     gameBackground.style.backgroundImage='none';
     gameBackground.style.transform='none';
+    const trails=document.getElementById('gameTrails');
+    if(trails) trails.style.filter='none';
     gameBgOff?.classList.add('active');
   }
   gameBgPrev?.addEventListener('click',()=>setGameBackgroundIndex(gameBgIndex-1));
@@ -3409,6 +3777,11 @@ const GE_GAME = (()=>{
   });
   optionsBtn.addEventListener('click',()=>optionsPanel.classList.add('show'));
   optionsClose.addEventListener('click',()=>optionsPanel.classList.remove('show'));
+  optGameStyle?.addEventListener('change',()=>{
+    state.gameStyle=optGameStyle.value||'bank';
+    state.lowRoundPending=false;
+    flash(state.gameStyle==='low'?'LOW SCORE TRAP':state.gameStyle.toUpperCase());
+  });
   exitBtn.addEventListener('click',exitGame);
   optNotices.addEventListener('change',()=>state.notices=optNotices.checked);
   optBanks.addEventListener('change',()=>state.showBanks=optBanks.checked);
@@ -3477,6 +3850,7 @@ const GE_GAME = (()=>{
     ps.inSun=false;
     ps.scored=false;
     ps.armed=true;
+    ps.contactedTargets=new Set();
     state.planetState.set(p,ps);
 
     state.turnInSet++;
@@ -3484,7 +3858,15 @@ const GE_GAME = (()=>{
     flash(`${playerLabel(shooter)} · throw ${shotNo}/${state.turnsPerPlayer}`);
     if(state.turnInSet>=state.turnsPerPlayer){
       state.turnInSet=0;
-      if(state.players>1) state.activePlayer=(state.activePlayer+1)%state.players;
+      if(state.players>1){
+        const previous=state.activePlayer;
+        state.activePlayer=(state.activePlayer+1)%state.players;
+        if(state.gameStyle==='low' && previous===state.players-1 && state.activePlayer===0){
+          state.lowRoundPending=true;
+        }
+      }else if(state.gameStyle==='low'){
+        state.lowRoundPending=true;
+      }
       updateHUD(true);
     }else{
       updateHUD(false);
@@ -3551,7 +3933,9 @@ const GE_GAME = (()=>{
     state.completed=true; state.running=false; updateHUD();
     const cosmic=cosmicContext(new Date());
     const winner=state.players===0?'AUTO':playerLabel(winnerIndex);
-    roundSummary.textContent=`${winner} reached 100 points in Round ${state.round}.`;
+    roundSummary.textContent=state.gameStyle==='low'
+      ? `${winner} wins the Low Score Trap round with ${state.scores[winner]} points.`
+      : `${winner} reached 100 points in Round ${state.round}.`;
     cosmicSnapshot.textContent=cosmicText(cosmic);
     roundReplay.textContent='Replay Round '+state.round;
     roundNext.textContent='Go to Round '+(state.round+1);
@@ -3560,26 +3944,81 @@ const GE_GAME = (()=>{
   roundReplay.addEventListener('click',()=>{ saveRecord(scoreName.value); scoreName.value=''; resetRound(true); });
   roundNext.addEventListener('click',()=>{ saveRecord(scoreName.value); scoreName.value=''; resetRound(false); });
 
+
+  function planetContact(a,b){
+    if(!state.active || !state.running || !a || !b) return;
+
+    const apply=(moving,target)=>{
+      const ps=state.planetState.get(moving);
+      if(!ps || !ps.armed || ps.scored) return;
+      if(!ps.contactedTargets) ps.contactedTargets=new Set();
+      const key=target.el || target;
+      if(ps.contactedTargets.has(key)) return;
+      ps.contactedTargets.add(key);
+
+      const owner=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
+      if(state.gameStyle==='bonus'){
+        const add=(window.GE_EASY_SETTINGS?.CONTACT_BONUS_POINTS ?? 1);
+        state.scores[owner]=(state.scores[owner]||0)+add;
+        showPointBurst(add);
+        flash(`SOUL ${owner+1} +${add} planet contact`);
+        updateHUD(false);
+      }else if(state.gameStyle==='penalty'){
+        const sub=(window.GE_EASY_SETTINGS?.CONTACT_PENALTY_POINTS ?? 1);
+        state.scores[owner]=Math.max(0,(state.scores[owner]||0)-sub);
+        showPointBurst(-sub,'penalty');
+        flash(`SOUL ${owner+1} -${sub} planet contact`);
+        updateHUD(false);
+      }else if(state.gameStyle==='low'){
+        state.scores[owner]=(state.scores[owner]||0)+1;
+        showPointBurst(1);
+        flash(`SOUL ${owner+1} +1 obstacle`);
+        updateHUD(false);
+      }
+    };
+
+    apply(a,b);
+    apply(b,a);
+  }
+
   function pointForHit(p,ps){
     const banks=ps.banks||0;
-    if(banks < state.requiredBanks){
+    const contacts=ps.contactedTargets ? ps.contactedTargets.size : 0;
+
+    if(state.gameStyle==='carom' && contacts<2){
+      flash(`${contacts}/2 planet contacts — need 2 before the sun`);
+      ps.banks=0;
+      return;
+    }
+
+    if(state.gameStyle!=='low' && banks < state.requiredBanks){
       flash(`${banks} bank${banks===1?'':'s'} — need ${state.requiredBanks}`);
       ps.banks=0;
       return;
     }
+
     const i=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
-    const basePoints=banks+1;
     const mult=playerMultiplierValue(i);
+
+    let basePoints=banks+1;
+    if(state.gameStyle==='carom') basePoints += contacts;
+    if(state.gameStyle==='low') basePoints = Math.max(1,banks+1);
+
     const points=basePoints*mult;
     state.scores[i]=(state.scores[i]||0)+points;
-    if(state.scores[i]>100) state.scores[i]=100;
+
+    if(state.gameStyle!=='low' && state.scores[i]>100) state.scores[i]=100;
+
     state.score=state.scores[state.activePlayer]||0;
     ps.scored=true;
     ps.armed=false;
-    flash(`${playerLabel(i)} +${points}${mult>1?' ('+mult+'× handicap)':''}${state.showBanks?' · '+banks+' bank'+(banks===1?'':'s'):''}`);
+
+    showPointBurst(points);
+    flash(`SOUL ${i+1} +${points}${mult>1?' ('+mult+'× handicap)':''}${state.showBanks?' · '+banks+' bank'+(banks===1?'':'s'):''}`);
     ps.banks=0;
     updateHUD(false);
-    if(state.scores[i]>=100){ completeRound(i); }
+
+    if(state.gameStyle!=='low' && state.scores[i]>=100){ completeRound(i); }
   }
 
 
@@ -3626,6 +4065,17 @@ const GE_GAME = (()=>{
       const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
       const bounds=getPlanetPlayBounds();
       const now=performance.now(); autoShoot(now);
+
+      if(state.gameStyle==='low' && state.lowRoundPending){
+        const stopped=planetNodes.every(p=>p.dragging || Math.hypot(p.vx||0,p.vy||0)<(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? 5));
+        if(stopped){
+          state.lowRoundPending=false;
+          let winner=0;
+          for(let i=1;i<state.scores.length;i++) if(state.scores[i]<state.scores[winner]) winner=i;
+          completeRound(winner);
+        }
+      }
+
       for(const p of planetNodes){
         let ps=state.planetState.get(p);
         if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false}; state.planetState.set(p,ps); }
@@ -3657,7 +4107,7 @@ const GE_GAME = (()=>{
   addEventListener('orientationchange',()=>setTimeout(reflow,180),{passive:true});
 
   updateHUD();
-  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision};
+  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision,planetContact};
 })();
 window.GE_GAME=GE_GAME;
 
