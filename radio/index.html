@@ -184,27 +184,25 @@ footer{padding-top:4px;margin-top:auto;flex:0 0 auto}
 
 
 /* =========================================================
-   DUAL VIEW SYSTEM
-   PLAYER VIEW = large, conventional thumb-friendly player.
-   SHIP VIEW = cockpit templates + live GE background through windows.
+   DUAL VIEW SYSTEM — repaired
+   PLAYER VIEW = conventional thumb-friendly player.
+   SHIP VIEW = transparent cockpit overlay + live GE background window.
    ========================================================= */
-
 :root{
-  --ship-blue:#12cfff;
-  --ship-blue-2:#0789cb;
-  --ship-blue-3:#033e70;
-  --ship-deep:#031225;
-  --ship-panel:rgba(4,20,39,.88);
+  --ship-blue:#18d9ff;
+  --ship-blue-2:#0aa7ee;
+  --ship-blue-3:#04598f;
+  --ship-deep:#021427;
 }
 
 .cockpit-only,#shipSkin{display:none}
 #viewToggle{
   position:fixed;z-index:12000;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));
-  min-height:38px;padding:7px 12px;border-radius:999px;font-size:11px;
-  background:rgba(3,19,36,.88);border:1px solid rgba(36,181,255,.58);color:#eaf9ff;
-  box-shadow:0 0 14px rgba(0,157,255,.13);backdrop-filter:blur(6px)
+  min-height:42px;padding:8px 14px;border-radius:999px;font-size:12px;
+  background:rgba(3,19,36,.91);border:1px solid rgba(36,181,255,.62);color:#eaf9ff;
+  box-shadow:0 0 14px rgba(0,157,255,.16);backdrop-filter:blur(6px)
 }
-body.hud-hidden #viewToggle{opacity:.12}
+body.hud-hidden #viewToggle{opacity:.15}
 body.hud-hidden #viewToggle:hover,body.hud-hidden #viewToggle:focus{opacity:1}
 
 /* ---------- PLAYER VIEW ---------- */
@@ -231,9 +229,7 @@ body.view-player #supportText{display:block}
 }
 
 @media(orientation:landscape){
-  body.view-player .wrap{
-    max-width:1180px;padding:8px 14px 10px;gap:6px;justify-content:center;overflow:hidden
-  }
+  body.view-player .wrap{max-width:1180px;padding:8px 14px 10px;gap:6px;justify-content:center;overflow:hidden}
   body.view-player header{display:grid;grid-template-columns:92px auto;grid-template-rows:auto auto;column-gap:12px;row-gap:0;align-items:center}
   body.view-player header .logo-wrap{grid-row:1/3;width:86px;height:86px;margin:0}
   body.view-player h1{font-size:22px;text-align:left}
@@ -254,172 +250,196 @@ body.view-player #supportText{display:block}
   body.view-player footer{font-size:11px;margin-top:0}
 }
 
-/* ---------- SHIP TEMPLATE LAYERS ---------- */
+/* ---------- SHIP OVERLAY ---------- */
 body.view-ship #shipSkin{display:block;position:fixed;inset:0;z-index:2;pointer-events:none}
 body.view-ship .wrap{z-index:3;max-width:none;width:100%;height:100%;padding:0;gap:0;overflow:hidden}
-body.view-ship #shade{background:rgba(0,0,0,.04)}
+body.view-ship #shade{background:rgba(0,0,0,.03)}
 body.view-ship .cockpit-only{display:block}
 body.view-ship #supportText{display:none}
 body.view-ship footer{font-size:0}
 body.view-ship footer::before{content:'GRAND ELEMENT RADIO';font-size:8px;letter-spacing:.26em;color:rgba(180,226,255,.50)}
-
 .skin-piece{position:absolute;inset:0;background-repeat:no-repeat;background-size:100% 100%;background-position:center}
 .skin-land{background-image:url('./cockpit-landscape.png')}
-.skin-port{background-image:url('./cockpit-portrait.png')}
-.skin-port{display:none}
-.skin-top{clip-path:polygon(0 0,100% 0,100% 15%,0 15%)}
-.skin-left{clip-path:polygon(0 0,16.5% 0,16.5% 100%,0 100%)}
-.skin-right{clip-path:polygon(83.5% 0,100% 0,100% 100%,83.5% 100%)}
-.skin-bottom{clip-path:polygon(0 53%,100% 53%,100% 100%,0 100%)}
+.skin-port{background-image:url('./cockpit-portrait.png');display:none}
 
-/* Ship controls use blue-planet temperature shades. */
-body.view-ship button,body.view-ship .button-link,body.view-ship .bc-btn,body.view-ship .auto-hide-option{
-  color:#eefcff;border-color:rgba(19,184,255,.78);
-  background:linear-gradient(180deg,rgba(9,82,126,.80),rgba(3,27,52,.94));
-  box-shadow:inset 0 0 18px rgba(18,201,255,.06),0 0 8px rgba(0,129,219,.13)
+/* Actual controls sit on top of the button recesses already painted into the cockpit art. */
+body.view-ship button,body.view-ship .button-link,body.view-ship .auto-hide-option{
+  color:#eefcff;border:0;background:transparent;box-shadow:none;text-shadow:0 1px 4px rgba(0,0,0,.8)
 }
+body.view-ship button:active,body.view-ship .button-link:active{transform:scale(.98)}
 body.view-ship button.tgl[aria-pressed='true']{
-  outline:2px solid #35efff;box-shadow:0 0 15px rgba(53,239,255,.42),inset 0 0 22px rgba(26,194,255,.18)
+  outline:2px solid #35efff;background:rgba(14,176,222,.12);
+  box-shadow:0 0 15px rgba(53,239,255,.36),inset 0 0 20px rgba(26,194,255,.12)
 }
-body.view-ship .bc-btn{background:linear-gradient(180deg,#139fe5,#075b9d);color:white}
-body.view-ship #offlineBtn.active{background:linear-gradient(180deg,#0e8d9b,#07506b);color:#eaffff}
+body.view-ship .bc-btn{background:transparent!important;color:#eefdff!important;box-shadow:none!important;border:0!important;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+body.view-ship #offlineBtn.active{background:rgba(8,163,184,.13)!important;color:#ecffff}
 
-/* Top current-track pod + real breathing GE blue sun. */
+/* Track title + breathing GE blue sun. */
 body.view-ship header{position:fixed;z-index:8;left:50%;transform:translateX(-50%);background:transparent;border:0;box-shadow:none;padding:0;margin:0}
 body.view-ship header h1,body.view-ship header .tag{display:none}
 body.view-ship header .logo-wrap{
   position:fixed;left:50%;transform:translateX(-50%) scale(.92);margin:0;border-radius:50%;overflow:hidden;
-  animation:shipSunBreath 30s ease-in-out infinite;box-shadow:0 0 30px rgba(18,207,255,.34)
+  animation:shipSunBreath 30s ease-in-out infinite;box-shadow:0 0 28px rgba(18,207,255,.30)
 }
 @keyframes shipSunBreath{0%,100%{transform:translateX(-50%) scale(.92)}50%{transform:translateX(-50%) scale(1.08)}}
 body.view-ship #titleBtn{
   position:fixed;z-index:10;left:50%;transform:translateX(-50%);border-radius:0;background:transparent;border:0;box-shadow:none;
-  color:#f1fbff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  color:#f1fbff;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 5px rgba(0,0,0,.8)
 }
 body.view-ship #player{position:fixed;left:-10px;bottom:-10px;width:1px;height:1px;opacity:.001;pointer-events:none}
 
-/* Curved ship transport progress arc. */
-body.view-ship #cockpitTransport{display:flex;position:fixed;z-index:11;left:50%;transform:translateX(-50%);align-items:flex-end;justify-content:center}
-#shipArc{position:absolute;left:4%;right:4%;top:0;width:92%;height:44%;overflow:visible;touch-action:none;cursor:pointer}
-#shipArcTrack{fill:none;stroke:rgba(117,231,255,.32);stroke-width:10;stroke-linecap:round}
-#shipArcFill{fill:none;stroke:#22dfff;stroke-width:10;stroke-linecap:round;filter:drop-shadow(0 0 5px rgba(34,223,255,.65))}
+/* Curved ship transport. */
+body.view-ship #cockpitTransport{display:flex;position:fixed;z-index:11;left:50%;transform:translateX(-50%);align-items:flex-end;justify-content:center;background:transparent;border:0;box-shadow:none}
+#shipArc{position:absolute;left:5%;right:5%;top:4%;width:90%;height:39%;overflow:visible;touch-action:none;cursor:pointer}
+#shipArcTrack{fill:none;stroke:rgba(117,231,255,.28);stroke-width:9;stroke-linecap:round}
+#shipArcFill{fill:none;stroke:#22dfff;stroke-width:9;stroke-linecap:round;filter:drop-shadow(0 0 5px rgba(34,223,255,.65))}
 #shipArcKnob{fill:#f7feff;stroke:#22dfff;stroke-width:3;filter:drop-shadow(0 0 5px rgba(34,223,255,.8))}
 #cockpitSeek{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
-#cockpitTimeline{position:absolute;left:5%;right:5%;top:26%;display:flex;justify-content:space-between;pointer-events:none;color:#dff8ff;font-size:10px}
+#cockpitTimeline{position:absolute;left:5%;right:5%;top:27%;display:flex;justify-content:space-between;pointer-events:none;color:#dff8ff;font-size:10px}
+body.view-ship #cockpitPrev,body.view-ship #cockpitNext,body.view-ship #cockpitPlay{
+  border:1px solid rgba(20,190,255,.35);background:rgba(3,25,48,.20);box-shadow:inset 0 0 12px rgba(22,190,255,.06)
+}
 body.view-ship #cockpitPrev,body.view-ship #cockpitNext{border-radius:50%}
-body.view-ship #cockpitPlay{border-radius:50%;border-color:#42efff;box-shadow:0 0 17px rgba(45,230,255,.55),inset 0 0 20px rgba(23,181,255,.15)}
+body.view-ship #cockpitPlay{border-radius:50%;border-color:#42efff;box-shadow:0 0 17px rgba(45,230,255,.42),inset 0 0 20px rgba(23,181,255,.11)}
 
-/* Instrumentation; real buttons never blink. */
+/* Instrument overlays align with the cockpit art's built-in radar/signal panels. */
 body.view-ship #sensorLeft,body.view-ship #sensorRight{position:fixed;z-index:9;pointer-events:none;display:block}
-.radar{position:absolute;border:1px solid rgba(44,201,255,.52);border-radius:50%;overflow:hidden;background:radial-gradient(circle,rgba(22,90,138,.16) 0 24%,transparent 25% 47%,rgba(25,181,255,.11) 48% 50%,transparent 51% 72%,rgba(25,181,255,.12) 73% 75%,transparent 76%),linear-gradient(90deg,transparent 49%,rgba(43,199,255,.17) 50% 51%,transparent 52%),linear-gradient(0deg,transparent 49%,rgba(43,199,255,.17) 50% 51%,transparent 52%);box-shadow:inset 0 0 15px rgba(0,171,255,.18),0 0 11px rgba(0,90,180,.18)}
-.radar::after{content:'';position:absolute;left:50%;top:50%;width:49%;height:1px;transform-origin:left center;background:linear-gradient(90deg,rgba(46,230,255,.9),transparent);box-shadow:0 0 7px rgba(0,220,255,.55)}
-.radar-planet{position:absolute;left:50%;top:50%;width:48%;height:48%;transform:translate(-50%,-50%);border-radius:50%;object-fit:cover;box-shadow:0 0 11px rgba(0,210,255,.42);animation:miniPlanetBreath 34s ease-in-out infinite}
-.orbit-ring{position:absolute;inset:12%;border-radius:50%;border:1px solid rgba(63,223,255,.22)}
-.orbit-moon{position:absolute;left:74%;top:33%;width:10%;height:10%;border-radius:50%;background:#60f5ff;box-shadow:0 0 7px rgba(75,235,255,.68);animation:moonDrift 17s linear infinite}
+.radar{position:absolute;border:0!important;border-radius:50%;background:transparent!important;box-shadow:none!important;overflow:visible}
+.radar-planet,.orbit-ring,.orbit-moon{display:none!important}
+.radar::after{content:'';position:absolute;left:50%;top:50%;width:48%;height:1px;transform-origin:left center;background:linear-gradient(90deg,rgba(46,230,255,.9),transparent);box-shadow:0 0 7px rgba(0,220,255,.55)}
 .scan-spark{position:absolute;width:5px;height:5px;border-radius:50%;background:#28f1ff;opacity:.18;box-shadow:0 0 6px rgba(40,241,255,.8)}
 .scan-spark.s1{left:15%;top:23%}.scan-spark.s2{right:14%;bottom:18%}
-@keyframes miniPlanetBreath{0%,100%{transform:translate(-50%,-50%) scale(.88)}50%{transform:translate(-50%,-50%) scale(1.16)}}
-@keyframes moonDrift{0%{transform:rotate(0deg) translateX(14px) rotate(0deg)}100%{transform:rotate(360deg) translateX(14px) rotate(-360deg)}}
 body.is-playing .radar::after{animation:geRadarSweep var(--radar-speed,3.6s) linear infinite}
 .radar.radar-reverse::after{animation-direction:reverse!important}
 @keyframes geRadarSweep{to{transform:rotate(360deg)}}
-
 .signal-bars{position:absolute;display:flex;align-items:flex-end;justify-content:center;gap:4px}
 .signal-bars i{display:block;width:7%;min-width:4px;height:25%;border-radius:2px 2px 0 0;background:#20dfff;box-shadow:0 0 4px rgba(32,223,255,.34)}
+body.is-playing .signal-bars i:nth-child(1){animation:geMeter 1.35s ease-in-out infinite}
+body.is-playing .signal-bars i:nth-child(2){animation:geMeter .95s ease-in-out infinite .12s}
+body.is-playing .signal-bars i:nth-child(3){animation:geMeter 1.2s ease-in-out infinite .28s}
+body.is-playing .signal-bars i:nth-child(4){animation:geMeter .82s ease-in-out infinite .08s}
+body.is-playing .signal-bars i:nth-child(5){animation:geMeter 1.55s ease-in-out infinite .35s}
+body.is-playing .signal-bars i:nth-child(6){animation:geMeter 1.05s ease-in-out infinite .18s}
+body.is-playing .signal-bars i:nth-child(7){animation:geMeter 1.32s ease-in-out infinite .44s}
+@keyframes geMeter{0%,100%{height:18%}35%{height:80%}63%{height:36%}82%{height:64%}}
 .aux-grid{position:absolute;display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-.aux-grid span,.mini-status i,.console-pips i,.frame-lights i{background:rgba(32,223,255,.16);box-shadow:0 0 4px rgba(32,223,255,.16);transition:opacity .2s ease,background .2s ease,box-shadow .2s ease,transform .2s ease}
-#ambientLights{position:fixed;inset:0;z-index:7;pointer-events:none}
-.twinkle{position:fixed;width:7px;height:7px;border-radius:50%;background:#26e7ff;opacity:.08;box-shadow:0 0 6px rgba(38,231,255,.32);transition:opacity .2s ease,transform .2s ease,box-shadow .2s ease}
-.instrument-lit{opacity:1!important;background:#25e6ff!important;box-shadow:0 0 10px rgba(37,230,255,.9),0 0 20px rgba(37,230,255,.30)!important;transform:scale(1.18)}
-.frame-lights{position:fixed;z-index:7;display:flex;flex-direction:column;gap:12px;top:20%}.frame-left{left:11.2%}.frame-right{right:11.2%}.frame-lights i{width:7px;height:17px;border-radius:999px}
-.console-pips{position:fixed;z-index:7;display:flex;gap:6px}.console-pips i{width:8px;height:5px;border-radius:2px}
-.mini-status{position:fixed;z-index:7;display:grid;grid-template-columns:repeat(4,8px);gap:5px}.mini-status i{height:4px;border-radius:999px}
-.t1{left:18%;top:16%}.t2{left:24%;bottom:24%}.t3{left:76%;top:18%}.t4{right:18%;bottom:24%}.t5{left:33%;top:11%}.t6{right:33%;top:11%}.t7{left:36%;bottom:18%}.t8{right:36%;bottom:18%}
+.aux-grid span{height:5px;border-radius:999px;background:rgba(32,223,255,.22);box-shadow:0 0 4px rgba(32,223,255,.2)}
+.frame-lights,.console-pips,.mini-status{position:fixed;z-index:9;pointer-events:none}
+.frame-lights{display:flex;flex-direction:column;gap:10px}
+.frame-lights i{width:7px;height:15px;border-radius:999px;background:rgba(27,208,255,.13);box-shadow:0 0 5px rgba(27,208,255,.18)}
+.console-pips{display:flex;gap:6px}.console-pips i{width:8px;height:5px;border-radius:2px;background:rgba(31,219,255,.13)}
+.mini-status{display:grid;grid-template-columns:repeat(4,8px);gap:5px}.mini-status i{height:4px;border-radius:999px;background:rgba(32,223,255,.13)}
+.instrument-lit{opacity:1!important;background:#25e6ff!important;box-shadow:0 0 9px rgba(37,230,255,.9),0 0 18px rgba(37,230,255,.30)!important;transform:scale(1.15)}
 
-/* One combined Hide Text control: checkbox = 15s auto hide, rest = hide now. */
+/* Ship hide control. */
 body.view-ship #hudHideNow{display:none!important}
 body.view-ship .settings-row{position:fixed;z-index:12;margin:0}
-body.view-ship .auto-hide-option{display:flex;align-items:center;gap:8px;cursor:pointer}
-body.view-ship .auto-hide-option input{width:17px;height:17px;margin:0;accent-color:#19cfff}
+body.view-ship .auto-hide-option{display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;background:transparent;border:0;box-shadow:none;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+body.view-ship .auto-hide-option input{width:18px;height:18px;margin:0;accent-color:#19cfff}
 body.view-ship .auto-hide-option .auto-text{display:inline}
 body.view-ship .auto-hide-option::after{content:none}
 
-/* --------- LANDSCAPE SHIP VIEW --------- */
+/* ---------- LANDSCAPE SHIP ---------- */
 @media(orientation:landscape){
   body.view-ship .skin-port{display:none}.skin-land{display:block}
-  body.view-ship header{top:0}.view-ship header .logo-wrap{top:8.8%;width:clamp(132px,28dvh,245px);height:clamp(132px,28dvh,245px)}
-  body.view-ship #titleBtn{top:1.0%;width:min(47vw,650px);min-height:40px;font-size:clamp(15px,2.8dvh,22px)}
 
-  body.view-ship #bgGroup{position:fixed;z-index:10;left:1.8%;top:15.7%;transform:none;width:12.2%;height:46.4%;padding:0;background:transparent;border:0;box-shadow:none;gap:0}
-  body.view-ship #bgGroup .section-label{height:9%;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,1.9dvh,15px);letter-spacing:.13em;text-transform:uppercase}
-  body.view-ship #bgGroup .bg-row{display:grid;grid-template-rows:repeat(6,1fr);gap:2.5%;height:91%;width:100%}
-  body.view-ship #bgGroup button{width:100%;height:100%;min-height:0;padding:4px 3px;border-radius:18px;font-size:clamp(10px,2.1dvh,16px)}
+  body.view-ship header{top:0}
+  body.view-ship header .logo-wrap{top:10.8%;width:clamp(160px,36dvh,315px);height:clamp(160px,36dvh,315px)}
+  body.view-ship #titleBtn{top:1.1%;width:40%;min-height:40px;font-size:clamp(15px,2.8dvh,22px)}
 
-  body.view-ship #musicGroup{position:fixed;z-index:10;right:1.8%;top:16.1%;transform:none;width:12.2%;height:42.5%;padding:6.2% 0 0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-rows:repeat(5,1fr);gap:3%}
-  body.view-ship #musicGroup::before{content:'MUSIC';position:absolute;top:0;left:0;width:100%;height:12%;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,1.9dvh,15px);letter-spacing:.14em}
-  body.view-ship #musicGroup button{width:100%;height:100%;min-height:0;padding:4px 3px;border-radius:18px;font-size:clamp(10px,2.1dvh,16px)}
+  /* Exact template slot alignment. */
+  body.view-ship #bgGroup{
+    position:fixed;z-index:10;left:1.75%;top:11.7%;transform:none;width:10.55%;height:50.2%;
+    padding:0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-rows:8.7% 91.3%;gap:0
+  }
+  body.view-ship #bgGroup .section-label{display:flex;align-items:center;justify-content:center;font-size:clamp(9px,1.8dvh,14px);letter-spacing:.13em;text-transform:uppercase}
+  body.view-ship #bgGroup .bg-row{display:grid!important;grid-template-rows:repeat(6,minmax(0,1fr))!important;grid-template-columns:1fr!important;gap:2.65%!important;height:100%!important;min-height:0;width:100%}
+  body.view-ship #bgGroup button{width:100%;height:100%;min-height:0!important;padding:2px 4px!important;border-radius:18px;font-size:clamp(10px,2dvh,15px);line-height:1.05;overflow:hidden}
 
-  body.view-ship #cockpitTransport{bottom:8.8%;width:46%;height:24%;min-width:520px;padding:7% 8% 2%;gap:4.5%;background:transparent;border:0;box-shadow:none}
+  body.view-ship #musicGroup{
+    position:fixed;z-index:10;right:1.75%;top:11.7%;transform:none;width:10.55%;height:50.2%;
+    padding:8.7% 0 0!important;background:transparent;border:0;box-shadow:none;display:grid!important;grid-template-rows:repeat(5,minmax(0,1fr))!important;grid-template-columns:1fr!important;gap:2.65%!important
+  }
+  body.view-ship #musicGroup::before{content:'MUSIC';position:absolute;top:0;left:0;width:100%;height:8.7%;display:flex;align-items:center;justify-content:center;font-size:clamp(9px,1.8dvh,14px);letter-spacing:.14em}
+  body.view-ship #musicGroup button{width:100%;height:100%;min-height:0!important;padding:2px 4px!important;border-radius:18px;font-size:clamp(10px,2dvh,15px);line-height:1.05;overflow:hidden}
+
+  body.view-ship #cockpitTransport{left:50%;top:59.8%;bottom:auto;width:40.1%;height:18.2%;min-width:520px;padding:6.5% 7% 1.6%;gap:4.5%}
   body.view-ship #cockpitPrev,body.view-ship #cockpitNext{width:clamp(54px,8.3dvh,72px);height:clamp(54px,8.3dvh,72px);min-width:0;min-height:0;font-size:25px}
   body.view-ship #cockpitPlay{width:clamp(68px,11dvh,90px);height:clamp(68px,11dvh,90px);min-width:0;min-height:0;font-size:34px}
-  body.view-ship #cockpitTimeline{top:25%;left:5%;right:5%}
+  body.view-ship #cockpitTimeline{top:26%;left:5%;right:5%}
 
-  body.view-ship #sensorLeft{left:2.3%;bottom:6.7%;width:18%;height:27%}
-  body.view-ship #sensorRight{right:2.3%;bottom:6.7%;width:18%;height:27%}
-  body.view-ship .radar{left:16%;bottom:12%;width:42%;aspect-ratio:1/1;height:auto}
-  body.view-ship .signal-bars{right:13%;bottom:18%;width:44%;height:37%}
-  body.view-ship .aux-grid{right:12%;bottom:9%;width:49%;height:16px}
-  .console-left{left:21%;bottom:14%}.console-right{right:21%;bottom:14%}.status-a{left:14%;bottom:8.3%}.status-b{right:14%;bottom:8.3%}
+  body.view-ship #sensorLeft{left:1.8%;bottom:5.6%;width:18.8%;height:28%}
+  body.view-ship #sensorRight{right:1.8%;bottom:5.6%;width:18.8%;height:28%}
+  body.view-ship .radar{left:22%;bottom:17%;width:43%;aspect-ratio:1/1;height:auto}
+  body.view-ship .signal-bars{right:12%;bottom:20%;width:45%;height:34%}
+  body.view-ship .aux-grid{right:10%;bottom:10%;width:50%;height:16px}
 
-  body.view-ship #bottomActions{position:fixed;z-index:12;left:50%;bottom:1.7%;transform:translateX(-50%);width:48%;min-width:560px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2%;margin:0}
-  body.view-ship #bottomActions .bc-btn,body.view-ship #bottomActions button{width:100%;min-height:42px;padding:7px 10px;border-radius:14px;font-size:clamp(10px,1.9dvh,13px)}
+  .frame-left{left:13.1%;top:23%}.frame-right{right:13.1%;top:23%}
+  .console-left{left:29%;bottom:18.5%}.console-right{right:29%;bottom:18.5%}
+  .status-a{left:18.3%;bottom:9.5%}.status-b{right:18.3%;bottom:9.5%}
+
+  body.view-ship #bottomActions{
+    position:fixed;z-index:12;left:50%;top:82.2%;bottom:auto;transform:translateX(-50%);width:55.2%;height:7.7%;min-width:560px;
+    display:grid!important;grid-template-columns:1.04fr .85fr 1.04fr;gap:1.55%;margin:0
+  }
+  body.view-ship #bottomActions .bc-btn,body.view-ship #bottomActions button{width:100%;height:100%;min-height:0!important;padding:4px 8px!important;border-radius:18px;font-size:clamp(10px,1.9dvh,13px)}
   body.view-ship #installBtn{display:none!important}
-  body.view-ship .settings-row{right:1.7%;bottom:1.6%}
-  body.view-ship .auto-hide-option{min-height:40px;padding:7px 11px;font-size:11px;border-radius:13px}
-  body.view-ship #offlinePanel{position:fixed;z-index:13;left:50%;bottom:7%;transform:translateX(-50%);width:40%;padding:5px 8px}
-  body.view-ship footer{position:fixed;z-index:9;left:50%;bottom:.5%;transform:translateX(-50%);margin:0;padding:0}
+
+  body.view-ship .settings-row{right:2.2%;bottom:1.2%}
+  body.view-ship .auto-hide-option{min-height:38px;padding:6px 10px;font-size:11px}
+  body.view-ship #offlinePanel{position:fixed;z-index:13;left:50%;bottom:9.8%;transform:translateX(-50%);width:39%;padding:5px 8px}
+  body.view-ship footer{position:fixed;z-index:9;left:50%;bottom:.45%;transform:translateX(-50%);margin:0;padding:0}
 }
 
-/* --------- PORTRAIT SHIP VIEW --------- */
+/* ---------- PORTRAIT SHIP ---------- */
 @media(orientation:portrait){
   body.view-ship .skin-land{display:none}.skin-port{display:block}
-  body.view-ship .skin-top{clip-path:polygon(0 0,100% 0,100% 13.5%,0 13.5%)}
-  body.view-ship .skin-left{clip-path:polygon(0 0,13.4% 0,13.4% 100%,0 100%)}
-  body.view-ship .skin-right{clip-path:polygon(86.6% 0,100% 0,100% 100%,86.6% 100%)}
-  body.view-ship .skin-bottom{clip-path:polygon(0 53%,100% 53%,100% 100%,0 100%)}
 
-  body.view-ship header .logo-wrap{top:12.8%;width:clamp(135px,37vw,205px);height:clamp(135px,37vw,205px)}
-  body.view-ship #titleBtn{top:2.2%;width:69%;min-height:38px;font-size:clamp(13px,3.6vw,18px)}
+  body.view-ship header .logo-wrap{top:11.2%;width:clamp(145px,39vw,210px);height:clamp(145px,39vw,210px)}
+  body.view-ship #titleBtn{top:2.0%;width:70%;min-height:38px;font-size:clamp(13px,3.6vw,18px)}
 
-  body.view-ship #bgGroup{position:fixed;z-index:10;left:1.2%;top:15%;width:12%;height:35%;padding:0;background:transparent;border:0;box-shadow:none;gap:0}
+  body.view-ship #bgGroup{
+    position:fixed;z-index:10;left:.75%;top:13.8%;width:8.8%;height:31.2%;padding:0;background:transparent;border:0;box-shadow:none;gap:0
+  }
   body.view-ship #bgGroup .section-label{display:none}
-  body.view-ship #bgGroup .bg-row{height:100%;display:grid;grid-template-rows:repeat(6,1fr);gap:2.2%;width:100%}
-  body.view-ship #bgGroup button{width:100%;height:100%;min-height:0;padding:2px 1px;border-radius:10px;font-size:clamp(7px,2vw,9px);white-space:normal}
+  body.view-ship #bgGroup .bg-row{height:100%;display:grid!important;grid-template-rows:repeat(6,minmax(0,1fr))!important;grid-template-columns:1fr!important;gap:2.6%!important;width:100%}
+  body.view-ship #bgGroup button{width:100%;height:100%;min-height:0!important;padding:1px!important;border-radius:8px;font-size:clamp(6.5px,1.85vw,9px);line-height:1;white-space:normal;overflow:hidden}
+  body.view-ship #bgPer{font-size:0}body.view-ship #bgPer::before{content:'Song';font-size:clamp(6.5px,1.85vw,9px)}
+  body.view-ship #bgShuf{font-size:0}body.view-ship #bgShuf::before{content:'Shuf';font-size:clamp(6.5px,1.85vw,9px)}
 
-  body.view-ship #musicGroup{position:fixed;z-index:10;right:1.2%;top:16%;width:12%;height:29.5%;padding:0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-rows:repeat(5,1fr);gap:2.5%}
+  body.view-ship #musicGroup{
+    position:fixed;z-index:10;right:.75%;top:15.3%;width:8.8%;height:25.7%;padding:0;background:transparent;border:0;box-shadow:none;display:grid!important;grid-template-rows:repeat(5,minmax(0,1fr))!important;grid-template-columns:1fr!important;gap:2.8%!important
+  }
   body.view-ship #musicGroup::before{display:none}
-  body.view-ship #musicGroup button{width:100%;height:100%;min-height:0;padding:2px 1px;border-radius:10px;font-size:clamp(7px,2vw,9px);white-space:normal}
+  body.view-ship #musicGroup button{width:100%;height:100%;min-height:0!important;padding:1px!important;border-radius:8px;font-size:clamp(6.5px,1.85vw,9px);line-height:1;white-space:normal;overflow:hidden}
+  body.view-ship #shuffleBtn{font-size:0}body.view-ship #shuffleBtn::before{content:'Shuf';font-size:clamp(6.5px,1.85vw,9px)}
 
-  body.view-ship #cockpitTransport{bottom:27%;width:76%;height:20%;min-width:0;padding:7% 9% 3%;gap:7%;background:transparent;border:0;box-shadow:none}
+  body.view-ship #cockpitTransport{left:50%;top:49.5%;bottom:auto;width:72%;height:12.8%;min-width:0;padding:4.5% 8% 1.8%;gap:8%}
   body.view-ship #cockpitPrev,body.view-ship #cockpitNext{width:50px;height:50px;min-width:50px;min-height:50px;font-size:20px}
   body.view-ship #cockpitPlay{width:64px;height:64px;min-width:64px;min-height:64px;font-size:29px}
   body.view-ship #cockpitTimeline{top:25%}
 
-  body.view-ship #sensorLeft{left:2%;bottom:24%;width:22%;height:15%}
-  body.view-ship #sensorRight{right:2%;bottom:24%;width:22%;height:15%}
-  body.view-ship .radar{left:10%;bottom:6%;width:58%;aspect-ratio:1/1;height:auto}
-  body.view-ship .signal-bars{right:8%;bottom:26%;width:58%;height:40%}
-  body.view-ship .aux-grid{right:7%;bottom:7%;width:60%;height:14px}
-  .frame-lights{display:none}.console-pips{display:none}.mini-status{display:none}
+  body.view-ship #sensorLeft{left:0;bottom:20.2%;width:24%;height:22%}
+  body.view-ship #sensorRight{right:0;bottom:20.2%;width:24%;height:22%}
+  body.view-ship .radar{left:12%;bottom:22%;width:54%;aspect-ratio:1/1;height:auto}
+  body.view-ship .signal-bars{right:8%;bottom:35%;width:58%;height:36%}
+  body.view-ship .aux-grid{right:7%;bottom:18%;width:60%;height:14px}
+  .frame-lights,.console-pips,.mini-status{display:none}
 
-  body.view-ship #bottomActions{position:fixed;z-index:12;left:50%;bottom:7%;transform:translateX(-50%);width:76%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0}
-  body.view-ship #bottomActions .bc-btn{grid-column:1/-1;width:100%;min-height:48px;font-size:14px;border-radius:16px}
-  body.view-ship #bottomActions button{width:100%;min-height:45px;font-size:12px;border-radius:14px}
+  /* Template has one wide slot, then two side-by-side slots. */
+  body.view-ship #bottomActions{
+    position:fixed;z-index:12;left:50%;top:65.7%;bottom:auto;transform:translateX(-50%);width:67.5%;height:15.2%;
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:46% 43%;column-gap:3%;row-gap:11%;margin:0
+  }
+  body.view-ship #bottomActions .bc-btn{grid-column:1/-1;width:100%;height:100%;min-height:0!important;padding:4px 8px!important;font-size:13px;border-radius:16px}
+  body.view-ship #bottomActions button{width:100%;height:100%;min-height:0!important;padding:4px 6px!important;font-size:11px;border-radius:14px}
   body.view-ship #installBtn{display:none!important}
-  body.view-ship .settings-row{right:4%;bottom:1.4%}
-  body.view-ship .auto-hide-option{min-height:38px;padding:6px 9px;font-size:10px}
-  body.view-ship #offlinePanel{position:fixed;left:50%;bottom:18%;transform:translateX(-50%);width:70%;padding:5px 8px}
-  body.view-ship footer{position:fixed;left:50%;bottom:.7%;transform:translateX(-50%);margin:0;padding:0}
+
+  /* The lowest wide cockpit slot becomes the Hide Text control. */
+  body.view-ship .settings-row{left:50%;right:auto;top:83.5%;bottom:auto;transform:translateX(-50%);width:67.5%;height:7.3%}
+  body.view-ship .auto-hide-option{width:100%;height:100%;min-height:0;padding:4px 10px;font-size:12px;border-radius:16px}
+  body.view-ship #offlinePanel{position:fixed;left:50%;bottom:18.7%;transform:translateX(-50%);width:67%;padding:5px 8px}
+  body.view-ship footer{display:none}
 }
 
 #trackList{z-index:15000!important}
@@ -431,14 +451,8 @@ body.view-ship .auto-hide-option::after{content:none}
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="shipSkin" aria-hidden="true">
-  <div class="skin-piece skin-land skin-top"></div>
-  <div class="skin-piece skin-land skin-left"></div>
-  <div class="skin-piece skin-land skin-right"></div>
-  <div class="skin-piece skin-land skin-bottom"></div>
-  <div class="skin-piece skin-port skin-top"></div>
-  <div class="skin-piece skin-port skin-left"></div>
-  <div class="skin-piece skin-port skin-right"></div>
-  <div class="skin-piece skin-port skin-bottom"></div>
+  <div class="skin-piece skin-land"></div>
+  <div class="skin-piece skin-port"></div>
 </div>
 <div id="hudTap" title="Tap to show controls"></div>
 <button id="viewToggle" type="button">Ship View</button>
@@ -560,7 +574,7 @@ body.view-ship .auto-hide-option::after{content:none}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.09-dual-view-ship-player-1',
+  APP_VERSION: '2026.09.09-dual-view-repaired-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -1410,38 +1424,27 @@ shipArc?.addEventListener('pointercancel',()=>{ shipArcDragging=false; });
     '.scan-spark'
   )];
   const radar=document.querySelector('.radar');
-  const radarPlanet=document.querySelector('.radar-planet');
-  const orbitMoon=document.querySelector('.orbit-moon');
-  const randomBetween=(min,max)=>min+Math.random()*(max-min);
-
-  function lightPulse(){
-    if(!document.body.classList.contains('view-ship')){
-      setTimeout(lightPulse,randomBetween(800,2200));
-      return;
+  function randomBetween(min,max){ return min+Math.random()*(max-min); }
+  function pulse(){
+    if(!lights.length) return;
+    const count=Math.max(1,Math.min(4,Math.floor(Math.random()*4)+1));
+    const picks=[];
+    for(let i=0;i<count;i++){
+      const node=lights[Math.floor(Math.random()*lights.length)];
+      if(node && !picks.includes(node)) picks.push(node);
     }
-    if(lights.length){
-      const count=Math.floor(randomBetween(1,Math.min(5,lights.length)+1));
-      const picks=[];
-      for(let i=0;i<count;i++){
-        const node=lights[Math.floor(Math.random()*lights.length)];
-        if(node && !picks.includes(node)) picks.push(node);
-      }
-      picks.forEach(node=>node.classList.add('instrument-lit','lit'));
-      setTimeout(()=>picks.forEach(node=>node.classList.remove('instrument-lit','lit')),randomBetween(120,1250));
-    }
-    setTimeout(lightPulse,randomBetween(180,3100));
+    picks.forEach(node=>node.classList.add('instrument-lit'));
+    setTimeout(()=>picks.forEach(node=>node.classList.remove('instrument-lit')),randomBetween(130,1100));
+    setTimeout(pulse,randomBetween(220,2800));
   }
-  function randomizeRadar(){
+  function radarMood(){
     if(radar){
-      radar.style.setProperty('--radar-speed',`${randomBetween(2.4,6.8)}s`);
+      radar.style.setProperty('--radar-speed',`${randomBetween(2.5,6.7)}s`);
       radar.classList.toggle('radar-reverse',Math.random()<.30);
     }
-    if(radarPlanet) radarPlanet.style.animationDuration=`${randomBetween(24,46)}s`;
-    if(orbitMoon) orbitMoon.style.animationDuration=`${randomBetween(10,28)}s`;
-    setTimeout(randomizeRadar,randomBetween(5000,15000));
+    setTimeout(radarMood,randomBetween(5000,14000));
   }
-  lightPulse();
-  randomizeRadar();
+  pulse(); radarMood();
 })();
 
 audio.addEventListener('ended',advanceFromEnded);
@@ -2406,10 +2409,6 @@ $('reloadBtn').addEventListener('click',async()=>{
   applyViewMode(initialViewMode(),{persist:false});
   $('geLogo').src=absolute(CONFIG.LOGO_SRC);
   if($('radarPlanet')) $('radarPlanet').src=absolute(CONFIG.LOGO_SRC);
-  if(location.protocol==='file:'){
-    const fallback=matchMedia('(orientation:portrait)').matches?'./cockpit-portrait.png':'./cockpit-landscape.png';
-    $('bgImage').src=fallback;
-  }
   $('homeLink').href=CONFIG.HOME_URL;
   loadSharedState();
   syncModeButtons();
