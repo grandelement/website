@@ -819,7 +819,7 @@
     }
     #activePlayerName{display:none;}
     .roundBadge{grid-column:1;grid-row:2;justify-self:start;}
-    #gameNewBtn{grid-column:2;grid-row:2;}
+    #gameStartBtn{grid-column:2;grid-row:2;}
     #gameOptionsBtn{grid-column:3;grid-row:2;}
     .gameBgControls{
       position:absolute;
@@ -1147,66 +1147,6 @@
     100%{opacity:0;transform:translate(-50%,-58%) scale(1.08)}
   }
 
-
-  .gameMusicModeBtn{min-width:62px;padding:0 7px;font-size:7px;letter-spacing:.08em}
-  .gameMusicModeBtn.albumMode{box-shadow:0 0 12px rgba(120,190,255,.68)}
-
-  @media (orientation:portrait){
-    #gameHUD{
-      height:auto !important;
-      min-height:108px;
-      display:none;
-      grid-template-columns:minmax(0,1fr) auto auto !important;
-      grid-template-rows:minmax(42px,auto) auto auto !important;
-      column-gap:5px;
-      row-gap:3px;
-      padding-bottom:5px !important;
-    }
-    #gameHUD.show{display:grid !important}
-    .gameScoreWrap{grid-column:1/-1 !important;grid-row:1 !important}
-    .roundBadge{display:none !important}
-    #gameNewBtn{grid-column:1;grid-row:2;justify-self:start}
-    #gameOptionsBtn{grid-column:2;grid-row:2}
-    .gameBgControls{
-      position:static !important;
-      transform:none !important;
-      grid-column:1/-1;
-      grid-row:3;
-      justify-self:end;
-      display:flex;
-      gap:3px;
-      max-width:100%;
-    }
-    .gameBgBtn,.gameHudBtn{
-      min-width:0;
-      height:25px !important;
-      padding:0 clamp(4px,1.5vw,8px) !important;
-      font-size:clamp(6px,1.7vw,8px) !important;
-    }
-    #gameNotice{top:116px !important}
-  }
-
-  @media (orientation:landscape){
-    .gameSeekWrap{
-      width:72px !important;
-      min-width:72px !important;
-      max-width:72px !important;
-      height:250px;
-      flex-direction:column !important;
-      align-items:center;
-      justify-content:center;
-      overflow:visible;
-    }
-    #gameSeek{
-      width:210px !important;
-      min-width:210px !important;
-      transform:rotate(-90deg);
-      transform-origin:center;
-      margin:86px 0;
-    }
-    #gameMusicDock{overflow:hidden}
-  }
-
 </style>
 
 <script>
@@ -1216,13 +1156,13 @@
    ============================================================ */
 window.GE_EASY_SETTINGS = {
   // PLANET / POOL FEEL
-  PLANET_THROW_POWER: 925,      // higher = faster throws
-  PLANET_FRICTION: 0.984,        // closer to 1 = rolls longer; lower = stops sooner
-  PLANET_STOP_SPEED: 3,          // below this speed the planet is considered stopped
+  PLANET_THROW_POWER: 1050,      // higher = faster throws
+  PLANET_FRICTION: 0.973,        // closer to 1 = rolls longer; lower = stops sooner
+  PLANET_STOP_SPEED: 5,          // below this speed the planet is considered stopped
 
   // GAME
   TURNS_PER_SOUL: 3,
-  MAX_SOULS: 6,
+  MAX_SOULS: 12,
   SUN_VISIBLE_FRACTION: 0.25,    // 0.25 = at least 25% of blue sun stays reachable
 
   // AUTO / DEMO
@@ -1253,17 +1193,14 @@ window.GE_EASY_SETTINGS = {
 
   // NORMAL WEBSITE PLANET PREVIEW
   PLANET_PREVIEW_SCALE: 3,
-  PLANET_PREVIEW_ZOOM_MS: 2600,
+  PLANET_PREVIEW_ZOOM_MS: 850,
   PLANET_PREVIEW_HOLD_MS: 3000,
-  PLANET_PREVIEW_SHRINK_MS: 1800,
+  PLANET_PREVIEW_SHRINK_MS: 1100,
 
   // GAME SCORE / CONTACT RULES
   CONTACT_BONUS_POINTS: 1,
   CONTACT_PENALTY_POINTS: 1,
   POINT_BURST_HOLD_MS: 1250,
-  GAME_STATE_KEY: 'GE_GAME_STATE_V9',
-  GAME_AUTOSAVE_MS: 900,
-  MUSIC_SHUFFLE_DEFAULT: true,
 
   // NORMAL WEBSITE — BODIES / SOULS
   SOUL_START_MIN: 0,
@@ -1276,7 +1213,7 @@ window.GE_EASY_SETTINGS = {
   SHIP_RAY_RADIUS_FACTOR: 1.05,
   SHIP_RAY_DURATION_MS: 2400,
   SHIP_RAY_WIDTH: 8,
-  SHIP_MAX_SOULS: 60,
+  SHIP_MAX_SOULS: 120,
 
   HALO_BASE_RADIUS: 28,
   HALO_RING_GAP: 9,
@@ -1428,7 +1365,7 @@ window.GE_EASY_SETTINGS = {
       <span class="scoreBig" id="gameRound">ROUND 1</span>
       <span class="scoreSmall" id="gameRule">DIRECT OK</span>
     </div>
-    <button class="gameHudBtn" id="gameNewBtn" type="button">NEW GAME</button>
+    <button class="gameHudBtn active" id="gameStartBtn" type="button">PAUSE</button>
     <button class="gameHudBtn" id="gameOptionsBtn" type="button">OPTIONS</button>
     <div class="gameBgControls" aria-label="Game background controls">
       <button class="gameBgBtn" id="gameBgPrev" type="button">BG ◀</button>
@@ -1450,7 +1387,6 @@ window.GE_EASY_SETTINGS = {
     <button class="gameMusicBtn" id="gameMusicPrev" type="button" aria-label="Previous track">◀</button>
     <button class="gameMusicBtn" id="gameMusicPlay" type="button" aria-label="Play or pause">▶</button>
     <button class="gameMusicBtn" id="gameMusicNext" type="button" aria-label="Next track">▶▶</button>
-    <button class="gameMusicBtn gameMusicModeBtn" id="gameMusicMode" type="button" aria-label="Toggle shuffle or album mode">SHUFFLE</button>
     <div class="gameSeekWrap">
       <span id="gameTimeCur">0:00</span>
       <input id="gameSeek" type="range" min="0" max="1000" value="0" aria-label="Track position">
@@ -1500,19 +1436,26 @@ window.GE_EASY_SETTINGS = {
         <button class="stepArrow" id="playersUp" type="button" aria-label="More souls">›</button>
       </div>
       <div class="small">0 SOULS = AUTO / DEMO MODE · Each soul gets 3 throws per turn set.</div>
-      <div class="small" style="margin-top:7px">Scores stay visible inside the white soul balls. The ball with the electric ring is the active soul.</div>
+      <div class="small" style="margin-top:7px">Tap a soul circle to reveal its name and score. Tap the name beside it to edit the soul name or handicap.</div>
       <div class="optionGrid">
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
 
+        <label><span>Game style</span>
+          <select id="optGameStyle">
+            <option value="bank">Bank Run</option>
+            <option value="bonus">Soul Contact Bonus</option>
+            <option value="penalty">Soul Contact Penalty</option>
+            <option value="low">Low Score Trap</option>
+            <option value="carom">Carom Soul</option>
+          </select>
+        </label>
         <div class="details" id="gameRuleHelp" style="display:block;margin-top:10px">
-          <b>Scoring Factors</b><br><br>
-          <label><span>Blue sun hit = +1</span><input type="checkbox" id="optSunPoint" checked></label>
-          <label><span>Each wall bank = +1</span><input type="checkbox" id="optWallPoints" checked></label>
-          <label><span>Each different planet hit = +1</span><input type="checkbox" id="optPlanetPoints"></label>
-          <label><span>PINBALL SUN — bounce back out and keep scoring</span><input type="checkbox" id="optPinballSun"></label>
-          <label><span>MAGNET SUN — hover at the sun like a soft bumper</span><input type="checkbox" id="optMagnetSun"></label>
-          <p class="small">Mix these factors however you want. Every blue-sun contact registers a scoring event. Checked factors determine how many points are added.</p>
+          <b>Bank Run:</b> hit the blue sun. Each cushion bank adds a point. Later rounds require more banks.<br><br>
+          <b>Soul Contact Bonus:</b> each different planet touched during your shot adds 1 bonus point.<br><br>
+          <b>Soul Contact Penalty:</b> each different planet touched during your shot subtracts 1 point.<br><br>
+          <b>Low Score Trap:</b> every bank and planet contact adds to your total. After every Soul has three throws, the lowest score wins the round. Use the other planets as obstacles.<br><br>
+          <b>Carom Soul:</b> your moving planet must touch two different planets before reaching the blue sun. Inspired by carom billiards, where a scoring shot contacts multiple object balls.
         </div>
 
       </div>
@@ -2154,21 +2097,10 @@ moon.addEventListener('click', ()=>{
     return true;
   }
 
-  function geGameNext(){
-    if(!PLAYLIST.length) return;
-    if(!SHUFFLE){ next(); return; }
-    let n=pIndex;
-    if(PLAYLIST.length>1){ while(n===pIndex) n=Math.floor(Math.random()*PLAYLIST.length); }
-    pIndex=n;
-    startCurrent();
-  }
-
   window.GE_MUSIC_CONTROLLER={
     playPause:()=>btnPlay.click(),
-    next:()=>geGameNext(),
+    next:()=>next(),
     prev:()=>prev(),
-    setShuffle:(v)=>{ SHUFFLE=!!v; return SHUFFLE; },
-    getShuffle:()=>SHUFFLE,
     volumeDelta:(delta)=>{
       const v=Math.max(0,Math.min(1,(player.volume||0)+Number(delta||0)));
       player.volume=v;
@@ -2200,7 +2132,7 @@ moon.addEventListener('click', ()=>{
   player.addEventListener('timeupdate',     ()=>{ if(!seek.matches(':active')) seek.value=player.currentTime||0; tCur.textContent=fmt(player.currentTime||0); });
   seek.addEventListener('input', ()=>{ try{ player.currentTime = +seek.value; }catch(e){} });
 
-  player.addEventListener('ended', ()=>window.GE_MUSIC_CONTROLLER?.next?.());
+  player.addEventListener('ended', next);
   player.addEventListener('error', next);
 
   player.muted = false;
@@ -2273,7 +2205,6 @@ fetchAllMp3s().then(async list=>{
   const gn=document.getElementById('gameMusicNext');
   const gb=document.getElementById('gameMusicPrev');
   const gs=document.getElementById('gameSeek');
-  const modeBtn=document.getElementById('gameMusicMode');
   const gc=document.getElementById('gameTimeCur');
   const gm=document.getElementById('gameTimeMax');
   const player=document.getElementById('gePlayer');
@@ -2302,18 +2233,6 @@ fetchAllMp3s().then(async list=>{
   gp.addEventListener('click',()=>ctl()?.playPause());
   gn?.addEventListener('click',()=>ctl()?.next());
   gb?.addEventListener('click',()=>ctl()?.prev());
-
-  function syncGameMusicMode(){
-    if(!modeBtn) return;
-    const shuffle=ctl()?.getShuffle?.() ?? true;
-    modeBtn.textContent=shuffle?'SHUFFLE':'ALBUM';
-    modeBtn.classList.toggle('albumMode',!shuffle);
-  }
-  modeBtn?.addEventListener('click',()=>{
-    ctl()?.setShuffle?.(!(ctl()?.getShuffle?.() ?? true));
-    syncGameMusicMode();
-  });
-  syncGameMusicMode();
 
   gs?.addEventListener('input',()=>{
     try{ player.currentTime=Number(gs.value)||0; }catch(e){}
@@ -3310,7 +3229,6 @@ document.getElementById('planets').addEventListener('click',(e)=>{
 
 /* PLANET PHYSICS */
 const planetNodes = [];
-window.planetNodes = planetNodes;
 function buildPlanetPhysics(){
   planetNodes.length=0;
   document.querySelectorAll('.planet').forEach(el=>{
@@ -3473,11 +3391,8 @@ const GE_GAME = (()=>{
     requiredBanks:0,
     notices:true,
     showBanks:true,
-    sunPoint:true,
-    wallPoints:true,
-    planetPoints:false,
-    pinballSun:false,
-    magnetSun:false,
+    gameStyle:'bank',
+    lowRoundPending:false,
     completed:false,
     planetState:new WeakMap(),
     autoNext:0
@@ -3485,7 +3400,7 @@ const GE_GAME = (()=>{
 
   try{
     const saved=Number(localStorage.getItem(STORAGE_PLAYERS));
-    if(Number.isFinite(saved) && saved>=0) state.players=Math.min(6,Math.floor(saved));
+    if(Number.isFinite(saved) && saved>=0) state.players=Math.min(12,Math.floor(saved));
   }catch(e){}
 
   function defaultProfile(i){ return {name:'Soul '+(i+1),handicap:false,multiplier:2}; }
@@ -3502,7 +3417,7 @@ const GE_GAME = (()=>{
     }));
   }catch(e){}
   function ensureProfiles(){
-    for(let i=state.profiles.length;i<6;i++) state.profiles.push(defaultProfile(i));
+    for(let i=state.profiles.length;i<12;i++) state.profiles.push(defaultProfile(i));
   }
   function persistProfiles(){
     try{ localStorage.setItem(STORAGE_PROFILES,JSON.stringify(state.profiles)); }catch(e){}
@@ -3520,7 +3435,7 @@ const GE_GAME = (()=>{
   const activeNameEl=document.getElementById('activePlayerName');
   const roundEl=document.getElementById('gameRound');
   const ruleEl=document.getElementById('gameRule');
-  const newBtn=document.getElementById('gameNewBtn');
+  const startBtn=document.getElementById('gameStartBtn');
   const optionsBtn=document.getElementById('gameOptionsBtn');
   const prompt=document.getElementById('gamePrompt');
   const remember=document.getElementById('gameRememberChoice');
@@ -3531,11 +3446,7 @@ const GE_GAME = (()=>{
   const exitBtn=document.getElementById('gameExitBtn');
   const optNotices=document.getElementById('optNotices');
   const optBanks=document.getElementById('optBanks');
-  const optSunPoint=document.getElementById('optSunPoint');
-  const optWallPoints=document.getElementById('optWallPoints');
-  const optPlanetPoints=document.getElementById('optPlanetPoints');
-  const optPinballSun=document.getElementById('optPinballSun');
-  const optMagnetSun=document.getElementById('optMagnetSun');
+  const optGameStyle=document.getElementById('optGameStyle');
   const pointBurst=document.getElementById('pointBurst');
   const notice=document.getElementById('gameNotice');
   const roundPrompt=document.getElementById('roundPrompt');
@@ -3666,8 +3577,10 @@ const GE_GAME = (()=>{
   function updateHUD(animateName=false){
     rebuildScores(false);
     renderScoreDots();
-    roundEl.textContent='GAME';
-    ruleEl.textContent='SCORING FACTORS';
+    roundEl.textContent='ROUND '+state.round;
+    ruleEl.textContent=state.requiredBanks===0 ? 'DIRECT OK' : (state.requiredBanks+' BANK'+(state.requiredBanks===1?'':'S')+' MIN');
+    startBtn.textContent=state.running?'PAUSE':'START';
+    startBtn.classList.toggle('active',state.running);
     updatePlayerOption();
     if(state.players===0){
       activeNameEl.textContent='AUTO / DEMO';
@@ -3678,75 +3591,6 @@ const GE_GAME = (()=>{
     if(animateName) flashActiveName();
   }
 
-
-  const GAME_STATE_KEY=window.GE_EASY_SETTINGS?.GAME_STATE_KEY||'GE_GAME_STATE_V9';
-  let gameSaveTimer=0;
-
-  function saveGameStateNow(){
-    if(!state.active) return;
-    const payload={
-      active:true,
-      scores:state.scores.slice(),
-      players:state.players,
-      activePlayer:state.activePlayer,
-      turnInSet:state.turnInSet,
-      sunPoint:state.sunPoint,
-      wallPoints:state.wallPoints,
-      planetPoints:state.planetPoints,
-      pinballSun:state.pinballSun,
-      magnetSun:state.magnetSun,
-      sunLeft:blueSun.style.left||'',
-      sunTop:blueSun.style.top||'',
-      planets:planetNodes.map(p=>({x:p.x,y:p.y,vx:p.vx,vy:p.vy}))
-    };
-    try{ localStorage.setItem(GAME_STATE_KEY,JSON.stringify(payload)); }catch(e){}
-  }
-  function saveGameStateSoon(){
-    clearTimeout(gameSaveTimer);
-    gameSaveTimer=setTimeout(saveGameStateNow,window.GE_EASY_SETTINGS?.GAME_AUTOSAVE_MS??900);
-  }
-  function restoreGameState(){
-    let saved=null;
-    try{ saved=JSON.parse(localStorage.getItem(GAME_STATE_KEY)||'null'); }catch(e){}
-    if(!saved) return false;
-    if(Number.isFinite(saved.players)) state.players=Math.max(0,Math.min(6,saved.players|0));
-    state.scores=Array.isArray(saved.scores)?saved.scores.slice(0,Math.max(1,state.players||1)):[0];
-    while(state.scores.length<Math.max(1,state.players||1)) state.scores.push(0);
-    state.activePlayer=Math.max(0,Math.min(state.scores.length-1,saved.activePlayer|0));
-    state.turnInSet=Math.max(0,saved.turnInSet|0);
-    state.sunPoint=saved.sunPoint!==false;
-    state.wallPoints=saved.wallPoints!==false;
-    state.planetPoints=!!saved.planetPoints;
-    state.pinballSun=!!saved.pinballSun;
-    state.magnetSun=!!saved.magnetSun;
-    if(optSunPoint) optSunPoint.checked=state.sunPoint;
-    if(optWallPoints) optWallPoints.checked=state.wallPoints;
-    if(optPlanetPoints) optPlanetPoints.checked=state.planetPoints;
-    if(optPinballSun) optPinballSun.checked=state.pinballSun;
-    if(optMagnetSun) optMagnetSun.checked=state.magnetSun;
-    if(saved.sunLeft) blueSun.style.left=saved.sunLeft;
-    if(saved.sunTop) blueSun.style.top=saved.sunTop;
-    if(Array.isArray(saved.planets)) saved.planets.forEach((q,i)=>{
-      const p=planetNodes[i]; if(!p||!q) return;
-      if(Number.isFinite(q.x))p.x=q.x; if(Number.isFinite(q.y))p.y=q.y;
-      p.vx=Number(q.vx)||0; p.vy=Number(q.vy)||0; syncPlanet(p);
-    });
-    rebuildScores(false); updateHUD(true);
-    requestAnimationFrame(()=>{clampPlayfield();requestAnimationFrame(clampPlayfield);});
-    return true;
-  }
-  function newGame(){
-    if(!confirm('Start a new game? This clears the current scores.')) return;
-    try{localStorage.removeItem(GAME_STATE_KEY);}catch(e){}
-    state.scores=Array(Math.max(1,state.players||1)).fill(0);
-    state.activePlayer=0; state.turnInSet=0; state.score=0; state.completed=false; state.running=true;
-    state.planetState=new WeakMap();
-    for(const p of planetNodes){p.vx=0;p.vy=0;}
-    updateHUD(true); flash('NEW GAME'); saveGameStateSoon();
-  }
-  newBtn?.addEventListener('click',newGame);
-  addEventListener('pagehide',saveGameStateNow);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGameStateNow();});
 
   let pointBurstTimer=0;
   function showPointBurst(points,kind='score'){
@@ -3863,6 +3707,7 @@ const GE_GAME = (()=>{
     state.active=true;
     state.running=true;
     state.completed=false;
+    state.turnInSet=0;
     state.autoNext=performance.now()+(window.GE_EASY_SETTINGS?.AUTO_THROW_DELAY_MIN_MS ?? 900);
     document.body.classList.add('game-mode-active');
     setCleanGameScene(true);
@@ -3870,14 +3715,11 @@ const GE_GAME = (()=>{
     hud.setAttribute('aria-hidden','false');
     prompt.classList.remove('show');
     updateHUD(true);
-    const restored=restoreGameState();
-    saveGameStateSoon();
     requestAnimationFrame(()=>{ clampPlayfield(); requestAnimationFrame(clampPlayfield); });
-    flash(restored?'GAME RESTORED':'GAME STARTED');
+    flash('ROUND '+state.round+' — '+(state.requiredBanks?state.requiredBanks+' bank minimum':'direct hits allowed'));
   }
 
   function exitGame(){
-    saveGameStateNow();
     try{ window.GE_CLEAR_GAME_TRAILS?.(); }catch(e){}
     state.active=false;
     state.running=false;
@@ -3927,34 +3769,25 @@ const GE_GAME = (()=>{
     prompt.classList.remove('show');
   });
 
+  startBtn.addEventListener('click',()=>{
+    if(!state.active) return;
+    state.running=!state.running;
+    updateHUD();
+    flash(state.running?'GAME RESUMED':'GAME PAUSED');
+  });
   optionsBtn.addEventListener('click',()=>optionsPanel.classList.add('show'));
   optionsClose.addEventListener('click',()=>optionsPanel.classList.remove('show'));
+  optGameStyle?.addEventListener('change',()=>{
+    state.gameStyle=optGameStyle.value||'bank';
+    state.lowRoundPending=false;
+    flash(state.gameStyle==='low'?'LOW SCORE TRAP':state.gameStyle.toUpperCase());
+  });
   exitBtn.addEventListener('click',exitGame);
   optNotices.addEventListener('change',()=>state.notices=optNotices.checked);
   optBanks.addEventListener('change',()=>state.showBanks=optBanks.checked);
 
-  function syncScoringFactors(){
-    state.sunPoint=optSunPoint ? optSunPoint.checked : true;
-    state.wallPoints=!!optWallPoints?.checked;
-    state.planetPoints=!!optPlanetPoints?.checked;
-    state.pinballSun=!!optPinballSun?.checked;
-    state.magnetSun=!!optMagnetSun?.checked;
-    if(state.pinballSun && state.magnetSun){
-      state.magnetSun=false;
-      if(optMagnetSun) optMagnetSun.checked=false;
-    }
-    saveGameStateSoon();
-  }
-  for(const el of [optSunPoint,optWallPoints,optPlanetPoints,optPinballSun,optMagnetSun]){
-    el?.addEventListener('change',()=>{
-      if(el===optPinballSun && el.checked && optMagnetSun) optMagnetSun.checked=false;
-      if(el===optMagnetSun && el.checked && optPinballSun) optPinballSun.checked=false;
-      syncScoringFactors();
-    });
-  }
-
   function setPlayers(n){
-    state.players=Math.max(0,Math.min(6,n|0));
+    state.players=Math.max(0,Math.min((window.GE_EASY_SETTINGS?.MAX_SOULS ?? 12),n|0));
     ensureProfiles();
     state.activePlayer=0;
     state.turnInSet=0;
@@ -3962,7 +3795,6 @@ const GE_GAME = (()=>{
     try{ localStorage.setItem(STORAGE_PLAYERS,String(state.players)); }catch(e){}
     updateHUD(true);
     flash(state.players===0?'AUTO / DEMO MODE':`${state.players} soul${state.players===1?'':'s'} · ${state.turnsPerPlayer} throws each`);
-    saveGameStateSoon();
   }
   playersDown.addEventListener('click',()=>setPlayers(state.players-1));
   playersUp.addEventListener('click',()=>setPlayers(state.players+1));
@@ -4027,13 +3859,18 @@ const GE_GAME = (()=>{
     if(state.turnInSet>=state.turnsPerPlayer){
       state.turnInSet=0;
       if(state.players>1){
+        const previous=state.activePlayer;
         state.activePlayer=(state.activePlayer+1)%state.players;
+        if(state.gameStyle==='low' && previous===state.players-1 && state.activePlayer===0){
+          state.lowRoundPending=true;
+        }
+      }else if(state.gameStyle==='low'){
+        state.lowRoundPending=true;
       }
       updateHUD(true);
     }else{
       updateHUD(false);
     }
-    saveGameStateSoon();
   }
 
   function julianDate(date){ return date.getTime()/86400000 + 2440587.5; }
@@ -4110,39 +3947,78 @@ const GE_GAME = (()=>{
 
   function planetContact(a,b){
     if(!state.active || !state.running || !a || !b) return;
-    const remember=(moving,target)=>{
+
+    const apply=(moving,target)=>{
       const ps=state.planetState.get(moving);
-      if(!ps || !ps.armed) return;
+      if(!ps || !ps.armed || ps.scored) return;
       if(!ps.contactedTargets) ps.contactedTargets=new Set();
-      ps.contactedTargets.add(target.el || target);
+      const key=target.el || target;
+      if(ps.contactedTargets.has(key)) return;
+      ps.contactedTargets.add(key);
+
+      const owner=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
+      if(state.gameStyle==='bonus'){
+        const add=(window.GE_EASY_SETTINGS?.CONTACT_BONUS_POINTS ?? 1);
+        state.scores[owner]=(state.scores[owner]||0)+add;
+        showPointBurst(add);
+        flash(`SOUL ${owner+1} +${add} planet contact`);
+        updateHUD(false);
+      }else if(state.gameStyle==='penalty'){
+        const sub=(window.GE_EASY_SETTINGS?.CONTACT_PENALTY_POINTS ?? 1);
+        state.scores[owner]=Math.max(0,(state.scores[owner]||0)-sub);
+        showPointBurst(-sub,'penalty');
+        flash(`SOUL ${owner+1} -${sub} planet contact`);
+        updateHUD(false);
+      }else if(state.gameStyle==='low'){
+        state.scores[owner]=(state.scores[owner]||0)+1;
+        showPointBurst(1);
+        flash(`SOUL ${owner+1} +1 obstacle`);
+        updateHUD(false);
+      }
     };
-    remember(a,b);
-    remember(b,a);
+
+    apply(a,b);
+    apply(b,a);
   }
 
   function pointForHit(p,ps){
     const banks=ps.banks||0;
     const contacts=ps.contactedTargets ? ps.contactedTargets.size : 0;
+
+    if(state.gameStyle==='carom' && contacts<2){
+      flash(`${contacts}/2 planet contacts — need 2 before the sun`);
+      ps.banks=0;
+      return;
+    }
+
+    if(state.gameStyle!=='low' && banks < state.requiredBanks){
+      flash(`${banks} bank${banks===1?'':'s'} — need ${state.requiredBanks}`);
+      ps.banks=0;
+      return;
+    }
+
     const i=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
     const mult=playerMultiplierValue(i);
-    let base=0;
-    const details=[];
 
-    if(state.sunPoint){ base+=1; details.push('SUN +1'); }
-    if(state.wallPoints && banks){ base+=banks; details.push(`${banks} BANK${banks===1?'':'S'} +${banks}`); }
-    if(state.planetPoints && contacts){ base+=contacts; details.push(`${contacts} PLANET${contacts===1?'':'S'} +${contacts}`); }
-    if(base<1){ base=1; details.push('SUN +1'); }
+    let basePoints=banks+1;
+    if(state.gameStyle==='carom') basePoints += contacts;
+    if(state.gameStyle==='low') basePoints = Math.max(1,banks+1);
 
-    const points=base*mult;
+    const points=basePoints*mult;
     state.scores[i]=(state.scores[i]||0)+points;
+
+    if(state.gameStyle!=='low' && state.scores[i]>100) state.scores[i]=100;
+
     state.score=state.scores[state.activePlayer]||0;
-    showPointBurst(points);
-    flash(details.join(' · ')+(mult>1?` · ${mult}×`:''));
     ps.scored=true;
     ps.armed=false;
+
+    showPointBurst(points);
+    flash(`SOUL ${i+1} +${points}${mult>1?' ('+mult+'× handicap)':''}${state.showBanks?' · '+banks+' bank'+(banks===1?'':'s'):''}`);
     ps.banks=0;
     updateHUD(false);
-    saveGameStateSoon();
+
+    if(state.gameStyle!=='low' && state.scores[i]>=100){ completeRound(i); }
   }
 
 
@@ -4150,28 +4026,13 @@ const GE_GAME = (()=>{
     if(!state.active || !state.running || !p) return;
     let ps=state.planetState.get(p);
     if(!ps){
-      ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false,contactedTargets:new Set()};
+      ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false};
       state.planetState.set(p,ps);
     }
-    if(ps.armed && !ps.scored) pointForHit(p,ps);
-
-    const r=document.getElementById('sunWrap')?.getBoundingClientRect();
-    if(state.pinballSun && r){
-      const sx=r.left+r.width/2, sy=r.top+r.height/2;
-      const dx=p.x-sx,dy=p.y-sy,d=Math.hypot(dx,dy)||1;
-      const kick=Math.max(210,Math.hypot(p.vx||0,p.vy||0)*1.1);
-      p.vx=(dx/d)*kick+rand(-28,28);
-      p.vy=(dy/d)*kick+rand(-28,28);
-      ps.scored=false; ps.armed=true; ps.banks=0; ps.contactedTargets=new Set();
-    }else if(state.magnetSun && r){
-      const sx=r.left+r.width/2, sy=r.top+r.height/2;
-      const dx=p.x-sx,dy=p.y-sy,d=Math.hypot(dx,dy)||1;
-      const hold=r.width/2+p.r+5;
-      p.x=sx+(dx/d)*hold; p.y=sy+(dy/d)*hold;
-      const tangent=choice([-1,1])*rand(16,34);
-      p.vx=(-dy/d)*tangent; p.vy=(dx/d)*tangent;
-      ps.scored=false; ps.armed=true; ps.banks=0; ps.contactedTargets=new Set();
+    if(ps.armed && !ps.scored){
+      pointForHit(p,ps);
     }
+    // The physical collision has already expelled the planet, so do not leave it latched "inside".
     ps.inSun=false;
   }
 
@@ -4200,23 +4061,34 @@ const GE_GAME = (()=>{
 
   function scoreLoop(){
     if(state.active && state.running && Array.isArray(planetNodes)){
+      const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
+      const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
       const bounds=getPlanetPlayBounds();
-      const now=performance.now();
-      autoShoot(now);
+      const now=performance.now(); autoShoot(now);
+
+      if(state.gameStyle==='low' && state.lowRoundPending){
+        const stopped=planetNodes.every(p=>p.dragging || Math.hypot(p.vx||0,p.vy||0)<(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? 5));
+        if(stopped){
+          state.lowRoundPending=false;
+          let winner=0;
+          for(let i=1;i<state.scores.length;i++) if(state.scores[i]<state.scores[winner]) winner=i;
+          completeRound(winner);
+        }
+      }
+
       for(const p of planetNodes){
         let ps=state.planetState.get(p);
-        if(!ps){
-          ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false,contactedTargets:new Set()};
-          state.planetState.set(p,ps);
-        }
+        if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0,armed:false,scored:false}; state.planetState.set(p,ps); }
         const nearL=p.x-p.r<=bounds.left+1.5, nearR=p.x+p.r>=bounds.right-1.5;
         const nearT=p.y-p.r<=bounds.top+1.5, nearB=p.y+p.r>=bounds.bottom-1.5;
         let banked=0;
         if((nearL||nearR)&&Math.sign(ps.vx)!==0&&Math.sign(p.vx)!==0&&Math.sign(ps.vx)!==Math.sign(p.vx)) banked++;
         if((nearT||nearB)&&Math.sign(ps.vy)!==0&&Math.sign(p.vy)!==0&&Math.sign(ps.vy)!==Math.sign(p.vy)) banked++;
-        if(ps.armed && banked && now-ps.lastBank>90){
-          ps.banks+=banked; ps.lastBank=now;
-          if(state.showBanks) flash(`${ps.banks} bank${ps.banks===1?'':'s'}`);
+        if(ps.armed && banked && now-ps.lastBank>90){ ps.banks+=banked; ps.lastBank=now; if(state.showBanks) flash(`${ps.banks} bank${ps.banks===1?'':'s'}`); }
+        if(sr){
+          const touching=Math.hypot(p.x-sx,p.y-sy)<=(p.r+sr);
+          if(ps.armed && !ps.scored && touching && !ps.inSun) pointForHit(p,ps);
+          ps.inSun=touching;
         }
         ps.vx=p.vx||0; ps.vy=p.vy||0;
       }
@@ -4231,22 +4103,13 @@ const GE_GAME = (()=>{
     clearTimeout(resizeTimer);
     resizeTimer=setTimeout(()=>{ if(gameBackground) gameBackground.style.transform='none'; clampPlayfield(); updateHUD(false); },100);
   }
-  addEventListener('resize',()=>{
-    reflow();
-    requestAnimationFrame(()=>{clampPlayfield();requestAnimationFrame(clampPlayfield);});
-  },{passive:true});
-  addEventListener('orientationchange',()=>{
-    setTimeout(()=>{reflow();clampPlayfield();saveGameStateSoon();},180);
-  },{passive:true});
+  addEventListener('resize',reflow,{passive:true});
+  addEventListener('orientationchange',()=>setTimeout(reflow,180),{passive:true});
 
   updateHUD();
-  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision,planetContact,saveGameStateNow};
+  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision,planetContact};
 })();
 window.GE_GAME=GE_GAME;
-try{
-  const savedGame=JSON.parse(localStorage.getItem(window.GE_EASY_SETTINGS?.GAME_STATE_KEY||'GE_GAME_STATE_V9')||'null');
-  if(savedGame?.active){ setTimeout(()=>window.GE_GAME?.start?.(),80); }
-}catch(e){}
 
 /* Keep Sun placed reasonably on first load */
 function nudgeSunNow(){
