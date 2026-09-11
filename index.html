@@ -1207,6 +1207,75 @@
     #gameMusicDock{overflow:hidden}
   }
 
+
+  /* V10 consolidated game HUD overrides */
+  .scoreBallStack{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:38px}
+  .turnDots{display:flex;align-items:center;justify-content:center;gap:2px;height:5px;max-width:42px;overflow:hidden}
+  .turnDot{width:4px;height:4px;border-radius:50%;background:rgba(165,190,215,.28);box-shadow:0 0 2px rgba(120,190,255,.15)}
+  .turnDot.remaining{background:#dff5ff;box-shadow:0 0 5px rgba(90,190,255,.95)}
+  .turnDot.used{background:rgba(95,120,145,.22)}
+  .playerScoreItem{min-width:50px!important;gap:4px!important}
+  .gameScoreCluster{gap:clamp(4px,1.6vw,9px)!important}
+
+  .albumPickerSection{margin-top:14px;padding-top:12px;border-top:1px solid rgba(150,195,235,.22)}
+  .albumPickerTitle{font-size:11px;font-weight:950;letter-spacing:.12em;margin-bottom:7px}
+  .gameAlbumPicker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
+  .albumPick{
+    display:flex!important;align-items:center!important;gap:8px!important;
+    padding:7px!important;border:1px solid rgba(150,195,235,.25);border-radius:12px;
+    background:rgba(9,22,38,.65);min-width:0
+  }
+  .albumPick img{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:0 0 auto;box-shadow:0 0 7px rgba(140,210,255,.25)}
+  .albumPickText{min-width:0;flex:1;font-size:10px;font-weight:850;line-height:1.15}
+  .albumPickLegend{font-size:7px;letter-spacing:.08em;opacity:.62;margin-top:2px}
+  .albumPick input{flex:0 0 auto}
+
+  @media (orientation:portrait){
+    #gameHUD{
+      height:auto!important;min-height:84px!important;
+      grid-template-columns:minmax(0,1fr)!important;
+      grid-template-rows:48px 30px!important;
+      row-gap:2px!important;column-gap:0!important;
+      padding:calc(4px + env(safe-area-inset-top,0px)) 5px 4px!important;
+      overflow:hidden!important;
+    }
+    #gameHUD.show{display:grid!important}
+    .gameScoreWrap{grid-column:1!important;grid-row:1!important;width:100%!important;overflow:hidden!important}
+    .gameScoreCluster{width:100%!important;justify-content:space-evenly!important;overflow:hidden!important;padding:3px 0!important}
+    .playerDot{width:32px!important;height:32px!important;min-width:32px!important;font-size:10px!important}
+    .playerScoreLabel{font-size:8px!important}
+    .roundBadge,#activePlayerName{display:none!important}
+    .gameBgControls{
+      position:static!important;transform:none!important;
+      grid-column:1!important;grid-row:2!important;
+      justify-self:stretch!important;align-self:center!important;
+      display:flex!important;align-items:center!important;justify-content:flex-end!important;
+      gap:3px!important;width:100%!important;max-width:100%!important
+    }
+    #gameNewBtn,#gameExitTopBtn,#gameOptionsBtn{
+      position:static!important;grid-row:2!important;z-index:2;
+      height:24px!important;padding:0 clamp(4px,1.4vw,7px)!important;font-size:clamp(6px,1.65vw,8px)!important
+    }
+    #gameNewBtn{grid-column:1!important;justify-self:start!important;margin-left:0!important}
+    #gameExitTopBtn{grid-column:1!important;justify-self:start!important;margin-left:64px!important}
+    #gameOptionsBtn{grid-column:1!important;justify-self:start!important;margin-left:111px!important}
+    .gameBgBtn{height:24px!important;padding:0 clamp(4px,1.25vw,6px)!important;font-size:clamp(6px,1.55vw,8px)!important}
+    #gameNotice{top:calc(90px + env(safe-area-inset-top,0px))!important}
+    .gameAlbumPicker{grid-template-columns:1fr!important}
+  }
+
+  @media (orientation:landscape){
+    #gameHUD{overflow-y:auto!important;overflow-x:hidden!important}
+    .playerScoreItem{min-width:44px!important}
+    .scoreBallStack{min-width:36px}
+    .turnDots{max-width:38px}
+    #gameExitTopBtn{width:calc(100% - 10px);margin:3px 5px;height:27px;font-size:8px}
+    #gameNewBtn,#gameOptionsBtn{width:calc(100% - 10px);margin:3px 5px}
+    .gameBgControls{flex-wrap:wrap!important;justify-content:center!important}
+    .gameSeekWrap{height:min(300px,42vh)!important}
+    #gameSeek{width:min(230px,36vh)!important;min-width:min(230px,36vh)!important}
+  }
+
 </style>
 
 <script>
@@ -1246,9 +1315,9 @@ window.GE_EASY_SETTINGS = {
   // GAME PLANET TRACERS
   TRACERS_ON: true,
   TRACER_WIDTH: 3.0,
-  TRACER_ALPHA: 0.58,
-  TRACER_GLOW: 16,
-  TRACER_FADE_SECONDS: 5.5,       // fade begins only after every planet has stopped
+  TRACER_ALPHA: 0.72,
+  TRACER_GLOW: 18,
+  TRACER_FADE_SECONDS: 8.0,       // fade begins only after every planet has stopped
   TRACER_MIN_SPEED: 8,            // don't draw tracer for tiny resting jitter
 
   // NORMAL WEBSITE PLANET PREVIEW
@@ -1267,15 +1336,19 @@ window.GE_EASY_SETTINGS = {
 
   // NORMAL WEBSITE — BODIES / SOULS
   SOUL_START_MIN: 0,
-  SOUL_START_MAX: 2,
-  SOUL_MAX_ACTIVE: 140,
-  SOUL_SPAWN_MIN_SEC: 1.4,
-  SOUL_SPAWN_MAX_SEC: 4.8,
+  SOUL_START_MAX: 1,
+  SOUL_MAX_ACTIVE: 24,
+  SOUL_SPAWN_MIN_SEC: 4.0,
+  SOUL_SPAWN_MAX_SEC: 9.0,
 
   SHIP_CENTER_RADIUS_FACTOR: 0.34,
   SHIP_RAY_RADIUS_FACTOR: 1.05,
   SHIP_RAY_DURATION_MS: 2400,
   SHIP_RAY_WIDTH: 8,
+  SHIP_CONTROL_RADIUS: 220,
+  SHIP_CONTROL_DEADZONE: 18,
+  SHIP_CONTROL_MAX_SPEED: 330,
+  SHIP_EXIT_MARGIN: 130,
   SHIP_MAX_SOULS: 60,
 
   HALO_BASE_RADIUS: 28,
@@ -1429,6 +1502,7 @@ window.GE_EASY_SETTINGS = {
       <span class="scoreSmall" id="gameRule">DIRECT OK</span>
     </div>
     <button class="gameHudBtn" id="gameNewBtn" type="button">NEW GAME</button>
+    <button class="gameHudBtn" id="gameExitTopBtn" type="button">EXIT</button>
     <button class="gameHudBtn" id="gameOptionsBtn" type="button">OPTIONS</button>
     <div class="gameBgControls" aria-label="Game background controls">
       <button class="gameBgBtn" id="gameBgPrev" type="button">BG ◀</button>
@@ -1499,9 +1573,11 @@ window.GE_EASY_SETTINGS = {
         <div id="playerCountLabel">1 SOUL</div>
         <button class="stepArrow" id="playersUp" type="button" aria-label="More souls">›</button>
       </div>
-      <div class="small">0 SOULS = AUTO / DEMO MODE · Each soul gets 3 throws per turn set.</div>
-      <div class="small" style="margin-top:7px">Scores stay visible inside the white soul balls. The ball with the electric ring is the active soul.</div>
+      <div class="small">0 SOULS = AUTO / DEMO MODE</div>
+      <div class="small" style="margin-top:7px">Scores stay visible inside the white soul balls. Tiny dots under each ball show throws remaining in the current turn set.</div>
       <div class="optionGrid">
+        <label><span>Throws per soul</span><input type="number" id="optTurnsPerSoul" min="1" max="9" step="1" value="3"></label>
+        <label><span>Winning score</span><input type="number" id="optMaxScore" min="10" max="999" step="10" value="100"></label>
         <label><span>Sound / visual notices</span><input type="checkbox" id="optNotices" checked></label>
         <label><span>Show bank count</span><input type="checkbox" id="optBanks" checked></label>
 
@@ -1515,6 +1591,11 @@ window.GE_EASY_SETTINGS = {
           <p class="small">Mix these factors however you want. Every blue-sun contact registers a scoring event. Checked factors determine how many points are added.</p>
         </div>
 
+      </div>
+      <div class="albumPickerSection">
+        <div class="albumPickerTitle">ALBUMS / GAME PLANETS</div>
+        <div class="small">Checked albums are the planets in the game and the albums used by Shuffle or Album playback. Legendary albums are optional.</div>
+        <div id="gameAlbumPicker" class="gameAlbumPicker"></div>
       </div>
       <div class="gameButtons">
         <button class="gameButton" id="gameScoresBtn" type="button">HIGH SCORES</button>
@@ -1639,13 +1720,50 @@ const PLANET_DEFAULT_BOTTOM_Y = 0.78;
 const PLANET_DEFAULT_SWIRL_WIDTH = 0.085;
 const PLANET_DEFAULT_SWIRL_TURNS = 1.18;
 
-const ALBUMS = [
-  { title:"Intergy", cover: IMG+"Grand%20Element%20-%20Intergy.jpg", link:"https://grandelement.bandcamp.com/album/intergy" },
-  { title:"Love",    cover: IMG+"Grand%20Element%20-%20Love.jpg",    link:"https://grandelement.bandcamp.com/album/love" },
-  { title:"Soul",    cover: IMG+"Grand%20Element%20-%20Soul.jpg",    link:"https://grandelement.bandcamp.com/album/soul" },
-  { title:"Spirit",  cover: IMG+"Grand%20Element%20-%20Spirit.jpg",  link:"https://grandelement.bandcamp.com/album/spirit" },
-  { title:"Fire",    cover: IMG+"Grand%20Element%20-%20Fire.jpg",    link:"https://grandelement.bandcamp.com/album/fire" }
+const GE_ALBUM_SELECTION_KEY='GE_GAME_ALBUM_SELECTION_V1';
+const ALL_ALBUMS = [
+  { title:"Fundamental Groove", musicTitle:"Fundamental Groove", cover:IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"https://grandelement.bandcamp.com/album/fundamental-groove", legendary:true },
+  { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true },
+  { title:"Live!", musicTitle:"Live", cover:IMG+"Grand%20Element%20-%20Live.jpg", link:"https://grandelement.bandcamp.com/album/live", legendary:true },
+  { title:"Sessions I", musicTitle:"Sessions I", cover:IMG+"Grand%20Element%20-%20Sessions%20I.jpg", link:"https://grandelement.bandcamp.com/album/sessions-i", legendary:true },
+  { title:"Sessions II", musicTitle:"Sessions II", cover:IMG+"Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii", legendary:true },
+  { title:"Intergy", musicTitle:"Intergy", cover:IMG+"Grand%20Element%20-%20Intergy.jpg", link:"https://grandelement.bandcamp.com/album/intergy", legendary:false },
+  { title:"Love", musicTitle:"Love", cover:IMG+"Grand%20Element%20-%20Love.jpg", link:"https://grandelement.bandcamp.com/album/love", legendary:false },
+  { title:"Soul", musicTitle:"Soul", cover:IMG+"Grand%20Element%20-%20Soul.jpg", link:"https://grandelement.bandcamp.com/album/soul", legendary:false },
+  { title:"Spirit", musicTitle:"Spirit", cover:IMG+"Grand%20Element%20-%20Spirit.jpg", link:"https://grandelement.bandcamp.com/album/spirit", legendary:false },
+  { title:"Fire", musicTitle:"Fire", cover:IMG+"Grand%20Element%20-%20Fire.jpg", link:"https://grandelement.bandcamp.com/album/fire", legendary:false }
 ];
+const GE_ALBUM_ORDER=ALL_ALBUMS.map(a=>a.musicTitle);
+let GE_SELECTED_ALBUMS=(()=>{
+  try{
+    const saved=JSON.parse(localStorage.getItem(GE_ALBUM_SELECTION_KEY)||'null');
+    if(Array.isArray(saved) && saved.length) return saved;
+  }catch(e){}
+  return ALL_ALBUMS.filter(a=>!a.legendary).map(a=>a.musicTitle);
+})();
+function geAlbumKey(name){ return normAlbumName(String(name||'').replace(/!$/,'')); }
+function geEnabledAlbumSet(){ return new Set(GE_SELECTED_ALBUMS.map(geAlbumKey)); }
+function getEnabledAlbums(){
+  const set=geEnabledAlbumSet();
+  return ALL_ALBUMS.filter(a=>set.has(geAlbumKey(a.musicTitle)));
+}
+let ALBUMS=getEnabledAlbums();
+window.GE_ALBUM_CONFIG={
+  all:ALL_ALBUMS,
+  getSelected:()=>GE_SELECTED_ALBUMS.slice(),
+  setSelected:(names)=>{
+    const valid=new Set(ALL_ALBUMS.map(a=>geAlbumKey(a.musicTitle)));
+    let next=Array.from(new Set((Array.isArray(names)?names:[]).filter(n=>valid.has(geAlbumKey(n)))));
+    if(!next.length) next=['Intergy'];
+    GE_SELECTED_ALBUMS=next;
+    try{localStorage.setItem(GE_ALBUM_SELECTION_KEY,JSON.stringify(next));}catch(e){}
+    ALBUMS=getEnabledAlbums();
+    placePlanets();
+    if(typeof buildPlanetPhysics==='function') requestAnimationFrame(buildPlanetPhysics);
+    window.GE_MUSIC_CONTROLLER?.refreshAlbums?.();
+    return next.slice();
+  }
+};
 const planetsEl = document.getElementById('planets');
 function placePlanets(){
   planetsEl.innerHTML="";
@@ -1717,6 +1835,7 @@ function placePlanets(){
     aEl.href=alb.link;
     aEl.target='_blank';
     aEl.rel='noopener';
+    aEl.dataset.album=alb.musicTitle||alb.title;
     aEl.title=alb.title;
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
@@ -1936,7 +2055,9 @@ moon.addEventListener('click', ()=>{
     mini.addEventListener(ev, e=>{ e.stopPropagation(); }, {passive:false});
   });
 
-  let PLAYLIST=[], pIndex=0, SHUFFLE=true, started=false, allowPlanetPulse=false;
+  let CATALOG=[], PLAYLIST=[], pIndex=0, SHUFFLE=true, started=false, allowPlanetPulse=false;
+  let shuffleHistory=[], shuffleHistoryPos=-1, recentTracks=[];
+  const RADIO_ALBUM_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire'];
 
   // Cross-page audio control: when the website loads, tell the Radio page to stop.
   // (Works across tabs/windows on the same origin.)
@@ -2057,7 +2178,7 @@ moon.addEventListener('click', ()=>{
       if(mr.ok){
         const mj = await mr.json();
         const list = Array.isArray(mj) ? mj : (mj && Array.isArray(mj.files) ? mj.files : []);
-        const allowedAlbums = new Set(['intergy','love','soul','spirit','fire']);
+        const allowedAlbums = new Set(RADIO_ALBUM_ORDER.map(normAlbumName));
         return (list||[])
           .filter(p => /\.(mp3|m4a|wav)$/i.test(p))
           .map(p=>{
@@ -2096,40 +2217,68 @@ moon.addEventListener('click', ()=>{
       });
   }
 
-  function applyOrder(){
+  function albumRankItem(it){
+    const key=normAlbumName(it?.album);
+    const idx=RADIO_ALBUM_ORDER.findIndex(a=>normAlbumName(a)===key);
+    return idx<0?999:idx;
+  }
+  function selectedAlbumKeys(){
+    const names=window.GE_ALBUM_CONFIG?.getSelected?.() || ['Intergy','Love','Soul','Spirit','Fire'];
+    return new Set(names.map(normAlbumName));
+  }
+  function canonicalSort(a,b){
+    const ad=albumRankItem(a)-albumRankItem(b);
+    if(ad) return ad;
+    const td=(Number(a.trackNum)||9999)-(Number(b.trackNum)||9999);
+    return td || String(a.path||a.url).localeCompare(String(b.path||b.url));
+  }
+  function refreshPlaylist(keepURL=''){
+    const selected=selectedAlbumKeys();
+    const currentURL=keepURL || PLAYLIST[pIndex]?.url || '';
+    PLAYLIST=CATALOG.filter(it=>selected.has(normAlbumName(it.album))).sort(canonicalSort);
+    if(!PLAYLIST.length){pIndex=0;return;}
+    const found=currentURL?PLAYLIST.findIndex(it=>it.url===currentURL):-1;
+    pIndex=found>=0?found:Math.min(pIndex,PLAYLIST.length-1);
+  }
+  function rememberShuffle(it){
+    if(!it) return;
+    recentTracks=[it.url,...recentTracks.filter(u=>u!==it.url)].slice(0,4);
+    if(shuffleHistoryPos<shuffleHistory.length-1) shuffleHistory=shuffleHistory.slice(0,shuffleHistoryPos+1);
+    if(shuffleHistory[shuffleHistory.length-1]!==it.url) shuffleHistory.push(it.url);
+    shuffleHistoryPos=shuffleHistory.length-1;
+  }
+  function chooseShuffleIndex(){
+    if(!PLAYLIST.length) return -1;
+    const pool=PLAYLIST.map((it,i)=>({it,i})).filter(x=>!recentTracks.includes(x.it.url));
+    const use=pool.length?pool:PLAYLIST.map((it,i)=>({it,i}));
+    return use[(Math.random()*use.length)|0]?.i ?? 0;
+  }
+  function next(){
     if(!PLAYLIST.length) return;
-    if (SHUFFLE) {
-      const base=[...PLAYLIST].sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
-      PLAYLIST = base; shuffle(PLAYLIST);
-    } else {
-      PLAYLIST.sort((a,b)=>a.album.localeCompare(b.album)||a.trackNum-b.trackNum);
+    if(SHUFFLE){
+      if(shuffleHistoryPos>=0 && shuffleHistoryPos<shuffleHistory.length-1){
+        shuffleHistoryPos++;
+        const idx=PLAYLIST.findIndex(it=>it.url===shuffleHistory[shuffleHistoryPos]);
+        if(idx>=0){pIndex=idx;startCurrent();return;}
+      }
+      pIndex=chooseShuffleIndex();
+      rememberShuffle(PLAYLIST[pIndex]);
+    }else{
+      pIndex=(pIndex+1)%PLAYLIST.length;
     }
-    if(started){
-      if(pIndex>=PLAYLIST.length) pIndex=0;
-      startCurrent();
-    } else {
-      pIndex=0;
-    }
+    startCurrent();
   }
-
-  async function startCurrent(){
-    const it = PLAYLIST[pIndex];
-    if(!it) return false;
-    player.src = it.url;
-    player.muted = false;
-    player.volume = Number(vol.value || 0.8);
-    setTitle(it);
-    updateMediaSession(it);
-    try{
-      await player.play();
-      return true;
-    }catch(err){
-      console.warn('Track start failed:', err);
-      return false;
-    }
+  function prev(){
+    if(!PLAYLIST.length) return;
+    if(SHUFFLE && shuffleHistoryPos>0){
+      shuffleHistoryPos--;
+      const idx=PLAYLIST.findIndex(it=>it.url===shuffleHistory[shuffleHistoryPos]);
+      if(idx>=0)pIndex=idx;
+    }else if(!SHUFFLE){
+      pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length;
+    }else return;
+    startCurrent();
   }
-  function next(){ if(!PLAYLIST.length) return; pIndex=(pIndex+1)%PLAYLIST.length; startCurrent(); }
-  function prev(){ if(!PLAYLIST.length) return; pIndex=(pIndex-1+PLAYLIST.length)%PLAYLIST.length; startCurrent(); }
 
   btnNext.onclick=next;
   btnPrev.onclick=prev;
@@ -2154,26 +2303,32 @@ moon.addEventListener('click', ()=>{
     return true;
   }
 
-  function geGameNext(){
-    if(!PLAYLIST.length) return;
-    if(!SHUFFLE){ next(); return; }
-    let n=pIndex;
-    if(PLAYLIST.length>1){ while(n===pIndex) n=Math.floor(Math.random()*PLAYLIST.length); }
-    pIndex=n;
-    startCurrent();
+  function reflectMusicMode(){
+    tgShuffle.classList.toggle('active',SHUFFLE);
+    tgAlbum.classList.toggle('active',!SHUFFLE);
+  }
+  function setShuffleMode(v){
+    SHUFFLE=!!v;
+    reflectMusicMode();
+    return SHUFFLE;
   }
 
   window.GE_MUSIC_CONTROLLER={
     playPause:()=>btnPlay.click(),
-    next:()=>geGameNext(),
+    next:()=>next(),
     prev:()=>prev(),
-    setShuffle:(v)=>{ SHUFFLE=!!v; return SHUFFLE; },
+    setShuffle:(v)=>setShuffleMode(v),
     getShuffle:()=>SHUFFLE,
+    refreshAlbums:()=>{
+      const keep=PLAYLIST[pIndex]?.url||'';
+      refreshPlaylist(keep);
+      if(!PLAYLIST.length){player.pause();player.removeAttribute('src');setTitle(null);return;}
+      if(keep && PLAYLIST[pIndex]?.url===keep){setTitle(PLAYLIST[pIndex]);return;}
+      startCurrent();
+    },
     volumeDelta:(delta)=>{
       const v=Math.max(0,Math.min(1,(player.volume||0)+Number(delta||0)));
-      player.volume=v;
-      vol.value=String(v);
-      return v;
+      player.volume=v;vol.value=String(v);return v;
     },
     selectTrackNumber:(n)=>selectTrackNumberWithinCurrentAlbum(n),
     getCurrent:()=>PLAYLIST[pIndex]||null
@@ -2192,8 +2347,8 @@ moon.addEventListener('click', ()=>{
       player.pause();
     }
   };
-  tgShuffle.onclick=()=>{ SHUFFLE=true;  tgShuffle.classList.add('active'); tgAlbum.classList.remove('active'); applyOrder(); };
-  tgAlbum.onclick  =()=>{ SHUFFLE=false; tgAlbum.classList.add('active'); tgShuffle.classList.remove('active'); applyOrder(); };
+  tgShuffle.onclick=()=>setShuffleMode(true);
+  tgAlbum.onclick=()=>setShuffleMode(false);
 
   vol.addEventListener('input', ()=>{ player.volume = +vol.value; });
   player.addEventListener('loadedmetadata', ()=>{ seek.max=player.duration||1000; tMax.textContent=fmt(player.duration||0); });
@@ -2256,9 +2411,12 @@ moon.addEventListener('click', ()=>{
   // --- end single startup path ---
 fetchAllMp3s().then(async list=>{
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
-    PLAYLIST = list;
-    pIndex = 0;
-    if(SHUFFLE) shuffle(PLAYLIST);
+    CATALOG=list.slice();
+    refreshPlaylist();
+    if(!PLAYLIST.length){nowPlaying.textContent='No selected album tracks found.';return;}
+    pIndex=SHUFFLE?chooseShuffleIndex():0;
+    if(SHUFFLE) rememberShuffle(PLAYLIST[pIndex]);
+    reflectMusicMode();
     await startWebsiteAudioOnce();
 }).catch(err=>{
     console.error('Playlist load failed', err);
@@ -2671,6 +2829,7 @@ class Ship{
     this.haloPhase=rand(0,Math.PI*2);
     this.magnetRadius=rand(28,65);
     this.attraction=rand(.28,.9);
+    this.guided=false;this.controlActive=false;this.controlX=this.x;this.controlY=this.y;
   }
   fireRay(angle){
     this.manualRay={
@@ -2752,27 +2911,23 @@ class Ship{
       return;
     }
 
-    this.curveP+=dt/this.curveT;
-    this.vx+=Math.sin(this.curveP)*18*dt+this.ax*dt*.2;
-    this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
+    if(!this.guided && !this.controlActive){
+      this.curveP+=dt/this.curveT;
+      this.vx+=Math.sin(this.curveP)*18*dt+this.ax*dt*.2;
+      this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
+    }
 
     const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=320;
-    if(v<vmin){
-      const a=Math.atan2(this.vy,this.vx);
-      this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
+    if(v<vmin && !this.guided && !this.controlActive){
+      const a=Math.atan2(this.vy,this.vx);this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
     }
     if(v>vmax){this.vx*=vmax/v;this.vy*=vmax/v;}
 
     this.x+=this.vx*dt;this.y+=this.vy*dt;
-    if(this.x<-140||this.x>W+140||this.y<-140||this.y>H+140){
-      if(this.targets.length){
-        // Keep a body with a halo around long enough to remain usable.
-        this.x=Math.max(-40,Math.min(W+40,this.x));
-        this.y=Math.max(-40,Math.min(H+40,this.y));
-        this.vx*=-.65;this.vy*=-.65;
-      }else{
-        this.dead=true;
-      }
+    const exitMargin=window.GE_EASY_SETTINGS?.SHIP_EXIT_MARGIN??130;
+    if(this.x<-exitMargin||this.x>W+exitMargin||this.y<-exitMargin||this.y>H+exitMargin){
+      for(const c of this.targets){c.dead=true;c.capturedBy=null;}
+      this.targets.length=0;this.dead=true;return;
     }
 
     const sp=Math.hypot(this.vx,this.vy);
@@ -2791,22 +2946,18 @@ class Ship{
     ctx.drawImage(shipImg,-drawW*.3,-drawH*.5,drawW,drawH);
 
     if(this.manualRay&&performance.now()<this.manualRay.until){
-      const len=this.rayLength();
+      const len=this.rayLength(),phase=performance.now()/145;
       const remaining=Math.max(0,(this.manualRay.until-performance.now())/(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400));
-      ctx.save();
-      ctx.rotate(this.manualRay.angle-ang);
-      ctx.globalCompositeOperation='lighter';
-      ctx.globalAlpha=.2+.4*remaining;
-      ctx.strokeStyle='rgba(110,195,255,.95)';
-      ctx.lineWidth=window.GE_EASY_SETTINGS?.SHIP_RAY_WIDTH??8;
-      ctx.shadowColor='rgba(110,195,255,.95)';
-      ctx.shadowBlur=18;
-      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(len,0);ctx.stroke();
-      ctx.globalAlpha=.95;
-      ctx.strokeStyle='rgba(230,250,255,.98)';
-      ctx.lineWidth=1.4;
-      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(len,0);ctx.stroke();
-      ctx.restore();
+      ctx.save();ctx.rotate(this.manualRay.angle-ang);ctx.globalCompositeOperation='lighter';
+      ctx.strokeStyle='rgba(118,208,255,.96)';ctx.shadowColor='rgba(100,195,255,.95)';ctx.shadowBlur=16;
+      ctx.globalAlpha=.28+.48*remaining;ctx.lineWidth=4.5;ctx.beginPath();
+      for(let x=10;x<=len;x+=5){const u=x/len,yy=Math.sin(u*Math.PI*11+phase)*7*(.35+.65*Math.sin(Math.PI*u));if(x===10)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);}ctx.stroke();
+      ctx.globalAlpha=.92;ctx.lineWidth=1.2;ctx.shadowBlur=7;ctx.beginPath();
+      for(let x=10;x<=len;x+=5){const u=x/len,yy=Math.sin(u*Math.PI*11+phase)*7*(.35+.65*Math.sin(Math.PI*u));if(x===10)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);}ctx.stroke();ctx.restore();
+    }
+    if(this.controlActive){
+      const dx=this.controlX-this.x,dy=this.controlY-this.y;
+      ctx.save();ctx.rotate(Math.atan2(dy,dx)-ang);ctx.globalAlpha=.34;ctx.strokeStyle='rgba(145,220,255,.8)';ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(Math.hypot(dx,dy),0);ctx.stroke();ctx.restore();
     }
 
     if(this.targets.length){
@@ -2848,20 +2999,21 @@ class MiniShip{
     if(side==='r'){ this.x=W+pad;   this.y=rand(0,H);  this.vx=-rand(12,38); this.vy=rand(-18,18); }
     if(side==='t'){ this.x=rand(0,W); this.y=-pad;     this.vx=rand(-30,30); this.vy=rand(12,38);  }
     if(side==='b'){ this.x=rand(0,W); this.y=H+pad;    this.vx=rand(-30,30); this.vy=-rand(12,38); }
-    this.dead=false; this.forceBeamUntil=0; this.beam=0; this.targets=[];
+    this.dead=false;this.forceBeamUntil=0;this.beam=0;this.targets=[];this.scanIn=rand(2,7);
   }
   captureNextComet(){
-    const pool = comets.filter(c => c.state==='fly' && !this.targets.includes(c));
-    if(!pool.length || this.targets.length>=3) return;
-    pool.sort((a,b)=> (Math.hypot(a.x-this.x,a.y-this.y) - Math.hypot(b.x-this.x,b.y-this.y)) );
-    this.targets.push(pool[0]); this.beam=1;
+    const pool=comets.filter(c=>c.state==='fly'&&!c.dead&&c.r<=4.5&&Math.hypot(c.x-this.x,c.y-this.y)<150);
+    if(!pool.length)return;pool.sort((a,b)=>Math.hypot(a.x-this.x,a.y-this.y)-Math.hypot(b.x-this.x,b.y-this.y));
+    const c=pool[0];c.state='miniTethered';this.targets=[c];this.beam=1;
   }
   step(dt){
-    this.x+=this.vx*dt; this.y+=this.vy*dt;
-    if(this.x<-100||this.x>W+100||this.y<-100||this.y>H+100) this.dead=true;
-
-    if (performance.now() < this.forceBeamUntil && !this.targets.length) this.captureNextComet();
-    if (performance.now() >= this.forceBeamUntil){ this.targets=[]; this.beam=0; }
+    this.x+=this.vx*dt;this.y+=this.vy*dt;if(this.x<-100||this.x>W+100||this.y<-100||this.y>H+100){for(const c of this.targets)if(c.state==='miniTethered')c.state='fly';this.dead=true;return;}
+    this.scanIn-=dt;if(this.scanIn<=0&&!this.targets.length){this.scanIn=rand(3,9);if(Math.random()<.55)this.captureNextComet();}
+    if(this.targets.length){
+      const c=this.targets[0];if(!c||c.dead){this.targets=[];this.beam=0;return;}
+      const dx=this.x-c.x,dy=this.y-c.y,d=Math.hypot(dx,dy)||1;c.vx+=(dx/d)*18*dt;c.vy+=(dy/d)*18*dt;
+      if(d<10){c.dead=true;this.targets=[];this.beam=0;}
+    }
   }
   draw(){
     if(!shipImg.complete) return;
@@ -2902,7 +3054,7 @@ for(let i=0;i<initialSoulCount;i++)comets.push(new Comet());
 let last=performance.now()/1000,cTimer=0,
     cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
                window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8),
-    shipTimer=0,shipNext=rand(10,20),miniTimer=0,miniNext=rand(4,9);
+    shipTimer=0,shipNext=rand(18,32),miniTimer=0,miniNext=rand(4,9);
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
 
 /* Ripple teleport + backgrounds */
@@ -2979,48 +3131,44 @@ function collideElastic(a,b,rest=0.98){
 
 
 /* Ship control:
-   CENTER tap = stop/start the body.
-   OUTER ship tap = fire one directional ray.
-   Cursor/pointer movement by itself never sends a ray. */
+   center tap = stop/start, outer ship tap = ray, surrounding field = flight control. */
+let shipSteer=null;
+function shipVisualRadius(s){return Math.max(24,(shipImg.height||100)*s.s*.32);}
 function shipHitGeometry(s,x,y){
-  const visualR=Math.max(24,(shipImg.height||100)*s.s*.32);
-  const d=Math.hypot(x-s.x,y-s.y);
+  const visualR=shipVisualRadius(s),d=Math.hypot(x-s.x,y-s.y);
   const centerR=visualR*(window.GE_EASY_SETTINGS?.SHIP_CENTER_RADIUS_FACTOR??.34);
   const rayR=visualR*(window.GE_EASY_SETTINGS?.SHIP_RAY_RADIUS_FACTOR??1.05);
-  if(d<=centerR)return{zone:'center',d};
-  if(d<=rayR)return{zone:'ray',d};
-  return null;
+  if(d<=centerR)return{zone:'center',d};if(d<=rayR)return{zone:'ray',d};return null;
 }
-function nearestShipHit(x,y){
-  let best=null,bestD=Infinity;
-  for(const s of ships){
-    const hit=shipHitGeometry(s,x,y);
-    if(hit&&hit.d<bestD){best={ship:s,...hit};bestD=hit.d;}
-  }
-  return best;
+function nearestShipHit(x,y){let best=null,bestD=Infinity;for(const s of ships){const hit=shipHitGeometry(s,x,y);if(hit&&hit.d<bestD){best={ship:s,...hit};bestD=hit.d;}}return best;}
+function nearestShipField(x,y){
+  const R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220;let best=null,bestD=Infinity;
+  for(const s of ships){const d=Math.hypot(x-s.x,y-s.y);if(d<=R&&d<bestD){best=s;bestD=d;}}return best;
+}
+function steerShip(s,x,y){
+  const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1;
+  const dead=window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18,R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;
+  s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;
+  if(d<=dead){s.vx=0;s.vy=0;return;}
+  const speed=Math.min(max,Math.max(0,(d-dead)/(R-dead))*max);s.vx=dx/d*speed;s.vy=dy/d*speed;
 }
 canvas.addEventListener('pointerdown',e=>{
   if(document.body.classList.contains('game-mode-active'))return;
   const hit=nearestShipHit(e.clientX,e.clientY);
-  if(!hit)return;
-  const s=hit.ship;
-
-  if(hit.zone==='center'){
-    if(s.paused){
-      s.paused=false;
-      s.vx=Math.abs(s.savedVx||0)+Math.abs(s.savedVy||0)>2?s.savedVx:rand(-150,150);
-      s.vy=Math.abs(s.savedVx||0)+Math.abs(s.savedVy||0)>2?s.savedVy:rand(-80,80);
-    }else{
-      s.savedVx=s.vx;s.savedVy=s.vy;
-      s.paused=true;s.vx=0;s.vy=0;
-    }
-  }else{
-    s.fireRay(Math.atan2(e.clientY-s.y,e.clientX-s.x));
+  if(hit){
+    const s=hit.ship;
+    if(hit.zone==='center'){
+      if(s.paused){s.paused=false;s.guided=true;s.vx=s.savedVx||0;s.vy=s.savedVy||0;}
+      else{s.savedVx=s.vx;s.savedVy=s.vy;s.paused=true;s.guided=true;s.vx=0;s.vy=0;}
+    }else s.fireRay(Math.atan2(e.clientY-s.y,e.clientX-s.x));
+    e.preventDefault();e.stopImmediatePropagation();return;
   }
-
-  e.preventDefault();
-  e.stopImmediatePropagation();
+  const s=nearestShipField(e.clientX,e.clientY);
+  if(s){shipSteer={ship:s,id:e.pointerId};steerShip(s,e.clientX,e.clientY);try{canvas.setPointerCapture(e.pointerId);}catch(_e){}e.preventDefault();e.stopImmediatePropagation();}
 },{passive:false});
+canvas.addEventListener('pointermove',e=>{if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY);e.preventDefault();}},{passive:false});
+function endShipSteer(e){if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId);}catch(_e){}}
+canvas.addEventListener('pointerup',endShipSteer,{passive:true});canvas.addEventListener('pointercancel',endShipSteer,{passive:true});
 
 /* Drag & throw for comets */
 let drag={obj:null,kind:null,hist:[]};
@@ -3126,7 +3274,7 @@ function loop(){
     cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
                window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8);
   }
-  shipTimer+=dt; if(shipTimer>shipNext){ shipTimer=0; shipNext=rand(7,14); if(ships.length<wantShips) ships.push(new Ship()); }
+  shipTimer+=dt;if(shipTimer>shipNext){shipTimer=0;shipNext=rand(18,32);if(ships.length<wantShips)ships.push(new Ship());}
   miniTimer+=dt; if(miniTimer>miniNext){ miniTimer=0; miniNext=rand(4,9); if(miniShips.length<wantMini) miniShips.push(new MiniShip()); }
 
   comets.forEach(c=>c.step(dt));
@@ -3311,6 +3459,55 @@ document.getElementById('planets').addEventListener('click',(e)=>{
 /* PLANET PHYSICS */
 const planetNodes = [];
 window.planetNodes = planetNodes;
+
+/* GAME PLANET TRACERS — same idea as comet trails, but persistent until all balls stop. */
+(function installGameTrails(){
+  const canvas=document.getElementById('gameTrails');if(!canvas)return;
+  const g=canvas.getContext('2d');let dpr=1,w=0,h=0,last=new WeakMap(),fadeAt=0,holdAt=0;
+  function fit(){
+    dpr=Math.min(2,devicePixelRatio||1);w=innerWidth;h=innerHeight;
+    canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';
+    g.setTransform(dpr,0,0,dpr,0,0);last=new WeakMap();
+  }
+  function clear(){g.clearRect(0,0,w,h);last=new WeakMap();fadeAt=0;holdAt=0;}
+  function color(p){
+    const k=normAlbumName(p?.el?.dataset?.album||'');
+    return ({fundamentalgroove:'#8ad7ff',trio:'#89ffc2',live:'#ff9b67',sessionsi:'#c58cff',sessionsii:'#ffe070',intergy:'#8b95ff',love:'#ff5bdc',soul:'#e4bd4e',spirit:'#ad77ff',fire:'#ff684b'})[k]||'#a8ddff';
+  }
+  function line(p,a,b){
+    const c=color(p),alpha=window.GE_EASY_SETTINGS?.TRACER_ALPHA??.72,width=window.GE_EASY_SETTINGS?.TRACER_WIDTH??3,glow=window.GE_EASY_SETTINGS?.TRACER_GLOW??18;
+    g.save();g.globalCompositeOperation='lighter';g.strokeStyle=c;g.shadowColor=c;g.shadowBlur=glow;g.globalAlpha=alpha*.24;g.lineWidth=width*4;
+    g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+    g.globalAlpha=alpha;g.lineWidth=width;g.shadowBlur=glow*.65;g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();g.restore();
+  }
+  function tick(now){
+    const active=document.body.classList.contains('game-mode-active') && (window.GE_EASY_SETTINGS?.TRACERS_ON??true);
+    if(!active){ if(fadeAt||holdAt)clear(); requestAnimationFrame(tick); return; }
+    const nodes=window.planetNodes||[],min=window.GE_EASY_SETTINGS?.TRACER_MIN_SPEED??8;
+    let moving=false;
+    for(const p of nodes){
+      const pos={x:p.x,y:p.y},prev=last.get(p),speed=Math.hypot(p.vx||0,p.vy||0);
+      if(!p.dragging && speed>=min){moving=true;if(prev)line(p,prev,pos);}
+      last.set(p,pos);
+    }
+    if(moving){holdAt=0;fadeAt=0;}
+    else if(nodes.length && !holdAt && !fadeAt){holdAt=now+700;}
+    else if(holdAt && now>=holdAt){fadeAt=now;holdAt=0;}
+    if(fadeAt){
+      const dur=(window.GE_EASY_SETTINGS?.TRACER_FADE_SECONDS??8)*1000;
+      const elapsed=now-fadeAt;
+      if(elapsed>=dur)clear();
+      else{
+        // Slowly erase by painting an extremely faint transparent veil.
+        const erase=Math.min(.035,.006+elapsed/dur*.025);
+        g.save();g.globalCompositeOperation='destination-out';g.fillStyle=`rgba(0,0,0,${erase})`;g.fillRect(0,0,w,h);g.restore();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  addEventListener('resize',()=>{fit();},{passive:true});fit();window.GE_CLEAR_GAME_TRAILS=clear;requestAnimationFrame(tick);
+})();
+
 function buildPlanetPhysics(){
   planetNodes.length=0;
   document.querySelectorAll('.planet').forEach(el=>{
@@ -3469,6 +3666,9 @@ const GE_GAME = (()=>{
     activePlayer:0,
     turnInSet:0,
     turnsPerPlayer:(window.GE_EASY_SETTINGS?.TURNS_PER_SOUL ?? 3),
+    turnProgress:[0],
+    maxScore:100,
+    gameOver:false,
     round:1,
     requiredBanks:0,
     notices:true,
@@ -3521,6 +3721,7 @@ const GE_GAME = (()=>{
   const roundEl=document.getElementById('gameRound');
   const ruleEl=document.getElementById('gameRule');
   const newBtn=document.getElementById('gameNewBtn');
+  const exitTopBtn=document.getElementById('gameExitTopBtn');
   const optionsBtn=document.getElementById('gameOptionsBtn');
   const prompt=document.getElementById('gamePrompt');
   const remember=document.getElementById('gameRememberChoice');
@@ -3536,6 +3737,9 @@ const GE_GAME = (()=>{
   const optPlanetPoints=document.getElementById('optPlanetPoints');
   const optPinballSun=document.getElementById('optPinballSun');
   const optMagnetSun=document.getElementById('optMagnetSun');
+  const optTurnsPerSoul=document.getElementById('optTurnsPerSoul');
+  const optMaxScore=document.getElementById('optMaxScore');
+  const gameAlbumPicker=document.getElementById('gameAlbumPicker');
   const pointBurst=document.getElementById('pointBurst');
   const notice=document.getElementById('gameNotice');
   const roundPrompt=document.getElementById('roundPrompt');
@@ -3573,16 +3777,15 @@ const GE_GAME = (()=>{
     const n=String(state.profiles[i]?.name||'').trim();
     return n || ('Soul '+(i+1));
   }
-  function playerMultiplierValue(i){
-    if(state.players===0) return 1;
-    const p=state.profiles[i]||defaultProfile(i);
-    return p.handicap ? ([2,3,4].includes(Number(p.multiplier))?Number(p.multiplier):2) : 1;
-  }
+  function playerMultiplierValue(i){ return 1; }
   function rebuildScores(reset=false){
     const n=Math.max(1,state.players);
     const prev=state.scores.slice();
     state.scores=Array.from({length:n},(_,i)=>reset?0:(prev[i]||0));
     state.activePlayer=Math.min(state.activePlayer,n-1);
+    const oldProgress=Array.isArray(state.turnProgress)?state.turnProgress:[];
+    state.turnProgress=Array.from({length:n},(_,i)=>Math.max(0,Math.min(state.turnsPerPlayer,oldProgress[i]||0)));
+    state.turnInSet=state.turnProgress[state.activePlayer]||0;
     state.score=state.scores[state.activePlayer]||0;
   }
   function flashActiveName(){
@@ -3655,7 +3858,19 @@ const GE_GAME = (()=>{
         el.addEventListener('click',(ev)=>{ ev.stopPropagation(); showSoulFlyout(i,el); });
       }
 
-      item.appendChild(el);
+      const stack=document.createElement('div');
+      stack.className='scoreBallStack';
+      stack.appendChild(el);
+      const dots=document.createElement('div');
+      dots.className='turnDots';
+      const used=Math.max(0,Math.min(state.turnsPerPlayer,state.turnProgress?.[i]||0));
+      for(let d=0;d<state.turnsPerPlayer;d++){
+        const dot=document.createElement('span');
+        dot.className='turnDot '+(d>=used?'remaining':'used');
+        dots.appendChild(dot);
+      }
+      stack.appendChild(dots);
+      item.appendChild(stack);
       item.appendChild(lab);
       scoreCluster.appendChild(item);
     }
@@ -3673,11 +3888,34 @@ const GE_GAME = (()=>{
       activeNameEl.textContent='AUTO / DEMO';
     }else{
       const mult=playerMultiplierValue(state.activePlayer);
-      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · TURN ${state.turnInSet+1}/${state.turnsPerPlayer}${mult>1?' · '+mult+'×':''}`;
+      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · ${Math.max(0,state.turnsPerPlayer-state.turnInSet)} THROW${Math.max(0,state.turnsPerPlayer-state.turnInSet)===1?'':'S'} LEFT`;
     }
+    if(optTurnsPerSoul) optTurnsPerSoul.value=String(state.turnsPerPlayer);
+    if(optMaxScore) optMaxScore.value=String(state.maxScore);
     if(animateName) flashActiveName();
   }
 
+
+  function renderAlbumPicker(){
+    if(!gameAlbumPicker || !window.GE_ALBUM_CONFIG) return;
+    const selected=new Set(window.GE_ALBUM_CONFIG.getSelected().map(geAlbumKey));
+    gameAlbumPicker.innerHTML='';
+    for(const alb of window.GE_ALBUM_CONFIG.all){
+      const label=document.createElement('label');label.className='albumPick';
+      const img=document.createElement('img');img.src=alb.cover;img.alt='';
+      const txt=document.createElement('div');txt.className='albumPickText';
+      txt.innerHTML=`<div>${escapeHtml(alb.title)}</div>${alb.legendary?'<div class="albumPickLegend">LEGENDARY</div>':''}`;
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=selected.has(geAlbumKey(alb.musicTitle));cb.dataset.album=alb.musicTitle;
+      cb.addEventListener('change',()=>{
+        const names=Array.from(gameAlbumPicker.querySelectorAll('input[data-album]:checked')).map(x=>x.dataset.album);
+        const actual=window.GE_ALBUM_CONFIG.setSelected(names);
+        renderAlbumPicker();
+        saveGameStateSoon();
+        flash(`${actual.length} ALBUM${actual.length===1?'':'S'} ACTIVE`);
+      });
+      label.append(img,txt,cb);gameAlbumPicker.appendChild(label);
+    }
+  }
 
   const GAME_STATE_KEY=window.GE_EASY_SETTINGS?.GAME_STATE_KEY||'GE_GAME_STATE_V9';
   let gameSaveTimer=0;
@@ -3690,6 +3928,10 @@ const GE_GAME = (()=>{
       players:state.players,
       activePlayer:state.activePlayer,
       turnInSet:state.turnInSet,
+      turnProgress:state.turnProgress.slice(),
+      turnsPerPlayer:state.turnsPerPlayer,
+      maxScore:state.maxScore,
+      selectedAlbums:window.GE_ALBUM_CONFIG?.getSelected?.()||[],
       sunPoint:state.sunPoint,
       wallPoints:state.wallPoints,
       planetPoints:state.planetPoints,
@@ -3713,7 +3955,12 @@ const GE_GAME = (()=>{
     state.scores=Array.isArray(saved.scores)?saved.scores.slice(0,Math.max(1,state.players||1)):[0];
     while(state.scores.length<Math.max(1,state.players||1)) state.scores.push(0);
     state.activePlayer=Math.max(0,Math.min(state.scores.length-1,saved.activePlayer|0));
-    state.turnInSet=Math.max(0,saved.turnInSet|0);
+    state.turnsPerPlayer=Math.max(1,Math.min(9,Number(saved.turnsPerPlayer)||state.turnsPerPlayer||3));
+    state.maxScore=Math.max(10,Math.min(999,Number(saved.maxScore)||100));
+    state.turnProgress=Array.isArray(saved.turnProgress)?saved.turnProgress.slice(0,Math.max(1,state.players||1)):[Math.max(0,saved.turnInSet|0)];
+    while(state.turnProgress.length<Math.max(1,state.players||1))state.turnProgress.push(0);
+    state.turnInSet=Math.max(0,Math.min(state.turnsPerPlayer,state.turnProgress[state.activePlayer]||0));
+    if(Array.isArray(saved.selectedAlbums)&&saved.selectedAlbums.length)window.GE_ALBUM_CONFIG?.setSelected?.(saved.selectedAlbums);
     state.sunPoint=saved.sunPoint!==false;
     state.wallPoints=saved.wallPoints!==false;
     state.planetPoints=!!saved.planetPoints;
@@ -3739,10 +3986,11 @@ const GE_GAME = (()=>{
     if(!confirm('Start a new game? This clears the current scores.')) return;
     try{localStorage.removeItem(GAME_STATE_KEY);}catch(e){}
     state.scores=Array(Math.max(1,state.players||1)).fill(0);
-    state.activePlayer=0; state.turnInSet=0; state.score=0; state.completed=false; state.running=true;
+    state.activePlayer=0;state.turnInSet=0;state.turnProgress=Array(Math.max(1,state.players||1)).fill(0);
+    state.score=0;state.completed=false;state.gameOver=false;state.running=true;
     state.planetState=new WeakMap();
-    for(const p of planetNodes){p.vx=0;p.vy=0;}
-    updateHUD(true); flash('NEW GAME'); saveGameStateSoon();
+    placePlanets();requestAnimationFrame(()=>{buildPlanetPhysics();clampPlayfield();});
+    updateHUD(true);flash('NEW GAME');saveGameStateSoon();
   }
   newBtn?.addEventListener('click',newGame);
   addEventListener('pagehide',saveGameStateNow);
@@ -3841,10 +4089,12 @@ const GE_GAME = (()=>{
       // Rotation/resize safety only: do NOT center the sun.
       // Correct it only if less than 25% would remain inside the playable area.
       const visibleFraction=(window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
-      const minCx=b.left - w*(1-visibleFraction);
-      const maxCx=b.right + w*(1-visibleFraction);
-      const minCy=b.top - h*(1-visibleFraction);
-      const maxCy=b.bottom + h*(1-visibleFraction);
+      const outsideX=Math.max(0,w*(0.5-visibleFraction));
+      const outsideY=Math.max(0,h*(0.5-visibleFraction));
+      const minCx=b.left-outsideX;
+      const maxCx=b.right+outsideX;
+      const minCy=b.top-outsideY;
+      const maxCy=b.bottom+outsideY;
 
       cx=Math.max(minCx,Math.min(maxCx,cx));
       cy=Math.max(minCy,Math.min(maxCy,cy));
@@ -3871,26 +4121,28 @@ const GE_GAME = (()=>{
     prompt.classList.remove('show');
     updateHUD(true);
     const restored=restoreGameState();
+    renderAlbumPicker();
     saveGameStateSoon();
     requestAnimationFrame(()=>{ clampPlayfield(); requestAnimationFrame(clampPlayfield); });
     flash(restored?'GAME RESTORED':'GAME STARTED');
   }
 
-  function exitGame(){
+  function exitGameConfirmed(){
     saveGameStateNow();
-    try{ window.GE_CLEAR_GAME_TRAILS?.(); }catch(e){}
-    state.active=false;
-    state.running=false;
-    state.completed=false;
+    try{
+      const raw=JSON.parse(localStorage.getItem(GAME_STATE_KEY)||'null');
+      if(raw){raw.active=false;localStorage.setItem(GAME_STATE_KEY,JSON.stringify(raw));}
+    }catch(e){}
+    try{window.GE_CLEAR_GAME_TRAILS?.();}catch(e){}
+    state.active=false;state.running=false;state.completed=false;
     document.body.classList.remove('game-mode-active');
     setCleanGameScene(false);
-    hud.classList.remove('show');
-    hud.setAttribute('aria-hidden','true');
-    optionsPanel.classList.remove('show');
-    playerPanel.classList.remove('show');
-    roundPrompt.classList.remove('show');
-    notice.classList.remove('show');
+    hud.classList.remove('show');hud.setAttribute('aria-hidden','true');
+    optionsPanel.classList.remove('show');playerPanel.classList.remove('show');roundPrompt.classList.remove('show');notice.classList.remove('show');
     restoreWebsiteBackground();
+  }
+  function confirmExitGame(){
+    if(confirm('Exit Game Mode? Your current game will stay saved until you press NEW GAME.')) exitGameConfirmed();
   }
 
   function resetRound(sameRound=true){
@@ -3899,6 +4151,7 @@ const GE_GAME = (()=>{
     state.scores=Array.from({length:Math.max(1,state.players)},()=>0);
     state.activePlayer=0;
     state.turnInSet=0;
+    state.turnProgress=Array(Math.max(1,state.players||1)).fill(0);
     state.score=0;
     state.completed=false;
     state.running=true;
@@ -3929,7 +4182,8 @@ const GE_GAME = (()=>{
 
   optionsBtn.addEventListener('click',()=>optionsPanel.classList.add('show'));
   optionsClose.addEventListener('click',()=>optionsPanel.classList.remove('show'));
-  exitBtn.addEventListener('click',exitGame);
+  exitBtn.addEventListener('click',confirmExitGame);
+  exitTopBtn?.addEventListener('click',confirmExitGame);
   optNotices.addEventListener('change',()=>state.notices=optNotices.checked);
   optBanks.addEventListener('change',()=>state.showBanks=optBanks.checked);
 
@@ -3952,6 +4206,17 @@ const GE_GAME = (()=>{
       syncScoringFactors();
     });
   }
+
+  optTurnsPerSoul?.addEventListener('change',()=>{
+    state.turnsPerPlayer=Math.max(1,Math.min(9,Number(optTurnsPerSoul.value)||3));
+    state.turnProgress=Array.from({length:Math.max(1,state.players)},(_,i)=>Math.min(state.turnsPerPlayer,state.turnProgress?.[i]||0));
+    state.turnInSet=state.turnProgress[state.activePlayer]||0;
+    updateHUD(true);saveGameStateSoon();
+  });
+  optMaxScore?.addEventListener('change',()=>{
+    state.maxScore=Math.max(10,Math.min(999,Number(optMaxScore.value)||100));
+    optMaxScore.value=String(state.maxScore);saveGameStateSoon();
+  });
 
   function setPlayers(n){
     state.players=Math.max(0,Math.min(6,n|0));
@@ -4011,28 +4276,30 @@ const GE_GAME = (()=>{
   function registerThrow(p){
     if(!state.active || !state.running || state.players===0 || !p) return;
     let ps=state.planetState.get(p);
-    if(!ps){ ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0}; }
+    if(!ps)ps={vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0};
     const shooter=state.activePlayer;
-    ps.owner=shooter;
-    ps.banks=0;
-    ps.inSun=false;
-    ps.scored=false;
-    ps.armed=true;
-    ps.contactedTargets=new Set();
+    ps.owner=shooter;ps.banks=0;ps.inSun=false;ps.scored=false;ps.armed=true;ps.contactedTargets=new Set();
     state.planetState.set(p,ps);
 
-    state.turnInSet++;
-    const shotNo=state.turnInSet;
-    flash(`${playerLabel(shooter)} · throw ${shotNo}/${state.turnsPerPlayer}`);
-    if(state.turnInSet>=state.turnsPerPlayer){
-      state.turnInSet=0;
-      if(state.players>1){
-        state.activePlayer=(state.activePlayer+1)%state.players;
-      }
-      updateHUD(true);
-    }else{
-      updateHUD(false);
+    if(!Array.isArray(state.turnProgress)||state.turnProgress.length<Math.max(1,state.players)){
+      state.turnProgress=Array(Math.max(1,state.players)).fill(0);
     }
+    state.turnProgress[shooter]=Math.min(state.turnsPerPlayer,(state.turnProgress[shooter]||0)+1);
+    state.turnInSet=state.turnProgress[shooter];
+    const left=Math.max(0,state.turnsPerPlayer-state.turnInSet);
+    flash(`SOUL ${shooter+1} · ${left} THROW${left===1?'':'S'} LEFT`);
+
+    if(state.turnProgress[shooter]>=state.turnsPerPlayer){
+      if(state.players>1){
+        const next=(state.activePlayer+1)%state.players;
+        if(next===0)state.turnProgress=Array(state.players).fill(0);
+        state.activePlayer=next;
+      }else{
+        state.turnProgress[0]=0;
+      }
+      state.turnInSet=state.turnProgress[state.activePlayer]||0;
+      updateHUD(true);
+    }else updateHUD(false);
     saveGameStateSoon();
   }
 
@@ -4096,9 +4363,7 @@ const GE_GAME = (()=>{
     state.completed=true; state.running=false; updateHUD();
     const cosmic=cosmicContext(new Date());
     const winner=state.players===0?'AUTO':playerLabel(winnerIndex);
-    roundSummary.textContent=state.gameStyle==='low'
-      ? `${winner} wins the Low Score Trap round with ${state.scores[winner]} points.`
-      : `${winner} reached 100 points in Round ${state.round}.`;
+    roundSummary.textContent=`${winner} reached ${state.maxScore} points.`;
     cosmicSnapshot.textContent=cosmicText(cosmic);
     roundReplay.textContent='Replay Round '+state.round;
     roundNext.textContent='Go to Round '+(state.round+1);
@@ -4142,6 +4407,11 @@ const GE_GAME = (()=>{
     ps.armed=false;
     ps.banks=0;
     updateHUD(false);
+    if(state.scores[i]>=state.maxScore && !state.gameOver){
+      state.gameOver=true;state.running=false;
+      notice.textContent=`SOUL ${i+1} WINS · ${state.scores[i]} POINTS · NEW GAME OR EXIT`;
+      notice.classList.add('show');clearTimeout(noticeTimer);
+    }
     saveGameStateSoon();
   }
 
@@ -4184,7 +4454,7 @@ const GE_GAME = (()=>{
     const b=getPlanetPlayBounds();
     const sx=sunRect.left+sunRect.width/2, sy=sunRect.top+sunRect.height/2;
     let tx=sx,ty=sy;
-    if(state.requiredBanks>0){
+    if(false){
       const side=choice(['l','r','t','b']);
       if(side==='l'){tx=b.left-120;ty=rand(b.top+30,b.bottom-30);}
       if(side==='r'){tx=b.right+120;ty=rand(b.top+30,b.bottom-30);}
@@ -4240,7 +4510,7 @@ const GE_GAME = (()=>{
   },{passive:true});
 
   updateHUD();
-  return {start:startGame,exit:exitGame,state,registerThrow,reflow,sunCollision,planetContact,saveGameStateNow};
+  return {start:startGame,exit:confirmExitGame,state,registerThrow,reflow,sunCollision,planetContact,saveGameStateNow};
 })();
 window.GE_GAME=GE_GAME;
 try{
