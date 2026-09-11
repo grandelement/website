@@ -24,7 +24,8 @@
   --bg-y:50%;
   --bg-shift-y:0vh;
   --bg-scale:1.08;
-  --ship-approach-zoom:1;
+  --ship-bg-approach-zoom:1;
+  --ship-planet-zoom:1;
 }
 
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
@@ -144,17 +145,16 @@ footer{padding-top:4px}
  body.view-ship #shade{display:none}
  body.view-ship #bgImage{opacity:0!important}
  body.view-ship #shipStage{display:block;position:fixed;z-index:5000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,calc(100dvh*var(--ship-ratio)));height:min(100dvh,calc(100vw/var(--ship-ratio)));aspect-ratio:1672/941;overflow:hidden;background:#010711;opacity:1;transition:opacity .28s ease}
- #shipWindowBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--bg-x) var(--bg-y);transform:translate3d(0,var(--bg-shift-y),0) scale(calc(var(--bg-scale) * var(--ship-approach-zoom)));transform-origin:center center;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%);z-index:1;pointer-events:none;background:#000}
+ #shipWindowBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--bg-x) var(--bg-y);transform:translate3d(0,var(--bg-shift-y),0) scale(calc(var(--bg-scale) * var(--ship-bg-approach-zoom)));transform-origin:center center;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%);z-index:1;pointer-events:none;background:#000}
  #shipFrame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;pointer-events:none}
  #shipTrackTitle{position:absolute;z-index:8;top:1.5%;left:34%;width:32%;height:7.4%;border:0;background:transparent;color:#f4fbff;font-size:clamp(17px,1.45vw,25px);font-weight:900;text-shadow:0 2px 5px #000;overflow:hidden;text-overflow:ellipsis}
- #shipLogo{position:absolute;z-index:7;left:50%;top:10.5%;transform:translateX(-50%);width:18.5%;aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 0 22px rgba(0,191,255,.30);animation:shipLogoBreath 30s ease-in-out infinite;pointer-events:none}
- @keyframes shipLogoBreath{0%,100%{transform:translateX(-50%) scale(.94)}50%{transform:translateX(-50%) scale(1.06)}}
+ #shipLogo{position:absolute;z-index:7;left:50%;top:10.5%;transform:translateX(-50%) scale(var(--ship-planet-zoom));transform-origin:50% 50%;width:18.5%;aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 0 22px rgba(0,191,255,.30);pointer-events:none;transition:filter .45s ease}
  .ship-side{position:absolute;z-index:10;top:16.15%;width:10.45%;height:45.8%;display:grid;grid-template-rows:repeat(6,1fr);gap:1.25%}
  .ship-left{left:1.75%} .ship-right{right:1.75%}
  .ship-side button{width:100%;height:100%;min-height:0;padding:0 4px;border:0;border-radius:14px;background:rgba(3,24,45,.18);color:#f2fbff;font-size:clamp(13px,1.08vw,18px);font-weight:900;text-shadow:0 2px 4px #000;box-shadow:none}
  .ship-side button[aria-pressed="true"],.ship-side button.active{outline:2px solid #23ffd0;background:rgba(15,74,88,.28);box-shadow:0 0 14px rgba(35,255,208,.24) inset}
  #shipSensorLayer{position:absolute;inset:0;z-index:9;pointer-events:none}
- #shipTargetReticle{position:absolute;left:50%;top:22.2%;width:12.2%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:.82}
+ #shipTargetReticle{position:absolute;left:50.1%;top:20.8%;width:12.8%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:.82}
  .ship-reticle-ring{position:absolute;inset:0;border:2px solid rgba(236,248,255,.90);border-radius:50%;box-shadow:0 0 10px rgba(188,236,255,.35)}
  .ship-reticle-ring.inner{inset:14%;border-color:rgba(140,236,255,.95)}
  .ship-reticle-h,.ship-reticle-v{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.9)}
@@ -164,18 +164,28 @@ footer{padding-top:4px}
  .ship-reticle-corners span:nth-child(2){right:-2%;top:-2%;border-left:0;border-bottom:0}
  .ship-reticle-corners span:nth-child(3){left:-2%;bottom:-2%;border-right:0;border-top:0}
  .ship-reticle-corners span:nth-child(4){right:-2%;bottom:-2%;border-left:0;border-top:0}
- #shipTargetLabel{position:absolute;left:57.2%;top:15.6%;padding:6px 10px;border-radius:999px;background:rgba(6,18,33,.72);border:1px solid rgba(120,215,255,.46);color:#f3fcff;font-size:clamp(10px,.82vw,14px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 10px rgba(55,189,255,.15)}
- #shipAnalysisPanel{position:absolute;left:58.8%;top:19%;width:20.5%;min-height:18%;padding:10px 12px;border-radius:14px;background:rgba(4,15,28,.54);border:1px solid rgba(100,203,255,.34);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.1);backdrop-filter:blur(3px)}
+ #shipTargetLabel{position:absolute;left:57.6%;top:12.7%;padding:6px 10px;border-radius:999px;background:rgba(6,18,33,.72);border:1px solid rgba(120,215,255,.46);color:#f3fcff;font-size:clamp(10px,.82vw,14px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 10px rgba(55,189,255,.15)}
+ #shipAnalysisPanel{position:absolute;left:58.5%;top:16.7%;width:19.8%;min-height:16%;padding:10px 12px;border-radius:14px;background:rgba(4,15,28,.54);border:1px solid rgba(100,203,255,.34);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.1);backdrop-filter:blur(3px)}
  #shipAnalysisHead{font-size:clamp(11px,.9vw,14px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#abebff;margin-bottom:6px}
  #shipAnalysisText{font-size:clamp(11px,.92vw,15px);line-height:1.28;min-height:7.8em;white-space:pre-line;text-align:left}
  #shipAnalysisCursor{display:inline-block;width:.62em;animation:shipBlink 1s steps(1,end) infinite}
  @keyframes shipBlink{50%{opacity:0}}
- #shipApproachPanel{position:absolute;left:14.2%;top:73%;width:15.5%;padding:9px 10px;border-radius:14px;background:rgba(4,15,28,.58);border:1px solid rgba(100,203,255,.30);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.08);backdrop-filter:blur(2px)}
- #shipApproachHead{font-size:clamp(10px,.82vw,13px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#abebff;margin-bottom:5px}
- #shipApproachReadout{font-size:clamp(12px,.95vw,15px);font-weight:800;margin-bottom:6px}
- #shipApproachSlider{width:100%;accent-color:#27d7ff;pointer-events:auto}
- #shipApproachTicks{display:flex;justify-content:space-between;font-size:clamp(9px,.72vw,12px);opacity:.9;margin-top:2px}
- #shipApproachStats{margin-top:7px;font-size:clamp(10px,.78vw,13px);line-height:1.28;text-align:left;white-space:pre-line}
+ #shipApproachPanel{position:absolute;right:23.4%;top:21.2%;width:4.6%;height:30%;pointer-events:none;z-index:10}
+ #shipApproachLever{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+ #shipApproachRail{position:absolute;left:50%;top:6%;transform:translateX(-50%);width:14px;height:88%;border-radius:999px;background:linear-gradient(to right,rgba(21,59,86,.65),rgba(96,201,255,.35),rgba(16,46,69,.7));border:1px solid rgba(115,220,255,.45);box-shadow:inset 0 0 8px rgba(0,0,0,.5),0 0 12px rgba(47,184,255,.12)}
+ #shipApproachNotches{position:absolute;left:50%;top:10%;transform:translateX(-50%);width:30px;height:80%;pointer-events:none}
+ #shipApproachNotches span{position:absolute;left:50%;transform:translateX(-50%);width:24px;height:2px;background:rgba(175,239,255,.55);border-radius:999px}
+ #shipApproachKnob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56px;height:26px;border-radius:999px;background:linear-gradient(to bottom,rgba(193,245,255,.92),rgba(73,197,255,.95));border:1px solid rgba(214,250,255,.9);box-shadow:0 0 15px rgba(42,199,255,.28), inset 0 0 6px rgba(255,255,255,.45)}
+ #shipApproachKnob::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:16px;height:56px;border-radius:999px;background:linear-gradient(to right,rgba(202,248,255,.98),rgba(94,205,255,.92));border:1px solid rgba(217,250,255,.9);box-shadow:0 0 10px rgba(61,208,255,.26)}
+ #shipApproachKnob::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#eefdff;box-shadow:0 0 8px rgba(255,255,255,.9)}
+ #shipApproachStats{position:absolute;right:120%;top:26%;width:180%;padding:7px 8px;border-radius:10px;background:rgba(4,15,28,.44);font-size:clamp(9px,.69vw,11px);line-height:1.25;text-align:left;white-space:pre-line;border:1px solid rgba(100,203,255,.18)}
+ #shipApproachReadout{display:none}
+ #shipApproachHead{display:none}
+ #shipApproachTicks{display:none}
+ #shipEQLeft,#shipEQRight{position:absolute;z-index:9;top:67.8%;width:9.8%;height:10%;display:flex;align-items:flex-end;gap:4px;pointer-events:none}
+ #shipEQLeft{left:19.2%;transform:rotate(-16deg)}
+ #shipEQRight{right:18.7%;transform:rotate(16deg)}
+ .ship-eq-bar{flex:1;min-width:0;height:22%;border-radius:999px 999px 3px 3px;background:linear-gradient(to top,rgba(37,180,255,.35),rgba(205,248,255,.92));box-shadow:0 0 8px rgba(45,191,255,.15)}
  #shipRadarScope{position:absolute;left:9.2%;top:77.5%;width:6.6%;aspect-ratio:1;border-radius:50%;border:1px solid rgba(95,206,255,.55);background:radial-gradient(circle at center,rgba(17,131,178,.22),rgba(1,12,22,.72) 70%);overflow:hidden;box-shadow:0 0 16px rgba(0,182,255,.12)}
  #shipRadarScope::before,#shipRadarScope::after{content:'';position:absolute;left:50%;top:50%;background:rgba(113,231,255,.35);transform:translate(-50%,-50%)}
  #shipRadarScope::before{width:2px;height:100%}#shipRadarScope::after{width:100%;height:2px}
@@ -211,7 +221,7 @@ body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
 <button id="viewToggle" type="button">Ship View</button>
 <div id="shipStage" aria-hidden="true">
   <img id="shipWindowBg" alt="" aria-hidden="true">
-  <img id="shipFrame" src="./cockpit-landscape.png?v=20260911-live-window-3" alt="" aria-hidden="true">
+  <img id="shipFrame" src="./cockpit-landscape.png?v=20260911-live-window-5" alt="" aria-hidden="true">
   <button id="shipTrackTitle" type="button">Loading music…</button>
   <img id="shipLogo" alt="Grand Element">
   <div id="shipSensorLayer" aria-hidden="true">
@@ -231,7 +241,7 @@ body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
       <div id="shipApproachHead">Approach Vector</div>
       <div id="shipApproachReadout">Drift</div>
       <input id="shipApproachSlider" type="range" min="-100" max="100" value="0" step="1" aria-label="Approach control">
-      <div id="shipApproachTicks"><span>Reverse</span><span>Drift</span><span>Forward</span></div>
+      <div id="shipApproachTicks"><span>Forward</span><span>Drift</span><span>Reverse</span></div>
       <div id="shipApproachStats">Distance: --\nETA: --\nFlux: --</div>
     </div>
     <div id="shipRadarScope"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div></div>
@@ -310,7 +320,7 @@ body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
     <button id="offlineBtn">Go Offline</button>
     <button id="reloadBtn">Reload Library</button>
     <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text">
-      <input type="checkbox" id="hudAutoHide" checked aria-label="Automatically hide controls">
+      <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls">
       <span>Hide text</span>
     </div>
     <button id="installBtn">Install App</button>
@@ -327,7 +337,7 @@ body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.11-live-window-ship-4',
+  APP_VERSION: '2026.09.11-live-window-ship-5',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
   HOME_URL: 'https://grandelement.github.io/website/',
   MUSIC_MANIFEST: './manifest.json',
@@ -1193,7 +1203,7 @@ audio.addEventListener('canplay',()=>{
   const combined=$('hudCombined');
   const autoCheckbox=$('hudAutoHide');
   const params=new URLSearchParams(location.search);
-  let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)!=='0';
+  let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)==='1';
   let lastActivity=Date.now();
   autoCheckbox.checked=autoEnabled;
   function show(){ document.body.classList.remove('hud-hidden'); lastActivity=Date.now(); }
@@ -1405,8 +1415,10 @@ async function registerServiceWorker(){
   async function buildAssetList(){
     const {sizeMap}=await repositorySnapshot();
 
+    const shipFrameURL=$('shipFrame')?.getAttribute('src')||'./cockpit-landscape.png';
     const shell=[
       './','./index.html','./manifest.webmanifest','./sw.js',
+      './cockpit-landscape.png',shipFrameURL,
       './icons/icon-192.png','./icons/icon-512.png',
       CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST
     ].map(url=>({url:absolute(url),type:'shell',size:0}));
@@ -1771,6 +1783,38 @@ async function registerServiceWorker(){
 })();
 
 
+async function refreshTemplateAssetsForOffline(){
+  // Keep the existing music/background cache intact; replace only the app/template shell.
+  if(!('caches' in window)) return {refreshed:0,failed:0};
+  const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+  const frameExact=$('shipFrame')?.src||absolute('./cockpit-landscape.png');
+  const canonical=[
+    absolute('./index.html'),
+    absolute('./manifest.webmanifest'),
+    absolute('./sw.js'),
+    absolute('./cockpit-landscape.png'),
+    frameExact,
+    absolute('./icons/icon-192.png'),
+    absolute('./icons/icon-512.png'),
+    absolute(CONFIG.LOGO_SRC),
+    absolute(CONFIG.IMAGE_MANIFEST),
+    absolute(CONFIG.MUSIC_MANIFEST)
+  ];
+  const urls=[...new Set(canonical)];
+  let refreshed=0,failed=0;
+  for(const canonicalURL of urls){
+    try{
+      const fresh=new URL(canonicalURL);
+      fresh.searchParams.set('_ge_template_reload',String(Date.now())+String(Math.random()).slice(2));
+      const response=await fetch(fresh.href,{cache:'no-store',headers:{'X-GE-Template-Reload':'1'}});
+      if(!response.ok) throw new Error(String(response.status));
+      await cache.put(canonicalURL,response.clone());
+      refreshed++;
+    }catch(_e){ failed++; }
+  }
+  return {refreshed,failed};
+}
+
 // Manual library updater.
 // Reload Library means UPDATE + RESET TO NORMAL RADIO.
 // Shared links remain exact snapshots when opened, but pressing Reload Library
@@ -1823,13 +1867,18 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(library){
       const oldShaMap=loadMediaShaMap();
       mediaResult=await refreshMediaCacheFromTree(oldShaMap,library.shaMap,{
-        offlineActive:false
+        // If the listener already enabled Offline, new/replaced songs and backgrounds
+        // are folded into the existing offline cache instead of requiring a new download.
+        offlineActive:!!window.GEOffline?.isActive?.()
       });
       saveMediaShaMap(library.shaMap);
     }
 
-    // Reload discovers what is already offline but does NOT start a large
-    // download. The Offline button downloads only the missing files when pressed.
+    // Refresh the template/cockpit shell without clearing any previously downloaded music.
+    let templateResult={refreshed:0,failed:0};
+    try{ templateResult=await refreshTemplateAssetsForOffline(); }catch(_e){}
+
+    // Re-audit what is already offline. This never clears the downloaded music.
     try{
       if(window.GEOffline?.scan) await window.GEOffline.scan();
     }catch(_e){}
@@ -1859,10 +1908,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       window.GEBackgrounds.resetDefaults();
     }
 
-    // Return Hide Text to the normal default as well.
-    $('hudAutoHide').checked=true;
-    if($('shipAutoHide')) $('shipAutoHide').checked=true;
-    localStorage.setItem(CONFIG.HUD_KEY,'1');
+    // Preserve the listener's Hide Text preference across a library/template reload.
     document.body.classList.remove('hud-hidden');
 
     const start=pickWeightedShuffle();
@@ -1880,7 +1926,7 @@ $('reloadBtn').addEventListener('click',async()=>{
 
     const totalChanges=
       newSongs+removedSongs+newImages+removedImages+
-      mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed;
+      mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed+templateResult.refreshed;
 
     button.textContent=totalChanges?`Updated ${totalChanges}`:'Reset & Ready';
 
@@ -1888,10 +1934,15 @@ $('reloadBtn').addEventListener('click',async()=>{
       `Radio reset. ${newSongs} new song${newSongs===1?'':'s'}, `+
       `${removedSongs} removed song${removedSongs===1?'':'s'}, `+
       `${mediaResult.refreshed} replaced file${mediaResult.refreshed===1?'':'s'} refreshed, `+
-      `${newImages} new image${newImages===1?'':'s'}.`
+      `${newImages} new image${newImages===1?'':'s'}, `+
+      `${templateResult.refreshed} template asset${templateResult.refreshed===1?'':'s'} refreshed.`
     );
 
-    setTimeout(()=>{ location.reload(); },700);
+    setTimeout(()=>{
+      const next=new URL(location.pathname,location.href);
+      next.searchParams.set('_ge_template',String(Date.now()));
+      location.replace(next.href);
+    },700);
   }catch(error){
     console.error('GE reload/reset failed',error);
     setStatus('Library update could not finish. Check the Internet connection and try again.');
@@ -1905,11 +1956,11 @@ $('reloadBtn').addEventListener('click',async()=>{
 
 // Landscape Ship View controller.
 (function createShipView(){
-  const stage=$('shipStage'),toggle=$('viewToggle'),stageBg=$('shipWindowBg'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideBtn=$('shipHideBtn'),approachSlider=$('shipApproachSlider'),approachReadout=$('shipApproachReadout'),approachStats=$('shipApproachStats'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),radarBlips=$('shipRadarBlips'),distanceMini=$('shipDistanceMini');
+  const stage=$('shipStage'),toggle=$('viewToggle'),stageBg=$('shipWindowBg'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideBtn=$('shipHideBtn'),approachLever=$('shipApproachLever'),approachKnob=$('shipApproachKnob'),approachReadout=$('shipApproachReadout'),approachStats=$('shipApproachStats'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),radarBlips=$('shipRadarBlips'),distanceMini=$('shipDistanceMini'),eqLeft=$('shipEQLeft'),eqRight=$('shipEQRight');
   const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
   let landscapeMode='ship';
   let analysisTypingTimer=0;
-  const approach={distance:0.18,throttle:0,lastT:0,nextPing:0};
+  const approach={distance:0.18,throttle:0,lastT:0,nextPing:0,dragging:false};
 
   const telemetryPhrases=[
     ['Target profile stable','Magnetosphere coherent','Soul core resonance rising'],
@@ -1934,17 +1985,23 @@ $('reloadBtn').addEventListener('click',async()=>{
   function syncTitle(){if(shipTitle)shipTitle.textContent=titleBtn.textContent;}
   function syncProxyStates(){
     document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>{const source=$(button.dataset.proxy);if(!source)return;const pressed=source.getAttribute('aria-pressed');if(pressed!==null)button.setAttribute('aria-pressed',pressed);else button.removeAttribute('aria-pressed');button.classList.toggle('active',source.classList.contains('active'));if(source.id==='offlineBtn')button.textContent=source.textContent.replace(/\s*\(\d+\)\s*$/,'');});
-    if(shipHideBtn){ shipHideBtn.classList.toggle('active',$('hudAutoHide').checked); shipHideBtn.setAttribute('aria-pressed',$('hudAutoHide').checked?'true':'false'); }
+    if(shipHideBtn){ const on=$('hudAutoHide').checked; shipHideBtn.classList.toggle('active',on); shipHideBtn.setAttribute('aria-pressed',on?'true':'false'); shipHideBtn.textContent=`Hide Text ${on?'On':'Off'}`; }
   }
   function formatTime(seconds){seconds=Math.max(0,Math.floor(Number(seconds)||0));const m=Math.floor(seconds/60),s=seconds%60;return `${m}:${String(s).padStart(2,'0')}`;}
   function syncTransport(){const duration=Number(audio.duration),current=Number(audio.currentTime)||0,valid=Number.isFinite(duration)&&duration>0,pct=valid?Math.max(0,Math.min(100,current/duration*100)):0;if(progressFill)progressFill.style.strokeDasharray=`${pct} ${100-pct}`;if(timeNow)timeNow.textContent=formatTime(current);if(timeLeft)timeLeft.textContent=valid?`-${formatTime(duration-current)}`:'-0:00';if(shipPlay){shipPlay.textContent=audio.paused?'▶':'Ⅱ';shipPlay.setAttribute('aria-label',audio.paused?'Play':'Pause');}}
-  function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();}
+  function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
   shipTitle?.addEventListener('click',()=>titleBtn.click());
   shipPrev?.addEventListener('click',()=>previousTrack(true));
   shipNext?.addEventListener('click',()=>nextTrack(true));
   shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
-  shipHideBtn?.addEventListener('click',event=>{event.preventDefault();window.GEHUD?.hide();});
+  shipHideBtn?.addEventListener('click',event=>{
+    event.preventDefault();
+    const source=$('hudAutoHide');
+    source.checked=!source.checked;
+    source.dispatchEvent(new Event('change',{bubbles:true}));
+    syncProxyStates();
+  });
   function seekFromClientX(clientX){const duration=Number(audio.duration);if(!Number.isFinite(duration)||duration<=0||!shipProgressHit)return;const rect=shipProgressHit.getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));audio.currentTime=ratio*duration;syncTransport();}
   shipProgressHit?.addEventListener('pointerdown',event=>{shipProgressHit.setPointerCapture?.(event.pointerId);seekFromClientX(event.clientX);});
   shipProgressHit?.addEventListener('pointermove',event=>{if(event.buttons||event.pointerType==='touch')seekFromClientX(event.clientX);});
@@ -1958,20 +2015,31 @@ $('reloadBtn').addEventListener('click',async()=>{
   function lerp(a,b,t){ return a+(b-a)*t; }
   function rand(min,max){ return Math.random()*(max-min)+min; }
   function currentDistanceKm(){ const d=approach.distance; return Math.round(lerp(120,98000,Math.pow(1-d,2.25))); }
-  function currentZoom(){ return lerp(1.02,6.1,Math.pow(approach.distance,1.18)); }
+  function currentPlanetZoom(){ return lerp(.22,7.5,Math.pow(approach.distance,1.20)); }
+  function currentBackgroundZoom(){ return lerp(1.00,1.18,Math.pow(approach.distance,1.12)); }
   function currentVelocity(){ return Math.abs(approach.throttle)<2 ? 0 : Math.round(Math.abs(approach.throttle)*12.6 + approach.distance*180); }
   function currentEta(){ const vel=currentVelocity(); const dist=currentDistanceKm(); if(approach.throttle<=2||vel<=0) return 'Holding'; const sec=Math.max(1,Math.round(dist/Math.max(vel,1))); const m=Math.floor(sec/60), s=sec%60; return `${m}:${String(s).padStart(2,'0')}`; }
-  function reticleSizePct(){ return lerp(11.2,36,Math.pow(approach.distance,.95)); }
+  function reticleSizePct(){ return clamp(18.5*currentPlanetZoom()*1.08,8.5,78); }
   function reticleTopPct(){ return lerp(23.5,35.8,approach.distance); }
   function updateApproachUI(){
-    const zoom=currentZoom();
-    document.documentElement.style.setProperty('--ship-approach-zoom',String(zoom.toFixed(3)));
+    const planetZoom=currentPlanetZoom();
+    const backgroundZoom=currentBackgroundZoom();
+    document.documentElement.style.setProperty('--ship-logo-scale',String(planetZoom.toFixed(3)));
+    document.documentElement.style.setProperty('--ship-bg-approach-zoom',String(backgroundZoom.toFixed(3)));
+    document.documentElement.style.setProperty('--ship-logo-y',`${(-approach.distance*10).toFixed(2)}%`);
+    if(shipLogo){
+      const cloudBlur=approach.distance>0.88 ? lerp(0,9,(approach.distance-.88)/.12) : 0;
+      shipLogo.style.filter=`blur(${cloudBlur.toFixed(2)}px) saturate(${lerp(1,1.35,approach.distance).toFixed(2)})`;
+    }
     if(targetReticle){ targetReticle.style.width=`${reticleSizePct().toFixed(2)}%`; targetReticle.style.top=`${reticleTopPct().toFixed(2)}%`; }
     const dist=currentDistanceKm();
     const vel=currentVelocity();
     const eta=currentEta();
     const mode=approach.throttle>6?'Forward':approach.throttle<-6?'Reverse':'Drift';
     if(approachReadout) approachReadout.textContent=`${mode} ${approach.throttle>0?'+':''}${Math.round(approach.throttle)}%`;
+    if(approachLever) approachLever.setAttribute('aria-valuenow',String(Math.round(approach.throttle)));
+    if(approachLever) approachLever.setAttribute('aria-valuetext',`${mode} ${Math.round(Math.abs(approach.throttle))}%`);
+    if(approachKnob){ const pct=50 - (approach.throttle*0.38); approachKnob.style.top=`${pct}%`; }
     if(approachStats) approachStats.textContent=`Distance: ${dist.toLocaleString()} km\nETA: ${eta}\nFlux: ${Math.round(lerp(18,96,approach.distance))}%\nVelocity: ${vel.toLocaleString()} km/s`;
     if(distanceMini) distanceMini.innerHTML=`SCAN<br>${dist.toLocaleString()} km`;
     if(targetLabel) targetLabel.textContent = approach.distance>0.76 ? 'Inner Core Lock' : approach.distance>0.42 ? 'Target Analysis' : 'Target Lock';
@@ -2022,22 +2090,49 @@ $('reloadBtn').addEventListener('click',async()=>{
       radarBlips.appendChild(dot);
     }
   }
+  function updateEQ(){
+    [eqLeft,eqRight].forEach(container=>{
+      if(!container) return;
+      if(!container.childElementCount){ for(let i=0;i<8;i++){ const b=document.createElement('span'); b.className='ship-eq-bar'; container.appendChild(b); } }
+      [...container.children].forEach((bar,i)=>{
+        const base=(Math.sin((audio.currentTime||0)*4 + i*0.8)+1)/2;
+        const extra=(Math.sin((performance.now()/1000)*2.2 + i*1.4)+1)/2;
+        const h=18 + (base*42) + (extra*24) + (approach.distance*8);
+        bar.style.height=`${Math.max(14,Math.min(100,h))}%`;
+        bar.style.opacity=String(0.38 + base*0.54);
+      });
+    });
+  }
   function animationFrame(t){
     if(!approach.lastT) approach.lastT=t;
     const dt=Math.min(0.06,(t-approach.lastT)/1000 || 0.016);
     approach.lastT=t;
-    const throttleTarget=(Number(approachSlider?.value)||0)/100;
-    approach.throttle = lerp(approach.throttle, throttleTarget*100, Math.min(1,dt*3.4));
-    const drift = (approach.throttle/100) * dt * 0.085;
+    if(!approach.dragging){
+      if(Math.abs(approach.throttle)<0.35) approach.throttle=0;
+      else approach.throttle = lerp(approach.throttle,0,Math.min(1,dt*0.9));
+    }
+    // Full forward from a normal starting distance takes roughly five minutes.
+    const drift = (approach.throttle/100) * dt * 0.0030;
     approach.distance = clamp(approach.distance + drift, 0.02, 1);
     updateApproachUI();
-    if(!approach.nextPing) approach.nextPing=t+rand(2500,7000);
-    if(t>=approach.nextPing){ triggerAnalysis(); updateRadarBlips(); approach.nextPing=t+rand(5500,14500); }
+    if(!approach.nextPing) approach.nextPing=t+rand(20000,40000);
+    if(t>=approach.nextPing){ triggerAnalysis(); updateRadarBlips(); approach.nextPing=t+rand(55000,140000); }
+    updateEQ();
     requestAnimationFrame(animationFrame);
   }
-  approachSlider?.addEventListener('input',()=>{ updateApproachUI(); });
-  approachSlider?.addEventListener('pointerdown',event=>event.stopPropagation());
-  triggerAnalysis();
+  function setThrottleFromY(clientY){
+    if(!approachLever) return;
+    const rect=approachLever.getBoundingClientRect();
+    const ratio=Math.max(0,Math.min(1,(clientY-rect.top)/rect.height));
+    const value=Math.round((0.5-ratio)*200);
+    approach.throttle=value;
+    updateApproachUI();
+  }
+  approachLever?.addEventListener('pointerdown',event=>{ event.preventDefault(); event.stopPropagation(); approach.dragging=true; approachLever.setPointerCapture?.(event.pointerId); setThrottleFromY(event.clientY); });
+  approachLever?.addEventListener('pointermove',event=>{ if(!approach.dragging) return; event.preventDefault(); setThrottleFromY(event.clientY); });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(name=>approachLever?.addEventListener(name,()=>{ approach.dragging=false; }));
+  approachLever?.addEventListener('keydown',event=>{ const step=event.shiftKey?20:10; if(event.key==='ArrowUp'){ event.preventDefault(); approach.throttle=Math.min(100,approach.throttle+step); updateApproachUI(); } if(event.key==='ArrowDown'){ event.preventDefault(); approach.throttle=Math.max(-100,approach.throttle-step); updateApproachUI(); } if(event.key==='Home'){ event.preventDefault(); approach.throttle=0; updateApproachUI(); }});
+  if(analysisText) analysisText.textContent='Passive scan active. Awaiting next analysis window.';
   updateApproachUI();
   updateRadarBlips();
   requestAnimationFrame(animationFrame);
@@ -2045,6 +2140,13 @@ $('reloadBtn').addEventListener('click',async()=>{
 })();
 
 (async function boot(){
+  try{
+    const clean=new URL(location.href);
+    if(clean.searchParams.has('_ge_template')){
+      clean.searchParams.delete('_ge_template');
+      history.replaceState(null,'',clean.pathname+(clean.searchParams.toString()?`?${clean.searchParams}`:'')+clean.hash);
+    }
+  }catch(_e){}
   $('geLogo').src=absolute(CONFIG.LOGO_SRC);
   $('homeLink').href=CONFIG.HOME_URL;
   loadSharedState();
@@ -2084,4 +2186,5 @@ $('reloadBtn').addEventListener('click',async()=>{
 })();
 </script>
 </body>
+</html>
 </html>
