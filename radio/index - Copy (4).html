@@ -1,0 +1,2087 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GE Radio">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<title>Grand Element Radio</title>
+<style>
+:root{
+  --fg:#e8f6ff;
+  --muted:#a6bdd0;
+  --accent:#00ffa8;
+  --btn-bg:rgba(13,27,38,.72);
+  --btn-br:#27455e;
+  --bg-x:50%;
+  --bg-y:50%;
+  --bg-shift-y:0vh;
+  --bg-scale:1.08;
+  --ship-approach-zoom:1;
+}
+
+*{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none}
+html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
+html{min-height:100svh}
+body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
+#bgImage{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  object-fit:cover;
+  object-position:var(--bg-x) var(--bg-y);
+  transform:translate3d(0,var(--bg-shift-y),0) scale(var(--bg-scale));
+  transform-origin:center center;
+  z-index:0;
+  pointer-events:none;
+  background:#000;
+  transition:opacity .2s ease;
+}
+#shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
+#hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
+body.hud-hidden #hudTap{display:block}
+.wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.25svh,13px);padding:clamp(10px,2svh,24px) 18px clamp(18px,3svh,32px);text-align:center;max-width:900px;margin:0 auto;transition:opacity .25s ease}
+body.hud-hidden .wrap{opacity:0;pointer-events:none}
+header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin:0;padding:0}
+.logo-wrap{width:min(234px,25.2vw);height:min(234px,25.2vw);border-radius:50%;overflow:hidden;display:block;margin:0 auto 2px;box-shadow:0 0 0 2px rgba(255,255,255,.15) inset,0 8px 28px rgba(0,0,0,.6)}
+.logo{width:100%;height:100%;object-fit:cover;object-position:center}
+h1{margin:0;font-size:clamp(20px,4.2vw,32px);line-height:1.08}
+.tag{margin:0;opacity:.9;font-size:clamp(14px,3.6vw,18px);line-height:1.08}
+.row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;width:100%}
+.group{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;padding:10px 12px;border-radius:14px;background:rgba(24,28,34,.60);border:1px solid rgba(80,110,140,.45);width:min(760px,96vw);backdrop-filter:blur(3px)}
+button,.button-link{appearance:none;border:1px solid var(--btn-br);background:var(--btn-bg);color:var(--fg);padding:10px 13px;border-radius:11px;font-weight:750;letter-spacing:.2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:42px;-webkit-tap-highlight-color:transparent}
+button:active,.button-link:active{transform:scale(.97)}
+button.tgl[aria-pressed="true"]{outline:2px solid var(--accent);box-shadow:0 0 18px rgba(0,255,168,.20) inset}
+#musicGroup{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:min(760px,96vw)}
+#musicGroup button{min-width:0;padding-inline:8px}
+#player{width:min(760px,96vw);background:rgba(0,0,0,.35)}
+#titleBtn{max-width:min(760px,92vw);border-radius:999px;overflow:hidden;text-overflow:ellipsis}
+#trackBackdrop{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.50);backdrop-filter:blur(2px);touch-action:none}
+#trackBackdrop.open{display:block}
+#trackList{display:none;position:fixed;z-index:10001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,92vw);max-height:min(72dvh,620px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;text-align:left;background:rgba(18,24,30,.96);border:1px solid rgba(80,110,140,.65);border-radius:15px;padding:8px;box-shadow:0 18px 60px rgba(0,0,0,.65)}
+#trackList.open{display:block}
+#trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:10px 11px;min-height:40px;border-radius:8px;font-weight:600;white-space:normal;touch-action:manipulation}
+#trackList button.current{background:rgba(0,255,168,.15);outline:1px solid rgba(0,255,168,.55)}
+#bgGroup{display:flex;flex-direction:column;gap:10px}
+#bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%}
+#bgGroup button{min-width:0;padding-inline:6px}
+.section-label{font-weight:800}
+.settings-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:transparent;padding:0;border-radius:12px}
+#hudAutoHide{padding:9px 16px;min-height:40px}
+.bc-btn{padding:14px 28px;border-radius:16px;background:#ff4f1f;color:#fff;font-weight:800;text-decoration:none;box-shadow:0 10px 28px rgba(255,79,31,.38)}
+.offline-row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(760px,96vw)}
+#offlineBtn.active{background:#0e2f1f;border-color:#1f6b4d;color:#b8ffdf}
+#offlineBtn.downloading{background:#2a2130;border-color:#5b3a5f}
+#installBtn{display:none}
+#offlinePanel{display:none;width:min(760px,96vw);padding:10px 12px;border-radius:12px;background:rgba(24,28,34,.72);border:1px solid rgba(80,110,140,.45)}
+#offlineBarTrack{height:11px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden}
+#offlineBar{height:100%;width:0;background:#1fd15b;border-radius:999px;transition:width .15s linear}
+#offlineText{display:block;margin-top:8px;font-size:13px;line-height:1.35;color:var(--fg);white-space:pre-line}
+#status{display:none!important}
+footer{padding-top:4px}
+@media(max-width:520px){
+  .wrap{padding-inline:10px;gap:clamp(7px,1.05svh,11px)}
+  #musicGroup{gap:5px}
+  #musicGroup button{font-size:12px;padding:8px 4px;min-height:40px}
+  #bgGroup{gap:7px;padding:8px 10px}
+  #bgGroup .bg-row{gap:4px}
+  #bgGroup button{font-size:11px;padding:8px 3px;min-height:38px}
+  .logo-wrap{width:clamp(154px,38vw,198px);height:clamp(154px,38vw,198px)}
+  .bc-btn{padding:12px 24px}
+  #offlinePanel{padding:8px 10px}
+}
+@media(orientation:landscape) and (max-height:620px){
+  .wrap{gap:6px;padding:6px max(10px,env(safe-area-inset-right)) 12px max(10px,env(safe-area-inset-left));max-width:1000px}
+  header{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;row-gap:0;width:min(760px,94vw);align-items:center}
+  .logo-wrap{grid-row:1/3;width:76px;height:76px;margin:0}
+  h1{font-size:20px;align-self:end;line-height:1.02}
+  .tag{font-size:13px;align-self:start;line-height:1.02}
+  #titleBtn{min-height:34px;padding:6px 12px}
+  #player{width:min(760px,94vw)}
+  #musicGroup{width:min(760px,94vw);gap:4px}
+  #musicGroup button{min-height:34px;padding:6px 4px;font-size:11px}
+  #hudAutoHide{min-height:34px;padding:6px 12px;font-size:12px}
+  #bgGroup{width:min(760px,94vw);padding:6px 8px;gap:5px}
+  #bgGroup .section-label{font-size:13px}
+  #bgGroup button{min-height:32px;padding:5px 3px;font-size:10px}
+  .bc-btn{padding:8px 18px;font-size:13px}
+  .offline-row button{min-height:34px;padding:6px 10px;font-size:11px}
+  #offlinePanel{padding:6px 8px}
+  #offlineText{margin-top:5px;font-size:11px}
+  footer{font-size:12px}
+  #trackList{max-height:82dvh;width:min(780px,88vw)}
+}
+
+/* LIVE-WINDOW SHIP VIEW */
+:root{--ship-ratio:1.7768331562;}
+#shipStage,#viewToggle{display:none}
+#bottomActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:min(760px,96vw);align-items:stretch}
+#bottomActions .bc-btn{grid-column:1/-1;width:100%;justify-content:center}
+#bottomActions>button,#bottomActions .hud-combined{min-width:0;width:100%;min-height:46px}
+.hud-combined{display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 10px;border:1px solid var(--btn-br);border-radius:11px;background:var(--btn-bg);color:var(--fg);font-weight:800;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.hud-combined input{width:18px;height:18px;margin:0;accent-color:#1aa8ff}
+#titleBtn{font-size:clamp(14px,3.8vw,19px)}
+#musicGroup button,#bgGroup button,#bottomActions>button,#bottomActions .bc-btn,.hud-combined{font-size:clamp(12px,3vw,15px)}
+@media(orientation:portrait){
+ #shipStage,#viewToggle{display:none!important}
+ .wrap{opacity:1;pointer-events:auto}
+ #bottomActions{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #bottomActions .bc-btn{grid-column:1/-1}
+ #supportText{display:block}
+}
+@media(orientation:landscape){
+ #viewToggle{display:flex;position:fixed;z-index:25000;right:max(10px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));min-height:46px;padding:9px 16px;border-radius:999px;background:rgba(3,19,36,.94);border:1px solid rgba(36,181,255,.72);color:#edfaff;font-size:15px;font-weight:850;box-shadow:0 0 14px rgba(0,157,255,.18)}
+ body.view-ship .wrap{opacity:0!important;pointer-events:none!important}
+ body.view-ship #shade{display:none}
+ body.view-ship #bgImage{opacity:0!important}
+ body.view-ship #shipStage{display:block;position:fixed;z-index:5000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,calc(100dvh*var(--ship-ratio)));height:min(100dvh,calc(100vw/var(--ship-ratio)));aspect-ratio:1672/941;overflow:hidden;background:#010711;opacity:1;transition:opacity .28s ease}
+ #shipWindowBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:var(--bg-x) var(--bg-y);transform:translate3d(0,var(--bg-shift-y),0) scale(calc(var(--bg-scale) * var(--ship-approach-zoom)));transform-origin:center center;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%);z-index:1;pointer-events:none;background:#000}
+ #shipFrame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;pointer-events:none}
+ #shipTrackTitle{position:absolute;z-index:8;top:1.5%;left:34%;width:32%;height:7.4%;border:0;background:transparent;color:#f4fbff;font-size:clamp(17px,1.45vw,25px);font-weight:900;text-shadow:0 2px 5px #000;overflow:hidden;text-overflow:ellipsis}
+ #shipLogo{position:absolute;z-index:7;left:50%;top:10.5%;transform:translateX(-50%);width:18.5%;aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 0 22px rgba(0,191,255,.30);animation:shipLogoBreath 30s ease-in-out infinite;pointer-events:none}
+ @keyframes shipLogoBreath{0%,100%{transform:translateX(-50%) scale(.94)}50%{transform:translateX(-50%) scale(1.06)}}
+ .ship-side{position:absolute;z-index:10;top:16.15%;width:10.45%;height:45.8%;display:grid;grid-template-rows:repeat(6,1fr);gap:1.25%}
+ .ship-left{left:1.75%} .ship-right{right:1.75%}
+ .ship-side button{width:100%;height:100%;min-height:0;padding:0 4px;border:0;border-radius:14px;background:rgba(3,24,45,.18);color:#f2fbff;font-size:clamp(13px,1.08vw,18px);font-weight:900;text-shadow:0 2px 4px #000;box-shadow:none}
+ .ship-side button[aria-pressed="true"],.ship-side button.active{outline:2px solid #23ffd0;background:rgba(15,74,88,.28);box-shadow:0 0 14px rgba(35,255,208,.24) inset}
+ #shipSensorLayer{position:absolute;inset:0;z-index:9;pointer-events:none}
+ #shipTargetReticle{position:absolute;left:50%;top:22.2%;width:12.2%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:.82}
+ .ship-reticle-ring{position:absolute;inset:0;border:2px solid rgba(236,248,255,.90);border-radius:50%;box-shadow:0 0 10px rgba(188,236,255,.35)}
+ .ship-reticle-ring.inner{inset:14%;border-color:rgba(140,236,255,.95)}
+ .ship-reticle-h,.ship-reticle-v{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.9)}
+ .ship-reticle-h{width:138%;height:2px}.ship-reticle-v{width:2px;height:138%}
+ .ship-reticle-corners span{position:absolute;width:22%;height:22%;border:2px solid rgba(153,239,255,.95)}
+ .ship-reticle-corners span:nth-child(1){left:-2%;top:-2%;border-right:0;border-bottom:0}
+ .ship-reticle-corners span:nth-child(2){right:-2%;top:-2%;border-left:0;border-bottom:0}
+ .ship-reticle-corners span:nth-child(3){left:-2%;bottom:-2%;border-right:0;border-top:0}
+ .ship-reticle-corners span:nth-child(4){right:-2%;bottom:-2%;border-left:0;border-top:0}
+ #shipTargetLabel{position:absolute;left:57.2%;top:15.6%;padding:6px 10px;border-radius:999px;background:rgba(6,18,33,.72);border:1px solid rgba(120,215,255,.46);color:#f3fcff;font-size:clamp(10px,.82vw,14px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 10px rgba(55,189,255,.15)}
+ #shipAnalysisPanel{position:absolute;left:58.8%;top:19%;width:20.5%;min-height:18%;padding:10px 12px;border-radius:14px;background:rgba(4,15,28,.54);border:1px solid rgba(100,203,255,.34);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.1);backdrop-filter:blur(3px)}
+ #shipAnalysisHead{font-size:clamp(11px,.9vw,14px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#abebff;margin-bottom:6px}
+ #shipAnalysisText{font-size:clamp(11px,.92vw,15px);line-height:1.28;min-height:7.8em;white-space:pre-line;text-align:left}
+ #shipAnalysisCursor{display:inline-block;width:.62em;animation:shipBlink 1s steps(1,end) infinite}
+ @keyframes shipBlink{50%{opacity:0}}
+ #shipApproachPanel{position:absolute;left:14.2%;top:73%;width:15.5%;padding:9px 10px;border-radius:14px;background:rgba(4,15,28,.58);border:1px solid rgba(100,203,255,.30);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.08);backdrop-filter:blur(2px)}
+ #shipApproachHead{font-size:clamp(10px,.82vw,13px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#abebff;margin-bottom:5px}
+ #shipApproachReadout{font-size:clamp(12px,.95vw,15px);font-weight:800;margin-bottom:6px}
+ #shipApproachSlider{width:100%;accent-color:#27d7ff;pointer-events:auto}
+ #shipApproachTicks{display:flex;justify-content:space-between;font-size:clamp(9px,.72vw,12px);opacity:.9;margin-top:2px}
+ #shipApproachStats{margin-top:7px;font-size:clamp(10px,.78vw,13px);line-height:1.28;text-align:left;white-space:pre-line}
+ #shipRadarScope{position:absolute;left:9.2%;top:77.5%;width:6.6%;aspect-ratio:1;border-radius:50%;border:1px solid rgba(95,206,255,.55);background:radial-gradient(circle at center,rgba(17,131,178,.22),rgba(1,12,22,.72) 70%);overflow:hidden;box-shadow:0 0 16px rgba(0,182,255,.12)}
+ #shipRadarScope::before,#shipRadarScope::after{content:'';position:absolute;left:50%;top:50%;background:rgba(113,231,255,.35);transform:translate(-50%,-50%)}
+ #shipRadarScope::before{width:2px;height:100%}#shipRadarScope::after{width:100%;height:2px}
+ #shipRadarSweep{position:absolute;inset:-8%;background:conic-gradient(from 0deg,rgba(67,239,255,0) 0deg,rgba(67,239,255,.45) 26deg,rgba(67,239,255,0) 48deg,rgba(67,239,255,0) 360deg);mix-blend-mode:screen;animation:shipRadarSweep 5.8s linear infinite}
+ @keyframes shipRadarSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+ #shipRadarBlips span{position:absolute;width:10%;aspect-ratio:1;border-radius:50%;background:rgba(178,246,255,.95);box-shadow:0 0 6px rgba(178,246,255,.95)}
+ #shipDistanceMini{position:absolute;left:8.5%;top:85.9%;width:7.8%;font-size:clamp(9px,.72vw,12px);line-height:1.18;color:#d9f8ff;text-align:center;text-shadow:0 1px 2px #000}
+ #shipProgress{position:absolute;z-index:8;left:28%;top:57.2%;width:44%;height:12.5%;overflow:visible;pointer-events:none}
+ .ship-progress-base{fill:none;stroke:rgba(51,221,255,.28);stroke-width:10;stroke-linecap:round}
+ .ship-progress-fill{fill:none;stroke:#28e8ff;stroke-width:10;stroke-linecap:round;stroke-dasharray:0 100;filter:drop-shadow(0 0 5px rgba(40,232,255,.6))}
+ #shipProgressHit{position:absolute;z-index:11;left:29%;top:58.2%;width:42%;height:9%;cursor:pointer;touch-action:none}
+ .ship-time{position:absolute;z-index:9;top:62.3%;color:#e9f8ff;font-size:clamp(11px,.9vw,15px);font-weight:750;text-shadow:0 1px 3px #000}
+ .ship-time-now{left:27.6%} .ship-time-left{right:27.6%}
+ .ship-transport{position:absolute;z-index:12;top:62.4%;width:7.6%;aspect-ratio:1;min-height:0;padding:0;border-radius:50%;border:1px solid rgba(35,183,255,.62);background:rgba(3,24,44,.72);color:#fff;font-size:clamp(20px,2.05vw,34px);box-shadow:0 0 13px rgba(0,170,255,.17)}
+ #shipPrev{left:38.3%} #shipPlay{left:46.2%;width:8.3%;border-color:#37e8ff;box-shadow:0 0 18px rgba(32,220,255,.32)} #shipNext{left:55.7%}
+ #shipRadarPlanet{position:absolute;z-index:8;left:10.15%;top:76.25%;width:5.2%;aspect-ratio:1;border-radius:50%;object-fit:cover;pointer-events:none;animation:shipRadarBreath 23s ease-in-out infinite}
+ @keyframes shipRadarBreath{0%,100%{transform:scale(.86)}50%{transform:scale(1.10)}}
+ #shipBottomActions{position:absolute;z-index:12;left:22.2%;top:82.25%;width:55.7%;height:8.25%;display:grid;grid-template-columns:1.05fr .84fr 1.05fr;gap:1.9%}
+ #shipBottomActions>*{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:0;padding:0 8px;border:0;border-radius:14px;background:rgba(3,24,45,.14);color:#f2fbff;text-decoration:none;font-size:clamp(13px,1.05vw,17px);font-weight:900;text-shadow:0 2px 4px #000}
+ #shipHideControl{display:none!important}
+ body.view-ship.hud-hidden #shipStage{opacity:0!important;pointer-events:none!important}
+ body.view-ship.hud-hidden #bgImage{opacity:1!important}
+ body.view-ship.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!important}
+}
+body.hud-hidden #hudTap{display:block;z-index:30000;touch-action:manipulation}
+
+</style>
+</head>
+<body>
+<img id="bgImage" alt="" aria-hidden="true">
+<div id="shade"></div>
+<div id="hudTap" title="Tap to show controls"></div>
+<button id="viewToggle" type="button">Ship View</button>
+<div id="shipStage" aria-hidden="true">
+  <img id="shipWindowBg" alt="" aria-hidden="true">
+  <img id="shipFrame" src="./cockpit-landscape.png?v=20260911-live-window-3" alt="" aria-hidden="true">
+  <button id="shipTrackTitle" type="button">Loading music…</button>
+  <img id="shipLogo" alt="Grand Element">
+  <div id="shipSensorLayer" aria-hidden="true">
+    <div id="shipTargetReticle">
+      <div class="ship-reticle-ring outer"></div>
+      <div class="ship-reticle-ring inner"></div>
+      <div class="ship-reticle-h"></div>
+      <div class="ship-reticle-v"></div>
+      <div class="ship-reticle-corners"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div id="shipTargetLabel">Target Lock</div>
+    <div id="shipAnalysisPanel">
+      <div id="shipAnalysisHead">Inner Planet Analysis</div>
+      <div id="shipAnalysisText">Awaiting telemetry<span id="shipAnalysisCursor">_</span></div>
+    </div>
+    <div id="shipApproachPanel">
+      <div id="shipApproachHead">Approach Vector</div>
+      <div id="shipApproachReadout">Drift</div>
+      <input id="shipApproachSlider" type="range" min="-100" max="100" value="0" step="1" aria-label="Approach control">
+      <div id="shipApproachTicks"><span>Reverse</span><span>Drift</span><span>Forward</span></div>
+      <div id="shipApproachStats">Distance: --\nETA: --\nFlux: --</div>
+    </div>
+    <div id="shipRadarScope"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div></div>
+    <div id="shipDistanceMini">SCAN\n--</div>
+  </div>
+  <div id="shipLeftControls" class="ship-side ship-left">
+    <button data-proxy="bgNext">Next</button>
+    <button data-proxy="bgPrev">Prev</button>
+    <button data-proxy="bgOff">Off</button>
+    <button data-proxy="bgPer">Per Song</button>
+    <button data-proxy="bgShuf">Shuffle</button>
+    <button data-proxy="bgAuto">Auto</button>
+  </div>
+  <div id="shipRightControls" class="ship-side ship-right">
+    <button data-proxy="nextBtn">Next</button>
+    <button data-proxy="prevBtn">Prev</button>
+    <button data-proxy="shuffleBtn">Shuffle</button>
+    <button data-proxy="legacyBtn">Legacy</button>
+    <button data-proxy="shareBtn">Share</button>
+    <button id="shipHideBtn" type="button">Hide Text</button>
+  </div>
+  <svg id="shipProgress" viewBox="0 0 1000 120" preserveAspectRatio="none" aria-hidden="true">
+    <path class="ship-progress-base" d="M 45 100 Q 500 5 955 100"></path>
+    <path id="shipProgressFill" class="ship-progress-fill" d="M 45 100 Q 500 5 955 100" pathLength="100"></path>
+  </svg>
+  <div id="shipProgressHit" aria-label="Track position"></div>
+  <span id="shipTimeNow" class="ship-time ship-time-now">0:00</span>
+  <span id="shipTimeLeft" class="ship-time ship-time-left">-0:00</span>
+  <button id="shipPrev" class="ship-transport" type="button" aria-label="Previous track">◀</button>
+  <button id="shipPlay" class="ship-transport ship-play" type="button" aria-label="Play">▶</button>
+  <button id="shipNext" class="ship-transport" type="button" aria-label="Next track">▶</button>
+  <div id="shipBottomActions">
+    <a href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a>
+    <button data-proxy="offlineBtn">Go Offline</button>
+    <button data-proxy="reloadBtn">Reload Library</button>
+  </div>
+</div>
+
+<div id="trackBackdrop" aria-hidden="true"></div>
+<div id="trackList" role="dialog" aria-modal="true" aria-label="Choose a track"></div>
+<main class="wrap">
+  <header>
+    <a class="logo-wrap" id="homeLink" href="https://www.grandelement.com/" rel="noopener">
+      <img class="logo" id="geLogo" alt="Grand Element">
+    </a>
+    <h1>Grand Element Radio</h1>
+    <div class="tag">music to set your soul free</div>
+  </header>
+
+  <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
+  <audio id="player" controls preload="auto" playsinline controlslist="nodownload noplaybackrate"></audio>
+
+  <div id="musicGroup">
+    <button id="prevBtn">Prev</button>
+    <button id="nextBtn">Next</button>
+    <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
+    <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
+    <button id="shareBtn">Share</button>
+  </div>
+
+  <section class="group" id="bgGroup">
+    <span class="section-label">Backgrounds</span>
+    <div class="bg-row">
+      <button class="tgl" id="bgOff" aria-pressed="false">Off</button>
+      <button id="bgPrev">Prev</button>
+      <button id="bgNext">Next</button>
+      <button class="tgl" id="bgPer" aria-pressed="true">Per Song</button>
+      <button class="tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
+      <button class="tgl" id="bgAuto" aria-pressed="false">Auto</button>
+    </div>
+  </section>
+
+  <div id="supportText">Support the project below.</div>
+  <div id="bottomActions">
+    <a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener">Buy on Bandcamp</a>
+    <button id="offlineBtn">Go Offline</button>
+    <button id="reloadBtn">Reload Library</button>
+    <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text">
+      <input type="checkbox" id="hudAutoHide" checked aria-label="Automatically hide controls">
+      <span>Hide text</span>
+    </div>
+    <button id="installBtn">Install App</button>
+  </div>
+  <div id="offlinePanel">
+    <div id="offlineBarTrack"><div id="offlineBar"></div></div>
+    <div id="offlineText"></div>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <footer>Much Love!!</footer>
+</main>
+
+<script>
+'use strict';
+
+const CONFIG = Object.freeze({
+  APP_VERSION: '2026.09.11-live-window-ship-4',
+  LOGO_SRC: '../ge-images/images/ge-logo-2.jpg',
+  HOME_URL: 'https://grandelement.github.io/website/',
+  MUSIC_MANIFEST: './manifest.json',
+  MUSIC_BASE: '../ge-music/',
+  IMAGE_MANIFEST: '../ge-images/img/manifest.json',
+  IMAGE_BASE: '../ge-images/img/',
+  INTRO_BG: '1.gif',
+  BG_AUTO_SECONDS: 33,
+  BG_X: '50%',
+  BG_Y: '50%',
+  BG_SHIFT_Y: '0vh',
+  BG_SCALE: '1.08',
+  STATION_ID_FILES: [0,1,2,3,4,5,6,9],
+  STATION_ID_MIN_SONGS: 4,
+  STATION_ID_MAX_SONGS: 6,
+  SHUFFLE_AVOID_LAST: 4,
+  OFFLINE_CACHE: 'ge-radio-media-v4',
+  OFFLINE_KEY: 'GE_OFFLINE_ACTIVE_V4',
+  OFFLINE_PLAYABLE_KEY: 'GE_OFFLINE_PLAYABLE_V6',
+  OFFLINE_STATIONS_KEY: 'GE_OFFLINE_STATIONS_V6',
+  HUD_KEY: 'GE_HUD_AUTOHIDE_V2',
+  HUD_IDLE_MS: 15000,
+  GITHUB_TREE_API: 'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
+  MEDIA_SHA_KEY: 'GE_REPO_MEDIA_SHA_V1',
+  BACKGROUND_FOCAL: {
+    // This creates real movement even when cover has no vertical crop.
+    // Add a filename here when one picture needs its own optical adjustment.
+    '17.gif': {x:'50%', y:'50%', shift:'0vh', scale:'1.10'}
+  }
+});
+
+const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
+const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
+const ALBUM_ORDER = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire']);
+
+const $ = id => document.getElementById(id);
+const audio = $('player');
+const titleBtn = $('titleBtn');
+const trackList = $('trackList');
+const statusEl = $('status');
+
+function setStatus(text){ statusEl.textContent = text || ''; }
+function setPressed(button,on){ if(button) button.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+function absolute(path){ return new URL(path, location.href).href; }
+function fileName(url){ return decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || ''); }
+function stripExtension(name){ return String(name||'').replace(/\.[a-z0-9]+$/i,''); }
+function cleanAlbumName(name){ return String(name||'').replace(/^Grand Element\s*-\s*\d{4}\s*-\s*/i,'').trim(); }
+function isStationID(url){ return /\/clips\/.*GE(?:%20| )Station(?:%20| )Identification/i.test(String(url||'')); }
+function albumNameFromURL(url){
+  const decoded = decodeURI(String(url||''));
+  const folder = decoded.match(/Grand Element - \d{4} - ([^/]+)\//i);
+  if(folder) return cleanAlbumName(folder[1]);
+  return parseTrack(url).album;
+}
+function parseTrack(url){
+  const base = stripExtension(fileName(url)).replace(/\+/g,' ');
+  const match = base.match(/^(.*?)[ _-]+(\d{1,3})[ _-]+(.+)$/);
+  if(match){
+    return {album:cleanAlbumName(match[1].replace(/[_-]+/g,' ').trim()),track:Number(match[2]),song:match[3].replace(/[_-]+/g,' ').trim()};
+  }
+  return {album:'Grand Element',track:0,song:base.replace(/[_-]+/g,' ').trim() || 'Track'};
+}
+function albumRank(url){
+  const album = albumNameFromURL(url).toLowerCase();
+  const rank = ALBUM_ORDER.findIndex(item=>item.toLowerCase()===album);
+  return rank < 0 ? 999 : rank;
+}
+function orderedSort(a,b){
+  const albumDifference = albumRank(a)-albumRank(b);
+  if(albumDifference) return albumDifference;
+  const trackDifference = parseTrack(a).track-parseTrack(b).track;
+  return trackDifference || a.localeCompare(b);
+}
+function isCore(url){ return CORE_ALBUMS.some(name=>name.toLowerCase()===albumNameFromURL(url).toLowerCase()); }
+function isLegacy(url){ return LEGACY_ALBUMS.some(name=>name.toLowerCase()===albumNameFromURL(url).toLowerCase()); }
+function isSingles(url){ return albumNameFromURL(url).toLowerCase()==='singles' || decodeURI(url).toLowerCase().includes('singles'); }
+function displayTitle(url,withNumber=false){
+  if(isStationID(url)) return 'GE Station Identification';
+  const item = parseTrack(url);
+  const number = withNumber && item.track ? ` • ${String(item.track).padStart(2,'0')}` : '';
+  return `${item.album}${number} • ${item.song}`;
+}
+function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function shuffleArray(items){
+  const copy=items.slice();
+  for(let i=copy.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; }
+  return copy;
+}
+
+function repoPathToURL(path){
+  return absolute('../'+String(path||'').replace(/^\/+/,''));
+}
+function repoPathToVersionedURL(path,sha){
+  const target=new URL(repoPathToURL(path));
+  if(sha) target.searchParams.set('v',String(sha));
+  return target.href;
+}
+function applyKnownMediaVersions(catalog,shaMap){
+  return (catalog||[]).map(url=>{
+    const path=urlToRepoPath(url);
+    const sha=shaMap?.[path];
+    return sha?repoPathToVersionedURL(path,sha):url;
+  });
+}
+function urlToRepoPath(url){
+  try{
+    return decodeURIComponent(new URL(url,location.href).pathname).replace(/^\/+/,'');
+  }catch(_e){ return ''; }
+}
+async function fetchRepositoryTree(){
+  const target=new URL(CONFIG.GITHUB_TREE_API);
+  target.searchParams.set('_ge_reload',String(Date.now()));
+  const response=await fetch(target.href,{cache:'no-store'});
+  if(!response.ok) throw new Error(`GitHub tree ${response.status}`);
+  const data=await response.json();
+  if(!data || !Array.isArray(data.tree)) throw new Error('GitHub tree response was incomplete');
+  return data.tree;
+}
+function libraryFromRepositoryTree(tree){
+  const audioItems=[];
+  const backgroundItems=[];
+  const tracked={};
+
+  for(const item of tree){
+    if(!item || item.type!=='blob' || !item.path) continue;
+    const path=String(item.path);
+    const lower=path.toLowerCase();
+
+    const isAudio=/\.(mp3|m4a|ogg|wav)$/i.test(path);
+    const isImage=/\.(gif|png|jpe?g|webp)$/i.test(path);
+
+    if(isAudio && (lower.startsWith('ge-music/music/') || lower.startsWith('ge-music/clips/'))){
+      tracked[path]=item.sha||'';
+      if(lower.startsWith('ge-music/music/')){
+        const url=repoPathToVersionedURL(path,item.sha||'');
+        if(!isStationID(url) && !isSingles(url)) audioItems.push(url);
+      }
+      continue;
+    }
+
+    if(isImage && lower.startsWith('ge-images/img/')){
+      tracked[path]=item.sha||'';
+      backgroundItems.push(path.slice('ge-images/img/'.length));
+    }
+  }
+
+  return {
+    catalog:[...new Set(audioItems)].sort(orderedSort),
+    backgrounds:[...new Set(backgroundItems)].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})),
+    shaMap:tracked
+  };
+}
+function loadMediaShaMap(){
+  try{
+    const value=JSON.parse(localStorage.getItem(CONFIG.MEDIA_SHA_KEY)||'{}');
+    return value && typeof value==='object' && !Array.isArray(value) ? value : {};
+  }catch(_e){ return {}; }
+}
+function saveMediaShaMap(map){
+  try{ localStorage.setItem(CONFIG.MEDIA_SHA_KEY,JSON.stringify(map||{})); }catch(_e){}
+}
+function comparableHeader(response,name){
+  return String(response?.headers?.get(name)||'').trim();
+}
+async function networkHead(url){
+  try{
+    const response=await fetch(url,{method:'HEAD',cache:'no-store'});
+    return response.ok?response:null;
+  }catch(_e){ return null; }
+}
+async function cachedFileLooksChanged(url,cache){
+  const cached=await cache.match(url,{ignoreSearch:true});
+  if(!cached) return false;
+
+  const head=await networkHead(url);
+  if(!head) return false;
+
+  const keys=['etag','last-modified','content-length'];
+  let comparable=0;
+  for(const key of keys){
+    const oldValue=comparableHeader(cached,key);
+    const newValue=comparableHeader(head,key);
+    if(oldValue && newValue){
+      comparable++;
+      if(oldValue!==newValue) return true;
+    }
+  }
+  return false;
+}
+async function purgeCachedMediaPath(cache,path){
+  const keys=await cache.keys();
+  let removed=0;
+  for(const request of keys){
+    if(urlToRepoPath(request.url)===path){
+      if(await cache.delete(request,{ignoreSearch:false})) removed++;
+    }
+  }
+  return removed;
+}
+async function fetchFreshMedia(url){
+  const response=await fetch(url,{
+    cache:'no-store',
+    headers:{'X-GE-Reload-Media':'1'}
+  });
+  if(!response.ok) throw new Error(`${response.status} ${url}`);
+  return response;
+}
+async function refreshMediaCacheFromTree(oldShaMap,newShaMap,{offlineActive=false}={}){
+  const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+  const oldKeys=Object.keys(oldShaMap||{});
+  const newKeys=Object.keys(newShaMap||{});
+  const hasOldBaseline=oldKeys.length>0;
+
+  const changedPaths=[];
+  const addedPaths=[];
+  const removedPaths=[];
+
+  if(hasOldBaseline){
+    for(const path of newKeys){
+      if(!(path in oldShaMap)) addedPaths.push(path);
+      else if(oldShaMap[path]!==newShaMap[path]) changedPaths.push(path);
+    }
+    for(const path of oldKeys){
+      if(!(path in newShaMap)) removedPaths.push(path);
+    }
+  }else{
+    // First run after installing this smarter updater:
+    // compare cached response metadata with the live file so same-name
+    // replacements that happened before this version can still be found.
+    const cachedKeys=await cache.keys();
+    const candidates=cachedKeys
+      .map(request=>request.url)
+      .filter(url=>{
+        const path=urlToRepoPath(url);
+        return path in newShaMap;
+      });
+
+    const workers=6;
+    let cursor=0;
+    async function worker(){
+      while(cursor<candidates.length){
+        const url=candidates[cursor++];
+        if(await cachedFileLooksChanged(url,cache)){
+          changedPaths.push(urlToRepoPath(url));
+        }
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(workers,candidates.length||1)},worker));
+
+    for(const path of newKeys){
+      const url=repoPathToVersionedURL(path,newShaMap[path]||'');
+      const hit=await cache.match(url,{ignoreSearch:false});
+      if(!hit) addedPaths.push(path);
+    }
+  }
+
+  let refreshed=0;
+  let addedOffline=0;
+  let removed=0;
+  let failed=0;
+
+  for(const path of removedPaths){
+    removed+=await purgeCachedMediaPath(cache,path);
+  }
+
+  const refreshSet=[...new Set(changedPaths)];
+  for(const path of refreshSet){
+    const url=repoPathToVersionedURL(path,newShaMap[path]||'');
+    try{
+      await purgeCachedMediaPath(cache,path);
+      const response=await fetchFreshMedia(url);
+      await cache.put(url,response.clone());
+      refreshed++;
+    }catch(_e){ failed++; }
+  }
+
+  if(offlineActive){
+    const addSet=[...new Set(addedPaths.filter(path=>!refreshSet.includes(path)))];
+    for(const path of addSet){
+      const url=repoPathToVersionedURL(path,newShaMap[path]||'');
+      try{
+        await purgeCachedMediaPath(cache,path);
+        const response=await fetchFreshMedia(url);
+        await cache.put(url,response.clone());
+        addedOffline++;
+      }catch(_e){ failed++; }
+    }
+  }
+
+  return {
+    refreshed,
+    addedOffline,
+    removed,
+    failed,
+    changedPaths:[...new Set(changedPaths)],
+    addedPaths:[...new Set(addedPaths)],
+    removedPaths:[...new Set(removedPaths)]
+  };
+}
+
+const state = {
+  catalog:[],
+  queue:[],
+  currentURL:'',
+  shuffle:true,
+  legacy:false,
+  history:[],
+  historyPos:-1,
+  recent:[],
+  pendingAfterStation:null,
+  stationCountdown:randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS),
+  playToken:0,
+  userStarted:false
+};
+
+function loadStringSet(key){
+  try{
+    const raw=JSON.parse(localStorage.getItem(key)||'[]');
+    return new Set(Array.isArray(raw)?raw:[]);
+  }catch(_e){ return new Set(); }
+}
+const offlineAvailability={
+  songs:loadStringSet(CONFIG.OFFLINE_PLAYABLE_KEY),
+  stations:loadStringSet(CONFIG.OFFLINE_STATIONS_KEY)
+};
+function saveOfflineAvailability(){
+  try{
+    localStorage.setItem(CONFIG.OFFLINE_PLAYABLE_KEY,JSON.stringify([...offlineAvailability.songs]));
+    localStorage.setItem(CONFIG.OFFLINE_STATIONS_KEY,JSON.stringify([...offlineAvailability.stations]));
+  }catch(_e){}
+}
+function offlinePlaybackMode(){ return navigator.onLine===false; }
+
+async function discoverOfflineMediaFromCaches(){
+  const songs=new Set();
+  const stations=new Set();
+  try{
+    const names=await caches.keys();
+    for(const name of names){
+      let cache;
+      try{ cache=await caches.open(name); }catch(_e){ continue; }
+      let keys=[];
+      try{ keys=await cache.keys(); }catch(_e){ continue; }
+
+      for(const request of keys){
+        let parsed;
+        try{ parsed=new URL(request.url); }catch(_e){ continue; }
+
+        // Cache Storage is shared only inside the same browser + origin.
+        if(parsed.origin!==location.origin) continue;
+
+        const path=decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+        if(!/\.(mp3|m4a|ogg|wav)$/i.test(path)) continue;
+
+        if(path.toLowerCase().startsWith('ge-music/clips/')){
+          if(/GE Station Identification/i.test(decodeURIComponent(request.url))){
+            stations.add(request.url);
+          }
+          continue;
+        }
+
+        if(!path.toLowerCase().startsWith('ge-music/music/')) continue;
+        if(isSingles(request.url) || isStationID(request.url)) continue;
+        songs.add(request.url);
+      }
+    }
+  }catch(_e){}
+
+  offlineAvailability.songs=songs;
+  offlineAvailability.stations=stations;
+  saveOfflineAvailability();
+  return {songs:[...songs].sort(orderedSort),stations:[...stations]};
+}
+
+function allowedCatalog(){
+  let list=state.catalog.filter(url=>!isSingles(url) && (isCore(url) || (state.legacy && isLegacy(url))));
+  if(offlinePlaybackMode() && offlineAvailability.songs.size){
+    list=list.filter(url=>offlineAvailability.songs.has(url));
+  }
+  return list.sort(orderedSort);
+}
+function rebuildQueue(anchor=state.currentURL){
+  state.queue = allowedCatalog();
+  if(anchor && !state.queue.includes(anchor) && !isStationID(anchor)) anchor='';
+  renderTrackList();
+  return anchor;
+}
+function syncModeButtons(){
+  setPressed($('shuffleBtn'),state.shuffle);
+  setPressed($('legacyBtn'),state.legacy);
+}
+function rememberRecent(url){
+  if(!url || isStationID(url)) return;
+  state.recent=[url,...state.recent.filter(item=>item!==url)].slice(0,CONFIG.SHUFFLE_AVOID_LAST);
+}
+function recordHistory(url){
+  if(!url || isStationID(url)) return;
+  if(state.historyPos < state.history.length-1) state.history=state.history.slice(0,state.historyPos+1);
+  if(state.history[state.history.length-1]!==url) state.history.push(url);
+  state.historyPos=state.history.length-1;
+  rememberRecent(url);
+}
+function pickWeightedShuffle(){
+  const all=allowedCatalog();
+  if(!all.length) return '';
+  const recent=new Set(state.recent);
+  const available=all.filter(url=>!recent.has(url));
+  const pool=available.length?available:all;
+  const core=pool.filter(isCore);
+  const legacy=pool.filter(isLegacy);
+  let chosenPool=core.length?core:pool;
+  if(state.legacy && core.length && legacy.length) chosenPool=Math.random()<1/3?legacy:core;
+  return chosenPool[Math.floor(Math.random()*chosenPool.length)] || '';
+}
+function nextSequential(step=1){
+  const queue=allowedCatalog();
+  if(!queue.length) return '';
+  const current=queue.indexOf(state.currentURL);
+  const start=current>=0?current:0;
+  return queue[(start+step+queue.length)%queue.length];
+}
+function nextShuffle(){
+  if(state.historyPos>=0 && state.historyPos<state.history.length-1){
+    state.historyPos++;
+    return {url:state.history[state.historyPos],record:false};
+  }
+  return {url:pickWeightedShuffle(),record:true};
+}
+function previousShuffle(){
+  if(state.historyPos>0){
+    state.historyPos--;
+    return state.history[state.historyPos];
+  }
+  return '';
+}
+function shouldInsertStation(){
+  return state.stationCountdown<=0 && CONFIG.STATION_ID_FILES.length>0;
+}
+function stationURL(){
+  const all=CONFIG.STATION_ID_FILES.map(number=>absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`));
+  const pool=offlinePlaybackMode()?all.filter(url=>offlineAvailability.stations.has(url)):all;
+  return pool.length?pool[Math.floor(Math.random()*pool.length)]:'';
+}
+
+function updateMediaSession(url){
+  if(!('mediaSession' in navigator)) return;
+  try{
+    navigator.mediaSession.metadata=new MediaMetadata({
+      title:displayTitle(url,!state.shuffle),
+      artist:'Grand Element Radio',
+      album:isStationID(url)?'Grand Element Radio':parseTrack(url).album,
+      artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
+    });
+    const safe=(action,handler)=>{ try{ navigator.mediaSession.setActionHandler(action,handler); }catch(_e){} };
+    safe('previoustrack',()=>previousTrack(true));
+    safe('nexttrack',()=>nextTrack(true));
+    safe('play',()=>resumeAudio());
+    safe('pause',()=>audio.pause());
+  }catch(_e){}
+}
+function updateCurrentRow(){
+  trackList.querySelectorAll('button[data-url]').forEach(button=>button.classList.toggle('current',button.dataset.url===state.currentURL));
+}
+function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.onSongStart(); }
+
+async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
+  if(!url) return;
+  const token=++state.playToken;
+  state.currentURL=url;
+  titleBtn.textContent=displayTitle(url,!state.shuffle);
+  updateCurrentRow();
+  updateMediaSession(url);
+  if(!isStationID(url)){
+    if(record && state.shuffle) recordHistory(url); else rememberRecent(url);
+    if(backgroundChange) backgroundForNewSong();
+  }
+  if(userAction) state.userStarted=true;
+  try{
+    audio.muted=false;
+    audio.defaultMuted=false;
+    audio.volume=1;
+    audio.autoplay=true;
+    if(forceReload || audio.src!==url){
+      // Clearing first forces iOS/Safari and installed PWAs to discard any
+      // already-buffered bytes from an older same-filename recording.
+      if(forceReload){
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      audio.src=url;
+      audio.load();
+    }
+    const promise=audio.play();
+    if(promise) await promise;
+    if(token!==state.playToken) return;
+    setStatus('Playing');
+  }catch(error){
+    if(token!==state.playToken) return;
+    setStatus('Playback is ready. Tap Play once to let this browser continue audio.');
+  }
+}
+function resumeAudio(){
+  state.userStarted=true;
+  audio.muted=false;
+  audio.volume=1;
+  audio.play().catch(()=>setStatus('Tap the Play control once to unlock audio.'));
+}
+function selectNaturalNext(){
+  if(state.shuffle) return nextShuffle();
+  return {url:nextSequential(1),record:false};
+}
+async function advanceFromEnded(){
+  if(isStationID(state.currentURL) && state.pendingAfterStation){
+    const pending=state.pendingAfterStation;
+    state.pendingAfterStation=null;
+    await playURL(pending.url,{record:pending.record,backgroundChange:true});
+    return;
+  }
+  const next=selectNaturalNext();
+  if(!next.url) return;
+  if(!isStationID(state.currentURL)) state.stationCountdown--;
+  if(shouldInsertStation()){
+    const ident=stationURL();
+    if(ident){
+      state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
+      state.pendingAfterStation=next;
+      await playURL(ident,{record:false,backgroundChange:false});
+      return;
+    }
+    state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
+  }
+  await playURL(next.url,{record:next.record,backgroundChange:true});
+}
+function nextTrack(userAction=false){
+  state.pendingAfterStation=null;
+  const next=state.shuffle?nextShuffle():{url:nextSequential(1),record:false};
+  playURL(next.url,{record:next.record,backgroundChange:true,userAction});
+}
+function previousTrack(userAction=false){
+  state.pendingAfterStation=null;
+  const url=state.shuffle?previousShuffle():nextSequential(-1);
+  if(url) playURL(url,{record:false,backgroundChange:true,userAction});
+}
+
+function renderTrackList(){
+  const list=allowedCatalog();
+  trackList.innerHTML='';
+  const fragment=document.createDocumentFragment();
+  for(const url of list){
+    const button=document.createElement('button');
+    button.type='button';
+    button.dataset.url=url;
+    button.textContent=displayTitle(url,!state.shuffle);
+    if(url===state.currentURL) button.classList.add('current');
+    button.addEventListener('click',()=>{
+      state.pendingAfterStation=null;
+      if(state.shuffle) recordHistory(url);
+      playURL(url,{record:false,backgroundChange:true,userAction:true});
+      closeTrackPicker();
+    });
+    fragment.appendChild(button);
+  }
+  trackList.appendChild(fragment);
+}
+
+async function loadMusicManifest(forceFresh=false){
+  const cacheKey='GE_MUSIC_LIST_CLEAN_V1';
+  try{
+    const manifestURL=new URL(absolute(CONFIG.MUSIC_MANIFEST));
+    if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
+    const response=await fetch(manifestURL.href,{
+      cache:'no-store',
+      headers:forceFresh?{'X-GE-Reload':'1'}:{}
+    });
+    if(response.ok){
+      const data=await response.json();
+      const raw=Array.isArray(data)?data:(Array.isArray(data.files)?data.files:[]);
+      const list=raw.map(item=>{
+        const path=String(item||'').replace(/^\//,'').replace(/^ge-music\//,'');
+        return absolute(CONFIG.MUSIC_BASE+path);
+      }).filter(url=>/\.(mp3|m4a|ogg|wav)$/i.test(url) && !isStationID(url) && !isSingles(url));
+      localStorage.setItem(cacheKey,JSON.stringify(list));
+      return list;
+    }
+  }catch(_e){}
+  try{
+    const cached=JSON.parse(localStorage.getItem(cacheKey)||'[]');
+    if(Array.isArray(cached)) return cached;
+  }catch(_e){}
+  return [];
+}
+
+function matchingStartSong(){
+  const requested=new URLSearchParams(location.search).get('song');
+  if(!requested) return '';
+  const decoded=decodeURIComponent(requested.replace(/\+/g,' ')).toLowerCase();
+  return state.catalog.find(url=>fileName(url).toLowerCase()===decoded || decodeURI(url).toLowerCase().includes(decoded)) || '';
+}
+function loadSharedState(){
+  const params=new URLSearchParams(location.search);
+  if(params.has('shuffle')) state.shuffle=params.get('shuffle')==='1';
+  if(params.has('legacy')) state.legacy=params.get('legacy')==='1';
+}
+
+function appendShareState(target){
+  target.searchParams.set('shuffle',state.shuffle?'1':'0');
+  target.searchParams.set('legacy',state.legacy?'1':'0');
+  target.searchParams.set('statev','3');
+  target.searchParams.set('at',String(Date.now()));
+  if(window.GEBackgrounds) window.GEBackgrounds.writeShareState(target.searchParams);
+  target.searchParams.set('hudhide',localStorage.getItem(CONFIG.HUD_KEY)==='0'?'0':'1');
+  return target;
+}
+function shareURL(){
+  const filename=fileName(state.currentURL);
+  if(!filename || isStationID(state.currentURL)) return location.href;
+  const slug=stripExtension(filename).replace(/^.*?[_ -](\d+)[_ -]/,'').replace(/[_+]+/g,' ').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return appendShareState(new URL(`./share/${slug}.html`,location.href)).href;
+}
+function directTrackURL(){
+  const filename=fileName(state.currentURL);
+  const target=new URL('./',location.href);
+  if(filename && !isStationID(state.currentURL)) target.searchParams.set('song',filename);
+  return appendShareState(target).href;
+}
+async function resolvedShareURL(){
+  const staticURL=shareURL();
+  if(staticURL===location.href) return staticURL;
+  try{
+    const page=new URL(staticURL);
+    page.search='';
+    const response=await fetch(page.href,{method:'HEAD',cache:'no-store'});
+    if(response.ok) return staticURL;
+  }catch(_e){}
+  return directTrackURL();
+}
+
+$('prevBtn').addEventListener('click',()=>previousTrack(true));
+$('nextBtn').addEventListener('click',()=>nextTrack(true));
+$('shuffleBtn').addEventListener('click',()=>{
+  const anchor=!isStationID(state.currentURL)?state.currentURL:'';
+  state.shuffle=!state.shuffle;
+  state.pendingAfterStation=null;
+  if(!state.shuffle){
+    state.history=anchor?[anchor]:[];
+    state.historyPos=state.history.length-1;
+  }
+  rebuildQueue(anchor);
+  syncModeButtons();
+  titleBtn.textContent=anchor?displayTitle(anchor,!state.shuffle):'Choose a track';
+});
+$('legacyBtn').addEventListener('click',()=>{
+  const anchor=!isStationID(state.currentURL)?state.currentURL:'';
+  state.legacy=!state.legacy;
+  rebuildQueue(anchor);
+  syncModeButtons();
+  if(anchor && !allowedCatalog().includes(anchor)){
+    const fallback=allowedCatalog()[0]||'';
+    if(fallback) playURL(fallback,{record:state.shuffle,backgroundChange:true,userAction:true});
+  }
+});
+const trackBackdrop=$('trackBackdrop');
+function closeTrackPicker(){
+  trackList.classList.remove('open');
+  trackBackdrop.classList.remove('open');
+  titleBtn.setAttribute('aria-expanded','false');
+}
+function openTrackPicker(){
+  document.body.classList.remove('hud-hidden');
+  trackList.classList.add('open');
+  trackBackdrop.classList.add('open');
+  titleBtn.setAttribute('aria-expanded','true');
+  const current=trackList.querySelector('button.current');
+  if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
+}
+titleBtn.addEventListener('click',()=>{
+  if(trackList.classList.contains('open')) closeTrackPicker();
+  else openTrackPicker();
+});
+trackBackdrop.addEventListener('click',closeTrackPicker);
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && trackList.classList.contains('open')) closeTrackPicker();
+});
+$('shareBtn').addEventListener('click',async()=>{
+  const url=await resolvedShareURL();
+  const song=isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song;
+  try{
+    if(navigator.share){
+      await navigator.share({title:song,url});
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    setStatus('Share link copied.');
+  }catch(_e){ prompt('Copy this link:',url); }
+});
+$('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} });
+
+audio.addEventListener('ended',advanceFromEnded);
+audio.addEventListener('play',()=>{ setStatus('Playing'); try{ navigator.mediaSession.playbackState='playing'; }catch(_e){} });
+audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus('Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} });
+audio.addEventListener('error',()=>{
+  setStatus('That file could not play. Moving to the next track.');
+  setTimeout(()=>nextTrack(false),250);
+});
+audio.addEventListener('canplay',()=>{
+  if(audio.dataset.retry==='1'){
+    audio.dataset.retry='';
+    audio.play().catch(()=>{});
+  }
+});
+['touchstart','pointerdown','mousedown','keydown'].forEach(eventName=>{
+  window.addEventListener(eventName,()=>{
+    state.userStarted=true;
+    audio.muted=false;
+    audio.volume=1;
+  },{capture:true,passive:true,once:true});
+});
+
+// Background controller: one owner, one set of listeners, no duplicate changes.
+(function createBackgroundController(){
+  const image=$('bgImage');
+  const buttons={off:$('bgOff'),prev:$('bgPrev'),next:$('bgNext'),per:$('bgPer'),shuffle:$('bgShuf'),auto:$('bgAuto')};
+  const params=new URLSearchParams(location.search);
+  const saved=key=>localStorage.getItem(`GE_BG_${key}_V2`);
+  const bg={files:[],position:0,off:saved('OFF')==='1',perSong:saved('PER')===null?true:saved('PER')==='1',shuffle:saved('SHUF')===null?true:saved('SHUF')==='1',auto:saved('AUTO')==='1',timer:null};
+  if(params.has('bgoff')) bg.off=params.get('bgoff')==='1';
+  if(params.has('bgper')) bg.perSong=params.get('bgper')==='1';
+  if(params.has('bgshuf')) bg.shuffle=params.get('bgshuf')==='1';
+  if(params.has('bgauto')) bg.auto=params.get('bgauto')==='1';
+  if(bg.auto){ bg.perSong=false; bg.shuffle=false; }
+
+  function persist(){
+    localStorage.setItem('GE_BG_OFF_V2',bg.off?'1':'0');
+    localStorage.setItem('GE_BG_PER_V2',bg.perSong?'1':'0');
+    localStorage.setItem('GE_BG_SHUF_V2',bg.shuffle?'1':'0');
+    localStorage.setItem('GE_BG_AUTO_V2',bg.auto?'1':'0');
+    localStorage.setItem('GE_BG_POS_V2',String(bg.position));
+  }
+  function reflect(){
+    setPressed(buttons.off,bg.off); setPressed(buttons.per,bg.perSong); setPressed(buttons.shuffle,bg.shuffle); setPressed(buttons.auto,bg.auto);
+  }
+  function focalFor(filename){
+    const custom=CONFIG.BACKGROUND_FOCAL[filename]||{};
+    return {
+      x:params.get('bgx')||custom.x||CONFIG.BG_X,
+      y:params.get('bgy')||custom.y||CONFIG.BG_Y,
+      shift:params.get('bgshift')||custom.shift||CONFIG.BG_SHIFT_Y,
+      scale:params.get('bgscale')||custom.scale||CONFIG.BG_SCALE
+    };
+  }
+  function applyFocal(filename){
+    const focal=focalFor(filename);
+    document.documentElement.style.setProperty('--bg-x',focal.x);
+    document.documentElement.style.setProperty('--bg-y',focal.y);
+    document.documentElement.style.setProperty('--bg-shift-y',focal.shift);
+    document.documentElement.style.setProperty('--bg-scale',focal.scale);
+  }
+  function apply(index){
+    if(!bg.files.length){ image.style.opacity='0'; return; }
+    bg.position=(index%bg.files.length+bg.files.length)%bg.files.length;
+    const filename=bg.files[bg.position];
+    applyFocal(filename);
+    image.src=absolute(CONFIG.IMAGE_BASE+filename);
+    image.style.opacity=bg.off?'0':'1';
+    persist();
+  }
+  function randomOrNext(){
+    if(!bg.files.length) return 0;
+    if(!bg.shuffle) return bg.position+1;
+    if(bg.files.length===1) return 0;
+    let next=bg.position;
+    while(next===bg.position) next=Math.floor(Math.random()*bg.files.length);
+    return next;
+  }
+  function stopTimer(){ if(bg.timer){ clearInterval(bg.timer); bg.timer=null; } }
+  function startTimer(){
+    stopTimer();
+    if(bg.auto && !bg.off) bg.timer=setInterval(()=>apply(bg.position+1),CONFIG.BG_AUTO_SECONDS*1000);
+  }
+  function onSongStart(){ if(bg.perSong && !bg.off && !bg.auto) apply(randomOrNext()); }
+  function resetDefaults(){
+    // A shared URL is a snapshot only. Reload Library returns the radio to
+    // its normal defaults instead of continuing to obey that snapshot.
+    ['bg','bgper','bgshuf','bgauto','bgoff','bgx','bgy','bgshift','bgscale'].forEach(key=>params.delete(key));
+    bg.off=false;
+    bg.perSong=true;
+    bg.shuffle=true;
+    bg.auto=false;
+    stopTimer();
+
+    document.documentElement.style.setProperty('--bg-x',CONFIG.BG_X);
+    document.documentElement.style.setProperty('--bg-y',CONFIG.BG_Y);
+    document.documentElement.style.setProperty('--bg-shift-y',CONFIG.BG_SHIFT_Y);
+    document.documentElement.style.setProperty('--bg-scale',CONFIG.BG_SCALE);
+
+    if(bg.files.length){
+      bg.position=Math.floor(Math.random()*bg.files.length);
+      apply(bg.position);
+    }else{
+      image.style.opacity='0';
+      persist();
+    }
+    reflect();
+    persist();
+  }
+  function writeShareState(search){
+    const filename=bg.files[bg.position]||'';
+    const focal=focalFor(filename);
+    if(filename) search.set('bg',filename);
+    search.set('bgper',bg.perSong?'1':'0');
+    search.set('bgshuf',bg.shuffle?'1':'0');
+    search.set('bgauto',bg.auto?'1':'0');
+    search.set('bgoff',bg.off?'1':'0');
+    search.set('bgx',focal.x); search.set('bgy',focal.y); search.set('bgshift',focal.shift); search.set('bgscale',focal.scale);
+  }
+  async function loadFiles(forceFresh=false,suppliedFiles=null){
+    let files=Array.isArray(suppliedFiles)?suppliedFiles.slice():[];
+    try{
+      if(!files.length){
+      const manifestURL=new URL(absolute(CONFIG.IMAGE_MANIFEST));
+      if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
+      const response=await fetch(manifestURL.href,{
+        cache:'no-store',
+        headers:forceFresh?{'X-GE-Reload':'1'}:{}
+      });
+      if(response.ok){ const data=await response.json(); if(Array.isArray(data)) files=data.filter(name=>/\.(gif|png|jpe?g|webp)$/i.test(name)); }
+      }
+    }catch(_e){}
+    if(!files.length) files=['1.gif','47.gif','32.jpeg','46.gif','33.png','36.gif','45.gif','36.png','15.gif','29.gif','4.gif','40.gif','23.gif','22.gif','17.gif','20.gif','30.gif','34.gif','5.gif','38.gif','31.gif','39.gif','41.gif','14.gif','24.gif'];
+    if(!files.some(name=>String(name).toLowerCase()==='47.gif')) files.splice(Math.min(1,files.length),0,'47.gif');
+    bg.files=files;
+    const requested=params.get('bg');
+    const stored=Number(localStorage.getItem('GE_BG_POS_V2'));
+    if(requested){
+      const found=files.findIndex(name=>decodeURIComponent(name)===decodeURIComponent(requested));
+      bg.position=found>=0?found:0;
+    }else if(Number.isFinite(stored)){ bg.position=Math.max(0,Math.min(files.length-1,stored)); }
+    apply(bg.position);
+    reflect();
+    startTimer();
+  }
+  buttons.prev.addEventListener('click',()=>{ bg.off=false; apply(bg.position-1); reflect(); });
+  buttons.next.addEventListener('click',()=>{ bg.off=false; apply(bg.position+1); reflect(); });
+  buttons.off.addEventListener('click',()=>{ bg.off=!bg.off; image.style.opacity=bg.off?'0':'1'; if(bg.off) stopTimer(); else startTimer(); reflect(); persist(); });
+  buttons.per.addEventListener('click',()=>{ bg.perSong=!bg.perSong; if(bg.perSong){ bg.auto=false; stopTimer(); } reflect(); persist(); });
+  buttons.shuffle.addEventListener('click',()=>{ bg.shuffle=!bg.shuffle; if(bg.shuffle){ bg.auto=false; stopTimer(); } reflect(); persist(); });
+  buttons.auto.addEventListener('click',()=>{ bg.auto=!bg.auto; if(bg.auto){ bg.perSong=false; bg.shuffle=false; startTimer(); }else stopTimer(); reflect(); persist(); });
+  window.GEBackgrounds={
+    onSongStart,
+    writeShareState,
+    getFiles:()=>bg.files.slice(),
+    reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); },
+    resetDefaults
+  };
+  loadFiles(false);
+})();
+
+// HUD controller.
+// Checkbox = automatic hide after 15 seconds.
+// Clicking the rest of Hide Text hides immediately.
+(function createHUDController(){
+  const combined=$('hudCombined');
+  const autoCheckbox=$('hudAutoHide');
+  const params=new URLSearchParams(location.search);
+  let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)!=='0';
+  let lastActivity=Date.now();
+  autoCheckbox.checked=autoEnabled;
+  function show(){ document.body.classList.remove('hud-hidden'); lastActivity=Date.now(); }
+  function hideNow(){ if(!trackList.classList.contains('open')) document.body.classList.add('hud-hidden'); }
+  autoCheckbox.addEventListener('click',event=>event.stopPropagation());
+  autoCheckbox.addEventListener('change',event=>{ event.stopPropagation(); autoEnabled=autoCheckbox.checked; localStorage.setItem(CONFIG.HUD_KEY,autoEnabled?'1':'0'); if($('shipAutoHide')) $('shipAutoHide').checked=autoEnabled; show(); });
+  combined.addEventListener('click',event=>{ if(event.target===autoCheckbox) return; event.preventDefault(); hideNow(); });
+  combined.addEventListener('keydown',event=>{ if(event.key==='Enter'||event.key===' '){event.preventDefault();hideNow();} });
+  ['pointerdown','keydown'].forEach(name=>document.querySelector('.wrap')?.addEventListener(name,show,{passive:true}));
+  $('hudTap')?.addEventListener('pointerdown',event=>{event.preventDefault();show();});
+  $('hudTap')?.addEventListener('touchend',event=>{event.preventDefault();show();},{passive:false});
+  setInterval(()=>{if(autoEnabled&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();},1000);
+  window.GEHUD={show,hide:hideNow,getAuto:()=>autoEnabled};
+})();
+
+// PWA registration and install prompt.
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault(); deferredInstallPrompt=event; $('installBtn').style.display='flex';
+});
+$('installBtn').addEventListener('click',async()=>{
+  if(!deferredInstallPrompt){ setStatus('Use the browser menu and choose Install or Add to Home screen.'); return; }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt=null; $('installBtn').style.display='none';
+});
+async function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{
+    const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+    await navigator.serviceWorker.ready;
+    return registration;
+  }catch(error){ setStatus('Offline app setup could not start in this browser.'); return null; }
+}
+
+// Offline downloader.
+// Music is always protected first. Backgrounds are optional and download last.
+(function createOfflineController(){
+  const button=$('offlineBtn');
+  const panel=$('offlinePanel');
+  const bar=$('offlineBar');
+  const text=$('offlineText');
+  let abortController=null;
+  let currentAudit=null;
+
+  const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire'];
+  const LEGACY_DOWNLOAD_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II'];
+  const MAX_RETRIES=3;
+
+  function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
+
+  function formatBytes(bytes){
+    if(!Number.isFinite(bytes) || bytes<=0) return '0 MB';
+    const units=['B','KB','MB','GB'];
+    let value=bytes, unit=0;
+    while(value>=1024 && unit<units.length-1){ value/=1024; unit++; }
+    return `${value>=100 || unit<2?value.toFixed(0):value.toFixed(1)} ${units[unit]}`;
+  }
+  function formatSpeed(bytesPerSecond){
+    if(!Number.isFinite(bytesPerSecond) || bytesPerSecond<=0) return 'calculating';
+    return `${formatBytes(bytesPerSecond)}/s`;
+  }
+  function formatETA(seconds){
+    if(!Number.isFinite(seconds) || seconds<0) return 'calculating';
+    seconds=Math.max(0,Math.round(seconds));
+    if(seconds<60) return `${seconds}s`;
+    const minutes=Math.floor(seconds/60);
+    const remain=seconds%60;
+    if(minutes<60) return `${minutes}m ${remain}s`;
+    const hours=Math.floor(minutes/60);
+    return `${hours}h ${minutes%60}m`;
+  }
+
+  async function estimateConnectionSpeed(){
+    // Prefer the browser's own estimate where available (Chrome/Android).
+    try{
+      const downlink=Number(navigator.connection?.downlink);
+      if(Number.isFinite(downlink) && downlink>0) return downlink*125000;
+    }catch(_e){}
+
+    // Safari does not expose Network Information. Measure a fresh GitHub API
+    // response outside the service-worker scope for a rough pre-download rate.
+    try{
+      const target=new URL(CONFIG.GITHUB_TREE_API);
+      target.searchParams.set('_ge_speed',String(Date.now()));
+      const started=performance.now();
+      const response=await fetch(target.href,{cache:'no-store'});
+      if(!response.ok) return 0;
+      const bytes=(await response.arrayBuffer()).byteLength;
+      const seconds=Math.max(.08,(performance.now()-started)/1000);
+      return bytes/seconds;
+    }catch(_e){ return 0; }
+  }
+
+  function remainingBytes(audit){
+    return (audit?.missing||[]).reduce((sum,item)=>sum+(Number(item.size)||0),0);
+  }
+
+  async function scanExistingAssets(){
+    const assets=await buildAssetList();
+    const audit=await auditAssets(assets,{copyExisting:true});
+    if(audit.cachedSongs>0 || audit.complete) setEnabled(true);
+    currentAudit=audit;
+    reflectButton(audit);
+    return {assets,audit};
+  }
+
+  async function showPreDownloadEstimate(prepared){
+    const {audit}=prepared;
+    const bytes=remainingBytes(audit);
+    button.disabled=true;
+    const previous=button.textContent;
+    button.textContent='Checking Speed...';
+    panel.style.display='block';
+    text.textContent='Checking current download speed…';
+
+    const speed=await estimateConnectionSpeed();
+    const eta=speed>0 && bytes>0 ? bytes/speed : NaN;
+    const done=Math.max(0,audit.totalBytes-bytes);
+    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : 0;
+
+    renderProgress({
+      percent,
+      doneBytes:done,
+      totalBytes:audit.totalBytes,
+      speed,
+      eta
+    });
+
+    button.disabled=false;
+    button.textContent=previous;
+
+    const estimate=speed>0
+      ? `Current rate: ${formatSpeed(speed)}\nEstimated remaining time: ${formatETA(eta)}`
+      : 'Current rate could not be measured.';
+
+    return {
+      speed,
+      approved:confirm(
+        `Grand Element Radio offline download\n\n`+
+        `Remaining: ${formatBytes(bytes)}\n`+
+        `${estimate}\n\n`+
+        `All music downloads before backgrounds. Start now?`
+      )
+    };
+  }
+
+  function isEnabled(){ return localStorage.getItem(CONFIG.OFFLINE_KEY)==='1'; }
+  function setEnabled(on){
+    localStorage.setItem(CONFIG.OFFLINE_KEY,on?'1':'0');
+    button.classList.toggle('active',on);
+  }
+
+  function reflectButton(audit=currentAudit){
+    const enabled=isEnabled();
+    button.classList.toggle('active',enabled);
+    if(button.classList.contains('downloading')) return;
+    if(!enabled){ button.textContent='Go Offline'; return; }
+    if(audit?.complete){ button.textContent='Offline Ready'; return; }
+    if(audit?.cachedSongs>0){ button.textContent='Resume Offline'; return; }
+    button.textContent='Resume Offline';
+  }
+
+  // No album names or track names are displayed here.
+  function renderProgress({percent=0,doneBytes=0,totalBytes=0,speed=0,eta=NaN,line2='' }={}){
+    panel.style.display='block';
+    const safe=Math.max(0,Math.min(100,Number(percent)||0));
+    bar.style.width=`${safe}%`;
+    const totalText=totalBytes>0 ? `${formatBytes(doneBytes)} / ${formatBytes(totalBytes)}` : '';
+    const speedText=speed>0 ? formatSpeed(speed) : 'calculating speed';
+    const etaText=Number.isFinite(eta) ? `${formatETA(eta)} left` : 'estimating time';
+    text.textContent=`${Math.round(safe)}%${totalText?` • ${totalText}`:''} • ${speedText} • ${etaText}`;
+  }
+
+  function songDownloadRank(url){
+    const album=albumNameFromURL(url);
+    let rank=CORE_DOWNLOAD_ORDER.findIndex(name=>name.toLowerCase()===album.toLowerCase());
+    if(rank>=0) return rank;
+    rank=LEGACY_DOWNLOAD_ORDER.findIndex(name=>name.toLowerCase()===album.toLowerCase());
+    return rank>=0?100+rank:999;
+  }
+  function songOrder(a,b){
+    const rank=songDownloadRank(a)-songDownloadRank(b);
+    if(rank) return rank;
+    const track=parseTrack(a).track-parseTrack(b).track;
+    return track || a.localeCompare(b);
+  }
+
+  async function repositorySnapshot(){
+    const sizeMap={};
+    let library=null;
+    try{
+      const tree=await fetchRepositoryTree();
+      library=libraryFromRepositoryTree(tree);
+      for(const item of tree){
+        if(item?.type==='blob' && item.path && Number.isFinite(item.size)){
+          sizeMap[String(item.path)]=Number(item.size);
+        }
+      }
+      if(library?.catalog?.length){
+        state.catalog=library.catalog.slice().sort(orderedSort);
+        saveMediaShaMap(library.shaMap||{});
+        rebuildQueue(state.currentURL);
+      }
+    }catch(_e){}
+    return {sizeMap,library};
+  }
+
+  async function buildAssetList(){
+    const {sizeMap}=await repositorySnapshot();
+
+    const shell=[
+      './','./index.html','./manifest.webmanifest','./sw.js',
+      './icons/icon-192.png','./icons/icon-512.png',
+      CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST
+    ].map(url=>({url:absolute(url),type:'shell',size:0}));
+
+    const core=state.catalog
+      .filter(url=>isCore(url) && !isSingles(url))
+      .sort(songOrder)
+      .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
+
+    const legacy=state.catalog
+      .filter(url=>isLegacy(url) && !isSingles(url))
+      .sort(songOrder)
+      .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
+
+    const stations=CONFIG.STATION_ID_FILES.map(number=>{
+      const url=absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
+      return {url,type:'station',size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    const backgrounds=(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]).map(name=>{
+      const url=absolute(CONFIG.IMAGE_BASE+name);
+      return {url,type:'background',size:sizeMap[urlToRepoPath(url)]||0};
+    });
+
+    // IMPORTANT: all music downloads before station IDs/backgrounds.
+    // This prevents large GIFs from consuming browser storage before the final songs.
+    const seen=new Set();
+    return [...shell,...core,...legacy,...stations,...backgrounds].filter(item=>{
+      if(seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
+  }
+
+  async function exactMatchInAnyCache(url){
+    const names=await caches.keys();
+    for(const name of names){
+      try{
+        const cache=await caches.open(name);
+        const hit=await cache.match(url,{ignoreSearch:false});
+        if(hit) return {name,response:hit};
+      }catch(_e){}
+    }
+    return null;
+  }
+
+  async function purgeStaleSongVersions(url){
+    const path=urlToRepoPath(url);
+    if(!path) return 0;
+    let removed=0;
+    const names=await caches.keys();
+    for(const name of names){
+      if(!name.startsWith('ge-radio-media')) continue;
+      try{
+        const cache=await caches.open(name);
+        const keys=await cache.keys();
+        for(const request of keys){
+          if(request.url!==url && urlToRepoPath(request.url)===path){
+            if(await cache.delete(request,{ignoreSearch:false})) removed++;
+          }
+        }
+      }catch(_e){}
+    }
+    return removed;
+  }
+
+  async function auditAssets(assets,{copyExisting=true}={}){
+    const active=await caches.open(CONFIG.OFFLINE_CACHE);
+    const missing=[];
+    const songs=new Set();
+    const stations=new Set();
+    let existingBytes=0;
+    let totalBytes=0;
+    let cachedSongs=0;
+    let totalSongs=0;
+
+    for(const item of assets){
+      totalBytes+=item.size||0;
+      if(item.type==='song') totalSongs++;
+
+      let hit=await active.match(item.url,{ignoreSearch:false});
+      if(!hit && copyExisting){
+        const found=await exactMatchInAnyCache(item.url);
+        if(found){
+          hit=found.response;
+          try{ await active.put(item.url,hit.clone()); }catch(_e){}
+        }
+      }
+
+      if(hit){
+        existingBytes+=item.size||Number(hit.headers.get('content-length'))||0;
+        if(item.type==='song'){ songs.add(item.url); cachedSongs++; }
+        if(item.type==='station') stations.add(item.url);
+      }else{
+        missing.push(item);
+      }
+    }
+
+    offlineAvailability.songs=songs;
+    offlineAvailability.stations=stations;
+    saveOfflineAvailability();
+
+    const missingSongs=missing.filter(item=>item.type==='song').length;
+    const missingOptional=missing.filter(item=>item.type==='background').length;
+    const musicComplete=totalSongs>0 && missingSongs===0;
+    const complete=missing.length===0;
+
+    currentAudit={
+      missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,
+      musicComplete,complete,existingBytes,totalBytes
+    };
+    reflectButton(currentAudit);
+    return currentAudit;
+  }
+
+  async function cacheResponseStreaming(item,cache,signal,onChunk){
+    const response=await fetch(item.url,{
+      cache:'no-store',
+      signal,
+      headers:{'X-GE-Offline':'1'}
+    });
+    if(!response.ok) throw new Error(`${response.status} ${item.url}`);
+
+    const headerLength=Number(response.headers.get('content-length'))||0;
+    const expected=item.size||headerLength||0;
+    const headers=new Headers(response.headers);
+
+    // Stream into Cache Storage while separately counting bytes.
+    // This avoids holding an entire MP3/WAV/GIF in memory before cache.put().
+    if(response.body?.tee){
+      const [cacheStream,monitorStream]=response.body.tee();
+      const cacheResponse=new Response(cacheStream,{
+        status:response.status,
+        statusText:response.statusText,
+        headers
+      });
+      const cachePromise=cache.put(item.url,cacheResponse);
+      const reader=monitorStream.getReader();
+      let loaded=0;
+      while(true){
+        const {done,value}=await reader.read();
+        if(done) break;
+        loaded+=value.byteLength;
+        onChunk(loaded,expected);
+      }
+      await cachePromise;
+      return loaded;
+    }
+
+    const blob=await response.blob();
+    onChunk(blob.size,expected||blob.size);
+    headers.set('Content-Length',String(blob.size));
+    await cache.put(item.url,new Response(blob,{status:200,statusText:'OK',headers}));
+    return blob.size;
+  }
+
+  async function fetchWithRetry(item,cache,signal,onChunk){
+    let lastError=null;
+    for(let attempt=1;attempt<=MAX_RETRIES;attempt++){
+      if(signal.aborted) throw new DOMException('Aborted','AbortError');
+      try{
+        if(item.type==='song') await purgeStaleSongVersions(item.url);
+        return await cacheResponseStreaming(item,cache,signal,onChunk);
+      }catch(error){
+        lastError=error;
+        if(signal.aborted) throw error;
+        if(error?.name==='QuotaExceededError') throw error;
+        if(attempt<MAX_RETRIES) await sleep(750*attempt);
+      }
+    }
+    throw lastError||new Error('Download failed');
+  }
+
+  async function cacheMissingAssets({quiet=false,reason='manual',prepared=null,initialSpeed=0}={}){
+    await registerServiceWorker();
+    if(navigator.storage?.persist) try{ await navigator.storage.persist(); }catch(_e){}
+
+    const assets=prepared?.assets || await buildAssetList();
+    let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
+
+    if(!audit.missing.length){
+      setEnabled(true);
+      reflectButton(audit);
+      if(!quiet){
+        renderProgress({
+          percent:100,doneBytes:audit.totalBytes,totalBytes:audit.totalBytes,speed:0,eta:0,
+          line2:`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`
+        });
+        setStatus('Offline library is current.');
+      }
+      return {added:0,failed:0,total:assets.length,complete:true};
+    }
+
+    setEnabled(true);
+    abortController=new AbortController();
+    button.classList.add('downloading');
+    button.textContent='Stop Download';
+
+    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+    const started=performance.now();
+    let downloadedBytes=0;
+    let completedFiles=0;
+    let failed=0;
+    let quotaStoppedOptional=false;
+    let lastKnownTotal=audit.totalBytes;
+    let baseBytes=audit.existingBytes;
+
+    for(const item of audit.missing){
+      if(abortController.signal.aborted) break;
+
+      let currentExpected=item.size||0;
+      try{
+        const bytes=await fetchWithRetry(item,cache,abortController.signal,(loaded,expected)=>{
+          currentExpected=expected||currentExpected;
+          if(currentExpected && !item.size){
+            lastKnownTotal+=currentExpected;
+            item.size=currentExpected;
+          }
+          const elapsed=Math.max(.25,(performance.now()-started)/1000);
+          const transferred=downloadedBytes+loaded;
+          const measured=transferred/elapsed;
+          const speed=measured>0?measured:initialSpeed;
+          const doneBytes=baseBytes+transferred;
+          const remaining=Math.max(0,lastKnownTotal-doneBytes);
+          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
+          if(!quiet){
+            renderProgress({
+              percent,doneBytes,totalBytes:lastKnownTotal,speed,
+              eta:speed>0?remaining/speed:NaN,
+              line2:`${offlineAvailability.songs.size} of ${audit.totalSongs} songs available offline.`
+            });
+          }
+        });
+
+        downloadedBytes+=bytes;
+        completedFiles++;
+        if(item.type==='song') offlineAvailability.songs.add(item.url);
+        if(item.type==='station') offlineAvailability.stations.add(item.url);
+        saveOfflineAvailability();
+
+      }catch(error){
+        if(abortController.signal.aborted) break;
+
+        // If browser storage fills up AFTER the music is complete, stop wasting
+        // time on optional backgrounds. The music remains fully usable offline.
+        if(error?.name==='QuotaExceededError' && item.type==='background'){
+          quotaStoppedOptional=true;
+          break;
+        }
+        failed++;
+      }
+    }
+
+    const wasAborted=!!abortController?.signal.aborted;
+    button.classList.remove('downloading');
+    abortController=null;
+
+    audit=await auditAssets(assets,{copyExisting:false});
+    setEnabled(audit.cachedSongs>0 || audit.musicComplete || audit.complete);
+    reflectButton(audit);
+
+    if(!quiet){
+      const elapsed=Math.max(.25,(performance.now()-started)/1000);
+      const speed=downloadedBytes/elapsed;
+      const missingBytes=audit.missing.reduce((sum,item)=>sum+(item.size||0),0);
+      const doneBytes=Math.max(0,audit.totalBytes-missingBytes);
+      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
+      const remaining=Math.max(0,audit.totalBytes-doneBytes);
+
+      let line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`;
+      if(audit.missing.length){
+        line2+=` ${audit.missing.length} file${audit.missing.length===1?'':'s'} still missing.`;
+      }
+      if(quotaStoppedOptional && audit.musicComplete){
+        line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline. Optional backgrounds stopped at the browser storage limit.`;
+      }else if(wasAborted){
+        line2=`Stopped. ${audit.cachedSongs} of ${audit.totalSongs} songs are available offline. Tap Resume Offline later.`;
+      }
+
+      renderProgress({
+        percent:audit.complete?100:percent,
+        doneBytes:audit.complete?audit.totalBytes:doneBytes,
+        totalBytes:audit.totalBytes,
+        speed,
+        eta:audit.complete?0:(speed>0?remaining/speed:NaN),
+        line2
+      });
+
+      setStatus(
+        audit.musicComplete
+          ? 'All music is available offline.'
+          : `Partial offline library saved: ${audit.cachedSongs} of ${audit.totalSongs} songs.`
+      );
+    }
+
+    return {
+      added:completedFiles,failed,total:assets.length,
+      complete:audit.complete,musicComplete:audit.musicComplete,
+      cachedSongs:audit.cachedSongs,totalSongs:audit.totalSongs
+    };
+  }
+
+  async function remove(){
+    await caches.delete(CONFIG.OFFLINE_CACHE);
+    offlineAvailability.songs.clear();
+    offlineAvailability.stations.clear();
+    saveOfflineAvailability();
+    localStorage.removeItem(CONFIG.OFFLINE_KEY);
+    currentAudit={missing:[],cachedSongs:0,totalSongs:0,musicComplete:false,complete:false};
+    button.classList.remove('active','downloading');
+    button.textContent='Go Offline';
+    bar.style.width='0';
+    text.textContent='Offline music removed. The small app shell remains installed.';
+  }
+
+  button.addEventListener('click',async()=>{
+    if(button.classList.contains('downloading')){
+      abortController?.abort();
+      return;
+    }
+
+    const prepared=await scanExistingAssets();
+
+    if(prepared.audit.complete){
+      if(confirm('Remove the downloaded offline music and backgrounds?')) await remove();
+      return;
+    }
+
+    const estimate=await showPreDownloadEstimate(prepared);
+    if(!estimate.approved){
+      reflectButton(prepared.audit);
+      return;
+    }
+
+    await cacheMissingAssets({
+      quiet:false,
+      reason:isEnabled()?'resume':'manual',
+      prepared,
+      initialSpeed:estimate.speed
+    });
+  });
+
+  window.addEventListener('offline',()=>{
+    rebuildQueue(state.currentURL);
+    if(state.currentURL && !isStationID(state.currentURL) && !offlineAvailability.songs.has(state.currentURL)){
+      const fallback=allowedCatalog()[0]||'';
+      if(fallback) playURL(fallback,{record:false,backgroundChange:false,userAction:false});
+    }
+  });
+  window.addEventListener('online',()=>rebuildQueue(state.currentURL));
+
+  (async()=>{
+    try{ await scanExistingAssets(); }catch(_e){}
+  })();
+
+  window.GEOffline={
+    isActive:isEnabled,
+    scan:scanExistingAssets,
+    updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
+    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
+  };
+})();
+
+
+// Manual library updater.
+// Reload Library means UPDATE + RESET TO NORMAL RADIO.
+// Shared links remain exact snapshots when opened, but pressing Reload Library
+// leaves that snapshot and returns to the normal randomized station defaults.
+$('reloadBtn').addEventListener('click',async()=>{
+  const button=$('reloadBtn');
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent='Updating...';
+
+  const previousCatalog=new Set(state.catalog);
+  const previousBackgrounds=new Set(window.GEBackgrounds?window.GEBackgrounds.getFiles():[]);
+
+  try{
+    if('serviceWorker' in navigator){
+      try{
+        const registration=await navigator.serviceWorker.getRegistration('./');
+        if(registration) await registration.update();
+      }catch(_e){}
+    }
+
+    // Read the actual repository tree. This is what detects new files,
+    // deleted files, and same-filename replacements by Git blob SHA.
+    let library=null;
+    try{
+      const tree=await fetchRepositoryTree();
+      library=libraryFromRepositoryTree(tree);
+    }catch(error){
+      console.warn('GitHub tree reload failed; using manifests.',error);
+    }
+
+    if(library && library.catalog.length){
+      state.catalog=library.catalog.slice().sort(orderedSort);
+    }else{
+      state.catalog=(await loadMusicManifest(true)).sort(orderedSort);
+    }
+
+    let freshBackgrounds=[];
+    if(library && library.backgrounds.length){
+      freshBackgrounds=await window.GEBackgrounds.reloadFiles(library.backgrounds);
+    }else if(window.GEBackgrounds?.reloadFiles){
+      freshBackgrounds=await window.GEBackgrounds.reloadFiles();
+    }
+
+    let mediaResult={
+      refreshed:0,addedOffline:0,removed:0,failed:0,
+      changedPaths:[],addedPaths:[],removedPaths:[]
+    };
+
+    if(library){
+      const oldShaMap=loadMediaShaMap();
+      mediaResult=await refreshMediaCacheFromTree(oldShaMap,library.shaMap,{
+        offlineActive:false
+      });
+      saveMediaShaMap(library.shaMap);
+    }
+
+    // Reload discovers what is already offline but does NOT start a large
+    // download. The Offline button downloads only the missing files when pressed.
+    try{
+      if(window.GEOffline?.scan) await window.GEOffline.scan();
+    }catch(_e){}
+
+    const newSongs=state.catalog.filter(url=>!previousCatalog.has(url)).length;
+    const removedSongs=[...previousCatalog].filter(url=>!state.catalog.includes(url)).length;
+    const newImages=freshBackgrounds.filter(name=>!previousBackgrounds.has(name)).length;
+    const removedImages=[...previousBackgrounds].filter(name=>!freshBackgrounds.includes(name)).length;
+
+    // -------- RESET THE RADIO TO ITS NORMAL DEFAULT STATE --------
+    // A shared URL is only the saved snapshot that opened the radio.
+    // Once Reload Library is pressed, remove that snapshot from the address.
+    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
+
+    state.shuffle=true;
+    state.legacy=false;
+    state.history=[];
+    state.historyPos=-1;
+    state.recent=[];
+    state.pendingAfterStation=null;
+    state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
+
+    syncModeButtons();
+    rebuildQueue('');
+
+    if(window.GEBackgrounds?.resetDefaults){
+      window.GEBackgrounds.resetDefaults();
+    }
+
+    // Return Hide Text to the normal default as well.
+    $('hudAutoHide').checked=true;
+    if($('shipAutoHide')) $('shipAutoHide').checked=true;
+    localStorage.setItem(CONFIG.HUD_KEY,'1');
+    document.body.classList.remove('hud-hidden');
+
+    const start=pickWeightedShuffle();
+    if(start){
+      recordHistory(start);
+      // forceReload is important if the random song happens to be a file that
+      // was just replaced while keeping the same filename.
+      await playURL(start,{
+        record:false,
+        backgroundChange:false,
+        userAction:true,
+        forceReload:true
+      });
+    }
+
+    const totalChanges=
+      newSongs+removedSongs+newImages+removedImages+
+      mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed;
+
+    button.textContent=totalChanges?`Updated ${totalChanges}`:'Reset & Ready';
+
+    setStatus(
+      `Radio reset. ${newSongs} new song${newSongs===1?'':'s'}, `+
+      `${removedSongs} removed song${removedSongs===1?'':'s'}, `+
+      `${mediaResult.refreshed} replaced file${mediaResult.refreshed===1?'':'s'} refreshed, `+
+      `${newImages} new image${newImages===1?'':'s'}.`
+    );
+
+    setTimeout(()=>{ location.reload(); },700);
+  }catch(error){
+    console.error('GE reload/reset failed',error);
+    setStatus('Library update could not finish. Check the Internet connection and try again.');
+    button.textContent='Try Again';
+    setTimeout(()=>{ button.textContent=original; },2200);
+  }finally{
+    button.disabled=false;
+  }
+});
+
+
+// Landscape Ship View controller.
+(function createShipView(){
+  const stage=$('shipStage'),toggle=$('viewToggle'),stageBg=$('shipWindowBg'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideBtn=$('shipHideBtn'),approachSlider=$('shipApproachSlider'),approachReadout=$('shipApproachReadout'),approachStats=$('shipApproachStats'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),radarBlips=$('shipRadarBlips'),distanceMini=$('shipDistanceMini');
+  const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
+  let landscapeMode='ship';
+  let analysisTypingTimer=0;
+  const approach={distance:0.18,throttle:0,lastT:0,nextPing:0};
+
+  const telemetryPhrases=[
+    ['Target profile stable','Magnetosphere coherent','Soul core resonance rising'],
+    ['Radiant density increasing','Cloud lattice thickening','Blue core signature strengthening'],
+    ['Approach corridor holding','Life-force envelope detected','Interior harmonic field responsive'],
+    ['Surface turbulence minimal','Vector lock sustaining','Inner orbit path resolving'],
+    ['Target memory field active','Energetic bloom expanding','Arrival window narrowing']
+  ];
+
+  try{const saved=localStorage.getItem(VIEW_KEY);if(saved==='player'||saved==='ship')landscapeMode=saved;}catch(_e){}
+  function isPortrait(){return matchMedia('(orientation: portrait)').matches;}
+  function applyMode(){
+    if(isPortrait()){document.body.classList.remove('view-ship');document.body.classList.add('view-player');if(toggle)toggle.style.display='none';return;}
+    if(toggle)toggle.style.display='flex';
+    const ship=landscapeMode==='ship';
+    document.body.classList.toggle('view-ship',ship);document.body.classList.toggle('view-player',!ship);
+    if(stage)stage.setAttribute('aria-hidden',ship?'false':'true');if(toggle)toggle.textContent=ship?'Player View':'Ship View';syncAll();
+  }
+  toggle?.addEventListener('click',()=>{if(isPortrait())return;landscapeMode=document.body.classList.contains('view-ship')?'player':'ship';try{localStorage.setItem(VIEW_KEY,landscapeMode);}catch(_e){}document.body.classList.remove('hud-hidden');applyMode();});
+  matchMedia('(orientation: portrait)').addEventListener?.('change',applyMode);
+  function syncBackground(){const source=$('bgImage');if(source?.src&&stageBg&&stageBg.src!==source.src)stageBg.src=source.src;}
+  function syncTitle(){if(shipTitle)shipTitle.textContent=titleBtn.textContent;}
+  function syncProxyStates(){
+    document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>{const source=$(button.dataset.proxy);if(!source)return;const pressed=source.getAttribute('aria-pressed');if(pressed!==null)button.setAttribute('aria-pressed',pressed);else button.removeAttribute('aria-pressed');button.classList.toggle('active',source.classList.contains('active'));if(source.id==='offlineBtn')button.textContent=source.textContent.replace(/\s*\(\d+\)\s*$/,'');});
+    if(shipHideBtn){ shipHideBtn.classList.toggle('active',$('hudAutoHide').checked); shipHideBtn.setAttribute('aria-pressed',$('hudAutoHide').checked?'true':'false'); }
+  }
+  function formatTime(seconds){seconds=Math.max(0,Math.floor(Number(seconds)||0));const m=Math.floor(seconds/60),s=seconds%60;return `${m}:${String(s).padStart(2,'0')}`;}
+  function syncTransport(){const duration=Number(audio.duration),current=Number(audio.currentTime)||0,valid=Number.isFinite(duration)&&duration>0,pct=valid?Math.max(0,Math.min(100,current/duration*100)):0;if(progressFill)progressFill.style.strokeDasharray=`${pct} ${100-pct}`;if(timeNow)timeNow.textContent=formatTime(current);if(timeLeft)timeLeft.textContent=valid?`-${formatTime(duration-current)}`:'-0:00';if(shipPlay){shipPlay.textContent=audio.paused?'▶':'Ⅱ';shipPlay.setAttribute('aria-label',audio.paused?'Play':'Pause');}}
+  function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();}
+  document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
+  shipTitle?.addEventListener('click',()=>titleBtn.click());
+  shipPrev?.addEventListener('click',()=>previousTrack(true));
+  shipNext?.addEventListener('click',()=>nextTrack(true));
+  shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
+  shipHideBtn?.addEventListener('click',event=>{event.preventDefault();window.GEHUD?.hide();});
+  function seekFromClientX(clientX){const duration=Number(audio.duration);if(!Number.isFinite(duration)||duration<=0||!shipProgressHit)return;const rect=shipProgressHit.getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));audio.currentTime=ratio*duration;syncTransport();}
+  shipProgressHit?.addEventListener('pointerdown',event=>{shipProgressHit.setPointerCapture?.(event.pointerId);seekFromClientX(event.clientX);});
+  shipProgressHit?.addEventListener('pointermove',event=>{if(event.buttons||event.pointerType==='touch')seekFromClientX(event.clientX);});
+  const bgObserver=new MutationObserver(syncBackground);try{bgObserver.observe($('bgImage'),{attributes:true,attributeFilter:['src']});}catch(_e){}$('bgImage')?.addEventListener('load',syncBackground);
+  const titleObserver=new MutationObserver(syncTitle);try{titleObserver.observe(titleBtn,{childList:true,characterData:true,subtree:true});}catch(_e){}
+  ['shuffleBtn','legacyBtn','bgOff','bgPer','bgShuf','bgAuto','offlineBtn','hudAutoHide'].forEach(id=>{const source=$(id);if(!source)return;new MutationObserver(syncProxyStates).observe(source,{attributes:true,childList:true,subtree:true,attributeFilter:['aria-pressed','class','checked']});});
+  ['play','pause','timeupdate','loadedmetadata','durationchange','seeked'].forEach(eventName=>audio.addEventListener(eventName,syncTransport));
+  if(shipLogo)shipLogo.src=absolute(CONFIG.LOGO_SRC);
+
+  function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+  function currentDistanceKm(){ const d=approach.distance; return Math.round(lerp(120,98000,Math.pow(1-d,2.25))); }
+  function currentZoom(){ return lerp(1.02,6.1,Math.pow(approach.distance,1.18)); }
+  function currentVelocity(){ return Math.abs(approach.throttle)<2 ? 0 : Math.round(Math.abs(approach.throttle)*12.6 + approach.distance*180); }
+  function currentEta(){ const vel=currentVelocity(); const dist=currentDistanceKm(); if(approach.throttle<=2||vel<=0) return 'Holding'; const sec=Math.max(1,Math.round(dist/Math.max(vel,1))); const m=Math.floor(sec/60), s=sec%60; return `${m}:${String(s).padStart(2,'0')}`; }
+  function reticleSizePct(){ return lerp(11.2,36,Math.pow(approach.distance,.95)); }
+  function reticleTopPct(){ return lerp(23.5,35.8,approach.distance); }
+  function updateApproachUI(){
+    const zoom=currentZoom();
+    document.documentElement.style.setProperty('--ship-approach-zoom',String(zoom.toFixed(3)));
+    if(targetReticle){ targetReticle.style.width=`${reticleSizePct().toFixed(2)}%`; targetReticle.style.top=`${reticleTopPct().toFixed(2)}%`; }
+    const dist=currentDistanceKm();
+    const vel=currentVelocity();
+    const eta=currentEta();
+    const mode=approach.throttle>6?'Forward':approach.throttle<-6?'Reverse':'Drift';
+    if(approachReadout) approachReadout.textContent=`${mode} ${approach.throttle>0?'+':''}${Math.round(approach.throttle)}%`;
+    if(approachStats) approachStats.textContent=`Distance: ${dist.toLocaleString()} km\nETA: ${eta}\nFlux: ${Math.round(lerp(18,96,approach.distance))}%\nVelocity: ${vel.toLocaleString()} km/s`;
+    if(distanceMini) distanceMini.innerHTML=`SCAN<br>${dist.toLocaleString()} km`;
+    if(targetLabel) targetLabel.textContent = approach.distance>0.76 ? 'Inner Core Lock' : approach.distance>0.42 ? 'Target Analysis' : 'Target Lock';
+  }
+  function buildTelemetryLine(){
+    const group=telemetryPhrases[(Math.random()*telemetryPhrases.length)|0];
+    const dist=currentDistanceKm().toLocaleString();
+    const eta=currentEta();
+    const flux=Math.round(lerp(18,96,approach.distance));
+    const grav=lerp(0.84,1.46,approach.distance).toFixed(2);
+    const resonance=lerp(12,99,approach.distance).toFixed(1);
+    const base=[group[0],group[1],group[2]];
+    const extra = approach.throttle< -10 ? 'Reverse vector engaged for withdrawal.' : approach.throttle>10 ? 'Forward thrust engaged toward the life-force core.' : 'Vector drift stabilized for continued observation.';
+    return [
+      `${base[0]}.`,
+      `Distance ${dist} km. ETA ${eta}.`,
+      `${base[1]}. Flux ${flux}% · Gravity ${grav}g.`,
+      `${base[2]}. Resonance ${resonance} THz.`,
+      extra
+    ].join('\n');
+  }
+  function typeAnalysis(text){
+    if(!analysisText) return;
+    if(analysisTypingTimer) clearInterval(analysisTypingTimer);
+    let i=0;
+    analysisText.textContent='';
+    analysisTypingTimer=setInterval(()=>{
+      i += 1 + ((Math.random()*3)|0);
+      if(i>=text.length){ analysisText.textContent=text; clearInterval(analysisTypingTimer); analysisTypingTimer=0; return; }
+      analysisText.textContent=text.slice(0,i);
+    }, 22 + ((Math.random()*45)|0));
+  }
+  function triggerAnalysis(){ typeAnalysis(buildTelemetryLine()); }
+  function updateRadarBlips(){
+    if(!radarBlips) return;
+    radarBlips.innerHTML='';
+    const count=Math.max(2,Math.min(6,Math.round(lerp(2,6,approach.distance))));
+    for(let i=0;i<count;i++){
+      const dot=document.createElement('span');
+      const angle=(Math.PI*2)*(i/count)+rand(-0.55,0.55);
+      const radius=lerp(18,42,Math.random()) * (1-approach.distance*0.18);
+      const x=50+Math.cos(angle)*radius;
+      const y=50+Math.sin(angle)*radius;
+      dot.style.left=`${x}%`;
+      dot.style.top=`${y}%`;
+      dot.style.opacity=String(0.35 + Math.random()*0.65);
+      dot.style.transform='translate(-50%,-50%)';
+      radarBlips.appendChild(dot);
+    }
+  }
+  function animationFrame(t){
+    if(!approach.lastT) approach.lastT=t;
+    const dt=Math.min(0.06,(t-approach.lastT)/1000 || 0.016);
+    approach.lastT=t;
+    const throttleTarget=(Number(approachSlider?.value)||0)/100;
+    approach.throttle = lerp(approach.throttle, throttleTarget*100, Math.min(1,dt*3.4));
+    const drift = (approach.throttle/100) * dt * 0.085;
+    approach.distance = clamp(approach.distance + drift, 0.02, 1);
+    updateApproachUI();
+    if(!approach.nextPing) approach.nextPing=t+rand(2500,7000);
+    if(t>=approach.nextPing){ triggerAnalysis(); updateRadarBlips(); approach.nextPing=t+rand(5500,14500); }
+    requestAnimationFrame(animationFrame);
+  }
+  approachSlider?.addEventListener('input',()=>{ updateApproachUI(); });
+  approachSlider?.addEventListener('pointerdown',event=>event.stopPropagation());
+  triggerAnalysis();
+  updateApproachUI();
+  updateRadarBlips();
+  requestAnimationFrame(animationFrame);
+  applyMode();syncAll();window.GEShip={syncAll,applyMode};
+})();
+
+(async function boot(){
+  $('geLogo').src=absolute(CONFIG.LOGO_SRC);
+  $('homeLink').href=CONFIG.HOME_URL;
+  loadSharedState();
+  syncModeButtons();
+  registerServiceWorker();
+
+  const discovered=await discoverOfflineMediaFromCaches();
+
+  const manifestCatalog=applyKnownMediaVersions(
+    (await loadMusicManifest()).sort(orderedSort),
+    loadMediaShaMap()
+  ).sort(orderedSort);
+
+  if(offlinePlaybackMode() && discovered.songs.length){
+    state.catalog=discovered.songs.slice().sort(orderedSort);
+  }else if(manifestCatalog.length){
+    state.catalog=manifestCatalog;
+  }else{
+    state.catalog=discovered.songs.slice().sort(orderedSort);
+  }
+
+  rebuildQueue('');
+
+  try{
+    if(window.GEOffline?.audit) await window.GEOffline.audit();
+  }catch(_e){}
+
+  const start=matchingStartSong() || (state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0] || ''));
+  if(!start){
+    titleBtn.textContent='No music files found';
+    setStatus('No playable music was found online or in this browser’s offline library.');
+    return;
+  }
+  if(state.shuffle) recordHistory(start);
+  await playURL(start,{record:false,backgroundChange:false});
+  try{window.GEShip?.syncAll();}catch(_e){}
+})();
+</script>
+</body>
+</html>
