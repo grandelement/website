@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GE Radio CENTRAL STREAM LIVE CORS AUDIO FIX — 2026-09-19
+<!-- GE Radio CENTRAL STREAM LIVE READY — 2026-09-19
 LIVE no longer rebuilds the station from 85 local files. The LIVE button now tunes the existing single audio element into one continuously running external station stream. Add the real stream URL to CONFIG.LIVE_STREAM_URL after the station host is created. Existing Album/Shuffle, Offline, Ship controls, Sun EQ, comments, and service-worker behavior are otherwise preserved. -->
 <!-- GE RADIO TIGHT RING EQ TEST — 2026-09-17 -->
 <!-- GE RADIO CONCENTRIC RING EQ TEST — 2026-09-17 -->
@@ -520,7 +520,7 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <audio id="player" controls preload="auto" playsinline crossorigin="anonymous" controlslist="nodownload noplaybackrate"></audio>
+  <audio id="player" controls preload="auto" playsinline controlslist="nodownload noplaybackrate"></audio>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
@@ -1152,7 +1152,6 @@ async function enterLiveMode(){
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=1;
-  audio.crossOrigin='anonymous';
   audio.src=CONFIG.LIVE_STREAM_URL;
   audio.load();
 
@@ -1187,7 +1186,6 @@ function reconnectLiveStream(){
   liveState.reconnectTimer=setTimeout(async()=>{
     if(!state.live)return;
     try{
-      audio.crossOrigin='anonymous';
       audio.src=CONFIG.LIVE_STREAM_URL;
       audio.load();
       await audio.play();
