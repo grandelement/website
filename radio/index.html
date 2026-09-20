@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- GE Radio CENTRAL STREAM LIVE CORS AUDIO FIX — 2026-09-19
+<!-- GE RADIO LIVE-FIRST + LIVE EQ CORS FIX — 2026-09-20 -->
+<!-- GE Radio CENTRAL STREAM LIVE READY — 2026-09-19
 LIVE no longer rebuilds the station from 85 local files. The LIVE button now tunes the existing single audio element into one continuously running external station stream. Add the real stream URL to CONFIG.LIVE_STREAM_URL after the station host is created. Existing Album/Shuffle, Offline, Ship controls, Sun EQ, comments, and service-worker behavior are otherwise preserved. -->
 <!-- GE RADIO TIGHT RING EQ TEST — 2026-09-17 -->
 <!-- GE RADIO CONCENTRIC RING EQ TEST — 2026-09-17 -->
@@ -520,13 +521,13 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <audio id="player" controls preload="auto" playsinline crossorigin="anonymous" controlslist="nodownload noplaybackrate"></audio>
+  <audio id="player" controls preload="auto" playsinline autoplay crossorigin="anonymous" controlslist="nodownload noplaybackrate"></audio>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
     <button id="nextBtn">Next</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
-    <button class="tgl" id="liveBtn" aria-pressed="false">LIVE</button>
+    <button class="tgl" id="liveBtn" aria-pressed="true">LIVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
     <button id="shareBtn">Share</button>
   </div>
@@ -1149,10 +1150,10 @@ async function enterLiveMode(){
   setLiveMediaSession();
   audio.autoplay=true;
   audio.preload='auto';
+  audio.crossOrigin='anonymous';
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=1;
-  audio.crossOrigin='anonymous';
   audio.src=CONFIG.LIVE_STREAM_URL;
   audio.load();
 
@@ -1164,11 +1165,15 @@ async function enterLiveMode(){
     setLiveStatus('LIVE • connected to the single Grand Element station host',true);
     setStatus('Grand Element LIVE');
   }catch(error){
-    state.live=false;
+    // The LIVE source is still selected and loaded. Some browsers, especially
+    // iPhone Safari, require one direct tap before audible autoplay is allowed.
+    // Keep LIVE checked so the native Play control starts the station rather
+    // than silently falling back to the local music player.
+    state.live=true;
     state.livePreparing=false;
     syncModeButtons();
-    setLiveStatus('LIVE • tap LIVE again to connect. Safari may require a direct user tap.',true);
-    setStatus('LIVE could not start yet. Tap LIVE again.');
+    setLiveStatus('LIVE • ready. Tap Play once if this browser blocks automatic audio.',true);
+    setStatus('Grand Element LIVE is ready. Tap Play once if needed.');
   }
 }
 function exitLiveMode(message='LIVE ended.'){
@@ -1176,10 +1181,58 @@ function exitLiveMode(message='LIVE ended.'){
   clearLiveReconnect();
   state.live=false;
   state.livePreparing=false;
-  syncModeButtons();
   setLiveStatus('',false);
   try{audio.pause();}catch(_e){}
+
+  // Restore the local-player identity as soon as LIVE is unchecked.
+  // The caller can then resume it, change Shuffle/Album mode, or select a track
+  // without the LIVE stream URL being mistaken for a library song.
+  if(liveState.returnURL){
+    state.currentURL=liveState.returnURL;
+    titleBtn.textContent=displayTitle(state.currentURL,!state.shuffle);
+    updateCurrentRow();
+    updateMediaSession(state.currentURL);
+  }else{
+    state.currentURL='';
+  }
+
+  syncModeButtons();
   if(message)setStatus(message);
+}
+
+async function resumePlayerAfterLive(){
+  let target=liveState.returnURL;
+  if(!target || !allowedCatalog().includes(target)){
+    target=state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0]||'');
+  }
+  if(!target){
+    titleBtn.textContent='No player music found';
+    setStatus('LIVE is off. No playable library track is available.');
+    return;
+  }
+
+  const restoreTime=(target===liveState.returnURL) ? Math.max(0,Number(liveState.returnTime)||0) : 0;
+  state.currentURL=target;
+
+  if(state.shuffle && state.history[state.history.length-1]!==target){
+    recordHistory(target);
+  }
+
+  if(restoreTime>0){
+    audio.addEventListener('loadedmetadata',()=>{
+      try{
+        const max=Math.max(0,(Number(audio.duration)||restoreTime)-0.25);
+        audio.currentTime=Math.min(restoreTime,max||restoreTime);
+      }catch(_e){}
+    },{once:true});
+  }
+
+  await playURL(target,{
+    record:false,
+    backgroundChange:false,
+    userAction:true,
+    forceReload:true
+  });
 }
 function reconnectLiveStream(){
   if(!state.live||navigator.onLine===false)return;
@@ -1187,7 +1240,6 @@ function reconnectLiveStream(){
   liveState.reconnectTimer=setTimeout(async()=>{
     if(!state.live)return;
     try{
-      audio.crossOrigin='anonymous';
       audio.src=CONFIG.LIVE_STREAM_URL;
       audio.load();
       await audio.play();
@@ -1239,6 +1291,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     void window.GEResumeLiveEQ?.();
   }
   try{
+    audio.crossOrigin='anonymous';
     audio.muted=false;
     audio.defaultMuted=false;
     audio.volume=1;
@@ -1407,7 +1460,11 @@ async function resolvedShareURL(){
 $('prevBtn').addEventListener('click',()=>previousTrack(true));
 $('nextBtn').addEventListener('click',()=>nextTrack(true));
 $('liveBtn').addEventListener('click',()=>{
-  if(state.live||state.livePreparing){exitLiveMode('LIVE ended.');return;}
+  if(state.live||state.livePreparing){
+    exitLiveMode('LIVE off • returning to player music.');
+    void resumePlayerAfterLive();
+    return;
+  }
   void enterLiveMode();
 });
 $('shuffleBtn').addEventListener('click',()=>{
@@ -3576,20 +3633,29 @@ Vector ${vector}. ${pair[1]}.`;
   }catch(_e){}
 
   const start=matchingStartSong() || (state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0] || ''));
-  if(!start){
-    titleBtn.textContent='No music files found';
-    setStatus('No playable music was found online or in this browser’s offline library.');
-    return;
-  }
-  if(sharedLiveRequested){
+
+  // LIVE is the default first source. Prepare one normal player track underneath
+  // it so turning LIVE off immediately returns to the regular Grand Element player.
+  if(start){
     state.currentURL=start;
-    titleBtn.textContent='Grand Element LIVE';
+    if(state.shuffle) recordHistory(start);
+    titleBtn.textContent=displayTitle(start,!state.shuffle);
     updateCurrentRow();
-    try{window.GEShip?.syncAll();}catch(_e){}
-    return;
+  }else{
+    state.currentURL='';
   }
-  if(state.shuffle) recordHistory(start);
-  await playURL(start,{record:false,backgroundChange:false});
+
+  await enterLiveMode();
+
+  // If the LIVE host is unavailable, leave the normal player ready rather than
+  // trapping the page without audio.
+  if(!state.live && !state.livePreparing && start){
+    await playURL(start,{record:false,backgroundChange:false});
+  }else if(!state.live && !state.livePreparing && !start){
+    titleBtn.textContent='No music files found';
+    setStatus('LIVE could not connect and no playable library track was found.');
+  }
+
   try{window.GEShip?.syncAll();}catch(_e){}
 })();
 </script>
