@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- GE RADIO LOVE GATE BUILD — 2026-09-20 -->
+<!-- Sixth real-song play + 1:11 trigger, 30-minute hard listening cap, persistent refresh/expiry lock. -->
 <!-- GE RADIO LIVE-FIRST + LIVE EQ CORS FIX — 2026-09-20 -->
 <!-- GE Radio CENTRAL STREAM LIVE READY — 2026-09-19
 LIVE no longer rebuilds the station from 85 local files. The LIVE button now tunes the existing single audio element into one continuously running external station stream. Add the real stream URL to CONFIG.LIVE_STREAM_URL after the station host is created. Existing Album/Shuffle, Offline, Ship controls, Sun EQ, comments, and service-worker behavior are otherwise preserved. -->
@@ -390,12 +392,98 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
 }
 
 
+/* GRAND ELEMENT INNER GATE */
+#geGate{
+  position:fixed;inset:0;z-index:1000000;display:none;overflow:hidden;
+  background:radial-gradient(circle at 50% 50%,rgba(1,17,34,.58) 0%,rgba(0,4,12,.91) 58%,#000 100%);
+  color:#effbff;isolation:isolate;touch-action:none;
+}
+#geGate.open{display:block}
+#geGateBackdrop{position:absolute;inset:0;background:rgba(0,0,0,.18);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px)}
+#geGateSunWrap{
+  position:absolute;left:50%;top:50%;width:min(74vmin,720px);aspect-ratio:1;
+  transform:translate(-50%,-50%);pointer-events:none;
+}
+#geGateSun{
+  width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
+  box-shadow:0 0 38px rgba(20,152,255,.68),0 0 95px rgba(0,104,255,.48),0 0 180px rgba(0,87,255,.28);
+  transform:translate3d(120vw,0,0) scale(.86);
+  transform-origin:center center;will-change:transform,opacity,filter;
+}
+#geGateSunWrap::before,#geGateSunWrap::after{
+  content:'';position:absolute;inset:-12%;border-radius:50%;pointer-events:none;opacity:.64;
+  border:2px solid rgba(98,205,255,.20);box-shadow:0 0 32px rgba(31,163,255,.22);
+  animation:geGatePulse 4.8s ease-out infinite;
+}
+#geGateSunWrap::after{inset:-25%;opacity:.34;animation-delay:1.5s;animation-duration:6.2s}
+@keyframes geGatePulse{
+  0%{transform:scale(.88);opacity:.10}
+  48%{opacity:.55}
+  100%{transform:scale(1.18);opacity:0}
+}
+#geGatePanel{
+  position:absolute;z-index:5;left:50%;bottom:max(5.5vh,env(safe-area-inset-bottom));
+  transform:translate(-50%,18px);width:min(520px,90vw);padding:14px 15px 13px;
+  border-radius:18px;border:1px solid rgba(94,205,255,.42);
+  background:rgba(1,12,25,.80);box-shadow:0 14px 44px rgba(0,0,0,.52),0 0 24px rgba(34,161,255,.15);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center;
+}
+#geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#geGateTitle{font-size:clamp(18px,4.5vw,25px);font-weight:850;letter-spacing:.04em;margin:0 0 9px}
+#geGateStatus{min-height:1.2em;margin:0 0 8px;font-size:12px;opacity:.80}
+#geGateEntry{display:flex;gap:8px;align-items:center;justify-content:center}
+#geGateWord{
+  flex:1 1 auto;min-width:0;min-height:45px;border:1px solid rgba(91,202,255,.48);border-radius:12px;
+  background:rgba(0,5,13,.72);color:#f4fbff;padding:10px 12px;text-align:center;font:700 17px/1.2 system-ui;
+  outline:none;letter-spacing:.12em;
+}
+#geGateWord:focus{border-color:rgba(114,229,255,.92);box-shadow:0 0 16px rgba(62,190,255,.22)}
+#geGateEnter,#geGateHint{
+  min-height:45px;border-color:rgba(72,195,255,.56);background:rgba(7,45,75,.78);color:#f2fbff;
+}
+#geGateHint{margin:9px auto 0;min-height:37px;padding:7px 12px;font-size:12px}
+#geGateHintText{min-height:1.4em;margin:9px 0 0;font-size:13px;line-height:1.35;color:#dff6ff}
+#geGateHelp{display:none;margin-top:9px;font-size:12px;color:#c9eeff}
+#geGateHelp.show{display:block}
+#geGateHelp a{color:#eafaff;text-decoration:underline;text-underline-offset:2px}
+#geGate.wrong #geGateWord{animation:geGateNudge .34s ease}
+@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,25px)!important}
+#geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
+#geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
+@media(max-width:560px){
+  #geGateSunWrap{width:min(82vmin,540px)}
+  #geGatePanel{bottom:max(4vh,env(safe-area-inset-bottom));padding:12px}
+  #geGateEntry{display:grid;grid-template-columns:1fr auto}
+}
+@media(prefers-reduced-motion:reduce){
+  #geGateSunWrap::before,#geGateSunWrap::after{animation:none}
+}
+
 </style>
 </head>
 <body>
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
+
+<div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
+  <div id="geGateBackdrop"></div>
+  <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
+  <section id="geGatePanel" aria-live="polite">
+    <div id="geGateTitle">Inner Gate</div>
+    <div id="geGateStatus">Enter the word to continue.</div>
+    <div id="geGateEntry">
+      <input id="geGateWord" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Gate word" placeholder="Enter">
+      <button id="geGateEnter" type="button">Enter</button>
+    </div>
+    <button id="geGateHint" type="button">Hint</button>
+    <div id="geGateHintText"></div>
+    <div id="geGateHelp">Still need access? <a id="geGateEmail" href="#">Email Grand Element</a></div>
+  </section>
+</div>
+
 <button id="viewToggle" type="button">Ship View</button>
 <div id="shipStage" aria-hidden="true">
   <div id="shipWindowViewport" aria-hidden="true">
@@ -614,7 +702,7 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.17-sun-lab-dynamics-2',
+  APP_VERSION: '2026.09.20-love-gate-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -651,6 +739,26 @@ const CONFIG = Object.freeze({
     // Add a filename here when one picture needs its own optical adjustment.
     '17.gif': {x:'50%', y:'50%', shift:'0vh', scale:'1.10'}
   }
+});
+
+
+// INNER GATE — all timing and access variables live here.
+const GATE_CONFIG = Object.freeze({
+  enabled: true,
+  triggerTrack: 6,
+  triggerAtSeconds: 71,          // 1:11 of real music after the sixth real-song play begins.
+  hardLimitSeconds: 1800,       // 30:00 cumulative music playback safety cap.
+  liveMetadataURL: 'https://radio.grandelement.blitz.cloud/status-json.xsl',
+  liveMetadataPollSeconds: 10,
+  entranceSeconds: 30,          // Blue sun travel from offscreen right to center.
+  graceSeconds: 96,             // Music continues this long after the sun reaches center.
+  unlockSeconds: 6,             // Zoom-through/fade after LOVE is accepted.
+  password: 'love',
+  authKey: 'GE_GATE_LOVE_V1',
+  stateKey: 'GE_GATE_STATE_V1',
+  removeOfflineOnTimeout: true,
+  helpEmail: 'private@grandelement.com',
+  helpSubject: 'Grand Element Radio Gate Access'
 });
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
@@ -1158,6 +1266,14 @@ async function enterLiveMode(){
   audio.load();
 
   try{
+    if(window.GEGate?.isExpiredLocked?.()){
+      state.livePreparing=false;
+      state.live=true;
+      syncModeButtons();
+      setLiveStatus('Grand Element LIVE',true);
+      window.GEGate?.restore?.();
+      return;
+    }
     await audio.play();
     state.livePreparing=false;
     state.live=true;
@@ -1276,6 +1392,7 @@ function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.o
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(!url) return;
   const token=++state.playToken;
+  window.GEGate?.syncListening?.();
   const sunEQTrackChanged=state.currentURL!==url;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
@@ -1307,9 +1424,14 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
       audio.src=url;
       audio.load();
     }
+    if(window.GEGate?.isExpiredLocked?.()){
+      window.GEGate?.restore?.();
+      return;
+    }
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
+    if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     setStatus('Playing');
   }catch(error){
     if(token!==state.playToken) return;
@@ -2393,7 +2515,384 @@ async function registerServiceWorker(){
     isActive:isEnabled,
     scan:scanExistingAssets,
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
-    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
+    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true}),
+    remove
+  };
+})();
+
+
+
+/* INNER GATE CONTROLLER
+   Access gate, not DRM. It remembers authorization, accumulated real listening,
+   an active gate, and an expired lock across refreshes. */
+(function createInnerGate(){
+  if(!GATE_CONFIG.enabled)return;
+
+  const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),
+        enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
+        help=$('geGateHelp'),email=$('geGateEmail'),status=$('geGateStatus');
+
+  const hints=[
+    'Somebody said there’s only one thing we need.',
+    'What we are.',
+    'What grows when you give it away?',
+    'What can be felt without being touched?',
+    'What brings two separate things together without making either disappear?',
+    'What gets stronger when it is shared?',
+    'What can travel any distance without moving?',
+    'What turns a house into a home?',
+    'What does music keep trying to say?',
+    'What can be understood before a single word is spoken?',
+    'What can remain after anger is gone?',
+    'What gives without becoming smaller?',
+    'What can heal without medicine?',
+    'What is stronger than fear?',
+    'What has no borders but connects people everywhere?',
+    'What is at the center of Grand Element?',
+    'Four letters. One thing we all need.',
+    'What did somebody once say was all you need?',
+    'L _ V E',
+    'LOVE'
+  ];
+
+  const emptyState=()=>({
+    playCount:0,
+    musicSeconds:0,
+    sixthStartSeconds:null,
+    active:false,
+    triggeredAt:0,
+    centerAt:0,
+    expireAt:0,
+    expired:false,
+    offlinePurged:false,
+    hintIndex:0,
+    reason:'',
+    lastLiveTitle:''
+  });
+
+  function load(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(GATE_CONFIG.stateKey)||'null');
+      return parsed&&typeof parsed==='object'?{...emptyState(),...parsed}:emptyState();
+    }catch(_e){return emptyState();}
+  }
+  let gs=load();
+  let lastTickAt=Date.now();
+  let wasCountable=false;
+  let liveStationID=false;
+  let lastSave=0;
+  let centerTimer=0,expireTimer=0,closeTimer=0;
+
+  function authorized(){return localStorage.getItem(GATE_CONFIG.authKey)==='1';}
+  function save(force=false){
+    const now=Date.now();
+    if(!force && now-lastSave<4000)return;
+    lastSave=now;
+    try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
+  }
+  function clearTimers(){clearTimeout(centerTimer);clearTimeout(expireTimer);clearTimeout(closeTimer);centerTimer=expireTimer=closeTimer=0;}
+  function isExpiredLocked(){return !authorized() && !!gs.expired;}
+
+  function updateHintUI(){
+    const shown=Math.max(0,Math.min(hints.length,Number(gs.hintIndex)||0));
+    hintText.textContent=shown?hints[shown-1]:'';
+    if(shown>=hints.length){
+      help.classList.add('show');
+    }else{
+      help.classList.remove('show');
+    }
+  }
+
+  function showPanel(expired=false){
+    gate.classList.add('centered');
+    if(status)status.textContent=expired?'The music is resting. Enter the word to continue.':'Enter the word to continue.';
+    updateHintUI();
+    setTimeout(()=>word?.focus({preventScroll:true}),250);
+  }
+
+  function positionSun(){
+    if(!sun)return;
+    const now=Date.now();
+    const start=Number(gs.triggeredAt)||now;
+    const center=Number(gs.centerAt)||now;
+    if(now>=center){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      return 0;
+    }
+    const span=Math.max(1,center-start);
+    const progress=Math.max(0,Math.min(1,(now-start)/span));
+    const remaining=Math.max(0,center-now);
+    const x=(1-progress)*120;
+    const scale=.86+.14*progress;
+    sun.style.transition='none';
+    sun.style.transform=`translate3d(${x}vw,0,0) scale(${scale})`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      sun.style.transition=`transform ${remaining}ms linear`;
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+    }));
+    return remaining;
+  }
+
+  async function purgeOffline(){
+    if(!GATE_CONFIG.removeOfflineOnTimeout||gs.offlinePurged)return;
+    gs.offlinePurged=true;save(true);
+    try{
+      if(window.GEOffline?.remove){
+        await window.GEOffline.remove();
+      }else if('caches' in window){
+        await caches.delete(CONFIG.OFFLINE_CACHE);
+        localStorage.removeItem(CONFIG.OFFLINE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_PLAYABLE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_STATIONS_KEY);
+      }
+    }catch(_e){}
+  }
+
+  function expireGate(){
+    if(authorized())return;
+    gs.active=true;gs.expired=true;
+    if(!gs.expireAt)gs.expireAt=Date.now();
+    save(true);
+    gate.classList.add('open','centered');
+    gate.setAttribute('aria-hidden','false');
+    if(sun){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+    }
+    showPanel(true);
+    try{audio.pause();}catch(_e){}
+    void purgeOffline();
+  }
+
+  function scheduleStages(){
+    clearTimers();
+    if(authorized()||!gs.active)return;
+    const now=Date.now();
+    if(gs.expired||now>=Number(gs.expireAt||0)){
+      expireGate();
+      return;
+    }
+    const remainingToCenter=Math.max(0,Number(gs.centerAt||0)-now);
+    if(remainingToCenter<=0){
+      showPanel(false);
+    }else{
+      centerTimer=setTimeout(()=>showPanel(false),remainingToCenter);
+    }
+    const remainingToExpire=Math.max(0,Number(gs.expireAt||0)-now);
+    expireTimer=setTimeout(expireGate,remainingToExpire);
+  }
+
+  function restore(){
+    if(authorized()){
+      gate?.classList.remove('open','centered','unlocking','wrong');
+      gate?.setAttribute('aria-hidden','true');
+      return;
+    }
+    if(!gs.active&&!gs.expired)return;
+    gate.classList.add('open');
+    gate.setAttribute('aria-hidden','false');
+    if(sun) sun.src=absolute(CONFIG.LOGO_SRC);
+    positionSun();
+    scheduleStages();
+  }
+
+  function trigger(reason){
+    if(authorized()||gs.active||gs.expired)return;
+    const now=Date.now();
+    gs.active=true;
+    gs.reason=reason||'gate';
+    gs.triggeredAt=now;
+    gs.centerAt=now+GATE_CONFIG.entranceSeconds*1000;
+    gs.expireAt=gs.centerAt+GATE_CONFIG.graceSeconds*1000;
+    save(true);
+    gate.classList.remove('centered','unlocking','wrong');
+    gate.classList.add('open');
+    gate.setAttribute('aria-hidden','false');
+    if(sun){
+      sun.src=absolute(CONFIG.LOGO_SRC);
+      sun.style.transition='none';
+      sun.style.transform='translate3d(120vw,0,0) scale(.86)';
+      sun.style.opacity='1';
+      sun.style.filter='';
+    }
+    if(panel){panel.style.removeProperty('opacity');panel.style.removeProperty('pointer-events');}
+    if(status)status.textContent='Enter the word to continue.';
+    positionSun();
+    scheduleStages();
+  }
+
+  function noteRealSongPlay(url){
+    if(authorized()||gs.active||gs.expired||isStationID(url))return;
+    gs.playCount=Math.max(0,Number(gs.playCount)||0)+1;
+    if(gs.playCount===GATE_CONFIG.triggerTrack && gs.sixthStartSeconds===null){
+      gs.sixthStartSeconds=Math.max(0,Number(gs.musicSeconds)||0);
+    }
+    save(true);
+  }
+
+  function countableNow(){
+    if(audio.paused||audio.ended||authorized()||gs.active||gs.expired)return false;
+    if(state.live)return !liveStationID;
+    return !!state.currentURL && !isStationID(state.currentURL);
+  }
+
+  function evaluateTriggers(){
+    if(authorized()||gs.active||gs.expired)return;
+    if(gs.sixthStartSeconds!==null && gs.playCount>=GATE_CONFIG.triggerTrack){
+      const afterSixth=Math.max(0,gs.musicSeconds-Number(gs.sixthStartSeconds||0));
+      if(afterSixth>=GATE_CONFIG.triggerAtSeconds){
+        save(true);trigger('sixth-song');return;
+      }
+    }
+    if(gs.musicSeconds>=GATE_CONFIG.hardLimitSeconds){
+      save(true);trigger('hard-limit');
+    }
+  }
+
+  function syncListening(){
+    const now=Date.now();
+    const delta=Math.max(0,(now-lastTickAt)/1000);
+    lastTickAt=now;
+
+    // wasCountable represents the interval that just elapsed. This keeps the
+    // clock accurate through background-tab throttling and pause events.
+    if(wasCountable&&!authorized()&&!gs.active&&!gs.expired){
+      gs.musicSeconds=Math.max(0,Number(gs.musicSeconds)||0)+delta;
+      evaluateTriggers();
+      save(false);
+    }
+    wasCountable=countableNow();
+  }
+
+  function tick(){
+    syncListening();
+    if(!authorized()&&gs.active&&!gs.expired&&Date.now()>=Number(gs.expireAt||0))expireGate();
+  }
+
+  function stationTitle(title){
+    return /(?:\bGE\b.*)?station\s+identification/i.test(String(title||'')) || /\bstation\s+id\b/i.test(String(title||''));
+  }
+
+  function extractLiveTitle(data){
+    const source=data?.icestats?.source;
+    const first=Array.isArray(source)?source[0]:source;
+    return String(
+      first?.title ||
+      data?.now_playing?.song?.text ||
+      data?.now_playing?.song?.title ||
+      data?.song?.text ||
+      data?.song?.title ||
+      data?.title || ''
+    ).trim();
+  }
+
+  async function pollLiveMetadata(){
+    if(authorized()||gs.expired||!state.live||!GATE_CONFIG.liveMetadataURL)return;
+    try{
+      const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});
+      if(!response.ok)return;
+      const data=await response.json();
+      const title=extractLiveTitle(data);
+      if(!title)return;
+
+      syncListening();
+      liveStationID=stationTitle(title);
+      wasCountable=countableNow();
+
+      if(title!==gs.lastLiveTitle){
+        gs.lastLiveTitle=title;
+        if(!liveStationID)noteRealSongPlay(`live:${title}`);
+        save(true);
+      }
+    }catch(_e){}
+  }
+
+  function wrongWord(){
+    gate.classList.remove('wrong');void gate.offsetWidth;gate.classList.add('wrong');
+    if(status)status.textContent='Keep going.';
+    word?.select();
+  }
+
+  function unlock(){
+    if(authorized())return;
+    const entered=String(word?.value||'').trim().toLowerCase();
+    if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){
+      wrongWord();return;
+    }
+
+    const wasExpired=!!gs.expired;
+    clearTimers();
+    try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
+    gs.active=false;gs.expired=false;gs.reason='unlocked';save(true);
+
+    gate.classList.remove('wrong','centered','unlocking');
+    gate.classList.add('open');
+    gate.style.setProperty('--ge-gate-unlock',`${GATE_CONFIG.unlockSeconds}s`);
+    if(sun){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      sun.style.opacity='1';
+      void sun.offsetWidth;
+    }
+    requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
+
+    // Enter/Return is the listener gesture, so restart immediately if timeout had paused the music.
+    if(wasExpired){
+      audio.muted=false;audio.volume=1;
+      audio.play().catch(()=>{});
+    }
+
+    closeTimer=setTimeout(()=>{
+      gate.classList.remove('open','centered','unlocking','wrong');
+      gate.setAttribute('aria-hidden','true');
+      if(word)word.value='';
+      if(sun){sun.style.removeProperty('transition');sun.style.removeProperty('transform');sun.style.removeProperty('opacity');sun.style.removeProperty('filter');}
+    },Math.max(250,GATE_CONFIG.unlockSeconds*1000));
+  }
+
+  hintBtn?.addEventListener('click',()=>{
+    gs.hintIndex=Math.min(hints.length,(Number(gs.hintIndex)||0)+1);
+    save(true);updateHintUI();
+  });
+  enter?.addEventListener('click',unlock);
+  word?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();unlock();}});
+
+  if(email){
+    const subject=encodeURIComponent(GATE_CONFIG.helpSubject||'Grand Element Radio Gate Access');
+    email.href=`mailto:${GATE_CONFIG.helpEmail}?subject=${subject}`;
+  }
+  if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
+
+  // Keep the persisted listening clock based on audible playback, not page-open time.
+  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();});
+  audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  setInterval(tick,1000);
+  setInterval(()=>{void pollLiveMetadata();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
+  window.addEventListener('pagehide',()=>{syncListening();save(true);});
+  document.addEventListener('visibilitychange',()=>{syncListening();if(document.hidden)save(true);});
+  restore();
+
+  window.GEGate={
+    noteRealSongPlay,
+    trigger,
+    restore,
+    syncListening,
+    isExpiredLocked,
+    isAuthorized:authorized,
+    getState:()=>({...gs}),
+    resetForTesting:()=>{
+      clearTimers();
+      localStorage.removeItem(GATE_CONFIG.authKey);
+      localStorage.removeItem(GATE_CONFIG.stateKey);
+      gs=emptyState();
+      liveStationID=false;
+      wasCountable=false;
+      gate.classList.remove('open','centered','unlocking','wrong');
+      gate.setAttribute('aria-hidden','true');
+      lastTickAt=Date.now();
+    }
   };
 })();
 
