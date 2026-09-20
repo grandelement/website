@@ -6652,11 +6652,11 @@ const GE_GAME = (()=>{
     pocketsCenterBtn?.classList.toggle('active',!nine);pocketsCenterBtn?.setAttribute('aria-pressed',String(!nine));
     pocketsNineBtn?.classList.toggle('active',nine);pocketsNineBtn?.setAttribute('aria-pressed',String(nine));
     if(pocketsModeHelp)pocketsModeHelp.textContent=nine?'9 BALL: lowest planet first. A legal pocket continues the turn; a legal miss passes the turn. Fouls give ball in hand.':'CENTER: score the numbered planets into the center. Your turn passes when no object planet is pocketed.';
-    if(optNinePocketLayout)optNinePocketLayout.value=nine?(state.ninePocketLayout==='center'?'center':'six'):'center';
+    if(optNinePocketLayout)optNinePocketLayout.value=nine?'six':'center';
     setDetailClasses('pockets');
   }
   pocketsCenterBtn?.addEventListener('click',()=>{applyBasicPreset('blueSunPool');state.ninePocketLayout='center';currentGameDetail='pockets';syncPocketsModeToggle();renderGamePreview('pockets',0,false);saveGameStateSoon();});
-  pocketsNineBtn?.addEventListener('click',()=>{applyBasicPreset('ninePlanet');currentGameDetail='pockets';syncPocketsModeToggle();renderNinePlanetPicker();renderGamePreview('pockets',0,false);saveGameStateSoon();});
+  pocketsNineBtn?.addEventListener('click',()=>{applyBasicPreset('ninePlanet');state.ninePocketLayout='six';currentGameDetail='pockets';syncPocketsModeToggle();renderNinePlanetPicker();renderGamePreview('pockets',0,false);saveGameStateSoon();});
   gePreviewPlay?.addEventListener('click',()=>{
     clearInterval(previewTimer);previewStep=0;gePreviewPlay.textContent='PREVIEW PLAYING';renderGamePreview(currentGameDetail,0,true);
     previewTimer=setInterval(()=>{previewStep++;if(previewStep>=3){clearInterval(previewTimer);previewTimer=0;previewStep=0;gePreviewPlay.textContent='PLAY PREVIEW';renderGamePreview(currentGameDetail,0,false);return;}renderGamePreview(currentGameDetail,previewStep,true);},2100);
@@ -6703,115 +6703,54 @@ const GE_GAME = (()=>{
     if(optPlanetBounce){optPlanetBounce.value=String(Math.round(state.planetBounce*100));if(optPlanetBounceValue)optPlanetBounceValue.textContent=Math.round(state.planetBounce*100)+'%';}
     syncBallSpeedButton?.();
   }
-  const GAME_PREFS_KEY='GE_GAME_SETTINGS_PERSIST_V1';
-  let gePersistentGamePrefs=(()=>{try{const x=JSON.parse(localStorage.getItem(GAME_PREFS_KEY)||'null');return x&&typeof x==='object'?x:{version:1,general:null,games:{}};}catch(_e){return {version:1,general:null,games:{}};}})();
-  if(!gePersistentGamePrefs.games||typeof gePersistentGamePrefs.games!=='object')gePersistentGamePrefs.games={};
-  function gamePrefsKey(type=state.gameType){return type==='blueSunPool'?'center':(type==='ninePlanet'?'nine':(type==='marbles'?'planets':'points'));}
-  function captureGeneralGamePreferences(){return {
-    tracers:!!state.tracers,scoreFx:!!state.scoreFx,showBanks:!!state.showBanks,
-    tracerDuration:state.tracerDuration,tracerColor:state.tracerColor,tracerLengthMs:state.tracerLengthMs,tracerFadeMs:state.tracerFadeMs,
-    tracerWidth:state.tracerWidth,tracerGas:state.tracerGas,tracerGlow:state.tracerGlow,tracerColorStrength:state.tracerColorStrength,tracerCarryFade:!!state.tracerCarryFade,
-    optionsOpacity:state.optionsOpacity
-  };}
-  function captureSpecificGamePreferences(key=gamePrefsKey()){
-    const base={players:state.players,computerOpponent:!!state.computerOpponent,computerDifficulty:state.computerDifficulty||'normal',ballSpeed:state.ballSpeed,planetWeight:state.planetWeight,rollLength:state.rollLength,wallBounce:state.wallBounce,planetBounce:state.planetBounce,rubberPower:state.rubberPower};
-    if(key==='points')return Object.assign(base,{turnsPerPlayer:state.turnsPerPlayer,maxScore:state.maxScore,shotStyle:state.shotStyle,ballAccess:state.ballAccess,planetSize:state.planetSize,pointMarks:!!state.pointMarks,pointsScoreBubbles:state.pointsScoreBubbles!==false,sunPoint:state.sunPoint!==false,sunPointValue:state.sunPointValue,wallPoints:state.wallPoints!==false,planetPoints:state.planetPoints!==false,planetPointValue:state.planetPointValue,pinballSun:!!state.pinballSun,magnetSun:!!state.magnetSun});
-    if(key==='center')return Object.assign(base,{maxScore:state.maxScore,poolPocketSize:state.poolPocketSize,poolCueSize:state.poolCueSize,poolPlanetSize:state.poolPlanetSize,blueSunSensitivity:state.blueSunSensitivity});
-    if(key==='nine')return Object.assign(base,{poolPocketSize:state.poolPocketSize,poolCueSize:state.poolCueSize,poolPlanetSize:state.poolPlanetSize,blueSunSensitivity:state.blueSunSensitivity,ninePocketLayout:state.ninePocketLayout,nineRules:state.nineRules});
-    return Object.assign(base,{marbleCount:state.marbleCount,marbleArrangement:state.marbleArrangement,marbleSize:state.marbleSize,marbleShooterSize:state.marbleShooterSize,marbleSensitivity:state.marbleSensitivity,marbleAlbums:Array.isArray(state.marbleAlbums)?state.marbleAlbums.slice():[]});
-  }
-  function writePersistentGamePreferences(){try{localStorage.setItem(GAME_PREFS_KEY,JSON.stringify(gePersistentGamePrefs));}catch(_e){}}
-  function rememberCurrentGamePreferences(){
-    gePersistentGamePrefs.version=1;gePersistentGamePrefs.general=captureGeneralGamePreferences();gePersistentGamePrefs.games[gamePrefsKey()]=captureSpecificGamePreferences();writePersistentGamePreferences();
-  }
-  function applyGeneralGamePreferences(){
-    const g=gePersistentGamePrefs.general;if(!g)return;
-    if(typeof g.tracers==='boolean')state.tracers=g.tracers;if(typeof g.scoreFx==='boolean')state.scoreFx=g.scoreFx;if(typeof g.showBanks==='boolean')state.showBanks=g.showBanks;
-    if(['throw','soul','round','game'].includes(g.tracerDuration))state.tracerDuration=g.tracerDuration;
-    if(['planet','random','bank','player'].includes(g.tracerColor))state.tracerColor=g.tracerColor;
-    if(Number.isFinite(Number(g.tracerLengthMs)))state.tracerLengthMs=Math.max(5000,Math.min(60000,Number(g.tracerLengthMs)));
-    if(Number.isFinite(Number(g.tracerFadeMs)))state.tracerFadeMs=Math.max(2000,Math.min(30000,Number(g.tracerFadeMs)));
-    if(Number.isFinite(Number(g.tracerWidth)))state.tracerWidth=Math.max(1,Math.min(8,Number(g.tracerWidth)));
-    if(Number.isFinite(Number(g.tracerGas)))state.tracerGas=Math.max(1,Math.min(6,Number(g.tracerGas)));
-    if(Number.isFinite(Number(g.tracerGlow)))state.tracerGlow=Math.max(0,Math.min(30,Number(g.tracerGlow)));
-    if(Number.isFinite(Number(g.tracerColorStrength)))state.tracerColorStrength=Math.max(.25,Math.min(1,Number(g.tracerColorStrength)));
-    if(typeof g.tracerCarryFade==='boolean')state.tracerCarryFade=g.tracerCarryFade;
-    if(Number.isFinite(Number(g.optionsOpacity)))state.optionsOpacity=Math.max(0,Math.min(1,Number(g.optionsOpacity)));
-  }
-  function applyDefaultSpecificGamePreferences(key){
-    const cfg=window.GE_EASY_SETTINGS||{};
-    state.players=1;state.computerOpponent=false;state.computerDifficulty='normal';
-    state.ballSpeed=Number(cfg.BALL_SPEED_DEFAULT)||1;state.planetWeight=Number(cfg.PLANET_WEIGHT_DEFAULT)||1;state.rollLength=Number(cfg.PLANET_ROLL_LENGTH_DEFAULT)||1;state.wallBounce=Number(cfg.WALL_BOUNCE_DEFAULT)||.98;state.planetBounce=Number(cfg.PLANET_BOUNCE_DEFAULT)||.98;state.rubberPower='free';
-    if(key==='points'){
-      state.turnsPerPlayer=Math.max(1,Math.min(9,Number(cfg.TURNS_PER_SOUL)||3));state.maxScore=369;state.shotStyle='throw';state.ballAccess='free';state.planetSize=Number(cfg.PLANET_SIZE_DEFAULT)||1;state.pointMarks=cfg.POINT_MARKS_ON!==false;state.pointsScoreBubbles=true;state.sunPoint=true;state.sunPointValue=3;state.wallPoints=true;state.planetPoints=true;state.planetPointValue=2;state.pinballSun=true;state.magnetSun=false;
-    }else if(key==='center'){
-      state.maxScore=111;state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=1;state.poolCueSize=1;state.poolPlanetSize=1;state.blueSunSensitivity=.75;state.pointMarks=false;
-    }else if(key==='nine'){
-      state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=1;state.poolCueSize=1;state.poolPlanetSize=1;state.blueSunSensitivity=.75;state.ninePocketLayout='six';state.nineRules='classic';state.pointMarks=false;
-    }else{
-      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=5;state.marbleArrangement='players';state.marbleSize=.72;state.marbleShooterSize=1.5;state.marbleSensitivity=.75;state.marbleAlbums=['Fire','Spirit','Soul','Love','Intergy','Sessions II'];state.pointMarks=false;
-    }
-  }
-  function applySpecificGamePreferences(key){
-    const p=gePersistentGamePrefs.games?.[key];
-    if(!p){applyDefaultSpecificGamePreferences(key);return false;}
-    if(Number.isFinite(Number(p.players)))state.players=Math.max(0,Math.min(6,Number(p.players)|0));state.computerOpponent=!!p.computerOpponent;if(state.computerOpponent)state.players=2;state.computerDifficulty=['easy','normal','hard','master'].includes(p.computerDifficulty)?p.computerDifficulty:'normal';
-    if(Number.isFinite(Number(p.ballSpeed)))state.ballSpeed=Number(p.ballSpeed);if(Number.isFinite(Number(p.planetWeight)))state.planetWeight=Math.max(.4,Math.min(1.8,Number(p.planetWeight)));if(Number.isFinite(Number(p.rollLength)))state.rollLength=Math.max(.6,Math.min(1.6,Number(p.rollLength)));if(Number.isFinite(Number(p.wallBounce)))state.wallBounce=Math.max(.7,Math.min(1.08,Number(p.wallBounce)));if(Number.isFinite(Number(p.planetBounce)))state.planetBounce=Math.max(.7,Math.min(1.08,Number(p.planetBounce)));if(['free','controlled','high','extreme','unlimited'].includes(p.rubberPower))state.rubberPower=p.rubberPower;
-    if(key==='points'){
-      state.turnsPerPlayer=Math.max(1,Math.min(9,Number(p.turnsPerPlayer)||3));state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||369));state.shotStyle=['throw','rubber'].includes(p.shotStyle)?p.shotStyle:'throw';state.ballAccess=['free','assigned','duel'].includes(p.ballAccess)?p.ballAccess:'free';state.planetSize=Math.max(.75,Math.min(1.5,Number(p.planetSize)||1));state.pointMarks=p.pointMarks!==false;state.pointsScoreBubbles=p.pointsScoreBubbles!==false;state.sunPoint=p.sunPoint!==false;state.sunPointValue=Math.max(1,Math.min(9,Number(p.sunPointValue)||3));state.wallPoints=p.wallPoints!==false;state.planetPoints=p.planetPoints!==false;state.planetPointValue=Math.max(1,Math.min(9,Number(p.planetPointValue)||2));state.pinballSun=p.pinballSun!==false;state.magnetSun=!!p.magnetSun;
-    }else if(key==='center'){
-      state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||111));state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=Math.max(.25,Math.min(1.5,Number(p.poolPocketSize)||1));state.poolCueSize=Math.max(.25,Math.min(1.5,Number(p.poolCueSize)||1));state.poolPlanetSize=Math.max(.25,Math.min(1.5,Number(p.poolPlanetSize)||1));state.blueSunSensitivity=Math.max(.375,Math.min(1.125,Number(p.blueSunSensitivity)||.75));state.pointMarks=false;
-    }else if(key==='nine'){
-      state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=Math.max(.25,Math.min(1.8,Number(p.poolPocketSize)||1));state.poolCueSize=Math.max(.25,Math.min(1.8,Number(p.poolCueSize)||1));state.poolPlanetSize=Math.max(.25,Math.min(1.5,Number(p.poolPlanetSize)||1));state.blueSunSensitivity=Math.max(.375,Math.min(1.125,Number(p.blueSunSensitivity)||.75));state.ninePocketLayout=p.ninePocketLayout==='center'?'center':'six';state.nineRules=['classic','order','points'].includes(p.nineRules)?p.nineRules:'classic';state.pointMarks=false;
-    }else{
-      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=Math.max(2,Math.min(50,Number(p.marbleCount)||5));state.marbleArrangement=['players','circle','mixed'].includes(p.marbleArrangement)?p.marbleArrangement:'players';state.marbleSize=Math.max(.55,Math.min(1.2,Number(p.marbleSize)||.72));state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(p.marbleShooterSize)||1.5));state.marbleSensitivity=Math.max(.375,Math.min(1.125,Number(p.marbleSensitivity)||.75));if(Array.isArray(p.marbleAlbums)&&p.marbleAlbums.length)state.marbleAlbums=p.marbleAlbums.slice(0,6);state.pointMarks=false;
-    }
-    return true;
-  }
-  function syncPersistentGameControls(){
-    if(optTracers)optTracers.checked=!!state.tracers;if(optScoreFx)optScoreFx.checked=!!state.scoreFx;if(optBanks)optBanks.checked=!!state.showBanks;if(optTracerDuration)optTracerDuration.value=state.tracerDuration;if(optTracerColor)optTracerColor.value=state.tracerColor;if(optTracerCarryFade)optTracerCarryFade.checked=!!state.tracerCarryFade;
-    if(optTrailLength){optTrailLength.value=String(Math.round(state.tracerLengthMs/1000));if(optTrailLengthValue)optTrailLengthValue.textContent=Math.round(state.tracerLengthMs/1000)+'s';}if(optTrailFade){optTrailFade.value=String(Math.round(state.tracerFadeMs/1000));if(optTrailFadeValue)optTrailFadeValue.textContent=Math.round(state.tracerFadeMs/1000)+'s';}if(optTracerWidth){optTracerWidth.value=String(state.tracerWidth);if(optTracerWidthValue)optTracerWidthValue.textContent=Number(state.tracerWidth).toFixed(1);}if(optTracerGas){optTracerGas.value=String(state.tracerGas);if(optTracerGasValue)optTracerGasValue.textContent=Number(state.tracerGas).toFixed(1)+'×';}if(optTracerGlow){optTracerGlow.value=String(state.tracerGlow);if(optTracerGlowValue)optTracerGlowValue.textContent=String(Math.round(state.tracerGlow));}if(optTracerColorStrength){optTracerColorStrength.value=String(Math.round(state.tracerColorStrength*100));if(optTracerColorStrengthValue)optTracerColorStrengthValue.textContent=Math.round(state.tracerColorStrength*100)+'%';}
-    if(optTurnsPerSoul)optTurnsPerSoul.value=String(state.turnsPerPlayer);if(optMaxScore)optMaxScore.value=String(state.maxScore);if(optPoolMaxScore)optPoolMaxScore.value=String(state.maxScore);if(optShotStyle)optShotStyle.value=state.shotStyle;if(optBallAccess)optBallAccess.value=state.ballAccess;if(optRubberPower)optRubberPower.value=state.rubberPower;
-    if(optPointMarks)optPointMarks.checked=!!state.pointMarks;if(optPointsScoreBubbles)optPointsScoreBubbles.checked=state.pointsScoreBubbles!==false;if(optSunPoint)optSunPoint.checked=state.sunPoint!==false;if(optSunValue)optSunValue.value=String(state.sunPointValue);if(optWallPoints)optWallPoints.checked=state.wallPoints!==false;if(optPlanetPoints)optPlanetPoints.checked=state.planetPoints!==false;if(optPlanetValue)optPlanetValue.value=String(state.planetPointValue);if(optPinballSun)optPinballSun.checked=!!state.pinballSun;if(optMagnetSun)optMagnetSun.checked=!!state.magnetSun;
-    if(optPlanetSize){optPlanetSize.value=String(Math.round(state.planetSize*100));if(optPlanetSizeValue)optPlanetSizeValue.textContent=Math.round(state.planetSize*100)+'%';}if(optPlanetWeight){optPlanetWeight.value=String(Math.round(state.planetWeight*100));if(optPlanetWeightValue)optPlanetWeightValue.textContent=Math.round(state.planetWeight*100)+'%';}if(optRollLength){optRollLength.value=String(Math.round(state.rollLength*100));if(optRollLengthValue)optRollLengthValue.textContent=Math.round(state.rollLength*100)+'%';}if(optWallBounce){optWallBounce.value=String(Math.round(state.wallBounce*100));if(optWallBounceValue)optWallBounceValue.textContent=Math.round(state.wallBounce*100)+'%';}if(optPlanetBounce){optPlanetBounce.value=String(Math.round(state.planetBounce*100));if(optPlanetBounceValue)optPlanetBounceValue.textContent=Math.round(state.planetBounce*100)+'%';}
-    if(optPoolPocketSize){optPoolPocketSize.value=String(Math.round(state.poolPocketSize*100));if(optPoolPocketSizeValue)optPoolPocketSizeValue.textContent=Math.round(state.poolPocketSize*100)+'%';}if(optPoolCueSize){optPoolCueSize.value=String(Math.round(state.poolCueSize*100));if(optPoolCueSizeValue)optPoolCueSizeValue.textContent=Math.round(state.poolCueSize*100)+'%';}if(optPoolPlanetSize){optPoolPlanetSize.value=String(Math.round(state.poolPlanetSize*100));if(optPoolPlanetSizeValue)optPoolPlanetSizeValue.textContent=Math.round(state.poolPlanetSize*100)+'%';}if(optBlueSunSensitivity){optBlueSunSensitivity.value=String(precisionSensitivityToUi(state.blueSunSensitivity));if(optBlueSunSensitivityValue)optBlueSunSensitivityValue.textContent=precisionSensitivityToUi(state.blueSunSensitivity)+'%';}
-    if(optNinePocketLayout)optNinePocketLayout.value=state.ninePocketLayout;if(optNineRules)optNineRules.value=state.nineRules;
-    if(optMarbleCount){optMarbleCount.value=String(state.marbleCount);if(optMarbleCountValue)optMarbleCountValue.textContent=String(state.marbleCount);}if(optMarbleArrangement)optMarbleArrangement.value=state.marbleArrangement;if(optMarbleSize){optMarbleSize.value=String(Math.round(state.marbleSize*100));if(optMarbleSizeValue)optMarbleSizeValue.textContent=Math.round(state.marbleSize*100)+'%';}if(optMarbleShooterSize){optMarbleShooterSize.value=String(Math.round(state.marbleShooterSize*100));if(optMarbleShooterSizeValue)optMarbleShooterSizeValue.textContent=Math.round(state.marbleShooterSize*100)+'%';}if(optMarbleSensitivity){optMarbleSensitivity.value=String(precisionSensitivityToUi(state.marbleSensitivity));if(optMarbleSensitivityValue)optMarbleSensitivityValue.textContent=precisionSensitivityToUi(state.marbleSensitivity)+'%';}
-    document.documentElement.style.setProperty('--planet-size',(35*state.planetSize)+'px');applyOptionsOpacity(state.optionsOpacity);syncShotStyleToggle();syncBallSpeedButton();updatePlayerOption();window.GE_GAME_TRAILS?.setVisible?.(state.tracers);window.GE_GAME_POINT_MARKS?.setVisible?.(state.gameType==='score'&&state.pointMarks);window.GE_GAME_POINT_MARKS?.setAnimated?.(state.scoreFx);
-  }
-  function migratePersistentGamePreferences(){
-    if(gePersistentGamePrefs.general||Object.keys(gePersistentGamePrefs.games||{}).length)return;
-    let legacy=null;try{legacy=JSON.parse(localStorage.getItem(window.GE_EASY_SETTINGS?.GAME_STATE_KEY||'GE_GAME_STATE_V10_18_CONTROL_RESET_1')||'null');}catch(_e){}
-    if(legacy&&typeof legacy==='object'){
-      const gFields=['tracers','scoreFx','showBanks','tracerDuration','tracerColor','tracerLengthMs','tracerFadeMs','tracerWidth','tracerGas','tracerGlow','tracerColorStrength','tracerCarryFade','optionsOpacity'];const g={};for(const f of gFields)if(f in legacy)g[f]=legacy[f];gePersistentGamePrefs.general=Object.keys(g).length?g:captureGeneralGamePreferences();
-      const oldType=legacy.gameType==='blueSunPool'?'center':(legacy.gameType==='ninePlanet'?'nine':(legacy.gameType==='marbles'?'planets':'points'));const oldCurrent=captureSpecificGamePreferences(oldType);for(const [k,v] of Object.entries(legacy))if(k in oldCurrent)oldCurrent[k]=v;gePersistentGamePrefs.games[oldType]=oldCurrent;
-    }else gePersistentGamePrefs.general=captureGeneralGamePreferences();
-    writePersistentGamePreferences();
-  }
-  function loadPreferencesForGame(key){applyGeneralGamePreferences();applySpecificGamePreferences(key);syncPersistentGameControls();}
-  migratePersistentGamePreferences();applyGeneralGamePreferences();applySpecificGamePreferences(gamePrefsKey());syncPersistentGameControls();
-
   function applyBasicPreset(style){
-    rememberCurrentGamePreferences();
     if(style==='points')style='blueSun';
     if(style==='pockets')style=(state.gameType==='ninePlanet'?'ninePlanet':'blueSunPool');
     if(style==='planets')style='marbles';
-    let key='points';
-    if(style==='marbles'){state.gameType='marbles';key='planets';}
-    else if(style==='blueSunPool'){state.gameType='blueSunPool';key='center';}
-    else if(style==='ninePlanet'){state.gameType='ninePlanet';key='nine';}
-    else{state.gameType='score';key='points';}
-    loadPreferencesForGame(key);
-    if(key==='center'){
-      state.shotStyle='rubber';state.ninePocketLayout='center';if(blueSunPoolWinTitle)blueSunPoolWinTitle.textContent='CENTER POOL';if(basicRuleLine)basicRuleLine.textContent='CENTER · Rubber Band · pocket the current target · pocketing a planet continues your turn · miss passes play · game ends when the rack is empty';flash('POCKETS · CENTER · RUBBER BAND');
-    }else if(key==='nine'){
-      state.shotStyle='rubber';if(basicRuleLine)basicRuleLine.textContent='9 BALL · Rubber Band · lowest numbered planet first · legal pocket continues · legal miss passes play';renderNinePlanetPicker();flash('POCKETS · 9 BALL');
-    }else if(key==='planets'){
-      state.shotStyle='throw';if(basicRuleLine)basicRuleLine.textContent='PLANETS · Throw · score your own planets out of the playfield';flash('PLANETS · THROW');
-    }else{
-      if(basicRuleLine)basicRuleLine.textContent=`${state.shotStyle==='rubber'?'Rubber Band':'Throw / Flick'} · ${state.turnsPerPlayer} turns · first to ${state.maxScore}`;flash(state.shotStyle==='rubber'?'POINTS · RUBBER BAND':'POINTS · FLICK');
+    if(style==='blueSun'){
+      const keepStyle=state.gameType==='score'&&['throw','rubber'].includes(state.shotStyle)?state.shotStyle:'throw';
+      style=keepStyle;
     }
-    gePersistentGamePrefs.games[key]=captureSpecificGamePreferences(key);gePersistentGamePrefs.general=captureGeneralGamePreferences();writePersistentGamePreferences();syncPersistentGameControls();syncBasicGameCards();rebuildScores(false);updateHUD(true);saveGameStateSoon();
+    // Every game starts on the same natural roll profile as non-game planets.
+    applyFreeModeRollDefaults();
+    if(style==='marbles'){
+      state.gameType='marbles';state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.tracers=true;state.pointMarks=false;state.scoreFx=true;
+      syncBasicGameCards();updateHUD(true);saveGameStateSoon();flash('PLANETS · THROW');return;
+    }
+    if(style==='blueSunPool'){
+      state.gameType='blueSunPool';
+      if(blueSunPoolWinTitle)blueSunPoolWinTitle.textContent='CENTER POOL';
+      state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.tracers=true;state.pointMarks=false;state.scoreFx=true;
+      state.maxScore=111;state.rubberPower='free';
+      if(optPoolMaxScore)optPoolMaxScore.value='111';
+      if(optShotStyle)optShotStyle.value='rubber';if(optRubberPower)optRubberPower.value='free';
+      if(basicRuleLine)basicRuleLine.textContent='CENTER · Rubber Band · pocket the current target · pocketing a planet continues your turn · miss passes play · game ends when the rack is empty';
+      syncBasicGameCards();updateHUD(true);saveGameStateSoon();flash('POCKETS · CENTER · RUBBER BAND');return;
+    }
+    if(style==='ninePlanet'){
+      state.gameType='ninePlanet';
+      state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.tracers=true;state.pointMarks=false;state.scoreFx=true;state.rubberPower='free';
+      state.ninePocketLayout=state.ninePocketLayout==='center'?'center':'six';
+      state.nineRules=['classic','order','points'].includes(state.nineRules)?state.nineRules:'classic';
+      if(optShotStyle)optShotStyle.value='rubber';if(optRubberPower)optRubberPower.value='free';
+      if(optNinePocketLayout)optNinePocketLayout.value=state.ninePocketLayout;if(optNineRules)optNineRules.value=state.nineRules;
+      if(basicRuleLine)basicRuleLine.textContent='9 BALL · Rubber Band · 6 pockets · lowest numbered planet first · legal 9 wins';
+      renderNinePlanetPicker();syncBasicGameCards();updateHUD(true);saveGameStateSoon();flash('POCKETS · 9 BALL');return;
+    }
+    state.gameType='score';
+    state.shotStyle=style==='rubber'?'rubber':'throw';
+    // BASIC starts from the exact normal-site/free-mode movement feel. Advanced only modifies it.
+    state.turnsPerPlayer=3;state.maxScore=style==='rubber'?111:369;state.ballSpeed=1;state.ballAccess='free';
+    state.tracers=true;state.tracerDuration='throw';state.tracerColor='planet';state.tracerCarryFade=false;state.pointMarks=true;state.scoreFx=true;state.planetSize=1;state.rubberPower=style==='rubber'?'free':state.rubberPower;
+    state.sunPoint=true;state.sunPointValue=3;state.wallPoints=true;state.planetPoints=true;state.planetPointValue=2;state.pinballSun=true;state.magnetSun=false;
+    if(optTurnsPerSoul)optTurnsPerSoul.value='3';if(optMaxScore)optMaxScore.value=String(state.maxScore);if(optShotStyle)optShotStyle.value=state.shotStyle;if(optBallAccess)optBallAccess.value='free';if(optRubberPower)optRubberPower.value=state.rubberPower;
+    if(optTracers)optTracers.checked=true;if(optTracerDuration)optTracerDuration.value='throw';if(optTracerColor)optTracerColor.value='planet';if(optTracerCarryFade)optTracerCarryFade.checked=false;if(optPointMarks)optPointMarks.checked=true;if(optScoreFx)optScoreFx.checked=true;
+    if(optPlanetWeight)optPlanetWeight.value='100';if(optPlanetWeightValue)optPlanetWeightValue.textContent='100%';
+    if(optSunPoint)optSunPoint.checked=true;if(optSunValue)optSunValue.value='3';if(optWallPoints)optWallPoints.checked=true;if(optPlanetPoints)optPlanetPoints.checked=true;if(optPlanetValue)optPlanetValue.value='2';if(optPinballSun)optPinballSun.checked=true;if(optMagnetSun)optMagnetSun.checked=false;
+    document.documentElement.style.setProperty('--planet-size','35px');ALBUMS=getEnabledAlbums();placePlanets();requestAnimationFrame(()=>buildPlanetPhysics());
+    window.GE_GAME_TRAILS?.setVisible?.(true);window.GE_GAME_POINT_MARKS?.setVisible?.(true);window.GE_GAME_POINT_MARKS?.setAnimated?.(true);
+    syncBallSpeedButton();syncBasicGameCards();if(basicRuleLine)basicRuleLine.textContent=`3 throws per player · first to ${state.maxScore} · Bank 1 · Planet 2 · Blue Sun 3`;window.GE_APPLY_BALL_ACCESS?.('free',state.activePlayer,state.players);rebuildScores(false);updateHUD(true);saveGameStateSoon();
+    flash(state.shotStyle==='rubber'?'POINTS · RUBBER BAND':'POINTS · FLICK');
   }
   function resetControlsToBaseline(){
     const cfg=window.GE_EASY_SETTINGS||{};
@@ -6883,7 +6822,7 @@ const GE_GAME = (()=>{
 
     document.documentElement.style.setProperty('--planet-size',(35*state.planetSize)+'px');
     window.GE_GAME_TRAILS?.setVisible?.(state.tracers);
-    window.GE_GAME_POINT_MARKS?.setVisible?.(state.gameType==='score'&&state.pointMarks);
+    window.GE_GAME_POINT_MARKS?.setVisible?.(state.pointMarks);
     window.GE_GAME_POINT_MARKS?.setAnimated?.(state.scoreFx);
     try{window.GE_CLEAR_GAME_TRAILS?.();}catch(_e){}
     try{window.GE_GAME_POINT_MARKS?.clear?.();}catch(_e){}
@@ -6894,9 +6833,6 @@ const GE_GAME = (()=>{
     updateHUD(true);
     requestAnimationFrame(()=>{placePlanets();requestAnimationFrame(()=>{buildPlanetPhysics();clampPlayfield();});});
     try{localStorage.removeItem(GAME_STATE_KEY);}catch(_e){}
-    gePersistentGamePrefs={version:1,general:null,games:{}};
-    try{localStorage.removeItem(GAME_PREFS_KEY);}catch(_e){}
-    rememberCurrentGamePreferences();
     if(state.active)saveGameStateSoon();
     flash('CONTROLS RESET · V10.18 BASELINE');
   }
@@ -7580,7 +7516,6 @@ const GE_GAME = (()=>{
   let gameSaveTimer=0;
 
   function saveGameStateNow(){
-    rememberCurrentGamePreferences();
     if(!state.active) return;
     const payload={
       active:true,
@@ -7698,8 +7633,6 @@ const GE_GAME = (()=>{
     state.planetPointValue=Math.max(1,Math.min(9,Number(saved.planetPointValue)||2));
     state.pinballSun=!!saved.pinballSun;
     state.magnetSun=!!saved.magnetSun;
-    applyGeneralGamePreferences();
-    applySpecificGamePreferences(gamePrefsKey(state.gameType));
     if(optTracers) optTracers.checked=state.tracers;
     if(optPointMarks) optPointMarks.checked=state.pointMarks;
     if(optScoreFx) optScoreFx.checked=state.scoreFx;
