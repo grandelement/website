@@ -2408,6 +2408,19 @@ html,body,#siteBackground,#gameBackground,#fx,#fxFront,#planets,#sunWrap{
 html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 </style>
 <!-- GE TEST v14: pull-to-refresh killed at gesture start + Sun drag pointer capture + global no-zoom. -->
+
+<style id="ge-game-hub-glow-fix-v16">
+/* The current game chooser must stay available even if an old build saved Advanced view. */
+#gameOptionsPanel #geGameHubHome #basicGamePanel{display:grid!important;pointer-events:auto!important;}
+#gameOptionsPanel #geGameHubHome .geGameRow{pointer-events:auto!important;position:relative;z-index:2;}
+.geDetailNav{position:sticky;top:0;z-index:8;padding:4px 0 7px;background:linear-gradient(180deg,rgba(5,12,26,.98),rgba(5,12,26,.78),transparent);}
+#geGameDetailBack{min-height:42px!important;padding:8px 14px!important;}
+/* Keep the active-Soul energy ring inside the HUD instead of spilling past its edge. */
+#gameScoreCluster .playerDot.activeTurn{transform:none!important;box-shadow:inset -2px -3px 6px rgba(20,40,60,.20),0 0 5px #fff,0 0 10px rgba(75,180,255,.78)!important;}
+#gameScoreCluster .playerDot.activeTurn::before{inset:-2px!important;box-shadow:0 0 5px rgba(95,195,255,.72)!important;}
+#gameScoreCluster .playerDot.activeTurn::after{inset:-4px!important;box-shadow:0 0 4px rgba(95,195,255,.50)!important;}
+@media (orientation:portrait){#gameHUD #gameScoreCluster{padding-top:6px!important;padding-bottom:6px!important;}}
+</style>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -2731,7 +2744,7 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
       </section>
 
       <section class="geGameDetailScreen" id="geGameDetailScreen" hidden>
-        <div class="geDetailNav"><button class="geBackButton" id="geGameDetailBack" type="button">‹ GAMES</button><span class="geDetailKind" id="geGameDetailKind">PLANET GAME</span></div>
+        <div class="geDetailNav"><button class="geBackButton" id="geGameDetailBack" type="button">‹ ALL GAMES</button><span class="geDetailKind" id="geGameDetailKind">PLANET GAME</span></div>
         <h2 id="geGameDetailTitle">Throw</h2>
         <p class="geGameDetailDescription" id="geGameDetailDescription">Flick planets through the universe and score contacts.</p>
 
@@ -6394,6 +6407,10 @@ const GE_GAME = (()=>{
   }
   function showGameHub(){
     clearInterval(previewTimer);previewTimer=0;previewStep=0;
+    // The old Basic/Advanced control was removed. Never let a stale saved Advanced state hide the game list.
+    optionsPanel.classList.remove('advancedView');
+    optionsPanel.classList.add('basicView');
+    try{localStorage.setItem(GAME_OPTIONS_VIEW_KEY,'basic')}catch(_e){}
     if(geGameHubHome)geGameHubHome.hidden=false;if(geGameDetailScreen)geGameDetailScreen.hidden=true;
     const card=optionsPanel.querySelector('.geGameControlCard');
     card?.classList.remove('geViewDetail');card?.classList.add('geViewHub');
@@ -6466,7 +6483,8 @@ const GE_GAME = (()=>{
     ninePlanetPickBtn.setAttribute('aria-expanded',String(open));
     if(open)renderNinePlanetPicker();
   });
-  try{setOptionsView(localStorage.getItem(GAME_OPTIONS_VIEW_KEY)==='advanced'?'advanced':'basic')}catch(e){setOptionsView('basic')}
+  // Basic/Advanced no longer exists in the UI; always keep the game chooser visible.
+  try{setOptionsView('basic')}catch(e){optionsPanel.classList.remove('advancedView');optionsPanel.classList.add('basicView')}
   function syncBasicGameCards(){
     const pool=state.gameType==='blueSunPool',nine=state.gameType==='ninePlanet',marbles=state.gameType==='marbles';
     basicThrowGame?.classList.toggle('selected',!pool&&!nine&&!marbles);
@@ -6986,7 +7004,8 @@ const GE_GAME = (()=>{
   function poolLayout(reset=true){
     const nine=isNinePlanet();document.body.classList.add('blue-sun-pool-active');document.body.classList.toggle('nine-planet-active',nine);
     document.body.classList.toggle('nine-center-pocket',nine&&state.ninePocketLayout==='center');document.body.classList.toggle('nine-six-pocket',nine&&state.ninePocketLayout==='six');
-    state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.sunPoint=false;state.wallPoints=false;state.planetPoints=false;state.pinballSun=false;state.magnetSun=false;state.pointMarks=false;state.scoreFx=true;
+    // Center Pool and Nine Planet are always Rubber Band games.
+    state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.sunPoint=false;state.wallPoints=false;state.planetPoints=false;state.pinballSun=false;state.magnetSun=false;state.pointMarks=false;state.scoreFx=true;
     const slots=Math.max(1,state.players||0);while(state.scores.length<slots)state.scores.push(0);while(state.throwCounts.length<slots)state.throwCounts.push(0);while(state.turnProgress.length<slots)state.turnProgress.push(0);state.activePlayer=Math.max(0,Math.min(slots-1,state.activePlayer||0));
     const sizeInfo=poolApplyCssSettings();ALBUMS=getEnabledAlbums();placePlanets();poolEnsureCue();buildPlanetPhysics();
     const b=getPlanetPlayBounds(),pw=Math.max(120,b.right-b.left),ph=Math.max(120,b.bottom-b.top),landscape=pw>=ph;bluePool.lastBounds={left:b.left,top:b.top,right:b.right,bottom:b.bottom};
