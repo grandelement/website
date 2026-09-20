@@ -13,8 +13,8 @@ Preserve together:
 - Soul/host agency: ships may attract with rays, but Souls choose whether to remain; tethered Souls can break free before entry and redirect toward another ship. Background mini-ships may sometimes pull a temporary clone/drone instead of the original Soul. Autonomous tether rays must begin at the visual center of the ship.
 - Blue Sun Pool: rubber-band aiming; Blue Sun cue ball defaults to half its former pool size; target begins at 1 for every Soul; correct target scores its face value, premature/wrong pockets are lost for that run; keep shooting until all nine are gone; perfect run = 45; cumulative winning score is adjustable (default 111); pool-specific black-hole / Blue Sun / numbered-planet sizing; target number shown beside each Soul.
 - Offline Website + Game share the same page/app/cache; preserve working control-state recovery namespace.
-- Start Game prompt uses Continue Exploring or Start Game only; no redundant CLOSE/X button.
-- Game hub: Blue Sun combines Flick and Rubber Band as one game with a visible two-position FLICK / RUBBER BAND toggle on that game screen; Center Pool and Nine Planet are always Rubber Band; Marbles is Throw only and alternates turn after every shot.
+- Start Game prompt uses Continue Exploring or Start Game only; no redundant CLOSE/X button. Points defaults to Fire, Spirit, Soul, Love, Intergy; Points scoring categories and score bubbles are individually switchable. Computer-facing language is The Body; human players are Soul / Soul 1, Soul 2. Standard 9-ball inning/foul behavior follows WPA core rules. Planets uses a larger taw/shooter that may leave the ring without canceling target planets that leave during the same shot.
+- Game hub: Points combines Flick and Rubber Band; Pockets combines Center and 9 Ball; Planets is the Ring-Taw-inspired marble game. Points defaults to Fire, Spirit, Soul, Love, Intergy. Planets continues a Soul only after scoring while the taw stays in-bounds; a miss or taw-out passes the turn.
 - Browser gesture lock: no pull-to-refresh, page rubber-banding, pinch zoom, or browser double-tap zoom anywhere in the GE site; internal control panels retain deliberate vertical scrolling.
 -->
 <html lang="en">
@@ -1194,7 +1194,7 @@ Preserve together:
       0 0 30px #348cff,
       0 7px 0 rgba(0,0,0,.35);
   }
-  #pointBurst.show{animation:pointBurstAnim 1.25s ease-out forwards;}
+  #pointBurst.show{animation:pointBurstAnim 3.25s ease-out forwards;}
   #pointBurst.penalty{color:#ffd6d6;text-shadow:0 0 7px #fff,0 0 18px #ff5b5b,0 0 34px #ff2a2a;}
   #pointBurst::before,
   #pointBurst::after{
@@ -1657,7 +1657,7 @@ window.GE_EASY_SETTINGS = {
   // GAME SCORE / CONTACT RULES
   CONTACT_BONUS_POINTS: 1,
   CONTACT_PENALTY_POINTS: 1,
-  POINT_BURST_HOLD_MS: 1250,
+  POINT_BURST_HOLD_MS: 3250,
   GAME_STATE_KEY: 'GE_GAME_STATE_V10_18_CONTROL_RESET_1', // recovery namespace: ignores stale game state from later/broken builds
   GAME_AUTOSAVE_MS: 900,
   MUSIC_SHUFFLE_DEFAULT: true,
@@ -1678,8 +1678,8 @@ window.GE_EASY_SETTINGS = {
   SHIP_BROADCAST_RESPOND_MS: 6500,
   SHIP_BROADCAST_MAX_RESPONDERS: 9,
   SHIP_RAY_WIDTH: 8,
-  SHIP_RAY_TIP_DISTANCE: 0.70,       // activation point moved farther back toward the ship body
-  SHIP_RAY_TIP_RADIUS: 20,          // forgiving invisible thumb target around that tip
+  SHIP_RAY_TIP_DISTANCE: 0.82,       // rear-of-ship activation point; ray itself still originates at ship center
+  SHIP_RAY_TIP_RADIUS: 11,          // compact rear thumb target so it cannot swallow center/quantum gestures
   SHIP_CONTROL_RADIUS: 220,
   SHIP_CONTROL_DEADZONE: 18,
   SHIP_CONTROL_MAX_SPEED: 330,
@@ -2370,7 +2370,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
     lastY=e.touches[0].clientY;
     // Cancel the browser's native pan at the START of every universe/background gesture.
     // Waiting until touchmove is too late on iOS: Safari may already have armed pull-to-refresh.
-    const nativeControl=e.target?.closest?.('button,input,select,textarea,a,summary,label,[contenteditable=\"true\"]');
+    const nativeControl=e.target?.closest?.('button,input,select,textarea,a,summary,label,.moon,.toggle,.sunAbout,.btn,[contenteditable=\"true\"]');
     if((e.touches.length>1 || !nativeControl) && e.cancelable)e.preventDefault();
   },{passive:false,capture:true});
   document.addEventListener('touchmove',e=>{
@@ -2463,6 +2463,43 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
   #gameHUD .playerDot{width:28px!important;height:28px!important;min-width:28px!important;font-size:10px!important}
   #gameHUD .poolTargetMini{display:block!important;font-size:7px!important}
 }
+</style>
+
+<style id="ge-v19-soul-body-hud">
+/* v19: Soul / Body HUD. Keep the active blue energy inside the score rail. */
+#gameHUD .playerDot{overflow:hidden!important;isolation:isolate!important;transform:none!important;}
+#gameHUD .playerDot.activeTurn{
+  background:radial-gradient(circle at 31% 27%,#fff 0%,#fff 28%,#e8eef5 64%,#c7d0da 100%)!important;
+  color:#07121d!important;border:2px solid #dff4ff!important;text-shadow:none!important;
+  box-shadow:inset 0 0 0 3px rgba(76,178,255,.82),inset 0 0 12px rgba(35,132,255,.9),0 0 5px rgba(92,195,255,.62)!important;
+}
+#gameHUD .playerDot.activeTurn::before,#gameHUD .playerDot.activeTurn::after{display:none!important;}
+#gameHUD .playerScoreLabel{font-weight:1000!important;letter-spacing:.015em!important;white-space:nowrap!important;}
+@media (orientation:portrait){
+  #gameScoreCluster{padding-left:5px!important;padding-right:5px!important;}
+  #gameScoreCluster .playerScoreItem{flex-direction:column!important;gap:1px!important;}
+  #gameScoreCluster .playerScoreLabel{order:-1!important;font-size:clamp(6px,1.8vw,9px)!important;line-height:1!important;}
+}
+@media (orientation:landscape){
+  #gameHUD #gameScoreCluster{padding-left:5px!important;padding-right:5px!important;}
+  #gameHUD #gameScoreCluster .playerScoreItem{flex-direction:column!important;gap:1px!important;}
+  #gameHUD .playerScoreLabel{order:-1!important;font-size:8px!important;line-height:1!important;}
+}
+</style>
+
+<style id="ge-v20-radio-soul-hud">
+/* Radio moon: smaller immediate glow plus expanding broadcast rings. */
+.moon{isolation:isolate;}
+.moon img{box-shadow:0 0 6px 2px rgba(140,200,255,.30)!important;}
+.moon::before,.moon::after{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid rgba(120,205,255,.68);pointer-events:none;z-index:-1;animation:geMoonBroadcast 3.2s ease-out infinite;}
+.moon::after{animation-delay:1.6s;}
+@keyframes geMoonBroadcast{0%{transform:scale(.94);opacity:.62}70%{opacity:.16}100%{transform:scale(1.62);opacity:0}}
+
+/* Active Soul/Body energy stays completely inside the white score marble. */
+#gameHUD .playerDot.activeTurn{overflow:hidden!important;box-shadow:inset 0 0 0 2px rgba(165,226,255,.95),inset 0 0 10px rgba(42,151,255,.90),0 0 3px rgba(90,190,255,.35)!important;}
+#gameHUD .playerDot.activeTurn::after{content:""!important;display:block!important;position:absolute!important;inset:3px!important;border-radius:50%!important;border:1px solid rgba(105,205,255,.92)!important;box-shadow:inset 0 0 8px rgba(48,162,255,.88)!important;animation:geSoulHudPulse 1.55s ease-in-out infinite!important;pointer-events:none!important;}
+#gameHUD .playerDot.activeTurn::before{display:none!important;content:none!important;}
+@keyframes geSoulHudPulse{0%,100%{opacity:.52;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -2576,7 +2613,7 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
             <li><b>Blue Sun</b>: "Click" Teleport to another dimension. Move wherever you want.</li>
             <li><b>Album Planets</b>: Tap once to zoom and reveal the album name. Tap the zoomed planet again for the futuristic album analysis and Bandcamp link. Drag/throw for free-space planet physics.</li>
             <li><b>GE Soul particles (Comets)</b>: Continuous random flow. Click and throw. Similar apparent sizes can enter quantum reactions; rare souls have larger interaction fields.</li>
-            <li><b>GE Bodies (Ships)</b>: The large center target is touch-friendly: one tap stops/starts the ship, two taps broadcast expanding radio-frequency waves and call responsive souls toward the ship, and three taps trigger the quantum reaction. The first captured soul can settle in the ship center while additional souls orbit outside. Press and hold the middle tip of the E at the end of the ship to keep the ray on, then sweep your finger through 360°; hold in the surrounding field to steer.</li>
+            <li><b>GE Bodies (Ships)</b>: The large center target is touch-friendly: one tap stops/starts the ship, two taps broadcast expanding radio-frequency waves and call responsive souls toward the ship, and three taps trigger the quantum reaction. The first captured soul can settle in the ship center while additional souls orbit outside. Press and hold the small ray control at the rear of the ship to keep the ray on, then sweep your finger through 360°; the ship center remains reserved for one tap, two tap broadcast and three tap quantum control, while the surrounding field steers.</li>
             <li><b>Hidden text</b>: Appears near cursor, and randomly on its own; click to pin/unpin.</li>
           </ul>
         </div>
@@ -2792,18 +2829,18 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 
         <div class="geDetailTopControls">
           <div class="gePlayerBlock">
-            <div class="playerSetupLabel">PLAYERS</div>
+            <div class="playerSetupLabel">SOULS</div>
             <div class="playerStepper" aria-label="Number of players">
               <button class="stepArrow" id="playersDown" type="button" aria-label="Fewer souls">‹</button>
               <div id="playerCountLabel">1 PLAYER</div>
               <button class="stepArrow" id="playersUp" type="button" aria-label="More souls">›</button>
             </div>
             <div class="geComputerModes">
-              <label class="computerOpponentOption geComputerOption"><span>PLAY COMPUTER</span><input type="checkbox" id="optComputerOpponent"></label>
-              <button class="gameButton geComputerOnlyBtn" id="computerOnlyBtn" type="button">COMPUTER PLAY · 0 PLAYER</button>
-              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">EASY</option><option value="normal" selected>NORMAL</option><option value="hard">HARD</option><option value="master">MASTER</option></select></label>
+              <label class="computerOpponentOption geComputerOption"><span>PLAY THE BODY</span><input type="checkbox" id="optComputerOpponent"></label>
+              <button class="gameButton geComputerOnlyBtn" id="computerOnlyBtn" type="button">THE BODY PLAYS · 0 SOULS</button>
+              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">EASY</option><option value="normal" selected>NORMAL</option><option value="hard">HARD</option><option value="master">MASTER</option></select></label>
             </div>
-            <div class="small" id="computerOpponentHelp">1 player + computer, or let the computer play by itself.</div>
+            <div class="small" id="computerOpponentHelp">1 Soul + The Body, or let The Body play by itself.</div>
           </div>
           <button class="gameButton geStartGamePrimary" id="gameStartNewBtn" type="button">START GAME</button>
         </div>
@@ -2821,6 +2858,10 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
               </div>
               <select id="optShotStyle" class="shotStyleNative" aria-hidden="true" tabindex="-1"><option value="throw">THROW / FLICK</option><option value="rubber">RUBBER BAND</option></select>
             </div>
+            <label><span>BLUE SUN</span><input type="checkbox" id="optSunPoint" checked></label>
+            <label><span>BANKS</span><input type="checkbox" id="optWallPoints" checked></label>
+            <label><span>PLANETS</span><input type="checkbox" id="optPlanetPoints" checked></label>
+            <label><span>SCORE BUBBLES</span><input type="checkbox" id="optPointsScoreBubbles" checked></label>
             <label><span>Turns per soul</span><input type="number" id="optTurnsPerSoul" min="1" max="9" step="1" value="3"></label>
             <label><span>Winning score</span><input type="number" id="optMaxScore" min="10" max="999" step="1" value="369"></label>
             <label><span>Throw power</span><button class="gameButton" id="optBallSpeed" type="button">100% · NORMAL</button></label>
@@ -2857,7 +2898,7 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
           <div class="optionGroupTitle">9 BALL RULES</div>
           <select id="optNinePocketLayout" hidden><option value="six">6 POCKETS</option><option value="center">CENTER</option></select>
           <input type="hidden" id="optNineRules" value="classic">
-          <p class="small">9 Ball: contact the lowest numbered planet first. Legal combinations count. A legal 9 wins. A scratch or foul gives ball in hand. Double tap the Blue Sun to pick it up, move it, then double tap again to set it.</p>
+          <p class="small">9 Ball: contact the lowest numbered planet first. Pocket a ball legally and you continue. Hit the correct planet but pocket nothing and the turn passes. A wrong first contact, scratch, or no rail after contact is a foul and gives ball in hand. A legal 9 wins. Double tap the Blue Sun to move it when ball in hand.</p>
         </div>
 
         <div class="optionGrid marblesSpecificOptions geSpecificOptions" id="marblesSpecificOptions">
@@ -2868,7 +2909,7 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
           <label class="tuneRow"><span>Shooter size</span><input type="range" id="optMarbleShooterSize" min="110" max="175" step="1" value="150"><small class="tuneValue" id="optMarbleShooterSizeValue">150%</small></label>
           <label class="tuneRow"><span>Throw sensitivity</span><input type="range" id="optMarbleSensitivity" min="50" max="150" step="1" value="100"><small class="tuneValue" id="optMarbleSensitivityValue">100%</small></label>
           <div class="marblePlayerAlbums" id="marblePlayerAlbums"></div>
-          <p class="small">Throw only. Knock your own album marbles off the screen for points. Opponent marbles knocked out stay out. Your larger shooter marble always returns if it leaves the screen. Tracers show each throw path.</p>
+          <p class="small">Throw only. Knock your own album planets beyond the ring for points. The larger shooter is the taw. If you score and the taw stays in the ring, you shoot again from where it stopped. A miss or taw leaving the ring ends the turn; target planets that leave after the taw still count. Tracers show each throw path.</p>
         </div>
 
         <div class="gePreviewSection" id="gePreviewSection">
@@ -2886,8 +2927,8 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
         <input type="checkbox" id="optBanks" checked>
         <select id="optBallAccess"><option value="free">FREE PLANETS</option><option value="assigned">ASSIGNED PLANET PER SOUL</option><option value="duel">TWO-BALL DUEL</option></select>
         <select id="optRubberPower"><option value="free">FREE-MODE FEEL</option><option value="controlled">CONTROLLED</option><option value="high">HIGH</option><option value="extreme">EXTREME</option><option value="unlimited">UNLIMITED</option></select>
-        <input type="checkbox" id="optSunPoint" checked><input type="number" id="optSunValue" value="3">
-        <input type="checkbox" id="optWallPoints" checked><input type="checkbox" id="optPlanetPoints" checked><input type="number" id="optPlanetValue" value="2">
+        <input type="number" id="optSunValue" value="3">
+        <input type="number" id="optPlanetValue" value="2">
         <input type="checkbox" id="optPinballSun" checked><input type="checkbox" id="optMagnetSun">
       </div>
     </div>
@@ -3061,7 +3102,7 @@ const ALL_ALBUMS = [
 ];
 
 const GE_SITE_ALBUM_SELECTION_KEY='GE_SITE_PLANET_SELECTION_V2';
-const GE_GAME_ALBUM_SELECTION_KEY='GE_GAME_PLANET_SELECTION_V2';
+const GE_GAME_ALBUM_SELECTION_KEY='GE_GAME_PLANET_SELECTION_V3';
 const GE_NINE_PLANET_SELECTION_KEY='GE_NINE_PLANET_SELECTION_V1';
 const GE_ALBUM_ORDER=ALL_ALBUMS.map(a=>a.musicTitle);
 function geAlbumKey(name){ return normAlbumName(String(name||'').replace(/!$/,'')); }
@@ -3080,10 +3121,19 @@ let GE_SITE_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_SITE_ALBUM_SELECTION_KEY,
   ALL_ALBUMS.filter(a=>!a.legendary).map(a=>a.musicTitle)
 );
+const GE_POINTS_CORE_DEFAULT=['Fire','Spirit','Soul','Love','Intergy'];
 let GE_GAME_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_GAME_ALBUM_SELECTION_KEY,
-  ALL_ALBUMS.filter(a=>a.legendary).map(a=>a.musicTitle)
+  GE_POINTS_CORE_DEFAULT
 );
+try{
+  const oldDefault=['Sessions II','Sessions I','Live','Trio'].map(geAlbumKey).sort().join('|');
+  const current=GE_GAME_SELECTED_ALBUMS.map(geAlbumKey).sort().join('|');
+  if(current===oldDefault){
+    GE_GAME_SELECTED_ALBUMS=GE_POINTS_CORE_DEFAULT.slice();
+    localStorage.setItem(GE_GAME_ALBUM_SELECTION_KEY,JSON.stringify(GE_GAME_SELECTED_ALBUMS));
+  }
+}catch(_e){}
 let GE_NINE_PLANET_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_NINE_PLANET_SELECTION_KEY,
   ALL_ALBUMS.map(a=>a.musicTitle)
@@ -3108,7 +3158,7 @@ function setPlanetSelection(kind,names){
   const valid=new Set(ALL_ALBUMS.map(a=>geAlbumKey(a.musicTitle)));
   let next=Array.from(new Set((Array.isArray(names)?names:[]).filter(n=>valid.has(geAlbumKey(n)))));
   if(!next.length){
-    next=(kind==='game'?ALL_ALBUMS.filter(a=>a.legendary):ALL_ALBUMS.filter(a=>!a.legendary)).map(a=>a.musicTitle);
+    next=(kind==='game'?GE_POINTS_CORE_DEFAULT:ALL_ALBUMS.filter(a=>!a.legendary).map(a=>a.musicTitle));
   }
   if(kind==='game'){
     GE_GAME_SELECTED_ALBUMS=next;
@@ -3541,9 +3591,11 @@ function tickOrbit(){
   requestAnimationFrame(tickOrbit);
 }
 requestAnimationFrame(tickOrbit);
-moon.addEventListener('click', ()=>{
+let geRadioNavLock=false;
+function openGrandElementRadio(){
+  if(geRadioNavLock)return;
+  geRadioNavLock=true;
   // MUSIC IS PRIMARY: never deliberately stop/reset audio before changing GE views.
-  // Save a handoff snapshot for the Radio index; a future coordinated Radio build can resume it exactly.
   try{
     const p=document.getElementById('gePlayer');
     const cur=window.GE_MUSIC_CONTROLLER?.getCurrent?.();
@@ -3553,10 +3605,14 @@ moon.addEventListener('click', ()=>{
     }));
   }catch(_e){}
   try{window.GE_MUSIC_CONTROLLER?.saveSharedState?.();}catch(_e){}
-  // Navigate to Radio on the same host. The current page no longer sends an intentional STOP.
   const radioPath = location.pathname.startsWith('/website') ? '/website/radio/' : '/radio/';
   location.href = radioPath;
-});
+  setTimeout(()=>{geRadioNavLock=false;},1400);
+}
+moon.setAttribute('role','button');moon.setAttribute('tabindex','0');
+moon.addEventListener('click',e=>{e.preventDefault();openGrandElementRadio();});
+moon.addEventListener('pointerup',e=>{if(e.pointerType==='touch'){e.preventDefault();openGrandElementRadio();}});
+moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openGrandElementRadio();}});
 
 
 (function(){
@@ -5041,7 +5097,7 @@ class Ship{
     const drawW=w*.6,drawH=h*.6;
     ctx.drawImage(shipImg,-drawW*.3,-drawH*.5,drawW,drawH);
     const hitR=shipVisualRadius(this),centerCue=Math.max(32,hitR*(window.GE_EASY_SETTINGS?.SHIP_CENTER_RADIUS_FACTOR??.68));
-    const rayTip=hitR*(window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_DISTANCE??.92);
+    const rayTip=-hitR*(window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_DISTANCE??.82);
     ctx.save();ctx.globalAlpha=.16;ctx.strokeStyle='rgba(145,220,255,.9)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,0,centerCue,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=.42;ctx.fillStyle='rgba(115,220,255,.95)';ctx.shadowColor='rgba(95,205,255,.95)';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(rayTip,0,4.5,0,Math.PI*2);ctx.fill();ctx.restore();
 
@@ -5263,9 +5319,11 @@ function shipHitGeometry(s,x,y){
   const visualR=shipVisualRadius(s),d=Math.hypot(x-s.x,y-s.y);
   const centerR=Math.max(32,visualR*(window.GE_EASY_SETTINGS?.SHIP_CENTER_RADIUS_FACTOR??.68));
   const ang=Number.isFinite(s.angle)?s.angle:(Math.atan2(s.vy||0,s.vx||1)+Math.PI);
-  const tipD=visualR*(window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_DISTANCE??.92);
-  const tipX=s.x+Math.cos(ang)*tipD,tipY=s.y+Math.sin(ang)*tipD;
-  const tipR=Math.max(15,window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_RADIUS??20);
+  // The ray control lives on the REAR of the ship. The ship image/control angle points toward
+  // the previous front-side affordance, so rotate 180° for the rear activation point.
+  const tipD=visualR*(window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_DISTANCE??.82),rearAng=ang+Math.PI;
+  const tipX=s.x+Math.cos(rearAng)*tipD,tipY=s.y+Math.sin(rearAng)*tipD;
+  const tipR=Math.max(8,window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_RADIUS??11);
   const tipDist=Math.hypot(x-tipX,y-tipY);
   // Tip wins over the center if the invisible thumb zones overlap.
   if(tipDist<=tipR)return{zone:'ray',d:tipDist,centerR,tipX,tipY,tipR};
@@ -5852,6 +5910,10 @@ buildPlanetPhysics();
     if(s.gameType==='blueSunPool'||s.gameType==='ninePlanet') return !!p?.el?.classList?.contains('blueSunCueBall');
     if(s.gameType==='marbles') return !!p?.el?.classList?.contains('marbleShooter');
     if(s.computerOpponent&&s.activePlayer===1)return false;
+    if(s.gameType==='score'&&s.turnPlanetAlbum){
+      const chosen=geAlbumKey(s.turnPlanetAlbum),candidate=geAlbumKey(p?.el?.dataset?.album||'');
+      if(chosen&&candidate!==chosen)return false;
+    }
     const mode=s.ballAccess||'free';if(mode==='free')return true;
     const els=visiblePlanetEls();if(!els.length)return false;
     const idx=els.indexOf(p.el),owner=(s.activePlayer||0)%els.length;
@@ -5948,10 +6010,13 @@ buildPlanetPhysics();
   host.addEventListener('pointerdown',e=>{
     const el=e.target.closest('.planet');if(!el)return;const p=(window.planetNodes||[]).find(q=>q.el===el);if(!p)return;
     if(isGame()){
-      if(activeShot||!tableStill()){window.GE_GAME?.notify?.('PLANETS STILL MOVING');e.preventDefault();return;}
-      if(!canShoot(p)){const gs=gameState();window.GE_GAME?.notify?.(gs?.computerOpponent&&gs?.activePlayer===1?'COMPUTER TURN':'USE YOUR ACTIVE PLANET');e.preventDefault();return;}
-      // Nine Planet cue placement: double-tap toggles pick-up/drop. While picked up, drag places the cue without shooting.
       const gs=gameState(),poolState=window.GE_BLUE_SUN_POOL?.state;
+      if(activeShot||!tableStill()){window.GE_GAME?.notify?.('PLANETS STILL MOVING');e.preventDefault();return;}
+      if(!canShoot(p)){const msg=gs?.computerOpponent&&gs?.activePlayer===1?"THE BODY'S TURN":(gs?.gameType==='score'&&gs?.turnPlanetAlbum?'ONE PLANET PER TURN':'USE YOUR ACTIVE PLANET');window.GE_GAME?.notify?.(msg);e.preventDefault();return;}
+      // POINTS: the first planet touched owns this Soul's current scoring turn. Other planets are locked
+      // until that scoring throw completes, preventing a Soul from stacking/repositioning several planets.
+      if(gs?.gameType==='score'&&!gs.turnPlanetAlbum)gs.turnPlanetAlbum=p.el?.dataset?.album||'';
+      // Nine Planet cue placement: double-tap toggles pick-up/drop. While picked up, drag places the cue without shooting.
       if(gs?.gameType==='ninePlanet'&&p.el?.classList?.contains('blueSunCueBall')&&poolState){
         const now=performance.now(),isDouble=now-(poolState.lastCueTap||0)<340;poolState.lastCueTap=now;
         if(isDouble){poolState.cueMoveMode=!poolState.cueMoveMode;p.el.classList.toggle('cueMoveMode',poolState.cueMoveMode);if(!poolState.cueMoveMode){poolState.ballInHand=null;p.el.classList.remove('cueBallInHand');}window.GE_GAME?.notify?.(poolState.cueMoveMode?'CUE BALL PICKED UP · DRAG IT':'CUE BALL SET');e.preventDefault();return;}
@@ -6205,6 +6270,7 @@ const GE_GAME = (()=>{
     tracers:(window.GE_EASY_SETTINGS?.TRACERS_ON ?? true),
     pointMarks:(window.GE_EASY_SETTINGS?.POINT_MARKS_ON ?? true),
     scoreFx:(window.GE_EASY_SETTINGS?.SCORE_FX_ON ?? true),
+    pointsScoreBubbles:true,
     tracerDuration:(window.GE_EASY_SETTINGS?.TRACER_DURATION_DEFAULT ?? 'throw'),
     tracerColor:(window.GE_EASY_SETTINGS?.TRACER_COLOR_DEFAULT ?? 'planet'),
     tracerLengthMs:(window.GE_EASY_SETTINGS?.TRACER_LIVE_LENGTH_MS ?? 30000),
@@ -6249,7 +6315,8 @@ const GE_GAME = (()=>{
     completed:false,
     planetState:new WeakMap(),
     autoNext:0,
-    demoAwaitingPlayers:false
+    demoAwaitingPlayers:false,
+    turnPlanetAlbum:null
   };
   const PRECISION_SHOT_BASE=.75;
   function precisionSensitivityToUi(v){return Math.round((Number(v)||PRECISION_SHOT_BASE)/PRECISION_SHOT_BASE*100);}
@@ -6321,6 +6388,7 @@ const GE_GAME = (()=>{
   const optRollLength=document.getElementById('optRollLength'),optRollLengthValue=document.getElementById('optRollLengthValue');
   const optWallBounce=document.getElementById('optWallBounce'),optWallBounceValue=document.getElementById('optWallBounceValue');
   const optPlanetBounce=document.getElementById('optPlanetBounce'),optPlanetBounceValue=document.getElementById('optPlanetBounceValue');
+  const optPointsScoreBubbles=document.getElementById('optPointsScoreBubbles');
   const optRubberPower=document.getElementById('optRubberPower');
   const optShotStyle=document.getElementById('optShotStyle');
   const shotStyleThrowBtn=document.getElementById('shotStyleThrowBtn'),shotStyleRubberBtn=document.getElementById('shotStyleRubberBtn');
@@ -6479,7 +6547,7 @@ const GE_GAME = (()=>{
     const count=state.players===0?2:Math.max(1,state.players||1),used=new Set();
     while(state.marbleAlbums.length<count)state.marbleAlbums.push(ALL_ALBUMS[state.marbleAlbums.length%ALL_ALBUMS.length].musicTitle);
     for(let i=0;i<count;i++){
-      const row=document.createElement('label');row.className='marblePlayerAlbumRow';const name=document.createElement('span');name.textContent=state.players===0?('CPU '+(i+1)):(isComputerPlayer(i)?'COMPUTER':('SOUL '+(i+1)));
+      const row=document.createElement('label');row.className='marblePlayerAlbumRow';const name=document.createElement('span');name.textContent=displayRoleLabel(i);
       const sel=document.createElement('select');
       ALL_ALBUMS.forEach((a,idx)=>{const o=document.createElement('option');o.value=a.musicTitle;o.textContent=a.title;if(geAlbumKey(a.musicTitle)===geAlbumKey(state.marbleAlbums[i]||ALL_ALBUMS[i%ALL_ALBUMS.length].musicTitle))o.selected=true;sel.appendChild(o)});
       sel.addEventListener('change',()=>{state.marbleAlbums[i]=sel.value;saveGameStateSoon();if(state.active&&state.gameType==='marbles')window.GE_MARBLES?.layout?.(true)});
@@ -6535,7 +6603,7 @@ const GE_GAME = (()=>{
     const nine=state.gameType==='ninePlanet';
     pocketsCenterBtn?.classList.toggle('active',!nine);pocketsCenterBtn?.setAttribute('aria-pressed',String(!nine));
     pocketsNineBtn?.classList.toggle('active',nine);pocketsNineBtn?.setAttribute('aria-pressed',String(nine));
-    if(pocketsModeHelp)pocketsModeHelp.textContent=nine?'9 BALL: contact the lowest numbered planet first. A legal 9 wins. Scratch gives ball in hand.':'CENTER: score the numbered planets into the center. Your turn passes when no object planet is pocketed.';
+    if(pocketsModeHelp)pocketsModeHelp.textContent=nine?'9 BALL: lowest planet first. A legal pocket continues the turn; a legal miss passes the turn. Fouls give ball in hand.':'CENTER: score the numbered planets into the center. Your turn passes when no object planet is pocketed.';
     if(optNinePocketLayout)optNinePocketLayout.value=nine?'six':'center';
     setDetailClasses('pockets');
   }
@@ -6738,10 +6806,15 @@ const GE_GAME = (()=>{
 
   function isComputerPlayer(i){return !!state.computerOpponent&&state.players===2&&i===1;}
   function playerLabel(i){
-    if(state.players===0) return 'AUTO';
-    if(isComputerPlayer(i)) return 'COMPUTER';
+    if(state.players===0) return 'THE BODY';
+    if(isComputerPlayer(i)) return 'THE BODY';
     const n=String(state.profiles[i]?.name||'').trim();
     return n || ('Soul '+(i+1));
+  }
+  function displayRoleLabel(i){
+    if(state.players===0||isComputerPlayer(i))return 'THE BODY';
+    const humanCount=state.computerOpponent?1:state.players;
+    return humanCount<=1?'SOUL':('SOUL '+(i+1));
   }
   function playerMultiplierValue(i){ return 1; }
   function rebuildScores(reset=false){
@@ -6768,7 +6841,7 @@ const GE_GAME = (()=>{
     clearTimeout(soulFadeTimer);
 
     const score=state.scores[index]||0;
-    const name=state.players===0?'AUTO':playerLabel(index);
+    const name=state.players===0?'THE BODY':playerLabel(index);
     soulFlyName.textContent=name;
     const throws=state.throwCounts?.[index]||0;
     soulFlyScore.textContent=score+' POINT'+(score===1?'':'S')+' · '+throws+' THROW'+(throws===1?'':'S');
@@ -6822,10 +6895,11 @@ const GE_GAME = (()=>{
       const lab=document.createElement('div');
       lab.className='playerScoreLabel';
       if(state.players===0){
-        lab.textContent='AUTO';
+        lab.textContent='BODY';
         el.addEventListener('click',(ev)=>{ev.stopPropagation();showSoulFlyout(0,el);});
       }else{
-        lab.textContent=isComputerPlayer(i)?'CPU':('P'+(i+1));
+        const humanCount=state.computerOpponent?1:state.players;
+        lab.textContent=isComputerPlayer(i)?'BODY':(humanCount===1?'SOUL':('SOUL '+(i+1)));
         el.addEventListener('click',(ev)=>{ev.stopPropagation();showSoulFlyout(i,el);});
       }
 
@@ -6855,7 +6929,7 @@ const GE_GAME = (()=>{
     }
   }
   function updatePlayerOption(){
-    playerCountLabel.textContent=state.players===0?'0 PLAYER · COMPUTER':(state.computerOpponent?'1 PLAYER + COMPUTER':`${state.players} PLAYER${state.players===1?'':'S'}`);
+    playerCountLabel.textContent=state.players===0?'0 SOULS · THE BODY':(state.computerOpponent?'1 SOUL + THE BODY':`${state.players} SOUL${state.players===1?'':'S'}`);
     if(optComputerOpponent)optComputerOpponent.checked=!!state.computerOpponent;
     if(computerOnlyBtn)computerOnlyBtn.classList.toggle('active',state.players===0&&!state.computerOpponent);
     if(optComputerDifficulty)optComputerDifficulty.value=state.computerDifficulty||'normal';
@@ -6897,21 +6971,21 @@ const GE_GAME = (()=>{
     const activeTotal=state.scores[state.activePlayer]||0;
     if(totalTextEl){
       if(isBlueSunPool())totalTextEl.textContent=`SCORE ${activeTotal} · ${bluePool.pocketed.size}/${poolBallCount()} IN`;
-      else if(isNinePlanet())totalTextEl.textContent=state.nineRules==='points'?`POINTS ${activeTotal}`:`RACK · SOUL ${state.activePlayer+1}`;
+      else if(isNinePlanet())totalTextEl.textContent=state.nineRules==='points'?`POINTS ${activeTotal}`:`RACK · ${displayRoleLabel(state.activePlayer)}`;
       else totalTextEl.textContent=`TOTAL ${activeTotal} / ${state.maxScore}`;
     }
     const targetBadge=document.getElementById('gameTargetBadge');if(targetBadge){const tl=targetBadge.querySelector('.targetLabel'),tv=targetBadge.querySelector('.targetValue');if(isBlueSunPool()){if(tl)tl.textContent='TARGET';if(tv)tv.textContent=String(Math.min(poolTargetCap(),bluePool.next));}else if(isNinePlanet()){if(tl)tl.textContent=state.nineRules==='points'?'RULE':'TARGET';if(tv)tv.textContent=state.nineRules==='points'?'ANY':String(Math.min(poolTargetCap(),bluePool.next));}else{if(tl)tl.textContent='FIRST TO';if(tv)tv.textContent=String(state.maxScore);else targetBadge.textContent=`FIRST TO ${state.maxScore}`;}}
     ruleEl.textContent=isBlueSunPool()?(bluePool.phase==='break'?'BREAK · TARGET 1':`TARGET ${Math.min(poolTargetCap(),bluePool.next)} · EARLY BALL = LOST`):(isNinePlanet()?`${state.ninePocketLayout==='center'?'CENTER':'6 POCKETS'} · ${state.nineRules.toUpperCase()}`:'SCORE');
     updatePlayerOption();
     if(state.players===0){
-      activeNameEl.textContent='AUTO / DEMO';
+      activeNameEl.textContent='THE BODY';
     }else if(isBlueSunPool()){
-      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · ${bluePool.phase==='break'?'BREAK · TARGET 1':('TARGET '+Math.min(poolTargetCap(),bluePool.next))} · RUN ${bluePool.runPoints}`;
+      activeNameEl.textContent=`${displayRoleLabel(state.activePlayer)} · ${bluePool.phase==='break'?'BREAK · TARGET 1':('TARGET '+Math.min(poolTargetCap(),bluePool.next))} · RUN ${bluePool.runPoints}`;
     }else if(isNinePlanet()){
-      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · ${state.nineRules==='points'?'ANY BALL':'TARGET '+Math.min(poolTargetCap(),bluePool.next)}`;
+      activeNameEl.textContent=`${displayRoleLabel(state.activePlayer)} · ${state.nineRules==='points'?'ANY BALL':'TARGET '+Math.min(poolTargetCap(),bluePool.next)}`;
     }else{
       const mult=playerMultiplierValue(state.activePlayer);
-      activeNameEl.textContent=`SOUL ${state.activePlayer+1} · ${Math.max(0,state.turnsPerPlayer-state.turnInSet)} THROW${Math.max(0,state.turnsPerPlayer-state.turnInSet)===1?'':'S'} LEFT`;
+      activeNameEl.textContent=`${displayRoleLabel(state.activePlayer)} · ${Math.max(0,state.turnsPerPlayer-state.turnInSet)} THROW${Math.max(0,state.turnsPerPlayer-state.turnInSet)===1?'':'S'} LEFT`;
     }
     if(optTurnsPerSoul) optTurnsPerSoul.value=String(state.turnsPerPlayer);
     if(optMaxScore) optMaxScore.value=String(state.maxScore);
@@ -6924,6 +6998,7 @@ const GE_GAME = (()=>{
     if(optTracerGlow){optTracerGlow.value=String(state.tracerGlow);optTracerGlowValue.textContent=String(Math.round(state.tracerGlow));}
     if(optTracerColorStrength){optTracerColorStrength.value=String(Math.round(state.tracerColorStrength*100));optTracerColorStrengthValue.textContent=Math.round(state.tracerColorStrength*100)+'%';}
     if(optTracerCarryFade)optTracerCarryFade.checked=!!state.tracerCarryFade;
+    if(optPointsScoreBubbles)optPointsScoreBubbles.checked=state.pointsScoreBubbles!==false;
     if(optPlanetSize){optPlanetSize.value=String(Math.round(state.planetSize*100));optPlanetSizeValue.textContent=Math.round(state.planetSize*100)+'%';}
     if(optPlanetWeight){optPlanetWeight.value=String(Math.round(state.planetWeight*100));optPlanetWeightValue.textContent=Math.round(state.planetWeight*100)+'%';}
     if(optRollLength){optRollLength.value=String(Math.round(state.rollLength*100));optRollLengthValue.textContent=Math.round(state.rollLength*100)+'%';}
@@ -7164,28 +7239,54 @@ const GE_GAME = (()=>{
   function poolRegisterThrow(p,shotId=0){
     if(!state.active||!state.running||!isBlueSunGame()||!p?.el?.classList?.contains('blueSunCueBall')||state.pendingShot)return false;
     const shooter=state.activePlayer;if(!Array.isArray(state.throwCounts)||state.throwCounts.length<Math.max(1,state.players))state.throwCounts=Array(Math.max(1,state.players)).fill(0);
-    state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;bluePool.shot={player:shooter,scratch:false,breakShot:bluePool.phase==='break',correct:[],wrong:[],pocketed:[],firstContact:null,targetAtStart:Math.min(poolTargetCap(),bluePool.next)};
+    state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;bluePool.shot={player:shooter,scratch:false,breakShot:bluePool.phase==='break',correct:[],wrong:[],pocketed:[],firstContact:null,targetAtStart:Math.min(poolTargetCap(),bluePool.next),railAfterContact:false,railBalls:new Set(),pushOut:!!bluePool.pushOutActive};
+    if(bluePool.pushOutActive){bluePool.pushOutActive=false;bluePool.pushOutAvailable=false;document.body.classList.remove('nine-push-available');}
     state.pendingShot={id:shotId,player:shooter,planet:p,round:state.round,scoreBefore:state.scores[shooter]||0};
-    const who=state.players===0?'AUTO':('SOUL '+(shooter+1));
+    const who=state.players===0?'THE BODY':displayRoleLabel(shooter);
     flash(`${bluePool.shot.breakShot?'BREAK':(isNinePlanet()?who:who+' · TARGET '+Math.min(poolTargetCap(),bluePool.next))} · THROW ${state.throwCounts[shooter]}`);updateHUD(false);saveGameStateSoon();return true;
   }
   function poolFinishNineShot(shot){
     const player=shot.player,classic=state.nineRules==='classic',order=state.nineRules==='order',points=state.nineRules==='points';
-    const legalFirst=points||shot.firstContact===shot.targetAtStart;let foul=shot.scratch||!legalFirst;
+    const pushOut=!!shot.pushOut;
+    const legalFirst=pushOut||points||shot.firstContact===shot.targetAtStart;
+    const railSatisfied=pushOut||shot.pocketed.length>0||!!shot.railAfterContact;
+    const breakRailSatisfied=!shot.breakShot||shot.pocketed.length>0||((shot.railBalls?.size||0)>=4);
+    let foul=shot.scratch||!legalFirst||!railSatisfied||!breakRailSatisfied;
     if(order&&shot.wrong.length){shot.wrong.forEach((n,i)=>poolRespotNumber(n,i));foul=true;}
     const finalBall=poolBallCount(),nineDown=shot.pocketed.includes(finalBall);
-    if(foul&&nineDown)poolRespotNumber(finalBall,shot.wrong.length+1);
-    if(shot.scratch){poolRespotCue();bluePool.ballInHand='anywhere';const cue=poolCueNode();cue?.el?.classList.add('cueBallInHand');flash('SCRATCH · DOUBLE TAP TO MOVE SUN');}
+    if((foul||pushOut)&&nineDown)poolRespotNumber(finalBall,shot.wrong.length+1);
+    if(foul){
+      while(bluePool.foulStreak.length<Math.max(1,state.players||1))bluePool.foulStreak.push(0);
+      bluePool.foulStreak[player]=(bluePool.foulStreak[player]||0)+1;
+    }else if(!pushOut){
+      while(bluePool.foulStreak.length<Math.max(1,state.players||1))bluePool.foulStreak.push(0);
+      bluePool.foulStreak[player]=0;
+    }
+    if(shot.scratch||foul){poolRespotCue();bluePool.ballInHand='anywhere';const cue=poolCueNode();cue?.el?.classList.add('cueBallInHand');}
     if(shot.breakShot&&state.ninePocketLayout==='center'){poolClearRackAfterBreak();const centerPocket=document.getElementById('blueSunPoolPocket');if(centerPocket)centerPocket.style.opacity='1';}
     bluePool.phase='play';bluePool.next=poolNextTarget();
-    if(nineDown&&!foul&&(classic||order)){if(state.players===0){state.running=false;setTimeout(()=>{if(state.active&&state.players===0){state.running=true;poolLayout(true);flash('AUTO · NEW RACK');}},650);return;}showNineWinner(player,`${playerLabel(player)} legally pocketed the ${finalBall} planet.`);return;}
+    if(classic&&bluePool.foulStreak[player]>=3&&state.players>0){showNineWinner((player+1)%Math.max(1,state.players),`${playerLabel(player)} committed three consecutive fouls.`);return;}
+    if(nineDown&&!foul&&!pushOut&&(classic||order)){if(state.players===0){state.running=false;setTimeout(()=>{if(state.active&&state.players===0){state.running=true;poolLayout(true);flash('THE BODY · NEW RACK');}},650);return;}showNineWinner(player,`${playerLabel(player)} legally pocketed the ${finalBall} planet.`);return;}
     if(points&&bluePool.pocketed.size>=poolBallCount()){
-      if(state.players===0){state.running=false;setTimeout(()=>{if(state.active&&state.players===0){state.scores[0]=0;state.running=true;poolLayout(true);flash('AUTO · NEW RACK');}},650);return;}
+      if(state.players===0){state.running=false;setTimeout(()=>{if(state.active&&state.players===0){state.scores[0]=0;state.running=true;poolLayout(true);flash('THE BODY · NEW RACK');}},650);return;}
       const top=Math.max(...state.scores.slice(0,Math.max(1,state.players))),winners=[];for(let i=0;i<Math.max(1,state.players);i++)if((state.scores[i]||0)===top)winners.push(i);
       if(winners.length===1)showNineWinner(winners[0],`${playerLabel(winners[0])} wins the rack with ${top} points.`);else{bluePool.won=true;state.running=false;if(blueSunPoolWinTitle)blueSunPoolWinTitle.textContent='NINE PLANET';if(blueSunPoolWinSummary)blueSunPoolWinSummary.textContent=`Rack tied at ${top} points.`;blueSunPoolWin?.classList.add('show');}return;
     }
+    if(pushOut&&!foul){
+      bluePool.pushOutChooser=(player+1)%Math.max(1,state.players||1);
+      if(state.players>1&&ninePushChoice){ninePushChoice.classList.add('show');ninePushChoice.setAttribute('aria-hidden','false');state.running=false;flash('PUSH OUT · NEXT SOUL CHOOSES');updateHUD(true);return;}
+    }
     const legalPocket=shot.pocketed.some(n=>bluePool.pocketed.has(n));
-    if(foul||!legalPocket){poolSwitchPlayer();flash(shot.scratch?'SCRATCH · DOUBLE TAP TO MOVE SUN':(foul?'FOUL · NEXT SOUL':'MISS · NEXT SOUL'));}else{flash(`SOUL ${player+1} CONTINUES`);updateHUD(true);}
+    if(foul||!legalPocket){
+      poolSwitchPlayer();
+      if(shot.scratch)flash('SCRATCH · DOUBLE TAP TO MOVE SUN');
+      else if(!legalFirst)flash('FOUL · LOWEST PLANET FIRST · BALL IN HAND');
+      else if(!railSatisfied)flash('FOUL · NO RAIL AFTER CONTACT · BALL IN HAND');
+      else if(!breakRailSatisfied)flash('FOUL BREAK · BALL IN HAND');
+      else flash('MISS · NEXT SOUL');
+    }else{flash(`${playerLabel(player)} CONTINUES`);updateHUD(true);}
+    if(shot.breakShot&&!foul){bluePool.pushOutAvailable=true;document.body.classList.add('nine-push-available');}
+    else if(!shot.breakShot){bluePool.pushOutAvailable=false;document.body.classList.remove('nine-push-available');}
   }
   function poolFinishThrow(p,shotId=0){
     const pending=state.pendingShot;if(!pending||pending.planet!==p||(shotId&&pending.id&&shotId!==pending.id))return;const shot=bluePool.shot||{player:pending.player,scratch:false,breakShot:false,correct:[],wrong:[],pocketed:[]};
@@ -7193,7 +7294,7 @@ const GE_GAME = (()=>{
     if(isNinePlanet()){poolFinishNineShot(shot);saveGameStateSoon();return;}
     if(shot.breakShot){bluePool.phase='play';poolClearRackAfterBreak();const pocket=document.getElementById('blueSunPoolPocket');if(pocket)pocket.style.opacity='1';if(shot.scratch)poolRespotCue();flash(`TARGET 1 · KEEP SHOOTING UNTIL ALL ${poolBallCount()} ARE GONE`);}else{if(shot.scratch)poolRespotCue();if(!bluePool.won){if(shot.correct.length)flash(`+${shot.correct.reduce((a,n)=>a+n,0)} · ${bluePool.next<=9?'TARGET '+bluePool.next:'RUN COMPLETE'}`);else if(shot.wrong.length)flash(`LOST ${shot.wrong.join(', ')} · TARGET ${Math.min(poolTargetCap(),bluePool.next)}`);else if(shot.scratch)flash(`SCRATCH · BLUE SUN RETURNS · TARGET ${Math.min(poolTargetCap(),bluePool.next)}`);else flash(`KEEP SHOOTING · TARGET ${Math.min(poolTargetCap(),bluePool.next)}`);}}
     const runDone=bluePool.pocketed.size>=poolBallCount();
-    if(!runDone&&!shot.breakShot&&!bluePool.won){const objectDropped=shot.pocketed.length>0;if(shot.scratch||!objectDropped){poolSwitchPlayer();flash(shot.scratch?'SCRATCH · NEXT SOUL':'MISS · NEXT SOUL');}else{flash(`SOUL ${shot.player+1} CONTINUES · TARGET ${Math.min(poolTargetCap(),bluePool.next)}`);}}
+    if(!runDone&&!shot.breakShot&&!bluePool.won){const objectDropped=shot.pocketed.length>0;if(shot.scratch||!objectDropped){poolSwitchPlayer();flash(shot.scratch?'SCRATCH · NEXT SOUL':'MISS · NEXT SOUL');}else{flash(`${displayRoleLabel(shot.player)} CONTINUES · TARGET ${Math.min(poolTargetCap(),bluePool.next)}`);}}
     updateHUD(true);saveGameStateSoon();if(runDone&&!bluePool.won)poolCompleteRun(shot.player);
   }
   function poolPhysicsTick(nodes){
@@ -7229,16 +7330,16 @@ const GE_GAME = (()=>{
   function marbleTeardown(){document.body.classList.remove('marbles-game-active');document.querySelectorAll('.marbleTarget,.marbleShooter').forEach(el=>el.remove());}
   function marbleBuildBall(album,cls,owner,size,x,y){
     const el=document.createElement('div');el.className='planet '+cls;el.dataset.album=album.musicTitle;el.dataset.marbleOwner=String(owner);el.title=album.title;el.style.backgroundImage=`url('${album.cover}')`;el.style.width=size+'px';el.style.height=size+'px';el.style.left=(x-size/2)+'px';el.style.top=(y-size/2)+'px';
-    const mark=document.createElement('span');mark.className='marbleOwnerMark';mark.textContent='S'+(owner+1);el.appendChild(mark);planetsEl.appendChild(el);return el;
+    const mark=document.createElement('span');mark.className='marbleOwnerMark';mark.textContent=isComputerPlayer?.(owner)?'B':('S'+(owner+1));el.appendChild(mark);planetsEl.appendChild(el);return el;
   }
   function marbleLayout(reset=true){
     if(!isMarbles())return;poolTeardown();marbleTeardown();document.body.classList.add('marbles-game-active');document.body.classList.remove('blue-sun-pool-active','nine-planet-active','nine-center-pocket','nine-six-pocket');
     state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.sunPoint=false;state.wallPoints=false;state.planetPoints=false;state.pinballSun=false;state.magnetSun=false;state.pointMarks=false;
-    const actualPlayers=Math.max(1,state.players||2),scoreSlots=Math.max(1,state.players||2);while(state.scores.length<scoreSlots)state.scores.push(0);while(state.throwCounts.length<scoreSlots)state.throwCounts.push(0);state.activePlayer=Math.max(0,Math.min(scoreSlots-1,state.activePlayer||0));
+    const actualPlayers=Math.max(1,state.players||1),scoreSlots=Math.max(1,state.players||1);while(state.scores.length<scoreSlots)state.scores.push(0);while(state.throwCounts.length<scoreSlots)state.throwCounts.push(0);state.activePlayer=Math.max(0,Math.min(scoreSlots-1,state.activePlayer||0));
     planetsEl.innerHTML='';for(const key of Object.keys(albumPlanets))delete albumPlanets[key];
     const b=getPlanetPlayBounds(),w=b.right-b.left,h=b.bottom-b.top,cx=(b.left+b.right)/2,cy=(b.top+b.bottom)/2,base=Math.max(18,Math.min(42,Math.min(w,h)*.055));
     const count=Math.max(2,Math.min(50,state.marbleCount||5)),total=count*actualPlayers,density=Math.max(.44,Math.min(1,Math.sqrt(24/Math.max(24,total))));
-    const marbleD=base*Math.max(.55,Math.min(1.2,state.marbleSize||.72))*density,shooterD=marbleD*Math.max(1,Math.min(1.65,state.marbleShooterSize||1.25));
+    const marbleD=base*Math.max(.55,Math.min(1.2,state.marbleSize||.72))*density,shooterD=marbleD*Math.max(1,Math.min(1.75,state.marbleShooterSize||1.5));
     const safeL=b.left+marbleD*.8,safeR=b.right-marbleD*.8,safeT=b.top+marbleD*.8,safeB=b.bottom-marbleD*.8;
     const clampPt=(x,y)=>({x:Math.max(safeL,Math.min(safeR,x)),y:Math.max(safeT,Math.min(safeB,y))});
     const ringPositions=(n,ox,oy,maxR,phase=0)=>{
@@ -7268,20 +7369,61 @@ const GE_GAME = (()=>{
     marbleGame.shot=null;marbleGame.lastBounds={left:b.left,top:b.top,right:b.right,bottom:b.bottom};window.GE_GAME_TRAILS?.setVisible?.(state.tracers);updateHUD(true);saveGameStateSoon();
   }
   function marbleShooterNode(){return planetNodes.find(p=>p.el?.classList?.contains('marbleShooter'))||null;}
-  function marbleRefreshShooter(){const p=marbleShooterNode();if(!p)return;const slots=Math.max(1,state.players||2),owner=state.activePlayer%slots,album=marbleAlbumForPlayer(owner);p.el.dataset.marbleOwner=String(owner);p.el.dataset.album=album.musicTitle;p.el.style.backgroundImage=`url('${album.cover}')`;const m=p.el.querySelector('.marbleOwnerMark');if(m)m.textContent='S'+(owner+1);const b=getPlanetPlayBounds();p.x=(b.left+b.right)/2;p.y=b.bottom-(b.bottom-b.top)*.13;p.vx=0;p.vy=0;p.poolPocketed=false;p.el.classList.remove('poolPocketed');p.el.style.display='';poolSyncNode(p);}
-  function marbleReturnShooter(p){if(!isMarbles()||!p?.el?.classList?.contains('marbleShooter'))return false;const b=getPlanetPlayBounds();p.x=(b.left+b.right)/2;p.y=b.bottom-(b.bottom-b.top)*.13;p.vx=0;p.vy=0;p.dragging=false;p.poolPocketed=false;p.el.style.display='';poolSyncNode(p);flash('SHOOTER RETURNED');return true;}
+  function marbleRefreshShooter(){const p=marbleShooterNode();if(!p)return;const slots=Math.max(1,state.players||1),owner=state.activePlayer%slots,album=marbleAlbumForPlayer(owner);p.el.dataset.marbleOwner=String(owner);p.el.dataset.album=album.musicTitle;p.el.style.backgroundImage=`url('${album.cover}')`;const m=p.el.querySelector('.marbleOwnerMark');if(m)m.textContent=isComputerPlayer(owner)?'B':('S'+(owner+1));const b=getPlanetPlayBounds();p.x=(b.left+b.right)/2;p.y=b.bottom-(b.bottom-b.top)*.13;p.vx=0;p.vy=0;p.poolPocketed=false;p.el.classList.remove('poolPocketed','marbleShooterOut');p.el.style.display='';poolSyncNode(p);}
+  function marbleReturnShooter(p){
+    if(!isMarbles()||!p?.el?.classList?.contains('marbleShooter'))return false;
+    // Traditional Ringer treats the shooter leaving the ring as the end of that shot.
+    // Hide/freeze it until every target finishes moving so any target planets that leave afterward still count.
+    p.vx=0;p.vy=0;p.dragging=false;p.poolPocketed=true;p.el.classList.add('marbleShooterOut');p.el.style.display='none';
+    if(marbleGame.shot)marbleGame.shot.shooterOut=true;
+    flash('SHOOTER OUT · TARGETS STILL COUNT');return true;
+  }
   function marbleOut(p){
     if(!isMarbles()||!p||p.poolPocketed||!p.el?.classList?.contains('marbleTarget'))return false;p.poolPocketed=true;p.el.classList.add('poolPocketed');p.el.style.display='none';p.vx=0;p.vy=0;const owner=Number(p.el.dataset.marbleOwner)||0,shot=marbleGame.shot;
     if(shot){if(owner===shot.player){shot.ownOut++;state.scores[shot.player]=(state.scores[shot.player]||0)+1;showPointBurst(1,'score');}else shot.otherOut++;}
     updateHUD(false);return true;
   }
-  function marbleRegisterThrow(p,shotId=0){if(!state.active||!state.running||!isMarbles()||!p?.el?.classList?.contains('marbleShooter')||state.pendingShot)return false;const shooter=state.activePlayer;if(!Array.isArray(state.throwCounts)||state.throwCounts.length<Math.max(1,state.players||2))state.throwCounts=Array(Math.max(1,state.players||2)).fill(0);state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;marbleGame.shot={player:shooter,ownOut:0,otherOut:0};state.pendingShot={id:shotId,player:shooter,planet:p,round:state.round,scoreBefore:state.scores[shooter]||0};flash(`SOUL ${shooter+1} · MARBLE SHOT ${state.throwCounts[shooter]}`);updateHUD(false);return true;}
-  function marbleFinishThrow(p,shotId=0){const pending=state.pendingShot;if(!pending||pending.planet!==p||(shotId&&pending.id&&shotId!==pending.id))return;const shot=marbleGame.shot||{player:pending.player,ownOut:0,otherOut:0};state.pendingShot=null;marbleGame.shot=null;const liveTargets=planetNodes.filter(q=>q.el?.classList?.contains('marbleTarget')&&!q.poolPocketed);if(!liveTargets.length){const scores=state.scores.slice(0,Math.max(1,state.players||2)),top=Math.max(...scores),winner=scores.indexOf(top);if(state.players===0){setTimeout(()=>{if(state.active&&isMarbles()){state.scores=[0,0];state.activePlayer=0;marbleLayout(true)}},700)}else{bluePool.won=true;state.running=false;if(blueSunPoolWinTitle)blueSunPoolWinTitle.textContent='MARBLES';if(blueSunPoolWinSummary)blueSunPoolWinSummary.textContent=`${playerLabel(winner)} wins ${top} point${top===1?'':'s'}.`;blueSunPoolWin?.classList.add('show');}return;}
-    const slots=Math.max(1,state.players||2);state.activePlayer=(shot.player+1)%slots;
-    const scored=shot.ownOut>0?`+${shot.ownOut} · `:(shot.otherOut?'OPPONENT MARBLE OUT · ':'');
-    flash(`${scored}NEXT · SOUL ${state.activePlayer+1}`);
-    marbleRefreshShooter();updateHUD(true);saveGameStateSoon();}
+  function marbleRegisterThrow(p,shotId=0){if(!state.active||!state.running||!isMarbles()||!p?.el?.classList?.contains('marbleShooter')||state.pendingShot)return false;const shooter=state.activePlayer;if(!Array.isArray(state.throwCounts)||state.throwCounts.length<Math.max(1,state.players||1))state.throwCounts=Array(Math.max(1,state.players||1)).fill(0);state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;marbleGame.shot={player:shooter,ownOut:0,otherOut:0,shooterOut:false};state.pendingShot={id:shotId,player:shooter,planet:p,round:state.round,scoreBefore:state.scores[shooter]||0};flash(`${displayRoleLabel(shooter)} · MARBLE SHOT ${state.throwCounts[shooter]}`);updateHUD(false);return true;}
+  function marbleFinishThrow(p,shotId=0){
+    const pending=state.pendingShot;if(!pending||pending.planet!==p||(shotId&&pending.id&&shotId!==pending.id))return;
+    const shot=marbleGame.shot||{player:pending.player,ownOut:0,otherOut:0,shooterOut:false};
+    state.pendingShot=null;marbleGame.shot=null;
+    const liveTargets=planetNodes.filter(q=>q.el?.classList?.contains('marbleTarget')&&!q.poolPocketed);
+    if(!liveTargets.length){
+      const scores=state.scores.slice(0,Math.max(1,state.players||1)),top=Math.max(...scores),winner=scores.indexOf(top);
+      if(state.players===0){setTimeout(()=>{if(state.active&&isMarbles()){state.scores=[0,0];state.activePlayer=0;marbleLayout(true)}},700)}
+      else{bluePool.won=true;state.running=false;if(blueSunPoolWinTitle)blueSunPoolWinTitle.textContent='PLANETS';if(blueSunPoolWinSummary)blueSunPoolWinSummary.textContent=`${playerLabel(winner)} wins ${top} point${top===1?'':'s'}.`;blueSunPoolWin?.classList.add('show');}
+      return;
+    }
+    const slots=Math.max(1,state.players||1);
+    // Ring Taw rule adapted to GE ownership: scoring one or more of YOUR planets and keeping
+    // the taw/shooter inside the ring earns another shot from where it stopped. A miss or
+    // shooter-out ends the turn. Target planets that leave AFTER the shooter exits still count.
+    const continueTurn=shot.ownOut>0&&!shot.shooterOut;
+    if(continueTurn){
+      state.activePlayer=shot.player;
+      const shooter=marbleShooterNode();if(shooter){shooter.poolPocketed=false;shooter.el.classList.remove('poolPocketed','marbleShooterOut');shooter.el.style.display='';shooter.vx=0;shooter.vy=0;poolSyncNode(shooter);}
+      flash(`+${shot.ownOut} · ${displayRoleLabel(state.activePlayer)} CONTINUES`);
+    }else{
+      state.activePlayer=(shot.player+1)%slots;
+      const event=shot.ownOut>0?`+${shot.ownOut} · `:(shot.otherOut?'OTHER PLANET OUT · ':'');
+      flash(`${event}NEXT · ${displayRoleLabel(state.activePlayer)}`);
+      marbleRefreshShooter();
+    }
+    updateHUD(true);saveGameStateSoon();
+  }
   window.GE_MARBLES={layout:marbleLayout,teardown:marbleTeardown,out:marbleOut,returnShooter:marbleReturnShooter,registerThrow:marbleRegisterThrow,finishThrow:marbleFinishThrow,shooter:marbleShooterNode,state:marbleGame};
+
+  ninePushOutBtn?.addEventListener('click',()=>{
+    if(!state.active||!state.running||!isNinePlanet()||!bluePool.pushOutAvailable||state.pendingShot)return;
+    bluePool.pushOutActive=true;bluePool.pushOutAvailable=false;document.body.classList.remove('nine-push-available');flash('PUSH OUT · SHOOT ANY DIRECTION');
+  });
+  nineTakeShotBtn?.addEventListener('click',()=>{
+    if(bluePool.pushOutChooser==null)return;const chooser=bluePool.pushOutChooser;bluePool.pushOutChooser=null;ninePushChoice?.classList.remove('show');ninePushChoice?.setAttribute('aria-hidden','true');state.activePlayer=chooser;state.running=true;updateHUD(true);saveGameStateSoon();flash(`${playerLabel(state.activePlayer)} TAKES THE SHOT`);
+  });
+  ninePassBackBtn?.addEventListener('click',()=>{
+    if(bluePool.pushOutChooser==null)return;const chooser=bluePool.pushOutChooser;bluePool.pushOutChooser=null;ninePushChoice?.classList.remove('show');ninePushChoice?.setAttribute('aria-hidden','true');state.activePlayer=(chooser+1)%Math.max(1,state.players||1);state.running=true;updateHUD(true);saveGameStateSoon();flash(`${playerLabel(state.activePlayer)} SHOOTS`);
+  });
 
   blueSunPoolReplay?.addEventListener('click',()=>{blueSunPoolWin?.classList.remove('show');newGame(false);});
   blueSunPoolOptions?.addEventListener('click',()=>{blueSunPoolWin?.classList.remove('show');optionsPanel.classList.add('show');});
@@ -7312,6 +7454,7 @@ const GE_GAME = (()=>{
       tracers:state.tracers,
       pointMarks:state.pointMarks,
       scoreFx:state.scoreFx,
+      pointsScoreBubbles:state.pointsScoreBubbles!==false,
       tracerDuration:state.tracerDuration,
       tracerColor:state.tracerColor,
       tracerLengthMs:state.tracerLengthMs,
@@ -7365,6 +7508,7 @@ const GE_GAME = (()=>{
     state.tracers=saved.tracers!==false;
     state.pointMarks=saved.pointMarks!==false;
     state.scoreFx=saved.scoreFx!==false;
+    state.pointsScoreBubbles=saved.pointsScoreBubbles!==false;
     state.tracerDuration=['throw','soul','round','game'].includes(saved.tracerDuration)?saved.tracerDuration:(window.GE_EASY_SETTINGS?.TRACER_DURATION_DEFAULT||'throw');
     state.tracerColor=['planet','random','bank','player'].includes(saved.tracerColor)?saved.tracerColor:(window.GE_EASY_SETTINGS?.TRACER_COLOR_DEFAULT||'planet');
     state.tracerLengthMs=Math.max(5000,Math.min(60000,Number(saved.tracerLengthMs)||window.GE_EASY_SETTINGS?.TRACER_LIVE_LENGTH_MS||30000));
@@ -7411,6 +7555,7 @@ const GE_GAME = (()=>{
     if(optTracers) optTracers.checked=state.tracers;
     if(optPointMarks) optPointMarks.checked=state.pointMarks;
     if(optScoreFx) optScoreFx.checked=state.scoreFx;
+    if(optPointsScoreBubbles) optPointsScoreBubbles.checked=state.pointsScoreBubbles!==false;
     if(optTracerDuration)optTracerDuration.value=state.tracerDuration;
     if(optTracerColor)optTracerColor.value=state.tracerColor;
     if(optTracerCarryFade)optTracerCarryFade.checked=state.tracerCarryFade;
@@ -7440,6 +7585,7 @@ const GE_GAME = (()=>{
       if(Number.isFinite(q.x))p.x=q.x; if(Number.isFinite(q.y))p.y=q.y;
       p.vx=Number(q.vx)||0; p.vy=Number(q.vy)||0; syncPlanet(p);
     });
+    state.turnPlanetAlbum=null;
     rebuildScores(false); updateHUD(true);
     requestAnimationFrame(()=>{clampPlayfield();requestAnimationFrame(clampPlayfield);});
     return true;
@@ -7448,7 +7594,7 @@ const GE_GAME = (()=>{
     if(confirmFirst && !confirm('Start this new game with the settings shown?')) return false;
     clearTimeout(gameSaveTimer);
     if(!state.active){
-      state.active=true;state.running=true;state.completed=false;state.gameOver=false;
+      state.active=true;state.running=true;state.completed=false;state.gameOver=false;state.turnPlanetAlbum=null;
       document.body.classList.add('game-mode-active');
       hud?.classList.add('show');hud?.setAttribute('aria-hidden','false');
       try{setCleanGameScene(true);}catch(_e){}
@@ -7460,7 +7606,7 @@ const GE_GAME = (()=>{
     const keepPlayers=Math.max(0,Math.min(6,Number.isFinite(Number(state.players))?Number(state.players):1)),slots=Math.max(1,keepPlayers);
     state.players=keepPlayers;state.demoAwaitingPlayers=false;state.scores=Array(slots).fill(0);state.throwCounts=Array(slots).fill(0);
     state.activePlayer=0;state.turnInSet=0;state.turnProgress=Array(slots).fill(0);state.score=0;state.completed=false;state.gameOver=false;state.running=true;state.round=1;
-    state.planetState=new WeakMap();state.pendingShot=null;if(isBlueSunGame())state.shotStyle='rubber';else if(isMarbles())state.shotStyle='throw';window.GE_SHOT_CONTROL?.cancel?.();try{window.GE_CLEAR_GAME_TRAILS?.();}catch(e){}try{window.GE_GAME_POINT_MARKS?.clear?.();}catch(e){}
+    state.planetState=new WeakMap();state.pendingShot=null;state.turnPlanetAlbum=null;if(isBlueSunGame())state.shotStyle='rubber';else if(isMarbles())state.shotStyle='throw';window.GE_SHOT_CONTROL?.cancel?.();try{window.GE_CLEAR_GAME_TRAILS?.();}catch(e){}try{window.GE_GAME_POINT_MARKS?.clear?.();}catch(e){}
     if(isBlueSunGame())poolLayout(true);else if(isMarbles())marbleLayout(true);else{poolTeardown();marbleTeardown();const sw=document.getElementById('sunWrap');if(sw){const b=getPlanetPlayBounds();sw.style.left=((b.left+b.right)/2)+'px';sw.style.top=((b.top+b.bottom)/2)+'px';sw.style.transform='translate(-50%,-50%)';}placePlanets();requestAnimationFrame(()=>{buildPlanetPhysics();clampPlayfield();window.GE_APPLY_BALL_ACCESS?.(state.ballAccess,state.activePlayer,state.players);});}
     rebuildScores(true);updateHUD(true);flash(isNinePlanet()?'NINE PLANET · NEW RACK':(isBlueSunPool()?'CENTER POOL · TARGET 1':`${keepPlayers} PLAYER${keepPlayers===1?'':'S'} · NEW ${state.shotStyle==='rubber'?'RUBBER BAND':'THROW'} GAME`));saveGameStateSoon();return true;
   }
@@ -7475,7 +7621,7 @@ const GE_GAME = (()=>{
 
   let pointBurstTimer=0;
   function showPointBurst(points,kind='score'){
-    if(!pointBurst || !state.scoreFx) return;
+    if(!pointBurst || !state.scoreFx || (state.gameType==='score'&&state.pointsScoreBubbles===false)) return;
     clearTimeout(pointBurstTimer);
     pointBurst.classList.remove('show','penalty');
     pointBurst.textContent=String(points);
@@ -7620,6 +7766,10 @@ const GE_GAME = (()=>{
     archiveStatsSession(state.completed?'completed':'exited',exitWinner);
     state.pendingShot=null;
     poolTeardown();
+    marbleTeardown();
+    document.body.classList.remove('marbles-game-active');
+    document.getElementById('orbit')?.classList.remove('gameSceneHidden');
+    document.getElementById('phrases')?.classList.remove('gameSceneHidden');
     state.active=false;
     state.running=false;
     state.completed=false;
@@ -7820,7 +7970,7 @@ const GE_GAME = (()=>{
     state.throwCounts=Array(Math.max(1,state.players||1)).fill(0);
     try{ localStorage.setItem(STORAGE_PLAYERS,String(state.players)); }catch(e){}
     updateHUD(true);renderMarblePlayerAlbums();
-    flash(state.players===0?'COMPUTER PLAY':`${state.players} player${state.players===1?'':'s'} · ${state.turnsPerPlayer} throws each`);
+    flash(state.players===0?'THE BODY PLAYS':`${state.players} player${state.players===1?'':'s'} · ${state.turnsPerPlayer} throws each`);
     saveGameStateSoon();
   }
   function bindPlayerStepper(el,delta){
@@ -7856,7 +8006,7 @@ const GE_GAME = (()=>{
     if(state.computerOpponent){
       state.players=2;state.demoAwaitingPlayers=false;state.activePlayer=0;state.scores=[0,0];state.throwCounts=[0,0];state.turnProgress=[0,0];state.turnInSet=0;
       try{localStorage.setItem(STORAGE_PLAYERS,'2');}catch(_e){}
-      rebuildScores(true);updateHUD(true);updatePlayerOption();flash('SOUL 1 VS COMPUTER');
+      rebuildScores(true);updateHUD(true);updatePlayerOption();flash('SOUL VS THE BODY');
     }else{
       state.players=1;state.activePlayer=0;state.scores=[0];state.throwCounts=[0];state.turnProgress=[0];state.turnInSet=0;
       try{localStorage.setItem(STORAGE_PLAYERS,'1');}catch(_e){}
@@ -7868,13 +8018,17 @@ const GE_GAME = (()=>{
     state.computerOpponent=false;if(optComputerOpponent)optComputerOpponent.checked=false;
     state.players=0;state.demoAwaitingPlayers=false;state.activePlayer=0;state.scores=[0];state.throwCounts=[0];state.turnProgress=[0];state.turnInSet=0;
     try{localStorage.setItem(STORAGE_PLAYERS,'0');}catch(_e){}
-    rebuildScores(true);updateHUD(true);updatePlayerOption();renderMarblePlayerAlbums();flash('COMPUTER PLAY');saveGameStateSoon();
+    rebuildScores(true);updateHUD(true);updatePlayerOption();renderMarblePlayerAlbums();flash('THE BODY PLAYS');saveGameStateSoon();
   });
   optComputerDifficulty?.addEventListener('change',()=>{
     state.computerDifficulty=['easy','normal','hard','master'].includes(optComputerDifficulty.value)?optComputerDifficulty.value:'normal';
-    flash('COMPUTER · '+state.computerDifficulty.toUpperCase());
+    flash('THE BODY · '+state.computerDifficulty.toUpperCase());
     saveGameStateSoon();
   });
+  optSunPoint?.addEventListener('change',()=>{state.sunPoint=!!optSunPoint.checked;saveGameStateSoon();});
+  optWallPoints?.addEventListener('change',()=>{state.wallPoints=!!optWallPoints.checked;saveGameStateSoon();});
+  optPlanetPoints?.addEventListener('change',()=>{state.planetPoints=!!optPlanetPoints.checked;saveGameStateSoon();});
+  optPointsScoreBubbles?.addEventListener('change',()=>{state.pointsScoreBubbles=!!optPointsScoreBubbles.checked;saveGameStateSoon();});
 
   function setMarbleCount(n){
     state.marbleCount=Math.max(2,Math.min(50,Math.round(Number(n)||5)));
@@ -8040,7 +8194,7 @@ const GE_GAME = (()=>{
       scoreBefore:Number(state.scores?.[shooter])||0
     };
     beginStatsShot(p,shotId,shooter);
-    flash(`${isComputerPlayer(shooter)?'COMPUTER':'SOUL '+(shooter+1)} · THROW ${state.throwCounts[shooter]}`);updateHUD(false);saveGameStateSoon();return true;
+    flash(`${displayRoleLabel(shooter)} · THROW ${state.throwCounts[shooter]}`);updateHUD(false);saveGameStateSoon();return true;
   }
   function finishThrow(p,shotId=0){
     if(isMarbles())return marbleFinishThrow(p,shotId);
@@ -8066,7 +8220,7 @@ const GE_GAME = (()=>{
       state.activePlayer=shooter;
       state.turnInSet=state.turnProgress?.[shooter]||0;
       window.GE_APPLY_BALL_ACCESS?.(state.ballAccess,state.activePlayer,state.players);
-      flash(`NO POINTS · THROW NOT USED · SOUL ${shooter+1}`);
+      flash(`NO POINTS · THROW NOT USED · ${displayRoleLabel(shooter)}`);
       updateHUD(true);
       saveGameStateSoon();
       return;
@@ -8074,6 +8228,8 @@ const GE_GAME = (()=>{
 
     // Large arcade score is THROW-scoped: contact bubbles show the pieces, this shows the final total.
     showPointBurst(pointsScored,'score');
+    // A new scoring throw is a new turn: the Soul may choose a different planet next time.
+    state.turnPlanetAlbum=null;
 
     const fromPlayer=state.activePlayer;
     if(!Array.isArray(state.turnProgress)||state.turnProgress.length<Math.max(1,state.players)){
@@ -8113,7 +8269,7 @@ const GE_GAME = (()=>{
     window.GE_APPLY_BALL_ACCESS?.(state.ballAccess,state.activePlayer,state.players);
     if(isComputerPlayer(state.activePlayer))state.autoNext=performance.now()+rand(650,1250);
     const left=Math.max(0,state.turnsPerPlayer-state.turnInSet);
-    flash(`${pointsScored} · ${isComputerPlayer(state.activePlayer)?'COMPUTER':'SOUL '+(state.activePlayer+1)} · ${left} THROW${left===1?'':'S'} LEFT`);
+    flash(`${pointsScored} · ${displayRoleLabel(state.activePlayer)} · ${left} THROW${left===1?'':'S'} LEFT`);
     updateHUD(true);
     saveGameStateSoon();
   }
@@ -8273,7 +8429,7 @@ const GE_GAME = (()=>{
   function pointForHit(p,ps){
     // Banks and planet contacts are already scored at the instant they happen.
     // The Blue Sun contributes only its own point, so earlier banks are never double-counted.
-    const sunScores=state.sunPoint || (!state.wallPoints && !state.planetPoints);
+    const sunScores=state.sunPoint;
     if(sunScores){
       const base=Math.max(1,Math.min(9,Number(state.sunPointValue)||3));
       const points=awardEventPoints(p,'SUN',base);
@@ -8295,7 +8451,7 @@ const GE_GAME = (()=>{
       state.planetState.set(p,ps);
     }
     if(ps.armed && !ps.scored){
-      if(state.sunPoint || (!state.wallPoints && !state.planetPoints)) window.GE_GAME_POINT_MARKS?.add?.('SUN',p.x,p.y,`${Math.max(1,Math.min(9,Number(state.sunPointValue)||3))}`);
+      if(state.sunPoint) window.GE_GAME_POINT_MARKS?.add?.('SUN',p.x,p.y,`${Math.max(1,Math.min(9,Number(state.sunPointValue)||3))}`);
       pointForHit(p,ps);
     }
 
@@ -8464,6 +8620,11 @@ const GE_GAME = (()=>{
         const bankX=(nearL||nearR)&&Math.sign(ps.vx)!==0&&Math.sign(p.vx)!==0&&Math.sign(ps.vx)!==Math.sign(p.vx);
         const bankY=(nearT||nearB)&&Math.sign(ps.vy)!==0&&Math.sign(p.vy)!==0&&Math.sign(ps.vy)!==Math.sign(p.vy);
         const banked=(bankX?1:0)+(bankY?1:0);
+        if(banked && now-ps.lastBank>90 && isNinePlanet() && bluePool.shot){
+          if(!bluePool.shot.railBalls)bluePool.shot.railBalls=new Set();
+          const pn=poolNumber(p);if(pn)bluePool.shot.railBalls.add(pn);
+          if(bluePool.shot.firstContact!=null)bluePool.shot.railAfterContact=true;
+        }
         if(ps.armed && banked && now-ps.lastBank>90){
           ps.banks+=banked; ps.lastBank=now;
           window.GE_GAME_TRAILS?.noteBank?.(p);
