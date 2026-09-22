@@ -19,7 +19,10 @@ rm -f /app/runtime/mic.pcm
 mkfifo -m 600 /app/runtime/mic.pcm
 
 if [ ! -f /app/runtime/settings.json ]; then
-  printf '%s\n' '{"legacy": false}' > /app/runtime/settings.json
+  printf '%s\n' '{"legacy": false, "crossfade_seconds": 5.0, "custom_mix_enabled": false, "custom_mix_id": ""}' > /app/runtime/settings.json
+fi
+if [ ! -f /app/runtime/custom-playlists.json ]; then
+  printf '%s\n' '{"items": []}' > /app/runtime/custom-playlists.json
 fi
 
 SOURCE_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
@@ -106,6 +109,9 @@ EOF
 cat > /app/runtime/radio.liq <<EOF
 set("log.stdout", true)
 set("log.file", false)
+set("server.telnet", true)
+set("server.telnet.bind_addr", "127.0.0.1")
+set("server.telnet.port", 1234)
 
 def log_song(m)
   file.write(data="#{metadata.json.stringify(m)}", "/app/runtime/now.json")
@@ -128,7 +134,7 @@ radio = playlist(
 
 radio.on_track(log_song)
 
-# Normal music transitions overlap by five seconds.
+# Normal transition time is supplied by playlist metadata from the DJ control.
 # The playlist tags station-ID boundaries with a shorter 1.2-second transition.
 radio = crossfade(duration=5., radio)
 radio = mksafe(radio)
@@ -206,6 +212,24 @@ http {
       proxy_buffering off;
       proxy_cache off;
       proxy_read_timeout 86400s;
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+      add_header X-Accel-Buffering "no" always;
+    }
+
+    # DJ headphone cue: automation music only, before the live mic is mixed.
+    # This prevents delayed self-voice echo while the DJ is on air.
+    location = /dj-cue.mp3 {
+      proxy_pass http://127.0.0.1:8000/auto.mp3;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Connection "";
+      proxy_buffering off;
+      proxy_request_buffering off;
+      proxy_cache off;
+      proxy_read_timeout 86400s;
+      proxy_send_timeout 86400s;
+      send_timeout 86400s;
       add_header Access-Control-Allow-Origin "*" always;
       add_header Cache-Control "no-store, no-cache, must-revalidate" always;
       add_header X-Accel-Buffering "no" always;
@@ -294,7 +318,7 @@ else:
     raise SystemExit("GE Radio: Icecast did not open internal port 8000.")
 PY
 
-echo "GE Radio: starting automated DJ with 5-second crossfade..."
+echo "GE Radio: starting automated DJ with adjustable crossfade..."
 liquidsoap -t /app/runtime/radio.liq &
 LIQUIDSOAP_PID=$!
 

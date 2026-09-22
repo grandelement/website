@@ -21,6 +21,7 @@ PLAYLIST = RUNTIME / "playlist.m3u"
 ROTATION = RUNTIME / "rotation.json"
 LIBRARY = RUNTIME / "library.json"
 SETTINGS = RUNTIME / "settings.json"
+CUSTOM_PLAYLISTS = RUNTIME / "custom-playlists.json"
 
 CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
@@ -34,15 +35,42 @@ def atomic_json(path, value):
     atomic_text(path, json.dumps(value, ensure_ascii=False, indent=2))
 
 def load_settings():
-    settings = {"legacy": False}
+    settings = {
+        "legacy": False,
+        "crossfade_seconds": 5.0,
+        "custom_mix_enabled": False,
+        "custom_mix_id": "",
+    }
     try:
         data = json.loads(SETTINGS.read_text(encoding="utf-8"))
         settings["legacy"] = bool(data.get("legacy", False))
+        settings["crossfade_seconds"] = max(0.0, min(12.0, float(data.get("crossfade_seconds", 5.0))))
+        settings["custom_mix_enabled"] = bool(data.get("custom_mix_enabled", False))
+        settings["custom_mix_id"] = str(data.get("custom_mix_id", "") or "")
     except Exception:
         pass
     if not SETTINGS.exists():
         atomic_json(SETTINGS, settings)
     return settings
+
+def load_custom_playlists():
+    try:
+        data = json.loads(CUSTOM_PLAYLISTS.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            return data.get("items", [])
+    except Exception:
+        pass
+    return []
+
+def active_custom_paths(settings):
+    if not settings.get("custom_mix_enabled"):
+        return None
+    playlist_id = str(settings.get("custom_mix_id", "") or "")
+    for item in load_custom_playlists():
+        if str(item.get("id", "")) == playlist_id:
+            paths = [str(x) for x in item.get("paths", []) if str(x)]
+            return paths
+    return []
 
 def git_run(args, timeout=90):
     env = os.environ.copy()
@@ -155,8 +183,14 @@ def annotation(entry, commit_sha, cross=None):
         fields.append(f'liq_cross_duration="{cross:.1f}"')
     return "annotate:" + ",".join(fields) + ":" + raw_url(commit_sha, entry["path"])
 
-def eligible_songs(songs, legacy):
+def eligible_songs(songs, settings):
+    custom_paths = active_custom_paths(settings)
+    if custom_paths is not None:
+        wanted = set(custom_paths)
+        return [song for song in songs if song.get("path") in wanted]
+
     selected = []
+    legacy = bool(settings.get("legacy", False))
     for song in songs:
         album = song["album"].strip().lower()
         if album in CORE_ALBUMS or (legacy and album in LEGACY_ALBUMS):
@@ -201,10 +235,15 @@ def save_library(commit_sha, songs, clips):
         "items": items,
     })
 
-def build_rotation(commit_sha, songs, clips, legacy):
-    songs = eligible_songs(songs, legacy)
+def build_rotation(commit_sha, songs, clips, settings):
+    songs = eligible_songs(songs, settings)
     if not songs:
+        if settings.get("custom_mix_enabled"):
+            raise RuntimeError("The active Custom Mix has no available songs.")
         raise RuntimeError("No eligible Grand Element songs found for the current rotation.")
+
+    legacy = bool(settings.get("legacy", False))
+    crossfade = max(0.0, min(12.0, float(settings.get("crossfade_seconds", 5.0))))
 
     rng = random.Random(secrets.randbits(128))
     rotation = []
@@ -236,7 +275,7 @@ def build_rotation(commit_sha, songs, clips, legacy):
                 rotation.append({k: entry[k] for k in ("slot","kind","title","album","path")})
                 short_to_id = chosen_clip is not None and idx == len(block) - 1
                 playlist_lines.append(
-                    annotation(entry, commit_sha, cross=1.2 if short_to_id else None)
+                    annotation(entry, commit_sha, cross=1.2 if short_to_id else crossfade)
                 )
 
             if chosen_clip:
@@ -250,12 +289,19 @@ def build_rotation(commit_sha, songs, clips, legacy):
     atomic_json(ROTATION, {
         "commit": commit_sha,
         "legacy": legacy,
+        "crossfade_seconds": crossfade,
+        "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
+        "custom_mix_id": str(settings.get("custom_mix_id", "") or ""),
         "generated_at": int(time.time()),
         "entries": rotation,
     })
+    custom_label = "off"
+    if settings.get("custom_mix_enabled"):
+        custom_label = str(settings.get("custom_mix_id", "") or "missing")
     print(
-        f"GE Radio: rotation rebuilt from Git metadata: {len(songs)} songs, "
-        f"legacy={'on' if legacy else 'off'}, {len(clips)} station IDs.",
+        f"GE Radio: rotation rebuilt: {len(songs)} songs, "
+        f"legacy={'on' if legacy else 'off'}, custom={custom_label}, "
+        f"crossfade={crossfade:.1f}s, {len(clips)} station IDs.",
         flush=True,
     )
 
@@ -286,9 +332,16 @@ def main():
 
             commit_sha, songs, clips = cached
             save_library(commit_sha, songs, clips)
-            signature = f"{commit_sha}|legacy={int(settings['legacy'])}"
+            custom_paths = active_custom_paths(settings)
+            custom_sig = ",".join(custom_paths or []) if settings.get("custom_mix_enabled") else ""
+            signature = (
+                f"{commit_sha}|legacy={int(settings['legacy'])}"
+                f"|custom={int(settings.get('custom_mix_enabled', False))}"
+                f"|custom_id={settings.get('custom_mix_id','')}"
+                f"|paths={custom_sig}"
+            )
             if not PLAYLIST.exists() or signature != last_signature:
-                build_rotation(commit_sha, songs, clips, settings["legacy"])
+                build_rotation(commit_sha, songs, clips, settings)
                 last_signature = signature
 
         except Exception as exc:

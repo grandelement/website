@@ -30,6 +30,7 @@ DJ_HTML = Path("/app/dj.html")
 UPLOAD_DIR = RUNTIME / "uploads"
 TEMP_UPLOADS = RUNTIME / "temp-uploads.json"
 MIXER_SETTINGS = RUNTIME / "mixer.json"
+CUSTOM_PLAYLISTS = RUNTIME / "custom-playlists.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 
@@ -43,6 +44,26 @@ def write_json(path, value):
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(value, indent=2), encoding="utf-8")
     tmp.replace(path)
+
+def station_settings():
+    raw = read_json(SETTINGS, {})
+    return {
+        "legacy": bool(raw.get("legacy", False)),
+        "crossfade_seconds": max(0.0, min(12.0, float(raw.get("crossfade_seconds", 5.0) or 5.0))),
+        "custom_mix_enabled": bool(raw.get("custom_mix_enabled", False)),
+        "custom_mix_id": str(raw.get("custom_mix_id", "") or ""),
+    }
+
+def read_custom_playlists():
+    data = read_json(CUSTOM_PLAYLISTS, {"items": []})
+    if not isinstance(data, dict):
+        data = {"items": []}
+    if not isinstance(data.get("items"), list):
+        data["items"] = []
+    return data
+
+def write_custom_playlists(data):
+    write_json(CUSTOM_PLAYLISTS, data)
 
 def normalize_meta(value):
     if isinstance(value, dict):
@@ -93,11 +114,12 @@ def rewrite_playlist(rotation):
     entries = rotation.get("entries", [])
     if not commit_sha or not entries:
         raise RuntimeError("Rotation is not ready.")
+    crossfade = station_settings().get("crossfade_seconds", 5.0)
     lines = ["#EXTM3U"]
     for i, entry in enumerate(entries):
         next_entry = entries[i + 1] if i + 1 < len(entries) else {}
         short = entry.get("kind") == "station_id" or next_entry.get("kind") == "station_id"
-        lines.append(annotation(entry, commit_sha, cross=1.2 if short else None))
+        lines.append(annotation(entry, commit_sha, cross=1.2 if short else crossfade))
     tmp = PLAYLIST.with_suffix(".m3u.tmp")
     tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
     tmp.replace(PLAYLIST)
@@ -421,6 +443,41 @@ def liquidsoap_command(command):
                 break
         return b"".join(chunks).decode("utf-8", "replace")
 
+def fade_music_gain(start_level, end_level, seconds=2.5, steps=12):
+    start_level = max(0.0, min(1.25, float(start_level)))
+    end_level = max(0.0, min(1.25, float(end_level)))
+    steps = max(2, int(steps))
+    pause = max(0.02, float(seconds) / steps)
+    for i in range(1, steps + 1):
+        value = start_level + (end_level - start_level) * (i / steps)
+        mixer_zmq_command("volume@musicgain", "volume", f"{value:.4f}")
+        time.sleep(pause)
+
+def music_fade_action(action):
+    state = mixer_state()
+    action = str(action or "").lower()
+    target = float(state.get("music_level", 1.0))
+    if action == "off":
+        start = 0.0 if state.get("music_muted") else target
+        fade_music_gain(start, 0.0, seconds=2.8, steps=14)
+        state["music_muted"] = True
+        write_json(MIXER_SETTINGS, state)
+        return state, "Music faded out. Automation continues silently."
+
+    if action == "on":
+        state["music_muted"] = False
+        write_json(MIXER_SETTINGS, state)
+        mixer_zmq_command("volume@musicgain", "volume", "0.0")
+        try:
+            liquidsoap_command("radio.skip")
+        except Exception:
+            pass
+        time.sleep(0.15)
+        fade_music_gain(0.0, target, seconds=2.3, steps=12)
+        return state, "Music started at the beginning of a new song."
+
+    raise ValueError("Unknown music action.")
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "GERadioDJ/1.0"
 
@@ -588,7 +645,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/control/status":
             if not self.require_auth():
                 return
-            settings = read_json(SETTINGS, {"legacy": False})
+            settings = station_settings()
             now = public_track(read_json(NOW, {}))
             rot = read_json(ROTATION, {"entries": []})
             entries = rot.get("entries", [])
@@ -615,9 +672,11 @@ class Handler(BaseHTTPRequestHandler):
             coming = [queue_track(e) for e in upcoming[1:5]]
 
             self.json_response({
-                "version": "4.6",
+                "version": "4.8",
                 "legacy": bool(settings.get("legacy", False)),
-                "crossfade_seconds": 5,
+                "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
+                "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
+                "custom_mix_id": str(settings.get("custom_mix_id", "") or ""),
                 "now": now,
                 "next": nxt,
                 "coming": coming,
@@ -638,10 +697,128 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if self.path == "/control/playlists":
+            if not self.require_auth():
+                return
+            self.json_response(read_custom_playlists())
+            return
+
         self.send_response(404)
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/crossfade":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                seconds = max(0.0, min(12.0, float(body.get("seconds", 5.0))))
+                settings = station_settings()
+                settings["crossfade_seconds"] = seconds
+                write_json(SETTINGS, settings)
+                rotation = read_json(ROTATION, {"entries": []})
+                if rotation.get("entries"):
+                    rewrite_playlist(rotation)
+                    try:
+                        liquidsoap_command("radio.reload")
+                    except Exception:
+                        pass
+                self.json_response({"ok": True, "crossfade_seconds": seconds})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/playlists/save":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                name = " ".join(str(body.get("name", "")).split())[:80]
+                if not name:
+                    raise ValueError("Enter a playlist name.")
+                library = read_json(LIBRARY, {"items": []})
+                allowed = {
+                    str(x.get("path", "")) for x in library.get("items", [])
+                    if x.get("kind") == "song" and str(x.get("path", ""))
+                }
+                paths = []
+                for path in body.get("paths", []):
+                    path = str(path)
+                    if path in allowed and path not in paths:
+                        paths.append(path)
+                if not paths:
+                    raise ValueError("Choose at least one song.")
+                playlist_id = str(body.get("id", "") or uuid.uuid4().hex[:12])
+                data = read_custom_playlists()
+                item = {
+                    "id": playlist_id,
+                    "name": name,
+                    "paths": paths,
+                    "updated_at": int(time.time()),
+                }
+                existing = next((i for i,x in enumerate(data["items"]) if str(x.get("id","")) == playlist_id), None)
+                if existing is None:
+                    data["items"].append(item)
+                else:
+                    data["items"][existing] = item
+                write_custom_playlists(data)
+                self.json_response({"ok": True, "playlist": item, "items": data["items"]})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/playlists/delete":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                playlist_id = str(body.get("id", ""))
+                data = read_custom_playlists()
+                before = len(data["items"])
+                data["items"] = [x for x in data["items"] if str(x.get("id","")) != playlist_id]
+                if len(data["items"]) == before:
+                    raise ValueError("Playlist was not found.")
+                write_custom_playlists(data)
+                settings = station_settings()
+                if settings.get("custom_mix_id") == playlist_id:
+                    settings["custom_mix_enabled"] = False
+                    settings["custom_mix_id"] = ""
+                    write_json(SETTINGS, settings)
+                self.json_response({"ok": True, "items": data["items"]})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/custom-mix":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                enabled = bool(body.get("enabled", False))
+                playlist_id = str(body.get("playlist_id", "") or "")
+                if enabled:
+                    data = read_custom_playlists()
+                    if not any(str(x.get("id","")) == playlist_id for x in data["items"]):
+                        raise ValueError("Choose a saved Custom Mix first.")
+                settings = station_settings()
+                settings["custom_mix_enabled"] = enabled
+                settings["custom_mix_id"] = playlist_id if enabled else playlist_id
+                write_json(SETTINGS, settings)
+                self.json_response({
+                    "ok": True,
+                    "custom_mix_enabled": settings["custom_mix_enabled"],
+                    "custom_mix_id": settings["custom_mix_id"],
+                })
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/music-action":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                state, message = music_fade_action(body.get("action"))
+                self.json_response({"ok": True, "mixer": state, "message": message})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
         if self.path == "/control/mixer":
             if not self.require_auth(): return
             try:
@@ -716,7 +893,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 body = self.read_body_json()
-                settings = read_json(SETTINGS, {"legacy": False})
+                settings = station_settings()
                 settings["legacy"] = bool(body.get("enabled", False))
                 write_json(SETTINGS, settings)
                 self.json_response({"ok": True, "legacy": settings["legacy"]})
@@ -901,6 +1078,6 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     BROADCAST = BroadcastEngine()
-    print("GE Radio: microphone bridge starting on /mic.mp3.", flush=True)
+    print("GE Radio: direct microphone bridge ready on /control/live.", flush=True)
     print("GE Radio: DJ control server listening internally on 8090.", flush=True)
     ThreadingHTTPServer(("127.0.0.1", 8090), Handler).serve_forever()
