@@ -154,28 +154,40 @@ body.view-player #liveStatus{width:min(900px,94vw)}
 body.view-player #sunLabBtn{min-height:30px;padding:4px 7px;font-size:clamp(10px,1.45vw,13px);transform:none!important}
 @media(max-width:520px){.sunlab-panel{width:min(96vw,420px);padding:11px 10px 12px}}
 /* GRAND ELEMENT GATE */
-#gateOverlay{position:fixed;inset:0;z-index:50000;overflow:hidden;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.86);color:#f4fbff;opacity:1;transition:background 1.2s ease,opacity 1.2s ease;touch-action:manipulation}
+#gateOverlay{position:fixed;inset:0;z-index:50000;overflow:hidden;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.88);color:#f4fbff;opacity:1;transition:background 1.2s ease,opacity 1.2s ease;touch-action:manipulation}
 #gateOverlay.open{display:flex}
 #gateOverlay.unlocking{background:rgba(0,0,0,0)}
-#gateSun{position:absolute;left:50%;top:50%;width:100svh;height:100svh;max-width:none;max-height:none;border-radius:50%;transform:translate(calc(50vw + 62svh),-50%) scale(1);transform-origin:center center;opacity:1;transition-property:transform,opacity,filter;transition-duration:var(--gate-enter,30s),var(--gate-enter,30s),1s;transition-timing-function:cubic-bezier(.18,.62,.22,1),linear,ease;will-change:transform,opacity;isolation:isolate}
+/* Frequency/water prelude: a drop-in-water ripple arrives before the sun. */
+#gateWater{position:absolute;inset:-8%;z-index:1;overflow:hidden;pointer-events:none;opacity:0;transition:opacity var(--gate-water-fade,7s) ease;background:radial-gradient(circle at 50% 50%,rgba(0,183,255,.18),rgba(0,69,150,.08) 30%,transparent 68%)}
+#gateWater.on{opacity:1}
+#gateWater.fade{opacity:0}
+#gateWater::before{content:'';position:absolute;inset:-20%;background:repeating-radial-gradient(ellipse at 50% 50%,rgba(103,226,255,.18) 0 1px,rgba(0,121,255,.08) 2px 5px,transparent 6px 13px);filter:blur(1.4px);mix-blend-mode:screen;animation:gateWaterFlow 4.6s ease-in-out infinite alternate}
+#gateWater::after{content:'';position:absolute;inset:-15%;background:conic-gradient(from 0deg at 50% 50%,transparent,rgba(72,205,255,.15),transparent 18%,rgba(0,112,255,.12),transparent 41%,rgba(117,235,255,.12),transparent 68%);filter:blur(12px);mix-blend-mode:screen;animation:gateWaterTurn 8s linear infinite}
+.gate-water-ring{position:absolute;left:50%;top:50%;width:7vmin;height:7vmin;border:2px solid rgba(168,239,255,.72);border-radius:50%;transform:translate(-50%,-50%) scale(.15);opacity:0;box-shadow:0 0 20px rgba(76,205,255,.28),inset 0 0 16px rgba(80,220,255,.14);animation:gateRippleOut 3.35s cubic-bezier(.15,.58,.2,1) infinite}
+.gate-water-ring:nth-child(2){animation-delay:.65s}.gate-water-ring:nth-child(3){animation-delay:1.3s}.gate-water-ring:nth-child(4){animation-delay:1.95s}.gate-water-ring:nth-child(5){animation-delay:2.6s}
+@keyframes gateRippleOut{0%{transform:translate(-50%,-50%) scale(.12);opacity:0}10%{opacity:.92}72%{opacity:.22}100%{transform:translate(-50%,-50%) scale(19);opacity:0}}
+@keyframes gateWaterFlow{0%{transform:scale(.94,.90) rotate(-2deg)}100%{transform:scale(1.08,1.13) rotate(2deg)}}
+@keyframes gateWaterTurn{to{transform:rotate(360deg)}}
+#gateSun{position:absolute;z-index:2;left:50%;top:50%;width:100svh;height:100svh;max-width:none;max-height:none;border-radius:50%;transform:translate(calc(50vw + 62svh),-50%) scale(1);transform-origin:center center;opacity:1;transition-property:transform,opacity,filter;transition-duration:var(--gate-enter,30s),var(--gate-enter,30s),1s;transition-timing-function:cubic-bezier(.18,.62,.22,1),linear,ease;will-change:transform,opacity;isolation:isolate}
 #gateSun.enter{transform:translate(-50%,-50%) scale(1)}
 #gateSun.unlock{transform:translate(-50%,-50%) scale(5.5);opacity:0;filter:brightness(1.35) blur(1.5px);transition-duration:var(--gate-unlock,6s),var(--gate-unlock,6s),var(--gate-unlock,6s);transition-timing-function:cubic-bezier(.18,.66,.18,1),ease-in,ease-in}
 #gateSunImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;box-shadow:0 0 5svh rgba(33,150,255,.28),0 0 12svh rgba(27,112,255,.18)}
-#gateContent{position:absolute;z-index:3;left:50%;bottom:7%;width:min(68%,560px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;opacity:0;pointer-events:none;transition:opacity 1.8s ease;text-shadow:0 2px 8px #000,0 0 18px #000}
+/* Hide the very wide lettering baked into the source image so portrait screens do not crop it. */
+#gateSunTextMask{position:absolute;z-index:2;left:3%;right:3%;top:44%;height:21%;border-radius:50%;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,179,247,.98) 0%,rgba(0,147,236,.95) 38%,rgba(0,113,218,.83) 67%,rgba(0,91,196,.20) 90%,transparent 100%);filter:blur(18px)}
+#gateContent{position:absolute;z-index:3;left:50%;bottom:7%;width:min(86vw,410px);max-width:calc(100vw - 24px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;opacity:0;pointer-events:none;transition:opacity 1.8s ease;text-shadow:0 2px 8px #000,0 0 18px #000}
 #gateContent.show{opacity:1;pointer-events:auto}
-#gateContent h2{margin:0;font-size:clamp(18px,3.1svh,32px);line-height:1.05;letter-spacing:.04em}
-#gateContent p{margin:0;font-size:clamp(11px,1.7svh,16px);line-height:1.25}
-#gateForm{width:min(92%,430px);display:flex;gap:7px;align-items:center;justify-content:center}
-#gatePassword{flex:1;min-width:0;height:42px;border-radius:999px;border:1px solid rgba(192,235,255,.72);background:rgba(1,10,22,.64);color:#fff;padding:0 15px;font:700 16px/1 system-ui,-apple-system,sans-serif;outline:none;text-align:center;letter-spacing:.08em}
-#gatePassword::placeholder{color:rgba(236,248,255,.70);letter-spacing:.02em}
-#gateEnter,#gateHintBtn,#gateEmail{min-height:38px;padding:7px 12px;border-radius:999px;border:1px solid rgba(154,226,255,.58);background:rgba(3,26,48,.70);color:#fff;font-weight:850;text-decoration:none;font-size:12px}
-#gateEnter{height:42px}
-#gateHelpRow{display:flex;gap:7px;align-items:center;justify-content:center;flex-wrap:wrap}
-#gateHintText{min-height:2.6em;max-width:470px;font-size:clamp(10px,1.45svh,14px)!important;opacity:.92}
-#gateStatus{min-height:1.4em;font-size:11px!important;opacity:.88}
+#gateContent h2{margin:0;font-size:clamp(21px,3.1svh,32px);line-height:1.05;letter-spacing:.035em}
+#gateContent>p:not(#gateHintText):not(#gateStatus){margin:0;font-size:clamp(14px,1.85svh,18px);line-height:1.25}
+#gateForm{width:min(100%,390px);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;justify-content:center}
+#gatePassword{width:100%;min-width:0;height:44px;border-radius:999px;border:1px solid rgba(192,235,255,.72);background:rgba(1,10,22,.64);color:#fff;padding:0 15px;font:700 16px/1 system-ui,-apple-system,sans-serif;outline:none;text-align:center;letter-spacing:.08em}
+#gatePassword::placeholder{color:rgba(236,248,255,.74);letter-spacing:.02em}
+#gateEnter,#gateHintBtn,#gateEmail{min-height:40px;padding:8px 13px;border-radius:999px;border:1px solid rgba(154,226,255,.58);background:rgba(3,26,48,.76);color:#fff;font-weight:850;text-decoration:none;font-size:13px}
+#gateEnter{height:44px;min-width:82px}
+#gateHelpRow{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:100%}
+#gateHintText{min-height:2.6em;width:min(100%,390px);margin:2px 0 0!important;padding:5px 8px;font-size:clamp(17px,2.25svh,22px)!important;line-height:1.28!important;font-weight:760;opacity:.98}
+#gateStatus{min-height:1.4em;margin:0!important;font-size:13px!important;line-height:1.25!important;opacity:.9}
 #gateTestBtn{border-color:rgba(66,214,255,.65)!important;background:rgba(7,65,92,.82)!important}
-@media(max-width:520px){#gateSun{width:100svh;height:100svh}#gateContent{bottom:8%;width:72%}#gateForm{flex-direction:column}#gatePassword,#gateEnter{width:100%}}
-
+@media(max-width:520px){#gateSun{width:100svh;height:100svh}#gateContent{bottom:6.5%;width:min(88vw,380px);max-width:calc(100vw - 22px);gap:7px}#gateForm{grid-template-columns:1fr;width:100%}#gatePassword,#gateEnter{width:100%}#gateHelpRow{gap:6px}#gateHintBtn,#gateEmail{font-size:12px;padding:8px 11px}}
 #status{display:none!important}
 footer{padding-top:4px}
 @media(max-width:520px){
@@ -640,8 +652,12 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
 </main>
 
 <div id="gateOverlay" aria-hidden="true">
+  <div id="gateWater" aria-hidden="true">
+    <span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span>
+  </div>
   <div id="gateSun">
     <img id="gateSunImage" alt="Grand Element">
+    <div id="gateSunTextMask" aria-hidden="true"></div>
     <div id="gateContent" aria-live="polite">
       <h2>Grand Element</h2>
       <p>Enter the word when you are ready.</p>
@@ -651,7 +667,7 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
       </form>
       <div id="gateHelpRow">
         <button id="gateHintBtn" type="button">Hint</button>
-        <a id="gateEmail" href="mailto:private@grandelement.com?subject=Grand%20Element%20Radio%20Gate%20Access">Email Grand Element</a>
+        <a id="gateEmail" href="mailto:access@grandelement.com?subject=Grand%20Element%20Radio%20Gate%20Access">Email Grand Element</a>
       </div>
       <p id="gateHintText"></p>
       <p id="gateStatus"></p>
@@ -669,7 +685,7 @@ document.addEventListener('gestureend',event=>event.preventDefault(),{passive:fa
 document.addEventListener('touchmove',event=>{if(event.touches&&event.touches.length>1)event.preventDefault();},{passive:false});
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.21-gate-master-1',
+  APP_VERSION: '2026.09.22-gate-water-layout-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'private@grandelement.com',
@@ -721,7 +737,7 @@ const GATE_CONFIG = Object.freeze({
   password: 'love',
   storageKey: 'GE_GATE_LOVE_V1',
   trackCountKey: 'GE_GATE_TRACK_COUNT_V1',
-  helpEmail: 'private@grandelement.com',
+  helpEmail: 'access@grandelement.com',
   removeOfflineOnTimeout: true,
   testDeletesOffline: false    // Test Gate does NOT erase your downloaded library while you experiment.
 });
@@ -764,6 +780,7 @@ const sunLabHide = $('sunLabHide');
 const sunLabReset = $('sunLabReset');
 const gateTestBtn = $('gateTestBtn');
 const gateOverlay = $('gateOverlay');
+const gateWater = $('gateWater');
 const gateSun = $('gateSun');
 const gateSunImage = $('gateSunImage');
 const gateContent = $('gateContent');
@@ -3735,14 +3752,14 @@ Vector ${vector}. ${pair[1]}.`;
   updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
 
-const gateState={active:false,manual:false,centerTimer:0,graceTimer:0,fadeRAF:0,finishTimer:0,hintIndex:-1,startVolume:1,wasPlaying:false,lastTrack:'',trackCount:0};
+const gateState={active:false,manual:false,waterLeadTimer:0,waterFadeTimer:0,centerTimer:0,graceTimer:0,fadeRAF:0,finishTimer:0,hintIndex:-1,startVolume:1,wasPlaying:false,lastTrack:'',trackCount:0};
 function gateAuthorized(){try{return localStorage.getItem(GATE_CONFIG.storageKey)==='1';}catch(_e){return false;}}
-function clearGateTimers(){if(gateState.centerTimer){clearTimeout(gateState.centerTimer);gateState.centerTimer=0;}if(gateState.graceTimer){clearTimeout(gateState.graceTimer);gateState.graceTimer=0;}if(gateState.finishTimer){clearTimeout(gateState.finishTimer);gateState.finishTimer=0;}if(gateState.fadeRAF){cancelAnimationFrame(gateState.fadeRAF);gateState.fadeRAF=0;}}
-function resetGateVisual(){if(!gateOverlay||!gateSun)return;gateOverlay.classList.remove('open','unlocking');gateOverlay.setAttribute('aria-hidden','true');gateSun.classList.remove('enter','unlock');gateContent?.classList.remove('show');if(gatePassword)gatePassword.value='';if(gateHintText)gateHintText.textContent='';if(gateStatus)gateStatus.textContent='';gateState.hintIndex=-1;}
+function clearGateTimers(){if(gateState.waterLeadTimer){clearTimeout(gateState.waterLeadTimer);gateState.waterLeadTimer=0;}if(gateState.waterFadeTimer){clearTimeout(gateState.waterFadeTimer);gateState.waterFadeTimer=0;}if(gateState.centerTimer){clearTimeout(gateState.centerTimer);gateState.centerTimer=0;}if(gateState.graceTimer){clearTimeout(gateState.graceTimer);gateState.graceTimer=0;}if(gateState.finishTimer){clearTimeout(gateState.finishTimer);gateState.finishTimer=0;}if(gateState.fadeRAF){cancelAnimationFrame(gateState.fadeRAF);gateState.fadeRAF=0;}}
+function resetGateVisual(){if(!gateOverlay||!gateSun)return;gateOverlay.classList.remove('open','unlocking');gateOverlay.setAttribute('aria-hidden','true');gateWater?.classList.remove('on','fade');gateSun.classList.remove('enter','unlock');gateContent?.classList.remove('show');if(gatePassword)gatePassword.value='';if(gateHintText)gateHintText.textContent='';if(gateStatus)gateStatus.textContent='';gateState.hintIndex=-1;}
 async function removeGateOfflineLibrary(){if(!GATE_CONFIG.removeOfflineOnTimeout)return;if(gateState.manual&&!GATE_CONFIG.testDeletesOffline)return;try{await window.GEOffline?.remove?.();}catch(_e){}}
 function beginGateFade(){if(!gateState.active)return;const duration=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||60)*1000,start=performance.now(),from=Math.max(0,Math.min(1,Number(gateState.startVolume)||1));if(gateStatus)gateStatus.textContent='';const step=now=>{if(!gateState.active)return;const p=Math.max(0,Math.min(1,(now-start)/duration));audio.volume=from*(1-p);if(p<1){gateState.fadeRAF=requestAnimationFrame(step);return;}gateState.fadeRAF=0;audio.volume=0;audio.pause();void removeGateOfflineLibrary();};gateState.fadeRAF=requestAnimationFrame(step);}
 function gateReachedCenter(){if(!gateState.active)return;gateContent?.classList.add('show');gateState.graceTimer=setTimeout(beginGateFade,Math.max(0,Number(GATE_CONFIG.graceSeconds)||96)*1000);}
-async function startGrandElementGate({manual=false}={}){if(!GATE_CONFIG.enabled||!gateOverlay||!gateSun)return;clearGateTimers();resetGateVisual();gateState.active=true;gateState.manual=!!manual;gateState.startVolume=Math.max(.01,Math.min(1,Number(audio.volume)||1));gateState.wasPlaying=!audio.paused;if(manual){try{localStorage.removeItem(GATE_CONFIG.storageKey);localStorage.removeItem(GATE_CONFIG.trackCountKey);}catch(_e){}if(audio.paused){try{await audio.play();}catch(_e){}}}else if(gateAuthorized()){gateState.active=false;return;}audio.volume=gateState.startVolume;gateOverlay.style.setProperty('--gate-enter',`${Math.max(1,Number(GATE_CONFIG.entranceSeconds)||30)}s`);gateOverlay.style.setProperty('--gate-unlock',`${Math.max(1,Number(GATE_CONFIG.unlockSeconds)||6)}s`);gateOverlay.classList.add('open');gateOverlay.setAttribute('aria-hidden','false');if(gateSunImage)gateSunImage.src=absolute(CONFIG.LOGO_SRC);if(gateEmail)gateEmail.href=`mailto:${encodeURIComponent(GATE_CONFIG.helpEmail)}?subject=${encodeURIComponent('Grand Element Radio Gate Access')}`;requestAnimationFrame(()=>requestAnimationFrame(()=>gateSun.classList.add('enter')));gateState.centerTimer=setTimeout(gateReachedCenter,Math.max(1,Number(GATE_CONFIG.entranceSeconds)||30)*1000);}
+async function startGrandElementGate({manual=false}={}){if(!GATE_CONFIG.enabled||!gateOverlay||!gateSun)return;clearGateTimers();resetGateVisual();gateState.active=true;gateState.manual=!!manual;gateState.startVolume=Math.max(.01,Math.min(1,Number(audio.volume)||1));gateState.wasPlaying=!audio.paused;if(manual){try{localStorage.removeItem(GATE_CONFIG.storageKey);localStorage.removeItem(GATE_CONFIG.trackCountKey);}catch(_e){}if(audio.paused){try{await audio.play();}catch(_e){}}}else if(gateAuthorized()){gateState.active=false;return;}audio.volume=gateState.startVolume;const waterLead=Math.max(0,Number(GATE_CONFIG.waterLeadSeconds)||0),waterFade=Math.max(1,Number(GATE_CONFIG.waterFadeSeconds)||7),entrance=Math.max(1,Number(GATE_CONFIG.entranceSeconds)||30);gateOverlay.style.setProperty('--gate-water-fade',`${waterFade}s`);gateOverlay.style.setProperty('--gate-enter',`${entrance}s`);gateOverlay.style.setProperty('--gate-unlock',`${Math.max(1,Number(GATE_CONFIG.unlockSeconds)||6)}s`);gateOverlay.classList.add('open');gateOverlay.setAttribute('aria-hidden','false');gateWater?.classList.add('on');if(gateSunImage)gateSunImage.src=absolute(CONFIG.LOGO_SRC);if(gateEmail)gateEmail.href=`mailto:${encodeURIComponent(GATE_CONFIG.helpEmail)}?subject=${encodeURIComponent('Grand Element Radio Gate Access')}`;const launchSun=()=>{if(!gateState.active)return;requestAnimationFrame(()=>requestAnimationFrame(()=>gateSun.classList.add('enter')));gateState.waterFadeTimer=setTimeout(()=>gateWater?.classList.add('fade'),Math.min(6500,Math.max(900,entrance*220)));};if(waterLead>0)gateState.waterLeadTimer=setTimeout(launchSun,waterLead*1000);else launchSun();gateState.centerTimer=setTimeout(gateReachedCenter,(waterLead+entrance)*1000);}
 async function unlockGrandElementGate(){if(!gateState.active)return;clearGateTimers();try{localStorage.setItem(GATE_CONFIG.storageKey,'1');}catch(_e){}audio.volume=gateState.startVolume;if(audio.paused){try{await audio.play();}catch(_e){}}gateContent?.classList.remove('show');gateOverlay?.classList.add('unlocking');gateSun?.classList.add('unlock');gateState.finishTimer=setTimeout(()=>{gateState.active=false;resetGateVisual();audio.volume=gateState.startVolume;},Math.max(1,Number(GATE_CONFIG.unlockSeconds)||6)*1000+150);}
 function showNextGateHint(){gateState.hintIndex=Math.min(GATE_HINTS.length-1,gateState.hintIndex+1);if(gateHintText)gateHintText.textContent=GATE_HINTS[gateState.hintIndex]||'';}
 function noteGateTrack(url){if(!GATE_CONFIG.autoEnabled||!GATE_CONFIG.enabled||gateAuthorized()||gateState.active)return;if(!url||isStationID(url)||url===gateState.lastTrack)return;gateState.lastTrack=url;gateState.trackCount+=1;try{localStorage.setItem(GATE_CONFIG.trackCountKey,String(gateState.trackCount));}catch(_e){}if(gateState.trackCount>=Math.max(1,Number(GATE_CONFIG.triggerTrack)||6))void startGrandElementGate({manual:false});}
