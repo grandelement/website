@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- GE RADIO LOVE GATE BUILD — 2026-09-20 -->
+<!-- Sixth real-song play + 1:11 trigger, 30-minute hard listening cap, persistent refresh/expiry lock. -->
 <!-- GE RADIO LIVE-FIRST + LIVE EQ CORS FIX — 2026-09-20 -->
 <!-- GE Radio CENTRAL STREAM LIVE READY — 2026-09-19
 LIVE no longer rebuilds the station from 85 local files. The LIVE button now tunes the existing single audio element into one continuously running external station stream. Add the real stream URL to CONFIG.LIVE_STREAM_URL after the station host is created. Existing Album/Shuffle, Offline, Ship controls, Sun EQ, comments, and service-worker behavior are otherwise preserved. -->
@@ -153,75 +155,6 @@ body.view-player #liveStatus{width:min(900px,94vw)}
 #sunLabBtn{white-space:nowrap}
 body.view-player #sunLabBtn{min-height:30px;padding:4px 7px;font-size:clamp(10px,1.45vw,13px);transform:none!important}
 @media(max-width:520px){.sunlab-panel{width:min(96vw,420px);padding:11px 10px 12px}}
-/* GRAND ELEMENT GATE */
-#gateOverlay{position:fixed;inset:0;z-index:50000;overflow:hidden;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.88);color:#f4fbff;opacity:1;transition:background 1.2s ease,opacity 1.2s ease;touch-action:manipulation}
-#gateOverlay.open{display:flex}
-#gateOverlay.unlocking{background:rgba(0,0,0,0)}
-/* ORIGINAL-STYLE GATE WATER PRELUDE: transparent liquid lens over the existing radio.
-   It blurs/warps what is already behind it instead of painting a blue blob over the sun. */
-#gateWater{
-  position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;
-  background:transparent;
-  -webkit-backdrop-filter:blur(0px) saturate(1);
-  backdrop-filter:blur(0px) saturate(1);
-  transition:opacity 1.1s ease,-webkit-backdrop-filter var(--gate-water-time,4s) ease,backdrop-filter var(--gate-water-time,4s) ease;
-  overflow:hidden;
-}
-#gateWater.on{
-  opacity:1;
-  -webkit-backdrop-filter:blur(var(--gate-water-blur,10px)) saturate(1.08);
-  backdrop-filter:blur(var(--gate-water-blur,10px)) saturate(1.08);
-}
-#gateWater.fade{
-  opacity:0;
-  -webkit-backdrop-filter:blur(0px) saturate(1);
-  backdrop-filter:blur(0px) saturate(1);
-}
-#gateWater::before{
-  content:'';position:absolute;left:50%;top:50%;width:10vmin;height:10vmin;border-radius:50%;
-  transform:translate(-50%,-50%) scale(.1);opacity:0;
-  border:2px solid rgba(190,244,255,.78);
-  box-shadow:0 0 9px rgba(151,232,255,.38),0 0 24px rgba(64,190,255,.16);
-  animation:gateOldWaterMain var(--gate-water-time,4s) cubic-bezier(.14,.56,.2,1) forwards;
-}
-.gate-water-ring{
-  position:absolute;left:50%;top:50%;width:9vmin;height:9vmin;border-radius:50%;
-  transform:translate(-50%,-50%) scale(.1);opacity:0;
-  border:1.5px solid rgba(210,248,255,.56);
-  box-shadow:0 0 10px rgba(105,218,255,.20);
-  animation:gateOldWaterRing var(--gate-water-time,4s) cubic-bezier(.14,.56,.2,1) forwards;
-}
-.gate-water-ring:nth-child(1){animation-delay:.12s}.gate-water-ring:nth-child(2){animation-delay:.42s}.gate-water-ring:nth-child(3){animation-delay:.72s}.gate-water-ring:nth-child(4){animation-delay:1.02s}.gate-water-ring:nth-child(5){animation-delay:1.32s}
-@keyframes gateOldWaterMain{
-  0%{transform:translate(-50%,-50%) scale(.08);opacity:0}
-  10%{opacity:.76}
-  58%{opacity:.34}
-  100%{transform:translate(-50%,-50%) scale(24);opacity:0}
-}
-@keyframes gateOldWaterRing{
-  0%{transform:translate(-50%,-50%) scale(.08);opacity:0}
-  12%{opacity:.62}
-  70%{opacity:.16}
-  100%{transform:translate(-50%,-50%) scale(22);opacity:0}
-}
-#gateSun{position:absolute;z-index:2;left:50%;top:50%;width:100svh;height:100svh;max-width:none;max-height:none;border-radius:50%;transform:translate(calc(50vw + 62svh),-50%) scale(1);transform-origin:center center;opacity:1;transition-property:transform,opacity,filter;transition-duration:var(--gate-enter,30s),var(--gate-enter,30s),1s;transition-timing-function:cubic-bezier(.18,.62,.22,1),linear,ease;will-change:transform,opacity;isolation:isolate}
-#gateSun.enter{transform:translate(-50%,-50%) scale(1)}
-#gateSun.unlock{transform:translate(-50%,-50%) scale(5.5);opacity:0;filter:brightness(1.35) blur(1.5px);transition-duration:var(--gate-unlock,6s),var(--gate-unlock,6s),var(--gate-unlock,6s);transition-timing-function:cubic-bezier(.18,.66,.18,1),ease-in,ease-in}
-#gateSunImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;box-shadow:0 0 5svh rgba(33,150,255,.28),0 0 12svh rgba(27,112,255,.18)}
-#gateContent{position:absolute;z-index:3;left:50%;bottom:7%;width:min(86vw,410px);max-width:calc(100vw - 24px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;opacity:0;pointer-events:none;transition:opacity 1.8s ease;text-shadow:0 2px 8px #000,0 0 18px #000}
-#gateContent.show{opacity:1;pointer-events:auto}
-#gateContent h2{margin:0;font-size:clamp(21px,3.1svh,32px);line-height:1.05;letter-spacing:.035em}
-#gateContent>p:not(#gateHintText):not(#gateStatus){margin:0;font-size:clamp(14px,1.85svh,18px);line-height:1.25}
-#gateForm{width:min(100%,390px);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;justify-content:center}
-#gatePassword{width:100%;min-width:0;height:44px;border-radius:999px;border:1px solid rgba(192,235,255,.72);background:rgba(1,10,22,.64);color:#fff;padding:0 15px;font:700 16px/1 system-ui,-apple-system,sans-serif;outline:none;text-align:center;letter-spacing:.08em}
-#gatePassword::placeholder{color:rgba(236,248,255,.74);letter-spacing:.02em}
-#gateEnter,#gateHintBtn,#gateEmail{min-height:40px;padding:8px 13px;border-radius:999px;border:1px solid rgba(154,226,255,.58);background:rgba(3,26,48,.76);color:#fff;font-weight:850;text-decoration:none;font-size:13px}
-#gateEnter{height:44px;min-width:82px}
-#gateHelpRow{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:100%}
-#gateHintText{min-height:2.6em;width:min(100%,390px);margin:2px 0 0!important;padding:5px 8px;font-size:clamp(17px,2.25svh,22px)!important;line-height:1.28!important;font-weight:760;opacity:.98}
-#gateStatus{min-height:1.4em;margin:0!important;font-size:13px!important;line-height:1.25!important;opacity:.9}
-#gateTestBtn{border-color:rgba(66,214,255,.65)!important;background:rgba(7,65,92,.82)!important}
-@media(max-width:520px){#gateSun{width:100svh;height:100svh}#gateContent{bottom:6.5%;width:min(88vw,380px);max-width:calc(100vw - 22px);gap:7px}#gateForm{grid-template-columns:1fr;width:100%}#gatePassword,#gateEnter{width:100%}#gateHelpRow{gap:6px}#gateHintBtn,#gateEmail{font-size:12px;padding:8px 11px}}
 #status{display:none!important}
 footer{padding-top:4px}
 @media(max-width:520px){
@@ -429,16 +362,12 @@ body.arrange-mode *{user-select:none;-webkit-user-select:none;-webkit-touch-call
  #shipReflectionWall.open{opacity:1;pointer-events:auto}
  #reflectionField{position:absolute;inset:0;touch-action:none}
  #reflectionPrompt{position:absolute;z-index:3;left:50%;top:4%;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(2,15,26,.72);border:1px solid rgba(114,233,255,.55);font-size:clamp(12px,1vw,17px);font-weight:900;text-align:center;white-space:nowrap}
-
- #reflectionUniverseControls{position:absolute;z-index:8;left:50%;top:11%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:7px;max-width:92vw}
- #reflectionUniverseControls button{min-width:54px;min-height:34px;padding:5px 9px;border-radius:11px;background:rgba(3,24,45,.82);border:1px solid rgba(73,196,255,.55);color:#effbff;font-weight:850}
- #reflectionUniverseLabel{min-width:116px;padding:7px 10px;border-radius:999px;background:rgba(2,15,26,.72);border:1px solid rgba(114,233,255,.38);font-size:11px;font-weight:850;text-align:center;white-space:nowrap}
  #reflectionControls{position:absolute;z-index:5;left:50%;bottom:3.5%;transform:translateX(-50%);display:flex;gap:8px}
  #reflectionControls button{min-width:86px;min-height:38px;border-radius:12px;background:rgba(3,24,45,.82);border:1px solid rgba(73,196,255,.55);color:#effbff;font-weight:850}
- .soul-reflection-dot{position:absolute;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;aspect-ratio:1/1;box-sizing:border-box;transform:translate(-50%,-50%);border:0;border-radius:50%;padding:0;background:rgba(4,22,42,.9) center/72% 72% no-repeat url('../ge-images/images/ge-logo%203.png');box-shadow:0 0 6px 2px rgba(255,255,255,.62),0 0 18px 7px rgba(86,207,255,.28);cursor:pointer;isolation:isolate}
+ .soul-reflection-dot{position:absolute;width:18px;height:18px;transform:translate(-50%,-50%);border:0;border-radius:50%;padding:0;background:rgba(4,22,42,.9) center/72% 72% no-repeat url('../ge-images/images/ge-logo%203.png');box-shadow:0 0 6px 2px rgba(255,255,255,.62),0 0 18px 7px rgba(86,207,255,.28);cursor:pointer;isolation:isolate}
  .soul-reflection-dot::before,.soul-reflection-dot::after{content:'';position:absolute;inset:-45%;z-index:-1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(236,252,255,.34) 0 14%,rgba(111,217,255,.20) 28%,rgba(101,239,220,.10) 45%,transparent 69%);filter:blur(3px);animation:soulGas 4.6s ease-in-out infinite alternate}
  .soul-reflection-dot::after{inset:-70%;opacity:.42;filter:blur(6px);animation-duration:7.2s;animation-direction:alternate-reverse}
- .soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;box-shadow:0 0 9px 4px rgba(255,255,255,.92),0 0 30px 12px rgba(52,255,197,.44);animation:soulPulse 1.15s ease-in-out infinite alternate}
+ .soul-reflection-dot.draft{width:22px;height:22px;box-shadow:0 0 9px 4px rgba(255,255,255,.92),0 0 30px 12px rgba(52,255,197,.44);animation:soulPulse 1.15s ease-in-out infinite alternate}
  .soul-reflection-dot.newborn{animation:soulPulse 1.5s ease-in-out 8 alternate}
  @keyframes soulPulse{from{transform:translate(-50%,-50%) scale(.82);filter:brightness(.9)}to{transform:translate(-50%,-50%) scale(1.28);filter:brightness(1.4)}}
  @keyframes soulGas{0%{transform:translate3d(-2px,1px,0) scale(.86) rotate(0deg);opacity:.35}50%{transform:translate3d(2px,-1px,0) scale(1.14) rotate(90deg);opacity:.78}100%{transform:translate3d(-1px,-2px,0) scale(.98) rotate(180deg);opacity:.48}}
@@ -463,12 +392,98 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
 }
 
 
+/* GRAND ELEMENT INNER GATE */
+#geGate{
+  position:fixed;inset:0;z-index:1000000;display:none;overflow:hidden;
+  background:radial-gradient(circle at 50% 50%,rgba(1,17,34,.58) 0%,rgba(0,4,12,.91) 58%,#000 100%);
+  color:#effbff;isolation:isolate;touch-action:none;
+}
+#geGate.open{display:block}
+#geGateBackdrop{position:absolute;inset:0;background:rgba(0,0,0,.18);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px)}
+#geGateSunWrap{
+  position:absolute;left:50%;top:50%;width:min(74vmin,720px);aspect-ratio:1;
+  transform:translate(-50%,-50%);pointer-events:none;
+}
+#geGateSun{
+  width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
+  box-shadow:0 0 38px rgba(20,152,255,.68),0 0 95px rgba(0,104,255,.48),0 0 180px rgba(0,87,255,.28);
+  transform:translate3d(120vw,0,0) scale(.86);
+  transform-origin:center center;will-change:transform,opacity,filter;
+}
+#geGateSunWrap::before,#geGateSunWrap::after{
+  content:'';position:absolute;inset:-12%;border-radius:50%;pointer-events:none;opacity:.64;
+  border:2px solid rgba(98,205,255,.20);box-shadow:0 0 32px rgba(31,163,255,.22);
+  animation:geGatePulse 4.8s ease-out infinite;
+}
+#geGateSunWrap::after{inset:-25%;opacity:.34;animation-delay:1.5s;animation-duration:6.2s}
+@keyframes geGatePulse{
+  0%{transform:scale(.88);opacity:.10}
+  48%{opacity:.55}
+  100%{transform:scale(1.18);opacity:0}
+}
+#geGatePanel{
+  position:absolute;z-index:5;left:50%;bottom:max(5.5vh,env(safe-area-inset-bottom));
+  transform:translate(-50%,18px);width:min(520px,90vw);padding:14px 15px 13px;
+  border-radius:18px;border:1px solid rgba(94,205,255,.42);
+  background:rgba(1,12,25,.80);box-shadow:0 14px 44px rgba(0,0,0,.52),0 0 24px rgba(34,161,255,.15);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center;
+}
+#geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#geGateTitle{font-size:clamp(18px,4.5vw,25px);font-weight:850;letter-spacing:.04em;margin:0 0 9px}
+#geGateStatus{min-height:1.2em;margin:0 0 8px;font-size:12px;opacity:.80}
+#geGateEntry{display:flex;gap:8px;align-items:center;justify-content:center}
+#geGateWord{
+  flex:1 1 auto;min-width:0;min-height:45px;border:1px solid rgba(91,202,255,.48);border-radius:12px;
+  background:rgba(0,5,13,.72);color:#f4fbff;padding:10px 12px;text-align:center;font:700 17px/1.2 system-ui;
+  outline:none;letter-spacing:.12em;
+}
+#geGateWord:focus{border-color:rgba(114,229,255,.92);box-shadow:0 0 16px rgba(62,190,255,.22)}
+#geGateEnter,#geGateHint{
+  min-height:45px;border-color:rgba(72,195,255,.56);background:rgba(7,45,75,.78);color:#f2fbff;
+}
+#geGateHint{margin:9px auto 0;min-height:37px;padding:7px 12px;font-size:12px}
+#geGateHintText{min-height:1.4em;margin:9px 0 0;font-size:13px;line-height:1.35;color:#dff6ff}
+#geGateHelp{display:none;margin-top:9px;font-size:12px;color:#c9eeff}
+#geGateHelp.show{display:block}
+#geGateHelp a{color:#eafaff;text-decoration:underline;text-underline-offset:2px}
+#geGate.wrong #geGateWord{animation:geGateNudge .34s ease}
+@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,25px)!important}
+#geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
+#geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
+@media(max-width:560px){
+  #geGateSunWrap{width:min(82vmin,540px)}
+  #geGatePanel{bottom:max(4vh,env(safe-area-inset-bottom));padding:12px}
+  #geGateEntry{display:grid;grid-template-columns:1fr auto}
+}
+@media(prefers-reduced-motion:reduce){
+  #geGateSunWrap::before,#geGateSunWrap::after{animation:none}
+}
+
 </style>
 </head>
 <body>
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
+
+<div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
+  <div id="geGateBackdrop"></div>
+  <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
+  <section id="geGatePanel" aria-live="polite">
+    <div id="geGateTitle">Inner Gate</div>
+    <div id="geGateStatus">Enter the word to continue.</div>
+    <div id="geGateEntry">
+      <input id="geGateWord" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Gate word" placeholder="Enter">
+      <button id="geGateEnter" type="button">Enter</button>
+    </div>
+    <button id="geGateHint" type="button">Hint</button>
+    <div id="geGateHintText"></div>
+    <div id="geGateHelp">Still need access? <a id="geGateEmail" href="#">Email Grand Element</a></div>
+  </section>
+</div>
+
 <button id="viewToggle" type="button">Ship View</button>
 <div id="shipStage" aria-hidden="true">
   <div id="shipWindowViewport" aria-hidden="true">
@@ -567,14 +582,13 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
       <button id="arrivalGeoBtn" type="button">Use General Device Location</button>
       <div id="arrivalGeoStatus"></div>
     </div>
-    <div class="arrival-save-note">Soul Reflections are saved on this device for now. Choose a universe before placing your Soul. Shared permanent reflections and private email delivery will use the Grand Element cloud backend when its Worker endpoint is connected.</div>
+    <div class="arrival-save-note">Soul Reflections are saved on this device in this prototype. Shared permanent reflections and direct private sending become automatic when the Grand Element message backend is connected.</div>
     <div class="arrival-actions"><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button">Done</button></div>
     <div id="arrivalStatus"></div>
   </section>
   <section id="shipReflectionWall" aria-hidden="true" aria-label="Soul Reflections">
     <div id="reflectionField"></div>
     <div id="reflectionPrompt">Soul Reflections</div>
-    <div id="reflectionUniverseControls" aria-label="Choose universe background"><button id="reflectionUniversePrev" type="button" aria-label="Previous universe">◀</button><div id="reflectionUniverseLabel">Universe 1 of 16</div><button id="reflectionUniverseNext" type="button" aria-label="Next universe">▶</button></div>
     <div id="reflectionEarthWrap" aria-hidden="true"><canvas id="reflectionEarth" width="220" height="220"></canvas><div id="reflectionEarthLabel">EARTH · GENERAL LOCATION</div></div>
     <div id="reflectionBubble"></div>
     <div id="reflectionControls"><button id="reflectionBack" type="button">Back</button><button id="reflectionOK" type="button" hidden>OK</button></div>
@@ -598,11 +612,11 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
   <audio id="player" controls preload="auto" playsinline autoplay crossorigin="anonymous" controlslist="nodownload noplaybackrate"></audio>
 
   <div id="musicGroup">
-    <button class="tgl" id="liveBtn" aria-pressed="true">LIVE</button>
     <button id="prevBtn">Prev</button>
     <button id="nextBtn">Next</button>
-    <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
+    <button class="tgl" id="liveBtn" aria-pressed="true">LIVE</button>
+    <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
     <button id="shareBtn">Share</button>
   </div>
   <div id="liveStatus" role="status" aria-live="polite"></div>
@@ -610,12 +624,12 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
   <section class="group" id="bgGroup">
     <span class="section-label">Backgrounds</span>
     <div class="bg-row">
-      <button class="tgl" id="bgAuto" aria-pressed="false">Auto</button>
+      <button class="tgl" id="bgOff" aria-pressed="false">Off</button>
       <button id="bgPrev">Prev</button>
       <button id="bgNext">Next</button>
       <button class="tgl" id="bgPer" aria-pressed="true">Per Song</button>
       <button class="tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
-      <button class="tgl" id="bgOff" aria-pressed="false">Off</button>
+      <button class="tgl" id="bgAuto" aria-pressed="false">Auto</button>
     </div>
   </section>
 
@@ -676,7 +690,6 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
     </div>
     <div class="sunlab-actions">
-      <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset</button>
       <button id="sunLabHide" type="button" class="sunlab-mini">Hide</button>
     </div>
@@ -685,43 +698,14 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
   <footer>Much Love!!</footer>
 </main>
 
-<div id="gateOverlay" aria-hidden="true">
-  <div id="gateWater" aria-hidden="true">
-    <span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span><span class="gate-water-ring"></span>
-  </div>
-  <div id="gateSun">
-    <img id="gateSunImage" alt="Grand Element">
-    <div id="gateContent" aria-live="polite">
-      <h2>Grand Element</h2>
-      <p>Enter the word when you are ready.</p>
-      <form id="gateForm" autocomplete="off">
-        <input id="gatePassword" type="password" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Passcode" aria-label="Grand Element gate passcode">
-        <button id="gateEnter" type="submit">Enter</button>
-      </form>
-      <div id="gateHelpRow">
-        <button id="gateHintBtn" type="button">Hint</button>
-        <a id="gateEmail" href="mailto:access@grandelement.com?subject=Grand%20Element%20Radio%20Gate%20Access">Email Grand Element</a>
-      </div>
-      <p id="gateHintText"></p>
-      <p id="gateStatus"></p>
-    </div>
-  </div>
-</div>
-
 <script>
 'use strict';
 
-// Radio is a fixed control surface. Disable browser pinch/gesture zoom without blocking one-finger interaction.
-document.addEventListener('gesturestart',event=>event.preventDefault(),{passive:false});
-document.addEventListener('gesturechange',event=>event.preventDefault(),{passive:false});
-document.addEventListener('gestureend',event=>event.preventDefault(),{passive:false});
-document.addEventListener('touchmove',event=>{if(event.touches&&event.touches.length>1)event.preventDefault();},{passive:false});
-
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.22-gate-restored-3',
+  APP_VERSION: '2026.09.20-love-gate-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
-  CONTACT_EMAIL: 'private@grandelement.com',
+  CONTACT_EMAIL: 'info@grandelement.com',
   REFLECTION_ENDPOINT: '', // Set to a Cloudflare Worker URL when direct private sending/shared wall is connected.
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
@@ -750,7 +734,6 @@ const CONFIG = Object.freeze({
   LIVE_STREAM_URL: 'https://radio.grandelement.blitz.cloud/stream.mp3',
   LIVE_STREAM_TITLE: 'Grand Element LIVE',
   LIVE_SHARE_PARAM: 'live',
-  SOUL_UNIVERSE_BACKGROUNDS: Object.freeze(['../ge-images/images/stars backgrounds/1.jpeg', '../ge-images/images/stars backgrounds/2.jpg', '../ge-images/images/stars backgrounds/3.png', '../ge-images/images/stars backgrounds/4.jpg', '../ge-images/images/stars backgrounds/5.jpg', '../ge-images/images/stars backgrounds/6.jpg', '../ge-images/images/stars backgrounds/7.png', '../ge-images/images/stars backgrounds/8.jpg', '../ge-images/images/stars backgrounds/9.jpg', '../ge-images/images/stars backgrounds/10.jpg', '../ge-images/images/stars backgrounds/11.jpg', '../ge-images/images/stars backgrounds/12.png', '../ge-images/images/stars backgrounds/13.jpg', '../ge-images/images/stars backgrounds/14.jpg', '../ge-images/images/stars backgrounds/15.jpg', '../ge-images/images/stars backgrounds/16.png']),
   BACKGROUND_FOCAL: {
     // This creates real movement even when cover has no vertical crop.
     // Add a filename here when one picture needs its own optical adjustment.
@@ -758,46 +741,25 @@ const CONFIG = Object.freeze({
   }
 });
 
+
+// INNER GATE — all timing and access variables live here.
 const GATE_CONFIG = Object.freeze({
-  // ALL GATE TIMING AND BEHAVIOR IS HERE SO IT IS EASY TO CHANGE.
   enabled: true,
-  autoEnabled: false,          // TESTING: use Sun Lab > Test Gate. Set true when ready for the real 6th-song gate.
-  triggerTrack: 6,             // Production target: beginning of the 6th real song.
-  waterLeadSeconds: 4,          // Original water/blur ripple begins first.
-  waterBlurPx: 10,             // Strength of the temporary background blur.
-  entranceSeconds: 36,         // Slightly slower sun move from offscreen right to dead center.
-  graceSeconds: 33,            // After center: full-volume decision time.
-  fadeSeconds: 60,             // Then one full minute to complete silence.
-  unlockSeconds: 6,            // Correct word zooms into Grand Element and dissolves the Gate.
+  triggerTrack: 6,
+  triggerAtSeconds: 71,          // 1:11 of real music after the sixth real-song play begins.
+  hardLimitSeconds: 1800,       // 30:00 cumulative music playback safety cap.
+  liveMetadataURL: 'https://radio.grandelement.blitz.cloud/status-json.xsl',
+  liveMetadataPollSeconds: 10,
+  entranceSeconds: 30,          // Blue sun travel from offscreen right to center.
+  graceSeconds: 96,             // Music continues this long after the sun reaches center.
+  unlockSeconds: 6,             // Zoom-through/fade after LOVE is accepted.
   password: 'love',
-  storageKey: 'GE_GATE_LOVE_V1',
-  trackCountKey: 'GE_GATE_TRACK_COUNT_V1',
-  helpEmail: 'access@grandelement.com',
+  authKey: 'GE_GATE_LOVE_V1',
+  stateKey: 'GE_GATE_STATE_V1',
   removeOfflineOnTimeout: true,
-  testDeletesOffline: false    // Test Gate does NOT erase your downloaded library while you experiment.
+  helpEmail: 'private@grandelement.com',
+  helpSubject: 'Grand Element Radio Gate Access'
 });
-const GATE_HINTS = Object.freeze([
-  'Somebody said there is only one thing we need.',
-  'What we are.',
-  'What grows when you give it away?',
-  'What can be felt without being touched?',
-  'What brings two separate things together without making either disappear?',
-  'What gets stronger when it is shared?',
-  'What can travel any distance without moving?',
-  'What turns a house into a home?',
-  'What does music keep trying to say?',
-  'What can be understood before a single word is spoken?',
-  'What can remain after anger is gone?',
-  'What gives without becoming smaller?',
-  'What can heal without medicine?',
-  'What is stronger than fear?',
-  'What has no borders but connects people everywhere?',
-  'What is at the center of Grand Element?',
-  'Four letters. One thing we all need.',
-  'What did somebody once say was all you need?',
-  'L _ V E',
-  'LOVE'
-]);
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
@@ -813,18 +775,6 @@ const sunLabPanel = $('sunLabPanel');
 const sunLabClose = $('sunLabClose');
 const sunLabHide = $('sunLabHide');
 const sunLabReset = $('sunLabReset');
-const gateTestBtn = $('gateTestBtn');
-const gateOverlay = $('gateOverlay');
-const gateWater = $('gateWater');
-const gateSun = $('gateSun');
-const gateSunImage = $('gateSunImage');
-const gateContent = $('gateContent');
-const gateForm = $('gateForm');
-const gatePassword = $('gatePassword');
-const gateHintBtn = $('gateHintBtn');
-const gateHintText = $('gateHintText');
-const gateStatus = $('gateStatus');
-const gateEmail = $('gateEmail');
 
 // Load the identity artwork before optional controllers initialize.
 // Versioned URL prevents an old/broken cached image from masking the real logo.
@@ -1316,6 +1266,14 @@ async function enterLiveMode(){
   audio.load();
 
   try{
+    if(window.GEGate?.isExpiredLocked?.()){
+      state.livePreparing=false;
+      state.live=true;
+      syncModeButtons();
+      setLiveStatus('Grand Element LIVE',true);
+      window.GEGate?.restore?.();
+      return;
+    }
     await audio.play();
     state.livePreparing=false;
     state.live=true;
@@ -1434,10 +1392,10 @@ function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.o
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(!url) return;
   const token=++state.playToken;
+  window.GEGate?.syncListening?.();
   const sunEQTrackChanged=state.currentURL!==url;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
-  if(!isStationID(url))window.GEGate?.noteTrack?.(url);
   titleBtn.textContent=displayTitle(url,!state.shuffle);
   updateCurrentRow();
   updateMediaSession(url);
@@ -1466,9 +1424,14 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
       audio.src=url;
       audio.load();
     }
+    if(window.GEGate?.isExpiredLocked?.()){
+      window.GEGate?.restore?.();
+      return;
+    }
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
+    if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     setStatus('Playing');
   }catch(error){
     if(token!==state.playToken) return;
@@ -2552,8 +2515,384 @@ async function registerServiceWorker(){
     isActive:isEnabled,
     scan:scanExistingAssets,
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
-    remove:remove,
-    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
+    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true}),
+    remove
+  };
+})();
+
+
+
+/* INNER GATE CONTROLLER
+   Access gate, not DRM. It remembers authorization, accumulated real listening,
+   an active gate, and an expired lock across refreshes. */
+(function createInnerGate(){
+  if(!GATE_CONFIG.enabled)return;
+
+  const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),
+        enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
+        help=$('geGateHelp'),email=$('geGateEmail'),status=$('geGateStatus');
+
+  const hints=[
+    'Somebody said there’s only one thing we need.',
+    'What we are.',
+    'What grows when you give it away?',
+    'What can be felt without being touched?',
+    'What brings two separate things together without making either disappear?',
+    'What gets stronger when it is shared?',
+    'What can travel any distance without moving?',
+    'What turns a house into a home?',
+    'What does music keep trying to say?',
+    'What can be understood before a single word is spoken?',
+    'What can remain after anger is gone?',
+    'What gives without becoming smaller?',
+    'What can heal without medicine?',
+    'What is stronger than fear?',
+    'What has no borders but connects people everywhere?',
+    'What is at the center of Grand Element?',
+    'Four letters. One thing we all need.',
+    'What did somebody once say was all you need?',
+    'L _ V E',
+    'LOVE'
+  ];
+
+  const emptyState=()=>({
+    playCount:0,
+    musicSeconds:0,
+    sixthStartSeconds:null,
+    active:false,
+    triggeredAt:0,
+    centerAt:0,
+    expireAt:0,
+    expired:false,
+    offlinePurged:false,
+    hintIndex:0,
+    reason:'',
+    lastLiveTitle:''
+  });
+
+  function load(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(GATE_CONFIG.stateKey)||'null');
+      return parsed&&typeof parsed==='object'?{...emptyState(),...parsed}:emptyState();
+    }catch(_e){return emptyState();}
+  }
+  let gs=load();
+  let lastTickAt=Date.now();
+  let wasCountable=false;
+  let liveStationID=false;
+  let lastSave=0;
+  let centerTimer=0,expireTimer=0,closeTimer=0;
+
+  function authorized(){return localStorage.getItem(GATE_CONFIG.authKey)==='1';}
+  function save(force=false){
+    const now=Date.now();
+    if(!force && now-lastSave<4000)return;
+    lastSave=now;
+    try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
+  }
+  function clearTimers(){clearTimeout(centerTimer);clearTimeout(expireTimer);clearTimeout(closeTimer);centerTimer=expireTimer=closeTimer=0;}
+  function isExpiredLocked(){return !authorized() && !!gs.expired;}
+
+  function updateHintUI(){
+    const shown=Math.max(0,Math.min(hints.length,Number(gs.hintIndex)||0));
+    hintText.textContent=shown?hints[shown-1]:'';
+    if(shown>=hints.length){
+      help.classList.add('show');
+    }else{
+      help.classList.remove('show');
+    }
+  }
+
+  function showPanel(expired=false){
+    gate.classList.add('centered');
+    if(status)status.textContent=expired?'The music is resting. Enter the word to continue.':'Enter the word to continue.';
+    updateHintUI();
+    setTimeout(()=>word?.focus({preventScroll:true}),250);
+  }
+
+  function positionSun(){
+    if(!sun)return;
+    const now=Date.now();
+    const start=Number(gs.triggeredAt)||now;
+    const center=Number(gs.centerAt)||now;
+    if(now>=center){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      return 0;
+    }
+    const span=Math.max(1,center-start);
+    const progress=Math.max(0,Math.min(1,(now-start)/span));
+    const remaining=Math.max(0,center-now);
+    const x=(1-progress)*120;
+    const scale=.86+.14*progress;
+    sun.style.transition='none';
+    sun.style.transform=`translate3d(${x}vw,0,0) scale(${scale})`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      sun.style.transition=`transform ${remaining}ms linear`;
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+    }));
+    return remaining;
+  }
+
+  async function purgeOffline(){
+    if(!GATE_CONFIG.removeOfflineOnTimeout||gs.offlinePurged)return;
+    gs.offlinePurged=true;save(true);
+    try{
+      if(window.GEOffline?.remove){
+        await window.GEOffline.remove();
+      }else if('caches' in window){
+        await caches.delete(CONFIG.OFFLINE_CACHE);
+        localStorage.removeItem(CONFIG.OFFLINE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_PLAYABLE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_STATIONS_KEY);
+      }
+    }catch(_e){}
+  }
+
+  function expireGate(){
+    if(authorized())return;
+    gs.active=true;gs.expired=true;
+    if(!gs.expireAt)gs.expireAt=Date.now();
+    save(true);
+    gate.classList.add('open','centered');
+    gate.setAttribute('aria-hidden','false');
+    if(sun){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+    }
+    showPanel(true);
+    try{audio.pause();}catch(_e){}
+    void purgeOffline();
+  }
+
+  function scheduleStages(){
+    clearTimers();
+    if(authorized()||!gs.active)return;
+    const now=Date.now();
+    if(gs.expired||now>=Number(gs.expireAt||0)){
+      expireGate();
+      return;
+    }
+    const remainingToCenter=Math.max(0,Number(gs.centerAt||0)-now);
+    if(remainingToCenter<=0){
+      showPanel(false);
+    }else{
+      centerTimer=setTimeout(()=>showPanel(false),remainingToCenter);
+    }
+    const remainingToExpire=Math.max(0,Number(gs.expireAt||0)-now);
+    expireTimer=setTimeout(expireGate,remainingToExpire);
+  }
+
+  function restore(){
+    if(authorized()){
+      gate?.classList.remove('open','centered','unlocking','wrong');
+      gate?.setAttribute('aria-hidden','true');
+      return;
+    }
+    if(!gs.active&&!gs.expired)return;
+    gate.classList.add('open');
+    gate.setAttribute('aria-hidden','false');
+    if(sun) sun.src=absolute(CONFIG.LOGO_SRC);
+    positionSun();
+    scheduleStages();
+  }
+
+  function trigger(reason){
+    if(authorized()||gs.active||gs.expired)return;
+    const now=Date.now();
+    gs.active=true;
+    gs.reason=reason||'gate';
+    gs.triggeredAt=now;
+    gs.centerAt=now+GATE_CONFIG.entranceSeconds*1000;
+    gs.expireAt=gs.centerAt+GATE_CONFIG.graceSeconds*1000;
+    save(true);
+    gate.classList.remove('centered','unlocking','wrong');
+    gate.classList.add('open');
+    gate.setAttribute('aria-hidden','false');
+    if(sun){
+      sun.src=absolute(CONFIG.LOGO_SRC);
+      sun.style.transition='none';
+      sun.style.transform='translate3d(120vw,0,0) scale(.86)';
+      sun.style.opacity='1';
+      sun.style.filter='';
+    }
+    if(panel){panel.style.removeProperty('opacity');panel.style.removeProperty('pointer-events');}
+    if(status)status.textContent='Enter the word to continue.';
+    positionSun();
+    scheduleStages();
+  }
+
+  function noteRealSongPlay(url){
+    if(authorized()||gs.active||gs.expired||isStationID(url))return;
+    gs.playCount=Math.max(0,Number(gs.playCount)||0)+1;
+    if(gs.playCount===GATE_CONFIG.triggerTrack && gs.sixthStartSeconds===null){
+      gs.sixthStartSeconds=Math.max(0,Number(gs.musicSeconds)||0);
+    }
+    save(true);
+  }
+
+  function countableNow(){
+    if(audio.paused||audio.ended||authorized()||gs.active||gs.expired)return false;
+    if(state.live)return !liveStationID;
+    return !!state.currentURL && !isStationID(state.currentURL);
+  }
+
+  function evaluateTriggers(){
+    if(authorized()||gs.active||gs.expired)return;
+    if(gs.sixthStartSeconds!==null && gs.playCount>=GATE_CONFIG.triggerTrack){
+      const afterSixth=Math.max(0,gs.musicSeconds-Number(gs.sixthStartSeconds||0));
+      if(afterSixth>=GATE_CONFIG.triggerAtSeconds){
+        save(true);trigger('sixth-song');return;
+      }
+    }
+    if(gs.musicSeconds>=GATE_CONFIG.hardLimitSeconds){
+      save(true);trigger('hard-limit');
+    }
+  }
+
+  function syncListening(){
+    const now=Date.now();
+    const delta=Math.max(0,(now-lastTickAt)/1000);
+    lastTickAt=now;
+
+    // wasCountable represents the interval that just elapsed. This keeps the
+    // clock accurate through background-tab throttling and pause events.
+    if(wasCountable&&!authorized()&&!gs.active&&!gs.expired){
+      gs.musicSeconds=Math.max(0,Number(gs.musicSeconds)||0)+delta;
+      evaluateTriggers();
+      save(false);
+    }
+    wasCountable=countableNow();
+  }
+
+  function tick(){
+    syncListening();
+    if(!authorized()&&gs.active&&!gs.expired&&Date.now()>=Number(gs.expireAt||0))expireGate();
+  }
+
+  function stationTitle(title){
+    return /(?:\bGE\b.*)?station\s+identification/i.test(String(title||'')) || /\bstation\s+id\b/i.test(String(title||''));
+  }
+
+  function extractLiveTitle(data){
+    const source=data?.icestats?.source;
+    const first=Array.isArray(source)?source[0]:source;
+    return String(
+      first?.title ||
+      data?.now_playing?.song?.text ||
+      data?.now_playing?.song?.title ||
+      data?.song?.text ||
+      data?.song?.title ||
+      data?.title || ''
+    ).trim();
+  }
+
+  async function pollLiveMetadata(){
+    if(authorized()||gs.expired||!state.live||!GATE_CONFIG.liveMetadataURL)return;
+    try{
+      const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});
+      if(!response.ok)return;
+      const data=await response.json();
+      const title=extractLiveTitle(data);
+      if(!title)return;
+
+      syncListening();
+      liveStationID=stationTitle(title);
+      wasCountable=countableNow();
+
+      if(title!==gs.lastLiveTitle){
+        gs.lastLiveTitle=title;
+        if(!liveStationID)noteRealSongPlay(`live:${title}`);
+        save(true);
+      }
+    }catch(_e){}
+  }
+
+  function wrongWord(){
+    gate.classList.remove('wrong');void gate.offsetWidth;gate.classList.add('wrong');
+    if(status)status.textContent='Keep going.';
+    word?.select();
+  }
+
+  function unlock(){
+    if(authorized())return;
+    const entered=String(word?.value||'').trim().toLowerCase();
+    if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){
+      wrongWord();return;
+    }
+
+    const wasExpired=!!gs.expired;
+    clearTimers();
+    try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
+    gs.active=false;gs.expired=false;gs.reason='unlocked';save(true);
+
+    gate.classList.remove('wrong','centered','unlocking');
+    gate.classList.add('open');
+    gate.style.setProperty('--ge-gate-unlock',`${GATE_CONFIG.unlockSeconds}s`);
+    if(sun){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      sun.style.opacity='1';
+      void sun.offsetWidth;
+    }
+    requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
+
+    // Enter/Return is the listener gesture, so restart immediately if timeout had paused the music.
+    if(wasExpired){
+      audio.muted=false;audio.volume=1;
+      audio.play().catch(()=>{});
+    }
+
+    closeTimer=setTimeout(()=>{
+      gate.classList.remove('open','centered','unlocking','wrong');
+      gate.setAttribute('aria-hidden','true');
+      if(word)word.value='';
+      if(sun){sun.style.removeProperty('transition');sun.style.removeProperty('transform');sun.style.removeProperty('opacity');sun.style.removeProperty('filter');}
+    },Math.max(250,GATE_CONFIG.unlockSeconds*1000));
+  }
+
+  hintBtn?.addEventListener('click',()=>{
+    gs.hintIndex=Math.min(hints.length,(Number(gs.hintIndex)||0)+1);
+    save(true);updateHintUI();
+  });
+  enter?.addEventListener('click',unlock);
+  word?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();unlock();}});
+
+  if(email){
+    const subject=encodeURIComponent(GATE_CONFIG.helpSubject||'Grand Element Radio Gate Access');
+    email.href=`mailto:${GATE_CONFIG.helpEmail}?subject=${subject}`;
+  }
+  if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
+
+  // Keep the persisted listening clock based on audible playback, not page-open time.
+  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();});
+  audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  setInterval(tick,1000);
+  setInterval(()=>{void pollLiveMetadata();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
+  window.addEventListener('pagehide',()=>{syncListening();save(true);});
+  document.addEventListener('visibilitychange',()=>{syncListening();if(document.hidden)save(true);});
+  restore();
+
+  window.GEGate={
+    noteRealSongPlay,
+    trigger,
+    restore,
+    syncListening,
+    isExpiredLocked,
+    isAuthorized:authorized,
+    getState:()=>({...gs}),
+    resetForTesting:()=>{
+      clearTimers();
+      localStorage.removeItem(GATE_CONFIG.authKey);
+      localStorage.removeItem(GATE_CONFIG.stateKey);
+      gs=emptyState();
+      liveStationID=false;
+      wasCountable=false;
+      gate.classList.remove('open','centered','unlocking','wrong');
+      gate.setAttribute('aria-hidden','true');
+      lastTickAt=Date.now();
+    }
   };
 })();
 
@@ -2736,7 +3075,7 @@ $('reloadBtn').addEventListener('click',async()=>{
 
 // Landscape Ship View controller.
 (function createShipView(){
-  const stage=$('shipStage'),toggle=$('viewToggle'),shipScene=$('shipScene'),stageBg=$('shipWindowBg'),arrivalBg=$('shipArrivalBg'),planetLayer=$('shipPlanetLayer'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),warpLayer=$('shipWarpLayer'),atmosphereLayer=$('shipAtmosphereLayer'),speedAlert=$('shipSpeedAlert'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideControl=$('shipHideControl'),shipAutoHide=$('shipAutoHide'),approachLever=$('shipApproachLever'),approachKnob=$('shipApproachKnob'),attitudeControl=$('shipAttitudeControl'),attitudeKnob=$('shipAttitudeKnob'),autoPilotBtn=$('autoPilotBtn'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),shipRadarScope=$('shipRadarScope'),radarBlips=$('shipRadarBlips'),radarTarget=$('shipRadarTarget'),distanceMini=$('shipDistanceMini'),eqLeft=$('shipEQLeft'),eqRight=$('shipEQRight'),eqOverlay=$('shipEQOverlay'),eqOverlayBars=$('shipEQOverlayBars'),arrivalContact=$('shipArrivalContact'),arrivalComment=$('arrivalComment'),arrivalPrivate=$('arrivalPrivate'),arrivalPost=$('arrivalPost'),arrivalResponse=$('arrivalResponse'),arrivalResponseLabel=$('arrivalResponseLabel'),arrivalEmailWrap=$('arrivalEmailWrap'),arrivalEmail=$('arrivalEmail'),arrivalLocation=$('arrivalLocation'),arrivalLocationWrap=$('arrivalLocationWrap'),arrivalLocationText=$('arrivalLocationText'),arrivalGeoBtn=$('arrivalGeoBtn'),arrivalGeoStatus=$('arrivalGeoStatus'),arrivalSend=$('arrivalSend'),arrivalViewWall=$('arrivalViewWall'),arrivalClose=$('arrivalClose'),arrivalStatus=$('arrivalStatus'),reflectionWall=$('shipReflectionWall'),reflectionField=$('reflectionField'),reflectionPrompt=$('reflectionPrompt'),reflectionBubble=$('reflectionBubble'),reflectionEarth=$('reflectionEarth'),reflectionBack=$('reflectionBack'),reflectionOK=$('reflectionOK'),reflectionUniversePrev=$('reflectionUniversePrev'),reflectionUniverseNext=$('reflectionUniverseNext'),reflectionUniverseLabel=$('reflectionUniverseLabel');
+  const stage=$('shipStage'),toggle=$('viewToggle'),shipScene=$('shipScene'),stageBg=$('shipWindowBg'),arrivalBg=$('shipArrivalBg'),planetLayer=$('shipPlanetLayer'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),warpLayer=$('shipWarpLayer'),atmosphereLayer=$('shipAtmosphereLayer'),speedAlert=$('shipSpeedAlert'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideControl=$('shipHideControl'),shipAutoHide=$('shipAutoHide'),approachLever=$('shipApproachLever'),approachKnob=$('shipApproachKnob'),attitudeControl=$('shipAttitudeControl'),attitudeKnob=$('shipAttitudeKnob'),autoPilotBtn=$('autoPilotBtn'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),shipRadarScope=$('shipRadarScope'),radarBlips=$('shipRadarBlips'),radarTarget=$('shipRadarTarget'),distanceMini=$('shipDistanceMini'),eqLeft=$('shipEQLeft'),eqRight=$('shipEQRight'),eqOverlay=$('shipEQOverlay'),eqOverlayBars=$('shipEQOverlayBars'),arrivalContact=$('shipArrivalContact'),arrivalComment=$('arrivalComment'),arrivalPrivate=$('arrivalPrivate'),arrivalPost=$('arrivalPost'),arrivalResponse=$('arrivalResponse'),arrivalResponseLabel=$('arrivalResponseLabel'),arrivalEmailWrap=$('arrivalEmailWrap'),arrivalEmail=$('arrivalEmail'),arrivalLocation=$('arrivalLocation'),arrivalLocationWrap=$('arrivalLocationWrap'),arrivalLocationText=$('arrivalLocationText'),arrivalGeoBtn=$('arrivalGeoBtn'),arrivalGeoStatus=$('arrivalGeoStatus'),arrivalSend=$('arrivalSend'),arrivalViewWall=$('arrivalViewWall'),arrivalClose=$('arrivalClose'),arrivalStatus=$('arrivalStatus'),reflectionWall=$('shipReflectionWall'),reflectionField=$('reflectionField'),reflectionPrompt=$('reflectionPrompt'),reflectionBubble=$('reflectionBubble'),reflectionEarth=$('reflectionEarth'),reflectionBack=$('reflectionBack'),reflectionOK=$('reflectionOK');
   const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
   let landscapeMode='ship';
   let analysisTypingTimer=0,analysisHideTimer=0;
@@ -3103,46 +3442,33 @@ Vector ${vector}. ${pair[1]}.`;
   let sunEQCascadeTick=0;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
-  // Keep the audible player on the native HTML audio path for iPhone background playback.
-  // A separate hidden audio element feeds Web Audio only for the Sun/Ship analyser.
-  let eqTap=null;
-  function ensureEQTap(){
-    if(eqTap)return eqTap;
-    eqTap=document.createElement('audio');
-    eqTap.id='geEqTap';
-    eqTap.preload='auto';
-    eqTap.playsInline=true;
-    eqTap.crossOrigin='anonymous';
-    eqTap.setAttribute('aria-hidden','true');
-    eqTap.style.display='none';
-    document.body.appendChild(eqTap);
-    return eqTap;
-  }
-  async function syncEQTap({force=false}={}){
-    const tap=ensureEQTap();
-    const src=audio.currentSrc||audio.src||'';
-    if(!src||document.hidden||audio.paused){try{tap.pause();}catch(_e){}return false;}
-    if(force||tap.src!==src){try{tap.pause();}catch(_e){}tap.crossOrigin='anonymous';tap.src=src;try{tap.load();}catch(_e){}}
-    if(!state.live&&Number.isFinite(audio.currentTime)&&Math.abs((Number(tap.currentTime)||0)-(Number(audio.currentTime)||0))>1.5){try{tap.currentTime=Number(audio.currentTime)||0;}catch(_e){}}
-    try{await tap.play();return true;}catch(_e){return false;}
-  }
+  // iPhone safety: never divert the media element into a suspended Web Audio graph.
+  // Resume the AudioContext first; only then attach the single MediaElementSource.
   async function ensureLiveEQ(){
     try{
       const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
-      if(!eqAudioCtx){eqAudioCtx=new AC();eqAnalyser=eqAudioCtx.createAnalyser();eqAnalyser.fftSize=128;eqAnalyser.smoothingTimeConstant=.76;eqData=new Uint8Array(eqAnalyser.frequencyBinCount);}
-      if(eqAudioCtx.state==='suspended'||eqAudioCtx.state==='interrupted'){try{await eqAudioCtx.resume();}catch(_e){return false;}}
-      if(!eqSource){eqSource=eqAudioCtx.createMediaElementSource(ensureEQTap());eqSource.connect(eqAnalyser);}
-      await syncEQTap();
-      return eqAudioCtx.state==='running';
-    }catch(err){console.warn('Live EQ unavailable; audible music remains on the native media-element path.',err);return false;}
+      if(!eqAudioCtx){
+        eqAudioCtx=new AC();
+        eqAnalyser=eqAudioCtx.createAnalyser();
+        eqAnalyser.fftSize=128;
+        eqAnalyser.smoothingTimeConstant=.76;
+        eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
+      }
+      if(eqAudioCtx.state==='suspended'){
+        try{await eqAudioCtx.resume();}catch(_e){return false;}
+      }
+      if(eqAudioCtx.state!=='running')return false;
+      if(!eqSource){
+        eqSource=eqAudioCtx.createMediaElementSource(audio);
+        eqSource.connect(eqAnalyser);
+        eqAnalyser.connect(eqAudioCtx.destination);
+      }
+      return true;
+    }catch(err){
+      console.warn('Live EQ unavailable; audio remains on the normal media-element path.',err);
+      return false;
+    }
   }
-  audio.addEventListener('playing',()=>{void ensureLiveEQ();});
-  audio.addEventListener('loadedmetadata',()=>{void syncEQTap({force:true});});
-  audio.addEventListener('seeking',()=>{if(!state.live)void syncEQTap();});
-  document.addEventListener('visibilitychange',async()=>{
-    if(document.hidden){try{eqTap?.pause();}catch(_e){}try{if(eqAudioCtx?.state==='running')await eqAudioCtx.suspend();}catch(_e){}return;}
-    if(!audio.paused){try{if(eqAudioCtx?.state==='suspended'||eqAudioCtx?.state==='interrupted')await eqAudioCtx.resume();}catch(_e){}void syncEQTap({force:true});}
-  });
 
   // Kept for the existing song-change hook. Rings keep fixed frequency order by design.
   function randomizeSunEQMap(){
@@ -3622,26 +3948,6 @@ Vector ${vector}. ${pair[1]}.`;
     },()=>{if(arrivalGeoStatus)arrivalGeoStatus.textContent='Location was not shared. You can type a general location instead.';},{enableHighAccuracy:false,maximumAge:900000,timeout:9000});
   });
 
-  let reflectionUniverseIndex=0;
-  function soulUniverseList(){return Array.isArray(CONFIG.SOUL_UNIVERSE_BACKGROUNDS)?CONFIG.SOUL_UNIVERSE_BACKGROUNDS:[];}
-  function normalizedUniverseIndex(value){const list=soulUniverseList();if(!list.length)return 0;const n=Number(value);return ((Number.isFinite(n)?Math.round(n):0)%list.length+list.length)%list.length;}
-  function applyReflectionUniverse(index,rerender=true){
-    const list=soulUniverseList();
-    if(!reflectionWall||!list.length)return;
-    reflectionUniverseIndex=normalizedUniverseIndex(index);
-    const bg=list[reflectionUniverseIndex];
-    reflectionWall.style.backgroundImage=`url("${absolute(bg).replace(/"/g,'%22')}")`;
-    reflectionWall.style.backgroundPosition='center';
-    reflectionWall.style.backgroundSize='cover';
-    reflectionWall.style.backgroundRepeat='no-repeat';
-    if(reflectionUniverseLabel)reflectionUniverseLabel.textContent=`Universe ${reflectionUniverseIndex+1} of ${list.length}`;
-    if(pendingReflection)pendingReflection.universe=reflectionUniverseIndex;
-    if(rerender)renderReflectionDots();
-  }
-  function stepReflectionUniverse(delta){applyReflectionUniverse(reflectionUniverseIndex+delta,true);}
-  reflectionUniversePrev?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();stepReflectionUniverse(-1);});
-  reflectionUniverseNext?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();stepReflectionUniverse(1);});
-
   function getLocalReflections(){
     try{const data=JSON.parse(localStorage.getItem(REFLECTIONS_KEY)||'[]');return Array.isArray(data)?data:[];}catch(_e){return [];}
   }
@@ -3656,7 +3962,7 @@ Vector ${vector}. ${pair[1]}.`;
   function renderReflectionDots(){
     if(!reflectionField)return;
     reflectionField.querySelectorAll('.soul-reflection-dot:not(.draft)').forEach(n=>n.remove());
-    getLocalReflections().filter(item=>normalizedUniverseIndex(item.universe)==reflectionUniverseIndex).forEach((item,index)=>{
+    getLocalReflections().forEach((item,index)=>{
       const dot=document.createElement('button');
       dot.type='button';dot.className='soul-reflection-dot'+(item.newborn?' newborn':'');
       dot.style.left=`${clamp(Number(item.x)||50,2,98)}%`;dot.style.top=`${clamp(Number(item.y)||50,3,97)}%`;
@@ -3705,12 +4011,10 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function openReflectionWall(placeText=''){
     if(!reflectionWall)return;
-    reflectionBubble?.classList.remove('open');selectedReflectionLocation=null;
+    renderReflectionDots();reflectionBubble?.classList.remove('open');selectedReflectionLocation=null;
     reflectionWall.classList.add('open');reflectionWall.setAttribute('aria-hidden','false');
-    applyReflectionUniverse(reflectionUniverseIndex,false);
-    renderReflectionDots();
     if(placeText){
-      pendingReflection={text:placeText,x:50,y:50,universe:reflectionUniverseIndex,created:new Date().toISOString(),locationLabel:(arrivalLocationText?.value||'').trim(),lat:arrivalGeo.lat,lon:arrivalGeo.lon};
+      pendingReflection={text:placeText,x:50,y:50,created:new Date().toISOString(),locationLabel:(arrivalLocationText?.value||'').trim(),lat:arrivalGeo.lat,lon:arrivalGeo.lon};
       const draft=document.createElement('div');draft.className='soul-reflection-dot draft';draft.style.left='50%';draft.style.top='50%';reflectionField?.appendChild(draft);
       if(reflectionPrompt)reflectionPrompt.textContent='Place your Soul Reflection';if(reflectionOK)reflectionOK.hidden=false;
     }else{
@@ -3730,7 +4034,7 @@ Vector ${vector}. ${pair[1]}.`;
   reflectionOK?.addEventListener('click',()=>{
     if(!pendingReflection)return;
     const list=getLocalReflections();
-    list.push({id:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,universe:normalizedUniverseIndex(pendingReflection.universe),created:pendingReflection.created||new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,newborn:true});
+    list.push({id:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,created:pendingReflection.created||new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,newborn:true});
     saveLocalReflections(list);
     pendingReflection=null;if(reflectionOK)reflectionOK.hidden=true;if(reflectionPrompt)reflectionPrompt.textContent='Soul Reflections';renderReflectionDots();
     setTimeout(()=>{const updated=getLocalReflections().map(r=>({...r,newborn:false}));saveLocalReflections(updated);},12000);
@@ -3761,7 +4065,7 @@ Vector ${vector}. ${pair[1]}.`;
     // No action selected: simply close the arrival experience.
     if(!wantsPrivate&&!wantsPost){clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');return;}
 
-    const payload={type:'inner-horizon-reflection',text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',lat:arrivalLocation?.checked?arrivalGeo.lat:null,lon:arrivalLocation?.checked?arrivalGeo.lon:null,universe:reflectionUniverseIndex};
+    const payload={type:'inner-horizon-reflection',text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',lat:arrivalLocation?.checked?arrivalGeo.lat:null,lon:arrivalLocation?.checked?arrivalGeo.lon:null};
     try{localStorage.setItem('GE_LAST_INNER_HORIZON_DRAFT_V1',JSON.stringify(payload));}catch(_e){}
 
     let privateResult={ok:true};
@@ -3786,80 +4090,6 @@ Vector ${vector}. ${pair[1]}.`;
   if(analysisText)analysisText.textContent='Passive scan active.';
   updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
-
-const gateState={active:false,manual:false,waterLeadTimer:0,waterFadeTimer:0,centerTimer:0,graceTimer:0,fadeRAF:0,finishTimer:0,hintIndex:-1,startVolume:1,wasPlaying:false,lastTrack:'',trackCount:0};
-function gateAuthorized(){try{return localStorage.getItem(GATE_CONFIG.storageKey)==='1';}catch(_e){return false;}}
-function clearGateTimers(){if(gateState.waterLeadTimer){clearTimeout(gateState.waterLeadTimer);gateState.waterLeadTimer=0;}if(gateState.waterFadeTimer){clearTimeout(gateState.waterFadeTimer);gateState.waterFadeTimer=0;}if(gateState.centerTimer){clearTimeout(gateState.centerTimer);gateState.centerTimer=0;}if(gateState.graceTimer){clearTimeout(gateState.graceTimer);gateState.graceTimer=0;}if(gateState.finishTimer){clearTimeout(gateState.finishTimer);gateState.finishTimer=0;}if(gateState.fadeRAF){cancelAnimationFrame(gateState.fadeRAF);gateState.fadeRAF=0;}}
-function resetGateVisual(){if(!gateOverlay||!gateSun)return;gateOverlay.classList.remove('open','unlocking');gateOverlay.setAttribute('aria-hidden','true');gateWater?.classList.remove('on','fade');gateSun.classList.remove('enter','unlock');gateContent?.classList.remove('show');if(gatePassword)gatePassword.value='';if(gateHintText)gateHintText.textContent='';if(gateStatus)gateStatus.textContent='';gateState.hintIndex=-1;}
-async function removeGateOfflineLibrary(){
-  if(!GATE_CONFIG.removeOfflineOnTimeout)return;
-  if(gateState.manual&&!GATE_CONFIG.testDeletesOffline)return;
-  // Silent Gate cleanup: remove every current/legacy GE radio media cache.
-  try{
-    if('caches' in window){
-      const names=await caches.keys();
-      await Promise.all(names.filter(name=>/^ge-radio-media/i.test(name)).map(name=>caches.delete(name)));
-    }
-  }catch(_e){}
-  // Clear in-memory and persistent offline-library bookkeeping without showing a removal notice.
-  try{offlineAvailability.songs.clear();offlineAvailability.stations.clear();saveOfflineAvailability();}catch(_e){}
-  try{
-    localStorage.removeItem(CONFIG.OFFLINE_KEY);
-    localStorage.removeItem(CONFIG.OFFLINE_PLAYABLE_KEY);
-    localStorage.removeItem(CONFIG.OFFLINE_STATIONS_KEY);
-  }catch(_e){}
-  try{
-    const b=$('offlineBtn'),bar=$('offlineBar'),txt=$('offlineText');
-    b?.classList.remove('active','downloading');
-    if(b)b.textContent='Go Offline';
-    if(bar)bar.style.width='0';
-    if(txt)txt.textContent='';
-  }catch(_e){}
-}
-function beginGateFade(){if(!gateState.active)return;const duration=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||60)*1000,start=performance.now(),from=Math.max(0,Math.min(1,Number(gateState.startVolume)||1));if(gateStatus)gateStatus.textContent='';const step=now=>{if(!gateState.active)return;const p=Math.max(0,Math.min(1,(now-start)/duration));audio.volume=from*(1-p);if(p<1){gateState.fadeRAF=requestAnimationFrame(step);return;}gateState.fadeRAF=0;audio.volume=0;audio.pause();void removeGateOfflineLibrary();};gateState.fadeRAF=requestAnimationFrame(step);}
-function gateReachedCenter(){if(!gateState.active)return;gateContent?.classList.add('show');gateState.graceTimer=setTimeout(beginGateFade,Math.max(0,Number(GATE_CONFIG.graceSeconds)||96)*1000);}
-async function startGrandElementGate({manual=false}={}){
-  if(!GATE_CONFIG.enabled||!gateOverlay||!gateSun)return;
-  clearGateTimers();resetGateVisual();
-  gateState.active=true;gateState.manual=!!manual;
-  gateState.startVolume=Math.max(.01,Math.min(1,Number(audio.volume)||1));
-  gateState.wasPlaying=!audio.paused;
-  if(manual){
-    try{localStorage.removeItem(GATE_CONFIG.storageKey);localStorage.removeItem(GATE_CONFIG.trackCountKey);}catch(_e){}
-    if(audio.paused){try{await audio.play();}catch(_e){}}
-  }else if(gateAuthorized()){gateState.active=false;return;}
-  audio.volume=gateState.startVolume;
-  const waterLead=Math.max(0,Number(GATE_CONFIG.waterLeadSeconds)||0);
-  const entrance=Math.max(1,Number(GATE_CONFIG.entranceSeconds)||36);
-  gateOverlay.style.setProperty('--gate-water-time',`${Math.max(2,waterLead||4)}s`);
-  gateOverlay.style.setProperty('--gate-water-blur',`${Math.max(0,Number(GATE_CONFIG.waterBlurPx)||10)}px`);
-  gateOverlay.style.setProperty('--gate-enter',`${entrance}s`);
-  gateOverlay.style.setProperty('--gate-unlock',`${Math.max(1,Number(GATE_CONFIG.unlockSeconds)||6)}s`);
-  gateOverlay.classList.add('open');gateOverlay.setAttribute('aria-hidden','false');
-  // Let the transparent water lens reveal the existing radio underneath it.
-  gateOverlay.style.background='rgba(0,0,0,0)';
-  gateWater?.classList.add('on');
-  if(gateSunImage)gateSunImage.src=absolute(CONFIG.LOGO_SRC);
-  if(gateEmail)gateEmail.href=`mailto:${encodeURIComponent(GATE_CONFIG.helpEmail)}?subject=${encodeURIComponent('Grand Element Radio Gate Access')}`;
-  const launchSun=()=>{
-    if(!gateState.active)return;
-    requestAnimationFrame(()=>requestAnimationFrame(()=>gateSun.classList.add('enter')));
-    // The ripple/blur dissolves naturally just after the sun begins its approach.
-    gateState.waterFadeTimer=setTimeout(()=>gateWater?.classList.add('fade'),1200);
-    // Darken behind the arriving sun without painting over the sun artwork itself.
-    gateOverlay.style.background='rgba(0,0,0,.88)';
-  };
-  if(waterLead>0)gateState.waterLeadTimer=setTimeout(launchSun,waterLead*1000);else launchSun();
-  gateState.centerTimer=setTimeout(gateReachedCenter,(waterLead+entrance)*1000);
-}
-async function unlockGrandElementGate(){if(!gateState.active)return;clearGateTimers();try{localStorage.setItem(GATE_CONFIG.storageKey,'1');}catch(_e){}audio.volume=gateState.startVolume;if(audio.paused){try{await audio.play();}catch(_e){}}gateContent?.classList.remove('show');gateOverlay?.classList.add('unlocking');gateSun?.classList.add('unlock');gateState.finishTimer=setTimeout(()=>{gateState.active=false;resetGateVisual();audio.volume=gateState.startVolume;},Math.max(1,Number(GATE_CONFIG.unlockSeconds)||6)*1000+150);}
-function showNextGateHint(){gateState.hintIndex=Math.min(GATE_HINTS.length-1,gateState.hintIndex+1);if(gateHintText)gateHintText.textContent=GATE_HINTS[gateState.hintIndex]||'';}
-function noteGateTrack(url){if(!GATE_CONFIG.autoEnabled||!GATE_CONFIG.enabled||gateAuthorized()||gateState.active)return;if(!url||isStationID(url)||url===gateState.lastTrack)return;gateState.lastTrack=url;gateState.trackCount+=1;try{localStorage.setItem(GATE_CONFIG.trackCountKey,String(gateState.trackCount));}catch(_e){}if(gateState.trackCount>=Math.max(1,Number(GATE_CONFIG.triggerTrack)||6))void startGrandElementGate({manual:false});}
-try{gateState.trackCount=Math.max(0,Number(localStorage.getItem(GATE_CONFIG.trackCountKey))||0);}catch(_e){}
-gateForm?.addEventListener('submit',event=>{event.preventDefault();const attempt=(gatePassword?.value||'').trim().toLowerCase();if(attempt===String(GATE_CONFIG.password||'love').toLowerCase()){if(gateStatus)gateStatus.textContent='';void unlockGrandElementGate();}else{if(gateStatus)gateStatus.textContent='That is not it yet. Try a hint.';if(gatePassword){gatePassword.select();gatePassword.focus();}}});
-gateHintBtn?.addEventListener('click',showNextGateHint);
-gateTestBtn?.addEventListener('click',()=>{sunLabPanel?.classList.remove('show');if(sunLabPanel)sunLabPanel.hidden=true;void startGrandElementGate({manual:true});});
-window.GEGate={start:()=>startGrandElementGate({manual:false}),startTest:()=>startGrandElementGate({manual:true}),reset:()=>{clearGateTimers();gateState.active=false;audio.volume=gateState.startVolume;resetGateVisual();},noteTrack:noteGateTrack,config:GATE_CONFIG};
 
 (async function boot(){
   try{
