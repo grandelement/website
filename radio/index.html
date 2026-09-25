@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- GE Radio 14 full debug build -->
 <!-- GE RADIO LOVE GATE — ORIGINAL WAVE > SLOW SUN > 33s > 60s FADE — 2026-09-23 -->
 <!-- Sixth real-song play + 1:11 trigger, 30-minute hard listening cap, persistent refresh/expiry lock. -->
 <!-- GE RADIO LIVE-FIRST + LIVE EQ CORS FIX — 2026-09-20 -->
@@ -721,6 +722,40 @@ html,body{width:100%;max-width:100%;}
   body.view-player .player-page{height:var(--ge-visual-h)!important;min-height:var(--ge-visual-h)!important;max-height:var(--ge-visual-h)!important}
   body.view-player #playerSunPage .logo-wrap{width:min(calc(var(--ge-visual-h)*.92),78vw)!important;height:min(calc(var(--ge-visual-h)*.92),78vw)!important}
 }
+
+/* GE Radio 12 control-layout and mobile ship reliability patch */
+#bottomActions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto!important;gap:6px!important;width:min(900px,96vw)!important;align-items:stretch!important}
+#bottomActions .bc-btn{grid-column:1!important;grid-row:1!important;order:1!important;width:100%!important;min-width:0!important;justify-self:stretch!important}
+#optionsBtn{grid-column:2!important;grid-row:1!important;order:2!important}
+#offlineBtn{grid-column:3!important;grid-row:1!important;order:3!important}
+#hudCombined{grid-column:4!important;grid-row:1!important;order:4!important;width:100%!important;min-width:0!important}
+@media(orientation:portrait) and (max-width:700px){
+  body.portrait-player #bottomActions{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto!important;gap:4px!important}
+  body.portrait-player #bottomActions>*{grid-row:1!important;width:100%!important;min-width:0!important;padding:3px 3px!important;font-size:clamp(8px,2.3vw,11px)!important}
+  body.portrait-player #bottomActions .bc-btn{grid-column:1!important} body.portrait-player #optionsBtn{grid-column:2!important} body.portrait-player #offlineBtn{grid-column:3!important} body.portrait-player #hudCombined{grid-column:4!important}
+}
+#shipApproachPanel{width:7.2%!important;margin-left:-1.1%!important}
+#shipAttitudePanel{width:8.4%!important;height:23%!important;margin-left:-1.3%!important;margin-top:-1.2%!important}
+#shipApproachLever,#shipAttitudeControl,#autoPilotBtn{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}
+#autoPilotBtn{pointer-events:auto!important;touch-action:manipulation!important}
+button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important}
+.soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;aspect-ratio:1/1!important;border-radius:50%!important}
+
+
+/* GE14 full debug */
+#sunLabPanel.sunlab-panel{position:fixed!important;inset:0!important;z-index:60000!important;width:100vw!important;height:100dvh!important;max-height:none!important;margin:0!important;border-radius:0!important;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))!important;overflow:auto!important;overscroll-behavior:contain!important;background:rgba(3,10,18,.985)!important;backdrop-filter:none!important;box-sizing:border-box!important}
+#sunLabPanel.sunlab-panel.show{display:block!important}
+body.sunlab-page-open{overflow:hidden!important}
+body.sunlab-page-open #viewToggle{display:none!important}
+#sunLabPanel .sunlab-head{position:sticky;top:0;z-index:3;background:rgba(3,10,18,.97);padding:4px 0 10px}
+#sunLabPanel #sunLabGrid{width:min(900px,100%);margin:10px auto 0}
+#sunLabPanel .sunlab-actions{width:min(900px,100%);margin:12px auto 0;padding-bottom:20px}
+#bottomActions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:1fr!important}
+#bottomActions .bc-btn{grid-column:1!important;grid-row:1!important;order:1!important}
+#optionsBtn{grid-column:2!important;grid-row:1!important;order:2!important}
+#offlineBtn{grid-column:3!important;grid-row:1!important;order:3!important}
+#hudCombined{grid-column:4!important;grid-row:1!important;order:4!important}
+
 </style>
 </head>
 <body>
@@ -1092,7 +1127,7 @@ html,body{width:100%;max-width:100%;}
 })();
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.24-inner-horizon-keyboard-safe-1',
+  APP_VERSION: '2026.09.25-ship-controls-spectrum-layout-email-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -3720,7 +3755,12 @@ $('reloadBtn').addEventListener('click',async()=>{
   function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
   shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
-  autoPilotBtn?.addEventListener('click',()=>{autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);if(autopilot)document.body.classList.remove('hud-hidden');});
+  function toggleAutoPilot(event){
+    if(event){event.preventDefault();event.stopPropagation();}
+    autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);
+    if(autopilot){document.body.classList.remove('hud-hidden');approach.throttle=Math.max(approach.throttle,72);attitude.x=0;attitude.y=0;updateApproachUI();updateAttitudeUI();}
+  }
+  autoPilotBtn?.addEventListener('click',toggleAutoPilot);
 
   function seekFromClientX(clientX){const duration=Number(audio.duration);if(!Number.isFinite(duration)||duration<=0||!shipProgressHit)return;const rect=shipProgressHit.getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));audio.currentTime=ratio*duration;syncTransport();}
   shipProgressHit?.addEventListener('pointerdown',event=>{shipProgressHit.setPointerCapture?.(event.pointerId);seekFromClientX(event.clientX);});
@@ -3836,7 +3876,9 @@ $('reloadBtn').addEventListener('click',async()=>{
     const on=!!show;
     sunLabPanel.hidden=!on;
     sunLabPanel.classList.toggle('show',on);
+    document.body.classList.toggle('sunlab-page-open',on);
     sunLabBtn?.setAttribute('aria-pressed',on?'true':'false');
+    if(on&&!audio.paused){void ensureLiveEQ();setTimeout(()=>void ensureLiveEQ(),400);setTimeout(()=>void ensureLiveEQ(),1400);}
   }
   function fmtPct(v){return Math.round(Number(v)||0)+'%';}
   function fmtDeg(v){const n=Math.round(Number(v)||0); return `${n}°`;}
@@ -4110,7 +4152,7 @@ Vector ${vector}. ${pair[1]}.`;
   window.addEventListener('pointerdown',wakeEQFromGesture,{passive:true});
   window.addEventListener('touchend',wakeEQFromGesture,{passive:true});
   window.addEventListener('keydown',wakeEQFromGesture,{passive:true});
-  audio.addEventListener('playing',wakeEQFromGesture,{passive:true});
+  audio.addEventListener('playing',()=>{wakeEQFromGesture();setTimeout(wakeEQFromGesture,250);setTimeout(wakeEQFromGesture,1200);},{passive:true});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)wakeEQFromGesture();});
   function setEQOverlay(open){
     eqOverlayOpen=!!open;
@@ -4641,7 +4683,7 @@ Vector ${vector}. ${pair[1]}.`;
         autopilot=false;autopilotReason='manual';setPressed(autoPilotBtn,false);course.offSince=0;course.limitSince=0;
       }
     }else{
-      const turnRate=.54;
+      const turnRate=1.35;
       course.x=clamp(course.x+attitude.x*turnRate*dt,-1.55,1.55);
       course.y=clamp(course.y+attitude.y*turnRate*dt,-1.55,1.55);
       const off=Math.max(Math.abs(course.x),Math.abs(course.y));
@@ -4655,7 +4697,7 @@ Vector ${vector}. ${pair[1]}.`;
     const speed=Math.abs(approach.throttle)/100;
     const warpMagnitude=Math.abs(approach.throttle);
     const warpMultiplier=warpMagnitude>68?lerp(1,12,clamp((warpMagnitude-68)/32,0,1)):1;
-    const rate=.00275*Math.pow(speed,1.2)*warpMultiplier;
+    const rate=.030*Math.pow(speed,1.08)*warpMultiplier;
     const arrivalSlow=(approach.throttle>0 && before<161)?lerp(.10,1,clamp(before/161,0,1)):1;
     approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*rate*dt*arrivalSlow,.002,1);
     updateApproachUI();updateEQ();
@@ -4666,6 +4708,7 @@ Vector ${vector}. ${pair[1]}.`;
   function disengageAutopilot(){if(!autopilot)return;autopilot=false;autopilotReason='manual';setPressed(autoPilotBtn,false);}
   function setThrottleFromY(clientY){if(!approachLever)return;disengageAutopilot();const rect=approachLever.getBoundingClientRect(),ratio=clamp((clientY-rect.top)/rect.height,0,1);approach.throttle=Math.round((.5-ratio)*200);updateApproachUI();}
   approachLever?.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();approach.dragging=true;approachLever.setPointerCapture?.(event.pointerId);setThrottleFromY(event.clientY);});
+  approachLever?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setThrottleFromY(event.clientY);});
   approachLever?.addEventListener('pointermove',event=>{if(!approach.dragging)return;event.preventDefault();setThrottleFromY(event.clientY);});
   ['pointerup','pointercancel','lostpointercapture'].forEach(name=>approachLever?.addEventListener(name,()=>{approach.dragging=false;}));
   approachLever?.addEventListener('touchstart',event=>{const touch=event.touches?.[0];if(!touch)return;event.preventDefault();event.stopPropagation();approach.dragging=true;setThrottleFromY(touch.clientY);},{passive:false});
@@ -4679,8 +4722,13 @@ Vector ${vector}. ${pair[1]}.`;
     attitude.x=clamp(((clientX-rect.left)/rect.width-.5)*2,-1,1);attitude.y=clamp(((clientY-rect.top)/rect.height-.5)*2,-1,1);updateAttitudeUI();
   }
   attitudeControl?.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();attitude.dragging=true;attitudeControl.setPointerCapture?.(event.pointerId);setAttitudeFromPoint(event.clientX,event.clientY);});
+  attitudeControl?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setAttitudeFromPoint(event.clientX,event.clientY);});
   attitudeControl?.addEventListener('pointermove',event=>{if(!attitude.dragging)return;event.preventDefault();setAttitudeFromPoint(event.clientX,event.clientY);});
   ['pointerup','pointercancel','lostpointercapture'].forEach(name=>attitudeControl?.addEventListener(name,()=>{attitude.dragging=false;}));
+  attitudeControl?.addEventListener('touchstart',event=>{const touch=event.touches?.[0];if(!touch)return;event.preventDefault();event.stopPropagation();attitude.dragging=true;setAttitudeFromPoint(touch.clientX,touch.clientY);},{passive:false});
+  window.addEventListener('touchmove',event=>{if(!attitude.dragging)return;const touch=event.touches?.[0];if(!touch)return;event.preventDefault();setAttitudeFromPoint(touch.clientX,touch.clientY);},{passive:false});
+  window.addEventListener('touchend',()=>{attitude.dragging=false;},{passive:true});
+  window.addEventListener('touchcancel',()=>{attitude.dragging=false;},{passive:true});
   attitudeControl?.addEventListener('keydown',event=>{const step=event.shiftKey ? .25 : .12;let changed=true;if(event.key==='ArrowLeft')attitude.x=clamp(attitude.x-step,-1,1);else if(event.key==='ArrowRight')attitude.x=clamp(attitude.x+step,-1,1);else if(event.key==='ArrowUp')attitude.y=clamp(attitude.y-step,-1,1);else if(event.key==='ArrowDown')attitude.y=clamp(attitude.y+step,-1,1);else if(event.key==='Home'||event.key===' '){attitude.x=0;attitude.y=0;}else changed=false;if(changed){event.preventDefault();disengageAutopilot();updateAttitudeUI();}});
 
   const REFLECTIONS_KEY='GE_SOUL_REFLECTIONS_V2';
@@ -4931,16 +4979,16 @@ Vector ${vector}. ${pair[1]}.`;
     const to=CONFIG.PRIVATE_MESSAGE_EMAIL||'private@grandelement.com';
     const subject='Grand Element Inner Horizon';
     const track=(titleBtn?.textContent||'').trim();
-    const location=(arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'');
+    const locationLabel=(arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'');
     // Blank space is intentionally placed above the carried-over reflection so the visitor can add a new note first.
     const carried=[
       '', '', '',
       '--- Inner Horizon reflection ---',
       textValue,
       track?`Track: ${track}`:'',
-      location?`Location: ${location}`:''
+      locationLabel?`Location: ${locationLabel}`:''
     ].filter((line,index)=>index<3||line).join('\n');
-    location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(carried)}`;
+    window.location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(carried)}`;
     setTimeout(syncInnerHorizonViewport,120);
   }
 
