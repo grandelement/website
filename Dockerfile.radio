@@ -1,25 +1,8 @@
-# Grand Element Radio backend v4.9
-# CORE-FIRST + CROSSFADE + PRIVATE DJ CONTROL CONSOLE
-# DJ Voice + direct input + EQ/compression + automatic master-stream ducking + temporary MP3 upload
-# v4.9 SPLIT BUILD: source files copied from radio-backend/ with corrected RUN syntax
-#
-# Replace the ROOT file in grandelement/website:
-# Dockerfile.radio
-#
-# Public stream stays:
-# https://radio.grandelement.blitz.cloud/stream.mp3
-#
-# Private DJ console:
-# https://radio.grandelement.blitz.cloud/dj/
-#
-# Before using the DJ console, set a Blitz Environment variable:
-# DJ_PASSWORD = a password only you know
-# Username is: dj
-#
-# Music remains in the GitHub ge-music library and is not copied into the image.
-
+# Grand Element Radio backend v5.0 CLOUD SAFE
+# Blitz-compatible split build: non-root runtime, port 8080, small source files.
 FROM debian:bookworm-slim
 
+# Keep these first build layers aligned with the working v4.x image so Blitz can reuse its heavy package cache.
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PORT=8080
 ENV HOME=/app/home
@@ -42,19 +25,24 @@ WORKDIR /app
 RUN mkdir -p /app/runtime /app/runtime/client_temp /app/runtime/proxy_temp /app/runtime/fastcgi_temp /app/runtime/uwsgi_temp /app/runtime/scgi_temp /app/logs /app/home/.cache \
     && chown -R 1000:1000 /app
 
-# Radio application files are kept as normal build-context files.
-# This avoids very long encoded Dockerfile lines that Blitz cannot parse.
-COPY radio-backend/library-watcher.py /app/library-watcher.py
-COPY radio-backend/control-server.py /app/control-server.py
-COPY radio-backend/dj.html /app/dj.html
-COPY radio-backend/live-dj.html /app/live-dj.html
-COPY radio-backend/start-radio.sh /app/start-radio.sh
+# New v5 data folder comes after the cached base layers.
+ENV GE_DATA_DIR=/app/data
+ENV PYTHONUNBUFFERED=1
+RUN mkdir -p /app/data && chown 1000:1000 /app/data
 
-RUN chmod 755 /app/library-watcher.py /app/control-server.py /app/start-radio.sh \
-    && chown 1000:1000 /app/library-watcher.py /app/control-server.py /app/dj.html /app/live-dj.html /app/start-radio.sh
+COPY --chown=1000:1000 --chmod=0755 radio-backend/library-watcher.py /app/library-watcher.py
+COPY --chown=1000:1000 --chmod=0755 radio-backend/control-server.py /app/control-server.py
+COPY --chown=1000:1000 --chmod=0755 radio-backend/start-radio.sh /app/start-radio.sh
+COPY --chown=1000:1000 radio-backend/dj.html /app/dj.html
+COPY --chown=1000:1000 radio-backend/live-dj.html /app/live-dj.html
+COPY --chown=1000:1000 radio-backend/live-dj.css /app/live-dj.css
+COPY --chown=1000:1000 radio-backend/live-dj.js /app/live-dj.js
+COPY --chown=1000:1000 radio-backend/pcm-worklet.js /app/pcm-worklet.js
+
+# One kept folder for station settings and saved custom mixes.
+VOLUME ["/app/data"]
 
 USER 1000:1000
-
 EXPOSE 8080
-
+STOPSIGNAL SIGTERM
 CMD ["/app/start-radio.sh"]
