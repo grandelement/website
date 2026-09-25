@@ -82,7 +82,7 @@ audio{width:100%;height:38px;margin-top:10px}
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE RADIO DJ <span class="buildVersion">v4.8</span></div>
+    <div class="brand">GE RADIO DJ <span class="buildVersion">v4.9</span></div>
     <div><span class="pill"><span class="dot"></span><span id="online">STATION LIVE</span></span><button class="logout" id="logout">Lock</button></div>
   </div>
 
@@ -175,6 +175,7 @@ audio{width:100%;height:38px;margin-top:10px}
         <button class="btn primary" id="djVoice" type="button">DJ VOICE</button>
       </div>
       <button class="btn" id="livePerformance" type="button">LIVE PERFORMANCE / DIRECT INPUT</button>
+      <button class="btn" id="liveDjMusic" type="button">LIVE DJ MUSIC · 4 DECKS</button>
     </div>
     <div class="broadcastStatus" id="broadcastStatus">Choose an input, tap INPUT TEST, allow microphone access, then go live.</div>
     <div class="broadcastNote">Mic / Audio Interface works with the iPhone mic, computer mic, and connected USB audio interfaces. Computer / Tab Audio captures desktop or browser-tab audio when the browser supports it. The station monitor is muted automatically while you are on air. Headphone Monitor lets you hear the processed voice locally without waiting for the public stream.</div>
@@ -293,8 +294,8 @@ async function setMonitorSource(keepPlaying=false){
   }
   monitor.muted=false;updateCueVolume();
   $("monitorHelp").textContent=cue
-    ?"Headphone DJ Mode: music-only automation cue. Your live mic is not returned through this player."
-    :"Normal mode: hears the same master stream as listeners.";
+    ?"Headphone DJ Mode: music-only automation cue. Your DJ Voice still goes to the public station, but it is intentionally not returned through this player. Use Mic Monitor to hear yourself locally."
+    :"Normal mode: hears the same master stream as listeners, including your live voice after the station delay.";
   monitor.closest(".card")?.classList.toggle("headphoneCueLive",cue);
   if(wasPlaying){
     try{await monitor.play();$("cueStatus").textContent=cue?"Headphone music cue playing.":"Station monitor playing.";}
@@ -1094,6 +1095,7 @@ $("picker").addEventListener("click",e=>{if(e.target===$("picker"))closePicker()
 $("inputTest").addEventListener("click",toggleInputTest);
 $("djVoice").addEventListener("click",()=>beginBroadcast("voice"));
 $("livePerformance").addEventListener("click",()=>beginBroadcast("performance"));
+$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=49";});
 $("captureSource").addEventListener("change",async()=>{
   $("inputDevice").disabled=$("captureSource").value==="computer"||!!broadcastMode;
   if(inputTesting&&!broadcastMode){await stopInput();await startInput();}

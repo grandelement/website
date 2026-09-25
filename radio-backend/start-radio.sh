@@ -263,6 +263,27 @@ http {
       add_header Cache-Control "no-store" always;
     }
 
+    location = /live-dj {
+      root /app;
+      try_files /live-dj.html =404;
+      default_type text/html;
+      add_header Cache-Control "no-store" always;
+    }
+
+    location = /live-dj/ {
+      root /app;
+      try_files /live-dj.html =404;
+      default_type text/html;
+      add_header Cache-Control "no-store" always;
+    }
+
+    location = /live-dj.html {
+      root /app;
+      try_files /live-dj.html =404;
+      default_type text/html;
+      add_header Cache-Control "no-store" always;
+    }
+
     location = /control/live {
       proxy_pass http://127.0.0.1:8090;
       proxy_http_version 1.1;
