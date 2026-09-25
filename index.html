@@ -1662,12 +1662,37 @@ window.GE_EASY_SETTINGS = {
   GAME_AUTOSAVE_MS: 900,
   MUSIC_SHUFFLE_DEFAULT: true,
 
-  // NORMAL WEBSITE — BODIES / SOULS
+  // NORMAL WEBSITE — PEACEFUL UNIVERSE
+  // Keep the ordinary site sparse. Autopilot is where activity becomes visually intense.
   SOUL_START_MIN: 0,
   SOUL_START_MAX: 0,
-  SOUL_MAX_ACTIVE: 24,
-  SOUL_SPAWN_MIN_SEC: 14.0,
-  SOUL_SPAWN_MAX_SEC: 28.0,
+  SOUL_MAX_ACTIVE: 8,
+  SOUL_SPAWN_MIN_SEC: 70.0,
+  SOUL_SPAWN_MAX_SEC: 180.0,
+
+  // Very slow background travel. One full orbit is one hour by default.
+  // Change AMBIENT_ORBIT_PERIOD_SEC later if you want the drift more or less noticeable.
+  AMBIENT_ORBIT_ENABLED: true,
+  AMBIENT_ORBIT_PERIOD_SEC: 3600,
+  AMBIENT_ORBIT_TICK_MS: 250,
+  AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX: 24,
+  AMBIENT_ORBIT_PLANET_RADIUS_MAX_PX: 72,
+  AMBIENT_ORBIT_SUN_RADIUS_X_PX: 58,
+  AMBIENT_ORBIT_SUN_RADIUS_Y_PX: 34,
+
+  // Rare quiet-sky events.
+  METEOR_SHOWER_MIN_SEC: 480,
+  METEOR_SHOWER_MAX_SEC: 1200,
+  METEOR_SHOWER_MIN_SOULS: 3,
+  METEOR_SHOWER_MAX_SOULS: 7,
+
+  SHIP_APPEAR_MIN_SEC: 75,
+  SHIP_APPEAR_MAX_SEC: 180,
+  MINI_SHIP_APPEAR_MIN_SEC: 90,
+  MINI_SHIP_APPEAR_MAX_SEC: 240,
+  AUTOPILOT_SPIRIT_VISIT_MS: 30000,
+  AUTOPILOT_SPIRIT_RETURN_MIN_SEC: 150,
+  AUTOPILOT_SPIRIT_RETURN_MAX_SEC: 330,
 
   SHIP_CENTER_RADIUS_FACTOR: 0.68,
   SHIP_RAY_INNER_FACTOR: 0.82,
@@ -1676,7 +1701,7 @@ window.GE_EASY_SETTINGS = {
   SHIP_GESTURE_MS: 800,           // first tap waits long enough to distinguish an intentional triple tap
   SHIP_BROADCAST_MS: 2200,
   SHIP_BROADCAST_RESPOND_MS: 6500,
-  SHIP_BROADCAST_MAX_RESPONDERS: 2,
+  SHIP_BROADCAST_MAX_RESPONDERS: 1,
   SHIP_RAY_WIDTH: 8,
   SHIP_RAY_TIP_DISTANCE: 0.82,       // rear-of-ship activation point; ray itself still originates at ship center
   SHIP_RAY_TIP_RADIUS: 11,          // compact rear thumb target so it cannot swallow center/quantum gestures
@@ -2525,11 +2550,14 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 <style id="ge-autopilot-v1">
 #autopilotTrails{position:fixed;inset:0;width:100%;height:100%;z-index:12;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
 body.autopilot-active #autopilotTrails{opacity:1}
-#autopilotSpirit{position:fixed;left:-90px;top:45%;width:62px;height:62px;border:0;padding:0;border-radius:50%;background:transparent;z-index:34;display:none;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 15px rgba(225,246,255,.95));}
-#autopilotSpirit::before{content:"";position:absolute;inset:12px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.88) 0 8%,rgba(220,244,255,.42) 30%,rgba(175,226,255,.14) 58%,rgba(255,255,255,0) 76%);filter:blur(3px);box-shadow:0 0 16px rgba(226,247,255,.85),0 0 34px rgba(118,202,255,.44);animation:geAutoSpiritPulse 2.7s ease-in-out infinite}
-#autopilotSpirit::after{content:"";position:absolute;inset:4px;border-radius:48% 52% 46% 54%;border:1px solid rgba(232,249,255,.25);filter:blur(2px);animation:geAutoSpiritDrift 4.8s linear infinite}
-#autopilotSpirit .autoSpiritLabel{position:absolute;left:50%;top:68px;transform:translateX(-50%);white-space:nowrap;color:#f2fbff;font:900 11px/1.2 system-ui,sans-serif;letter-spacing:.18em;text-shadow:0 0 8px #8ed8ff;opacity:0;transition:opacity .22s ease}
+#autopilotSpirit{position:fixed;left:-90px;top:45%;width:32px;height:32px;border:0;padding:0;border-radius:50%;background:transparent;z-index:34;display:none;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 15px rgba(225,246,255,.95));}
+#autopilotSpirit::before{content:"";position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.88) 0 8%,rgba(220,244,255,.42) 30%,rgba(175,226,255,.14) 58%,rgba(255,255,255,0) 76%);filter:blur(3px);box-shadow:0 0 16px rgba(226,247,255,.85),0 0 34px rgba(118,202,255,.44);animation:geAutoSpiritPulse 2.7s ease-in-out infinite}
+#autopilotSpirit::after{content:"";position:absolute;inset:2px;border-radius:48% 52% 46% 54%;border:1px solid rgba(232,249,255,.25);filter:blur(2px);animation:geAutoSpiritDrift 4.8s linear infinite}
+#autopilotSpirit{transition:transform .42s ease,filter .42s ease,opacity .8s ease}
+#autopilotSpirit .autoSpiritLabel{position:absolute;left:50%;top:38px;transform:translateX(-50%);white-space:nowrap;color:#f2fbff;font:900 9px/1.2 system-ui,sans-serif;letter-spacing:.18em;text-shadow:0 0 8px #8ed8ff;opacity:0;transition:opacity .28s ease}
+#autopilotSpirit.selected{transform:scale(1.85);filter:drop-shadow(0 0 22px rgba(225,246,255,1))}
 #autopilotSpirit.selected .autoSpiritLabel{opacity:1}
+#autopilotSpirit.leaving{pointer-events:none;opacity:0}
 @keyframes geAutoSpiritPulse{0%,100%{transform:scale(.82);opacity:.58}50%{transform:scale(1.18);opacity:1}}
 @keyframes geAutoSpiritDrift{0%{transform:rotate(0deg) scale(.9)}50%{transform:rotate(180deg) scale(1.08)}100%{transform:rotate(360deg) scale(.9)}}
 #autopilotHUD{position:fixed;z-index:36;left:14px;right:14px;top:14px;display:none;align-items:center;justify-content:space-between;gap:8px;pointer-events:none;color:#ecf9ff;font-family:system-ui,sans-serif}
@@ -5365,9 +5393,13 @@ const initialSoulCount=Math.floor(rand(
 ));
 for(let i=0;i<initialSoulCount;i++)comets.push(new Comet());
 let last=performance.now()/1000,cTimer=0,
-    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
-               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8),
-    shipTimer=0,shipNext=rand(15,30),miniTimer=0,miniNext=rand(8,18);
+    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??70,
+               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??180),
+    shipTimer=0,shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180),miniTimer=0,miniNext=rand(window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MIN_SEC??90,window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MAX_SEC??240),
+    meteorTimer=0,meteorNext=rand(
+      window.GE_EASY_SETTINGS?.METEOR_SHOWER_MIN_SEC??480,
+      window.GE_EASY_SETTINGS?.METEOR_SHOWER_MAX_SEC??1200
+    );
 let RUN=true; document.addEventListener('visibilitychange', ()=>{ RUN=!document.hidden; });
 
 /* Ripple teleport + backgrounds */
@@ -5613,7 +5645,7 @@ function bodySoulField(dt){
 
 /* Main loop */
 const MAX_SHIPS   = 1;
-const MINI_MAX    = MOBILE ? 3 : 6;
+const MINI_MAX    = MOBILE ? 1 : 2;
 function loop(){
   try{
   if(!RUN){setTimeout(loop,500);return;}
@@ -5622,9 +5654,9 @@ function loop(){
   const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;PERF.dt=dt;perfHeat(dt);
 
   const hot = PERF.heat>0.6;
-  const maxComets = window.GE_LOW_POWER ? 18 : (window.GE_EASY_SETTINGS?.SOUL_MAX_ACTIVE ?? 140);
-  const wantShips  = hot ? Math.max(1, MAX_SHIPS-1) : MAX_SHIPS;
-  const wantMini   = window.GE_LOW_POWER ? 3 : (hot ? Math.max(2, MINI_MAX-3) : MINI_MAX);
+  const maxComets = window.GE_LOW_POWER ? 5 : (window.GE_EASY_SETTINGS?.SOUL_MAX_ACTIVE ?? 8);
+  const wantShips  = hot ? 0 : MAX_SHIPS;
+  const wantMini   = window.GE_LOW_POWER ? 0 : (hot ? 0 : MINI_MAX);
 
   cTimer+=dt;
   if(cTimer>cNext && comets.length<maxComets){
@@ -5633,8 +5665,34 @@ function loop(){
     cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
                window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8);
   }
-  shipTimer+=dt;if(shipTimer>shipNext){shipTimer=0;shipNext=rand(15,30);if(ships.length<wantShips)ships.push(new Ship());}
-  miniTimer+=dt; if(miniTimer>miniNext){ miniTimer=0; miniNext=rand(8,18); if(miniShips.length<wantMini) miniShips.push(new MiniShip()); }
+  shipTimer+=dt;if(shipTimer>shipNext){shipTimer=0;shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180);if(ships.length<wantShips)ships.push(new Ship());}
+  miniTimer+=dt;if(miniTimer>miniNext){miniTimer=0;miniNext=rand(window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MIN_SEC??90,window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MAX_SEC??240);if(miniShips.length<wantMini)miniShips.push(new MiniShip());}
+
+  // Rare meteor shower: a brief cluster followed by another long quiet period.
+  meteorTimer+=dt;
+  if(meteorTimer>meteorNext){
+    meteorTimer=0;
+    meteorNext=rand(
+      window.GE_EASY_SETTINGS?.METEOR_SHOWER_MIN_SEC??480,
+      window.GE_EASY_SETTINGS?.METEOR_SHOWER_MAX_SEC??1200
+    );
+    const room=Math.max(0,maxComets-comets.length);
+    const count=Math.min(room,Math.floor(rand(
+      window.GE_EASY_SETTINGS?.METEOR_SHOWER_MIN_SOULS??3,
+      (window.GE_EASY_SETTINGS?.METEOR_SHOWER_MAX_SOULS??7)+1
+    )));
+    if(count>0){
+      const a=rand(-.35,.35),speed=rand(75,135),fromLeft=Math.random()<.5;
+      for(let i=0;i<count;i++){
+        const c=new Comet();
+        c.x=fromLeft?rand(-60,-12):rand(innerWidth+12,innerWidth+60);
+        c.y=rand(innerHeight*.12,innerHeight*.82);
+        c.vx=(fromLeft?1:-1)*speed*rand(.82,1.18);
+        c.vy=Math.sin(a)*speed+rand(-18,18);
+        comets.push(c);
+      }
+    }
+  }
 
   comets.forEach(c=>c.step(dt));
   ships.forEach(s=>s.step(dt));
@@ -6380,6 +6438,71 @@ function planetStep(){
   requestAnimationFrame(planetStep);
 }
 requestAnimationFrame(planetStep);
+
+/* ============================================================
+   PEACEFUL AMBIENT ORBIT
+   Non-game / non-Autopilot only. The positions drift so slowly that
+   movement is discovered over minutes rather than watched second-to-second.
+   The period is configurable in GE_EASY_SETTINGS above.
+   ============================================================ */
+(()=>{
+  const orbitMeta=new WeakMap();
+  let sunPhase=Math.random()*Math.PI*2;
+  let lastAt=performance.now();
+  function clampNode(p){
+    if(typeof getPlanetPlayBounds!=='function')return;
+    const b=getPlanetPlayBounds();
+    p.x=Math.max(b.left+p.r,Math.min(b.right-p.r,p.x));
+    p.y=Math.max(b.top+p.r,Math.min(b.bottom-p.r,p.y));
+  }
+  function tick(){
+    const cfg=window.GE_EASY_SETTINGS||{};
+    const ms=Math.max(100,Number(cfg.AMBIENT_ORBIT_TICK_MS)||250);
+    const now=performance.now(),dt=Math.min(2,(now-lastAt)/1000);lastAt=now;
+    const enabled=cfg.AMBIENT_ORBIT_ENABLED!==false;
+    const busy=document.body.classList.contains('game-mode-active')||document.body.classList.contains('autopilot-active');
+    if(enabled&&!busy){
+      const period=Math.max(300,Number(cfg.AMBIENT_ORBIT_PERIOD_SEC)||3600);
+      const omega=(Math.PI*2)/period;
+      const nodes=window.planetNodes||[];
+      nodes.forEach((p,i)=>{
+        if(!p||p.dragging||p.poolPocketed)return;
+        let m=orbitMeta.get(p);
+        if(!m){
+          const minR=Number(cfg.AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX)||24;
+          const maxR=Math.max(minR,Number(cfg.AMBIENT_ORBIT_PLANET_RADIUS_MAX_PX)||72);
+          m={phase:Math.random()*Math.PI*2,rx:minR+Math.random()*(maxR-minR),ry:(minR*.45)+Math.random()*(maxR*.65),dir:Math.random()<.5?-1:1};
+          orbitMeta.set(p,m);
+        }
+        const a=m.phase,da=omega*dt*m.dir;
+        const dx=m.rx*(Math.cos(a+da)-Math.cos(a));
+        const dy=m.ry*(Math.sin(a+da)-Math.sin(a));
+        m.phase=(a+da)%(Math.PI*2);
+        p.x+=dx;p.y+=dy;clampNode(p);
+        p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';
+      });
+
+      const sun=document.getElementById('sunWrap');
+      if(sun&&!sun.classList.contains('dragging')){
+        const rect=sun.getBoundingClientRect();
+        if(rect.width>0){
+          const rx=Number(cfg.AMBIENT_ORBIT_SUN_RADIUS_X_PX)||58;
+          const ry=Number(cfg.AMBIENT_ORBIT_SUN_RADIUS_Y_PX)||34;
+          const da=omega*dt*.82;
+          const dx=rx*(Math.cos(sunPhase+da)-Math.cos(sunPhase));
+          const dy=ry*(Math.sin(sunPhase+da)-Math.sin(sunPhase));
+          sunPhase=(sunPhase+da)%(Math.PI*2);
+          let cx=rect.left+rect.width/2+dx,cy=rect.top+rect.height/2+dy;
+          cx=Math.max(rect.width*.25,Math.min(innerWidth-rect.width*.25,cx));
+          cy=Math.max(rect.height*.25,Math.min(innerHeight-rect.height*.25,cy));
+          sun.style.left=cx+'px';sun.style.top=cy+'px';sun.style.transform='translate(-50%,-50%)';
+        }
+      }
+    }
+    setTimeout(tick,ms);
+  }
+  setTimeout(tick,Math.max(100,Number(window.GE_EASY_SETTINGS?.AMBIENT_ORBIT_TICK_MS)||250));
+})();
 
 
 /* ============================================================
@@ -9173,9 +9296,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     document.body.classList.toggle('ge-low-power',low);
     // Keep the universe alive, but drastically reduce population/work.
     if(window.GE_EASY_SETTINGS){
-      window.GE_EASY_SETTINGS.SOUL_MAX_ACTIVE=low?12:Math.max(18,window.GE_EASY_SETTINGS.SOUL_MAX_ACTIVE||18);
-      window.GE_EASY_SETTINGS.SOUL_SPAWN_MIN_SEC=low?8.0:(window.GE_EASY_SETTINGS.SOUL_SPAWN_MIN_SEC||8.0);
-      window.GE_EASY_SETTINGS.SOUL_SPAWN_MAX_SEC=low?18.0:(window.GE_EASY_SETTINGS.SOUL_SPAWN_MAX_SEC||18.0);
+      window.GE_EASY_SETTINGS.SOUL_MAX_ACTIVE=low?4:Math.min(8,window.GE_EASY_SETTINGS.SOUL_MAX_ACTIVE||8);
+      window.GE_EASY_SETTINGS.SOUL_SPAWN_MIN_SEC=low?120:(window.GE_EASY_SETTINGS.SOUL_SPAWN_MIN_SEC||70);
+      window.GE_EASY_SETTINGS.SOUL_SPAWN_MAX_SEC=low?240:(window.GE_EASY_SETTINGS.SOUL_SPAWN_MAX_SEC||180);
     }
     try{localStorage.setItem('GE_AUTO_QUALITY',low?'LOW':'NORMAL')}catch(_){}
     if(reason)console.info('GE adaptive quality:',low?'LOW':'NORMAL',reason);
@@ -9205,6 +9328,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const check=document.getElementById('autopilotCheckin');
   const checkTitle=document.getElementById('autopilotCheckTitle');
   const checkText=document.getElementById('autopilotCheckText');
+  const checkExtra=document.getElementById('autopilotCheckExtra');
   const btnCheck=document.getElementById('autopilotCheckBtn');
   const btnCalm=document.getElementById('autopilotCalmBtn');
   const btnExit=document.getElementById('autopilotExitBtn');
@@ -9225,7 +9349,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const musicVol=document.getElementById('autopilotMusicVol');
   const musicVolText=document.getElementById('autopilotMusicVolText');
   const player=document.getElementById('gePlayer');
-  if(!spirit||!canvas||!ctx||!hud||!check)return;
+  if(!spirit||!canvas||!ctx||!hud||!check||!checkExtra)return;
 
   const COLORS=['#61c9ff','#b4f0ff','#ad9dff','#ff9bd5','#ffd184','#86f6c8','#ffffff','#7ba8ff','#e7f7ff'];
   const PREF_KEY='GE_AUTOPILOT_DISPLAY_V1';
@@ -9234,7 +9358,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   try{const saved=JSON.parse(localStorage.getItem(PREF_KEY)||'null');if(saved&&typeof saved==='object')effects={...effects,...saved};}catch(_e){}
   let active=false,calm=false,startAt=0,raf=0,lastFrame=0,lastImpulse=0,nextImpulse=0,lastPos=new Map();
   let spiritTimer=0,spiritAnimation=null,waterTimer=0,sessionTimer=0,hudTimer=0,mixTimer=0,spiritRAF=0;
-  let spiritPos={x:Math.max(42,innerWidth-96),y:120,vx:26,vy:19};
+  let spiritPos={x:Math.max(24,innerWidth-64),y:92,vx:24,vy:17};
   let autopilotChoice={mode:'keep',album:null};
   let lastRipple=0,kaleidoMode='vertical',kaleidoSwitchAt=0;
   const FOUR_HOURS=4*60*60*1000;
@@ -9244,35 +9368,70 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);
     canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    if(!active&&spirit.style.display!=='none'){spiritPos.x=Math.max(34,Math.min(innerWidth-34,spiritPos.x));spiritPos.y=Math.max(74,Math.min(innerHeight-74,spiritPos.y));positionSpirit();}
+    if(!active&&spirit.style.display!=='none'){spiritPos.x=Math.max(18,Math.min(innerWidth-18,spiritPos.x));spiritPos.y=Math.max(54,Math.min(innerHeight-54,spiritPos.y));positionSpirit();}
   }
   addEventListener('resize',fit,{passive:true});fit();
 
   function gameActive(){return document.body.classList.contains('game-mode-active')||!!window.GE_GAME?.state?.active;}
-  function scheduleSpirit(delay=0){clearTimeout(spiritTimer);spiritTimer=setTimeout(()=>{if(!active&&!gameActive())showSpirit();},delay);}
+  let spiritVisitTimer=0,spiritSelectTimer=0,spiritArmed=false;
+  function scheduleSpirit(delay=0){
+    clearTimeout(spiritTimer);
+    spiritTimer=setTimeout(()=>{if(!active&&!gameActive())showSpirit();},delay);
+  }
   function positionSpirit(){
-    spirit.style.left=(spiritPos.x-31)+'px';
-    spirit.style.top=(spiritPos.y-31)+'px';
+    spirit.style.left=(spiritPos.x-16)+'px';
+    spirit.style.top=(spiritPos.y-16)+'px';
   }
   function bounceSpiritLoop(ts){
-    if(active||gameActive()){cancelAnimationFrame(spiritRAF);spiritRAF=0;return;}
+    if(active||gameActive()||spirit.classList.contains('leaving')){cancelAnimationFrame(spiritRAF);spiritRAF=0;return;}
     if(!spirit._lastTs)spirit._lastTs=ts;
     const dt=Math.min(32,ts-spirit._lastTs)/1000;spirit._lastTs=ts;
     spiritPos.x+=spiritPos.vx*dt;spiritPos.y+=spiritPos.vy*dt;
-    const minX=34,maxX=innerWidth-34,minY=74,maxY=innerHeight-74;
-    if(spiritPos.x<minX){spiritPos.x=minX;spiritPos.vx=Math.abs(spiritPos.vx);} if(spiritPos.x>maxX){spiritPos.x=maxX;spiritPos.vx=-Math.abs(spiritPos.vx);} 
-    if(spiritPos.y<minY){spiritPos.y=minY;spiritPos.vy=Math.abs(spiritPos.vy);} if(spiritPos.y>maxY){spiritPos.y=maxY;spiritPos.vy=-Math.abs(spiritPos.vy);} 
+    const pad=spiritArmed?32:18,minX=pad,maxX=innerWidth-pad,minY=54,maxY=innerHeight-54;
+    if(spiritPos.x<minX){spiritPos.x=minX;spiritPos.vx=Math.abs(spiritPos.vx);}
+    if(spiritPos.x>maxX){spiritPos.x=maxX;spiritPos.vx=-Math.abs(spiritPos.vx);}
+    if(spiritPos.y<minY){spiritPos.y=minY;spiritPos.vy=Math.abs(spiritPos.vy);}
+    if(spiritPos.y>maxY){spiritPos.y=maxY;spiritPos.vy=-Math.abs(spiritPos.vy);}
     positionSpirit();
     spiritRAF=requestAnimationFrame(bounceSpiritLoop);
   }
+  function leaveSpirit(){
+    if(active||spirit.style.display==='none')return;
+    clearTimeout(spiritVisitTimer);clearTimeout(spiritSelectTimer);
+    spiritArmed=false;spirit.classList.remove('selected');spirit.classList.add('leaving');
+    cancelAnimationFrame(spiritRAF);spiritRAF=0;
+    const goLeft=spiritPos.x<innerWidth/2;
+    spirit.style.transition='left 4.5s ease-in,opacity 4.5s ease,transform .42s ease';
+    spirit.style.left=(goLeft?-70:innerWidth+70)+'px';
+    spirit.style.opacity='0';
+    setTimeout(()=>{
+      hideSpirit();
+      spirit.classList.remove('leaving');
+      spirit.style.transition='';
+      spirit.style.opacity='1';
+      scheduleSpirit(rand((window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MIN_SEC??150)*1000,(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MAX_SEC??330)*1000));
+    },4700);
+  }
   function showSpirit(){
     if(active||gameActive())return;
-    spirit.style.display='block';spirit.style.opacity='1';spirit.classList.remove('selected');
-    if(!spiritPos.x||!spiritPos.y){spiritPos={x:Math.max(42,innerWidth-96),y:120,vx:26,vy:19};}
+    clearTimeout(spiritVisitTimer);clearTimeout(spiritSelectTimer);
+    spiritArmed=false;
+    spirit.style.display='block';spirit.style.opacity='1';
+    spirit.classList.remove('selected','leaving');
+    if(!spiritPos.x||!spiritPos.y)spiritPos={x:Math.max(24,innerWidth-64),y:92,vx:15,vy:10};
+    spiritPos.vx=(spiritPos.vx<0?-1:1)*15;
+    spiritPos.vy=(spiritPos.vy<0?-1:1)*10;
     positionSpirit();
-    if(!spiritRAF){spirit._lastTs=0;spiritRAF=requestAnimationFrame(bounceSpiritLoop);} 
+    if(!spiritRAF){spirit._lastTs=0;spiritRAF=requestAnimationFrame(bounceSpiritLoop);}
+    spiritVisitTimer=setTimeout(leaveSpirit,window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_VISIT_MS??30000);
   }
-  function hideSpirit(){ spirit.style.display='none'; cancelAnimationFrame(spiritRAF); spiritRAF=0; }
+  function hideSpirit(){
+    spirit.style.display='none';
+    spiritArmed=false;
+    spirit.classList.remove('selected','leaving');
+    clearTimeout(spiritVisitTimer);clearTimeout(spiritSelectTimer);
+    cancelAnimationFrame(spiritRAF);spiritRAF=0;
+  }
 
   function ensureMusic(){
     if(player?.paused){try{window.GE_MUSIC_CONTROLLER?.playPause?.();}catch(_e){try{player.play?.()}catch(__e){}}}
@@ -9520,10 +9679,28 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(!active)return;active=false;calm=false;
     document.body.classList.remove('autopilot-active','autopilot-calm');hideCheck();closeOverlay(musicPanel);closeOverlay(displayPanel);
     clearInterval(waterTimer);clearTimeout(sessionTimer);clearInterval(hudTimer);clearInterval(mixTimer);mixTimer=0;cancelAnimationFrame(raf);
-    const autoSun=document.getElementById('sunWrap');if(autoSun)autoSun.style.filter='';ctx.clearRect(0,0,innerWidth,innerHeight);lastPos.clear();scheduleSpirit(350);
+    const autoSun=document.getElementById('sunWrap');if(autoSun)autoSun.style.filter='';ctx.clearRect(0,0,innerWidth,innerHeight);lastPos.clear();scheduleSpirit(45000);
   }
 
-  spirit.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();spirit.classList.add('selected');showAlbumChooser();},{passive:false});
+  spirit.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    clearTimeout(spiritVisitTimer);
+    if(!spiritArmed){
+      spiritArmed=true;
+      spirit.classList.add('selected');
+      clearTimeout(spiritSelectTimer);
+      spiritSelectTimer=setTimeout(()=>{
+        spiritArmed=false;
+        spirit.classList.remove('selected');
+        spiritVisitTimer=setTimeout(leaveSpirit,8000);
+      },4500);
+      return;
+    }
+    spiritArmed=false;
+    clearTimeout(spiritSelectTimer);
+    spirit.classList.remove('selected');
+    showAlbumChooser();
+  },{passive:false});
   btnExit.addEventListener('click',stopAutopilot);
   btnCheck.addEventListener('click',()=>showCheck('water'));
   btnCalm.addEventListener('click',()=>setCalm(!calm));
@@ -9551,7 +9728,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   addEventListener('keydown',e=>{if(!active)return;if(e.key==='Escape'){if(musicPanel?.classList.contains('show'))closeOverlay(musicPanel);else if(displayPanel?.classList.contains('show'))closeOverlay(displayPanel);else stopAutopilot();}});
 
   window.GE_AUTOPILOT={start:startAutopilot,stop:stopAutopilot,check:()=>showCheck('water'),isActive:()=>active,setCalm,effects:()=>({...effects}),setEffect:(name,value)=>{if(name in effects){effects[name]=!!value;saveEffects();syncEffectButtons();if(name==='mix')syncMixTimer();}}};
-  scheduleSpirit(1200);
+  scheduleSpirit(900);
 })();
 </script>\n
 </body>
