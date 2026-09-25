@@ -16,12 +16,14 @@ CHECK_SECONDS = 900
 AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".aac", ".ogg", ".oga", ".flac")
 
 RUNTIME = Path("/app/runtime")
+DATA = Path(os.environ.get("GE_DATA_DIR", "/app/data"))
+DATA.mkdir(parents=True, exist_ok=True)
 META_REPO = RUNTIME / "repo-meta"
 PLAYLIST = RUNTIME / "playlist.m3u"
 ROTATION = RUNTIME / "rotation.json"
 LIBRARY = RUNTIME / "library.json"
-SETTINGS = RUNTIME / "settings.json"
-CUSTOM_PLAYLISTS = RUNTIME / "custom-playlists.json"
+SETTINGS = DATA / "settings.json"
+CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 
 CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}

@@ -20,7 +20,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 RUNTIME = Path("/app/runtime")
-SETTINGS = RUNTIME / "settings.json"
+DATA = Path(os.environ.get("GE_DATA_DIR", "/app/data"))
+DATA.mkdir(parents=True, exist_ok=True)
+SETTINGS = DATA / "settings.json"
 ROTATION = RUNTIME / "rotation.json"
 LIBRARY = RUNTIME / "library.json"
 PLAYLIST = RUNTIME / "playlist.m3u"
@@ -29,8 +31,8 @@ NEXT = RUNTIME / "next.json"
 DJ_HTML = Path("/app/dj.html")
 UPLOAD_DIR = RUNTIME / "uploads"
 TEMP_UPLOADS = RUNTIME / "temp-uploads.json"
-MIXER_SETTINGS = RUNTIME / "mixer.json"
-CUSTOM_PLAYLISTS = RUNTIME / "custom-playlists.json"
+MIXER_SETTINGS = DATA / "mixer.json"
+CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 
@@ -672,7 +674,7 @@ class Handler(BaseHTTPRequestHandler):
             coming = [queue_track(e) for e in upcoming[1:5]]
 
             self.json_response({
-                "version": "4.9",
+                "version": "5.0",
                 "legacy": bool(settings.get("legacy", False)),
                 "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
                 "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),

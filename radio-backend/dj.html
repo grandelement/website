@@ -82,7 +82,7 @@ audio{width:100%;height:38px;margin-top:10px}
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE RADIO DJ <span class="buildVersion">v4.9</span></div>
+    <div class="brand">GE RADIO DJ <span class="buildVersion">v5.0</span></div>
     <div><span class="pill"><span class="dot"></span><span id="online">STATION LIVE</span></span><button class="logout" id="logout">Lock</button></div>
   </div>
 
@@ -265,6 +265,7 @@ let broadcastMode="";
 let inputTesting=false;
 let stoppingBroadcast=false;
 let pcmProcessor=null;
+let pcmWorkletLoaded=false;
 let pcmMute=null;
 let queueDragging=false;
 let queueDragState=null;
@@ -559,13 +560,13 @@ async function stopInput(){
   stopMeter();
   if(liveSocket){try{liveSocket.close();}catch(_e){}liveSocket=null;liveSocketOpen=false;}
   clearVoiceFX();
-  if(pcmProcessor){try{pcmProcessor.onaudioprocess=null;pcmProcessor.disconnect();}catch(_e){}pcmProcessor=null;}
+  if(pcmProcessor){try{pcmProcessor.port.onmessage=null;pcmProcessor.disconnect();}catch(_e){}pcmProcessor=null;}
   if(pcmMute){try{pcmMute.disconnect();}catch(_e){}pcmMute=null;}
   if(rawInputStream){rawInputStream.getTracks().forEach(t=>t.stop());rawInputStream=null;}
   if(captureDisplayStream){captureDisplayStream.getTracks().forEach(t=>t.stop());captureDisplayStream=null;}
   try{if(micCtx)await micCtx.close();}catch(_e){}
   micCtx=null;micSource=null;hpFilter=null;lowFilter=null;midFilter=null;highFilter=null;compressor=null;micGainNode=null;micAnalyser=null;micDestination=null;
-  fxInput=null;fxOutput=null;localMonitorGain=null;micPanNode=null;inputTesting=false;setBroadcastUI();
+  fxInput=null;fxOutput=null;localMonitorGain=null;micPanNode=null;pcmWorkletLoaded=false;inputTesting=false;setBroadcastUI();
 }
 async function startInput(){
   const stationMonitor=$("stationMonitor");
@@ -604,47 +605,25 @@ async function startInput(){
     micPanNode.connect(micAnalyser);
     micAnalyser.connect(micDestination);
 
-    if(!micCtx.createScriptProcessor)throw new Error("This browser cannot create the direct live audio bridge.");
-    pcmProcessor=micCtx.createScriptProcessor(2048,2,2);
-    pcmMute=micCtx.createGain();pcmMute.gain.value=0;
-    micPanNode.connect(pcmProcessor);pcmProcessor.connect(pcmMute);pcmMute.connect(micCtx.destination);
     micPanNode.connect(localMonitorGain);localMonitorGain.connect(micCtx.destination);
-
-    pcmProcessor.onaudioprocess=e=>{
-      if(!broadcastMode)return;
-      const left=e.inputBuffer.getChannelData(0);
-      const right=e.inputBuffer.numberOfChannels>1?e.inputBuffer.getChannelData(1):left;
-      const inRate=micCtx.sampleRate||48000,frames=left.length;
-      const outFrames=inRate===48000?frames:Math.max(1,Math.round(frames*48000/inRate));
-      const pcm=new Int16Array(outFrames*2);
-      let energyL=0,energyR=0;for(let j=0;j<frames;j++){energyL+=left[j]*left[j];energyR+=right[j]*right[j];}
-      const rmsL=Math.sqrt(energyL/Math.max(1,frames)),rmsR=Math.sqrt(energyR/Math.max(1,frames));
-      const channelMode=$("channelMode").value||"auto";
-      for(let i=0;i<outFrames;i++){
-        const srcPos=(i*inRate)/48000,a=Math.min(frames-1,Math.floor(srcPos)),b=Math.min(frames-1,a+1),frac=srcPos-a;
-        let lv=left[a]+(left[b]-left[a])*frac,rv=right[a]+(right[b]-right[a])*frac;
-        if(channelMode==="left")rv=lv;
-        else if(channelMode==="right")lv=rv;
-        else if(channelMode==="mono"){const mono=(lv+rv)*.5;lv=mono;rv=mono;}
-        else if(channelMode==="auto"){
-          if(broadcastMode==="voice"){
-            let mono;if(rmsR<rmsL*.12)mono=lv;else if(rmsL<rmsR*.12)mono=rv;else mono=(lv+rv)*.5;lv=mono;rv=mono;
-          }else{
-            if(rmsR<rmsL*.08)rv=lv;else if(rmsL<rmsR*.08)lv=rv;
-          }
-        }
-        const lc=Math.max(-1,Math.min(1,lv)),rc=Math.max(-1,Math.min(1,rv));
-        pcm[i*2]=lc<0?Math.round(lc*32768):Math.round(lc*32767);
-        pcm[i*2+1]=rc<0?Math.round(rc*32768):Math.round(rc*32767);
-      }
-      queuePCM(pcm.buffer);
-    };
 
     applyProcessing();runMeter();await refreshInputDevices(selected);inputTesting=true;setBroadcastUI();
     if(headphoneDjModeOn())await resumeHeadphoneCue();
     setBroadcastStatus("Input ready. Music can keep playing while you test the mic, then go live without reopening the input.");return true;
   }catch(e){await stopInput();setBroadcastStatus(`Could not open that audio input: ${e?.message||e}`,true);return false;}
 }
+async function ensureMicPcmBridge(mode){
+  if(pcmProcessor){pcmProcessor.port.postMessage({type:"config",enabled:true,voice:mode==="voice",channelMode:$("channelMode").value||"auto"});return;}
+  if(!micCtx?.audioWorklet)throw new Error("This browser does not support the low-latency AudioWorklet bridge.");
+  if(!pcmWorkletLoaded){await micCtx.audioWorklet.addModule("/pcm-worklet.js?v=50");pcmWorkletLoaded=true;}
+  pcmProcessor=new AudioWorkletNode(micCtx,"ge-pcm-worklet",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
+  pcmMute=micCtx.createGain();pcmMute.gain.value=0;
+  micPanNode.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(micCtx.destination);
+  pcmProcessor.port.onmessage=e=>queuePCM(e.data);
+  pcmProcessor.port.postMessage({type:"config",enabled:true,voice:mode==="voice",channelMode:$("channelMode").value||"auto"});
+}
+function disableMicPcmBridge(){if(pcmProcessor)pcmProcessor.port.postMessage({type:"config",enabled:false});}
+
 function directSocketURL(token){
   const scheme=location.protocol==="https:"?"wss":"ws";
   return `${scheme}://${location.host}/control/live?token=${encodeURIComponent(token)}`;
@@ -695,7 +674,10 @@ async function beginBroadcast(mode){
     return;
   }
 
-  broadcastMode=mode;inputTesting=false;stoppingBroadcast=false;
+  broadcastMode=mode;
+  try{await ensureMicPcmBridge(mode);}
+  catch(err){broadcastMode="";if(liveSocket){try{liveSocket.close();}catch(_e){}}liveSocket=null;liveSocketOpen=false;await api("/control/broadcast/stop",{method:"POST"}).catch(()=>{});setBroadcastStatus(err.message||"Could not start the low-latency audio bridge.",true);return;}
+  inputTesting=false;stoppingBroadcast=false;
   const monitor=$("stationMonitor");
   if(monitor){
     if(headphoneDjModeOn()){
@@ -711,7 +693,7 @@ async function beginBroadcast(mode){
 
 async function endBroadcast(showMessage=true){
   if(!broadcastMode&&!liveSocket)return;
-  stoppingBroadcast=true;broadcastMode="";setBroadcastUI();
+  stoppingBroadcast=true;disableMicPcmBridge();broadcastMode="";setBroadcastUI();
   if(liveSocket){try{liveSocket.close(1000,"DJ ended");}catch(_e){}liveSocket=null;liveSocketOpen=false;}
   await api("/control/broadcast/stop",{method:"POST"}).catch(()=>{});
   stoppingBroadcast=false;
@@ -1095,12 +1077,13 @@ $("picker").addEventListener("click",e=>{if(e.target===$("picker"))closePicker()
 $("inputTest").addEventListener("click",toggleInputTest);
 $("djVoice").addEventListener("click",()=>beginBroadcast("voice"));
 $("livePerformance").addEventListener("click",()=>beginBroadcast("performance"));
-$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=49";});
+$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=50";});
 $("captureSource").addEventListener("change",async()=>{
   $("inputDevice").disabled=$("captureSource").value==="computer"||!!broadcastMode;
   if(inputTesting&&!broadcastMode){await stopInput();await startInput();}
 });
 $("inputDevice").addEventListener("change",async()=>{if(inputTesting&&!broadcastMode){await stopInput();await startInput();}});
+$("channelMode").addEventListener("change",()=>{if(pcmProcessor&&broadcastMode)pcmProcessor.port.postMessage({type:"config",enabled:true,voice:broadcastMode==="voice",channelMode:$("channelMode").value||"auto"});});
 ["eqHP","eqLow","eqMid","eqHigh","compThreshold","compRatio","micGain","micPan"].forEach(id=>$(id).addEventListener("input",applyProcessing));
 ["fxReverb","fxReverbSize","fxEcho","fxEchoDelay","fxPhone","fxAstronaut","fxRobot","fxMegaphone"].forEach(id=>$(id).addEventListener("input",applyProcessing));
 ["fxReverbOn","fxEchoOn","fxPhoneOn","fxAstronautOn","fxRobotOn","fxMegaphoneOn"].forEach(id=>$(id).addEventListener("change",applyProcessing));
