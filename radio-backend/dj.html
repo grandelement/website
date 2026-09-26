@@ -43,6 +43,10 @@ audio{width:100%;height:38px;margin-top:10px}
 
 .headphoneModeRow{margin-bottom:10px}.cueVolumeRow{grid-template-columns:92px 1fr 52px;margin-top:9px}.micMonitorHelp{margin:-3px 0 8px}.headphoneCueLive{border-color:#396e67!important;box-shadow:0 0 0 1px rgba(90,210,190,.14) inset}
 
+
+/* v5.5 DJ-only booth */
+body{padding-bottom:170px}.wrap{max-width:820px}.processing{overflow-x:auto;white-space:nowrap;padding-bottom:8px}.processing .procRow,.processing .fxRow,.processing .fxSubRow{display:inline-flex;vertical-align:top;white-space:normal;flex-direction:column;align-items:center;width:78px;min-height:302px;margin:5px 4px;padding:8px 3px;border:1px solid #2a3540;border-radius:10px;background:#080c11}.processing .procRow>span:first-child,.processing .fxSubRow>span:first-child,.processing .fxRow label{font-size:9px;text-align:center;min-height:29px;color:#fff;font-weight:850}.processing input[type=range]{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:54px!important;height:210px!important}.processing .procVal{font-size:9px;text-align:center}.processing .fxHeading{display:block;clear:both;white-space:normal}.processingActions,.panLegend,.small{white-space:normal}
+.stationDock{position:fixed;left:0;right:0;bottom:0;z-index:90;background:#010203;border-top:1px solid #52606c;padding:7px 9px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,.5)}.stationDockTop{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center}.stationDock button{appearance:none;border:1px solid #41505e;background:#111820;color:#fff;border-radius:9px;min-height:41px;font-weight:900}.stationDockTitle{min-width:0;border:1px solid #2d3741;border-radius:9px;padding:5px 8px}.stationDockTitle b,.stationDockTitle span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stationDockTitle b{font-size:12px}.stationDockTitle span{font-size:9px;color:#9eabb7}.stationDockBtns{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}.stationDockBtns button{font-size:9px}.studioReturn{background:#123559!important;border-color:#3f9cff!important}#djQueueMini{display:none;max-height:150px;overflow:auto;border:1px solid #2e3944;border-radius:9px;margin-top:5px;background:#050708}.miniQ{padding:7px 8px;border-bottom:1px solid #222a31;font-size:10px}.miniQ:last-child{border-bottom:0}
 </style>
 </head>
 <body>
@@ -82,7 +86,7 @@ audio{width:100%;height:38px;margin-top:10px}
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE RADIO DJ <span class="buildVersion">v5.4</span></div>
+    <div class="brand">GE RADIO DJ <span class="buildVersion">v5.5</span></div>
     <div><span class="pill"><span class="dot"></span><span id="online">STATION LIVE</span></span><button class="logout" id="logout">Lock</button></div>
   </div>
 
@@ -175,7 +179,7 @@ audio{width:100%;height:38px;margin-top:10px}
         <button class="btn primary" id="djVoice" type="button">DJ VOICE</button>
       </div>
       <button class="btn" id="livePerformance" type="button">LIVE PERFORMANCE / DIRECT INPUT</button>
-      <button class="btn" id="liveDjMusic" type="button">LIVE DJ MUSIC · 4 DECKS</button>
+      
     </div>
     <div class="broadcastStatus" id="broadcastStatus">Choose an input, tap INPUT TEST, allow microphone access, then go live.</div>
     <div class="broadcastNote">Mic / Audio Interface works with the iPhone mic, computer mic, and connected USB audio interfaces. Computer / Tab Audio captures desktop or browser-tab audio when the browser supports it. The station monitor is muted automatically while you are on air. Headphone Monitor lets you hear the processed voice locally without waiting for the public stream.</div>
@@ -235,6 +239,12 @@ audio{width:100%;height:38px;margin-top:10px}
   </div>
 </div>
 
+<div class="stationDock">
+  <audio id="djStationAudio" src="/dj-cue.mp3" preload="none" crossorigin="anonymous"></audio>
+  <div class="stationDockTop"><button id="djDockPlay" type="button">▶</button><div class="stationDockTitle" id="djDockTitle"><b>GE Radio</b><span>same station · tap for queue</span></div><button id="djDockNext" type="button">≫</button></div>
+  <div class="stationDockBtns"><button id="djDockVoice" type="button">DJ VOICE</button><button id="djDockMonitor" type="button">MONITOR</button><button class="studioReturn" id="djDockStudio" type="button">STUDIO</button><button id="djDockOff" type="button">OFF</button></div>
+  <div id="djQueueMini"></div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 const GE_PCM_WORKLET_SOURCE="class GEPCMWorklet extends AudioWorkletProcessor {\n  constructor(){\n    super();\n    this.enabled=false;\n    this.voice=false;\n    this.channelMode=\"stereo\";\n    this.frames=960;\n    this.left=new Float32Array(this.frames);\n    this.right=new Float32Array(this.frames);\n    this.pos=0;\n    this.port.onmessage=e=>{\n      const d=e.data||{};\n      if(d.type===\"config\"){\n        if(\"enabled\" in d)this.enabled=!!d.enabled;\n        if(\"voice\" in d)this.voice=!!d.voice;\n        if(d.channelMode)this.channelMode=String(d.channelMode);\n        if(!this.enabled)this.pos=0;\n      }\n    };\n  }\n  emit(){\n    const pcm=new Int16Array(this.frames*2);\n    let eL=0,eR=0;\n    for(let i=0;i<this.frames;i++){eL+=this.left[i]*this.left[i];eR+=this.right[i]*this.right[i];}\n    const rmsL=Math.sqrt(eL/this.frames),rmsR=Math.sqrt(eR/this.frames);\n    for(let i=0;i<this.frames;i++){\n      let l=this.left[i],r=this.right[i];\n      if(this.channelMode===\"left\")r=l;\n      else if(this.channelMode===\"right\")l=r;\n      else if(this.channelMode===\"mono\"){const m=(l+r)*.5;l=m;r=m;}\n      else if(this.channelMode===\"auto\"){\n        if(this.voice){let m;if(rmsR<rmsL*.12)m=l;else if(rmsL<rmsR*.12)m=r;else m=(l+r)*.5;l=m;r=m;}\n        else {if(rmsR<rmsL*.08)r=l;else if(rmsL<rmsR*.08)l=r;}\n      }\n      l=Math.max(-1,Math.min(1,l));r=Math.max(-1,Math.min(1,r));\n      pcm[i*2]=l<0?Math.round(l*32768):Math.round(l*32767);\n      pcm[i*2+1]=r<0?Math.round(r*32768):Math.round(r*32767);\n    }\n    this.port.postMessage(pcm.buffer,[pcm.buffer]);\n    this.pos=0;\n  }\n  process(inputs,outputs){\n    const input=inputs[0]||[],output=outputs[0]||[];\n    const l=input[0],r=input[1]||l;\n    if(output[0]&&l)output[0].set(l);\n    if(output[1]&&r)output[1].set(r);\n    if(!this.enabled||!l)return true;\n    for(let i=0;i<l.length;i++){\n      this.left[this.pos]=l[i]||0;\n      this.right[this.pos]=(r&&r[i])||0;\n      this.pos++;\n      if(this.pos===this.frames)this.emit();\n    }\n    return true;\n  }\n}\nregisterProcessor(\"ge-pcm-worklet\",GEPCMWorklet);\n";
@@ -1083,7 +1093,7 @@ $("picker").addEventListener("click",e=>{if(e.target===$("picker"))closePicker()
 $("inputTest").addEventListener("click",toggleInputTest);
 $("djVoice").addEventListener("click",()=>beginBroadcast("voice"));
 $("livePerformance").addEventListener("click",()=>beginBroadcast("performance"));
-$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=54";});
+
 $("captureSource").addEventListener("change",async()=>{
   $("inputDevice").disabled=$("captureSource").value==="computer"||!!broadcastMode;
   if(inputTesting&&!broadcastMode){await stopInput();await startInput();}
@@ -1128,6 +1138,11 @@ $("customMixSearch").addEventListener("input",renderCustomMixSongs);
 $("customSelectAll").addEventListener("click",()=>{$("customMixSongs").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true);});
 $("customClearAll").addEventListener("click",()=>{$("customMixSongs").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=false);});
 $("saveCustomMix").addEventListener("click",saveCustomMix);
+
+window.addEventListener("message",async e=>{if(!["https://grandelement.com","https://www.grandelement.com"].includes(e.origin))return;if(e.data?.type!=="ge-studio-auth"||!e.data.key)return;setAuth(String(e.data.key));sessionStorage.setItem("geDjPassword",djKey);try{const r=await api("/control/status");if(r.ok){$("lock").classList.add("hide");const d=await r.json();render(d);await loadPlaylists(d.custom_mix_id||"");refreshDjDock();}}catch(_e){}});
+async function refreshDjDock(){if(!djKey)return;try{const r=await api("/control/status"),d=await r.json();if(!r.ok)return;$("djDockTitle").innerHTML=`<b>${esc(d.now?.title||"GE Radio")}</b><span>${esc(d.now?.album||"")}${d.next?.title?" · NEXT "+esc(d.next.title):""}</span>`;const rows=[];if(d.next)rows.push(d.next);for(const x of d.coming||[])if(rows.length<5)rows.push(x);$("djQueueMini").innerHTML=rows.map((x,i)=>`<div class="miniQ">${i+1}. ${esc(x.title)} <span>· ${esc(x.album||"")}</span></div>`).join("");}catch(_e){}}
+$("djDockTitle").addEventListener("click",()=>$("djQueueMini").style.display=$("djQueueMini").style.display==="block"?"none":"block");$("djDockPlay").addEventListener("click",async()=>{const a=$("djStationAudio");try{if(a.paused){await a.play();$("djDockPlay").textContent="Ⅱ";}else{a.pause();$("djDockPlay").textContent="▶";}}catch(_e){}});$("djDockNext").addEventListener("click",async()=>{try{await api("/control/skip",{method:"POST"});setTimeout(refreshDjDock,500);}catch(_e){}});$("djDockVoice").addEventListener("click",()=>$("djVoice").click());$("djDockMonitor").addEventListener("click",()=>$("inputTest").click());$("djDockOff").addEventListener("click",async()=>{if(broadcastMode)await endBroadcast();if(inputTesting)await stopInput();const a=$("djStationAudio");a.pause();$("djDockPlay").textContent="▶";});$("djDockStudio").addEventListener("click",()=>{if(window.parent!==window){window.parent.postMessage({type:"ge-cloud-dj-close"},"https://grandelement.com");window.parent.postMessage({type:"ge-cloud-dj-close"},"https://www.grandelement.com");}else location.href="https://grandelement.com/studio/";});setInterval(refreshDjDock,5000);
+
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>refreshInputDevices());
 try{$("headphoneDjMode").checked=localStorage.getItem(HEADPHONE_MODE_KEY)==="1";}catch(_e){}
 updateCueVolume();void setMonitorSource(false);
