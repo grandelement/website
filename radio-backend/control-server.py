@@ -674,7 +674,7 @@ class Handler(BaseHTTPRequestHandler):
             coming = [queue_track(e) for e in upcoming[1:5]]
 
             self.json_response({
-                "version": "5.2",
+                "version": "5.4",
                 "legacy": bool(settings.get("legacy", False)),
                 "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
                 "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
