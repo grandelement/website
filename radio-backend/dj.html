@@ -82,7 +82,7 @@ audio{width:100%;height:38px;margin-top:10px}
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE RADIO DJ <span class="buildVersion">v5.1</span></div>
+    <div class="brand">GE RADIO DJ <span class="buildVersion">v5.2</span></div>
     <div><span class="pill"><span class="dot"></span><span id="online">STATION LIVE</span></span><button class="logout" id="logout">Lock</button></div>
   </div>
 
@@ -237,6 +237,7 @@ audio{width:100%;height:38px;margin-top:10px}
 
 <script>
 const $=id=>document.getElementById(id);
+const GE_PCM_WORKLET_SOURCE="class GEPCMWorklet extends AudioWorkletProcessor {\n  constructor(){\n    super();\n    this.enabled=false;\n    this.voice=false;\n    this.channelMode=\"stereo\";\n    this.frames=960;\n    this.left=new Float32Array(this.frames);\n    this.right=new Float32Array(this.frames);\n    this.pos=0;\n    this.port.onmessage=e=>{\n      const d=e.data||{};\n      if(d.type===\"config\"){\n        if(\"enabled\" in d)this.enabled=!!d.enabled;\n        if(\"voice\" in d)this.voice=!!d.voice;\n        if(d.channelMode)this.channelMode=String(d.channelMode);\n        if(!this.enabled)this.pos=0;\n      }\n    };\n  }\n  emit(){\n    const pcm=new Int16Array(this.frames*2);\n    let eL=0,eR=0;\n    for(let i=0;i<this.frames;i++){eL+=this.left[i]*this.left[i];eR+=this.right[i]*this.right[i];}\n    const rmsL=Math.sqrt(eL/this.frames),rmsR=Math.sqrt(eR/this.frames);\n    for(let i=0;i<this.frames;i++){\n      let l=this.left[i],r=this.right[i];\n      if(this.channelMode===\"left\")r=l;\n      else if(this.channelMode===\"right\")l=r;\n      else if(this.channelMode===\"mono\"){const m=(l+r)*.5;l=m;r=m;}\n      else if(this.channelMode===\"auto\"){\n        if(this.voice){let m;if(rmsR<rmsL*.12)m=l;else if(rmsL<rmsR*.12)m=r;else m=(l+r)*.5;l=m;r=m;}\n        else {if(rmsR<rmsL*.08)r=l;else if(rmsL<rmsR*.08)l=r;}\n      }\n      l=Math.max(-1,Math.min(1,l));r=Math.max(-1,Math.min(1,r));\n      pcm[i*2]=l<0?Math.round(l*32768):Math.round(l*32767);\n      pcm[i*2+1]=r<0?Math.round(r*32768):Math.round(r*32767);\n    }\n    this.port.postMessage(pcm.buffer,[pcm.buffer]);\n    this.pos=0;\n  }\n  process(inputs,outputs){\n    const input=inputs[0]||[],output=outputs[0]||[];\n    const l=input[0],r=input[1]||l;\n    if(output[0]&&l)output[0].set(l);\n    if(output[1]&&r)output[1].set(r);\n    if(!this.enabled||!l)return true;\n    for(let i=0;i<l.length;i++){\n      this.left[this.pos]=l[i]||0;\n      this.right[this.pos]=(r&&r[i])||0;\n      this.pos++;\n      if(this.pos===this.frames)this.emit();\n    }\n    return true;\n  }\n}\nregisterProcessor(\"ge-pcm-worklet\",GEPCMWorklet);\n";
 let djKey="";
 
 function esc(v){return String(v||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
@@ -615,7 +616,12 @@ async function startInput(){
 async function ensureMicPcmBridge(mode){
   if(pcmProcessor){pcmProcessor.port.postMessage({type:"config",enabled:true,voice:mode==="voice",channelMode:$("channelMode").value||"auto"});return;}
   if(!micCtx?.audioWorklet)throw new Error("This browser does not support the low-latency AudioWorklet bridge.");
-  if(!pcmWorkletLoaded){await micCtx.audioWorklet.addModule("/pcm-worklet.js?v=50");pcmWorkletLoaded=true;}
+  if(!pcmWorkletLoaded){
+    const blob=new Blob([GE_PCM_WORKLET_SOURCE],{type:"application/javascript"});
+    const url=URL.createObjectURL(blob);
+    try{await micCtx.audioWorklet.addModule(url);pcmWorkletLoaded=true;}
+    finally{URL.revokeObjectURL(url);}
+  }
   pcmProcessor=new AudioWorkletNode(micCtx,"ge-pcm-worklet",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
   pcmMute=micCtx.createGain();pcmMute.gain.value=0;
   micPanNode.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(micCtx.destination);
@@ -1077,7 +1083,7 @@ $("picker").addEventListener("click",e=>{if(e.target===$("picker"))closePicker()
 $("inputTest").addEventListener("click",toggleInputTest);
 $("djVoice").addEventListener("click",()=>beginBroadcast("voice"));
 $("livePerformance").addEventListener("click",()=>beginBroadcast("performance"));
-$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=51";});
+$("liveDjMusic").addEventListener("click",()=>{if(broadcastMode){setBroadcastStatus("End DJ Voice / Live Performance before opening Live DJ Music.",true);return;}location.href="/live-dj?fresh=52";});
 $("captureSource").addEventListener("change",async()=>{
   $("inputDevice").disabled=$("captureSource").value==="computer"||!!broadcastMode;
   if(inputTesting&&!broadcastMode){await stopInput();await startInput();}

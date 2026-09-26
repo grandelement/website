@@ -19,6 +19,10 @@
 .deckDiag.ok{color:#62df9a}.deckDiag.bad{color:#ff7d8d}
 .crateHelp{font-size:9px;color:#7f8b99;margin-top:5px}
 
+
+/* v5.2 deck instrument controls */
+.geLibraryRow{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}.geLibraryRow select{min-width:0;background:#090d13;color:var(--text);border:1px solid #303a48;border-radius:10px;padding:10px}.crossMaster{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.crossMasterTop{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--muted);font-weight:800}.crossMaster input{width:100%;margin-top:8px}.deckTools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}.deckTools button{appearance:none;border:1px solid #354151;background:#151c26;color:#e8f0f8;border-radius:10px;padding:9px 4px;font-size:9px;font-weight:800}.deckTools button.on{border-color:#42bda9;background:#153a34;color:#cbfff6}.deckTools button.cueOn{border-color:#ff667d;background:#551c27;color:#ffe4e8}.deckWaveWrap{margin-top:10px}.deckWave{display:block;width:100%;height:108px;background:#06090d;border:1px solid #2d3947;border-radius:11px;touch-action:none}.waveHint{font-size:8px;color:#778697;margin-top:4px;text-align:center}.deckMixer{display:grid;grid-template-columns:repeat(8,minmax(34px,1fr));gap:4px;margin-top:11px;padding:9px 4px 7px;border:1px solid #26313e;border-radius:11px;background:#090d13}.vf{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}.vf label{font-size:7px;letter-spacing:.04em;color:#8e9aaa;font-weight:800}.vf input[type=range]{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:112px;margin:0}.vf .vv{font-size:7px;color:#dfe7ef;min-height:10px}.deckFxFine{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.deckFxFine .sliderRow{margin-top:0;grid-template-columns:72px 1fr 46px}.xassign{display:grid;grid-template-columns:auto repeat(3,1fr);gap:5px;align-items:center;margin-top:8px}.xassign span{font-size:8px;color:var(--muted)}.xassign button{appearance:none;border:1px solid #303a48;background:#0c1118;color:#aeb9c7;border-radius:8px;padding:7px 4px;font-size:8px;font-weight:850}.xassign button.on{border-color:#4aa8ff;background:#15304c;color:#e4f2ff}.beatState{font-size:8px;color:#ffc866;margin-top:4px;min-height:11px}@media(max-width:430px){.deckMixer{grid-template-columns:repeat(8,minmax(28px,1fr));gap:2px;padding-left:2px;padding-right:2px}.vf input[type=range]{width:24px;height:100px}.vf label,.vf .vv{font-size:6px}.deckWave{height:94px}.deckTools button{font-size:8px;padding:8px 2px}}
+
 </style>
 </head>
 <body>
@@ -34,7 +38,7 @@
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE LIVE DJ MUSIC <span class="version">v5.1</span> <span class="liveBadge" id="liveBadge">ON AIR</span></div>
+    <div class="brand">GE LIVE DJ MUSIC <span class="version">v5.2</span> <span class="liveBadge" id="liveBadge">ON AIR</span></div>
     <div class="topBtns"><button class="smallBtn" id="backBtn" type="button">RADIO DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
   </div>
 
@@ -50,6 +54,15 @@
       <button class="btn primary" id="armAudio" type="button">ARM LOCAL MIXER</button>
       <button class="btn live" id="goLive" type="button">GO LIVE DJ MUSIC</button>
       <button class="btn" id="returnRadio" type="button">RETURN TO RADIO</button>
+    </div>
+    <div class="geLibraryRow">
+      <select id="geLibrarySelect"><option value="">GE Radio Library — load library first</option></select>
+      <button class="smallBtn" id="loadGeLibrary" type="button">LOAD GE LIBRARY</button>
+    </div>
+    <div class="sub" id="geLibraryStatus">This uses the same Grand Element music library already feeding GE Radio. It does not copy the whole library into phone memory.</div>
+    <div class="crossMaster">
+      <div class="crossMasterTop"><span>A · DECKS 1/3</span><span id="crossRead">CROSSFADE · CENTER</span><span>DECKS 2/4 · B</span></div>
+      <input id="crossfader" type="range" min="-100" max="100" step="1" value="0">
     </div>
     <div class="status" id="liveStatus">Load a track directly inside a deck, test it locally, then build your mix before going live.</div>
     <div class="note">The four decks run locally on this device. GO LIVE sends one finished stereo mix to GE Radio. The normal station fades out; RETURN TO RADIO starts a fresh station song and fades it back in.</div>
@@ -93,17 +106,22 @@
 const GE_PCM_WORKLET_SOURCE="class GEPCMWorklet extends AudioWorkletProcessor {\n  constructor(){\n    super();\n    this.enabled=false;\n    this.voice=false;\n    this.channelMode=\"stereo\";\n    this.frames=960;\n    this.left=new Float32Array(this.frames);\n    this.right=new Float32Array(this.frames);\n    this.pos=0;\n    this.port.onmessage=e=>{\n      const d=e.data||{};\n      if(d.type===\"config\"){\n        if(\"enabled\" in d)this.enabled=!!d.enabled;\n        if(\"voice\" in d)this.voice=!!d.voice;\n        if(d.channelMode)this.channelMode=String(d.channelMode);\n        if(!this.enabled)this.pos=0;\n      }\n    };\n  }\n  emit(){\n    const pcm=new Int16Array(this.frames*2);\n    let eL=0,eR=0;\n    for(let i=0;i<this.frames;i++){eL+=this.left[i]*this.left[i];eR+=this.right[i]*this.right[i];}\n    const rmsL=Math.sqrt(eL/this.frames),rmsR=Math.sqrt(eR/this.frames);\n    for(let i=0;i<this.frames;i++){\n      let l=this.left[i],r=this.right[i];\n      if(this.channelMode===\"left\")r=l;\n      else if(this.channelMode===\"right\")l=r;\n      else if(this.channelMode===\"mono\"){const m=(l+r)*.5;l=m;r=m;}\n      else if(this.channelMode===\"auto\"){\n        if(this.voice){let m;if(rmsR<rmsL*.12)m=l;else if(rmsL<rmsR*.12)m=r;else m=(l+r)*.5;l=m;r=m;}\n        else {if(rmsR<rmsL*.08)r=l;else if(rmsL<rmsR*.08)l=r;}\n      }\n      l=Math.max(-1,Math.min(1,l));r=Math.max(-1,Math.min(1,r));\n      pcm[i*2]=l<0?Math.round(l*32768):Math.round(l*32767);\n      pcm[i*2+1]=r<0?Math.round(r*32768):Math.round(r*32767);\n    }\n    this.port.postMessage(pcm.buffer,[pcm.buffer]);\n    this.pos=0;\n  }\n  process(inputs,outputs){\n    const input=inputs[0]||[],output=outputs[0]||[];\n    const l=input[0],r=input[1]||l;\n    if(output[0]&&l)output[0].set(l);\n    if(output[1]&&r)output[1].set(r);\n    if(!this.enabled||!l)return true;\n    for(let i=0;i<l.length;i++){\n      this.left[this.pos]=l[i]||0;\n      this.right[this.pos]=(r&&r[i])||0;\n      this.pos++;\n      if(this.pos===this.frames)this.emit();\n    }\n    return true;\n  }\n}\nregisterProcessor(\"ge-pcm-worklet\",GEPCMWorklet);\n";
 const $=id=>document.getElementById(id);
 let djKey="";
-let ctx=null, programBus=null, musicBus=null, musicDuck=null, monitorGain=null, liveGain=null, pcmProcessor=null, pcmMute=null, workletLoaded=false;
+let ctx=null, programBus=null, musicBus=null, musicDuck=null, monitorGain=null, cueBus=null, liveGain=null, pcmProcessor=null, pcmMute=null, workletLoaded=false;
 let inputStream=null,inputSource=null,inputGain=null,inputComp=null,inputAnalyser=null,inputRAF=0;
 let talkAudio=null,talkSource=null,talkGain=null,talkCompNode=null;
 let liveSocket=null,liveSocketOpen=false,liveActive=false,stopping=false;
 let crate=[];
+let geLibrary=[],geCommit="";
 let masterDeck=0;
-let deckRAF=0;
+let deckRAF=0,lastDeckDraw=0,crossfader=0,sharedHallImpulse=null;
 const STEMS=["drums","bass","harmonic","vocals"];
 const decks=Array.from({length:4},(_,i)=>({
   i,title:`Deck ${i+1}`,bpm:120,sync:false,playing:false,loop:false,loopBars:4,loopStart:0,loopEnd:0,vocalCut:false,tap:[],
-  gain:null,volume:90,sources:{},activeStems:new Set()
+  volume:90,trim:100,low:0,mid:0,high:0,filter:0,reverb:0,delay:0,delayTime:320,feedback:25,
+  xfadeAssign:(i%2===0?"A":"B"),cue:false,beatAnchor:null,autoBpmBusy:false,scratching:false,scratchWasPlaying:false,
+  inputNode:null,trimNode:null,eqLowNode:null,eqMidNode:null,eqHighNode:null,filterNode:null,dryNode:null,sumNode:null,
+  masterNode:null,analyser:null,xfadeNode:null,cueNode:null,delayNode:null,delayFeedback:null,delayWet:null,
+  reverbNode:null,reverbWet:null,waveData:null,sources:{},activeStems:new Set()
 }));
 
 function esc(v){return String(v??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -112,16 +130,19 @@ function setStatus(msg,bad=false){$("liveStatus").textContent=msg||"";$("liveSta
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-async function ensureAudio(){
-  if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}
-  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");
-  ctx=new AC({sampleRate:48000});if(ctx.state==="suspended")await ctx.resume();
-  musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();liveGain=ctx.createGain();
-  monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;
-  musicBus.connect(musicDuck).connect(programBus);programBus.connect(monitorGain).connect(ctx.destination);programBus.connect(liveGain);
-  for(const d of decks){d.gain=ctx.createGain();d.gain.gain.value=.9;d.gain.connect(musicBus);}
-  updateAllDeckGains();startDeckClock();
+function makeHallImpulse(){
+  if(sharedHallImpulse)return sharedHallImpulse;const seconds=2.8,rate=ctx.sampleRate,length=Math.floor(rate*seconds),b=ctx.createBuffer(2,length,rate);
+  for(let ch=0;ch<2;ch++){const data=b.getChannelData(ch);for(let i=0;i<length;i++){const t=i/length;data[i]=(Math.random()*2-1)*Math.pow(1-t,2.7);}}sharedHallImpulse=b;return b;
 }
+function createDeckStrip(d){
+  d.inputNode=ctx.createGain();d.trimNode=ctx.createGain();d.eqLowNode=ctx.createBiquadFilter();d.eqLowNode.type="lowshelf";d.eqLowNode.frequency.value=180;d.eqMidNode=ctx.createBiquadFilter();d.eqMidNode.type="peaking";d.eqMidNode.frequency.value=1000;d.eqMidNode.Q.value=.8;d.eqHighNode=ctx.createBiquadFilter();d.eqHighNode.type="highshelf";d.eqHighNode.frequency.value=5200;d.filterNode=ctx.createBiquadFilter();d.filterNode.type="lowpass";d.filterNode.frequency.value=22000;d.filterNode.Q.value=.7;d.dryNode=ctx.createGain();d.sumNode=ctx.createGain();d.masterNode=ctx.createGain();d.analyser=ctx.createAnalyser();d.analyser.fftSize=512;d.analyser.smoothingTimeConstant=.65;d.xfadeNode=ctx.createGain();d.cueNode=ctx.createGain();d.inputNode.connect(d.trimNode).connect(d.eqLowNode).connect(d.eqMidNode).connect(d.eqHighNode).connect(d.filterNode);d.filterNode.connect(d.dryNode).connect(d.sumNode);d.sumNode.connect(d.masterNode).connect(d.analyser);d.analyser.connect(d.xfadeNode).connect(musicBus);d.analyser.connect(d.cueNode).connect(cueBus);d.waveData=new Uint8Array(d.analyser.fftSize);updateDeckMixer(d);updateCrossfader();
+}
+function ensureDeckDelay(d){if(d.delayNode)return;d.delayNode=ctx.createDelay(2.0);d.delayFeedback=ctx.createGain();d.delayWet=ctx.createGain();d.filterNode.connect(d.delayNode);d.delayNode.connect(d.delayWet).connect(d.sumNode);d.delayNode.connect(d.delayFeedback).connect(d.delayNode);}
+function ensureDeckReverb(d){if(d.reverbNode)return;d.reverbNode=ctx.createConvolver();d.reverbNode.buffer=makeHallImpulse();d.reverbWet=ctx.createGain();d.filterNode.connect(d.reverbNode);d.reverbNode.connect(d.reverbWet).connect(d.sumNode);}
+function updateDeckMixer(d){if(!ctx||!d.inputNode)return;d.trimNode.gain.value=(Number(d.trim)||0)/100;d.eqLowNode.gain.value=Number(d.low)||0;d.eqMidNode.gain.value=Number(d.mid)||0;d.eqHighNode.gain.value=Number(d.high)||0;const f=Number(d.filter)||0;if(f<0){d.filterNode.type="lowpass";d.filterNode.frequency.value=20000*Math.pow(250/20000,Math.abs(f)/100);}else if(f>0){d.filterNode.type="highpass";d.filterNode.frequency.value=20*Math.pow(6000/20,f/100);}else{d.filterNode.type="lowpass";d.filterNode.frequency.value=22000;}d.masterNode.gain.value=(Number(d.volume)||0)/100;d.cueNode.gain.value=d.cue?.78:0;if((Number(d.delay)||0)>0||d.delayNode){ensureDeckDelay(d);d.delayNode.delayTime.value=(Number(d.delayTime)||320)/1000;d.delayFeedback.gain.value=(Number(d.feedback)||0)/100;d.delayWet.gain.value=(Number(d.delay)||0)/100;}if((Number(d.reverb)||0)>0||d.reverbNode){ensureDeckReverb(d);d.reverbWet.gain.value=(Number(d.reverb)||0)/100;}}
+function crossGainFor(d){if(d.xfadeAssign==="THRU")return 1;const x=Number(crossfader)||0;if(d.xfadeAssign==="A")return x<=0?1:Math.max(0,1-x/100);return x>=0?1:Math.max(0,1+x/100);}
+function updateCrossfader(){crossfader=Number($("crossfader")?.value ?? crossfader)||0;for(const d of decks){if(d.xfadeNode)d.xfadeNode.gain.value=crossGainFor(d);}const read=$("crossRead");if(read)read.textContent=crossfader===0?"CROSSFADE · CENTER":(crossfader<0?`CROSSFADE · A ${Math.abs(crossfader)}%`:`CROSSFADE · B ${crossfader}%`);}
+async function ensureAudio(){if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");ctx=new AC({sampleRate:48000});if(ctx.state==="suspended")await ctx.resume();musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();cueBus=ctx.createGain();liveGain=ctx.createGain();monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;cueBus.gain.value=1;musicBus.connect(musicDuck).connect(programBus);programBus.connect(monitorGain).connect(ctx.destination);cueBus.connect(monitorGain);programBus.connect(liveGain);for(const d of decks)createDeckStrip(d);startDeckClock();}
 
 async function ensurePcmBridge(){
   await ensureAudio();
@@ -203,6 +224,13 @@ function chooseDeckFile(i,file){
   prepareDeckFile(i,"full",file);
 }
 
+function geRawUrl(item){if(!geCommit||!item?.path)return "";const path=String(item.path).split("/").map(encodeURIComponent).join("/");return `https://raw.githubusercontent.com/grandelement/website/${encodeURIComponent(geCommit)}/${path}`;}
+function geOptions(){return '<option value="">Choose Grand Element song…</option>'+geLibrary.map((x,i)=>`<option value="${i}">${esc(x.album)} · ${esc(x.title)}</option>`).join("");}
+function refreshGeMenus(){for(let i=0;i<4;i++){const s=$(`gePick${i}`);if(s){const keep=s.value;s.innerHTML=geOptions();if([...s.options].some(o=>o.value===keep))s.value=keep;}}$("geLibrarySelect").innerHTML=geOptions();}
+async function loadGeLibrary(){$("geLibraryStatus").textContent="Loading the GE Radio song list…";try{const r=await api("/control/library"),data=await r.json();if(!r.ok)throw new Error(data.error||"Could not load GE library.");geCommit=String(data.commit||"");geLibrary=(data.items||[]).filter(x=>x.kind==="song"&&x.path);refreshGeMenus();$("geLibraryStatus").textContent=`${geLibrary.length} Grand Element songs ready. Pick one inside any deck.`;}catch(e){$("geLibraryStatus").textContent=e?.message||"Could not load GE library.";}}
+function buildRemoteAudio(item,i){const audio=document.createElement("audio");audio.preload="metadata";audio.playsInline=true;audio.setAttribute("playsinline","");audio.crossOrigin="anonymous";const url=geRawUrl(item),source=document.createElement("source");source.src=url;source.type=guessAudioMime({name:item.path,type:""});audio.appendChild(source);audio.load();audio.addEventListener("error",()=>setDeckDiag(i,`GE Library: could not load ${item.title}. You can still load the local file from your phone.`,"bad"),{once:true});audio.addEventListener("canplay",()=>setDeckDiag(i,`${item.title} · ${item.album} · GE Library ready`,"ok"),{once:true});return {audio,url,mime:source.type};}
+function prepareGeDeck(i,index){index=Number(index);if(!Number.isInteger(index)||index<0||!geLibrary[index])return;const item=geLibrary[index],d=decks[i],old=d.sources.full;if(old)disposeSource(old);for(const stem of STEMS){if(d.sources[stem]){disposeSource(d.sources[stem]);delete d.sources[stem];}}d.activeStems.clear();d.vocalCut=false;const built=buildRemoteAudio(item,i);d.sources.full={audio:built.audio,source:null,url:built.url,file:null,item,mime:built.mime,gain:null,normal:null,cut:null,extra:[],attached:false,type:"full",remote:true};d.title=item.title;d.sources.full.audio.addEventListener("ended",()=>{if(!d.loop){d.playing=false;renderDeckState(d);}});renderDeck(i);setDeckDiag(i,`Loading ${item.title} from GE Radio Library…`);setStatus(`Deck ${i+1}: ${item.title} selected from the existing GE library.`);}
+
 function sourceLeader(d){return d.sources.full||STEMS.map(s=>d.sources[s]).find(Boolean)||null;}
 function allLoaded(d){return Object.values(d.sources).filter(Boolean);}
 function safeTime(audio){try{return Number.isFinite(audio.currentTime)?audio.currentTime:0;}catch(_e){return 0;}}
@@ -231,7 +259,7 @@ function disposeSource(entry){
   if(!entry)return;
   try{entry.audio.pause();}catch(_e){}
   for(const node of [entry.source,entry.gain,entry.normal,entry.cut,...(entry.extra||[])]){try{node?.disconnect();}catch(_e){}}
-  try{if(entry.url)URL.revokeObjectURL(entry.url);}catch(_e){}
+  try{if(entry.url&&!entry.remote&&String(entry.url).startsWith("blob:"))URL.revokeObjectURL(entry.url);}catch(_e){}
 }
 function prepareDeckFile(i,type,file){
   if(!file)return;
@@ -257,9 +285,9 @@ async function attachSource(d,type){
   await ensureAudio();
   const source=ctx.createMediaElementSource(entry.audio);entry.source=source;
   if(type==="full"){
-    const net=createCutNetwork(source,d.gain);entry.normal=net.normal;entry.cut=net.cut;entry.extra=net.nodes;
+    const net=createCutNetwork(source,d.inputNode);entry.normal=net.normal;entry.cut=net.cut;entry.extra=net.nodes;
   }else{
-    entry.gain=ctx.createGain();entry.gain.gain.value=0;source.connect(entry.gain).connect(d.gain);
+    entry.gain=ctx.createGain();entry.gain.gain.value=0;source.connect(entry.gain).connect(d.inputNode);
   }
   entry.attached=true;updateDeckSourceGains(d);return entry;
 }
@@ -271,47 +299,50 @@ function updateDeckSourceGains(d){
   const full=d.sources.full;if(full?.normal&&full?.cut){full.normal.gain.value=!useStems&&!d.vocalCut?1:0;full.cut.gain.value=!useStems&&d.vocalCut?1:0;}
   for(const stem of STEMS){const s=d.sources[stem];if(s?.gain)s.gain.gain.value=d.activeStems.has(stem)?1:0;}
 }
-function setDeckVolume(i,v){const d=decks[i];d.volume=Number(v)||0;if(d.gain)d.gain.gain.value=d.volume/100;const out=$(`volVal${i}`);if(out)out.textContent=`${d.volume}%`;}
-function updateAllDeckGains(){for(const d of decks){if(d.gain)d.gain.gain.value=(Number(d.volume)||0)/100;}}
-async function toggleDeckPlay(i){
-  await ensureAudio();const d=decks[i],loaded=allLoaded(d);if(!loaded.length){setStatus(`Deck ${i+1}: load a song or stem first.`,true);return;}
-  if(d.playing){for(const s of loaded)s.audio.pause();d.playing=false;renderDeckState(d);return;}
-  await attachAllLoaded(d);
-  const lead=sourceLeader(d),t=safeTime(lead?.audio);setDeckTime(d,t);setDeckRate(d);
-  const results=await Promise.allSettled(loaded.map(s=>s.audio.play()));if(results.every(x=>x.status==="rejected")){setStatus(`Deck ${i+1} could not start audio. Tap ARM LOCAL MIXER first.`,true);return;}
-  d.playing=true;renderDeckState(d);
-}
+function setDeckVolume(i,v){setDeckMix(i,"volume",v);}
+function setDeckMix(i,key,v){const d=decks[i],num=Number(v)||0;d[key]=num;updateDeckMixer(d);const out=$(`${key}Val${i}`);if(out){if(["low","mid","high"].includes(key))out.textContent=`${num>0?"+":""}${num}`;else if(key==="filter")out.textContent=num===0?"0":(num<0?`LP ${Math.abs(num)}`:`HP ${num}`);else if(key==="delayTime")out.textContent=`${num}ms`;else out.textContent=`${num}%`;}}
+function updateAllDeckGains(){for(const d of decks)updateDeckMixer(d);}
+function toggleCue(i){const d=decks[i];d.cue=!d.cue;updateDeckMixer(d);renderDeck(i);setStatus(`Deck ${i+1} CUE ${d.cue?"ON — local headphones only":"OFF"}.`);}
+function setXfadeAssign(i,side){decks[i].xfadeAssign=side;updateCrossfader();renderDeck(i);}
+async function toggleDeckPlay(i){await ensureAudio();const d=decks[i],loaded=allLoaded(d);if(!loaded.length){setStatus(`Deck ${i+1}: load a song or stem first.`,true);return;}if(d.playing&&!d.scratching){for(const s of loaded)s.audio.pause();d.playing=false;renderDeckState(d);return;}await attachAllLoaded(d);const lead=sourceLeader(d),duration=Number(lead?.audio?.duration)||0,current=safeTime(lead?.audio);if(lead?.audio?.ended||(duration>0&&current>=duration-.08))setDeckTime(d,0);setDeckRate(d);const results=await Promise.allSettled(loaded.map(s=>{if(s.audio.ended){try{s.audio.currentTime=0}catch(_e){}}return s.audio.play();}));if(results.every(x=>x.status==="rejected")){setStatus(`Deck ${i+1} could not start audio. Tap ARM LOCAL MIXER first.`,true);return;}d.playing=true;renderDeckState(d);setStatus(`Deck ${i+1} playing. Every PLAY after the end now restarts the track.`);}
 async function toggleStem(i,stem){const d=decks[i];if(!d.sources[stem]){document.getElementById(`file-${i}-${stem}`).click();return;}await attachSource(d,stem);if(d.activeStems.has(stem))d.activeStems.delete(stem);else d.activeStems.add(stem);updateDeckSourceGains(d);renderDeck(i);}
 function setMaster(i){masterDeck=i;for(const d of decks)renderDeck(d.i);updateAllSync();}
 function toggleSync(i){const d=decks[i];if(i===masterDeck){d.sync=false;}else d.sync=!d.sync;setDeckRate(d);renderDeck(i);}
 function tapBpm(i){const d=decks[i],now=performance.now();if(d.tap.length&&now-d.tap[d.tap.length-1]>1800)d.tap=[];d.tap.push(now);if(d.tap.length>7)d.tap.shift();if(d.tap.length>=2){const ints=[];for(let k=1;k<d.tap.length;k++)ints.push(d.tap[k]-d.tap[k-1]);const avg=ints.reduce((a,b)=>a+b,0)/ints.length;const bpm=clamp(60000/avg,40,220);d.bpm=Math.round(bpm*10)/10;$(`bpm${i}`).value=d.bpm;updateAllSync();}renderDeckState(d);}
 function updateBpm(i){const d=decks[i];d.bpm=clamp(Number($(`bpm${i}`).value)||120,40,220);if(i===masterDeck)updateAllSync();else setDeckRate(d);renderDeckState(d);}
-function toggleLoop(i){const d=decks[i],lead=sourceLeader(d);if(!lead){setStatus(`Deck ${i+1}: load audio before setting a loop.`,true);return;}d.loop=!d.loop;if(d.loop){d.loopBars=Number($(`loopBars${i}`).value)||4;d.loopStart=safeTime(lead.audio);const bpm=effectiveBpm(d);d.loopEnd=d.loopStart+(d.loopBars*4*60/bpm);}renderDeck(i);}
-function updateLoopBars(i){const d=decks[i];d.loopBars=Number($(`loopBars${i}`).value)||4;if(d.loop){const bpm=effectiveBpm(d);d.loopEnd=d.loopStart+(d.loopBars*4*60/bpm);}renderDeckState(d);}
+function setBeatOne(i){const d=decks[i],lead=sourceLeader(d);if(!lead)return;d.beatAnchor=safeTime(lead.audio);const el=$(`beatState${i}`);if(el)el.textContent=`BEAT 1 SET @ ${fmtTime(d.beatAnchor)}`;setStatus(`Deck ${i+1}: this position is now Beat 1.`);}
+function lockBeat(i){if(i===masterDeck){setStatus(`Deck ${i+1} is already the master.`);return;}const d=decks[i],m=decks[masterDeck],dl=sourceLeader(d),ml=sourceLeader(m);if(!dl||!ml)return;d.sync=true;setDeckRate(d);const db=60/(Number(d.bpm)||120),mb=60/(Number(m.bpm)||120),da=d.beatAnchor??0,ma=m.beatAnchor??0,mphase=((((safeTime(ml.audio)-ma)/mb)%1)+1)%1,curBeats=(safeTime(dl.audio)-da)/db,base=Math.floor(curBeats);setDeckTime(d,Math.max(0,da+(base+mphase)*db));renderDeck(i);setStatus(`Deck ${i+1} tempo and beat phase locked to Deck ${masterDeck+1}.`);}
+function toggleLoop(i){const d=decks[i],lead=sourceLeader(d);if(!lead){setStatus(`Deck ${i+1}: load audio before setting a loop.`,true);return;}d.loop=!d.loop;if(d.loop){d.loopBars=Number($(`loopBars${i}`).value)||4;const barSec=4*60/(Number(d.bpm)||120),cur=safeTime(lead.audio);if(d.beatAnchor!==null){const rel=cur-d.beatAnchor,bar=Math.floor(rel/barSec);d.loopStart=Math.max(0,d.beatAnchor+bar*barSec);}else d.loopStart=cur;d.loopEnd=d.loopStart+d.loopBars*barSec;setDeckTime(d,d.loopStart);}renderDeck(i);}
+function updateLoopBars(i){const d=decks[i];d.loopBars=Number($(`loopBars${i}`).value)||4;if(d.loop){const barSec=4*60/(Number(d.bpm)||120);d.loopEnd=d.loopStart+d.loopBars*barSec;}renderDeckState(d);}
 function nudge(i,delta){const d=decks[i],lead=sourceLeader(d);if(!lead)return;setDeckTime(d,Math.max(0,safeTime(lead.audio)+delta));}
+async function autoFindBpm(i){const d=decks[i],lead=sourceLeader(d);if(!lead){setStatus(`Deck ${i+1}: load a song first.`,true);return;}await ensureAudio();await attachAllLoaded(d);if(!d.playing)await toggleDeckPlay(i);if(!d.analyser||d.autoBpmBusy)return;d.autoBpmBusy=true;const btn=$(`autoBpm${i}`);if(btn){btn.textContent="LISTENING…";btn.classList.add("on");}const freq=new Uint8Array(d.analyser.frequencyBinCount),peaks=[];let avg=.08,lastPeak=0,start=performance.now();await new Promise(resolve=>{const sample=now=>{d.analyser.getByteFrequencyData(freq);let e=0,n=Math.min(5,freq.length);for(let k=1;k<n;k++)e+=freq[k]/255;e/=Math.max(1,n-1);avg=avg*.965+e*.035;if(e>Math.max(.11,avg*1.32)&&now-lastPeak>280){peaks.push(now);lastPeak=now;}if(now-start<10000)requestAnimationFrame(sample);else resolve();};requestAnimationFrame(sample);});d.autoBpmBusy=false;if(btn){btn.textContent="BEAT FIND";btn.classList.remove("on");}const ints=[];for(let k=1;k<peaks.length;k++){const v=peaks[k]-peaks[k-1];if(v>=280&&v<=1200)ints.push(v);}if(ints.length<3){setStatus(`Deck ${i+1}: could not confidently find BPM. TAP BPM still works.`,true);return;}ints.sort((a,b)=>a-b);let med=ints[Math.floor(ints.length/2)],bpm=60000/med;while(bpm<70)bpm*=2;while(bpm>180)bpm/=2;d.bpm=Math.round(bpm*10)/10;const b=$(`bpm${i}`);if(b)b.value=d.bpm;updateAllSync();renderDeckState(d);setStatus(`Deck ${i+1}: estimated ${d.bpm.toFixed(1)} BPM. Use SET 1 on the downbeat, then LOCK.`);}
 async function toggleVocalCut(i){const d=decks[i];if(!d.sources.full){setStatus(`Deck ${i+1}: load a normal stereo song before using Vocal Cut.`,true);return;}await attachSource(d,"full");d.vocalCut=!d.vocalCut;updateDeckSourceGains(d);renderDeck(i);}
-function startDeckClock(){cancelAnimationFrame(deckRAF);const tick=()=>{for(const d of decks){if(d.playing&&d.loop){const lead=sourceLeader(d);if(lead&&safeTime(lead.audio)>=d.loopEnd-.018)setDeckTime(d,d.loopStart);}renderDeckTime(d);}deckRAF=requestAnimationFrame(tick);};deckRAF=requestAnimationFrame(tick);}
+function drawDeckWave(d){const canvas=$(`wave${d.i}`);if(!canvas||!d.analyser)return;const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}d.analyser.getByteTimeDomainData(d.waveData);const g=canvas.getContext("2d");g.clearRect(0,0,w,h);g.fillStyle="#06090d";g.fillRect(0,0,w,h);const lead=sourceLeader(d),dur=Number(lead?.audio?.duration)||0,t=safeTime(lead?.audio),progress=dur?Math.max(0,Math.min(1,t/dur)):0,beatSec=60/(Number(d.bpm)||120),anchor=d.beatAnchor??0;if(dur){g.strokeStyle="rgba(255,200,102,.18)";g.lineWidth=dpr;const first=Math.max(0,Math.floor((0-anchor)/beatSec));for(let b=first;b<first+5000;b++){const sec=anchor+b*beatSec;if(sec>dur)break;const x=(sec/dur)*w;g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke();}}g.strokeStyle="#53d8c5";g.lineWidth=1.4*dpr;g.beginPath();const step=Math.max(1,Math.floor(d.waveData.length/(w/dpr)));let px=0;for(let k=0;k<d.waveData.length;k+=step){const y=(d.waveData[k]-128)/128,py=h/2-y*h*.38;if(px===0)g.moveTo(0,py);else g.lineTo(px*dpr,py);px++;}g.stroke();g.fillStyle="rgba(74,168,255,.16)";g.fillRect(0,0,w*progress,h);g.strokeStyle="#ffffff";g.lineWidth=2*dpr;g.beginPath();g.moveTo(w*progress,0);g.lineTo(w*progress,h);g.stroke();g.fillStyle="#a9b6c5";g.font=`${9*dpr}px sans-serif`;g.fillText(`${fmtTime(t)} / ${fmtTime(dur)}`,7*dpr,13*dpr);}
+function bindDeckWave(i){const canvas=$(`wave${i}`);if(!canvas)return;const d=decks[i],seek=e=>{const lead=sourceLeader(d);if(!lead)return;const r=canvas.getBoundingClientRect(),dur=Number(lead.audio.duration)||0;if(!dur)return;const p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));setDeckTime(d,p*dur);drawDeckWave(d);};canvas.onpointerdown=e=>{e.preventDefault();d.scratching=true;d.scratchWasPlaying=d.playing;for(const s of allLoaded(d))s.audio.pause();try{canvas.setPointerCapture(e.pointerId)}catch(_e){}seek(e);};canvas.onpointermove=e=>{if(d.scratching){e.preventDefault();seek(e);}};const end=async e=>{if(!d.scratching)return;d.scratching=false;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}if(d.scratchWasPlaying){await Promise.allSettled(allLoaded(d).map(s=>s.audio.play()));d.playing=true;}renderDeckState(d);};canvas.onpointerup=end;canvas.onpointercancel=end;}
+function startDeckClock(){cancelAnimationFrame(deckRAF);const tick=now=>{for(const d of decks){if(d.playing&&d.loop){const lead=sourceLeader(d);if(lead&&safeTime(lead.audio)>=d.loopEnd-.018)setDeckTime(d,d.loopStart);}renderDeckTime(d);}if(now-lastDeckDraw>66){for(const d of decks)drawDeckWave(d);lastDeckDraw=now;}deckRAF=requestAnimationFrame(tick);};deckRAF=requestAnimationFrame(tick);}
 function fmtTime(sec){if(!Number.isFinite(sec))return"0:00";const m=Math.floor(sec/60),s=Math.floor(sec%60);return`${m}:${String(s).padStart(2,"0")}`;}
 function renderDeckTime(d){const lead=sourceLeader(d),el=$(`time${d.i}`);if(el)el.textContent=lead?`${fmtTime(safeTime(lead.audio))} / ${fmtTime(lead.audio.duration||0)}`:"0:00";}
 function renderDeckState(d){const el=$(`state${d.i}`);if(!el)return;const loaded=Object.keys(d.sources).filter(k=>d.sources[k]);const mode=d.activeStems.size?[...d.activeStems].join(" + ").toUpperCase():(d.vocalCut?"VOCAL CUT":"FULL");el.textContent=`${d.playing?"PLAYING":"READY"} · ${mode} · ${loaded.length} source${loaded.length===1?"":"s"}`;renderDeckTime(d);}
 
 function crateOptions(){return '<option value="">Choose local track…</option>'+crate.map((x,i)=>`<option value="${i}">${esc(x.name)}</option>`).join("");}
 function deckHTML(d){return `<div class="deck ${d.i===masterDeck?"master":""}" id="deck${d.i}">
-  <div class="deckTop"><div class="deckNum">DECK ${d.i+1}</div><div class="trackName">${esc(d.title)}</div></div>
+  <div class="deckTop"><div class="deckNum">DECK ${d.i+1}${d.i===masterDeck?" · MASTER":""}</div><div class="trackName">${esc(d.title)}</div></div>
   <div class="deckDirectLoad"><label class="deckFileLabel">LOAD TRACK FROM PHONE<input id="deckFile${d.i}" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac" onchange="chooseDeckFile(${d.i},this.files&&this.files[0]);this.value=''"></label><button class="smallBtn" type="button" onclick="toggleDeckPlay(${d.i})">${d.playing?"PAUSE":"PLAY"}</button></div>
-  <div class="deckDiag ${d.sources.full?"ok":""}" id="diag${d.i}">${d.sources.full?`${esc(d.sources.full.file?.name||d.title)} loaded`:"Choose an MP3, M4A, WAV, AAC, or FLAC file from the Files app."}</div>
-  <div class="deckPick"><select id="crate${d.i}">${crateOptions()}</select><button class="smallBtn" type="button" onclick="loadCrateToDeck(${d.i})">LOAD FROM CRATE</button></div>
-  <div class="transport"><button type="button" onclick="toggleDeckPlay(${d.i})" class="${d.playing?"on":""}">${d.playing?"PAUSE":"PLAY"}</button><button type="button" onclick="setMaster(${d.i})" class="masterBtn ${d.i===masterDeck?"on":""}">MASTER</button><button type="button" onclick="toggleSync(${d.i})" class="${d.sync?"on":""}">SYNC</button><button type="button" onclick="tapBpm(${d.i})">TAP BPM</button></div>
-  <div class="bpmRow"><input id="bpm${d.i}" type="number" min="40" max="220" step="0.1" value="${d.bpm}" onchange="updateBpm(${d.i})"><div class="sub">BPM · tempo match</div><div class="bpmRead" id="rate${d.i}">+0.0%</div></div>
-  <div class="loopRow"><select id="loopBars${d.i}" onchange="updateLoopBars(${d.i})">${[1,2,4,8,16,32,64].map(n=>`<option value="${n}" ${d.loopBars===n?"selected":""}>${n} BAR${n===1?"":"S"}</option>`).join("")}</select><button type="button" onclick="toggleLoop(${d.i})" class="${d.loop?"on":""}">${d.loop?"LOOP ON":"SET LOOP"}</button><button type="button" onclick="setDeckTime(decks[${d.i}],0)">RESTART</button></div>
+  <div class="deckDiag ${d.sources.full?"ok":""}" id="diag${d.i}">${d.sources.full?`${esc(d.sources.full.file?.name||d.sources.full.item?.title||d.title)} loaded`:"Load a local song or choose one from the GE library."}</div>
+  <div class="deckPick"><select id="gePick${d.i}">${geOptions()}</select><button class="smallBtn" type="button" onclick="prepareGeDeck(${d.i},document.getElementById('gePick${d.i}').value)">LOAD GE</button></div>
+  <div class="deckPick"><select id="crate${d.i}">${crateOptions()}</select><button class="smallBtn" type="button" onclick="loadCrateToDeck(${d.i})">LOAD LOCAL CRATE</button></div>
+  <div class="deckWaveWrap"><canvas class="deckWave" id="wave${d.i}"></canvas><div class="waveHint">Touch and drag the wave to stop / scrub / release like a platter. Gold lines are beat-grid guides.</div></div>
+  <div class="transport"><button type="button" onclick="toggleDeckPlay(${d.i})" class="${d.playing?"on":""}">${d.playing?"PAUSE":"PLAY"}</button><button type="button" onclick="setMaster(${d.i})" class="masterBtn ${d.i===masterDeck?"on":""}">MASTER</button><button type="button" onclick="toggleSync(${d.i})" class="${d.sync?"on":""}">SYNC BPM</button><button type="button" onclick="tapBpm(${d.i})">TAP BPM</button></div>
+  <div class="deckTools"><button id="autoBpm${d.i}" type="button" onclick="autoFindBpm(${d.i})">BEAT FIND</button><button type="button" onclick="setBeatOne(${d.i})">SET 1</button><button type="button" onclick="lockBeat(${d.i})">LOCK BEAT</button><button type="button" onclick="toggleCue(${d.i})" class="${d.cue?"cueOn":""}">${d.cue?"CUE ON":"CUE"}</button></div>
+  <div class="bpmRow"><input id="bpm${d.i}" type="number" min="40" max="220" step="0.1" value="${d.bpm}" onchange="updateBpm(${d.i})"><div class="sub">BPM · this deck can hijack MASTER</div><div class="bpmRead" id="rate${d.i}">+0.0%</div></div><div class="beatState" id="beatState${d.i}">${d.beatAnchor===null?"SET 1 marks the downbeat":"BEAT 1 @ "+fmtTime(d.beatAnchor)}</div>
+  <div class="loopRow"><select id="loopBars${d.i}" onchange="updateLoopBars(${d.i})">${[1,2,4,8,16,32,64].map(n=>`<option value="${n}" ${d.loopBars===n?"selected":""}>${n} BAR${n===1?"":"S"}</option>`).join("")}</select><button type="button" onclick="toggleLoop(${d.i})" class="${d.loop?"on":""}">${d.loop?"LOOP ON":"AUTO LOOP"}</button><button type="button" onclick="setDeckTime(decks[${d.i}],0)">RESTART</button></div>
   <div class="loopRow"><button type="button" onclick="nudge(${d.i},-.04)">◀ NUDGE</button><button type="button" onclick="nudge(${d.i},.04)">NUDGE ▶</button><div class="bpmRead" id="time${d.i}">0:00</div></div>
-  <div class="sliderRow"><span>LEVEL</span><input id="vol${d.i}" type="range" min="0" max="125" step="5" value="${d.volume}" oninput="setDeckVolume(${d.i},this.value)"><span id="volVal${d.i}">${d.volume}%</span></div>
-  <div class="stemHead"><span>Optional true stems</span><button class="vocalCut ${d.vocalCut?"on":""}" type="button" onclick="toggleVocalCut(${d.i})">VOCAL CUT</button></div>
-  <div class="stems">${STEMS.map(stem=>{const loaded=!!d.sources[stem],on=d.activeStems.has(stem);return `<div class="stem"><label class="stemLoad ${loaded?"loaded":""}">${loaded?esc(stem.toUpperCase()):'LOAD '+stem.toUpperCase()}<input id="file-${d.i}-${stem}" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac" onchange="prepareDeckFile(${d.i},'${stem}',this.files[0]);this.value=''"></label><button class="stemToggle ${on?"on":""}" type="button" onclick="toggleStem(${d.i},'${stem}')">${on?"ON":"OFF"}</button></div>`;}).join("")}</div>
-  <div class="deckState" id="state${d.i}"></div>
-</div>`;}
-function renderDeck(i){const old=$(`deck${i}`);if(!old)return renderDecks();const tmp=document.createElement("div");tmp.innerHTML=deckHTML(decks[i]);old.replaceWith(tmp.firstElementChild);setDeckRate(decks[i]);renderDeckState(decks[i]);}
-function renderDecks(){$("decks").innerHTML=decks.map(deckHTML).join("");for(const d of decks){setDeckRate(d);renderDeckState(d);}updateMasterRead();}
+  <div class="deckMixer">${[["trim","TRIM",0,150,5,d.trim],["high","HIGH",-18,18,1,d.high],["mid","MID",-18,18,1,d.mid],["low","LOW",-18,18,1,d.low],["filter","FILTER",-100,100,5,d.filter],["reverb","REVERB",0,100,5,d.reverb],["delay","DELAY",0,100,5,d.delay],["volume","LEVEL",0,125,5,d.volume]].map(x=>`<div class="vf"><label>${x[1]}</label><input type="range" min="${x[2]}" max="${x[3]}" step="${x[4]}" value="${x[5]}" oninput="setDeckMix(${d.i},'${x[0]}',this.value)"><div class="vv" id="${x[0]}Val${d.i}">${["low","mid","high"].includes(x[0])?(x[5]>0?"+":"")+x[5]:x[5]+"%"}</div></div>`).join("")}</div>
+  <div class="deckFxFine"><div class="sliderRow"><span>DELAY TIME</span><input type="range" min="50" max="1800" step="10" value="${d.delayTime}" oninput="setDeckMix(${d.i},'delayTime',this.value)"><span id="delayTimeVal${d.i}">${d.delayTime}ms</span></div><div class="sliderRow"><span>FEEDBACK</span><input type="range" min="0" max="88" step="2" value="${d.feedback}" oninput="setDeckMix(${d.i},'feedback',this.value)"><span id="feedbackVal${d.i}">${d.feedback}%</span></div></div>
+  <div class="xassign"><span>CROSSFADER</span>${["A","THRU","B"].map(s=>`<button type="button" class="${d.xfadeAssign===s?"on":""}" onclick="setXfadeAssign(${d.i},'${s}')">${s}</button>`).join("")}</div>
+  <div class="stemHead"><span>Optional true stems</span><button class="vocalCut ${d.vocalCut?"on":""}" type="button" onclick="toggleVocalCut(${d.i})">VOCAL CUT</button></div><div class="stems">${STEMS.map(stem=>{const loaded=!!d.sources[stem],on=d.activeStems.has(stem);return `<div class="stem"><label class="stemLoad ${loaded?"loaded":""}">${loaded?esc(stem.toUpperCase()):'LOAD '+stem.toUpperCase()}<input id="file-${d.i}-${stem}" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac" onchange="prepareDeckFile(${d.i},'${stem}',this.files[0]);this.value=''"></label><button class="stemToggle ${on?"on":""}" type="button" onclick="toggleStem(${d.i},'${stem}')">${on?"ON":"OFF"}</button></div>`;}).join("")}</div><div class="deckState" id="state${d.i}"></div></div>`;}
+function renderDeck(i){const old=$(`deck${i}`);if(!old)return renderDecks();const tmp=document.createElement("div");tmp.innerHTML=deckHTML(decks[i]);old.replaceWith(tmp.firstElementChild);setDeckRate(decks[i]);renderDeckState(decks[i]);bindDeckWave(i);}
+function renderDecks(){$("decks").innerHTML=decks.map(deckHTML).join("");for(const d of decks){setDeckRate(d);renderDeckState(d);bindDeckWave(d.i);}updateMasterRead();updateCrossfader();}
 function loadCrateToDeck(i){
   const sel=$(`crate${i}`);
   if(!sel||sel.value===""){setDeckDiag(i,"Choose a track from the crate first.","bad");return;}
@@ -348,14 +379,17 @@ async function panicStop(){if(!confirm("Stop the live DJ feed and return to auto
 
 function refreshCrateMenus(){for(let i=0;i<decks.length;i++){const sel=$(`crate${i}`);if(!sel)continue;const keep=sel.value;sel.innerHTML=crateOptions();if([...sel.options].some(o=>o.value===keep))sel.value=keep;}}
 
-async function login(password){djKey=password;try{const r=await api("/control/status");if(!r.ok){$("loginStatus").textContent="Password was not accepted.";return false;}sessionStorage.setItem("geDjPassword",password);$("lock").classList.add("hide");return true;}catch(_e){$("loginStatus").textContent="Could not reach the DJ control server.";return false;}}
+async function login(password){djKey=password;try{const r=await api("/control/status");if(!r.ok){$("loginStatus").textContent="Password was not accepted.";return false;}sessionStorage.setItem("geDjPassword",password);$("lock").classList.add("hide");setTimeout(()=>loadGeLibrary(),50);return true;}catch(_e){$("loginStatus").textContent="Could not reach the DJ control server.";return false;}}
 
 $("loginButton").addEventListener("click",()=>login($("password").value));$("password").addEventListener("keydown",e=>{if(e.key==="Enter")login($("password").value)});
-$("backBtn").addEventListener("click",()=>{if(liveActive){setStatus("Return to Radio before leaving the Live DJ screen.",true);return;}location.href="/dj?fresh=50";});
+$("backBtn").addEventListener("click",()=>{if(liveActive){setStatus("Return to Radio before leaving the Live DJ screen.",true);return;}location.href="/dj?fresh=52";});
 $("panicBtn").addEventListener("click",panicStop);
 $("armAudio").addEventListener("click",async()=>{try{await ensureAudio();setStatus("Local mixer armed. You can rehearse in headphones without going live.");}catch(e){setStatus(e?.message||"Could not arm audio.",true);}});
 $("goLive").addEventListener("click",goLive);$("returnRadio").addEventListener("click",returnToRadio);
 $("crateFiles").addEventListener("change",e=>{const f=e.target.files?.[0];e.target.value="";if(!f)return;addFileToCrate(f);setStatus(`${f.name} added to the local crate. You can also load tracks directly inside each deck.`);});
+$("loadGeLibrary").addEventListener("click",loadGeLibrary);
+$("geLibrarySelect").addEventListener("change",()=>{const v=$("geLibrarySelect").value;if(v!=="")prepareGeDeck(masterDeck,v);});
+$("crossfader").addEventListener("input",updateCrossfader);
 $("monitorVolume").addEventListener("input",()=>{$("monitorVolumeVal").textContent=$("monitorVolume").value+"%";if(monitorGain)monitorGain.gain.value=Number($("monitorVolume").value)/100;});
 $("liveMaster").addEventListener("input",()=>{$("liveMasterVal").textContent=$("liveMaster").value+"%";if(liveActive&&liveGain)liveGain.gain.setTargetAtTime(Number($("liveMaster").value)/100,ctx.currentTime,.08);});
 $("inputToggle").addEventListener("click",toggleInput);$("inputDevice").addEventListener("change",async()=>{if(inputStream){stopInput();await toggleInput();}});$("inputLevel").addEventListener("input",()=>{$("inputLevelVal").textContent=$("inputLevel").value+"%";if(inputGain)inputGain.gain.value=Number($("inputLevel").value)/100;});
