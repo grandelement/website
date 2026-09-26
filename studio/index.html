@@ -48,15 +48,16 @@
     <h1>Grand Element Studio</h1>
     <p>Private live studio. Use the same DJ password as the GE Radio control room.</p>
     <input id="password" type="password" autocomplete="current-password" placeholder="DJ password">
-    <button class="btn primary" id="loginButton" type="button">ENTER STUDIO</button>
-    <div class="status" id="loginStatus"></div>
+    <button class="btn primary" id="loginButton" type="button">ENTER + CONNECT RADIO</button>
+    <button class="btn" id="localOnlyButton" type="button" style="margin-top:8px">ENTER LOCAL STUDIO</button>
+    <div class="status" id="loginStatus">Local Studio works even if the radio server is offline.</div>
   </div>
 </div>
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE STUDIO <span class="version">web v1.0</span> <span class="liveBadge" id="liveBadge">ON AIR</span> <span class="backendBadge" id="backendBadge">RADIO LINK</span></div>
-    <div class="topBtns"><button class="smallBtn" id="backBtn" type="button">RADIO CONTROL</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
+    <div class="brand">GE STUDIO <span class="version">web v1.1</span> <span class="liveBadge" id="liveBadge">ON AIR</span> <span class="backendBadge" id="backendBadge">RADIO LINK</span></div>
+    <div class="topBtns"><button class="smallBtn" id="connectBtn" type="button">CONNECT RADIO</button><button class="smallBtn" id="backBtn" type="button">RADIO CONTROL</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
   </div>
 
   <div class="card">
@@ -443,6 +444,7 @@ function stopTalk(){if(!talkAudio)return;talkAudio.pause();talkAudio.currentTime
 function socketURL(token){const u=new URL(RADIO_BACKEND);const proto=u.protocol==="https:"?"wss:":"ws:";return `${proto}//${u.host}/control/live?token=${encodeURIComponent(token)}`;}
 async function openSocket(){const r=await api("/control/broadcast/session",{method:"POST"}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok||!d.token)throw new Error(d.error||"Could not create live audio session.");return new Promise((resolve,reject)=>{const ws=new WebSocket(socketURL(d.token));ws.binaryType="arraybuffer";const timer=setTimeout(()=>{try{ws.close()}catch(_e){}reject(new Error("Live audio connection timed out."));},7000);ws.onopen=()=>{clearTimeout(timer);liveSocket=ws;liveSocketOpen=true;resolve();};ws.onerror=()=>{clearTimeout(timer);reject(new Error("Live audio WebSocket failed."));};ws.onclose=()=>{liveSocketOpen=false;if(liveSocket===ws)liveSocket=null;if(liveActive&&!stopping)setStatus("Live audio connection closed.",true);};});}
 async function goLive(){
+  if(!radioConnected){setStatus("LOCAL MONITOR only. Tap CONNECT RADIO before going live.",true);return;}
   liveTakeoverMode="merge";
   if(liveActive){setStatus("Live DJ Music is already on air.");return;}await ensureAudio();await ensurePcmBridge();setStatus("Opening GE Radio live connection…");
   try{let r=await api("/control/broadcast/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"performance",transport:"websocket"})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.error||"Could not start live input.");await openSocket();liveActive=true;stopping=false;setPcmEnabled(true);$("liveBadge").classList.add("show");$("goLive").classList.add("on");liveGain.gain.cancelScheduledValues(ctx.currentTime);liveGain.gain.setValueAtTime(0,ctx.currentTime);liveGain.gain.linearRampToValueAtTime(Number($("liveMaster").value)/100,ctx.currentTime+2.6);setStatus("LIVE DJ MUSIC fading in while the automated station fades out…");api("/control/music-action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"off"})}).then(async rr=>{const dd=await rr.json().catch(()=>({}));if(!rr.ok||!dd.ok)setStatus(dd.error||"DJ mix is live, but the station fade command failed.",true);else setStatus("LIVE DJ MUSIC ON AIR · local decks are feeding the station.");}).catch(()=>setStatus("DJ mix is live, but the station fade command failed.",true));}catch(e){liveActive=false;setStatus(e?.message||"Could not go live.",true);}
@@ -453,10 +455,10 @@ async function panicStop(){if(!confirm("Stop the live DJ feed and return to auto
 function refreshCrateMenus(){for(let i=0;i<decks.length;i++){const sel=$(`crate${i}`);if(!sel)continue;const keep=sel.value;sel.innerHTML=crateOptions();if([...sel.options].some(o=>o.value===keep))sel.value=keep;}}
 
 
-async function refreshRadioDock(){if(!djKey)return;try{const r=await api("/control/status"),s=await r.json();if(!r.ok)return;const now=s.now||{},next=s.next||{},coming=s.coming||[];$("dockNowTitle").textContent=now.title||"GE Radio";const match=decks.find(d=>d.title&&now.title&&d.title.toLowerCase()===String(now.title).toLowerCase());$("dockNowMeta").textContent=`${now.album||"Grand Element"} · ${match?Number(match.bpm).toFixed(1)+" BPM":"BPM --"} · NEXT: ${next.title||"--"}`;const q=[next,...coming].filter(x=>x&&x.title);$("dockQueue").innerHTML=q.map((x,i)=>`<div class="dockQ"><b>${i+1}. ${esc(x.title)}</b><br><span>${esc(x.album||"")}</span></div>`).join("")||'<div class="dockQ">Queue unavailable.</div>';if(s.broadcast?.active&&!liveActive){liveActive=true;$("liveBadge").classList.add("show");}updateDockAir();}catch(_e){}}
-function startRadioDock(){clearInterval(radioStatusTimer);refreshRadioDock();radioStatusTimer=setInterval(refreshRadioDock,5000);}
+async function refreshRadioDock(){if(!djKey||!radioConnected)return;try{const r=await api("/control/status"),s=await r.json();if(!r.ok){setBackendBadge(false,"Radio connection lost. Local Studio still works.");return;}const now=s.now||{},next=s.next||{},coming=s.coming||[];$("dockNowTitle").textContent=now.title||"GE Radio";const match=decks.find(d=>d.title&&now.title&&d.title.toLowerCase()===String(now.title).toLowerCase());$("dockNowMeta").textContent=`${now.album||"Grand Element"} · ${match?Number(match.bpm).toFixed(1)+" BPM":"BPM --"} · NEXT: ${next.title||"--"}`;const q=[next,...coming].filter(x=>x&&x.title);$("dockQueue").innerHTML=q.map((x,i)=>`<div class="dockQ"><b>${i+1}. ${esc(x.title)}</b><br><span>${esc(x.album||"")}</span></div>`).join("")||'<div class="dockQ">Queue unavailable.</div>';if(s.broadcast?.active&&!liveActive){liveActive=true;$("liveBadge").classList.add("show");}updateDockAir();}catch(_e){}}
+function startRadioDock(){clearInterval(radioStatusTimer);if(!radioConnected)return;refreshRadioDock();radioStatusTimer=setInterval(()=>{if(radioConnected)refreshRadioDock();},5000);}
 async function toggleRadioCue(){const a=$("radioCue");try{if(a.paused){a.volume=Number($("dockRadioVol").value)/100;await a.play();$("radioPlay").textContent="Ⅱ";}else{a.pause();$("radioPlay").textContent="▶";}}catch(_e){setStatus("Tap the radio play button again if iPhone blocked playback.",true);}}
-async function skipStation(){try{await api("/control/skip",{method:"POST"});setTimeout(refreshRadioDock,500);}catch(_e){}}
+async function skipStation(){if(!radioConnected){setStatus("Radio link is offline. Local decks still work.",true);return;}try{await api("/control/skip",{method:"POST"});setTimeout(refreshRadioDock,500);}catch(_e){setBackendBadge(false,"Radio link dropped. Local Studio still works.");}}
 function updateDockAir(){const b=$("dockAir");if(!b)return;if(liveActive){b.textContent="LIVE";b.className="live";}else{b.textContent="MONITOR";b.className="monitor";}}
 function updateDockMic(){
   const b=$("dockMic"),strip=$("dockMicStrip");if(!b||!strip)return;
@@ -475,11 +477,66 @@ async function dockAirAction(){if(liveActive)await returnToRadio();else await go
 async function dockOffAction(){if(liveActive)await returnToRadio();if(inputStream)stopInput();if(ctx&&monitorGain)monitorGain.gain.value=0;$("radioCue").pause();$("radioPlay").textContent="▶";setStatus("Studio off. Radio automation continues for listeners.");updateDockAir();updateDockMic();}
 function showPanel(id){$(id).classList.add("show");}
 function hidePanel(id){$(id).classList.remove("show");}
-async function goLiveOverlay(){if(liveActive){setStatus("Already live. RETURN RADIO first to change takeover mode.",true);return;}await ensureAudio();await ensurePcmBridge();setStatus("Opening ON TOP live connection…");try{const sr=await api("/control/status"),ss=await sr.json().catch(()=>({}));window._preLiveMixer=ss.mixer||null;let r=await api("/control/broadcast/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"performance",transport:"websocket"})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.error||"Could not start live input.");await api("/control/mixer",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({music_under_voice:1,music_muted:false})}).catch(()=>{});await openSocket();liveTakeoverMode="overlay";liveActive=true;stopping=false;setPcmEnabled(true);$("liveBadge").classList.add("show");liveGain.gain.cancelScheduledValues(ctx.currentTime);liveGain.gain.setValueAtTime(0,ctx.currentTime);liveGain.gain.linearRampToValueAtTime(Number($("liveMaster").value)/100,ctx.currentTime+1.4);setStatus("ON TOP · your studio mix is live over the automated radio without fading it out.");updateDockAir();updateDockMic();}catch(e){liveActive=false;setStatus(e?.message||"Could not go live on top.",true);updateDockAir();updateDockMic();}}
+async function goLiveOverlay(){if(!radioConnected){setStatus("LOCAL MONITOR only. Tap CONNECT RADIO before going live.",true);return;}if(liveActive){setStatus("Already live. RETURN RADIO first to change takeover mode.",true);return;}await ensureAudio();await ensurePcmBridge();setStatus("Opening ON TOP live connection…");try{const sr=await api("/control/status"),ss=await sr.json().catch(()=>({}));window._preLiveMixer=ss.mixer||null;let r=await api("/control/broadcast/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"performance",transport:"websocket"})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw new Error(d.error||"Could not start live input.");await api("/control/mixer",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({music_under_voice:1,music_muted:false})}).catch(()=>{});await openSocket();liveTakeoverMode="overlay";liveActive=true;stopping=false;setPcmEnabled(true);$("liveBadge").classList.add("show");liveGain.gain.cancelScheduledValues(ctx.currentTime);liveGain.gain.setValueAtTime(0,ctx.currentTime);liveGain.gain.linearRampToValueAtTime(Number($("liveMaster").value)/100,ctx.currentTime+1.4);setStatus("ON TOP · your studio mix is live over the automated radio without fading it out.");updateDockAir();updateDockMic();}catch(e){liveActive=false;setStatus(e?.message||"Could not go live on top.",true);updateDockAir();updateDockMic();}}
 function bindMasterPanels(){const ids=[["masterFilterCtl","masterFilterVal",v=>v],["masterReverbCtl","masterReverbVal",v=>v+"%"],["masterDelayCtl","masterDelayVal",v=>v+"%"],["masterDelayTimeCtl","masterDelayTimeVal",v=>v+"ms"],["masterFeedbackCtl","masterFeedbackVal",v=>v+"%"],["masterFxLevel","masterFxLevelVal",v=>v+"%"]];for(const [id,out,f] of ids)$(id).addEventListener("input",()=>{$(out).textContent=f($(id).value);updateMasterFx();});$("dockRadioVol").addEventListener("input",()=>{$("dockRadioVal").textContent=$("dockRadioVol").value+"%";$("radioCue").volume=Number($("dockRadioVol").value)/100;});$("dockMonitorVol").addEventListener("input",()=>{const v=$("dockMonitorVol").value;$("dockMonitorVal").textContent=v+"%";$("monitorVolume").value=v;$("monitorVolumeVal").textContent=v+"%";if(monitorGain)monitorGain.gain.value=Number(v)/100;});$("dockLiveVol").addEventListener("input",()=>{const v=$("dockLiveVol").value;$("dockLiveVal").textContent=v+"%";$("liveMaster").value=v;$("liveMasterVal").textContent=v+"%";if(liveActive&&liveGain)liveGain.gain.value=Number(v)/100;});$("dockCross").addEventListener("input",()=>{const v=$("dockCross").value;$("crossfader").value=v;$("dockCrossVal").textContent=Number(v)===0?"CENTER":(Number(v)<0?`A ${Math.abs(v)}%`:`B ${v}%`);updateCrossfader();});}
-async function login(password){djKey=password;try{const r=await api("/control/status");if(!r.ok){$("loginStatus").textContent="Password was not accepted.";return false;}sessionStorage.setItem("geDjPassword",password);$("lock").classList.add("hide");const bb=$("backendBadge");if(bb){bb.textContent="RADIO ONLINE";bb.className="backendBadge ok";}setTimeout(()=>loadGeLibrary(),50);startRadioDock();return true;}catch(_e){$("loginStatus").textContent="Could not reach the DJ control server.";return false;}}
+let radioConnected=false;
+function setBackendBadge(online,msg=""){
+  radioConnected=!!online;
+  const bb=$("backendBadge");
+  if(bb){
+    bb.textContent=online?"RADIO ONLINE":"LOCAL ONLY";
+    bb.className="backendBadge "+(online?"ok":"bad");
+  }
+  const cb=$("connectBtn");
+  if(cb)cb.textContent=online?"RADIO CONNECTED":"CONNECT RADIO";
+  if(msg)setStatus(msg,!online);
+}
+function enterLocalStudio(message="LOCAL STUDIO ready. Decks, local files, waveforms, loops, EQ, effects, mic and keyboard input work without Blitz."){
+  $("lock").classList.add("hide");
+  setBackendBadge(false,message);
+}
+async function connectRadio(password=djKey){
+  const pw=String(password||"");
+  if(!pw){
+    setStatus("Enter the DJ password first, then tap CONNECT RADIO.",true);
+    return false;
+  }
+  djKey=pw;
+  try{
+    const r=await api("/control/status");
+    if(!r.ok){
+      setBackendBadge(false,"Radio rejected the password. Local Studio still works.");
+      return false;
+    }
+    sessionStorage.setItem("geDjPassword",pw);
+    setBackendBadge(true,"Radio connected. LIVE, queue, GE Library and station controls are available.");
+    setTimeout(()=>loadGeLibrary(),50);
+    startRadioDock();
+    return true;
+  }catch(_e){
+    setBackendBadge(false,"Radio link is offline or blocked. Local Studio still works normally.");
+    return false;
+  }
+}
+async function login(password){
+  djKey=password;
+  $("lock").classList.add("hide");
+  const ok=await connectRadio(password);
+  if(!ok){
+    $("loginStatus").textContent="Studio opened in LOCAL mode. Use CONNECT RADIO when Blitz is reachable.";
+  }
+  return true;
+}
 
-$("loginButton").addEventListener("click",()=>login($("password").value));$("password").addEventListener("keydown",e=>{if(e.key==="Enter")login($("password").value)});
+$("loginButton").addEventListener("click",()=>login($("password").value));
+$("localOnlyButton").addEventListener("click",()=>enterLocalStudio());
+$("connectBtn").addEventListener("click",async()=>{
+  if(radioConnected){setStatus("Radio is already connected.");return;}
+  let pw=djKey||sessionStorage.getItem("geDjPassword")||"";
+  if(!pw)pw=prompt("DJ password")||"";
+  if(pw)await connectRadio(pw);
+});
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")login($("password").value)});
 $("backBtn").addEventListener("click",()=>{if(liveActive){setStatus("Return to Radio before leaving the Live DJ screen.",true);return;}location.href=RADIO_BACKEND+"/dj?fresh=54";});
 $("panicBtn").addEventListener("click",panicStop);
 $("armAudio").addEventListener("click",async()=>{try{await ensureAudio();setStatus("Local mixer armed. You can rehearse in headphones without going live.");}catch(e){setStatus(e?.message||"Could not arm audio.",true);}});
