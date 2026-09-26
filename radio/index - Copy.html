@@ -501,7 +501,7 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
       <div id="arrivalGeoStatus"></div>
     </div>
     <div class="arrival-save-note">Soul Reflections are saved on this device in this prototype. Shared permanent reflections and direct private sending become automatic when the Grand Element message backend is connected.</div>
-    <div class="arrival-actions"><button id="arrivalPrivateSendBtn" type="button">Send</button><button id="arrivalPostBtn" type="button">Post</button><button id="arrivalEditBtn" type="button" hidden>Edit My Post</button><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button" hidden aria-hidden="true">Done</button></div>
+    <div class="arrival-actions"><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button">Done</button></div>
     <div id="arrivalStatus"></div>
   </section>
   <section id="shipReflectionWall" aria-hidden="true" aria-label="Soul Reflections">
@@ -509,7 +509,7 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
     <div id="reflectionPrompt">Soul Reflections</div>
     <div id="reflectionEarthWrap" aria-hidden="true"><canvas id="reflectionEarth" width="220" height="220"></canvas><div id="reflectionEarthLabel">EARTH · GENERAL LOCATION</div></div>
     <div id="reflectionBubble"></div>
-    <div id="reflectionControls"><button id="reflectionBgPrev" type="button" aria-label="Previous universe background">◀ Background</button><button id="reflectionBack" type="button">Back</button><button id="reflectionOK" type="button" hidden>OK</button><button id="reflectionBgNext" type="button" aria-label="Next universe background">Background ▶</button></div>
+    <div id="reflectionControls"><button id="reflectionBack" type="button">Back</button><button id="reflectionOK" type="button" hidden>OK</button></div>
   </section>
 </div>
 
@@ -602,7 +602,7 @@ const CONFIG = Object.freeze({
   APP_VERSION: '2026.09.17-sun-eq-test-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
-  CONTACT_EMAIL: 'private@grandelement.com',
+  CONTACT_EMAIL: 'info@grandelement.com',
   REFLECTION_ENDPOINT: '', // Set to a Cloudflare Worker URL when direct private sending/shared wall is connected.
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
@@ -2609,11 +2609,6 @@ Vector ${vector}. ${pair[1]}.`;
   }
   // Safe hooks used by the main player without exposing the ship controller internals.
   window.GEResumeLiveEQ=ensureLiveEQ;
-  window.GEGetLiveSpectrum=()=>{
-    if(!eqAnalyser||!eqData)return null;
-    try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}
-  };
-  window.GEGetLiveAnalyser=()=>eqAnalyser;
   window.GERandomizeSunEQMap=randomizeSunEQMap;
   function setEQOverlay(open){
     eqOverlayOpen=!!open;
@@ -2892,13 +2887,8 @@ Vector ${vector}. ${pair[1]}.`;
   reflectionOK?.addEventListener('click',()=>{
     if(!pendingReflection)return;
     const list=getLocalReflections();
-    let myId='';try{myId=localStorage.getItem('GE_SOUL_POST_ID_V1')||'';}catch(_e){}
-    const item={id:myId||`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,created:pendingReflection.created||new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,newborn:true};
-    const existing=myId?list.findIndex(r=>r&&r.id===myId):-1;
-    if(existing>=0)list[existing]={...list[existing],...item};else list.push(item);
+    list.push({id:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,created:pendingReflection.created||new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,newborn:true});
     saveLocalReflections(list);
-    try{localStorage.setItem('GE_SOUL_POST_ID_V1',item.id);}catch(_e){}
-    try{window.GESyncSoulPostUI?.();}catch(_e){}
     pendingReflection=null;if(reflectionOK)reflectionOK.hidden=true;if(reflectionPrompt)reflectionPrompt.textContent='Soul Reflections';renderReflectionDots();
     setTimeout(()=>{const updated=getLocalReflections().map(r=>({...r,newborn:false}));saveLocalReflections(updated);},12000);
   });
@@ -3060,28 +3050,34 @@ audio?.addEventListener('play',()=>{
 })();
 </script>
 \n<script>
-/* RECONSTRUCTION 04: Sun Lab consumes the Ship's proven LIVE analyser. It never creates a second MediaElementSource. */
+/* RECONSTRUCTION 03: Sun Lab is appended after the proven Ship/LIVE/Options startup. */
 (()=>{
  const $=id=>document.getElementById(id), canvas=$('reconSunSpectrum'), ctx=canvas?.getContext('2d');
  const opt=$('reconOptionsPanel'), lab=$('reconSunLabPanel');
  const reach=$('reconReach'),dyn=$('reconDynamics'),color=$('reconColor'),life=$('reconLife');
- let mode='plasma', visible=true, rings=[], last=0;
+ let mode='plasma', visible=true, rings=[], ac=null, analyser=null, source=null, data=null, last=0;
  const val=(el,d)=>Number(el?.value||d);
  function size(){if(!canvas)return;const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,innerWidth*d);canvas.height=Math.max(1,innerHeight*d);canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';ctx?.setTransform(d,0,0,d,0,0)}
- function showLab(){opt?.classList.remove('show');if(opt)opt.hidden=true;if(lab){lab.hidden=false;lab.classList.add('show')}try{window.GEResumeLiveEQ?.()}catch(_e){}}
+ function showLab(){opt?.classList.remove('show');if(opt)opt.hidden=true;if(lab){lab.hidden=false;lab.classList.add('show')}}
  function back(){lab?.classList.remove('show');if(lab)lab.hidden=true;if(opt){opt.hidden=false;opt.classList.add('show')}}
  $('reconSunLabOpen')?.addEventListener('click',showLab);$('reconSunLabBack')?.addEventListener('click',back);
  $('reconSunHide')?.addEventListener('click',()=>{visible=!visible;$('reconSunHide').textContent=visible?'Hide Spectrum':'Show Spectrum';if(!visible)ctx?.clearRect(0,0,innerWidth,innerHeight)});
  document.querySelectorAll('[data-recon-sun]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.reconSun;document.querySelectorAll('[data-recon-sun]').forEach(x=>x.classList.toggle('active',x===b))}));
- [[reach,'reconReachVal'],[dyn,'reconDynamicsVal'],[color,'reconColorVal'],[life,'reconLifeVal']].forEach(([el,id])=>el?.addEventListener('input',()=>{$(id).textContent=el.value}));
- document.getElementById('liveBtn')?.addEventListener('click',()=>setTimeout(()=>window.GEResumeLiveEQ?.(),80));
- audio?.addEventListener('play',()=>{if((audio.currentSrc||audio.src||'').includes('radio.grandelement.blitz.cloud'))window.GEResumeLiveEQ?.()});
- function sunCenter(){const el=document.getElementById('blueSun')||document.querySelector('.blue-sun,#sun,#targetSun')||document.getElementById('geLogo');if(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,Math.max(r.width,r.height)/2]}return [innerWidth*.5,innerHeight*.34,30]}
- function frame(t){requestAnimationFrame(frame);if(!ctx||!visible)return;ctx.clearRect(0,0,innerWidth,innerHeight);let energy=.05;
-   const data=window.GEGetLiveSpectrum?.();
-   if(data?.length){let sum=0;for(const n of data)sum+=n;energy=Math.max(.025,sum/(data.length*255));}
+ [[reach,'reconReachVal'],[dyn,'reconDynamicsVal'],[color,'reconColorVal'],[life,'reconLifeVal']].forEach(([el,id])=>el?.addEventListener('input',()=>{$(id).value=el.value;$(id).textContent=el.value}));
+ async function ensureAudio(){
+   if(analyser)return true;
+   try{
+    ac=new (window.AudioContext||window.webkitAudioContext)(); analyser=ac.createAnalyser();analyser.fftSize=128;analyser.smoothingTimeConstant=.72;data=new Uint8Array(analyser.frequencyBinCount);
+    source=ac.createMediaElementSource(audio);source.connect(analyser);analyser.connect(ac.destination);window.GEResumeLiveEQ=()=>ac?.resume?.();return true;
+   }catch(e){analyser=null;return false}
+ }
+ document.getElementById('liveBtn')?.addEventListener('click',()=>setTimeout(()=>{ensureAudio().then(()=>ac?.resume?.())},80));
+ audio?.addEventListener('play',()=>{if((audio.currentSrc||audio.src||'').includes('radio.grandelement.blitz.cloud'))ensureAudio().then(()=>ac?.resume?.())});
+ function sunCenter(){const el=document.getElementById('blueSun')||document.querySelector('.blue-sun,#sun,#targetSun');if(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,Math.max(r.width,r.height)/2]}return [innerWidth*.5,innerHeight*.34,30]}
+ function frame(t){requestAnimationFrame(frame);if(!ctx||!visible)return;ctx.clearRect(0,0,innerWidth,innerHeight);let energy=.08;
+   if(analyser&&data){try{analyser.getByteFrequencyData(data);let sum=0;for(const n of data)sum+=n;energy=sum/(data.length*255)}catch(_e){}}
    const [x,y,sr]=sunCenter(), D=val(dyn,145)/100, maxR=val(reach,130), L=val(life,74)/100, C=val(color,48);
-   if(t-last>Math.max(48,145-energy*95)){rings.push({r:sr*.45,a:Math.min(1,.18+energy*D*1.8),e:energy});last=t}
+   if(t-last>Math.max(55,150-energy*90)){rings.push({r:sr*.45,a:Math.min(1,.18+energy*D),e:energy});last=t}
    const speed=mode==='waterfall'?1.9:mode==='glow'?.72:1.15;
    rings=rings.filter(q=>{q.r+=speed*(1+q.e*2.2);q.a*=.985-(1-L)*.014;return q.r<sr+maxR&&q.a>.012});
    ctx.save();ctx.globalCompositeOperation='lighter';for(const q of rings){const hue=195+(q.e*C*1.5);ctx.beginPath();ctx.arc(x,y,q.r,0,Math.PI*2);ctx.lineWidth=mode==='glow'?Math.max(5,12*q.e):Math.max(1.3,4*q.e);ctx.strokeStyle=`hsla(${hue},100%,${60+q.e*30}%,${q.a})`;ctx.shadowBlur=mode==='glow'?18+q.e*30:6+q.e*15;ctx.shadowColor=`hsla(${hue},100%,65%,${q.a})`;ctx.stroke()}ctx.restore();
@@ -3089,44 +3085,5 @@ audio?.addEventListener('play',()=>{
  addEventListener('resize',size);size();requestAnimationFrame(frame);
 })();
 </script>\n
-
-<style>
-/* RECONSTRUCTION 04 hard locks */
-#liveBtn[aria-pressed="true"]{background:#b51212!important;border-color:#ff5a5a!important;color:#fff!important;box-shadow:0 0 14px rgba(255,38,38,.55)!important}
-button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
-.soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important}
-#arrivalPrivate,#arrivalPost{display:none!important}
-#arrivalPrivateSendBtn,#arrivalPostBtn,#arrivalEditBtn{font-weight:900}
-#reflectionControls{width:min(94%,760px)!important;display:grid!important;grid-template-columns:1.2fr .7fr .7fr 1.2fr!important;gap:8px!important}
-</style>
-<script>
-/* RECONSTRUCTION 04: explicit Send/Post, one editable Soul post, universe backgrounds, LIVE default state. */
-(()=>{
- const $=id=>document.getElementById(id);
- const send=$('arrivalPrivateSendBtn'), post=$('arrivalPostBtn'), edit=$('arrivalEditBtn'), dispatcher=$('arrivalSend');
- const privateCheck=$('arrivalPrivate'), postCheck=$('arrivalPost'), comment=$('arrivalComment');
- const reflectionsKey='GE_SOUL_REFLECTIONS_V1', postIdKey='GE_SOUL_POST_ID_V1';
- const backgrounds=['1.jpeg','2.jpg','3.png','4.jpg','5.jpg','6.jpg','7.png','8.jpg','9.jpg','10.jpg','11.jpg','12.png','13.jpg','14.jpg','15.jpg','16.png'];
- let bgIndex=Number(localStorage.getItem('GE_SOUL_BG_INDEX_V1')||0); if(!Number.isFinite(bgIndex))bgIndex=0;
- const wall=$('shipReflectionWall');
- function applyBg(){bgIndex=(bgIndex+backgrounds.length)%backgrounds.length; if(wall)wall.style.backgroundImage=`url("../ge-images/images/stars backgrounds/${backgrounds[bgIndex]}")`;try{localStorage.setItem('GE_SOUL_BG_INDEX_V1',String(bgIndex))}catch(_e){}}
- $('reflectionBgPrev')?.addEventListener('click',e=>{e.stopPropagation();bgIndex--;applyBg()});
- $('reflectionBgNext')?.addEventListener('click',e=>{e.stopPropagation();bgIndex++;applyBg()});applyBg();
- function list(){try{const x=JSON.parse(localStorage.getItem(reflectionsKey)||'[]');return Array.isArray(x)?x:[]}catch(_e){return[]}}
- function mine(){let id='';try{id=localStorage.getItem(postIdKey)||''}catch(_e){}return id?list().find(x=>x&&x.id===id):null}
- function sync(){const m=mine();if(post)post.hidden=!!m;if(edit)edit.hidden=!m;}
- window.GESyncSoulPostUI=sync;sync();
- send?.addEventListener('click',()=>{if(privateCheck)privateCheck.checked=true;if(postCheck)postCheck.checked=false;dispatcher?.click()});
- post?.addEventListener('click',()=>{if(privateCheck)privateCheck.checked=false;if(postCheck)postCheck.checked=true;dispatcher?.click()});
- edit?.addEventListener('click',()=>{const m=mine();if(!m)return;if(comment)comment.value=m.text||'';if($('arrivalLocationText'))$('arrivalLocationText').value=m.locationLabel||'';if(privateCheck)privateCheck.checked=false;if(postCheck)postCheck.checked=true;post.hidden=true;edit.hidden=false;comment?.focus()});
- // Show the exact coarse coordinates being attached to Earth whenever device location is used.
- $('arrivalGeoBtn')?.addEventListener('click',()=>setTimeout(()=>{const status=$('arrivalGeoStatus');if(status?.textContent.includes('attached'))$('reflectionEarthLabel').textContent='EARTH · '+status.textContent.replace('General location attached ','').replace(/\.$/,'')},1200));
- // Direct private sending needs a Worker. Until configured, Send opens a pre-addressed email rather than pretending delivery succeeded.
- dispatcher?.addEventListener('click',()=>setTimeout(()=>{const st=$('arrivalStatus');if(privateCheck?.checked&&st?.textContent.includes('not connected yet')){const body=encodeURIComponent((comment?.value||'').trim());window.location.href=`mailto:private@grandelement.com?subject=Inner%20Horizon%20Private%20Message&body=${body}`}},40));
- // Default LIVE requested. Browsers may require the first user gesture before audio itself can begin, but UI/state and play attempt start here.
- const live=$('liveBtn'); if(live){live.setAttribute('aria-pressed','true');setTimeout(()=>{try{if(typeof geReconStartLive==='function')geReconStartLive()}catch(_e){}},350)}
-})();
-</script>
-
 </body>
 </html>
