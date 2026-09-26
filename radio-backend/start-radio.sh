@@ -97,6 +97,15 @@ http {
   include /etc/nginx/mime.types;
   default_type application/octet-stream;
   access_log off;
+
+  # GE Studio is a static page on the Grand Element website. Only these origins
+  # may call the private radio control API from a browser.
+  map $http_origin $ge_studio_origin {
+    default "";
+    "https://grandelement.com" $http_origin;
+    "https://www.grandelement.com" $http_origin;
+    "https://grandelement.github.io" $http_origin;
+  }
   client_body_temp_path /app/runtime/client_temp;
   proxy_temp_path /app/runtime/proxy_temp;
   fastcgi_temp_path /app/runtime/fastcgi_temp;
@@ -144,16 +153,31 @@ http {
       proxy_pass http://127.0.0.1:8090; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https;
       proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";
+      proxy_set_header Origin $http_origin;
       proxy_buffering off; proxy_request_buffering off; proxy_connect_timeout 5s;
       proxy_read_timeout 3600s; proxy_send_timeout 3600s; access_log off;
+      add_header Access-Control-Allow-Origin $ge_studio_origin always;
+      add_header Vary "Origin" always;
       add_header Cache-Control "no-store" always;
     }
     location /control/ {
+      if ($request_method = OPTIONS) {
+        add_header Access-Control-Allow-Origin $ge_studio_origin always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, X-GE-DJ-Key, X-GE-File-Name" always;
+        add_header Access-Control-Max-Age 86400 always;
+        add_header Vary "Origin" always;
+        return 204;
+      }
       proxy_pass http://127.0.0.1:8090; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https;
       proxy_set_header X-GE-DJ-Key $http_x_ge_dj_key; proxy_set_header Connection close;
       proxy_buffering off; proxy_request_buffering off; proxy_connect_timeout 2s;
       proxy_read_timeout 10s; proxy_send_timeout 10s;
+      add_header Access-Control-Allow-Origin $ge_studio_origin always;
+      add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+      add_header Access-Control-Allow-Headers "Content-Type, X-GE-DJ-Key, X-GE-File-Name" always;
+      add_header Vary "Origin" always;
       add_header Cache-Control "no-store" always;
     }
   }
