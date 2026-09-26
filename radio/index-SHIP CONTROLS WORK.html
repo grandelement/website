@@ -515,7 +515,6 @@ body.view-player.hud-hidden #viewToggle{opacity:0!important;pointer-events:none!
     <button id="prevBtn">Prev</button>
     <button id="nextBtn">Next</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
-    <button class="tgl" id="liveBtn" aria-pressed="false">LIVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
     <button id="shareBtn">Share</button>
   </div>
@@ -2946,50 +2945,6 @@ Vector ${vector}. ${pair[1]}.`;
   await playURL(start,{record:false,backgroundChange:false});
   try{window.GEShip?.syncAll();}catch(_e){}
 })();
-
-
-/* RECONSTRUCTION 01: LIVE radio addition only.
-   Appended after the known-good application/Ship code so the protected Ship controller is untouched. */
-const GE_RECON_LIVE_URL='https://radio.grandelement.blitz.cloud/stream.mp3';
-const geReconLiveBtn=document.getElementById('liveBtn');
-let geReconLive=false;
-let geReconPreviousSrc='';
-function geReconSetLivePressed(on){
-  geReconLive=!!on;
-  geReconLiveBtn?.setAttribute('aria-pressed',geReconLive?'true':'false');
-}
-async function geReconStartLive(){
-  if(!audio||!geReconLiveBtn)return;
-  if(!geReconLive){
-    geReconPreviousSrc=audio.currentSrc||audio.src||'';
-    geReconSetLivePressed(true);
-    audio.crossOrigin='anonymous';
-    audio.src=GE_RECON_LIVE_URL;
-    try{audio.load();}catch(_e){}
-  }
-  try{await audio.play();}catch(_e){}
-  try{window.GEResumeLiveEQ?.();}catch(_e){}
-}
-function geReconStopLive(){
-  if(!audio)return;
-  geReconSetLivePressed(false);
-  if(geReconPreviousSrc){
-    audio.src=geReconPreviousSrc;
-    try{audio.load();audio.play().catch(()=>{});}catch(_e){}
-  }
-}
-geReconLiveBtn?.addEventListener('click',event=>{
-  event.preventDefault();
-  event.stopPropagation();
-  if(geReconLive)geReconStopLive(); else geReconStartLive();
-});
-audio?.addEventListener('play',()=>{
-  if((audio.currentSrc||audio.src||'').includes('radio.grandelement.blitz.cloud/stream.mp3')){
-    geReconSetLivePressed(true);
-    try{window.GEResumeLiveEQ?.();}catch(_e){}
-  }
-});
-
 </script>
 </body>
 </html>
