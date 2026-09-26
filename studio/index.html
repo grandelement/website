@@ -41,7 +41,7 @@
 
 .backendBadge{font-size:9px;font-weight:850;letter-spacing:.05em;padding:5px 7px;border:1px solid #314052;border-radius:999px;color:#9fb0c1}.backendBadge.ok{border-color:#2f806f;color:#8df3dd}.backendBadge.bad{border-color:#8d3543;color:#ff9eaa}
 
-/* web v1.3 */
+/* web v1.4 */
 .legacySwitch{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #3d4854;background:#0d1218;color:#fff;border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900}.legacySwitch input{width:18px;height:18px}
 .loopManual{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.loopManual button{appearance:none;border:1px solid #43505d;background:#10161d;color:#fff;border-radius:9px;padding:10px 4px;font-size:9px;font-weight:900}.loopManual button.marked{border-color:#ffbf56;background:#493413}.loopManual button.active{border-color:#57dcc7;background:#143a34}
 .deckActionRow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.deckActionRow button{appearance:none;border:1px solid #394653;background:#10161d;color:#fff;border-radius:10px;padding:10px 4px;font-size:10px;font-weight:900}
@@ -61,6 +61,15 @@
 .perfLoopBox{margin-top:14px;border:1px solid #343f4a;border-radius:12px;padding:10px;background:#05080b}.perfLoopInfo{min-height:32px;color:#d9e4ee;font-size:10px;line-height:1.35}.perfLoopRow{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:6px;margin-top:8px}.perfLoopBtn{appearance:none;border:1px solid #4a5a67;background:#10161d;color:#fff;border-radius:10px;min-height:50px;font-size:10px;font-weight:950}.perfLoopBtn.on{background:#16433b;border-color:#57dbc3}.perfLoopBtn.exit{border-color:#d49d54}.perfSaveRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:9px;color:#9cabb8}.perfSaveRow a{color:#fff;border:1px solid #3f4d59;border-radius:8px;padding:7px 9px;text-decoration:none;font-weight:900}
 .advancedSetup>summary,#djDecksPanel>summary{list-style:none}.advancedSetup>summary::-webkit-details-marker,#djDecksPanel>summary::-webkit-details-marker{display:none}.advancedSetup>summary:after,#djDecksPanel>summary:after{content:"＋";float:right;color:#9fb0bf}.advancedSetup[open]>summary:after,#djDecksPanel[open]>summary:after{content:"−"}.advancedSetupBody{padding-top:12px}@media(max-width:430px){.perfAirRow{grid-template-columns:1fr 1fr}.perfBtn{min-height:58px}.perfBody{grid-template-columns:106px 1fr}.perfVRange{height:170px}.perfFxBtn{min-height:76px;font-size:12px}.perfLoopRow{grid-template-columns:1.2fr 1fr 1fr}.perfLoopBtn{font-size:9px}}
 
+
+/* web v1.4 thumb-first master controls */
+#fxPanel .bigControl,#mixPanel .bigControl{display:inline-flex;vertical-align:top;flex-direction:column;align-items:center;width:92px;min-height:335px;margin:8px 5px;padding:9px 4px;border:1px solid #303b46;border-radius:12px;background:#070a0e}
+#fxPanel .bigControl label,#mixPanel .bigControl label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;text-align:center;min-height:42px;margin:0}
+#fxPanel .bigControl input[type=range],#mixPanel .bigControl:not(:last-child) input[type=range]{-webkit-appearance:slider-vertical;appearance:auto;writing-mode:vertical-lr;direction:rtl;width:68px;height:245px;accent-color:#1ea7ff;touch-action:none}
+#fxPanel .bigControl input[type=range]::-webkit-slider-thumb,#mixPanel .bigControl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:52px;height:52px;border-radius:50%;background:#fff;border:3px solid #111}
+#fxPanel,#mixPanel{white-space:normal}#fxPanel .panelHead,#mixPanel .panelHead{position:sticky;top:0;background:#030405;z-index:2;padding-bottom:8px}#fxPanel:after,#mixPanel:after{content:"Swipe left/right through the big vertical controls";display:block;color:#83919e;font-size:10px;margin-top:6px}
+#mixPanel .bigControl:last-of-type{display:block;width:100%;min-height:90px;margin-top:18px}#mixPanel .bigControl:last-of-type input[type=range]{width:100%;height:58px;writing-mode:horizontal-tb;direction:ltr;-webkit-appearance:auto}
+
 </style>
 </head>
 <body>
@@ -69,8 +78,8 @@
     <h1>Grand Element Studio</h1>
     <p>Private live studio. Use the same DJ password as the GE Radio control room.</p>
     <input id="password" type="password" autocomplete="current-password" placeholder="DJ password">
-    <button class="btn primary" id="loginButton" type="button">ENTER + CONNECT RADIO</button>
-    <button class="btn" id="localOnlyButton" type="button" style="margin-top:8px">ENTER LOCAL STUDIO</button>
+    <button class="btn primary" id="loginButton" type="button">ENTER STUDIO</button>
+    
     <div class="status" id="loginStatus">Local Studio works even if the radio server is offline.</div>
   </div>
 </div>
@@ -78,7 +87,7 @@
 <div class="wrap">
   <div class="top">
     <div class="brand">GE STUDIO <span class="version">web v1.2</span> <span class="liveBadge" id="liveBadge">ON AIR</span> <span class="backendBadge" id="backendBadge">RADIO LINK</span></div>
-    <div class="topBtns"><button class="smallBtn" id="connectBtn" type="button">CONNECT RADIO</button><button class="smallBtn" id="backBtn" type="button">CLOUD DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
+    <div class="topBtns"><button class="smallBtn" id="backBtn" type="button">CLOUD DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
   </div>
 
   <div class="card performanceCard" id="performanceCard">
@@ -263,7 +272,7 @@ function updateMasterFx(){
   const f=Number($("masterFilterCtl")?.value||0);if(f<0){masterFilterNode.type="lowpass";masterFilterNode.frequency.value=20000*Math.pow(250/20000,Math.abs(f)/100);}else if(f>0){masterFilterNode.type="highpass";masterFilterNode.frequency.value=20*Math.pow(6500/20,f/100);}else{masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;}
   masterDelayWet.gain.value=Number($("masterDelayCtl")?.value||0)/100;masterDelayNode.delayTime.value=Number($("masterDelayTimeCtl")?.value||420)/1000;masterFeedbackNode.gain.value=Number($("masterFeedbackCtl")?.value||0)/100;masterReverbWet.gain.value=Number($("masterReverbCtl")?.value||0)/100;masterOutNode.gain.value=Number($("masterFxLevel")?.value||100)/100;
 }
-async function ensureAudio(){if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");ctx=new AC({sampleRate:48000});if(ctx.state==="suspended")await ctx.resume();musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();cueBus=ctx.createGain();liveGain=ctx.createGain();masterFilterNode=ctx.createBiquadFilter();masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;masterDryNode=ctx.createGain();masterFxSum=ctx.createGain();masterOutNode=ctx.createGain();masterDelayNode=ctx.createDelay(2.0);masterDelayWet=ctx.createGain();masterFeedbackNode=ctx.createGain();masterReverbNode=ctx.createConvolver();masterReverbNode.buffer=makeHallImpulse();masterReverbWet=ctx.createGain();monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;cueBus.gain.value=1;musicBus.connect(musicDuck).connect(programBus);programBus.connect(masterFilterNode);masterFilterNode.connect(masterDryNode).connect(masterFxSum);masterFilterNode.connect(masterDelayNode);masterDelayNode.connect(masterDelayWet).connect(masterFxSum);masterDelayNode.connect(masterFeedbackNode).connect(masterDelayNode);masterFilterNode.connect(masterReverbNode);masterReverbNode.connect(masterReverbWet).connect(masterFxSum);masterFxSum.connect(masterOutNode);masterOutNode.connect(monitorGain).connect(ctx.destination);cueBus.connect(monitorGain);masterOutNode.connect(liveGain);recordDest=ctx.createMediaStreamDestination();masterOutNode.connect(recordDest);updateMasterFx();for(const d of decks)createDeckStrip(d);startDeckClock();}
+async function ensureAudio(){if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");ctx=new AC({sampleRate:48000,latencyHint:"interactive"});if(ctx.state==="suspended")await ctx.resume();musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();cueBus=ctx.createGain();liveGain=ctx.createGain();masterFilterNode=ctx.createBiquadFilter();masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;masterDryNode=ctx.createGain();masterFxSum=ctx.createGain();masterOutNode=ctx.createGain();masterDelayNode=ctx.createDelay(2.0);masterDelayWet=ctx.createGain();masterFeedbackNode=ctx.createGain();masterReverbNode=ctx.createConvolver();masterReverbNode.buffer=makeHallImpulse();masterReverbWet=ctx.createGain();monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;cueBus.gain.value=1;musicBus.connect(musicDuck).connect(programBus);programBus.connect(masterFilterNode);masterFilterNode.connect(masterDryNode).connect(masterFxSum);masterFilterNode.connect(masterDelayNode);masterDelayNode.connect(masterDelayWet).connect(masterFxSum);masterDelayNode.connect(masterFeedbackNode).connect(masterDelayNode);masterFilterNode.connect(masterReverbNode);masterReverbNode.connect(masterReverbWet).connect(masterFxSum);masterFxSum.connect(masterOutNode);masterOutNode.connect(monitorGain).connect(ctx.destination);cueBus.connect(monitorGain);masterOutNode.connect(liveGain);recordDest=ctx.createMediaStreamDestination();masterOutNode.connect(recordDest);updateMasterFx();for(const d of decks)createDeckStrip(d);startDeckClock();}
 
 async function ensurePcmBridge(){
   await ensureAudio();
@@ -657,7 +666,7 @@ async function login(password){
 }
 
 $("loginButton").addEventListener("click",()=>login($("password").value));
-$("localOnlyButton").addEventListener("click",()=>enterLocalStudio());
+
 $("connectBtn").addEventListener("click",async()=>{
   if(radioConnected){setStatus("Radio is already connected.");return;}
   let pw=djKey||sessionStorage.getItem("geDjPassword")||"";

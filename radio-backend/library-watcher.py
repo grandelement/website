@@ -24,6 +24,8 @@ ROTATION = RUNTIME / "rotation.json"
 LIBRARY = RUNTIME / "library.json"
 SETTINGS = DATA / "settings.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
+RECENT_PLAYED = DATA / "recent-played.json"
+NOW = RUNTIME / "now.json"
 
 CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
@@ -54,6 +56,56 @@ def load_settings():
     if not SETTINGS.exists():
         atomic_json(SETTINGS, settings)
     return settings
+
+
+def song_key(song):
+    return f"{str(song.get('album','')).strip().lower()}|{str(song.get('title','')).strip().lower()}"
+
+def dedupe_songs(songs):
+    seen=set(); out=[]
+    for song in songs:
+        key=(str(song.get("path", "")), song_key(song))
+        if key in seen:
+            continue
+        seen.add(key); out.append(song)
+    return out
+
+def load_recent_played():
+    try:
+        data=json.loads(RECENT_PLAYED.read_text(encoding="utf-8"))
+        vals=data.get("keys", []) if isinstance(data, dict) else []
+        return [str(x) for x in vals if str(x)][-12:]
+    except Exception:
+        return []
+
+def remember_now(last_seen):
+    try:
+        stat=NOW.stat()
+        if stat.st_mtime_ns == last_seen:
+            return last_seen
+        meta=json.loads(NOW.read_text(encoding="utf-8"))
+        kind=str(meta.get("ge_kind", ""))
+        title=str(meta.get("title", "")).strip().lower()
+        album=str(meta.get("album", "")).strip().lower()
+        if kind=="song" and title:
+            key=f"{album}|{title}"
+            recent=load_recent_played()
+            recent=[x for x in recent if x != key] + [key]
+            atomic_json(RECENT_PLAYED, {"keys": recent[-12:], "updated_at": int(time.time())})
+        return stat.st_mtime_ns
+    except Exception:
+        return last_seen
+
+def guarded_shuffle(items, rng, avoid_first=None, guard=8):
+    rows=[dict(x) for x in items]
+    rng.shuffle(rows)
+    avoid=set(avoid_first or [])
+    if avoid and len(rows)>guard:
+        safe=[x for x in rows if song_key(x) not in avoid]
+        blocked=[x for x in rows if song_key(x) in avoid]
+        rng.shuffle(safe); rng.shuffle(blocked)
+        rows=safe[:guard] + blocked + safe[guard:]
+    return rows
 
 def load_custom_playlists():
     try:
@@ -238,7 +290,7 @@ def save_library(commit_sha, songs, clips):
     })
 
 def build_rotation(commit_sha, songs, clips, settings):
-    songs = eligible_songs(songs, settings)
+    songs = dedupe_songs(eligible_songs(songs, settings))
     if not songs:
         if settings.get("custom_mix_enabled"):
             raise RuntimeError("The active Custom Mix has no available songs.")
@@ -252,10 +304,11 @@ def build_rotation(commit_sha, songs, clips, settings):
     playlist_lines = ["#EXTM3U"]
     last_clip_path = None
     slot_counter = 0
+    recent_keys = load_recent_played()
+    previous_tail = list(recent_keys[-8:])
 
     for pass_no in range(1, 13):
-        pass_songs = [dict(x) for x in songs]
-        rng.shuffle(pass_songs)
+        pass_songs = guarded_shuffle(songs, rng, previous_tail, guard=min(8, max(1, len(songs)//4)))
         pos = 0
 
         while pos < len(pass_songs):
@@ -287,6 +340,8 @@ def build_rotation(commit_sha, songs, clips, settings):
                 rotation.append({k: chosen_clip[k] for k in ("slot","kind","title","album","path")})
                 playlist_lines.append(annotation(chosen_clip, commit_sha, cross=1.2))
 
+        previous_tail = [song_key(x) for x in pass_songs[-min(8, len(pass_songs)):]]
+
     atomic_text(PLAYLIST, "\n".join(playlist_lines) + "\n")
     atomic_json(ROTATION, {
         "commit": commit_sha,
@@ -312,10 +367,12 @@ def main():
     cached = None
     last_repo_check = 0.0
     last_signature = None
+    last_now_seen = 0
 
     while True:
         try:
             settings = load_settings()
+            last_now_seen = remember_now(last_now_seen)
             now = time.time()
 
             if cached is None or now - last_repo_check >= CHECK_SECONDS:
