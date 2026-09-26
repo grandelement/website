@@ -22,8 +22,10 @@ META_REPO = RUNTIME / "repo-meta"
 PLAYLIST = RUNTIME / "playlist.m3u"
 ROTATION = RUNTIME / "rotation.json"
 LIBRARY = RUNTIME / "library.json"
+NOW = RUNTIME / "now.json"
 SETTINGS = DATA / "settings.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
+HISTORY = DATA / "rotation-history.json"
 
 CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
@@ -35,6 +37,52 @@ def atomic_text(path, text):
 
 def atomic_json(path, value):
     atomic_text(path, json.dumps(value, ensure_ascii=False, indent=2))
+
+def load_rotation_history():
+    try:
+        data = json.loads(HISTORY.read_text(encoding="utf-8"))
+        items = data.get("recent_paths", []) if isinstance(data, dict) else []
+        return [str(x) for x in items if str(x)]
+    except Exception:
+        return []
+
+def save_rotation_history(paths):
+    atomic_json(HISTORY, {
+        "recent_paths": [str(x) for x in paths if str(x)][-24:],
+        "updated_at": int(time.time()),
+    })
+
+def remember_current_song():
+    try:
+        now = json.loads(NOW.read_text(encoding="utf-8"))
+        if str(now.get("ge_kind", "")) != "song":
+            return
+        slot = str(now.get("ge_slot", "") or "")
+        if not slot:
+            return
+        rotation = json.loads(ROTATION.read_text(encoding="utf-8"))
+        entry = next((x for x in rotation.get("entries", []) if str(x.get("slot", "")) == slot), None)
+        path = str((entry or {}).get("path", "") or "")
+        if not path:
+            return
+        recent = load_rotation_history()
+        if recent and recent[-1] == path:
+            return
+        recent.append(path)
+        save_rotation_history(recent)
+    except Exception:
+        pass
+
+def dedupe_songs(items):
+    seen = set()
+    out = []
+    for song in items:
+        path = str(song.get("path", "") or "")
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        out.append(song)
+    return out
 
 def load_settings():
     settings = {
@@ -238,7 +286,7 @@ def save_library(commit_sha, songs, clips):
     })
 
 def build_rotation(commit_sha, songs, clips, settings):
-    songs = eligible_songs(songs, settings)
+    songs = dedupe_songs(eligible_songs(songs, settings))
     if not songs:
         if settings.get("custom_mix_enabled"):
             raise RuntimeError("The active Custom Mix has no available songs.")
@@ -252,10 +300,23 @@ def build_rotation(commit_sha, songs, clips, settings):
     playlist_lines = ["#EXTM3U"]
     last_clip_path = None
     slot_counter = 0
+    recent_paths = load_rotation_history()
+    guard_paths = set(recent_paths[-min(6, len(recent_paths)):])
 
     for pass_no in range(1, 13):
         pass_songs = [dict(x) for x in songs]
         rng.shuffle(pass_songs)
+
+        # True shuffle-bag behavior: every eligible song appears once in this
+        # pass. Songs heard near the end of the previous pass (or before a
+        # container restart) are pushed away from the beginning of the next pass.
+        if guard_paths and len(pass_songs) > 1:
+            fresh = [x for x in pass_songs if x.get("path") not in guard_paths]
+            guarded = [x for x in pass_songs if x.get("path") in guard_paths]
+            rng.shuffle(fresh)
+            rng.shuffle(guarded)
+            pass_songs = fresh + guarded
+
         pos = 0
 
         while pos < len(pass_songs):
@@ -287,6 +348,9 @@ def build_rotation(commit_sha, songs, clips, settings):
                 rotation.append({k: chosen_clip[k] for k in ("slot","kind","title","album","path")})
                 playlist_lines.append(annotation(chosen_clip, commit_sha, cross=1.2))
 
+        guard_n = min(6, len(pass_songs))
+        guard_paths = set(x.get("path", "") for x in pass_songs[-guard_n:])
+
     atomic_text(PLAYLIST, "\n".join(playlist_lines) + "\n")
     atomic_json(ROTATION, {
         "commit": commit_sha,
@@ -303,7 +367,7 @@ def build_rotation(commit_sha, songs, clips, settings):
     print(
         f"GE Radio: rotation rebuilt: {len(songs)} songs, "
         f"legacy={'on' if legacy else 'off'}, custom={custom_label}, "
-        f"crossfade={crossfade:.1f}s, {len(clips)} station IDs.",
+        f"crossfade={crossfade:.1f}s, no-repeat shuffle bag, {len(clips)} station IDs.",
         flush=True,
     )
 
@@ -315,6 +379,7 @@ def main():
 
     while True:
         try:
+            remember_current_song()
             settings = load_settings()
             now = time.time()
 
