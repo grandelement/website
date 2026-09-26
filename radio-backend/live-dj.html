@@ -11,6 +11,14 @@
 @media(max-width:800px){.masterGrid{grid-template-columns:1fr 1fr}.decks{grid-template-columns:1fr}.twoCol{grid-template-columns:1fr}.controlGrid{grid-template-columns:1fr 1fr}.trackName{max-width:58%}}
 @media(max-width:430px){.wrap{padding:9px 9px 70px}.card,.deck{border-radius:13px;padding:10px}.masterGrid{grid-template-columns:1fr}.transport{grid-template-columns:repeat(4,1fr)}.stems{gap:3px}.stemLoad,.stemToggle{font-size:7px;padding:7px 2px}.top .brand{font-size:11px}.smallBtn{font-size:9px}.bpmRow{grid-template-columns:72px 1fr 55px}}
 
+
+.deckDirectLoad{display:grid;grid-template-columns:1fr auto;gap:7px;margin:10px 0 7px}
+.deckFileLabel{display:flex;align-items:center;justify-content:center;min-height:42px;border:1px solid #367267;background:#12352f;color:#d9fff8;border-radius:10px;padding:9px 10px;font-size:11px;font-weight:850;cursor:pointer;text-align:center}
+.deckFileLabel input{display:none}
+.deckDiag{font-size:9px;color:#96a4b4;line-height:1.35;margin:4px 0 8px;min-height:13px}
+.deckDiag.ok{color:#62df9a}.deckDiag.bad{color:#ff7d8d}
+.crateHelp{font-size:9px;color:#7f8b99;margin-top:5px}
+
 </style>
 </head>
 <body>
@@ -26,14 +34,14 @@
 
 <div class="wrap">
   <div class="top">
-    <div class="brand">GE LIVE DJ MUSIC <span class="version">v5.0C</span> <span class="liveBadge" id="liveBadge">ON AIR</span></div>
+    <div class="brand">GE LIVE DJ MUSIC <span class="version">v5.1</span> <span class="liveBadge" id="liveBadge">ON AIR</span></div>
     <div class="topBtns"><button class="smallBtn" id="backBtn" type="button">RADIO DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
   </div>
 
   <div class="card">
     <div class="label">Local Music Crate</div>
     <div class="masterGrid">
-      <div class="field"><label>Grand Element songs on this phone</label><label class="fileLabel">ADD LOCAL TRACK<input id="crateFiles" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac"></label><div class="crateCount" id="crateCount">No local tracks added yet.</div></div>
+      <div class="field"><label>Grand Element songs on this phone</label><label class="fileLabel">ADD LOCAL TRACK<input id="crateFiles" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac"></label><div class="crateCount" id="crateCount">No crate tracks yet. You can also load a file directly inside any deck.</div></div>
       <div class="field"><label>Monitor volume</label><input id="monitorVolume" type="range" min="0" max="100" step="5" value="85"><div class="value" id="monitorVolumeVal">85%</div></div>
       <div class="field"><label>Live master level</label><input id="liveMaster" type="range" min="0" max="125" step="5" value="100"><div class="value" id="liveMasterVal">100%</div></div>
       <div class="field"><label>Master deck / BPM</label><div id="masterRead" style="font-weight:850;font-size:18px;padding:8px 0">Deck 1 · 120 BPM</div></div>
@@ -43,7 +51,7 @@
       <button class="btn live" id="goLive" type="button">GO LIVE DJ MUSIC</button>
       <button class="btn" id="returnRadio" type="button">RETURN TO RADIO</button>
     </div>
-    <div class="status" id="liveStatus">Load local songs, build a mix in your headphones, then GO LIVE when ready.</div>
+    <div class="status" id="liveStatus">Load a track directly inside a deck, test it locally, then build your mix before going live.</div>
     <div class="note">The four decks run locally on this device. GO LIVE sends one finished stereo mix to GE Radio. The normal station fades out; RETURN TO RADIO starts a fresh station song and fades it back in.</div>
   </div>
 
@@ -132,6 +140,69 @@ async function ensurePcmBridge(){
 }
 function setPcmEnabled(on){if(pcmProcessor)pcmProcessor.port.postMessage({type:"config",enabled:!!on,voice:false,channelMode:"stereo"});}
 
+
+function guessAudioMime(file){
+  const typed=String(file?.type||"").trim().toLowerCase();
+  if(typed)return typed;
+  const name=String(file?.name||"").toLowerCase();
+  if(name.endsWith(".mp3"))return "audio/mpeg";
+  if(name.endsWith(".m4a")||name.endsWith(".mp4"))return "audio/mp4";
+  if(name.endsWith(".aac"))return "audio/aac";
+  if(name.endsWith(".wav")||name.endsWith(".wave"))return "audio/wav";
+  if(name.endsWith(".flac"))return "audio/flac";
+  if(name.endsWith(".ogg")||name.endsWith(".oga"))return "audio/ogg";
+  return "audio/mpeg";
+}
+function formatBytes(n){
+  n=Number(n)||0;
+  if(n<1024)return `${n} B`;
+  if(n<1024*1024)return `${(n/1024).toFixed(1)} KB`;
+  return `${(n/(1024*1024)).toFixed(1)} MB`;
+}
+function setDeckDiag(i,msg,kind=""){
+  const el=$(`diag${i}`);if(!el)return;
+  el.textContent=msg||"";el.className=`deckDiag ${kind}`.trim();
+}
+function addFileToCrate(file){
+  if(!file)return;
+  const key=`${file.name}|${file.size}|${file.lastModified}`;
+  if(!crate.some(x=>`${x.name}|${x.size}|${x.lastModified}`===key))crate.push(file);
+  $("crateCount").textContent=`${crate.length} local track${crate.length===1?"":"s"} ready.`;
+  refreshCrateMenus();
+}
+function buildLocalAudio(file,i,type){
+  const audio=document.createElement("audio");
+  audio.preload="metadata";
+  audio.playsInline=true;
+  audio.setAttribute("playsinline","");
+  const url=URL.createObjectURL(file);
+  const mime=guessAudioMime(file);
+  const sourceEl=document.createElement("source");
+  sourceEl.src=url;
+  sourceEl.type=mime;
+  audio.appendChild(sourceEl);
+  audio.load();
+  const label=type==="full"?`Deck ${i+1}`:`Deck ${i+1} ${type}`;
+  audio.addEventListener("loadedmetadata",()=>{
+    if(type==="full")setDeckDiag(i,`${file.name} ready · ${formatBytes(file.size)} · ${mime}`,"ok");
+  },{once:true});
+  audio.addEventListener("canplay",()=>{
+    if(type==="full")setDeckDiag(i,`${file.name} ready to play · ${mime}`,"ok");
+  },{once:true});
+  audio.addEventListener("error",()=>{
+    const code=audio.error?.code||"";
+    if(type==="full")setDeckDiag(i,`${label}: Safari could not open this file${code?` (media error ${code})`:""}. Try MP3, M4A, or WAV from the Files app.`,"bad");
+    setStatus(`${label}: this audio file could not be opened. If it is in Apple Music, export/copy the actual file into Files first.`,true);
+  },{once:true});
+  return {audio,url,mime};
+}
+function chooseDeckFile(i,file){
+  if(!file)return;
+  addFileToCrate(file);
+  setDeckDiag(i,`Loading ${file.name}…`);
+  prepareDeckFile(i,"full",file);
+}
+
 function sourceLeader(d){return d.sources.full||STEMS.map(s=>d.sources[s]).find(Boolean)||null;}
 function allLoaded(d){return Object.values(d.sources).filter(Boolean);}
 function safeTime(audio){try{return Number.isFinite(audio.currentTime)?audio.currentTime:0;}catch(_e){return 0;}}
@@ -170,16 +241,16 @@ function prepareDeckFile(i,type,file){
     for(const stem of STEMS){if(d.sources[stem]){disposeSource(d.sources[stem]);delete d.sources[stem];}}
     d.activeStems.clear();d.vocalCut=false;
   }
-  const audio=new Audio();audio.preload="metadata";audio.playsInline=true;
-  const url=URL.createObjectURL(file);audio.src=url;
-  const entry={audio,source:null,url,file,gain:null,normal:null,cut:null,extra:[],attached:false,type};
+  const built=buildLocalAudio(file,i,type);
+  const audio=built.audio,url=built.url;
+  const entry={audio,source:null,url,file,mime:built.mime,gain:null,normal:null,cut:null,extra:[],attached:false,type};
   d.sources[type]=entry;
   if(type==="full")d.title=file.name.replace(/\.[^.]+$/,"");
   else if(!d.sources.full&&d.activeStems.size===0)d.activeStems.add(type);
   audio.addEventListener("ended",()=>{if(!d.loop){d.playing=false;renderDeckState(d);}});
-  audio.addEventListener("error",()=>setStatus(`Deck ${i+1}: this audio file could not be opened by Safari.`,true),{once:true});
   renderDeck(i);renderDeckState(d);
-  setStatus(`Deck ${i+1}: ${file.name} loaded locally. Press PLAY or ARM LOCAL MIXER to start the audio engine.`);
+  if(type==="full")setDeckDiag(i,`Loaded ${file.name} · ${formatBytes(file.size)} · ${built.mime}`,"ok");
+  setStatus(`Deck ${i+1}: ${file.name} loaded locally. Press PLAY to test it.`);
 }
 async function attachSource(d,type){
   const entry=d.sources[type];if(!entry||entry.attached)return entry;
@@ -227,10 +298,12 @@ function renderDeckState(d){const el=$(`state${d.i}`);if(!el)return;const loaded
 function crateOptions(){return '<option value="">Choose local track…</option>'+crate.map((x,i)=>`<option value="${i}">${esc(x.name)}</option>`).join("");}
 function deckHTML(d){return `<div class="deck ${d.i===masterDeck?"master":""}" id="deck${d.i}">
   <div class="deckTop"><div class="deckNum">DECK ${d.i+1}</div><div class="trackName">${esc(d.title)}</div></div>
-  <div class="deckPick"><select id="crate${d.i}">${crateOptions()}</select><button class="smallBtn" type="button" onclick="loadCrateToDeck(${d.i})">LOAD</button></div>
+  <div class="deckDirectLoad"><label class="deckFileLabel">LOAD TRACK FROM PHONE<input id="deckFile${d.i}" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac" onchange="chooseDeckFile(${d.i},this.files&&this.files[0]);this.value=''"></label><button class="smallBtn" type="button" onclick="toggleDeckPlay(${d.i})">${d.playing?"PAUSE":"PLAY"}</button></div>
+  <div class="deckDiag ${d.sources.full?"ok":""}" id="diag${d.i}">${d.sources.full?`${esc(d.sources.full.file?.name||d.title)} loaded`:"Choose an MP3, M4A, WAV, AAC, or FLAC file from the Files app."}</div>
+  <div class="deckPick"><select id="crate${d.i}">${crateOptions()}</select><button class="smallBtn" type="button" onclick="loadCrateToDeck(${d.i})">LOAD FROM CRATE</button></div>
   <div class="transport"><button type="button" onclick="toggleDeckPlay(${d.i})" class="${d.playing?"on":""}">${d.playing?"PAUSE":"PLAY"}</button><button type="button" onclick="setMaster(${d.i})" class="masterBtn ${d.i===masterDeck?"on":""}">MASTER</button><button type="button" onclick="toggleSync(${d.i})" class="${d.sync?"on":""}">SYNC</button><button type="button" onclick="tapBpm(${d.i})">TAP BPM</button></div>
   <div class="bpmRow"><input id="bpm${d.i}" type="number" min="40" max="220" step="0.1" value="${d.bpm}" onchange="updateBpm(${d.i})"><div class="sub">BPM · tempo match</div><div class="bpmRead" id="rate${d.i}">+0.0%</div></div>
-  <div class="loopRow"><select id="loopBars${d.i}" onchange="updateLoopBars(${d.i})">${[1,2,4,8,16].map(n=>`<option value="${n}" ${d.loopBars===n?"selected":""}>${n} BAR${n===1?"":"S"}</option>`).join("")}</select><button type="button" onclick="toggleLoop(${d.i})" class="${d.loop?"on":""}">${d.loop?"LOOP ON":"SET LOOP"}</button><button type="button" onclick="setDeckTime(decks[${d.i}],0)">RESTART</button></div>
+  <div class="loopRow"><select id="loopBars${d.i}" onchange="updateLoopBars(${d.i})">${[1,2,4,8,16,32,64].map(n=>`<option value="${n}" ${d.loopBars===n?"selected":""}>${n} BAR${n===1?"":"S"}</option>`).join("")}</select><button type="button" onclick="toggleLoop(${d.i})" class="${d.loop?"on":""}">${d.loop?"LOOP ON":"SET LOOP"}</button><button type="button" onclick="setDeckTime(decks[${d.i}],0)">RESTART</button></div>
   <div class="loopRow"><button type="button" onclick="nudge(${d.i},-.04)">◀ NUDGE</button><button type="button" onclick="nudge(${d.i},.04)">NUDGE ▶</button><div class="bpmRead" id="time${d.i}">0:00</div></div>
   <div class="sliderRow"><span>LEVEL</span><input id="vol${d.i}" type="range" min="0" max="125" step="5" value="${d.volume}" oninput="setDeckVolume(${d.i},this.value)"><span id="volVal${d.i}">${d.volume}%</span></div>
   <div class="stemHead"><span>Optional true stems</span><button class="vocalCut ${d.vocalCut?"on":""}" type="button" onclick="toggleVocalCut(${d.i})">VOCAL CUT</button></div>
@@ -239,7 +312,13 @@ function deckHTML(d){return `<div class="deck ${d.i===masterDeck?"master":""}" i
 </div>`;}
 function renderDeck(i){const old=$(`deck${i}`);if(!old)return renderDecks();const tmp=document.createElement("div");tmp.innerHTML=deckHTML(decks[i]);old.replaceWith(tmp.firstElementChild);setDeckRate(decks[i]);renderDeckState(decks[i]);}
 function renderDecks(){$("decks").innerHTML=decks.map(deckHTML).join("");for(const d of decks){setDeckRate(d);renderDeckState(d);}updateMasterRead();}
-function loadCrateToDeck(i){const sel=$(`crate${i}`),idx=Number(sel.value);if(!Number.isInteger(idx)||idx<0)return;const f=crate[idx];if(!f)return;prepareDeckFile(i,"full",f);}
+function loadCrateToDeck(i){
+  const sel=$(`crate${i}`);
+  if(!sel||sel.value===""){setDeckDiag(i,"Choose a track from the crate first.","bad");return;}
+  const idx=Number(sel.value);
+  if(!Number.isInteger(idx)||idx<0||!crate[idx]){setDeckDiag(i,"That crate track is no longer available.","bad");return;}
+  chooseDeckFile(i,crate[idx]);
+}
 
 async function refreshInputs(preferred=""){
   if(!navigator.mediaDevices?.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="audioinput"),sel=$("inputDevice"),cur=preferred||sel.value;sel.innerHTML='<option value="">Default microphone / audio interface</option>';ds.forEach((d,i)=>{const o=document.createElement("option");o.value=d.deviceId;o.textContent=d.label||`Audio input ${i+1}`;sel.appendChild(o);});if([...sel.options].some(o=>o.value===cur))sel.value=cur;}catch(_e){}
@@ -276,7 +355,7 @@ $("backBtn").addEventListener("click",()=>{if(liveActive){setStatus("Return to R
 $("panicBtn").addEventListener("click",panicStop);
 $("armAudio").addEventListener("click",async()=>{try{await ensureAudio();setStatus("Local mixer armed. You can rehearse in headphones without going live.");}catch(e){setStatus(e?.message||"Could not arm audio.",true);}});
 $("goLive").addEventListener("click",goLive);$("returnRadio").addEventListener("click",returnToRadio);
-$("crateFiles").addEventListener("change",e=>{const f=e.target.files?.[0];e.target.value="";if(!f)return;const key=`${f.name}|${f.size}|${f.lastModified}`;if(!crate.some(x=>`${x.name}|${x.size}|${x.lastModified}`===key))crate.push(f);$("crateCount").textContent=`${crate.length} local track${crate.length===1?"":"s"} ready. Add songs one at a time for iPhone/iPad stability.`;refreshCrateMenus();});
+$("crateFiles").addEventListener("change",e=>{const f=e.target.files?.[0];e.target.value="";if(!f)return;addFileToCrate(f);setStatus(`${f.name} added to the local crate. You can also load tracks directly inside each deck.`);});
 $("monitorVolume").addEventListener("input",()=>{$("monitorVolumeVal").textContent=$("monitorVolume").value+"%";if(monitorGain)monitorGain.gain.value=Number($("monitorVolume").value)/100;});
 $("liveMaster").addEventListener("input",()=>{$("liveMasterVal").textContent=$("liveMaster").value+"%";if(liveActive&&liveGain)liveGain.gain.setTargetAtTime(Number($("liveMaster").value)/100,ctx.currentTime,.08);});
 $("inputToggle").addEventListener("click",toggleInput);$("inputDevice").addEventListener("change",async()=>{if(inputStream){stopInput();await toggleInput();}});$("inputLevel").addEventListener("input",()=>{$("inputLevelVal").textContent=$("inputLevel").value+"%";if(inputGain)inputGain.gain.value=Number($("inputLevel").value)/100;});
