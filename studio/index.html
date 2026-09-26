@@ -41,7 +41,7 @@
 
 .backendBadge{font-size:9px;font-weight:850;letter-spacing:.05em;padding:5px 7px;border:1px solid #314052;border-radius:999px;color:#9fb0c1}.backendBadge.ok{border-color:#2f806f;color:#8df3dd}.backendBadge.bad{border-color:#8d3543;color:#ff9eaa}
 
-/* web v1.2 */
+/* web v1.4 */
 .legacySwitch{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #3d4854;background:#0d1218;color:#fff;border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900}.legacySwitch input{width:18px;height:18px}
 .loopManual{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.loopManual button{appearance:none;border:1px solid #43505d;background:#10161d;color:#fff;border-radius:9px;padding:10px 4px;font-size:9px;font-weight:900}.loopManual button.marked{border-color:#ffbf56;background:#493413}.loopManual button.active{border-color:#57dcc7;background:#143a34}
 .deckActionRow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.deckActionRow button{appearance:none;border:1px solid #394653;background:#10161d;color:#fff;border-radius:10px;padding:10px 4px;font-size:10px;font-weight:900}
@@ -60,16 +60,15 @@
     <h1>Grand Element Studio</h1>
     <p>Private live studio. Use the same DJ password as the GE Radio control room.</p>
     <input id="password" type="password" autocomplete="current-password" placeholder="DJ password">
-    <button class="btn primary" id="loginButton" type="button">ENTER + CONNECT RADIO</button>
-    <button class="btn" id="localOnlyButton" type="button" style="margin-top:8px">ENTER LOCAL STUDIO</button>
-    <div class="status" id="loginStatus">Local Studio works even if the radio server is offline.</div>
+    <button class="btn primary" id="loginButton" type="button">ENTER STUDIO</button>
+    <div class="status" id="loginStatus">One Studio login. The same verified session opens the Cloud DJ booth.</div>
   </div>
 </div>
 
 <div class="wrap">
   <div class="top">
     <div class="brand">GE STUDIO <span class="version">web v1.2</span> <span class="liveBadge" id="liveBadge">ON AIR</span> <span class="backendBadge" id="backendBadge">RADIO LINK</span></div>
-    <div class="topBtns"><button class="smallBtn" id="connectBtn" type="button">CONNECT RADIO</button><button class="smallBtn" id="backBtn" type="button">CLOUD DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
+    <div class="topBtns"><button class="smallBtn" id="backBtn" type="button">CLOUD DJ</button><button class="smallBtn panic" id="panicBtn" type="button">STOP LIVE</button></div>
   </div>
 
   <div class="card">
@@ -222,7 +221,7 @@ function updateMasterFx(){
   const f=Number($("masterFilterCtl")?.value||0);if(f<0){masterFilterNode.type="lowpass";masterFilterNode.frequency.value=20000*Math.pow(250/20000,Math.abs(f)/100);}else if(f>0){masterFilterNode.type="highpass";masterFilterNode.frequency.value=20*Math.pow(6500/20,f/100);}else{masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;}
   masterDelayWet.gain.value=Number($("masterDelayCtl")?.value||0)/100;masterDelayNode.delayTime.value=Number($("masterDelayTimeCtl")?.value||420)/1000;masterFeedbackNode.gain.value=Number($("masterFeedbackCtl")?.value||0)/100;masterReverbWet.gain.value=Number($("masterReverbCtl")?.value||0)/100;masterOutNode.gain.value=Number($("masterFxLevel")?.value||100)/100;
 }
-async function ensureAudio(){if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");ctx=new AC({sampleRate:48000});if(ctx.state==="suspended")await ctx.resume();musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();cueBus=ctx.createGain();liveGain=ctx.createGain();masterFilterNode=ctx.createBiquadFilter();masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;masterDryNode=ctx.createGain();masterFxSum=ctx.createGain();masterOutNode=ctx.createGain();masterDelayNode=ctx.createDelay(2.0);masterDelayWet=ctx.createGain();masterFeedbackNode=ctx.createGain();masterReverbNode=ctx.createConvolver();masterReverbNode.buffer=makeHallImpulse();masterReverbWet=ctx.createGain();monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;cueBus.gain.value=1;musicBus.connect(musicDuck).connect(programBus);programBus.connect(masterFilterNode);masterFilterNode.connect(masterDryNode).connect(masterFxSum);masterFilterNode.connect(masterDelayNode);masterDelayNode.connect(masterDelayWet).connect(masterFxSum);masterDelayNode.connect(masterFeedbackNode).connect(masterDelayNode);masterFilterNode.connect(masterReverbNode);masterReverbNode.connect(masterReverbWet).connect(masterFxSum);masterFxSum.connect(masterOutNode);masterOutNode.connect(monitorGain).connect(ctx.destination);cueBus.connect(monitorGain);masterOutNode.connect(liveGain);updateMasterFx();for(const d of decks)createDeckStrip(d);startDeckClock();}
+async function ensureAudio(){if(ctx){if(ctx.state==="suspended")await ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error("This browser does not support Web Audio.");ctx=new AC({sampleRate:48000,latencyHint:"interactive"});if(ctx.state==="suspended")await ctx.resume();musicBus=ctx.createGain();musicDuck=ctx.createGain();programBus=ctx.createGain();monitorGain=ctx.createGain();cueBus=ctx.createGain();liveGain=ctx.createGain();masterFilterNode=ctx.createBiquadFilter();masterFilterNode.type="lowpass";masterFilterNode.frequency.value=22000;masterDryNode=ctx.createGain();masterFxSum=ctx.createGain();masterOutNode=ctx.createGain();masterDelayNode=ctx.createDelay(2.0);masterDelayWet=ctx.createGain();masterFeedbackNode=ctx.createGain();masterReverbNode=ctx.createConvolver();masterReverbNode.buffer=makeHallImpulse();masterReverbWet=ctx.createGain();monitorGain.gain.value=Number($("monitorVolume").value)/100;liveGain.gain.value=0;musicDuck.gain.value=1;cueBus.gain.value=1;musicBus.connect(musicDuck).connect(programBus);programBus.connect(masterFilterNode);masterFilterNode.connect(masterDryNode).connect(masterFxSum);masterFilterNode.connect(masterDelayNode);masterDelayNode.connect(masterDelayWet).connect(masterFxSum);masterDelayNode.connect(masterFeedbackNode).connect(masterDelayNode);masterFilterNode.connect(masterReverbNode);masterReverbNode.connect(masterReverbWet).connect(masterFxSum);masterFxSum.connect(masterOutNode);masterOutNode.connect(monitorGain).connect(ctx.destination);cueBus.connect(monitorGain);masterOutNode.connect(liveGain);updateMasterFx();for(const d of decks)createDeckStrip(d);startDeckClock();}
 
 async function ensurePcmBridge(){
   await ensureAudio();
@@ -447,7 +446,15 @@ function bindDeckWave(i){
   detail.onpointermove=e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});const lead=sourceLeader(d),dur=Number(lead?.audio?.duration)||0;if(!lead||!dur)return;if(pointers.size>=2){const ps=[...pointers.values()],dist=Math.max(20,Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y));d.zoomSeconds=clamp(startZoom*(startDist/dist),4,Math.min(120,dur));drawDeckWave(d);return;}const r=detail.getBoundingClientRect(),window=Math.min(Math.max(4,d.zoomSeconds||24),dur),dx=e.clientX-startX,target=clamp(startTime-(dx/r.width)*window,0,dur);setDeckTime(d,target);drawDeckWave(d);cueSnippet();};
   const end=async e=>{if(pointers.has(e.pointerId))pointers.delete(e.pointerId);try{detail.releasePointerCapture(e.pointerId)}catch(_e){}if(pointers.size===0&&d.scratching){d.scratching=false;if(d.xfadeNode)d.xfadeNode.gain.value=crossGainFor(d);updateDeckMixer(d);if(d.scratchWasPlaying){await Promise.allSettled(allLoaded(d).map(s=>s.audio.play()));d.playing=true;}renderDeckState(d);}};detail.onpointerup=end;detail.onpointercancel=end;
 }
-function startDeckClock(){cancelAnimationFrame(deckRAF);const tick=now=>{for(const d of decks){if(d.playing&&d.loop){const lead=sourceLeader(d);if(lead&&safeTime(lead.audio)>=d.loopEnd-.018)setDeckTime(d,d.loopStart);}renderDeckTime(d);}if(now-lastDeckDraw>66){for(const d of decks)drawDeckWave(d);lastDeckDraw=now;}deckRAF=requestAnimationFrame(tick);};deckRAF=requestAnimationFrame(tick);}
+function startDeckClock(){
+  cancelAnimationFrame(deckRAF);
+  const tick=now=>{
+    for(const d of decks){if(d.playing&&d.loop){const lead=sourceLeader(d);if(lead&&safeTime(lead.audio)>=d.loopEnd-.018)setDeckTime(d,d.loopStart);}renderDeckTime(d);}
+    if(now-lastDeckDraw>120){for(const d of decks){const body=document.querySelector("#deck"+d.i+" .deckBody");if(!body||!body.classList.contains("hidden"))drawDeckWave(d);}lastDeckDraw=now;}
+    deckRAF=requestAnimationFrame(tick);
+  };
+  deckRAF=requestAnimationFrame(tick);
+}
 function fmtTime(sec){if(!Number.isFinite(sec))return"0:00";const m=Math.floor(sec/60),s=Math.floor(sec%60);return`${m}:${String(s).padStart(2,"0")}`;}
 function renderDeckTime(d){const lead=sourceLeader(d),el=$(`time${d.i}`);if(el)el.textContent=lead?`${fmtTime(safeTime(lead.audio))} / ${fmtTime(lead.audio.duration||0)}`:"0:00";}
 function renderDeckState(d){const el=$(`state${d.i}`);if(!el)return;const loaded=Object.keys(d.sources).filter(k=>d.sources[k]);const mode=d.activeStems.size?[...d.activeStems].join(" + ").toUpperCase():(d.vocalCut?"VOCAL CUT":"FULL");el.textContent=`${d.playing?"PLAYING":"READY"} · ${mode} · ${loaded.length} source${loaded.length===1?"":"s"}`;renderDeckTime(d);}
@@ -500,7 +507,11 @@ async function toggleInput(){
   try{const id=$("inputDevice").value,cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000}};if(id)cons.deviceId={exact:id};inputStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});inputSource=ctx.createMediaStreamSource(inputStream);inputEqLow=ctx.createBiquadFilter();inputEqLow.type="lowshelf";inputEqLow.frequency.value=180;inputEqMid=ctx.createBiquadFilter();inputEqMid.type="peaking";inputEqMid.frequency.value=1000;inputEqMid.Q.value=.8;inputEqHigh=ctx.createBiquadFilter();inputEqHigh.type="highshelf";inputEqHigh.frequency.value=5200;inputComp=ctx.createDynamicsCompressor();inputGain=ctx.createGain();inputPan=ctx.createStereoPanner?ctx.createStereoPanner():ctx.createGain();inputAnalyser=ctx.createAnalyser();inputAnalyser.fftSize=256;inputDelay=ctx.createDelay(2);inputDelayWet=ctx.createGain();inputDelayFeedback=ctx.createGain();inputReverb=ctx.createConvolver();inputReverb.buffer=makeHallImpulse();inputReverbWet=ctx.createGain();const sum=ctx.createGain();inputSource.connect(inputEqLow).connect(inputEqMid).connect(inputEqHigh).connect(inputComp).connect(inputGain).connect(inputPan).connect(inputAnalyser);inputAnalyser.connect(sum);inputAnalyser.connect(inputDelay);inputDelay.connect(inputDelayWet).connect(sum);inputDelay.connect(inputDelayFeedback).connect(inputDelay);inputAnalyser.connect(inputReverb);inputReverb.connect(inputReverbWet).connect(sum);sum.connect(programBus);inputCtlUpdate();$("inputToggle").textContent="INPUT ON";$("inputToggle").classList.add("primary");$("inputStatus").textContent="Input Deck is in the local mix.";await refreshInputs(id);runInputMeter();updateDockMic();}catch(e){$("inputStatus").textContent=`Could not open input: ${e?.message||e}`;}
 }
 function stopInput(){if(inputStream)inputStream.getTracks().forEach(t=>t.stop());for(const n of [inputSource,inputComp,inputGain,inputAnalyser,inputDelay,inputDelayWet,inputDelayFeedback,inputReverb,inputReverbWet,inputEqLow,inputEqMid,inputEqHigh,inputPan]){try{n?.disconnect();}catch(_e){}}inputStream=inputSource=inputComp=inputGain=inputAnalyser=inputDelay=inputDelayWet=inputDelayFeedback=inputReverb=inputReverbWet=inputEqLow=inputEqMid=inputEqHigh=inputPan=null;cancelAnimationFrame(inputRAF);$("inputMeter").style.width="0%";if($("dockMicFill"))$("dockMicFill").style.width="0%";if($("dockMicDb"))$("dockMicDb").textContent="-60 dB";$("inputToggle").textContent="INPUT OFF";$("inputToggle").classList.remove("primary");$("inputStatus").textContent="Input stopped.";updateDockMic();}
-function runInputMeter(){cancelAnimationFrame(inputRAF);if(!inputAnalyser)return;const a=new Uint8Array(inputAnalyser.fftSize);const tick=()=>{if(!inputAnalyser)return;inputAnalyser.getByteTimeDomainData(a);let p=0,sum=0;for(const v of a){const x=(v-128)/128;p=Math.max(p,Math.abs(x));sum+=x*x;}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=Math.min(100,Math.max(0,(db+60)/60*100));$("inputMeter").style.width=`${Math.min(100,p*125)}%`;if($("dockMicFill"))$("dockMicFill").style.width=`${pct}%`;if($("dockMicDb"))$("dockMicDb").textContent=`${db.toFixed(0)} dB`;updateDockMic();inputRAF=requestAnimationFrame(tick);};inputRAF=requestAnimationFrame(tick);}
+function runInputMeter(){
+  cancelAnimationFrame(inputRAF);if(!inputAnalyser)return;const a=new Uint8Array(inputAnalyser.fftSize);let last=0;
+  const tick=now=>{if(!inputAnalyser)return;if(now-last>=50){last=now;inputAnalyser.getByteTimeDomainData(a);let p=0,sum=0;for(const v of a){const x=(v-128)/128;p=Math.max(p,Math.abs(x));sum+=x*x;}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=Math.min(100,Math.max(0,(db+60)/60*100));$("inputMeter").style.width=Math.min(100,p*125)+"%";if($("dockMicFill"))$("dockMicFill").style.width=pct+"%";if($("dockMicDb"))$("dockMicDb").textContent=db.toFixed(0)+" dB";updateDockMic();}inputRAF=requestAnimationFrame(tick);};
+  inputRAF=requestAnimationFrame(tick);
+}
 
 async function loadTalk(file){if(!file)return;await ensureAudio();if(talkAudio){talkAudio.pause();try{talkSource.disconnect();}catch(_e){}}talkAudio=new Audio();talkAudio.preload="metadata";talkAudio.playsInline=true;talkAudio.src=URL.createObjectURL(file);talkSource=ctx.createMediaElementSource(talkAudio);talkCompNode=ctx.createDynamicsCompressor();talkCompNode.threshold.value=-18;talkCompNode.ratio.value=Number($("talkComp").value)||8;talkCompNode.attack.value=.004;talkCompNode.release.value=.24;talkGain=ctx.createGain();talkGain.gain.value=Number($("talkLevel").value)/100;talkSource.connect(talkCompNode).connect(talkGain).connect(programBus);talkAudio.addEventListener("play",()=>duckForTalk(true));talkAudio.addEventListener("pause",()=>{if(!talkAudio.ended)duckForTalk(false)});talkAudio.addEventListener("ended",()=>duckForTalk(false));$("talkName").textContent=file.name;$("talkStatus").textContent="Talking track ready.";}
 function duckForTalk(on){if(!ctx||!musicDuck)return;const v=on?Number($("talkDuck").value)/100:1;musicDuck.gain.cancelScheduledValues(ctx.currentTime);musicDuck.gain.setTargetAtTime(v,ctx.currentTime,on ? .08 : .18);}
@@ -585,26 +596,28 @@ async function connectRadio(password=djKey){
   }
 }
 async function login(password){
-  djKey=password;
-  $("lock").classList.add("hide");
-  const ok=await connectRadio(password);
-  if(!ok){
-    $("loginStatus").textContent="Studio opened in LOCAL mode. Use CONNECT RADIO when Blitz is reachable.";
+  const pw=String(password||"");
+  if(!pw){$("loginStatus").textContent="Enter the Studio password.";return false;}
+  djKey=pw;
+  try{
+    const r=await api("/control/status");
+    if(r.status===401){$("loginStatus").textContent="Password was not accepted.";return false;}
+    if(!r.ok)throw new Error("Radio control did not answer.");
+    sessionStorage.setItem("geDjPassword",pw);
+    $("lock").classList.add("hide");
+    setBackendBadge(true,"Radio connected.");
+    setTimeout(()=>loadGeLibrary(),50);startRadioDock();return true;
+  }catch(_e){
+    const saved=sessionStorage.getItem("geDjPassword");
+    if(saved&&saved===pw){$("lock").classList.add("hide");setBackendBadge(false,"Radio link is offline. Studio is open locally with your previously verified session.");return true;}
+    $("loginStatus").textContent="Could not verify the Studio password because the radio control server is offline.";return false;
   }
-  return true;
 }
 
 $("loginButton").addEventListener("click",()=>login($("password").value));
-$("localOnlyButton").addEventListener("click",()=>enterLocalStudio());
-$("connectBtn").addEventListener("click",async()=>{
-  if(radioConnected){setStatus("Radio is already connected.");return;}
-  let pw=djKey||sessionStorage.getItem("geDjPassword")||"";
-  if(!pw)pw=prompt("DJ password")||"";
-  if(pw)await connectRadio(pw);
-});
 $("password").addEventListener("keydown",e=>{if(e.key==="Enter")login($("password").value)});
-function openCloudDj(){const o=$("cloudDjOverlay"),f=$("cloudDjFrame");o.classList.add("show");if(!f.src)f.src=RADIO_BACKEND+"/dj?studio=1&fresh=55";const send=()=>{if(djKey&&f.contentWindow)f.contentWindow.postMessage({type:"ge-studio-auth",key:djKey},"https://radio.grandelement.blitz.cloud");};f.onload=()=>{send();setTimeout(send,250);};send();}
-$("backBtn").addEventListener("click",openCloudDj);$("dockCloudDj").addEventListener("click",openCloudDj);$("cloudDjClose").addEventListener("click",()=>$("cloudDjOverlay").classList.remove("show"));window.addEventListener("message",e=>{if(e.origin==="https://radio.grandelement.blitz.cloud"&&e.data?.type==="ge-cloud-dj-close")$("cloudDjOverlay").classList.remove("show");});
+function openCloudDj(){const o=$("cloudDjOverlay"),f=$("cloudDjFrame");o.classList.add("show");if(!f.src)f.src=RADIO_BACKEND+"/dj?studio=1&fresh=56";const send=()=>{if(djKey&&f.contentWindow)f.contentWindow.postMessage({type:"ge-studio-auth",key:djKey},"https://radio.grandelement.blitz.cloud");};f.onload=()=>{send();setTimeout(send,250);};send();}
+$("backBtn").addEventListener("click",openCloudDj);$("dockCloudDj").addEventListener("click",openCloudDj);$("cloudDjClose").addEventListener("click",()=>$("cloudDjOverlay").classList.remove("show"));window.addEventListener("message",e=>{if(e.origin!=="https://radio.grandelement.blitz.cloud")return;if(e.data?.type==="ge-cloud-dj-close")$("cloudDjOverlay").classList.remove("show");if(e.data?.type==="ge-dj-monitor"){const a=$("radioCue"),on=!!e.data.on;if(on){a.volume=Number($("dockRadioVol").value)/100;a.play().catch(()=>{});$("radioPlay").textContent="Ⅱ";}else{a.pause();$("radioPlay").textContent="▶";}}});
 $("panicBtn").addEventListener("click",panicStop);
 $("armAudio").addEventListener("click",async()=>{try{await ensureAudio();setStatus("Local mixer armed. You can rehearse in headphones without going live.");}catch(e){setStatus(e?.message||"Could not arm audio.",true);}});
 $("goLive").addEventListener("click",goLive);$("goOnTop").addEventListener("click",goLiveOverlay);$("returnRadio").addEventListener("click",returnToRadio);
