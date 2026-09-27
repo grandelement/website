@@ -1628,7 +1628,9 @@ window.GE_EASY_SETTINGS = {
   // PLANET / POOL FEEL
   PLANET_THROW_POWER: 925,      // higher = faster throws
   PLANET_FRICTION: 0.984,        // normal pool-ball roll
-  PLANET_STOP_SPEED: 0.5,         // tiny mathematical cutoff only; normal friction controls the full visible roll
+  PLANET_FINAL_CREEP_SPEED: 8.0,  // only below this nearly invisible speed does extra damping begin
+  PLANET_FINAL_CREEP_FRICTION: 0.94,
+  PLANET_STOP_SPEED: 0.8,         // true zero after the tiny end-of-roll creep
   PLANET_INPUT_UNLOCK_SPEED: 12,  // no new shot while any planet is visibly/still mathematically moving
   SHOT_MIN_LAUNCH_SPEED: 78,      // a tiny repositioning drag does NOT spend a throw
   SHOT_MAX_LAUNCH_SPEED: 3000, // high ceiling so a hard Game throw can feel like a hard free-mode throw
@@ -2579,35 +2581,54 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 </style>
 
 <style id="ge-v20-radio-soul-hud">
-/* Radio moon beacon: tight white pulse plus clearly visible transmission waves.
-   The near wave reaches about 25% beyond the Moon radius; the far wave fades
-   at about 50% beyond it, so the signal reads as active without a huge halo. */
+/* Radio moon beacon: enlarged Autopilot-style glow with irregular live broadcast bursts. */
 .moon{isolation:isolate;}
 .moon img{
-  box-shadow:0 0 4px 1px rgba(255,255,255,.62),0 0 7px 2px rgba(205,236,255,.42)!important;
-  animation:geMoonTightBeacon 2.8s ease-in-out infinite!important;
+  box-shadow:0 0 8px 2px rgba(238,251,255,.68),0 0 16px 4px rgba(126,204,255,.30)!important;
+  animation:geMoonBroadcastCore 6.2s linear infinite!important;
 }
 .moon::before,.moon::after{
-  content:"";position:absolute;inset:1px;border-radius:50%;pointer-events:none;z-index:-1;
-  border:1.4px solid rgba(225,247,255,.88);
-  box-shadow:0 0 3px rgba(150,220,255,.55);
+  content:"";position:absolute;border-radius:50%;pointer-events:none;z-index:-1;
 }
-.moon::before{animation:geMoonBroadcastNear 2.8s ease-out infinite;}
-.moon::after{animation:geMoonBroadcastFar 3.6s ease-out 1.35s infinite;border-color:rgba(175,225,255,.80);}
-@keyframes geMoonTightBeacon{
-  0%,100%{filter:brightness(1.02);box-shadow:0 0 4px 1px rgba(255,255,255,.58),0 0 7px 2px rgba(205,236,255,.38)}
-  48%{filter:brightness(1.18);box-shadow:0 0 6px 2px rgba(255,255,255,.82),0 0 9px 2px rgba(205,236,255,.52)}
-  64%{filter:brightness(1.08);box-shadow:0 0 5px 1.5px rgba(255,255,255,.72),0 0 8px 2px rgba(205,236,255,.44)}
+.moon::before{
+  inset:-20%;
+  background:radial-gradient(circle,rgba(255,255,255,.92) 0 8%,rgba(220,244,255,.48) 29%,rgba(175,226,255,.18) 57%,rgba(255,255,255,0) 77%);
+  filter:blur(3px);
+  box-shadow:0 0 17px rgba(226,247,255,.78),0 0 34px rgba(118,202,255,.34);
+  animation:geMoonBroadcastGlow 6.2s linear infinite;
 }
-@keyframes geMoonBroadcastNear{
-  0%{transform:scale(.98);opacity:.82}
-  68%{opacity:.36}
-  100%{transform:scale(1.25);opacity:0}
+.moon::after{
+  inset:1px;
+  border:1.5px solid rgba(225,248,255,.94);
+  box-shadow:0 0 4px rgba(125,214,255,.68);
+  animation:geMoonBroadcastWave 6.2s linear infinite;
 }
-@keyframes geMoonBroadcastFar{
-  0%{transform:scale(.98);opacity:.76}
-  62%{opacity:.30}
-  100%{transform:scale(1.50);opacity:0}
+@keyframes geMoonBroadcastCore{
+  0%,5%,11%,18%,34%,42%,50%,67%,75%,100%{filter:brightness(1);opacity:.96}
+  7%{filter:brightness(1.36);opacity:1}
+  9%{filter:brightness(1.10);opacity:1}
+  14%{filter:brightness(1.50);opacity:1}
+  16%{filter:brightness(1.14);opacity:1}
+  38%{filter:brightness(1.34);opacity:1}
+  40%{filter:brightness(1.08);opacity:1}
+  46%{filter:brightness(1.53);opacity:1}
+  48%{filter:brightness(1.12);opacity:1}
+  71%{filter:brightness(1.43);opacity:1}
+  73%{filter:brightness(1.08);opacity:1}
+}
+@keyframes geMoonBroadcastGlow{
+  0%,5%,11%,18%,34%,42%,50%,67%,75%,100%{transform:scale(.84);opacity:.22}
+  7%,14%,38%,46%,71%{transform:scale(1.26);opacity:.98}
+  9%,16%,40%,48%,73%{transform:scale(.96);opacity:.44}
+}
+@keyframes geMoonBroadcastWave{
+  0%,6%,12%,35%,43%,68%,76%,100%{transform:scale(.98);opacity:0}
+  7%,38%,71%{transform:scale(1.02);opacity:.90}
+  11%,42%,75%{transform:scale(1.50);opacity:0}
+  14%{transform:scale(1.02);opacity:.86}
+  18%{transform:scale(1.28);opacity:0}
+  46%{transform:scale(1.02);opacity:.92}
+  50%{transform:scale(1.34);opacity:0}
 }
 
 /* Active Soul/Body energy stays completely inside the white score marble. */
@@ -2670,6 +2691,22 @@ body.autopilot-calm #sunWrap{opacity:.82!important}
 body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:0 0 18px rgba(120,205,255,.2)}
 @media (max-width:520px){#autopilotHUD{top:10px;left:10px;right:10px;align-items:flex-start}.autoStatus{max-width:35vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#autopilotHUD button{padding:7px 9px}.autoDisplayGrid{grid-template-columns:1fr 1fr}.autoPanel{padding:18px}.autoTransport button{min-height:64px}.autoTransport #autopilotMusicPlay{min-height:76px}}
 </style>
+
+<style id="ge-v21-game-polish">
+/* Score numerals: one restrained step larger without crowding the Soul circles. */
+body.game-mode-active #gameScoreCluster[data-players="1"] .playerDot{font-size:17px!important;}
+body.game-mode-active #gameScoreCluster[data-players="2"] .playerDot{font-size:15px!important;}
+body.game-mode-active #gameScoreCluster[data-players="3"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="4"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="5"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="6"] .playerDot{font-size:11px!important;}
+
+/* Album art stays left; title and PLAY ALBUM stay together in the right text column. */
+#albumScan .albumScanTop{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;}
+#albumScan .albumScanTop>div:last-child{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;}
+#albumScan .albumScanListen{align-self:flex-start!important;margin-top:7px!important;margin-bottom:3px!important;}
+</style>
+
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -2841,7 +2878,7 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
           <div style="margin-bottom:8px"><b>STORY / UNIVERSE VIEWING:</b> Normal mode is the free-form Grand Element universe. Change the dimensional background, move through the scene, interact with the Sun, planets, ships, souls/comets, hidden text and music without having to play the arcade game.</div>
           <ul>
             <li><b>Blue Sun</b>: "Click" Teleport to another dimension. Move wherever you want.</li>
-            <li><b>Album Planets</b>: Tap once to zoom and reveal the album name. Tap the zoomed planet again for the futuristic album analysis and Bandcamp link. Drag/throw for free-space planet physics.</li>
+            <li><b>Album Planets</b>: Tap once to enlarge the planet and open its album information. Drag/throw for free-space planet physics.</li>
             <li><b>GE Soul particles (Comets)</b>: Continuous random flow. Click and throw. Similar apparent sizes can enter quantum reactions; rare souls have larger interaction fields.</li>
             <li><b>GE Bodies (Ships)</b>: The large center target is touch-friendly: one tap stops/starts the ship, two taps broadcast expanding radio-frequency waves and call responsive souls toward the ship, and three taps trigger the quantum reaction. The first captured soul can settle in the ship center while additional souls orbit outside. Press and hold the small ray control at the rear of the ship to keep the ray on, then sweep your finger through 360°; the ship center remains reserved for one tap, two tap broadcast and three tap quantum control, while the surrounding field steers.</li>
             <li><b>Hidden text</b>: Appears near cursor, and randomly on its own; click to pin/unpin.</li>
@@ -3085,7 +3122,7 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
             <div class="geComputerModes">
               <label class="computerOpponentOption geComputerOption"><span>PLAY THE BODY</span><input type="checkbox" id="optComputerOpponent"></label>
               <button class="gameButton geComputerOnlyBtn" id="computerOnlyBtn" type="button">THE BODY PLAYS · 0 SOULS</button>
-              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">EASY</option><option value="normal" selected>NORMAL</option><option value="hard">HARD</option><option value="master">MASTER</option></select></label>
+              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">BABY</option><option value="normal" selected>ADOLESCENT</option><option value="hard">ADULT</option><option value="master">MASTER</option></select></label>
             </div>
             <div class="small" id="computerOpponentHelp">1 Soul + The Body, or let The Body play by itself.</div>
           </div>
@@ -3592,8 +3629,8 @@ function placePlanets(){
     }
     aEl._geCloseAlbumBio=()=>{previewLocked=false;previewReady=false;aEl.classList.remove('albumBioOpen');endPreview();};
 
-    // Normal-site album interaction is tap-only: first tap enlarges, second tap (after full enlargement) opens the bio.
-    // Merely moving a finger across a planet does nothing. Dragging is reserved for the Game Mode invitation.
+    // Normal-site album interaction: one clean tap/click both enlarges the planet and opens its bio.
+    // A real drag still suppresses the popup.
     let downPos=null, dragged=false, openAnalysisOnRelease=false;
     aEl.addEventListener('pointerdown',e=>{
       downPos={x:e.clientX,y:e.clientY}; dragged=false;
@@ -3610,12 +3647,9 @@ function placePlanets(){
       if(document.body.classList.contains('game-mode-active')){e.preventDefault();e.stopImmediatePropagation();return;}
       e.preventDefault();
       if(dragged){e.stopPropagation();endPreview();openAnalysisOnRelease=false;return;}
-      if(openAnalysisOnRelease){
-        lockBio();
-        window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
-      }else if(!aEl.classList.contains('previewZoom')){
-        beginPreview();
-      }
+      if(!aEl.classList.contains('previewZoom'))beginPreview();
+      lockBio();
+      window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
       openAnalysisOnRelease=false;
     });
 
@@ -6527,10 +6561,16 @@ function planetStep(){
         planetFriction=Math.max(.94,Math.min(.9985,planetFriction));
       }
     }
-    // Natural roll: one friction curve from launch to rest. No special final-5% brake layer.
+    // Keep the full visible roll natural. Only the last practically invisible creep gets extra damping.
     p.vx*=planetFriction;p.vy*=planetFriction;
-    const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? 0.5);
-    if(Math.hypot(p.vx,p.vy)<planetStopSpeed){p.vx=0;p.vy=0;p._launchSpeed=0;}
+    let planetSpeed=Math.hypot(p.vx,p.vy);
+    const creepSpeed=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_SPEED ?? 8);
+    if(planetSpeed>0&&planetSpeed<creepSpeed){
+      const creepFriction=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_FRICTION ?? .94);
+      p.vx*=creepFriction;p.vy*=creepFriction;planetSpeed=Math.hypot(p.vx,p.vy);
+    }
+    const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? .8);
+    if(planetSpeed<planetStopSpeed){p.vx=0;p.vy=0;p._launchSpeed=0;}
 
     const wallRest=gameActive?(Number(window.GE_GAME?.state?.wallBounce)||.98):.98;
     const marblesMode=gameActive&&window.GE_GAME?.state?.gameType==='marbles';
@@ -6974,7 +7014,7 @@ const GE_GAME = (()=>{
     }
   }
   function previewBall(n,left,top,extra='',dx='0px',dy='0px'){return `<i class="gePreviewBall ${extra}" data-n="${n}" style="left:${left}%;top:${top}%;--pdx:${dx};--pdy:${dy}"></i>`;}
-  function previewSun(left=62,top=38,extra=''){return `<i class="gePreviewSun ${extra}" style="left:${left}%;top:${top}%"></i>`;}
+  function previewSun(left=62,top=38,extra='',dx='0px',dy='0px'){return `<i class="gePreviewSun ${extra}" style="left:${left}%;top:${top}%;--pdx:${dx};--pdy:${dy}"></i>`;}
   function renderGamePreview(kind,step=0,playing=false){
     if(!gePreviewBoard||!gePreviewCaption)return;
     const category=(kind==='blueSun'||kind==='throw'||kind==='rubber')?'points':((kind==='blueSunPool'||kind==='ninePlanet')?'pockets':((kind==='marbles')?'planets':kind));
@@ -6988,11 +7028,29 @@ const GE_GAME = (()=>{
       caption=step===0?'SHOT: one selected album planet moves. The Blue Sun stays fixed.':step===1?'CONTACT: a planet hit is 2 points total; banks count only when BANKS is enabled.':'SUN: reaching the Blue Sun scores only when BLUE SUN is enabled. Score bubbles and point circles are optional.';
     }else if(category==='pockets'&&state.gameType==='ninePlanet'){
       html+='<i class="gePreviewPocketDot" style="left:-5%;top:-8%"></i><i class="gePreviewPocketDot" style="right:-5%;top:-8%"></i><i class="gePreviewPocketDot" style="left:-5%;bottom:-8%"></i><i class="gePreviewPocketDot" style="right:-5%;bottom:-8%"></i><i class="gePreviewPocketDot" style="left:43.5%;top:-8%"></i><i class="gePreviewPocketDot" style="left:43.5%;bottom:-8%"></i>';
-      const cueClass=playing&&step===0?'previewCueStrike':'';html+=previewSun(45,8,cueClass);
-      const pos={1:[45,28],2:[40,39],3:[50,39],4:[35,50],9:[45,50],6:[55,50],7:[40,61],8:[50,61],5:[45,72]};
-      const vec={1:['-20px','34px'],2:['-52px','10px'],3:['45px','8px'],4:['-68px','-16px'],9:['8px','25px'],6:['58px','-10px'],7:['-42px','42px'],8:['44px','38px'],5:['14px','46px']};
-      for(const [n,p] of Object.entries(pos)){let cls='';if(playing&&step===0)cls='previewScatter';if(playing&&step===1&&n==='1')cls='previewPocketMove';html+=previewBall(n,p[0],p[1],cls,...(step===1&&n==='1'?['-80px','-55px']:vec[n]));}
-      caption=step===0?'BREAK: the Blue Sun reaches the 1 first; the rack moves only after contact.':step===1?'PLAY: hit the lowest numbered planet first. A legal pocket keeps the Soul at the table.':'SCRATCH: ball in hand. Double tap the Blue Sun to pick it up, move it, then double tap to set it.';
+      if(step===0){
+        html+=previewSun(45,12,playing?'previewCueStrike':'','0px','38px');
+        const pos={1:[45,30],2:[40,40],3:[50,40],4:[35,51],9:[45,51],6:[55,51],7:[40,62],8:[50,62],5:[45,73]};
+        const vec={1:['-18px','31px'],2:['-48px','8px'],3:['43px','8px'],4:['-63px','-15px'],9:['7px','23px'],6:['53px','-9px'],7:['-38px','37px'],8:['40px','34px'],5:['13px','41px']};
+        for(const [n,p] of Object.entries(pos))html+=previewBall(n,p[0],p[1],playing?'previewScatter':'',...vec[n]);
+        caption='BREAK: drive the Blue Sun through the 1 and open the rack.';
+      }else if(step===1){
+        html+=previewSun(58,66,playing?'previewCueStrike':'','-27px','-31px');
+        const pos={1:[35,38],2:[57,43],3:[69,58],4:[28,63],9:[48,55],6:[73,32],7:[38,70],8:[62,72],5:[78,52]};
+        for(const [n,p] of Object.entries(pos)){
+          if(n==='1')html+=previewBall(n,p[0],p[1],playing?'previewPocketMove':'','-72px','-52px');
+          else html+=previewBall(n,p[0],p[1]);
+        }
+        caption='1 BALL: hit the lowest numbered planet first and pocket the 1. A made ball keeps your turn.';
+      }else{
+        html+=previewSun(34,64,playing?'previewCueStrike':'','25px','-24px');
+        const pos={2:[57,43],3:[69,58],4:[28,63],9:[48,55],6:[73,32],7:[38,70],8:[62,72],5:[78,52]};
+        for(const [n,p] of Object.entries(pos)){
+          if(n==='2')html+=previewBall(n,p[0],p[1],playing?'previewPocketMove':'','72px','-48px');
+          else html+=previewBall(n,p[0],p[1]);
+        }
+        caption='2 BALL: after the 1 is down, the 2 becomes the next target. Pocket it and the preview is complete.';
+      }
     }else if(category==='pockets'){
       html+='<i class="gePreviewCenterHole"></i>';
       const cueClass=playing&&step===0?'previewCueStrike':'';html+=previewSun(45,82,cueClass);
@@ -7696,7 +7754,7 @@ const GE_GAME = (()=>{
     const cue=poolCueNode();if(cue){
       const first=poolAlbumNode(1);
       if(!nine&&first){bluePool.cueStart=landscape?{x:(b.left+cue.r+first.x)/2,y:first.y}:{x:first.x,y:(b.bottom-cue.r+first.y)/2};}
-      else{bluePool.cueStart=landscape?{x:b.left+pw*.18,y:centerY}:{x:centerX,y:b.bottom-ph*.14};}
+      else{bluePool.cueStart=landscape?{x:b.left+pw*.25,y:centerY}:{x:centerX,y:b.bottom-ph*.22};}
       cue.x=bluePool.cueStart.x;cue.y=bluePool.cueStart.y;cue.vx=0;cue.vy=0;cue.poolPocketed=false;cue.el.classList.remove('poolPocketed');poolSyncNode(cue);
     }
     poolKeepCueVisible();
@@ -7710,7 +7768,9 @@ const GE_GAME = (()=>{
     requestAnimationFrame(()=>{
       poolEnsureCue();buildPlanetPhysics();
       const b=getPlanetPlayBounds(),newW=Math.max(1,b.right-b.left),newH=Math.max(1,b.bottom-b.top),landscape=newW>=newH;
-      bluePool.cueStart=landscape?{x:b.left+newW*.18,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.14};
+      bluePool.cueStart=isNinePlanet()
+        ? (landscape?{x:b.left+newW*.25,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.22})
+        : (landscape?{x:b.left+newW*.18,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.14});
       for(const p of planetNodes){
         const old=snapshot.get(p.el);
         if(old){
@@ -8136,7 +8196,7 @@ const GE_GAME = (()=>{
     if(state.players<1){state.players=1;state.scores=[0];state.throwCounts=[0];state.turnProgress=[0];state.activePlayer=0;}
     state.demoAwaitingPlayers=false;document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');setOptionsView('basic');updatePlayerOption();syncBasicGameCards();showGameHub();optionsPanel.classList.add('show');flash('NEW GAME · CHOOSE A GAME');
   }
-  newBtn?.addEventListener('click',openNewGameSetup);
+  newBtn?.addEventListener('click',()=>{newGame(false);});
   document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>{if(newGame(false))optionsPanel.classList.remove('show');});
   addEventListener('pagehide',saveGameStateNow);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGameStateNow();});
@@ -9028,22 +9088,36 @@ const GE_GAME = (()=>{
   function aiDifficultyProfile(){
     const key=['easy','normal','hard','master'].includes(state.computerDifficulty)?state.computerDifficulty:'normal';
     return ({
-      easy:{aimError:.070,speedJitter:.18,scoreBanks:0,poolBanks:0,thinkMin:900,thinkMax:1450,mistake:.24},
-      normal:{aimError:.028,speedJitter:.10,scoreBanks:1,poolBanks:1,thinkMin:780,thinkMax:1280,mistake:.08},
-      hard:{aimError:.011,speedJitter:.05,scoreBanks:2,poolBanks:2,thinkMin:700,thinkMax:1180,mistake:.025},
-      master:{aimError:.0045,speedJitter:.018,scoreBanks:3,poolBanks:2,thinkMin:620,thinkMax:1050,mistake:0}
+      // Stored keys remain easy/normal/hard/master so existing saved settings keep working.
+      easy:{label:'BABY',aimError:.090,speedJitter:.22,scoreBanks:0,poolBanks:0,thinkMin:980,thinkMax:1550,mistake:.32,pointsSpeed:980,chaos:false},
+      normal:{label:'ADOLESCENT',aimError:.040,speedJitter:.13,scoreBanks:1,poolBanks:1,thinkMin:820,thinkMax:1320,mistake:.13,pointsSpeed:1450,chaos:false},
+      hard:{label:'ADULT',aimError:.014,speedJitter:.055,scoreBanks:2,poolBanks:2,thinkMin:690,thinkMax:1140,mistake:.035,pointsSpeed:2050,chaos:false},
+      master:{label:'MASTER',aimError:.006,speedJitter:.025,scoreBanks:4,poolBanks:2,thinkMin:520,thinkMax:880,mistake:0,pointsSpeed:2925,chaos:true}
     })[key];
   }
+  function aiLineTraffic(p,tx,ty){
+    const dx=tx-p.x,dy=ty-p.y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len;
+    let hits=0,near=0;
+    for(const q of planetNodes){
+      if(!q||q===p||q.dragging||q.poolPocketed)continue;
+      const rx=q.x-p.x,ry=q.y-p.y,t=rx*ux+ry*uy;
+      if(t<=0||t>=Math.min(len,Math.hypot(innerWidth,innerHeight)*1.35))continue;
+      const px=p.x+ux*t,py=p.y+uy*t,d=Math.hypot(q.x-px,q.y-py),hitR=(p.r||8)+(q.r||8)+4;
+      if(d<=hitR)hits+=1;else if(d<=hitR*2.25)near+=1;
+    }
+    return hits*2+near*.35;
+  }
   function aiBestSunPlan(p,sx,sy,b){
-    let best=null;const maxBanks=aiDifficultyProfile().scoreBanks;
+    let best=null;const skill=aiDifficultyProfile(),maxBanks=skill.scoreBanks;
     for(let ix=-2;ix<=2;ix++)for(let iy=-2;iy<=2;iy++){
       const banks=Math.abs(ix)+Math.abs(iy);if(banks>maxBanks)continue;
       const tx=aiMirrorCoord(sx,b.left,b.right,ix),ty=aiMirrorCoord(sy,b.top,b.bottom,iy),dx=tx-p.x,dy=ty-p.y,dist=Math.hypot(dx,dy);if(dist<1)continue;
-      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0);
-      if(!aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20))continue;
-      // More banks are worth more in Planet Game, but reliability still matters.
-      const score=banks*420-dist*.08+(banks===2?110:0)+(banks===1?60:0);
-      if(!best||score>best.score)best={tx,ty,dist,banks,score};
+      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0),clear=aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20);
+      // Master deliberately seeks traffic and banks so one hard shot can create many secondary contacts.
+      if(!clear&&!skill.chaos)continue;
+      const traffic=skill.chaos?aiLineTraffic(p,tx,ty):0;
+      const score=banks*420-dist*.08+(banks===2?110:0)+(banks===1?60:0)+(skill.chaos?traffic*720+(clear?0:480):0);
+      if(!best||score>best.score)best={tx,ty,dist,banks,traffic,score};
     }
     return best;
   }
@@ -9123,9 +9197,17 @@ const GE_GAME = (()=>{
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();if(!sunRect||!candidates.length)return;const b=getPlanetPlayBounds(),sx=sunRect.left+sunRect.width/2,sy=sunRect.top+sunRect.height/2;
     let best=null;
     for(const p of candidates){const plan=aiBestSunPlan(p,sx,sy,b);if(plan&&(!best||plan.score>best.plan.score))best={p,plan};}
-    if(!best||Math.random()<skill.mistake){const p=choice(candidates);if(!p)return;aiLaunch(p,sx,sy,760,'direct-recovery');return;}
+    if(!best||Math.random()<skill.mistake){
+      const p=choice(candidates);if(!p)return;
+      const recoverySpeed=skill.chaos?Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,skill.pointsSpeed||2925):Math.max(620,skill.pointsSpeed||760);
+      aiLaunch(p,sx,sy,recoverySpeed,skill.chaos?'master-chaos-recovery':'direct-recovery');return;
+    }
     const p=best.p,plan=best.plan;let ps=state.planetState.get(p)||{vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0};ps.owner=cpuTurn?1:0;ps.banks=0;ps.scored=false;ps.armed=true;ps.inSun=false;state.planetState.set(p,ps);
-    const speed=Math.min(1450,Math.max(620,540+plan.dist*.46+plan.banks*105));aiLaunch(p,plan.tx,plan.ty,speed,`smart-${plan.banks}bank`);
+    const normalSpeed=Math.min(skill.pointsSpeed||1450,Math.max(620,540+plan.dist*.46+plan.banks*105));
+    const speed=skill.chaos
+      ? Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,Math.max(2700,(skill.pointsSpeed||2925)+plan.banks*18+(plan.traffic||0)*10))
+      : normalSpeed;
+    aiLaunch(p,plan.tx,plan.ty,speed,skill.chaos?`master-chaos-${plan.banks}bank`:`smart-${plan.banks}bank`);
   }
 
   function scoreLoop(){
