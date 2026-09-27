@@ -195,6 +195,8 @@ MIXER_DEFAULTS = {
     "music_level": 1.0,
     "music_under_voice": 0.45,
     "music_muted": False,
+    "direct_level": 1.0,
+    "master_level": 1.0,
 }
 
 def clamp_number(value, low, high, fallback):
@@ -209,6 +211,8 @@ def mixer_state():
         "music_level": clamp_number(raw.get("music_level", 1.0), 0.0, 1.25, 1.0),
         "music_under_voice": clamp_number(raw.get("music_under_voice", 0.45), 0.0, 1.0, 0.45),
         "music_muted": bool(raw.get("music_muted", False)),
+        "direct_level": clamp_number(raw.get("direct_level", 1.0), 0.0, 1.5, 1.0),
+        "master_level": clamp_number(raw.get("master_level", 1.0), 0.0, 1.25, 1.0),
     }
 
 def mixer_zmq_command(target, command, value):
@@ -234,6 +238,8 @@ def apply_mixer_state(state):
     duck_mix = 1.0 - float(state.get("music_under_voice", 0.45))
     mixer_zmq_command("volume@musicgain", "volume", f"{effective_music:.4f}")
     mixer_zmq_command("sidechaincompress@duck", "mix", f"{duck_mix:.4f}")
+    mixer_zmq_command("volume@directgain", "volume", f"{float(state.get('direct_level', 1.0)):.4f}")
+    mixer_zmq_command("volume@mastergain", "volume", f"{float(state.get('master_level', 1.0)):.4f}")
 
 class BroadcastEngine:
     SAMPLE_RATE = 48000
@@ -932,6 +938,10 @@ class Handler(BaseHTTPRequestHandler):
                     state["music_under_voice"] = clamp_number(body.get("music_under_voice"), 0.0, 1.0, state["music_under_voice"])
                 if "music_muted" in body:
                     state["music_muted"] = bool(body.get("music_muted"))
+                if "direct_level" in body:
+                    state["direct_level"] = clamp_number(body.get("direct_level"), 0.0, 1.5, state["direct_level"])
+                if "master_level" in body:
+                    state["master_level"] = clamp_number(body.get("master_level"), 0.0, 1.25, state["master_level"])
                 apply_mixer_state(state)
                 write_json(MIXER_SETTINGS, state)
                 self.json_response({"ok": True, "mixer": state})
