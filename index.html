@@ -2707,6 +2707,13 @@ body.game-mode-active #gameScoreCluster[data-players="6"] .playerDot{font-size:1
 #albumScan .albumScanListen{align-self:flex-start!important;margin-top:7px!important;margin-bottom:3px!important;}
 </style>
 
+
+<style id="ge-v21-score-nine-polish">
+/* Make the score itself one pixel easier to read without enlarging the marble. */
+#gameHUD .playerDot{font-size:11px!important}
+/* 9 Ball already has a readable main target display; keep tiny duplicate tags off the score marbles. */
+body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
+</style>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -3122,7 +3129,7 @@ body.game-mode-active #gameScoreCluster[data-players="6"] .playerDot{font-size:1
             <div class="geComputerModes">
               <label class="computerOpponentOption geComputerOption"><span>PLAY THE BODY</span><input type="checkbox" id="optComputerOpponent"></label>
               <button class="gameButton geComputerOnlyBtn" id="computerOnlyBtn" type="button">THE BODY PLAYS · 0 SOULS</button>
-              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">BABY</option><option value="normal" selected>ADOLESCENT</option><option value="hard">ADULT</option><option value="master">MASTER</option></select></label>
+              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY LEVEL</span><select id="optComputerDifficulty"><option value="easy">BABY</option><option value="normal" selected>ADOLESCENT</option><option value="hard">ADULT</option><option value="master">MASTER</option></select></label>
             </div>
             <div class="small" id="computerOpponentHelp">1 Soul + The Body, or let The Body play by itself.</div>
           </div>
@@ -7490,10 +7497,10 @@ const GE_GAME = (()=>{
         const dot=document.createElement('span');dot.className='turnDot '+(d>=used?'remaining':'used');dots.appendChild(dot);
       }
       stack.appendChild(dots);
-      if(isBlueSunGame()){
+      if(isBlueSunPool()){
         const target=document.createElement('div');target.className='poolTargetMini';
-        const targetText=isNinePlanet()&&state.nineRules==='points'?'ANY':String((i===state.activePlayer)?Math.min(poolTargetCap(),bluePool.next):1);
-        target.textContent='→'+targetText;target.title=targetText==='ANY'?'Any numbered planet':'Target planet '+targetText;stack.appendChild(target);
+        const targetText=String((i===state.activePlayer)?Math.min(poolTargetCap(),bluePool.next):1);
+        target.textContent='→'+targetText;target.title='Target planet '+targetText;stack.appendChild(target);
       }
       const throws=state.throwCounts?.[i]||0;
       if(state.players>0){const tc=document.createElement('div');tc.className='throwCountMini';tc.textContent='THR '+String(throws);stack.appendChild(tc);}
