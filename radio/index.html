@@ -405,65 +405,78 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 .soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
 #reflectionControls{width:min(94%,760px)!important;display:grid!important;grid-template-columns:1fr 1fr 1fr 1fr!important;gap:8px!important}
 #arrivalPostBtn:disabled{opacity:.38!important;pointer-events:none!important}
-
-/* GE Inner Horizon compact, viewport-safe composer */
-#arrivalSend{display:none!important}
-#shipArrivalContact{
-  box-sizing:border-box;overflow:auto;overscroll-behavior:contain;
-  width:min(760px,calc(100vw - 24px))!important;
-  max-width:calc(100vw - 24px)!important;
-  max-height:calc(100dvh - 24px)!important;
-  padding:12px 14px max(12px,env(safe-area-inset-bottom))!important;
-  resize:both;
+#geGate{position:fixed;inset:0;z-index:1000000;display:none;overflow:hidden;background:transparent;color:#effbff;isolation:isolate;touch-action:none}
+#geGate.open{display:block}
+#geGateBackdrop{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:transparent;
+  -webkit-backdrop-filter:blur(0px) saturate(1);
+  backdrop-filter:blur(0px) saturate(1);
 }
-#shipArrivalContact h2{margin:0 0 2px!important}
-#shipArrivalContact .arrival-sub{margin:0 0 8px!important;line-height:1.2}
-.arrival-compose-wrap{display:block;min-height:0}
-#arrivalComment{box-sizing:border-box;width:100%;min-height:92px;max-height:34dvh;resize:vertical!important}
-#arrivalExpand{display:none!important}
-.arrival-identity{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:6px 0}
-.arrival-identity input{box-sizing:border-box;width:100%;min-height:38px}
-.arrival-options{display:flex!important;flex-wrap:wrap;gap:7px 16px!important;margin:7px 0!important;align-items:center}
-.arrival-options label{white-space:nowrap}
-#arrivalEmailWrap{margin:5px 0!important}
-#arrivalEmailWrap input{box-sizing:border-box;width:100%;min-height:38px}
-.arrival-save-note{font-size:11px!important;line-height:1.2;margin:5px 0!important}
-#shipArrivalContact .arrival-actions{
-  position:sticky;bottom:0;z-index:5;display:flex!important;flex-wrap:wrap!important;
-  gap:6px!important;padding:8px 0 2px!important;
-  background:linear-gradient(180deg,rgba(2,12,24,0),rgba(2,12,24,.97) 24%)!important;
+#geGateBackdrop::after{
+  content:'';position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;
 }
-#shipArrivalContact .arrival-actions button,#shipArrivalContact .arrival-actions a{min-height:36px!important;padding:6px 10px!important;font-size:12px!important;white-space:nowrap}
-#arrivalStatus{min-height:1.2em;margin-top:5px}
-@media(max-width:700px){
- #shipArrivalContact{width:calc(100vw - 12px)!important;max-width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;padding:9px 10px!important;border-radius:14px;resize:none}
- #shipArrivalContact h2{font-size:18px!important}.arrival-sub{font-size:11px!important}
- #arrivalComment{min-height:74px;max-height:25dvh}
- .arrival-options{font-size:11px!important;gap:5px 10px!important}
- #shipArrivalContact .arrival-actions{display:grid!important;grid-template-columns:1fr 1fr!important}
- #shipArrivalContact .arrival-actions button,#shipArrivalContact .arrival-actions a{width:100%!important;min-width:0!important;white-space:normal!important;line-height:1.05}
+/* Focus goes softer early, but the black dimmer takes the entire approach to build. */
+#geGate.blurring #geGateBackdrop{
+  animation:geGateBlurBuild var(--ge-gate-blur-build,16s) ease-in-out forwards;
 }
-@media(orientation:landscape) and (max-height:620px){
- #shipArrivalContact{width:min(820px,calc(100vw - 12px))!important;max-height:calc(100dvh - 10px)!important;padding:7px 10px!important}
- #shipArrivalContact h2{font-size:17px!important}.arrival-sub{font-size:10px!important;margin-bottom:4px!important}
- #arrivalComment{min-height:58px;max-height:21dvh}
- .arrival-identity{margin:4px 0}.arrival-identity input,#arrivalEmailWrap input{min-height:31px!important;padding:4px 8px!important}
- .arrival-options{margin:4px 0!important;font-size:10px!important}
- .arrival-save-note{display:none!important}
- #shipArrivalContact .arrival-actions{grid-template-columns:repeat(3,1fr)!important;padding-top:5px!important}
- #shipArrivalContact .arrival-actions button,#shipArrivalContact .arrival-actions a{min-height:30px!important;padding:4px 5px!important;font-size:10px!important}
+#geGate.blurring #geGateBackdrop::after{
+  animation:geGateDimBuild var(--ge-gate-dim-build,86s) linear forwards;
 }
-
-/* Restored Gate test surface */
-#geGate{position:fixed;inset:0;z-index:12000;display:none;overflow:hidden;background:rgba(0,5,15,.18);backdrop-filter:blur(0);transition:backdrop-filter 3s ease,background 3s ease}
-#geGate.open{display:block}#geGate.blurring{backdrop-filter:blur(9px);background:rgba(0,8,20,.28)}
-#geGateWater{position:absolute;inset:-8%;opacity:0;pointer-events:none;background:radial-gradient(circle at 50% 50%,transparent 0 28%,rgba(76,190,255,.08) 30%,transparent 34%,rgba(76,190,255,.07) 38%,transparent 44%);transform:scale(.8);transition:opacity 3s ease;animation:geGateWater 7s ease-in-out infinite}
-#geGate.water #geGateWater{opacity:1}@keyframes geGateWater{50%{transform:scale(1.18) rotate(.5deg)}}
-#geGateSun{position:absolute;left:50%;top:50%;width:min(100dvh,100vw);height:min(100dvh,100vw);transform:translate(145vw,-50%) scale(.82);transition:transform 40s cubic-bezier(.18,.72,.16,1);filter:drop-shadow(0 0 35px rgba(80,180,255,.5));object-fit:contain}
-#geGate.sun-moving #geGateSun{transform:translate(-50%,-50%) scale(1)}
-#geGatePanel{position:absolute;left:50%;top:63%;transform:translate(-50%,18px);width:min(430px,82vw);box-sizing:border-box;padding:10px;border-radius:16px;border:1px solid rgba(94,205,255,.42);background:rgba(1,12,25,.76);color:#effbff;text-align:center;opacity:0;pointer-events:none;transition:opacity 1.2s ease,transform 1.2s ease}
+@keyframes geGateBlurBuild{
+  0%{-webkit-backdrop-filter:blur(.2px) saturate(1);backdrop-filter:blur(.2px) saturate(1)}
+  16%{-webkit-backdrop-filter:blur(2.2px) saturate(1.02);backdrop-filter:blur(2.2px) saturate(1.02)}
+  28%{-webkit-backdrop-filter:blur(1.2px) saturate(1.01);backdrop-filter:blur(1.2px) saturate(1.01)}
+  45%{-webkit-backdrop-filter:blur(5px) saturate(1.04);backdrop-filter:blur(5px) saturate(1.04)}
+  58%{-webkit-backdrop-filter:blur(3.2px) saturate(1.03);backdrop-filter:blur(3.2px) saturate(1.03)}
+  76%{-webkit-backdrop-filter:blur(9px) saturate(1.06);backdrop-filter:blur(9px) saturate(1.06)}
+  88%{-webkit-backdrop-filter:blur(7px) saturate(1.05);backdrop-filter:blur(7px) saturate(1.05)}
+  100%{-webkit-backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07);backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07)}
+}
+@keyframes geGateDimBuild{
+  0%{opacity:0}
+  28%{opacity:.035}
+  48%{opacity:.10}
+  68%{opacity:.22}
+  84%{opacity:.42}
+  100%{opacity:var(--ge-gate-dim,.75)}
+}
+#geGateWaves{position:absolute;left:50%;top:50%;width:min(74vmin,720px);aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;z-index:1;opacity:0;transition:opacity var(--ge-gate-wave-rise,10s) ease-in}
+#geGate.waves #geGateWaves{opacity:1}
+#geGate.centered #geGateWaves{opacity:0}
+#geGateWaves::before,#geGateWaves::after{content:'';position:absolute;inset:-12%;border-radius:50%;pointer-events:none;opacity:.64;border:2px solid rgba(98,205,255,.20);box-shadow:0 0 32px rgba(31,163,255,.22);animation:geGatePulse 4.8s ease-out infinite;animation-play-state:paused}
+#geGate.waves #geGateWaves::before,#geGate.waves #geGateWaves::after{animation-play-state:running}
+#geGateWaves::after{inset:-25%;opacity:.34;animation-delay:1.5s;animation-duration:6.2s}
+@keyframes geGatePulse{0%{transform:scale(.88);opacity:.10}48%{opacity:.55}100%{transform:scale(1.18);opacity:0}}
+#geGateSunWrap{position:absolute;left:50%;top:50%;height:100svh;width:100svh;max-width:none;max-height:none;transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+#geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 5svh rgba(20,152,255,.60),0 0 12svh rgba(0,104,255,.42),0 0 22svh rgba(0,87,255,.24);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
+#geGatePanel{position:absolute;z-index:5;left:50%;top:64%;bottom:auto;transform:translate(-50%,18px);width:min(430px,82vw);max-width:82vw;padding:10px 11px 10px;border-radius:16px;border:1px solid rgba(94,205,255,.38);background:rgba(1,12,25,.69);box-shadow:0 12px 34px rgba(0,0,0,.42),0 0 22px rgba(34,161,255,.12);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center}
 #geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
-#geGateEntry{display:grid;grid-template-columns:1fr auto;gap:7px}#geGateWord{min-width:0;min-height:40px;border-radius:10px;border:1px solid rgba(91,202,255,.5);background:rgba(0,5,13,.78);color:white;text-align:center;font-size:16px;letter-spacing:.12em}#geGateEnter,#geGateHint,#geGateEmail{min-height:38px}#geGateHintText{margin:7px 0;font-size:16px;font-weight:700}#geGateStatus{font-size:12px;margin:5px 0}.gate-help-row{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:7px}.gate-help-row a{color:#fff}
+#geGateTitle{font-size:clamp(17px,4vw,23px);font-weight:850;letter-spacing:.04em;margin:0 0 6px}
+#geGateStatus{min-height:1.15em;margin:0 0 7px;font-size:clamp(11px,2.8vw,13px);opacity:.84}
+#geGateEntry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;justify-content:center}
+#geGateWord{width:100%;min-width:0;min-height:42px;border:1px solid rgba(91,202,255,.48);border-radius:11px;background:rgba(0,5,13,.70);color:#f4fbff;padding:8px 10px;text-align:center;font:700 16px/1.2 system-ui;outline:none;letter-spacing:.12em}
+#geGateWord:focus{border-color:rgba(114,229,255,.92);box-shadow:0 0 16px rgba(62,190,255,.22)}
+#geGateEnter,#geGateHint{min-height:42px;border-color:rgba(72,195,255,.56);background:rgba(7,45,75,.74);color:#f2fbff}
+#geGateHint{margin:8px auto 0;min-height:36px;padding:6px 12px;font-size:13px}
+#geGateHintText{min-height:1.4em;margin:8px 0 0;font-size:clamp(17px,4.25vw,22px);font-weight:750;line-height:1.25;color:#e8f9ff;text-shadow:0 2px 8px #000}
+#geGateHelp{display:none;margin-top:8px;font-size:13px;color:#d9f4ff}
+#geGateHelp.show{display:block}#geGateEmail{min-height:36px;padding:6px 12px;border-color:rgba(72,195,255,.56);background:rgba(7,45,75,.74);color:#f2fbff;font-weight:800}
+#geGate.wrong #geGateWord{animation:geGateNudge .34s ease}@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,24px)!important}
+#geGate.unlocking #geGateWaves{opacity:0!important}
+#geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
+#geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
+@media(max-width:560px){#geGatePanel{top:63%;width:min(390px,80vw);max-width:80vw;padding:9px}#geGateHintText{font-size:clamp(18px,4.8vw,22px)}}
+@media(orientation:landscape) and (max-height:620px){#geGatePanel{top:60%;width:min(460px,58vw);max-width:58vw;padding:7px 9px}#geGateTitle{font-size:17px}#geGateHintText{font-size:16px}}
+@media(prefers-reduced-motion:reduce){#geGateWaves::before,#geGateWaves::after{animation:none}
+#geGateAccessForm{display:none;margin-top:10px;padding-top:9px;border-top:1px solid rgba(94,205,255,.24)}
+#geGateAccessForm.show{display:block}
+#geGateAccessName,#geGateAccessEmail,#geGateAccessMessage{width:100%;box-sizing:border-box;border:1px solid rgba(91,202,255,.48);border-radius:10px;background:rgba(0,5,13,.70);color:#f4fbff;padding:8px 10px;font:600 13px/1.3 system-ui;outline:none;margin:4px 0}
+#geGateAccessMessage{min-height:68px;resize:vertical}
+#geGateAccessSend{margin-top:5px;min-height:38px;border-color:rgba(72,195,255,.56);background:rgba(7,45,75,.74);color:#f2fbff}
+#geGateAccessResult{min-height:1.2em;margin-top:6px;font-size:12px;color:#d9f4ff}
+
 </style>
 
 <style id="ge-rebuild-07-safe-layout">
@@ -472,11 +485,34 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 </style>
 </head>
 <body>
+<div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
+  <div id="geGateBackdrop"></div>
+  <div id="geGateWaves" aria-hidden="true"></div>
+  <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
+  <section id="geGatePanel" aria-live="polite">
+    <div id="geGateTitle">The Inner Frequency</div>
+    <div id="geGateStatus">Enter the word to continue.</div>
+    <div id="geGateEntry">
+      <input id="geGateWord" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Gate word" placeholder="Enter">
+      <button id="geGateEnter" type="button">Enter</button>
+    </div>
+    <button id="geGateHint" type="button">Hint</button>
+    <div id="geGateHintText"></div>
+    <div id="geGateHelp"><button id="geGateEmail" type="button">Request Code</button></div>
+    <div id="geGateAccessForm">
+      <input id="geGateAccessName" type="text" autocomplete="name" placeholder="Your name (optional)" aria-label="Your name optional">
+      <input id="geGateAccessEmail" type="email" autocomplete="email" placeholder="Your email" aria-label="Your email">
+      <textarea id="geGateAccessMessage" placeholder="Access request or message" aria-label="Access request message"></textarea>
+      <button id="geGateAccessSend" type="button">Request Access</button>
+      <div id="geGateAccessResult" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+</div>
+
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
 <button id="viewToggle" type="button">Ship View</button>
-<div id="geGate" aria-hidden="true"><div id="geGateWater"></div><img id="geGateSun" alt="Grand Element"><div id="geGatePanel"><div id="geGateTitle">Grand Element</div><div id="geGateStatus">Enter the word to continue.</div><div id="geGateEntry"><input id="geGateWord" type="text" autocomplete="off" placeholder="word"><button id="geGateEnter" type="button">Enter</button></div><button id="geGateHint" type="button">Hint</button><div id="geGateHintText"></div><div class="gate-help-row"><a id="geGateEmail" href="mailto:access@grandelement.com?subject=Grand%20Element%20Radio%20Gate%20Access">Open Access Email</a></div></div></div>
 <div id="shipStage" aria-hidden="true">
   <div id="shipWindowViewport" aria-hidden="true">
     <div id="shipScene" aria-hidden="true">
@@ -561,19 +597,22 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
   <section id="shipArrivalContact" aria-live="polite" aria-label="Inner horizon reflection">
     <h2>Welcome</h2>
     <p class="arrival-sub">You have reached the inner horizon. Leave any thoughts, awakenings, perspectives, realizations, or reflections the experience brought forward.</p>
-    <div class="arrival-identity"><input id="arrivalName" type="text" autocomplete="name" maxlength="100" placeholder="Name (optional)"></div>
-    <div class="arrival-compose-wrap"><textarea id="arrivalComment" placeholder="Write what came forward…"></textarea><button id="arrivalExpand" type="button" hidden>Full Screen Writing</button></div>
+    <textarea id="arrivalComment" placeholder="Write what came forward…"></textarea>
     <div class="arrival-options">
-      <label><input id="arrivalPrivate" type="checkbox"> Private message</label>
-      <label><input id="arrivalPost" type="checkbox"> Soul Reflection</label>
+      <label><input id="arrivalPrivate" type="checkbox"> Private message to Grand Element</label>
+      <label><input id="arrivalPost" type="checkbox"> Post as a Soul Reflection</label>
       <label id="arrivalResponseLabel"><input id="arrivalResponse" type="checkbox"> I would like a response</label>
-      <label id="arrivalLocationLabel"><input id="arrivalLocation" type="checkbox"> General location</label>
+      <label id="arrivalLocationLabel"><input id="arrivalLocation" type="checkbox"> Share my general location</label>
     </div>
     <div id="arrivalEmailWrap"><input id="arrivalEmail" type="email" inputmode="email" autocomplete="email" placeholder="Your email address"></div>
-    <div id="arrivalLocationWrap"><input id="arrivalLocationText" type="text" maxlength="100" placeholder="General location (optional)"><button id="arrivalGeoBtn" type="button">Use general location</button><span id="arrivalGeoStatus"></span></div>
-    <p class="arrival-save-note">Your draft is saved on this device while you write.</p>
-    <div class="arrival-actions"><button id="arrivalPrivateSendBtn" type="button">Send Private Message</button><button id="arrivalPostBtn" type="button">Post Soul Reflection</button><button id="arrivalEditBtn" type="button" hidden>Edit My Post</button><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalOpenEmail" type="button">Open Email</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button" hidden aria-hidden="true">Done</button></div>
-    <div id="arrivalStatus" role="status" aria-live="polite"></div>
+    <div id="arrivalLocationWrap">
+      <input id="arrivalLocationText" type="text" maxlength="80" autocomplete="off" placeholder="City / region / country (optional)">
+      <button id="arrivalGeoBtn" type="button">Use General Device Location</button>
+      <div id="arrivalGeoStatus"></div>
+    </div>
+    <div class="arrival-save-note">Soul Reflections stay with the universe where they are placed. Private messages are sent through the Grand Element private backend.</div>
+    <div class="arrival-actions"><button id="arrivalPrivateSendBtn" type="button">Send Private Message</button><button id="arrivalPostBtn" type="button">Post Soul Reflection</button><button id="arrivalEditBtn" type="button" hidden>Edit My Post</button><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button" hidden aria-hidden="true">Done</button></div>
+    <div id="arrivalStatus"></div>
   </section>
   <section id="shipReflectionWall" aria-hidden="true" aria-label="Soul Reflections">
     <div id="reflectionField"></div>
@@ -679,7 +718,8 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
     </div>
     <div class="sunlab-actions">
-      <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button><button id="sunLabReset" type="button" class="sunlab-mini">Reset</button>
+      <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
+      <button id="sunLabReset" type="button" class="sunlab-mini">Reset</button>
       <button id="sunLabHide" type="button" class="sunlab-mini">Hide</button>
     </div>
   </section>
@@ -730,6 +770,45 @@ const CONFIG = Object.freeze({
   }
 });
 
+
+// ================================================================
+// GATE ADJUSTMENTS — EDIT THESE VALUES TO TUNE THE INNER FREQUENCY
+// sequenceSpeed: 1.0 = original, 1.5 = 50% faster, 2.0 = twice as fast.
+// Trigger/listening-limit values remain real listening time.
+// ================================================================
+const GATE_CONFIG = Object.freeze({
+  enabled: true,
+
+  // MASTER SEQUENCE SPEED
+  sequenceSpeed: 1.5,
+  // GATE TRIGGERS
+  triggerTrack: 6,
+  triggerAtSeconds: 71,
+  hardLimitSeconds: 1800,
+  // LIVE METADATA
+  liveMetadataURL: 'https://radio.grandelement.blitz.cloud/status-json.xsl',
+  liveMetadataPollSeconds: 10,
+  // VISUAL AND AUDIO SEQUENCE BASE TIMES
+  blurLeadSeconds: 6,
+  blurPulseSeconds: 2.8,
+  blurPx: 12,
+  backgroundVisiblePercent: 25,
+  waveLeadSeconds: 10,
+  entranceSeconds: 70,
+  graceSeconds: 33,
+  fadeSeconds: 66,
+  unlockSeconds: 6,
+  // ACCESS
+  password: 'love',
+  authKey: 'GE_GATE_LOVE_V1',
+  stateKey: 'GE_GATE_STATE_V4',
+  removeOfflineOnTimeout: true,
+  testDeletesOffline: false,
+  helpEmail: 'access@grandelement.com',
+  helpSubject: 'Grand Element Radio Gate Access',
+  accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
+});
+
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
 const ALBUM_ORDER = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire']);
@@ -744,6 +823,7 @@ const sunLabPanel = $('sunLabPanel');
 const sunLabClose = $('sunLabClose');
 const sunLabHide = $('sunLabHide');
 const sunLabReset = $('sunLabReset');
+const gateTestBtn = $('gateTestBtn');
 
 // Load the identity artwork before optional controllers initialize.
 // Versioned URL prevents an old/broken cached image from masking the real logo.
@@ -1353,6 +1433,7 @@ function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.o
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(!url) return;
   const token=++state.playToken;
+  window.GEGate?.syncListening?.();
   const sunEQTrackChanged=state.currentURL!==url;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
@@ -1371,7 +1452,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     audio.crossOrigin='anonymous';
     audio.muted=false;
     audio.defaultMuted=false;
-    audio.volume=1;
+    audio.volume=window.GEGate?.desiredVolume?.() ?? 1;
     audio.autoplay=true;
     if(forceReload || audio.src!==url){
       // Clearing first forces iOS/Safari and installed PWAs to discard any
@@ -1384,9 +1465,14 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
       audio.src=url;
       audio.load();
     }
+    if(window.GEGate?.isExpiredLocked?.()){
+      window.GEGate?.restore?.();
+      return;
+    }
     const promise=audio.play();
     if(promise) await promise;
     if(token!==state.playToken) return;
+    if(!isStationID(url)) window.GEGate?.noteRealSongPlay?.(url);
     setStatus('Playing');
   }catch(error){
     if(token!==state.playToken) return;
@@ -1396,7 +1482,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
 function resumeAudio(){
   state.userStarted=true;
   audio.muted=false;
-  audio.volume=1;
+  audio.volume=window.GEGate?.desiredVolume?.() ?? 1;
   void window.GEResumeLiveEQ?.();
   audio.play().catch(()=>setStatus('Tap the Play control once to unlock audio.'));
 }
@@ -2653,12 +2739,11 @@ $('reloadBtn').addEventListener('click',async()=>{
 
 // Landscape Ship View controller.
 (function createShipView(){
-  const stage=$('shipStage'),toggle=$('viewToggle'),shipScene=$('shipScene'),stageBg=$('shipWindowBg'),arrivalBg=$('shipArrivalBg'),planetLayer=$('shipPlanetLayer'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),warpLayer=$('shipWarpLayer'),atmosphereLayer=$('shipAtmosphereLayer'),speedAlert=$('shipSpeedAlert'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideControl=$('shipHideControl'),shipAutoHide=$('shipAutoHide'),approachLever=$('shipApproachLever'),approachKnob=$('shipApproachKnob'),attitudeControl=$('shipAttitudeControl'),attitudeKnob=$('shipAttitudeKnob'),autoPilotBtn=$('autoPilotBtn'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),shipRadarScope=$('shipRadarScope'),radarBlips=$('shipRadarBlips'),radarTarget=$('shipRadarTarget'),distanceMini=$('shipDistanceMini'),eqLeft=$('shipEQLeft'),eqRight=$('shipEQRight'),eqOverlay=$('shipEQOverlay'),eqOverlayBars=$('shipEQOverlayBars'),arrivalContact=$('shipArrivalContact'),arrivalName=$('arrivalName'),arrivalComment=$('arrivalComment'),arrivalExpand=$('arrivalExpand'),arrivalPrivate=$('arrivalPrivate'),arrivalPost=$('arrivalPost'),arrivalResponse=$('arrivalResponse'),arrivalResponseLabel=$('arrivalResponseLabel'),arrivalEmailWrap=$('arrivalEmailWrap'),arrivalEmail=$('arrivalEmail'),arrivalLocation=$('arrivalLocation'),arrivalLocationWrap=$('arrivalLocationWrap'),arrivalLocationText=$('arrivalLocationText'),arrivalGeoBtn=$('arrivalGeoBtn'),arrivalGeoStatus=$('arrivalGeoStatus'),arrivalSend=$('arrivalSend'),arrivalPrivateSendBtn=$('arrivalPrivateSendBtn'),arrivalPostBtn=$('arrivalPostBtn'),arrivalEditBtn=$('arrivalEditBtn'),arrivalViewWall=$('arrivalViewWall'),arrivalOpenEmail=$('arrivalOpenEmail'),arrivalClose=$('arrivalClose'),arrivalStatus=$('arrivalStatus'),reflectionWall=$('shipReflectionWall'),reflectionField=$('reflectionField'),reflectionPrompt=$('reflectionPrompt'),reflectionBubble=$('reflectionBubble'),reflectionEarth=$('reflectionEarth'),reflectionBack=$('reflectionBack'),reflectionOK=$('reflectionOK'),reflectionBgPrev=$('reflectionBgPrev'),reflectionBgNext=$('reflectionBgNext');
+  const stage=$('shipStage'),toggle=$('viewToggle'),shipScene=$('shipScene'),stageBg=$('shipWindowBg'),arrivalBg=$('shipArrivalBg'),planetLayer=$('shipPlanetLayer'),shipTitle=$('shipTrackTitle'),shipLogo=$('shipLogo'),warpLayer=$('shipWarpLayer'),atmosphereLayer=$('shipAtmosphereLayer'),speedAlert=$('shipSpeedAlert'),shipPlay=$('shipPlay'),shipPrev=$('shipPrev'),shipNext=$('shipNext'),shipProgressHit=$('shipProgressHit'),progressFill=$('shipProgressFill'),timeNow=$('shipTimeNow'),timeLeft=$('shipTimeLeft'),shipHideControl=$('shipHideControl'),shipAutoHide=$('shipAutoHide'),approachLever=$('shipApproachLever'),approachKnob=$('shipApproachKnob'),attitudeControl=$('shipAttitudeControl'),attitudeKnob=$('shipAttitudeKnob'),autoPilotBtn=$('autoPilotBtn'),analysisText=$('shipAnalysisText'),targetReticle=$('shipTargetReticle'),targetLabel=$('shipTargetLabel'),shipRadarScope=$('shipRadarScope'),radarBlips=$('shipRadarBlips'),radarTarget=$('shipRadarTarget'),distanceMini=$('shipDistanceMini'),eqLeft=$('shipEQLeft'),eqRight=$('shipEQRight'),eqOverlay=$('shipEQOverlay'),eqOverlayBars=$('shipEQOverlayBars'),arrivalContact=$('shipArrivalContact'),arrivalComment=$('arrivalComment'),arrivalPrivate=$('arrivalPrivate'),arrivalPost=$('arrivalPost'),arrivalResponse=$('arrivalResponse'),arrivalResponseLabel=$('arrivalResponseLabel'),arrivalEmailWrap=$('arrivalEmailWrap'),arrivalEmail=$('arrivalEmail'),arrivalLocation=$('arrivalLocation'),arrivalLocationWrap=$('arrivalLocationWrap'),arrivalLocationText=$('arrivalLocationText'),arrivalGeoBtn=$('arrivalGeoBtn'),arrivalGeoStatus=$('arrivalGeoStatus'),arrivalSend=$('arrivalSend'),arrivalPrivateSendBtn=$('arrivalPrivateSendBtn'),arrivalPostBtn=$('arrivalPostBtn'),arrivalEditBtn=$('arrivalEditBtn'),arrivalViewWall=$('arrivalViewWall'),arrivalClose=$('arrivalClose'),arrivalStatus=$('arrivalStatus'),reflectionWall=$('shipReflectionWall'),reflectionField=$('reflectionField'),reflectionPrompt=$('reflectionPrompt'),reflectionBubble=$('reflectionBubble'),reflectionEarth=$('reflectionEarth'),reflectionBack=$('reflectionBack'),reflectionOK=$('reflectionOK'),reflectionBgPrev=$('reflectionBgPrev'),reflectionBgNext=$('reflectionBgNext');
   const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
   let landscapeMode='ship';
   let analysisTypingTimer=0,analysisHideTimer=0;
   let autopilot=false,autopilotReason='manual';
-  let throttleBoostLevel=0,throttleBoostArmed=true;
   const approach={distance:.22,throttle:0,lastT:0,nextPing:0,dragging:false};
   const attitude={x:0,y:0,dragging:false};
   const course={x:0,y:0,offSince:0,limitSince:0};
@@ -2685,7 +2770,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     document.body.classList.remove('portrait-player');
     if(stage)stage.style.removeProperty('display');
     if(toggle){toggle.style.removeProperty('display');toggle.style.display='flex';}
-    const ship=arrivalComposeLock?true:(landscapeMode==='ship');
+    const ship=landscapeMode==='ship';
     document.body.classList.toggle('view-ship',ship);document.body.classList.toggle('view-player',!ship);
     if(stage)stage.setAttribute('aria-hidden',ship?'false':'true');if(toggle)toggle.textContent=ship?'Player View':'Ship View';syncAll();
   }
@@ -2873,7 +2958,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     }
   }
   initSunLab();
-  function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,33000000,Math.pow(1-approach.distance,3.1))));}
+  function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,28000000,Math.pow(1-approach.distance,3.1))));}
   function currentPlanetZoom(){return lerp(.03,11.6,Math.pow(approach.distance,1.42));}
   function currentBackgroundZoom(){return lerp(1,1.22,Math.pow(approach.distance,1.18));}
   function currentVelocity(){return Math.abs(approach.throttle)<2?0:Math.round(Math.pow(Math.abs(approach.throttle)/100,1.65)*92000+120);}
@@ -2893,7 +2978,7 @@ $('reloadBtn').addEventListener('click',async()=>{
 
     // Reticle follows the actual sun center. If the sun is off-screen the reticle is too.
     const planetLeft=50-course.x*58;
-    const planetTop=31.75-course.y*54;
+    const planetTop=19.75-course.y*54;
     if(targetReticle){targetReticle.style.left=`${planetLeft}%`;targetReticle.style.top=`${planetTop}%`;}
     const onscreen=planetLeft>15&&planetLeft<85&&planetTop>7&&planetTop<60;
     if(targetLabel){targetLabel.style.left=`${clamp(planetLeft+10,18,68)}%`;targetLabel.style.top=`${clamp(planetTop-7,9,48)}%`;}
@@ -2912,7 +2997,6 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(arrivalContact){
       if(distance<=30 && arrival>.90 && !arrivalContactShown && !arrivalDismissed){
         arrivalContactShown=true;
-        restoreInnerDraft();
         arrivalContact.classList.remove('open');
         document.body.classList.remove('hud-hidden');
         document.body.classList.add('arrival-mode');
@@ -2926,7 +3010,7 @@ $('reloadBtn').addEventListener('click',async()=>{
           }
         },ARRIVAL_CALM_MS);
       }
-      if(distance>1200 && !arrivalComposeLock){
+      if(distance>1200){
         clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;
         arrivalContactShown=false;arrivalDismissed=false;
         arrivalContact.classList.remove('open');
@@ -3463,9 +3547,7 @@ Vector ${vector}. ${pair[1]}.`;
     const speed=Math.abs(approach.throttle)/100;
     const warpMagnitude=Math.abs(approach.throttle);
     const warpMultiplier=warpMagnitude>68?lerp(1,12,clamp((warpMagnitude-68)/32,0,1)):1;
-    const manualBoost=(approach.throttle>96)?(1+throttleBoostLevel):1;
-    const farRecedeSlow=(approach.throttle<0 && before>27000000)?lerp(1,.42,clamp((before-27000000)/6000000,0,1)):1;
-    const rate=.00275*Math.pow(speed,1.2)*warpMultiplier*manualBoost*farRecedeSlow;
+    const rate=.00275*Math.pow(speed,1.2)*warpMultiplier;
     const arrivalSlow=(approach.throttle>0 && before<161)?lerp(.10,1,clamp(before/161,0,1)):1;
     approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*rate*dt*arrivalSlow,.002,1);
     updateApproachUI();updateEQ();
@@ -3474,16 +3556,10 @@ Vector ${vector}. ${pair[1]}.`;
     requestAnimationFrame(animationFrame);
   }
   function disengageAutopilot(){if(!autopilot)return;autopilot=false;autopilotReason='manual';setPressed(autoPilotBtn,false);}
-  function setThrottleFromY(clientY){
-    if(!approachLever)return;disengageAutopilot();const rect=approachLever.getBoundingClientRect();
-    if(clientY<rect.top-8 && throttleBoostArmed){throttleBoostLevel=Math.min(2,throttleBoostLevel+1);throttleBoostArmed=false;approach.throttle=100;}
-    const ratio=clamp((clientY-rect.top)/rect.height,0,1);approach.throttle=Math.round((.5-ratio)*200);
-    if(approach.throttle<92){throttleBoostLevel=0;throttleBoostArmed=true;}
-    updateApproachUI();
-  }
-  approachLever?.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();approach.dragging=true;throttleBoostArmed=true;approachLever.setPointerCapture?.(event.pointerId);setThrottleFromY(event.clientY);});
+  function setThrottleFromY(clientY){if(!approachLever)return;disengageAutopilot();const rect=approachLever.getBoundingClientRect(),ratio=clamp((clientY-rect.top)/rect.height,0,1);approach.throttle=Math.round((.5-ratio)*200);updateApproachUI();}
+  approachLever?.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();approach.dragging=true;approachLever.setPointerCapture?.(event.pointerId);setThrottleFromY(event.clientY);});
   approachLever?.addEventListener('pointermove',event=>{if(!approach.dragging)return;event.preventDefault();setThrottleFromY(event.clientY);});
-  ['pointerup','pointercancel','lostpointercapture'].forEach(name=>approachLever?.addEventListener(name,()=>{approach.dragging=false;throttleBoostArmed=true;}));
+  ['pointerup','pointercancel','lostpointercapture'].forEach(name=>approachLever?.addEventListener(name,()=>{approach.dragging=false;}));
   approachLever?.addEventListener('keydown',event=>{const step=event.shiftKey?20:10;if(event.key==='ArrowUp'){event.preventDefault();disengageAutopilot();approach.throttle=clamp(approach.throttle+step,-100,100);updateApproachUI();}else if(event.key==='ArrowDown'){event.preventDefault();disengageAutopilot();approach.throttle=clamp(approach.throttle-step,-100,100);updateApproachUI();}else if(event.key==='Home'||event.key===' '){event.preventDefault();disengageAutopilot();approach.throttle=0;updateApproachUI();}});
 
   function setAttitudeFromPoint(clientX,clientY){
@@ -3509,22 +3585,7 @@ Vector ${vector}. ${pair[1]}.`;
     arrivalComment.style.height=`${Math.min(arrivalComment.scrollHeight,max)}px`;
     arrivalComment.style.overflowY=arrivalComment.scrollHeight>max?'auto':'hidden';
   }
-  const INNER_DRAFT_KEY='GE_INNER_HORIZON_COMPOSE_DRAFT_V2';
-  let arrivalComposeLock=false,draftSaveTimer=0;
-  function saveInnerDraft(){
-    try{localStorage.setItem(INNER_DRAFT_KEY,JSON.stringify({name:arrivalName?.value||'',text:arrivalComment?.value||'',email:arrivalEmail?.value||'',private:!!arrivalPrivate?.checked,post:!!arrivalPost?.checked,response:!!arrivalResponse?.checked,location:!!arrivalLocation?.checked,locationText:arrivalLocationText?.value||'',saved:new Date().toISOString()}));}catch(_e){}
-  }
-  function restoreInnerDraft(){
-    try{const d=JSON.parse(localStorage.getItem(INNER_DRAFT_KEY)||'null');if(!d)return;if(arrivalName&&!arrivalName.value)arrivalName.value=d.name||'';if(arrivalComment&&!arrivalComment.value)arrivalComment.value=d.text||'';if(arrivalEmail&&!arrivalEmail.value)arrivalEmail.value=d.email||'';if(arrivalPrivate)arrivalPrivate.checked=!!d.private;if(arrivalPost)arrivalPost.checked=!!d.post;if(arrivalResponse)arrivalResponse.checked=!!d.response;if(arrivalLocation)arrivalLocation.checked=!!d.location;if(arrivalLocationText&&!arrivalLocationText.value)arrivalLocationText.value=d.locationText||'';}catch(_e){}
-  }
-  function clearInnerDraft(){try{localStorage.removeItem(INNER_DRAFT_KEY);}catch(_e){}}
-  arrivalComment?.addEventListener('input',()=>{arrivalComposeLock=true;saveInnerDraft();autoGrowArrival();});
-  arrivalName?.addEventListener('input',saveInnerDraft);arrivalEmail?.addEventListener('input',saveInnerDraft);arrivalLocationText?.addEventListener('input',saveInnerDraft);
-  [arrivalPrivate,arrivalPost,arrivalResponse,arrivalLocation].forEach(el=>el?.addEventListener('change',saveInnerDraft));
-  draftSaveTimer=setInterval(()=>{if(arrivalContactShown||arrivalComposeLock)saveInnerDraft();},60000);
-  
-  restoreInnerDraft();
-  arrivalComment?.addEventListener('focus',()=>{arrivalComposeLock=true;saveInnerDraft();});
+  arrivalComment?.addEventListener('input',autoGrowArrival);
 
   let arrivalGeo={lat:null,lon:null};
   function syncArrivalOptions(){
@@ -3540,7 +3601,6 @@ Vector ${vector}. ${pair[1]}.`;
       const wantsPost=!!arrivalPost?.checked;
       arrivalSend.textContent=wantsPrivate&&wantsPost?'Send & Post':wantsPrivate?'Send':wantsPost?'Post':'Done';
     }
-    saveInnerDraft();
   }
   arrivalPrivate?.addEventListener('change',syncArrivalOptions);
   arrivalPost?.addEventListener('change',syncArrivalOptions);
@@ -3622,7 +3682,7 @@ Vector ${vector}. ${pair[1]}.`;
     reflectionWall?.classList.remove('open');reflectionWall?.setAttribute('aria-hidden','true');
     reflectionBubble?.classList.remove('open');selectedReflectionLocation=null;
     reflectionField?.querySelector('.soul-reflection-dot.draft')?.remove();
-    pendingReflection=null;clearInnerDraft();arrivalComposeLock=false;if(reflectionOK)reflectionOK.hidden=true;
+    pendingReflection=null;if(reflectionOK)reflectionOK.hidden=true;
   }
   function openReflectionWall(placeText=''){
     if(!reflectionWall)return;
@@ -3661,8 +3721,7 @@ Vector ${vector}. ${pair[1]}.`;
   reflectionBgNext?.addEventListener('click',event=>{event.stopPropagation();setSoulUniverse(soulUniverse+1);});
   setSoulUniverse(soulUniverse);
   arrivalViewWall?.addEventListener('click',()=>{arrivalContact?.classList.remove('open');openReflectionWall('');});
-  arrivalOpenEmail?.addEventListener('click',()=>{saveInnerDraft();const subject=encodeURIComponent('Grand Element Private Message');const body=encodeURIComponent((arrivalComment?.value||'').trim());location.href=`mailto:private@grandelement.com?subject=${subject}&body=${body}`;});
-  arrivalClose?.addEventListener('click',()=>{saveInnerDraft();arrivalComposeLock=false;arrivalContact?.classList.remove('compose-fullscreen');if(arrivalExpand){arrivalExpand.textContent='Full Screen Writing';arrivalExpand.setAttribute('aria-pressed','false');}clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');document.body.classList.remove('hud-hidden');});
+  arrivalClose?.addEventListener('click',()=>{clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');document.body.classList.remove('hud-hidden');});
 
   async function sendPrivateReflection(payload){
     const endpoint=(CONFIG.REFLECTION_ENDPOINT||'').trim();
@@ -3718,7 +3777,7 @@ Vector ${vector}. ${pair[1]}.`;
     // No action selected: simply close the arrival experience.
     if(!wantsPrivate&&!wantsPost){clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');return;}
 
-    const payload={type:'inner-horizon-reflection',name:(arrivalName?.value||'').trim(),text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',lat:arrivalLocation?.checked?arrivalGeo.lat:null,lon:arrivalLocation?.checked?arrivalGeo.lon:null};
+    const payload={type:'inner-horizon-reflection',text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',lat:arrivalLocation?.checked?arrivalGeo.lat:null,lon:arrivalLocation?.checked?arrivalGeo.lon:null};
     try{localStorage.setItem('GE_LAST_INNER_HORIZON_DRAFT_V1',JSON.stringify(payload));}catch(_e){}
 
     let privateResult={ok:true};
@@ -3735,26 +3794,401 @@ Vector ${vector}. ${pair[1]}.`;
       // Freeze optional general-location metadata into the pending public reflection.
       openReflectionWall(textValue);
       if(pendingReflection){pendingReflection.locationLabel=payload.locationLabel||'';pendingReflection.lat=payload.lat;pendingReflection.lon=payload.lon;pendingReflection.created=payload.created;}
-    }else if(wantsPrivate&&privateResult.ok){clearInnerDraft();arrivalComposeLock=false;if(arrivalComment)arrivalComment.value='';}
+    }else if(wantsPrivate&&privateResult.ok){
+      setTimeout(()=>{clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');},900);
+    }
   });
   syncArrivalOptions();autoGrowArrival();
   if(analysisText)analysisText.textContent='Passive scan active.';
   updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
 
+/* INNER GATE CONTROLLER
+   Sequence: breathing blur → ORIGINAL expanding waves → slower sun entrance → password → 33s → 60s fade → silent offline purge.
+   Access gate, not DRM. Authorization and active timing survive refreshes. */
+(function createInnerGate(){
+  if(!GATE_CONFIG.enabled)return;
+  const gateSpeed=Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
+  const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed;
 
-/* GE Gate preview/controller restored for Sun Lab testing. */
-(()=>{
- const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),enter=$('geGateEnter'),hint=$('geGateHint'),hintText=$('geGateHintText'),status=$('geGateStatus'),test=$('gateTestBtn');
- if(!gate||!sun||!test)return;
- const hints=['It is what remains when fear is gone.','It is what this music is made with.','Four letters.'];let timers=[];
- const clear=()=>{timers.forEach(clearTimeout);timers=[]};
- function reset(){clear();gate.className='';gate.style.display='none';gate.setAttribute('aria-hidden','true');if(word)word.value='';if(hintText)hintText.textContent='';if(status)status.textContent='Enter the word to continue.';}
- function start(){reset();sun.src=absolute(CONFIG.LOGO_SRC);gate.style.display='block';gate.classList.add('open');gate.setAttribute('aria-hidden','false');requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('blurring')));timers.push(setTimeout(()=>gate.classList.add('water'),3000));timers.push(setTimeout(()=>gate.classList.add('sun-moving'),7000));timers.push(setTimeout(()=>gate.classList.add('centered'),47000));}
- function unlock(){if(String(word?.value||'').trim().toLowerCase()!=='love'){if(status)status.textContent='Keep going.';word?.select();return;}if(status)status.textContent='Welcome.';clear();gate.style.transition='opacity 2s ease';gate.style.opacity='0';timers.push(setTimeout(()=>{gate.style.opacity='';gate.style.transition='';reset();},2000));}
- let hi=0;hint?.addEventListener('click',()=>{hintText.textContent=hints[Math.min(hi++,hints.length-1)]});enter?.addEventListener('click',unlock);word?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();unlock()}});test.addEventListener('click',()=>{if(sunLabPanel){sunLabPanel.hidden=true;sunLabPanel.classList.remove('show')}start()});
- window.GEGate={trigger:start,resetForTesting:reset};
+  const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),
+        enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
+        help=$('geGateHelp'),email=$('geGateEmail'),status=$('geGateStatus');
+
+  const hints=[
+    'Somebody said there’s only one thing we need.',
+    'What we are.',
+    'What grows when you give it away?',
+    'What can be felt without being touched?',
+    'What brings two separate things together without making either disappear?',
+    'What gets stronger when it is shared?',
+    'What can travel any distance without moving?',
+    'What turns a house into a home?',
+    'What does music keep trying to say?',
+    'What can be understood before a single word is spoken?',
+    'What can remain after anger is gone?',
+    'What gives without becoming smaller?',
+    'What can heal without medicine?',
+    'What is stronger than fear?',
+    'What has no borders but connects people everywhere?',
+    'What is at the center of Grand Element?',
+    'Four letters. One thing we all need.',
+    'What did somebody once say was all you need?',
+    'L _ V E',
+    'LOVE'
+  ];
+
+  const emptyState=()=>({
+    playCount:0,musicSeconds:0,sixthStartSeconds:null,
+    active:false,manualTest:false,triggeredAt:0,wavesAt:0,sunAt:0,centerAt:0,fadeAt:0,expireAt:0,
+    baseVolume:1,expired:false,offlinePurged:false,hintIndex:0,reason:'',lastLiveTitle:''
+  });
+
+  function load(){
+    try{
+      const parsed=JSON.parse(localStorage.getItem(GATE_CONFIG.stateKey)||'null');
+      return parsed&&typeof parsed==='object'?{...emptyState(),...parsed}:emptyState();
+    }catch(_e){return emptyState();}
+  }
+  let gs=load();
+  let lastTickAt=Date.now(),wasCountable=false,liveStationID=false,lastSave=0;
+  let wavesTimer=0,sunTimer=0,centerTimer=0,fadeTimer=0,expireTimer=0,closeTimer=0,fadeRAF=0;
+
+  function authorized(){return localStorage.getItem(GATE_CONFIG.authKey)==='1';}
+  function save(force=false){
+    const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
+    try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
+  }
+  function clearTimers(){
+    [wavesTimer,sunTimer,centerTimer,fadeTimer,expireTimer,closeTimer].forEach(id=>{if(id)clearTimeout(id);});
+    wavesTimer=sunTimer=centerTimer=fadeTimer=expireTimer=closeTimer=0;
+    if(fadeRAF){cancelAnimationFrame(fadeRAF);fadeRAF=0;}
+  }
+  function isExpiredLocked(){return !authorized()&&!!gs.expired;}
+
+  function updateHintUI(){
+    const shown=Math.max(0,Math.min(hints.length,Number(gs.hintIndex)||0));
+    hintText.textContent=shown?hints[shown-1]:'';
+    help.classList.toggle('show',shown>=hints.length);
+  }
+
+  function showPanel(expired=false){
+    gate.classList.add('centered');
+    if(status)status.textContent=expired?'Enter the word to continue.':'Enter the word to continue.';
+    updateHintUI();
+  }
+
+  function desiredVolume(at=Date.now()){
+    if(!gs.active||authorized())return null;
+    const base=Math.max(0,Math.min(1,Number(gs.baseVolume))); 
+    if(!Number.isFinite(base))return 1;
+    if(!gs.fadeAt||at<Number(gs.fadeAt))return base;
+    if(!gs.expireAt||at>=Number(gs.expireAt))return 0;
+    const span=Math.max(1,Number(gs.expireAt)-Number(gs.fadeAt));
+    const p=Math.max(0,Math.min(1,(at-Number(gs.fadeAt))/span));
+    return base*(1-p);
+  }
+
+  function applyManagedVolume(){
+    const v=desiredVolume();
+    if(v===null||!Number.isFinite(v))return;
+    const safe=Math.max(0,Math.min(1,v));
+    const gainHandled=window.GEAudioGain?.setImmediate?.(safe)===true;
+    if(!gainHandled){try{audio.volume=safe;}catch(_e){}}
+  }
+
+  function gateSunOffscreenPx(){
+    const vw=Math.max(1,window.innerWidth||document.documentElement.clientWidth||1);
+    const vh=Math.max(1,window.innerHeight||document.documentElement.clientHeight||1);
+    return vw*.5 + vh*.62;
+  }
+
+  function positionSun(now=Date.now()){
+    if(!sun)return;
+    const sunAt=Number(gs.sunAt)||now;
+    const center=Number(gs.centerAt)||now;
+    const offscreen=gateSunOffscreenPx();
+    if(now<sunAt){
+      sun.style.transition='none';sun.style.transform=`translate3d(${offscreen}px,0,0) scale(.84)`;return;
+    }
+    if(now>=center){
+      sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';return;
+    }
+    const span=Math.max(1,center-sunAt),progress=Math.max(0,Math.min(1,(now-sunAt)/span));
+    const remaining=Math.max(0,center-now),x=(1-progress)*offscreen,scale=.84+.16*progress;
+    sun.style.transition='none';sun.style.transform=`translate3d(${x}px,0,0) scale(${scale})`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(authorized()||!gs.active)return;
+      sun.style.transition=`transform ${remaining}ms linear`;
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+    }));
+  }
+
+  async function purgeOffline(){
+    if(!GATE_CONFIG.removeOfflineOnTimeout||gs.offlinePurged)return;
+    if(gs.manualTest&&!GATE_CONFIG.testDeletesOffline)return;
+    gs.offlinePurged=true;save(true);
+    try{
+      if(window.GEOffline?.remove){
+        await window.GEOffline.remove({silent:true});
+      }else if('caches' in window){
+        const names=await caches.keys();
+        for(const name of names){
+          try{
+            if(String(name).startsWith('ge-radio-media')){await caches.delete(name);continue;}
+            const cache=await caches.open(name),keys=await cache.keys();
+            for(const request of keys){
+              let path='';try{path=decodeURIComponent(new URL(request.url).pathname).toLowerCase();}catch(_e){}
+              if(path.includes('/ge-music/'))await cache.delete(request);
+            }
+          }catch(_e){}
+        }
+        localStorage.removeItem(CONFIG.OFFLINE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_PLAYABLE_KEY);
+        localStorage.removeItem(CONFIG.OFFLINE_STATIONS_KEY);
+      }
+    }catch(_e){}
+  }
+
+  function expireGate(){
+    if(authorized())return;
+    clearTimers();
+    gs.active=true;gs.expired=true;
+    if(!gs.expireAt)gs.expireAt=Date.now();
+    save(true);
+    gate.classList.add('open','blurring','waves','sun-moving','centered');
+    gate.setAttribute('aria-hidden','false');
+    if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';}
+    window.GEAudioGain?.setImmediate?.(0);
+    try{audio.volume=0;}catch(_e){}
+    try{audio.pause();}catch(_e){}
+    showPanel(true);
+    void purgeOffline();
+  }
+
+  function fadeFrame(){
+    if(!gs.active||authorized()||gs.expired)return;
+    const now=Date.now();
+    if(now>=Number(gs.expireAt||0)){expireGate();return;}
+    applyManagedVolume();
+    fadeRAF=requestAnimationFrame(fadeFrame);
+  }
+  function beginFade(){
+    if(!gs.active||authorized()||gs.expired)return;
+    if(fadeRAF)cancelAnimationFrame(fadeRAF);
+    fadeRAF=requestAnimationFrame(fadeFrame);
+  }
+
+  function applyVisualStage(now=Date.now()){
+    if(authorized()||!gs.active)return;
+    gate.classList.add('open','blurring');
+    gate.setAttribute('aria-hidden','false');
+    gate.style.setProperty('--ge-gate-blur-pulse',`${Math.max(.8,gateSeconds(GATE_CONFIG.blurPulseSeconds)||2.8)}s`);
+    gate.style.setProperty('--ge-gate-blur',`${Math.max(0,Number(GATE_CONFIG.blurPx)||12)}px`);
+    gate.style.setProperty('--ge-gate-blur-build',`${Math.max(1,(gateSeconds(GATE_CONFIG.blurLeadSeconds)||6)+(gateSeconds(GATE_CONFIG.waveLeadSeconds)||10))}s`);
+    gate.style.setProperty('--ge-gate-wave-rise',`${Math.max(1,gateSeconds(GATE_CONFIG.waveLeadSeconds)||10)}s`);
+    gate.style.setProperty('--ge-gate-dim-build',`${Math.max(1,(gateSeconds(GATE_CONFIG.blurLeadSeconds)||6)+(gateSeconds(GATE_CONFIG.waveLeadSeconds)||10)+(gateSeconds(GATE_CONFIG.entranceSeconds)||70))}s`);
+    const visible=Math.max(0,Math.min(100,Number(GATE_CONFIG.backgroundVisiblePercent)||25));
+    gate.style.setProperty('--ge-gate-dim',String(1-visible/100));
+    if(now>=Number(gs.wavesAt||0))gate.classList.add('waves');else gate.classList.remove('waves');
+    if(now>=Number(gs.sunAt||0))gate.classList.add('sun-moving');else gate.classList.remove('sun-moving');
+    if(now>=Number(gs.centerAt||0))showPanel(false);else gate.classList.remove('centered');
+    positionSun(now);
+    applyManagedVolume();
+  }
+
+  function scheduleStages(){
+    clearTimers();
+    if(authorized()||!gs.active)return;
+    const now=Date.now();
+    if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
+    applyVisualStage(now);
+
+    if(now<Number(gs.wavesAt||0))wavesTimer=setTimeout(()=>{gate.classList.add('waves');},Math.max(0,Number(gs.wavesAt)-Date.now()));
+    if(now<Number(gs.sunAt||0))sunTimer=setTimeout(()=>{gate.classList.add('sun-moving');positionSun();},Math.max(0,Number(gs.sunAt)-Date.now()));
+    if(now<Number(gs.centerAt||0))centerTimer=setTimeout(()=>showPanel(false),Math.max(0,Number(gs.centerAt)-Date.now()));
+    if(now<Number(gs.fadeAt||0))fadeTimer=setTimeout(beginFade,Math.max(0,Number(gs.fadeAt)-Date.now()));else beginFade();
+    expireTimer=setTimeout(expireGate,Math.max(0,Number(gs.expireAt)-Date.now()));
+  }
+
+  function restore(){
+    if(authorized()){
+      clearTimers();gate?.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');
+      gate?.setAttribute('aria-hidden','true');return;
+    }
+    if(!gs.active&&!gs.expired)return;
+    if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
+    scheduleStages();
+  }
+
+  function trigger(reason){
+    if(authorized()||gs.active||gs.expired)return;
+    const now=Date.now();
+    const blur=Math.max(0,gateSeconds(GATE_CONFIG.blurLeadSeconds)||0)*1000;
+    const waves=Math.max(0,gateSeconds(GATE_CONFIG.waveLeadSeconds)||0)*1000;
+    const entrance=Math.max(1,gateSeconds(GATE_CONFIG.entranceSeconds)||50)*1000;
+    const grace=Math.max(0,gateSeconds(GATE_CONFIG.graceSeconds)||33)*1000;
+    const fade=Math.max(1,gateSeconds(GATE_CONFIG.fadeSeconds)||60)*1000;
+
+    gs.active=true;gs.expired=false;gs.offlinePurged=false;
+    gs.manualTest=reason==='manual-test';gs.reason=reason||'gate';gs.triggeredAt=now;
+    gs.wavesAt=now+blur;gs.sunAt=gs.wavesAt+waves;gs.centerAt=gs.sunAt+entrance;
+    gs.fadeAt=gs.centerAt+grace;gs.expireAt=gs.fadeAt+fade;
+    gs.baseVolume=Math.max(0.01,Math.min(1,Number(audio.volume)||1));
+    save(true);
+    void window.GEResumeLiveEQ?.();
+    window.GEAudioGain?.setImmediate?.(1);
+
+    gate.classList.remove('waves','sun-moving','centered','unlocking','wrong');
+    gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');
+    gate.style.setProperty('--ge-gate-blur-pulse',`${Math.max(.8,gateSeconds(GATE_CONFIG.blurPulseSeconds)||2.8)}s`);
+    gate.style.setProperty('--ge-gate-blur',`${Math.max(0,Number(GATE_CONFIG.blurPx)||12)}px`);
+    gate.style.setProperty('--ge-gate-blur-build',`${Math.max(1,(gateSeconds(GATE_CONFIG.blurLeadSeconds)||6)+(gateSeconds(GATE_CONFIG.waveLeadSeconds)||10))}s`);
+    gate.style.setProperty('--ge-gate-wave-rise',`${Math.max(1,gateSeconds(GATE_CONFIG.waveLeadSeconds)||10)}s`);
+    gate.style.setProperty('--ge-gate-dim-build',`${Math.max(1,(gateSeconds(GATE_CONFIG.blurLeadSeconds)||6)+(gateSeconds(GATE_CONFIG.waveLeadSeconds)||10)+(gateSeconds(GATE_CONFIG.entranceSeconds)||70))}s`);
+    const visible=Math.max(0,Math.min(100,Number(GATE_CONFIG.backgroundVisiblePercent)||25));
+    gate.style.setProperty('--ge-gate-dim',String(1-visible/100));
+    if(sun){sun.src=absolute(CONFIG.LOGO_SRC);sun.style.transition='none';sun.style.transform=`translate3d(${gateSunOffscreenPx()}px,0,0) scale(.84)`;sun.style.opacity='1';sun.style.filter='';}
+    if(panel){panel.style.removeProperty('opacity');panel.style.removeProperty('pointer-events');}
+    if(status)status.textContent='Enter the word to continue.';
+    scheduleStages();
+  }
+
+  function noteRealSongPlay(url){
+    if(authorized()||gs.active||gs.expired||isStationID(url))return;
+    gs.playCount=Math.max(0,Number(gs.playCount)||0)+1;
+    if(gs.playCount===GATE_CONFIG.triggerTrack&&gs.sixthStartSeconds===null)gs.sixthStartSeconds=Math.max(0,Number(gs.musicSeconds)||0);
+    save(true);
+  }
+  function countableNow(){
+    if(audio.paused||audio.ended||authorized()||gs.active||gs.expired)return false;
+    if(state.live)return !liveStationID;
+    return !!state.currentURL&&!isStationID(state.currentURL);
+  }
+  function evaluateTriggers(){
+    if(authorized()||gs.active||gs.expired)return;
+    if(gs.sixthStartSeconds!==null&&gs.playCount>=GATE_CONFIG.triggerTrack){
+      const afterSixth=Math.max(0,gs.musicSeconds-Number(gs.sixthStartSeconds||0));
+      if(afterSixth>=GATE_CONFIG.triggerAtSeconds){save(true);trigger('sixth-song');return;}
+    }
+    if(gs.musicSeconds>=GATE_CONFIG.hardLimitSeconds){save(true);trigger('hard-limit');}
+  }
+  function syncListening(){
+    const now=Date.now(),delta=Math.max(0,(now-lastTickAt)/1000);lastTickAt=now;
+    if(wasCountable&&!authorized()&&!gs.active&&!gs.expired){gs.musicSeconds=Math.max(0,Number(gs.musicSeconds)||0)+delta;evaluateTriggers();save(false);}
+    wasCountable=countableNow();
+  }
+  function tick(){
+    syncListening();
+    if(!authorized()&&gs.active&&!gs.expired){
+      const now=Date.now();
+      if(now>=Number(gs.expireAt||0)){expireGate();return;}
+      if(now>=Number(gs.fadeAt||0))applyManagedVolume();
+    }
+  }
+
+  function stationTitle(title){return /(?:\bGE\b.*)?station\s+identification/i.test(String(title||''))||/\bstation\s+id\b/i.test(String(title||''));}
+  function extractLiveTitle(data){
+    const source=data?.icestats?.source,first=Array.isArray(source)?source[0]:source;
+    return String(first?.title||data?.now_playing?.song?.text||data?.now_playing?.song?.title||data?.song?.text||data?.song?.title||data?.title||'').trim();
+  }
+  async function pollLiveMetadata(){
+    if(authorized()||gs.expired||!state.live||!GATE_CONFIG.liveMetadataURL)return;
+    try{
+      const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
+      const title=extractLiveTitle(await response.json());if(!title)return;
+      syncListening();liveStationID=stationTitle(title);wasCountable=countableNow();
+      if(title!==gs.lastLiveTitle){gs.lastLiveTitle=title;if(!liveStationID)noteRealSongPlay(`live:${title}`);save(true);}
+    }catch(_e){}
+  }
+
+  function wrongWord(){gate.classList.remove('wrong');void gate.offsetWidth;gate.classList.add('wrong');if(status)status.textContent='Keep going.';word?.select();}
+  function unlock(){
+    if(authorized())return;
+    const entered=String(word?.value||'').trim().toLowerCase();
+    if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}
+
+    const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
+    clearTimers();
+    try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
+    gs.active=false;gs.expired=false;gs.reason='unlocked';save(true);
+    window.GEAudioGain?.setImmediate?.(1);
+    try{audio.volume=restoreVolume;}catch(_e){}
+
+    gate.classList.remove('wrong','centered');gate.classList.add('open');
+    gate.style.setProperty('--ge-gate-unlock',`${gateSeconds(GATE_CONFIG.unlockSeconds)}s`);
+    if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';sun.style.opacity='1';void sun.offsetWidth;}
+    requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
+    if(wasExpired||audio.paused){audio.muted=false;audio.play().catch(()=>{});}
+
+    closeTimer=setTimeout(()=>{
+      gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
+      if(word)word.value='';if(sun){sun.style.removeProperty('transition');sun.style.removeProperty('transform');sun.style.removeProperty('opacity');sun.style.removeProperty('filter');}
+    },Math.max(250,gateSeconds(GATE_CONFIG.unlockSeconds)*1000));
+  }
+
+  hintBtn?.addEventListener('click',()=>{gs.hintIndex=Math.min(hints.length,(Number(gs.hintIndex)||0)+1);save(true);updateHintUI();});
+  enter?.addEventListener('click',unlock);
+  word?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();unlock();}});
+
+  if(email){
+    email.addEventListener('click',event=>{
+      event.preventDefault();
+      $('geGateAccessForm')?.classList.toggle('show');
+      if($('geGateAccessForm')?.classList.contains('show')) $('geGateAccessEmail')?.focus();
+    });
+  }
+  const accessSend=$('geGateAccessSend'),accessName=$('geGateAccessName'),accessEmail=$('geGateAccessEmail'),accessMessage=$('geGateAccessMessage'),accessResult=$('geGateAccessResult');
+  accessSend?.addEventListener('click',async()=>{
+    const replyEmail=String(accessEmail?.value||'').trim();
+    const message=String(accessMessage?.value||'').trim()||'I would like access to Grand Element Radio.';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyEmail)){
+      if(accessResult)accessResult.textContent='Enter a valid email so Grand Element can reply.';
+      accessEmail?.focus();return;
+    }
+    accessSend.disabled=true;if(accessResult)accessResult.textContent='Sending…';
+    try{
+      const response=await fetch(GATE_CONFIG.accessEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:String(accessName?.value||'').trim(),email:replyEmail,message})});
+      let data={};try{data=await response.json();}catch(_e){}
+      if(!response.ok||!data.ok)throw new Error(data.error||'Request failed');
+      if(accessResult)accessResult.textContent='Access request sent.';
+      if(accessName)accessName.value='';
+      if(accessMessage)accessMessage.value='';
+    }catch(_e){
+      if(accessResult)accessResult.textContent='Access request could not be sent. Please try again.';
+    }finally{accessSend.disabled=false;}
+  });
+  if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
+
+  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();applyManagedVolume();});
+  audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  setInterval(tick,500);
+  setInterval(()=>{void pollLiveMetadata();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
+  window.addEventListener('pagehide',()=>{syncListening();save(true);});
+  document.addEventListener('visibilitychange',()=>{syncListening();if(document.hidden)save(true);else if(gs.active&&!gs.expired)scheduleStages();});
+  restore();
+
+  window.GEGate={
+    noteRealSongPlay,trigger,restore,syncListening,isExpiredLocked,isAuthorized:authorized,desiredVolume,getState:()=>({...gs}),
+    resetForTesting:()=>{
+      clearTimers();
+      localStorage.removeItem(GATE_CONFIG.authKey);localStorage.removeItem(GATE_CONFIG.stateKey);
+      gs=emptyState();liveStationID=false;wasCountable=false;window.GEAudioGain?.setImmediate?.(1);audio.volume=1;
+      gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
+      lastTickAt=Date.now();
+    }
+  };
 })();
+
+// Sun Lab manual Gate preview. Resets authorization/timing and replays the whole sequence.
+gateTestBtn?.addEventListener('click',()=>{
+  sunLabPanel?.classList.remove('show');
+  if(sunLabPanel)sunLabPanel.hidden=true;
+  window.GEGate?.resetForTesting?.();
+  setTimeout(()=>window.GEGate?.trigger?.('manual-test'),60);
+});
+
 
 (async function boot(){
   try{
