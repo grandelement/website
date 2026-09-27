@@ -3240,7 +3240,8 @@ Vector ${vector}. ${pair[1]}.`;
     if(!radarBlips)return;radarBlips.innerHTML='';const count=3+((Math.random()*3)|0);
     for(let i=0;i<count;i++){const dot=document.createElement('span'),angle=Math.PI*2*(i/count)+rand(-.5,.5),radius=rand(20,39),x=50+Math.cos(angle)*radius,y=50+Math.sin(angle)*radius;dot.style.left=`${x}%`;dot.style.top=`${y}%`;dot.style.opacity=String(rand(.35,.9));dot.style.transform='translate(-50%,-50%)';radarBlips.appendChild(dot);}
   }
-  let eqAudioCtx=null,eqAnalyser=null,eqData=null,eqSource=null,eqGain=null,eqOverlayOpen=false;
+  let eqAudioCtx=null,eqAnalyser=null,eqData=null,eqSource=null,eqGain=null,eqTapAudio=null,eqOverlayOpen=false;
+  const GE_IOS_AUDIO=/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const sunEQAura=$('sunEQAura'),sunEQFog=$('sunEQFog');
   const SUN_EQ_RINGS=12;
   const SUN_SPECTRUM_RINGS=110;
@@ -3259,22 +3260,58 @@ Vector ${vector}. ${pair[1]}.`;
   let sunEQCascadeTick=0;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
-  // iPhone safety: never divert the media element into a suspended Web Audio graph.
-  // Resume the AudioContext first; only then attach the single MediaElementSource.
+  // Background-safe analyser architecture.
+  // On iPhone/iPad the audible player stays a native HTMLAudioElement so lock-screen
+  // playback is not routed through a Web Audio context that iOS may suspend.
+  // A second silent analyser element is used only while the page is visible.
   async function ensureLiveEQ(){
     try{
       const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
       if(!eqAudioCtx){
         eqAudioCtx=new AC();
         eqAnalyser=eqAudioCtx.createAnalyser();
-        eqAnalyser.fftSize=128;
-        eqAnalyser.smoothingTimeConstant=.76;
+        eqAnalyser.fftSize=256;
+        eqAnalyser.smoothingTimeConstant=.10;
         eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
       }
       if(eqAudioCtx.state==='suspended'){
         try{await eqAudioCtx.resume();}catch(_e){return false;}
       }
       if(eqAudioCtx.state!=='running')return false;
+
+      if(GE_IOS_AUDIO){
+        if(!eqTapAudio){
+          eqTapAudio=new Audio();
+          eqTapAudio.preload='auto';
+          eqTapAudio.crossOrigin='anonymous';
+          eqTapAudio.playsInline=true;
+          eqTapAudio.setAttribute('playsinline','');
+          eqTapAudio.setAttribute('webkit-playsinline','');
+        }
+        if(!eqSource){
+          eqSource=eqAudioCtx.createMediaElementSource(eqTapAudio);
+          eqSource.connect(eqAnalyser);
+          // Intentionally no connection to destination: this element is analysis only.
+        }
+        const wanted=audio.currentSrc||audio.src||'';
+        if(wanted && eqTapAudio.src!==wanted){
+          try{eqTapAudio.pause();}catch(_e){}
+          eqTapAudio.src=wanted;
+          eqTapAudio.load();
+        }
+        if(wanted && !document.hidden && !audio.paused){
+          try{
+            if(Number.isFinite(audio.duration)&&audio.duration>0&&Number.isFinite(audio.currentTime)){
+              const sync=()=>{try{if(Math.abs((eqTapAudio.currentTime||0)-audio.currentTime)>.45)eqTapAudio.currentTime=audio.currentTime;}catch(_e){}};
+              if(eqTapAudio.readyState>=1)sync();else eqTapAudio.addEventListener('loadedmetadata',sync,{once:true});
+            }
+            await eqTapAudio.play();
+          }catch(_e){}
+        }
+        window.GEAudioGain={setImmediate(){return false;}};
+        return true;
+      }
+
       if(!eqSource){
         eqSource=eqAudioCtx.createMediaElementSource(audio);
         eqGain=eqAudioCtx.createGain();
@@ -3286,11 +3323,21 @@ Vector ${vector}. ${pair[1]}.`;
       window.GEAudioGain={setImmediate(value){if(!eqGain||!eqAudioCtx)return false;const safe=Math.max(0,Math.min(1,Number(value)));try{eqGain.gain.cancelScheduledValues(eqAudioCtx.currentTime);eqGain.gain.setValueAtTime(safe,eqAudioCtx.currentTime);return true;}catch(_e){return false;}}};
       return true;
     }catch(err){
-      console.warn('Live EQ unavailable; audio remains on the normal media-element path.',err);
+      console.warn('Live EQ unavailable; audio remains on the native media-element path.',err);
       return false;
     }
   }
 
+  function manageBackgroundAnalyser(){
+    if(!GE_IOS_AUDIO)return;
+    if(document.hidden){
+      try{eqTapAudio?.pause();}catch(_e){}
+      try{if(eqAudioCtx?.state==='running')void eqAudioCtx.suspend();}catch(_e){}
+    }else if(!audio.paused){
+      void ensureLiveEQ();
+    }
+  }
+  document.addEventListener('visibilitychange',manageBackgroundAnalyser);
   // Kept for the existing song-change hook. Rings keep fixed frequency order by design.
   function randomizeSunEQMap(){
     for(let i=0;i<sunEQLevels.length;i++)sunEQLevels[i]=.03;
