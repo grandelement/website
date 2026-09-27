@@ -1275,12 +1275,17 @@ function stationURL(){
 const liveState={
   returnURL:'',
   returnTime:0,
-  reconnectTimer:0
+  reconnectTimer:0,
+  statusTimer:0
 };
 function setLiveStatus(text,show=true){
   const el=$('liveStatus');if(!el)return;
+  if(liveState.statusTimer){clearTimeout(liveState.statusTimer);liveState.statusTimer=0;}
   el.textContent=text||'';
   el.classList.toggle('show',!!show&&!!text);
+  if(show&&text&&/(connected|reconnected)/i.test(text)){
+    liveState.statusTimer=setTimeout(()=>{el.classList.remove('show');el.textContent='';liveState.statusTimer=0;},3200);
+  }
 }
 function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
@@ -1659,6 +1664,19 @@ async function resolvedShareURL(){
 
 $('prevBtn').addEventListener('click',()=>previousTrack(true));
 $('nextBtn').addEventListener('click',()=>nextTrack(true));
+const playBtn=$('playBtn'),playerSeek=$('playerSeek');
+function syncMainTransport(){
+  if(playBtn)playBtn.textContent=audio.paused?'Play':'Pause';
+  if(playerSeek){
+    const d=Number(audio.duration),t=Number(audio.currentTime)||0;
+    playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
+    playerSeek.value=playerSeek.disabled?'0':String(Math.max(0,Math.min(1000,t/d*1000)));
+  }
+}
+playBtn?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
+playerSeek?.addEventListener('input',()=>{const d=Number(audio.duration);if(Number.isFinite(d)&&d>0&&!state.live)audio.currentTime=d*(Number(playerSeek.value)||0)/1000;});
+['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
+syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   // This click is a real user gesture: resume/create Web Audio here so iOS permits the analyser.
   void window.GEResumeLiveEQ?.();
@@ -1907,7 +1925,8 @@ window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLi
   const shipCombined=$('shipHideControl');
   const shipAuto=$('shipAutoHide');
   const params=new URLSearchParams(location.search);
-  let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':localStorage.getItem(CONFIG.HUD_KEY)==='1';
+  const savedHud=localStorage.getItem(CONFIG.HUD_KEY);
+  let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':savedHud===null?true:savedHud==='1';
   let lastActivity=Date.now();
   function syncChecks(){ if(autoCheckbox)autoCheckbox.checked=autoEnabled;if(shipAuto)shipAuto.checked=autoEnabled; }
   function show(){document.body.classList.remove('hud-hidden');lastActivity=Date.now();}
@@ -4157,6 +4176,7 @@ Vector ${vector}. ${pair[1]}.`;
       const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
       const title=extractLiveTitle(await response.json());if(!title)return;
       syncListening();liveStationID=stationTitle(title);wasCountable=countableNow();
+      if(state.live)titleBtn.textContent=title;
       if(title!==gs.lastLiveTitle){gs.lastLiveTitle=title;if(!liveStationID)noteRealSongPlay(`live:${title}`);save(true);}
     }catch(_e){}
   }
