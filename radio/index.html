@@ -441,12 +441,15 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
   84%{opacity:.42}
   100%{opacity:var(--ge-gate-dim,.75)}
 }
-#geGateWaves{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity var(--ge-gate-wave-rise,10s) ease-in;overflow:hidden;-webkit-backdrop-filter:blur(var(--ge-water-blur,0px)) saturate(var(--ge-water-sat,1));backdrop-filter:blur(var(--ge-water-blur,0px)) saturate(var(--ge-water-sat,1));will-change:backdrop-filter,opacity}
+#geGateWaves{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity var(--ge-gate-wave-rise,10s) ease-in;overflow:hidden;transform:translateZ(0);will-change:opacity}
 #geGate.waves #geGateWaves{opacity:1}
 #geGate.centered #geGateWaves{opacity:0}
-.geGateFreqRing{position:absolute;left:50%;top:50%;width:12vmin;height:12vmin;margin:-6vmin 0 0 -6vmin;border-radius:50%;pointer-events:none;border:1.5px solid rgba(118,220,255,.38);box-shadow:0 0 var(--ring-glow,18px) rgba(60,183,255,.22),inset 0 0 calc(var(--ring-glow,18px) * .55) rgba(150,235,255,.10);opacity:var(--ring-opacity,.25);transform:scale(var(--ring-scale,1));filter:blur(var(--ring-softness,.15px));will-change:transform,opacity,border-width,filter}
+#geGateWaves::before{content:"";position:absolute;inset:0;pointer-events:none;-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01);animation:geWaterLens 4.8s ease-in-out infinite;will-change:backdrop-filter}
+.geGateFreqRing{position:absolute;left:50%;top:50%;width:11vmin;height:11vmin;margin:-5.5vmin 0 0 -5.5vmin;border-radius:50%;pointer-events:none;border:1.25px solid rgba(128,226,255,.34);box-shadow:0 0 18px rgba(50,185,255,.16),inset 0 0 10px rgba(165,240,255,.08);opacity:0;transform:translate3d(0,0,0) scale(.28);animation:geWaterFrequency var(--water-cycle,8.4s) linear infinite;animation-delay:var(--water-delay,0s);will-change:transform,opacity}
+@keyframes geWaterFrequency{0%{transform:translate3d(0,0,0) scale(.28);opacity:0}8%{opacity:.22}34%{opacity:.42}70%{opacity:.20}100%{transform:translate3d(0,0,0) scale(12.5);opacity:0}}
+@keyframes geWaterLens{0%,100%{-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01)}35%{-webkit-backdrop-filter:blur(2.1px) saturate(1.025);backdrop-filter:blur(2.1px) saturate(1.025)}62%{-webkit-backdrop-filter:blur(4.4px) saturate(1.045);backdrop-filter:blur(4.4px) saturate(1.045)}82%{-webkit-backdrop-filter:blur(1.4px) saturate(1.02);backdrop-filter:blur(1.4px) saturate(1.02)}}
 #geGateSunWrap{position:absolute;left:50%;top:50%;height:100svh;width:100svh;max-width:none;max-height:none;transform:translate(-50%,-50%);pointer-events:none;z-index:2}
-#geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 5svh rgba(20,152,255,.60),0 0 12svh rgba(0,104,255,.42),0 0 22svh rgba(0,87,255,.24);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
+#geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 6svh rgba(35,175,255,.72),0 0 15svh rgba(0,128,255,.54),0 0 28svh rgba(0,96,255,.34),0 0 40svh rgba(0,75,255,.16);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
 #geGatePanel{position:absolute;z-index:5;left:50%;top:62%;bottom:auto;transform:translate(-50%,18px);width:min(440px,88vw);max-width:88vw;padding:16px;border-radius:20px;border:1px solid rgba(94,205,255,.42);background:rgba(1,12,25,.78);box-shadow:0 14px 38px rgba(0,0,0,.48),0 0 24px rgba(34,161,255,.14);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center}
 #geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
 #geGateTitle{font-size:clamp(19px,4.4vw,25px);font-weight:850;letter-spacing:.035em;margin:0 0 7px;color:#fff}
@@ -466,13 +469,10 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #geGate.unlocking #geGateWaves{opacity:0!important}
 #geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
 #geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
-#geGateAccessForm{display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(94,205,255,.28);text-align:left}
+#geGateAccessForm{display:none;margin-top:12px;padding:14px 12px;border:1px solid rgba(94,205,255,.30);border-radius:14px;background:rgba(0,8,18,.62);text-align:center}
 #geGateAccessForm.show{display:block}
-#geGateAccessCheckRow{display:flex;align-items:center;gap:9px;margin:0 0 11px;padding:9px 10px;border-radius:11px;background:rgba(10,48,76,.45);color:#f4fbff;font:750 14px/1.25 system-ui}
-#geGateAccessCheck{width:20px;height:20px;accent-color:#43bfff;flex:0 0 auto}
-.geGateFieldLabel{display:block;margin:9px 2px 5px;color:#f4fbff;font:750 13px/1.2 system-ui}
-.geGateRequired{color:#9ee6ff;font-weight:650}
-#geGateAccessEmail,#geGateAccessMessage{display:block;width:100%;box-sizing:border-box;border:1px solid rgba(91,202,255,.58);border-radius:11px;background:rgba(0,5,13,.82);color:#fff;padding:10px 11px;font:600 15px/1.35 system-ui;outline:none;margin:0}
+#geGateAccessText{margin:0 0 12px;color:#f2fbff;font:650 14px/1.45 system-ui}
+#geGateAccessSend{min-height:42px;padding:9px 17px;font-size:14px}
 #geGateAccessEmail::placeholder,#geGateAccessMessage::placeholder{color:rgba(225,241,250,.58)}
 #geGateAccessEmail:focus,#geGateAccessMessage:focus{border-color:rgba(114,229,255,.95);box-shadow:0 0 14px rgba(62,190,255,.18)}
 #geGateAccessMessage{min-height:78px;resize:vertical}
@@ -503,15 +503,10 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     </div>
     <button id="geGateHint" type="button">Hint</button>
     <div id="geGateHintText"></div>
-    <div id="geGateHelp"><button id="geGateEmail" type="button">Request Code</button></div>
-    <div id="geGateAccessForm">
-      <label id="geGateAccessCheckRow"><input id="geGateAccessCheck" type="checkbox" checked> <span>Request access code</span></label>
-      <label class="geGateFieldLabel" for="geGateAccessEmail">Email <span class="geGateRequired">required for return code</span></label>
-      <input id="geGateAccessEmail" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" aria-label="Email required for return code">
-      <label class="geGateFieldLabel" for="geGateAccessMessage">Comment <span class="geGateRequired">optional</span></label>
-      <textarea id="geGateAccessMessage" placeholder="Anything else you want Grand Element to know" aria-label="Optional access request comment"></textarea>
-      <button id="geGateAccessSend" type="button">Send Access Request</button>
-      <div id="geGateAccessResult" role="status" aria-live="polite"></div>
+    <div id="geGateHelp"><button id="geGateEmail" type="button">Get Access</button></div>
+    <div id="geGateAccessForm" role="dialog" aria-label="Get access code">
+      <div id="geGateAccessText">Send us an email and we will send the access code back to the email account you use to contact us.</div>
+      <button id="geGateAccessSend" type="button">Send Email</button>
     </div>
   </section>
 </div>
@@ -819,7 +814,7 @@ const GATE_CONFIG = Object.freeze({
   removeOfflineOnTimeout: true,
   testDeletesOffline: false,
   helpEmail: 'access@grandelement.com',
-  helpSubject: 'Grand Element Radio Gate Access',
+  helpSubject: 'I need access',
   accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
 });
 
@@ -1330,6 +1325,9 @@ async function enterLiveMode(){
 
   try{
     await audio.play();
+    // LIVE previously skipped the analyser initialization used by normal track clicks.
+    // Re-run after the LIVE stream is actually playing; the MediaElementSource stays single and persistent.
+    await window.GEResumeLiveEQ?.();
     state.livePreparing=false;
     state.live=true;
     syncModeButtons();
@@ -1637,6 +1635,8 @@ async function resolvedShareURL(){
 $('prevBtn').addEventListener('click',()=>previousTrack(true));
 $('nextBtn').addEventListener('click',()=>nextTrack(true));
 $('liveBtn').addEventListener('click',()=>{
+  // This click is a real user gesture: resume/create Web Audio here so iOS permits the analyser.
+  void window.GEResumeLiveEQ?.();
   if(state.live||state.livePreparing){
     exitLiveMode('LIVE off • returning to player music.');
     void resumePlayerAfterLive();
@@ -3872,11 +3872,21 @@ Vector ${vector}. ${pair[1]}.`;
   let gs=load();
   let lastTickAt=Date.now(),wasCountable=false,liveStationID=false,lastSave=0;
   let wavesTimer=0,sunTimer=0,centerTimer=0,fadeTimer=0,expireTimer=0,closeTimer=0,fadeRAF=0;
-  let waterRAF=0,waterStart=performance.now();
-  function ensureGateWaveRings(){const field=$('geGateWaves');if(!field)return;const count=Math.max(4,Math.min(18,Number(GATE_CONFIG.waterRingCount)||10));if(field.children.length===count)return;field.replaceChildren();for(let i=0;i<count;i++){const ring=document.createElement('span');ring.className='geGateFreqRing';ring.dataset.index=String(i);field.appendChild(ring);}}
-  function stopGateRipples(){if(waterRAF){cancelAnimationFrame(waterRAF);waterRAF=0;}const field=$('geGateWaves');if(field){field.style.setProperty('--ge-water-blur','0px');field.style.setProperty('--ge-water-sat','1');}}
-  function waterWaveFrame(now){const field=$('geGateWaves');if(!field||!gate.classList.contains('waves')||gate.classList.contains('centered')||authorized()||!gs.active){waterRAF=0;return;}ensureGateWaveRings();const rings=[...field.children];const spectrum=window.GEGetLiveSpectrum?.();let avg=0;if(spectrum?.length){for(let i=0;i<spectrum.length;i++)avg+=spectrum[i];avg=(avg/spectrum.length)/255;}else{avg=.12+.05*Math.sin(now/620);}const strength=Math.max(.1,Number(GATE_CONFIG.waterWaveStrength)||1);const cycle=Math.max(2,gateSeconds(GATE_CONFIG.waterWaveCycleSeconds)||7.2)*1000;const phase=((now-waterStart)%cycle)/cycle;rings.forEach((ring,i)=>{const n=rings.length;const local=(phase+i/n)%1;const band=spectrum?.length?spectrum[Math.min(spectrum.length-1,Math.floor((i/(n-1||1))*(spectrum.length-1)))]/255:avg;const energy=Math.max(avg*.55,band);const scale=.55+local*9.4+(energy*.42*strength);const envelope=Math.sin(Math.PI*local);const opacity=Math.max(.035,Math.min(.72,(.10+energy*.58)*envelope*strength));ring.style.setProperty('--ring-scale',scale.toFixed(3));ring.style.setProperty('--ring-opacity',opacity.toFixed(3));ring.style.setProperty('--ring-glow',`${(10+energy*34).toFixed(1)}px`);ring.style.setProperty('--ring-softness',`${(.08+local*.5).toFixed(2)}px`);ring.style.borderWidth=`${(1.1+energy*2.0).toFixed(2)}px`;});const minBlur=Math.max(0,Number(GATE_CONFIG.waterBlurMinPx)||.5);const maxBlur=Math.max(minBlur,Number(GATE_CONFIG.waterBlurMaxPx)||6.5);const pulse=.5+.5*Math.sin(now/430+avg*8);const blur=minBlur+(maxBlur-minBlur)*Math.min(1,avg*.72+pulse*.28);field.style.setProperty('--ge-water-blur',`${blur.toFixed(2)}px`);field.style.setProperty('--ge-water-sat',String(1+(Math.max(1,Number(GATE_CONFIG.waterSaturationMax)||1.08)-1)*avg));waterRAF=requestAnimationFrame(waterWaveFrame);}
-  function scheduleNextRipple(immediate=false){if(waterRAF)return;waterStart=performance.now()-(immediate?0:400);ensureGateWaveRings();waterRAF=requestAnimationFrame(waterWaveFrame);}
+  function ensureGateWaveRings(){
+    const field=$('geGateWaves');if(!field)return;
+    const count=Math.max(6,Math.min(16,Number(GATE_CONFIG.waterRingCount)||10));
+    if(field.children.length===count)return;
+    field.replaceChildren();
+    const cycle=Math.max(5,Number(GATE_CONFIG.waterWaveCycleSeconds)||8.4);
+    field.style.setProperty('--water-cycle',cycle+'s');
+    for(let i=0;i<count;i++){
+      const ring=document.createElement('span');ring.className='geGateFreqRing';
+      ring.style.setProperty('--water-delay',(-cycle*(i/count)).toFixed(3)+'s');
+      field.appendChild(ring);
+    }
+  }
+  function stopGateRipples(){/* CSS animation remains GPU-smooth; visibility is controlled by Gate classes. */}
+  function scheduleNextRipple(){ensureGateWaveRings();}
 
   function authorized(){return localStorage.getItem(GATE_CONFIG.authKey)==='1';}
   function save(force=false){
@@ -4162,33 +4172,16 @@ Vector ${vector}. ${pair[1]}.`;
     email.addEventListener('click',event=>{
       event.preventDefault();
       $('geGateAccessForm')?.classList.toggle('show');
-      if($('geGateAccessForm')?.classList.contains('show')) $('geGateAccessEmail')?.focus();
     });
   }
-  const accessSend=$('geGateAccessSend'),accessCheck=$('geGateAccessCheck'),accessEmail=$('geGateAccessEmail'),accessMessage=$('geGateAccessMessage'),accessResult=$('geGateAccessResult');
-  accessSend?.addEventListener('click',async()=>{
-    if(accessCheck&&!accessCheck.checked){if(accessResult)accessResult.textContent='Check Request access code to send the request.';accessCheck?.focus();return;}
-    const replyEmail=String(accessEmail?.value||'').trim();
-    const comment=String(accessMessage?.value||'').trim();
-    const message=comment?`Access code requested.\n\nComment: ${comment}`:'Access code requested.';
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyEmail)){
-      if(accessResult)accessResult.textContent='Enter a valid email so Grand Element can reply.';
-      accessEmail?.focus();return;
-    }
-    accessSend.disabled=true;if(accessResult)accessResult.textContent='Sending…';
-    try{
-      const response=await fetch(GATE_CONFIG.accessEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:replyEmail,message})});
-      let data={};try{data=await response.json();}catch(_e){}
-      if(!response.ok||!data.ok)throw new Error(data.error||'Request failed');
-      if(accessResult)accessResult.textContent='Access request sent.';
-      if(accessMessage)accessMessage.value='';
-    }catch(_e){
-      if(accessResult)accessResult.textContent='Access request could not be sent. Please try again.';
-    }finally{accessSend.disabled=false;}
+  $('geGateAccessSend')?.addEventListener('click',()=>{
+    const subject=encodeURIComponent(GATE_CONFIG.helpSubject||'I need access');
+    const body=encodeURIComponent('Please send me the Grand Element access code.');
+    location.href=`mailto:${GATE_CONFIG.helpEmail}?subject=${subject}&body=${body}`;
   });
   if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
 
-  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();applyManagedVolume();});
+  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();applyManagedVolume();void window.GEResumeLiveEQ?.();});
   audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
   audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
   setInterval(tick,500);
