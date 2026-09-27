@@ -3294,27 +3294,35 @@ Vector ${vector}. ${pair[1]}.`;
       }
       if(eqAudioCtx.state!=='running')return false;
 
+      if(GE_IOS_AUDIO&&!eqTapAudio){
+        eqTapAudio=new Audio();
+        eqTapAudio.preload='auto';
+        eqTapAudio.crossOrigin='anonymous';
+        eqTapAudio.playsInline=true;
+        eqTapAudio.setAttribute('playsinline','');
+        eqTapAudio.setAttribute('webkit-playsinline','');
+      }
+
+      const analysisElement=GE_IOS_AUDIO?eqTapAudio:audio;
+      if(!eqSource){
+        eqSource=eqAudioCtx.createMediaElementSource(analysisElement);
+        eqSource.connect(eqAnalyser);
+        if(!GE_IOS_AUDIO){
+          eqGain=eqAudioCtx.createGain();
+          eqGain.gain.value=1;
+          eqAnalyser.connect(eqGain);
+          eqGain.connect(eqAudioCtx.destination);
+        }
+      }
+
       if(GE_IOS_AUDIO){
-        if(!eqTapAudio){
-          eqTapAudio=new Audio();
-          eqTapAudio.preload='auto';
-          eqTapAudio.crossOrigin='anonymous';
-          eqTapAudio.playsInline=true;
-          eqTapAudio.setAttribute('playsinline','');
-          eqTapAudio.setAttribute('webkit-playsinline','');
-        }
-        if(!eqSource){
-          eqSource=eqAudioCtx.createMediaElementSource(eqTapAudio);
-          eqSource.connect(eqAnalyser);
-          // Intentionally no connection to destination: this element is analysis only.
-        }
         const wanted=audio.currentSrc||audio.src||'';
-        if(wanted && eqTapAudio.src!==wanted){
+        if(wanted&&eqTapAudio.src!==wanted){
           try{eqTapAudio.pause();}catch(_e){}
           eqTapAudio.src=wanted;
           eqTapAudio.load();
         }
-        if(wanted && !document.hidden && !audio.paused){
+        if(wanted&&!document.hidden&&!audio.paused){
           try{
             if(Number.isFinite(audio.duration)&&audio.duration>0&&Number.isFinite(audio.currentTime)){
               const sync=()=>{try{if(Math.abs((eqTapAudio.currentTime||0)-audio.currentTime)>.45)eqTapAudio.currentTime=audio.currentTime;}catch(_e){}};
@@ -3327,14 +3335,6 @@ Vector ${vector}. ${pair[1]}.`;
         return true;
       }
 
-      if(!eqSource){
-        eqSource=eqAudioCtx.createMediaElementSource(audio);
-        eqGain=eqAudioCtx.createGain();
-        eqGain.gain.value=1;
-        eqSource.connect(eqAnalyser);
-        eqAnalyser.connect(eqGain);
-        eqGain.connect(eqAudioCtx.destination);
-      }
       window.GEAudioGain={setImmediate(value){if(!eqGain||!eqAudioCtx)return false;const safe=Math.max(0,Math.min(1,Number(value)));try{eqGain.gain.cancelScheduledValues(eqAudioCtx.currentTime);eqGain.gain.setValueAtTime(safe,eqAudioCtx.currentTime);return true;}catch(_e){return false;}}};
       return true;
     }catch(err){
