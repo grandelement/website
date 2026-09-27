@@ -35,6 +35,8 @@ MIXER_SETTINGS = DATA / "mixer.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
+CLIP_DIR = RUNTIME / "clips"
+MAX_CLIP_UPLOAD_BYTES = 100 * 1024 * 1024
 
 def read_json(path, default):
     try:
@@ -237,20 +239,23 @@ class BroadcastEngine:
     SAMPLE_RATE = 48000
     CHANNELS = 2
     SAMPLE_BYTES = 2
-    FRAME_MS = 20
+    FRAME_MS = 10
     FRAME_BYTES = SAMPLE_RATE * CHANNELS * SAMPLE_BYTES * FRAME_MS // 1000
     STALE_SECONDS = 4.0
     FIFO_PATH = RUNTIME / "mic.pcm"
 
     def __init__(self):
         self.lock = threading.RLock()
-        self.pcm = queue.Queue(maxsize=120)
+        self.pcm = queue.Queue(maxsize=20)
         self.pending = bytearray()
         self.fifo_fd = None
         self.active = False
         self.mode = "off"
         self.transport = "websocket"
         self.last_chunk = 0.0
+        self.frames_received = 0
+        self.bytes_received = 0
+        self.peak_pct = 0.0
         self.stop_event = threading.Event()
         self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-mic-feeder")
         self.feeder.start()
@@ -280,6 +285,8 @@ class BroadcastEngine:
     def _queue_frame(self, frame):
         if len(frame) != self.FRAME_BYTES:
             return
+        while self.pcm.qsize() > 5:
+            self._drop_oldest()
         try:
             self.pcm.put_nowait(frame)
         except queue.Full:
@@ -366,6 +373,9 @@ class BroadcastEngine:
             self.mode = mode
             self.transport = str(transport or "websocket")
             self.last_chunk = time.monotonic()
+            self.frames_received = 0
+            self.bytes_received = 0
+            self.peak_pct = 0.0
             return self.status_locked()
 
     def write_pcm(self, data):
@@ -376,6 +386,15 @@ class BroadcastEngine:
             if not self.active:
                 raise RuntimeError("Live input is not active.")
             self._queue_pcm_bytes(data)
+            self.bytes_received += len(data)
+            self.frames_received += max(1, len(data) // max(1, self.FRAME_BYTES))
+            peak = 0
+            step = 32
+            for i in range(0, len(data) - 1, step):
+                sample = int.from_bytes(data[i:i+2], "little", signed=True)
+                if abs(sample) > peak:
+                    peak = abs(sample)
+            self.peak_pct = max(0.0, min(100.0, peak / 32768.0 * 100.0))
             self.last_chunk = time.monotonic()
 
     def stop(self):
@@ -393,6 +412,9 @@ class BroadcastEngine:
             "transport": self.transport,
             "last_chunk_age": max(0.0, time.monotonic() - self.last_chunk) if self.last_chunk else None,
             "queue_frames": self.pcm.qsize(),
+            "frames_received": int(self.frames_received),
+            "bytes_received": int(self.bytes_received),
+            "peak_pct": float(self.peak_pct),
         }
 
     def status(self):
@@ -617,6 +639,16 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_live_websocket(token)
             return
 
+        if parsed.path == "/control/clip/file":
+            if not self.require_auth(): return
+            clip_id = (urllib.parse.parse_qs(parsed.query).get("id") or [""])[0]
+            if not clip_id or not all(ch.isalnum() or ch in "-_" for ch in clip_id):
+                self.json_response({"ok": False, "error": "Invalid clip id."}, 400); return
+            path = CLIP_DIR / f"{clip_id}.wav"
+            if not path.exists():
+                self.json_response({"ok": False, "error": "Clip expired."}, 404); return
+            raw = path.read_bytes(); self.send_response(200); self.send_header("Content-Type", "audio/wav"); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+
         if self.path == "/control/healthz":
             body = b"DJ control OK\n"
             self.send_response(200)
@@ -674,7 +706,7 @@ class Handler(BaseHTTPRequestHandler):
             coming = [queue_track(e) for e in upcoming[1:5]]
 
             self.json_response({
-                "version": "5.4",
+                "version": "5.7",
                 "legacy": bool(settings.get("legacy", False)),
                 "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
                 "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
@@ -710,6 +742,31 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/clip/extract":
+            if not self.require_auth(): return
+            try:
+                n = int(self.headers.get("Content-Length", "0") or "0")
+                if n <= 0 or n > MAX_CLIP_UPLOAD_BYTES: raise ValueError("Clip must be between 1 byte and 100 MB.")
+                CLIP_DIR.mkdir(parents=True, exist_ok=True)
+                clip_id = uuid.uuid4().hex[:16]
+                raw_name = urllib.parse.unquote(self.headers.get("X-GE-File-Name", "clip"))
+                suffix = Path(raw_name).suffix.lower()
+                if len(suffix) > 8 or not suffix or not all(ch.isalnum() or ch == "." for ch in suffix): suffix = ".bin"
+                src = CLIP_DIR / f"{clip_id}-source{suffix}"
+                out = CLIP_DIR / f"{clip_id}.wav"
+                src.write_bytes(self.rfile.read(n))
+                cmd = ["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-vn","-ac", "2","-ar","48000","-c:a","pcm_s16le",str(out)]
+                proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+                src.unlink(missing_ok=True)
+                if proc.returncode != 0 or not out.exists(): raise ValueError((proc.stderr.decode("utf-8","ignore") or "Could not extract audio from that file.")[-500:])
+                # Keep temp clip storage bounded.
+                files = sorted(CLIP_DIR.glob("*.wav"), key=lambda p:p.stat().st_mtime, reverse=True)
+                for old in files[8:]: old.unlink(missing_ok=True)
+                self.json_response({"ok": True, "id": clip_id, "name": raw_name, "bytes": out.stat().st_size})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/crossfade":
             if not self.require_auth(): return
             try:

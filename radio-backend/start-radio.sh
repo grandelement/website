@@ -13,6 +13,7 @@ mkdir -p \
 rm -f /app/runtime/mic.pcm
 mkfifo -m 600 /app/runtime/mic.pcm
 
+## Persistent station defaults. Existing /app/data settings are never overwritten by a new index/build.
 if [ ! -f "$GE_DATA_DIR/settings.json" ]; then
   printf '%s\n' '{"legacy": false, "crossfade_seconds": 5.0, "custom_mix_enabled": false, "custom_mix_id": ""}' > "$GE_DATA_DIR/settings.json"
 fi
@@ -31,12 +32,12 @@ cat > /app/runtime/icecast.xml <<EOF
   <limits>
     <clients>40</clients>
     <sources>4</sources>
-    <queue-size>131072</queue-size>
+    <queue-size>32768</queue-size>
     <client-timeout>30</client-timeout>
     <header-timeout>15</header-timeout>
     <source-timeout>10</source-timeout>
     <burst-on-connect>1</burst-on-connect>
-    <burst-size>8192</burst-size>
+    <burst-size>4096</burst-size>
   </limits>
   <authentication>
     <source-password>${SOURCE_PASSWORD}</source-password>
