@@ -179,8 +179,27 @@ Preserve together:
   .moon{ position:absolute; left:0; top:0; transform:translate(var(--orbit-radius), -50%);
          width:var(--moon-size); height:var(--moon-size); border-radius:50%; cursor:pointer; pointer-events:auto; display:grid; place-items:center; }
   .moon img{ width:100%; height:100%; object-fit:cover; border-radius:50%;
-    box-shadow:0 0 10px 4px rgba(140,200,255,.35); border:1px solid rgba(160,210,255,.55);
+    box-shadow:0 0 8px 3px rgba(140,200,255,.42),0 0 16px rgba(80,175,255,.22); border:1px solid rgba(160,210,255,.62);
     background: radial-gradient(circle, rgba(160,210,255,.55) 0%, rgba(160,210,255,.25) 60%, rgba(160,210,255,0) 70%);
+    animation:geMoonCoreSignal 3.6s ease-in-out infinite;
+  }
+  .moon::before,.moon::after{
+    content:"";position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
+    border:1px solid rgba(145,220,255,.62);
+    box-shadow:0 0 8px rgba(110,205,255,.38);
+    animation:geMoonBroadcast 4.8s ease-out infinite;
+  }
+  .moon::after{animation-delay:2.4s;border-color:rgba(205,242,255,.48)}
+  @keyframes geMoonCoreSignal{
+    0%,100%{filter:brightness(1);opacity:.94}
+    45%{filter:brightness(1.32);opacity:1}
+    60%{filter:brightness(1.08);opacity:.98}
+  }
+  @keyframes geMoonBroadcast{
+    0%{transform:scale(.96);opacity:0}
+    12%{opacity:.7}
+    72%{opacity:.18}
+    100%{transform:scale(2.35);opacity:0}
   }
 
   .overlay{ position:fixed; inset:0; display:none; place-items:center; z-index:10; }
@@ -711,8 +730,20 @@ Preserve together:
     background:rgba(18,36,62,.92);
     color:#eef7ff;
     padding:9px 16px;
+    min-height:42px;
+    min-width:0;
+    max-width:100%;
+    font-size:13px;
+    line-height:1.15;
     font-weight:800;
     cursor:pointer;
+  }
+  .gameCard>*{min-width:0;max-width:100%;box-sizing:border-box}
+  .gameCard button,.gameCard select,.gameCard input{font-size:max(13px,1rem)}
+  @media(max-width:420px){
+    .gameCard{width:calc(100vw - 18px);padding:14px}
+    .gameButtons{gap:7px}
+    .gameButton{padding:9px 12px}
   }
   .gameButton:hover{ background:rgba(35,72,118,.96); }
   .gameRemember{ display:flex; gap:8px; justify-content:center; align-items:center; margin-top:14px; font-size:13px; opacity:.86; }
@@ -729,7 +760,7 @@ Preserve together:
     display:none;
     align-items:center;
     gap:7px;
-    padding:calc(7px + env(safe-area-inset-top,0px)) 10px 7px;
+    padding:calc(7px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 7px max(10px,env(safe-area-inset-left,0px));
     background:#000;
     border-bottom:1px solid rgba(160,205,255,.34);
     box-shadow:0 5px 15px rgba(0,0,0,.62);
@@ -1686,6 +1717,14 @@ window.GE_EASY_SETTINGS = {
   METEOR_SHOWER_MIN_SOULS: 3,
   METEOR_SHOWER_MAX_SOULS: 7,
 
+  // First-visit pacing: show one unmistakable event early, then return to the quiet sky cadence.
+  FIRST_SOUL_APPEAR_MIN_SEC: 5,
+  FIRST_SOUL_APPEAR_MAX_SEC: 10,
+  FIRST_SOUL_ONSCREEN_CHANCE: 0.45,
+  FIRST_SHIP_APPEAR_MIN_SEC: 10,
+  FIRST_SHIP_APPEAR_MAX_SEC: 20,
+  FIRST_SHIP_SPEED_MIN: 42,
+  FIRST_SHIP_SPEED_MAX: 72,
   SHIP_APPEAR_MIN_SEC: 75,
   SHIP_APPEAR_MAX_SEC: 180,
   MINI_SHIP_APPEAR_MIN_SEC: 90,
@@ -5095,14 +5134,20 @@ function soulHostChoiceField(dt){
 }
 
 class Ship{
-  constructor(){
-    const side=choice(['l','r','t','b']);
+  constructor(openingPass=false){
+    const side=openingPass?'r':choice(['l','r','t','b']);
     this.s=MOBILE?0.16:0.2;
     const pad=60;
-    if(side==='l'){this.x=-pad;this.y=rand(0,H);this.vx=rand(80,220);this.vy=rand(-80,80);}
-    if(side==='r'){this.x=W+pad;this.y=rand(0,H);this.vx=-rand(80,220);this.vy=rand(-80,80);}
-    if(side==='t'){this.x=rand(0,W);this.y=-pad;this.vx=rand(-180,180);this.vy=rand(80,220);}
-    if(side==='b'){this.x=rand(0,W);this.y=H+pad;this.vx=rand(-180,180);this.vy=-rand(80,220);}
+    if(openingPass){
+      this.x=W+pad;this.y=rand(H*.18,H*.78);
+      this.vx=-rand(window.GE_EASY_SETTINGS?.FIRST_SHIP_SPEED_MIN??42,window.GE_EASY_SETTINGS?.FIRST_SHIP_SPEED_MAX??72);
+      this.vy=rand(-16,16);
+    }else{
+      if(side==='l'){this.x=-pad;this.y=rand(0,H);this.vx=rand(80,220);this.vy=rand(-80,80);}
+      if(side==='r'){this.x=W+pad;this.y=rand(0,H);this.vx=-rand(80,220);this.vy=rand(-80,80);}
+      if(side==='t'){this.x=rand(0,W);this.y=-pad;this.vx=rand(-180,180);this.vy=rand(80,220);}
+      if(side==='b'){this.x=rand(0,W);this.y=H+pad;this.vx=rand(-180,180);this.vy=-rand(80,220);}
+    }
     this.ax=rand(-30,30);this.ay=rand(-30,30);this.curveT=rand(2,5);this.curveP=rand(0,Math.PI*2);
     this.angle=0;this.dead=false;this.paused=false;this.savedVx=this.vx;this.savedVy=this.vy;
     this.targets=[];this.beam=0;this.manualRay=null;
@@ -5387,15 +5432,20 @@ class MiniShip{
 }
 
 const comets=[], pairs=[], quantumClusters=[], ships=[], miniShips=[];
-const initialSoulCount=Math.floor(rand(
-  window.GE_EASY_SETTINGS?.SOUL_START_MIN??0,
-  (window.GE_EASY_SETTINGS?.SOUL_START_MAX??2)+1
-));
-for(let i=0;i<initialSoulCount;i++)comets.push(new Comet());
+const openingSoulAlreadyHere=Math.random()<(window.GE_EASY_SETTINGS?.FIRST_SOUL_ONSCREEN_CHANCE??.45);
+if(openingSoulAlreadyHere){
+  const c=new Comet();
+  c.depthLevel=1;c.depth='far';c.r=Math.min(1.15,c.r||1.15);
+  c.x=rand(W*.10,W*.90);c.y=rand(H*.12,H*.76);
+  c.vx=rand(-10,10);c.vy=rand(-5,5);
+  comets.push(c);
+}
+let firstSoulPending=!openingSoulAlreadyHere,firstShipPending=true;
 let last=performance.now()/1000,cTimer=0,
-    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??70,
-               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??180),
-    shipTimer=0,shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180),miniTimer=0,miniNext=rand(window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MIN_SEC??90,window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MAX_SEC??240),
+    cNext=firstSoulPending
+      ? rand(window.GE_EASY_SETTINGS?.FIRST_SOUL_APPEAR_MIN_SEC??5,window.GE_EASY_SETTINGS?.FIRST_SOUL_APPEAR_MAX_SEC??10)
+      : rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??70,window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??180),
+    shipTimer=0,shipNext=rand(window.GE_EASY_SETTINGS?.FIRST_SHIP_APPEAR_MIN_SEC??10,window.GE_EASY_SETTINGS?.FIRST_SHIP_APPEAR_MAX_SEC??20),miniTimer=0,miniNext=rand(window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MIN_SEC??90,window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MAX_SEC??240),
     meteorTimer=0,meteorNext=rand(
       window.GE_EASY_SETTINGS?.METEOR_SHOWER_MIN_SEC??480,
       window.GE_EASY_SETTINGS?.METEOR_SHOWER_MAX_SEC??1200
@@ -5660,12 +5710,24 @@ function loop(){
 
   cTimer+=dt;
   if(cTimer>cNext && comets.length<maxComets){
-    comets.push(new Comet());
+    const c=new Comet();
+    if(firstSoulPending){
+      c.depthLevel=1;c.depth='far';c.r=Math.min(1.15,c.r||1.15);
+      c.vx*=.58;c.vy*=.58;firstSoulPending=false;
+    }
+    comets.push(c);
     cTimer=0;
-    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??1.4,
-               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??4.8);
+    cNext=rand(window.GE_EASY_SETTINGS?.SOUL_SPAWN_MIN_SEC??70,
+               window.GE_EASY_SETTINGS?.SOUL_SPAWN_MAX_SEC??180);
   }
-  shipTimer+=dt;if(shipTimer>shipNext){shipTimer=0;shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180);if(ships.length<wantShips)ships.push(new Ship());}
+  shipTimer+=dt;
+  if(firstShipPending&&shipTimer>shipNext){
+    shipTimer=0;firstShipPending=false;ships.push(new Ship(true));
+    shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180);
+  }else if(!firstShipPending&&shipTimer>shipNext){
+    shipTimer=0;shipNext=rand(window.GE_EASY_SETTINGS?.SHIP_APPEAR_MIN_SEC??75,window.GE_EASY_SETTINGS?.SHIP_APPEAR_MAX_SEC??180);
+    if(ships.length<wantShips)ships.push(new Ship());
+  }
   miniTimer+=dt;if(miniTimer>miniNext){miniTimer=0;miniNext=rand(window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MIN_SEC??90,window.GE_EASY_SETTINGS?.MINI_SHIP_APPEAR_MAX_SEC??240);if(miniShips.length<wantMini)miniShips.push(new MiniShip());}
 
   // Rare meteor shower: a brief cluster followed by another long quiet period.
