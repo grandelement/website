@@ -746,9 +746,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
     </div>
     <div class="sunlab-actions">
-      <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
-      <button id="sunLabReset" type="button" class="sunlab-mini">Reset</button>
-      <button id="sunLabHide" type="button" class="sunlab-mini">Hide</button>
+      <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
   </section>
   <div id="status" role="status" aria-live="polite"></div>
@@ -2879,27 +2877,17 @@ $('reloadBtn').addEventListener('click',async()=>{
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V2';
-  const SUN_MODE_WAVE={plasma:'plasma',pressure:'pressure',tracer:'tracer',ring:'ring',bars:'bars',mirror:'mirror',mirrorflip:'mirrorflip',waterfall:'mirrorflip'};
+  const SUN_MODE_WAVE={plasma:'plasma',spectrum:'ring',glow:'mirrorflip',waterfall:'mirrorflip'};
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slGlow','slMist','slBlueDepth','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
-    pressure:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBrightness','slHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
-    tracer:['slDistance','slThickness','slContrast','slDynamics','slGlow','slMist','slBlueDepth','slOuterFade','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
-    ring:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slOuterFade','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
-    bars:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly'],
-    mirror:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly'],
-    mirrorflip:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly'],
+    spectrum:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slOuterFade','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing'],
+    glow:['slDistance','slDynamics','slGlow','slMist','slBlueDepth','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
     waterfall:['slCascadeSpeed','slDistance','slThickness','slContrast','slDynamics','slGlow','slMist','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly']
   };
   const SUN_MODE_DEFAULTS={
-    // Ring-family modes need stronger starting EQ values than the clean bar default.
-    // These are based on the earlier working Sun Lab ranges so choosing a mode is immediately visible.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:100,thickness:100,contrast:100,dynamics:165,glow:36,mist:100,blueDepth:120,outerFade:100,tipWhite:12,brightness:135,bass:72,mid:110,treble:128,compression:68,smoothing:58},
-    pressure:{...SUN_LAB_DEFAULTS,waveType:'pressure',distance:105,thickness:105,contrast:110,dynamics:170,glow:30,mist:78,blueDepth:120,outerFade:90,tipWhite:10,brightness:140,bass:72,mid:110,treble:128,compression:68,smoothing:56},
-    tracer:{...SUN_LAB_DEFAULTS,waveType:'tracer',distance:55,thickness:70,contrast:136,dynamics:66,glow:47,mist:0,blueDepth:168,outerFade:71,tipWhite:8,brightness:150,bass:28,mid:150,treble:200,compression:46,smoothing:46},
-    ring:{...SUN_LAB_DEFAULTS,waveType:'ring',distance:90,thickness:90,contrast:105,dynamics:160,glow:16,mist:32,blueDepth:115,outerFade:85,tipWhite:10,brightness:135,bass:72,mid:110,treble:128,compression:64,smoothing:58},
-    bars:{...SUN_LAB_DEFAULTS,waveType:'bars'},
-    mirror:{...SUN_LAB_DEFAULTS,waveType:'mirror'},
-    mirrorflip:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip'},
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:'ring',distance:24,thickness:72,contrast:136,dynamics:170,glow:18,mist:0,blueDepth:150,outerFade:76,tipWhite:10,brightness:150,bass:70,mid:115,treble:145,compression:44,smoothing:34},
+    glow:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',distance:30,thickness:45,contrast:40,dynamics:150,glow:92,mist:68,blueDepth:145,brightness:155,bass:65,mid:100,treble:120,compression:42,smoothing:56,glowOnly:true},
     waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:150,bass:55,mid:100,treble:120,compression:38,smoothing:30}
   };
   let sunLab={...SUN_LAB_DEFAULTS};
@@ -2912,7 +2900,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   function loadSunModeProfiles(){try{const raw=localStorage.getItem(SUN_MODE_KEY);const parsed=raw?JSON.parse(raw):{};if(parsed&&typeof parsed==='object')sunModeProfiles=parsed;}catch(_e){sunModeProfiles={};}}
   function saveSunModeProfiles(){try{localStorage.setItem(SUN_MODE_KEY,JSON.stringify(sunModeProfiles));}catch(_e){}}
   function saveCurrentSunMode(){if(!sunLabEditMode)return;sunModeProfiles[sunLabEditMode]={...sunLab};saveSunModeProfiles();}
-  function modeLabel(mode){return ({plasma:'Plasma',pressure:'Pressure',tracer:'Tracer',ring:'Ring',bars:'Bars',mirror:'Mirror Bars',mirrorflip:'Mirror Flip',waterfall:'Radial Waterfall'})[mode]||mode;}
+  function modeLabel(mode){return ({plasma:'Plasma',spectrum:'Spectrum',glow:'Glow',waterfall:'Waterfall'})[mode]||mode;}
   function setSunModeVisibility(mode){
     const grid=$('sunLabGrid'),hint=$('sunLabModeHint');
     grid?.classList.toggle('no-mode',!mode);
@@ -2933,7 +2921,9 @@ $('reloadBtn').addEventListener('click',async()=>{
     sunLabEditMode=mode;
     const base=SUN_MODE_DEFAULTS[mode]||SUN_LAB_DEFAULTS;
     sunLab={...base,...(sunModeProfiles[mode]||{}),waveType:SUN_MODE_WAVE[mode]};
-    if(mode==='waterfall')sunLab.cascadeOn=true;else sunLab.cascadeOn=false;
+    if(mode==='waterfall'){sunLab.cascadeOn=true;sunLab.glowOnly=false;}
+    else if(mode==='glow'){sunLab.cascadeOn=false;sunLab.glowOnly=true;}
+    else {sunLab.cascadeOn=false;sunLab.glowOnly=false;}
     // Force the visual renderer to rebuild now instead of waiting for an old mode DOM to age out.
     sunEQLastPaint=0;
     sunEQCascadeHistory=[];
