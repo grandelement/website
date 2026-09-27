@@ -205,6 +205,14 @@ http {
       add_header Access-Control-Allow-Origin $ge_studio_origin always;
       add_header Vary "Origin" always; add_header Cache-Control "no-store" always;
     }
+    location = /control/realtime-ingest {
+      proxy_pass http://127.0.0.1:8090; proxy_http_version 1.1;
+      proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";
+      proxy_buffering off; proxy_request_buffering off; proxy_connect_timeout 5s;
+      proxy_read_timeout 3600s; proxy_send_timeout 3600s; access_log off;
+      add_header Cache-Control "no-store" always;
+    }
     location /control/ {
       if ($request_method = OPTIONS) {
         add_header Access-Control-Allow-Origin $ge_studio_origin always;
