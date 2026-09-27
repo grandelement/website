@@ -2907,17 +2907,21 @@ $('reloadBtn').addEventListener('click',async()=>{
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
   const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V2';
-  const SUN_MODE_WAVE={plasma:'plasma',spectrum:'ring',glow:'mirrorflip',waterfall:'mirrorflip'};
+  const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
   const SUN_MODE_CONTROLS={
-    plasma:['slDistance','slThickness','slDynamics','slGlow','slMist','slBlueDepth','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
-    spectrum:['slDistance','slThickness','slContrast','slDynamics','slGlow','slBlueDepth','slOuterFade','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing'],
-    glow:['slDistance','slDynamics','slGlow','slMist','slBlueDepth','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slGlowOnly'],
+    plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
+    spectrum:['slSpectrumSpeed','slDistance','slThickness','slContrast','slDynamics','slHue','slBass','slMid','slTreble'],
+    glow:['slInnerGlowReach','slInnerGlowStrength','slInnerGlowHue','slOuterGlowReach','slOuterGlowStrength','slOuterGlowHue'],
     waterfall:['slCascadeSpeed','slDistance','slThickness','slContrast','slDynamics','slGlow','slMist','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly']
   };
   const SUN_MODE_DEFAULTS={
-    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:100,thickness:100,contrast:100,dynamics:165,glow:36,mist:100,blueDepth:120,outerFade:100,tipWhite:12,brightness:135,bass:72,mid:110,treble:128,compression:68,smoothing:58},
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:'ring',distance:24,thickness:72,contrast:136,dynamics:170,glow:18,mist:0,blueDepth:150,outerFade:76,tipWhite:10,brightness:150,bass:70,mid:115,treble:145,compression:44,smoothing:34},
-    glow:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',distance:30,thickness:45,contrast:40,dynamics:150,glow:92,mist:68,blueDepth:145,brightness:155,bass:65,mid:100,treble:120,compression:42,smoothing:56,glowOnly:true},
+    // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
+    plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:182,dynamics:32,brightness:150,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
+    // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:150,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
+    // Glow is now a true two-layer corona rather than a wide set of bars/rings.
+    glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:150,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:185,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
+    // Waterfall remains locked to the existing implementation and working profile.
     waterfall:{...SUN_LAB_DEFAULTS,waveType:'mirrorflip',cascadeOn:true,radialOn:false,cascadeSpeed:58,glow:12,mist:24,brightness:150,bass:55,mid:100,treble:120,compression:38,smoothing:30}
   };
   let sunLab={...SUN_LAB_DEFAULTS};
@@ -2952,7 +2956,6 @@ $('reloadBtn').addEventListener('click',async()=>{
     const base=SUN_MODE_DEFAULTS[mode]||SUN_LAB_DEFAULTS;
     sunLab={...base,...(sunModeProfiles[mode]||{}),waveType:SUN_MODE_WAVE[mode]};
     if(mode==='waterfall'){sunLab.cascadeOn=true;sunLab.glowOnly=false;}
-    else if(mode==='glow'){sunLab.cascadeOn=false;sunLab.glowOnly=true;}
     else {sunLab.cascadeOn=false;sunLab.glowOnly=false;}
     // Force the visual renderer to rebuild now instead of waiting for an old mode DOM to age out.
     sunEQLastPaint=0;
@@ -3020,6 +3023,13 @@ $('reloadBtn').addEventListener('click',async()=>{
     bindSunLabControl('slTreble','treble');
     bindSunLabControl('slCompression','compression');
     bindSunLabControl('slSmoothing','smoothing');
+    bindSunLabControl('slSpectrumSpeed','spectrumSpeed');
+    bindSunLabControl('slInnerGlowReach','innerGlowReach');
+    bindSunLabControl('slInnerGlowStrength','innerGlowStrength');
+    bindSunLabControl('slInnerGlowHue','innerGlowHue',fmtDeg);
+    bindSunLabControl('slOuterGlowReach','outerGlowReach');
+    bindSunLabControl('slOuterGlowStrength','outerGlowStrength');
+    bindSunLabControl('slOuterGlowHue','outerGlowHue',fmtDeg);
     refreshSunLabSelect();
   }
   function initSunLab(){
