@@ -6391,7 +6391,11 @@ buildPlanetPhysics();
     const now=performance.now(),last=hist[hist.length-1]||{x:p.x,y:p.y,t:now};let ref=hist[0]||last;
     for(let i=hist.length-1;i>=0;i--)if(now-hist[i].t>=60){ref=hist[i];break;}
     const dt=Math.max(16,last.t-ref.t),power=window.GE_EASY_SETTINGS?.PLANET_THROW_POWER??925,gs=gameState();
-    const sensitivity=gs?.gameType==='marbles'?Math.max(.375,Math.min(1.125,Number(gs.marbleSensitivity)||.75)):1;
+    // Marbles stores 0.75 as its 100% UI baseline. Normalize that baseline back to
+    // 1.0 launch power so a 100% marble throw moves as fast as a normal planet throw.
+    const sensitivity=gs?.gameType==='marbles'
+      ? Math.max(.50,Math.min(1.50,(Number(gs.marbleSensitivity)||.75)/.75))
+      : 1;
     return beginGameShot(p,(last.x-ref.x)/dt*power*sensitivity,(last.y-ref.y)/dt*power*sensitivity,'throw');
   }
   host.addEventListener('pointerdown',e=>{
@@ -6432,7 +6436,7 @@ buildPlanetPhysics();
     if(d.mode==='rubber'&&isGame()){
       const pointer=aimPoint||{x:d.downX,y:d.downY},dx=d.anchorX-pointer.x,dy=d.anchorY-pointer.y,pull=Math.hypot(dx,dy),minPull=window.GE_EASY_SETTINGS?.RUBBER_BAND_MIN_PULL??14,maxPull=window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_PULL??180;
       clearAim();p.x=d.anchorX;p.y=d.anchorY;syncPlanet(p);
-      if(pull>=minPull){let speed;const gs=gameState(),mode=gs?.rubberPower||'free';if(mode==='unlimited')speed=pull*(window.GE_EASY_SETTINGS?.RUBBER_BAND_UNLIMITED_FACTOR??4);else{const cap=mode==='free'?(window.GE_EASY_SETTINGS?.RUBBER_BAND_FREE_MODE_SPEED??2200):(mode==='extreme'?1800:(mode==='high'?1200:(window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_SPEED??820)));speed=Math.min(1,pull/maxPull)*cap;}if(gs?.gameType==='blueSunPool'||gs?.gameType==='ninePlanet')speed*=Math.max(.375,Math.min(1.125,Number(gs.blueSunSensitivity)||.75));if(gs?.gameType==='marbles')speed*=Math.max(.375,Math.min(1.125,Number(gs.marbleSensitivity)||.75));launched=beginGameShot(p,dx/pull*speed,dy/pull*speed,'rubber');}
+      if(pull>=minPull){let speed;const gs=gameState(),mode=gs?.rubberPower||'free';if(mode==='unlimited')speed=pull*(window.GE_EASY_SETTINGS?.RUBBER_BAND_UNLIMITED_FACTOR??4);else{const cap=mode==='free'?(window.GE_EASY_SETTINGS?.RUBBER_BAND_FREE_MODE_SPEED??2200):(mode==='extreme'?1800:(mode==='high'?1200:(window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_SPEED??820)));speed=Math.min(1,pull/maxPull)*cap;}if(gs?.gameType==='blueSunPool'||gs?.gameType==='ninePlanet')speed*=Math.max(.375,Math.min(1.125,Number(gs.blueSunSensitivity)||.75));if(gs?.gameType==='marbles')speed*=Math.max(.50,Math.min(1.50,(Number(gs.marbleSensitivity)||.75)/.75));launched=beginGameShot(p,dx/pull*speed,dy/pull*speed,'rubber');}
       if(!launched){p.vx=0;p.vy=0;}
     }else if(p._dragStarted){
       if(isGame()){launched=launchFromThrow(p);if(!launched){p.vx=0;p.vy=0;}}
