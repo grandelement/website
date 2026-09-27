@@ -296,7 +296,7 @@ start_audio_stack(){
 
   local filter
   if ffmpeg -hide_banner -filters 2>/dev/null | grep -q " azmq "; then
-    filter='[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume@musicgain=volume=1.0[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[direct];[direct]asplit=2[side][live];[music][side]sidechaincompress@duck=threshold=0.010:ratio=10:attack=12:release=550:mix=0.55[ducked];[ducked][live]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95,azmq[out]'
+    filter='[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume@musicgain=volume=1.0[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume@directgain=volume=1.0[direct];[direct]asplit=2[side][live];[music][side]sidechaincompress@duck=threshold=0.010:ratio=10:attack=12:release=550:mix=0.55[ducked];[ducked][live]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95,volume@mastergain=volume=1.0,azmq[out]'
     echo "GE Radio: browser live mixer controls enabled."
   else
     filter='[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[direct];[direct]asplit=2[side][live];[music][side]sidechaincompress=threshold=0.010:ratio=10:attack=12:release=550[ducked];[ducked][live]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]'
@@ -321,7 +321,7 @@ except Exception: s={"music_level":1.0,"music_under_voice":0.45,"music_muted":Fa
 music=0.0 if s.get("music_muted") else float(s.get("music_level",1.0))
 duck=1.0-float(s.get("music_under_voice",0.45))
 ctx=zmq.Context.instance()
-for target,cmd,val in [("volume@musicgain","volume",music),("sidechaincompress@duck","mix",duck)]:
+direct=float(s.get("direct_level",1.0)); master=float(s.get("master_level",1.0))\nfor target,cmd,val in [("volume@musicgain","volume",music),("sidechaincompress@duck","mix",duck),("volume@directgain","volume",direct),("volume@mastergain","volume",master)]:
     q=ctx.socket(zmq.REQ); q.setsockopt(zmq.LINGER,0); q.setsockopt(zmq.SNDTIMEO,1000); q.setsockopt(zmq.RCVTIMEO,1000)
     try:
         q.connect("tcp://127.0.0.1:5555"); q.send_string(f"{target} {cmd} {val:.4f}"); q.recv_string()
