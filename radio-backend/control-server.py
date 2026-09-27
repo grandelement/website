@@ -163,17 +163,10 @@ def raw_url(commit_sha, path):
     return f"https://raw.githubusercontent.com/grandelement/website/{commit_sha}/{quote(path, safe='/')}"
 
 TRACK_DURATION_CACHE = {}
+TRACK_DURATION_LOADING = set()
 TRACK_DURATION_LOCK = threading.Lock()
 
-def track_duration_seconds(commit_sha, path):
-    commit_sha = str(commit_sha or "")
-    path = str(path or "")
-    if not commit_sha or not path:
-        return 0.0
-    key = commit_sha + "|" + path
-    with TRACK_DURATION_LOCK:
-        if key in TRACK_DURATION_CACHE:
-            return TRACK_DURATION_CACHE[key]
+def _probe_track_duration(commit_sha, path, key):
     try:
         proc = subprocess.run(
             ["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",raw_url(commit_sha, path)],
@@ -185,7 +178,21 @@ def track_duration_seconds(commit_sha, path):
     value = max(0.0, min(60.0 * 60.0 * 4.0, value))
     with TRACK_DURATION_LOCK:
         TRACK_DURATION_CACHE[key] = value
-    return value
+        TRACK_DURATION_LOADING.discard(key)
+
+def track_duration_seconds(commit_sha, path):
+    commit_sha = str(commit_sha or "")
+    path = str(path or "")
+    if not commit_sha or not path:
+        return 0.0
+    key = commit_sha + "|" + path
+    with TRACK_DURATION_LOCK:
+        if key in TRACK_DURATION_CACHE:
+            return TRACK_DURATION_CACHE[key]
+        if key not in TRACK_DURATION_LOADING:
+            TRACK_DURATION_LOADING.add(key)
+            threading.Thread(target=_probe_track_duration, args=(commit_sha, path, key), daemon=True, name="ge-duration-probe").start()
+    return 0.0
 
 def annotation(entry, commit_sha, cross=None):
     fields = [
