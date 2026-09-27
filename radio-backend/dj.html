@@ -21,12 +21,34 @@ body{padding-bottom:112px}.wrap{max-width:940px}
 .dock{padding-top:6px}.dockin{grid-template-columns:repeat(6,1fr);max-width:940px}.dock .onair{border-color:#ff657b;background:#551c27}.dock .studio{border-color:#55d8c1}
 @media(max-width:560px){.mixerGrid{grid-template-columns:repeat(4,minmax(74px,1fr));gap:4px}.mixStrip{padding:5px 3px}.mixStrip input[type=range].vf{height:122px;width:28px}.dock button{min-height:58px}.sheet{bottom:calc(78px + env(safe-area-inset-bottom))}}
 
+
+/* v7.1 playlist manager + no-scroll mixer */
+.sectionHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.miniAction{appearance:none;border:1px solid #45606f;background:#101923;color:#fff;border-radius:9px;min-height:38px;padding:0 11px;font-size:8px;font-weight:950}
+.playlistGrid{display:grid;gap:9px}
+.playlistTop{display:grid;grid-template-columns:1fr auto auto;gap:6px}
+.playlistTop select,.playlistName{width:100%;min-height:45px;border:1px solid #35424e;background:#05080b;color:#fff;border-radius:9px;padding:0 10px}
+.playlistStatus{min-height:15px;font-size:8px;color:var(--accent)}
+.playlistAlbums{display:flex;gap:6px;overflow-x:auto;padding:3px 0 7px;touch-action:pan-x}
+.albumChip{display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:center;flex:0 0 auto;min-width:126px;border:1px solid #34424f;background:#091017;border-radius:10px;padding:8px 9px;color:#fff}
+.albumChip.on{border-color:var(--accent);background:#12342d}.albumChip input{width:20px;height:20px}.albumChip button{appearance:none;border:0;background:transparent;color:#fff;text-align:left;font-size:9px;font-weight:950;padding:0}
+.playlistActions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.playlistActions button{min-height:42px;border:1px solid #3a4855;background:#111820;color:#fff;border-radius:8px;font-size:7px;font-weight:950}
+.playlistActions .danger{border-color:#914050;background:#35131a}.playlistActions .go{border-color:#55d8c1;background:#12382f}
+.songChecks{display:grid;gap:4px;max-height:36vh;overflow:auto;border:1px solid #26323d;border-radius:10px;padding:6px;background:#060a0e}
+.songCheck{display:grid;grid-template-columns:26px 1fr;gap:7px;align-items:center;min-height:42px;border-bottom:1px solid #1f2932;padding:4px}.songCheck:last-child{border-bottom:0}.songCheck input{width:21px;height:21px}.songCheck b{font-size:10px}.songCheck span{display:block;font-size:7px;color:var(--muted);margin-top:2px}
+#mixerSheet{top:max(7px,env(safe-area-inset-top));bottom:calc(72px + env(safe-area-inset-bottom));max-height:none;border-radius:13px 13px 0 0;overflow:hidden}
+#mixerSheet .sheetIn{height:100%;display:flex;flex-direction:column;min-height:0}
+#mixerSheet .mixerGrid{flex:1;min-height:0;align-items:stretch}
+#mixerSheet .mixStrip{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#mixerSheet .mixStrip input[type=range].vf{flex:1;min-height:72px;max-height:180px;height:auto!important}
+@media(max-width:560px){.playlistTop{grid-template-columns:1fr 1fr}.playlistTop select{grid-column:1/-1}.playlistActions{grid-template-columns:1fr 1fr}.songChecks{max-height:32vh}#mixerSheet .mixStrip input[type=range].vf{min-height:62px;max-height:128px}}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
   <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v7</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card"><div class="label">NOW PLAYING</div><div class="now"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div></div></div><div class="hmeter"><div class="hmeterFill" id="radioMeter"></div></div><div class="liveState"><div class="stateBox" id="radioState"><b>RADIO</b><strong id="radioStateText">CONNECTED</strong></div><div class="stateBox" id="liveState"><b>LIVE CONTRIBUTION</b><strong id="liveStateText">OFF</strong></div></div></div>
-  <div class="card"><div class="label">COMING UP</div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
+  <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
 </div>
 <audio id="radioAudio" preload="none" crossorigin="anonymous" src="/dj-cue.mp3"></audio>
 <div class="dock"><div class="dockin"><button id="dockRadio">RADIO</button><button class="mic" id="dockMic">MIC</button><button id="dockLine">LINE</button><button id="dockMixer">MIXER</button><button id="dockFx">FX</button><button class="studio" id="dockStudio">STUDIO</button></div></div>
@@ -39,12 +61,99 @@ body{padding-bottom:112px}.wrap{max-width:940px}
 <div class="mixStrip master"><h3>MASTER</h3><small>public output</small><div class="hmeter"><div class="hmeterFill" id="mixMasterMeter"></div></div><input class="vf" id="mixMasterLevel" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixMasterRead">100%</div><div class="sendRow"><span>RADIO BED</span><input id="mixRadioBed" type="range" min="0" max="125" value="100"></div><div class="mixBtns"><button id="masterRadio">RADIO</button><button id="masterStopLive">STOP LIVE</button></div></div>
 </div></div></div>
 <div class="sheet" id="effectsSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL EFFECTS</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><button data-close="effectsSheet">CLOSE</button></div><div class="fxPresets" id="fxPresets"></div><div class="bigSlider"><label><span>FREQUENCY</span><span id="fxFrequencyVal"></span></label><input id="fxFrequency" type="range" min="-100" max="100" value="0"></div><div class="bigSlider"><label><span>PHASER</span><span id="fxPhaserVal"></span></label><input id="fxPhaser" type="range" min="0" max="100" value="0"></div><div class="bigSlider"><label><span>A · DELAY</span><span id="fxDelayVal"></span></label><input id="fxDelay" type="range" min="0" max="100" value="20"></div><div class="bigSlider"><label><span>DELAY TIME</span><span id="fxDelayTimeVal"></span></label><input id="fxDelayTime" type="range" min="40" max="1200" value="320"></div><div class="bigSlider"><label><span>FEEDBACK</span><span id="fxFeedbackVal"></span></label><input id="fxFeedback" type="range" min="0" max="85" value="22"></div><div class="bigSlider"><label><span>B · REVERB</span><span id="fxReverbVal"></span></label><input id="fxReverb" type="range" min="0" max="100" value="15"></div><div class="bigSlider"><label><span>COMP THRESHOLD</span><span id="fxThresholdVal"></span></label><input id="fxThreshold" type="range" min="-40" max="-2" value="-12"></div><div class="bigSlider"><label><span>COMP RATIO</span><span id="fxRatioVal"></span></label><input id="fxRatio" type="range" min="1" max="20" value="6"></div></div></div>
+
+<div class="modal" id="playlistModal"><div class="modalBox">
+  <div class="modalHead"><div><b>PLAYLISTS</b><div class="note">Choose albums and songs, save the selection, then use any saved playlist as the radio rotation.</div></div><button id="playlistClose">CLOSE</button></div>
+  <div class="playlistGrid">
+    <div class="playlistTop">
+      <select id="savedPlaylist"><option value="">Saved playlists</option></select>
+      <button class="miniAction" id="playlistLoad">LOAD</button>
+      <button class="miniAction" id="playlistDelete">DELETE</button>
+    </div>
+    <div class="playlistStatus" id="playlistStatus"></div>
+    <input class="playlistName" id="playlistName" placeholder="Playlist name">
+    <div>
+      <div class="label">ALBUMS · CHECKED ALBUMS ARE INCLUDED</div>
+      <div class="playlistAlbums" id="playlistAlbums"></div>
+    </div>
+    <div class="playlistActions">
+      <button id="playlistCheckAlbum">CHECK ALBUM</button>
+      <button id="playlistClearAlbum">CLEAR ALBUM</button>
+      <button id="playlistCheckAll">CHECK ALL</button>
+      <button id="playlistClearAll">CLEAR ALL</button>
+    </div>
+    <div class="label" id="playlistAlbumTitle">SONGS</div>
+    <div class="songChecks" id="playlistSongs"></div>
+    <div class="playlistActions">
+      <button class="go" id="playlistSave">SAVE PLAYLIST</button>
+      <button class="go" id="playlistUse">USE ON RADIO</button>
+      <button id="playlistNormal">NORMAL ROTATION</button>
+      <button class="danger" id="playlistDelete2">DELETE SELECTED</button>
+    </div>
+  </div>
+</div></div>
 <div class="modal" id="picker"><div class="modalBox"><div class="modalHead"><div><b>REPLACE TRACK</b><div class="note" id="replaceWhich"></div></div><button id="closePicker">CLOSE</button></div><label class="upload">UPLOAD TEMP MP3<input id="upload" type="file" accept="audio/mpeg,.mp3"></label><input class="search" id="search" placeholder="Search song or album"><div class="library" id="library"></div></div></div>
 <script>
 const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0;let ctx=null,radioNode=null,radioGain=null,radioAnalyser=null,radioRAF=0;let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false;let micStream=null,micSource=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
 let settings={mic:{level:100,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false},line:{level:100,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line)}catch(e){}
-function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}}function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
-async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');render();await loadLibrary();await refreshDevices();startPoll()}
+function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}}
+
+let playlists=[],playlistEditId='',playlistAlbum='',playlistSelected=new Set();
+function songLibrary(){return library.filter(function(x){return x.kind==='song'})}
+function albumNames(){const out=[];songLibrary().forEach(function(x){const a=String(x.album||'Other');if(out.indexOf(a)<0)out.push(a)});return out}
+function songsForAlbum(a){return songLibrary().filter(function(x){return String(x.album||'Other')===a})}
+function setPlaylistStatus(msg,bad){const e=$('playlistStatus');if(!e)return;e.textContent=msg||'';e.style.color=bad?'#ff8798':'var(--accent)'}
+async function loadPlaylists(){
+  try{const r=await api('/control/playlists'),d=await r.json();if(!r.ok)throw new Error(d.error||'Could not load playlists');playlists=Array.isArray(d.items)?d.items:[];renderSavedPlaylists()}
+  catch(e){playlists=[];renderSavedPlaylists();setPlaylistStatus(e.message||'Could not load playlists',true)}
+}
+function renderSavedPlaylists(){
+  const sel=$('savedPlaylist');if(!sel)return;const keep=sel.value||playlistEditId;
+  sel.innerHTML='<option value="">Saved playlists</option>'+playlists.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>'}).join('');
+  if(Array.from(sel.options).some(function(o){return o.value===keep}))sel.value=keep;
+  const active=status&&status.custom_mix_enabled?String(status.custom_mix_id||''):'';
+  if(active){const p=playlists.find(function(x){return String(x.id)===active});setPlaylistStatus('ON RADIO · '+(p?p.name:'Saved playlist'))}
+}
+function resetPlaylistBuilder(){
+  playlistEditId='';playlistSelected=new Set(songLibrary().map(function(x){return String(x.path)}));playlistAlbum=albumNames()[0]||'';
+  $('playlistName').value='';renderPlaylistBuilder();
+}
+function renderPlaylistBuilder(){
+  const albums=albumNames();if(!playlistAlbum||albums.indexOf(playlistAlbum)<0)playlistAlbum=albums[0]||'';
+  $('playlistAlbums').innerHTML=albums.map(function(a){
+    const songs=songsForAlbum(a),n=songs.filter(function(x){return playlistSelected.has(String(x.path))}).length,all=songs.length>0&&n===songs.length;
+    return '<div class="albumChip '+(a===playlistAlbum?'on':'')+'" data-album="'+esc(a)+'"><input type="checkbox" data-album-check="'+esc(a)+'" '+(all?'checked':'')+'><button type="button" data-album-open="'+esc(a)+'">'+esc(a)+'</button></div>'
+  }).join('');
+  const songs=songsForAlbum(playlistAlbum);$('playlistAlbumTitle').textContent=(playlistAlbum||'SONGS')+' · '+songs.filter(function(x){return playlistSelected.has(String(x.path))}).length+'/'+songs.length+' CHECKED';
+  $('playlistSongs').innerHTML=songs.map(function(x){const p=String(x.path);return '<label class="songCheck"><input type="checkbox" data-song-path="'+esc(p)+'" '+(playlistSelected.has(p)?'checked':'')+'><span><b>'+esc(x.title||x.picker_title||'Track')+'</b><span>'+esc(x.album||'')+'</span></span></label>'}).join('')||'<div class="note">No songs in this album.</div>';
+}
+function setAlbumChecked(album,on){songsForAlbum(album).forEach(function(x){const p=String(x.path);if(on)playlistSelected.add(p);else playlistSelected.delete(p)});renderPlaylistBuilder()}
+function loadPlaylistIntoBuilder(id){
+  const p=playlists.find(function(x){return String(x.id)===String(id)});if(!p)return;
+  playlistEditId=String(p.id);playlistSelected=new Set((p.paths||[]).map(String));$('playlistName').value=p.name||'';playlistAlbum=albumNames().find(function(a){return songsForAlbum(a).some(function(x){return playlistSelected.has(String(x.path))})})||albumNames()[0]||'';renderPlaylistBuilder();setPlaylistStatus('Editing · '+p.name)
+}
+async function savePlaylist(){
+  const name=$('playlistName').value.trim(),paths=Array.from(playlistSelected);if(!name)return setPlaylistStatus('Enter a playlist name.',true);if(!paths.length)return setPlaylistStatus('Check at least one song.',true);
+  setPlaylistStatus('SAVING…');const r=await api('/control/playlists/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:playlistEditId||'',name:name,paths:paths})}),d=await r.json().catch(function(){return {}});
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Save failed',true);return}playlists=d.items||playlists;playlistEditId=String(d.playlist.id);renderSavedPlaylists();$('savedPlaylist').value=playlistEditId;setPlaylistStatus('SAVED · '+d.playlist.name)
+}
+async function deletePlaylist(){
+  const id=$('savedPlaylist').value||playlistEditId;if(!id)return setPlaylistStatus('Choose a saved playlist first.',true);
+  const p=playlists.find(function(x){return String(x.id)===String(id)});if(!confirm('Delete '+(p?p.name:'this playlist')+'?'))return;
+  const r=await api('/control/playlists/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}),d=await r.json().catch(function(){return {}});
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Delete failed',true);return}playlists=d.items||[];playlistEditId='';$('savedPlaylist').value='';$('playlistName').value='';renderSavedPlaylists();resetPlaylistBuilder();setPlaylistStatus('PLAYLIST DELETED')
+}
+async function usePlaylist(){
+  let id=$('savedPlaylist').value||playlistEditId;if(!id){await savePlaylist();id=playlistEditId}if(!id)return;
+  const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:true,playlist_id:id})}),d=await r.json().catch(function(){return {}});
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not activate playlist',true);return}if(status){status.custom_mix_enabled=true;status.custom_mix_id=id}renderSavedPlaylists();setPlaylistStatus('ON RADIO · '+(($('playlistName').value)||'Saved playlist'))
+}
+async function normalRotation(){
+  const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:false,playlist_id:''})}),d=await r.json().catch(function(){return {}});
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();setPlaylistStatus('NORMAL RADIO ROTATION')
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
+async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');render();await loadLibrary();await loadPlaylists();await refreshDevices();startPoll()}
 $('enter').onclick=async function(){try{$('loginStatus').textContent='CONNECTING…';await verify($('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}};$('password').addEventListener('keydown',function(e){if(e.key==='Enter')$('enter').click()});
 function queueItems(){const a=[];if(status&&status.next&&status.next.slot)a.push(status.next);((status&&status.coming)||[]).forEach(function(x){if(x&&x.slot&&!a.some(function(y){return y.slot===x.slot}))a.push(x)});return a.slice(0,5)}
 function render(){if(!status)return;$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('liveStateText').textContent=b.active?String(b.owner||b.mode||'LIVE').toUpperCase():'OFF';$('liveState').classList.toggle('on',!!b.active);$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';$('mixStudioMeter').style.width=(b.active&&b.owner==='studio'?Number(b.peak_pct||0):0)+'%';if(status.mixer){$('mixStudioLevel').value=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100);$('mixStudioRead').textContent=$('mixStudioLevel').value+'%';$('mixMasterLevel').value=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100);$('mixMasterRead').textContent=$('mixMasterLevel').value+'%';$('mixRadioBed').value=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100)}}
@@ -79,5 +188,21 @@ async function setMixer(fields){const rr=await api('/control/mixer',{method:'POS
 function bindLocalMixer(){function level(kind,v){settings[kind].level=Number(v);applyChannel(kind);$('mix'+(kind==='mic'?'Mic':'Line')+'Read').textContent=Math.round(v)+'%'}$('mixMicLevel').oninput=function(){level('mic',this.value)};$('mixLineLevel').oninput=function(){level('line',this.value)};$('mixMicA').oninput=function(){settings.mic.delay=Number(this.value);applyChannel('mic')};$('mixMicB').oninput=function(){settings.mic.reverb=Number(this.value);applyChannel('mic')};$('mixLineA').oninput=function(){settings.line.delay=Number(this.value);applyChannel('line')};$('mixLineB').oninput=function(){settings.line.reverb=Number(this.value);applyChannel('line')};$('mixStudioLevel').onchange=function(){setMixer({direct_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};$('mixMasterLevel').onchange=function(){setMixer({master_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};$('mixRadioBed').onchange=function(){setMixer({music_level:Number(this.value)/100,music_muted:false}).catch(function(e){alert(e.message)})};$('mixMicMute').onclick=function(){settings.mic.mute=!settings.mic.mute;applyChannel('mic');this.classList.toggle('on',settings.mic.mute)};$('mixLineMute').onclick=function(){settings.line.mute=!settings.line.mute;applyChannel('line');this.classList.toggle('on',settings.line.mute)}}bindLocalMixer();
 $('micOpen').onclick=function(){openMic().catch(function(e){alert(e.message||e)})};$('lineOpen').onclick=function(){openLine().catch(function(e){alert(e.message||e)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('micAir').onclick=function(){toggleAir('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('lineAir').onclick=function(){toggleAir('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){openFx(b.dataset.fx)}});$('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};$('dockMic').onclick=function(){$('micSheet').classList.add('show')};$('dockLine').onclick=function(){$('lineSheet').classList.add('show')};$('dockMixer').onclick=function(){$('mixerSheet').classList.add('show')};$('dockFx').onclick=function(){openFx('mic')};$('masterRadio').onclick=async function(){await api('/control/music-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'on'})});poll()};$('masterStopLive').onclick=function(){forceStopLive().catch(function(e){alert(e.message||e)})};$('studioStopBtn').onclick=function(){forceStopLive().catch(function(e){alert(e.message||e)})};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){$(b.dataset.close).classList.remove('show')}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
+
+$('playlistOpen').onclick=function(){$('playlistModal').classList.add('show');if(!playlistAlbum)resetPlaylistBuilder();else renderPlaylistBuilder();renderSavedPlaylists()};
+$('playlistClose').onclick=function(){$('playlistModal').classList.remove('show')};
+$('savedPlaylist').onchange=function(){if(this.value)loadPlaylistIntoBuilder(this.value)};
+$('playlistLoad').onclick=function(){const id=$('savedPlaylist').value;if(id)loadPlaylistIntoBuilder(id);else resetPlaylistBuilder()};
+$('playlistDelete').onclick=deletePlaylist;$('playlistDelete2').onclick=deletePlaylist;
+$('playlistSave').onclick=function(){savePlaylist().catch(function(e){setPlaylistStatus(e.message||e,true)})};
+$('playlistUse').onclick=function(){usePlaylist().catch(function(e){setPlaylistStatus(e.message||e,true)})};
+$('playlistNormal').onclick=function(){normalRotation().catch(function(e){setPlaylistStatus(e.message||e,true)})};
+$('playlistAlbums').onclick=function(e){const open=e.target.closest('[data-album-open]');if(open){playlistAlbum=open.dataset.albumOpen;renderPlaylistBuilder()}};
+$('playlistAlbums').onchange=function(e){const c=e.target.closest('[data-album-check]');if(c)setAlbumChecked(c.dataset.albumCheck,c.checked)};
+$('playlistSongs').onchange=function(e){const c=e.target.closest('[data-song-path]');if(!c)return;if(c.checked)playlistSelected.add(c.dataset.songPath);else playlistSelected.delete(c.dataset.songPath);renderPlaylistBuilder()};
+$('playlistCheckAlbum').onclick=function(){setAlbumChecked(playlistAlbum,true)};$('playlistClearAlbum').onclick=function(){setAlbumChecked(playlistAlbum,false)};
+$('playlistCheckAll').onclick=function(){playlistSelected=new Set(songLibrary().map(function(x){return String(x.path)}));renderPlaylistBuilder()};
+$('playlistClearAll').onclick=function(){playlistSelected.clear();renderPlaylistBuilder()};
+
 updateThresholds();updateAirButtons();$('mixMicLevel').value=settings.mic.level;$('mixLineLevel').value=settings.line.level;$('mixMicA').value=settings.mic.delay;$('mixMicB').value=settings.mic.reverb;$('mixLineA').value=settings.line.delay;$('mixLineB').value=settings.line.reverb;$('mixMicRead').textContent=settings.mic.level+'%';$('mixLineRead').textContent=settings.line.level+'%';const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
