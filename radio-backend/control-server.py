@@ -675,6 +675,100 @@ def music_fade_action(action):
 
     raise ValueError("Unknown music action.")
 
+
+DROP_LOCK = threading.RLock()
+DROP_STATE = {
+    "active": False,
+    "mode": "",
+    "saved_music_level": 1.0,
+    "saved_music_muted": False,
+    "saved_direct_level": 1.0,
+}
+
+def fade_zmq_volume(target, start_level, end_level, seconds=2.0, steps=12):
+    start_level = float(start_level)
+    end_level = float(end_level)
+    steps = max(2, int(steps))
+    pause = max(0.02, float(seconds) / steps)
+    for i in range(1, steps + 1):
+        value = start_level + (end_level - start_level) * (i / steps)
+        mixer_zmq_command(target, "volume", f"{value:.4f}")
+        time.sleep(pause)
+
+def drop_start(mode):
+    mode = str(mode or "top").strip().lower()
+    if mode not in {"top", "stop"}:
+        raise ValueError("DROP mode must be top or stop.")
+    with DROP_LOCK:
+        state = mixer_state()
+        DROP_STATE.update({
+            "active": True,
+            "mode": mode,
+            "saved_music_level": float(state.get("music_level", 1.0)),
+            "saved_music_muted": bool(state.get("music_muted", False)),
+            "saved_direct_level": float(state.get("direct_level", 1.0)),
+        })
+        # Start the contribution silently on the server, then fade it in here.
+        mixer_zmq_command("volume@directgain", "volume", "0.0")
+        direct_target = float(state.get("direct_level", 1.0))
+
+    if mode == "stop":
+        # Server owns both sides of the handoff.
+        music_start = 0.0 if state.get("music_muted") else float(state.get("music_level", 1.0))
+        steps = 14
+        for i in range(1, steps + 1):
+            f = i / steps
+            mixer_zmq_command("volume@musicgain", "volume", f"{music_start * (1.0 - f):.4f}")
+            mixer_zmq_command("volume@directgain", "volume", f"{direct_target * f:.4f}")
+            time.sleep(2.6 / steps)
+        state["music_muted"] = True
+        write_json(MIXER_SETTINGS, state)
+    else:
+        fade_zmq_volume("volume@directgain", 0.0, direct_target, seconds=1.8, steps=12)
+
+    return {
+        "active": True,
+        "mode": mode,
+        "mixer": mixer_state(),
+    }
+
+def drop_stop(fast=False):
+    with DROP_LOCK:
+        prior = dict(DROP_STATE)
+        state = mixer_state()
+        active = bool(prior.get("active"))
+        mode = str(prior.get("mode", "") or "")
+        restore_music_level = float(prior.get("saved_music_level", state.get("music_level", 1.0)))
+        restore_music_muted = bool(prior.get("saved_music_muted", False))
+        direct_start = float(state.get("direct_level", prior.get("saved_direct_level", 1.0)))
+        DROP_STATE.update({"active": False, "mode": ""})
+
+    if not active:
+        return {"active": False, "mixer": state}
+
+    if fast:
+        mixer_zmq_command("volume@directgain", "volume", "0.0")
+    else:
+        fade_zmq_volume("volume@directgain", direct_start, 0.0, seconds=1.0, steps=10)
+
+    if mode == "stop":
+        state["music_level"] = restore_music_level
+        state["music_muted"] = restore_music_muted
+        write_json(MIXER_SETTINGS, state)
+        if restore_music_muted:
+            mixer_zmq_command("volume@musicgain", "volume", "0.0")
+        else:
+            mixer_zmq_command("volume@musicgain", "volume", "0.0")
+            fade_zmq_volume("volume@musicgain", 0.0, restore_music_level, seconds=2.0, steps=12)
+
+    # Restore the configured Studio/DJ contribution level for the next live source.
+    mixer_zmq_command("volume@directgain", "volume", f"{float(prior.get('saved_direct_level', 1.0)):.4f}")
+    return {
+        "active": False,
+        "mode": mode,
+        "mixer": mixer_state(),
+    }
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "GERadioDJ/1.0"
 
@@ -1125,6 +1219,27 @@ class Handler(BaseHTTPRequestHandler):
                 })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+
+        if self.path == "/control/drop/start":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                result = drop_start(body.get("mode", "top"))
+                self.json_response({"ok": True, **result})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
+        if self.path == "/control/drop/stop":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                result = drop_stop(bool(body.get("fast", False)))
+                self.json_response({"ok": True, **result})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
             return
 
         if self.path == "/control/music-action":
