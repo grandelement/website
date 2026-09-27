@@ -252,6 +252,7 @@ class BroadcastEngine:
         self.active = False
         self.mode = "off"
         self.transport = "websocket"
+        self.owner = "none"
         self.last_chunk = 0.0
         self.frames_received = 0
         self.bytes_received = 0
@@ -368,16 +369,21 @@ class BroadcastEngine:
             elif wait < -0.25:
                 deadline = time.monotonic()
 
-    def start(self, mode, transport="websocket"):
+    def start(self, mode, transport="websocket", owner="unknown"):
         mode = str(mode or "voice").strip().lower()
         if mode not in {"voice", "performance"}:
             mode = "voice"
+        owner = str(owner or "unknown").strip().lower()[:32] or "unknown"
         with self.lock:
+            self._expire_if_stale_locked()
+            if self.active and self.owner not in {"none", owner}:
+                raise RuntimeError(f"Live audio is already owned by {self.owner}. Stop that live source before taking over.")
             self._ensure_fifo_locked()
             self._clear_audio_locked()
             self.active = True
             self.mode = mode
             self.transport = str(transport or "websocket")
+            self.owner = owner
             self.last_chunk = time.monotonic()
             self.frames_received = 0
             self.bytes_received = 0
@@ -403,10 +409,15 @@ class BroadcastEngine:
             self.peak_pct = max(0.0, min(100.0, peak / 32768.0 * 100.0))
             self.last_chunk = time.monotonic()
 
-    def stop(self):
+    def stop(self, owner=None, force=False):
+        owner = str(owner or "").strip().lower()
         with self.lock:
+            self._expire_if_stale_locked()
+            if self.active and owner and self.owner not in {"none", owner} and not force:
+                raise RuntimeError(f"Live audio is owned by {self.owner}.")
             self.active = False
             self.mode = "off"
+            self.owner = "none"
             self._clear_audio_locked()
             return self.status_locked()
 
@@ -416,6 +427,7 @@ class BroadcastEngine:
             "active": bool(self.active),
             "mode": self.mode,
             "transport": self.transport,
+            "owner": self.owner,
             "last_chunk_age": max(0.0, time.monotonic() - self.last_chunk) if self.last_chunk else None,
             "queue_frames": self.pcm.qsize(),
             "frames_received": int(self.frames_received),
@@ -721,14 +733,14 @@ class Handler(BaseHTTPRequestHandler):
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
-                    "architecture": "liquidsoap-harbor",
+                    "architecture": "direct-websocket-plus-harbor-fallback",
                     "voice_mount": "/source/voice",
                     "live_mount": "/source/live",
                     "username": "source",
                     "ssl": True,
                     "port": 443,
                 },
-                "broadcast": {"active": False, "transport": "standard-source"},
+                "broadcast": broadcast_engine().status(),
                 "mixer": mixer_state(),
             })
             return
@@ -940,7 +952,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth(): return
             try:
                 body = self.read_body_json()
-                state = broadcast_engine().start(body.get("mode", "voice"), body.get("transport", "pcm"))
+                state = broadcast_engine().start(body.get("mode", "voice"), body.get("transport", "websocket"), body.get("owner", "unknown"))
                 self.json_response({"ok": True, "broadcast": state})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 500)
@@ -972,10 +984,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/control/broadcast/stop":
             if not self.require_auth(): return
             try:
-                state = broadcast_engine().stop()
+                body = self.read_body_json()
+                state = broadcast_engine().stop(body.get("owner"), bool(body.get("force", False)))
                 self.json_response({"ok": True, "broadcast": state})
             except Exception as exc:
-                self.json_response({"ok": False, "error": str(exc)}, 500)
+                self.json_response({"ok": False, "error": str(exc)}, 409)
             return
 
         if self.path == "/control/legacy":
