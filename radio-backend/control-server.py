@@ -53,7 +53,7 @@ def station_settings():
     raw = read_json(SETTINGS, {})
     return {
         "legacy": bool(raw.get("legacy", False)),
-        "crossfade_seconds": max(0.0, min(12.0, float(raw.get("crossfade_seconds", 5.0) or 5.0))),
+        "crossfade_seconds": max(0.0, min(12.0, float(raw.get("crossfade_seconds", 5.0) if raw.get("crossfade_seconds", 5.0) is not None else 5.0))),
         "custom_mix_enabled": bool(raw.get("custom_mix_enabled", False)),
         "custom_mix_id": str(raw.get("custom_mix_id", "") or ""),
     }
@@ -246,7 +246,7 @@ class BroadcastEngine:
 
     def __init__(self):
         self.lock = threading.RLock()
-        self.pcm = queue.Queue(maxsize=20)
+        self.pcm = queue.Queue(maxsize=40)
         self.pending = bytearray()
         self.fifo_fd = None
         self.active = False
@@ -256,6 +256,7 @@ class BroadcastEngine:
         self.frames_received = 0
         self.bytes_received = 0
         self.peak_pct = 0.0
+        self.playout_started = False
         self.stop_event = threading.Event()
         self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-mic-feeder")
         self.feeder.start()
@@ -285,7 +286,7 @@ class BroadcastEngine:
     def _queue_frame(self, frame):
         if len(frame) != self.FRAME_BYTES:
             return
-        while self.pcm.qsize() > 5:
+        while self.pcm.qsize() > 18:
             self._drop_oldest()
         try:
             self.pcm.put_nowait(frame)
@@ -305,6 +306,7 @@ class BroadcastEngine:
 
     def _clear_audio_locked(self):
         self.pending.clear()
+        self.playout_started = False
         while True:
             try:
                 self.pcm.get_nowait()
@@ -348,10 +350,14 @@ class BroadcastEngine:
 
             frame = silence
             if active:
-                try:
-                    frame = self.pcm.get_nowait()
-                except queue.Empty:
-                    frame = silence
+                if not self.playout_started and self.pcm.qsize() >= 8:
+                    self.playout_started = True
+                if self.playout_started:
+                    try:
+                        frame = self.pcm.get_nowait()
+                    except queue.Empty:
+                        self.playout_started = False
+                        frame = silence
 
             self._write_frame(frame)
 
@@ -706,7 +712,7 @@ class Handler(BaseHTTPRequestHandler):
             coming = [queue_track(e) for e in upcoming[1:5]]
 
             self.json_response({
-                "version": "5.7",
+                "version": "6.0",
                 "legacy": bool(settings.get("legacy", False)),
                 "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
                 "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
@@ -714,9 +720,33 @@ class Handler(BaseHTTPRequestHandler):
                 "now": now,
                 "next": nxt,
                 "coming": coming,
-                "mic_ready": broadcast_engine().status().get("ready", False),
-                "broadcast": broadcast_engine().status(),
+                "source_ingest": {
+                    "architecture": "liquidsoap-harbor",
+                    "voice_mount": "/source/voice",
+                    "live_mount": "/source/live",
+                    "username": "source",
+                    "ssl": True,
+                    "port": 443,
+                },
+                "broadcast": {"active": False, "transport": "standard-source"},
                 "mixer": mixer_state(),
+            })
+            return
+
+        if self.path == "/control/source-info":
+            if not self.require_auth():
+                return
+            self.json_response({
+                "ok": True,
+                "host": "radio.grandelement.blitz.cloud",
+                "port": 443,
+                "ssl": True,
+                "username": "source",
+                "voice_mount": "/source/voice",
+                "live_mount": "/source/live",
+                "password": "Use the same DJ password you entered here.",
+                "monitor": "/dj-cue.mp3",
+                "public_stream": "/stream.mp3",
             })
             return
 
