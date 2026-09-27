@@ -9,6 +9,8 @@ import socket
 import time
 import uuid
 import urllib.parse
+import urllib.request
+import urllib.error
 import subprocess
 import threading
 import queue
@@ -241,13 +243,160 @@ def apply_mixer_state(state):
     mixer_zmq_command("volume@directgain", "volume", f"{float(state.get('direct_level', 1.0)):.4f}")
     mixer_zmq_command("volume@mastergain", "volume", f"{float(state.get('master_level', 1.0)):.4f}")
 
+
+CF_REALTIME_APP_ID = os.environ.get("CF_REALTIME_APP_ID", "").strip()
+CF_REALTIME_APP_SECRET = os.environ.get("CF_REALTIME_APP_SECRET", "").strip()
+CF_REALTIME_BASE = "https://rtc.live.cloudflare.com/v1"
+GE_PUBLIC_RADIO_BASE = os.environ.get("GE_PUBLIC_RADIO_BASE", "https://radio.grandelement.blitz.cloud").rstrip("/")
+REALTIME_LOCK = threading.RLock()
+REALTIME_STATE = {
+    "owner": "none",
+    "session_id": "",
+    "mid": "",
+    "track_name": "",
+    "adapter_id": "",
+    "ingest_token": "",
+    "mode": "off",
+    "created_at": 0.0,
+}
+
+def realtime_configured():
+    return bool(CF_REALTIME_APP_ID and CF_REALTIME_APP_SECRET)
+
+def cf_realtime_request(method, path, payload=None, timeout=12):
+    if not realtime_configured():
+        raise RuntimeError("Cloudflare Realtime is not configured on the radio server.")
+    url = CF_REALTIME_BASE + path
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=data, method=method,
+        headers={
+            "Authorization": f"Bearer {CF_REALTIME_APP_SECRET}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+            return json.loads(raw.decode("utf-8")) if raw else {}
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", "replace")
+        try:
+            detail = json.loads(body)
+        except Exception:
+            detail = body
+        raise RuntimeError(f"Cloudflare Realtime HTTP {exc.code}: {detail}")
+
+def realtime_state():
+    with REALTIME_LOCK:
+        return dict(REALTIME_STATE)
+
+def realtime_reserve(owner, mode, session_id, mid, track_name):
+    owner = str(owner or "unknown").strip().lower()[:32] or "unknown"
+    with REALTIME_LOCK:
+        current = REALTIME_STATE.get("owner", "none")
+        if current not in {"none", owner}:
+            raise RuntimeError(f"Live audio is already reserved by {current}.")
+        REALTIME_STATE.update({
+            "owner": owner,
+            "session_id": str(session_id or ""),
+            "mid": str(mid or ""),
+            "track_name": str(track_name or ""),
+            "adapter_id": "",
+            "ingest_token": "",
+            "mode": str(mode or "voice"),
+            "created_at": time.time(),
+        })
+        return dict(REALTIME_STATE)
+
+def realtime_token_valid(token):
+    token = str(token or "")
+    with REALTIME_LOCK:
+        expected = str(REALTIME_STATE.get("ingest_token", "") or "")
+        return bool(token and expected and hmac.compare_digest(token, expected))
+
+def _pb_read_varint(data, pos):
+    value = 0
+    shift = 0
+    while pos < len(data) and shift < 70:
+        b = data[pos]
+        pos += 1
+        value |= (b & 0x7F) << shift
+        if not (b & 0x80):
+            return value, pos
+        shift += 7
+    raise ValueError("Invalid protobuf varint.")
+
+def cloudflare_pcm_payload(packet):
+    data = bytes(packet)
+    pos = 0
+    result = b""
+    while pos < len(data):
+        key, pos = _pb_read_varint(data, pos)
+        field = key >> 3
+        wire = key & 7
+        if wire == 0:
+            _, pos = _pb_read_varint(data, pos)
+        elif wire == 1:
+            pos += 8
+        elif wire == 2:
+            length, pos = _pb_read_varint(data, pos)
+            end = pos + length
+            if end > len(data):
+                raise ValueError("Invalid protobuf length.")
+            if field == 5:
+                result = data[pos:end]
+            pos = end
+        elif wire == 5:
+            pos += 4
+        else:
+            raise ValueError("Unsupported protobuf wire type.")
+    return result
+
+def realtime_cleanup(owner=None, force=False, stop_broadcast=True):
+    owner = str(owner or "").strip().lower()
+    with REALTIME_LOCK:
+        state = dict(REALTIME_STATE)
+        current = str(state.get("owner", "none") or "none")
+        if owner and current not in {"none", owner} and not force:
+            raise RuntimeError(f"Realtime transport is owned by {current}.")
+        REALTIME_STATE.update({
+            "owner": "none", "session_id": "", "mid": "", "track_name": "",
+            "adapter_id": "", "ingest_token": "", "mode": "off", "created_at": 0.0,
+        })
+    if realtime_configured():
+        adapter_id = state.get("adapter_id")
+        if adapter_id:
+            try:
+                cf_realtime_request("POST", f"/apps/{CF_REALTIME_APP_ID}/adapters/websocket/close", {
+                    "tracks": [{"adapterId": adapter_id}]
+                })
+            except Exception as exc:
+                print(f"GE Radio: Realtime adapter cleanup warning: {exc}", flush=True)
+        session_id = state.get("session_id")
+        mid = state.get("mid")
+        if session_id and mid:
+            try:
+                cf_realtime_request("PUT", f"/apps/{CF_REALTIME_APP_ID}/sessions/{session_id}/tracks/close", {
+                    "tracks": [{"mid": mid}], "force": True
+                })
+            except Exception as exc:
+                print(f"GE Radio: Realtime track cleanup warning: {exc}", flush=True)
+    if stop_broadcast:
+        try:
+            broadcast_engine().stop(owner=current if current != "none" else None, force=True)
+        except Exception:
+            pass
+    return state
+
 class BroadcastEngine:
     SAMPLE_RATE = 48000
     CHANNELS = 2
     SAMPLE_BYTES = 2
     FRAME_MS = 10
     FRAME_BYTES = SAMPLE_RATE * CHANNELS * SAMPLE_BYTES * FRAME_MS // 1000
-    STALE_SECONDS = 4.0
+    STALE_SECONDS = 6.5
     FIFO_PATH = RUNTIME / "mic.pcm"
 
     def __init__(self):
@@ -655,12 +804,71 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             print(f"GE Radio: direct DJ WebSocket ended: {exc}", flush=True)
 
+    def _serve_realtime_ingest_websocket(self, token):
+        if not realtime_token_valid(token):
+            self.send_response(401)
+            self.end_headers()
+            return
+        upgrade = self.headers.get("Upgrade", "").lower()
+        key = self.headers.get("Sec-WebSocket-Key", "")
+        if upgrade != "websocket" or not key:
+            self.send_response(400)
+            self.end_headers()
+            return
+        accept = base64.b64encode(
+            hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()
+        ).decode("ascii")
+        self.send_response(101, "Switching Protocols")
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", accept)
+        self.end_headers()
+        print("GE Radio: Cloudflare Realtime PCM adapter connected.", flush=True)
+        try:
+            while True:
+                first = self._recv_exact(2)
+                b1, b2 = first[0], first[1]
+                opcode = b1 & 0x0F
+                masked = bool(b2 & 0x80)
+                length = b2 & 0x7F
+                if length == 126:
+                    length = struct.unpack("!H", self._recv_exact(2))[0]
+                elif length == 127:
+                    length = struct.unpack("!Q", self._recv_exact(8))[0]
+                if length > 1024 * 1024:
+                    raise ValueError("Realtime adapter frame too large.")
+                mask = self._recv_exact(4) if masked else b""
+                payload = self._recv_exact(length) if length else b""
+                if masked and payload:
+                    payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+                if opcode == 0x8:
+                    try:
+                        self._ws_send(0x8, payload[:125])
+                    except Exception:
+                        pass
+                    break
+                if opcode == 0x9:
+                    self._ws_send(0xA, payload[:125])
+                elif opcode == 0x2:
+                    pcm = cloudflare_pcm_payload(payload)
+                    if pcm:
+                        broadcast_engine().write_pcm(pcm)
+        except Exception as exc:
+            print(f"GE Radio: Cloudflare Realtime adapter disconnected: {exc}", flush=True)
+
+
     def do_GET(self):
         parsed = urllib.parse.urlsplit(self.path)
         if parsed.path == "/control/live":
             qs = urllib.parse.parse_qs(parsed.query)
             token = (qs.get("token") or [""])[0]
             self._serve_live_websocket(token)
+            return
+
+        if parsed.path == "/control/realtime-ingest":
+            qs = urllib.parse.parse_qs(parsed.query)
+            token = (qs.get("token") or [""])[0]
+            self._serve_realtime_ingest_websocket(token)
             return
 
         if parsed.path == "/control/clip/file":
@@ -739,7 +947,9 @@ class Handler(BaseHTTPRequestHandler):
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
-                    "architecture": "direct-websocket-plus-harbor-fallback",
+                    "architecture": "webrtc-opus-cloudflare-sfu-with-direct-websocket-fallback",
+                    "realtime_configured": realtime_configured(),
+                    "realtime": realtime_state(),
                     "voice_mount": "/source/voice",
                     "live_mount": "/source/live",
                     "username": "source",
@@ -947,6 +1157,109 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": True, "mixer": state})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
+
+        if self.path == "/control/realtime/publish":
+            if not self.require_auth(): return
+            try:
+                if not realtime_configured():
+                    raise RuntimeError("Cloudflare Realtime is not configured. Add CF_REALTIME_APP_ID and CF_REALTIME_APP_SECRET in Blitz.")
+                body = self.read_body_json()
+                owner = str(body.get("owner", "unknown")).strip().lower()[:32] or "unknown"
+                mode = str(body.get("mode", "voice") or "voice")
+                track_name = str(body.get("track_name", f"ge-{owner}-audio") or f"ge-{owner}-audio")[:80]
+                mid = str(body.get("mid", "") or "")
+                desc = body.get("sessionDescription") or {}
+                if desc.get("type") != "offer" or not desc.get("sdp") or not mid:
+                    raise ValueError("Realtime publish requires an SDP offer and audio MID.")
+                bstate = broadcast_engine().status()
+                if bstate.get("active") and bstate.get("owner") not in {"none", owner}:
+                    raise RuntimeError(f"Live audio is already owned by {bstate.get('owner')}.")
+                old = realtime_state()
+                if old.get("owner") not in {"none", owner}:
+                    raise RuntimeError(f"Realtime transport is already owned by {old.get('owner')}.")
+                if old.get("owner") == owner and old.get("session_id"):
+                    realtime_cleanup(owner=owner, force=True, stop_broadcast=False)
+                session = cf_realtime_request("POST", f"/apps/{CF_REALTIME_APP_ID}/sessions/new", {})
+                session_id = str(session.get("sessionId", "") or "")
+                if not session_id:
+                    raise RuntimeError("Cloudflare Realtime did not return a session ID.")
+                published = cf_realtime_request("POST", f"/apps/{CF_REALTIME_APP_ID}/sessions/{session_id}/tracks/new", {
+                    "sessionDescription": {"type": "offer", "sdp": str(desc.get("sdp"))},
+                    "tracks": [{"location": "local", "mid": mid, "trackName": track_name}],
+                })
+                answer = published.get("sessionDescription") or {}
+                tracks = published.get("tracks") or []
+                if tracks and tracks[0].get("errorCode"):
+                    raise RuntimeError(tracks[0].get("errorDescription") or tracks[0].get("errorCode"))
+                if answer.get("type") != "answer" or not answer.get("sdp"):
+                    raise RuntimeError("Cloudflare Realtime did not return an SDP answer.")
+                realtime_reserve(owner, mode, session_id, mid, track_name)
+                self.json_response({
+                    "ok": True,
+                    "session_id": session_id,
+                    "mid": mid,
+                    "track_name": track_name,
+                    "sessionDescription": answer,
+                    "transport": "webrtc-opus-cloudflare",
+                })
+            except Exception as exc:
+                try:
+                    realtime_cleanup(owner=(locals().get("owner") or None), force=True, stop_broadcast=False)
+                except Exception:
+                    pass
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
+        if self.path == "/control/realtime/attach":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                owner = str(body.get("owner", "unknown")).strip().lower()[:32] or "unknown"
+                state = realtime_state()
+                if state.get("owner") != owner or not state.get("session_id"):
+                    raise RuntimeError("Realtime publication is not reserved for this source.")
+                token = uuid.uuid4().hex + uuid.uuid4().hex
+                endpoint = GE_PUBLIC_RADIO_BASE.replace("https://", "wss://").replace("http://", "ws://") + "/control/realtime-ingest?token=" + urllib.parse.quote(token)
+                bstate = broadcast_engine().start(state.get("mode", "voice"), "webrtc-opus-cloudflare", owner)
+                with REALTIME_LOCK:
+                    REALTIME_STATE["ingest_token"] = token
+                adapter = cf_realtime_request("POST", f"/apps/{CF_REALTIME_APP_ID}/adapters/websocket/new", {
+                    "tracks": [{
+                        "location": "remote",
+                        "sessionId": state["session_id"],
+                        "trackName": state["track_name"],
+                        "endpoint": endpoint,
+                        "outputCodec": "pcm",
+                    }]
+                })
+                tracks = adapter.get("tracks") or []
+                if not tracks or tracks[0].get("errorCode"):
+                    raise RuntimeError((tracks[0].get("errorDescription") if tracks else "") or "Cloudflare Realtime adapter could not start.")
+                adapter_id = str(tracks[0].get("adapterId", "") or "")
+                if not adapter_id:
+                    raise RuntimeError("Cloudflare Realtime did not return an adapter ID.")
+                with REALTIME_LOCK:
+                    REALTIME_STATE["adapter_id"] = adapter_id
+                self.json_response({"ok": True, "broadcast": bstate, "transport": "webrtc-opus-cloudflare"})
+            except Exception as exc:
+                try:
+                    realtime_cleanup(owner=(locals().get("owner") or None), force=True, stop_broadcast=True)
+                except Exception:
+                    pass
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
+        if self.path == "/control/realtime/stop":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                owner = str(body.get("owner", "") or "").strip().lower()
+                realtime_cleanup(owner=owner or None, force=bool(body.get("force", False)), stop_broadcast=True)
+                self.json_response({"ok": True, "broadcast": broadcast_engine().status()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 409)
             return
 
         if self.path == "/control/broadcast/session":
