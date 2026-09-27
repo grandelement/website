@@ -20,7 +20,11 @@ if [ ! -f "$GE_DATA_DIR/settings.json" ]; then
   printf '%s\n' '{"legacy": false, "crossfade_seconds": 5.0, "custom_mix_enabled": false, "custom_mix_id": ""}' > "$GE_DATA_DIR/settings.json"
 fi
 if [ ! -f "$GE_DATA_DIR/custom-playlists.json" ]; then
-  printf '%s\n' '{"items": []}' > "$GE_DATA_DIR/custom-playlists.json"
+  if [ -f /app/default-playlists.json ]; then
+    cp /app/default-playlists.json "$GE_DATA_DIR/custom-playlists.json"
+  else
+    printf '%s\n' '{"items": []}' > "$GE_DATA_DIR/custom-playlists.json"
+  fi
 fi
 
 SOURCE_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
