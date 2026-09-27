@@ -318,7 +318,8 @@ except Exception: s={"music_level":1.0,"music_under_voice":0.45,"music_muted":Fa
 music=0.0 if s.get("music_muted") else float(s.get("music_level",1.0))
 duck=1.0-float(s.get("music_under_voice",0.45))
 ctx=zmq.Context.instance()
-direct=float(s.get("direct_level",1.0)); master=float(s.get("master_level",1.0))\nfor target,cmd,val in [("volume@musicgain","volume",music),("sidechaincompress@duck","mix",duck),("volume@directgain","volume",direct),("volume@mastergain","volume",master)]:
+direct=float(s.get("direct_level",1.0)); master=float(s.get("master_level",1.0))
+for target,cmd,val in [("volume@musicgain","volume",music),("sidechaincompress@duck","mix",duck),("volume@directgain","volume",direct),("volume@mastergain","volume",master)]:
     q=ctx.socket(zmq.REQ); q.setsockopt(zmq.LINGER,0); q.setsockopt(zmq.SNDTIMEO,1000); q.setsockopt(zmq.RCVTIMEO,1000)
     try:
         q.connect("tcp://127.0.0.1:5555"); q.send_string(f"{target} {cmd} {val:.4f}"); q.recv_string()
