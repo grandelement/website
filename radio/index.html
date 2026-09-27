@@ -3179,6 +3179,7 @@ Vector ${vector}. ${pair[1]}.`;
   let eqAudioCtx=null,eqAnalyser=null,eqData=null,eqSource=null,eqGain=null,eqOverlayOpen=false;
   const sunEQAura=$('sunEQAura'),sunEQFog=$('sunEQFog');
   const SUN_EQ_RINGS=12;
+  const SUN_SPECTRUM_RINGS=110;
   const SUN_EQ_BARS=72;
   const SUN_FOG_BLOBS=28;
   const sunEQLevels=Array(SUN_EQ_RINGS).fill(.03);
@@ -3186,6 +3187,8 @@ Vector ${vector}. ${pair[1]}.`;
   const sunEQFloor=Array(SUN_EQ_RINGS).fill(.018);
   const sunEQPeak=Array(SUN_EQ_RINGS).fill(.28);
   let sunEQImpactFloor=.02,sunEQImpactPeak=.34;
+  let sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
+  let sunSpectrumSampleAt=0;
   let sunEQLastPaint=0;
   const SUN_EQ_CASCADE_STEPS=7;
   let sunEQCascadeHistory=[];
@@ -3255,6 +3258,35 @@ Vector ${vector}. ${pair[1]}.`;
   function isBarWave(mode){return mode==='bars'||mode==='mirror'||mode==='mirrorflip';}
   function ensureSunEQ(mode=sunLab.waveType||'plasma'){
     if(!sunEQAura)return;
+
+    if(mode==='spectrum'){
+      if(sunEQAura.dataset.mode!=='spectrum' || sunEQAura.childElementCount!==SUN_SPECTRUM_RINGS){
+        sunEQAura.dataset.mode='spectrum';
+        sunEQAura.innerHTML='';
+        for(let i=0;i<SUN_SPECTRUM_RINGS;i++){
+          const ring=document.createElement('span');
+          ring.className='sun-spectrum-ring';
+          ring.style.setProperty('--spectrum-scale','1');
+          ring.style.setProperty('--spectrum-color','rgba(2,20,70,.55)');
+          ring.style.setProperty('--spectrum-width','1px');
+          sunEQAura.appendChild(ring);
+        }
+        sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
+        sunSpectrumSampleAt=performance.now();
+      }
+      ensureSunFog();
+      return;
+    }
+
+    if(mode==='glow'){
+      if(sunEQAura.dataset.mode!=='glow' || sunEQAura.childElementCount!==2){
+        sunEQAura.dataset.mode='glow';
+        sunEQAura.innerHTML='<span class="sun-glow-layer sun-glow-outer"></span><span class="sun-glow-layer sun-glow-inner"></span>';
+      }
+      ensureSunFog();
+      return;
+    }
+
     const barMode=isBarWave(mode);
     if(barMode){
       if(sunEQAura.dataset.mode!==mode || !sunEQAura.querySelector('svg.sun-eq-svg')){
