@@ -81,11 +81,9 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
-# Standard Icecast-compatible contribution inputs. These replace the custom
-# Safari PCM -> WebSocket -> Python queue -> FIFO -> FFmpeg microphone chain.
-# A native source client sends ONLY voice to /voice, or a complete local
-# performance mix to /live. Small harbor buffers keep ingest responsive; the
-# performer monitors locally, never from the delayed public MP3 return.
+# Optional Icecast-compatible contribution inputs remain available as a
+# fallback for external/native source clients. GE DJ and GE Studio use the
+# lower-latency browser WebSocket -> PCM FIFO contribution bus below.
 voice = input.harbor("voice", id="ge_voice", port=8095, user="source", password=${HARBOR_PASSWORD_LIQ}, buffer=0.5)
 live  = input.harbor("live",  id="ge_live",  port=8095, user="source", password=${HARBOR_PASSWORD_LIQ}, buffer=0.5)
 
@@ -196,8 +194,7 @@ http {
     location = /live-dj/ { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj.html { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
 
-    # Kept temporarily for compatibility with an older Studio build. New GE Live
-    # does not use the custom PCM WebSocket path.
+    # Low-latency browser contribution path used by GE DJ and GE Studio.
     location = /control/live {
       proxy_pass http://127.0.0.1:8090; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https;
