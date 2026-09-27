@@ -506,6 +506,15 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #geGateAccessSend{width:100%!important;margin:0!important;min-height:46px!important}
 @media(max-height:430px){#geGateAccessForm{top:max(8px,env(safe-area-inset-top))!important;transform:translateX(-50%)!important;max-height:calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important}}
 </style>
+<style id="ge-ui-pass-1">
+#player{display:none!important}
+#playerSeekWrap{width:min(760px,94vw);margin:2px auto 7px}
+#playerSeek{width:100%;min-height:24px;accent-color:#7adfff}
+#musicGroup{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:7px!important;width:min(760px,96vw)!important}
+#prevBtn,#playBtn,#nextBtn{grid-row:1!important;grid-column:span 2!important;min-height:48px!important}
+#liveBtn,#shuffleBtn,#shareBtn{grid-row:2!important;grid-column:span 2!important;min-height:42px!important}
+#legacyBtn{display:none!important}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -658,15 +667,17 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <audio id="player" controls preload="auto" playsinline autoplay crossorigin="anonymous" controlslist="nodownload noplaybackrate"></audio>
+  <audio id="player" preload="auto" playsinline autoplay crossorigin="anonymous"></audio>
+  <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
+    <button id="playBtn">Play</button>
     <button id="nextBtn">Next</button>
-    <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">LIVE</button>
-    <button class="tgl" id="legacyBtn" aria-pressed="false">Legacy</button>
+    <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button id="shareBtn">Share</button>
+    <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
   </div>
   <div id="liveStatus" role="status" aria-live="polite"></div>
 
@@ -687,7 +698,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     <button id="reloadBtn">Reload Library</button>
     <button id="offlineBtn">Go Offline</button>
     <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
-      <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls">
+      <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
       <span>Hide Text</span>
     </div>
     <a class="bc-btn" href="https://grandelement.bandcamp.com" target="_blank" rel="noopener"><span>Buy on<br>Bandcamp</span></a>
@@ -707,20 +718,16 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     <p class="sunlab-sub">Choose an effect first. Its own controls will appear below. Each effect remembers its own settings.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
       <button class="sunlab-modebtn" type="button" data-sun-mode="plasma">Plasma</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="pressure">Pressure</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="tracer">Tracer</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="ring">Ring</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="bars">Bars</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="mirror">Mirror Bars</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="mirrorflip">Mirror Flip</button>
-      <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Radial Waterfall</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="spectrum">Spectrum</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="glow">Glow</button>
+      <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
       <div class="sunlab-checks"><label id="slRadialOnWrap"><input id="slRadialOn" type="checkbox" checked><span class="sunlab-checktext"><span id="slRadialOnLabel">Radial Outward</span><small id="slRadialOnHelp">The current sun pulse that expands away from the sun.</small></span></label><label id="slCascadeOnWrap"><input id="slCascadeOn" type="checkbox"><span class="sunlab-checktext"><span>Radial Waterfall</span><small>Copies each music snapshot and sends it outward along the spokes in order.</small></span></label><label id="slGlowOnlyWrap"><input id="slGlowOnly" type="checkbox"><span class="sunlab-checktext"><span>Glow Only</span><small>Hide the visible bars and keep only the glow, fog, and residue.</small></span></label></div>
       <div class="sunlab-row"><label for="slCascadeSpeed">Radial Waterfall Speed</label><output id="slCascadeSpeedVal"></output><input id="slCascadeSpeed" type="range" min="0" max="100" step="1" value="58"><small>Higher values push each pulse down the spokes faster like a falling light trail.</small></div>
-      <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-110" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
-      <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
+      <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-220" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
+      <div class="sunlab-row"><label for="slThickness">Thickness</label><output id="slThicknessVal"></output><input id="slThickness" type="range" min="0" max="260" step="1" value="55" dir="rtl"><small>Makes the bars or rings thinner and sharper, or thicker and fuller.</small></div>
       <div class="sunlab-row"><label for="slContrast">Contrast</label><output id="slContrastVal"></output><input id="slContrast" type="range" min="0" max="280" step="1" value="40"><small>Widens the light-versus-dark difference so hits stand out more clearly.</small></div>
       <div class="sunlab-row"><label for="slDynamics">Dynamics</label><output id="slDynamicsVal"></output><input id="slDynamics" type="range" min="0" max="380" step="1" value="140"><small>Expands the difference between quiet and peak movement after automatic band balancing.</small></div>
       <div class="sunlab-row"><label for="slGlow">Glow / Blur</label><output id="slGlowVal"></output><input id="slGlow" type="range" min="0" max="150" step="1" value="0"><small>Lower this to remove the haze and expose the raw bars.</small></div>
