@@ -53,14 +53,20 @@ Preserve together:
     --blue-sun-text: #06121f;
   }
 
-  /* “Mini” layout — roughly half-sized on mobile */
-  @media (max-width: 700px){
+  /* Mobile camera scale: normal-site planets are 25% smaller and keep the
+     same physical scale when the phone rotates portrait <-> landscape. */
+  @media (max-width: 700px) and (orientation: portrait),
+         (max-height: 500px) and (orientation: landscape){
     :root{
-        --orbit-gap-moons: var(--orbit-distance-mobile);
-      --planet-size: 23.1px;
+      --orbit-gap-moons: var(--orbit-distance-mobile);
+      --planet-size: 17.325px;
       --sun-size: 100px;
       --moon-size: 50px;
       --orbit-gap-moons: 1.1;
+    }
+    body:not(.game-mode-active) .planet{
+      width:17.325px!important;
+      height:17.325px!important;
     }
   }
 
@@ -3616,8 +3622,12 @@ function preservePlanetLayoutOnResize(){
       if(!Number.isFinite(x)||!Number.isFinite(y)){
         const rect=p.el.getBoundingClientRect();x=rect.left+rect.width/2;y=rect.top+rect.height/2;
       }
-      // Only scale the universe for a real portrait/landscape change. Browser toolbar height changes keep absolute positions.
-      if(orientationChanged){x=x*nw/ow;y=y*nh/oh;}
+      // Camera rotation: preserve the object's world offset from the viewport center.
+      // Never stretch/re-scale the universe to fit the new aspect ratio.
+      if(orientationChanged){
+        x += (nw-ow)/2;
+        y += (nh-oh)/2;
+      }
       p.x=Math.max(margin+r,Math.min(nw-margin-r,x));
       p.y=Math.max(margin+r,Math.min(nh-margin-r,y));
       p.vx=Number.isFinite(p.vx)?p.vx:0;p.vy=Number.isFinite(p.vy)?p.vy:0;
@@ -3628,10 +3638,20 @@ function preservePlanetLayoutOnResize(){
     document.querySelectorAll('#planets .planet').forEach(el=>{
       const rect=el.getBoundingClientRect(),r=Math.max(1,rect.width/2);
       let x=rect.left+r,y=rect.top+r;
-      if(orientationChanged){x=x*nw/ow;y=y*nh/oh;}
+      if(orientationChanged){
+        x += (nw-ow)/2;
+        y += (nh-oh)/2;
+      }
       x=Math.max(margin+r,Math.min(nw-margin-r,x));y=Math.max(margin+r,Math.min(nh-margin-r,y));
       el.style.left=x+'px';el.style.top=y+'px';
     });
+  }
+  if(orientationChanged){
+    try{
+      dispatchEvent(new CustomEvent('ge-universe-camera-shift',{
+        detail:{dx:(nw-ow)/2,dy:(nh-oh)/2,oldW:ow,oldH:oh,newW:nw,newH:nh}
+      }));
+    }catch(_e){}
   }
   gePlanetViewport={w:nw,h:nh};
 }
@@ -4604,7 +4624,22 @@ fetchAllMp3s().then(async list=>{
     px=e.clientX;py=e.clientY;
     if(!phraseRAF) phraseRAF=requestAnimationFrame(updatePhraseReveal);
   },{passive:true});
-  addEventListener('resize', ()=>requestAnimationFrame(scatter), {passive:true});
+  let phraseViewport={w:innerWidth,h:innerHeight};
+  function preservePhraseLayout(){
+    const nw=Math.max(1,innerWidth),nh=Math.max(1,innerHeight);
+    const ow=Math.max(1,phraseViewport.w||nw),oh=Math.max(1,phraseViewport.h||nh);
+    const rotate=(ow>oh)!==(nw>nh);
+    const dx=rotate?(nw-ow)/2:0,dy=rotate?(nh-oh)/2:0;
+    [...layer.children].forEach(el=>{
+      const r=el.getBoundingClientRect();
+      let x=r.left+dx,y=r.top+dy;
+      const maxX=Math.max(6,nw-r.width-6),maxY=Math.max(6,nh-r.height-6);
+      x=Math.max(6,Math.min(maxX,x));y=Math.max(6,Math.min(maxY,y));
+      el.style.left=x+'px';el.style.top=y+'px';
+    });
+    phraseViewport={w:nw,h:nh};
+  }
+  addEventListener('resize', ()=>requestAnimationFrame(preservePhraseLayout), {passive:true});
 
   window.GE_REFRESH_HIDDEN_TEXT=()=>scatter();
   const fx = document.getElementById('fx');
@@ -5432,6 +5467,19 @@ class MiniShip{
 }
 
 const comets=[], pairs=[], quantumClusters=[], ships=[], miniShips=[];
+addEventListener('ge-universe-camera-shift',e=>{
+  if(document.body.classList.contains('game-mode-active'))return;
+  const dx=Number(e?.detail?.dx)||0,dy=Number(e?.detail?.dy)||0;
+  if(!dx&&!dy)return;
+  for(const c of comets){if(c){c.x=(Number(c.x)||0)+dx;c.y=(Number(c.y)||0)+dy;}}
+  for(const sh of ships){if(sh){sh.x=(Number(sh.x)||0)+dx;sh.y=(Number(sh.y)||0)+dy;}}
+  for(const sh of miniShips){if(sh){sh.x=(Number(sh.x)||0)+dx;sh.y=(Number(sh.y)||0)+dy;}}
+  for(const q of quantumClusters){
+    if(!q)continue;
+    if(Number.isFinite(q.cx))q.cx+=dx;
+    if(Number.isFinite(q.cy))q.cy+=dy;
+  }
+},{passive:true});
 const openingSoulAlreadyHere=Math.random()<(window.GE_EASY_SETTINGS?.FIRST_SOUL_ONSCREEN_CHANCE??.45);
 if(openingSoulAlreadyHere){
   const c=new Comet();
@@ -5483,7 +5531,13 @@ function setBG(i){
       layer.style.backgroundImage=`url("${url}"), radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px)`;
       layer.style.backgroundPosition='center center, 0 0';
       layer.style.backgroundRepeat='no-repeat, repeat';
-      layer.style.backgroundSize='cover, 3px 3px';
+      const worldSide=Math.max(innerWidth,innerHeight);
+      const iw=Math.max(1,testImg.naturalWidth||worldSide),ih=Math.max(1,testImg.naturalHeight||worldSide);
+      const worldScale=Math.max(worldSide/iw,worldSide/ih);
+      const worldW=iw*worldScale,worldH=ih*worldScale;
+      layer.dataset.worldBgWidth=String(worldW);
+      layer.dataset.worldBgHeight=String(worldH);
+      layer.style.backgroundSize=`${worldW}px ${worldH}px, 3px 3px`;
     }
     // Keep BODY neutral so moving the sun/orbit can never affect the picture.
     document.body.style.backgroundImage='none';
@@ -9167,20 +9221,59 @@ function nudgeSunNow(){
 }
 nudgeSunNow();
 
-/* Orientation safety: outside Game Mode keep at least 25% of the blue sun reachable. */
+/* Camera-style orientation safety: preserve the Blue Sun's world offset from
+   the viewport center. Only clamp it inward if the new crop would hide it. */
+let geSunViewport={w:innerWidth,h:innerHeight};
+let geSunWorldOffset=null;
+function captureBlueSunWorldOffset(){
+  if(document.body.classList.contains('game-mode-active'))return;
+  const wrap=document.getElementById('sunWrap');if(!wrap)return;
+  const r=wrap.getBoundingClientRect();
+  if(!r.width||!r.height)return;
+  geSunWorldOffset={
+    x:(r.left+r.width/2)-(geSunViewport.w/2),
+    y:(r.top+r.height/2)-(geSunViewport.h/2)
+  };
+}
 function keepBlueSunReachable(){
-  if(document.body.classList.contains('game-mode-active')) return;
+  if(document.body.classList.contains('game-mode-active')){
+    geSunViewport={w:innerWidth,h:innerHeight};
+    geSunWorldOffset=null;
+    return;
+  }
   const wrap=document.getElementById('sunWrap'); if(!wrap) return;
+  const nw=Math.max(1,innerWidth),nh=Math.max(1,innerHeight);
+  const ow=Math.max(1,geSunViewport.w||nw),oh=Math.max(1,geSunViewport.h||nh);
+  const orientationChanged=(ow>oh)!==(nw>nh);
   const r=wrap.getBoundingClientRect();
   const f=(window.GE_EASY_SETTINGS?.SUN_VISIBLE_FRACTION ?? 0.25);
-  const keepX=r.width*f, keepY=r.height*f;
-  let cx=r.left+r.width/2, cy=r.top+r.height/2;
-  cx=Math.max(-r.width/2+keepX,Math.min(innerWidth+r.width/2-keepX,cx));
-  cy=Math.max(-r.height/2+keepY,Math.min(innerHeight+r.height/2-keepY,cy));
-  wrap.style.left=cx+'px'; wrap.style.top=cy+'px'; wrap.style.transform='translate(-50%,-50%)';
+  const keepX=r.width*f,keepY=r.height*f;
+  let cx=r.left+r.width/2,cy=r.top+r.height/2;
+
+  if(orientationChanged&&geSunWorldOffset){
+    cx=nw/2+geSunWorldOffset.x;
+    cy=nh/2+geSunWorldOffset.y;
+  }else if(orientationChanged){
+    cx+=(nw-ow)/2;
+    cy+=(nh-oh)/2;
+  }
+
+  cx=Math.max(-r.width/2+keepX,Math.min(nw+r.width/2-keepX,cx));
+  cy=Math.max(-r.height/2+keepY,Math.min(nh+r.height/2-keepY,cy));
+
+  wrap.style.left=cx+'px';
+  wrap.style.top=cy+'px';
+  wrap.style.transform='translate(-50%,-50%)';
+
+  geSunViewport={w:nw,h:nh};
+  geSunWorldOffset={x:cx-nw/2,y:cy-nh/2};
 }
+setTimeout(captureBlueSunWorldOffset,350);
+setInterval(()=>{
+  if(innerWidth===geSunViewport.w&&innerHeight===geSunViewport.h)captureBlueSunWorldOffset();
+},750);
 let geSunResizeTimer=0;
-addEventListener('resize',()=>{ clearTimeout(geSunResizeTimer); geSunResizeTimer=setTimeout(keepBlueSunReachable,140); },{passive:true});
+addEventListener('resize',()=>{clearTimeout(geSunResizeTimer);geSunResizeTimer=setTimeout(keepBlueSunReachable,140);},{passive:true});
 addEventListener('orientationchange',()=>setTimeout(keepBlueSunReachable,240),{passive:true});
 
 
