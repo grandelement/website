@@ -35,6 +35,8 @@ UPLOAD_DIR = RUNTIME / "uploads"
 TEMP_UPLOADS = RUNTIME / "temp-uploads.json"
 MIXER_SETTINGS = DATA / "mixer.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
+CUSTOM_PLAYLISTS_BACKUP = DATA / "custom-playlists.backup.json"
+DEFAULT_PLAYLISTS = Path("/app/default-playlists.json")
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
@@ -61,7 +63,17 @@ def station_settings():
     }
 
 def read_custom_playlists():
-    data = read_json(CUSTOM_PLAYLISTS, {"items": []})
+    candidates = [CUSTOM_PLAYLISTS, CUSTOM_PLAYLISTS_BACKUP, DEFAULT_PLAYLISTS]
+    data = {"items": []}
+    for path in candidates:
+        try:
+            value = read_json(path, None)
+            if isinstance(value, dict) and isinstance(value.get("items"), list):
+                data = value
+                if value.get("items") or path == CUSTOM_PLAYLISTS:
+                    break
+        except Exception:
+            pass
     if not isinstance(data, dict):
         data = {"items": []}
     if not isinstance(data.get("items"), list):
@@ -70,6 +82,57 @@ def read_custom_playlists():
 
 def write_custom_playlists(data):
     write_json(CUSTOM_PLAYLISTS, data)
+    write_json(CUSTOM_PLAYLISTS_BACKUP, data)
+
+def playlist_backup_payload():
+    settings = station_settings()
+    data = read_custom_playlists()
+    return {
+        "format": "ge-radio-playlists-v1",
+        "exported_at": int(time.time()),
+        "active_playlist_id": str(settings.get("custom_mix_id", "") or ""),
+        "active_playlist_enabled": bool(settings.get("custom_mix_enabled", False)),
+        "items": data.get("items", []),
+    }
+
+def import_playlist_backup(payload):
+    if not isinstance(payload, dict) or payload.get("format") != "ge-radio-playlists-v1":
+        raise ValueError("That is not a GE Radio playlist backup.")
+    library = read_json(LIBRARY, {"items": []})
+    allowed = {
+        str(x.get("path", "")) for x in library.get("items", [])
+        if x.get("kind") == "song" and str(x.get("path", ""))
+    }
+    items = []
+    seen_ids = set()
+    for raw in payload.get("items", []):
+        if not isinstance(raw, dict):
+            continue
+        pid = str(raw.get("id", "") or uuid.uuid4().hex[:12])[:40]
+        if pid in seen_ids:
+            pid = uuid.uuid4().hex[:12]
+        name = " ".join(str(raw.get("name", "")).split())[:80]
+        paths = []
+        for path in raw.get("paths", []):
+            path = str(path)
+            if path in allowed and path not in paths:
+                paths.append(path)
+        if name and paths:
+            seen_ids.add(pid)
+            items.append({
+                "id": pid,
+                "name": name,
+                "paths": paths,
+                "updated_at": int(raw.get("updated_at", time.time()) or time.time()),
+            })
+    data = {"items": items}
+    write_custom_playlists(data)
+    active_id = str(payload.get("active_playlist_id", "") or "")
+    settings = station_settings()
+    settings["custom_mix_enabled"] = bool(payload.get("active_playlist_enabled", False)) and any(str(x.get("id")) == active_id for x in items)
+    settings["custom_mix_id"] = active_id if settings["custom_mix_enabled"] else ""
+    write_json(SETTINGS, settings)
+    return data, settings
 
 def normalize_meta(value):
     if isinstance(value, dict):
@@ -89,6 +152,7 @@ def public_track(meta):
         "artist": meta.get("artist") or "Grand Element",
         "kind": meta.get("ge_kind") or "",
         "slot": meta.get("ge_slot") or "",
+        "path": meta.get("ge_path") or "",
     }
 
 def q(value):
@@ -97,6 +161,31 @@ def q(value):
 def raw_url(commit_sha, path):
     from urllib.parse import quote
     return f"https://raw.githubusercontent.com/grandelement/website/{commit_sha}/{quote(path, safe='/')}"
+
+TRACK_DURATION_CACHE = {}
+TRACK_DURATION_LOCK = threading.Lock()
+
+def track_duration_seconds(commit_sha, path):
+    commit_sha = str(commit_sha or "")
+    path = str(path or "")
+    if not commit_sha or not path:
+        return 0.0
+    key = commit_sha + "|" + path
+    with TRACK_DURATION_LOCK:
+        if key in TRACK_DURATION_CACHE:
+            return TRACK_DURATION_CACHE[key]
+    try:
+        proc = subprocess.run(
+            ["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",raw_url(commit_sha, path)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
+        )
+        value = float(proc.stdout.decode("utf-8","ignore").strip() or "0") if proc.returncode == 0 else 0.0
+    except Exception:
+        value = 0.0
+    value = max(0.0, min(60.0 * 60.0 * 4.0, value))
+    with TRACK_DURATION_LOCK:
+        TRACK_DURATION_CACHE[key] = value
+    return value
 
 def annotation(entry, commit_sha, cross=None):
     fields = [
@@ -1009,6 +1098,15 @@ class Handler(BaseHTTPRequestHandler):
             now = public_track(read_json(NOW, {}))
             rot = read_json(ROTATION, {"entries": []})
             entries = rot.get("entries", [])
+            playlist_rows = read_custom_playlists().get("items", [])
+            active_playlist_id = str(settings.get("custom_mix_id", "") or "")
+            active_playlist = next((x for x in playlist_rows if str(x.get("id","")) == active_playlist_id), None)
+            active_playlist_name = (active_playlist or {}).get("name") or ("Normal Rotation" if not settings.get("custom_mix_enabled") else "Saved Playlist")
+            try:
+                now_started_at = float(NOW.stat().st_mtime)
+            except Exception:
+                now_started_at = 0.0
+            now_duration = track_duration_seconds(rot.get("commit", ""), now.get("path", ""))
 
             upcoming = []
             slot = now.get("slot", "")
@@ -1037,6 +1135,9 @@ class Handler(BaseHTTPRequestHandler):
                 "crossfade_seconds": float(settings.get("crossfade_seconds", 5.0)),
                 "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
                 "custom_mix_id": str(settings.get("custom_mix_id", "") or ""),
+                "active_playlist_name": active_playlist_name,
+                "now_started_at": now_started_at,
+                "now_duration": now_duration,
                 "now": now,
                 "next": nxt,
                 "coming": coming,
@@ -1090,6 +1191,12 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response(read_custom_playlists())
             return
 
+        if self.path == "/control/playlists/backup":
+            if not self.require_auth():
+                return
+            self.json_response(playlist_backup_payload())
+            return
+
         self.send_response(404)
         self.end_headers()
 
@@ -1135,6 +1242,22 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
                 self.json_response({"ok": True, "crossfade_seconds": seconds})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+
+        if self.path == "/control/playlists/import":
+            if not self.require_auth(): return
+            try:
+                payload = self.read_body_json()
+                data, settings = import_playlist_backup(payload)
+                self.json_response({
+                    "ok": True,
+                    "items": data.get("items", []),
+                    "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
+                    "custom_mix_id": str(settings.get("custom_mix_id", "") or ""),
+                })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
