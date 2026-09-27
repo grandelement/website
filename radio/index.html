@@ -515,6 +515,20 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #liveBtn,#shuffleBtn,#shareBtn{grid-row:2!important;grid-column:span 2!important;min-height:42px!important}
 #legacyBtn{display:none!important}
 </style>
+<style id="ge-ui-pass-4">
+#shipArrivalContact{max-height:calc(100dvh - 24px)!important;overflow:auto!important;overscroll-behavior:contain!important}
+.arrival-actions{position:sticky!important;bottom:0!important;padding:10px 0 max(8px,env(safe-area-inset-bottom))!important;background:linear-gradient(transparent,rgba(2,12,22,.97) 34%)!important}
+#arrivalPrivateSendBtn,#arrivalPostBtn,#arrivalViewWall{font-weight:900!important}
+@media(max-height:820px){
+ body.view-player{overflow:hidden!important}
+ body.view-player .wrap{height:100dvh!important;overflow:hidden!important;padding-top:3px!important;padding-bottom:3px!important}
+ body.view-player header{margin-bottom:2px!important}
+ body.view-player #bgGroup{margin-top:8px!important;gap:5px!important}
+ body.view-player #supportText{margin-block:2px!important}
+ body.view-player #bottomActions{gap:4px!important}
+ body.view-player footer{margin-top:2px!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -641,7 +655,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
       <div id="arrivalGeoStatus"></div>
     </div>
     <div class="arrival-save-note">Soul Reflections stay with the universe where they are placed. Private messages are sent through the Grand Element private backend.</div>
-    <div class="arrival-actions"><button id="arrivalPrivateSendBtn" type="button">Send Private Message</button><button id="arrivalPostBtn" type="button">Post Soul Reflection</button><button id="arrivalEditBtn" type="button" hidden>Edit My Post</button><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button" hidden aria-hidden="true">Done</button></div>
+    <div class="arrival-actions"><button id="arrivalPrivateSendBtn" type="button">Send</button><button id="arrivalPostBtn" type="button">Post</button><button id="arrivalEditBtn" type="button" hidden>Edit My Post</button><button id="arrivalViewWall" type="button">View Soul Reflections</button><button id="arrivalClose" type="button">Return to Ship</button><button id="arrivalSend" type="button" hidden aria-hidden="true">Done</button></div>
     <div id="arrivalStatus"></div>
   </section>
   <section id="shipReflectionWall" aria-hidden="true" aria-label="Soul Reflections">
@@ -2576,7 +2590,16 @@ async function registerServiceWorker(){
     const prepared=await scanExistingAssets();
 
     if(prepared.audit.complete){
-      if(confirm('Remove the downloaded offline music and backgrounds?')) await remove();
+      const keepFiles=confirm('Turn Offline off and KEEP the downloaded songs on this device?\n\nOK = Keep files\nCancel = More options');
+      if(keepFiles){
+        setEnabled(false);
+        button.classList.remove('active');
+        button.textContent='Go Offline';
+        setStatus('Offline mode is off. Downloaded files were kept.');
+        return;
+      }
+      const deleteFiles=confirm('Delete ALL downloaded offline songs and backgrounds from this device?');
+      if(deleteFiles) await remove();
       return;
     }
 
@@ -3754,6 +3777,12 @@ Vector ${vector}. ${pair[1]}.`;
     pendingReflection.y=clamp((clientY-rect.top)/rect.height*100,3,97);
     const draft=reflectionField.querySelector('.soul-reflection-dot.draft');if(draft){draft.style.left=`${pendingReflection.x}%`;draft.style.top=`${pendingReflection.y}%`;}
   }
+  reflectionField?.addEventListener('click',event=>{
+    if(event.target!==reflectionField||pendingReflection)return;
+    selectedReflectionLocation=null;
+    reflectionBubble?.classList.remove('open');
+    if(reflectionBubble)reflectionBubble.textContent='';
+  });
   reflectionField?.addEventListener('pointerdown',event=>{if(!pendingReflection)return;event.preventDefault();placeDraft(event.clientX,event.clientY);reflectionField.setPointerCapture?.(event.pointerId);});
   reflectionField?.addEventListener('pointermove',event=>{if(!pendingReflection||(!(event.buttons)&&event.pointerType!=='touch'))return;event.preventDefault();placeDraft(event.clientX,event.clientY);});
   reflectionBack?.addEventListener('click',()=>{closeReflectionWall();if(arrivalContactShown){arrivalContact?.classList.add('open');document.body.classList.add('arrival-mode');}});
