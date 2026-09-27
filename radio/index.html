@@ -3350,6 +3350,106 @@ Vector ${vector}. ${pair[1]}.`;
     }
   }
   function sunNum(key,fallback){const value=Number(sunLab[key]);return Number.isFinite(value)?value:fallback;}
+
+  function currentAudioEnergy(live){
+    const len=eqData?.length||0;
+    if(live&&len){
+      const sample=(from,to,gain=1)=>{
+        const a=Math.max(0,Math.floor(len*from)),b=Math.max(a+1,Math.min(len,Math.ceil(len*to)));
+        let sum=0,peak=0,n=0;
+        for(let i=a;i<b;i++){const v=(eqData[i]||0)/255;sum+=v;peak=Math.max(peak,v);n++;}
+        const avg=n?sum/n:0;
+        return clamp((avg*.68+peak*.32)*gain,0,1);
+      };
+      const low=sample(.00,.18,sunNum('bass',100)/100);
+      const mid=sample(.18,.52,sunNum('mid',100)/100);
+      const high=sample(.52,.94,sunNum('treble',100)/100);
+      return clamp(low*.34+mid*.39+high*.27,0,1);
+    }
+    if(!audio.paused&&!audio.ended){
+      const t=Number(audio.currentTime)||performance.now()/1000;
+      return .12+.07*((Math.sin(t*2.1)+1)/2);
+    }
+    return .035;
+  }
+
+  function updateSpectrumSun(live,now){
+    const rings=[...sunEQAura.children];
+    if(rings.length!==SUN_SPECTRUM_RINGS)return;
+    if(sunEQFog)sunEQFog.style.opacity='0';
+    sunEQAura.style.filter='none';
+
+    const raw=currentAudioEnergy(live);
+    const dynamics=clamp(sunNum('dynamics',79)/100,0,3.8);
+    const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
+    let energy=clamp(raw*(.90+dynamics*1.15),0,1);
+    energy=clamp(.5+(energy-.5)*contrast,0,1);
+    energy=Math.pow(energy,.82);
+
+    const speed=clamp(sunNum('spectrumSpeed',55)/100,0,1);
+    const interval=lerp(180,45,speed);
+    if(!sunSpectrumSampleAt)sunSpectrumSampleAt=now;
+    while(now-sunSpectrumSampleAt>=interval){
+      sunSpectrumHistory.unshift(energy);
+      if(sunSpectrumHistory.length>SUN_SPECTRUM_RINGS)sunSpectrumHistory.length=SUN_SPECTRUM_RINGS;
+      sunSpectrumSampleAt+=interval;
+    }
+    const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
+    const distance=sunNum('distance',-220);
+    const reachNorm=clamp((distance+440)/660,0,1);
+    const innerScale=1.008;
+    const outerScale=1.32+reachNorm*1.35;
+    const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
+    const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
+    const hue=clamp(214+sunNum('hue',1)*.35,170,260);
+
+    rings.forEach((ring,i)=>{
+      const e=clamp(sunSpectrumHistory[i]??.04,0,1);
+      const position=Math.min(SUN_SPECTRUM_RINGS-1,i+phase);
+      const scale=innerScale+position*spacing;
+      // Dark blue is silence; a peak becomes progressively lighter blue.
+      const light=clamp(9+e*76,8,88);
+      const sat=clamp(88+e*12,82,100);
+      const alpha=clamp(.22+e*.76,.22,.98);
+      ring.style.setProperty('--spectrum-scale',scale.toFixed(4));
+      ring.style.setProperty('--spectrum-width',(thickness*(.82+e*.38)).toFixed(2)+'px');
+      ring.style.setProperty('--spectrum-color',`hsla(${hue.toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`);
+    });
+  }
+
+  function updateGlowSun(live,now){
+    if(sunEQFog)sunEQFog.style.opacity='0';
+    sunEQAura.style.filter='none';
+    const inner=sunEQAura.querySelector('.sun-glow-inner');
+    const outer=sunEQAura.querySelector('.sun-glow-outer');
+    if(!inner||!outer)return;
+    const raw=currentAudioEnergy(live);
+    const pulse=.86+Math.pow(clamp(raw*1.65,0,1),.72)*.38;
+    const innerReach=clamp(sunNum('innerGlowReach',18)/100,0,1);
+    const outerReach=clamp(sunNum('outerGlowReach',42)/100,0,1);
+    const innerStrength=clamp(sunNum('innerGlowStrength',150)/220,0,1);
+    const outerStrength=clamp(sunNum('outerGlowStrength',185)/220,0,1);
+    const innerHue=((sunNum('innerGlowHue',205)%360)+360)%360;
+    const outerHue=((sunNum('outerGlowHue',188)%360)+360)%360;
+
+    const innerScale=1.00+innerReach*.24+raw*.035;
+    const outerScale=1.02+outerReach*.48+raw*.055;
+    const innerAlpha=clamp(innerStrength*(.28+raw*.55),.03,.88);
+    const outerAlpha=clamp(outerStrength*(.16+raw*.42),.02,.70);
+    const innerBlur=4+innerReach*16;
+    const outerBlur=12+outerReach*42;
+
+    inner.style.transform=`translate(-50%,-50%) scale(${(innerScale*pulse).toFixed(4)})`;
+    inner.style.background=`radial-gradient(circle,hsla(${innerHue},100%,74%,${(innerAlpha*.58).toFixed(3)}) 0%,hsla(${innerHue},100%,61%,${(innerAlpha*.30).toFixed(3)}) 48%,transparent 76%)`;
+    inner.style.filter=`blur(${innerBlur.toFixed(1)}px)`;
+    inner.style.opacity=String(innerAlpha);
+
+    outer.style.transform=`translate(-50%,-50%) scale(${(outerScale*(.96+pulse*.04)).toFixed(4)})`;
+    outer.style.background=`radial-gradient(circle,hsla(${outerHue},100%,72%,${(outerAlpha*.30).toFixed(3)}) 0%,hsla(${outerHue},96%,56%,${(outerAlpha*.22).toFixed(3)}) 48%,transparent 78%)`;
+    outer.style.filter=`blur(${outerBlur.toFixed(1)}px)`;
+    outer.style.opacity=String(outerAlpha);
+  }
+
   function updateSunEQ(live){
     if(!sunEQAura||!sunEQFog)return;
     const waveType=sunLab.waveType||'plasma';
@@ -3358,6 +3458,10 @@ Vector ${vector}. ${pair[1]}.`;
     if(now-sunEQLastPaint<33)return;
     sunEQLastPaint=now;
 
+    if(waveType==='spectrum'){updateSpectrumSun(live,now);return;}
+    if(waveType==='glow'){updateGlowSun(live,now);return;}
+    if(sunEQFog)sunEQFog.style.opacity='1';
+
     const playing=!audio.paused&&!audio.ended;
     const rings=[...sunEQAura.children];
     const blobs=[...sunEQFog.children];
@@ -3365,7 +3469,9 @@ Vector ${vector}. ${pair[1]}.`;
 
     if(eqAnalyser) eqAnalyser.smoothingTimeConstant=clamp(sunNum('smoothing',72)/100,.10,.95);
 
-    const distMul=sunNum('distance',100)/100;
+    const distanceValue=sunNum('distance',100);
+    const distMul=distanceValue/100;
+    const effectReach=waveType==='plasma'?clamp((distanceValue+440)/440,.04,1.50):distMul;
     const thickMul=sunNum('thickness',100)/100;
     const contrastMul=sunNum('contrast',100)/100;
     const dynamicsMul=sunNum('dynamics',175)/100;
@@ -3385,7 +3491,7 @@ Vector ${vector}. ${pair[1]}.`;
     const glowOnly=!!sunLab.glowOnly;
     const glowOnlyBoost=glowOnly?1.55:1;
     const wavePreset={
-      plasma:{travel:1,width:1,blur:1,fog:1,residue:1,carry:.86},
+      plasma:{travel:.78,width:.92,blur:.68,fog:.60,residue:.94,carry:.88},
       pressure:{travel:1.24,width:1.06,blur:.86,fog:.78,residue:.92,carry:.90},
       tracer:{travel:1.06,width:.94,blur:1.18,fog:1.24,residue:1.16,carry:.92},
       ring:{travel:.82,width:1.02,blur:.46,fog:.36,residue:.76,carry:.80},
@@ -3445,8 +3551,8 @@ Vector ${vector}. ${pair[1]}.`;
       const wave=Math.pow(clamp((sunEQPulseFlow[i]-.02)*(2.05*contrastMul),0,1),.88);
       const carry=i?Math.pow(clamp((sunEQPulseFlow[i-1]-.02)*(1.95*contrastMul),0,1),1.05)*(.22+.18*wavePreset.residue):0;
       const energy=clamp((band*.82+wave*.88+carry)*dynamicsMul,0,1);
-      const base=isBarWave(waveType)?1.0:(Number(rings[i]?.dataset.base)||1.006+i*.0135);
-      const travel=((.0014+i*.00055)+Math.pow(energy,1.15)*(i<4?.042:.034))*distMul*wavePreset.travel;
+      const base=isBarWave(waveType)?1.0:(waveType==='plasma' ? (.58+effectReach*.28+i*.030) : (Number(rings[i]?.dataset.base)||1.006+i*.0135));
+      const travel=((.0014+i*.00055)+Math.pow(energy,1.15)*(i<4?.042:.034))*effectReach*wavePreset.travel;
       const width=(3.4+Math.pow(energy,1.06)*7.6)*thickMul*wavePreset.width;
       const opacity=clamp(.01+Math.pow(energy,1.06)*(.56+.34*contrastMul),.01,.97);
 
@@ -3597,7 +3703,7 @@ Vector ${vector}. ${pair[1]}.`;
       const plume=Math.pow(clamp((wave-.02)*(2.05*contrastMul),0,1),.84);
       const breathe=.94+Math.sin(t*.72+phase)*.08;
       const energy=clamp(pulse*.48+plume*.92,0,1);
-      const drift=(energy*(4.8+4.0*distMul)*wavePreset.travel+Math.sin(t*.84+phase)*1.95) * (.36+.64*mistMul);
+      const drift=(energy*(4.8+4.0*effectReach)*wavePreset.travel+Math.sin(t*.84+phase)*1.95) * (.36+.64*mistMul);
       const curl=Math.sin(t*1.18 + phase*3.2) * (1.4+mistMul*1.6);
       const angle=((Number(blob.dataset.rot)||0)-90)*Math.PI/180 + Math.sin(t*.28+phase)*0.14;
       const baseRadius=Number(blob.dataset.radius)||46.5;
@@ -3606,7 +3712,7 @@ Vector ${vector}. ${pair[1]}.`;
       const top=50+Math.sin(angle)*radius;
       const scale=(sizeBase*(.86+energy*(.74+mistMul*.46))*breathe).toFixed(3);
       const opacity=clamp((.004+Math.pow(energy,1.22)*(.12+.24*mistMul)+Math.sin(t*.46+phase)*.022)*fogStrength,.004,.58);
-      const width=(15+energy*(18+22*distMul))*fogStrength;
+      const width=(15+energy*(18+22*effectReach))*fogStrength;
       const height=(5+energy*(9+14*mistMul))*fogStrength;
       blob.style.left=left.toFixed(3)+'%';
       blob.style.top=top.toFixed(3)+'%';
