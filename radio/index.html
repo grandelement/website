@@ -933,6 +933,21 @@ const ALBUM_ORDER = Object.freeze(['Fundamental Groove','Trio','Live','Sessions 
 
 const $ = id => document.getElementById(id);
 const audio = $('player');
+
+// Native playback is always 1x and is marked as long-form playback for browsers
+// that expose an Audio Session API. This applies to LIVE and normal player tracks.
+function enforceNormalPlaybackRate(){
+  try{audio.defaultPlaybackRate=1;}catch(_e){}
+  try{if(audio.playbackRate!==1)audio.playbackRate=1;}catch(_e){}
+  try{audio.preservesPitch=true;}catch(_e){}
+  try{audio.webkitPreservesPitch=true;}catch(_e){}
+}
+enforceNormalPlaybackRate();
+audio.addEventListener('ratechange',enforceNormalPlaybackRate);
+audio.addEventListener('loadedmetadata',enforceNormalPlaybackRate);
+audio.addEventListener('play',enforceNormalPlaybackRate);
+try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
+
 const titleBtn = $('titleBtn');
 const trackList = $('trackList');
 const statusEl = $('status');
@@ -1834,7 +1849,7 @@ audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{pass
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('ended',()=>{if(state.live){reconnectLiveStream();return;}advanceFromEnded();});
 audio.addEventListener('play',()=>{ void window.GEResumeLiveEQ?.(); setStatus(state.live?'Grand Element LIVE':'Playing'); try{ navigator.mediaSession.playbackState='playing'; }catch(_e){} });
-audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus(state.live?'LIVE paused':'Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} });
+audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus(state.live?'LIVE paused':'Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} try{if(typeof GE_IOS_AUDIO!=='undefined'&&GE_IOS_AUDIO)eqTapAudio?.pause();}catch(_e){} });
 audio.addEventListener('error',()=>{
   if(state.livePreparing){return;}
   if(state.live){
@@ -4461,7 +4476,19 @@ Vector ${vector}. ${pair[1]}.`;
       const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
       const title=extractLiveTitle(await response.json());if(!title)return;
       syncListening();liveStationID=stationTitle(title);wasCountable=countableNow();
-      if(state.live)titleBtn.textContent=title;
+      if(state.live){
+        titleBtn.textContent=title;
+        try{
+          if('mediaSession' in navigator){
+            navigator.mediaSession.metadata=new MediaMetadata({
+              title,
+              artist:'Grand Element Radio',
+              album:'LIVE',
+              artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
+            });
+          }
+        }catch(_e){}
+      }
       if(title!==gs.lastLiveTitle){gs.lastLiveTitle=title;if(!liveStationID)noteRealSongPlay(`live:${title}`);save(true);}
     }catch(_e){}
   }
@@ -4621,6 +4648,20 @@ gateTestBtn?.addEventListener('click',()=>{
   }
 
   try{window.GEShip?.syncAll();}catch(_e){}
+})();
+</script>
+<script id="ge-background-audio-hardening">
+(()=>{
+  const a=document.getElementById('player');
+  if(!a)return;
+  const normal=()=>{
+    try{a.defaultPlaybackRate=1;}catch(_e){}
+    try{if(a.playbackRate!==1)a.playbackRate=1;}catch(_e){}
+    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
+  };
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)normal();});
+  window.addEventListener('pageshow',normal);
+  normal();
 })();
 </script>
 </body>
