@@ -2579,12 +2579,36 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 </style>
 
 <style id="ge-v20-radio-soul-hud">
-/* Radio moon: smaller immediate glow plus expanding broadcast rings. */
+/* Radio moon beacon: tight white pulse plus clearly visible transmission waves.
+   The near wave reaches about 25% beyond the Moon radius; the far wave fades
+   at about 50% beyond it, so the signal reads as active without a huge halo. */
 .moon{isolation:isolate;}
-.moon img{box-shadow:0 0 6px 2px rgba(140,200,255,.30)!important;}
-.moon::before,.moon::after{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid rgba(120,205,255,.68);pointer-events:none;z-index:-1;animation:geMoonBroadcast 3.2s ease-out infinite;}
-.moon::after{animation-delay:1.6s;}
-@keyframes geMoonBroadcast{0%{transform:scale(.94);opacity:.62}70%{opacity:.16}100%{transform:scale(1.62);opacity:0}}
+.moon img{
+  box-shadow:0 0 4px 1px rgba(255,255,255,.62),0 0 7px 2px rgba(205,236,255,.42)!important;
+  animation:geMoonTightBeacon 2.8s ease-in-out infinite!important;
+}
+.moon::before,.moon::after{
+  content:"";position:absolute;inset:1px;border-radius:50%;pointer-events:none;z-index:-1;
+  border:1.4px solid rgba(225,247,255,.88);
+  box-shadow:0 0 3px rgba(150,220,255,.55);
+}
+.moon::before{animation:geMoonBroadcastNear 2.8s ease-out infinite;}
+.moon::after{animation:geMoonBroadcastFar 3.6s ease-out 1.35s infinite;border-color:rgba(175,225,255,.80);}
+@keyframes geMoonTightBeacon{
+  0%,100%{filter:brightness(1.02);box-shadow:0 0 4px 1px rgba(255,255,255,.58),0 0 7px 2px rgba(205,236,255,.38)}
+  48%{filter:brightness(1.18);box-shadow:0 0 6px 2px rgba(255,255,255,.82),0 0 9px 2px rgba(205,236,255,.52)}
+  64%{filter:brightness(1.08);box-shadow:0 0 5px 1.5px rgba(255,255,255,.72),0 0 8px 2px rgba(205,236,255,.44)}
+}
+@keyframes geMoonBroadcastNear{
+  0%{transform:scale(.98);opacity:.82}
+  68%{opacity:.36}
+  100%{transform:scale(1.25);opacity:0}
+}
+@keyframes geMoonBroadcastFar{
+  0%{transform:scale(.98);opacity:.76}
+  62%{opacity:.30}
+  100%{transform:scale(1.50);opacity:0}
+}
 
 /* Active Soul/Body energy stays completely inside the white score marble. */
 #gameHUD .playerDot.activeTurn{overflow:hidden!important;box-shadow:inset 0 0 0 2px rgba(165,226,255,.95),inset 0 0 10px rgba(42,151,255,.90),0 0 3px rgba(90,190,255,.35)!important;}
