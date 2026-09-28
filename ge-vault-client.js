@@ -30,7 +30,8 @@
             const key=normalizeWorkTitle(name);
             if(key)rightsByTitle.set(key,{
               ascap_work_id:String(work.work_id||''),
-              ascap_title:String(work.title||'')
+              ascap_title:String(work.title||''),
+              ascap_status:String(work.status||'')
             });
           });
         });
@@ -259,7 +260,8 @@
     return {
       ...meta,
       ascap_work_id:String(meta.ascap_work_id||meta.work_id||rights.ascap_work_id||'').slice(0,120),
-      ascap_title:String(meta.ascap_title||rights.ascap_title||'').slice(0,300)
+      ascap_title:String(meta.ascap_title||rights.ascap_title||'').slice(0,300),
+      ascap_status:String(meta.ascap_status||rights.ascap_status||'').slice(0,80)
     };
   }
   function normalizeMediaMeta(el){
@@ -282,6 +284,7 @@
       station_id:!!override.station_id,
       ascap_work_id:String(override.ascap_work_id||override.work_id||'').slice(0,120),
       ascap_title:String(override.ascap_title||'').slice(0,300),
+      ascap_status:String(override.ascap_status||'').slice(0,80),
       iswc:String(override.iswc||'').slice(0,120),
       writer:String(override.writer||'').slice(0,200),
       publisher:String(override.publisher||'').slice(0,200)
