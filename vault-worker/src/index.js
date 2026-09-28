@@ -683,14 +683,15 @@ function safeSessionId(value) {
 function allowedPublicEventType(value) {
   const type = safeText(value, 80).toLowerCase();
   const allowed = new Set([
-    "page_view","session_start","session_end",
+    "page_view","session_start","session_end","qr_scan",
     "radio_open","radio_play","radio_pause","radio_stop",
-    "track_start","track_pause","track_resume","track_complete","track_skip","track_seek",
+    "track_start","track_pause","track_resume","track_progress","track_complete","track_stop","track_skip","track_seek",
     "share_open","share_complete","share_copy","share_track",
     "download","offline_enable","offline_disable",
     "ship_open","ship_arrival","gate_open","gate_unlock","access_request",
     "soul_reflection_open","soul_reflection_place","comment_submit",
-    "playlist_view","background_change","button_click","external_link"
+    "playlist_view","background_change","button_click","external_link",
+    "game_start","game_complete"
   ]);
   return allowed.has(type) ? type : "";
 }
