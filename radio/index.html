@@ -1102,7 +1102,7 @@ const CONFIG = Object.freeze({
 // Trigger/listening-limit values remain real listening time.
 // ================================================================
 const GATE_CONFIG = Object.freeze({
-  enabled: true,
+  enabled: false,
 
   // MASTER SEQUENCE SPEED
   sequenceSpeed: 1.5,
@@ -2387,7 +2387,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20260916-recovery-shell-9',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20260928-radio-baseline-1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -3527,6 +3527,9 @@ Vector ${vector}. ${pair[1]}.`;
   // playback is not routed through a Web Audio context that iOS may suspend.
   // A second silent analyser element is used only while the page is visible.
   async function ensureLiveEQ(){
+    // Baseline stability mode: the radio uses ONE native audio element only.
+    // No Web Audio source, no silent duplicate iPhone stream, no analyser audio path.
+    return false;
     try{
       const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
       if(!eqAudioCtx){
