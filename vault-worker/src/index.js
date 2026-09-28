@@ -1158,6 +1158,7 @@ async function adminAnalytics(env, url) {
   const networks = new Map();
   const languages = new Map();
   const referrers = new Map();
+  const fanMap = new Map();
 
   const mediaSessions = new Map();
   const stationTracks = new Map();
@@ -1181,6 +1182,55 @@ async function adminAnalytics(env, url) {
     const meta = parseStoredJson(row.metadata_json);
     bumpCount(qrIds, meta.qr_id);
     bumpCount(placements, meta.qr_placement || meta.placement);
+
+    if (row.anon_id && row.anon_id !== "ge-radio-station") {
+      const anon = String(row.anon_id);
+      let fan = fanMap.get(anon);
+      if (!fan) {
+        fan = {
+          anon_id: anon,
+          first_seen_at: row.occurred_at,
+          last_seen_at: row.occurred_at,
+          events: 0,
+          sessions: new Set(),
+          page_views: 0,
+          qr_scans: 0,
+          radio_opens: 0,
+          game_completions: 0,
+          country: "",
+          region: "",
+          city: "",
+          timezone: "",
+          language: "",
+          network: "",
+          user_agent: "",
+          campaign: "",
+          qr_id: "",
+          placement: "",
+          listened_seconds: 0,
+          tracks: new Set(),
+        };
+        fanMap.set(anon, fan);
+      }
+      fan.first_seen_at = Math.min(Number(fan.first_seen_at || row.occurred_at), Number(row.occurred_at || 0));
+      fan.last_seen_at = Math.max(Number(fan.last_seen_at || row.occurred_at), Number(row.occurred_at || 0));
+      fan.events += 1;
+      if (row.session_id) fan.sessions.add(String(row.session_id));
+      if (row.event_type === "page_view") fan.page_views += 1;
+      if (row.event_type === "qr_scan") fan.qr_scans += 1;
+      if (row.event_type === "radio_open") fan.radio_opens += 1;
+      if (row.event_type === "game_complete") fan.game_completions += 1;
+      if (row.country) fan.country = row.country;
+      if (row.region) fan.region = row.region;
+      if (row.city) fan.city = row.city;
+      if (row.timezone) fan.timezone = row.timezone;
+      if (row.language) fan.language = row.language;
+      if (row.cf_as_org || row.cf_asn) fan.network = row.cf_as_org || ("ASN " + row.cf_asn);
+      if (row.user_agent) fan.user_agent = row.user_agent;
+      if (row.utm_campaign) fan.campaign = row.utm_campaign;
+      if (meta.qr_id) fan.qr_id = String(meta.qr_id);
+      if (meta.qr_placement || meta.placement) fan.placement = String(meta.qr_placement || meta.placement);
+    }
 
     if (row.event_type === "station_performance") {
       const stationKey = [row.track_id || "", row.track_title || "", row.album || ""].join("|");
@@ -1263,6 +1313,13 @@ async function adminAnalytics(env, url) {
 
   const trackMap = new Map();
   for (const s of mediaSessions.values()) {
+    if (s.anon_id && s.anon_id !== "ge-radio-station") {
+      const fan = fanMap.get(String(s.anon_id));
+      if (fan) {
+        fan.listened_seconds += Number(s.listened_seconds || 0);
+        if (s.track_title || s.track_id) fan.tracks.add(String(s.track_title || s.track_id));
+      }
+    }
     const key = [s.track_id || "", s.track_title || "", s.album || ""].join("|");
     let t = trackMap.get(key);
     if (!t) {
@@ -1300,6 +1357,30 @@ async function adminAnalytics(env, url) {
     t.writer ||= s.writer;
     t.publisher ||= s.publisher;
   }
+
+  const fans = [...fanMap.values()].map((fan) => ({
+    anon_id: fan.anon_id,
+    first_seen_at: fan.first_seen_at,
+    last_seen_at: fan.last_seen_at,
+    events: fan.events,
+    sessions: fan.sessions.size,
+    page_views: fan.page_views,
+    qr_scans: fan.qr_scans,
+    radio_opens: fan.radio_opens,
+    game_completions: fan.game_completions,
+    country: fan.country,
+    region: fan.region,
+    city: fan.city,
+    timezone: fan.timezone,
+    language: fan.language,
+    network: fan.network,
+    user_agent: fan.user_agent,
+    campaign: fan.campaign,
+    qr_id: fan.qr_id,
+    placement: fan.placement,
+    listened_seconds: Number(fan.listened_seconds.toFixed(2)),
+    unique_tracks: fan.tracks.size,
+  })).sort((a, b) => b.last_seen_at - a.last_seen_at);
 
   const stationMusic = [...stationTracks.values()]
     .sort((a, b) => b.performances - a.performances || b.last_played_at - a.last_played_at);
@@ -1356,9 +1437,26 @@ async function adminAnalytics(env, url) {
       languages: topCountRows(languages),
       referrers: topCountRows(referrers),
     },
+    fans,
     music,
     station_music: stationMusic,
   };
+}
+
+async function adminFanDetail(env, url) {
+  const anonId = safeAnonId(url.searchParams.get("anon_id"));
+  if (!anonId) return { ok: false, error: "Missing anonymous fan ID." };
+  const days = Math.max(1, Math.min(3650, Number(url.searchParams.get("days") || 3650)));
+  const since = now() - Math.round(days * 86400);
+  const rows = await env.VAULT_DB.prepare(
+    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE anon_id=? AND occurred_at>=? ORDER BY occurred_at DESC LIMIT 2000",
+  ).bind(anonId, since).all();
+  const events = (rows.results || []).map((row) => ({
+    ...row,
+    metadata: parseStoredJson(row.metadata_json),
+    metadata_json: undefined,
+  }));
+  return { ok: true, anon_id: anonId, days, events };
 }
 
 async function adminExport(env) {
@@ -1458,6 +1556,11 @@ export default {
       if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminAnalytics(env, url), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-detail" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        return json(await adminFanDetail(env, url), 200, cors);
       }
 
       if (url.pathname === "/v1/admin/export" && request.method === "GET") {
