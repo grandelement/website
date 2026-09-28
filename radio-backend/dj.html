@@ -308,7 +308,30 @@ function installTouchMixer(rootSelector,gridSelector){
 let syncTouchFaders=function(){};
 let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0;let ctx=null,radioNode=null,radioGain=null,radioAnalyser=null,radioRAF=0,radioMonitorOn=false,radioWarmStarted=false,radioGraphReady=false;let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false;let rtcPc=null,rtcDest=null,rtcSessionId='',rtcMid='',liveTransport='';let micStream=null,micSource=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
 let settings={mic:{level:100,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true},line:{level:100,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line)}catch(e){}
-function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}}
+let djPermanentSaveTimer=0;
+function currentChannelVisibility(){const out={};document.querySelectorAll('[data-mixer-channel]').forEach(function(box){out[box.dataset.mixerChannel]=!!box.checked});return out}
+function scheduleDjPermanentSave(){clearTimeout(djPermanentSaveTimer);if(!key)return;djPermanentSaveTimer=setTimeout(function(){api('/control/permanent-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:'dj_mixer',state:{mic:settings.mic,line:settings.line,visibleChannels:currentChannelVisibility()}})}).catch(function(e){console.warn('DJ Vault state save:',e)})},450)}
+function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}scheduleDjPermanentSave()}
+function syncDjMixerControls(){
+  $('mixMicLevel').value=settings.mic.level;$('mixLineLevel').value=settings.line.level;
+  $('mixMicA').value=settings.mic.delay;$('mixMicB').value=settings.mic.reverb;$('mixLineA').value=settings.line.delay;$('mixLineB').value=settings.line.reverb;
+  $('mixMicARead').textContent=Math.round(settings.mic.delay)+'%';$('mixMicBRead').textContent=Math.round(settings.mic.reverb)+'%';$('mixLineARead').textContent=Math.round(settings.line.delay)+'%';$('mixLineBRead').textContent=Math.round(settings.line.reverb)+'%';
+  $('mixMicRead').textContent=Math.round(settings.mic.level)+'%';$('mixLineRead').textContent=Math.round(settings.line.level)+'%';
+  $('mixMicMute').classList.toggle('on',!!settings.mic.mute);$('mixLineMute').classList.toggle('on',!!settings.line.mute);
+  updateThresholds();requestAnimationFrame(syncTouchFaders);
+}
+async function loadDjPermanentState(){
+  try{
+    const r=await api('/control/permanent-state?scope=dj_mixer'),d=await r.json();
+    if(r.ok&&d.ok&&d.state){
+      if(d.state.mic)Object.assign(settings.mic,d.state.mic);
+      if(d.state.line)Object.assign(settings.line,d.state.line);
+      if(d.state.visibleChannels)document.querySelectorAll('[data-mixer-channel]').forEach(function(box){if(Object.prototype.hasOwnProperty.call(d.state.visibleChannels,box.dataset.mixerChannel))box.checked=!!d.state.visibleChannels[box.dataset.mixerChannel]});
+    }
+    try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}
+    syncDjMixerControls();applyMixerChannels(false);
+  }catch(e){console.warn('DJ permanent mixer state unavailable:',e)}
+}
 
 let playlists=[],playlistEditId='',playlistBaseName='',playlistAlbum='',playlistSelected=new Set(),playlistChooserIds=new Set();
 function cachePlaylistPack(pack){try{localStorage.setItem('geRadioPlaylistBackup',JSON.stringify(pack))}catch(e){}}
@@ -430,7 +453,7 @@ async function normalRotation(){
   if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();cacheCurrentPlaylists();setPlaylistStatus('NORMAL RADIO ROTATION')
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
-function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();applyEmbedMode();startPoll()}
+function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');await loadDjPermanentState();render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();applyEmbedMode();startPoll()}
 $('enter').onclick=async function(){try{$('loginStatus').textContent='CONNECTING…';await ensureAudio();await verify($('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}};$('password').addEventListener('keydown',function(e){if(e.key==='Enter')$('enter').click()});
 
 let nowProgressRAF=0;
@@ -548,7 +571,7 @@ function applyMixerChannels(save=true){
     const strip=document.querySelector('[data-channel-strip="'+key+'"]');
     if(strip)strip.classList.toggle('channelHidden',!box.checked);
   });
-  if(save)try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}
+  if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
   requestAnimationFrame(syncTouchFaders);
 }
 $('mixerChannelsBtn').onclick=function(){
@@ -580,5 +603,5 @@ $('playlistSongs').onchange=function(e){const c=e.target.closest('[data-song-pat
 $('playlistMasterSongs').onchange=function(){setAlbumChecked(playlistAlbum,this.checked)};
 
 $('skipNow').onclick=skipCurrent;
-syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');updateThresholds();updateAirButtons();$('mixMicLevel').value=settings.mic.level;$('mixLineLevel').value=settings.line.level;$('mixMicA').value=settings.mic.delay;$('mixMicB').value=settings.mic.reverb;$('mixLineA').value=settings.line.delay;$('mixLineB').value=settings.line.reverb;$('mixMicARead').textContent=Math.round(settings.mic.delay)+'%';$('mixMicBRead').textContent=Math.round(settings.mic.reverb)+'%';$('mixLineARead').textContent=Math.round(settings.line.delay)+'%';$('mixLineBRead').textContent=Math.round(settings.line.reverb)+'%';$('mixMicRead').textContent=settings.mic.level+'%';$('mixLineRead').textContent=settings.line.level+'%';syncTouchFaders();document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){});},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
+syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');updateAirButtons();syncDjMixerControls();syncTouchFaders();document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){});},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
