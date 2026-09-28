@@ -302,6 +302,140 @@ async function ingestComment(request, env) {
   return json({ ok: true, id: commentId }, 201);
 }
 
+
+function publicReflectionRow(row) {
+  let meta = {};
+  try { meta = JSON.parse(row.metadata_json || "{}"); } catch {}
+  return {
+    id: row.id,
+    text: row.body || "",
+    created: new Date(Number(row.created_at || 0) * 1000).toISOString(),
+    updated: new Date(Number(row.updated_at || row.created_at || 0) * 1000).toISOString(),
+    universe: Math.max(0, Math.min(31, Number(meta.universe || 0))),
+    x: Math.max(2, Math.min(98, Number(meta.x || 50))),
+    y: Math.max(3, Math.min(97, Number(meta.y || 50))),
+    locationLabel: meta.share_location ? String(meta.location_label || "").slice(0, 80) : "",
+    lat: meta.share_location && Number.isFinite(Number(meta.lat)) ? Number(meta.lat) : null,
+    lon: meta.share_location && Number.isFinite(Number(meta.lon)) ? Number(meta.lon) : null,
+    track: String(meta.track || "").slice(0, 160),
+  };
+}
+
+async function listPublicReflections(env, url) {
+  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || 300)));
+  const rows = await env.VAULT_DB.prepare(
+    "SELECT id,created_at,updated_at,body,metadata_json FROM comments WHERE source='radio-soul-reflection' AND status='visible' ORDER BY created_at DESC LIMIT ?",
+  ).bind(limit).all();
+  return (rows.results || []).map(publicReflectionRow);
+}
+
+async function savePublicReflection(request, env) {
+  const body = await readBody(request);
+  const text = String(body.text || body.body || "").trim();
+  if (!text) return json({ ok: false, error: "Reflection is empty." }, 400);
+  if (text.length > 5000) return json({ ok: false, error: "Reflection is too long." }, 400);
+
+  const anonId = String(body.anon_id || "").trim();
+  if (!/^[A-Za-z0-9._:-]{24,160}$/.test(anonId)) {
+    return json({ ok: false, error: "Missing reflection owner token." }, 400);
+  }
+
+  const visitor = await visitorIdentity(request, env);
+  const requestedId = String(body.id || "").trim();
+  const t = now();
+  const universe = Math.max(0, Math.min(31, Number(body.universe || 0)));
+  const x = Math.max(2, Math.min(98, Number(body.x || 50)));
+  const y = Math.max(3, Math.min(97, Number(body.y || 50)));
+  const shareLocation = !!body.share_location;
+  const lat = shareLocation && Number.isFinite(Number(body.lat))
+    ? Math.round(Number(body.lat) * 10) / 10
+    : null;
+  const lon = shareLocation && Number.isFinite(Number(body.lon))
+    ? Math.round(Number(body.lon) * 10) / 10
+    : null;
+  const metadata = {
+    universe,
+    x,
+    y,
+    share_location: shareLocation,
+    location_label: shareLocation ? String(body.location_label || "").trim().slice(0, 80) : "",
+    lat,
+    lon,
+    track: String(body.track || "").trim().slice(0, 160),
+  };
+
+  let existing = null;
+  if (requestedId) {
+    existing = await env.VAULT_DB.prepare(
+      "SELECT id,anon_id,created_at FROM comments WHERE id=? AND source='radio-soul-reflection'",
+    ).bind(requestedId).first();
+    if (existing && !constantTimeEqual(existing.anon_id || "", anonId)) {
+      return json({ ok: false, error: "This reflection belongs to a different visitor." }, 403);
+    }
+  }
+  if (!existing) {
+    existing = await env.VAULT_DB.prepare(
+      "SELECT id,anon_id,created_at FROM comments WHERE anon_id=? AND source='radio-soul-reflection' ORDER BY created_at DESC LIMIT 1",
+    ).bind(anonId).first();
+  }
+
+  if (existing) {
+    await env.VAULT_DB.prepare(
+      `UPDATE comments SET
+        updated_at=?,body=?,status='visible',ip_hash=?,ip_ciphertext=?,country=?,region=?,city=?,metadata_json=?
+       WHERE id=? AND anon_id=? AND source='radio-soul-reflection'`,
+    ).bind(
+      t,
+      text,
+      visitor.ip_hash || null,
+      visitor.ip_ciphertext || null,
+      visitor.country,
+      visitor.region,
+      visitor.city,
+      cleanJson(metadata),
+      existing.id,
+      anonId,
+    ).run();
+    return json({ ok: true, id: existing.id, updated: true });
+  }
+
+  // Public endpoint protection: no more than 6 new reflections from one
+  // network identity in ten minutes. Edits to an existing reflection are not
+  // counted as new posts.
+  if (visitor.ip_hash) {
+    const recent = await env.VAULT_DB.prepare(
+      "SELECT COUNT(*) AS n FROM comments WHERE source='radio-soul-reflection' AND ip_hash=? AND created_at>?",
+    ).bind(visitor.ip_hash, t - 600).first();
+    if (Number(recent?.n || 0) >= 6) {
+      return json({ ok: false, error: "Please wait before placing another reflection." }, 429);
+    }
+  }
+
+  const commentId = id("soul");
+  await env.VAULT_DB.prepare(
+    `INSERT INTO comments
+      (id,created_at,updated_at,fan_id,anon_id,source,body,status,ip_hash,ip_ciphertext,country,region,city,metadata_json)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(
+    commentId,
+    t,
+    t,
+    null,
+    anonId,
+    "radio-soul-reflection",
+    text,
+    "visible",
+    visitor.ip_hash || null,
+    visitor.ip_ciphertext || null,
+    visitor.country,
+    visitor.region,
+    visitor.city,
+    cleanJson(metadata),
+  ).run();
+
+  return json({ ok: true, id: commentId, created: true }, 201);
+}
+
 async function listPlaylists(env) {
   const rows = await env.VAULT_DB.prepare(
     "SELECT * FROM playlists ORDER BY active DESC, updated_at DESC",
@@ -492,6 +626,16 @@ export default {
     try {
       if (url.pathname === "/health") {
         return json({ ok: true, service: "GE Studios Vault", time: now() }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/reflections" && request.method === "GET") {
+        return json({ ok: true, items: await listPublicReflections(env, url) }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/reflections" && request.method === "POST") {
+        const response = await savePublicReflection(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
       }
 
       if (url.pathname === "/v1/ingest/listener" && request.method === "POST") {
