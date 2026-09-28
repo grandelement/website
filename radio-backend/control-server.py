@@ -37,6 +37,8 @@ MIXER_SETTINGS = DATA / "mixer.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 CUSTOM_PLAYLISTS_BACKUP = DATA / "custom-playlists.backup.json"
 DEFAULT_PLAYLISTS = Path("/app/default-playlists.json")
+PERMANENT_STATE_CACHE = DATA / "permanent-state-cache.json"
+EFFECT_PRESETS_CACHE = DATA / "effect-presets-cache.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
@@ -103,6 +105,147 @@ def vault_save_radio_setting(key, value):
         print(f"GE Radio: Vault setting save failed for {key}: {exc}", flush=True)
         return False
 
+def _vault_decode_value(row):
+    if not isinstance(row, dict):
+        return None
+    raw = row.get("value_json")
+    if raw not in (None, ""):
+        try:
+            return json.loads(raw) if isinstance(raw, str) else raw
+        except Exception:
+            return raw
+    return row.get("value_text")
+
+def vault_save_scoped_setting(scope, key, value):
+    if not vault_configured():
+        return False
+    try:
+        vault_request("PUT", "/v1/vault", {
+            "kind": "setting",
+            "scope": str(scope),
+            "key": str(key),
+            "value_json": value,
+            "locked": False,
+            "sensitivity": "private",
+        })
+        return True
+    except Exception as exc:
+        print(f"GE Radio: Vault setting save failed for {scope}/{key}: {exc}", flush=True)
+        return False
+
+def vault_load_scoped_setting(scope, key="state"):
+    if not vault_configured():
+        return None
+    try:
+        query = urllib.parse.urlencode({"kind": "setting", "scope": str(scope)})
+        data = vault_request("GET", "/v1/vault?" + query)
+        rows = data.get("items", []) if isinstance(data, dict) else []
+        row = next((x for x in rows if str(x.get("key", "")) == str(key)), None)
+        return _vault_decode_value(row)
+    except Exception as exc:
+        print(f"GE Radio: Vault setting load failed for {scope}/{key}: {exc}", flush=True)
+        return None
+
+def read_permanent_state_cache():
+    data = read_json(PERMANENT_STATE_CACHE, {})
+    return data if isinstance(data, dict) else {}
+
+def permanent_state_save(scope, state):
+    scope = str(scope or "").strip()[:80]
+    if not scope or not isinstance(state, dict):
+        raise ValueError("Permanent state requires a scope and object state.")
+    cache = read_permanent_state_cache()
+    cache[scope] = state
+    write_json(PERMANENT_STATE_CACHE, cache)
+    if vault_configured():
+        threading.Thread(
+            target=vault_save_scoped_setting,
+            args=(scope, "state", state),
+            daemon=True,
+            name="ge-vault-state-" + scope.replace("/", "-")[:30],
+        ).start()
+    return {"state": state, "vault_configured": vault_configured()}
+
+def permanent_state_load(scope):
+    scope = str(scope or "").strip()[:80]
+    value = vault_load_scoped_setting(scope, "state") if vault_configured() else None
+    if isinstance(value, dict):
+        cache = read_permanent_state_cache()
+        cache[scope] = value
+        write_json(PERMANENT_STATE_CACHE, cache)
+        return value, "vault"
+    cache = read_permanent_state_cache()
+    local = cache.get(scope)
+    return (local if isinstance(local, dict) else {}), ("cache" if isinstance(local, dict) else "default")
+
+def read_effect_preset_cache():
+    data = read_json(EFFECT_PRESETS_CACHE, {"dj": [], "studio": []})
+    return data if isinstance(data, dict) else {"dj": [], "studio": []}
+
+def write_effect_preset_cache(surface, items):
+    cache = read_effect_preset_cache()
+    cache[str(surface)] = items if isinstance(items, list) else []
+    write_json(EFFECT_PRESETS_CACHE, cache)
+
+def effect_presets_load(surface):
+    surface = str(surface or "dj").strip().lower()[:40] or "dj"
+    if vault_configured():
+        try:
+            q = urllib.parse.urlencode({"surface": surface})
+            data = vault_request("GET", "/v1/effect-presets?" + q)
+            items = data.get("items", []) if isinstance(data, dict) else []
+            write_effect_preset_cache(surface, items)
+            return items, "vault"
+        except Exception as exc:
+            print(f"GE Radio: Vault preset load failed for {surface}: {exc}", flush=True)
+    items = read_effect_preset_cache().get(surface, [])
+    return (items if isinstance(items, list) else []), "cache"
+
+def effect_preset_save(surface, name, settings, preset_id=""):
+    surface = str(surface or "dj").strip().lower()[:40] or "dj"
+    name = " ".join(str(name or "").split())[:80]
+    if not name:
+        raise ValueError("Enter a preset name.")
+    if not isinstance(settings, dict):
+        raise ValueError("Preset settings must be an object.")
+    if vault_configured():
+        result = vault_request("PUT", "/v1/effect-presets", {
+            "id": str(preset_id or ""),
+            "surface": surface,
+            "name": name,
+            "settings": settings,
+        })
+        items, _ = effect_presets_load(surface)
+        return result, items, True
+    cache = read_effect_preset_cache()
+    items = cache.get(surface, [])
+    pid = str(preset_id or uuid.uuid4().hex[:12])
+    row = {"id": pid, "surface": surface, "name": name, "archived": False, "settings": settings, "updated_at": int(time.time())}
+    found = next((i for i,x in enumerate(items) if str(x.get("id","")) == pid or str(x.get("name","")).lower() == name.lower()), None)
+    if found is None:
+        items.append(row)
+    else:
+        row["id"] = str(items[found].get("id") or pid)
+        items[found] = row
+    cache[surface] = items
+    write_json(EFFECT_PRESETS_CACHE, cache)
+    return {"ok": True, "id": row["id"], "name": name, "surface": surface}, items, False
+
+def effect_preset_archive(surface, preset_id):
+    surface = str(surface or "dj").strip().lower()[:40] or "dj"
+    preset_id = str(preset_id or "").strip()
+    if not preset_id:
+        raise ValueError("Choose a preset to delete.")
+    if vault_configured():
+        vault_request("DELETE", "/v1/effect-presets/" + urllib.parse.quote(preset_id, safe=""))
+        items, _ = effect_presets_load(surface)
+        return items, True
+    cache = read_effect_preset_cache()
+    items = [x for x in cache.get(surface, []) if str(x.get("id","")) != preset_id]
+    cache[surface] = items
+    write_json(EFFECT_PRESETS_CACHE, cache)
+    return items, False
+
 def vault_restore_crossfade():
     if not vault_configured():
         return False
@@ -141,6 +284,24 @@ def restore_vault_settings_after_start():
     # Give the rest of the radio stack time to create rotation/runtime files.
     time.sleep(2.0)
     vault_restore_crossfade()
+    saved = vault_load_scoped_setting("radio_mixer_server", "state")
+    if isinstance(saved, dict):
+        current = mixer_state()
+        for key in MIXER_DEFAULTS:
+            if key in saved:
+                current[key] = saved[key]
+        current = {
+            "music_level": clamp_number(current.get("music_level"), 0.0, 1.25, 1.0),
+            "music_under_voice": clamp_number(current.get("music_under_voice"), 0.0, 1.0, 0.45),
+            "music_muted": bool(current.get("music_muted", False)),
+            "direct_level": clamp_number(current.get("direct_level"), 0.0, 1.5, 1.0),
+            "master_level": clamp_number(current.get("master_level"), 0.0, 1.25, 1.0),
+        }
+        write_json(MIXER_SETTINGS, current)
+        try:
+            apply_mixer_state(current)
+        except Exception as exc:
+            print(f"GE Radio: restored mixer state but could not apply it yet: {exc}", flush=True)
 
 def read_custom_playlists():
     candidates = [CUSTOM_PLAYLISTS, CUSTOM_PLAYLISTS_BACKUP, DEFAULT_PLAYLISTS]
@@ -1260,6 +1421,26 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if parsed.path == "/control/permanent-state":
+            if not self.require_auth(): return
+            scope = (urllib.parse.parse_qs(parsed.query).get("scope") or [""])[0]
+            try:
+                state, source = permanent_state_load(scope)
+                self.json_response({"ok": True, "scope": scope, "state": state, "source": source, "vault_configured": vault_configured()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 500)
+            return
+
+        if parsed.path == "/control/effect-presets":
+            if not self.require_auth(): return
+            surface = (urllib.parse.parse_qs(parsed.query).get("surface") or ["dj"])[0]
+            try:
+                items, source = effect_presets_load(surface)
+                self.json_response({"ok": True, "surface": surface, "items": items, "source": source, "vault_configured": vault_configured()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 500)
+            return
+
         if self.path == "/control/library":
             if not self.require_auth():
                 return
@@ -1469,6 +1650,43 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
 
+        if self.path == "/control/permanent-state":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                scope = str(body.get("scope", "") or "")
+                state = body.get("state")
+                result = permanent_state_save(scope, state)
+                self.json_response({"ok": True, "scope": scope, **result})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/effect-presets/save":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                result, items, vault_saved = effect_preset_save(
+                    body.get("surface", "dj"),
+                    body.get("name", ""),
+                    body.get("settings") or {},
+                    body.get("id", ""),
+                )
+                self.json_response({"ok": True, "preset": result, "items": items, "vault_saved": vault_saved})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/effect-presets/delete":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                items, vault_saved = effect_preset_archive(body.get("surface", "dj"), body.get("id", ""))
+                self.json_response({"ok": True, "items": items, "vault_saved": vault_saved})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/mixer":
             if not self.require_auth(): return
             try:
@@ -1486,7 +1704,8 @@ class Handler(BaseHTTPRequestHandler):
                     state["master_level"] = clamp_number(body.get("master_level"), 0.0, 1.25, state["master_level"])
                 apply_mixer_state(state)
                 write_json(MIXER_SETTINGS, state)
-                self.json_response({"ok": True, "mixer": state})
+                permanent_state_save("radio_mixer_server", state)
+                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured()})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
