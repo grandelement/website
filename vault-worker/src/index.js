@@ -1061,6 +1061,205 @@ async function adminSummary(env) {
   return { ok: true, counts };
 }
 
+function parseStoredJson(value) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function bumpCount(map, key, amount = 1) {
+  key = String(key || "").trim();
+  if (!key) return;
+  map.set(key, Number(map.get(key) || 0) + amount);
+}
+
+function topCountRows(map, limit = 25) {
+  return [...map.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+async function adminAnalytics(env, url) {
+  const days = Math.max(1, Math.min(3650, Number(url.searchParams.get("days") || 30)));
+  const since = now() - Math.round(days * 86400);
+  const rows = await env.VAULT_DB.prepare(
+    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,utm_source,utm_medium,utm_campaign,country,region,city,timezone,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE occurred_at>=? ORDER BY occurred_at ASC LIMIT 50000",
+  ).bind(since).all();
+  const items = rows.results || [];
+
+  const visitors = new Set();
+  const sessions = new Set();
+  const eventCounts = new Map();
+  const campaigns = new Map();
+  const countries = new Map();
+  const regions = new Map();
+  const cities = new Map();
+  const sources = new Map();
+  const qrIds = new Map();
+  const placements = new Map();
+
+  const mediaSessions = new Map();
+
+  for (const row of items) {
+    if (row.anon_id) visitors.add(String(row.anon_id));
+    if (row.session_id) sessions.add(String(row.session_id));
+    bumpCount(eventCounts, row.event_type);
+    bumpCount(campaigns, row.utm_campaign);
+    bumpCount(sources, row.utm_source);
+    bumpCount(countries, row.country);
+    bumpCount(regions, [row.country, row.region].filter(Boolean).join(" / "));
+    bumpCount(cities, [row.region, row.city].filter(Boolean).join(" / "));
+
+    const meta = parseStoredJson(row.metadata_json);
+    bumpCount(qrIds, meta.qr_id);
+    bumpCount(placements, meta.qr_placement || meta.placement);
+
+    if (!String(row.event_type || "").startsWith("track_") &&
+        !["audio_play","audio_pause","audio_end"].includes(String(row.event_type || ""))) continue;
+
+    const mediaId = String(meta.media_session_id || row.id || "");
+    const key = mediaId || [row.anon_id,row.session_id,row.track_id,row.track_title,row.occurred_at].join("|");
+    let s = mediaSessions.get(key);
+    if (!s) {
+      s = {
+        media_session_id: mediaId,
+        anon_id: row.anon_id || "",
+        track_id: row.track_id || "",
+        track_title: row.track_title || "",
+        album: row.album || "",
+        source: String(meta.source || row.surface || ""),
+        station_id: !!meta.station_id,
+        ascap_work_id: String(meta.ascap_work_id || ""),
+        iswc: String(meta.iswc || ""),
+        writer: String(meta.writer || ""),
+        publisher: String(meta.publisher || ""),
+        country: row.country || "",
+        region: row.region || "",
+        city: row.city || "",
+        started_at: row.occurred_at,
+        ended_at: row.occurred_at,
+        listened_seconds: 0,
+        completion_pct: null,
+        started: false,
+        completed: false,
+        stopped: false,
+      };
+      mediaSessions.set(key, s);
+    }
+    s.track_id ||= row.track_id || "";
+    s.track_title ||= row.track_title || "";
+    s.album ||= row.album || "";
+    s.source ||= String(meta.source || row.surface || "");
+    s.station_id = s.station_id || !!meta.station_id;
+    s.ascap_work_id ||= String(meta.ascap_work_id || "");
+    s.iswc ||= String(meta.iswc || "");
+    s.writer ||= String(meta.writer || "");
+    s.publisher ||= String(meta.publisher || "");
+    s.ended_at = Math.max(Number(s.ended_at || 0), Number(row.occurred_at || 0));
+    s.listened_seconds = Math.max(Number(s.listened_seconds || 0), Number(meta.listened_seconds || 0));
+    if (meta.completion_pct != null && Number.isFinite(Number(meta.completion_pct))) {
+      s.completion_pct = Math.max(Number(s.completion_pct || 0), Number(meta.completion_pct));
+    }
+    if (row.event_type === "track_start" || row.event_type === "audio_play") s.started = true;
+    if (row.event_type === "track_complete" || row.event_type === "audio_end") s.completed = true;
+    if (row.event_type === "track_stop") s.stopped = true;
+  }
+
+  const trackMap = new Map();
+  for (const s of mediaSessions.values()) {
+    const key = [s.track_id || "", s.track_title || "", s.album || ""].join("|");
+    let t = trackMap.get(key);
+    if (!t) {
+      t = {
+        track_id: s.track_id,
+        track_title: s.track_title,
+        album: s.album,
+        source: s.source,
+        station_id: !!s.station_id,
+        ascap_work_id: s.ascap_work_id,
+        iswc: s.iswc,
+        writer: s.writer,
+        publisher: s.publisher,
+        performances: 0,
+        completed: 0,
+        stopped: 0,
+        total_listened_seconds: 0,
+        completion_total: 0,
+        completion_samples: 0,
+        listeners: new Set(),
+      };
+      trackMap.set(key, t);
+    }
+    if (s.started) t.performances += 1;
+    if (s.completed) t.completed += 1;
+    if (s.stopped) t.stopped += 1;
+    t.total_listened_seconds += Number(s.listened_seconds || 0);
+    if (s.completion_pct != null) {
+      t.completion_total += Number(s.completion_pct);
+      t.completion_samples += 1;
+    }
+    if (s.anon_id) t.listeners.add(String(s.anon_id));
+    t.ascap_work_id ||= s.ascap_work_id;
+    t.iswc ||= s.iswc;
+    t.writer ||= s.writer;
+    t.publisher ||= s.publisher;
+  }
+
+  const music = [...trackMap.values()].map((t) => ({
+    track_id: t.track_id,
+    track_title: t.track_title,
+    album: t.album,
+    source: t.source,
+    station_id: t.station_id,
+    ascap_work_id: t.ascap_work_id,
+    iswc: t.iswc,
+    writer: t.writer,
+    publisher: t.publisher,
+    performances: t.performances,
+    completed: t.completed,
+    stopped: t.stopped,
+    unique_listeners: t.listeners.size,
+    total_listened_seconds: Number(t.total_listened_seconds.toFixed(2)),
+    average_listened_seconds: t.performances ? Number((t.total_listened_seconds / t.performances).toFixed(2)) : 0,
+    average_completion_pct: t.completion_samples ? Number((t.completion_total / t.completion_samples).toFixed(2)) : null,
+  })).sort((a, b) => b.total_listened_seconds - a.total_listened_seconds || b.performances - a.performances);
+
+  return {
+    ok: true,
+    days,
+    since,
+    generated_at: now(),
+    totals: {
+      events: items.length,
+      unique_visitors: visitors.size,
+      sessions: sessions.size,
+      qr_scans: Number(eventCounts.get("qr_scan") || 0),
+      page_views: Number(eventCounts.get("page_view") || 0),
+      radio_opens: Number(eventCounts.get("radio_open") || 0),
+      game_completions: Number(eventCounts.get("game_complete") || 0),
+      soul_reflections: Number(eventCounts.get("soul_reflection") || 0) + Number(eventCounts.get("soul_reflection_place") || 0),
+    },
+    event_counts: topCountRows(eventCounts, 100),
+    acquisition: {
+      campaigns: topCountRows(campaigns),
+      sources: topCountRows(sources),
+      qr_ids: topCountRows(qrIds),
+      placements: topCountRows(placements),
+    },
+    geography: {
+      countries: topCountRows(countries),
+      regions: topCountRows(regions),
+      cities: topCountRows(cities),
+    },
+    music,
+  };
+}
+
 async function adminExport(env) {
   const values = await env.VAULT_DB.prepare("SELECT * FROM vault_values ORDER BY kind,scope,key").all();
   const playlists = await listPlaylists(env);
@@ -1147,6 +1346,11 @@ export default {
       if (url.pathname === "/v1/admin/summary" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminSummary(env), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        return json(await adminAnalytics(env, url), 200, cors);
       }
 
       if (url.pathname === "/v1/admin/export" && request.method === "GET") {
