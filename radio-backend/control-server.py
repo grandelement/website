@@ -286,6 +286,9 @@ def restore_vault_settings_after_start():
     # Give the rest of the radio stack time to create rotation/runtime files.
     time.sleep(2.0)
     vault_restore_crossfade()
+    remote_saved = vault_load_scoped_setting("remote_devices", "state")
+    if isinstance(remote_saved, dict) and isinstance(remote_saved.get("items"), list):
+        write_json(REMOTE_DEVICES_FILE, remote_saved)
     saved = vault_load_scoped_setting("radio_mixer_server", "state")
     if isinstance(saved, dict):
         current = mixer_state()
@@ -938,6 +941,7 @@ class BroadcastEngine:
 REMOTE_DEVICE_LOCK = threading.RLock()
 REMOTE_PAIRINGS = {}
 REMOTE_COMMANDS = {}
+REMOTE_PAIR_ATTEMPTS = {}
 
 def _remote_device_token_hash(token):
     return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
@@ -950,6 +954,13 @@ def _remote_devices():
 
 def _write_remote_devices(data):
     write_json(REMOTE_DEVICES_FILE, data)
+    if vault_configured():
+        threading.Thread(
+            target=vault_save_scoped_setting,
+            args=("remote_devices", "state", data),
+            daemon=True,
+            name="ge-vault-remote-devices",
+        ).start()
 
 def _remote_public(row):
     now = time.time()
@@ -981,6 +992,16 @@ def create_remote_pairing():
                 REMOTE_PAIRINGS.pop(old, None)
         REMOTE_PAIRINGS[code] = {"claim_token": token, "expires_at": now + 600}
     return code
+
+def check_remote_pair_rate(ip):
+    ip = str(ip or "unknown")[:120]
+    now = time.time()
+    with REMOTE_DEVICE_LOCK:
+        times = [x for x in REMOTE_PAIR_ATTEMPTS.get(ip, []) if now - x < 60]
+        if len(times) >= 10:
+            raise RuntimeError("Too many pairing attempts. Wait one minute.")
+        times.append(now)
+        REMOTE_PAIR_ATTEMPTS[ip] = times
 
 def claim_remote_pairing(code, name, platform="ios", model=""):
     code = str(code or "").strip()
@@ -1958,6 +1979,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/control/device/pair/claim":
             try:
+                client_ip = (self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+                check_remote_pair_rate(client_ip)
                 body = self.read_body_json()
                 device_id, device_key = claim_remote_pairing(body.get("code"), body.get("name"), body.get("platform", "ios"), body.get("model", ""))
                 self.json_response({"ok": True, "device_id": device_id, "device_key": device_key})
