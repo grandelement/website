@@ -6,6 +6,7 @@ import json
 import struct
 import os
 import socket
+import secrets
 import time
 import uuid
 import urllib.parse
@@ -39,6 +40,7 @@ CUSTOM_PLAYLISTS_BACKUP = DATA / "custom-playlists.backup.json"
 DEFAULT_PLAYLISTS = Path("/app/default-playlists.json")
 PERMANENT_STATE_CACHE = DATA / "permanent-state-cache.json"
 EFFECT_PRESETS_CACHE = DATA / "effect-presets-cache.json"
+REMOTE_DEVICES_FILE = DATA / "remote-devices.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
@@ -933,6 +935,132 @@ class BroadcastEngine:
             self._ensure_fifo_locked()
             return self.status_locked()
 
+REMOTE_DEVICE_LOCK = threading.RLock()
+REMOTE_PAIRINGS = {}
+REMOTE_COMMANDS = {}
+
+def _remote_device_token_hash(token):
+    return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
+
+def _remote_devices():
+    data = read_json(REMOTE_DEVICES_FILE, {"items": []})
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        data = {"items": []}
+    return data
+
+def _write_remote_devices(data):
+    write_json(REMOTE_DEVICES_FILE, data)
+
+def _remote_public(row):
+    now = time.time()
+    last_seen = float(row.get("last_seen", 0) or 0)
+    return {
+        "id": str(row.get("id", "")),
+        "name": str(row.get("name", "Remote Device")),
+        "platform": str(row.get("platform", "ios")),
+        "model": str(row.get("model", "")),
+        "online": bool(last_seen and now - last_seen < 15),
+        "last_seen": last_seen,
+        "remote_ready": bool(row.get("remote_ready", False)),
+        "mic_active": bool(row.get("mic_active", False)),
+        "on_air": bool(row.get("on_air", False)),
+        "muted": bool(row.get("muted", False)),
+        "level": float(row.get("level", 1.0) or 1.0),
+        "peak_pct": float(row.get("peak_pct", 0.0) or 0.0),
+        "app_state": str(row.get("app_state", "")),
+        "last_error": str(row.get("last_error", "")),
+    }
+
+def create_remote_pairing():
+    code = f"{secrets.randbelow(1000000):06d}"
+    token = uuid.uuid4().hex
+    with REMOTE_DEVICE_LOCK:
+        now = time.time()
+        for old, item in list(REMOTE_PAIRINGS.items()):
+            if float(item.get("expires_at", 0)) < now:
+                REMOTE_PAIRINGS.pop(old, None)
+        REMOTE_PAIRINGS[code] = {"claim_token": token, "expires_at": now + 600}
+    return code
+
+def claim_remote_pairing(code, name, platform="ios", model=""):
+    code = str(code or "").strip()
+    with REMOTE_DEVICE_LOCK:
+        pair = REMOTE_PAIRINGS.pop(code, None)
+    if not pair or float(pair.get("expires_at", 0)) < time.time():
+        raise ValueError("Pairing code is invalid or expired.")
+    device_id = "device-" + uuid.uuid4().hex[:16]
+    device_key = uuid.uuid4().hex + uuid.uuid4().hex
+    row = {
+        "id": device_id,
+        "name": " ".join(str(name or "GE Remote Mic").split())[:80],
+        "platform": str(platform or "ios")[:40],
+        "model": str(model or "")[:100],
+        "token_hash": _remote_device_token_hash(device_key),
+        "created_at": int(time.time()),
+        "last_seen": 0,
+        "remote_ready": False,
+        "mic_active": False,
+        "on_air": False,
+        "muted": False,
+        "level": 1.0,
+        "peak_pct": 0.0,
+        "app_state": "",
+        "last_error": "",
+    }
+    with REMOTE_DEVICE_LOCK:
+        data = _remote_devices()
+        data["items"] = [x for x in data["items"] if str(x.get("id")) != device_id]
+        data["items"].append(row)
+        _write_remote_devices(data)
+        REMOTE_COMMANDS[device_id] = []
+    return device_id, device_key
+
+def remote_device_auth(headers):
+    device_id = str(headers.get("X-GE-Device-ID", "") or "").strip()
+    device_key = str(headers.get("X-GE-Device-Key", "") or "").strip()
+    if not device_id or not device_key:
+        return None
+    wanted = _remote_device_token_hash(device_key)
+    with REMOTE_DEVICE_LOCK:
+        data = _remote_devices()
+        row = next((x for x in data["items"] if str(x.get("id")) == device_id), None)
+        if not row or not hmac.compare_digest(str(row.get("token_hash", "")), wanted):
+            return None
+        return dict(row)
+
+def update_remote_device(device_id, fields):
+    allowed = {"name","model","last_seen","remote_ready","mic_active","on_air","muted","level","peak_pct","app_state","last_error"}
+    with REMOTE_DEVICE_LOCK:
+        data = _remote_devices()
+        row = next((x for x in data["items"] if str(x.get("id")) == str(device_id)), None)
+        if not row:
+            raise ValueError("Remote device not found.")
+        for key, value in fields.items():
+            if key in allowed:
+                row[key] = value
+        _write_remote_devices(data)
+        return dict(row)
+
+def list_remote_devices():
+    with REMOTE_DEVICE_LOCK:
+        return [_remote_public(x) for x in _remote_devices()["items"]]
+
+def queue_remote_command(device_id, action, value=None):
+    device_id = str(device_id or "")
+    if not any(x["id"] == device_id for x in list_remote_devices()):
+        raise ValueError("Remote device not found.")
+    command = {"id": uuid.uuid4().hex[:16], "action": str(action or "")[:40], "value": value, "created_at": int(time.time())}
+    with REMOTE_DEVICE_LOCK:
+        REMOTE_COMMANDS.setdefault(device_id, []).append(command)
+        REMOTE_COMMANDS[device_id] = REMOTE_COMMANDS[device_id][-50:]
+    return command
+
+def take_remote_commands(device_id):
+    with REMOTE_DEVICE_LOCK:
+        items = list(REMOTE_COMMANDS.get(str(device_id), []))
+        REMOTE_COMMANDS[str(device_id)] = []
+    return items
+
 BROADCAST = None
 LIVE_SESSIONS = {}
 LIVE_SESSIONS_LOCK = threading.Lock()
@@ -1339,6 +1467,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
             return
 
+        if parsed.path == "/control/devices":
+            if not self.require_auth(): return
+            self.json_response({"ok": True, "items": list_remote_devices()})
+            return
+
         if self.path == "/control/status":
             if not self.require_auth():
                 return
@@ -1401,6 +1534,7 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 "broadcast": broadcast_engine().status(),
                 "mixer": mixer_state(),
+                "remote_devices": list_remote_devices(),
             })
             return
 
@@ -1809,6 +1943,89 @@ class Handler(BaseHTTPRequestHandler):
                 owner = str(body.get("owner", "") or "").strip().lower()
                 realtime_cleanup(owner=owner or None, force=bool(body.get("force", False)), stop_broadcast=True)
                 self.json_response({"ok": True, "broadcast": broadcast_engine().status()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 409)
+            return
+
+        if self.path == "/control/device/pair/create":
+            if not self.require_auth(): return
+            try:
+                code = create_remote_pairing()
+                self.json_response({"ok": True, "code": code, "expires_seconds": 600})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 500)
+            return
+
+        if self.path == "/control/device/pair/claim":
+            try:
+                body = self.read_body_json()
+                device_id, device_key = claim_remote_pairing(body.get("code"), body.get("name"), body.get("platform", "ios"), body.get("model", ""))
+                self.json_response({"ok": True, "device_id": device_id, "device_key": device_key})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/device/heartbeat":
+            row = remote_device_auth(self.headers)
+            if not row:
+                self.json_response({"ok": False, "error": "Remote device authorization failed."}, 401); return
+            try:
+                body = self.read_body_json()
+                fields = {
+                    "last_seen": time.time(),
+                    "remote_ready": bool(body.get("remote_ready", False)),
+                    "mic_active": bool(body.get("mic_active", False)),
+                    "on_air": bool(body.get("on_air", False)),
+                    "muted": bool(body.get("muted", False)),
+                    "level": clamp_number(body.get("level"), 0.0, 1.5, 1.0),
+                    "peak_pct": clamp_number(body.get("peak_pct"), 0.0, 100.0, 0.0),
+                    "app_state": str(body.get("app_state", ""))[:40],
+                    "last_error": str(body.get("last_error", ""))[:300],
+                }
+                updated = update_remote_device(row["id"], fields)
+                self.json_response({"ok": True, "device": _remote_public(updated), "commands": take_remote_commands(row["id"])})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/device/command":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                action = str(body.get("action", "") or "").strip().lower()
+                if action not in {"air","mute","level","fx","stop","ping"}:
+                    raise ValueError("Unsupported remote-device command.")
+                command = queue_remote_command(body.get("device_id"), action, body.get("value"))
+                self.json_response({"ok": True, "command": command})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/device/live-session":
+            row = remote_device_auth(self.headers)
+            if not row:
+                self.json_response({"ok": False, "error": "Remote device authorization failed."}, 401); return
+            try:
+                fresh = next((x for x in list_remote_devices() if x["id"] == row["id"]), None)
+                if not fresh or not fresh.get("remote_ready"):
+                    raise RuntimeError("Remote device is not armed.")
+                owner = "remote-" + row["id"]
+                state = broadcast_engine().start("voice", "websocket", owner)
+                token = create_live_session()
+                self.json_response({"ok": True, "token": token, "expires_seconds": 60, "owner": owner, "broadcast": state})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 409)
+            return
+
+        if self.path == "/control/device/live-stop":
+            row = remote_device_auth(self.headers)
+            if not row:
+                self.json_response({"ok": False, "error": "Remote device authorization failed."}, 401); return
+            try:
+                owner = "remote-" + row["id"]
+                state = broadcast_engine().stop(owner=owner, force=False)
+                update_remote_device(row["id"], {"on_air": False, "last_seen": time.time()})
+                self.json_response({"ok": True, "broadcast": state})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 409)
             return
