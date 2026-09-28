@@ -1141,7 +1141,7 @@ async function adminAnalytics(env, url) {
   const days = Math.max(1, Math.min(3650, Number(url.searchParams.get("days") || 30)));
   const since = now() - Math.round(days * 86400);
   const rows = await env.VAULT_DB.prepare(
-    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,utm_source,utm_medium,utm_campaign,country,region,city,timezone,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE occurred_at>=? ORDER BY occurred_at ASC LIMIT 50000",
+    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,referrer,utm_source,utm_medium,utm_campaign,user_agent,language,country,region,city,timezone,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE occurred_at>=? ORDER BY occurred_at ASC LIMIT 50000",
   ).bind(since).all();
   const items = rows.results || [];
 
@@ -1155,6 +1155,9 @@ async function adminAnalytics(env, url) {
   const sources = new Map();
   const qrIds = new Map();
   const placements = new Map();
+  const networks = new Map();
+  const languages = new Map();
+  const referrers = new Map();
 
   const mediaSessions = new Map();
   const stationTracks = new Map();
@@ -1168,6 +1171,12 @@ async function adminAnalytics(env, url) {
     bumpCount(countries, row.country);
     bumpCount(regions, [row.country, row.region].filter(Boolean).join(" / "));
     bumpCount(cities, [row.region, row.city].filter(Boolean).join(" / "));
+    bumpCount(networks, row.cf_as_org || (row.cf_asn ? "ASN " + row.cf_asn : ""));
+    bumpCount(languages, row.language);
+    if (row.referrer) {
+      try { bumpCount(referrers, new URL(row.referrer).host); }
+      catch { bumpCount(referrers, row.referrer); }
+    }
 
     const meta = parseStoredJson(row.metadata_json);
     bumpCount(qrIds, meta.qr_id);
@@ -1341,6 +1350,11 @@ async function adminAnalytics(env, url) {
       countries: topCountRows(countries),
       regions: topCountRows(regions),
       cities: topCountRows(cities),
+    },
+    technology: {
+      networks: topCountRows(networks),
+      languages: topCountRows(languages),
+      referrers: topCountRows(referrers),
     },
     music,
     station_music: stationMusic,
