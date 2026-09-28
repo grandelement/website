@@ -84,11 +84,29 @@ def vault_request(method, path, payload=None, timeout=6):
             "Authorization": f"Bearer {GE_VAULT_ADMIN_TOKEN}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "GE-Radio-Vault/1.0 (+https://grandelement.com)",
         },
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        raw = resp.read()
-        return json.loads(raw.decode("utf-8")) if raw else {}
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+            return json.loads(raw.decode("utf-8")) if raw else {}
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8", "replace").strip()
+        except Exception:
+            body = ""
+        detail = ""
+        if body:
+            try:
+                parsed = json.loads(body)
+                detail = str(parsed.get("error") or parsed.get("message") or body)
+            except Exception:
+                detail = " ".join(body.split())
+        detail = detail[:240]
+        ray = str(exc.headers.get("CF-Ray", "") or "").strip()
+        suffix = (f" · CF-Ray {ray}" if ray else "")
+        raise RuntimeError(f"Vault HTTP {exc.code}: {detail or exc.reason}{suffix}") from exc
 
 def vault_save_radio_setting(key, value):
     if not vault_configured():
