@@ -847,6 +847,7 @@ const CONFIG = Object.freeze({
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
   REFLECTION_ENDPOINT: 'https://ge-private-message.grandelement.workers.dev/api/private-message', // Confirmed Cloudflare Email Service endpoint.
+  VAULT_REFLECTIONS_URL: 'https://vault.grandelement.com/v1/public/reflections',
   MUSIC_MANIFEST: './manifest.json',
   MUSIC_BASE: '../ge-music/',
   IMAGE_MANIFEST: '../ge-images/img/manifest.json',
@@ -3929,6 +3930,8 @@ Vector ${vector}. ${pair[1]}.`;
   const REFLECTIONS_KEY='GE_SOUL_REFLECTIONS_V1';
   const SOUL_POST_ID_KEY='GE_SOUL_POST_ID_V2';
   const SOUL_UNIVERSE_KEY='GE_SOUL_UNIVERSE_V1';
+  const SOUL_ANON_KEY='GE_SOUL_ANON_V1';
+  let vaultReflections=[];
   const SOUL_BACKGROUNDS=['1.jpeg','2.jpg','3.png','4.jpg','5.jpg','6.jpg','7.png','8.jpg','9.jpg','10.jpg','11.jpg','12.png','13.jpg','14.jpg','15.jpg','16.png'];
   let soulUniverse=Math.max(0,Math.min(SOUL_BACKGROUNDS.length-1,Number(localStorage.getItem(SOUL_UNIVERSE_KEY)||0)||0));
   let pendingReflection=null;
@@ -3975,6 +3978,54 @@ Vector ${vector}. ${pair[1]}.`;
     try{const data=JSON.parse(localStorage.getItem(REFLECTIONS_KEY)||'[]');return Array.isArray(data)?data:[];}catch(_e){return [];}
   }
   function saveLocalReflections(list){try{localStorage.setItem(REFLECTIONS_KEY,JSON.stringify(list.slice(-200)));}catch(_e){}}
+  function getSoulAnonId(){
+    try{
+      let value=localStorage.getItem(SOUL_ANON_KEY)||'';
+      if(!value){
+        value='soul-owner-'+(crypto.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)));
+        localStorage.setItem(SOUL_ANON_KEY,value);
+      }
+      return value;
+    }catch(_e){return 'soul-owner-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
+  }
+  function getDisplayReflections(){
+    const map=new Map();
+    (vaultReflections||[]).forEach(item=>{if(item&&item.id)map.set(item.id,item);});
+    getLocalReflections().forEach(item=>{if(item&&item.id)map.set(item.id,item);});
+    return [...map.values()];
+  }
+  async function loadVaultReflections(){
+    const endpoint=(CONFIG.VAULT_REFLECTIONS_URL||'').trim();
+    if(!endpoint)return;
+    try{
+      const response=await fetch(endpoint+'?limit=500',{cache:'no-store'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const data=await response.json();
+      vaultReflections=Array.isArray(data.items)?data.items:[];
+      renderReflectionDots();
+    }catch(error){console.warn('GE Vault reflections unavailable; using local copy.',error);}
+  }
+  async function saveVaultReflection(item){
+    const endpoint=(CONFIG.VAULT_REFLECTIONS_URL||'').trim();
+    if(!endpoint)return null;
+    const payload={
+      id:item.id||'',
+      anon_id:getSoulAnonId(),
+      text:item.text||'',
+      universe:Number(item.universe)||0,
+      x:Number(item.x)||50,
+      y:Number(item.y)||50,
+      share_location:!!((item.locationLabel||'').trim()||Number.isFinite(Number(item.lat))||Number.isFinite(Number(item.lon))),
+      location_label:(item.locationLabel||'').trim(),
+      lat:Number.isFinite(Number(item.lat))?Number(item.lat):null,
+      lon:Number.isFinite(Number(item.lon))?Number(item.lon):null,
+      track:(titleBtn?.textContent||'').trim()
+    };
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+    return data;
+  }
   function setSoulUniverse(next){
     soulUniverse=(Number(next)+SOUL_BACKGROUNDS.length)%SOUL_BACKGROUNDS.length;
     try{localStorage.setItem(SOUL_UNIVERSE_KEY,String(soulUniverse));}catch(_e){}
@@ -3992,7 +4043,7 @@ Vector ${vector}. ${pair[1]}.`;
   function renderReflectionDots(){
     if(!reflectionField)return;
     reflectionField.querySelectorAll('.soul-reflection-dot:not(.draft)').forEach(n=>n.remove());
-    getLocalReflections().filter(item=>(Number(item.universe)||0)===soulUniverse).forEach((item,index)=>{
+    getDisplayReflections().filter(item=>(Number(item.universe)||0)===soulUniverse).forEach((item,index)=>{
       const dot=document.createElement('button');
       dot.type='button';dot.className='soul-reflection-dot'+(item.newborn?' newborn':'');
       dot.style.left=`${clamp(Number(item.x)||50,2,98)}%`;dot.style.top=`${clamp(Number(item.y)||50,3,97)}%`;
@@ -4067,21 +4118,40 @@ Vector ${vector}. ${pair[1]}.`;
   reflectionField?.addEventListener('pointerdown',event=>{if(!pendingReflection)return;event.preventDefault();placeDraft(event.clientX,event.clientY);reflectionField.setPointerCapture?.(event.pointerId);});
   reflectionField?.addEventListener('pointermove',event=>{if(!pendingReflection||(!(event.buttons)&&event.pointerType!=='touch'))return;event.preventDefault();placeDraft(event.clientX,event.clientY);});
   reflectionBack?.addEventListener('click',()=>{closeReflectionWall();if(arrivalContactShown){arrivalContact?.classList.add('open');document.body.classList.add('arrival-mode');}});
-  reflectionOK?.addEventListener('click',()=>{
+  reflectionOK?.addEventListener('click',async()=>{
     if(!pendingReflection)return;
     const list=getLocalReflections();
     let myId='';try{myId=localStorage.getItem(SOUL_POST_ID_KEY)||'';}catch(_e){}
     const existing=myId?list.findIndex(r=>r&&r.id===myId):-1;
-    const item={id:existing>=0?myId:`local-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,created:existing>=0?(list[existing].created||pendingReflection.created):pendingReflection.created||new Date().toISOString(),updated:new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,universe:soulUniverse,newborn:true};
+    let item={id:existing>=0?myId:('local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)),text:pendingReflection.text,x:pendingReflection.x,y:pendingReflection.y,created:existing>=0?(list[existing].created||pendingReflection.created):pendingReflection.created||new Date().toISOString(),updated:new Date().toISOString(),locationLabel:pendingReflection.locationLabel||'',lat:pendingReflection.lat,lon:pendingReflection.lon,universe:soulUniverse,newborn:true,vaultSynced:false};
     if(existing>=0)list[existing]=item;else list.push(item);
     saveLocalReflections(list);try{localStorage.setItem(SOUL_POST_ID_KEY,item.id);}catch(_e){}
     pendingReflection=null;if(reflectionOK)reflectionOK.hidden=true;if(reflectionPrompt)reflectionPrompt.textContent=`Soul Reflections · Universe ${soulUniverse+1}`;renderReflectionDots();syncSoulPostUI();
-    setTimeout(()=>{const updated=getLocalReflections().map(r=>r.id===item.id?({...r,newborn:false}):r);saveLocalReflections(updated);renderReflectionDots();},12000);
+
+    try{
+      const saved=await saveVaultReflection(item);
+      if(saved&&saved.id){
+        const current=getLocalReflections();
+        const idx=current.findIndex(r=>r&&r.id===item.id);
+        item={...item,id:saved.id,vaultSynced:true,updated:new Date().toISOString()};
+        if(idx>=0)current[idx]=item;else current.push(item);
+        saveLocalReflections(current);
+        try{localStorage.setItem(SOUL_POST_ID_KEY,item.id);}catch(_e){}
+        await loadVaultReflections();
+        syncSoulPostUI();
+      }
+    }catch(error){
+      console.warn('Soul Reflection kept locally; Vault sync will retry later.',error);
+    }
+
+    const placedId=item.id;
+    setTimeout(()=>{const updated=getLocalReflections().map(r=>r.id===placedId?({...r,newborn:false}):r);saveLocalReflections(updated);renderReflectionDots();},12000);
   });
   reflectionBgPrev?.addEventListener('click',event=>{event.stopPropagation();setSoulUniverse(soulUniverse-1);});
   reflectionBgNext?.addEventListener('click',event=>{event.stopPropagation();setSoulUniverse(soulUniverse+1);});
   setSoulUniverse(soulUniverse);
-  arrivalViewWall?.addEventListener('click',()=>{arrivalContact?.classList.remove('open');openReflectionWall('');});
+  loadVaultReflections().catch(()=>{});
+  arrivalViewWall?.addEventListener('click',()=>{arrivalContact?.classList.remove('open');openReflectionWall('');loadVaultReflections().catch(()=>{});});
   arrivalClose?.addEventListener('click',()=>{clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');document.body.classList.remove('hud-hidden');});
 
   async function sendPrivateReflection(payload){
