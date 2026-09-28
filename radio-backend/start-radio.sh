@@ -49,7 +49,7 @@ cat > /app/runtime/icecast.xml <<EOF
   <hostname>radio.grandelement.blitz.cloud</hostname>
   <listen-socket><port>8000</port><bind-address>127.0.0.1</bind-address></listen-socket>
   <mount type="normal"><mount-name>/stream.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
-  <mount type="normal"><mount-name>/dj-test.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
+  <mount type="normal"><mount-name>/dj.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
   <mount type="normal"><mount-name>/auto.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
   <paths>
     <basedir>/usr/share/icecast2</basedir><logdir>/app/logs</logdir>
@@ -152,8 +152,8 @@ http {
       proxy_set_header Connection ""; proxy_buffering off; proxy_cache off; proxy_read_timeout 86400s;
       add_header Access-Control-Allow-Origin "*" always; add_header Cache-Control "no-store" always; add_header X-Accel-Buffering "no" always;
     }
-    location = /dj-test.mp3 {
-      proxy_pass http://127.0.0.1:8000/dj-test.mp3; proxy_http_version 1.1;
+    location = /dj.mp3 {
+      proxy_pass http://127.0.0.1:8000/dj.mp3; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header Connection "";
       proxy_buffering off; proxy_request_buffering off; proxy_cache off;
       proxy_read_timeout 86400s; proxy_send_timeout 86400s; send_timeout 86400s;
@@ -295,12 +295,12 @@ stop_mic_source(){
 start_mic_source(){
   if pid_alive "$MIC_SOURCE_PID"; then return 0; fi
   if ! wait_port 8000 4; then return 1; fi
-  echo "GE Radio: starting isolated DJ microphone test channel..."
+  echo "GE Radio: starting isolated DJ microphone channel..."
   ffmpeg -hide_banner -loglevel warning -nostats -fflags nobuffer \
     -thread_queue_size 128 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
     -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k -flush_packets 1 \
     -content_type audio/mpeg -f mp3 \
-    "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/dj-test.mp3" & MIC_SOURCE_PID=$!
+    "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/dj.mp3" & MIC_SOURCE_PID=$!
   return 0
 }
 start_audio_stack(){
@@ -343,7 +343,7 @@ while true; do
       echo "GE Radio: radio backbone missing or stopped; restarting radio backbone."
       start_audio_stack || true
     elif ! pid_alive "$MIC_SOURCE_PID"; then
-      echo "GE Radio: isolated microphone channel stopped; restarting microphone only."
+      echo "GE Radio: DJ microphone channel stopped; restarting microphone only."
       start_mic_source || true
     fi
   else
