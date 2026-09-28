@@ -126,7 +126,7 @@ final class RemoteMicController: ObservableObject {
                 let p = Self.peakPercent(buffer)
                 Task { @MainActor in self.peak = p }
                 if self.onAir && !self.muted {
-                    self.streamer.send(buffer)
+                    self.streamer.send(buffer, gain: self.level)
                 }
             }
             tapInstalled = true
@@ -174,6 +174,10 @@ final class RemoteMicController: ObservableObject {
 
     private func handle(_ command: RemoteCommand) async {
         switch command.action {
+        case "arm":
+            if let v = command.value?.boolValue {
+                do { try await setRemoteReady(v) } catch { lastError = error.localizedDescription }
+            }
         case "air":
             if let v = command.value?.boolValue { await setAir(v) }
         case "mute":
