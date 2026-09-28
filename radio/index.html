@@ -969,6 +969,13 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
+      <div id="spectrumMeter" class="spectrum-meter" hidden aria-label="Live spectrum band meter">
+        <div class="spectrum-meter-title">LIVE SPECTRUM METER</div>
+        <div class="spectrum-meter-line"><span>LOW</span><div class="spectrum-meter-track"><i id="spectrumLowMeter"></i></div><b id="spectrumLowReadout">0%</b></div>
+        <div class="spectrum-meter-line"><span>MID</span><div class="spectrum-meter-track"><i id="spectrumMidMeter"></i></div><b id="spectrumMidReadout">0%</b></div>
+        <div class="spectrum-meter-line"><span>HIGH</span><div class="spectrum-meter-track"><i id="spectrumHighMeter"></i></div><b id="spectrumHighReadout">0%</b></div>
+        <div class="spectrum-meter-line combined"><span>PULSE</span><div class="spectrum-meter-track"><i id="spectrumPulseMeter"></i></div><b id="spectrumPulseReadout">0%</b></div>
+      </div>
       <div class="sunlab-checks"><label id="slRadialOnWrap"><input id="slRadialOn" type="checkbox" checked><span class="sunlab-checktext"><span id="slRadialOnLabel">Radial Outward</span><small id="slRadialOnHelp">The current sun pulse that expands away from the sun.</small></span></label><label id="slCascadeOnWrap"><input id="slCascadeOn" type="checkbox"><span class="sunlab-checktext"><span>Radial Waterfall</span><small>Copies each music snapshot and sends it outward along the spokes in order.</small></span></label><label id="slGlowOnlyWrap"><input id="slGlowOnly" type="checkbox"><span class="sunlab-checktext"><span>Glow Only</span><small>Hide the visible bars and keep only the glow, fog, and residue.</small></span></label></div>
       <div class="sunlab-row"><label for="slCascadeSpeed">Radial Waterfall Speed</label><output id="slCascadeSpeedVal"></output><input id="slCascadeSpeed" type="range" min="0" max="100" step="1" value="58"><small>Higher values push each pulse down the spokes faster like a falling light trail.</small></div>
       <div class="sunlab-row"><label for="slDistance">Distance / Reach</label><output id="slDistanceVal"></output><input id="slDistance" type="range" min="-440" max="220" step="1" value="55"><small>Moves the effect inward toward the sun or outward away from it.</small></div>
@@ -990,6 +997,11 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
       <div class="sunlab-row"><label for="slCompression">EQ Compression</label><output id="slCompressionVal"></output><input id="slCompression" type="range" min="0" max="120" step="1" value="0"><small>Raises weaker mids/highs and flattens giant bass spikes for a more balanced visual.</small></div>
       <div class="sunlab-row"><label for="slSmoothing">Smoothing</label><output id="slSmoothingVal"></output><input id="slSmoothing" type="range" min="0" max="95" step="1" value="10"><small>Low is twitchy and sharp. High is smoother and more blended.</small></div>
       <div class="sunlab-row"><label for="slSpectrumSpeed">Wave Travel Speed</label><output id="slSpectrumSpeedVal"></output><input id="slSpectrumSpeed" type="range" min="0" max="100" step="1" value="55"><small>Controls how quickly each captured sound ring moves from the sun toward space.</small></div>
+      <div class="sunlab-row"><label for="slSpectrumGain">Master Pulse Signal</label><output id="slSpectrumGainVal"></output><input id="slSpectrumGain" type="range" min="0" max="300" step="1" value="100"><small>Raises or lowers the single combined pulse after Low, Mid, and High are blended together.</small></div>
+      <div class="sunlab-row"><label for="slBandColorMix">Band Color Separation</label><output id="slBandColorMixVal"></output><input id="slBandColorMix" type="range" min="0" max="100" step="1" value="70"><small>0 keeps the original blue spectrum. Higher values reveal whether each ring is being driven mostly by Low, Mid, or High frequencies.</small></div>
+      <div class="sunlab-row"><label for="slLowHue">Low Color</label><output id="slLowHueVal"></output><input id="slLowHue" type="range" min="0" max="360" step="1" value="215"><small>Color used when bass and low frequencies dominate the captured pulse.</small></div>
+      <div class="sunlab-row"><label for="slMidHue">Mid Color</label><output id="slMidHueVal"></output><input id="slMidHue" type="range" min="0" max="360" step="1" value="155"><small>Color used when the middle frequencies dominate the captured pulse.</small></div>
+      <div class="sunlab-row"><label for="slHighHue">High Color</label><output id="slHighHueVal"></output><input id="slHighHue" type="range" min="0" max="360" step="1" value="320"><small>Color used when treble and high frequencies dominate the captured pulse.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowReach">Inner Glow Reach</label><output id="slInnerGlowReachVal"></output><input id="slInnerGlowReach" type="range" min="0" max="100" step="1" value="18"><small>Sets the tight corona immediately around the sun.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowStrength">Inner Glow Strength</label><output id="slInnerGlowStrengthVal"></output><input id="slInnerGlowStrength" type="range" min="0" max="220" step="1" value="150"><small>Controls the strength of the close glow.</small></div>
       <div class="sunlab-row"><label for="slInnerGlowHue">Inner Glow Color</label><output id="slInnerGlowHueVal"></output><input id="slInnerGlowHue" type="range" min="0" max="360" step="1" value="205"><small>Changes the color of the close glow.</small></div>
@@ -3174,7 +3186,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
-    spectrum:['slSpectrumSpeed','slDistance','slThickness','slContrast','slDynamics','slHue','slBass','slMid','slTreble'],
+    spectrum:['slSpectrumSpeed','slSpectrumGain','slCompression','slBandColorMix','slLowHue','slMidHue','slHighHue','slDistance','slThickness','slContrast','slDynamics','slBass','slMid','slTreble'],
     glow:['slInnerGlowReach','slInnerGlowStrength','slInnerGlowHue','slOuterGlowReach','slOuterGlowStrength','slOuterGlowHue'],
     waterfall:['slCascadeSpeed','slDistance','slThickness','slContrast','slDynamics','slGlow','slMist','slBlueDepth','slTipWhite','slBrightness','slHue','slHueMix','slAltHue','slBass','slMid','slTreble','slCompression','slSmoothing','slRadialOn','slGlowOnly']
   };
@@ -3182,7 +3194,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     // Plasma defaults are the working iPhone settings, with the non-working zero controls removed from its panel.
     plasma:{...SUN_LAB_DEFAULTS,waveType:'plasma',distance:-220,thickness:182,dynamics:32,brightness:150,hue:0,bass:72,mid:110,treble:128,compression:0,smoothing:0,glow:0,mist:0},
     // Spectrum defaults match the working test settings. Zero-value controls that did nothing are hidden.
-    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:150,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
+    spectrum:{...SUN_LAB_DEFAULTS,waveType:'spectrum',spectrumSpeed:55,spectrumGain:100,bandColorMix:70,lowHue:215,midHue:155,highHue:320,distance:-220,thickness:10,contrast:111,dynamics:79,glow:0,mist:0,blueDepth:177,outerFade:68,tipWhite:0,brightness:150,hue:1,hueMix:0,altHue:-17,bass:38,mid:98,treble:220,compression:0,smoothing:0},
     // Glow is now a true two-layer corona rather than a wide set of bars/rings.
     glow:{...SUN_LAB_DEFAULTS,waveType:'glow',innerGlowReach:18,innerGlowStrength:150,innerGlowHue:205,outerGlowReach:42,outerGlowStrength:185,outerGlowHue:188,bass:10,mid:187,treble:220,compression:0,smoothing:0},
     // Waterfall remains locked to the existing implementation and working profile.
@@ -3209,6 +3221,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     document.querySelectorAll('#sunLabGrid .sunlab-checks label').forEach(label=>label.style.display='none');
     ids.forEach(id=>{const el=$(id);if(!el)return;const row=el.closest('.sunlab-row');if(row)row.style.display='grid';const label=el.closest('.sunlab-checks label');if(label)label.style.display='flex';});
     const checks=$('slRadialOn')?.closest('.sunlab-checks');if(checks){checks.style.display=[...checks.querySelectorAll('label')].some(l=>l.style.display!=='none')?'grid':'none';}
+    const spectrumMeter=$('spectrumMeter');if(spectrumMeter)spectrumMeter.hidden=mode!=='spectrum';
     const radialLabel=$('slRadialOnLabel'),radialHelp=$('slRadialOnHelp');
     if(radialLabel)radialLabel.textContent=mode==='waterfall'?'Combine Radial Pulse':'Radial Outward';
     if(radialHelp)radialHelp.textContent=mode==='waterfall'?'Layer the normal outward pulse underneath the radial waterfall.':'The current sun pulse that expands away from the sun.';
@@ -3288,6 +3301,11 @@ $('reloadBtn').addEventListener('click',async()=>{
     bindSunLabControl('slCompression','compression');
     bindSunLabControl('slSmoothing','smoothing');
     bindSunLabControl('slSpectrumSpeed','spectrumSpeed');
+    bindSunLabControl('slSpectrumGain','spectrumGain');
+    bindSunLabControl('slBandColorMix','bandColorMix');
+    bindSunLabControl('slLowHue','lowHue',fmtDeg);
+    bindSunLabControl('slMidHue','midHue',fmtDeg);
+    bindSunLabControl('slHighHue','highHue',fmtDeg);
     bindSunLabControl('slInnerGlowReach','innerGlowReach');
     bindSunLabControl('slInnerGlowStrength','innerGlowStrength');
     bindSunLabControl('slInnerGlowHue','innerGlowHue',fmtDeg);
