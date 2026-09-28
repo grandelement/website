@@ -13,7 +13,30 @@
   const ACQ_KEY='GE_VAULT_ACQUISITION_V1';
   const SCORE_KEY='GE_GAME_SCORES_V3';
   const SCORE_MIGRATION_KEY='GE_VAULT_SCORES_MIGRATED_V1';
+  const RIGHTS_URL='/ge-music/ascap-work-ids.json';
   const MEDIA_PROGRESS_MS=30000;
+  const rightsByTitle=new Map();
+
+  function normalizeWorkTitle(value){
+    return String(value||'').toUpperCase().replace(/[^A-Z0-9=]+/g,' ').trim();
+  }
+  function loadRightsCatalog(){
+    return fetch(RIGHTS_URL,{cache:'no-store',credentials:'same-origin'})
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        (data&&Array.isArray(data.works)?data.works:[]).forEach(work=>{
+          const names=[work.title,...(Array.isArray(work.aliases)?work.aliases:[])];
+          names.forEach(name=>{
+            const key=normalizeWorkTitle(name);
+            if(key)rightsByTitle.set(key,{
+              ascap_work_id:String(work.work_id||''),
+              ascap_title:String(work.title||'')
+            });
+          });
+        });
+        return rightsByTitle.size;
+      }).catch(()=>0);
+  }
 
   function randomId(prefix){
     const core=(global.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2));
@@ -231,6 +254,14 @@
   const mediaStates=new WeakMap();
   const trackedMedia=new Set();
 
+  function applyRights(meta){
+    const rights=rightsByTitle.get(normalizeWorkTitle(meta.track_title||meta.title||''))||{};
+    return {
+      ...meta,
+      ascap_work_id:String(meta.ascap_work_id||meta.work_id||rights.ascap_work_id||'').slice(0,120),
+      ascap_title:String(meta.ascap_title||rights.ascap_title||'').slice(0,300)
+    };
+  }
   function normalizeMediaMeta(el){
     const src=cleanTrack(el.currentSrc||el.src||'');
     const override=mediaOverrides.get(el)||{};
@@ -239,7 +270,7 @@
     const album=String(override.album||session.album||el.dataset?.album||'').slice(0,200);
     const artist=String(override.artist||session.artist||el.dataset?.artist||'Grand Element').slice(0,200);
     const trackId=String(override.track_id||override.work_id||override.iswc||src||title).slice(0,240);
-    return {
+    return applyRights({
       track_id:trackId,
       track_title:title,
       title,
@@ -250,10 +281,11 @@
       live:!!override.live,
       station_id:!!override.station_id,
       ascap_work_id:String(override.ascap_work_id||override.work_id||'').slice(0,120),
+      ascap_title:String(override.ascap_title||'').slice(0,300),
       iswc:String(override.iswc||'').slice(0,120),
       writer:String(override.writer||'').slice(0,200),
       publisher:String(override.publisher||'').slice(0,200)
-    };
+    });
   }
   function mediaKey(meta){
     return [meta.track_id,meta.track_title,meta.album,meta.live?'live':'file'].join('|');
@@ -265,7 +297,7 @@
     state.activeSince=now;
   }
   function mediaData(el,state,extra={}){
-    const meta=state?.meta||normalizeMediaMeta(el);
+    const meta=applyRights(state?.meta||normalizeMediaMeta(el));
     const duration=Number.isFinite(el.duration)&&el.duration>0?Number(el.duration):null;
     const position=Number.isFinite(el.currentTime)?Number(el.currentTime):null;
     const listened=Math.max(0,(state?.listenedMs||0)/1000);
@@ -487,5 +519,11 @@
     }
   },true);
 
+  loadRightsCatalog().then(()=>{
+    trackedMedia.forEach(el=>{
+      const state=mediaStates.get(el);
+      if(state)state.meta=applyRights(state.meta||normalizeMediaMeta(el));
+    });
+  }).catch(()=>{});
   syncGameScores().catch(()=>{});
 })(window);
