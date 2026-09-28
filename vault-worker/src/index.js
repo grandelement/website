@@ -789,6 +789,59 @@ async function ingestPublicFanEvent(request, env) {
   return json({ ok: true, id: eventId }, 201);
 }
 
+async function saveStationPerformance(request, env) {
+  if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
+  const body = await readBody(request);
+  const title = safeText(body.track_title || body.title, 300);
+  if (!title) return json({ ok: false, error: "Missing track title." }, 400);
+  const t = Number(body.occurred_at || now());
+  const eventId = id("station");
+  const metadata = {
+    ...(body.metadata && typeof body.metadata === "object" ? body.metadata : {}),
+    server_side: true,
+    station: "Grand Element Radio",
+  };
+  await env.VAULT_DB.prepare(
+    `INSERT INTO fan_events
+      (id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,ip_hash,ip_ciphertext,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(
+    eventId,
+    t,
+    null,
+    "ge-radio-station",
+    safeText(body.session_id || "station-radio", 160),
+    "radio",
+    "station_performance",
+    null,
+    null,
+    safeText(body.track_id || body.path, 240) || null,
+    title,
+    safeText(body.album, 200) || null,
+    safeText(body.playlist_id, 160) || null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    "GE Radio Automation",
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    cleanJson(metadata),
+  ).run();
+  return json({ ok: true, id: eventId }, 201);
+}
+
 async function linkFanIdentity(request, env) {
   if (!ingestAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
   const body = await readBody(request);
@@ -1333,6 +1386,12 @@ export default {
 
       if (url.pathname === "/v1/ingest/comment" && request.method === "POST") {
         const response = await ingestComment(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
+      if (url.pathname === "/v1/admin/station-performance" && request.method === "POST") {
+        const response = await saveStationPerformance(request, env);
         Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
         return response;
       }
