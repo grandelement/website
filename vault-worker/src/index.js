@@ -885,18 +885,34 @@ async function savePlaylist(request, env) {
     );
   }
   await env.VAULT_DB.batch(statements);
+  await env.VAULT_DB.prepare(
+    "INSERT INTO playlist_versions (version_id,playlist_id,recorded_at,action,snapshot_json) VALUES (?,?,?,?,?)"
+  ).bind(
+    id("playlistv"),
+    playlistId,
+    t,
+    existing ? "update" : "create",
+    cleanJson({ id: playlistId, name, active: !!body.active, locked: !!body.locked, notes: body.notes || null, metadata: body.metadata || {}, tracks }),
+  ).run();
   await audit(env, "admin", "playlist.save", "playlist", playlistId, { name, tracks: tracks.length });
   return json({ ok: true, id: playlistId });
 }
 
 async function deletePlaylist(request, env, playlistId) {
   if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
-  const row = await env.VAULT_DB.prepare("SELECT locked FROM playlists WHERE id=?").bind(playlistId).first();
+  const row = await env.VAULT_DB.prepare("SELECT * FROM playlists WHERE id=?").bind(playlistId).first();
   if (!row) return json({ ok: false, error: "Playlist not found." }, 404);
   if (row.locked) return json({ ok: false, error: "Playlist is locked." }, 409);
+  const tracks = await env.VAULT_DB.prepare(
+    "SELECT position,track_path,track_title,album FROM playlist_tracks WHERE playlist_id=? ORDER BY position"
+  ).bind(playlistId).all();
+  const t = now();
+  await env.VAULT_DB.prepare(
+    "INSERT INTO playlist_versions (version_id,playlist_id,recorded_at,action,snapshot_json) VALUES (?,?,?,?,?)"
+  ).bind(id("playlistv"), playlistId, t, "delete", cleanJson({ ...row, tracks: tracks.results || [] })).run();
   await env.VAULT_DB.prepare("DELETE FROM playlists WHERE id=?").bind(playlistId).run();
   await audit(env, "admin", "playlist.delete", "playlist", playlistId);
-  return json({ ok: true });
+  return json({ ok: true, history_retained: true });
 }
 
 async function listEffectPresets(env, url) {
@@ -1033,7 +1049,7 @@ async function saveVaultValue(request, env) {
 }
 
 async function adminSummary(env) {
-  const names = ["fans", "fan_events", "listener_events", "comments", "playlists", "effect_presets", "effect_preset_versions", "vault_values", "audit_log"];
+  const names = ["fans", "fan_events", "listener_events", "comments", "playlists", "playlist_versions", "effect_presets", "effect_preset_versions", "vault_values", "audit_log"];
   const counts = {};
   for (const name of names) {
     const row = await env.VAULT_DB.prepare(`SELECT COUNT(*) AS n FROM ${name}`).first();
