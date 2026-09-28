@@ -72,6 +72,14 @@
     return send({...base(surface),...data,event_type:'session_end'},{beacon:true});
   }
 
+  // AUTO BASELINE: every surface that loads this client gets durable page/session telemetry.
+  try{
+    const surface=location.pathname.startsWith('/radio')?'radio':'website';
+    track(surface,'session_start',{metadata:{visibility:document.visibilityState}});
+    track(surface,'page_view',{metadata:{title:document.title||''}});
+    global.addEventListener('pagehide',()=>trackExit(surface,{metadata:{reason:'pagehide'}}),{once:true});
+  }catch(_e){}
+
   global.GEVault=Object.freeze({
     endpoint:ENDPOINT,
     anonId,
