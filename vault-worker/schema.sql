@@ -124,3 +124,6 @@ CREATE INDEX IF NOT EXISTS idx_vault_values_scope ON vault_values(kind, scope, k
 
 INSERT OR IGNORE INTO vault_meta(key,value,updated_at)
 VALUES ('schema_version','1',unixepoch());
+
+CREATE INDEX IF NOT EXISTS idx_comments_source ON comments(source, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_anon_source ON comments(anon_id, source, created_at DESC);
