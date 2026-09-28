@@ -1741,8 +1741,8 @@ window.GE_EASY_SETTINGS = {
   MINI_SHIP_APPEAR_MIN_SEC: 90,
   MINI_SHIP_APPEAR_MAX_SEC: 240,
   AUTOPILOT_SPIRIT_VISIT_MS: 30000,
-  AUTOPILOT_SPIRIT_RETURN_MIN_SEC: 150,
-  AUTOPILOT_SPIRIT_RETURN_MAX_SEC: 330,
+  AUTOPILOT_SPIRIT_RETURN_MIN_SEC: 58,
+  AUTOPILOT_SPIRIT_RETURN_MAX_SEC: 64,
 
   SHIP_CENTER_RADIUS_FACTOR: 0.68,
   SHIP_RAY_INNER_FACTOR: 0.82,
@@ -2740,6 +2740,18 @@ body.game-mode-active #gameScoreCluster[data-players="6"] .playerDot{font-size:1
 /* 9 Ball already has a readable main target display; keep tiny duplicate tags off the score marbles. */
 body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 </style>
+
+<style id="ge-v23-welcome-compact">
+#geWelcome{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;background:rgba(0,5,14,.10)!important;backdrop-filter:blur(2px)!important;-webkit-backdrop-filter:blur(2px)!important}
+#geWelcomeCard{width:min(86vw,360px)!important;max-height:none!important;overflow:visible!important;padding:18px 18px 15px!important;border-radius:20px!important}
+#geWelcomeTitle{margin:0 30px 7px!important;font-size:clamp(22px,6vw,28px)!important}
+#geWelcomeCard p{margin:0 auto 8px!important;max-width:31ch!important;font-size:clamp(14px,3.8vw,16px)!important;line-height:1.35!important}
+#geWelcomeCard .welcomeContact{margin:1px 0 5px!important;font-size:13px!important}
+#geWelcomeClose{right:7px!important;top:6px!important;width:34px!important;height:34px!important;font-size:23px!important}
+#geWelcomeRemember{gap:7px!important;margin:8px auto 0!important;font-size:12px!important;opacity:.82!important}
+#geWelcomeRemember input{width:17px!important;height:17px!important}
+@media(max-width:430px){#geWelcomeCard{width:min(90vw,340px)!important;padding:17px 16px 14px!important}}
+</style>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -3179,7 +3191,7 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
             <label><span>PLANETS</span><input type="checkbox" id="optPlanetPoints" checked></label>
             <label><span>SCORE BUBBLES</span><input type="checkbox" id="optPointsScoreBubbles" checked></label>
             <label><span>POINT CIRCLES</span><input type="checkbox" id="optPointMarks" checked></label>
-            <label><span>Turns per soul</span><input type="number" id="optTurnsPerSoul" min="1" max="9" step="1" value="3"></label>
+            <label class="tuneRow"><span>Shots per soul</span><input type="range" id="optTurnsPerSoul" min="1" max="6" step="1" value="3"><small class="tuneValue" id="optTurnsPerSoulValue">3</small></label>
             <label><span>Winning score</span><input type="number" id="optMaxScore" min="10" max="999" step="1" value="369"></label>
             <label><span>Throw power</span><button class="gameButton" id="optBallSpeed" type="button">100% · NORMAL</button></label>
             <label class="tuneRow"><span>Planet size</span><input type="range" id="optPlanetSize" min="75" max="150" step="1" value="100"><small class="tuneValue" id="optPlanetSizeValue">100%</small></label>
@@ -3318,13 +3330,9 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
   <div id="geWelcome" role="dialog" aria-modal="true" aria-labelledby="geWelcomeTitle" aria-hidden="true">
     <div id="geWelcomeCard">
       <button id="geWelcomeClose" type="button" aria-label="Close welcome">×</button>
-      <h2 id="geWelcomeTitle">WELCOME!</h2>
-      <p>Grand Element is still evolving.</p>
-      <p>This site is currently in active development, so you may notice things changing, moving, appearing or disappearing as we continue building the experience.</p>
-      <p class="welcomeUpdate">We’ll use this space to let you know what’s new as the universe develops.</p>
-      <p>If you find something broken or confusing—or something you especially like—we’d love to hear from you.</p>
-      <a class="welcomeContact" href="mailto:info@grandelement.com">Hit us up.</a>
-      <div class="welcomeSignoff">Enjoy!<br>Much love!!</div>
+      <h2 id="geWelcomeTitle">WELCOME</h2>
+      <p>We’re still building this site, so things may change as the universe grows.</p>
+      <a class="welcomeContact" href="mailto:info@grandelement.com">Something confusing? Hit us up.</a>
       <label id="geWelcomeRemember"><input id="geWelcomeDontShow" type="checkbox"> Don’t show this again</label>
     </div>
   </div>
@@ -6898,6 +6906,7 @@ const GE_GAME = (()=>{
   const optPinballSun=document.getElementById('optPinballSun');
   const optMagnetSun=document.getElementById('optMagnetSun');
   const optTurnsPerSoul=document.getElementById('optTurnsPerSoul');
+  const optTurnsPerSoulValue=document.getElementById('optTurnsPerSoulValue');
   const optMaxScore=document.getElementById('optMaxScore');
   const iosGamePrompt=document.getElementById('iosGamePrompt');
   const iosGamePromptLater=document.getElementById('iosGamePromptLater');
@@ -7226,7 +7235,7 @@ const GE_GAME = (()=>{
     state.players=1;state.computerOpponent=false;state.computerDifficulty='normal';
     state.ballSpeed=Number(cfg.BALL_SPEED_DEFAULT)||1;state.planetWeight=Number(cfg.PLANET_WEIGHT_DEFAULT)||1;state.rollLength=Number(cfg.PLANET_ROLL_LENGTH_DEFAULT)||1;state.wallBounce=Number(cfg.WALL_BOUNCE_DEFAULT)||.98;state.planetBounce=Number(cfg.PLANET_BOUNCE_DEFAULT)||.98;state.rubberPower='free';
     if(key==='points'){
-      state.turnsPerPlayer=Math.max(1,Math.min(9,Number(cfg.TURNS_PER_SOUL)||3));state.maxScore=369;state.shotStyle='throw';state.ballAccess='free';state.planetSize=Number(cfg.PLANET_SIZE_DEFAULT)||1;state.pointMarks=cfg.POINT_MARKS_ON!==false;state.pointsScoreBubbles=true;state.sunPoint=true;state.sunPointValue=3;state.wallPoints=true;state.planetPoints=true;state.planetPointValue=2;state.pinballSun=true;state.magnetSun=false;
+      state.turnsPerPlayer=Math.max(1,Math.min(6,Number(cfg.TURNS_PER_SOUL)||3));state.maxScore=369;state.shotStyle='throw';state.ballAccess='free';state.planetSize=Number(cfg.PLANET_SIZE_DEFAULT)||1;state.pointMarks=cfg.POINT_MARKS_ON!==false;state.pointsScoreBubbles=true;state.sunPoint=true;state.sunPointValue=3;state.wallPoints=true;state.planetPoints=true;state.planetPointValue=2;state.pinballSun=true;state.magnetSun=false;
     }else if(key==='center'){
       state.maxScore=111;state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=1;state.poolCueSize=1;state.poolPlanetSize=1;state.blueSunSensitivity=.75;state.pointMarks=false;
     }else if(key==='nine'){
@@ -7241,7 +7250,7 @@ const GE_GAME = (()=>{
     if(Number.isFinite(Number(p.players)))state.players=Math.max(0,Math.min(6,Number(p.players)|0));state.computerOpponent=!!p.computerOpponent;if(state.computerOpponent)state.players=2;state.computerDifficulty=['easy','normal','hard','master'].includes(p.computerDifficulty)?p.computerDifficulty:'normal';
     if(Number.isFinite(Number(p.ballSpeed)))state.ballSpeed=Number(p.ballSpeed);if(Number.isFinite(Number(p.planetWeight)))state.planetWeight=Math.max(.4,Math.min(1.8,Number(p.planetWeight)));if(Number.isFinite(Number(p.rollLength)))state.rollLength=Math.max(.6,Math.min(1.6,Number(p.rollLength)));if(Number.isFinite(Number(p.wallBounce)))state.wallBounce=Math.max(.7,Math.min(1.08,Number(p.wallBounce)));if(Number.isFinite(Number(p.planetBounce)))state.planetBounce=Math.max(.7,Math.min(1.08,Number(p.planetBounce)));if(['free','controlled','high','extreme','unlimited'].includes(p.rubberPower))state.rubberPower=p.rubberPower;
     if(key==='points'){
-      state.turnsPerPlayer=Math.max(1,Math.min(9,Number(p.turnsPerPlayer)||3));state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||369));state.shotStyle=['throw','rubber'].includes(p.shotStyle)?p.shotStyle:'throw';state.ballAccess=['free','assigned','duel'].includes(p.ballAccess)?p.ballAccess:'free';state.planetSize=Math.max(.75,Math.min(1.5,Number(p.planetSize)||1));state.pointMarks=p.pointMarks!==false;state.pointsScoreBubbles=p.pointsScoreBubbles!==false;state.sunPoint=p.sunPoint!==false;state.sunPointValue=Math.max(1,Math.min(9,Number(p.sunPointValue)||3));state.wallPoints=p.wallPoints!==false;state.planetPoints=p.planetPoints!==false;state.planetPointValue=Math.max(1,Math.min(9,Number(p.planetPointValue)||2));state.pinballSun=p.pinballSun!==false;state.magnetSun=!!p.magnetSun;
+      state.turnsPerPlayer=Math.max(1,Math.min(6,Number(p.turnsPerPlayer)||3));state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||369));state.shotStyle=['throw','rubber'].includes(p.shotStyle)?p.shotStyle:'throw';state.ballAccess=['free','assigned','duel'].includes(p.ballAccess)?p.ballAccess:'free';state.planetSize=Math.max(.75,Math.min(1.5,Number(p.planetSize)||1));state.pointMarks=p.pointMarks!==false;state.pointsScoreBubbles=p.pointsScoreBubbles!==false;state.sunPoint=p.sunPoint!==false;state.sunPointValue=Math.max(1,Math.min(9,Number(p.sunPointValue)||3));state.wallPoints=p.wallPoints!==false;state.planetPoints=p.planetPoints!==false;state.planetPointValue=Math.max(1,Math.min(9,Number(p.planetPointValue)||2));state.pinballSun=p.pinballSun!==false;state.magnetSun=!!p.magnetSun;
     }else if(key==='center'){
       state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||111));state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=Math.max(.25,Math.min(1.5,Number(p.poolPocketSize)||1));state.poolCueSize=Math.max(.25,Math.min(1.5,Number(p.poolCueSize)||1));state.poolPlanetSize=Math.max(.25,Math.min(1.5,Number(p.poolPlanetSize)||1));state.blueSunSensitivity=Math.max(.375,Math.min(1.125,Number(p.blueSunSensitivity)||.75));state.pointMarks=false;
     }else if(key==='nine'){
@@ -7254,7 +7263,7 @@ const GE_GAME = (()=>{
   function syncPersistentGameControls(){
     if(optTracers)optTracers.checked=!!state.tracers;if(optScoreFx)optScoreFx.checked=!!state.scoreFx;if(optBanks)optBanks.checked=!!state.showBanks;if(optTracerDuration)optTracerDuration.value=state.tracerDuration;if(optTracerColor)optTracerColor.value=state.tracerColor;if(optTracerCarryFade)optTracerCarryFade.checked=!!state.tracerCarryFade;
     if(optTrailLength){optTrailLength.value=String(Math.round(state.tracerLengthMs/1000));if(optTrailLengthValue)optTrailLengthValue.textContent=Math.round(state.tracerLengthMs/1000)+'s';}if(optTrailFade){optTrailFade.value=String(Math.round(state.tracerFadeMs/1000));if(optTrailFadeValue)optTrailFadeValue.textContent=Math.round(state.tracerFadeMs/1000)+'s';}if(optTracerWidth){optTracerWidth.value=String(state.tracerWidth);if(optTracerWidthValue)optTracerWidthValue.textContent=Number(state.tracerWidth).toFixed(1);}if(optTracerGas){optTracerGas.value=String(state.tracerGas);if(optTracerGasValue)optTracerGasValue.textContent=Number(state.tracerGas).toFixed(1)+'×';}if(optTracerGlow){optTracerGlow.value=String(state.tracerGlow);if(optTracerGlowValue)optTracerGlowValue.textContent=String(Math.round(state.tracerGlow));}if(optTracerColorStrength){optTracerColorStrength.value=String(Math.round(state.tracerColorStrength*100));if(optTracerColorStrengthValue)optTracerColorStrengthValue.textContent=Math.round(state.tracerColorStrength*100)+'%';}
-    if(optTurnsPerSoul)optTurnsPerSoul.value=String(state.turnsPerPlayer);if(optMaxScore)optMaxScore.value=String(state.maxScore);if(optPoolMaxScore)optPoolMaxScore.value=String(state.maxScore);if(optShotStyle)optShotStyle.value=state.shotStyle;if(optBallAccess)optBallAccess.value=state.ballAccess;if(optRubberPower)optRubberPower.value=state.rubberPower;
+    if(optTurnsPerSoul){optTurnsPerSoul.value=String(state.turnsPerPlayer);if(optTurnsPerSoulValue)optTurnsPerSoulValue.textContent=String(state.turnsPerPlayer);}if(optMaxScore)optMaxScore.value=String(state.maxScore);if(optPoolMaxScore)optPoolMaxScore.value=String(state.maxScore);if(optShotStyle)optShotStyle.value=state.shotStyle;if(optBallAccess)optBallAccess.value=state.ballAccess;if(optRubberPower)optRubberPower.value=state.rubberPower;
     if(optPointMarks)optPointMarks.checked=!!state.pointMarks;if(optPointsScoreBubbles)optPointsScoreBubbles.checked=state.pointsScoreBubbles!==false;if(optSunPoint)optSunPoint.checked=state.sunPoint!==false;if(optSunValue)optSunValue.value=String(state.sunPointValue);if(optWallPoints)optWallPoints.checked=state.wallPoints!==false;if(optPlanetPoints)optPlanetPoints.checked=state.planetPoints!==false;if(optPlanetValue)optPlanetValue.value=String(state.planetPointValue);if(optPinballSun)optPinballSun.checked=!!state.pinballSun;if(optMagnetSun)optMagnetSun.checked=!!state.magnetSun;
     if(optPlanetSize){optPlanetSize.value=String(Math.round(state.planetSize*100));if(optPlanetSizeValue)optPlanetSizeValue.textContent=Math.round(state.planetSize*100)+'%';}if(optPlanetWeight){optPlanetWeight.value=String(Math.round(state.planetWeight*100));if(optPlanetWeightValue)optPlanetWeightValue.textContent=Math.round(state.planetWeight*100)+'%';}if(optRollLength){optRollLength.value=String(Math.round(state.rollLength*100));if(optRollLengthValue)optRollLengthValue.textContent=Math.round(state.rollLength*100)+'%';}if(optWallBounce){optWallBounce.value=String(Math.round(state.wallBounce*100));if(optWallBounceValue)optWallBounceValue.textContent=Math.round(state.wallBounce*100)+'%';}if(optPlanetBounce){optPlanetBounce.value=String(Math.round(state.planetBounce*100));if(optPlanetBounceValue)optPlanetBounceValue.textContent=Math.round(state.planetBounce*100)+'%';}
     if(optPoolPocketSize){optPoolPocketSize.value=String(Math.round(state.poolPocketSize*100));if(optPoolPocketSizeValue)optPoolPocketSizeValue.textContent=Math.round(state.poolPocketSize*100)+'%';}if(optPoolCueSize){optPoolCueSize.value=String(Math.round(state.poolCueSize*100));if(optPoolCueSizeValue)optPoolCueSizeValue.textContent=Math.round(state.poolCueSize*100)+'%';}if(optPoolPlanetSize){optPoolPlanetSize.value=String(Math.round(state.poolPlanetSize*100));if(optPoolPlanetSizeValue)optPoolPlanetSizeValue.textContent=Math.round(state.poolPlanetSize*100)+'%';}if(optBlueSunSensitivity){optBlueSunSensitivity.value=String(precisionSensitivityToUi(state.blueSunSensitivity));if(optBlueSunSensitivityValue)optBlueSunSensitivityValue.textContent=precisionSensitivityToUi(state.blueSunSensitivity)+'%';}
@@ -7302,7 +7311,7 @@ const GE_GAME = (()=>{
 
     state.gameType='score';
     state.computerDifficulty='normal';
-    state.turnsPerPlayer=Math.max(1,Math.min(9,Number(cfg.TURNS_PER_SOUL)||3));
+    state.turnsPerPlayer=Math.max(1,Math.min(6,Number(cfg.TURNS_PER_SOUL)||3));
     state.maxScore=369;
     state.shotStyle='throw';
     state.ballAccess='free';
@@ -7351,7 +7360,7 @@ const GE_GAME = (()=>{
     if(optTracerDuration)optTracerDuration.value=state.tracerDuration;
     if(optTracerColor)optTracerColor.value=state.tracerColor;
     if(optTracerCarryFade)optTracerCarryFade.checked=false;
-    if(optTurnsPerSoul)optTurnsPerSoul.value=String(state.turnsPerPlayer);
+    if(optTurnsPerSoul){optTurnsPerSoul.value=String(state.turnsPerPlayer);if(optTurnsPerSoulValue)optTurnsPerSoulValue.textContent=String(state.turnsPerPlayer);}
     if(optMaxScore)optMaxScore.value=String(state.maxScore);
     if(optShotStyle)optShotStyle.value='throw';
     if(optBallAccess)optBallAccess.value='free';
@@ -8137,7 +8146,7 @@ const GE_GAME = (()=>{
     state.scores=Array.isArray(saved.scores)?saved.scores.slice(0,Math.max(1,state.players||1)):[0];
     while(state.scores.length<Math.max(1,state.players||1)) state.scores.push(0);
     state.activePlayer=Math.max(0,Math.min(state.scores.length-1,saved.activePlayer|0));
-    state.turnsPerPlayer=Math.max(1,Math.min(9,Number(saved.turnsPerPlayer)||state.turnsPerPlayer||3));
+    state.turnsPerPlayer=Math.max(1,Math.min(6,Number(saved.turnsPerPlayer)||state.turnsPerPlayer||3));
     state.maxScore=Math.max(10,Math.min(999,Number(saved.maxScore)||369));
     state.turnProgress=Array.isArray(saved.turnProgress)?saved.turnProgress.slice(0,Math.max(1,state.players||1)):[Math.max(0,saved.turnInSet|0)];
     while(state.turnProgress.length<Math.max(1,state.players||1))state.turnProgress.push(0);
@@ -8566,12 +8575,16 @@ const GE_GAME = (()=>{
     });
   }
 
-  optTurnsPerSoul?.addEventListener('change',()=>{
-    state.turnsPerPlayer=Math.max(1,Math.min(9,Number(optTurnsPerSoul.value)||3));
+  const syncTurnsPerSoul=()=>{
+    state.turnsPerPlayer=Math.max(1,Math.min(6,Number(optTurnsPerSoul?.value)||3));
+    if(optTurnsPerSoul)optTurnsPerSoul.value=String(state.turnsPerPlayer);
+    if(optTurnsPerSoulValue)optTurnsPerSoulValue.textContent=String(state.turnsPerPlayer);
     state.turnProgress=Array.from({length:Math.max(1,state.players)},(_,i)=>Math.min(state.turnsPerPlayer,state.turnProgress?.[i]||0));
     state.turnInSet=state.turnProgress[state.activePlayer]||0;
     updateHUD(true);saveGameStateSoon();
-  });
+  };
+  optTurnsPerSoul?.addEventListener('input',syncTurnsPerSoul);
+  optTurnsPerSoul?.addEventListener('change',syncTurnsPerSoul);
   optMaxScore?.addEventListener('change',()=>{
     state.maxScore=Math.max(10,Math.min(999,Number(optMaxScore.value)||369));
     optMaxScore.value=String(state.maxScore);saveGameStateSoon();
@@ -8830,7 +8843,7 @@ const GE_GAME = (()=>{
     const shooter=state.activePlayer;
     if(!Array.isArray(state.throwCounts)||state.throwCounts.length<Math.max(1,state.players))state.throwCounts=Array(Math.max(1,state.players)).fill(0);
     state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;
-    ps.owner=shooter;ps.banks=0;ps.inSun=false;ps.scored=false;ps.armed=true;ps.contactedTargets=new Set();state.planetState.set(p,ps);
+    ps.owner=shooter;ps.shotId=shotId;ps.banks=0;ps.inSun=false;ps.scored=false;ps.scoredAny=false;ps.armed=true;ps.contactedTargets=new Set();state.planetState.set(p,ps);
     state.pendingShot={
       id:shotId,
       player:shooter,
@@ -8857,7 +8870,7 @@ const GE_GAME = (()=>{
     if(pointsScored<=0){
       const ps=state.planetState.get(p);
       if(ps){
-        ps.armed=false;ps.scored=false;ps.banks=0;ps.inSun=false;
+        ps.armed=false;ps.scored=false;ps.scoredAny=false;ps.banks=0;ps.inSun=false;ps.shotId=0;
         ps.contactedTargets=new Set();
       }
       finishStatsShot(0,false);
@@ -8903,6 +8916,7 @@ const GE_GAME = (()=>{
 
     state.turnInSet=state.turnProgress[state.activePlayer]||0;
     finishStatsShot(pointsScored,true);
+    {const finishedPs=state.planetState.get(p);if(finishedPs){finishedPs.armed=false;finishedPs.scored=false;finishedPs.scoredAny=false;finishedPs.banks=0;finishedPs.inSun=false;finishedPs.shotId=0;finishedPs.contactedTargets=new Set();}}
     state.pendingShot=null;
     window.GE_GAME_TRAILS?.turnChange?.({
       fromPlayer:shooter,
@@ -9025,7 +9039,10 @@ const GE_GAME = (()=>{
     if(!state.active || !state.running || !p || rawPoints<=0) return 0;
     let ps=state.planetState.get(p);
     if(!ps || !ps.armed) return 0;
-    const i=Number.isInteger(ps.owner)?ps.owner:state.activePlayer;
+    const pending=state.pendingShot;
+    if(state.players>0 && (!pending || pending.planet!==p)) return 0;
+    const i=state.players>0 ? Math.max(0,Math.min(state.scores.length-1,Number(pending.player)||0)) : (Number.isInteger(ps.owner)?ps.owner:0);
+    ps.owner=i;
     const mult=applyMultiplier?playerMultiplierValue(i):1;
     const points=Math.max(0,Number(rawPoints)||0)*mult;
     if(points<=0) return 0;
@@ -9036,7 +9053,6 @@ const GE_GAME = (()=>{
     updateHUD(false);
     if(state.scores[i]>=state.maxScore && !state.gameOver){
       if(state.players===0){
-        // Demo never ends in a high-score modal. Loop the demonstration until the visitor taps to play.
         state.scores[0]=0;state.score=0;state.planetState=new WeakMap();
         try{window.GE_CLEAR_GAME_TRAILS?.();window.GE_GAME_POINT_MARKS?.clear?.();}catch(_e){}
         flash('DEMO LOOP · TAP PLAYFIELD TO PLAY');updateHUD(true);
@@ -9150,11 +9166,10 @@ const GE_GAME = (()=>{
   function aiDifficultyProfile(){
     const key=['easy','normal','hard','master'].includes(state.computerDifficulty)?state.computerDifficulty:'normal';
     return ({
-      // Stored keys remain easy/normal/hard/master so existing saved settings keep working.
-      easy:{label:'BABY',aimError:.090,speedJitter:.22,scoreBanks:0,poolBanks:0,thinkMin:980,thinkMax:1550,mistake:.32,pointsSpeed:980,chaos:false},
-      normal:{label:'ADOLESCENT',aimError:.040,speedJitter:.13,scoreBanks:1,poolBanks:1,thinkMin:820,thinkMax:1320,mistake:.13,pointsSpeed:1450,chaos:false},
-      hard:{label:'ADULT',aimError:.014,speedJitter:.055,scoreBanks:2,poolBanks:2,thinkMin:690,thinkMax:1140,mistake:.035,pointsSpeed:2050,chaos:false},
-      master:{label:'MASTER',aimError:.006,speedJitter:.025,scoreBanks:4,poolBanks:2,thinkMin:520,thinkMax:880,mistake:0,pointsSpeed:2925,chaos:true}
+      easy:{label:'BABY',aimError:.085,speedJitter:.20,scoreBanks:1,poolBanks:0,thinkMin:980,thinkMax:1500,mistake:.24,pointsSpeed:950,comboSearch:false,comboWeight:.12,bankWeight:.28,directBias:520},
+      normal:{label:'ADOLESCENT',aimError:.038,speedJitter:.12,scoreBanks:2,poolBanks:1,thinkMin:810,thinkMax:1260,mistake:.10,pointsSpeed:1650,comboSearch:true,comboWeight:.48,bankWeight:.62,directBias:180},
+      hard:{label:'ADULT',aimError:.012,speedJitter:.045,scoreBanks:4,poolBanks:2,thinkMin:650,thinkMax:1050,mistake:.025,pointsSpeed:2450,comboSearch:true,comboWeight:1.00,bankWeight:1.00,directBias:0},
+      master:{label:'MASTER',aimError:.004,speedJitter:.018,scoreBanks:4,poolBanks:2,thinkMin:500,thinkMax:820,mistake:0,pointsSpeed:2925,comboSearch:true,comboWeight:1.22,bankWeight:1.12,directBias:0}
     })[key];
   }
   function aiLineTraffic(p,tx,ty){
@@ -9171,15 +9186,22 @@ const GE_GAME = (()=>{
   }
   function aiBestSunPlan(p,sx,sy,b){
     let best=null;const skill=aiDifficultyProfile(),maxBanks=skill.scoreBanks;
+    const sunValue=state.sunPoint?Math.max(1,Math.min(9,Number(state.sunPointValue)||3)):0;
+    const wallValue=state.wallPoints?1:0;
+    const planetValue=state.planetPoints?Math.max(1,Math.min(9,Number(state.planetPointValue)||2)):0;
     for(let ix=-2;ix<=2;ix++)for(let iy=-2;iy<=2;iy++){
       const banks=Math.abs(ix)+Math.abs(iy);if(banks>maxBanks)continue;
       const tx=aiMirrorCoord(sx,b.left,b.right,ix),ty=aiMirrorCoord(sy,b.top,b.bottom,iy),dx=tx-p.x,dy=ty-p.y,dist=Math.hypot(dx,dy);if(dist<1)continue;
-      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0),clear=aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20);
-      // Master deliberately seeks traffic and banks so one hard shot can create many secondary contacts.
-      if(!clear&&!skill.chaos)continue;
-      const traffic=skill.chaos?aiLineTraffic(p,tx,ty):0;
-      const score=banks*420-dist*.08+(banks===2?110:0)+(banks===1?60:0)+(skill.chaos?traffic*720+(clear?0:480):0);
-      if(!best||score>best.score)best={tx,ty,dist,banks,traffic,score};
+      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0);
+      const clear=aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20);
+      const traffic=aiLineTraffic(p,tx,ty);
+      if(!clear&&!skill.comboSearch)continue;
+      const sunScore=sunValue*2200*(clear?1:.58);
+      const bankScore=banks*wallValue*720*(skill.bankWeight??.5);
+      const comboScore=traffic*planetValue*620*(skill.comboWeight??0);
+      const directBonus=banks===0?(skill.directBias||0):0;
+      const score=sunScore+bankScore+comboScore+directBonus+(clear?480:0)-dist*.10;
+      if(!best||score>best.score)best={tx,ty,dist,banks,traffic,clear,score};
     }
     return best;
   }
@@ -9262,15 +9284,13 @@ const GE_GAME = (()=>{
     for(const p of candidates){const plan=aiBestSunPlan(p,sx,sy,b);if(plan&&(!best||plan.score>best.plan.score))best={p,plan};}
     if(!best||Math.random()<skill.mistake){
       const p=choice(candidates);if(!p)return;
-      const recoverySpeed=skill.chaos?Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,skill.pointsSpeed||2925):Math.max(620,skill.pointsSpeed||760);
-      aiLaunch(p,sx,sy,recoverySpeed,skill.chaos?'master-chaos-recovery':'direct-recovery');return;
+      aiLaunch(p,sx,sy,Math.max(620,skill.pointsSpeed||950),'sun-recovery');return;
     }
     const p=best.p,plan=best.plan;let ps=state.planetState.get(p)||{vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0};ps.owner=cpuTurn?1:0;ps.banks=0;ps.scored=false;ps.armed=true;ps.inSun=false;state.planetState.set(p,ps);
-    const normalSpeed=Math.min(skill.pointsSpeed||1450,Math.max(620,540+plan.dist*.46+plan.banks*105));
-    const speed=skill.chaos
-      ? Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,Math.max(2700,(skill.pointsSpeed||2925)+plan.banks*18+(plan.traffic||0)*10))
-      : normalSpeed;
-    aiLaunch(p,plan.tx,plan.ty,speed,skill.chaos?`master-chaos-${plan.banks}bank`:`smart-${plan.banks}bank`);
+    const maxLaunch=window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000;
+    const geometric=Math.max(620,620+plan.dist*.34+plan.banks*115+(plan.traffic||0)*45);
+    const speed=(state.computerDifficulty==='master')?Math.min(maxLaunch,Math.max(2760,skill.pointsSpeed||2925)):Math.min(maxLaunch,Math.max(geometric,(skill.pointsSpeed||950)*.86));
+    aiLaunch(p,plan.tx,plan.ty,speed,'points-'+plan.banks+'bank-'+(plan.traffic>0?'combo':'sun'));
   }
 
   function scoreLoop(){
@@ -9734,7 +9754,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       spirit.classList.remove('leaving');
       spirit.style.transition='';
       spirit.style.opacity='1';
-      scheduleSpirit(rand((window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MIN_SEC??150)*1000,(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MAX_SEC??330)*1000));
+      scheduleSpirit(rand((window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MIN_SEC??58)*1000,(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MAX_SEC??64)*1000));
     },4700);
   }
   function showSpirit(){
@@ -9743,9 +9763,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     spiritArmed=false;
     spirit.style.display='block';spirit.style.opacity='1';
     spirit.classList.remove('selected','leaving');
-    if(!spiritPos.x||!spiritPos.y)spiritPos={x:Math.max(24,innerWidth-64),y:92,vx:15,vy:10};
-    spiritPos.vx=(spiritPos.vx<0?-1:1)*15;
-    spiritPos.vy=(spiritPos.vy<0?-1:1)*10;
+    if(!spiritPos.x||!spiritPos.y)spiritPos={x:Math.max(24,innerWidth-64),y:92,vx:11,vy:6.5};
+    spiritPos.vx=(spiritPos.vx<0?-1:1)*11;
+    spiritPos.vy=(spiritPos.vy<0?-1:1)*6.5;
     positionSpirit();
     if(!spiritRAF){spirit._lastTs=0;spiritRAF=requestAnimationFrame(bounceSpiritLoop);}
     spiritVisitTimer=setTimeout(leaveSpirit,window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_VISIT_MS??30000);
