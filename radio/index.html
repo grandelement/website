@@ -952,7 +952,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     <button id="prevBtn">Prev</button>
     <button id="playBtn">Play</button>
     <button id="nextBtn">Next</button>
-    <button class="tgl" id="liveBtn" aria-pressed="true">LIVE</button>
+    <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button id="shareBtn">Share</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
@@ -1086,8 +1086,8 @@ const CONFIG = Object.freeze({
   // CENTRAL LIVE STREAM: set this to the one permanent Icecast/AzuraCast/HLS audio URL.
   // Example only: https://radio.example.com/listen/grand_element/radio.mp3
   LIVE_STREAM_URL: 'https://radio.grandelement.blitz.cloud/stream.mp3',
-  LIVE_STREAM_TITLE: 'Grand Element LIVE',
-  LIVE_SHARE_PARAM: 'live',
+  LIVE_STREAM_TITLE: 'Grand Element Radio',
+  LIVE_SHARE_PARAM: 'radio',
   BACKGROUND_FOCAL: {
     // This creates real movement even when cover has no vertical crop.
     // Add a filename here when one picture needs its own optical adjustment.
@@ -1529,7 +1529,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
-  if(liveButton) liveButton.textContent=state.livePreparing?'CONNECTING…':'LIVE';
+  if(liveButton) liveButton.textContent=state.livePreparing?'CONNECTING…':'RADIO';
 }
 function rememberRecent(url){
   if(!url || isStationID(url)) return;
@@ -1611,7 +1611,7 @@ function setLiveMediaSession(){
   if(!('mediaSession' in navigator))return;
   try{
     navigator.mediaSession.metadata=new MediaMetadata({
-      title:CONFIG.LIVE_STREAM_TITLE||'Grand Element LIVE',
+      title:CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio',
       artist:'Grand Element Radio',
       album:'LIVE',
       artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
@@ -1629,20 +1629,20 @@ function clearLiveReconnect(){
 async function enterLiveMode(){
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
-    setStatus('LIVE requires an Internet connection.');
-    setLiveStatus('LIVE • Internet connection required.',true);
+    setStatus('RADIO requires an Internet connection.');
+    setLiveStatus('RADIO • Internet connection required.',true);
     return;
   }
   if(!liveStreamConfigured()){
-    setStatus('LIVE is ready for the central station stream, but the stream URL has not been connected yet.');
-    setLiveStatus('LIVE HOST NOT CONNECTED • add the permanent station stream URL to CONFIG.LIVE_STREAM_URL',true);
+    setStatus('RADIO is ready for the central station stream, but the stream URL has not been connected yet.');
+    setLiveStatus('RADIO HOST NOT CONNECTED • add the permanent station stream URL to CONFIG.LIVE_STREAM_URL',true);
     return;
   }
   clearLiveReconnect();
   state.livePreparing=true;
   syncModeButtons();
-  setLiveStatus('LIVE • connecting to the Grand Element station…',true);
-  setStatus('Connecting to Grand Element LIVE…');
+  setLiveStatus('RADIO • connecting to the Grand Element station…',true);
+  setStatus('Connecting to Grand Element Radio…');
 
   liveState.returnURL=!isStationID(state.currentURL)?state.currentURL:'';
   liveState.returnTime=Number(audio.currentTime)||0;
@@ -1653,7 +1653,7 @@ async function enterLiveMode(){
   // One host, many listeners: every device receives this same continuous stream URL.
   // Keep the existing single <audio> element. No playlist reconstruction and no duration scan.
   state.currentURL=CONFIG.LIVE_STREAM_URL;
-  titleBtn.textContent=CONFIG.LIVE_STREAM_TITLE||'Grand Element LIVE';
+  titleBtn.textContent=CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
   audio.autoplay=true;
@@ -1673,8 +1673,8 @@ async function enterLiveMode(){
     state.livePreparing=false;
     state.live=true;
     syncModeButtons();
-    setLiveStatus('LIVE • connected to the single Grand Element station host',true);
-    setStatus('Grand Element LIVE');
+    setLiveStatus('RADIO • connected to the Grand Element station',true);
+    setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
     // iPhone Safari, require one direct tap before audible autoplay is allowed.
@@ -1683,11 +1683,11 @@ async function enterLiveMode(){
     state.live=true;
     state.livePreparing=false;
     syncModeButtons();
-    setLiveStatus('LIVE • ready. Tap Play once if this browser blocks automatic audio.',true);
-    setStatus('Grand Element LIVE is ready. Tap Play once if needed.');
+    setLiveStatus('RADIO • ready. Tap Play once if this browser blocks automatic audio.',true);
+    setStatus('Grand Element Radio is ready. Tap Play once if needed.');
   }
 }
-function exitLiveMode(message='LIVE ended.'){
+function exitLiveMode(message='RADIO ended.'){
   if(!state.live&&!state.livePreparing)return;
   clearLiveReconnect();
   state.live=false;
@@ -1754,9 +1754,9 @@ function reconnectLiveStream(){
       audio.src=CONFIG.LIVE_STREAM_URL;
       audio.load();
       await audio.play();
-      setLiveStatus('LIVE • reconnected to the Grand Element station host',true);
+      setLiveStatus('RADIO • reconnected to the Grand Element station',true);
     }catch(_e){
-      setLiveStatus('LIVE • reconnecting…',true);
+      setLiveStatus('RADIO • reconnecting…',true);
       reconnectLiveStream();
     }
   },1800);
@@ -1891,7 +1891,7 @@ function renderTrackList(){
     button.textContent=displayTitle(url,!state.shuffle);
     if(url===state.currentURL) button.classList.add('current');
     button.addEventListener('click',()=>{
-      if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Track selected.');
+      if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Track selected.');
       state.pendingAfterStation=null;
       if(state.shuffle) recordHistory(url);
       playURL(url,{record:false,backgroundChange:true,userAction:true});
@@ -1993,14 +1993,14 @@ $('liveBtn').addEventListener('click',()=>{
   // This click is a real user gesture: resume/create Web Audio here so iOS permits the analyser.
   void window.GEResumeLiveEQ?.();
   if(state.live||state.livePreparing){
-    exitLiveMode('LIVE off • returning to player music.');
+    exitLiveMode('RADIO off • returning to player music.');
     void resumePlayerAfterLive();
     return;
   }
   void enterLiveMode();
 });
 $('shuffleBtn').addEventListener('click',()=>{
-  if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Shuffle/Album mode selected.');
+  if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Shuffle/Album mode selected.');
   const anchor=!isStationID(state.currentURL)?state.currentURL:'';
   state.shuffle=!state.shuffle;
   state.pendingAfterStation=null;
@@ -2013,7 +2013,7 @@ $('shuffleBtn').addEventListener('click',()=>{
   titleBtn.textContent=anchor?displayTitle(anchor,!state.shuffle):'Choose a track';
 });
 $('legacyBtn').addEventListener('click',()=>{
-  if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Library mode changed.');
+  if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Library mode changed.');
   const anchor=!isStationID(state.currentURL)?state.currentURL:'';
   state.legacy=!state.legacy;
   rebuildQueue(anchor);
@@ -2047,14 +2047,14 @@ document.addEventListener('keydown',event=>{
 });
 $('shareBtn').addEventListener('click',async()=>{
   const url=state.live?liveShareURL():await resolvedShareURL();
-  const song=state.live?(CONFIG.LIVE_STREAM_TITLE||'Grand Element LIVE'):(isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song);
+  const song=state.live?(CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio'):(isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song);
   try{
     if(navigator.share){
       await navigator.share({title:song,url});
       return;
     }
     await navigator.clipboard.writeText(url);
-    setStatus(state.live?'LIVE link copied.':'Share link copied.');
+    setStatus(state.live?'RADIO link copied.':'Share link copied.');
   }catch(_e){ prompt('Copy this link:',url); }
 });
 $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} });
@@ -2062,13 +2062,13 @@ $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} })
 audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('ended',()=>{if(state.live){reconnectLiveStream();return;}advanceFromEnded();});
-audio.addEventListener('play',()=>{ void window.GEResumeLiveEQ?.(); setStatus(state.live?'Grand Element LIVE':'Playing'); try{ navigator.mediaSession.playbackState='playing'; }catch(_e){} });
-audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus(state.live?'LIVE paused':'Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} try{if(typeof GE_IOS_AUDIO!=='undefined'&&GE_IOS_AUDIO)eqTapAudio?.pause();}catch(_e){} });
+audio.addEventListener('play',()=>{ void window.GEResumeLiveEQ?.(); setStatus(state.live?'Grand Element Radio':'Playing'); try{ navigator.mediaSession.playbackState='playing'; }catch(_e){} });
+audio.addEventListener('pause',()=>{ if(!audio.ended) setStatus(state.live?'RADIO paused':'Paused'); try{ navigator.mediaSession.playbackState='paused'; }catch(_e){} try{if(typeof GE_IOS_AUDIO!=='undefined'&&GE_IOS_AUDIO)eqTapAudio?.pause();}catch(_e){} });
 audio.addEventListener('error',()=>{
   if(state.livePreparing){return;}
   if(state.live){
-    setStatus('LIVE stream connection interrupted. Reconnecting…');
-    setLiveStatus('LIVE • reconnecting to the station host…',true);
+    setStatus('RADIO stream connection interrupted. Reconnecting…');
+    setLiveStatus('RADIO • reconnecting to the station host…',true);
     reconnectLiveStream();
     return;
   }
@@ -2081,7 +2081,7 @@ audio.addEventListener('canplay',()=>{
     audio.play().catch(()=>{});
   }
 });
-window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLiveMode('LIVE ended because the Internet connection is offline.');});
+window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLiveMode('RADIO ended because the Internet connection is offline.');});
 
 ['touchstart','pointerdown','mousedown','keydown'].forEach(eventName=>{
   window.addEventListener(eventName,()=>{
@@ -4892,7 +4892,7 @@ Vector ${vector}. ${pair[1]}.`;
           track_id:'live:'+title,
           title,
           artist:'Grand Element',
-          album:'Grand Element LIVE',
+          album:'Grand Element Radio',
           source:'live_radio',
           live:true,
           station_id:liveStationID
@@ -5018,8 +5018,8 @@ gateTestBtn?.addEventListener('click',()=>{
   registerServiceWorker();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
-    setLiveStatus('GRAND ELEMENT LIVE • Tap LIVE to join the station.',true);
-    setStatus('Tap LIVE to join the shared broadcast.');
+    setLiveStatus('GRAND ELEMENT RADIO • Tap RADIO to join the station.',true);
+    setStatus('Tap RADIO to join the shared station.');
   }
 
   const discovered=await discoverOfflineMediaFromCaches();
@@ -5064,7 +5064,7 @@ gateTestBtn?.addEventListener('click',()=>{
     await playURL(start,{record:false,backgroundChange:false});
   }else if(!state.live && !state.livePreparing && !start){
     titleBtn.textContent='No music files found';
-    setStatus('LIVE could not connect and no playable library track was found.');
+    setStatus('RADIO could not connect and no playable library track was found.');
   }
 
   try{window.GEShip?.syncAll();}catch(_e){}
