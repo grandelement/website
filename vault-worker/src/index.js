@@ -1244,6 +1244,8 @@ async function adminAnalytics(env, url) {
           first_played_at: row.occurred_at,
           last_played_at: row.occurred_at,
           ascap_work_id: String(meta.ascap_work_id || ""),
+          ascap_title: String(meta.ascap_title || ""),
+          ascap_status: String(meta.ascap_status || ""),
           iswc: String(meta.iswc || ""),
           writer: String(meta.writer || ""),
           publisher: String(meta.publisher || ""),
@@ -1254,6 +1256,8 @@ async function adminAnalytics(env, url) {
       st.first_played_at = Math.min(Number(st.first_played_at || row.occurred_at), Number(row.occurred_at || 0));
       st.last_played_at = Math.max(Number(st.last_played_at || row.occurred_at), Number(row.occurred_at || 0));
       st.ascap_work_id ||= String(meta.ascap_work_id || "");
+      st.ascap_title ||= String(meta.ascap_title || "");
+      st.ascap_status ||= String(meta.ascap_status || "");
       st.iswc ||= String(meta.iswc || "");
       st.writer ||= String(meta.writer || "");
       st.publisher ||= String(meta.publisher || "");
@@ -1276,6 +1280,8 @@ async function adminAnalytics(env, url) {
         source: String(meta.source || row.surface || ""),
         station_id: !!meta.station_id,
         ascap_work_id: String(meta.ascap_work_id || ""),
+        ascap_title: String(meta.ascap_title || ""),
+        ascap_status: String(meta.ascap_status || ""),
         iswc: String(meta.iswc || ""),
         writer: String(meta.writer || ""),
         publisher: String(meta.publisher || ""),
@@ -1298,6 +1304,8 @@ async function adminAnalytics(env, url) {
     s.source ||= String(meta.source || row.surface || "");
     s.station_id = s.station_id || !!meta.station_id;
     s.ascap_work_id ||= String(meta.ascap_work_id || "");
+    s.ascap_title ||= String(meta.ascap_title || "");
+    s.ascap_status ||= String(meta.ascap_status || "");
     s.iswc ||= String(meta.iswc || "");
     s.writer ||= String(meta.writer || "");
     s.publisher ||= String(meta.publisher || "");
@@ -1330,6 +1338,8 @@ async function adminAnalytics(env, url) {
         source: s.source,
         station_id: !!s.station_id,
         ascap_work_id: s.ascap_work_id,
+        ascap_title: s.ascap_title,
+        ascap_status: s.ascap_status,
         iswc: s.iswc,
         writer: s.writer,
         publisher: s.publisher,
@@ -1353,6 +1363,8 @@ async function adminAnalytics(env, url) {
     }
     if (s.anon_id) t.listeners.add(String(s.anon_id));
     t.ascap_work_id ||= s.ascap_work_id;
+    t.ascap_title ||= s.ascap_title;
+    t.ascap_status ||= s.ascap_status;
     t.iswc ||= s.iswc;
     t.writer ||= s.writer;
     t.publisher ||= s.publisher;
@@ -1392,6 +1404,8 @@ async function adminAnalytics(env, url) {
     source: t.source,
     station_id: t.station_id,
     ascap_work_id: t.ascap_work_id,
+    ascap_title: t.ascap_title,
+    ascap_status: t.ascap_status,
     iswc: t.iswc,
     writer: t.writer,
     publisher: t.publisher,
