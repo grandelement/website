@@ -684,12 +684,10 @@ def mixer_zmq_command(target, command, value):
         sock.close(0)
 
 def apply_mixer_state(state):
-    effective_music = 0.0 if state.get("music_muted") else float(state.get("music_level", 1.0))
-    duck_mix = 1.0 - float(state.get("music_under_voice", 0.45))
-    mixer_zmq_command("volume@musicgain", "volume", f"{effective_music:.4f}")
-    mixer_zmq_command("sidechaincompress@duck", "mix", f"{duck_mix:.4f}")
-    mixer_zmq_command("volume@directgain", "volume", f"{float(state.get('direct_level', 1.0)):.4f}")
-    mixer_zmq_command("volume@mastergain", "volume", f"{float(state.get('master_level', 1.0)):.4f}")
+    # PHASE 1 RADIO ISOLATION:
+    # Mixer values remain saved for later use, but nothing in the DJ/mic mixer
+    # is allowed to alter the 24/7 public radio backbone.
+    return dict(state)
 
 
 CF_REALTIME_APP_ID = os.environ.get("CF_REALTIME_APP_ID", "").strip()
@@ -1701,11 +1699,13 @@ class Handler(BaseHTTPRequestHandler):
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
-                    "architecture": "direct-websocket-pcm-primary-with-webrtc-fallback",
+                    "architecture": "isolated-radio-backbone-plus-independent-dj-mic-channel",
                     "realtime_configured": realtime_configured(),
                     "realtime": realtime_state(),
                     "voice_mount": "/source/voice",
                     "live_mount": "/source/live",
+                    "dj_test_stream": "/dj-test.mp3",
+                    "public_radio_isolated": True,
                     "username": "source",
                     "ssl": True,
                     "port": 443,
@@ -1730,7 +1730,9 @@ class Handler(BaseHTTPRequestHandler):
                 "live_mount": "/source/live",
                 "password": "Use the same DJ password you entered here.",
                 "monitor": "/dj-cue.mp3",
+                "dj_test_stream": "/dj-test.mp3",
                 "public_stream": "/stream.mp3",
+                "public_radio_isolated": True,
             })
             return
 
@@ -2066,7 +2068,7 @@ class Handler(BaseHTTPRequestHandler):
                 apply_mixer_state(state)
                 write_json(MIXER_SETTINGS, state)
                 permanent_state_save("radio_mixer_server", state)
-                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured()})
+                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured(), "public_radio_isolated": True, "applied_to_public_radio": False})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
