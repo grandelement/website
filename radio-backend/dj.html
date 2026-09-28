@@ -388,7 +388,12 @@ async function loadPlaylists(){
   try{
     const r=await api('/control/playlists'),d=await r.json();if(!r.ok)throw new Error(d.error||'Could not load playlists');
     playlists=Array.isArray(d.items)?d.items:[];renderSavedPlaylists();
-    if(!(await restoreBrowserBackupIfNeeded()))fetchPlaylistPack().catch(function(){cacheCurrentPlaylists()});
+    const restored=await restoreBrowserBackupIfNeeded();
+    if(!restored)fetchPlaylistPack().catch(function(){cacheCurrentPlaylists()});
+    if(!d.vault_configured)setPlaylistStatus('VAULT NOT CONNECTED · LOCAL CACHE ONLY',true);
+    else if(d.vault_error)setPlaylistStatus('VAULT ERROR · '+d.vault_error,true);
+    else if(playlists.length)setPlaylistStatus('LOADED FROM VAULT · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S'));
+    else setPlaylistStatus('VAULT CONNECTED · NO SAVED PLAYLISTS FOUND',true);
   }catch(e){playlists=[];renderSavedPlaylists();setPlaylistStatus(e.message||'Could not load playlists',true)}
 }
 function normalizedPlaylistName(v){return String(v||'').trim().replace(/\s+/g,' ').toLowerCase()}
@@ -452,7 +457,9 @@ async function savePlaylist(){
   const r=await api('/control/playlists/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveId,name:name,paths:paths})}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Save failed',true);return null}
   playlists=d.items||playlists;playlistEditId=String(d.playlist.id);playlistBaseName=d.playlist.name||name;playlistChooserIds=new Set([playlistEditId]);$('playlistName').value=playlistBaseName;renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});
-  setPlaylistStatus((saveId?'UPDATED · ':'SAVED NEW · ')+d.playlist.name);return d.playlist
+  if(d.vault_saved)setPlaylistStatus((saveId?'UPDATED · ':'SAVED NEW · ')+d.playlist.name+' · VAULT');
+  else setPlaylistStatus((saveId?'UPDATED LOCALLY · ':'SAVED LOCALLY · ')+d.playlist.name+' · VAULT NOT CONNECTED'+(d.vault_error?' · '+d.vault_error:''),true);
+  return d.playlist
 }
 async function deleteCheckedPlaylists(){
   const ids=Array.from(playlistChooserIds);if(!ids.length)return setPlaylistStatus('Check a playlist in SELECT first.',true);
@@ -464,12 +471,16 @@ async function deleteCheckedPlaylists(){
     playlists=d.items||[];
   }
   if(ids.indexOf(playlistEditId)>=0){playlistEditId='';playlistBaseName='';$('playlistName').value=''}
-  playlistChooserIds.clear();renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});setPlaylistStatus('DELETED · '+names.join(', '))
+  playlistChooserIds.clear();renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});
+  if(d.vault_deleted)setPlaylistStatus('DELETED FROM WORKING LIST · VAULT HISTORY RETAINED · '+names.join(', '));
+  else setPlaylistStatus('DELETED LOCALLY · VAULT NOT UPDATED'+(d.vault_error?' · '+d.vault_error:''),true)
 }
 async function usePlaylist(){
   const saved=await savePlaylist();if(!saved)return;const id=String(saved.id);
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:true,playlist_id:id})}),d=await r.json().catch(function(){return {}});
-  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not activate playlist',true);return}if(status){status.custom_mix_enabled=true;status.custom_mix_id=id;status.active_playlist_name=saved.name}renderSavedPlaylists();cacheCurrentPlaylists();setPlaylistStatus('ON RADIO · '+saved.name)
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not activate playlist',true);return}if(status){status.custom_mix_enabled=true;status.custom_mix_id=id;status.active_playlist_name=saved.name}renderSavedPlaylists();cacheCurrentPlaylists();
+  if(d.vault_saved)setPlaylistStatus('ON RADIO · '+saved.name+' · VAULT');
+  else setPlaylistStatus('ON RADIO · '+saved.name+' · VAULT NOT UPDATED'+(d.vault_error?' · '+d.vault_error:''),true)
 }
 async function normalRotation(){
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:false,playlist_id:''})}),d=await r.json().catch(function(){return {}});
