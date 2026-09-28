@@ -163,3 +163,39 @@ Do not scrape email addresses, names, or other personal information from unrelat
 ### Trusted fan identity API
 
 `POST /v1/ingest/fan` requires `VAULT_INGEST_TOKEN` and is for server-side forms/private-message workers to attach voluntary identity data to an anonymous visitor history.
+
+
+## Permanent Fan Event Ledger
+
+The Vault now treats fan/site interaction data as append-first records.
+
+Public browser surfaces send first-party interaction events to:
+- `POST /v1/public/event`
+
+Examples:
+- `page_view`
+- `audio_play`, `audio_pause`, `audio_end`
+- `track_share`
+- `external_link`
+- `radio_live`
+- `game_start`, `game_complete`
+- `gate_open`
+- `comment_submit`
+- `soul_reflection`
+
+The Worker adds encrypted IP, stable keyed IP hash, coarse Cloudflare geography/network metadata, user agent and referrer. Browser code must not attempt to identify an anonymous person or scrape third-party personal data.
+
+Email, name, phone or other contact data belongs in `fans` only when the person provides it through a first-party GE form or communication.
+
+## Permanent Game Scores
+
+- `GET /v1/public/game-scores` returns the public leaderboard fields only.
+- `POST /v1/public/game-scores` saves or updates a score ID.
+- Every score save also appends an immutable row to `game_score_versions`.
+- There is intentionally no public or normal-admin delete route for game scores or score history.
+
+The website should keep browser localStorage only as a cache/offline fallback. D1 is the permanent master.
+
+## Deletion policy
+
+Fan events, game score history and audit history are append-first and have no routine delete API. Moderation can hide a public comment without deleting its stored record. Any legally required data removal should be handled as an explicit administrative/privacy process rather than a normal site control.
