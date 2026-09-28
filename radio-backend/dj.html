@@ -493,15 +493,16 @@ async function deleteCheckedPlaylists(){
   const ids=Array.from(playlistChooserIds);if(!ids.length)return setPlaylistStatus('Check a playlist in SELECT first.',true);
   const names=ids.map(function(id){const p=playlists.find(function(x){return String(x.id)===String(id)});return p?p.name:'Playlist'}).filter(Boolean);
   if(!confirm('Delete '+names.join(', ')+'?'))return;
+  let lastDelete={};
   for(const id of ids){
     const r=await api('/control/playlists/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}),d=await r.json().catch(function(){return {}});
     if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Delete failed',true);return}
-    playlists=d.items||[];
+    lastDelete=d;playlists=d.items||[];
   }
   if(ids.indexOf(playlistEditId)>=0){playlistEditId='';playlistBaseName='';$('playlistName').value=''}
   playlistChooserIds.clear();renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});
-  if(d.vault_deleted)setPlaylistStatus('DELETED FROM WORKING LIST · VAULT HISTORY RETAINED · '+names.join(', '));
-  else setPlaylistStatus('DELETED LOCALLY · VAULT NOT UPDATED'+(d.vault_error?' · '+d.vault_error:''),true)
+  if(lastDelete.vault_deleted)setPlaylistStatus('DELETED FROM WORKING LIST · VAULT HISTORY RETAINED · '+names.join(', '));
+  else setPlaylistStatus('DELETED LOCALLY · VAULT NOT UPDATED'+(lastDelete.vault_error?' · '+lastDelete.vault_error:''),true)
 }
 async function usePlaylist(){
   const saved=await savePlaylist();if(!saved)return;const id=String(saved.id);
