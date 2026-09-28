@@ -1624,8 +1624,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 qs = urllib.parse.parse_qs(parsed.query)
-                days = max(1, min(3650, int((qs.get("days") or ["30"])[0])))
-                data = vault_request("GET", "/v1/admin/analytics?days=" + urllib.parse.quote(str(days)))
+                allowed = {}
+                for name in ("days", "hours", "minutes", "start", "end"):
+                    if qs.get(name):
+                        allowed[name] = str(qs[name][0])[:80]
+                query = urllib.parse.urlencode(allowed)
+                data = vault_request("GET", "/v1/admin/analytics" + (("?" + query) if query else ""))
                 self.json_response(data)
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
@@ -1637,11 +1641,14 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 qs = urllib.parse.parse_qs(parsed.query)
                 anon_id = str((qs.get("anon_id") or [""])[0]).strip()
-                days = max(1, min(3650, int((qs.get("days") or ["3650"])[0])))
                 if not anon_id:
                     self.json_response({"ok": False, "error": "Missing anonymous fan ID."}, 400)
                     return
-                path = "/v1/admin/fan-detail?anon_id=" + urllib.parse.quote(anon_id) + "&days=" + urllib.parse.quote(str(days))
+                allowed = {"anon_id": anon_id}
+                for name in ("days", "hours", "minutes", "start", "end"):
+                    if qs.get(name):
+                        allowed[name] = str(qs[name][0])[:80]
+                path = "/v1/admin/fan-detail?" + urllib.parse.urlencode(allowed)
                 data = vault_request("GET", path)
                 self.json_response(data)
             except Exception as exc:
@@ -2075,6 +2082,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
 
+
+        if self.path == "/control/vault/fan-label":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                anon_id = str(body.get("anon_id", "") or "").strip()
+                if not anon_id:
+                    raise ValueError("Missing anonymous fan ID.")
+                data = vault_request("POST", "/v1/admin/fan-label", {
+                    "anon_id": anon_id,
+                    "display_name": str(body.get("display_name", "") or "")[:200],
+                    "notes": str(body.get("notes", "") or "")[:2000],
+                })
+                self.json_response(data)
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
 
         if self.path == "/control/realtime/publish":
             if not self.require_auth(): return
