@@ -43,6 +43,37 @@
 #view-mixer .strip.master .stripBtns{grid-template-columns:1fr!important}
 @media(max-width:560px){.workspace{bottom:151px}.bottomBtns button{font-size:7px;min-height:47px}}
 
+
+/* GE touch-first mixer rule: full-travel rails, fat full-width fader handles, no accidental page movement */
+#view-mixer .mixer{
+  grid-template-columns:repeat(3,minmax(180px,1fr));
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;
+}
+#view-mixer .mixer::-webkit-scrollbar{display:none}
+#view-mixer .strip{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+#view-mixer input.vf{display:none!important}
+.touchFader{position:relative;flex:1 1 auto;min-height:190px;width:100%;margin:7px 0 5px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.touchFaderRail{position:absolute;top:11px;bottom:11px;left:50%;width:18px;transform:translateX(-50%);border-radius:999px;background:#0b1720;border:1px solid #46637a;box-shadow:inset 0 0 0 2px rgba(0,0,0,.28)}
+.touchFaderFill{position:absolute;left:50%;bottom:11px;width:18px;transform:translateX(-50%);border-radius:999px;background:#58a5ff;pointer-events:none;box-shadow:0 0 9px rgba(88,165,255,.3)}
+.touchFaderThumb{position:absolute;left:6px;right:6px;height:48px;border-radius:12px;background:#f1f5f7;border:4px solid #1b2731;box-shadow:0 3px 13px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.28);pointer-events:none}
+.touchFader:focus-visible .touchFaderThumb,.touchFader.dragging .touchFaderThumb{outline:3px solid #58a5ff;outline-offset:2px}
+.mixerScrollControl{display:none;grid-template-columns:46px 1fr;gap:8px;align-items:center;min-height:38px;margin-top:5px;padding:2px 5px}
+.mixerScrollControl.show{display:grid}
+.mixerScrollControl b{font-size:7px;color:var(--muted);letter-spacing:.08em}
+.mixerScrollControl input{width:100%;height:36px;touch-action:none}
+body.geFaderDragging{overscroll-behavior:none!important;user-select:none!important;-webkit-user-select:none!important}
+input[type=range]:not(.vf){-webkit-appearance:none;appearance:none;background:transparent;min-height:42px;touch-action:none}
+input[type=range]:not(.vf)::-webkit-slider-runnable-track{height:12px;border-radius:999px;background:#17232d;border:1px solid #40505e}
+input[type=range]:not(.vf)::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:34px;height:34px;margin-top:-12px;border-radius:10px;background:#f1f5f7;border:3px solid #1b2731;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+input[type=range]:not(.vf)::-moz-range-track{height:12px;border-radius:999px;background:#17232d;border:1px solid #40505e}
+input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radius:10px;background:#f1f5f7;border:3px solid #1b2731}
+
+#view-mixer .mixer{height:calc(100% - 76px)!important;min-height:0}
+#view-mixer .mixerScrollControl{height:36px}
+@media(max-width:470px){#view-mixer .mixer{grid-template-columns:repeat(3,minmax(170px,1fr))}.touchFader{min-height:170px}}
+@media(orientation:landscape) and (max-height:650px){.touchFader{min-height:120px}.touchFaderThumb{height:42px}}
+
+
 </style>
 </head>
 <body>
@@ -85,6 +116,51 @@
 
 <script>
 const API='https://radio.grandelement.blitz.cloud', $=id=>document.getElementById(id), clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function installTouchMixer(rootSelector,gridSelector){
+  const root=document.querySelector(rootSelector),grid=root&&root.querySelector(gridSelector);if(!root||!grid)return function(){};
+  const enhanced=[];
+  grid.querySelectorAll('input.vf[type="range"]').forEach(function(range){
+    if(range.dataset.touchFader==='1')return;range.dataset.touchFader='1';
+    const wrap=document.createElement('div');wrap.className='touchFader';wrap.tabIndex=0;wrap.setAttribute('role','slider');wrap.setAttribute('aria-label',(range.id||'mixer fader').replace(/^mix/,'').replace(/Level$/,' level'));
+    const rail=document.createElement('div');rail.className='touchFaderRail';
+    const fill=document.createElement('div');fill.className='touchFaderFill';
+    const thumb=document.createElement('div');thumb.className='touchFaderThumb';
+    wrap.appendChild(rail);wrap.appendChild(fill);wrap.appendChild(thumb);range.insertAdjacentElement('afterend',wrap);
+    function values(){return {min:Number(range.min||0),max:Number(range.max||100),step:Number(range.step||1)||1,val:Number(range.value||0)}}
+    function sync(){
+      const v=values(),pct=v.max===v.min?0:clamp((v.val-v.min)/(v.max-v.min),0,1),h=wrap.clientHeight||190,th=thumb.offsetHeight||48,pad=10,travel=Math.max(1,h-(pad*2)-th);
+      thumb.style.top=(pad+(1-pct)*travel)+'px';fill.style.height=(pct*Math.max(1,h-pad*2))+'px';
+      wrap.setAttribute('aria-valuemin',String(v.min));wrap.setAttribute('aria-valuemax',String(v.max));wrap.setAttribute('aria-valuenow',String(Math.round(v.val*100)/100));
+    }
+    function setFromPointer(e){
+      const rect=wrap.getBoundingClientRect(),v=values(),th=thumb.offsetHeight||48,pad=10,top=rect.top+pad+th/2,bottom=rect.bottom-pad-th/2;
+      const pct=clamp((bottom-e.clientY)/Math.max(1,bottom-top),0,1),raw=v.min+pct*(v.max-v.min),snapped=Math.round((raw-v.min)/v.step)*v.step+v.min;
+      range.value=String(clamp(snapped,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    let dragging=false;
+    wrap.addEventListener('pointerdown',function(e){dragging=true;wrap.classList.add('dragging');document.body.classList.add('geFaderDragging');wrap.setPointerCapture?.(e.pointerId);setFromPointer(e);e.preventDefault()});
+    wrap.addEventListener('pointermove',function(e){if(dragging){setFromPointer(e);e.preventDefault()}});
+    function end(e){if(!dragging)return;dragging=false;wrap.classList.remove('dragging');document.body.classList.remove('geFaderDragging');try{wrap.releasePointerCapture?.(e.pointerId)}catch(_e){}range.dispatchEvent(new Event('change',{bubbles:true}))}
+    wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
+    wrap.addEventListener('keydown',function(e){
+      const v=values();let delta=0;if(e.key==='ArrowUp'||e.key==='ArrowRight')delta=v.step;if(e.key==='ArrowDown'||e.key==='ArrowLeft')delta=-v.step;if(e.key==='PageUp')delta=v.step*10;if(e.key==='PageDown')delta=-v.step*10;if(!delta)return;
+      range.value=String(clamp(v.val+delta,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));range.dispatchEvent(new Event('change',{bubbles:true}));e.preventDefault();
+    });
+    range.addEventListener('input',sync);range.addEventListener('change',sync);enhanced.push(sync);requestAnimationFrame(sync);
+  });
+  const control=document.createElement('div');control.className='mixerScrollControl';control.innerHTML='<b>CHANNELS</b><input type="range" min="0" max="1" value="0" aria-label="Scroll mixer channels">';
+  grid.insertAdjacentElement('afterend',control);const scroller=control.querySelector('input');
+  function updateScroll(){
+    const max=Math.max(0,grid.scrollWidth-grid.clientWidth);control.classList.toggle('show',max>3);scroller.max=String(Math.max(1,Math.round(max)));if(document.activeElement!==scroller)scroller.value=String(Math.round(grid.scrollLeft));
+  }
+  scroller.addEventListener('input',function(){grid.scrollLeft=Number(this.value)||0});
+  grid.addEventListener('scroll',function(){if(document.activeElement!==scroller)scroller.value=String(Math.round(grid.scrollLeft))},{passive:true});
+  if(window.ResizeObserver){const ro=new ResizeObserver(function(){updateScroll();enhanced.forEach(function(fn){fn()})});ro.observe(grid);root._geMixerResizeObserver=ro}else window.addEventListener('resize',updateScroll);
+  requestAnimationFrame(updateScroll);
+  return function(){enhanced.forEach(function(fn){fn()});updateScroll()};
+}
+let syncTouchFaders=function(){};
+
 let key='',status=null,poller=0,ctx=null,masterBus=null,masterGain=null,masterAnalyser=null,monitorGain=null,studioLiveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,dropActive=false,dropMode='';let rtcPc=null,rtcDest=null,rtcSessionId='',rtcMid='',liveTransport='';
 let bgAudio=null,bgSource=null,bgGain=null,bgAnalyser=null,bgMuted=false,bgMeterRAF=0;
 let inputStream=null,inputSource=null,inputFilter=null,inputComp=null,inputGain=null,inputSum=null,inputDelay=null,inputDelayWet=null,inputDelayFb=null,inputReverb=null,inputReverbWet=null,inputAnalyser=null,inputMeterRAF=0;
@@ -112,13 +188,13 @@ $('bottomCue').onclick=()=>{ensureAudio().then(toggleStudioCue).catch(e=>alert(e
 
 
 async function loadBackground(file){if(!file)return;await ensureAudio();if(bgAudio){bgAudio.pause();try{bgSource.disconnect()}catch(e){}}bgAudio=new Audio();bgAudio.preload='auto';bgAudio.loop=false;bgAudio.src=URL.createObjectURL(file);bgSource=ctx.createMediaElementSource(bgAudio);bgGain=ctx.createGain();bgGain.gain.value=Number($('bgLevel').value)/100;bgAnalyser=ctx.createAnalyser();bgAnalyser.fftSize=256;bgSource.connect(bgGain).connect(bgAnalyser).connect(masterBus);$('bgName').textContent=file.name;runMeter(bgAnalyser,'bgMeter',null);runMeter(bgAnalyser,'mixBgMeter',null)}
-$('bgFile').onchange=e=>{const f=e.target.files?.[0];e.target.value='';loadBackground(f).catch(err=>alert(err.message||err))};$('bgPlay').onclick=async()=>{if(!bgAudio)return alert('Load a background file first.');await ensureAudio();if(bgAudio.paused){await bgAudio.play();$('bgPlay').textContent='PAUSE';$('mixBgPlay').textContent='PAUSE'}else{bgAudio.pause();$('bgPlay').textContent='PLAY';$('mixBgPlay').textContent='PLAY'}};$('mixBgPlay').onclick=$('bgPlay').onclick;$('bgStop').onclick=()=>{if(bgAudio){bgAudio.pause();bgAudio.currentTime=0;$('bgPlay').textContent='PLAY';$('mixBgPlay').textContent='PLAY'}};function setBgLevel(v){$('bgLevel').value=v;$('mixBgLevel').value=v;$('bgLevelRead').textContent=Math.round(v)+'%';$('mixBgRead').textContent=Math.round(v)+'%';if(bgGain)bgGain.gain.value=(bgMuted?0:Number(v)/100)}$('bgLevel').oninput=function(){setBgLevel(this.value)};$('mixBgLevel').oninput=function(){setBgLevel(this.value)};$('mixBgMute').onclick=function(){bgMuted=!bgMuted;this.classList.toggle('on',bgMuted);if(bgGain)bgGain.gain.value=bgMuted?0:Number($('bgLevel').value)/100};
+$('bgFile').onchange=e=>{const f=e.target.files?.[0];e.target.value='';loadBackground(f).catch(err=>alert(err.message||err))};$('bgPlay').onclick=async()=>{if(!bgAudio)return alert('Load a background file first.');await ensureAudio();if(bgAudio.paused){await bgAudio.play();$('bgPlay').textContent='PAUSE';$('mixBgPlay').textContent='PAUSE'}else{bgAudio.pause();$('bgPlay').textContent='PLAY';$('mixBgPlay').textContent='PLAY'}};$('mixBgPlay').onclick=$('bgPlay').onclick;$('bgStop').onclick=()=>{if(bgAudio){bgAudio.pause();bgAudio.currentTime=0;$('bgPlay').textContent='PLAY';$('mixBgPlay').textContent='PLAY'}};function setBgLevel(v){$('bgLevel').value=v;$('mixBgLevel').value=v;requestAnimationFrame(syncTouchFaders);$('bgLevelRead').textContent=Math.round(v)+'%';$('mixBgRead').textContent=Math.round(v)+'%';if(bgGain)bgGain.gain.value=(bgMuted?0:Number(v)/100)}$('bgLevel').oninput=function(){setBgLevel(this.value)};$('mixBgLevel').oninput=function(){setBgLevel(this.value)};$('mixBgMute').onclick=function(){bgMuted=!bgMuted;this.classList.toggle('on',bgMuted);if(bgGain)bgGain.gain.value=bgMuted?0:Number($('bgLevel').value)/100};
 
 async function refreshDevices(){if(!navigator.mediaDevices?.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput'),sel=$('inputDevice'),cur=sel.value;sel.innerHTML='<option value="">Default audio input</option>';ds.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Audio input '+(i+1));sel.appendChild(o)});if([...sel.options].some(o=>o.value===cur))sel.value=cur}catch(e){}}
 function buildInput(){inputFilter=ctx.createBiquadFilter();inputFilter.type='allpass';inputComp=ctx.createDynamicsCompressor();inputGain=ctx.createGain();inputSum=ctx.createGain();inputDelay=ctx.createDelay(2);inputDelayWet=ctx.createGain();inputDelayFb=ctx.createGain();inputReverb=ctx.createConvolver();inputReverb.buffer=makeImpulse(2.5);inputReverbWet=ctx.createGain();inputAnalyser=ctx.createAnalyser();inputAnalyser.fftSize=256;inputGain.connect(inputSum);inputGain.connect(inputDelay);inputDelay.connect(inputDelayWet).connect(inputSum);inputDelay.connect(inputDelayFb).connect(inputDelay);inputGain.connect(inputReverb);inputReverb.connect(inputReverbWet).connect(inputSum);inputSum.connect(inputAnalyser).connect(masterBus);applyInput()}
 function applyInput(){if(!ctx)return;const s=inputSettings;if(inputGain)inputGain.gain.value=s.level/100;if(inputComp){inputComp.threshold.value=s.threshold;inputComp.ratio.value=s.ratio}if(inputDelay){inputDelay.delayTime.value=s.delayTime/1000;inputDelayWet.gain.value=s.delay/100;inputDelayFb.gain.value=s.feedback/100}if(inputReverbWet)inputReverbWet.gain.value=s.reverb/100;if(inputFilter){if(Math.abs(s.filter)<2){inputFilter.type='allpass';inputFilter.frequency.value=1000}else if(s.filter<0){inputFilter.type='lowpass';inputFilter.frequency.value=18000*Math.pow(220/18000,Math.abs(s.filter)/100)}else{inputFilter.type='highpass';inputFilter.frequency.value=20*Math.pow(6500/20,s.filter/100)}}saveInput();updateInputThreshold();syncInputFx()}
 async function toggleInput(){await ensureAudio();if(inputStream){inputStream.getTracks().forEach(t=>t.stop());try{inputSource.disconnect()}catch(e){}inputStream=inputSource=null;$('inputOpen').textContent='OPEN INPUT';$('mixInputOpen').textContent='OPEN';$('bottomMic').classList.remove('on');$('bottomMic').textContent='MIC';return}const id=$('inputDevice').value,cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000}};if(id)cons.deviceId={exact:id};inputStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(!inputGain)buildInput();inputSource=ctx.createMediaStreamSource(inputStream);inputSource.connect(inputFilter).connect(inputComp).connect(inputGain);$('inputOpen').textContent='CLOSE INPUT';$('mixInputOpen').textContent='CLOSE';$('bottomMic').classList.add('on');$('bottomMic').textContent='MIC ON';runMeter(inputAnalyser,'inputMeter',null);runMeter(inputAnalyser,'mixInputMeter',null);await refreshDevices()}
-$('inputOpen').onclick=()=>toggleInput().catch(e=>alert(e.message||e));$('mixInputOpen').onclick=$('inputOpen').onclick;$('bottomMic').onclick=()=>toggleInput().catch(e=>alert(e.message||e));function setInputLevel(v){inputSettings.level=Number(v);$('inputLevel').value=v;$('mixInputLevel').value=v;$('inputLevelRead').textContent=Math.round(v)+'%';$('mixInputRead').textContent=Math.round(v)+'%';if(inputGain)inputGain.gain.value=Number(v)/100;saveInput()}$('inputLevel').oninput=function(){setInputLevel(this.value)};$('mixInputLevel').oninput=function(){setInputLevel(this.value)};
+$('inputOpen').onclick=()=>toggleInput().catch(e=>alert(e.message||e));$('mixInputOpen').onclick=$('inputOpen').onclick;$('bottomMic').onclick=()=>toggleInput().catch(e=>alert(e.message||e));function setInputLevel(v){inputSettings.level=Number(v);$('inputLevel').value=v;$('mixInputLevel').value=v;requestAnimationFrame(syncTouchFaders);$('inputLevelRead').textContent=Math.round(v)+'%';$('mixInputRead').textContent=Math.round(v)+'%';if(inputGain)inputGain.gain.value=Number(v)/100;saveInput()}$('inputLevel').oninput=function(){setInputLevel(this.value)};$('mixInputLevel').oninput=function(){setInputLevel(this.value)};
 function openInputFx(){$('inputFxPanel').classList.add('show');syncInputFx()}$('inputFx').onclick=openInputFx;$('mixInputFx').onclick=openInputFx;$('closeInputFx').onclick=()=>$('inputFxPanel').classList.remove('show');
 function syncInputFx(){const s=inputSettings;$('fxFilter').value=s.filter;$('fxDelay').value=s.delay;$('fxDelayTime').value=s.delayTime;$('fxFeedback').value=s.feedback;$('fxReverb').value=s.reverb;$('fxThreshold').value=s.threshold;$('fxRatio').value=s.ratio;$('fxFilterRead').textContent=Math.round(s.filter);$('fxDelayRead').textContent=Math.round(s.delay)+'%';$('fxDelayTimeRead').textContent=Math.round(s.delayTime)+'ms';$('fxFeedbackRead').textContent=Math.round(s.feedback)+'%';$('fxReverbRead').textContent=Math.round(s.reverb)+'%';$('fxThresholdRead').textContent=Math.round(s.threshold)+' dB';$('fxRatioRead').textContent=Math.round(s.ratio)+':1'}
 [['fxFilter','filter'],['fxDelay','delay'],['fxDelayTime','delayTime'],['fxFeedback','feedback'],['fxReverb','reverb'],['fxThreshold','threshold'],['fxRatio','ratio']].forEach(([id,k])=>{$(id).oninput=function(){inputSettings[k]=Number(this.value);applyInput()}});
@@ -126,7 +202,7 @@ function syncInputFx(){const s=inputSettings;$('fxFilter').value=s.filter;$('fxD
 function updateInputThreshold(){const pct=clamp((Number(inputSettings.threshold)+60)/60*100,0,100);['inputThreshold','mixInputThreshold'].forEach(id=>{const e=$(id);if(e)e.style.left=pct+'%'})}
 function bindInputThreshold(el){if(!el)return;let drag=false;const set=e=>{const r=el.getBoundingClientRect(),f=clamp((e.clientX-r.left)/r.width,0,1);inputSettings.threshold=Math.round(clamp(-60+f*60,-40,-2));applyInput()};el.addEventListener('pointerdown',e=>{drag=true;el.setPointerCapture?.(e.pointerId);set(e)});el.addEventListener('pointermove',e=>{if(drag)set(e)});el.addEventListener('pointerup',()=>drag=false);el.addEventListener('pointercancel',()=>drag=false)}bindInputThreshold($('inputThresholdMeter'));bindInputThreshold($('mixInputThresholdMeter'));updateInputThreshold();
 
-function setMaster(v){$('mixMasterLevel').value=v;$('mixMasterRead').textContent=Math.round(v)+'%';if(masterGain)masterGain.gain.value=Number(v)/100}$('mixMasterLevel').oninput=function(){setMaster(this.value)};
+function setMaster(v){$('mixMasterLevel').value=v;requestAnimationFrame(syncTouchFaders);$('mixMasterRead').textContent=Math.round(v)+'%';if(masterGain)masterGain.gain.value=Number(v)/100}$('mixMasterLevel').oninput=function(){setMaster(this.value)};
 
 const PCM_WORKLET='class GEStudioPCM extends AudioWorkletProcessor{constructor(){super();this.on=false;this.n=960;this.l=new Float32Array(this.n);this.r=new Float32Array(this.n);this.p=0;this.port.onmessage=e=>{if(e.data&&e.data.type==="on"){this.on=!!e.data.value;if(!this.on)this.p=0}}}emit(){const o=new Int16Array(this.n*2);for(let i=0;i<this.n;i++){let l=Math.max(-1,Math.min(1,this.l[i])),r=Math.max(-1,Math.min(1,this.r[i]));o[i*2]=l<0?Math.round(l*32768):Math.round(l*32767);o[i*2+1]=r<0?Math.round(r*32768):Math.round(r*32767)}this.port.postMessage(o.buffer,[o.buffer]);this.p=0}process(ins,outs){const x=ins[0]||[],o=outs[0]||[],l=x[0],r=x[1]||l;if(o[0]&&l)o[0].set(l);if(o[1]&&r)o[1].set(r);if(!this.on||!l)return true;for(let i=0;i<l.length;i++){this.l[this.p]=l[i]||0;this.r[this.p]=(r&&r[i])||0;this.p++;if(this.p===this.n)this.emit()}return true}}registerProcessor("ge-studio-pcm",GEStudioPCM);';
 async function ensurePcm(){await ensureAudio();if(pcmProcessor)return;if(!ctx.audioWorklet)throw new Error('This browser cannot run the low-latency radio bridge.');const blob=new Blob([PCM_WORKLET],{type:'application/javascript'}),url=URL.createObjectURL(blob);try{await ctx.audioWorklet.addModule(url)}finally{URL.revokeObjectURL(url)}pcmProcessor=new AudioWorkletNode(ctx,'ge-studio-pcm',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});pcmMute=ctx.createGain();pcmMute.gain.value=0;studioLiveGain.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(ctx.destination);pcmProcessor.port.onmessage=e=>{const b=e.data;if(dropActive&&liveSocket?.readyState===WebSocket.OPEN&&b?.byteLength&&liveSocket.bufferedAmount<196608){try{liveSocket.send(b)}catch(err){}}}}
@@ -179,10 +255,10 @@ async function stopDrop(fast=false){
  else{try{liveSocket?.close()}catch(e){}liveSocket=null;await api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:!!fast})}).catch(()=>{})}
  liveTransport='';dropActive=false;dropMode='';updateDropUi();$('dropState').textContent='Studio master is local.';poll()
 }
-function updateDropUi(){[$('dropBig'),$('bottomDrop')].forEach(b=>{b.classList.toggle('live',dropActive);b.textContent=dropActive?'STOP DROP':(b.id==='dropBig'?'DROP TO RADIO':'DROP')})}
-function requestDrop(){if(dropActive){stopDrop();return}$('dropModal').classList.add('show')}$('dropBig').onclick=requestDrop;$('bottomDrop').onclick=requestDrop;document.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{const m=b.dataset.drop;$('dropModal').classList.remove('show');if(m!=='cancel')beginDrop(m).catch(e=>{$('dropState').textContent=e.message||String(e);alert(e.message||e)})});
+function updateDropUi(){[$('dropBig'),$('bottomDrop')].filter(Boolean).forEach(b=>{b.classList.toggle('live',dropActive);b.textContent=dropActive?'STOP DROP':(b.id==='dropBig'?'DROP TO RADIO':'DROP')})}
+function requestDrop(){if(dropActive){stopDrop();return}$('dropModal').classList.add('show')}$('dropBig').onclick=requestDrop;if($('bottomDrop'))$('bottomDrop').onclick=requestDrop;document.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{const m=b.dataset.drop;$('dropModal').classList.remove('show');if(m!=='cancel')beginDrop(m).catch(e=>{$('dropState').textContent=e.message||String(e);alert(e.message||e)})});
 
-setBgLevel(100);setInputLevel(inputSettings.level);setMaster(100);syncInputFx();refreshDevices();updateDropUi();
+syncTouchFaders=installTouchMixer('#view-mixer','.mixer');setBgLevel(100);setInputLevel(inputSettings.level);setMaster(100);syncInputFx();refreshDevices();updateDropUi();syncTouchFaders();
 const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(()=>sessionStorage.removeItem('geDjPassword'));
 </script>
 </body></html>
