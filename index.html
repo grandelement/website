@@ -2583,80 +2583,18 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 </style>
 
 <style id="ge-v20-radio-soul-hud">
-/* Radio Moon
-   LIVE: the glow is a real level meter driven by the Blitz stream.
-   OFFLINE / unavailable: Autopilot-style radial glow in a compact triplet,
-   2.03s per cycle (about one-third faster than Autopilot's 2.7s pulse). */
-.moon{
-  isolation:isolate;
-  --moon-level:0;
-  --moon-scale:1;
-  --moon-opacity:.22;
-}
-.moon img{
-  position:relative;z-index:2;
-  box-shadow:0 0 7px 2px rgba(238,251,255,.42),0 0 13px 3px rgba(126,204,255,.20)!important;
-  animation:none!important;
-  filter:brightness(calc(1 + var(--moon-level) * .36));
-}
-.moon::before,.moon::after{
-  content:"";position:absolute;border-radius:50%;pointer-events:none;
-}
-.moon::before{
-  inset:-22%;z-index:0;
-  background:radial-gradient(circle,
-    rgba(255,255,255,.94) 0 8%,
-    rgba(220,244,255,.50) 29%,
-    rgba(175,226,255,.19) 57%,
-    rgba(255,255,255,0) 77%);
-  filter:blur(3px);
-  box-shadow:0 0 17px rgba(226,247,255,.82),0 0 34px rgba(118,202,255,.40);
-  transform:scale(var(--moon-scale));
-  opacity:var(--moon-opacity);
-  will-change:transform,opacity;
-}
-.moon::after{
-  inset:-7%;z-index:1;
-  background:radial-gradient(circle,
-    rgba(255,255,255,0) 42%,
-    rgba(184,232,255,.18) 58%,
-    rgba(128,206,255,.08) 68%,
-    rgba(255,255,255,0) 76%);
-  transform:scale(calc(.96 + var(--moon-level) * .28));
-  opacity:calc(.16 + var(--moon-level) * .72);
-  filter:blur(calc(1px + var(--moon-level) * 2px));
-  will-change:transform,opacity,filter;
-}
-
-/* Fallback: deliberately simple triplet rather than a long repeating pattern. */
-.moon:not(.radio-live-reactive)::before{
-  animation:geMoonTriplet 2.03s ease-in-out infinite;
-}
-.moon:not(.radio-live-reactive)::after{
-  animation:geMoonTripletHalo 2.03s ease-in-out infinite;
-}
-@keyframes geMoonTriplet{
-  0%,100%{transform:scale(.86);opacity:.24}
-  9%{transform:scale(1.18);opacity:.94}
-  18%{transform:scale(.90);opacity:.28}
-  37%{transform:scale(1.18);opacity:.94}
-  46%{transform:scale(.90);opacity:.28}
-  65%{transform:scale(1.18);opacity:.94}
-  74%,100%{transform:scale(.86);opacity:.24}
-}
-@keyframes geMoonTripletHalo{
-  0%,100%{transform:scale(.94);opacity:.12}
-  9%,37%,65%{transform:scale(1.18);opacity:.72}
-  18%,46%,74%{transform:scale(.98);opacity:.14}
-}
-
-/* LIVE mode: JS updates the two CSS variables at only ~12 Hz. */
-.moon.radio-live-reactive::before,
-.moon.radio-live-reactive::after{animation:none!important}
-.moon.radio-live-reactive::before{
-  transform:scale(var(--moon-scale));
-  opacity:var(--moon-opacity);
-}
+/* RADIO MOON STATUS: LIVE = real irregular station level; fallback = smooth Autopilot-style pulse. */
+.moon{isolation:isolate;--moon-level:0;--moon-scale:1;--moon-opacity:.12}
+.moon img{position:relative;z-index:2;box-shadow:0 0 5px 1px rgba(238,251,255,.26),0 0 9px 2px rgba(126,204,255,.12)!important;animation:none!important;filter:brightness(calc(1 + var(--moon-level) * .06))}
+.moon::before,.moon::after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.moon::before{inset:-10%;z-index:0;background:radial-gradient(circle,rgba(255,255,255,.70) 0 8%,rgba(220,244,255,.28) 29%,rgba(175,226,255,.09) 57%,rgba(255,255,255,0) 77%);filter:blur(2px);box-shadow:0 0 8px rgba(226,247,255,.34),0 0 15px rgba(118,202,255,.16);transform:scale(var(--moon-scale));opacity:var(--moon-opacity);will-change:transform,opacity}
+.moon::after{inset:-4%;z-index:1;background:radial-gradient(circle,rgba(255,255,255,0) 45%,rgba(184,232,255,.10) 60%,rgba(128,206,255,.04) 69%,rgba(255,255,255,0) 77%);transform:scale(calc(.99 + var(--moon-level) * .045));opacity:calc(.08 + var(--moon-level) * .16);filter:blur(calc(.8px + var(--moon-level) * .35px));will-change:transform,opacity,filter}
+.moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulse 2.03s ease-in-out infinite}
+.moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHalo 2.03s ease-in-out infinite}
+@keyframes geMoonOfflinePulse{0%,100%{transform:scale(.97);opacity:.11}50%{transform:scale(1.03);opacity:.26}}
+@keyframes geMoonOfflineHalo{0%,100%{transform:scale(.985);opacity:.06}50%{transform:scale(1.025);opacity:.16}}
+.moon.radio-live-reactive::before,.moon.radio-live-reactive::after{animation:none!important}
+.moon.radio-live-reactive::before{transform:scale(var(--moon-scale));opacity:var(--moon-opacity)}
 /* Active Soul/Body energy stays completely inside the white score marble. */
 #gameHUD .playerDot.activeTurn{overflow:hidden!important;box-shadow:inset 0 0 0 2px rgba(165,226,255,.95),inset 0 0 10px rgba(42,151,255,.90),0 0 3px rgba(90,190,255,.35)!important;}
 #gameHUD .playerDot.activeTurn::after{content:""!important;display:block!important;position:absolute!important;inset:3px!important;border-radius:50%!important;border:1px solid rgba(105,205,255,.92)!important;box-shadow:inset 0 0 8px rgba(48,162,255,.88)!important;animation:geSoulHudPulse 1.55s ease-in-out infinite!important;pointer-events:none!important;}
@@ -10078,134 +10016,78 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 </script>\n
 
 <script id="ge-moon-live-meter-v1">
-/* Grand Element Radio Moon meter
-   Isolated from #gePlayer on purpose: the audible website player stays native so
-   iPhone/background playback cannot be broken by Web Audio. This meter opens one
-   hidden Blitz stream connection, never connects it to speakers, and samples at
-   about 12 Hz. A future tiny server-side meter can call GE_MOON_RADIO_METER.set()
-   and disable this direct probe without changing the Moon CSS. */
 (()=>{
-  const moon=document.getElementById('moon');
-  if(!moon)return;
-
+  const moon=document.getElementById('moon');if(!moon)return;
   const LIVE_URL='https://radio.grandelement.blitz.cloud/stream.mp3';
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
-  const SAMPLE_MS=84; // ~12 samples per second
-  const SILENT_BASE=.035;
+  const SAMPLE_MS=84,NO_SIGNAL_MS=5500;
   let audio=null,ctx=null,source=null,analyser=null,data=null,timer=0;
   let connected=false,level=0,lastSignalAt=0,starting=false,externalUntil=0;
-
-  function paint(v,live=true){
+  function paint(v){
     v=Math.max(0,Math.min(1,Number(v)||0));
-    // Fast attack, slower release so speech feels like light rather than flicker.
-    level += (v-level)*(v>level?.58:.18);
+    level+=(v-level)*(v>level?.48:.16);
     const visual=Math.sqrt(level);
     moon.style.setProperty('--moon-level',visual.toFixed(4));
-    moon.style.setProperty('--moon-scale',(0.90+visual*.42).toFixed(4));
-    moon.style.setProperty('--moon-opacity',(SILENT_BASE+visual*.93).toFixed(4));
-    moon.classList.toggle('radio-live-reactive',!!live);
+    moon.style.setProperty('--moon-scale',(.985+visual*.065).toFixed(4));
+    moon.style.setProperty('--moon-opacity',(.11+visual*.17).toFixed(4));
+    moon.classList.add('radio-live-reactive');moon.dataset.radioMeter='live';
   }
-  function fallback(){
-    connected=false;level=0;
+  function fallback(disconnect=false){
+    if(disconnect)connected=false;level=0;
     moon.classList.remove('radio-live-reactive');
-    moon.style.setProperty('--moon-level','0');
-    moon.style.setProperty('--moon-scale','1');
-    moon.style.setProperty('--moon-opacity','.22');
+    moon.style.setProperty('--moon-level','0');moon.style.setProperty('--moon-scale','1');moon.style.setProperty('--moon-opacity','.12');
+    moon.dataset.radioMeter='fallback';
   }
   function readLevel(){
     if(Date.now()<externalUntil)return;
-    if(!connected||!analyser||!data){fallback();return;}
+    if(!connected||!analyser||!data){fallback(false);return;}
     analyser.getByteTimeDomainData(data);
-    let sum=0;
-    for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}
-    const rms=Math.sqrt(sum/data.length);
-    // Ignore codec/noise-floor movement, then expand normal speech/music into 0..1.
-    const mapped=Math.max(0,Math.min(1,(rms-.008)*8.2));
-    if(mapped>.012)lastSignalAt=Date.now();
-    paint(mapped,true);
+    let sum=0;for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}
+    const rms=Math.sqrt(sum/data.length),mapped=Math.max(0,Math.min(1,(rms-.008)*8.2)),now=Date.now();
+    if(mapped>.012)lastSignalAt=now;
+    if(lastSignalAt&&now-lastSignalAt<=NO_SIGNAL_MS)paint(mapped);else fallback(false);
   }
-  function ensureTimer(){
-    if(timer)return;
-    timer=setInterval(readLevel,SAMPLE_MS);
-  }
+  function ensureTimer(){if(!timer)timer=setInterval(readLevel,SAMPLE_MS)}
   async function ensureGraph(){
-    if(!AudioCtx||starting)return false;
-    starting=true;
+    if(!AudioCtx||starting)return false;starting=true;
     try{
       if(!audio){
-        audio=document.createElement('audio');
-        audio.crossOrigin='anonymous';
-        audio.preload='none';
-        audio.playsInline=true;
-        audio.setAttribute('playsinline','');
-        audio.setAttribute('aria-hidden','true');
-        audio.style.display='none';
-        // Muted permits the initial browser-safe connection. On a real user
-        // gesture it is unmuted internally, but the Web Audio graph has no
-        // destination connection, so it still cannot be heard.
-        audio.muted=true;
-        audio.src=LIVE_URL;
+        audio=document.createElement('audio');audio.crossOrigin='anonymous';audio.preload='none';audio.playsInline=true;
+        audio.setAttribute('playsinline','');audio.setAttribute('aria-hidden','true');audio.style.display='none';audio.muted=true;audio.src=LIVE_URL;
         document.body.appendChild(audio);
-        audio.addEventListener('playing',()=>{connected=true;moon.dataset.radioMeter='live';ensureTimer();});
-        audio.addEventListener('canplay',()=>{connected=true;});
-        ['error','abort','emptied'].forEach(ev=>audio.addEventListener(ev,()=>{moon.dataset.radioMeter='fallback';fallback();}));
-        audio.addEventListener('stalled',()=>{setTimeout(()=>{if(audio&&audio.readyState<2){moon.dataset.radioMeter='fallback';fallback();}},1800);});
+        audio.addEventListener('playing',()=>{connected=true;lastSignalAt=Date.now();ensureTimer()});
+        audio.addEventListener('canplay',()=>{connected=true});
+        ['error','abort','emptied'].forEach(ev=>audio.addEventListener(ev,()=>fallback(true)));
+        audio.addEventListener('stalled',()=>setTimeout(()=>{if(audio&&audio.readyState<2)fallback(true)},1800));
       }
       if(!ctx){
-        ctx=new AudioCtx();
-        source=ctx.createMediaElementSource(audio);
-        analyser=ctx.createAnalyser();
-        analyser.fftSize=256;
-        analyser.smoothingTimeConstant=.62;
-        source.connect(analyser); // intentionally NOT connected to ctx.destination
+        ctx=new AudioCtx();source=ctx.createMediaElementSource(audio);analyser=ctx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.62;
+        source.connect(analyser);
+        /* Never connect source or analyser to ctx.destination. */
         data=new Uint8Array(analyser.fftSize);
       }
-      try{if(ctx.state==='suspended')await ctx.resume();}catch(_e){}
-      try{await audio.play();}catch(_e){}
-      ensureTimer();
-      return true;
-    }catch(_e){
-      fallback();
-      return false;
-    }finally{starting=false}
+      try{if(ctx.state==='suspended')await ctx.resume()}catch(_e){}
+      if(source&&analyser)audio.muted=false;
+      try{await audio.play()}catch(_e){}
+      ensureTimer();return !!(source&&analyser);
+    }catch(_e){try{if(audio)audio.muted=true}catch(__e){};fallback(true);return false}
+    finally{starting=false}
   }
-
-  // Start a muted probe when practical; browsers that require a gesture simply
-  // stay on the triplet until the first tap.
-  function startVisible(){
-    if(document.hidden)return;
-    ensureGraph();
-  }
+  function startVisible(){if(!document.hidden)ensureGraph()}
   setTimeout(startVisible,900);
-
   const unlock=async()=>{
-    await ensureGraph();
-    try{
-      if(audio){audio.muted=false;if(audio.paused)await audio.play();}
-      if(ctx?.state==='suspended')await ctx.resume();
-    }catch(_e){}
+    const ok=await ensureGraph();
+    if(!ok){try{if(audio)audio.muted=true}catch(_e){};return}
+    try{if(ctx?.state==='suspended')await ctx.resume();if(audio?.paused)await audio.play()}catch(_e){}
   };
   document.addEventListener('pointerdown',unlock,{passive:true,once:true,capture:true});
   document.addEventListener('touchstart',unlock,{passive:true,once:true,capture:true});
   document.addEventListener('keydown',unlock,{passive:true,once:true,capture:true});
-
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){
-      try{audio?.pause();}catch(_e){}
-      fallback();
-    }else startVisible();
-  },{passive:true});
-
-  // Future server-side meter hook. Feed {level:0..1, live:true}; a fresh external
-  // reading temporarily takes priority over the direct Blitz analyser.
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){try{audio?.pause()}catch(_e){};fallback(true)}else startVisible()},{passive:true});
   window.GE_MOON_RADIO_METER={
-    set(levelValue,live=true){
-      externalUntil=Date.now()+1800;
-      if(live)paint(levelValue,true);else fallback();
-    },
-    fallback,
-    reconnect:startVisible,
-    getState(){return{live:moon.classList.contains('radio-live-reactive'),level,url:LIVE_URL,lastSignalAt};}
+    set(levelValue,live=true){externalUntil=Date.now()+1800;if(live){lastSignalAt=Date.now();paint(levelValue)}else fallback(false)},
+    fallback:()=>fallback(false),reconnect:startVisible,
+    getState(){return{live:moon.classList.contains('radio-live-reactive'),level,url:LIVE_URL,lastSignalAt,connected}}
   };
 })();
 </script>
