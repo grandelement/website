@@ -238,6 +238,9 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .analyticsTable th,.analyticsTable td{padding:7px;border-bottom:1px solid #202b34;text-align:left;white-space:nowrap}
 .analyticsTable th{color:var(--muted);font-size:7px}.analyticsTable td:first-child{font-weight:900;color:#fff}
 .analyticsStatus{min-height:16px;font-size:9px;color:var(--accent)}
+.fanRow{cursor:pointer}.fanRow:hover{background:#10202c}.fanRow.selected{background:#12382f}
+.fanDetail{display:none;margin-top:9px;border:1px solid #365064;background:#061018;border-radius:10px;padding:9px}.fanDetail.show{display:block}
+.fanDetailHead{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}.fanDetailHead b{font-size:11px;word-break:break-all}.fanDetailMeta{font-size:8px;color:#c8d5df;line-height:1.45;margin-top:5px;white-space:normal}.fanTimeline{margin-top:8px;max-height:36vh;overflow:auto}
 @media(max-width:560px){.analyticsStats{grid-template-columns:1fr 1fr}#analyticsModal{padding:0}#analyticsModal .modalBox{height:100dvh;max-height:none;border-radius:0}}
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
@@ -279,6 +282,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
   <div class="analyticsSection"><h3>NETWORK / LANGUAGE / REFERRERS</h3><div class="analyticsChips" id="analyticsTechnology"></div></div>
+  <div class="analyticsSection"><h3>INDIVIDUAL FANS · TAP A ROW FOR FULL HISTORY</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>FAN ID</th><th>LAST SEEN</th><th>LOCATION</th><th>SESSIONS</th><th>EVENTS</th><th>SONGS</th><th>LISTENED</th><th>CAMPAIGN</th></tr></thead><tbody id="analyticsFans"></tbody></table></div><div class="fanDetail" id="analyticsFanDetail"></div></div>
   <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
   <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">Server-side record of each Grand Element Radio song start, independent of the listener's browser.</div><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PERFORMANCES</th><th>LAST PLAYED</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
 </div></div>
@@ -530,6 +534,13 @@ function renderAnalytics(d){
   $('analyticsLocations').innerHTML=analyticsChips(geo.cities,'No location data yet.')+analyticsChips(geo.regions,'');
   const tech=d&&d.technology||{};
   $('analyticsTechnology').innerHTML=analyticsChips(tech.networks,'No network data yet.')+analyticsChips(tech.languages,'')+analyticsChips(tech.referrers,'');
+  const fans=Array.isArray(d&&d.fans)?d.fans:[];
+  $('analyticsFans').innerHTML=fans.slice(0,250).map(function(x){
+    const loc=[x.city,x.region,x.country].filter(Boolean).join(', ')||'—';
+    const last=x.last_seen_at?new Date(Number(x.last_seen_at)*1000).toLocaleString():'';
+    const short=String(x.anon_id||'').replace(/^visitor-/,'').slice(0,12);
+    return '<tr class="fanRow" data-anon="'+esc(x.anon_id||'')+'"><td>'+esc(short||'unknown')+'</td><td>'+esc(last)+'</td><td>'+esc(loc)+'</td><td>'+Number(x.sessions||0)+'</td><td>'+Number(x.events||0)+'</td><td>'+Number(x.unique_tracks||0)+'</td><td>'+esc(analyticsFmtSeconds(x.listened_seconds))+'</td><td>'+esc(x.campaign||'—')+'</td></tr>';
+  }).join('')||'<tr><td colspan="8" class="note">No individual fan records yet.</td></tr>';
   const music=Array.isArray(d&&d.music)?d.music.filter(function(x){return !x.station_id}):[];
   $('analyticsMusic').innerHTML=music.slice(0,100).map(function(x){
     return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
@@ -539,6 +550,39 @@ function renderAnalytics(d){
     const dt=x.last_played_at?new Date(Number(x.last_played_at)*1000).toLocaleString():'';
     return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
   }).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';
+}
+function fanEventDescription(e){
+  const m=e&&e.metadata||{},bits=[];
+  if(e.track_title)bits.push(e.track_title+(e.album?' · '+e.album:''));
+  else if(e.page_path)bits.push(e.page_path);
+  if(m.listened_seconds!=null)bits.push('listened '+analyticsFmtSeconds(m.listened_seconds));
+  if(m.completion_pct!=null)bits.push(Math.round(Number(m.completion_pct)||0)+'% complete');
+  if(e.utm_campaign)bits.push('campaign '+e.utm_campaign);
+  return bits.join(' · ')||'';
+}
+async function loadFanDetail(anon){
+  if(!anon)return;
+  const box=$('analyticsFanDetail');box.classList.add('show');box.innerHTML='<div class="analyticsStatus">LOADING FAN HISTORY…</div>';
+  Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.toggle('selected',r.dataset.anon===anon)});
+  try{
+    const days=Number($('analyticsDays').value||3650);
+    const r=await api('/control/vault/fan-detail?anon_id='+encodeURIComponent(anon)+'&days='+encodeURIComponent(days)),d=await r.json().catch(function(){return {}});
+    if(!r.ok||!d.ok)throw new Error(d.error||'Fan history could not be loaded.');
+    const events=Array.isArray(d.events)?d.events:[],latest=events[0]||{};
+    const first=events.length?events[events.length-1]:{},meta=latest.metadata||{},device=meta.device||{};
+    const loc=[latest.city,latest.region,latest.country].filter(Boolean).join(', ')||'Unknown';
+    const network=latest.cf_as_org||(latest.cf_asn?'ASN '+latest.cf_asn:'Unknown');
+    const campaign=latest.utm_campaign||meta.qr_campaign||'None';
+    const ua=latest.user_agent||'';
+    const deviceText=[
+      device.platform||'',
+      device.screen_width&&device.screen_height?(device.screen_width+'×'+device.screen_height):'',
+      device.touch_points!=null?('touch '+device.touch_points):'',
+      device.browser_timezone||latest.timezone||''
+    ].filter(Boolean).join(' · ');
+    box.innerHTML='<div class="fanDetailHead"><div><b>'+esc(anon)+'</b><div class="fanDetailMeta">First seen: '+esc(first.occurred_at?new Date(Number(first.occurred_at)*1000).toLocaleString():'')+'<br>Last seen: '+esc(latest.occurred_at?new Date(Number(latest.occurred_at)*1000).toLocaleString():'')+'<br>Location: '+esc(loc)+'<br>Network: '+esc(network)+'<br>Language: '+esc(latest.language||'Unknown')+'<br>Campaign: '+esc(campaign)+(deviceText?'<br>Device: '+esc(deviceText):'')+(ua?'<br>Browser: '+esc(ua):'')+'</div></div><button class="miniAction" id="fanDetailClose">CLOSE</button></div><div class="analyticsTableWrap fanTimeline"><table class="analyticsTable"><thead><tr><th>TIME</th><th>EVENT</th><th>DETAIL</th><th>LOCATION</th></tr></thead><tbody>'+events.map(function(e){const dt=e.occurred_at?new Date(Number(e.occurred_at)*1000).toLocaleString():'';const l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+'</tbody></table></div>';
+    $('fanDetailClose').onclick=function(){box.classList.remove('show');Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};
+  }catch(e){box.innerHTML='<div class="analyticsStatus">FAN DETAIL ERROR · '+esc(e.message||e)+'</div>'}
 }
 async function loadAnalytics(){
   const days=Number($('analyticsDays').value||30);$('analyticsStatus').textContent='LOADING VAULT…';
@@ -712,6 +756,7 @@ $('analyticsOpen').onclick=function(){$('analyticsModal').classList.add('show');
 $('analyticsClose').onclick=function(){$('analyticsModal').classList.remove('show')};
 $('analyticsRefresh').onclick=function(){loadAnalytics()};
 $('analyticsDays').onchange=function(){loadAnalytics()};
+$('analyticsFans').onclick=function(e){const row=e.target.closest('.fanRow');if(row)loadFanDetail(row.dataset.anon)};
 $('playlistOpen').onclick=function(){
   const fresh=!$('playlistModal').classList.contains('show');$('playlistModal').classList.add('show');renderSavedPlaylists();
   const active=status&&status.custom_mix_enabled?String(status.custom_mix_id||''):'';
