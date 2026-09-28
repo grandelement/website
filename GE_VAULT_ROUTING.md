@@ -147,3 +147,48 @@ Permanent scoreboard:
 - New phones/browsers restore the leaderboard from Vault.
 
 All future game modes must include `gameType` when saving a record so leaderboards can be segmented without losing the unified history.
+
+## Rule 9 — QR acquisition follows the fan
+
+The canonical QR entrance is `/qr/` and must load `ge-vault-client.js`.
+
+Every QR entrance writes a `qr_scan` event to the Vault and keeps the same first-party `anon_id` as the visitor continues through the website and radio.
+
+Supported first-party QR parameters:
+- `c` — campaign or sticker batch, default `main-sticker`
+- `qr` / `qid` — unique QR/sticker ID when desired
+- `placement` / `p` — known physical placement or distribution area
+- `variant` / `v` — artwork/print variant
+- normal `utm_*` parameters
+
+The browser preserves first-touch and latest-touch attribution locally and includes it with later Vault events. Cloudflare adds coarse network/geographic context at ingest time. Raw IP remains encrypted in Vault and is not exposed in normal analytics.
+
+Do not create a second permanent QR analytics database. `fan_events` is the master acquisition and behavior ledger.
+
+## Rule 10 — Music listening / usage records
+
+The shared Vault client records actual media engagement using:
+- `track_start`
+- `track_pause`
+- `track_resume`
+- `track_progress` approximately every 30 seconds while actively playing
+- `track_seek`
+- `track_complete`
+- `track_stop`
+
+Each media session carries actual accumulated listening seconds, playback position, duration when known, completion percentage when known, anonymous fan/session IDs, acquisition attribution and Cloudflare geography.
+
+For the continuous GE Radio stream, radio metadata changes split the continuous stream into individual song listening sessions.
+
+Rights metadata fields are supported when known:
+- `ascap_work_id`
+- `iswc`
+- `writer`
+- `publisher`
+
+Do not invent per-work rights identifiers. Populate those fields only from confirmed repertoire registrations.
+
+Private reporting:
+- `GET /v1/admin/analytics?days=N` summarizes QR acquisition, geography, fan sessions and music usage.
+- The DJ backend proxies this report to its authenticated FANS dashboard.
+
