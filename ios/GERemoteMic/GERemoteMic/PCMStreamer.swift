@@ -23,15 +23,15 @@ final class PCMStreamer {
         ws?.cancel(with: .normalClosure, reason: nil)
     }
 
-    func send(_ buffer: AVAudioPCMBuffer) {
-        guard let data = Self.int16Stereo48k(buffer) else { return }
+    func send(_ buffer: AVAudioPCMBuffer, gain: Double = 1.0) {
+        guard let data = Self.int16Stereo48k(buffer, gain: gain) else { return }
         lock.lock()
         let ws = socket
         lock.unlock()
         ws?.send(.data(data)) { _ in }
     }
 
-    private static func int16Stereo48k(_ input: AVAudioPCMBuffer) -> Data? {
+    private static func int16Stereo48k(_ input: AVAudioPCMBuffer, gain: Double) -> Data? {
         let inFormat = input.format
         guard let outFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 1, interleaved: false),
               let converter = AVAudioConverter(from: inFormat, to: outFormat) else { return nil }
@@ -56,7 +56,7 @@ final class PCMStreamer {
         var samples = [Int16]()
         samples.reserveCapacity(Int(out.frameLength) * 2)
         for i in 0..<Int(out.frameLength) {
-            let f = max(-1.0, min(1.0, ch[i]))
+            let f = max(-1.0, min(1.0, Double(ch[i]) * gain))
             let v = Int16(max(-32768, min(32767, Int(f * 32767.0))))
             samples.append(v)
             samples.append(v)
