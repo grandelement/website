@@ -132,7 +132,6 @@ const $=id=>document.getElementById(id);
 const WORK_KEY='GE_BACKROOM_TEST_CONFIG_V1';
 const TEXT_KEY='GE_BACKROOM_TEXT_SIZE_V1';
 const PROFILE_KEY='GE_GAME_PLAYER_PROFILES_V1';
-const UNLOCK_KEY='GE_BACKROOM_UNLOCK_V2';
 const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
 const API='https://backroom-api.grandelement.com';
 const TEMP_PASS_HASH='843932a7da0a42c88ed76cceff9ff48405afd6c0ab2b7e3f6949e0b344261c05';
@@ -165,10 +164,10 @@ async function enterBackroom(){
     if(await digest(pass)!==TEMP_PASS_HASH){$('gateMessage').textContent='Incorrect password.';return}
     serverAuthenticated=false;
   }
-  sessionStorage.setItem(UNLOCK_KEY,'1');$('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');$('gatePassword').value='';
+  $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');$('gatePassword').value='';
   await bootBackroom();
 }
-function lock(){sessionStorage.removeItem(UNLOCK_KEY);setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
+function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
 $('gateEnter').onclick=enterBackroom;$('gatePassword').addEventListener('keydown',e=>{if(e.key==='Enter')enterBackroom()});$('lockBackroom').onclick=lock;
 
 function applyText(v){const n=Math.max(90,Math.min(160,Number(v)||115));document.documentElement.style.setProperty('--scale',n/100);$('backroomTextSize').value=n;$('backroomTextSizeValue').textContent=n+'%';localStorage.setItem(TEXT_KEY,String(n))}
@@ -270,7 +269,7 @@ async function bootBackroom(){
   if(serverAuthenticated)setStatus('SIGNED IN · READY TO EDIT AND PUBLISH');else setStatus('READY TO EDIT · PUBLISHER STILL NEEDS CLOUDFLARE CONNECTION');
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-if(sessionStorage.getItem(UNLOCK_KEY)==='1'){$('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');bootBackroom()}else setTimeout(()=>$('gatePassword').focus(),100);
+setTimeout(()=>$('gatePassword').focus(),100);
 })();
 </script>
 </body>
