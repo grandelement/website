@@ -232,6 +232,7 @@ def annotation(entry, commit_sha, cross=None):
         f'album="{q(entry["album"])}"',
         f'ge_kind="{q(entry["kind"])}"',
         f'ge_slot="{q(entry["slot"])}"',
+        f'ge_path="{q(entry["path"])}"',
     ]
     if cross is not None:
         fields.append(f'liq_cross_duration="{cross:.1f}"')

@@ -1619,6 +1619,7 @@ body.nine-planet-active.nine-six-pocket #blueSunPoolPocket{display:none!importan
 
 </style>
 
+<script src="./ge-vault-client.js"></script>
 <script>
 /* ============================================================
    GRAND ELEMENT — EASY SETTINGS
@@ -1628,12 +1629,15 @@ window.GE_EASY_SETTINGS = {
   // PLANET / POOL FEEL
   PLANET_THROW_POWER: 925,      // higher = faster throws
   PLANET_FRICTION: 0.984,        // normal pool-ball roll
-  PLANET_STOP_SPEED: 0.5,         // tiny mathematical cutoff only; normal friction controls the full visible roll
+  PLANET_FINAL_CREEP_SPEED: 8.0,  // only below this nearly invisible speed does extra damping begin
+  PLANET_FINAL_CREEP_FRICTION: 0.94,
+  PLANET_STOP_SPEED: 0.8,         // true zero after the tiny end-of-roll creep
   PLANET_INPUT_UNLOCK_SPEED: 12,  // no new shot while any planet is visibly/still mathematically moving
   SHOT_MIN_LAUNCH_SPEED: 78,      // a tiny repositioning drag does NOT spend a throw
   SHOT_MAX_LAUNCH_SPEED: 3000, // high ceiling so a hard Game throw can feel like a hard free-mode throw
   BALL_SPEED_DEFAULT: 1.00,       // 100% is now the exact free-mode launch baseline
   BALL_SPEED_BASE_MULTIPLIER: 1.00,// Game Mode starts from normal-site physics instead of a second hidden multiplier
+  MARBLE_THROW_SPEED_MULTIPLIER: 1.35, // larger taw gets a quicker launch so Marbles does not feel slow-motion
   PLANET_WEIGHT_DEFAULT: 1.00,    // 100% = free-mode inertia; lighter stops sooner, heavier carries farther
   RUBBER_BAND_MAX_PULL: 180,
   RUBBER_BAND_MAX_SPEED: 820,
@@ -2579,13 +2583,80 @@ html,body{overflow:hidden!important;position:fixed!important;inset:0!important;}
 </style>
 
 <style id="ge-v20-radio-soul-hud">
-/* Radio moon: smaller immediate glow plus expanding broadcast rings. */
-.moon{isolation:isolate;}
-.moon img{box-shadow:0 0 6px 2px rgba(140,200,255,.30)!important;}
-.moon::before,.moon::after{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid rgba(120,205,255,.68);pointer-events:none;z-index:-1;animation:geMoonBroadcast 3.2s ease-out infinite;}
-.moon::after{animation-delay:1.6s;}
-@keyframes geMoonBroadcast{0%{transform:scale(.94);opacity:.62}70%{opacity:.16}100%{transform:scale(1.62);opacity:0}}
+/* Radio Moon
+   LIVE: the glow is a real level meter driven by the Blitz stream.
+   OFFLINE / unavailable: Autopilot-style radial glow in a compact triplet,
+   2.03s per cycle (about one-third faster than Autopilot's 2.7s pulse). */
+.moon{
+  isolation:isolate;
+  --moon-level:0;
+  --moon-scale:1;
+  --moon-opacity:.22;
+}
+.moon img{
+  position:relative;z-index:2;
+  box-shadow:0 0 7px 2px rgba(238,251,255,.42),0 0 13px 3px rgba(126,204,255,.20)!important;
+  animation:none!important;
+  filter:brightness(calc(1 + var(--moon-level) * .36));
+}
+.moon::before,.moon::after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none;
+}
+.moon::before{
+  inset:-22%;z-index:0;
+  background:radial-gradient(circle,
+    rgba(255,255,255,.94) 0 8%,
+    rgba(220,244,255,.50) 29%,
+    rgba(175,226,255,.19) 57%,
+    rgba(255,255,255,0) 77%);
+  filter:blur(3px);
+  box-shadow:0 0 17px rgba(226,247,255,.82),0 0 34px rgba(118,202,255,.40);
+  transform:scale(var(--moon-scale));
+  opacity:var(--moon-opacity);
+  will-change:transform,opacity;
+}
+.moon::after{
+  inset:-7%;z-index:1;
+  background:radial-gradient(circle,
+    rgba(255,255,255,0) 42%,
+    rgba(184,232,255,.18) 58%,
+    rgba(128,206,255,.08) 68%,
+    rgba(255,255,255,0) 76%);
+  transform:scale(calc(.96 + var(--moon-level) * .28));
+  opacity:calc(.16 + var(--moon-level) * .72);
+  filter:blur(calc(1px + var(--moon-level) * 2px));
+  will-change:transform,opacity,filter;
+}
 
+/* Fallback: deliberately simple triplet rather than a long repeating pattern. */
+.moon:not(.radio-live-reactive)::before{
+  animation:geMoonTriplet 2.03s ease-in-out infinite;
+}
+.moon:not(.radio-live-reactive)::after{
+  animation:geMoonTripletHalo 2.03s ease-in-out infinite;
+}
+@keyframes geMoonTriplet{
+  0%,100%{transform:scale(.86);opacity:.24}
+  9%{transform:scale(1.18);opacity:.94}
+  18%{transform:scale(.90);opacity:.28}
+  37%{transform:scale(1.18);opacity:.94}
+  46%{transform:scale(.90);opacity:.28}
+  65%{transform:scale(1.18);opacity:.94}
+  74%,100%{transform:scale(.86);opacity:.24}
+}
+@keyframes geMoonTripletHalo{
+  0%,100%{transform:scale(.94);opacity:.12}
+  9%,37%,65%{transform:scale(1.18);opacity:.72}
+  18%,46%,74%{transform:scale(.98);opacity:.14}
+}
+
+/* LIVE mode: JS updates the two CSS variables at only ~12 Hz. */
+.moon.radio-live-reactive::before,
+.moon.radio-live-reactive::after{animation:none!important}
+.moon.radio-live-reactive::before{
+  transform:scale(var(--moon-scale));
+  opacity:var(--moon-opacity);
+}
 /* Active Soul/Body energy stays completely inside the white score marble. */
 #gameHUD .playerDot.activeTurn{overflow:hidden!important;box-shadow:inset 0 0 0 2px rgba(165,226,255,.95),inset 0 0 10px rgba(42,151,255,.90),0 0 3px rgba(90,190,255,.35)!important;}
 #gameHUD .playerDot.activeTurn::after{content:""!important;display:block!important;position:absolute!important;inset:3px!important;border-radius:50%!important;border:1px solid rgba(105,205,255,.92)!important;box-shadow:inset 0 0 8px rgba(48,162,255,.88)!important;animation:geSoulHudPulse 1.55s ease-in-out infinite!important;pointer-events:none!important;}
@@ -2645,6 +2716,29 @@ body.autopilot-calm #fx,body.autopilot-calm #fxFront{opacity:.20!important}
 body.autopilot-calm #sunWrap{opacity:.82!important}
 body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:0 0 18px rgba(120,205,255,.2)}
 @media (max-width:520px){#autopilotHUD{top:10px;left:10px;right:10px;align-items:flex-start}.autoStatus{max-width:35vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#autopilotHUD button{padding:7px 9px}.autoDisplayGrid{grid-template-columns:1fr 1fr}.autoPanel{padding:18px}.autoTransport button{min-height:64px}.autoTransport #autopilotMusicPlay{min-height:76px}}
+</style>
+
+<style id="ge-v21-game-polish">
+/* Score numerals: one restrained step larger without crowding the Soul circles. */
+body.game-mode-active #gameScoreCluster[data-players="1"] .playerDot{font-size:17px!important;}
+body.game-mode-active #gameScoreCluster[data-players="2"] .playerDot{font-size:15px!important;}
+body.game-mode-active #gameScoreCluster[data-players="3"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="4"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="5"] .playerDot,
+body.game-mode-active #gameScoreCluster[data-players="6"] .playerDot{font-size:11px!important;}
+
+/* Album art stays left; title and PLAY ALBUM stay together in the right text column. */
+#albumScan .albumScanTop{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;}
+#albumScan .albumScanTop>div:last-child{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;}
+#albumScan .albumScanListen{align-self:flex-start!important;margin-top:7px!important;margin-bottom:3px!important;}
+</style>
+
+
+<style id="ge-v21-score-nine-polish">
+/* Make the score itself one pixel easier to read without enlarging the marble. */
+#gameHUD .playerDot{font-size:11px!important}
+/* 9 Ball already has a readable main target display; keep tiny duplicate tags off the score marbles. */
+body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 </style>
 </head>
 <body>
@@ -2817,7 +2911,7 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
           <div style="margin-bottom:8px"><b>STORY / UNIVERSE VIEWING:</b> Normal mode is the free-form Grand Element universe. Change the dimensional background, move through the scene, interact with the Sun, planets, ships, souls/comets, hidden text and music without having to play the arcade game.</div>
           <ul>
             <li><b>Blue Sun</b>: "Click" Teleport to another dimension. Move wherever you want.</li>
-            <li><b>Album Planets</b>: Tap once to zoom and reveal the album name. Tap the zoomed planet again for the futuristic album analysis and Bandcamp link. Drag/throw for free-space planet physics.</li>
+            <li><b>Album Planets</b>: Tap once to enlarge the planet and open its album information. Drag/throw for free-space planet physics.</li>
             <li><b>GE Soul particles (Comets)</b>: Continuous random flow. Click and throw. Similar apparent sizes can enter quantum reactions; rare souls have larger interaction fields.</li>
             <li><b>GE Bodies (Ships)</b>: The large center target is touch-friendly: one tap stops/starts the ship, two taps broadcast expanding radio-frequency waves and call responsive souls toward the ship, and three taps trigger the quantum reaction. The first captured soul can settle in the ship center while additional souls orbit outside. Press and hold the small ray control at the rear of the ship to keep the ray on, then sweep your finger through 360°; the ship center remains reserved for one tap, two tap broadcast and three tap quantum control, while the surrounding field steers.</li>
             <li><b>Hidden text</b>: Appears near cursor, and randomly on its own; click to pin/unpin.</li>
@@ -2990,7 +3084,7 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
         <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button></div>
-        <p class="small">Saved on this device. Rankings use the fewest throws needed to reach the winning score.</p>
+        <p class="small">Saved permanently in the GE Vault when connected, with this device kept as an offline cache. Rankings use the fewest throws needed to reach the winning score.</p>
         <div class="scoreArchive" id="geOptionsScoreArchive"></div>
       </section>
 
@@ -3061,7 +3155,7 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
             <div class="geComputerModes">
               <label class="computerOpponentOption geComputerOption"><span>PLAY THE BODY</span><input type="checkbox" id="optComputerOpponent"></label>
               <button class="gameButton geComputerOnlyBtn" id="computerOnlyBtn" type="button">THE BODY PLAYS · 0 SOULS</button>
-              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY DIFFICULTY</span><select id="optComputerDifficulty"><option value="easy">EASY</option><option value="normal" selected>NORMAL</option><option value="hard">HARD</option><option value="master">MASTER</option></select></label>
+              <label class="geComputerDifficultyRow" id="geComputerDifficultyRow"><span>BODY LEVEL</span><select id="optComputerDifficulty"><option value="easy">BABY</option><option value="normal" selected>ADOLESCENT</option><option value="hard">ADULT</option><option value="master">MASTER</option></select></label>
             </div>
             <div class="small" id="computerOpponentHelp">1 Soul + The Body, or let The Body play by itself.</div>
           </div>
@@ -3126,8 +3220,8 @@ body.autopilot-active .planet{filter:saturate(1.18) brightness(1.08);box-shadow:
 
         <div class="optionGrid marblesSpecificOptions geSpecificOptions" id="marblesSpecificOptions">
           <div class="optionGroupTitle">PLANETS</div>
-          <label class="tuneRow"><span>Planets per player</span><input type="range" id="optMarbleCount" min="2" max="50" step="1" value="5"><small class="tuneValue" id="optMarbleCountValue">5</small></label>
-          <label><span>Arrangement</span><select id="optMarbleArrangement"><option value="players">PLAYER CIRCLES</option><option value="circle">ONE BIG CIRCLE</option><option value="mixed">MIXED / SCATTERED</option></select></label>
+          <label class="tuneRow"><span>Planets per player</span><input type="range" id="optMarbleCount" min="2" max="50" step="1" value="11"><small class="tuneValue" id="optMarbleCountValue">11</small></label>
+          <label><span>Arrangement</span><select id="optMarbleArrangement"><option value="players">PLAYER CIRCLES</option><option value="circle">ONE BIG CIRCLE</option><option value="mixed" selected>MIXED / SCATTERED</option></select></label>
           <label class="tuneRow"><span>Marble size</span><input type="range" id="optMarbleSize" min="55" max="120" step="1" value="72"><small class="tuneValue" id="optMarbleSizeValue">72%</small></label>
           <label class="tuneRow"><span>Shooter size</span><input type="range" id="optMarbleShooterSize" min="110" max="175" step="1" value="150"><small class="tuneValue" id="optMarbleShooterSizeValue">150%</small></label>
           <label class="tuneRow"><span>Throw sensitivity</span><input type="range" id="optMarbleSensitivity" min="50" max="150" step="1" value="100"><small class="tuneValue" id="optMarbleSensitivityValue">100%</small></label>
@@ -3568,8 +3662,8 @@ function placePlanets(){
     }
     aEl._geCloseAlbumBio=()=>{previewLocked=false;previewReady=false;aEl.classList.remove('albumBioOpen');endPreview();};
 
-    // Normal-site album interaction is tap-only: first tap enlarges, second tap (after full enlargement) opens the bio.
-    // Merely moving a finger across a planet does nothing. Dragging is reserved for the Game Mode invitation.
+    // Normal-site album interaction: one clean tap/click both enlarges the planet and opens its bio.
+    // A real drag still suppresses the popup.
     let downPos=null, dragged=false, openAnalysisOnRelease=false;
     aEl.addEventListener('pointerdown',e=>{
       downPos={x:e.clientX,y:e.clientY}; dragged=false;
@@ -3586,12 +3680,9 @@ function placePlanets(){
       if(document.body.classList.contains('game-mode-active')){e.preventDefault();e.stopImmediatePropagation();return;}
       e.preventDefault();
       if(dragged){e.stopPropagation();endPreview();openAnalysisOnRelease=false;return;}
-      if(openAnalysisOnRelease){
-        lockBio();
-        window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
-      }else if(!aEl.classList.contains('previewZoom')){
-        beginPreview();
-      }
+      if(!aEl.classList.contains('previewZoom'))beginPreview();
+      lockBio();
+      window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
       openAnalysisOnRelease=false;
     });
 
@@ -6326,7 +6417,11 @@ buildPlanetPhysics();
     const now=performance.now(),last=hist[hist.length-1]||{x:p.x,y:p.y,t:now};let ref=hist[0]||last;
     for(let i=hist.length-1;i>=0;i--)if(now-hist[i].t>=60){ref=hist[i];break;}
     const dt=Math.max(16,last.t-ref.t),power=window.GE_EASY_SETTINGS?.PLANET_THROW_POWER??925,gs=gameState();
-    const sensitivity=gs?.gameType==='marbles'?Math.max(.375,Math.min(1.125,Number(gs.marbleSensitivity)||.75)):1;
+    // Marbles stores 0.75 as its 100% UI baseline. Normalize that baseline back to
+    // 1.0 launch power so a 100% marble throw moves as fast as a normal planet throw.
+    const sensitivity=gs?.gameType==='marbles'
+      ? Math.max(.50,Math.min(1.50,(Number(gs.marbleSensitivity)||.75)/.75))*(window.GE_EASY_SETTINGS?.MARBLE_THROW_SPEED_MULTIPLIER??1.35)
+      : 1;
     return beginGameShot(p,(last.x-ref.x)/dt*power*sensitivity,(last.y-ref.y)/dt*power*sensitivity,'throw');
   }
   host.addEventListener('pointerdown',e=>{
@@ -6367,7 +6462,7 @@ buildPlanetPhysics();
     if(d.mode==='rubber'&&isGame()){
       const pointer=aimPoint||{x:d.downX,y:d.downY},dx=d.anchorX-pointer.x,dy=d.anchorY-pointer.y,pull=Math.hypot(dx,dy),minPull=window.GE_EASY_SETTINGS?.RUBBER_BAND_MIN_PULL??14,maxPull=window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_PULL??180;
       clearAim();p.x=d.anchorX;p.y=d.anchorY;syncPlanet(p);
-      if(pull>=minPull){let speed;const gs=gameState(),mode=gs?.rubberPower||'free';if(mode==='unlimited')speed=pull*(window.GE_EASY_SETTINGS?.RUBBER_BAND_UNLIMITED_FACTOR??4);else{const cap=mode==='free'?(window.GE_EASY_SETTINGS?.RUBBER_BAND_FREE_MODE_SPEED??2200):(mode==='extreme'?1800:(mode==='high'?1200:(window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_SPEED??820)));speed=Math.min(1,pull/maxPull)*cap;}if(gs?.gameType==='blueSunPool'||gs?.gameType==='ninePlanet')speed*=Math.max(.375,Math.min(1.125,Number(gs.blueSunSensitivity)||.75));if(gs?.gameType==='marbles')speed*=Math.max(.375,Math.min(1.125,Number(gs.marbleSensitivity)||.75));launched=beginGameShot(p,dx/pull*speed,dy/pull*speed,'rubber');}
+      if(pull>=minPull){let speed;const gs=gameState(),mode=gs?.rubberPower||'free';if(mode==='unlimited')speed=pull*(window.GE_EASY_SETTINGS?.RUBBER_BAND_UNLIMITED_FACTOR??4);else{const cap=mode==='free'?(window.GE_EASY_SETTINGS?.RUBBER_BAND_FREE_MODE_SPEED??2200):(mode==='extreme'?1800:(mode==='high'?1200:(window.GE_EASY_SETTINGS?.RUBBER_BAND_MAX_SPEED??820)));speed=Math.min(1,pull/maxPull)*cap;}if(gs?.gameType==='blueSunPool'||gs?.gameType==='ninePlanet')speed*=Math.max(.375,Math.min(1.125,Number(gs.blueSunSensitivity)||.75));if(gs?.gameType==='marbles')speed*=Math.max(.50,Math.min(1.50,(Number(gs.marbleSensitivity)||.75)/.75));launched=beginGameShot(p,dx/pull*speed,dy/pull*speed,'rubber');}
       if(!launched){p.vx=0;p.vy=0;}
     }else if(p._dragStarted){
       if(isGame()){launched=launchFromThrow(p);if(!launched){p.vx=0;p.vy=0;}}
@@ -6503,10 +6598,16 @@ function planetStep(){
         planetFriction=Math.max(.94,Math.min(.9985,planetFriction));
       }
     }
-    // Natural roll: one friction curve from launch to rest. No special final-5% brake layer.
+    // Keep the full visible roll natural. Only the last practically invisible creep gets extra damping.
     p.vx*=planetFriction;p.vy*=planetFriction;
-    const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? 0.5);
-    if(Math.hypot(p.vx,p.vy)<planetStopSpeed){p.vx=0;p.vy=0;p._launchSpeed=0;}
+    let planetSpeed=Math.hypot(p.vx,p.vy);
+    const creepSpeed=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_SPEED ?? 8);
+    if(planetSpeed>0&&planetSpeed<creepSpeed){
+      const creepFriction=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_FRICTION ?? .94);
+      p.vx*=creepFriction;p.vy*=creepFriction;planetSpeed=Math.hypot(p.vx,p.vy);
+    }
+    const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? .8);
+    if(planetSpeed<planetStopSpeed){p.vx=0;p.vy=0;p._launchSpeed=0;}
 
     const wallRest=gameActive?(Number(window.GE_GAME?.state?.wallBounce)||.98):.98;
     const marblesMode=gameActive&&window.GE_GAME?.state?.gameType==='marbles';
@@ -6682,8 +6783,8 @@ const GE_GAME = (()=>{
     blueSunSensitivity:.75,
     ninePocketLayout:'six',
     nineRules:'classic',
-    marbleCount:5,
-    marbleArrangement:'players',
+    marbleCount:11,
+    marbleArrangement:'mixed',
     marbleSize:.72,
     marbleShooterSize:1.5,
     marbleSensitivity:.75,
@@ -6934,7 +7035,7 @@ const GE_GAME = (()=>{
   }
   function renderMarblePlayerAlbums(){
     if(optMarbleCount)optMarbleCount.value=String(state.marbleCount);if(optMarbleCountValue)optMarbleCountValue.textContent=String(state.marbleCount);
-    if(optMarbleArrangement)optMarbleArrangement.value=['players','circle','mixed'].includes(state.marbleArrangement)?state.marbleArrangement:'players';
+    if(optMarbleArrangement)optMarbleArrangement.value=['players','circle','mixed'].includes(state.marbleArrangement)?state.marbleArrangement:'mixed';
     if(optMarbleSize){optMarbleSize.value=String(Math.round(state.marbleSize*100));if(optMarbleSizeValue)optMarbleSizeValue.textContent=Math.round(state.marbleSize*100)+'%';}
     if(optMarbleShooterSize){optMarbleShooterSize.value=String(Math.round(state.marbleShooterSize*100));if(optMarbleShooterSizeValue)optMarbleShooterSizeValue.textContent=Math.round(state.marbleShooterSize*100)+'%';}
     if(optMarbleSensitivity){optMarbleSensitivity.value=String(precisionSensitivityToUi(state.marbleSensitivity));if(optMarbleSensitivityValue)optMarbleSensitivityValue.textContent=precisionSensitivityToUi(state.marbleSensitivity)+'%';}
@@ -6950,7 +7051,7 @@ const GE_GAME = (()=>{
     }
   }
   function previewBall(n,left,top,extra='',dx='0px',dy='0px'){return `<i class="gePreviewBall ${extra}" data-n="${n}" style="left:${left}%;top:${top}%;--pdx:${dx};--pdy:${dy}"></i>`;}
-  function previewSun(left=62,top=38,extra=''){return `<i class="gePreviewSun ${extra}" style="left:${left}%;top:${top}%"></i>`;}
+  function previewSun(left=62,top=38,extra='',dx='0px',dy='0px'){return `<i class="gePreviewSun ${extra}" style="left:${left}%;top:${top}%;--pdx:${dx};--pdy:${dy}"></i>`;}
   function renderGamePreview(kind,step=0,playing=false){
     if(!gePreviewBoard||!gePreviewCaption)return;
     const category=(kind==='blueSun'||kind==='throw'||kind==='rubber')?'points':((kind==='blueSunPool'||kind==='ninePlanet')?'pockets':((kind==='marbles')?'planets':kind));
@@ -6964,11 +7065,29 @@ const GE_GAME = (()=>{
       caption=step===0?'SHOT: one selected album planet moves. The Blue Sun stays fixed.':step===1?'CONTACT: a planet hit is 2 points total; banks count only when BANKS is enabled.':'SUN: reaching the Blue Sun scores only when BLUE SUN is enabled. Score bubbles and point circles are optional.';
     }else if(category==='pockets'&&state.gameType==='ninePlanet'){
       html+='<i class="gePreviewPocketDot" style="left:-5%;top:-8%"></i><i class="gePreviewPocketDot" style="right:-5%;top:-8%"></i><i class="gePreviewPocketDot" style="left:-5%;bottom:-8%"></i><i class="gePreviewPocketDot" style="right:-5%;bottom:-8%"></i><i class="gePreviewPocketDot" style="left:43.5%;top:-8%"></i><i class="gePreviewPocketDot" style="left:43.5%;bottom:-8%"></i>';
-      const cueClass=playing&&step===0?'previewCueStrike':'';html+=previewSun(45,8,cueClass);
-      const pos={1:[45,28],2:[40,39],3:[50,39],4:[35,50],9:[45,50],6:[55,50],7:[40,61],8:[50,61],5:[45,72]};
-      const vec={1:['-20px','34px'],2:['-52px','10px'],3:['45px','8px'],4:['-68px','-16px'],9:['8px','25px'],6:['58px','-10px'],7:['-42px','42px'],8:['44px','38px'],5:['14px','46px']};
-      for(const [n,p] of Object.entries(pos)){let cls='';if(playing&&step===0)cls='previewScatter';if(playing&&step===1&&n==='1')cls='previewPocketMove';html+=previewBall(n,p[0],p[1],cls,...(step===1&&n==='1'?['-80px','-55px']:vec[n]));}
-      caption=step===0?'BREAK: the Blue Sun reaches the 1 first; the rack moves only after contact.':step===1?'PLAY: hit the lowest numbered planet first. A legal pocket keeps the Soul at the table.':'SCRATCH: ball in hand. Double tap the Blue Sun to pick it up, move it, then double tap to set it.';
+      if(step===0){
+        html+=previewSun(45,12,playing?'previewCueStrike':'','0px','38px');
+        const pos={1:[45,30],2:[40,40],3:[50,40],4:[35,51],9:[45,51],6:[55,51],7:[40,62],8:[50,62],5:[45,73]};
+        const vec={1:['-18px','31px'],2:['-48px','8px'],3:['43px','8px'],4:['-63px','-15px'],9:['7px','23px'],6:['53px','-9px'],7:['-38px','37px'],8:['40px','34px'],5:['13px','41px']};
+        for(const [n,p] of Object.entries(pos))html+=previewBall(n,p[0],p[1],playing?'previewScatter':'',...vec[n]);
+        caption='BREAK: drive the Blue Sun through the 1 and open the rack.';
+      }else if(step===1){
+        html+=previewSun(58,66,playing?'previewCueStrike':'','-27px','-31px');
+        const pos={1:[35,38],2:[57,43],3:[69,58],4:[28,63],9:[48,55],6:[73,32],7:[38,70],8:[62,72],5:[78,52]};
+        for(const [n,p] of Object.entries(pos)){
+          if(n==='1')html+=previewBall(n,p[0],p[1],playing?'previewPocketMove':'','-72px','-52px');
+          else html+=previewBall(n,p[0],p[1]);
+        }
+        caption='1 BALL: hit the lowest numbered planet first and pocket the 1. A made ball keeps your turn.';
+      }else{
+        html+=previewSun(34,64,playing?'previewCueStrike':'','25px','-24px');
+        const pos={2:[57,43],3:[69,58],4:[28,63],9:[48,55],6:[73,32],7:[38,70],8:[62,72],5:[78,52]};
+        for(const [n,p] of Object.entries(pos)){
+          if(n==='2')html+=previewBall(n,p[0],p[1],playing?'previewPocketMove':'','72px','-48px');
+          else html+=previewBall(n,p[0],p[1]);
+        }
+        caption='2 BALL: after the 1 is down, the 2 becomes the next target. Pocket it and the preview is complete.';
+      }
     }else if(category==='pockets'){
       html+='<i class="gePreviewCenterHole"></i>';
       const cueClass=playing&&step===0?'previewCueStrike':'';html+=previewSun(45,82,cueClass);
@@ -7056,6 +7175,20 @@ const GE_GAME = (()=>{
   const GAME_PREFS_KEY='GE_GAME_SETTINGS_PERSIST_V1';
   let gePersistentGamePrefs=(()=>{try{const x=JSON.parse(localStorage.getItem(GAME_PREFS_KEY)||'null');return x&&typeof x==='object'?x:{version:1,general:null,games:{}};}catch(_e){return {version:1,general:null,games:{}};}})();
   if(!gePersistentGamePrefs.games||typeof gePersistentGamePrefs.games!=='object')gePersistentGamePrefs.games={};
+  // One-time migration from the old shipped Marbles defaults (5 / player circles)
+  // to the new default (11 / mixed-scattered). Custom settings other than those old defaults are preserved.
+  try{
+    const mk='GE_MARBLES_DEFAULTS_11_MIXED_V22';
+    if(localStorage.getItem(mk)!=='1'){
+      const mp=gePersistentGamePrefs.games.planets;
+      if(mp&&typeof mp==='object'){
+        if(Number(mp.marbleCount)===5)mp.marbleCount=11;
+        if(mp.marbleArrangement==='players')mp.marbleArrangement='mixed';
+        localStorage.setItem(GAME_PREFS_KEY,JSON.stringify(gePersistentGamePrefs));
+      }
+      localStorage.setItem(mk,'1');
+    }
+  }catch(_e){}
   function gamePrefsKey(type=state.gameType){return type==='blueSunPool'?'center':(type==='ninePlanet'?'nine':(type==='marbles'?'planets':'points'));}
   function captureGeneralGamePreferences(){return {
     tracers:!!state.tracers,scoreFx:!!state.scoreFx,showBanks:!!state.showBanks,
@@ -7099,7 +7232,7 @@ const GE_GAME = (()=>{
     }else if(key==='nine'){
       state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=1;state.poolCueSize=1;state.poolPlanetSize=1;state.blueSunSensitivity=.75;state.ninePocketLayout='six';state.nineRules='classic';state.pointMarks=false;
     }else{
-      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=5;state.marbleArrangement='players';state.marbleSize=.72;state.marbleShooterSize=1.5;state.marbleSensitivity=.75;state.marbleAlbums=['Fire','Spirit','Soul','Love','Intergy','Sessions II'];state.pointMarks=false;
+      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=11;state.marbleArrangement='mixed';state.marbleSize=.72;state.marbleShooterSize=1.5;state.marbleSensitivity=.75;state.marbleAlbums=['Fire','Spirit','Soul','Love','Intergy','Sessions II'];state.pointMarks=false;
     }
   }
   function applySpecificGamePreferences(key){
@@ -7114,7 +7247,7 @@ const GE_GAME = (()=>{
     }else if(key==='nine'){
       state.shotStyle='rubber';state.ballAccess='free';state.turnsPerPlayer=1;state.poolPocketSize=Math.max(.25,Math.min(1.8,Number(p.poolPocketSize)||1));state.poolCueSize=Math.max(.25,Math.min(1.8,Number(p.poolCueSize)||1));state.poolPlanetSize=Math.max(.25,Math.min(1.5,Number(p.poolPlanetSize)||1));state.blueSunSensitivity=Math.max(.375,Math.min(1.125,Number(p.blueSunSensitivity)||.75));state.ninePocketLayout=p.ninePocketLayout==='center'?'center':'six';state.nineRules=['classic','order','points'].includes(p.nineRules)?p.nineRules:'classic';state.pointMarks=false;
     }else{
-      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=Math.max(2,Math.min(50,Number(p.marbleCount)||5));state.marbleArrangement=['players','circle','mixed'].includes(p.marbleArrangement)?p.marbleArrangement:'players';state.marbleSize=Math.max(.55,Math.min(1.2,Number(p.marbleSize)||.72));state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(p.marbleShooterSize)||1.5));state.marbleSensitivity=Math.max(.375,Math.min(1.125,Number(p.marbleSensitivity)||.75));if(Array.isArray(p.marbleAlbums)&&p.marbleAlbums.length)state.marbleAlbums=p.marbleAlbums.slice(0,6);state.pointMarks=false;
+      state.shotStyle='throw';state.ballAccess='free';state.turnsPerPlayer=1;state.marbleCount=Math.max(2,Math.min(50,Number(p.marbleCount)||11));state.marbleArrangement=['players','circle','mixed'].includes(p.marbleArrangement)?p.marbleArrangement:'mixed';state.marbleSize=Math.max(.55,Math.min(1.2,Number(p.marbleSize)||.72));state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(p.marbleShooterSize)||1.5));state.marbleSensitivity=Math.max(.375,Math.min(1.125,Number(p.marbleSensitivity)||.75));if(Array.isArray(p.marbleAlbums)&&p.marbleAlbums.length)state.marbleAlbums=p.marbleAlbums.slice(0,6);state.pointMarks=false;
     }
     return true;
   }
@@ -7250,7 +7383,7 @@ const GE_GAME = (()=>{
     if(state.active)saveGameStateSoon();
     flash('CONTROLS RESET · V10.18 BASELINE');
   }
-  function clearHighScores(){try{localStorage.removeItem(STORAGE_SCORES);}catch(e){};try{renderArchive();renderArchive(optionsScoreArchive);}catch(e){}}
+  function clearHighScores(){try{localStorage.removeItem(STORAGE_SCORES);}catch(e){};window.GEVault?.syncGameScores?.().then(()=>{try{renderArchive();renderArchive(optionsScoreArchive);}catch(e){}}).catch(()=>{});flash('LOCAL SCORE CACHE RESET · VAULT RECORDS RETAINED')}
   function clearSoulProfiles(){state.profiles=Array.from({length:6},(_,i)=>defaultProfile(i));persistProfiles();rebuildScores(true);updateHUD(true);}
   function clearCurrentGameProgress(){try{localStorage.removeItem(GAME_STATE_KEY);}catch(e){};if(state.active){resetRound(true);if(isBlueSunGame())poolLayout(true);else if(isMarbles())marbleLayout(true);else{ALBUMS=getEnabledAlbums();placePlanets();requestAnimationFrame(buildPlanetPhysics);}}}
   function runResetSelection(selection={}){
@@ -7408,10 +7541,10 @@ const GE_GAME = (()=>{
         const dot=document.createElement('span');dot.className='turnDot '+(d>=used?'remaining':'used');dots.appendChild(dot);
       }
       stack.appendChild(dots);
-      if(isBlueSunGame()){
+      if(isBlueSunPool()){
         const target=document.createElement('div');target.className='poolTargetMini';
-        const targetText=isNinePlanet()&&state.nineRules==='points'?'ANY':String((i===state.activePlayer)?Math.min(poolTargetCap(),bluePool.next):1);
-        target.textContent='→'+targetText;target.title=targetText==='ANY'?'Any numbered planet':'Target planet '+targetText;stack.appendChild(target);
+        const targetText=String((i===state.activePlayer)?Math.min(poolTargetCap(),bluePool.next):1);
+        target.textContent='→'+targetText;target.title='Target planet '+targetText;stack.appendChild(target);
       }
       const throws=state.throwCounts?.[i]||0;
       if(state.players>0){const tc=document.createElement('div');tc.className='throwCountMini';tc.textContent='THR '+String(throws);stack.appendChild(tc);}
@@ -7672,7 +7805,7 @@ const GE_GAME = (()=>{
     const cue=poolCueNode();if(cue){
       const first=poolAlbumNode(1);
       if(!nine&&first){bluePool.cueStart=landscape?{x:(b.left+cue.r+first.x)/2,y:first.y}:{x:first.x,y:(b.bottom-cue.r+first.y)/2};}
-      else{bluePool.cueStart=landscape?{x:b.left+pw*.18,y:centerY}:{x:centerX,y:b.bottom-ph*.14};}
+      else{bluePool.cueStart=landscape?{x:b.left+pw*.25,y:centerY}:{x:centerX,y:b.bottom-ph*.22};}
       cue.x=bluePool.cueStart.x;cue.y=bluePool.cueStart.y;cue.vx=0;cue.vy=0;cue.poolPocketed=false;cue.el.classList.remove('poolPocketed');poolSyncNode(cue);
     }
     poolKeepCueVisible();
@@ -7686,7 +7819,9 @@ const GE_GAME = (()=>{
     requestAnimationFrame(()=>{
       poolEnsureCue();buildPlanetPhysics();
       const b=getPlanetPlayBounds(),newW=Math.max(1,b.right-b.left),newH=Math.max(1,b.bottom-b.top),landscape=newW>=newH;
-      bluePool.cueStart=landscape?{x:b.left+newW*.18,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.14};
+      bluePool.cueStart=isNinePlanet()
+        ? (landscape?{x:b.left+newW*.25,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.22})
+        : (landscape?{x:b.left+newW*.18,y:b.top+newH*.50}:{x:b.left+newW*.50,y:b.bottom-newH*.14});
       for(const p of planetNodes){
         const old=snapshot.get(p.el);
         if(old){
@@ -7984,6 +8119,15 @@ const GE_GAME = (()=>{
     let saved=null;
     try{ saved=JSON.parse(localStorage.getItem(GAME_STATE_KEY)||'null'); }catch(e){}
     if(!saved) return false;
+    try{
+      const mk='GE_MARBLES_ACTIVE_DEFAULTS_11_MIXED_V22';
+      if(localStorage.getItem(mk)!=='1'&&saved.gameType==='marbles'){
+        if(Number(saved.marbleCount)===5)saved.marbleCount=11;
+        if(saved.marbleArrangement==='players')saved.marbleArrangement='mixed';
+        localStorage.setItem(GAME_STATE_KEY,JSON.stringify(saved));
+        localStorage.setItem(mk,'1');
+      }
+    }catch(_e){}
     state.gameType=['blueSunPool','ninePlanet','marbles'].includes(saved.gameType)?saved.gameType:'score';
     if(Number.isFinite(saved.players)) state.players=Math.max(0,Math.min(6,saved.players|0));
     state.computerOpponent=!!saved.computerOpponent&&state.players===2;
@@ -8033,7 +8177,7 @@ const GE_GAME = (()=>{
     state.poolCueSize=Math.max(.25,Math.min(1.5,Number(saved.poolCueSize)||1));
     state.poolPlanetSize=Math.max(.25,Math.min(1.5,Number(saved.poolPlanetSize)||1));
     state.blueSunSensitivity=Math.max(.375,Math.min(1.125,Number(saved.blueSunSensitivity)||.75));
-    state.marbleCount=Math.max(2,Math.min(50,Number(saved.marbleCount)||5));state.marbleArrangement=['players','circle','mixed'].includes(saved.marbleArrangement)?saved.marbleArrangement:'players';state.marbleSize=Math.max(.55,Math.min(1.2,Number(saved.marbleSize)||.72));state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(saved.marbleShooterSize)||1.5));state.marbleSensitivity=Math.max(.375,Math.min(1.125,Number(saved.marbleSensitivity)||.75));if(Array.isArray(saved.marbleAlbums)&&saved.marbleAlbums.length)state.marbleAlbums=saved.marbleAlbums.slice(0,6);
+    state.marbleCount=Math.max(2,Math.min(50,Number(saved.marbleCount)||11));state.marbleArrangement=['players','circle','mixed'].includes(saved.marbleArrangement)?saved.marbleArrangement:'mixed';state.marbleSize=Math.max(.55,Math.min(1.2,Number(saved.marbleSize)||.72));state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(saved.marbleShooterSize)||1.5));state.marbleSensitivity=Math.max(.375,Math.min(1.125,Number(saved.marbleSensitivity)||.75));if(Array.isArray(saved.marbleAlbums)&&saved.marbleAlbums.length)state.marbleAlbums=saved.marbleAlbums.slice(0,6);
     state.ninePocketLayout=saved.ninePocketLayout==='center'?'center':'six';
     state.nineRules=['classic','order','points'].includes(saved.nineRules)?saved.nineRules:'classic';
     try{if(localStorage.getItem('GE_PRECISION_SENS_BASE_V18')!=='1'){if(Math.abs(state.blueSunSensitivity-1)<.001)state.blueSunSensitivity=.75;if(Math.abs(state.marbleSensitivity-1)<.001)state.marbleSensitivity=.75;localStorage.setItem('GE_PRECISION_SENS_BASE_V18','1');}}catch(_e){}
@@ -8112,7 +8256,7 @@ const GE_GAME = (()=>{
     if(state.players<1){state.players=1;state.scores=[0];state.throwCounts=[0];state.turnProgress=[0];state.activePlayer=0;}
     state.demoAwaitingPlayers=false;document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');setOptionsView('basic');updatePlayerOption();syncBasicGameCards();showGameHub();optionsPanel.classList.add('show');flash('NEW GAME · CHOOSE A GAME');
   }
-  newBtn?.addEventListener('click',openNewGameSetup);
+  newBtn?.addEventListener('click',()=>{newGame(false);});
   document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>{if(newGame(false))optionsPanel.classList.remove('show');});
   addEventListener('pagehide',saveGameStateNow);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGameStateNow();});
@@ -8224,7 +8368,7 @@ const GE_GAME = (()=>{
     }
   }
 
-  function startGame(){
+  function startGame(){window.GEVault?.track?.('game_start',{gameType:state.gameType||'points',players:state.players});
     // Critical UI/state first. Optional visual/audio/storage subsystems are isolated so one
     // failure can never leave the Start button looking dead or trap a modal over the page.
     prompt.classList.remove('show');
@@ -8532,7 +8676,7 @@ const GE_GAME = (()=>{
   optPointsScoreBubbles?.addEventListener('change',()=>{state.pointsScoreBubbles=!!optPointsScoreBubbles.checked;saveGameStateSoon();});
 
   function setMarbleCount(n){
-    state.marbleCount=Math.max(2,Math.min(50,Math.round(Number(n)||5)));
+    state.marbleCount=Math.max(2,Math.min(50,Math.round(Number(n)||11)));
     if(optMarbleCount)optMarbleCount.value=String(state.marbleCount);
     if(optMarbleCountValue)optMarbleCountValue.textContent=String(state.marbleCount);
     if(state.active&&isMarbles())window.GE_MARBLES?.layout?.(true);
@@ -8541,7 +8685,7 @@ const GE_GAME = (()=>{
   marblesDown?.addEventListener('click',()=>setMarbleCount(state.marbleCount-1));
   marblesUp?.addEventListener('click',()=>setMarbleCount(state.marbleCount+1));
   optMarbleCount?.addEventListener('input',()=>setMarbleCount(optMarbleCount.value));
-  optMarbleArrangement?.addEventListener('change',()=>{state.marbleArrangement=['players','circle','mixed'].includes(optMarbleArrangement.value)?optMarbleArrangement.value:'players';if(state.active&&isMarbles())window.GE_MARBLES?.layout?.(true);saveGameStateSoon();});
+  optMarbleArrangement?.addEventListener('change',()=>{state.marbleArrangement=['players','circle','mixed'].includes(optMarbleArrangement.value)?optMarbleArrangement.value:'mixed';if(state.active&&isMarbles())window.GE_MARBLES?.layout?.(true);saveGameStateSoon();});
   optMarbleSize?.addEventListener('input',()=>{state.marbleSize=Math.max(.55,Math.min(1.2,Number(optMarbleSize.value)/100||.72));if(optMarbleSizeValue)optMarbleSizeValue.textContent=Math.round(state.marbleSize*100)+'%';if(state.active&&isMarbles())window.GE_MARBLES?.layout?.(true);saveGameStateSoon();});
   optMarbleShooterSize?.addEventListener('input',()=>{state.marbleShooterSize=Math.max(1.1,Math.min(1.75,Number(optMarbleShooterSize.value)/100||1.5));if(optMarbleShooterSizeValue)optMarbleShooterSizeValue.textContent=Math.round(state.marbleShooterSize*100)+'%';if(state.active&&isMarbles())window.GE_MARBLES?.layout?.(true);saveGameStateSoon();});
   optMarbleSensitivity?.addEventListener('input',()=>{state.marbleSensitivity=precisionSensitivityFromUi(optMarbleSensitivity.value);if(optMarbleSensitivityValue)optMarbleSensitivityValue.textContent=precisionSensitivityToUi(state.marbleSensitivity)+'%';saveGameStateSoon();});
@@ -8802,6 +8946,7 @@ const GE_GAME = (()=>{
     const winningThrows=Math.max(0,Number(state.throwCounts?.[winnerIndex])||0);
     const record={
       id:recordId||('GE-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)),
+      gameType:state.gameType||'points',
       name:(name||'Anonymous').trim().slice(0,32)||'Anonymous',
       score:Math.max(...state.scores),
       target:state.maxScore,
@@ -8864,6 +9009,7 @@ const GE_GAME = (()=>{
     if(statsSession){statsSession.pendingWinnerIndex=winnerIndex;persistActiveStats();}
     scoreName.value='';if(scoreSaveStatus){scoreSaveStatus.textContent='';scoreSaveStatus.classList.remove('saved')}
     const autoRecord=saveRecord(winner);pendingScoreRecordId=autoRecord.id;
+    window.GEVault?.track?.('game_complete',{gameType:state.gameType||'points',winner,score:Math.max(...state.scores),target:state.maxScore,winningThrows:winnerThrows,players:state.players});
     roundPrompt.classList.add('show');
     setTimeout(()=>{try{scoreName.focus({preventScroll:false});scoreName.select();}catch(e){}},80);
   }
@@ -9004,22 +9150,36 @@ const GE_GAME = (()=>{
   function aiDifficultyProfile(){
     const key=['easy','normal','hard','master'].includes(state.computerDifficulty)?state.computerDifficulty:'normal';
     return ({
-      easy:{aimError:.070,speedJitter:.18,scoreBanks:0,poolBanks:0,thinkMin:900,thinkMax:1450,mistake:.24},
-      normal:{aimError:.028,speedJitter:.10,scoreBanks:1,poolBanks:1,thinkMin:780,thinkMax:1280,mistake:.08},
-      hard:{aimError:.011,speedJitter:.05,scoreBanks:2,poolBanks:2,thinkMin:700,thinkMax:1180,mistake:.025},
-      master:{aimError:.0045,speedJitter:.018,scoreBanks:3,poolBanks:2,thinkMin:620,thinkMax:1050,mistake:0}
+      // Stored keys remain easy/normal/hard/master so existing saved settings keep working.
+      easy:{label:'BABY',aimError:.090,speedJitter:.22,scoreBanks:0,poolBanks:0,thinkMin:980,thinkMax:1550,mistake:.32,pointsSpeed:980,chaos:false},
+      normal:{label:'ADOLESCENT',aimError:.040,speedJitter:.13,scoreBanks:1,poolBanks:1,thinkMin:820,thinkMax:1320,mistake:.13,pointsSpeed:1450,chaos:false},
+      hard:{label:'ADULT',aimError:.014,speedJitter:.055,scoreBanks:2,poolBanks:2,thinkMin:690,thinkMax:1140,mistake:.035,pointsSpeed:2050,chaos:false},
+      master:{label:'MASTER',aimError:.006,speedJitter:.025,scoreBanks:4,poolBanks:2,thinkMin:520,thinkMax:880,mistake:0,pointsSpeed:2925,chaos:true}
     })[key];
   }
+  function aiLineTraffic(p,tx,ty){
+    const dx=tx-p.x,dy=ty-p.y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len;
+    let hits=0,near=0;
+    for(const q of planetNodes){
+      if(!q||q===p||q.dragging||q.poolPocketed)continue;
+      const rx=q.x-p.x,ry=q.y-p.y,t=rx*ux+ry*uy;
+      if(t<=0||t>=Math.min(len,Math.hypot(innerWidth,innerHeight)*1.35))continue;
+      const px=p.x+ux*t,py=p.y+uy*t,d=Math.hypot(q.x-px,q.y-py),hitR=(p.r||8)+(q.r||8)+4;
+      if(d<=hitR)hits+=1;else if(d<=hitR*2.25)near+=1;
+    }
+    return hits*2+near*.35;
+  }
   function aiBestSunPlan(p,sx,sy,b){
-    let best=null;const maxBanks=aiDifficultyProfile().scoreBanks;
+    let best=null;const skill=aiDifficultyProfile(),maxBanks=skill.scoreBanks;
     for(let ix=-2;ix<=2;ix++)for(let iy=-2;iy<=2;iy++){
       const banks=Math.abs(ix)+Math.abs(iy);if(banks>maxBanks)continue;
       const tx=aiMirrorCoord(sx,b.left,b.right,ix),ty=aiMirrorCoord(sy,b.top,b.bottom,iy),dx=tx-p.x,dy=ty-p.y,dist=Math.hypot(dx,dy);if(dist<1)continue;
-      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0);
-      if(!aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20))continue;
-      // More banks are worth more in Planet Game, but reliability still matters.
-      const score=banks*420-dist*.08+(banks===2?110:0)+(banks===1?60:0);
-      if(!best||score>best.score)best={tx,ty,dist,banks,score};
+      const ux=dx/dist,uy=dy/dist,first=aiFirstWallPoint(p.x,p.y,ux,uy,b,p.r||0),clear=aiPathClear(p.x,p.y,first.x,first.y,p,null,(p.r||8)*.20);
+      // Master deliberately seeks traffic and banks so one hard shot can create many secondary contacts.
+      if(!clear&&!skill.chaos)continue;
+      const traffic=skill.chaos?aiLineTraffic(p,tx,ty):0;
+      const score=banks*420-dist*.08+(banks===2?110:0)+(banks===1?60:0)+(skill.chaos?traffic*720+(clear?0:480):0);
+      if(!best||score>best.score)best={tx,ty,dist,banks,traffic,score};
     }
     return best;
   }
@@ -9071,8 +9231,9 @@ const GE_GAME = (()=>{
       const stillLimit=window.GE_EASY_SETTINGS?.PLANET_INPUT_UNLOCK_SPEED??12;if(planetNodes.some(p=>p.dragging||Math.hypot(p.vx||0,p.vy||0)>stillLimit))return;
       const shooter=window.GE_MARBLES?.shooter?.(),live=planetNodes.filter(p=>p.el?.classList?.contains('marbleTarget')&&!p.poolPocketed);if(!shooter||!live.length)return;
       const own=live.filter(p=>Number(p.el.dataset.marbleOwner)===state.activePlayer),targets=own.length?own:live,plan=aiBestMarblePlan(shooter,targets);state.autoNext=now+rand(skill.thinkMin,skill.thinkMax);
-      if(plan){const speed=Math.min(1180,Math.max(610,520+plan.cueDistance*.55+plan.exitDistance*.85));aiLaunch(shooter,plan.gx,plan.gy,speed,'marbles-smart');}
-      else{const target=choice(targets),d=Math.hypot(target.x-shooter.x,target.y-shooter.y);aiLaunch(shooter,target.x,target.y,Math.min(1050,620+d*.45),'marbles-recovery');}
+      const marbleSpeed=(window.GE_EASY_SETTINGS?.MARBLE_THROW_SPEED_MULTIPLIER??1.35);
+      if(plan){const speed=Math.min(1600,Math.max(820,(520+plan.cueDistance*.55+plan.exitDistance*.85)*marbleSpeed));aiLaunch(shooter,plan.gx,plan.gy,speed,'marbles-smart');}
+      else{const target=choice(targets),d=Math.hypot(target.x-shooter.x,target.y-shooter.y);aiLaunch(shooter,target.x,target.y,Math.min(1450,(620+d*.45)*marbleSpeed),'marbles-recovery');}
       return;
     }
     if(isBlueSunGame()){
@@ -9099,9 +9260,17 @@ const GE_GAME = (()=>{
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();if(!sunRect||!candidates.length)return;const b=getPlanetPlayBounds(),sx=sunRect.left+sunRect.width/2,sy=sunRect.top+sunRect.height/2;
     let best=null;
     for(const p of candidates){const plan=aiBestSunPlan(p,sx,sy,b);if(plan&&(!best||plan.score>best.plan.score))best={p,plan};}
-    if(!best||Math.random()<skill.mistake){const p=choice(candidates);if(!p)return;aiLaunch(p,sx,sy,760,'direct-recovery');return;}
+    if(!best||Math.random()<skill.mistake){
+      const p=choice(candidates);if(!p)return;
+      const recoverySpeed=skill.chaos?Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,skill.pointsSpeed||2925):Math.max(620,skill.pointsSpeed||760);
+      aiLaunch(p,sx,sy,recoverySpeed,skill.chaos?'master-chaos-recovery':'direct-recovery');return;
+    }
     const p=best.p,plan=best.plan;let ps=state.planetState.get(p)||{vx:p.vx||0,vy:p.vy||0,banks:0,inSun:false,lastBank:0};ps.owner=cpuTurn?1:0;ps.banks=0;ps.scored=false;ps.armed=true;ps.inSun=false;state.planetState.set(p,ps);
-    const speed=Math.min(1450,Math.max(620,540+plan.dist*.46+plan.banks*105));aiLaunch(p,plan.tx,plan.ty,speed,`smart-${plan.banks}bank`);
+    const normalSpeed=Math.min(skill.pointsSpeed||1450,Math.max(620,540+plan.dist*.46+plan.banks*105));
+    const speed=skill.chaos
+      ? Math.min(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000,Math.max(2700,(skill.pointsSpeed||2925)+plan.banks*18+(plan.traffic||0)*10))
+      : normalSpeed;
+    aiLaunch(p,plan.tx,plan.ty,speed,skill.chaos?`master-chaos-${plan.banks}bank`:`smart-${plan.banks}bank`);
   }
 
   function scoreLoop(){
@@ -9887,5 +10056,138 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   scheduleSpirit(900);
 })();
 </script>\n
+
+<script id="ge-moon-live-meter-v1">
+/* Grand Element Radio Moon meter
+   Isolated from #gePlayer on purpose: the audible website player stays native so
+   iPhone/background playback cannot be broken by Web Audio. This meter opens one
+   hidden Blitz stream connection, never connects it to speakers, and samples at
+   about 12 Hz. A future tiny server-side meter can call GE_MOON_RADIO_METER.set()
+   and disable this direct probe without changing the Moon CSS. */
+(()=>{
+  const moon=document.getElementById('moon');
+  if(!moon)return;
+
+  const LIVE_URL='https://radio.grandelement.blitz.cloud/stream.mp3';
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  const SAMPLE_MS=84; // ~12 samples per second
+  const SILENT_BASE=.035;
+  let audio=null,ctx=null,source=null,analyser=null,data=null,timer=0;
+  let connected=false,level=0,lastSignalAt=0,starting=false,externalUntil=0;
+
+  function paint(v,live=true){
+    v=Math.max(0,Math.min(1,Number(v)||0));
+    // Fast attack, slower release so speech feels like light rather than flicker.
+    level += (v-level)*(v>level?.58:.18);
+    const visual=Math.sqrt(level);
+    moon.style.setProperty('--moon-level',visual.toFixed(4));
+    moon.style.setProperty('--moon-scale',(0.90+visual*.42).toFixed(4));
+    moon.style.setProperty('--moon-opacity',(SILENT_BASE+visual*.93).toFixed(4));
+    moon.classList.toggle('radio-live-reactive',!!live);
+  }
+  function fallback(){
+    connected=false;level=0;
+    moon.classList.remove('radio-live-reactive');
+    moon.style.setProperty('--moon-level','0');
+    moon.style.setProperty('--moon-scale','1');
+    moon.style.setProperty('--moon-opacity','.22');
+  }
+  function readLevel(){
+    if(Date.now()<externalUntil)return;
+    if(!connected||!analyser||!data){fallback();return;}
+    analyser.getByteTimeDomainData(data);
+    let sum=0;
+    for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}
+    const rms=Math.sqrt(sum/data.length);
+    // Ignore codec/noise-floor movement, then expand normal speech/music into 0..1.
+    const mapped=Math.max(0,Math.min(1,(rms-.008)*8.2));
+    if(mapped>.012)lastSignalAt=Date.now();
+    paint(mapped,true);
+  }
+  function ensureTimer(){
+    if(timer)return;
+    timer=setInterval(readLevel,SAMPLE_MS);
+  }
+  async function ensureGraph(){
+    if(!AudioCtx||starting)return false;
+    starting=true;
+    try{
+      if(!audio){
+        audio=document.createElement('audio');
+        audio.crossOrigin='anonymous';
+        audio.preload='none';
+        audio.playsInline=true;
+        audio.setAttribute('playsinline','');
+        audio.setAttribute('aria-hidden','true');
+        audio.style.display='none';
+        // Muted permits the initial browser-safe connection. On a real user
+        // gesture it is unmuted internally, but the Web Audio graph has no
+        // destination connection, so it still cannot be heard.
+        audio.muted=true;
+        audio.src=LIVE_URL;
+        document.body.appendChild(audio);
+        audio.addEventListener('playing',()=>{connected=true;moon.dataset.radioMeter='live';ensureTimer();});
+        audio.addEventListener('canplay',()=>{connected=true;});
+        ['error','abort','emptied'].forEach(ev=>audio.addEventListener(ev,()=>{moon.dataset.radioMeter='fallback';fallback();}));
+        audio.addEventListener('stalled',()=>{setTimeout(()=>{if(audio&&audio.readyState<2){moon.dataset.radioMeter='fallback';fallback();}},1800);});
+      }
+      if(!ctx){
+        ctx=new AudioCtx();
+        source=ctx.createMediaElementSource(audio);
+        analyser=ctx.createAnalyser();
+        analyser.fftSize=256;
+        analyser.smoothingTimeConstant=.62;
+        source.connect(analyser); // intentionally NOT connected to ctx.destination
+        data=new Uint8Array(analyser.fftSize);
+      }
+      try{if(ctx.state==='suspended')await ctx.resume();}catch(_e){}
+      try{await audio.play();}catch(_e){}
+      ensureTimer();
+      return true;
+    }catch(_e){
+      fallback();
+      return false;
+    }finally{starting=false}
+  }
+
+  // Start a muted probe when practical; browsers that require a gesture simply
+  // stay on the triplet until the first tap.
+  function startVisible(){
+    if(document.hidden)return;
+    ensureGraph();
+  }
+  setTimeout(startVisible,900);
+
+  const unlock=async()=>{
+    await ensureGraph();
+    try{
+      if(audio){audio.muted=false;if(audio.paused)await audio.play();}
+      if(ctx?.state==='suspended')await ctx.resume();
+    }catch(_e){}
+  };
+  document.addEventListener('pointerdown',unlock,{passive:true,once:true,capture:true});
+  document.addEventListener('touchstart',unlock,{passive:true,once:true,capture:true});
+  document.addEventListener('keydown',unlock,{passive:true,once:true,capture:true});
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){
+      try{audio?.pause();}catch(_e){}
+      fallback();
+    }else startVisible();
+  },{passive:true});
+
+  // Future server-side meter hook. Feed {level:0..1, live:true}; a fresh external
+  // reading temporarily takes priority over the direct Blitz analyser.
+  window.GE_MOON_RADIO_METER={
+    set(levelValue,live=true){
+      externalUntil=Date.now()+1800;
+      if(live)paint(levelValue,true);else fallback();
+    },
+    fallback,
+    reconnect:startVisible,
+    getState(){return{live:moon.classList.contains('radio-live-reactive'),level,url:LIVE_URL,lastSignalAt};}
+  };
+})();
+</script>
 </body>
 </html>
