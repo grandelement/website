@@ -220,12 +220,31 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 #mixerSheet .mixStrip{min-width:0!important}
 #mixerSheet .touchFaderThumb{height:60px!important;left:3px!important;right:3px!important}
 @media(max-width:560px){#mixerSheet .mixerGrid{grid-template-columns:repeat(var(--mixer-cols,4),minmax(52px,1fr))!important}}
+
+/* Private GE fan/music analytics */
+.sectionActions{display:flex;gap:5px;align-items:center}
+#analyticsModal .modalBox{width:min(940px,100%);max-height:94vh}
+.analyticsControls{display:flex;gap:7px;align-items:center;margin:9px 0}
+.analyticsControls select,.analyticsControls button{min-height:42px;border:1px solid #3a4855;background:#111820;color:#fff;border-radius:9px;padding:0 10px;font-size:9px;font-weight:900}
+.analyticsStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0}
+.analyticsStat{border:1px solid #2d3b47;background:#071018;border-radius:10px;padding:9px}
+.analyticsStat b{display:block;font-size:18px}.analyticsStat span{font-size:7px;color:var(--muted);font-weight:900}
+.analyticsSection{margin-top:11px;border-top:1px solid #283642;padding-top:9px}
+.analyticsSection h3{margin:0 0 6px;font-size:11px}
+.analyticsChips{display:flex;flex-wrap:wrap;gap:5px}
+.analyticsChip{border:1px solid #31404d;background:#091017;border-radius:999px;padding:6px 8px;font-size:8px}
+.analyticsTableWrap{overflow:auto;border:1px solid #27343f;border-radius:9px}
+.analyticsTable{width:100%;border-collapse:collapse;font-size:8px;min-width:720px}
+.analyticsTable th,.analyticsTable td{padding:7px;border-bottom:1px solid #202b34;text-align:left;white-space:nowrap}
+.analyticsTable th{color:var(--muted);font-size:7px}.analyticsTable td:first-child{font-weight:900;color:#fff}
+.analyticsStatus{min-height:16px;font-size:9px;color:var(--accent)}
+@media(max-width:560px){.analyticsStats{grid-template-columns:1fr 1fr}#analyticsModal{padding:0}#analyticsModal .modalBox{height:100dvh;max-height:none;border-radius:0}}
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
   <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v7</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div><button class="skipNow" id="skipNow" aria-label="Skip current track">▶▶</button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div><div class="hmeter"><div class="hmeterFill" id="radioMeter"></div></div></div>
-  <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
+  <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><div class="sectionActions"><button class="miniAction" id="analyticsOpen">FANS</button><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
 </div>
 <audio id="radioAudio" preload="auto" playsinline crossorigin="anonymous" src="/dj-cue.mp3"></audio>
 <div class="dock"><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div><div class="dockin"><button id="dockRadio">RADIO</button><button class="cue" id="dockCue">CUE</button><button class="mic" id="dockMic">MIC</button><button id="dockMixer">MIXER</button><button class="studio" id="dockStudio">STUDIO</button></div></div>
@@ -252,6 +271,15 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 </div></div></div>
 
 
+<div class="modal" id="analyticsModal"><div class="modalBox">
+  <div class="modalHead"><div><b>GE FAN + MUSIC ANALYTICS</b><div class="note">Private Vault report. QR acquisition, geography, visits, games, radio activity and song listening are joined by the anonymous GE fan ID.</div></div><button id="analyticsClose">CLOSE</button></div>
+  <div class="analyticsControls"><select id="analyticsDays"><option value="7">7 DAYS</option><option value="30" selected>30 DAYS</option><option value="90">90 DAYS</option><option value="365">1 YEAR</option><option value="3650">ALL</option></select><button id="analyticsRefresh">REFRESH</button></div>
+  <div class="analyticsStatus" id="analyticsStatus"></div>
+  <div class="analyticsStats" id="analyticsStats"></div>
+  <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
+  <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
+  <div class="analyticsSection"><h3>MUSIC USAGE · GE + ASCAP READY</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
+</div></div>
 <div class="modal" id="playlistModal"><div class="modalBox">
   <div class="modalHead"><div><b>PLAYLISTS</b><div class="note">Choose albums and songs, save the selection, then use any saved playlist as the radio rotation.</div></div><button id="playlistClose">CLOSE</button></div>
   <div class="playlistGrid">
@@ -486,6 +514,30 @@ async function normalRotation(){
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:false,playlist_id:''})}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();cacheCurrentPlaylists();setPlaylistStatus('NORMAL RADIO ROTATION')
 }
+function analyticsFmtSeconds(v){v=Math.max(0,Number(v)||0);const h=Math.floor(v/3600),m=Math.floor((v%3600)/60),s=Math.floor(v%60);return h?h+'h '+m+'m':m?m+'m '+s+'s':s+'s'}
+function analyticsChips(rows,empty){if(!Array.isArray(rows)||!rows.length)return '<span class="note">'+esc(empty||'No data yet.')+'</span>';return rows.slice(0,12).map(function(x){return '<span class="analyticsChip">'+esc(x.name||'Unknown')+' · '+Number(x.count||0)+'</span>'}).join('')}
+function renderAnalytics(d){
+  const t=d&&d.totals||{};
+  $('analyticsStats').innerHTML=[
+    ['QR SCANS',t.qr_scans||0],['UNIQUE FANS',t.unique_visitors||0],['SESSIONS',t.sessions||0],['PAGE VIEWS',t.page_views||0],
+    ['RADIO OPENS',t.radio_opens||0],['GAME FINISHES',t.game_completions||0],['REFLECTIONS',t.soul_reflections||0],['EVENTS',t.events||0]
+  ].map(function(x){return '<div class="analyticsStat"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join('');
+  const acq=d&&d.acquisition||{},geo=d&&d.geography||{};
+  $('analyticsCampaigns').innerHTML=analyticsChips(acq.campaigns,'No QR campaign scans yet.')+analyticsChips(acq.placements,'');
+  $('analyticsLocations').innerHTML=analyticsChips(geo.cities,'No location data yet.')+analyticsChips(geo.regions,'');
+  const music=Array.isArray(d&&d.music)?d.music.filter(function(x){return !x.station_id}):[];
+  $('analyticsMusic').innerHTML=music.slice(0,100).map(function(x){
+    return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
+  }).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
+}
+async function loadAnalytics(){
+  const days=Number($('analyticsDays').value||30);$('analyticsStatus').textContent='LOADING VAULT…';
+  try{
+    const r=await api('/control/vault/analytics?days='+encodeURIComponent(days)),d=await r.json().catch(function(){return {}});
+    if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');
+    renderAnalytics(d);$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals?.events||0)+' EVENTS';
+  }catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}
+}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
 function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');await loadDjPermanentState();render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();applyEmbedMode();startPoll()}
 $('enter').onclick=async function(){try{$('loginStatus').textContent='CONNECTING…';await ensureAudio();await verify($('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}};$('password').addEventListener('keydown',function(e){if(e.key==='Enter')$('enter').click()});
@@ -646,6 +698,10 @@ loadMixerChannelPrefs();
 $('masterDelayFx').onclick=function(){openFx(fxTarget,'delay')};$('masterReverbFx').onclick=function(){openFx(fxTarget,'reverb')};$('fxFullBtn').onclick=function(){$('mixerSheet').classList.toggle('fxFull');this.textContent=$('mixerSheet').classList.contains('fxFull')?'BACK TO MIXER':'FULL SCREEN';requestAnimationFrame(syncTouchFaders)};$('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};$('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('dockMic').onclick=function(){toggleAir('mic').catch(function(e){alert(e.message||e)})};$('dockMixer').onclick=function(){$('mixerSheet').classList.add('show')};$('masterRadio').onclick=async function(){await api('/control/music-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'on'})});poll()};$('masterStopLive').onclick=function(){forceStopLive().catch(function(e){alert(e.message||e)})};$('studioStopBtn').onclick=function(){forceStopLive().catch(function(e){alert(e.message||e)})};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on')}if(b.dataset.close==='effectsSheet'){$('mixerSheet').classList.remove('fxFull');$('fxFullBtn').textContent='FULL SCREEN';requestAnimationFrame(syncTouchFaders)}}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
+$('analyticsOpen').onclick=function(){$('analyticsModal').classList.add('show');loadAnalytics()};
+$('analyticsClose').onclick=function(){$('analyticsModal').classList.remove('show')};
+$('analyticsRefresh').onclick=function(){loadAnalytics()};
+$('analyticsDays').onchange=function(){loadAnalytics()};
 $('playlistOpen').onclick=function(){
   const fresh=!$('playlistModal').classList.contains('show');$('playlistModal').classList.add('show');renderSavedPlaylists();
   const active=status&&status.custom_mix_enabled?String(status.custom_mix_id||''):'';
