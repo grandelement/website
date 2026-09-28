@@ -42,6 +42,9 @@ MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
 MAX_CLIP_UPLOAD_BYTES = 100 * 1024 * 1024
 
+GE_VAULT_URL = os.environ.get("GE_VAULT_URL", "https://vault.grandelement.com").rstrip("/")
+GE_VAULT_ADMIN_TOKEN = os.environ.get("GE_VAULT_ADMIN_TOKEN", "").strip()
+
 def read_json(path, default):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -61,6 +64,83 @@ def station_settings():
         "custom_mix_enabled": bool(raw.get("custom_mix_enabled", False)),
         "custom_mix_id": str(raw.get("custom_mix_id", "") or ""),
     }
+
+def vault_configured():
+    return bool(GE_VAULT_URL and GE_VAULT_ADMIN_TOKEN)
+
+def vault_request(method, path, payload=None, timeout=6):
+    if not vault_configured():
+        raise RuntimeError("GE Vault is not configured on the radio server.")
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        GE_VAULT_URL + path,
+        data=data,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {GE_VAULT_ADMIN_TOKEN}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+        return json.loads(raw.decode("utf-8")) if raw else {}
+
+def vault_save_radio_setting(key, value):
+    if not vault_configured():
+        return False
+    try:
+        vault_request("PUT", "/v1/vault", {
+            "kind": "setting",
+            "scope": "radio",
+            "key": str(key),
+            "value_json": value,
+            "locked": False,
+            "sensitivity": "private",
+        })
+        return True
+    except Exception as exc:
+        print(f"GE Radio: Vault setting save failed for {key}: {exc}", flush=True)
+        return False
+
+def vault_restore_crossfade():
+    if not vault_configured():
+        return False
+    try:
+        data = vault_request("GET", "/v1/vault?kind=setting&scope=radio")
+        rows = data.get("items", []) if isinstance(data, dict) else []
+        row = next((x for x in rows if str(x.get("key", "")) == "crossfade_seconds"), None)
+        if not row:
+            return False
+        raw = row.get("value_json")
+        if raw not in (None, ""):
+            try:
+                value = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:
+                value = raw
+        else:
+            value = row.get("value_text")
+        seconds = max(0.0, min(12.0, float(value)))
+        settings = station_settings()
+        settings["crossfade_seconds"] = seconds
+        write_json(SETTINGS, settings)
+        rotation = read_json(ROTATION, {"entries": []})
+        if rotation.get("entries"):
+            rewrite_playlist(rotation)
+            try:
+                liquidsoap_command("radio.reload")
+            except Exception:
+                pass
+        print(f"GE Radio: restored crossfade {seconds:.1f}s from Vault.", flush=True)
+        return True
+    except Exception as exc:
+        print(f"GE Radio: Vault crossfade restore skipped: {exc}", flush=True)
+        return False
+
+def restore_vault_settings_after_start():
+    # Give the rest of the radio stack time to create rotation/runtime files.
+    time.sleep(2.0)
+    vault_restore_crossfade()
 
 def read_custom_playlists():
     candidates = [CUSTOM_PLAYLISTS, CUSTOM_PLAYLISTS_BACKUP, DEFAULT_PLAYLISTS]
@@ -1241,6 +1321,13 @@ class Handler(BaseHTTPRequestHandler):
                 settings = station_settings()
                 settings["crossfade_seconds"] = seconds
                 write_json(SETTINGS, settings)
+                if vault_configured():
+                    threading.Thread(
+                        target=vault_save_radio_setting,
+                        args=("crossfade_seconds", seconds),
+                        daemon=True,
+                        name="ge-vault-crossfade-save",
+                    ).start()
                 rotation = read_json(ROTATION, {"entries": []})
                 if rotation.get("entries"):
                     rewrite_playlist(rotation)
@@ -1248,7 +1335,7 @@ class Handler(BaseHTTPRequestHandler):
                         liquidsoap_command("radio.reload")
                     except Exception:
                         pass
-                self.json_response({"ok": True, "crossfade_seconds": seconds})
+                self.json_response({"ok": True, "crossfade_seconds": seconds, "vault_configured": vault_configured()})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
@@ -1749,6 +1836,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     BROADCAST = BroadcastEngine()
+    if vault_configured():
+        threading.Thread(target=restore_vault_settings_after_start, daemon=True, name="ge-vault-settings-restore").start()
     print("GE Radio: direct microphone bridge ready on /control/live.", flush=True)
     print("GE Radio: DJ control server listening internally on 8090.", flush=True)
     ThreadingHTTPServer(("127.0.0.1", 8090), Handler).serve_forever()
