@@ -125,6 +125,35 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
   FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS game_scores (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  game_type TEXT NOT NULL DEFAULT 'points',
+  player_name TEXT NOT NULL,
+  score REAL NOT NULL DEFAULT 0,
+  target REAL NOT NULL DEFAULT 0,
+  winning_throws INTEGER NOT NULL DEFAULT 0,
+  players INTEGER NOT NULL DEFAULT 1,
+  completed_at TEXT,
+  anon_id TEXT,
+  ip_hash TEXT,
+  ip_ciphertext TEXT,
+  country TEXT,
+  region TEXT,
+  city TEXT,
+  record_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game_score_versions (
+  version_id TEXT PRIMARY KEY,
+  score_id TEXT NOT NULL,
+  recorded_at INTEGER NOT NULL,
+  ip_hash TEXT,
+  record_json TEXT NOT NULL,
+  FOREIGN KEY (score_id) REFERENCES game_scores(id) ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS vault_values (
   kind TEXT NOT NULL CHECK (kind IN ('setting','location','instruction')),
   scope TEXT NOT NULL,
@@ -157,6 +186,9 @@ CREATE INDEX IF NOT EXISTS idx_comments_time ON comments(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_playlists_updated ON playlists(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_values_scope ON vault_values(kind, scope, key);
+CREATE INDEX IF NOT EXISTS idx_game_scores_rank ON game_scores(game_type, winning_throws ASC, score DESC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_scores_ip ON game_scores(ip_hash, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_score_versions_score ON game_score_versions(score_id, recorded_at DESC);
 
 INSERT OR IGNORE INTO vault_meta(key,value,updated_at)
 VALUES ('schema_version','2',unixepoch());
