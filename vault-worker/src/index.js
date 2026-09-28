@@ -1164,8 +1164,8 @@ async function adminAnalytics(env, url) {
   const stationTracks = new Map();
 
   for (const row of items) {
-    if (row.anon_id) visitors.add(String(row.anon_id));
-    if (row.session_id) sessions.add(String(row.session_id));
+    if (row.anon_id && row.anon_id !== "ge-radio-station") visitors.add(String(row.anon_id));
+    if (row.session_id && row.event_type !== "station_performance") sessions.add(String(row.session_id));
     bumpCount(eventCounts, row.event_type);
     bumpCount(campaigns, row.utm_campaign);
     bumpCount(sources, row.utm_source);
