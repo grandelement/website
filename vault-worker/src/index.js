@@ -899,6 +899,76 @@ async function deletePlaylist(request, env, playlistId) {
   return json({ ok: true });
 }
 
+async function listEffectPresets(env, url) {
+  const surface = String(url.searchParams.get("surface") || "dj").trim().slice(0, 40);
+  const includeArchived = url.searchParams.get("archived") === "1";
+  const sql = includeArchived
+    ? "SELECT id,surface,name,archived,created_at,updated_at,settings_json FROM effect_presets WHERE surface=? ORDER BY archived ASC,name COLLATE NOCASE ASC"
+    : "SELECT id,surface,name,archived,created_at,updated_at,settings_json FROM effect_presets WHERE surface=? AND archived=0 ORDER BY name COLLATE NOCASE ASC";
+  const rows = await env.VAULT_DB.prepare(sql).bind(surface).all();
+  return (rows.results || []).map((row) => {
+    let settings = {};
+    try { settings = JSON.parse(row.settings_json || "{}"); } catch {}
+    return { ...row, archived: !!row.archived, settings };
+  });
+}
+
+async function saveEffectPreset(request, env) {
+  if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
+  const body = await readBody(request);
+  const surface = String(body.surface || "dj").trim().slice(0, 40);
+  const name = String(body.name || "").trim().replace(/\s+/g, " ").slice(0, 80);
+  if (!surface || !name) return json({ ok: false, error: "Surface and preset name are required." }, 400);
+  const settings = body.settings && typeof body.settings === "object" ? body.settings : {};
+  const settingsJson = cleanJson(settings);
+  const t = now();
+
+  const existingByName = await env.VAULT_DB.prepare(
+    "SELECT id,created_at FROM effect_presets WHERE surface=? AND lower(name)=lower(?) LIMIT 1"
+  ).bind(surface, name).first();
+
+  const presetId = String(body.id || existingByName?.id || id("fxpreset")).slice(0, 160);
+  const existingById = existingByName || await env.VAULT_DB.prepare(
+    "SELECT id,created_at FROM effect_presets WHERE id=?"
+  ).bind(presetId).first();
+
+  await env.VAULT_DB.batch([
+    env.VAULT_DB.prepare(
+      `INSERT INTO effect_presets (id,surface,name,archived,created_at,updated_at,settings_json)
+       VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO UPDATE SET
+         surface=excluded.surface,
+         name=excluded.name,
+         archived=0,
+         updated_at=excluded.updated_at,
+         settings_json=excluded.settings_json`
+    ).bind(presetId, surface, name, 0, existingById?.created_at || t, t, settingsJson),
+    env.VAULT_DB.prepare(
+      "INSERT INTO effect_preset_versions (version_id,preset_id,recorded_at,action,settings_json) VALUES (?,?,?,?,?)"
+    ).bind(id("fxver"), presetId, t, existingById ? "update" : "create", settingsJson),
+  ]);
+
+  await audit(env, "admin", "effect_preset.save", "effect_preset", presetId, { surface, name });
+  return json({ ok: true, id: presetId, name, surface });
+}
+
+async function archiveEffectPreset(request, env, presetId) {
+  if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
+  const row = await env.VAULT_DB.prepare(
+    "SELECT id,surface,name,settings_json FROM effect_presets WHERE id=?"
+  ).bind(presetId).first();
+  if (!row) return json({ ok: false, error: "Preset not found." }, 404);
+  const t = now();
+  await env.VAULT_DB.batch([
+    env.VAULT_DB.prepare("UPDATE effect_presets SET archived=1,updated_at=? WHERE id=?").bind(t, presetId),
+    env.VAULT_DB.prepare(
+      "INSERT INTO effect_preset_versions (version_id,preset_id,recorded_at,action,settings_json) VALUES (?,?,?,?,?)"
+    ).bind(id("fxver"), presetId, t, "archive", row.settings_json || "{}"),
+  ]);
+  await audit(env, "admin", "effect_preset.archive", "effect_preset", presetId, { surface: row.surface, name: row.name });
+  return json({ ok: true, id: presetId });
+}
+
 async function listVaultValues(env, url) {
   const kind = url.searchParams.get("kind");
   const scope = url.searchParams.get("scope");
@@ -963,7 +1033,7 @@ async function saveVaultValue(request, env) {
 }
 
 async function adminSummary(env) {
-  const names = ["fans", "fan_events", "listener_events", "comments", "playlists", "vault_values", "audit_log"];
+  const names = ["fans", "fan_events", "listener_events", "comments", "playlists", "effect_presets", "effect_preset_versions", "vault_values", "audit_log"];
   const counts = {};
   for (const name of names) {
     const row = await env.VAULT_DB.prepare(`SELECT COUNT(*) AS n FROM ${name}`).first();
@@ -1119,6 +1189,24 @@ export default {
       const playlistMatch = url.pathname.match(/^\/v1\/playlists\/([^/]+)$/);
       if (playlistMatch && request.method === "DELETE") {
         const response = await deletePlaylist(request, env, decodeURIComponent(playlistMatch[1]));
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
+      if (url.pathname === "/v1/effect-presets" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        return json({ ok: true, items: await listEffectPresets(env, url) }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/effect-presets" && ["POST", "PUT"].includes(request.method)) {
+        const response = await saveEffectPreset(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
+      const fxPresetMatch = url.pathname.match(/^\/v1\/effect-presets\/([^/]+)$/);
+      if (fxPresetMatch && request.method === "DELETE") {
+        const response = await archiveEffectPreset(request, env, decodeURIComponent(fxPresetMatch[1]));
         Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
         return response;
       }
