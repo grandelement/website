@@ -154,6 +154,26 @@ CREATE TABLE IF NOT EXISTS game_score_versions (
   FOREIGN KEY (score_id) REFERENCES game_scores(id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS effect_presets (
+  id TEXT PRIMARY KEY,
+  surface TEXT NOT NULL,
+  name TEXT NOT NULL,
+  archived INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  settings_json TEXT NOT NULL,
+  UNIQUE(surface, name)
+);
+
+CREATE TABLE IF NOT EXISTS effect_preset_versions (
+  version_id TEXT PRIMARY KEY,
+  preset_id TEXT NOT NULL,
+  recorded_at INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  settings_json TEXT NOT NULL,
+  FOREIGN KEY (preset_id) REFERENCES effect_presets(id) ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS vault_values (
   kind TEXT NOT NULL CHECK (kind IN ('setting','location','instruction')),
   scope TEXT NOT NULL,
@@ -186,6 +206,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_time ON comments(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_playlists_updated ON playlists(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_values_scope ON vault_values(kind, scope, key);
+CREATE INDEX IF NOT EXISTS idx_effect_presets_surface ON effect_presets(surface, archived, name);
+CREATE INDEX IF NOT EXISTS idx_effect_preset_versions_id ON effect_preset_versions(preset_id, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_game_scores_rank ON game_scores(game_type, winning_throws ASC, score DESC, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_game_scores_ip ON game_scores(ip_hash, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_game_score_versions_score ON game_score_versions(score_id, recorded_at DESC);
@@ -234,3 +256,8 @@ BEGIN SELECT RAISE(ABORT,'GE Vault protected table: game_score_versions cannot b
 CREATE TRIGGER IF NOT EXISTS protect_audit_log_delete
 BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT,'GE Vault protected table: audit_log cannot be deleted by routine operations'); END;
+
+
+CREATE TRIGGER IF NOT EXISTS protect_effect_preset_versions_delete
+BEFORE DELETE ON effect_preset_versions
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: effect_preset_versions cannot be deleted by routine operations'); END;
