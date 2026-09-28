@@ -199,3 +199,17 @@ The website should keep browser localStorage only as a cache/offline fallback. D
 ## Deletion policy
 
 Fan events, game score history and audit history are append-first and have no routine delete API. Moderation can hide a public comment without deleting its stored record. Any legally required data removal should be handled as an explicit administrative/privacy process rather than a normal site control.
+
+
+## Database-level deletion guardrails
+
+The schema installs SQLite triggers that reject routine DELETE statements against:
+- fans
+- listener_events
+- fan_events
+- comments
+- game_scores
+- game_score_versions
+- audit_log
+
+This is an accidental-loss safeguard, not a claim that data can never be removed under any circumstances. A required privacy/legal deletion must use a deliberate maintenance migration that explicitly removes/recreates the relevant guardrail and records the action.
