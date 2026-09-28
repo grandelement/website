@@ -503,6 +503,8 @@ def public_track(meta):
         "kind": meta.get("ge_kind") or "",
         "slot": meta.get("ge_slot") or "",
         "path": meta.get("ge_path") or "",
+        "ascap_work_id": meta.get("ascap_work_id") or "",
+        "ascap_title": meta.get("ascap_title") or "",
     }
 
 def q(value):
