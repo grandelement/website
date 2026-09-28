@@ -283,8 +283,8 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
   <div class="analyticsSection"><h3>NETWORK / LANGUAGE / REFERRERS</h3><div class="analyticsChips" id="analyticsTechnology"></div></div>
   <div class="analyticsSection"><h3>INDIVIDUAL FANS · TAP A ROW FOR FULL HISTORY</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>FAN ID</th><th>LAST SEEN</th><th>LOCATION</th><th>SESSIONS</th><th>EVENTS</th><th>SONGS</th><th>LISTENED</th><th>CAMPAIGN</th></tr></thead><tbody id="analyticsFans"></tbody></table></div><div class="fanDetail" id="analyticsFanDetail"></div></div>
-  <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
-  <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">Server-side record of each Grand Element Radio song start, independent of the listener's browser.</div><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PERFORMANCES</th><th>LAST PLAYED</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
+  <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
+  <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">Server-side record of each Grand Element Radio song start, independent of the listener's browser.</div><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PERFORMANCES</th><th>LAST PLAYED</th><th>ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
 </div></div>
 <div class="modal" id="playlistModal"><div class="modalBox">
   <div class="modalHead"><div><b>PLAYLISTS</b><div class="note">Choose albums and songs, save the selection, then use any saved playlist as the radio rotation.</div></div><button id="playlistClose">CLOSE</button></div>
@@ -543,7 +543,7 @@ function renderAnalytics(d){
   }).join('')||'<tr><td colspan="8" class="note">No individual fan records yet.</td></tr>';
   const music=Array.isArray(d&&d.music)?d.music.filter(function(x){return !x.station_id}):[];
   $('analyticsMusic').innerHTML=music.slice(0,100).map(function(x){
-    return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
+    return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'
   }).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
   const station=Array.isArray(d&&d.station_music)?d.station_music:[];
   $('analyticsStation').innerHTML=station.slice(0,100).map(function(x){
