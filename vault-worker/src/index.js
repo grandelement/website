@@ -684,12 +684,13 @@ function allowedPublicEventType(value) {
   const type = safeText(value, 80).toLowerCase();
   const allowed = new Set([
     "page_view","session_start","session_end","qr_scan",
-    "radio_open","radio_play","radio_pause","radio_stop",
+    "radio_open","radio_play","radio_pause","radio_stop","radio_live",
     "track_start","track_pause","track_resume","track_progress","track_complete","track_stop","track_skip","track_seek",
-    "share_open","share_complete","share_copy","share_track",
+    "audio_play","audio_pause","audio_end",
+    "share_open","share_complete","share_copy","share_track","track_share",
     "download","offline_enable","offline_disable",
     "ship_open","ship_arrival","gate_open","gate_unlock","access_request",
-    "soul_reflection_open","soul_reflection_place","comment_submit",
+    "soul_reflection","soul_reflection_open","soul_reflection_place","comment_submit",
     "playlist_view","background_change","button_click","external_link",
     "game_start","game_complete"
   ]);
