@@ -216,6 +216,23 @@ async function upsertFan(env, body, geo) {
   return fanId;
 }
 
+async function ingestFan(request, env) {
+  if (!ingestAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
+  const body = await readBody(request);
+  const fan = body.fan && typeof body.fan === "object" ? body.fan : body;
+  const geo = {
+    country: fan.country || null,
+    region: fan.region || null,
+    city: fan.city || null,
+    timezone: fan.timezone || null,
+  };
+  const fanId = await upsertFan(env, fan, geo);
+  await audit(env, "trusted-ingest", "fan.upsert", "fan", fanId, {
+    source: String(body.source || fan.source || "first-party").slice(0, 80),
+  });
+  return json({ ok: true, id: fanId }, 201);
+}
+
 async function ingestListener(request, env) {
   if (!ingestAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
   const body = await readBody(request);
