@@ -231,6 +231,31 @@ def clean_title(path):
     stem = re.sub(r"^[A-Za-z ]+[_ -]\d{1,2}[_ -]+", "", stem)
     return stem.replace("_", " ").strip() or Path(path).stem
 
+def normalize_work_title(value):
+    return re.sub(r"[^A-Z0-9=]+", " ", str(value or "").upper()).strip()
+
+def load_rights_catalog():
+    try:
+        raw = git_run(["show", "FETCH_HEAD:ge-music/ascap-work-ids.json"])
+        data = json.loads(raw)
+        out = {}
+        for work in data.get("works", []):
+            work_id = str(work.get("work_id", "") or "").strip()
+            if not work_id:
+                continue
+            names = [work.get("title", "")] + list(work.get("aliases", []) or [])
+            for name in names:
+                key = normalize_work_title(name)
+                if key:
+                    out[key] = {
+                        "ascap_work_id": work_id,
+                        "ascap_title": str(work.get("title", "") or "").strip(),
+                    }
+        return out
+    except Exception as exc:
+        print(f"GE Radio: ASCAP catalog warning: {exc}", flush=True)
+        return {}
+
 def fetch_library():
     # Important: this intentionally uses normal Git, NOT api.github.com.
     # Blitz uses shared outbound IPs and anonymous GitHub REST API requests can
@@ -248,6 +273,7 @@ def fetch_library():
         "ge-music/music", "ge-music/clips"
     ])
 
+    rights_catalog = load_rights_catalog()
     songs, clips = [], []
     for line in listing.splitlines():
         try:
@@ -264,11 +290,15 @@ def fetch_library():
 
         if lower.startswith("ge-music/music/"):
             album = album_name(path)
+            title = clean_title(path)
+            rights = rights_catalog.get(normalize_work_title(title), {})
             songs.append({
                 "path": path,
                 "sha": sha,
                 "album": album,
-                "title": clean_title(path),
+                "title": title,
+                "ascap_work_id": rights.get("ascap_work_id", ""),
+                "ascap_title": rights.get("ascap_title", ""),
             })
         elif lower.startswith("ge-music/clips/") and "station identification" in lower:
             clips.append({
@@ -299,6 +329,10 @@ def annotation(entry, commit_sha, cross=None):
         f'ge_slot="{q(entry["slot"])}"',
         f'ge_path="{q(entry["path"])}"',
     ]
+    if entry.get("ascap_work_id"):
+        fields.append(f'ascap_work_id="{q(entry["ascap_work_id"])}"')
+    if entry.get("ascap_title"):
+        fields.append(f'ascap_title="{q(entry["ascap_title"])}"')
     if cross is not None:
         fields.append(f'liq_cross_duration="{cross:.1f}"')
     return "annotate:" + ",".join(fields) + ":" + raw_url(commit_sha, entry["path"])
@@ -336,6 +370,8 @@ def save_library(commit_sha, songs, clips):
             "album": song["album"],
             "path": song["path"],
             "section": section,
+            "ascap_work_id": song.get("ascap_work_id", ""),
+            "ascap_title": song.get("ascap_title", ""),
         })
 
     for clip in clips:
