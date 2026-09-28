@@ -1619,13 +1619,36 @@ body.nine-planet-active.nine-six-pocket #blueSunPoolPocket{display:none!importan
 
 </style>
 
+<script id="ge-site-config-loader">
+(()=>{
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('ge_mode')||'';
+  const mode=requested==='test'?'test':(requested==='live-draft'?'live-draft':'live');
+  const repoMode=mode==='test'?'test':'live';
+  const draftKey=mode==='test'?'GE_BACKROOM_TEST_CONFIG_V1':(mode==='live-draft'?'GE_BACKROOM_LIVE_CONFIG_V1':'');
+  let cfg=null;
+  if(draftKey){
+    try{cfg=JSON.parse(localStorage.getItem(draftKey)||'null')}catch(_e){}
+  }
+  if(!cfg){
+    try{
+      const xhr=new XMLHttpRequest();
+      xhr.open('GET','./config/site-'+repoMode+'.json?gecfg=1',false);
+      xhr.send(null);
+      if((xhr.status>=200&&xhr.status<300)||xhr.status===0)cfg=JSON.parse(xhr.responseText||'null');
+    }catch(_e){}
+  }
+  window.GE_SITE_MODE=mode;
+  window.GE_SITE_CONFIG=(cfg&&typeof cfg==='object')?cfg:{version:1,mode:repoMode};
+})();
+</script>
 <script src="./ge-vault-client.js"></script>
 <script>
 /* ============================================================
    GRAND ELEMENT — EASY SETTINGS
    Change these numbers here instead of hunting through the file.
    ============================================================ */
-window.GE_EASY_SETTINGS = {
+window.GE_EASY_SETTINGS = Object.assign({
   // PLANET / POOL FEEL
   PLANET_THROW_POWER: 925,      // higher = faster throws
   PLANET_FRICTION: 0.984,        // normal pool-ball roll
@@ -1784,7 +1807,7 @@ window.GE_EASY_SETTINGS = {
   COMET_FOREGROUND_RARE_CHANCE: 0.006,
   GAME_UI_SCALE_MIN: 0.58,
   GAME_UI_SCALE_MAX: 1.50
-};
+}, window.GE_SITE_CONFIG?.easySettings || {});
 </script>
 
 <style id="ge-v104-overrides">
@@ -3363,6 +3386,17 @@ const ALL_ALBUMS = [
   { title:"Live!", musicTitle:"Live", cover:IMG+"Grand%20Element%20-%20Live.jpg", link:"https://grandelement.bandcamp.com/album/live", legendary:true },
   { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true }
 ];
+const GE_SITE_ALBUM_SETTINGS=window.GE_SITE_CONFIG?.albums||{};
+if(Array.isArray(GE_SITE_ALBUM_SETTINGS.order)&&GE_SITE_ALBUM_SETTINGS.order.length){
+  const rank=new Map(GE_SITE_ALBUM_SETTINGS.order.map((n,i)=>[normAlbumName(n),i]));
+  ALL_ALBUMS.sort((a,b)=>(rank.get(normAlbumName(a.musicTitle))??999)-(rank.get(normAlbumName(b.musicTitle))??999));
+}
+const GE_SITE_VISIBLE_ALBUM_KEYS=new Set(
+  (Array.isArray(GE_SITE_ALBUM_SETTINGS.visible)&&GE_SITE_ALBUM_SETTINGS.visible.length
+    ? GE_SITE_ALBUM_SETTINGS.visible
+    : ALL_ALBUMS.filter(a=>!a.legendary).map(a=>a.musicTitle)
+  ).map(normAlbumName)
+);
 
 const GE_SITE_ALBUM_SELECTION_KEY='GE_SITE_PLANET_SELECTION_V2';
 const GE_GAME_ALBUM_SELECTION_KEY='GE_GAME_PLANET_SELECTION_V3';
@@ -3382,7 +3416,7 @@ function geReadAlbumSelection(key,defaults){
 }
 let GE_SITE_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_SITE_ALBUM_SELECTION_KEY,
-  ALL_ALBUMS.filter(a=>!a.legendary).map(a=>a.musicTitle)
+  ALL_ALBUMS.filter(a=>GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey(a.musicTitle))).map(a=>a.musicTitle)
 );
 const GE_POINTS_CORE_DEFAULT=['Fire','Spirit','Soul','Love','Intergy'];
 let GE_GAME_SELECTED_ALBUMS=geReadAlbumSelection(
@@ -3412,9 +3446,10 @@ function getEnabledAlbums(){
       return picked.length?picked:ALL_ALBUMS.slice();
     }
   }
-  const names=document.body.classList.contains('game-mode-active')?GE_GAME_SELECTED_ALBUMS:GE_SITE_SELECTED_ALBUMS;
+  const inGame=document.body.classList.contains('game-mode-active');
+  const names=inGame?GE_GAME_SELECTED_ALBUMS:GE_SITE_SELECTED_ALBUMS;
   const set=geSelectedSet(names);
-  return ALL_ALBUMS.filter(a=>set.has(geAlbumKey(a.musicTitle)));
+  return ALL_ALBUMS.filter(a=>set.has(geAlbumKey(a.musicTitle))&&(inGame||GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey(a.musicTitle))));
 }
 let ALBUMS=getEnabledAlbums();
 function setPlanetSelection(kind,names){
@@ -3720,7 +3755,7 @@ addEventListener('orientationchange',()=>{
   if(!panel||!card) return;
 
   const geArchiveFoundation="Grand Element music is designed to create an open, hypnotic space in the mind where the listener can imagine, reflect and create. Repetition, rhythm and spacious sound are used to quiet ordinary mental chatter, leave room for the listener's own inner voice, and let the music speak more directly to the soul.";
-  const notes={
+  const notes=Object.assign({
     trio:{year:'2006',energy:'Expansion',bio:'Trio is designed to create an open, expanding space where structured rhythm and freer melodic movement can exist together. Its energy is about moving beyond two fixed sides and making room for another possibility, giving the listener more space for imagination, movement and their own inner response.'},
     live:{year:'2007',energy:'Collective',bio:'Live! is designed to turn shared experience into part of the music. Spontaneity, reaction and the energy between performers and audience create a living space that invites the listener out of analysis and into direct experience, connection and presence.'},
     sessionsi:{year:'2008',energy:'Exploration',bio:"Sessions I is a collection of musical environments built for exploration. Soul, funk, rock, rhythm and atmosphere move through different forms while leaving enough open space for the listener's own thoughts, melodies and images to appear."},
@@ -3730,7 +3765,7 @@ addEventListener('orientationchange',()=>{
     soul:{year:'2017',energy:'Joy',bio:'Soul is built around joy, movement and play. Its rhythmic, funky energy is meant to loosen the mind, invite creativity and reconnect the listener with the part of themselves that simply wants to move, feel and be alive.'},
     spirit:{year:'2021',energy:'Polarity',bio:'Spirit explores the energy created between opposites: light and darkness, positive and negative, tension and release. The album is designed as a reflective space where those contrasts can be felt rather than solved, giving the listener room to sense what may exist beyond either side.'},
     fire:{year:'2024',energy:'Transformation',bio:'Fire is a meditation on transformation. It moves through creation, destruction, pain, anger, healing and release, using rhythm, repetition and space to give difficult energy somewhere to move, change form and return toward something more fundamental.'}
-  };
+  },window.GE_SITE_CONFIG?.albums?.bios||{});
 
   function closeAlbumScan(){
     if(!panel.classList.contains('show'))return;
@@ -3773,6 +3808,43 @@ addEventListener('orientationchange',()=>{
   addEventListener('resize',()=>{if(panel.classList.contains('show'))placeAlbumSidecar(currentAnchor);},{passive:true});
   addEventListener('keydown',e=>{if(e.key==='Escape')closeAlbumScan();});
   window.GE_CLOSE_ALBUM_SCAN=closeAlbumScan;
+})();
+
+/* ========= BACK ROOM SITE CONFIG ========= */
+(function applyBackRoomSiteConfig(){
+  const cfg=window.GE_SITE_CONFIG||{};
+  const welcome=cfg.welcome||{};
+  const welcomeCard=document.getElementById('geWelcomeCard');
+  if(welcomeCard){
+    const t=document.getElementById('geWelcomeTitle');
+    const body=welcomeCard.querySelector('p');
+    const contact=welcomeCard.querySelector('.welcomeContact');
+    if(t&&welcome.title)t.textContent=welcome.title;
+    if(body&&welcome.body)body.textContent=welcome.body;
+    if(contact){
+      if(welcome.contactText)contact.textContent=welcome.contactText;
+      if(welcome.contactEmail)contact.href='mailto:'+welcome.contactEmail;
+    }
+  }
+  const intro=document.querySelector('#about .aboutIntro');
+  if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
+    intro.innerHTML='';
+    cfg.about.intro.forEach(line=>{const li=document.createElement('li');li.textContent=line;intro.appendChild(li);});
+  }
+  const games=cfg.games||{};
+  const availability=[
+    ['basicThrowGame',games.points],
+    ['basicBlueSunPoolGame',games.pockets],
+    ['basicMarblesGame',games.planets]
+  ];
+  availability.forEach(([id,on])=>{const el=document.getElementById(id);if(el&&on===false)el.hidden=true;});
+  if(window.GE_SITE_MODE==='test'||window.GE_SITE_MODE==='live-draft'){
+    const badge=document.createElement('div');
+    badge.id='geSiteModeBadge';
+    badge.textContent=window.GE_SITE_MODE==='test'?'TEST WEBSITE':'LIVE DRAFT PREVIEW';
+    Object.assign(badge.style,{position:'fixed',right:'8px',bottom:'8px',zIndex:'100000',padding:'6px 9px',borderRadius:'999px',background:'rgba(90,55,0,.86)',border:'1px solid rgba(255,220,130,.75)',color:'#fff3c2',font:'900 10px/1 system-ui,sans-serif',letterSpacing:'.08em',pointerEvents:'none'});
+    document.body.appendChild(badge);
+  }
 })();
 
 /* ========= ABOUT ========= */
@@ -4422,7 +4494,17 @@ fetchAllMp3s().then(async list=>{
     if(!PLAYLIST.length){nowPlaying.textContent='No selected album tracks found.';return;}
     const restored=await restoreSharedMusicState();
     if(!restored){
-      pIndex=SHUFFLE?chooseShuffleIndex():0;
+      const first=window.GE_SITE_CONFIG?.music?.firstTrack||{};
+      let preferred=-1;
+      if(first&&PLAYLIST.length){
+        preferred=PLAYLIST.findIndex(it=>{
+          const albumOK=!first.album||normAlbumName(it.album)===normAlbumName(first.album);
+          const numberOK=!Number(first.trackNum)||Number(it.trackNum)===Number(first.trackNum);
+          const titleOK=!first.titleContains||String(it.track||'').toLowerCase().includes(String(first.titleContains).toLowerCase());
+          return albumOK&&numberOK&&titleOK;
+        });
+      }
+      pIndex=preferred>=0?preferred:(SHUFFLE?chooseShuffleIndex():0);
       if(SHUFFLE) rememberShuffle(PLAYLIST[pIndex]);
       reflectMusicMode();
       await startWebsiteAudioOnce();
@@ -9422,7 +9504,7 @@ addEventListener('orientationchange',()=>setTimeout(keepBlueSunReachable,240),{p
     setTimeout(()=>{if(!overlay.classList.contains('show'))overlay.style.display='none';},900);
   };
   const open=()=>{
-    if(hidden()||document.body.classList.contains('game-mode-active'))return;
+    if(window.GE_SITE_CONFIG?.welcome?.enabled===false||hidden()||document.body.classList.contains('game-mode-active'))return;
     overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');
     requestAnimationFrame(()=>requestAnimationFrame(()=>overlay.classList.add('show')));
   };
