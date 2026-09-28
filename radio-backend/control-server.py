@@ -1611,6 +1611,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
 
+        if parsed.path == "/control/vault/fan-detail":
+            if not self.require_auth():
+                return
+            try:
+                qs = urllib.parse.parse_qs(parsed.query)
+                anon_id = str((qs.get("anon_id") or [""])[0]).strip()
+                days = max(1, min(3650, int((qs.get("days") or ["3650"])[0])))
+                if not anon_id:
+                    self.json_response({"ok": False, "error": "Missing anonymous fan ID."}, 400)
+                    return
+                path = "/v1/admin/fan-detail?anon_id=" + urllib.parse.quote(anon_id) + "&days=" + urllib.parse.quote(str(days))
+                data = vault_request("GET", path)
+                self.json_response(data)
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
         if self.path == "/control/status":
             if not self.require_auth():
                 return
