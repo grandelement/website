@@ -1157,6 +1157,7 @@ async function adminAnalytics(env, url) {
   const placements = new Map();
 
   const mediaSessions = new Map();
+  const stationTracks = new Map();
 
   for (const row of items) {
     if (row.anon_id) visitors.add(String(row.anon_id));
@@ -1171,6 +1172,34 @@ async function adminAnalytics(env, url) {
     const meta = parseStoredJson(row.metadata_json);
     bumpCount(qrIds, meta.qr_id);
     bumpCount(placements, meta.qr_placement || meta.placement);
+
+    if (row.event_type === "station_performance") {
+      const stationKey = [row.track_id || "", row.track_title || "", row.album || ""].join("|");
+      let st = stationTracks.get(stationKey);
+      if (!st) {
+        st = {
+          track_id: row.track_id || "",
+          track_title: row.track_title || "",
+          album: row.album || "",
+          performances: 0,
+          first_played_at: row.occurred_at,
+          last_played_at: row.occurred_at,
+          ascap_work_id: String(meta.ascap_work_id || ""),
+          iswc: String(meta.iswc || ""),
+          writer: String(meta.writer || ""),
+          publisher: String(meta.publisher || ""),
+        };
+        stationTracks.set(stationKey, st);
+      }
+      st.performances += 1;
+      st.first_played_at = Math.min(Number(st.first_played_at || row.occurred_at), Number(row.occurred_at || 0));
+      st.last_played_at = Math.max(Number(st.last_played_at || row.occurred_at), Number(row.occurred_at || 0));
+      st.ascap_work_id ||= String(meta.ascap_work_id || "");
+      st.iswc ||= String(meta.iswc || "");
+      st.writer ||= String(meta.writer || "");
+      st.publisher ||= String(meta.publisher || "");
+      continue;
+    }
 
     if (!String(row.event_type || "").startsWith("track_") &&
         !["audio_play","audio_pause","audio_end"].includes(String(row.event_type || ""))) continue;
@@ -1263,6 +1292,9 @@ async function adminAnalytics(env, url) {
     t.publisher ||= s.publisher;
   }
 
+  const stationMusic = [...stationTracks.values()]
+    .sort((a, b) => b.performances - a.performances || b.last_played_at - a.last_played_at);
+
   const music = [...trackMap.values()].map((t) => ({
     track_id: t.track_id,
     track_title: t.track_title,
@@ -1294,6 +1326,7 @@ async function adminAnalytics(env, url) {
       qr_scans: Number(eventCounts.get("qr_scan") || 0),
       page_views: Number(eventCounts.get("page_view") || 0),
       radio_opens: Number(eventCounts.get("radio_open") || 0),
+      station_performances: Number(eventCounts.get("station_performance") || 0),
       game_completions: Number(eventCounts.get("game_complete") || 0),
       soul_reflections: Number(eventCounts.get("soul_reflection") || 0) + Number(eventCounts.get("soul_reflection_place") || 0),
     },
@@ -1310,6 +1343,7 @@ async function adminAnalytics(env, url) {
       cities: topCountRows(cities),
     },
     music,
+    station_music: stationMusic,
   };
 }
 
