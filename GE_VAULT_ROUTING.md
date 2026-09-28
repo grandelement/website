@@ -133,3 +133,17 @@ DJ/Studio operational telemetry may use Vault, but performance-critical audio/co
 This GitHub repository is public. Only code, schemas and non-secret endpoint names may be committed.
 
 Actual fan records, IP data, emails, comments, tokens, encryption keys and private exports stay in private Cloudflare services.
+
+
+## Rule 8 — Game scores are permanent
+
+The game currently uses browser key `GE_GAME_SCORES_V3` as an offline/cache copy only.
+
+Permanent scoreboard:
+- READ: `GET /v1/public/game-scores`
+- WRITE: `POST /v1/public/game-scores`
+- Every save appends a permanent version to `game_score_versions`.
+- Routine game reset controls may clear/rebuild the local cache but must never delete Vault game scores.
+- New phones/browsers restore the leaderboard from Vault.
+
+All future game modes must include `gameType` when saving a record so leaderboards can be segmented without losing the unified history.
