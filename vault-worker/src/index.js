@@ -50,15 +50,16 @@ function constantTimeEqual(a, b) {
 }
 
 function adminAuthorized(request, env) {
-  const auth = request.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  return constantTimeEqual(token, env.VAULT_ADMIN_TOKEN);
+  const auth = String(request.headers.get("authorization") || "").trim();
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const expected = String(env.VAULT_ADMIN_TOKEN || "").trim();
+  return constantTimeEqual(token, expected);
 }
 
 function ingestAuthorized(request, env) {
   return constantTimeEqual(
-    request.headers.get("x-ge-vault-key") || "",
-    env.VAULT_INGEST_TOKEN,
+    String(request.headers.get("x-ge-vault-key") || "").trim(),
+    String(env.VAULT_INGEST_TOKEN || "").trim(),
   );
 }
 
