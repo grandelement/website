@@ -1993,7 +1993,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 body = self.read_body_json()
                 action = str(body.get("action", "") or "").strip().lower()
-                if action not in {"air","mute","level","fx","stop","ping"}:
+                if action not in {"arm","air","mute","level","fx","stop","ping"}:
                     raise ValueError("Unsupported remote-device command.")
                 command = queue_remote_command(body.get("device_id"), action, body.get("value"))
                 self.json_response({"ok": True, "command": command})
