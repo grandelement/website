@@ -102,7 +102,8 @@ body.embedMixer{padding:0;overflow:hidden}body.embedMixer>.wrap,body.embedMixer>
 
 /* GE touch-first mixer rule: full-travel rails, fat full-width fader handles, no accidental page movement */
 #mixerSheet .mixerGrid{
-  grid-template-columns:repeat(4,minmax(180px,1fr));
+  --mixer-cols:4;
+  grid-template-columns:repeat(var(--mixer-cols),minmax(56px,1fr))!important;
   overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;
 }
 #mixerSheet .mixerGrid::-webkit-scrollbar{display:none}
@@ -111,7 +112,7 @@ body.embedMixer{padding:0;overflow:hidden}body.embedMixer>.wrap,body.embedMixer>
 .touchFader{position:relative;flex:1 1 auto;min-height:190px;width:100%;margin:7px 0 5px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
 .touchFaderRail{position:absolute;top:11px;bottom:11px;left:50%;width:18px;transform:translateX(-50%);border-radius:999px;background:#0b1720;border:1px solid #46637a;box-shadow:inset 0 0 0 2px rgba(0,0,0,.28)}
 .touchFaderFill{position:absolute;left:50%;bottom:11px;width:18px;transform:translateX(-50%);border-radius:999px;background:#58a5ff;pointer-events:none;box-shadow:0 0 9px rgba(88,165,255,.3)}
-.touchFaderThumb{position:absolute;left:6px;right:6px;height:48px;border-radius:12px;background:#f1f5f7;border:4px solid #1b2731;box-shadow:0 3px 13px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.28);pointer-events:none}
+.touchFaderThumb{position:absolute;left:3px;right:3px;height:60px;border-radius:13px;background:#f1f5f7;border:4px solid #1b2731;box-shadow:0 3px 13px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.28);pointer-events:none}
 .touchFader:focus-visible .touchFaderThumb,.touchFader.dragging .touchFaderThumb{outline:3px solid #58a5ff;outline-offset:2px}
 .mixerScrollControl{display:none;grid-template-columns:46px 1fr;gap:8px;align-items:center;min-height:38px;margin-top:5px;padding:2px 5px}
 .mixerScrollControl.show{display:grid}
@@ -125,10 +126,10 @@ input[type=range]:not(.vf)::-moz-range-track{height:12px;border-radius:999px;bac
 input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radius:10px;background:#f1f5f7;border:3px solid #1b2731}
 
 #mixerSheet .mixerGrid{padding-bottom:1px}
-#mixerSheet .mixStrip{min-width:180px}
+#mixerSheet .mixStrip{min-width:0!important}
 #mixerSheet .mixerScrollControl{flex:0 0 38px}
-@media(max-width:560px){#mixerSheet .mixerGrid{grid-template-columns:repeat(4,minmax(170px,1fr))!important}.touchFader{min-height:155px}}
-@media(orientation:landscape) and (max-height:620px){.touchFader{min-height:110px}.touchFaderThumb{height:42px}}
+@media(max-width:560px){#mixerSheet .mixerGrid{grid-template-columns:repeat(var(--mixer-cols),minmax(52px,1fr))!important}.touchFader{min-height:155px}#mixerSheet .mixStrip{padding-left:3px!important;padding-right:3px!important}#mixerSheet .mixStrip h3{font-size:clamp(7px,2.1vw,10px)}#mixerSheet .mixStrip small{font-size:clamp(6px,1.7vw,7px)}}
+@media(orientation:landscape) and (max-height:620px){.touchFader{min-height:110px}.touchFaderThumb{height:54px}}
 
 
 
@@ -213,6 +214,12 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 #mixerSheet .remotePeak{grid-column:1/-1;height:8px;border-radius:999px;background:#0d1720;overflow:hidden}.remotePeak i{display:block;height:100%;background:#55d8c1;width:0}
 @media(max-width:560px){#mixerSheet .remoteDeviceCard{grid-template-columns:1fr 66px 66px}.remoteDeviceTools{grid-template-columns:110px 1fr!important}}
 
+
+/* Responsive mixer sizing: fit visible channels before scrolling */
+#mixerSheet .mixerGrid{grid-template-columns:repeat(var(--mixer-cols,4),minmax(56px,1fr))!important}
+#mixerSheet .mixStrip{min-width:0!important}
+#mixerSheet .touchFaderThumb{height:60px!important;left:3px!important;right:3px!important}
+@media(max-width:560px){#mixerSheet .mixerGrid{grid-template-columns:repeat(var(--mixer-cols,4),minmax(52px,1fr))!important}}
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
@@ -290,12 +297,12 @@ function installTouchMixer(rootSelector,gridSelector){
     wrap.appendChild(rail);wrap.appendChild(fill);wrap.appendChild(thumb);range.insertAdjacentElement('afterend',wrap);
     function values(){return {min:Number(range.min||0),max:Number(range.max||100),step:Number(range.step||1)||1,val:Number(range.value||0)}}
     function sync(){
-      const v=values(),pct=v.max===v.min?0:clamp((v.val-v.min)/(v.max-v.min),0,1),h=wrap.clientHeight||190,th=thumb.offsetHeight||48,pad=10,travel=Math.max(1,h-(pad*2)-th);
+      const v=values(),pct=v.max===v.min?0:clamp((v.val-v.min)/(v.max-v.min),0,1),h=wrap.clientHeight||190,th=thumb.offsetHeight||60,pad=10,travel=Math.max(1,h-(pad*2)-th);
       thumb.style.top=(pad+(1-pct)*travel)+'px';fill.style.height=(pct*Math.max(1,h-pad*2))+'px';
       wrap.setAttribute('aria-valuemin',String(v.min));wrap.setAttribute('aria-valuemax',String(v.max));wrap.setAttribute('aria-valuenow',String(Math.round(v.val*100)/100));
     }
     function setFromPointer(e){
-      const rect=wrap.getBoundingClientRect(),v=values(),th=thumb.offsetHeight||48,pad=10,top=rect.top+pad+th/2,bottom=rect.bottom-pad-th/2;
+      const rect=wrap.getBoundingClientRect(),v=values(),th=thumb.offsetHeight||60,pad=10,top=rect.top+pad+th/2,bottom=rect.bottom-pad-th/2;
       const pct=clamp((bottom-e.clientY)/Math.max(1,bottom-top),0,1),raw=v.min+pct*(v.max-v.min),snapped=Math.round((raw-v.min)/v.step)*v.step+v.min;
       range.value=String(clamp(snapped,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));
     }
@@ -581,12 +588,14 @@ function loadMixerChannelPrefs(){
   applyMixerChannels(false);
 }
 function applyMixerChannels(save=true){
-  const prefs={};
+  const prefs={};let visible=0;
   document.querySelectorAll('[data-mixer-channel]').forEach(function(box){
     const key=box.dataset.mixerChannel;prefs[key]=!!box.checked;
     const strip=document.querySelector('[data-channel-strip="'+key+'"]');
-    if(strip)strip.classList.toggle('channelHidden',!box.checked);
+    if(strip){strip.classList.toggle('channelHidden',!box.checked);if(box.checked)visible++}
   });
+  const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');
+  if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,visible)));requestAnimationFrame(function(){if(grid.scrollWidth<=grid.clientWidth+3)grid.scrollLeft=0})}
   if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
   requestAnimationFrame(syncTouchFaders);
 }
