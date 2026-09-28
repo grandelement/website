@@ -436,6 +436,159 @@ async function savePublicReflection(request, env) {
   return json({ ok: true, id: commentId, created: true }, 201);
 }
 
+
+function safeText(value, max = 500) {
+  return String(value == null ? "" : value).trim().slice(0, max);
+}
+
+function safeAnonId(value) {
+  value = safeText(value, 160);
+  return /^[A-Za-z0-9._:-]{16,160}$/.test(value) ? value : "";
+}
+
+function safeSessionId(value) {
+  value = safeText(value, 160);
+  return /^[A-Za-z0-9._:-]{8,160}$/.test(value) ? value : "";
+}
+
+function allowedPublicEventType(value) {
+  const type = safeText(value, 80).toLowerCase();
+  const allowed = new Set([
+    "page_view","session_start","session_end",
+    "radio_open","radio_play","radio_pause","radio_stop",
+    "track_start","track_pause","track_resume","track_complete","track_skip","track_seek",
+    "share_open","share_complete","share_copy","share_track",
+    "download","offline_enable","offline_disable",
+    "ship_open","ship_arrival","gate_open","gate_unlock","access_request",
+    "soul_reflection_open","soul_reflection_place","comment_submit",
+    "playlist_view","background_change","button_click","external_link"
+  ]);
+  return allowed.has(type) ? type : "";
+}
+
+async function ingestPublicFanEvent(request, env) {
+  const body = await readBody(request);
+  const eventType = allowedPublicEventType(body.event_type);
+  if (!eventType) return json({ ok: false, error: "Unsupported event type." }, 400);
+
+  const anonId = safeAnonId(body.anon_id);
+  if (!anonId) return json({ ok: false, error: "Missing anonymous visitor ID." }, 400);
+
+  const sessionId = safeSessionId(body.session_id);
+  const surface = safeText(body.surface || "website", 40).toLowerCase();
+  if (!["website","radio","ship","studio","dj"].includes(surface)) {
+    return json({ ok: false, error: "Unsupported surface." }, 400);
+  }
+
+  const visitor = await visitorIdentity(request, env);
+  const t = now();
+
+  // Abuse ceiling for anonymous browser telemetry. This is intentionally high
+  // enough for real media events but blocks runaway loops and scripted floods.
+  if (visitor.ip_hash) {
+    const recent = await env.VAULT_DB.prepare(
+      "SELECT COUNT(*) AS n FROM fan_events WHERE ip_hash=? AND occurred_at>?"
+    ).bind(visitor.ip_hash, t - 60).first();
+    if (Number(recent?.n || 0) >= 180) {
+      return json({ ok: false, error: "Event rate limit reached." }, 429);
+    }
+  }
+
+  const pageUrl = safeText(body.page_url, 1500);
+  let pagePath = safeText(body.page_path, 500);
+  let utm = {
+    source: safeText(body.utm_source, 120),
+    medium: safeText(body.utm_medium, 120),
+    campaign: safeText(body.utm_campaign, 160),
+    content: safeText(body.utm_content, 160),
+    term: safeText(body.utm_term, 160),
+  };
+  try {
+    if (pageUrl) {
+      const parsed = new URL(pageUrl);
+      if (!pagePath) pagePath = parsed.pathname.slice(0, 500);
+      utm.source ||= safeText(parsed.searchParams.get("utm_source"), 120);
+      utm.medium ||= safeText(parsed.searchParams.get("utm_medium"), 120);
+      utm.campaign ||= safeText(parsed.searchParams.get("utm_campaign"), 160);
+      utm.content ||= safeText(parsed.searchParams.get("utm_content"), 160);
+      utm.term ||= safeText(parsed.searchParams.get("utm_term"), 160);
+    }
+  } catch {}
+
+  const eventId = id("event");
+  await env.VAULT_DB.prepare(
+    `INSERT INTO fan_events
+      (id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,ip_hash,ip_ciphertext,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(
+    eventId,
+    t,
+    null,
+    anonId,
+    sessionId || null,
+    surface,
+    eventType,
+    pageUrl || null,
+    pagePath || null,
+    safeText(body.track_id, 240) || null,
+    safeText(body.track_title, 300) || null,
+    safeText(body.album, 200) || null,
+    safeText(body.playlist_id, 160) || null,
+    safeText(body.share_target, 160) || null,
+    safeText(body.referrer || request.headers.get("referer"), 1500) || null,
+    utm.source || null,
+    utm.medium || null,
+    utm.campaign || null,
+    utm.content || null,
+    utm.term || null,
+    visitor.ip_hash || null,
+    visitor.ip_ciphertext || null,
+    safeText(request.headers.get("user-agent"), 1000) || null,
+    safeText(body.language || request.headers.get("accept-language"), 200) || null,
+    visitor.country,
+    visitor.region,
+    visitor.city,
+    visitor.timezone,
+    visitor.cf_colo,
+    visitor.cf_asn,
+    visitor.cf_as_org,
+    cleanJson(body.metadata),
+  ).run();
+
+  return json({ ok: true, id: eventId }, 201);
+}
+
+async function linkFanIdentity(request, env) {
+  if (!ingestAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401);
+  const body = await readBody(request);
+  const anonId = safeAnonId(body.anon_id);
+  if (!anonId) return json({ ok: false, error: "Missing anonymous visitor ID." }, 400);
+  const visitor = await visitorIdentity(request, env);
+  const fanId = await upsertFan(env, {
+    fan_id: body.fan_id,
+    display_name: safeText(body.display_name, 200) || null,
+    email: safeText(body.email, 320) || null,
+    phone: safeText(body.phone, 80) || null,
+    consent_analytics: !!body.consent_analytics,
+    consent_contact: !!body.consent_contact,
+    notes: safeText(body.notes, 2000) || null,
+    metadata: body.metadata || {},
+  }, visitor);
+
+  await env.VAULT_DB.prepare(
+    "UPDATE fan_events SET fan_id=? WHERE anon_id=? AND fan_id IS NULL"
+  ).bind(fanId, anonId).run();
+  await env.VAULT_DB.prepare(
+    "UPDATE comments SET fan_id=? WHERE anon_id=? AND fan_id IS NULL"
+  ).bind(fanId, anonId).run();
+  await env.VAULT_DB.prepare(
+    "UPDATE listener_events SET fan_id=? WHERE anon_id=? AND fan_id IS NULL"
+  ).bind(fanId, anonId).run();
+
+  await audit(env, "ingest", "fan.link_identity", "fan", fanId, { anon_id: anonId });
+  return json({ ok: true, fan_id: fanId });
+}
+
 async function listPlaylists(env) {
   const rows = await env.VAULT_DB.prepare(
     "SELECT * FROM playlists ORDER BY active DESC, updated_at DESC",
@@ -582,7 +735,7 @@ async function saveVaultValue(request, env) {
 }
 
 async function adminSummary(env) {
-  const names = ["fans", "listener_events", "comments", "playlists", "vault_values", "audit_log"];
+  const names = ["fans", "fan_events", "listener_events", "comments", "playlists", "vault_values", "audit_log"];
   const counts = {};
   for (const name of names) {
     const row = await env.VAULT_DB.prepare(`SELECT COUNT(*) AS n FROM ${name}`).first();
@@ -595,6 +748,7 @@ async function adminExport(env) {
   const values = await env.VAULT_DB.prepare("SELECT * FROM vault_values ORDER BY kind,scope,key").all();
   const playlists = await listPlaylists(env);
   const fans = await env.VAULT_DB.prepare("SELECT * FROM fans ORDER BY created_at").all();
+  const fanEvents = await env.VAULT_DB.prepare("SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events ORDER BY occurred_at").all();
   const comments = await env.VAULT_DB.prepare("SELECT * FROM comments ORDER BY created_at").all();
   return {
     format: "ge-studios-vault-export-v1",
@@ -602,6 +756,7 @@ async function adminExport(env) {
     values: values.results || [],
     playlists,
     fans: fans.results || [],
+    fan_events: fanEvents.results || [],
     comments: comments.results || [],
   };
 }
@@ -628,6 +783,12 @@ export default {
         return json({ ok: true, service: "GE Studios Vault", time: now() }, 200, cors);
       }
 
+      if (url.pathname === "/v1/public/event" && request.method === "POST") {
+        const response = await ingestPublicFanEvent(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
       if (url.pathname === "/v1/public/reflections" && request.method === "GET") {
         return json({ ok: true, items: await listPublicReflections(env, url) }, 200, cors);
       }
@@ -646,6 +807,12 @@ export default {
 
       if (url.pathname === "/v1/ingest/comment" && request.method === "POST") {
         const response = await ingestComment(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
+      if (url.pathname === "/v1/ingest/fan" && request.method === "POST") {
+        const response = await linkFanIdentity(request, env);
         Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
         return response;
       }
@@ -680,6 +847,14 @@ export default {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         const rows = await env.VAULT_DB.prepare(
           "SELECT * FROM listener_events ORDER BY occurred_at DESC LIMIT 2000",
+        ).all();
+        return json({ ok: true, items: rows.results || [] }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/events" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        const rows = await env.VAULT_DB.prepare(
+          "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events ORDER BY occurred_at DESC LIMIT 5000",
         ).all();
         return json({ ok: true, items: rows.results || [] }, 200, cors);
       }
