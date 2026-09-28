@@ -290,18 +290,12 @@ stop_audio(){
   for p in "$MASTER_PID" "$LIQUIDSOAP_PID" "$ICECAST_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   sleep .4; MASTER_PID=""; LIQUIDSOAP_PID=""; ICECAST_PID=""
 }
-start_audio_stack(){
-  [ -s /app/runtime/playlist.m3u ] || return 1
-  stop_audio
-  echo "GE Radio: starting internal Icecast..."
-  icecast2 -c /app/runtime/icecast.xml & ICECAST_PID=$!
-  if ! wait_port 8000 20; then echo "GE Radio: Icecast did not open port 8000; will retry."; stop_audio; return 1; fi
-
-  echo "GE Radio: starting Liquidsoap automation + optional standard source ingest..."
-  liquidsoap -t /app/runtime/radio.liq & LIQUIDSOAP_PID=$!
-  if ! wait_port 8095 30; then echo "GE Radio: source-ingest harbor did not open port 8095; will retry."; stop_audio; return 1; fi
-  if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
-  if ! wait_http "http://127.0.0.1:8000/base.mp3" 35; then echo "GE Radio: base mix not ready; will retry."; stop_audio; return 1; fi
+start_master(){
+  if pid_alive "$MASTER_PID"; then return 0; fi
+  if ! wait_http "http://127.0.0.1:8000/base.mp3" 8; then
+    echo "GE Radio: base mix unavailable; final master will retry."
+    return 1
+  fi
 
   local filter
   if ffmpeg -hide_banner -filters 2>/dev/null | grep -q " azmq "; then
@@ -312,7 +306,7 @@ start_audio_stack(){
     echo "GE Radio: WARNING: FFmpeg azmq unavailable; direct browser audio still works with static radio ducking."
   fi
 
-  echo "GE Radio: starting final public master with direct browser contribution bus..."
+  echo "GE Radio: starting/restarting final public master only..."
   ffmpeg -hide_banner -loglevel warning -nostats -fflags nobuffer \
     -thread_queue_size 512 -i http://127.0.0.1:8000/base.mp3 \
     -thread_queue_size 128 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
@@ -320,7 +314,12 @@ start_audio_stack(){
     -flush_packets 1 -content_type audio/mpeg -f mp3 \
     "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/stream.mp3" & MASTER_PID=$!
 
-  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: final public master not ready; will retry."; stop_audio; return 1; fi
+  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 20; then
+    echo "GE Radio: final public master did not come online; preserving automation and retrying master only."
+    if pid_alive "$MASTER_PID"; then kill "$MASTER_PID" 2>/dev/null || true; fi
+    MASTER_PID=""
+    return 1
+  fi
 
   python3 - <<'PYMIX' || true
 import json, pathlib, zmq
@@ -338,8 +337,25 @@ for target,cmd,val in [("volume@musicgain","volume",music),("sidechaincompress@d
     except Exception: pass
     q.close(0)
 PYMIX
+  echo "GE Radio: final public master online."
+  return 0
+}
 
-  echo "GE Radio: automation, browser MIC/LINE/STUDIO bus, optional source inputs, and public master are online."
+start_audio_stack(){
+  [ -s /app/runtime/playlist.m3u ] || return 1
+  stop_audio
+  echo "GE Radio: starting internal Icecast..."
+  icecast2 -c /app/runtime/icecast.xml & ICECAST_PID=$!
+  if ! wait_port 8000 20; then echo "GE Radio: Icecast did not open port 8000; will retry."; stop_audio; return 1; fi
+
+  echo "GE Radio: starting Liquidsoap automation + optional standard source ingest..."
+  liquidsoap -t /app/runtime/radio.liq & LIQUIDSOAP_PID=$!
+  if ! wait_port 8095 30; then echo "GE Radio: source-ingest harbor did not open port 8095; will retry."; stop_audio; return 1; fi
+  if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
+  if ! wait_http "http://127.0.0.1:8000/base.mp3" 35; then echo "GE Radio: base mix not ready; will retry."; stop_audio; return 1; fi
+
+  start_master || true
+  echo "GE Radio: automation and source-ingest backbone are online."
 }
 
 shutdown(){
@@ -359,9 +375,12 @@ while true; do
   if ! pid_alive "$CONTROL_PID"; then start_control || true; fi
   if ! pid_alive "$WATCHER_PID"; then start_watcher || true; fi
   if [ -s /app/runtime/playlist.m3u ]; then
-    if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID" || ! pid_alive "$MASTER_PID"; then
-      echo "GE Radio: audio stack missing or stopped; starting/restarting it."
+    if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID"; then
+      echo "GE Radio: core automation stack missing or stopped; restarting core audio."
       start_audio_stack || true
+    elif ! pid_alive "$MASTER_PID"; then
+      echo "GE Radio: public master stopped; preserving automation and restarting the master only."
+      start_master || true
     fi
   else
     if pid_alive "$ICECAST_PID" || pid_alive "$LIQUIDSOAP_PID" || pid_alive "$MASTER_PID"; then stop_audio; fi
