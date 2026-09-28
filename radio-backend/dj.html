@@ -278,7 +278,8 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   <div class="analyticsStats" id="analyticsStats"></div>
   <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
-  <div class="analyticsSection"><h3>MUSIC USAGE · GE + ASCAP READY</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
+  <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
+  <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">Server-side record of each Grand Element Radio song start, independent of the listener's browser.</div><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PERFORMANCES</th><th>LAST PLAYED</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
 </div></div>
 <div class="modal" id="playlistModal"><div class="modalBox">
   <div class="modalHead"><div><b>PLAYLISTS</b><div class="note">Choose albums and songs, save the selection, then use any saved playlist as the radio rotation.</div></div><button id="playlistClose">CLOSE</button></div>
@@ -521,7 +522,7 @@ function renderAnalytics(d){
   const t=d&&d.totals||{};
   $('analyticsStats').innerHTML=[
     ['QR SCANS',t.qr_scans||0],['UNIQUE FANS',t.unique_visitors||0],['SESSIONS',t.sessions||0],['PAGE VIEWS',t.page_views||0],
-    ['RADIO OPENS',t.radio_opens||0],['GAME FINISHES',t.game_completions||0],['REFLECTIONS',t.soul_reflections||0],['EVENTS',t.events||0]
+    ['RADIO OPENS',t.radio_opens||0],['STATION PLAYS',t.station_performances||0],['GAME FINISHES',t.game_completions||0],['EVENTS',t.events||0]
   ].map(function(x){return '<div class="analyticsStat"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join('');
   const acq=d&&d.acquisition||{},geo=d&&d.geography||{};
   $('analyticsCampaigns').innerHTML=analyticsChips(acq.campaigns,'No QR campaign scans yet.')+analyticsChips(acq.placements,'');
@@ -530,6 +531,11 @@ function renderAnalytics(d){
   $('analyticsMusic').innerHTML=music.slice(0,100).map(function(x){
     return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
   }).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
+  const station=Array.isArray(d&&d.station_music)?d.station_music:[];
+  $('analyticsStation').innerHTML=station.slice(0,100).map(function(x){
+    const dt=x.last_played_at?new Date(Number(x.last_played_at)*1000).toLocaleString():'';
+    return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
+  }).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';
 }
 async function loadAnalytics(){
   const days=Number($('analyticsDays').value||30);$('analyticsStatus').textContent='LOADING VAULT…';
