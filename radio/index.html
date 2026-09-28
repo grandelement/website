@@ -3481,6 +3481,7 @@ Vector ${vector}. ${pair[1]}.`;
   const sunEQPeak=Array(SUN_EQ_RINGS).fill(.28);
   let sunEQImpactFloor=.02,sunEQImpactPeak=.34;
   let sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
+  let sunSpectrumBandHistory=Array.from({length:SUN_SPECTRUM_RINGS},()=>({low:.04,mid:.04,high:.04}));
   let sunSpectrumSampleAt=0;
   let sunEQLastPaint=0;
   const SUN_EQ_CASCADE_STEPS=7;
@@ -3611,6 +3612,7 @@ Vector ${vector}. ${pair[1]}.`;
           sunEQAura.appendChild(ring);
         }
         sunSpectrumHistory=Array(SUN_SPECTRUM_RINGS).fill(.04);
+        sunSpectrumBandHistory=Array.from({length:SUN_SPECTRUM_RINGS},()=>({low:.04,mid:.04,high:.04}));
         sunSpectrumSampleAt=performance.now();
       }
       ensureSunFog();
@@ -3690,7 +3692,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function sunNum(key,fallback){const value=Number(sunLab[key]);return Number.isFinite(value)?value:fallback;}
 
-  function currentAudioEnergy(live){
+  function spectrumBandLevels(live){
     const len=eqData?.length||0;
     if(live&&len){
       const sample=(from,to,gain=1)=>{
@@ -3700,16 +3702,70 @@ Vector ${vector}. ${pair[1]}.`;
         const avg=n?sum/n:0;
         return clamp((avg*.68+peak*.32)*gain,0,1);
       };
-      const low=sample(.00,.18,sunNum('bass',100)/100);
-      const mid=sample(.18,.52,sunNum('mid',100)/100);
-      const high=sample(.52,.94,sunNum('treble',100)/100);
-      return clamp(low*.34+mid*.39+high*.27,0,1);
+      return {
+        low:sample(.00,.18,sunNum('bass',100)/100),
+        mid:sample(.18,.52,sunNum('mid',100)/100),
+        high:sample(.52,.94,sunNum('treble',100)/100)
+      };
     }
     if(!audio.paused&&!audio.ended){
       const t=Number(audio.currentTime)||performance.now()/1000;
-      return .12+.07*((Math.sin(t*2.1)+1)/2);
+      const base=.10+.06*((Math.sin(t*2.1)+1)/2);
+      return {low:base*1.04,mid:base,high:base*.94};
     }
-    return .035;
+    return {low:.035,mid:.035,high:.035};
+  }
+
+  function combineSpectrumBands(bands){
+    const weighted=clamp(bands.low*.34+bands.mid*.39+bands.high*.27,0,1);
+    const comp=clamp(sunNum('compression',0)/100,0,1);
+    // Compression lifts weaker detail toward the peaks without changing the band gains themselves.
+    const compressed=lerp(weighted,Math.pow(weighted,.52),comp);
+    const master=clamp(sunNum('spectrumGain',100)/100,0,3);
+    return clamp(compressed*master,0,1);
+  }
+
+  function currentAudioEnergy(live){
+    return combineSpectrumBands(spectrumBandLevels(live));
+  }
+
+  function hslRgb(h,s=.94,l=.52){
+    h=((Number(h)%360)+360)%360/360;
+    const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+    if(s===0){const v=Math.round(l*255);return [v,v,v];}
+    const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;
+    return [hue2rgb(p,q,h+1/3),hue2rgb(p,q,h),hue2rgb(p,q,h-1/3)].map(v=>Math.round(v*255));
+  }
+
+  function spectrumBandColor(bands,energy){
+    const total=Math.max(.0001,bands.low+bands.mid+bands.high);
+    const lowW=bands.low/total,midW=bands.mid/total,highW=bands.high/total;
+    const low=hslRgb(sunNum('lowHue',215)),mid=hslRgb(sunNum('midHue',155)),high=hslRgb(sunNum('highHue',320));
+    const band=[
+      low[0]*lowW+mid[0]*midW+high[0]*highW,
+      low[1]*lowW+mid[1]*midW+high[1]*highW,
+      low[2]*lowW+mid[2]*midW+high[2]*highW
+    ];
+    const base=hslRgb(214,.95,.48);
+    const mix=clamp(sunNum('bandColorMix',70)/100,0,1);
+    const brightness=.18+energy*.82;
+    const rgb=band.map((v,i)=>Math.round((base[i]*(1-mix)+v*mix)*brightness));
+    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  }
+
+  function updateSpectrumMeter(bands,pulse){
+    const values={Low:bands.low,Mid:bands.mid,High:bands.high,Pulse:pulse};
+    for(const [name,value] of Object.entries(values)){
+      const cap=name==='Pulse'?100:100;
+      const pct=Math.round(clamp(value,0,1)*cap);
+      const bar=$(`spectrum${name}Meter`),readout=$(`spectrum${name}Readout`);
+      if(bar)bar.style.width=pct+'%';
+      if(readout)readout.textContent=pct+'%';
+    }
+    const low=$('spectrumLowMeter'),mid=$('spectrumMidMeter'),high=$('spectrumHighMeter');
+    if(low)low.style.background=`hsl(${sunNum('lowHue',215)} 94% 58%)`;
+    if(mid)mid.style.background=`hsl(${sunNum('midHue',155)} 94% 58%)`;
+    if(high)high.style.background=`hsl(${sunNum('highHue',320)} 94% 58%)`;
   }
 
   function updateSpectrumSun(live,now){
@@ -3718,21 +3774,26 @@ Vector ${vector}. ${pair[1]}.`;
     if(sunEQFog)sunEQFog.style.opacity='0';
     sunEQAura.style.filter='none';
 
-    const raw=currentAudioEnergy(live);
+    const bands=spectrumBandLevels(live);
+    const raw=combineSpectrumBands(bands);
     const dynamics=clamp(sunNum('dynamics',79)/100,0,3.8);
     const contrast=clamp(sunNum('contrast',111)/100,.05,2.8);
     let energy=clamp(raw*(.90+dynamics*1.15),0,1);
     energy=clamp(.5+(energy-.5)*contrast,0,1);
     energy=Math.pow(energy,.82);
+    updateSpectrumMeter(bands,energy);
 
     const speed=clamp(sunNum('spectrumSpeed',55)/100,0,1);
     const interval=lerp(180,45,speed);
     if(!sunSpectrumSampleAt)sunSpectrumSampleAt=now;
     while(now-sunSpectrumSampleAt>=interval){
       sunSpectrumHistory.unshift(energy);
+      sunSpectrumBandHistory.unshift({...bands});
       if(sunSpectrumHistory.length>SUN_SPECTRUM_RINGS)sunSpectrumHistory.length=SUN_SPECTRUM_RINGS;
+      if(sunSpectrumBandHistory.length>SUN_SPECTRUM_RINGS)sunSpectrumBandHistory.length=SUN_SPECTRUM_RINGS;
       sunSpectrumSampleAt+=interval;
     }
+
     const phase=clamp((now-sunSpectrumSampleAt)/interval,0,1);
     const distance=sunNum('distance',-220);
     const reachNorm=clamp((distance+440)/660,0,1);
@@ -3740,19 +3801,22 @@ Vector ${vector}. ${pair[1]}.`;
     const outerScale=1.32+reachNorm*1.35;
     const spacing=(outerScale-innerScale)/(SUN_SPECTRUM_RINGS-1);
     const thickness=Math.max(.28,.34+(sunNum('thickness',10)/100)*1.65);
-    const hue=clamp(214+sunNum('hue',1)*.35,170,260);
+    const colorMix=clamp(sunNum('bandColorMix',70)/100,0,1);
 
     rings.forEach((ring,i)=>{
       const e=clamp(sunSpectrumHistory[i]??.04,0,1);
+      const b=sunSpectrumBandHistory[i]||{low:e,mid:e,high:e};
       const position=Math.min(SUN_SPECTRUM_RINGS-1,i+phase);
       const scale=innerScale+position*spacing;
-      // Dark blue is silence; a peak becomes progressively lighter blue.
       const light=clamp(9+e*76,8,88);
       const sat=clamp(88+e*12,82,100);
       const alpha=clamp(.22+e*.76,.22,.98);
+      const originalBlue=`hsla(${clamp(214+sunNum('hue',1)*.35,170,260).toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`;
+      const bandColor=spectrumBandColor(b,e);
       ring.style.setProperty('--spectrum-scale',scale.toFixed(4));
       ring.style.setProperty('--spectrum-width',(thickness*(.82+e*.38)).toFixed(2)+'px');
-      ring.style.setProperty('--spectrum-color',`hsla(${hue.toFixed(1)},${sat.toFixed(1)}%,${light.toFixed(1)}%,${alpha.toFixed(3)})`);
+      ring.style.setProperty('--spectrum-color',colorMix<=.001?originalBlue:bandColor);
+      ring.style.opacity=String(alpha);
     });
   }
 
