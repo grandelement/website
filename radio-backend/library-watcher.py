@@ -108,7 +108,7 @@ def record_station_performance(meta):
         "ge_slot":str(meta.get("ge_slot", "") or ""),
         "path":path,
     }
-    for field in ("ascap_work_id","iswc","writer","publisher"):
+    for field in ("ascap_work_id","ascap_title","ascap_status","iswc","writer","publisher"):
         value=str(meta.get(field, "") or "").strip()
         if value:
             metadata[field]=value
@@ -250,6 +250,7 @@ def load_rights_catalog():
                     out[key] = {
                         "ascap_work_id": work_id,
                         "ascap_title": str(work.get("title", "") or "").strip(),
+                        "ascap_status": str(work.get("status", "") or "").strip(),
                     }
         return out
     except Exception as exc:
@@ -299,6 +300,7 @@ def fetch_library():
                 "title": title,
                 "ascap_work_id": rights.get("ascap_work_id", ""),
                 "ascap_title": rights.get("ascap_title", ""),
+                "ascap_status": rights.get("ascap_status", ""),
             })
         elif lower.startswith("ge-music/clips/") and "station identification" in lower:
             clips.append({
@@ -333,6 +335,8 @@ def annotation(entry, commit_sha, cross=None):
         fields.append(f'ascap_work_id="{q(entry["ascap_work_id"])}"')
     if entry.get("ascap_title"):
         fields.append(f'ascap_title="{q(entry["ascap_title"])}"')
+    if entry.get("ascap_status"):
+        fields.append(f'ascap_status="{q(entry["ascap_status"])}"')
     if cross is not None:
         fields.append(f'liq_cross_duration="{cross:.1f}"')
     return "annotate:" + ",".join(fields) + ":" + raw_url(commit_sha, entry["path"])
@@ -372,6 +376,7 @@ def save_library(commit_sha, songs, clips):
             "section": section,
             "ascap_work_id": song.get("ascap_work_id", ""),
             "ascap_title": song.get("ascap_title", ""),
+            "ascap_status": song.get("ascap_status", ""),
         })
 
     for clip in clips:
