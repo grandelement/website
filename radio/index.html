@@ -707,8 +707,8 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     <p class="arrival-sub">You have reached the inner horizon. Leave any thoughts, awakenings, perspectives, realizations, or reflections the experience brought forward.</p>
     <textarea id="arrivalComment" placeholder="Write what came forward…"></textarea>
     <div class="arrival-options">
-      <label><input id="arrivalPrivate" type="checkbox"> Private message to Grand Element</label>
-      <label><input id="arrivalPost" type="checkbox"> Post as a Soul Reflection</label>
+      <label id="arrivalPrivateLabel" hidden><input id="arrivalPrivate" type="checkbox"> Private message to Grand Element</label>
+      <label id="arrivalPostLabel" hidden><input id="arrivalPost" type="checkbox"> Post as a Soul Reflection</label>
       <label id="arrivalResponseLabel"><input id="arrivalResponse" type="checkbox"> I would like a response</label>
       <label id="arrivalLocationLabel"><input id="arrivalLocation" type="checkbox"> Share my general location</label>
     </div>
@@ -2027,26 +2027,41 @@ window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLi
   const params=new URLSearchParams(location.search);
   const savedHud=localStorage.getItem(CONFIG.HUD_KEY);
   let autoEnabled=params.has('hudhide')?params.get('hudhide')==='1':savedHud===null?true:savedHud==='1';
+  let shipAutoEnabled=localStorage.getItem('GE_SHIP_AUTO_HIDE_V1')==='1';
   let lastActivity=Date.now();
-  function syncChecks(){ if(autoCheckbox)autoCheckbox.checked=autoEnabled;if(shipAuto)shipAuto.checked=autoEnabled; }
+
+  function syncChecks(){
+    if(autoCheckbox)autoCheckbox.checked=autoEnabled;
+    if(shipAuto)shipAuto.checked=shipAutoEnabled;
+  }
   function show(){document.body.classList.remove('hud-hidden');lastActivity=Date.now();}
   function hideNow(){if(!trackList.classList.contains('open'))document.body.classList.add('hud-hidden');}
   function flash(button){if(!button)return;button.classList.add('flash-green');setTimeout(()=>button.classList.remove('flash-green'),340);}
   function setAuto(on){autoEnabled=!!on;localStorage.setItem(CONFIG.HUD_KEY,autoEnabled?'1':'0');syncChecks();show();}
-  function wireCombined(control,checkbox){
-    checkbox?.addEventListener('click',event=>event.stopPropagation());
-    checkbox?.addEventListener('change',event=>{event.stopPropagation();setAuto(checkbox.checked);});
-    control?.addEventListener('click',event=>{if(event.target===checkbox)return;event.preventDefault();flash(control);setTimeout(hideNow,120);});
-    control?.addEventListener('keydown',event=>{if(event.target===checkbox)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(control);setTimeout(hideNow,120);}});
-  }
-  wireCombined(combined,autoCheckbox);wireCombined(shipCombined,shipAuto);
+  function setShipAuto(on){shipAutoEnabled=!!on;localStorage.setItem('GE_SHIP_AUTO_HIDE_V1',shipAutoEnabled?'1':'0');syncChecks();show();}
+
+  autoCheckbox?.addEventListener('click',event=>event.stopPropagation());
+  autoCheckbox?.addEventListener('change',event=>{event.stopPropagation();setAuto(autoCheckbox.checked);});
+  combined?.addEventListener('click',event=>{if(event.target===autoCheckbox)return;event.preventDefault();flash(combined);setTimeout(hideNow,120);});
+  combined?.addEventListener('keydown',event=>{if(event.target===autoCheckbox)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(combined);setTimeout(hideNow,120);}});
+
+  shipAuto?.addEventListener('click',event=>event.stopPropagation());
+  shipAuto?.addEventListener('change',event=>{event.stopPropagation();setShipAuto(shipAuto.checked);});
+  shipCombined?.addEventListener('click',event=>{if(event.target===shipAuto)return;event.preventDefault();flash(shipCombined);setTimeout(hideNow,120);});
+  shipCombined?.addEventListener('keydown',event=>{if(event.target===shipAuto)return;if(event.key==='Enter'||event.key===' '){event.preventDefault();flash(shipCombined);setTimeout(hideNow,120);}});
+
   ['pointerdown','keydown'].forEach(name=>document.querySelector('.wrap')?.addEventListener(name,event=>{if(event.target?.closest?.('#hudCombined'))return;show();},{passive:true}));
+  $('shipStage')?.addEventListener('pointerdown',event=>{if(event.target?.closest?.('#shipHideControl'))return;show();},{passive:true});
   $('hudTap')?.addEventListener('pointerdown',event=>{event.preventDefault();show();});
   $('hudTap')?.addEventListener('touchend',event=>{event.preventDefault();show();},{passive:false});
-  setInterval(()=>{if(autoEnabled&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();},1000);
+
+  setInterval(()=>{
+    const shouldAutoHide=document.body.classList.contains('view-ship')?shipAutoEnabled:autoEnabled;
+    if(shouldAutoHide&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();
+  },1000);
   syncChecks();
-  window.GEHUD={show,hide:hideNow,getAuto:()=>autoEnabled,setAuto,flash};
-})();
+  window.GEHUD={show,hide:hideNow,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
+})();;
 
 
 
@@ -2953,6 +2968,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       const source=$(button.dataset.proxy);if(!source)return;
       const pressed=source.getAttribute('aria-pressed');if(pressed!==null)button.setAttribute('aria-pressed',pressed);else button.removeAttribute('aria-pressed');
       button.classList.toggle('active',source.classList.contains('active'));
+      button.classList.toggle('ship-live-active',source.id==='liveBtn'&&pressed==='true');
       if(source.id==='offlineBtn')button.textContent=source.textContent.replace(/\s*\(\d+\)\s*$/,'');
     });
     if(autoPilotBtn)setPressed(autoPilotBtn,autopilot);
@@ -2980,14 +2996,14 @@ $('reloadBtn').addEventListener('click',async()=>{
 
   function clamp(v,min,max){return Math.max(min,Math.min(max,v));}function lerp(a,b,t){return a+(b-a)*t;}function rand(min,max){return Math.random()*(max-min)+min;}
 
-  const SUN_LAB_KEY='GE_SUN_LAB_V6';
+  const SUN_LAB_KEY='GE_SUN_LAB_V7';
   const SUN_LAB_DEFAULTS=Object.freeze({
     waveType:'mirrorflip',distance:55,thickness:55,contrast:40,dynamics:140,glow:0,mist:0,
     blueDepth:40,outerFade:50,tipWhite:56,brightness:150,hue:0,hueMix:0,altHue:68,
     bass:20,mid:20,treble:20,compression:0,smoothing:10,
     radialOn:true,cascadeOn:false,cascadeSpeed:58,glowOnly:false
   });
-  const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V2';
+  const SUN_MODE_KEY='GE_SUN_LAB_MODE_PROFILES_V3';
   const SUN_MODE_WAVE={plasma:'plasma',spectrum:'spectrum',glow:'glow',waterfall:'mirrorflip'};
   const SUN_MODE_CONTROLS={
     plasma:['slDistance','slThickness','slDynamics','slBrightness','slHue'],
@@ -3164,6 +3180,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(arrivalContact){
       if(distance<=30 && arrival>.90 && !arrivalContactShown && !arrivalDismissed){
         arrivalContactShown=true;
+        resetArrivalSendState();
         arrivalContact.classList.remove('open');
         document.body.classList.remove('hud-hidden');
         document.body.classList.add('arrival-mode');
@@ -3936,6 +3953,16 @@ Vector ${vector}. ${pair[1]}.`;
   const SOUL_BACKGROUNDS=['1.jpeg','2.jpg','3.png','4.jpg','5.jpg','6.jpg','7.png','8.jpg','9.jpg','10.jpg','11.jpg','12.png','13.jpg','14.jpg','15.jpg','16.png'];
   let soulUniverse=Math.max(0,Math.min(SOUL_BACKGROUNDS.length-1,Number(localStorage.getItem(SOUL_UNIVERSE_KEY)||0)||0));
   let pendingReflection=null;
+  let privateMessageSent=false;
+
+  function resetArrivalSendState(){
+    privateMessageSent=false;
+    if(arrivalPrivateSendBtn){
+      arrivalPrivateSendBtn.disabled=false;
+      arrivalPrivateSendBtn.textContent='Send';
+      arrivalPrivateSendBtn.classList.remove('sent');
+    }
+  }
 
   function autoGrowArrival(){
     if(!arrivalComment)return;
@@ -3960,6 +3987,14 @@ Vector ${vector}. ${pair[1]}.`;
       const wantsPost=!!arrivalPost?.checked;
       arrivalSend.textContent=wantsPrivate&&wantsPost?'Send & Post':wantsPrivate?'Send':wantsPost?'Post':'Done';
     }
+    requestAnimationFrame(()=>{
+      autoGrowArrival();
+      if(arrivalContact){
+        const vv=window.visualViewport;
+        const cap=vv?Math.max(220,vv.height-20):Math.max(220,window.innerHeight-20);
+        arrivalContact.style.setProperty('--arrival-max-height',cap+'px');
+      }
+    });
   }
   arrivalPrivate?.addEventListener('change',syncArrivalOptions);
   arrivalPost?.addEventListener('change',syncArrivalOptions);
@@ -4176,6 +4211,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(arrivalEditBtn)arrivalEditBtn.hidden=!mine;
   }
   arrivalPrivateSendBtn?.addEventListener('click',()=>{
+    if(privateMessageSent)return;
     if(arrivalPrivate)arrivalPrivate.checked=true;
     if(arrivalPost)arrivalPost.checked=false;
     syncArrivalOptions();arrivalSend?.click();
@@ -4219,7 +4255,15 @@ Vector ${vector}. ${pair[1]}.`;
       privateResult=await sendPrivateReflection(payload);
       if(privateResult.unavailable){if(arrivalStatus)arrivalStatus.textContent='Saved on this device. Direct private sending is not connected yet.';}
       else if(!privateResult.ok){if(arrivalStatus)arrivalStatus.textContent='Saved on this device, but the private message could not be sent.';}
-      else if(arrivalStatus)arrivalStatus.textContent='Message sent.';
+      else {
+        privateMessageSent=true;
+        if(arrivalPrivateSendBtn){
+          arrivalPrivateSendBtn.disabled=true;
+          arrivalPrivateSendBtn.textContent='Sent';
+          arrivalPrivateSendBtn.classList.add('sent');
+        }
+        if(arrivalStatus)arrivalStatus.textContent='Message sent. You can still Post this reflection.';
+      }
     }
 
     if(wantsPost){
@@ -4228,7 +4272,11 @@ Vector ${vector}. ${pair[1]}.`;
       openReflectionWall(textValue);
       if(pendingReflection){pendingReflection.locationLabel=payload.locationLabel||'';pendingReflection.lat=payload.lat;pendingReflection.lon=payload.lon;pendingReflection.created=payload.created;}
     }else if(wantsPrivate&&privateResult.ok){
-      setTimeout(()=>{clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');},900);
+      if(arrivalPrivate)arrivalPrivate.checked=false;
+      if(arrivalPost)arrivalPost.checked=false;
+      syncArrivalOptions();
+      arrivalContact?.classList.add('open');
+      document.body.classList.add('arrival-mode');
     }
   });
   syncArrivalOptions();autoGrowArrival();
