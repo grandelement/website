@@ -125,6 +125,14 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
   FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS playlist_versions (
+  version_id TEXT PRIMARY KEY,
+  playlist_id TEXT NOT NULL,
+  recorded_at INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS game_scores (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
@@ -205,6 +213,7 @@ CREATE INDEX IF NOT EXISTS idx_listener_events_anon ON listener_events(anon_id);
 CREATE INDEX IF NOT EXISTS idx_comments_time ON comments(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_playlists_updated ON playlists(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_playlist_versions_id ON playlist_versions(playlist_id, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_values_scope ON vault_values(kind, scope, key);
 CREATE INDEX IF NOT EXISTS idx_effect_presets_surface ON effect_presets(surface, archived, name);
 CREATE INDEX IF NOT EXISTS idx_effect_preset_versions_id ON effect_preset_versions(preset_id, recorded_at DESC);
@@ -261,3 +270,8 @@ BEGIN SELECT RAISE(ABORT,'GE Vault protected table: audit_log cannot be deleted 
 CREATE TRIGGER IF NOT EXISTS protect_effect_preset_versions_delete
 BEFORE DELETE ON effect_preset_versions
 BEGIN SELECT RAISE(ABORT,'GE Vault protected table: effect_preset_versions cannot be deleted by routine operations'); END;
+
+
+CREATE TRIGGER IF NOT EXISTS protect_playlist_versions_delete
+BEFORE DELETE ON playlist_versions
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: playlist_versions cannot be deleted by routine operations'); END;
