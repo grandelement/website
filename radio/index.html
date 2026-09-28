@@ -1602,6 +1602,12 @@ function setLiveStatus(text,show=true){
 function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
 }
+function freshLiveStreamURL(){
+  const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
+  // A fresh query value prevents Safari/PWA buffering from resuming stale LIVE bytes.
+  target.searchParams.set('_ge_live_edge',String(Date.now()));
+  return target.href;
+}
 function liveShareURL(){
   const target=new URL('./',location.href);
   target.searchParams.set(CONFIG.LIVE_SHARE_PARAM||'live','1');
@@ -1617,7 +1623,7 @@ function setLiveMediaSession(){
       artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
     });
     const safe=(action,handler)=>{try{navigator.mediaSession.setActionHandler(action,handler);}catch(_e){}};
-    safe('play',()=>audio.play().catch(()=>{}));
+    safe('play',()=>{void resumeLiveAtEdge();});
     safe('pause',()=>audio.pause());
     safe('previoustrack',null);
     safe('nexttrack',null);
@@ -1625,6 +1631,43 @@ function setLiveMediaSession(){
 }
 function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
+}
+async function resumeLiveAtEdge(){
+  if(!state.live||state.livePreparing)return;
+  if(navigator.onLine===false){
+    setStatus('RADIO requires an Internet connection.');
+    setLiveStatus('RADIO • Internet connection required.',true);
+    return;
+  }
+  clearLiveReconnect();
+  state.playToken++;
+  state.currentURL=CONFIG.LIVE_STREAM_URL;
+  titleBtn.textContent=CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
+  updateCurrentRow();
+  setLiveMediaSession();
+  setLiveStatus('RADIO • joining the current broadcast…',true);
+  setStatus('Returning to the current Grand Element Radio broadcast…');
+  try{
+    // Pausing a real radio must not create a personal time-shift buffer.
+    // Throw away the paused connection completely and make a fresh request.
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    audio.crossOrigin='anonymous';
+    audio.autoplay=true;
+    audio.preload='auto';
+    audio.muted=false;
+    audio.defaultMuted=false;
+    audio.volume=window.GEGate?.desiredVolume?.() ?? 1;
+    audio.src=freshLiveStreamURL();
+    audio.load();
+    await audio.play();
+    setLiveStatus('RADIO • reconnected to the current broadcast',true);
+    setStatus('Grand Element Radio');
+  }catch(_e){
+    setLiveStatus('RADIO • reconnecting to the current broadcast…',true);
+    reconnectLiveStream();
+  }
 }
 async function enterLiveMode(){
   if(state.live||state.livePreparing)return;
@@ -1662,7 +1705,7 @@ async function enterLiveMode(){
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=1;
-  audio.src=CONFIG.LIVE_STREAM_URL;
+  audio.src=freshLiveStreamURL();
   audio.load();
 
   try{
@@ -1751,7 +1794,10 @@ function reconnectLiveStream(){
   liveState.reconnectTimer=setTimeout(async()=>{
     if(!state.live)return;
     try{
-      audio.src=CONFIG.LIVE_STREAM_URL;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
       setLiveStatus('RADIO • reconnected to the Grand Element station',true);
@@ -1761,7 +1807,7 @@ function reconnectLiveStream(){
     }
   },1800);
 }
-window.GELive={enter:enterLiveMode,exit:exitLiveMode,shareURL:liveShareURL};
+window.GELive={enter:enterLiveMode,exit:exitLiveMode,resumeAtEdge:resumeLiveAtEdge,shareURL:liveShareURL};
 
 function updateMediaSession(url){
   if(!('mediaSession' in navigator)) return;
@@ -1837,6 +1883,10 @@ function resumeAudio(){
   state.userStarted=true;
   audio.muted=false;
   audio.volume=window.GEGate?.desiredVolume?.() ?? 1;
+  if(state.live){
+    void resumeLiveAtEdge();
+    return;
+  }
   void window.GEResumeLiveEQ?.();
   audio.play().catch(()=>setStatus('Tap the Play control once to unlock audio.'));
 }
