@@ -19,7 +19,12 @@ section{background:rgba(7,24,39,.9);border:1px solid rgba(115,205,255,.2);border
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}label{display:block;font-size:calc(12px * var(--scale));font-weight:850;color:#d7f0ff}label span{display:block;margin-bottom:5px}
 input[type=text],input[type=email],input[type=number],input[type=password],select,textarea{width:100%;padding:10px;border:1px solid #28516d;border-radius:10px;background:#04111e;color:#fff}textarea{min-height:90px;resize:vertical}.check{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #21435c;border-radius:10px;background:#051521}.check input{width:21px;height:21px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.editScreen{background:#134664;border-color:#77d9ff}.rangeRow{display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center}.rangeRow input{width:100%}
 .album{border:1px solid #204761;background:#05131f;border-radius:14px;padding:12px;margin-top:10px}.albumHead{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}.albumFields{display:grid;grid-template-columns:100px 130px 1fr;gap:8px;margin-top:9px}.albumMove{display:flex;gap:5px}.albumMove button{padding:5px 9px}
-#screenEditor{position:fixed;inset:0;z-index:90000;background:#000;display:none}#screenEditor.show{display:block}#editorFrame{width:100%;height:100%;border:0;background:#000}.editorBar{position:absolute;z-index:6;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:7px;align-items:center;padding:7px;border:1px solid rgba(150,225,255,.65);border-radius:999px;background:rgba(1,9,18,.93);box-shadow:0 0 20px rgba(70,180,255,.26)}.editorBar span{font-size:12px;font-weight:900}.editorBar button{padding:7px 11px}.editorHint{position:absolute;z-index:6;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(94vw,560px);padding:8px 12px;text-align:center;border-radius:11px;background:rgba(0,8,17,.86);font-size:12px;color:#d8f3ff;pointer-events:none}
+#screenEditor{position:fixed;inset:0;z-index:90000;background:#000;display:none}#screenEditor.show{display:block}#editorFrame{width:100%;height:100%;border:0;background:#000}
+.editorBar{position:absolute;z-index:8;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:7px;align-items:center;padding:7px;border:1px solid rgba(150,225,255,.65);border-radius:999px;background:rgba(1,9,18,.93);box-shadow:0 0 20px rgba(70,180,255,.26);max-width:94vw}
+.editorBar span{font-size:12px;font-weight:900;white-space:nowrap}.editorBar button{padding:7px 11px;white-space:nowrap}.editorBar.collapsed{left:auto;right:8px;transform:none}.editorBar.collapsed>*:not(#editorShowControls){display:none}.editorBar:not(.collapsed) #editorShowControls{display:none}
+.editorHint{position:absolute;z-index:6;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(94vw,560px);padding:8px 12px;text-align:center;border-radius:11px;background:rgba(0,8,17,.86);font-size:12px;color:#d8f3ff;pointer-events:none}
+.planetPicker{position:absolute;z-index:8;left:10px;top:max(66px,calc(env(safe-area-inset-top) + 62px));width:min(250px,72vw);max-height:70vh;overflow:auto;padding:10px;border:1px solid rgba(125,214,255,.66);border-radius:14px;background:rgba(2,13,25,.94);box-shadow:0 0 22px rgba(45,165,230,.24)}.planetPicker.hiddenPanel{display:none}.planetPickerHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.planetPickerHead strong{font-size:13px}.planetPickerHead button{padding:5px 8px}.planetChoice{display:flex;align-items:center;gap:8px;padding:7px 4px;border-top:1px solid rgba(120,195,235,.12);font-size:13px;font-weight:800}.planetChoice input{width:20px;height:20px;flex:0 0 auto}.planetChoice span{flex:1}.planetCount{font-size:11px;color:#9edcf8;margin:4px 0 7px}.planetPickerTab{position:absolute;z-index:8;left:10px;top:max(66px,calc(env(safe-area-inset-top) + 62px));display:none}.planetPickerTab.show{display:block}
+@media(max-width:700px){.planetPicker{width:min(220px,66vw);max-height:62vh}.editorBar{left:8px;right:8px;transform:none;justify-content:center}.editorBar span{display:none}}
 @media(max-width:700px){.topControls,.grid,.grid3,.albumFields{grid-template-columns:1fr}.topControls button{width:100%}.albumHead{grid-template-columns:auto 1fr}.albumMove{grid-column:1/-1}.actions button{flex:1 1 44%}}
 </style>
 </head>
@@ -121,8 +126,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <div id="screenEditor">
   <iframe id="editorFrame" title="Website placement editor"></iframe>
-  <div class="editorBar"><span id="editorTitle">EDIT ON SCREEN</span><button id="editorSave" type="button">SAVE POSITION</button><button id="editorClose" type="button">CLOSE</button></div>
-  <div class="editorHint">Drag the highlighted item. The center and edge guides show useful alignment points.</div>
+  <div class="editorBar" id="editorBar">
+    <span id="editorTitle">EDIT ON SCREEN</span>
+    <button id="editorHideControls" type="button">HIDE CONTROLS</button>
+    <button id="editorSave" type="button">SAVE POSITION</button>
+    <button id="editorClose" type="button">CLOSE</button>
+    <button id="editorShowControls" type="button">CONTROLS</button>
+  </div>
+  <div class="planetPicker hiddenPanel" id="planetPicker">
+    <div class="planetPickerHead"><strong>PLANETS</strong><button id="planetPickerHide" type="button">HIDE</button></div>
+    <div class="planetCount" id="planetCount">0 selected</div>
+    <div id="planetChoices"></div>
+  </div>
+  <button class="planetPickerTab" id="planetPickerTab" type="button">PLANETS</button>
+  <div class="editorHint" id="editorHint">Drag the highlighted item. The center and edge guides show useful alignment points.</div>
 </div>
 
 <script>
@@ -241,7 +258,7 @@ async function publish(){
 $('publishLive').onclick=publish;
 
 function addGuides(doc){
-  const s=doc.createElement('style');s.id='geBackroomGuides';s.textContent='body:before,body:after{content:"";position:fixed;z-index:2147483640;pointer-events:none;background:rgba(110,220,255,.48)}body:before{left:50%;top:0;bottom:0;width:1px}body:after{top:50%;left:0;right:0;height:1px}.ge-guide-edge{position:fixed;inset:5%;border:1px dashed rgba(110,220,255,.45);z-index:2147483639;pointer-events:none}.ge-editing-item{outline:2px solid #7de9ff!important;box-shadow:0 0 22px #36bfff!important;touch-action:none!important;cursor:move!important}';doc.head.appendChild(s);const edge=doc.createElement('div');edge.className='ge-guide-edge';doc.body.appendChild(edge);
+  const s=doc.createElement('style');s.id='geBackroomGuides';s.textContent='body:before,body:after{content:"";position:fixed;z-index:2147483640;pointer-events:none;background:rgba(110,220,255,.48)}body:before{left:50%;top:0;bottom:0;width:1px}body:after{top:50%;left:0;right:0;height:1px}.ge-guide-edge{position:fixed;inset:5%;border:1px dashed rgba(110,220,255,.45);z-index:2147483639;pointer-events:none}.ge-editing-item{outline:2px solid #7de9ff!important;box-shadow:0 0 22px #36bfff!important;touch-action:none!important;cursor:move!important}.ge-editing-item .label{opacity:1!important;display:block!important;position:absolute!important;left:50%!important;top:calc(100% + 5px)!important;transform:translateX(-50%)!important;background:rgba(0,8,18,.86)!important;color:#fff!important;border:1px solid rgba(105,220,255,.75)!important;border-radius:999px!important;padding:3px 7px!important;font:900 11px/1.2 system-ui,sans-serif!important;white-space:nowrap!important;pointer-events:none!important;text-shadow:0 1px 4px #000!important}';doc.head.appendChild(s);const edge=doc.createElement('div');edge.className='ge-guide-edge';doc.body.appendChild(edge);
 }
 function draggable(frameWin,el,onMove){
   let active=false,dx=0,dy=0;
@@ -250,18 +267,58 @@ function draggable(frameWin,el,onMove){
   const up=()=>active=false;el.addEventListener('pointerdown',down,{capture:true});frameWin.addEventListener('pointermove',move,{passive:false});frameWin.addEventListener('pointerup',up);
   return()=>{el.removeEventListener('pointerdown',down,{capture:true});frameWin.removeEventListener('pointermove',move);frameWin.removeEventListener('pointerup',up)}
 }
+function selectedPlanets(){
+  cfg.albums=cfg.albums||{};cfg.albums.order=Array.isArray(cfg.albums.order)?cfg.albums.order:[];cfg.albums.visible=Array.isArray(cfg.albums.visible)?cfg.albums.visible:[];
+  return new Set(cfg.albums.visible);
+}
+function updatePlanetCount(){
+  const count=selectedPlanets().size;$('planetCount').textContent=count+' selected';
+}
+function renderPlanetPicker(){
+  const wrap=$('planetChoices');wrap.innerHTML='';const selected=selectedPlanets();
+  (cfg.albums.order||[]).forEach(name=>{
+    const row=document.createElement('label');row.className='planetChoice';
+    const box=document.createElement('input');box.type='checkbox';box.checked=selected.has(name);
+    const text=document.createElement('span');text.textContent=name;
+    box.addEventListener('change',()=>{
+      const set=selectedPlanets();box.checked?set.add(name):set.delete(name);cfg.albums.visible=(cfg.albums.order||[]).filter(n=>set.has(n));cfg.albums.layout='custom';$('planetLayout').value='custom';
+      localStorage.setItem(WORK_KEY,JSON.stringify(cfg));updatePlanetCount();reloadPlanetEditor();
+    });
+    row.append(box,text);wrap.appendChild(row);
+  });
+  updatePlanetCount();
+}
+function reloadPlanetEditor(){
+  if(editorTarget!=='planets')return;
+  const frame=$('editorFrame');frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
+}
+function showPlanetPicker(show){
+  $('planetPicker').classList.toggle('hiddenPanel',!show);$('planetPickerTab').classList.toggle('show',!show&&editorTarget==='planets');
+}
+$('planetPickerHide').onclick=()=>showPlanetPicker(false);
+$('planetPickerTab').onclick=()=>showPlanetPicker(true);
+$('editorHideControls').onclick=()=>{$('editorBar').classList.add('collapsed');if(editorTarget==='planets')showPlanetPicker(false);$('editorHint').style.display='none'};
+$('editorShowControls').onclick=()=>{$('editorBar').classList.remove('collapsed');if(editorTarget==='planets')showPlanetPicker(true);$('editorHint').style.display='block'};
+
 async function openEditor(target){
-  saveDraft();editorTarget=target;$('editorTitle').textContent=target==='planets'?'PLACE ALBUM PLANETS':target==='about'?'PLACE ABOUT':'PLACE WELCOME';$('screenEditor').classList.add('show');const frame=$('editorFrame');frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
+  editorTarget=target;
+  if(target==='planets'){cfg.albums=cfg.albums||{};cfg.albums.layout='custom';cfg.albums.positions=cfg.albums.positions||{};$('planetLayout').value='custom';}
+  saveDraft();
+  $('editorBar').classList.remove('collapsed');$('editorHint').style.display='block';
+  $('editorTitle').textContent=target==='planets'?'PLACE ALBUM PLANETS':target==='about'?'PLACE ABOUT':'PLACE WELCOME';
+  $('screenEditor').classList.add('show');
+  if(target==='planets'){renderPlanetPicker();showPlanetPicker(true)}else{showPlanetPicker(false);$('planetPickerTab').classList.remove('show')}
+  const frame=$('editorFrame');frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
   frame.onload=()=>{try{const w=frame.contentWindow,d=frame.contentDocument;addGuides(d);if(dragCleanup)dragCleanup();let cleans=[];
     if(target==='welcome'){const wrap=d.getElementById('geWelcome'),el=d.getElementById('geWelcomeCard');wrap.style.display='grid';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.setAttribute('aria-hidden','false');el.classList.add('ge-editing-item');const v=cfg.visual.welcome;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.backgroundColor='rgba(4,18,32,'+(v.panelOpacity/100)+')';cleans.push(draggable(w,el,(x,y)=>{cfg.visual.welcome.x=+x.toFixed(2);cfg.visual.welcome.y=+y.toFixed(2)}))}
     if(target==='about'){const wrap=d.getElementById('about'),el=wrap?.querySelector('.aboutText');if(wrap&&el){wrap.classList.add('show');wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';el.classList.add('ge-editing-item');const v=cfg.visual.about;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.opacity=String(v.panelOpacity/100);cleans.push(draggable(w,el,(x,y)=>{cfg.visual.about.x=+x.toFixed(2);cfg.visual.about.y=+y.toFixed(2)}))}}
-    if(target==='planets'){cfg.albums.layout='custom';$('planetLayout').value='custom';const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');const name=el.dataset.album||el.title||'';cleans.push(draggable(w,el,(x,y)=>{cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)}}))})}
+    if(target==='planets'){const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');el.removeAttribute('target');const name=el.dataset.album||el.title||'';const label=el.querySelector('.label');if(label)label.textContent=name;cleans.push(draggable(w,el,(x,y)=>{cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)};localStorage.setItem(WORK_KEY,JSON.stringify(cfg))}))});$('planetCount').textContent=nodes.length+' visible · '+selectedPlanets().size+' selected'}
     dragCleanup=()=>cleans.forEach(fn=>fn());
   }catch(e){setStatus('SCREEN EDITOR COULD NOT START')}}
 }
 document.querySelectorAll('[data-edit-target]').forEach(b=>b.onclick=()=>openEditor(b.dataset.editTarget));
-$('editorSave').onclick=()=>{saveDraft();$('screenEditor').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null;setStatus('POSITION SAVED')};
-$('editorClose').onclick=()=>{$('screenEditor').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null};
+$('editorSave').onclick=()=>{saveDraft();$('screenEditor').classList.remove('show');showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null;setStatus('POSITION SAVED')};
+$('editorClose').onclick=()=>{$('screenEditor').classList.remove('show');showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null};
 
 async function bootBackroom(){
   applyText(localStorage.getItem(TEXT_KEY)||115);
