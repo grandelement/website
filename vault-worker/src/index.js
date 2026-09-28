@@ -303,6 +303,195 @@ async function ingestComment(request, env) {
 }
 
 
+
+function cleanEventName(value) {
+  const name = String(value || "").trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9._:-]{0,63}$/.test(name) ? name : "";
+}
+
+function safePath(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  try {
+    const u = new URL(text, "https://example.invalid");
+    return (u.pathname || "/").slice(0, 500);
+  } catch {
+    return text.split("?")[0].split("#")[0].slice(0, 500);
+  }
+}
+
+async function savePublicFanEvent(request, env) {
+  const body = await readBody(request);
+  const eventType = cleanEventName(body.event_type);
+  if (!eventType) return json({ ok: false, error: "Invalid event type." }, 400);
+
+  const visitor = await visitorIdentity(request, env);
+  const t = now();
+
+  if (visitor.ip_hash) {
+    const recent = await env.VAULT_DB.prepare(
+      "SELECT COUNT(*) AS n FROM fan_events WHERE ip_hash=? AND occurred_at>?",
+    ).bind(visitor.ip_hash, t - 600).first();
+    if (Number(recent?.n || 0) >= 600) {
+      return json({ ok: false, error: "Event rate limit reached." }, 429);
+    }
+  }
+
+  const eventId = id("event");
+  await env.VAULT_DB.prepare(
+    `INSERT INTO fan_events
+      (id,occurred_at,fan_id,anon_id,session_id,event_type,surface,page_path,track_id,playlist_id,ip_hash,ip_ciphertext,user_agent,referrer,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(
+    eventId,
+    t,
+    null,
+    String(body.anon_id || "").slice(0, 160) || null,
+    String(body.session_id || "").slice(0, 160) || null,
+    eventType,
+    String(body.surface || "").slice(0, 80) || null,
+    safePath(body.page_path || ""),
+    String(body.track_id || "").slice(0, 300) || null,
+    String(body.playlist_id || "").slice(0, 160) || null,
+    visitor.ip_hash || null,
+    visitor.ip_ciphertext || null,
+    request.headers.get("user-agent") || null,
+    safePath(body.referrer || request.headers.get("referer") || ""),
+    visitor.country,
+    visitor.region,
+    visitor.city,
+    visitor.timezone,
+    visitor.cf_colo,
+    visitor.cf_asn,
+    visitor.cf_as_org,
+    cleanJson(body.metadata),
+  ).run();
+
+  return json({ ok: true, id: eventId }, 201);
+}
+
+function publicGameScore(row) {
+  let record = {};
+  try { record = JSON.parse(row.record_json || "{}"); } catch {}
+  return {
+    ...record,
+    id: row.id,
+    name: row.player_name,
+    score: Number(row.score || 0),
+    target: Number(row.target || 0),
+    winningThrows: Number(row.winning_throws || 0),
+    players: Number(row.players || 1),
+    completedAt: row.completed_at || record.completedAt || "",
+    gameType: row.game_type || record.gameType || "points",
+  };
+}
+
+async function listPublicGameScores(env, url) {
+  const limit = Math.max(1, Math.min(250, Number(url.searchParams.get("limit") || 100)));
+  const gameType = String(url.searchParams.get("game_type") || "").trim().slice(0, 40);
+  let result;
+  if (gameType) {
+    result = await env.VAULT_DB.prepare(
+      "SELECT * FROM game_scores WHERE game_type=? ORDER BY CASE WHEN winning_throws>0 THEN winning_throws ELSE 2147483647 END ASC, score DESC, updated_at DESC LIMIT ?",
+    ).bind(gameType, limit).all();
+  } else {
+    result = await env.VAULT_DB.prepare(
+      "SELECT * FROM game_scores ORDER BY CASE WHEN winning_throws>0 THEN winning_throws ELSE 2147483647 END ASC, score DESC, updated_at DESC LIMIT ?",
+    ).bind(limit).all();
+  }
+  return (result.results || []).map(publicGameScore);
+}
+
+async function savePublicGameScore(request, env) {
+  const body = await readBody(request);
+  const scoreId = String(body.id || "").trim();
+  if (!/^[A-Za-z0-9._:-]{3,160}$/.test(scoreId)) {
+    return json({ ok: false, error: "Invalid score ID." }, 400);
+  }
+
+  const name = String(body.name || "Anonymous").trim().slice(0, 32) || "Anonymous";
+  const score = Math.max(0, Math.min(1000000000, Number(body.score) || 0));
+  const target = Math.max(0, Math.min(1000000000, Number(body.target) || 0));
+  const winningThrows = Math.max(0, Math.min(1000000, Math.floor(Number(body.winningThrows) || 0)));
+  const players = Math.max(0, Math.min(64, Math.floor(Number(body.players) || 1)));
+  const gameType = String(body.gameType || body.game_type || "points").trim().slice(0, 40) || "points";
+  const completedAt = String(body.completedAt || "").slice(0, 80);
+  const visitor = await visitorIdentity(request, env);
+  const t = now();
+
+  if (visitor.ip_hash) {
+    const recent = await env.VAULT_DB.prepare(
+      "SELECT COUNT(*) AS n FROM game_score_versions WHERE ip_hash=? AND recorded_at>?",
+    ).bind(visitor.ip_hash, t - 600).first();
+    if (Number(recent?.n || 0) >= 60) {
+      return json({ ok: false, error: "Score rate limit reached." }, 429);
+    }
+  }
+
+  const recordJson = cleanJson({
+    ...body,
+    id: scoreId,
+    name,
+    score,
+    target,
+    winningThrows,
+    players,
+    gameType,
+    completedAt,
+  });
+
+  const existing = await env.VAULT_DB.prepare(
+    "SELECT id,created_at FROM game_scores WHERE id=?",
+  ).bind(scoreId).first();
+
+  await env.VAULT_DB.batch([
+    env.VAULT_DB.prepare(
+      `INSERT INTO game_scores
+        (id,created_at,updated_at,game_type,player_name,score,target,winning_throws,players,completed_at,anon_id,ip_hash,ip_ciphertext,country,region,city,record_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO UPDATE SET
+         updated_at=excluded.updated_at,
+         game_type=excluded.game_type,
+         player_name=excluded.player_name,
+         score=excluded.score,
+         target=excluded.target,
+         winning_throws=excluded.winning_throws,
+         players=excluded.players,
+         completed_at=excluded.completed_at,
+         anon_id=COALESCE(excluded.anon_id,game_scores.anon_id),
+         ip_hash=COALESCE(excluded.ip_hash,game_scores.ip_hash),
+         ip_ciphertext=COALESCE(excluded.ip_ciphertext,game_scores.ip_ciphertext),
+         country=COALESCE(excluded.country,game_scores.country),
+         region=COALESCE(excluded.region,game_scores.region),
+         city=COALESCE(excluded.city,game_scores.city),
+         record_json=excluded.record_json`,
+    ).bind(
+      scoreId,
+      existing?.created_at || t,
+      t,
+      gameType,
+      name,
+      score,
+      target,
+      winningThrows,
+      players,
+      completedAt || null,
+      String(body.anon_id || "").slice(0, 160) || null,
+      visitor.ip_hash || null,
+      visitor.ip_ciphertext || null,
+      visitor.country,
+      visitor.region,
+      visitor.city,
+      recordJson,
+    ),
+    env.VAULT_DB.prepare(
+      "INSERT INTO game_score_versions (version_id,score_id,recorded_at,ip_hash,record_json) VALUES (?,?,?,?,?)",
+    ).bind(id("scorev"), scoreId, t, visitor.ip_hash || null, recordJson),
+  ]);
+
+  return json({ ok: true, id: scoreId, updated: !!existing }, existing ? 200 : 201);
+}
+
 function publicReflectionRow(row) {
   let meta = {};
   try { meta = JSON.parse(row.metadata_json || "{}"); } catch {}
@@ -783,6 +972,16 @@ export default {
         return json({ ok: true, service: "GE Studios Vault", time: now() }, 200, cors);
       }
 
+      if (url.pathname === "/v1/public/game-scores" && request.method === "GET") {
+        return json({ ok: true, items: await listPublicGameScores(env, url) }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/game-scores" && request.method === "POST") {
+        const response = await savePublicGameScore(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
       if (url.pathname === "/v1/public/event" && request.method === "POST") {
         const response = await ingestPublicFanEvent(request, env);
         Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
@@ -847,6 +1046,14 @@ export default {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         const rows = await env.VAULT_DB.prepare(
           "SELECT * FROM listener_events ORDER BY occurred_at DESC LIMIT 2000",
+        ).all();
+        return json({ ok: true, items: rows.results || [] }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/game-scores" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        const rows = await env.VAULT_DB.prepare(
+          "SELECT * FROM game_scores ORDER BY updated_at DESC LIMIT 2000",
         ).all();
         return json({ ok: true, items: rows.results || [] }, 200, cors);
       }
