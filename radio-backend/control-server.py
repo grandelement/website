@@ -1597,6 +1597,18 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response({"ok": True, "items": list_remote_devices()})
             return
 
+        if parsed.path == "/control/vault/analytics":
+            if not self.require_auth():
+                return
+            try:
+                qs = urllib.parse.parse_qs(parsed.query)
+                days = max(1, min(3650, int((qs.get("days") or ["30"])[0])))
+                data = vault_request("GET", "/v1/admin/analytics?days=" + urllib.parse.quote(str(days)))
+                self.json_response(data)
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 503)
+            return
+
         if self.path == "/control/status":
             if not self.require_auth():
                 return
