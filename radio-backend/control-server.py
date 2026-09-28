@@ -1704,7 +1704,7 @@ class Handler(BaseHTTPRequestHandler):
                     "realtime": realtime_state(),
                     "voice_mount": "/source/voice",
                     "live_mount": "/source/live",
-                    "dj_test_stream": "/dj-test.mp3",
+                    "dj_stream": "/dj.mp3",
                     "public_radio_isolated": True,
                     "username": "source",
                     "ssl": True,
@@ -1730,7 +1730,7 @@ class Handler(BaseHTTPRequestHandler):
                 "live_mount": "/source/live",
                 "password": "Use the same DJ password you entered here.",
                 "monitor": "/dj-cue.mp3",
-                "dj_test_stream": "/dj-test.mp3",
+                "dj_stream": "/dj.mp3",
                 "public_stream": "/stream.mp3",
                 "public_radio_isolated": True,
             })
