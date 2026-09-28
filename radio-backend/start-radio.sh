@@ -85,10 +85,9 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
-# Optional contribution inputs remain available for later isolated testing,
-# but they are deliberately NOT part of the public radio path.
-voice = input.harbor("voice", id="ge_voice", port=8095, user="source", password=${HARBOR_PASSWORD_LIQ}, buffer=0.5)
-live  = input.harbor("live",  id="ge_live",  port=8095, user="source", password=${HARBOR_PASSWORD_LIQ}, buffer=0.5)
+# Baseline stability mode: no harbor/live contribution inputs are attached.
+# The public station is automation only. DJ microphone is handled by the
+# completely separate /dj.mp3 process below.
 
 # Private music-only cue for DJ headphones.
 output.icecast(
@@ -312,7 +311,6 @@ start_audio_stack(){
   if ! wait_port 8000 20; then echo "GE Radio: Icecast did not open port 8000; will retry."; stop_audio; return 1; fi
 
   liquidsoap -t /app/runtime/radio.liq & LIQUIDSOAP_PID=$!
-  if ! wait_port 8095 30; then echo "GE Radio: source-ingest harbor did not open port 8095; will retry."; stop_audio; return 1; fi
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: isolated public radio not ready; will retry."; stop_audio; return 1; fi
 
