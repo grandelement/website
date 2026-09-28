@@ -337,6 +337,17 @@ function safePath(value) {
   }
 }
 
+function safeReferrer(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  try {
+    const u = new URL(text);
+    return (u.origin + (u.pathname || "/")).slice(0, 700);
+  } catch {
+    return text.split("?")[0].split("#")[0].slice(0, 700);
+  }
+}
+
 async function savePublicFanEvent(request, env) {
   const body = await readBody(request);
   const eventType = cleanEventName(body.event_type);
@@ -344,6 +355,7 @@ async function savePublicFanEvent(request, env) {
 
   const visitor = await visitorIdentity(request, env);
   const t = now();
+  const meta = body.metadata && typeof body.metadata === "object" ? body.metadata : {};
 
   if (visitor.ip_hash) {
     const recent = await env.VAULT_DB.prepare(
@@ -357,23 +369,33 @@ async function savePublicFanEvent(request, env) {
   const eventId = id("event");
   await env.VAULT_DB.prepare(
     `INSERT INTO fan_events
-      (id,occurred_at,fan_id,anon_id,session_id,event_type,surface,page_path,track_id,playlist_id,ip_hash,ip_ciphertext,user_agent,referrer,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      (id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,ip_hash,ip_ciphertext,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).bind(
     eventId,
     t,
     null,
     String(body.anon_id || "").slice(0, 160) || null,
     String(body.session_id || "").slice(0, 160) || null,
+    String(body.surface || "website").slice(0, 80) || "website",
     eventType,
-    String(body.surface || "").slice(0, 80) || null,
+    safePath(body.page_url || body.page_path || ""),
     safePath(body.page_path || ""),
-    String(body.track_id || "").slice(0, 300) || null,
-    String(body.playlist_id || "").slice(0, 160) || null,
+    String(body.track_id || meta.track_id || meta.src || "").slice(0, 300) || null,
+    String(body.track_title || meta.track_title || meta.title || "").slice(0, 300) || null,
+    String(body.album || meta.album || "").slice(0, 160) || null,
+    String(body.playlist_id || meta.playlist_id || "").slice(0, 160) || null,
+    String(body.share_target || meta.share_target || meta.method || "").slice(0, 120) || null,
+    safeReferrer(body.referrer || request.headers.get("referer") || ""),
+    String(body.utm_source || meta.utm_source || "").slice(0, 160) || null,
+    String(body.utm_medium || meta.utm_medium || "").slice(0, 160) || null,
+    String(body.utm_campaign || meta.utm_campaign || "").slice(0, 200) || null,
+    String(body.utm_content || meta.utm_content || "").slice(0, 200) || null,
+    String(body.utm_term || meta.utm_term || "").slice(0, 200) || null,
     visitor.ip_hash || null,
     visitor.ip_ciphertext || null,
     request.headers.get("user-agent") || null,
-    safePath(body.referrer || request.headers.get("referer") || ""),
+    String(body.language || meta.language || "").slice(0, 80) || null,
     visitor.country,
     visitor.region,
     visitor.city,
@@ -381,7 +403,7 @@ async function savePublicFanEvent(request, env) {
     visitor.cf_colo,
     visitor.cf_asn,
     visitor.cf_as_org,
-    cleanJson(body.metadata),
+    cleanJson(meta),
   ).run();
 
   return json({ ok: true, id: eventId }, 201);
