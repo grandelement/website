@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GE Website Back Room</title>
+<style>
+:root{color-scheme:dark;--bg:#030914;--panel:#09192a;--line:#285478;--text:#eaf7ff;--muted:#93abc0;--accent:#78d9ff;--danger:#ff9d9d}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 50% 0,#0a2640 0,#030914 48%);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:env(safe-area-inset-top) 14px calc(24px + env(safe-area-inset-bottom))}
+main{width:min(920px,100%);margin:auto}
+header{position:sticky;top:0;z-index:10;background:rgba(3,9,20,.92);backdrop-filter:blur(12px);margin:0 -14px 14px;padding:12px 14px;border-bottom:1px solid rgba(120,220,255,.22)}
+h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px}
+.modebar,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+button,select,input,textarea{font:inherit}
+button,.button{border:1px solid var(--line);background:#0d2940;color:var(--text);border-radius:12px;padding:10px 13px;font-weight:850;cursor:pointer}
+button.primary{background:#1d6a91;border-color:#79dcff}button.warn{border-color:#7e6767;background:#321d22}
+select,input[type=text],input[type=email],input[type=number],textarea{width:100%;background:#05111f;color:var(--text);border:1px solid #24445f;border-radius:10px;padding:10px}
+textarea{min-height:90px;resize:vertical}
+section{background:rgba(8,24,40,.88);border:1px solid rgba(110,205,255,.20);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+section h2{margin:0 0 6px;font-size:17px}section>p{margin:0 0 13px;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+label{display:block;font-size:12px;font-weight:850;color:#cfeaff}label span{display:block;margin:0 0 5px}
+.check{display:flex;gap:9px;align-items:center;background:#061522;border:1px solid #1e3b52;padding:10px;border-radius:10px}.check input{width:20px;height:20px}.check span{margin:0}
+.album{border:1px solid #1f425d;border-radius:14px;padding:12px;margin-top:10px;background:#06131f}.albumhead{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}.albumhead strong{font-size:15px}.albummove{display:flex;gap:5px}.albummove button{padding:6px 9px}.albumfields{display:grid;grid-template-columns:100px 140px 1fr;gap:8px;margin-top:10px}.albumfields textarea{min-height:78px}
+.status{font-size:12px;padding:9px 11px;border:1px solid #254d69;border-radius:10px;background:#061521;color:#cdeeff;flex:1;min-width:180px}.status.test{border-color:#9b7c24;color:#ffe6a0}
+.note{font-size:12px;color:var(--muted);background:#06131f;border-radius:10px;padding:10px}.publish{border-color:#765f2f;background:rgba(60,43,12,.35)}
+small{color:var(--muted)}
+@media(max-width:700px){.grid,.grid3,.albumfields{grid-template-columns:1fr}.albumhead{grid-template-columns:auto 1fr}.albummove{grid-column:1/-1}.actions button{flex:1 1 45%}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>GE WEBSITE BACK ROOM</h1>
+  <div class="sub">Change the website without digging through index.html.</div>
+  <div class="modebar">
+    <label style="min-width:160px"><span>EDITING</span><select id="mode"><option value="test">TEST WEBSITE</option><option value="live">LIVE WEBSITE DRAFT</option></select></label>
+    <div id="status" class="status">Loading…</div>
+  </div>
+  <div class="actions">
+    <button class="primary" id="save">SAVE DRAFT</button>
+    <button id="preview">PREVIEW</button>
+    <button id="export">EXPORT JSON</button>
+    <button id="reset">RESET FROM REPOSITORY</button>
+  </div>
+</header>
+
+<section>
+  <h2>WELCOME SCREEN</h2>
+  <p>Turn it off completely when the site is ready, or change the short message.</p>
+  <div class="check"><input id="welcomeEnabled" type="checkbox"><span>Show welcome screen</span></div>
+  <div class="grid" style="margin-top:10px">
+    <label><span>Title</span><input id="welcomeTitle" type="text"></label>
+    <label><span>Contact text</span><input id="welcomeContact" type="text"></label>
+  </div>
+  <label style="margin-top:10px"><span>Message</span><textarea id="welcomeBody"></textarea></label>
+  <label style="margin-top:10px"><span>Contact email</span><input id="welcomeEmail" type="email"></label>
+</section>
+
+<section>
+  <h2>ABOUT</h2>
+  <p>One line becomes one item on the About screen.</p>
+  <label><span>About text</span><textarea id="aboutIntro" style="min-height:170px"></textarea></label>
+</section>
+
+<section>
+  <h2>ALBUM PLANETS</h2>
+  <p>Show or hide albums, change their order, and edit the text that appears when a planet is tapped.</p>
+  <div id="albums"></div>
+</section>
+
+<section>
+  <h2>UNIVERSE ACTIVITY</h2>
+  <p>These are the main activity controls. Smaller seconds means things appear more often.</p>
+  <div class="grid3">
+    <label><span>Maximum Souls / comets</span><input id="SOUL_MAX_ACTIVE" type="number" min="0" max="100"></label>
+    <label><span>Soul minimum seconds</span><input id="SOUL_SPAWN_MIN_SEC" type="number" min="1"></label>
+    <label><span>Soul maximum seconds</span><input id="SOUL_SPAWN_MAX_SEC" type="number" min="1"></label>
+    <label><span>Ship minimum seconds</span><input id="SHIP_APPEAR_MIN_SEC" type="number" min="1"></label>
+    <label><span>Ship maximum seconds</span><input id="SHIP_APPEAR_MAX_SEC" type="number" min="1"></label>
+    <label><span>Mini ship minimum seconds</span><input id="MINI_SHIP_APPEAR_MIN_SEC" type="number" min="1"></label>
+    <label><span>Mini ship maximum seconds</span><input id="MINI_SHIP_APPEAR_MAX_SEC" type="number" min="1"></label>
+    <label><span>Meteor shower minimum seconds</span><input id="METEOR_SHOWER_MIN_SEC" type="number" min="1"></label>
+    <label><span>Meteor shower maximum seconds</span><input id="METEOR_SHOWER_MAX_SEC" type="number" min="1"></label>
+    <label><span>Autopilot return minimum</span><input id="AUTOPILOT_SPIRIT_RETURN_MIN_SEC" type="number" min="1"></label>
+    <label><span>Autopilot return maximum</span><input id="AUTOPILOT_SPIRIT_RETURN_MAX_SEC" type="number" min="1"></label>
+  </div>
+</section>
+
+<section>
+  <h2>GAMES AVAILABLE</h2>
+  <p>Turn a game off and visitors will no longer see it in Game Control.</p>
+  <div class="grid3">
+    <div class="check"><input id="gamePoints" type="checkbox"><span>POINTS</span></div>
+    <div class="check"><input id="gamePockets" type="checkbox"><span>POCKETS</span></div>
+    <div class="check"><input id="gamePlanets" type="checkbox"><span>PLANETS</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>FIRST WEBSITE MUSIC</h2>
+  <p>The normal website player can prepare this track first. The Radio remains separate behind the Moon.</p>
+  <div class="grid3">
+    <label><span>Album</span><input id="firstAlbum" type="text"></label>
+    <label><span>Track number</span><input id="firstTrackNum" type="number" min="1"></label>
+    <label><span>Title contains</span><input id="firstTitle" type="text"></label>
+  </div>
+</section>
+
+<section class="publish">
+  <h2>TEST → LIVE</h2>
+  <p>TEST drafts stay on this browser and can be previewed immediately. Public publishing needs a private server-side credential, so the Back Room does not place a GitHub password or token in browser code.</p>
+  <div class="actions">
+    <button id="promote">COPY TEST INTO LIVE DRAFT</button>
+    <button id="copyJson">COPY CURRENT JSON</button>
+    <a class="button" href="../" style="text-decoration:none">OPEN PUBLIC SITE</a>
+    <a class="button" href="../radio/" style="text-decoration:none">OPEN RADIO / DJ</a>
+  </div>
+  <div class="note" style="margin-top:10px">For now, Export JSON gives the exact tested settings file. A secure publish endpoint can later turn the final step into one PUBLISH LIVE button.</div>
+</section>
+</main>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id);
+  const mode=$('mode'),status=$('status'),albumWrap=$('albums');
+  const draftKey=m=>'GE_BACKROOM_'+m.toUpperCase()+'_CONFIG_V1';
+  const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
+  let cfg=null,dirty=false;
+
+  function setStatus(t){status.textContent=t;status.classList.toggle('test',mode.value==='test')}
+  async function repoConfig(m){
+    const r=await fetch('../config/site-'+m+'.json?'+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('Could not load '+m+' config');
+    return r.json();
+  }
+  function localConfig(m){try{return JSON.parse(localStorage.getItem(draftKey(m))||'null')}catch(_e){return null}}
+  function saveLocal(c,m=mode.value){localStorage.setItem(draftKey(m),JSON.stringify(c));}
+  function field(id,v=''){const e=$(id);if(e)e.value=v??''}
+  function checked(id,v){const e=$(id);if(e)e.checked=!!v}
+
+  function renderAlbums(){
+    albumWrap.innerHTML='';
+    const order=Array.isArray(cfg.albums?.order)?cfg.albums.order:[];
+    const visible=new Set(Array.isArray(cfg.albums?.visible)?cfg.albums.visible:order);
+    const bios=cfg.albums?.bios||{};
+    order.forEach((name,i)=>{
+      const key=albumKey(name),n=bios[key]||{};
+      const box=document.createElement('div');box.className='album';box.dataset.album=name;
+      box.innerHTML='<div class="albumhead"><input class="albumVisible" type="checkbox" '+(visible.has(name)?'checked':'')+'><strong></strong><div class="albummove"><button type="button" class="up">↑</button><button type="button" class="down">↓</button></div></div><div class="albumfields"><label><span>Year</span><input class="year" type="text"></label><label><span>Energy</span><input class="energy" type="text"></label><label><span>Album text</span><textarea class="bio"></textarea></label></div>';
+      box.querySelector('strong').textContent=name;
+      box.querySelector('.year').value=n.year||'';
+      box.querySelector('.energy').value=n.energy||'';
+      box.querySelector('.bio').value=n.bio||'';
+      box.querySelector('.up').disabled=i===0;box.querySelector('.down').disabled=i===order.length-1;
+      box.querySelector('.up').onclick=()=>{if(i>0){[cfg.albums.order[i-1],cfg.albums.order[i]]=[cfg.albums.order[i],cfg.albums.order[i-1]];renderAlbums();markDirty()}};
+      box.querySelector('.down').onclick=()=>{if(i<order.length-1){[cfg.albums.order[i+1],cfg.albums.order[i]]=[cfg.albums.order[i],cfg.albums.order[i+1]];renderAlbums();markDirty()}};
+      box.querySelectorAll('input,textarea').forEach(e=>e.addEventListener('input',markDirty));
+      albumWrap.appendChild(box);
+    });
+  }
+  function populate(){
+    checked('welcomeEnabled',cfg.welcome?.enabled!==false);
+    field('welcomeTitle',cfg.welcome?.title||'WELCOME');field('welcomeBody',cfg.welcome?.body||'');field('welcomeContact',cfg.welcome?.contactText||'');field('welcomeEmail',cfg.welcome?.contactEmail||'');
+    field('aboutIntro',(cfg.about?.intro||[]).join('\n'));
+    numberIds.forEach(id=>field(id,cfg.easySettings?.[id]??''));
+    checked('gamePoints',cfg.games?.points!==false);checked('gamePockets',cfg.games?.pockets!==false);checked('gamePlanets',cfg.games?.planets!==false);
+    field('firstAlbum',cfg.music?.firstTrack?.album||'');field('firstTrackNum',cfg.music?.firstTrack?.trackNum||'');field('firstTitle',cfg.music?.firstTrack?.titleContains||'');
+    renderAlbums();dirty=false;setStatus((localConfig(mode.value)?'DRAFT LOADED · ':'REPOSITORY VERSION · ')+mode.value.toUpperCase());
+  }
+  function collect(){
+    cfg.version=1;cfg.mode=mode.value;
+    cfg.welcome={enabled:$('welcomeEnabled').checked,title:$('welcomeTitle').value.trim(),body:$('welcomeBody').value.trim(),contactText:$('welcomeContact').value.trim(),contactEmail:$('welcomeEmail').value.trim()};
+    cfg.about={intro:$('aboutIntro').value.split(/\n+/).map(x=>x.trim()).filter(Boolean)};
+    cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
+    cfg.games={points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked};
+    cfg.music={firstTrack:{album:$('firstAlbum').value.trim(),trackNum:Number($('firstTrackNum').value)||0,titleContains:$('firstTitle').value.trim()}};
+    cfg.albums=cfg.albums||{};cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
+    albumWrap.querySelectorAll('.album').forEach(box=>{
+      const name=box.dataset.album,key=albumKey(name);
+      if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(name);
+      cfg.albums.bios[key]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()};
+    });
+    return cfg;
+  }
+  function markDirty(){dirty=true;setStatus('UNSAVED CHANGES · '+mode.value.toUpperCase())}
+  async function load(forceRepo=false){
+    const m=mode.value;setStatus('LOADING '+m.toUpperCase()+'…');
+    try{cfg=(!forceRepo&&localConfig(m))||await repoConfig(m);populate()}catch(e){setStatus(e.message)}
+  }
+  document.querySelectorAll('input,textarea,select').forEach(e=>{if(e!==mode)e.addEventListener('input',markDirty);});
+  mode.addEventListener('change',()=>load(false));
+  $('save').onclick=()=>{collect();saveLocal(cfg);dirty=false;setStatus('DRAFT SAVED ON THIS DEVICE · '+mode.value.toUpperCase())};
+  $('reset').onclick=async()=>{localStorage.removeItem(draftKey(mode.value));await load(true);setStatus('RESET TO REPOSITORY · '+mode.value.toUpperCase())};
+  $('preview').onclick=()=>{collect();saveLocal(cfg);const q=mode.value==='test'?'?ge_mode=test':'?ge_mode=live-draft';window.open('../'+q,'_blank')};
+  $('export').onclick=()=>{collect();const blob=new Blob([JSON.stringify(cfg,null,2)+'\n'],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='site-'+mode.value+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+  $('copyJson').onclick=async()=>{collect();await navigator.clipboard.writeText(JSON.stringify(cfg,null,2));setStatus('JSON COPIED · '+mode.value.toUpperCase())};
+  $('promote').onclick=()=>{const test=localConfig('test');if(!test){setStatus('SAVE A TEST DRAFT FIRST');return}const live=JSON.parse(JSON.stringify(test));live.mode='live';saveLocal(live,'live');mode.value='live';cfg=live;populate();setStatus('TEST COPIED INTO LIVE DRAFT · REVIEW BEFORE PUBLISHING')};
+  addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+  const q=new URLSearchParams(location.search).get('mode');if(q==='live'||q==='test')mode.value=q;
+  load(false);
+})();
+</script>
+</body>
+</html>
