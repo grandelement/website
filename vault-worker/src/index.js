@@ -1137,13 +1137,59 @@ function topCountRows(map, limit = 25) {
     .slice(0, limit);
 }
 
+function parseEpochParam(value) {
+  value = String(value || "").trim();
+  if (!value) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return Math.round(numeric > 1e12 ? numeric / 1000 : numeric);
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? Math.round(parsed / 1000) : null;
+}
+
+function analyticsWindow(url, defaultDays = 30) {
+  const current = now();
+  let until = parseEpochParam(url.searchParams.get("end")) || current;
+  let since = parseEpochParam(url.searchParams.get("start"));
+  let mode = "days";
+  if (since != null) {
+    mode = "custom";
+  } else if (url.searchParams.get("minutes")) {
+    const minutes = Math.max(1, Math.min(5256000, Number(url.searchParams.get("minutes")) || 10));
+    since = until - Math.round(minutes * 60);
+    mode = "minutes";
+  } else if (url.searchParams.get("hours")) {
+    const hours = Math.max(1 / 60, Math.min(87600, Number(url.searchParams.get("hours")) || 1));
+    since = until - Math.round(hours * 3600);
+    mode = "hours";
+  } else {
+    const days = Math.max(1 / 1440, Math.min(3650, Number(url.searchParams.get("days") || defaultDays)));
+    since = until - Math.round(days * 86400);
+    mode = "days";
+  }
+  if (until > current + 86400) until = current + 86400;
+  if (since > until) [since, until] = [until, since];
+  const maxSpan = 3650 * 86400;
+  if (until - since > maxSpan) since = until - maxSpan;
+  return {
+    since,
+    until,
+    mode,
+    range_seconds: Math.max(0, until - since),
+    days: Number(((until - since) / 86400).toFixed(6)),
+  };
+}
+
 async function adminAnalytics(env, url) {
-  const days = Math.max(1, Math.min(3650, Number(url.searchParams.get("days") || 30)));
-  const since = now() - Math.round(days * 86400);
+  const range = analyticsWindow(url, 30);
+  const { since, until, days } = range;
   const rows = await env.VAULT_DB.prepare(
-    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,referrer,utm_source,utm_medium,utm_campaign,user_agent,language,country,region,city,timezone,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE occurred_at>=? ORDER BY occurred_at ASC LIMIT 50000",
-  ).bind(since).all();
+    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,referrer,utm_source,utm_medium,utm_campaign,user_agent,language,country,region,city,timezone,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE occurred_at>=? AND occurred_at<=? ORDER BY occurred_at ASC LIMIT 50000",
+  ).bind(since, until).all();
   const items = rows.results || [];
+  const profileRows = await env.VAULT_DB.prepare(
+    "SELECT id,display_name,notes FROM fans"
+  ).all();
+  const profiles = new Map((profileRows.results || []).map((row) => [String(row.id || ""), row]));
 
   const visitors = new Set();
   const sessions = new Set();
@@ -1189,6 +1235,9 @@ async function adminAnalytics(env, url) {
       if (!fan) {
         fan = {
           anon_id: anon,
+          fan_id: row.fan_id || "",
+          display_name: "",
+          notes: "",
           first_seen_at: row.occurred_at,
           last_seen_at: row.occurred_at,
           events: 0,
@@ -1215,6 +1264,7 @@ async function adminAnalytics(env, url) {
       fan.first_seen_at = Math.min(Number(fan.first_seen_at || row.occurred_at), Number(row.occurred_at || 0));
       fan.last_seen_at = Math.max(Number(fan.last_seen_at || row.occurred_at), Number(row.occurred_at || 0));
       fan.events += 1;
+      if (row.fan_id) fan.fan_id = String(row.fan_id);
       if (row.session_id) fan.sessions.add(String(row.session_id));
       if (row.event_type === "page_view") fan.page_views += 1;
       if (row.event_type === "qr_scan") fan.qr_scans += 1;
@@ -1370,8 +1420,13 @@ async function adminAnalytics(env, url) {
     t.publisher ||= s.publisher;
   }
 
-  const fans = [...fanMap.values()].map((fan) => ({
+  const fans = [...fanMap.values()].map((fan) => {
+    const profile = fan.fan_id ? profiles.get(String(fan.fan_id)) : null;
+    return {
     anon_id: fan.anon_id,
+    fan_id: fan.fan_id || "",
+    display_name: String(profile?.display_name || ""),
+    notes: String(profile?.notes || ""),
     first_seen_at: fan.first_seen_at,
     last_seen_at: fan.last_seen_at,
     events: fan.events,
@@ -1392,7 +1447,8 @@ async function adminAnalytics(env, url) {
     placement: fan.placement,
     listened_seconds: Number(fan.listened_seconds.toFixed(2)),
     unique_tracks: fan.tracks.size,
-  })).sort((a, b) => b.last_seen_at - a.last_seen_at);
+  };
+  }).sort((a, b) => b.last_seen_at - a.last_seen_at);
 
   const stationMusic = [...stationTracks.values()]
     .sort((a, b) => b.performances - a.performances || b.last_played_at - a.last_played_at);
@@ -1418,10 +1474,33 @@ async function adminAnalytics(env, url) {
     average_completion_pct: t.completion_samples ? Number((t.completion_total / t.completion_samples).toFixed(2)) : null,
   })).sort((a, b) => b.total_listened_seconds - a.total_listened_seconds || b.performances - a.performances);
 
+  const stationPerformanceEvents = items
+    .filter((row) => row.event_type === "station_performance")
+    .map((row) => {
+      const meta = parseStoredJson(row.metadata_json);
+      return {
+        occurred_at: Number(row.occurred_at || 0),
+        track_id: row.track_id || "",
+        track_title: row.track_title || "",
+        album: row.album || "",
+        artist: String(meta.artist || "Grand Element"),
+        ascap_work_id: String(meta.ascap_work_id || ""),
+        ascap_title: String(meta.ascap_title || ""),
+        ascap_status: String(meta.ascap_status || ""),
+        iswc: String(meta.iswc || ""),
+        writer: String(meta.writer || ""),
+        publisher: String(meta.publisher || ""),
+        source: String(meta.source || "ge-radio-automation"),
+      };
+    });
+
   return {
     ok: true,
     days,
     since,
+    until,
+    range_mode: range.mode,
+    range_seconds: range.range_seconds,
     generated_at: now(),
     totals: {
       events: items.length,
@@ -1454,23 +1533,68 @@ async function adminAnalytics(env, url) {
     fans,
     music,
     station_music: stationMusic,
+    station_performance_events: stationPerformanceEvents,
   };
 }
 
 async function adminFanDetail(env, url) {
   const anonId = safeAnonId(url.searchParams.get("anon_id"));
   if (!anonId) return { ok: false, error: "Missing anonymous fan ID." };
-  const days = Math.max(1, Math.min(3650, Number(url.searchParams.get("days") || 3650)));
-  const since = now() - Math.round(days * 86400);
+  const range = analyticsWindow(url, 3650);
+  const { since, until, days } = range;
   const rows = await env.VAULT_DB.prepare(
-    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE anon_id=? AND occurred_at>=? ORDER BY occurred_at DESC LIMIT 2000",
-  ).bind(anonId, since).all();
+    "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events WHERE anon_id=? AND occurred_at>=? AND occurred_at<=? ORDER BY occurred_at DESC LIMIT 2000",
+  ).bind(anonId, since, until).all();
   const events = (rows.results || []).map((row) => ({
     ...row,
     metadata: parseStoredJson(row.metadata_json),
     metadata_json: undefined,
   }));
-  return { ok: true, anon_id: anonId, days, events };
+  const fanId = String(events.find((x) => x.fan_id)?.fan_id || "");
+  const profile = fanId
+    ? await env.VAULT_DB.prepare("SELECT id,display_name,notes FROM fans WHERE id=?").bind(fanId).first()
+    : null;
+  return { ok: true, anon_id: anonId, fan_id: fanId, profile: profile || null, days, since, until, events };
+}
+
+async function adminSetFanLabel(request, env) {
+  const body = await readBody(request);
+  const anonId = safeAnonId(body.anon_id);
+  if (!anonId) return json({ ok: false, error: "Missing anonymous fan ID." }, 400);
+  const displayName = safeText(body.display_name, 200) || null;
+  const notes = safeText(body.notes, 2000) || null;
+  const latest = await env.VAULT_DB.prepare(
+    "SELECT fan_id,country,region,city,timezone FROM fan_events WHERE anon_id=? ORDER BY occurred_at DESC LIMIT 1"
+  ).bind(anonId).first();
+  if (!latest) return json({ ok: false, error: "Fan was not found." }, 404);
+
+  let fanId = String(latest.fan_id || "");
+  if (!fanId) {
+    const linked = await env.VAULT_DB.prepare(
+      "SELECT fan_id FROM fan_events WHERE anon_id=? AND fan_id IS NOT NULL AND fan_id<>'' LIMIT 1"
+    ).bind(anonId).first();
+    fanId = String(linked?.fan_id || id("fan"));
+  }
+  const existing = await env.VAULT_DB.prepare(
+    "SELECT metadata_json FROM fans WHERE id=?"
+  ).bind(fanId).first();
+  await upsertFan(env, {
+    fan_id: fanId,
+    display_name: displayName,
+    notes,
+    metadata: parseStoredJson(existing?.metadata_json),
+  }, {
+    country: latest.country || null,
+    region: latest.region || null,
+    city: latest.city || null,
+    timezone: latest.timezone || null,
+  });
+
+  await env.VAULT_DB.prepare("UPDATE fan_events SET fan_id=? WHERE anon_id=?").bind(fanId, anonId).run();
+  await env.VAULT_DB.prepare("UPDATE comments SET fan_id=? WHERE anon_id=? AND fan_id IS NULL").bind(fanId, anonId).run();
+  await env.VAULT_DB.prepare("UPDATE listener_events SET fan_id=? WHERE anon_id=? AND fan_id IS NULL").bind(fanId, anonId).run();
+  await audit(env, "admin", "fan.label", "fan", fanId, { anon_id: anonId, display_name: displayName || "" });
+  return json({ ok: true, anon_id: anonId, fan_id: fanId, display_name: displayName || "", notes: notes || "" });
 }
 
 async function adminExport(env) {
@@ -1575,6 +1699,13 @@ export default {
       if (url.pathname === "/v1/admin/fan-detail" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminFanDetail(env, url), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/fan-label" && request.method === "POST") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        const response = await adminSetFanLabel(request, env);
+        Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
       }
 
       if (url.pathname === "/v1/admin/export" && request.method === "GET") {
