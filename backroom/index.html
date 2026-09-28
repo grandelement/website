@@ -25,8 +25,13 @@ label{display:block;font-size:calc(12px * var(--br-text-scale));font-weight:850;
 .album{border:1px solid #1f425d;border-radius:14px;padding:12px;margin-top:10px;background:#06131f}.albumhead{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}.albumhead strong{font-size:calc(15px * var(--br-text-scale))}.albummove{display:flex;gap:5px}.albummove button{padding:6px 9px}.albumfields{display:grid;grid-template-columns:100px 140px 1fr;gap:8px;margin-top:10px}.albumfields textarea{min-height:78px}
 .status{font-size:calc(12px * var(--br-text-scale));padding:9px 11px;border:1px solid #254d69;border-radius:10px;background:#061521;color:#cdeeff;flex:1;min-width:180px}.status.test{border-color:#9b7c24;color:#ffe6a0}
 .note{font-size:calc(12px * var(--br-text-scale));color:var(--muted);background:#06131f;border-radius:10px;padding:10px}.publish{border-color:#765f2f;background:rgba(60,43,12,.35)}
+.authPanel{border-color:#35627f;background:rgba(5,27,44,.92)}
+.authGrid{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:8px;align-items:end}
+.authState{display:inline-flex;align-items:center;gap:7px;font-weight:900}.authLight{width:11px;height:11px;border-radius:50%;background:#7b8791;box-shadow:0 0 7px rgba(150,170,185,.5)}.authState.ok .authLight{background:#55f4a8;box-shadow:0 0 10px rgba(85,244,168,.85)}.authState.bad .authLight{background:#ff9e72;box-shadow:0 0 10px rgba(255,158,114,.75)}
+#publishLive{width:100%;font-size:calc(18px * var(--br-text-scale));padding:15px 18px;margin-top:10px;background:#0f6d4e;border-color:#65efb5}
+#publishLive:disabled{opacity:.42;cursor:not-allowed;background:#20302b}
 small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
-@media(max-width:700px){.grid,.grid3,.albumfields{grid-template-columns:1fr}.albumhead{grid-template-columns:auto 1fr}.albummove{grid-column:1/-1}.actions button{flex:1 1 45%}}
+@media(max-width:700px){.grid,.grid3,.albumfields,.authGrid{grid-template-columns:1fr}.albumhead{grid-template-columns:auto 1fr}.albummove{grid-column:1/-1}.actions button{flex:1 1 45%}}
 </style>
 </head>
 <body>
@@ -46,6 +51,19 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
     <button id="reset">RESET FROM REPOSITORY</button>
   </div>
 </header>
+
+<section class="authPanel">
+  <h2>SECURE PUBLISH</h2>
+  <p>The Back Room can publish only after you sign in. Your password is sent to the private publisher and is never stored in this webpage.</p>
+  <div id="publisherState" class="authState"><span class="authLight"></span><span>Checking publisher…</span></div>
+  <div class="authGrid" style="margin-top:10px">
+    <label><span>BACK ROOM PASSWORD</span><input id="backroomPassword" type="password" autocomplete="current-password" placeholder="Enter password"></label>
+    <button id="backroomLogin" type="button">SIGN IN</button>
+    <button id="backroomLogout" type="button">SIGN OUT</button>
+  </div>
+  <button id="publishLive" type="button" disabled>PUBLISH LIVE</button>
+  <div id="publishResult" class="note" style="margin-top:9px">Sign in to publish. TEST previews remain separate until you press PUBLISH LIVE.</div>
+</section>
 
 <section>
   <h2>WELCOME SCREEN</h2>
@@ -125,14 +143,13 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
 
 <section class="publish">
   <h2>TEST → LIVE</h2>
-  <p>TEST drafts stay on this browser and can be previewed immediately. Public publishing needs a private server-side credential, so the Back Room does not place a GitHub password or token in browser code.</p>
+  <p><b>TEST</b> is your safe working copy. Preview it as much as you want. <b>PUBLISH LIVE</b> is the only action that changes what visitors see.</p>
   <div class="actions">
     <button id="promote">COPY TEST INTO LIVE DRAFT</button>
     <button id="copyJson">COPY CURRENT JSON</button>
-    <a class="button" href="../" style="text-decoration:none">OPEN PUBLIC SITE</a>
-    <a class="button" href="../radio/" style="text-decoration:none">OPEN RADIO / DJ</a>
+    <a class="button" href="../" target="_blank" rel="noopener" style="text-decoration:none">OPEN PUBLIC SITE</a>
   </div>
-  <div class="note" style="margin-top:10px">For now, Export JSON gives the exact tested settings file. A secure publish endpoint can later turn the final step into one PUBLISH LIVE button.</div>
+  <div class="note" style="margin-top:10px">Recommended workflow: edit TEST → Save Draft → Preview → Publish Live when it looks right.</div>
 </section>
 </main>
 <script>
@@ -141,6 +158,8 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
   const mode=$('mode'),status=$('status'),albumWrap=$('albums');
   const BACKROOM_TEXT_SIZE_KEY='GE_BACKROOM_TEXT_SIZE_V1';
   const SOUL_PROFILES_KEY='GE_GAME_PLAYER_PROFILES_V1';
+  const PUBLISHER_API='https://backroom-api.grandelement.com';
+  const PUBLISH_SESSION_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
   const draftKey=m=>'GE_BACKROOM_'+m.toUpperCase()+'_CONFIG_V1';
   const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
@@ -168,6 +187,65 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
     }));
     localStorage.setItem(SOUL_PROFILES_KEY,JSON.stringify(profiles));
     setStatus('SOUL NAMES SAVED ON THIS DEVICE');
+  }
+
+  function publishToken(){try{return sessionStorage.getItem(PUBLISH_SESSION_KEY)||''}catch(_e){return ''}}
+  function setPublishToken(token){try{token?sessionStorage.setItem(PUBLISH_SESSION_KEY,token):sessionStorage.removeItem(PUBLISH_SESSION_KEY)}catch(_e){}}
+  function setPublisherState(text,kind=''){
+    const el=$('publisherState');if(!el)return;
+    el.classList.remove('ok','bad');if(kind)el.classList.add(kind);
+    const span=el.querySelector('span:last-child');if(span)span.textContent=text;
+  }
+  function setPublishResult(text){if($('publishResult'))$('publishResult').textContent=text}
+  function setPublishEnabled(on){if($('publishLive'))$('publishLive').disabled=!on}
+  async function publisherFetch(path,options={}){
+    const token=publishToken();
+    const headers={'Content-Type':'application/json',...(options.headers||{})};
+    if(token)headers.Authorization='Bearer '+token;
+    return fetch(PUBLISHER_API+path,{cache:'no-store',...options,headers});
+  }
+  async function checkPublisher(){
+    setPublishEnabled(false);
+    try{
+      const health=await publisherFetch('/health',{method:'GET'});
+      const h=await health.json().catch(()=>({}));
+      if(!health.ok||!h.configured){setPublisherState('Publisher needs Cloudflare setup','bad');setPublishResult('The Back Room is ready, but the private publisher has not been deployed/configured yet.');return false}
+      if(!publishToken()){setPublisherState('Publisher online · sign in','');setPublishResult('Publisher is online. Enter the Back Room password to enable PUBLISH LIVE.');return true}
+      const session=await publisherFetch('/session',{method:'GET'});
+      if(session.ok){setPublisherState('SIGNED IN · publishing enabled','ok');setPublishEnabled(true);setPublishResult('Ready to publish the current Back Room settings to the live website.');return true}
+      setPublishToken('');setPublisherState('Publisher online · sign in','');setPublishResult('Your previous session expired. Sign in again.');return true;
+    }catch(_e){
+      setPublisherState('Publisher not connected','bad');setPublishResult('Secure publisher endpoint is not reachable yet.');return false;
+    }
+  }
+  async function loginPublisher(){
+    const password=String($('backroomPassword')?.value||'');
+    if(!password){setPublishResult('Enter the Back Room password.');return}
+    setPublisherState('Signing in…','');
+    try{
+      const r=await publisherFetch('/login',{method:'POST',body:JSON.stringify({password})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok||!data.token){setPublishToken('');setPublishEnabled(false);setPublisherState('SIGN IN FAILED','bad');setPublishResult(data.error||'Incorrect password.');return}
+      setPublishToken(data.token);if($('backroomPassword'))$('backroomPassword').value='';
+      setPublisherState('SIGNED IN · publishing enabled','ok');setPublishEnabled(true);setPublishResult('Ready. PUBLISH LIVE will make the current Back Room settings public.');
+    }catch(_e){setPublisherState('Publisher not connected','bad');setPublishResult('Could not reach the secure publisher.')}
+  }
+  async function publishCurrentLive(){
+    collect();saveLocal(cfg);
+    if(!publishToken()){setPublishResult('Sign in first.');setPublishEnabled(false);return}
+    const sourceMode=mode.value;
+    const message=sourceMode==='test'?'Publish the TEST settings to the live website now?':'Publish this LIVE DRAFT to the live website now?';
+    if(!confirm(message))return;
+    setPublishEnabled(false);setPublisherState('Publishing…','');setPublishResult('Writing the live configuration…');
+    try{
+      const r=await publisherFetch('/publish',{method:'POST',body:JSON.stringify({config:cfg})});
+      const data=await r.json().catch(()=>({}));
+      if(r.status===401){setPublishToken('');setPublisherState('SESSION EXPIRED','bad');setPublishResult('Sign in again, then publish.');return}
+      if(!r.ok||!data.ok){setPublisherState('PUBLISH FAILED','bad');setPublishResult(data.error||'Publish failed.');setPublishEnabled(true);return}
+      const liveCopy=JSON.parse(JSON.stringify(cfg));liveCopy.mode='live';saveLocal(liveCopy,'live');
+      setPublisherState('PUBLISHED LIVE','ok');setPublishEnabled(true);
+      setPublishResult('Published successfully'+(data.commit?' · commit '+String(data.commit).slice(0,10):'')+'. Visitors will use the new LIVE settings.');
+    }catch(_e){setPublisherState('PUBLISH FAILED','bad');setPublishResult('Could not reach the secure publisher.');setPublishEnabled(true)}
   }
 
   function setStatus(t){status.textContent=t;status.classList.toggle('test',mode.value==='test')}
@@ -233,6 +311,10 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
   document.querySelectorAll('input,textarea,select').forEach(e=>{if(e!==mode)e.addEventListener('input',markDirty);});
   mode.addEventListener('change',()=>load(false));
   $('backroomTextSize')?.addEventListener('input',()=>applyBackroomTextSize($('backroomTextSize').value));
+  $('backroomLogin')?.addEventListener('click',loginPublisher);
+  $('backroomPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginPublisher()}});
+  $('backroomLogout')?.addEventListener('click',()=>{setPublishToken('');setPublishEnabled(false);setPublisherState('Publisher online · sign in','');setPublishResult('Signed out.');});
+  $('publishLive')?.addEventListener('click',publishCurrentLive);
   $('saveSoulNames')?.addEventListener('click',saveSoulNames);
   $('resetSoulNames')?.addEventListener('click',()=>{
     try{localStorage.removeItem(SOUL_PROFILES_KEY)}catch(_e){}
@@ -249,6 +331,7 @@ small{color:var(--muted);font-size:calc(12px * var(--br-text-scale))}
   let savedTextSize=115;try{savedTextSize=Number(localStorage.getItem(BACKROOM_TEXT_SIZE_KEY))||115}catch(_e){}
   applyBackroomTextSize(savedTextSize);
   load(false);
+  checkPublisher();
 })();
 </script>
 </body>
