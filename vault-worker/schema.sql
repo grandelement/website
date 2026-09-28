@@ -169,3 +169,36 @@ CREATE INDEX IF NOT EXISTS idx_fan_events_anon ON fan_events(anon_id, occurred_a
 CREATE INDEX IF NOT EXISTS idx_fan_events_type ON fan_events(event_type, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fan_events_surface ON fan_events(surface, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fan_events_ip_hash ON fan_events(ip_hash, occurred_at DESC);
+
+
+-- ACCIDENTAL-DELETION GUARDRAILS
+-- These tables are the permanent historical record. Routine DELETE statements
+-- fail at the database layer. An explicit privacy/legal maintenance migration
+-- may temporarily remove the relevant trigger when a required deletion is approved.
+CREATE TRIGGER IF NOT EXISTS protect_fans_delete
+BEFORE DELETE ON fans
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: fans cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_listener_events_delete
+BEFORE DELETE ON listener_events
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: listener_events cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_fan_events_delete
+BEFORE DELETE ON fan_events
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: fan_events cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_comments_delete
+BEFORE DELETE ON comments
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: comments cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_game_scores_delete
+BEFORE DELETE ON game_scores
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: game_scores cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_game_score_versions_delete
+BEFORE DELETE ON game_score_versions
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: game_score_versions cannot be deleted by routine operations'); END;
+
+CREATE TRIGGER IF NOT EXISTS protect_audit_log_delete
+BEFORE DELETE ON audit_log
+BEGIN SELECT RAISE(ABORT,'GE Vault protected table: audit_log cannot be deleted by routine operations'); END;
