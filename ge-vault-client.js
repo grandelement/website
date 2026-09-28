@@ -58,7 +58,7 @@
   function currentTouch(){
     const u=new URL(location.href);
     const isQr=u.pathname==='/qr'||u.pathname==='/qr/';
-    const campaign=u.searchParams.get('c')||(isQr?'main-sticker':'');
+    const campaign=u.searchParams.get('c')||(isQr?'worldwide-sticker':'');
     const qrId=u.searchParams.get('qr')||u.searchParams.get('qid')||'';
     const placement=u.searchParams.get('placement')||u.searchParams.get('p')||'';
     const variant=u.searchParams.get('variant')||u.searchParams.get('v')||'';
