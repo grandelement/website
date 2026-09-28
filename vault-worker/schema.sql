@@ -50,6 +50,42 @@ CREATE TABLE IF NOT EXISTS listener_events (
   FOREIGN KEY (fan_id) REFERENCES fans(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS fan_events (
+  id TEXT PRIMARY KEY,
+  occurred_at INTEGER NOT NULL,
+  fan_id TEXT,
+  anon_id TEXT,
+  session_id TEXT,
+  surface TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  page_url TEXT,
+  page_path TEXT,
+  track_id TEXT,
+  track_title TEXT,
+  album TEXT,
+  playlist_id TEXT,
+  share_target TEXT,
+  referrer TEXT,
+  utm_source TEXT,
+  utm_medium TEXT,
+  utm_campaign TEXT,
+  utm_content TEXT,
+  utm_term TEXT,
+  ip_hash TEXT,
+  ip_ciphertext TEXT,
+  user_agent TEXT,
+  language TEXT,
+  country TEXT,
+  region TEXT,
+  city TEXT,
+  timezone TEXT,
+  cf_colo TEXT,
+  cf_asn INTEGER,
+  cf_as_org TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY (fan_id) REFERENCES fans(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
@@ -123,7 +159,13 @@ CREATE INDEX IF NOT EXISTS idx_playlists_updated ON playlists(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_values_scope ON vault_values(kind, scope, key);
 
 INSERT OR IGNORE INTO vault_meta(key,value,updated_at)
-VALUES ('schema_version','1',unixepoch());
+VALUES ('schema_version','2',unixepoch());
 
 CREATE INDEX IF NOT EXISTS idx_comments_source ON comments(source, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_anon_source ON comments(anon_id, source, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_fan_events_time ON fan_events(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fan_events_anon ON fan_events(anon_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fan_events_type ON fan_events(event_type, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fan_events_surface ON fan_events(surface, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fan_events_ip_hash ON fan_events(ip_hash, occurred_at DESC);
