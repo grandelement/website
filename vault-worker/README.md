@@ -116,3 +116,50 @@ The ship/universe public reflection wall uses:
 This public response never returns IP addresses, IP hashes, email addresses, fan records, admin metadata, or private messages. The Worker stores network identity privately for abuse prevention and analytics.
 
 The radio browser keeps a local copy as an offline fallback. D1 is the permanent shared master once the Vault Worker is deployed.
+
+
+## Permanent Fan Data
+
+Vault is the canonical long-term record for first-party GE fan relationships and site/radio interaction analytics.
+
+### Append-first event ledger
+
+Every meaningful interaction should create a new row in `fan_events`. Do not overwrite historic events. Normal application code has no delete route for fans, fan events, comments, or listener history.
+
+Supported public browser telemetry includes:
+
+- page/session views
+- radio open/play/pause/stop
+- track start/pause/resume/complete/skip/seek
+- share sheet opened, share completed when observable, link copied, track shared
+- offline enable/disable
+- ship/gate/access interactions
+- Soul Reflection and comment actions
+- playlist views
+- external-link clicks
+- UTM/referrer attribution
+
+The browser cannot reliably know whether a recipient actually received or forwarded something after the OS/native share sheet takes over. Record the share action we can observe, not an invented delivery result.
+
+### Identity
+
+Anonymous activity uses a random first-party `anon_id` and `session_id`. When a person voluntarily supplies an email/name/contact detail through a GE form, the trusted backend calls `POST /v1/ingest/fan` to create/update a fan record and link prior anonymous history.
+
+Do not scrape email addresses, names, or other personal information from unrelated services or attempt to deanonymize visitors from an IP address.
+
+### Protection
+
+- D1 is the source of truth.
+- Application deployments must never initialize D1 by replacing existing production tables.
+- No ordinary DELETE endpoint exists for fans, fan events, comments, or listener history.
+- Administrative corrections should use status/version fields and append audit records.
+- Legal/privacy deletion requests, if required, must be handled as an explicit exceptional administrative process rather than through routine site code.
+- Keep encrypted independent backups outside the running Worker/D1 deployment.
+
+### Public event API
+
+`POST /v1/public/event` accepts a tightly limited event vocabulary and records first-party interaction telemetry without exposing any secret to the browser.
+
+### Trusted fan identity API
+
+`POST /v1/ingest/fan` requires `VAULT_INGEST_TOKEN` and is for server-side forms/private-message workers to attach voluntary identity data to an anonymous visitor history.
