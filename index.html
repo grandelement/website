@@ -3060,7 +3060,7 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
         <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button></div>
-        <p class="small">Saved on this device. Rankings use the fewest throws needed to reach the winning score.</p>
+        <p class="small">Saved permanently in the GE Vault when connected, with this device kept as an offline cache. Rankings use the fewest throws needed to reach the winning score.</p>
         <div class="scoreArchive" id="geOptionsScoreArchive"></div>
       </section>
 
@@ -7359,7 +7359,7 @@ const GE_GAME = (()=>{
     if(state.active)saveGameStateSoon();
     flash('CONTROLS RESET · V10.18 BASELINE');
   }
-  function clearHighScores(){try{localStorage.removeItem(STORAGE_SCORES);}catch(e){};try{renderArchive();renderArchive(optionsScoreArchive);}catch(e){}}
+  function clearHighScores(){try{localStorage.removeItem(STORAGE_SCORES);}catch(e){};window.GEVault?.syncGameScores?.().then(()=>{try{renderArchive();renderArchive(optionsScoreArchive);}catch(e){}}).catch(()=>{});flash('LOCAL SCORE CACHE RESET · VAULT RECORDS RETAINED')}
   function clearSoulProfiles(){state.profiles=Array.from({length:6},(_,i)=>defaultProfile(i));persistProfiles();rebuildScores(true);updateHUD(true);}
   function clearCurrentGameProgress(){try{localStorage.removeItem(GAME_STATE_KEY);}catch(e){};if(state.active){resetRound(true);if(isBlueSunGame())poolLayout(true);else if(isMarbles())marbleLayout(true);else{ALBUMS=getEnabledAlbums();placePlanets();requestAnimationFrame(buildPlanetPhysics);}}}
   function runResetSelection(selection={}){
@@ -8344,7 +8344,7 @@ const GE_GAME = (()=>{
     }
   }
 
-  function startGame(){
+  function startGame(){window.GEVault?.track?.('game_start',{gameType:state.gameType||'points',players:state.players});
     // Critical UI/state first. Optional visual/audio/storage subsystems are isolated so one
     // failure can never leave the Start button looking dead or trap a modal over the page.
     prompt.classList.remove('show');
@@ -8922,6 +8922,7 @@ const GE_GAME = (()=>{
     const winningThrows=Math.max(0,Number(state.throwCounts?.[winnerIndex])||0);
     const record={
       id:recordId||('GE-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)),
+      gameType:state.gameType||'points',
       name:(name||'Anonymous').trim().slice(0,32)||'Anonymous',
       score:Math.max(...state.scores),
       target:state.maxScore,
@@ -8984,6 +8985,7 @@ const GE_GAME = (()=>{
     if(statsSession){statsSession.pendingWinnerIndex=winnerIndex;persistActiveStats();}
     scoreName.value='';if(scoreSaveStatus){scoreSaveStatus.textContent='';scoreSaveStatus.classList.remove('saved')}
     const autoRecord=saveRecord(winner);pendingScoreRecordId=autoRecord.id;
+    window.GEVault?.track?.('game_complete',{gameType:state.gameType||'points',winner,score:Math.max(...state.scores),target:state.maxScore,winningThrows:winnerThrows,players:state.players});
     roundPrompt.classList.add('show');
     setTimeout(()=>{try{scoreName.focus({preventScroll:false});scoreName.select();}catch(e){}},80);
   }
