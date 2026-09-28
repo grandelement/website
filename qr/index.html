@@ -8,6 +8,7 @@
 
 <link rel="preload" as="image" href="/ge-images/images/favicon-square.jpg">
 <link rel="preload" as="image" href="/ge-images/images/stars%20backgrounds/4.jpg">
+<link rel="prefetch" href="/">
 
 <style>
 *{box-sizing:border-box}
@@ -18,15 +19,6 @@ html,body{
   overflow:hidden;
   background:#000;
 }
-#site{
-  position:fixed;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:0;
-  background:#000;
-  z-index:0;
-}
 #gate{
   position:fixed;
   inset:0;
@@ -34,7 +26,7 @@ html,body{
   overflow:hidden;
   background:#000 url("/ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
   opacity:1;
-  transition:opacity .78s ease;
+  transition:opacity .82s ease;
   touch-action:manipulation;
 }
 #gate::after{
@@ -42,9 +34,9 @@ html,body{
   position:absolute;
   inset:0;
   background:radial-gradient(circle at 50% 50%,
-    rgba(15,120,255,.035) 0%,
-    rgba(0,0,0,.06) 48%,
-    rgba(0,0,0,.28) 100%);
+    rgba(15,120,255,.03) 0%,
+    rgba(0,0,0,.05) 52%,
+    rgba(0,0,0,.26) 100%);
   pointer-events:none;
 }
 #sunWrap{
@@ -86,8 +78,6 @@ html,body{
 </head>
 
 <body>
-<iframe id="site" src="/" title="Grand Element website"></iframe>
-
 <div id="gate" aria-label="Entering Grand Element" role="button" tabindex="0">
   <div id="sunWrap">
     <img id="sun" src="/ge-images/images/favicon-square.jpg" alt="Grand Element">
@@ -97,23 +87,25 @@ html,body{
 <script>
 (function(){
   const gate = document.getElementById('gate');
-  const frame = document.getElementById('site');
   const sunWrap = document.getElementById('sunWrap');
 
-  let siteReady = false;
-  let animationFinished = false;
   let leaving = false;
   let rafId = 0;
   let startTime = 0;
 
-  const STARS_ONLY = 1300;
-  const FADE_IN = 1200;
-  const ZOOM_START = 1900;
-  const ZOOM_TIME = 5000;
+  // Timing:
+  // 0 - 3.5s: stars only
+  // 3.5 - 5.2s: sun fades in while stationary
+  // 5.2 - 11.2s: one continuous accelerating zoom
+  // final 0.8s: gate fades away and the homepage loads once
+  const STARS_ONLY = 3500;
+  const FADE_IN = 1700;
+  const ZOOM_START = STARS_ONLY + FADE_IN;
+  const ZOOM_TIME = 6000;
   const TOTAL = ZOOM_START + ZOOM_TIME;
 
   const START_SCALE = 0.76;
-  const END_SCALE = 8.4;
+  const END_SCALE = 8.5;
   const SCALE_RATIO = END_SCALE / START_SCALE;
 
   function clamp01(v){
@@ -125,18 +117,13 @@ html,body{
     return t * t * (3 - 2 * t);
   }
 
-  function finish(){
-    animationFinished = true;
-    reveal();
-  }
-
-  function reveal(){
-    if(leaving || !animationFinished || !siteReady) return;
+  function goHome(){
+    if(leaving) return;
     leaving = true;
     gate.classList.add('done');
 
     setTimeout(() => {
-      try { location.replace('/'); } catch(e) {}
+      location.replace('/');
     }, 820);
   }
 
@@ -144,35 +131,32 @@ html,body{
     if(!startTime) startTime = now;
     const elapsed = now - startTime;
 
-    // Stars remain alone first. Then the sun fades in smoothly.
     let opacity = 0;
-    if(elapsed > STARS_ONLY){
-      opacity = smoothstep((elapsed - STARS_ONLY) / FADE_IN);
-    }
-
-    // One continuous mathematical acceleration curve.
-    // No stepped keyframes, so there are no speed jumps.
     let scale = START_SCALE;
     let brightness = 1;
     let saturation = 1;
     let blur = 0;
 
+    // Fade the sun in only after the stars have been visible for 3.5 seconds.
+    if(elapsed >= STARS_ONLY){
+      opacity = smoothstep((elapsed - STARS_ONLY) / FADE_IN);
+    }
+
+    // Do not move at all until the fade-in is complete.
     if(elapsed >= ZOOM_START){
       const p = clamp01((elapsed - ZOOM_START) / ZOOM_TIME);
 
-      // Exponential distance curve with a smooth throttle ramp:
-      // almost stationary at first, continuously accelerating to the end.
-      const throttle = p * p * (3 - 2 * p);
-      const accelerated = Math.pow(throttle, 2.15);
+      // A single continuous acceleration curve.
+      // p^3 keeps the opening movement very slow, then ramps harder and harder.
+      const accelerated = Math.pow(p, 3.0);
 
       scale = START_SCALE * Math.pow(SCALE_RATIO, accelerated);
-
-      brightness = 1 + 0.72 * Math.pow(p, 2.5);
+      brightness = 1 + 0.72 * Math.pow(p, 2.6);
       saturation = 1 + 0.08 * smoothstep(p);
 
-      // Fade only during the final approach.
-      if(p > 0.88){
-        const q = smoothstep((p - 0.88) / 0.12);
+      // Only fade away during the final rush.
+      if(p > 0.90){
+        const q = smoothstep((p - 0.90) / 0.10);
         opacity *= (1 - q);
         blur = 2.2 * q;
       }
@@ -188,22 +172,15 @@ html,body{
     if(elapsed < TOTAL){
       rafId = requestAnimationFrame(draw);
     }else{
-      finish();
+      goHome();
     }
   }
 
   function skip(){
     if(leaving) return;
     if(rafId) cancelAnimationFrame(rafId);
-    animationFinished = true;
-    siteReady = true;
-    reveal();
+    goHome();
   }
-
-  frame.addEventListener('load', () => {
-    siteReady = true;
-    reveal();
-  }, {once:true});
 
   gate.addEventListener('click', skip);
   gate.addEventListener('keydown', (e) => {
@@ -213,20 +190,19 @@ html,body{
     }
   });
 
+  // Warm the homepage document in cache without executing its scripts or audio.
+  try{
+    fetch('/', {method:'GET', cache:'force-cache', credentials:'same-origin'});
+  }catch(e){}
+
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    animationFinished = true;
-    setTimeout(reveal, 900);
+    setTimeout(goHome, 1200);
   }else{
     rafId = requestAnimationFrame(draw);
   }
 
   // Failsafe only.
-  setTimeout(() => {
-    if(leaving) return;
-    siteReady = true;
-    animationFinished = true;
-    reveal();
-  }, TOTAL + 2200);
+  setTimeout(goHome, TOTAL + 2500);
 })();
 </script>
 </body>
