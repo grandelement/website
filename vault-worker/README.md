@@ -104,3 +104,15 @@ These examples describe the intended keys only. Store actual private values thro
 ## Next integration step
 
 Once the D1 database and Worker exist, configure Blitz with only the Vault URL and a server-side Vault credential. Then GE DJ playlist saves, listener activity, comments and permanent radio settings can write to Vault first and treat local container storage only as a cache.
+
+
+## Radio Soul Reflections
+
+The ship/universe public reflection wall uses:
+
+- `GET /v1/public/reflections` — public read of visible Soul Reflections only.
+- `POST /v1/public/reflections` — public create/update with strict field validation and per-network rate limiting.
+
+This public response never returns IP addresses, IP hashes, email addresses, fan records, admin metadata, or private messages. The Worker stores network identity privately for abuse prevention and analytics.
+
+The radio browser keeps a local copy as an offline fallback. D1 is the permanent shared master once the Vault Worker is deployed.
