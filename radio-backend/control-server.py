@@ -286,6 +286,12 @@ def restore_vault_settings_after_start():
     # Give the rest of the radio stack time to create rotation/runtime files.
     time.sleep(2.0)
     vault_restore_crossfade()
+    try:
+        restored_playlists = vault_playlists_load()
+        if isinstance(restored_playlists, dict):
+            print(f"GE Radio: restored {len(restored_playlists.get('items', []))} playlists from Vault.", flush=True)
+    except Exception as exc:
+        print(f"GE Radio: Vault playlist restore skipped: {exc}", flush=True)
     remote_saved = vault_load_scoped_setting("remote_devices", "state")
     if isinstance(remote_saved, dict) and isinstance(remote_saved.get("items"), list):
         write_json(REMOTE_DEVICES_FILE, remote_saved)
@@ -307,6 +313,86 @@ def restore_vault_settings_after_start():
             apply_mixer_state(current)
         except Exception as exc:
             print(f"GE Radio: restored mixer state but could not apply it yet: {exc}", flush=True)
+
+def _vault_playlist_to_local(row):
+    tracks = row.get("tracks", []) if isinstance(row, dict) else []
+    return {
+        "id": str(row.get("id", "")),
+        "name": str(row.get("name", "") or ""),
+        "paths": [str(t.get("track_path", "") or "") for t in tracks if str(t.get("track_path", "") or "")],
+        "updated_at": int(row.get("updated_at", time.time()) or time.time()),
+    }
+
+def vault_playlists_load():
+    if not vault_configured():
+        return None
+    data = vault_request("GET", "/v1/playlists")
+    rows = data.get("items", []) if isinstance(data, dict) else []
+    items = [_vault_playlist_to_local(row) for row in rows if isinstance(row, dict)]
+    items = [x for x in items if x.get("id") and x.get("name") and x.get("paths")]
+    local = {"items": items}
+    write_json(CUSTOM_PLAYLISTS, local)
+    write_json(CUSTOM_PLAYLISTS_BACKUP, local)
+    active = next((row for row in rows if bool(row.get("active", False))), None)
+    settings = station_settings()
+    if active:
+        settings["custom_mix_enabled"] = True
+        settings["custom_mix_id"] = str(active.get("id", "") or "")
+    elif settings.get("custom_mix_id") and not any(str(x.get("id")) == str(settings.get("custom_mix_id")) for x in items):
+        settings["custom_mix_enabled"] = False
+        settings["custom_mix_id"] = ""
+    write_json(SETTINGS, settings)
+    return local
+
+def _playlist_tracks_for_vault(item):
+    library = read_json(LIBRARY, {"items": []})
+    by_path = {str(x.get("path", "")): x for x in library.get("items", [])}
+    out = []
+    for path in item.get("paths", []):
+        meta = by_path.get(str(path), {})
+        out.append({
+            "track_path": str(path),
+            "track_title": str(meta.get("title") or meta.get("picker_title") or ""),
+            "album": str(meta.get("album") or ""),
+        })
+    return out
+
+def vault_playlist_save(item, active=False):
+    if not vault_configured():
+        return False, "Vault credentials are not configured on this radio."
+    try:
+        vault_request("PUT", "/v1/playlists", {
+            "id": str(item.get("id", "")),
+            "name": str(item.get("name", "")),
+            "tracks": _playlist_tracks_for_vault(item),
+            "active": bool(active),
+            "locked": False,
+            "metadata": {"source": "ge-radio"},
+        })
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+def vault_playlist_delete(playlist_id):
+    if not vault_configured():
+        return False, "Vault credentials are not configured on this radio."
+    try:
+        vault_request("DELETE", "/v1/playlists/" + urllib.parse.quote(str(playlist_id), safe=""))
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+def vault_sync_all_playlists(data, active_id=""):
+    if not vault_configured():
+        return False, "Vault credentials are not configured on this radio."
+    try:
+        for item in data.get("items", []):
+            ok, err = vault_playlist_save(item, active=(str(item.get("id")) == str(active_id)))
+            if not ok:
+                raise RuntimeError(err)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
 
 def read_custom_playlists():
     candidates = [CUSTOM_PLAYLISTS, CUSTOM_PLAYLISTS_BACKUP, DEFAULT_PLAYLISTS]
@@ -1611,7 +1697,21 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/control/playlists":
             if not self.require_auth():
                 return
-            self.json_response(read_custom_playlists())
+            vault_error = ""
+            data = None
+            if vault_configured():
+                try:
+                    data = vault_playlists_load()
+                except Exception as exc:
+                    vault_error = str(exc)
+            if not isinstance(data, dict):
+                data = read_custom_playlists()
+            self.json_response({
+                "items": data.get("items", []),
+                "vault_configured": vault_configured(),
+                "vault_source": bool(vault_configured() and not vault_error),
+                "vault_error": vault_error,
+            })
             return
 
         if self.path == "/control/playlists/backup":
@@ -1682,11 +1782,15 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 payload = self.read_body_json()
                 data, settings = import_playlist_backup(payload)
+                vault_saved, vault_error = vault_sync_all_playlists(data, str(settings.get("custom_mix_id", "") or ""))
                 self.json_response({
                     "ok": True,
                     "items": data.get("items", []),
                     "custom_mix_enabled": bool(settings.get("custom_mix_enabled", False)),
                     "custom_mix_id": str(settings.get("custom_mix_id", "") or ""),
+                    "vault_saved": vault_saved,
+                    "vault_configured": vault_configured(),
+                    "vault_error": vault_error,
                 })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
@@ -1725,7 +1829,19 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     data["items"][existing] = item
                 write_custom_playlists(data)
-                self.json_response({"ok": True, "playlist": item, "items": data["items"]})
+                settings = station_settings()
+                vault_saved, vault_error = vault_playlist_save(
+                    item,
+                    active=bool(settings.get("custom_mix_enabled")) and str(settings.get("custom_mix_id")) == playlist_id,
+                )
+                self.json_response({
+                    "ok": True,
+                    "playlist": item,
+                    "items": data["items"],
+                    "vault_saved": vault_saved,
+                    "vault_configured": vault_configured(),
+                    "vault_error": vault_error,
+                })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
@@ -1746,7 +1862,15 @@ class Handler(BaseHTTPRequestHandler):
                     settings["custom_mix_enabled"] = False
                     settings["custom_mix_id"] = ""
                     write_json(SETTINGS, settings)
-                self.json_response({"ok": True, "items": data["items"]})
+                vault_deleted, vault_error = vault_playlist_delete(playlist_id)
+                self.json_response({
+                    "ok": True,
+                    "items": data["items"],
+                    "vault_deleted": vault_deleted,
+                    "vault_configured": vault_configured(),
+                    "vault_error": vault_error,
+                    "history_retained": vault_deleted,
+                })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
@@ -1765,10 +1889,20 @@ class Handler(BaseHTTPRequestHandler):
                 settings["custom_mix_enabled"] = enabled
                 settings["custom_mix_id"] = playlist_id if enabled else playlist_id
                 write_json(SETTINGS, settings)
+                vault_saved = False
+                vault_error = ""
+                if enabled:
+                    data = read_custom_playlists()
+                    active_item = next((x for x in data["items"] if str(x.get("id","")) == playlist_id), None)
+                    if active_item:
+                        vault_saved, vault_error = vault_playlist_save(active_item, active=True)
                 self.json_response({
                     "ok": True,
                     "custom_mix_enabled": settings["custom_mix_enabled"],
                     "custom_mix_id": settings["custom_mix_id"],
+                    "vault_saved": vault_saved,
+                    "vault_configured": vault_configured(),
+                    "vault_error": vault_error,
                 })
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
