@@ -278,6 +278,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   <div class="analyticsStats" id="analyticsStats"></div>
   <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
+  <div class="analyticsSection"><h3>NETWORK / LANGUAGE / REFERRERS</h3><div class="analyticsChips" id="analyticsTechnology"></div></div>
   <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PLAYS</th><th>LISTENERS</th><th>LISTENED</th><th>AVG</th><th>COMPLETE</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
   <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">Server-side record of each Grand Element Radio song start, independent of the listener's browser.</div><div class="analyticsTableWrap"><table class="analyticsTable"><thead><tr><th>TRACK</th><th>ALBUM</th><th>PERFORMANCES</th><th>LAST PLAYED</th><th>ASCAP WORK</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
 </div></div>
@@ -527,6 +528,8 @@ function renderAnalytics(d){
   const acq=d&&d.acquisition||{},geo=d&&d.geography||{};
   $('analyticsCampaigns').innerHTML=analyticsChips(acq.campaigns,'No QR campaign scans yet.')+analyticsChips(acq.placements,'');
   $('analyticsLocations').innerHTML=analyticsChips(geo.cities,'No location data yet.')+analyticsChips(geo.regions,'');
+  const tech=d&&d.technology||{};
+  $('analyticsTechnology').innerHTML=analyticsChips(tech.networks,'No network data yet.')+analyticsChips(tech.languages,'')+analyticsChips(tech.referrers,'');
   const music=Array.isArray(d&&d.music)?d.music.filter(function(x){return !x.station_id}):[];
   $('analyticsMusic').innerHTML=music.slice(0,100).map(function(x){
     return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc(x.ascap_work_id||x.iswc||'—')+'</td></tr>'
