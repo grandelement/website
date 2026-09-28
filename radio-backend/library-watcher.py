@@ -7,6 +7,8 @@ import secrets
 import subprocess
 import time
 import urllib.parse
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 REPO = "grandelement/website"
@@ -26,6 +28,10 @@ SETTINGS = DATA / "settings.json"
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 RECENT_PLAYED = DATA / "recent-played.json"
 NOW = RUNTIME / "now.json"
+STATION_PERFORMANCE_STATE = DATA / "station-performance-state.json"
+
+GE_VAULT_URL = os.environ.get("GE_VAULT_URL", "https://vault.grandelement.com").rstrip("/")
+GE_VAULT_ADMIN_TOKEN = os.environ.get("GE_VAULT_ADMIN_TOKEN", "").strip()
 
 CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
@@ -78,6 +84,64 @@ def load_recent_played():
     except Exception:
         return []
 
+def record_station_performance(meta):
+    if not GE_VAULT_URL or not GE_VAULT_ADMIN_TOKEN:
+        return False
+    title=str(meta.get("title", "") or "").strip()
+    kind=str(meta.get("ge_kind", "") or "")
+    if kind != "song" or not title:
+        return False
+    album=str(meta.get("album", "") or "").strip()
+    path=str(meta.get("ge_path", "") or "").strip()
+    key=f"{album}|{title}|{path}"
+    previous={}
+    try:
+        previous=json.loads(STATION_PERFORMANCE_STATE.read_text(encoding="utf-8"))
+    except Exception:
+        previous={}
+    now_ts=int(time.time())
+    if previous.get("key")==key and now_ts-int(previous.get("recorded_at", 0) or 0)<60:
+        return False
+    metadata={
+        "source":"ge-radio-automation",
+        "ge_kind":kind,
+        "ge_slot":str(meta.get("ge_slot", "") or ""),
+        "path":path,
+    }
+    for field in ("ascap_work_id","iswc","writer","publisher"):
+        value=str(meta.get(field, "") or "").strip()
+        if value:
+            metadata[field]=value
+    payload={
+        "occurred_at":now_ts,
+        "session_id":"station-radio",
+        "track_id":path or f"{album}|{title}",
+        "track_title":title,
+        "album":album,
+        "playlist_id":"",
+        "metadata":metadata,
+    }
+    req=urllib.request.Request(
+        GE_VAULT_URL + "/v1/admin/station-performance",
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization":f"Bearer {GE_VAULT_ADMIN_TOKEN}",
+            "Content-Type":"application/json",
+            "Accept":"application/json",
+            "User-Agent":"GE-Radio-Automation/1.0 (+https://grandelement.com)",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            if 200 <= int(resp.status) < 300:
+                atomic_json(STATION_PERFORMANCE_STATE, {"key":key,"recorded_at":now_ts})
+                print(f"GE Radio: Vault station performance logged: {title}", flush=True)
+                return True
+    except Exception as exc:
+        print(f"GE Radio: Vault station performance log failed: {exc}", flush=True)
+    return False
+
 def remember_now(last_seen):
     try:
         stat=NOW.stat()
@@ -92,6 +156,7 @@ def remember_now(last_seen):
             recent=load_recent_played()
             recent=[x for x in recent if x != key] + [key]
             atomic_json(RECENT_PLAYED, {"keys": recent[-12:], "updated_at": int(time.time())})
+            record_station_performance(meta)
         return stat.st_mtime_ns
     except Exception:
         return last_seen
