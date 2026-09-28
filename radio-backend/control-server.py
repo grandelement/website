@@ -1215,6 +1215,28 @@ def broadcast_engine():
     if BROADCAST is None: raise RuntimeError("Broadcast engine is not ready.")
     return BROADCAST
 
+_PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
+
+def public_master_health():
+    now_mono = time.monotonic()
+    if now_mono - float(_PUBLIC_MASTER_HEALTH.get("checked", 0.0) or 0.0) < 3.0:
+        return dict(_PUBLIC_MASTER_HEALTH)
+    result = {"checked": now_mono, "ok": False, "error": ""}
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:8000/stream.mp3",
+            headers={"User-Agent": "GE-Radio-Health/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            result["ok"] = int(getattr(resp, "status", 0) or 0) == 200
+            result["status"] = int(getattr(resp, "status", 0) or 0)
+            result["content_type"] = str(resp.headers.get("Content-Type", "") or "")
+    except Exception as exc:
+        result["error"] = str(exc)[:180]
+    _PUBLIC_MASTER_HEALTH.clear()
+    _PUBLIC_MASTER_HEALTH.update(result)
+    return dict(_PUBLIC_MASTER_HEALTH)
+
 def liquidsoap_command(command):
     with socket.create_connection(("127.0.0.1", 1234), timeout=3) as s:
         s.settimeout(1)
@@ -1679,7 +1701,7 @@ class Handler(BaseHTTPRequestHandler):
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
-                    "architecture": "webrtc-opus-cloudflare-sfu-with-direct-websocket-fallback",
+                    "architecture": "direct-websocket-pcm-primary-with-webrtc-fallback",
                     "realtime_configured": realtime_configured(),
                     "realtime": realtime_state(),
                     "voice_mount": "/source/voice",
@@ -1689,6 +1711,7 @@ class Handler(BaseHTTPRequestHandler):
                     "port": 443,
                 },
                 "broadcast": broadcast_engine().status(),
+                "public_master": public_master_health(),
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
             })
