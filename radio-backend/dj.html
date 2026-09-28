@@ -103,6 +103,38 @@ body.embedMixer{padding:0;overflow:hidden}body.embedMixer>.wrap,body.embedMixer>
  #mixerSheet{bottom:calc(92px + env(safe-area-inset-bottom))!important}.fxPresets{grid-template-columns:repeat(3,1fr)!important}
 }
 
+
+/* GE touch-first mixer rule: full-travel rails, fat full-width fader handles, no accidental page movement */
+#mixerSheet .mixerGrid{
+  grid-template-columns:repeat(4,minmax(180px,1fr));
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;
+}
+#mixerSheet .mixerGrid::-webkit-scrollbar{display:none}
+#mixerSheet .mixStrip{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+#mixerSheet input.vf{display:none!important}
+.touchFader{position:relative;flex:1 1 auto;min-height:190px;width:100%;margin:7px 0 5px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.touchFaderRail{position:absolute;top:11px;bottom:11px;left:50%;width:18px;transform:translateX(-50%);border-radius:999px;background:#0b1720;border:1px solid #46637a;box-shadow:inset 0 0 0 2px rgba(0,0,0,.28)}
+.touchFaderFill{position:absolute;left:50%;bottom:11px;width:18px;transform:translateX(-50%);border-radius:999px;background:#58a5ff;pointer-events:none;box-shadow:0 0 9px rgba(88,165,255,.3)}
+.touchFaderThumb{position:absolute;left:6px;right:6px;height:48px;border-radius:12px;background:#f1f5f7;border:4px solid #1b2731;box-shadow:0 3px 13px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.28);pointer-events:none}
+.touchFader:focus-visible .touchFaderThumb,.touchFader.dragging .touchFaderThumb{outline:3px solid #58a5ff;outline-offset:2px}
+.mixerScrollControl{display:none;grid-template-columns:46px 1fr;gap:8px;align-items:center;min-height:38px;margin-top:5px;padding:2px 5px}
+.mixerScrollControl.show{display:grid}
+.mixerScrollControl b{font-size:7px;color:var(--muted);letter-spacing:.08em}
+.mixerScrollControl input{width:100%;height:36px;touch-action:none}
+body.geFaderDragging{overscroll-behavior:none!important;user-select:none!important;-webkit-user-select:none!important}
+input[type=range]:not(.vf){-webkit-appearance:none;appearance:none;background:transparent;min-height:42px;touch-action:none}
+input[type=range]:not(.vf)::-webkit-slider-runnable-track{height:12px;border-radius:999px;background:#17232d;border:1px solid #40505e}
+input[type=range]:not(.vf)::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:34px;height:34px;margin-top:-12px;border-radius:10px;background:#f1f5f7;border:3px solid #1b2731;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+input[type=range]:not(.vf)::-moz-range-track{height:12px;border-radius:999px;background:#17232d;border:1px solid #40505e}
+input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radius:10px;background:#f1f5f7;border:3px solid #1b2731}
+
+#mixerSheet .mixerGrid{padding-bottom:1px}
+#mixerSheet .mixStrip{min-width:180px}
+#mixerSheet .mixerScrollControl{flex:0 0 38px}
+@media(max-width:560px){#mixerSheet .mixerGrid{grid-template-columns:repeat(4,minmax(170px,1fr))!important}.touchFader{min-height:155px}}
+@media(orientation:landscape) and (max-height:620px){.touchFader{min-height:110px}.touchFaderThumb{height:42px}}
+
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
@@ -158,7 +190,52 @@ body.embedMixer{padding:0;overflow:hidden}body.embedMixer>.wrap,body.embedMixer>
 </div></div>
 <div class="modal" id="picker"><div class="modalBox"><div class="modalHead"><div><b>REPLACE TRACK</b><div class="note" id="replaceWhich"></div></div><button id="closePicker">CLOSE</button></div><label class="upload">UPLOAD TEMP MP3<input id="upload" type="file" accept="audio/mpeg,.mp3"></label><input class="search" id="search" placeholder="Search song or album"><div class="library" id="library"></div></div></div>
 <script>
-const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0;let ctx=null,radioNode=null,radioGain=null,radioAnalyser=null,radioRAF=0;let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false;let rtcPc=null,rtcDest=null,rtcSessionId='',rtcMid='',liveTransport='';let micStream=null,micSource=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
+const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
+function installTouchMixer(rootSelector,gridSelector){
+  const root=document.querySelector(rootSelector),grid=root&&root.querySelector(gridSelector);if(!root||!grid)return function(){};
+  const enhanced=[];
+  grid.querySelectorAll('input.vf[type="range"]').forEach(function(range){
+    if(range.dataset.touchFader==='1')return;range.dataset.touchFader='1';
+    const wrap=document.createElement('div');wrap.className='touchFader';wrap.tabIndex=0;wrap.setAttribute('role','slider');wrap.setAttribute('aria-label',(range.id||'mixer fader').replace(/^mix/,'').replace(/Level$/,' level'));
+    const rail=document.createElement('div');rail.className='touchFaderRail';
+    const fill=document.createElement('div');fill.className='touchFaderFill';
+    const thumb=document.createElement('div');thumb.className='touchFaderThumb';
+    wrap.appendChild(rail);wrap.appendChild(fill);wrap.appendChild(thumb);range.insertAdjacentElement('afterend',wrap);
+    function values(){return {min:Number(range.min||0),max:Number(range.max||100),step:Number(range.step||1)||1,val:Number(range.value||0)}}
+    function sync(){
+      const v=values(),pct=v.max===v.min?0:clamp((v.val-v.min)/(v.max-v.min),0,1),h=wrap.clientHeight||190,th=thumb.offsetHeight||48,pad=10,travel=Math.max(1,h-(pad*2)-th);
+      thumb.style.top=(pad+(1-pct)*travel)+'px';fill.style.height=(pct*Math.max(1,h-pad*2))+'px';
+      wrap.setAttribute('aria-valuemin',String(v.min));wrap.setAttribute('aria-valuemax',String(v.max));wrap.setAttribute('aria-valuenow',String(Math.round(v.val*100)/100));
+    }
+    function setFromPointer(e){
+      const rect=wrap.getBoundingClientRect(),v=values(),th=thumb.offsetHeight||48,pad=10,top=rect.top+pad+th/2,bottom=rect.bottom-pad-th/2;
+      const pct=clamp((bottom-e.clientY)/Math.max(1,bottom-top),0,1),raw=v.min+pct*(v.max-v.min),snapped=Math.round((raw-v.min)/v.step)*v.step+v.min;
+      range.value=String(clamp(snapped,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    let dragging=false;
+    wrap.addEventListener('pointerdown',function(e){dragging=true;wrap.classList.add('dragging');document.body.classList.add('geFaderDragging');wrap.setPointerCapture?.(e.pointerId);setFromPointer(e);e.preventDefault()});
+    wrap.addEventListener('pointermove',function(e){if(dragging){setFromPointer(e);e.preventDefault()}});
+    function end(e){if(!dragging)return;dragging=false;wrap.classList.remove('dragging');document.body.classList.remove('geFaderDragging');try{wrap.releasePointerCapture?.(e.pointerId)}catch(_e){}range.dispatchEvent(new Event('change',{bubbles:true}))}
+    wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
+    wrap.addEventListener('keydown',function(e){
+      const v=values();let delta=0;if(e.key==='ArrowUp'||e.key==='ArrowRight')delta=v.step;if(e.key==='ArrowDown'||e.key==='ArrowLeft')delta=-v.step;if(e.key==='PageUp')delta=v.step*10;if(e.key==='PageDown')delta=-v.step*10;if(!delta)return;
+      range.value=String(clamp(v.val+delta,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));range.dispatchEvent(new Event('change',{bubbles:true}));e.preventDefault();
+    });
+    range.addEventListener('input',sync);range.addEventListener('change',sync);enhanced.push(sync);requestAnimationFrame(sync);
+  });
+  const control=document.createElement('div');control.className='mixerScrollControl';control.innerHTML='<b>CHANNELS</b><input type="range" min="0" max="1" value="0" aria-label="Scroll mixer channels">';
+  grid.insertAdjacentElement('afterend',control);const scroller=control.querySelector('input');
+  function updateScroll(){
+    const max=Math.max(0,grid.scrollWidth-grid.clientWidth);control.classList.toggle('show',max>3);scroller.max=String(Math.max(1,Math.round(max)));if(document.activeElement!==scroller)scroller.value=String(Math.round(grid.scrollLeft));
+  }
+  scroller.addEventListener('input',function(){grid.scrollLeft=Number(this.value)||0});
+  grid.addEventListener('scroll',function(){if(document.activeElement!==scroller)scroller.value=String(Math.round(grid.scrollLeft))},{passive:true});
+  if(window.ResizeObserver){const ro=new ResizeObserver(function(){updateScroll();enhanced.forEach(function(fn){fn()})});ro.observe(grid);root._geMixerResizeObserver=ro}else window.addEventListener('resize',updateScroll);
+  requestAnimationFrame(updateScroll);
+  return function(){enhanced.forEach(function(fn){fn()});updateScroll()};
+}
+let syncTouchFaders=function(){};
+let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0;let ctx=null,radioNode=null,radioGain=null,radioAnalyser=null,radioRAF=0;let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false;let rtcPc=null,rtcDest=null,rtcSessionId='',rtcMid='',liveTransport='';let micStream=null,micSource=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
 let settings={mic:{level:100,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true},line:{level:100,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line)}catch(e){}
 function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}}
 
@@ -301,7 +378,7 @@ async function skipCurrent(){const b=$('skipNow');b.disabled=true;try{const r=aw
 async function toggleAirCheck(){const a=$('airCheckAudio');try{if(a.paused){a.src='/stream.mp3?aircheck='+Date.now();a.load();await a.play();airCheckOn=true;$('airCheck').classList.add('on');$('airCheck').textContent='AIR CHECK · ON'}else{a.pause();a.removeAttribute('src');a.load();airCheckOn=false;$('airCheck').classList.remove('on');$('airCheck').textContent='AIR CHECK · OFF'}}catch(e){alert('AIR CHECK is the delayed public stream. Use headphones to avoid feedback. '+(e.message||''))}}
 
 function queueItems(){const a=[];if(status&&status.next&&status.next.slot)a.push(status.next);((status&&status.coming)||[]).forEach(function(x){if(x&&x.slot&&!a.some(function(y){return y.slot===x.slot}))a.push(x)});return a.slice(0,5)}
-function render(){if(!status)return;$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('liveStateText').textContent=b.active?String(b.owner||b.mode||'LIVE').toUpperCase():'OFF';$('liveState').classList.toggle('on',!!b.active);$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';$('mixStudioMeter').style.width=(b.active&&b.owner==='studio'?Number(b.peak_pct||0):0)+'%';if(status.mixer){$('mixStudioLevel').value=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100);$('mixStudioRead').textContent=$('mixStudioLevel').value+'%';$('mixMasterLevel').value=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100);$('mixMasterRead').textContent=$('mixMasterLevel').value+'%';$('mixRadioBed').value=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100)}}
+function render(){if(!status)return;$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('liveStateText').textContent=b.active?String(b.owner||b.mode||'LIVE').toUpperCase():'OFF';$('liveState').classList.toggle('on',!!b.active);$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';$('mixStudioMeter').style.width=(b.active&&b.owner==='studio'?Number(b.peak_pct||0):0)+'%';if(status.mixer){$('mixStudioLevel').value=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100);$('mixStudioRead').textContent=$('mixStudioLevel').value+'%';$('mixMasterLevel').value=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100);$('mixMasterRead').textContent=$('mixMasterLevel').value+'%';$('mixRadioBed').value=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100);requestAnimationFrame(syncTouchFaders)}}
 async function poll(){try{const r=await api('/control/status');if(r.ok){status=await r.json();render()}}catch(e){$('statusPill').textContent='OFFLINE'}}function startPoll(){clearInterval(poller);poller=setInterval(poll,1200);poll()}
 $('crossfade').addEventListener('pointerdown',function(){crossDirty=true});$('crossfade').addEventListener('input',function(){crossDirty=true;$('crossVal').textContent=Number($('crossfade').value).toFixed(1)+'s';$('crossStatus').textContent='READY TO SAVE'});async function saveCross(){if(crossSaving)return;crossSaving=true;const seconds=Number($('crossfade').value);$('crossStatus').textContent='SAVING…';try{const r=await api('/control/crossfade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seconds:seconds})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Save failed');crossDirty=false;$('crossStatus').textContent='PERMANENT SERVER VALUE SAVED'}catch(e){$('crossStatus').textContent=e.message||'Save failed'}finally{crossSaving=false}}$('saveCross').onclick=saveCross;$('crossfade').addEventListener('change',saveCross);
 $('queue').onclick=async function(e){const b=e.target.closest('button[data-act]'),row=e.target.closest('.qrow');if(!b||!row)return;const act=b.dataset.act,slot=row.dataset.slot;if(act==='replace'){openPicker(slot,row.querySelector('.qtitle').textContent);return}const slots=queueItems().map(function(x){return x.slot}),i=slots.indexOf(slot),j=i+(act==='up'?-1:1);if(i<0||j<0||j>=slots.length)return;const tmp=slots[i];slots[i]=slots[j];slots[j]=tmp;const rr=await api('/control/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slots:slots})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)alert(d.error||'Queue update failed');else setTimeout(poll,250)};
@@ -402,5 +479,5 @@ $('playlistSongs').onchange=function(e){const c=e.target.closest('[data-song-pat
 $('playlistMasterSongs').onchange=function(){setAlbumChecked(playlistAlbum,this.checked)};
 
 $('skipNow').onclick=skipCurrent;$('airCheck').onclick=toggleAirCheck;
-updateThresholds();updateAirButtons();$('mixMicLevel').value=settings.mic.level;$('mixLineLevel').value=settings.line.level;$('mixMicA').value=settings.mic.delay;$('mixMicB').value=settings.mic.reverb;$('mixLineA').value=settings.line.delay;$('mixLineB').value=settings.line.reverb;$('mixMicRead').textContent=settings.mic.level+'%';$('mixLineRead').textContent=settings.line.level+'%';const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
+syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');updateThresholds();updateAirButtons();$('mixMicLevel').value=settings.mic.level;$('mixLineLevel').value=settings.line.level;$('mixMicA').value=settings.mic.delay;$('mixMicB').value=settings.mic.reverb;$('mixLineA').value=settings.line.delay;$('mixLineB').value=settings.line.reverb;$('mixMicRead').textContent=settings.mic.level+'%';$('mixLineRead').textContent=settings.line.level+'%';syncTouchFaders();const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
