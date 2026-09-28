@@ -7,13 +7,9 @@
 <title>Grand Element</title>
 
 <link rel="preload" as="image" href="/ge-images/images/favicon-square.jpg">
-<link rel="preload" as="image" href="/ge-images/images/stars%20backgrounds/2.jpg">
+<link rel="preload" as="image" href="/ge-images/images/stars%20backgrounds/4.jpg">
 
 <style>
-:root{
-  --gateFade:.78s;
-  --journey:5.6s;
-}
 *{box-sizing:border-box}
 html,body{
   margin:0;
@@ -36,9 +32,9 @@ html,body{
   inset:0;
   z-index:10;
   overflow:hidden;
-  background:#000 url("/ge-images/images/stars%20backgrounds/2.jpg") center/cover no-repeat;
+  background:#000 url("/ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
   opacity:1;
-  transition:opacity var(--gateFade) ease;
+  transition:opacity .78s ease;
   touch-action:manipulation;
 }
 #gate::after{
@@ -75,75 +71,16 @@ html,body{
   user-select:none;
   -webkit-user-drag:none;
 }
-#gate.go #sunWrap{
-  animation:enterSun var(--journey) linear forwards;
-}
 #gate.done{
   opacity:0;
   pointer-events:none;
 }
-@keyframes enterSun{
-  /* Stars only */
-  0%{
-    transform:translate(-50%,-50%) scale(.76);
-    opacity:0;
-    filter:brightness(.96) saturate(1);
-  }
-  23%{
-    transform:translate(-50%,-50%) scale(.76);
-    opacity:0;
-    filter:brightness(.96) saturate(1);
-  }
-
-  /* Sun fades in, almost no forward motion yet */
-  36%{
-    transform:translate(-50%,-50%) scale(.79);
-    opacity:1;
-    filter:brightness(1) saturate(1);
-  }
-
-  /* Very slow initial throttle */
-  50%{
-    transform:translate(-50%,-50%) scale(.86);
-    opacity:1;
-    filter:brightness(1.02) saturate(1.02);
-  }
-  63%{
-    transform:translate(-50%,-50%) scale(1.04);
-    opacity:1;
-    filter:brightness(1.05) saturate(1.04);
-  }
-
-  /* Acceleration builds */
-  75%{
-    transform:translate(-50%,-50%) scale(1.55);
-    opacity:1;
-    filter:brightness(1.09) saturate(1.06);
-  }
-  85%{
-    transform:translate(-50%,-50%) scale(2.75);
-    opacity:1;
-    filter:brightness(1.18) saturate(1.08);
-  }
-  93%{
-    transform:translate(-50%,-50%) scale(4.9);
-    opacity:1;
-    filter:brightness(1.34) saturate(1.05);
-  }
-
-  /* Final burst through the sun */
-  100%{
-    transform:translate(-50%,-50%) scale(8.4);
-    opacity:0;
-    filter:brightness(1.8) saturate(.78) blur(2px);
-  }
-}
 @media (prefers-reduced-motion:reduce){
   #sunWrap{
-    opacity:1;
-    transform:translate(-50%,-50%) scale(.86);
+    opacity:1 !important;
+    transform:translate(-50%,-50%) scale(.86) !important;
+    filter:none !important;
   }
-  #gate.go #sunWrap{animation:none}
 }
 </style>
 </head>
@@ -161,29 +98,103 @@ html,body{
 (function(){
   const gate = document.getElementById('gate');
   const frame = document.getElementById('site');
+  const sunWrap = document.getElementById('sunWrap');
 
-  let animationFinished = false;
   let siteReady = false;
+  let animationFinished = false;
   let leaving = false;
+  let rafId = 0;
+  let startTime = 0;
 
-  function begin(){
-    requestAnimationFrame(() => requestAnimationFrame(() => gate.classList.add('go')));
+  const STARS_ONLY = 1300;
+  const FADE_IN = 1200;
+  const ZOOM_START = 1900;
+  const ZOOM_TIME = 5000;
+  const TOTAL = ZOOM_START + ZOOM_TIME;
+
+  const START_SCALE = 0.76;
+  const END_SCALE = 8.4;
+  const SCALE_RATIO = END_SCALE / START_SCALE;
+
+  function clamp01(v){
+    return Math.max(0, Math.min(1, v));
+  }
+
+  function smoothstep(t){
+    t = clamp01(t);
+    return t * t * (3 - 2 * t);
+  }
+
+  function finish(){
+    animationFinished = true;
+    reveal();
   }
 
   function reveal(){
-    if(leaving) return;
-    if(!animationFinished || !siteReady) return;
-
+    if(leaving || !animationFinished || !siteReady) return;
     leaving = true;
     gate.classList.add('done');
 
     setTimeout(() => {
       try { location.replace('/'); } catch(e) {}
-    }, 880);
+    }, 820);
+  }
+
+  function draw(now){
+    if(!startTime) startTime = now;
+    const elapsed = now - startTime;
+
+    // Stars remain alone first. Then the sun fades in smoothly.
+    let opacity = 0;
+    if(elapsed > STARS_ONLY){
+      opacity = smoothstep((elapsed - STARS_ONLY) / FADE_IN);
+    }
+
+    // One continuous mathematical acceleration curve.
+    // No stepped keyframes, so there are no speed jumps.
+    let scale = START_SCALE;
+    let brightness = 1;
+    let saturation = 1;
+    let blur = 0;
+
+    if(elapsed >= ZOOM_START){
+      const p = clamp01((elapsed - ZOOM_START) / ZOOM_TIME);
+
+      // Exponential distance curve with a smooth throttle ramp:
+      // almost stationary at first, continuously accelerating to the end.
+      const throttle = p * p * (3 - 2 * p);
+      const accelerated = Math.pow(throttle, 2.15);
+
+      scale = START_SCALE * Math.pow(SCALE_RATIO, accelerated);
+
+      brightness = 1 + 0.72 * Math.pow(p, 2.5);
+      saturation = 1 + 0.08 * smoothstep(p);
+
+      // Fade only during the final approach.
+      if(p > 0.88){
+        const q = smoothstep((p - 0.88) / 0.12);
+        opacity *= (1 - q);
+        blur = 2.2 * q;
+      }
+    }
+
+    sunWrap.style.opacity = opacity.toFixed(4);
+    sunWrap.style.transform =
+      'translate(-50%,-50%) scale(' + scale.toFixed(5) + ')';
+    sunWrap.style.filter =
+      'brightness(' + brightness.toFixed(3) + ') saturate(' +
+      saturation.toFixed(3) + ') blur(' + blur.toFixed(2) + 'px)';
+
+    if(elapsed < TOTAL){
+      rafId = requestAnimationFrame(draw);
+    }else{
+      finish();
+    }
   }
 
   function skip(){
     if(leaving) return;
+    if(rafId) cancelAnimationFrame(rafId);
     animationFinished = true;
     siteReady = true;
     reveal();
@@ -194,13 +205,6 @@ html,body{
     reveal();
   }, {once:true});
 
-  gate.addEventListener('animationend', (e) => {
-    if(e.animationName === 'enterSun'){
-      animationFinished = true;
-      reveal();
-    }
-  });
-
   gate.addEventListener('click', skip);
   gate.addEventListener('keydown', (e) => {
     if(e.key === 'Enter' || e.key === ' '){
@@ -209,19 +213,20 @@ html,body{
     }
   });
 
-  // Failsafe: never leave someone stuck on the transition.
-  setTimeout(() => {
-    siteReady = true;
-    animationFinished = true;
-    reveal();
-  }, 7600);
-
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     animationFinished = true;
     setTimeout(reveal, 900);
-  } else {
-    begin();
+  }else{
+    rafId = requestAnimationFrame(draw);
   }
+
+  // Failsafe only.
+  setTimeout(() => {
+    if(leaving) return;
+    siteReady = true;
+    animationFinished = true;
+    reveal();
+  }, TOTAL + 2200);
 })();
 </script>
 </body>
