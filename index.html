@@ -3435,7 +3435,8 @@ let GE_NINE_PLANET_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_NINE_PLANET_SELECTION_KEY,
   ALL_ALBUMS.map(a=>a.musicTitle)
 );
-let SITE_PLANET_LAYOUT_MODE='random';
+let SITE_PLANET_LAYOUT_MODE=String(window.GE_SITE_CONFIG?.albums?.layout||'random').toLowerCase();
+const GE_SITE_CUSTOM_PLANET_POSITIONS=window.GE_SITE_CONFIG?.albums?.positions||{};
 function geSelectedSet(names){return new Set(names.map(geAlbumKey));}
 function getEnabledAlbums(){
   if(document.body.classList.contains('game-mode-active')){
@@ -3595,8 +3596,13 @@ function placePlanets(){
 
   ALBUMS.forEach((alb,i)=>{
     const inGame=document.body.classList.contains('game-mode-active');
+    const customKey=normAlbumName(alb.musicTitle||alb.title);
+    const custom=GE_SITE_CUSTOM_PLANET_POSITIONS[customKey];
+    const useCustom=!inGame && SITE_PLANET_LAYOUT_MODE==='custom' && custom && Number.isFinite(Number(custom.x)) && Number.isFinite(Number(custom.y));
     const useSpiral=!inGame && SITE_PLANET_LAYOUT_MODE==='spiral';
-    const pos = useSpiral ? defaultPosition(i) : randomPosition();
+    const pos=useCustom
+      ? {x:w*Math.max(0,Math.min(100,Number(custom.x)))/100,y:h*Math.max(0,Math.min(100,Number(custom.y)))/100}
+      : (useSpiral ? defaultPosition(i) : randomPosition());
     positions.push(pos);
 
     const aEl = document.createElement('a');
@@ -3830,6 +3836,31 @@ addEventListener('orientationchange',()=>{
   if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
     intro.innerHTML='';
     cfg.about.intro.forEach(line=>{const li=document.createElement('li');li.textContent=line;intro.appendChild(li);});
+  }
+  const welcomeVisual=cfg.visual?.welcome||{};
+  const welcomePositionCard=document.getElementById('geWelcomeCard');
+  if(welcomePositionCard){
+    const wx=Math.max(0,Math.min(100,Number(welcomeVisual.x)||50));
+    const wy=Math.max(0,Math.min(100,Number(welcomeVisual.y)||50));
+    const wo=Math.max(.2,Math.min(1,(Number(welcomeVisual.panelOpacity)||78)/100));
+    welcomePositionCard.style.position='fixed';
+    welcomePositionCard.style.left=wx+'vw';
+    welcomePositionCard.style.top=wy+'vh';
+    welcomePositionCard.style.margin='0';
+    welcomePositionCard.style.transform='translate(-50%,-50%)';
+    welcomePositionCard.style.backgroundColor='rgba(4,18,32,'+wo+')';
+  }
+  const aboutVisual=cfg.visual?.about||{};
+  const aboutPositionText=document.querySelector('#about .aboutText');
+  if(aboutPositionText){
+    const ax=Math.max(0,Math.min(100,Number(aboutVisual.x)||50));
+    const ay=Math.max(0,Math.min(100,Number(aboutVisual.y)||50));
+    const ao=Math.max(.2,Math.min(1,(Number(aboutVisual.panelOpacity)||96)/100));
+    aboutPositionText.style.position='relative';
+    aboutPositionText.style.left=(ax-50)+'vw';
+    aboutPositionText.style.top=(ay-50)+'vh';
+    aboutPositionText.style.opacity=String(ao);
+    aboutPositionText.style.textAlign='center';
   }
   const games=cfg.games||{};
   const availability=[
