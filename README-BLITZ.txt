@@ -48,3 +48,12 @@ GE_PUBLIC_RADIO_BASE=https://radio.grandelement.blitz.cloud
 
 Create the Realtime SFU application in the Cloudflare dashboard. Keep the App Secret only in
 Blitz Environment settings; never put it in DJ or Studio HTML.
+
+
+GE VAULT PERMANENT SETTINGS
+To mirror radio settings such as crossfade into the private GE Vault and restore them after a fresh radio deployment, add these Blitz environment variables:
+
+GE_VAULT_URL=https://vault.grandelement.com
+GE_VAULT_ADMIN_TOKEN=<private Vault admin token>
+
+Keep GE_VAULT_ADMIN_TOKEN only in Blitz Environment settings. Never put it in DJ, Studio, radio HTML, GitHub, or browser JavaScript.
