@@ -6,7 +6,7 @@ export XDG_CACHE_HOME=/app/home/.cache
 export GE_DATA_DIR="${GE_DATA_DIR:-/app/data}"
 
 mkdir -p \
-  /app/runtime /app/runtime/client_temp /app/runtime/proxy_temp \
+  /app/runtime /app/runtime/hls /app/runtime/client_temp /app/runtime/proxy_temp \
   /app/runtime/fastcgi_temp /app/runtime/uwsgi_temp /app/runtime/scgi_temp \
   /app/runtime/uploads /app/logs "$XDG_CACHE_HOME" "$GE_DATA_DIR"
 
@@ -159,6 +159,21 @@ http {
       add_header Access-Control-Allow-Origin "*" always; add_header Cache-Control "no-store" always; add_header X-Accel-Buffering "no" always;
     }
 
+    # iPhone/Safari DJ monitor. HLS uses short HTTP requests instead of one
+    # long-lived MP3 response, so an upstream 30-second stream timeout cannot
+    # stop the DJ monitor.
+    location /hls/ {
+      alias /app/runtime/hls/;
+      types {
+        application/vnd.apple.mpegurl m3u8;
+        video/mp2t ts;
+      }
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+      add_header Pragma "no-cache" always;
+      expires -1;
+    }
+
     # Standard source-ingest mounts. Configure an Icecast source client for
     # HTTPS port 443, user "source", the normal DJ password, and one of these
     # public mounts. Nginx terminates TLS and streams the source body directly
@@ -255,7 +270,7 @@ sys.exit(1)
 PYHTTP
 }
 
-NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""
+NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; HLS_PID=""
 
 start_nginx(){
   if pid_alive "$NGINX_PID"; then return 0; fi
@@ -274,12 +289,33 @@ start_watcher(){
   echo "GE Radio: starting library watcher..."
   python3 /app/library-watcher.py & WATCHER_PID=$!
 }
+stop_hls(){
+  if pid_alive "$HLS_PID"; then kill "$HLS_PID" 2>/dev/null || true; fi
+  HLS_PID=""
+}
+start_hls(){
+  if pid_alive "$HLS_PID"; then return 0; fi
+  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
+  rm -f /app/runtime/hls/radio.m3u8 /app/runtime/hls/radio-*.ts
+  echo "GE Radio: starting iPhone-safe HLS monitor..."
+  ffmpeg -hide_banner -loglevel warning -nostats \
+    -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
+    -i http://127.0.0.1:8000/stream.mp3 \
+    -vn -c:a aac -b:a 128k -ar 48000 -ac 2 \
+    -f hls -hls_time 1 -hls_list_size 8 \
+    -hls_flags delete_segments+append_list+omit_endlist+independent_segments \
+    -hls_segment_filename "/app/runtime/hls/radio-%06d.ts" \
+    /app/runtime/hls/radio.m3u8 & HLS_PID=$!
+  return 0
+}
+
 stop_audio(){
   for p in "$LIQUIDSOAP_PID" "$ICECAST_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   sleep .4; LIQUIDSOAP_PID=""; ICECAST_PID=""
 }
 start_audio_stack(){
   [ -s /app/runtime/playlist.m3u ] || return 1
+  stop_hls
   stop_audio
   echo "GE Radio: starting isolated 24/7 radio backbone..."
   icecast2 -c /app/runtime/icecast.xml & ICECAST_PID=$!
@@ -289,11 +325,12 @@ start_audio_stack(){
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: isolated public radio not ready; will retry."; stop_audio; return 1; fi
 
-  echo "GE Radio: protected 24/7 RADIO online. DJ microphone is isolated from the station."
+  start_hls || true
+  echo "GE Radio: protected 24/7 RADIO online. HLS DJ monitor is isolated from the station."
 }
 
 shutdown(){
-  echo "GE Radio: shutting down..."; stop_audio
+  echo "GE Radio: shutting down..."; stop_hls; stop_audio
   for p in "$CONTROL_PID" "$WATCHER_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   wait 2>/dev/null || true
 }
@@ -312,8 +349,12 @@ while true; do
     if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID"; then
       echo "GE Radio: radio backbone missing or stopped; restarting radio backbone."
       start_audio_stack || true
+    elif ! pid_alive "$HLS_PID"; then
+      echo "GE Radio: HLS DJ monitor stopped; restarting monitor only."
+      start_hls || true
     fi
   else
+    stop_hls
     if pid_alive "$ICECAST_PID" || pid_alive "$LIQUIDSOAP_PID"; then stop_audio; fi
   fi
   sleep 5
