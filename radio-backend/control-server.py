@@ -1895,13 +1895,13 @@ class Handler(BaseHTTPRequestHandler):
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
-                    "architecture": "isolated-radio-backbone-plus-independent-dj-mic-channel",
+                    "architecture": "automation-plus-dj-mic-public-master-mix",
                     "realtime_configured": realtime_configured(),
                     "realtime": realtime_state(),
                     "voice_mount": "",
                     "live_mount": "",
                     "dj_stream": "/dj.mp3",
-                    "public_radio_isolated": True,
+                    "public_radio_isolated": False,
                     "legacy_source_ingest_enabled": False,
                     "username": "source",
                     "ssl": True,
@@ -1930,7 +1930,7 @@ class Handler(BaseHTTPRequestHandler):
                 "monitor": "/dj-cue.mp3",
                 "dj_stream": "/dj.mp3",
                 "public_stream": "/stream.mp3",
-                "public_radio_isolated": True,
+                "public_radio_isolated": False,
             })
             return
 
@@ -2266,7 +2266,7 @@ class Handler(BaseHTTPRequestHandler):
                 apply_mixer_state(state)
                 write_json(MIXER_SETTINGS, state)
                 permanent_state_save("radio_mixer_server", state)
-                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured(), "public_radio_isolated": True, "applied_to_public_radio": False})
+                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured(), "public_radio_isolated": False, "applied_to_public_radio": False})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
