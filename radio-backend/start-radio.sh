@@ -38,7 +38,7 @@ cat > /app/runtime/icecast.xml <<EOF
   <location>GE Studios</location>
   <admin>radio@localhost</admin>
   <limits>
-    <clients>40</clients><sources>4</sources><queue-size>32768</queue-size>
+    <clients>40</clients><sources>6</sources><queue-size>32768</queue-size>
     <client-timeout>30</client-timeout><header-timeout>15</header-timeout><source-timeout>10</source-timeout>
     <burst-on-connect>1</burst-on-connect><burst-size>4096</burst-size>
   </limits>
@@ -49,6 +49,7 @@ cat > /app/runtime/icecast.xml <<EOF
   <hostname>radio.grandelement.blitz.cloud</hostname>
   <listen-socket><port>8000</port><bind-address>127.0.0.1</bind-address></listen-socket>
   <mount type="normal"><mount-name>/stream.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
+  <mount type="normal"><mount-name>/broadcast.mp3</mount-name><charset>UTF-8</charset><public>0</public><fallback-mount>/stream.mp3</fallback-mount><fallback-override>1</fallback-override></mount>
   <mount type="normal"><mount-name>/dj.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
   <mount type="normal"><mount-name>/auto.mp3</mount-name><charset>UTF-8</charset><public>0</public></mount>
   <paths>
@@ -150,6 +151,15 @@ http {
       proxy_pass http://127.0.0.1:8000/stream.mp3; proxy_http_version 1.1;
       proxy_set_header Connection ""; proxy_buffering off; proxy_cache off; proxy_read_timeout 86400s;
       add_header Access-Control-Allow-Origin "*" always; add_header Cache-Control "no-store" always; add_header X-Accel-Buffering "no" always;
+    }
+    location = /broadcast.mp3 {
+      proxy_pass http://127.0.0.1:8000/broadcast.mp3; proxy_http_version 1.1;
+      proxy_set_header Host $host; proxy_set_header Connection "";
+      proxy_buffering off; proxy_request_buffering off; proxy_cache off;
+      proxy_read_timeout 86400s; proxy_send_timeout 86400s; send_timeout 86400s;
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+      add_header X-Accel-Buffering "no" always;
     }
     location = /dj.mp3 {
       proxy_pass http://127.0.0.1:8000/dj.mp3; proxy_http_version 1.1;
@@ -264,7 +274,7 @@ sys.exit(1)
 PYHTTP
 }
 
-NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MIC_SOURCE_PID=""
+NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MIC_SOURCE_PID=""; BROADCAST_PID=""
 
 start_nginx(){
   if pid_alive "$NGINX_PID"; then return 0; fi
@@ -302,8 +312,27 @@ start_mic_source(){
     "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/dj.mp3" & MIC_SOURCE_PID=$!
   return 0
 }
+stop_broadcast(){
+  if pid_alive "$BROADCAST_PID"; then kill "$BROADCAST_PID" 2>/dev/null || true; fi
+  BROADCAST_PID=""
+}
+start_broadcast(){
+  if pid_alive "$BROADCAST_PID"; then return 0; fi
+  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
+  if ! wait_http "http://127.0.0.1:8000/dj.mp3" 6; then return 1; fi
+  echo "GE Radio: starting fail-safe RADIO + DJ broadcast overlay..."
+  ffmpeg -hide_banner -loglevel warning -nostats \
+    -thread_queue_size 512 -i http://127.0.0.1:8000/stream.mp3 \
+    -thread_queue_size 512 -i http://127.0.0.1:8000/dj.mp3 \
+    -filter_complex "[0:a][1:a]sidechaincompress=threshold=0.015:ratio=8:attack=20:release=650[ducked];[ducked][1:a]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
+    -map "[out]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k -flush_packets 1 \
+    -content_type audio/mpeg -f mp3 \
+    "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/broadcast.mp3" & BROADCAST_PID=$!
+  return 0
+}
 start_audio_stack(){
   [ -s /app/runtime/playlist.m3u ] || return 1
+  stop_broadcast
   stop_mic_source
   stop_audio
   echo "GE Radio: starting isolated 24/7 radio backbone..."
@@ -317,11 +346,13 @@ start_audio_stack(){
   # The microphone channel is a separate process/mount. Its failure cannot
   # stop or restart Icecast, Liquidsoap, /stream.mp3, or the music automation.
   start_mic_source || true
-  echo "GE Radio: isolated radio backbone online; DJ microphone channel is separate."
+  sleep .5
+  start_broadcast || true
+  echo "GE Radio: protected radio backbone online; public broadcast overlay has automatic fallback to RADIO."
 }
 
 shutdown(){
-  echo "GE Radio: shutting down..."; stop_mic_source; stop_audio
+  echo "GE Radio: shutting down..."; stop_broadcast; stop_mic_source; stop_audio
   for p in "$CONTROL_PID" "$WATCHER_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   wait 2>/dev/null || true
 }
@@ -342,9 +373,16 @@ while true; do
       start_audio_stack || true
     elif ! pid_alive "$MIC_SOURCE_PID"; then
       echo "GE Radio: DJ microphone channel stopped; restarting microphone only."
+      stop_broadcast
       start_mic_source || true
+      sleep .5
+      start_broadcast || true
+    elif ! pid_alive "$BROADCAST_PID"; then
+      echo "GE Radio: broadcast overlay stopped; listeners remain on RADIO fallback while overlay restarts."
+      start_broadcast || true
     fi
   else
+    stop_broadcast
     stop_mic_source
     if pid_alive "$ICECAST_PID" || pid_alive "$LIQUIDSOAP_PID"; then stop_audio; fi
   fi
