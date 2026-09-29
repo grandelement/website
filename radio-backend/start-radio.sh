@@ -10,10 +10,12 @@ mkdir -p \
   /app/runtime/fastcgi_temp /app/runtime/uwsgi_temp /app/runtime/scgi_temp \
   /app/runtime/uploads /app/logs "$XDG_CACHE_HOME" "$GE_DATA_DIR"
 
-# Low-latency browser contribution bus. The control server writes 48 kHz stereo
-# signed-16 PCM here; FFmpeg mixes it into the public master.
-rm -f /app/runtime/mic.pcm
+# Low-latency browser contribution bus. The control server mirrors the same
+# 48 kHz stereo signed-16 PCM into two independent FIFOs:
+# mic.pcm feeds the isolated DJ monitor and mic-mix.pcm feeds the public overlay.
+rm -f /app/runtime/mic.pcm /app/runtime/mic-mix.pcm
 mkfifo -m 600 /app/runtime/mic.pcm
+mkfifo -m 600 /app/runtime/mic-mix.pcm
 
 ## Persistent station defaults. Existing /app/data settings survive website/backend rebuilds.
 if [ ! -f "$GE_DATA_DIR/settings.json" ]; then
@@ -319,12 +321,11 @@ stop_broadcast(){
 start_broadcast(){
   if pid_alive "$BROADCAST_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
-  if ! wait_http "http://127.0.0.1:8000/dj.mp3" 6; then return 1; fi
-  echo "GE Radio: starting fail-safe RADIO + DJ broadcast overlay..."
+  echo "GE Radio: starting fail-safe RADIO + DJ broadcast overlay from independent PCM mirror..."
   ffmpeg -hide_banner -loglevel warning -nostats \
-    -thread_queue_size 512 -i http://127.0.0.1:8000/stream.mp3 \
-    -thread_queue_size 512 -i http://127.0.0.1:8000/dj.mp3 \
-    -filter_complex "[0:a][1:a]sidechaincompress=threshold=0.015:ratio=8:attack=20:release=650[ducked];[ducked][1:a]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
+    -thread_queue_size 1024 -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -i http://127.0.0.1:8000/stream.mp3 \
+    -thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic-mix.pcm \
+    -filter_complex "[0:a]aresample=48000:first_pts=0[music];[1:a]aresample=48000:first_pts=0[mic];[music][mic]sidechaincompress=threshold=0.012:ratio=6:attack=15:release=550[ducked];[ducked][mic]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
     -map "[out]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k -flush_packets 1 \
     -content_type audio/mpeg -f mp3 \
     "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/broadcast.mp3" & BROADCAST_PID=$!
@@ -343,11 +344,13 @@ start_audio_stack(){
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: isolated public radio not ready; will retry."; stop_audio; return 1; fi
 
-  # The microphone channel is a separate process/mount. Its failure cannot
-  # stop or restart Icecast, Liquidsoap, /stream.mp3, or the music automation.
+  # The protected RADIO stays on /stream.mp3. The DJ monitor and public overlay
+  # are independent consumers of mirrored microphone PCM. If the overlay dies,
+  # Icecast falls back to /stream.mp3 without restarting the RADIO backbone.
   start_mic_source || true
-  stop_broadcast
-  echo "GE Radio: protected radio backbone online; experimental DJ overlay is disabled."
+  sleep .5
+  start_broadcast || true
+  echo "GE Radio: protected RADIO online; DJ overlay is isolated and fail-safe."
 }
 
 shutdown(){
@@ -373,6 +376,8 @@ while true; do
     elif ! pid_alive "$MIC_SOURCE_PID"; then
       echo "GE Radio: DJ microphone channel stopped; restarting microphone only."
       start_mic_source || true
+    elif ! pid_alive "$BROADCAST_PID"; then
+      echo "GE Radio: DJ overlay stopped. RADIO fallback remains active; overlay will stay off until the next service restart."
     fi
   else
     stop_broadcast
