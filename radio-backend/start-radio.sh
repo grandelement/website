@@ -297,13 +297,11 @@ start_hls(){
   if pid_alive "$HLS_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
   rm -f /app/runtime/hls/radio.m3u8 /app/runtime/hls/radio-*.ts
-  echo "GE Radio: starting iPhone-safe HLS RADIO + MIC monitor..."
+  echo "GE Radio: starting iPhone-safe HLS monitor..."
   ffmpeg -hide_banner -loglevel warning -nostats \
-    -thread_queue_size 1024 -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
+    -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
     -i http://127.0.0.1:8000/stream.mp3 \
-    -thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
-    -filter_complex "[0:a]aresample=48000:first_pts=0[music];[1:a]aresample=48000:first_pts=0,volume=3.0[mic];[music][mic]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
-    -map "[out]" -c:a aac -b:a 128k -ar 48000 -ac 2 \
+    -vn -c:a aac -b:a 128k -ar 48000 -ac 2 \
     -f hls -hls_time 1 -hls_list_size 8 \
     -hls_flags delete_segments+append_list+omit_endlist+independent_segments \
     -hls_segment_filename "/app/runtime/hls/radio-%06d.ts" \
