@@ -1214,7 +1214,6 @@ def broadcast_engine():
     return BROADCAST
 
 _PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
-_PUBLIC_BROADCAST_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
 
 def public_master_health():
     now_mono = time.monotonic()
@@ -1236,10 +1235,6 @@ def public_master_health():
     _PUBLIC_MASTER_HEALTH.update(result)
     return dict(_PUBLIC_MASTER_HEALTH)
 
-def public_broadcast_health():
-    now_mono = time.monotonic()
-    if now_mono - float(_PUBLIC_BROADCAST_HEALTH.get("checked", 0.0) or 0.0) < 3.0:
-        return dict(_PUBLIC_BROADCAST_HEALTH)
     result = {"checked": now_mono, "ok": False, "error": ""}
     try:
         req = urllib.request.Request(
@@ -1741,7 +1736,6 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 "broadcast": broadcast_engine().status(),
                 "public_master": public_master_health(),
-                "public_broadcast": public_broadcast_health(),
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
             })
