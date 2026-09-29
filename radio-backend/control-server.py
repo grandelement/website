@@ -1223,6 +1223,7 @@ def broadcast_engine():
     return BROADCAST
 
 _PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
+_PUBLIC_BROADCAST_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
 
 def public_master_health():
     now_mono = time.monotonic()
@@ -1243,6 +1244,26 @@ def public_master_health():
     _PUBLIC_MASTER_HEALTH.clear()
     _PUBLIC_MASTER_HEALTH.update(result)
     return dict(_PUBLIC_MASTER_HEALTH)
+
+def public_broadcast_health():
+    now_mono = time.monotonic()
+    if now_mono - float(_PUBLIC_BROADCAST_HEALTH.get("checked", 0.0) or 0.0) < 3.0:
+        return dict(_PUBLIC_BROADCAST_HEALTH)
+    result = {"checked": now_mono, "ok": False, "error": ""}
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:8000/broadcast.mp3",
+            headers={"User-Agent": "GE-Radio-Broadcast-Health/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=2.5) as response:
+            chunk = response.read(1024)
+            result["ok"] = bool(response.status == 200 and chunk)
+            result["bytes"] = len(chunk)
+    except Exception as exc:
+        result["error"] = str(exc)[:160]
+    _PUBLIC_BROADCAST_HEALTH.clear()
+    _PUBLIC_BROADCAST_HEALTH.update(result)
+    return dict(_PUBLIC_BROADCAST_HEALTH)
 
 def liquidsoap_command(command):
     with socket.create_connection(("127.0.0.1", 1234), timeout=3) as s:
@@ -1729,6 +1750,7 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 "broadcast": broadcast_engine().status(),
                 "public_master": public_master_health(),
+                "public_broadcast": public_broadcast_health(),
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
             })
