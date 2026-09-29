@@ -15,6 +15,7 @@ import urllib.error
 import subprocess
 import threading
 import queue
+import re
 try:
     import zmq
 except Exception:
@@ -836,6 +837,69 @@ def realtime_cleanup(owner=None, force=False, stop_broadcast=True):
             pass
     return state
 
+class RadioMeter:
+    STREAM_URL = "http://127.0.0.1:8000/stream.mp3"
+    LEVEL_RE = re.compile(r"FTPK:\\s*(-?\\d+(?:\\.\\d+)?)")
+    MOMENTARY_RE = re.compile(r"M:\\s*(-?\\d+(?:\\.\\d+)?)")
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.db = -60.0
+        self.updated = 0.0
+        self.process = None
+        self.thread = threading.Thread(target=self._loop, daemon=True, name="ge-radio-real-meter")
+        self.thread.start()
+
+    def _set_level(self, value):
+        try:
+            value = float(value)
+        except Exception:
+            return
+        value = max(-60.0, min(0.0, value))
+        with self.lock:
+            self.db = value
+            self.updated = time.monotonic()
+
+    def _loop(self):
+        while True:
+            try:
+                proc = subprocess.Popen(
+                    [
+                        "ffmpeg","-hide_banner","-nostdin","-loglevel","info",
+                        "-i",self.STREAM_URL,
+                        "-af","ebur128=peak=true",
+                        "-f","null","-"
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                )
+                self.process = proc
+                if proc.stderr:
+                    for line in proc.stderr:
+                        m = self.LEVEL_RE.search(line) or self.MOMENTARY_RE.search(line)
+                        if m:
+                            self._set_level(m.group(1))
+                proc.wait(timeout=2)
+            except Exception:
+                pass
+            finally:
+                self.process = None
+                with self.lock:
+                    self.db = -60.0
+                    self.updated = 0.0
+            time.sleep(1.0)
+
+    def status(self):
+        with self.lock:
+            age = (time.monotonic() - self.updated) if self.updated else None
+            db = self.db
+        active = age is not None and age < 2.0
+        pct = max(0.0, min(100.0, (db + 60.0) / 60.0 * 100.0)) if active else 0.0
+        return {"active": active, "db": round(db, 1) if active else -60.0, "pct": round(pct, 1), "age": age}
+
+
 class BroadcastEngine:
     SAMPLE_RATE = 48000
     CHANNELS = 2
@@ -1187,6 +1251,7 @@ def take_remote_commands(device_id):
     return items
 
 BROADCAST = None
+RADIO_METER = None
 LIVE_SESSIONS = {}
 LIVE_SESSIONS_LOCK = threading.Lock()
 
@@ -1212,6 +1277,11 @@ def consume_live_session(token):
 def broadcast_engine():
     if BROADCAST is None: raise RuntimeError("Broadcast engine is not ready.")
     return BROADCAST
+
+def radio_meter_status():
+    if RADIO_METER is None:
+        return {"active": False, "db": -60.0, "pct": 0.0, "age": None}
+    return RADIO_METER.status()
 
 _PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
 
@@ -1671,6 +1741,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
 
+        if parsed.path == "/control/radio-meter":
+            if not self.require_auth():
+                return
+            self.json_response({"ok": True, "radio_meter": radio_meter_status()})
+            return
+
         if self.path == "/control/status":
             if not self.require_auth():
                 return
@@ -1686,7 +1762,18 @@ class Handler(BaseHTTPRequestHandler):
                 now_started_at = float(NOW.stat().st_mtime)
             except Exception:
                 now_started_at = 0.0
-            now_duration = track_duration_seconds(rot.get("commit", ""), now.get("path", ""))
+            now_path = str(now.get("path", "") or "")
+            if not now_path:
+                slot = str(now.get("slot", "") or "")
+                title = str(now.get("title", "") or "")
+                album = str(now.get("album", "") or "")
+                match = next((e for e in entries if slot and str(e.get("slot", "")) == slot), None)
+                if match is None:
+                    match = next((e for e in entries if str(e.get("title", "")) == title and str(e.get("album", "")) == album), None)
+                if match:
+                    now_path = str(match.get("path", "") or "")
+                    now["path"] = now_path
+            now_duration = track_duration_seconds(rot.get("commit", ""), now_path)
 
             upcoming = []
             slot = now.get("slot", "")
@@ -1718,6 +1805,7 @@ class Handler(BaseHTTPRequestHandler):
                 "active_playlist_name": active_playlist_name,
                 "now_started_at": now_started_at,
                 "now_duration": now_duration,
+                "radio_meter": radio_meter_status(),
                 "now": now,
                 "next": nxt,
                 "coming": coming,
@@ -2545,6 +2633,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     BROADCAST = BroadcastEngine()
+    RADIO_METER = RadioMeter()
     if vault_configured():
         threading.Thread(target=restore_vault_settings_after_start, daemon=True, name="ge-vault-settings-restore").start()
     print("GE Radio: direct microphone bridge ready on /control/live.", flush=True)
