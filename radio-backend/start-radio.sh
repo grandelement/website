@@ -86,9 +86,9 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
-# Baseline stability mode: no harbor/live contribution inputs are attached.
-# The public station is automation only. DJ microphone is handled by the
-# completely separate /dj.mp3 process below.
+# No legacy harbor/live contribution inputs are attached.
+# The protected station is automation only. DJ microphone PCM is mixed only
+# by the single fail-safe /broadcast.mp3 overlay process.
 
 # Private music-only cue for DJ headphones.
 output.icecast(
