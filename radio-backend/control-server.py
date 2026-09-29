@@ -844,12 +844,14 @@ class BroadcastEngine:
     FRAME_BYTES = SAMPLE_RATE * CHANNELS * SAMPLE_BYTES * FRAME_MS // 1000
     STALE_SECONDS = 6.5
     FIFO_PATH = RUNTIME / "mic.pcm"
+    MIX_FIFO_PATH = RUNTIME / "mic-mix.pcm"
 
     def __init__(self):
         self.lock = threading.RLock()
         self.pcm = queue.Queue(maxsize=40)
         self.pending = bytearray()
         self.fifo_fd = None
+        self.mix_fifo_fd = None
         self.active = False
         self.mode = "off"
         self.transport = "websocket"
@@ -864,20 +866,25 @@ class BroadcastEngine:
         self.feeder.start()
 
     def _ensure_fifo_locked(self):
-        try:
-            if not self.FIFO_PATH.exists():
-                os.mkfifo(self.FIFO_PATH, 0o600)
-        except FileExistsError:
-            pass
-        if self.fifo_fd is not None:
-            return True
-        try:
-            self.fifo_fd = os.open(str(self.FIFO_PATH), os.O_RDWR | os.O_NONBLOCK)
-            return True
-        except Exception as exc:
-            print(f"GE Radio: direct microphone FIFO open failed: {exc}", flush=True)
-            self.fifo_fd = None
-            return False
+        for path in (self.FIFO_PATH, self.MIX_FIFO_PATH):
+            try:
+                if not path.exists():
+                    os.mkfifo(path, 0o600)
+            except FileExistsError:
+                pass
+        if self.fifo_fd is None:
+            try:
+                self.fifo_fd = os.open(str(self.FIFO_PATH), os.O_RDWR | os.O_NONBLOCK)
+            except Exception as exc:
+                print(f"GE Radio: direct microphone FIFO open failed: {exc}", flush=True)
+                self.fifo_fd = None
+        if self.mix_fifo_fd is None:
+            try:
+                self.mix_fifo_fd = os.open(str(self.MIX_FIFO_PATH), os.O_RDWR | os.O_NONBLOCK)
+            except Exception as exc:
+                print(f"GE Radio: broadcast microphone FIFO open failed: {exc}", flush=True)
+                self.mix_fifo_fd = None
+        return bool(self.fifo_fd is not None and self.mix_fifo_fd is not None)
 
     def _drop_oldest(self):
         try:
@@ -923,22 +930,23 @@ class BroadcastEngine:
             self._clear_audio_locked()
 
     def _write_frame(self, frame):
-        fd = self.fifo_fd
-        if fd is None:
-            return
-        try:
-            os.write(fd, frame)
-        except BlockingIOError:
-            pass
-        except BrokenPipeError:
-            with self.lock:
-                try:
-                    os.close(fd)
-                except Exception:
-                    pass
-                self.fifo_fd = None
-        except Exception as exc:
-            print(f"GE Radio: direct mic FIFO write failed: {exc}", flush=True)
+        for attr, label in (("fifo_fd", "direct mic"), ("mix_fifo_fd", "broadcast mic")):
+            fd = getattr(self, attr, None)
+            if fd is None:
+                continue
+            try:
+                os.write(fd, frame)
+            except BlockingIOError:
+                pass
+            except BrokenPipeError:
+                with self.lock:
+                    try:
+                        os.close(fd)
+                    except Exception:
+                        pass
+                    setattr(self, attr, None)
+            except Exception as exc:
+                print(f"GE Radio: {label} FIFO write failed: {exc}", flush=True)
 
     def _feeder_loop(self):
         silence = b"\x00" * self.FRAME_BYTES
@@ -1025,6 +1033,7 @@ class BroadcastEngine:
     def status_locked(self):
         return {
             "ready": bool(self.fifo_fd is not None),
+            "broadcast_fifo_ready": bool(self.mix_fifo_fd is not None),
             "active": bool(self.active),
             "mode": self.mode,
             "transport": self.transport,
