@@ -508,6 +508,69 @@ def public_track(meta):
         "ascap_title": meta.get("ascap_title") or "",
     }
 
+ICECAST_META_CACHE = {"checked": 0.0, "track": {}}
+ICECAST_META_LOCK = threading.Lock()
+
+def _track_key_text(value):
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+def icecast_current_track():
+    now_mono = time.monotonic()
+    with ICECAST_META_LOCK:
+        if now_mono - float(ICECAST_META_CACHE.get("checked", 0.0) or 0.0) < 0.75:
+            return dict(ICECAST_META_CACHE.get("track") or {})
+    track = {}
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:8000/status-json.xsl",
+            headers={"User-Agent": "GE-DJ-Metadata/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=0.65) as response:
+            data = json.loads(response.read().decode("utf-8", "ignore") or "{}")
+        sources = ((data.get("icestats") or {}).get("source") or [])
+        if isinstance(sources, dict):
+            sources = [sources]
+        source = None
+        for item in sources:
+            if not isinstance(item, dict):
+                continue
+            listen = str(item.get("listenurl") or "")
+            mount = str(item.get("mount") or "")
+            if listen.endswith("/stream.mp3") or mount == "/stream.mp3":
+                source = item
+                break
+        if source is None and sources:
+            source = sources[0] if isinstance(sources[0], dict) else None
+        if source:
+            title = str(source.get("title") or source.get("yp_currently_playing") or "").strip()
+            artist = str(source.get("artist") or "").strip()
+            album = str(source.get("album") or "").strip()
+            if title and not artist:
+                low = title.lower()
+                if low.startswith("grand element - "):
+                    artist = "Grand Element"
+                    title = title[len("Grand Element - "):].strip()
+            if title:
+                track = {"title": title, "artist": artist or "Grand Element", "album": album}
+    except Exception:
+        track = {}
+    with ICECAST_META_LOCK:
+        ICECAST_META_CACHE["checked"] = now_mono
+        ICECAST_META_CACHE["track"] = dict(track)
+    return track
+
+def match_rotation_track(entries, stream_track):
+    if not stream_track:
+        return None
+    wanted = _track_key_text(stream_track.get("title"))
+    if not wanted:
+        return None
+    for entry in entries:
+        title = _track_key_text(entry.get("title"))
+        if title == wanted:
+            return entry
+    return None
+
 def q(value):
     return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
@@ -1751,9 +1814,24 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth():
                 return
             settings = station_settings()
-            now = public_track(read_json(NOW, {}))
+            file_now = public_track(read_json(NOW, {}))
             rot = read_json(ROTATION, {"entries": []})
             entries = rot.get("entries", [])
+            stream_now = icecast_current_track()
+            matched_now = match_rotation_track(entries, stream_now)
+            now = dict(file_now)
+            if stream_now.get("title"):
+                now["title"] = stream_now.get("title") or now.get("title", "")
+                now["artist"] = stream_now.get("artist") or now.get("artist", "Grand Element")
+                if stream_now.get("album"):
+                    now["album"] = stream_now.get("album")
+            if matched_now:
+                now["title"] = matched_now.get("title", now.get("title", ""))
+                now["album"] = matched_now.get("album", now.get("album", ""))
+                now["artist"] = "Grand Element"
+                now["kind"] = matched_now.get("kind", "")
+                now["slot"] = matched_now.get("slot", "")
+                now["path"] = matched_now.get("path", "")
             playlist_rows = read_custom_playlists().get("items", [])
             active_playlist_id = str(settings.get("custom_mix_id", "") or "")
             active_playlist = next((x for x in playlist_rows if str(x.get("id","")) == active_playlist_id), None)
@@ -1807,6 +1885,7 @@ class Handler(BaseHTTPRequestHandler):
                 "now_duration": now_duration,
                 "radio_meter": radio_meter_status(),
                 "now": now,
+                "now_metadata_source": "icecast" if stream_now.get("title") else "liquidsoap-file",
                 "next": nxt,
                 "coming": coming,
                 "source_ingest": {
