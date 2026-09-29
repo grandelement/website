@@ -253,10 +253,48 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .fanDetailHead{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:start}.fanDetailHead b{font-size:calc(11px * var(--analytics-scale));word-break:break-all}.fanDetailMeta{font-size:calc(8px * var(--analytics-scale));color:#c8d5df;line-height:1.35;margin-top:4px;white-space:normal}
 .fanIdentity{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:5px;margin:7px 0}.fanIdentity input{min-height:38px;border:1px solid #3a4855;background:#02070b;color:#fff;border-radius:8px;padding:0 8px;font-size:calc(10px * var(--analytics-scale))}.fanIdentity button{min-height:38px;border:1px solid var(--accent);background:#10352f;color:#fff;border-radius:8px;font-size:calc(8px * var(--analytics-scale));font-weight:900}.fanTimeline{margin-top:7px;max-height:36vh;overflow:auto}
 @media(max-width:560px){.analyticsStats{grid-template-columns:1fr 1fr}#analyticsModal{padding:0}#analyticsModal .modalBox{height:100dvh;max-height:none;border-radius:0}.analyticsCustom{grid-template-columns:1fr}.analyticsDue{margin-left:0;width:100%}.analyticsDue input{flex:1}}
+
+/* v19 iPhone radio health + connection recovery */
+.radioHealth{border-color:#31516a;background:linear-gradient(180deg,#07131d,#070b10)}
+.radioHealthHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.radioHealthState{font-size:11px;font-weight:950;color:var(--accent);margin-top:3px}
+.radioHealthGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}
+.radioHealthStat{border:1px solid #283947;background:#050a0f;border-radius:8px;padding:6px;min-width:0}
+.radioHealthStat span{display:block;font-size:6px;color:var(--muted);font-weight:900;letter-spacing:.08em}
+.radioHealthStat b{display:block;font-size:9px;margin-top:2px;white-space:normal;overflow-wrap:anywhere}
+.radioHealthMeter{margin-top:8px;border-top:1px solid #263846;padding-top:7px}
+.radioHealthMeterHead{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:8px;font-weight:900}
+.radioHealthMeterHead span{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.radioHealthDetails{font-size:7px;color:#b9c7d3;line-height:1.35;margin-top:6px;word-break:break-word}
+.radioHealthActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:7px}
+.radioHealthActions button,.radioHealthHead button{appearance:none;border:1px solid #3d596c;background:#10202c;color:#fff;border-radius:8px;min-height:40px;padding:4px 7px;font-size:7px;font-weight:950}
+.radioHealthActions .reconnect{border-color:#58a5ff;background:#12304c}
+.radioHealthActions .reload{border-color:#ffc765;background:#34290f}
+.radioHealth.bad{border-color:#8a3c4a}.radioHealth.bad .radioHealthState{color:#ff8798}
+@media(max-width:560px){.radioHealthGrid{grid-template-columns:1fr 1fr}.radioHealthActions{grid-template-columns:1fr 1fr}.radioHealthActions .reload{grid-column:1/-1}}
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v18</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v19</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="card radioHealth" id="radioHealth">
+    <div class="radioHealthHead"><div><div class="label">RADIO CONNECTION + IPHONE DIAGNOSTICS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="copyDiagnostics">COPY STATS</button></div>
+    <div class="radioHealthGrid">
+      <div class="radioHealthStat"><span>SERVER</span><b id="diagServer">CHECKING</b></div>
+      <div class="radioHealthStat"><span>PHONE PLAYER</span><b id="diagPlayer">OFF</b></div>
+      <div class="radioHealthStat"><span>HLS STATE</span><b id="diagHls">0 / 0</b></div>
+      <div class="radioHealthStat"><span>BUFFER AHEAD</span><b id="diagBuffer">0.0 s</b></div>
+      <div class="radioHealthStat"><span>NETWORK</span><b id="diagNetwork">CHECKING</b></div>
+      <div class="radioHealthStat"><span>SCREEN</span><b id="diagVisibility">VISIBLE</b></div>
+      <div class="radioHealthStat"><span>MIC LINK</span><b id="diagMicLink">OFF</b></div>
+      <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div>
+    </div>
+    <div class="radioHealthMeter">
+      <div class="radioHealthMeterHead"><b>SERVER RADIO AUDIO</b><span id="diagRadioDb">-60 dB · WAITING</span></div>
+      <div class="hmeter"><div class="hmeterFill" id="diagRadioMeter"></div></div>
+      <div class="radioHealthDetails" id="diagDetails">Waiting for status data.</div>
+    </div>
+    <div class="radioHealthActions"><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
+  </div>
   <div class="card"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div><button class="skipNow" id="skipNow" aria-label="Skip current track">▶▶</button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div><div class="hmeter"><div class="hmeterFill" id="radioMeter"></div></div></div>
   <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><div class="sectionActions"><button class="miniAction" id="reshuffleQueue">RESHUFFLE</button><button class="miniAction" id="analyticsOpen">FANS</button><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
 </div>
@@ -390,7 +428,9 @@ function installTouchMixer(rootSelector,gridSelector){
   return function(){enhanced.forEach(function(fn){fn()});updateScroll()};
 }
 let syncTouchFaders=function(){};
-let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0;let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
+let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0;let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
+let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
+let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
 let settings={mic:{level:100,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true},line:{level:100,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line)}catch(e){}
 let djPermanentSaveTimer=0;
 function currentChannelVisibility(){const out={};document.querySelectorAll('[data-mixer-channel]').forEach(function(box){out[box.dataset.mixerChannel]=!!box.checked});return out}
@@ -601,7 +641,7 @@ async function reshuffleQueue(){
 }
 async function skipCurrent(){const b=$('skipNow');b.disabled=true;try{const r=await api('/control/skip',{method:'POST'}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Skip failed');setTimeout(poll,300)}catch(e){alert(e.message||e)}finally{setTimeout(function(){b.disabled=false},700)}}
 function queueItems(){const a=[];if(status&&status.next&&status.next.slot)a.push(status.next);((status&&status.coming)||[]).forEach(function(x){if(x&&x.slot&&!a.some(function(y){return y.slot===x.slot}))a.push(x)});return a.slice(0,5)}
-function render(){if(!status)return;$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){$('mixStudioLevel').value=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100);$('mixStudioRead').textContent=$('mixStudioLevel').value+'%';$('mixMasterLevel').value=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100);$('mixMasterRead').textContent=$('mixMasterLevel').value+'%';$('mixRadioBed').value=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100);requestAnimationFrame(syncTouchFaders)}updateLiveDiagnostics();renderRemoteDevices()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){$('mixStudioLevel').value=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100);$('mixStudioRead').textContent=$('mixStudioLevel').value+'%';$('mixMasterLevel').value=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100);$('mixMasterRead').textContent=$('mixMasterLevel').value+'%';$('mixRadioBed').value=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100);requestAnimationFrame(syncTouchFaders)}updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
@@ -620,18 +660,24 @@ const PCM_WORKLET='class GEPCM extends AudioWorkletProcessor{constructor(){super
 function makeImpulse(seconds){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const a=b.getChannelData(c);for(let i=0;i<len;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5)}return b}
 async function ensureAudio(){if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC({sampleRate:48000,latencyHint:'interactive'});contributionBus=ctx.createGain();liveGain=ctx.createGain();liveGain.gain.value=1;contributionAnalyser=ctx.createAnalyser();contributionAnalyser.fftSize=256;contributionBus.connect(contributionAnalyser);contributionBus.connect(liveGain);runMasterMeter()}if(ctx.state==='suspended'){try{await ctx.resume()}catch(e){}}}
 function applyRealRadioMeter(m){
+ lastRadioMeterData=m||null;
+ if(m&&m.active)lastRadioMeterAt=Date.now();
  const a=$('radioAudio'),playing=!!(radioMonitorOn&&a&&!a.paused&&a.readyState>=2);
- const active=!!(playing&&m&&m.active),pct=active?Number(m.pct||0):0,db=active?Number(m.db||-60):-60;
- setMeterLevel('radioMeter',pct);setMeterLevel('dockRadioMeter',pct);setMeterLevel('mixMasterRadioMeter',pct);
- $('dockRadioDb').textContent=active?db.toFixed(0):radioPlaybackState;
- if($('mixMasterRadioDb'))$('mixMasterRadioDb').textContent=active?db.toFixed(0):'OFF'
+ const serverActive=!!(m&&m.active),serverPct=serverActive?Number(m.pct||0):0,serverDb=serverActive?Number(m.db||-60):-60;
+ const localActive=!!(playing&&serverActive),localPct=localActive?serverPct:0,localDb=localActive?serverDb:-60;
+ setMeterLevel('radioMeter',localPct);setMeterLevel('dockRadioMeter',localPct);setMeterLevel('mixMasterRadioMeter',localPct);
+ setMeterLevel('diagRadioMeter',serverPct);
+ $('dockRadioDb').textContent=localActive?localDb.toFixed(0):radioPlaybackState;
+ if($('mixMasterRadioDb'))$('mixMasterRadioDb').textContent=localActive?localDb.toFixed(0):'OFF';
+ if($('diagRadioDb'))$('diagRadioDb').textContent=serverActive?(serverDb.toFixed(1)+' dB · SERVER AUDIO ACTIVE'):'-60 dB · SERVER METER IDLE';
+ updateRadioDiagnostics()
 }
 async function pollRadioMeter(){
  if(!key)return;
  try{
    const r=await api('/control/radio-meter'),d=await r.json().catch(function(){return {}});
    if(r.ok&&d.ok)applyRealRadioMeter(d.radio_meter||{})
- }catch(e){}
+ }catch(e){updateRadioDiagnostics()}
 }
 function startRadioMeterPoll(){clearInterval(radioMeterPoller);pollRadioMeter();radioMeterPoller=setInterval(pollRadioMeter,250)}
 async function warmRadio(){return true}
@@ -641,25 +687,106 @@ function updateRadioButton(){
  b.classList.toggle('active',radioMonitorOn);
  b.textContent=radioToggleBusy?'RADIO STARTING':(radioMonitorOn?'RADIO ON':'RADIO');
 }
+function freshRadioUrl(){return '/hls/radio.m3u8?dj='+Date.now()}
+async function startFreshRadioMonitor(){
+ const a=$('radioAudio');if(!a)return;
+ radioPlaybackState='CONNECTING';updateRadioButton();updateRadioDiagnostics();
+ try{a.pause()}catch(e){}
+ try{a.removeAttribute('src');a.load()}catch(e){}
+ a.src=freshRadioUrl();a.muted=false;a.volume=1;a.preload='auto';a.load();
+ await a.play();
+ radioMonitorOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
+ updateRadioButton();updateRadioDiagnostics()
+}
+async function reconnectRadioMonitor(){
+ if(radioToggleBusy)return;
+ radioToggleBusy=true;radioReconnectCount++;
+ try{await startFreshRadioMonitor()}
+ catch(e){radioMonitorOn=false;radioPlaybackState='ERROR';applyRealRadioMeter(null);throw e}
+ finally{radioToggleBusy=false;updateRadioButton();updateRadioDiagnostics()}
+}
 async function toggleRadio(){
  if(radioToggleBusy)return;
  const a=$('radioAudio');if(!a)return;
  radioToggleBusy=true;
  try{
    if(!radioMonitorOn){
-     radioPlaybackState='CONNECTING';updateRadioButton();
-     a.muted=false;a.volume=1;a.preload='auto';
-     await a.play();
-     radioMonitorOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING'
+     radioReconnectCount++;
+     await startFreshRadioMonitor()
    }else{
      a.pause();radioMonitorOn=false;radioPlaybackState='OFF';
-     applyRealRadioMeter(null)
+     setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);
+     updateRadioDiagnostics()
    }
  }catch(e){
-   radioMonitorOn=false;radioPlaybackState='ERROR';applyRealRadioMeter(null);throw e
- }finally{radioToggleBusy=false;updateRadioButton()}
+   radioMonitorOn=false;radioPlaybackState='ERROR';setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);updateRadioDiagnostics();throw e
+ }finally{radioToggleBusy=false;updateRadioButton();updateRadioDiagnostics()}
 }
 
+function readyStateName(n){return ['NOTHING','METADATA','CURRENT DATA','FUTURE DATA','ENOUGH DATA'][Number(n)||0]||String(n)}
+function networkStateName(n){return ['EMPTY','IDLE','LOADING','NO SOURCE'][Number(n)||0]||String(n)}
+function wsStateName(ws){if(!ws)return 'OFF';return ['CONNECTING','OPEN','CLOSING','CLOSED'][ws.readyState]||String(ws.readyState)}
+function formatBytes(n){n=Number(n)||0;if(n>=1048576)return (n/1048576).toFixed(1)+' MB';if(n>=1024)return (n/1024).toFixed(0)+' KB';return Math.round(n)+' B'}
+function bufferAheadSeconds(a){
+ try{
+   if(!a||!a.buffered||!a.buffered.length)return 0;
+   let best=0;
+   for(let i=0;i<a.buffered.length;i++){const end=a.buffered.end(i);if(end>=a.currentTime)best=Math.max(best,end-a.currentTime)}
+   return Math.max(0,best)
+ }catch(e){return 0}
+}
+function diagnosticText(){
+ const a=$('radioAudio'),pm=status&&status.public_master||{},b=status&&status.broadcast||{},rm=lastRadioMeterData||status&&status.radio_meter||{};
+ const micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0];
+ const lines=[
+  'GE DJ RADIO DIAGNOSTICS',
+  'Time: '+new Date().toISOString(),
+  'Server: '+(pm.ok?'OK':'ERROR')+(pm.status?' HTTP '+pm.status:'')+(pm.error?' · '+pm.error:''),
+  'Server meter: '+(rm.active?(Number(rm.db||-60).toFixed(1)+' dB'):'IDLE')+' · age '+(rm.age==null?'?':Number(rm.age).toFixed(2)+'s'),
+  'Phone player: '+radioPlaybackState+' · paused '+(a?String(a.paused):'?'),
+  'HLS: ready '+(a?readyStateName(a.readyState):'?')+' · network '+(a?networkStateName(a.networkState):'?'),
+  'Buffer ahead: '+bufferAheadSeconds(a).toFixed(2)+'s',
+  'Browser: '+(navigator.onLine?'ONLINE':'OFFLINE')+' · '+document.visibilityState,
+  'AudioContext: '+(ctx?ctx.state:'NOT STARTED'),
+  'Mic track: '+(micTrack?(micTrack.readyState+(micTrack.muted?' MUTED':'')+(micTrack.enabled?' ENABLED':' DISABLED')):'CLOSED'),
+  'Mic WS: '+wsStateName(liveSocket)+' · server '+(b.active?'RECEIVING':'IDLE')+' · owner '+String(b.owner||'none'),
+  'Mic sent: '+formatBytes(liveSentBytes)+' · dropped '+liveDroppedFrames+' · last error '+(liveLastError||'none'),
+  'Status poll age: '+(lastStatusPollAt?((Date.now()-lastStatusPollAt)/1000).toFixed(1)+'s':'?'),
+  'Reconnects: '+radioReconnectCount+' · events play '+radioEvents.play+' pause '+radioEvents.pause+' waiting '+radioEvents.waiting+' stalled '+radioEvents.stalled+' ended '+radioEvents.ended+' error '+radioEvents.error,
+  'Radio URL: '+(a?(a.currentSrc||a.src||'none'):'none'),
+  'Track: '+String(status&&status.now&&status.now.title||'unknown')+' · '+String(status&&status.now&&status.now.album||''),
+  'Playlist: '+String(status&&status.active_playlist_name||'unknown')
+ ];
+ return lines.join('\n')
+}
+function updateRadioDiagnostics(){
+ const box=$('radioHealth');if(!box)return;
+ const a=$('radioAudio'),pm=status&&status.public_master||{},b=status&&status.broadcast||{},rm=lastRadioMeterData||status&&status.radio_meter||{};
+ const ahead=bufferAheadSeconds(a),micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0];
+ const serverOk=!!pm.ok,playerOk=!!(a&&radioMonitorOn&&!a.paused&&a.readyState>=2);
+ $('diagServer').textContent=serverOk?('OK'+(pm.status?' · HTTP '+pm.status:'')):('ERROR'+(pm.error?' · '+String(pm.error).slice(0,55):''));
+ $('diagPlayer').textContent=radioPlaybackState+(a&&a.paused?' · PAUSED':'');
+ $('diagHls').textContent=(a?readyStateName(a.readyState)+' / '+networkStateName(a.networkState):'NO PLAYER');
+ $('diagBuffer').textContent=ahead.toFixed(1)+' s';
+ const conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+ $('diagNetwork').textContent=(navigator.onLine?'ONLINE':'OFFLINE')+(conn&&conn.effectiveType?' · '+String(conn.effectiveType).toUpperCase():'');
+ $('diagVisibility').textContent=String(document.visibilityState||'unknown').toUpperCase();
+ $('diagMicLink').textContent=wsStateName(liveSocket)+(b.active?' · SERVER RX':'')+(micTrack&&micTrack.muted?' · MUTED':'');
+ $('diagAudio').textContent=(ctx?String(ctx.state).toUpperCase():'NOT STARTED');
+ const pollAge=lastStatusPollAt?((Date.now()-lastStatusPollAt)/1000).toFixed(1):'?';
+ const meterAge=rm&&rm.age!=null?Number(rm.age).toFixed(2):'?';
+ $('diagDetails').textContent='POLL '+pollAge+'s · METER AGE '+meterAge+'s · RECONNECTS '+radioReconnectCount+' · STALL '+radioEvents.stalled+' · WAIT '+radioEvents.waiting+' · ERR '+radioEvents.error+' · MIC '+formatBytes(liveSentBytes)+' SENT / '+liveDroppedFrames+' DROPPED · '+(a?(a.currentSrc||a.src||'NO URL'):'NO PLAYER');
+ const summary=serverOk?(playerOk?'SERVER + IPHONE AUDIO OK':('SERVER AUDIO OK · IPHONE '+radioPlaybackState)):('SERVER CHECK ERROR · IPHONE '+radioPlaybackState);
+ $('diagSummary').textContent=summary;
+ box.classList.toggle('bad',!serverOk||radioPlaybackState==='ERROR'||radioPlaybackState==='STALLED');
+ if(rm&&rm.active){setMeterLevel('diagRadioMeter',Number(rm.pct||0));$('diagRadioDb').textContent=Number(rm.db||-60).toFixed(1)+' dB · SERVER AUDIO ACTIVE'}
+ else{setMeterLevel('diagRadioMeter',0);$('diagRadioDb').textContent='-60 dB · SERVER METER IDLE'}
+}
+async function copyRadioDiagnostics(){
+ const text=diagnosticText();
+ try{await navigator.clipboard.writeText(text);$('copyDiagnostics').textContent='COPIED';setTimeout(function(){$('copyDiagnostics').textContent='COPY STATS'},900)}
+ catch(e){prompt('Copy these diagnostics:',text)}
+}
 async function cueHeadphonesLikely(){try{if(!navigator.mediaDevices?.enumerateDevices)return null;const ds=await navigator.mediaDevices.enumerateDevices(),outs=ds.filter(function(d){return d.kind==='audiooutput'}),labels=outs.map(function(d){return String(d.label||'').toLowerCase()}).join(' ');if(/headphone|headset|airpods|airpod|beats|earbud|buds|bluetooth/.test(labels))return true;if(labels&&/speaker|ipad|iphone|macbook|built-in/.test(labels))return false}catch(e){}return null}
 async function allowCueMonitor(){try{if(sessionStorage.getItem('geCueHeadphonesConfirmed')==='1')return true}catch(e){}const known=await cueHeadphonesLikely();if(known===true)return true;const ok=confirm('CUE can feed back through the speakers. Connect headphones or AirPods before using CUE, then press OK.');if(ok)try{sessionStorage.setItem('geCueHeadphonesConfirmed','1')}catch(e){}return ok}
 
@@ -782,6 +909,9 @@ $('radioAudio').addEventListener('waiting',function(){radioPlaybackState='BUFFER
 $('radioAudio').addEventListener('stalled',function(){radioPlaybackState='STALLED';applyRealRadioMeter(null)});
 $('radioAudio').addEventListener('ended',function(){radioMonitorOn=false;radioPlaybackState='ENDED';applyRealRadioMeter(null);updateRadioButton()});
 $('radioAudio').addEventListener('error',function(){radioMonitorOn=false;radioPlaybackState='ERROR';applyRealRadioMeter(null);updateRadioButton()});
+['play','pause','waiting','stalled','ended','error'].forEach(function(ev){$('radioAudio').addEventListener(ev,function(){radioEvents[ev]=(radioEvents[ev]||0)+1;updateRadioDiagnostics()})});
+window.addEventListener('online',updateRadioDiagnostics);window.addEventListener('offline',updateRadioDiagnostics);document.addEventListener('visibilitychange',updateRadioDiagnostics);
+setInterval(updateRadioDiagnostics,500);
 $('micOpen').onclick=function(){openMic().catch(function(e){alert(e.message||e)})};$('micAir').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('lineOpen').onclick=function(){openLine().catch(function(e){alert(e.message||e)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){openFx(b.dataset.fx)}});
 const MIXER_CHANNELS_KEY='geDjVisibleChannelsV1';
 function loadMixerChannelPrefs(){
@@ -837,6 +967,10 @@ $('remoteDeviceList').onclick=function(e){
 };
 $('remoteDeviceList').onchange=function(e){const x=e.target.closest('[data-remote-level]');if(!x)return;sendRemoteCommand(x.dataset.remoteLevel,'level',Number(x.value)/100).catch(function(err){alert(err.message||err)})};
 loadMixerChannelPrefs();
+$('reconnectRadio').onclick=function(){reconnectRadioMonitor().catch(function(e){alert(e.message||e)})};
+$('refreshDiagnostics').onclick=function(){poll();pollRadioMeter();updateRadioDiagnostics()};
+$('copyDiagnostics').onclick=function(){copyRadioDiagnostics()};
+$('reloadConsole').onclick=function(){const u=new URL(location.href);u.searchParams.set('fresh',String(Date.now()));location.replace(u.toString())};
 $('masterDelayFx').onclick=function(){openFx(fxTarget,'delay')};$('masterReverbFx').onclick=function(){openFx(fxTarget,'reverb')};$('fxFullBtn').onclick=function(){$('mixerSheet').classList.toggle('fxFull');this.textContent=$('mixerSheet').classList.contains('fxFull')?'BACK TO MIXER':'FULL SCREEN';requestAnimationFrame(syncTouchFaders)};$('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};$('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('dockMixer').onclick=function(){$('mixerSheet').classList.add('show')};$('masterRadio').onclick=async function(){await api('/control/music-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'on'})});poll()};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on')}if(b.dataset.close==='effectsSheet'){$('mixerSheet').classList.remove('fxFull');$('fxFullBtn').textContent='FULL SCREEN';requestAnimationFrame(syncTouchFaders)}}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
