@@ -346,9 +346,8 @@ start_audio_stack(){
   # The microphone channel is a separate process/mount. Its failure cannot
   # stop or restart Icecast, Liquidsoap, /stream.mp3, or the music automation.
   start_mic_source || true
-  sleep .5
-  start_broadcast || true
-  echo "GE Radio: protected radio backbone online; public broadcast overlay has automatic fallback to RADIO."
+  stop_broadcast
+  echo "GE Radio: protected radio backbone online; experimental DJ overlay is disabled."
 }
 
 shutdown(){
@@ -373,13 +372,7 @@ while true; do
       start_audio_stack || true
     elif ! pid_alive "$MIC_SOURCE_PID"; then
       echo "GE Radio: DJ microphone channel stopped; restarting microphone only."
-      stop_broadcast
       start_mic_source || true
-      sleep .5
-      start_broadcast || true
-    elif ! pid_alive "$BROADCAST_PID"; then
-      echo "GE Radio: broadcast overlay stopped; listeners remain on RADIO fallback while overlay restarts."
-      start_broadcast || true
     fi
   else
     stop_broadcast
