@@ -16,6 +16,7 @@ import subprocess
 import threading
 import queue
 import re
+import random
 try:
     import zmq
 except Exception:
@@ -1818,13 +1819,13 @@ class Handler(BaseHTTPRequestHandler):
             rot = read_json(ROTATION, {"entries": []})
             entries = rot.get("entries", [])
             stream_now = icecast_current_track()
-            matched_now = match_rotation_track(entries, stream_now)
             now = dict(file_now)
-            if stream_now.get("title"):
-                now["title"] = stream_now.get("title") or now.get("title", "")
-                now["artist"] = stream_now.get("artist") or now.get("artist", "Grand Element")
-                if stream_now.get("album"):
-                    now["album"] = stream_now.get("album")
+            file_slot = str(now.get("slot", "") or "")
+            matched_now = None
+            if file_slot:
+                matched_now = next((e for e in entries if str(e.get("slot", "")) == file_slot), None)
+            if matched_now is None and not file_slot:
+                matched_now = match_rotation_track(entries, stream_now)
             if matched_now:
                 now["title"] = matched_now.get("title", now.get("title", ""))
                 now["album"] = matched_now.get("album", now.get("album", ""))
@@ -1832,6 +1833,11 @@ class Handler(BaseHTTPRequestHandler):
                 now["kind"] = matched_now.get("kind", "")
                 now["slot"] = matched_now.get("slot", "")
                 now["path"] = matched_now.get("path", "")
+            elif stream_now.get("title"):
+                now["title"] = stream_now.get("title") or now.get("title", "")
+                now["artist"] = stream_now.get("artist") or now.get("artist", "Grand Element")
+                if stream_now.get("album"):
+                    now["album"] = stream_now.get("album")
             playlist_rows = read_custom_playlists().get("items", [])
             active_playlist_id = str(settings.get("custom_mix_id", "") or "")
             active_playlist = next((x for x in playlist_rows if str(x.get("id","")) == active_playlist_id), None)
@@ -2600,6 +2606,68 @@ class Handler(BaseHTTPRequestHandler):
                             Path(p).unlink(missing_ok=True)
                     except Exception:
                         pass
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/reshuffle":
+            if not self.require_auth():
+                return
+            try:
+                rotation = read_json(ROTATION, {"entries": []})
+                entries = list(rotation.get("entries", []))
+                if len(entries) < 3:
+                    raise ValueError("Rotation is not ready to reshuffle.")
+
+                file_now = public_track(read_json(NOW, {}))
+                current_slot = str(file_now.get("slot", "") or "")
+                current_index = next((i for i, e in enumerate(entries) if current_slot and str(e.get("slot", "")) == current_slot), -1)
+                if current_index < 0:
+                    stream_now = icecast_current_track()
+                    matched = match_rotation_track(entries, stream_now)
+                    matched_slot = str((matched or {}).get("slot", "") or "")
+                    current_index = next((i for i, e in enumerate(entries) if matched_slot and str(e.get("slot", "")) == matched_slot), -1)
+
+                start_index = max(0, current_index + 1)
+                song_positions = [i for i in range(start_index, len(entries)) if entries[i].get("kind") == "song"]
+                if len(song_positions) < 2:
+                    raise ValueError("There are not enough future songs to reshuffle.")
+
+                songs = [dict(entries[i]) for i in song_positions]
+                random.SystemRandom().shuffle(songs)
+
+                current_title = str(file_now.get("title", "") or "")
+                if current_title and len(songs) > 1 and str(songs[0].get("title", "")) == current_title:
+                    swap = next((j for j, song in enumerate(songs[1:], 1) if str(song.get("title", "")) != current_title), None)
+                    if swap is not None:
+                        songs[0], songs[swap] = songs[swap], songs[0]
+
+                for pos, moved in zip(song_positions, songs):
+                    fixed_slot = entries[pos].get("slot", "")
+                    entries[pos] = moved
+                    entries[pos]["slot"] = fixed_slot
+
+                rotation["entries"] = entries
+                rotation["reshuffled_at"] = int(time.time())
+                write_json(ROTATION, rotation)
+                rewrite_playlist(rotation)
+                try:
+                    liquidsoap_command("radio.reload")
+                except Exception:
+                    pass
+
+                upcoming = []
+                for e in entries[start_index:]:
+                    if e.get("kind") == "song":
+                        upcoming.append({
+                            "slot": e.get("slot", ""),
+                            "kind": e.get("kind", ""),
+                            "title": e.get("title", ""),
+                            "album": e.get("album", ""),
+                        })
+                    if len(upcoming) >= 5:
+                        break
+                self.json_response({"ok": True, "upcoming": upcoming})
+            except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
 
