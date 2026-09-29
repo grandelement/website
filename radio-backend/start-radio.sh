@@ -325,7 +325,7 @@ start_broadcast(){
   ffmpeg -hide_banner -loglevel warning -nostats \
     -thread_queue_size 1024 -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -i http://127.0.0.1:8000/stream.mp3 \
     -thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic-mix.pcm \
-    -filter_complex "[0:a]aresample=48000:first_pts=0[music];[1:a]aresample=48000:first_pts=0,volume=3.0[mic];[music][mic]sidechaincompress=threshold=0.012:ratio=6:attack=15:release=550[ducked];[ducked][mic]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
+    -filter_complex "[0:a]aresample=48000:first_pts=0[music];[1:a]aresample=48000:first_pts=0,volume=3.0,asplit=2[micduck][micmix];[music][micduck]sidechaincompress=threshold=0.012:ratio=6:attack=15:release=550[ducked];[ducked][micmix]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
     -map "[out]" -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k -flush_packets 1 \
     -content_type audio/mpeg -f mp3 \
     "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/broadcast.mp3" & BROADCAST_PID=$!
