@@ -491,6 +491,13 @@ $('aboutIntro').addEventListener('input',mark);
 $('aboutIntro').addEventListener('paste',()=>setTimeout(()=>{$('aboutIntro').innerHTML=cleanAboutHtml($('aboutIntro').innerHTML);mark()},0));
 $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textContent=$('welcomeOpacity').value+'%';mark()});$('aboutOpacity').addEventListener('input',()=>{$('aboutOpacityValue').textContent=$('aboutOpacity').value+'%';mark()});
 document.querySelectorAll('main input,main textarea,main select').forEach(e=>{if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark)});
+$('planetLayout').addEventListener('change',()=>{
+  cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value||'random';mark();
+  if(editorTarget==='planets'&&$('screenEditor').classList.contains('show')){
+    localStorage.setItem(WORK_KEY,JSON.stringify(collect()));
+    reloadPlanetEditor();
+  }
+});
 $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
@@ -536,7 +543,8 @@ function renderPlanetPicker(){
     const box=document.createElement('input');box.type='checkbox';box.checked=selected.has(name);
     const text=document.createElement('span');text.textContent=name;
     box.addEventListener('change',()=>{
-      const set=selectedPlanets();box.checked?set.add(name):set.delete(name);cfg.albums.visible=(cfg.albums.order||[]).filter(n=>set.has(n));cfg.albums.layout='custom';$('planetLayout').value='custom';
+      const set=selectedPlanets();box.checked?set.add(name):set.delete(name);cfg.albums.visible=(cfg.albums.order||[]).filter(n=>set.has(n));
+      cfg.albums.layout=$('planetLayout').value||cfg.albums.layout||'random';
       localStorage.setItem(WORK_KEY,JSON.stringify(cfg));updatePlanetCount();reloadPlanetEditor();
     });
     row.append(box,text);wrap.appendChild(row);
@@ -557,7 +565,11 @@ $('editorShowControls').onclick=()=>{$('editorBar').classList.remove('collapsed'
 
 async function openEditor(target){
   editorTarget=target;
-  if(target==='planets'){cfg.albums=cfg.albums||{};cfg.albums.layout='custom';cfg.albums.positions=cfg.albums.positions||{};$('planetLayout').value='custom';}
+  if(target==='planets'){
+    cfg.albums=cfg.albums||{};
+    cfg.albums.positions=cfg.albums.positions||{};
+    cfg.albums.layout=$('planetLayout').value||cfg.albums.layout||'random';
+  }
   saveDraft();
   $('editorBar').classList.remove('collapsed');$('editorHint').style.display='block';
   $('editorTitle').textContent=target==='planets'?'PLACE ALBUM PLANETS':target==='about'?'PLACE ABOUT':'PLACE WELCOME';
@@ -567,7 +579,11 @@ async function openEditor(target){
   frame.onload=()=>{try{const w=frame.contentWindow,d=frame.contentDocument;addGuides(d);if(dragCleanup)dragCleanup();let cleans=[];
     if(target==='welcome'){const wrap=d.getElementById('geWelcome'),el=d.getElementById('geWelcomeCard');wrap.style.display='grid';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.setAttribute('aria-hidden','false');el.classList.add('ge-editing-item');const v=cfg.visual.welcome;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.backgroundColor='rgba(4,18,32,'+(v.panelOpacity/100)+')';cleans.push(draggable(w,el,(x,y)=>{cfg.visual.welcome.x=+x.toFixed(2);cfg.visual.welcome.y=+y.toFixed(2)}))}
     if(target==='about'){const wrap=d.getElementById('about'),el=wrap?.querySelector('.aboutText');if(wrap&&el){wrap.classList.add('show');wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';el.classList.add('ge-editing-item');const v=cfg.visual.about;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.opacity=String(v.panelOpacity/100);cleans.push(draggable(w,el,(x,y)=>{cfg.visual.about.x=+x.toFixed(2);cfg.visual.about.y=+y.toFixed(2)}))}}
-    if(target==='planets'){const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');el.removeAttribute('target');const name=el.dataset.album||el.title||'';const label=el.querySelector('.label');if(label)label.textContent=name;cleans.push(draggable(w,el,(x,y)=>{cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)};localStorage.setItem(WORK_KEY,JSON.stringify(cfg))}))});$('planetCount').textContent=nodes.length+' visible · '+selectedPlanets().size+' selected'}
+    if(target==='planets'){const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');el.removeAttribute('target');const name=el.dataset.album||el.title||'';const label=el.querySelector('.label');if(label)label.textContent=name;cleans.push(draggable(w,el,(x,y)=>{
+      cfg.albums.layout='custom';$('planetLayout').value='custom';
+      cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)};
+      localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
+    }))});$('planetCount').textContent=nodes.length+' visible · '+selectedPlanets().size+' selected'}
     dragCleanup=()=>cleans.forEach(fn=>fn());
   }catch(e){setStatus('SCREEN EDITOR COULD NOT START')}}
 }
