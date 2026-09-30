@@ -1014,6 +1014,13 @@ class BroadcastEngine:
         self.fifo_frames_written = 0
         self.fifo_bytes_written = 0
         self.fifo_last_write = 0.0
+        self.fifo_blocked_writes = 0
+        self.fifo_partial_writes = 0
+        self.fifo_peak_left_pct = 0.0
+        self.fifo_peak_right_pct = 0.0
+        self.fifo_audio_frames = 0
+        self.fifo_silence_frames = 0
+        self.fifo_last_audio = 0.0
         self.playout_started = False
         self.stop_event = threading.Event()
         self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-mic-feeder")
@@ -1091,14 +1098,30 @@ class BroadcastEngine:
         fd = self.fifo_fd
         if fd is None:
             return
+        peak_left = 0
+        peak_right = 0
+        for i in range(0, len(frame) - 3, 16):
+            left = int.from_bytes(frame[i:i+2], "little", signed=True)
+            right = int.from_bytes(frame[i+2:i+4], "little", signed=True)
+            peak_left = max(peak_left, abs(left))
+            peak_right = max(peak_right, abs(right))
+        self.fifo_peak_left_pct = max(0.0, min(100.0, peak_left / 32768.0 * 100.0))
+        self.fifo_peak_right_pct = max(0.0, min(100.0, peak_right / 32768.0 * 100.0))
+        if peak_left or peak_right:
+            self.fifo_audio_frames += 1
+            self.fifo_last_audio = time.monotonic()
+        else:
+            self.fifo_silence_frames += 1
         try:
             written = os.write(fd, frame)
             if written:
                 self.fifo_frames_written += 1
                 self.fifo_bytes_written += int(written)
                 self.fifo_last_write = time.monotonic()
+                if int(written) != len(frame):
+                    self.fifo_partial_writes += 1
         except BlockingIOError:
-            pass
+            self.fifo_blocked_writes += 1
         except BrokenPipeError:
             with self.lock:
                 try:
@@ -1164,6 +1187,13 @@ class BroadcastEngine:
             self.fifo_frames_written = 0
             self.fifo_bytes_written = 0
             self.fifo_last_write = 0.0
+            self.fifo_blocked_writes = 0
+            self.fifo_partial_writes = 0
+            self.fifo_peak_left_pct = 0.0
+            self.fifo_peak_right_pct = 0.0
+            self.fifo_audio_frames = 0
+            self.fifo_silence_frames = 0
+            self.fifo_last_audio = 0.0
             try:
                 apply_mixer_state(mixer_state())
             except Exception as exc:
@@ -1231,6 +1261,13 @@ class BroadcastEngine:
             "fifo_frames_written": int(self.fifo_frames_written),
             "fifo_bytes_written": int(self.fifo_bytes_written),
             "fifo_last_write_age": max(0.0, time.monotonic() - self.fifo_last_write) if self.fifo_last_write else None,
+            "fifo_blocked_writes": int(self.fifo_blocked_writes),
+            "fifo_partial_writes": int(self.fifo_partial_writes),
+            "fifo_peak_left_pct": float(self.fifo_peak_left_pct),
+            "fifo_peak_right_pct": float(self.fifo_peak_right_pct),
+            "fifo_audio_frames": int(self.fifo_audio_frames),
+            "fifo_silence_frames": int(self.fifo_silence_frames),
+            "fifo_last_audio_age": max(0.0, time.monotonic() - self.fifo_last_audio) if self.fifo_last_audio else None,
         }
 
     def status(self):
@@ -1417,6 +1454,23 @@ def radio_meter_status():
     return RADIO_METER.status()
 
 _PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
+
+def master_progress_status():
+    path = RUNTIME / "master-progress.txt"
+    result = {"exists": path.exists(), "age": None, "out_time": "", "speed": "", "progress": ""}
+    if not path.exists():
+        return result
+    try:
+        result["age"] = max(0.0, time.time() - path.stat().st_mtime)
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key in {"out_time", "speed", "progress"}:
+                result[key] = value
+    except Exception as exc:
+        result["error"] = str(exc)[:160]
+    return result
 
 def public_master_health():
     now_mono = time.monotonic()
@@ -1978,6 +2032,8 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 "broadcast": broadcast_engine().status(),
                 "public_master": public_master_health(),
+                "master_progress": master_progress_status(),
+                "audio_architecture": "v24-simple-continuous-ffmpeg-master",
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
             })
