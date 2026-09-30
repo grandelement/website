@@ -254,7 +254,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .fanIdentity{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:5px;margin:7px 0}.fanIdentity input{min-height:38px;border:1px solid #3a4855;background:#02070b;color:#fff;border-radius:8px;padding:0 8px;font-size:calc(10px * var(--analytics-scale))}.fanIdentity button{min-height:38px;border:1px solid var(--accent);background:#10352f;color:#fff;border-radius:8px;font-size:calc(8px * var(--analytics-scale));font-weight:900}.fanTimeline{margin-top:7px;max-height:36vh;overflow:auto}
 @media(max-width:560px){.analyticsStats{grid-template-columns:1fr 1fr}#analyticsModal{padding:0}#analyticsModal .modalBox{height:100dvh;max-height:none;border-radius:0}.analyticsCustom{grid-template-columns:1fr}.analyticsDue{margin-left:0;width:100%}.analyticsDue input{flex:1}}
 
-/* v22 continuous radio mix + channel balance + repaired server meter */
+/* v23 restored continuous FFmpeg radio mixer + calm meter polling */
 .radioHealth{border-color:#31516a;background:linear-gradient(180deg,#07131d,#070b10)}
 .radioHealthHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .radioHealthState{font-size:11px;font-weight:950;color:var(--accent);margin-top:3px}
@@ -275,7 +275,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v22</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v23</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth" id="radioHealth">
     <div class="radioHealthHead"><div><div class="label">RADIO CONNECTION + IPHONE DIAGNOSTICS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="copyDiagnostics">COPY STATS</button></div>
     <div class="radioHealthGrid">
@@ -428,7 +428,7 @@ function installTouchMixer(rootSelector,gridSelector){
   return function(){enhanced.forEach(function(fn){fn()});updateScroll()};
 }
 let syncTouchFaders=function(){};
-let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0;let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
+let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0,radioMeterBusy=false;let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
 let diagEvents=[],diagEpoch=performance.now(),diagLongTasks=0,diagLongestTask=0,diagEventLoopLag=0,diagLastFreeze=0;
