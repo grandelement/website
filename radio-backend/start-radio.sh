@@ -99,7 +99,7 @@ mic = input.external.rawaudio(
   restart_on_error=true,
   "cat /app/runtime/mic.pcm"
 )
-mic = source.available(mic, { file.exists("/app/runtime/live.active") })
+mic = source.available(mic, { file.exists("/app/runtime/live.active") and source.is_ready(mic) })
 
 # Public master: live microphone has immediate priority while armed.
 # Automation never stops and becomes the source again as soon as live.active disappears.
