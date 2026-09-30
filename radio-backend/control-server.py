@@ -972,6 +972,7 @@ class BroadcastEngine:
     FRAME_BYTES = SAMPLE_RATE * CHANNELS * SAMPLE_BYTES * FRAME_MS // 1000
     STALE_SECONDS = 6.5
     FIFO_PATH = RUNTIME / "mic.pcm"
+    ACTIVE_PATH = RUNTIME / "live.active"
 
     def __init__(self):
         self.lock = threading.RLock()
@@ -1045,9 +1046,14 @@ class BroadcastEngine:
 
     def _expire_if_stale_locked(self):
         if self.active and self.last_chunk and (time.monotonic() - self.last_chunk) > self.STALE_SECONDS:
-            print("GE Radio: direct live input timed out; returning to silence.", flush=True)
+            print("GE Radio: direct live input timed out; returning public master to automation.", flush=True)
             self.active = False
             self.mode = "off"
+            self.owner = "none"
+            try:
+                self.ACTIVE_PATH.unlink(missing_ok=True)
+            except Exception:
+                pass
             self._clear_audio_locked()
 
     def _write_frame(self, frame):
@@ -1114,6 +1120,7 @@ class BroadcastEngine:
             self.transport = str(transport or "websocket")
             self.owner = owner
             self.last_chunk = time.monotonic()
+            self.ACTIVE_PATH.write_text(owner + "\n", encoding="utf-8")
             self.frames_received = 0
             self.bytes_received = 0
             self.peak_pct = 0.0
@@ -1147,6 +1154,10 @@ class BroadcastEngine:
             self.active = False
             self.mode = "off"
             self.owner = "none"
+            try:
+                self.ACTIVE_PATH.unlink(missing_ok=True)
+            except Exception:
+                pass
             self._clear_audio_locked()
             return self.status_locked()
 
