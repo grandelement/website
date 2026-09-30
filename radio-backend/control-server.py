@@ -37,6 +37,11 @@ DJ_HTML = Path("/app/dj.html")
 UPLOAD_DIR = RUNTIME / "uploads"
 TEMP_UPLOADS = RUNTIME / "temp-uploads.json"
 MIXER_SETTINGS = DATA / "mixer.json"
+GAIN_FILES = {
+    "volume@musicgain": RUNTIME / "music.gain",
+    "volume@directgain": RUNTIME / "direct.gain",
+    "volume@mastergain": RUNTIME / "master.gain",
+}
 CUSTOM_PLAYLISTS = DATA / "custom-playlists.json"
 CUSTOM_PLAYLISTS_BACKUP = DATA / "custom-playlists.backup.json"
 DEFAULT_PLAYLISTS = Path("/app/default-playlists.json")
@@ -730,7 +735,20 @@ def mixer_state():
         "master_level": clamp_number(raw.get("master_level", 1.0), 0.0, 1.25, 1.0),
     }
 
+def _write_runtime_gain(path, value):
+    value = clamp_number(value, 0.0, 2.0, 1.0)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(f"{value:.4f}\n", encoding="utf-8")
+    tmp.replace(path)
+    return value
+
 def mixer_zmq_command(target, command, value):
+    # V22 public mixer uses Liquidsoap file getters. Keep this function name so
+    # older mixer/drop code can continue to call the same interface.
+    if command == "volume" and target in GAIN_FILES:
+        written = _write_runtime_gain(GAIN_FILES[target], value)
+        return f"0 volume {written:.4f}"
     if zmq is None:
         raise RuntimeError("Live mixer controls are unavailable on this server build.")
     ctx = zmq.Context.instance()
@@ -749,9 +767,13 @@ def mixer_zmq_command(target, command, value):
         sock.close(0)
 
 def apply_mixer_state(state):
-    # PHASE 1 RADIO ISOLATION:
-    # Mixer values remain saved for later use, but nothing in the DJ/mic mixer
-    # is allowed to alter the 24/7 public radio backbone.
+    live = bool(globals().get("BROADCAST") is not None and getattr(globals().get("BROADCAST"), "active", False))
+    music = 0.0 if state.get("music_muted") else float(state.get("music_level", 1.0))
+    if live:
+        music *= float(state.get("music_under_voice", 0.45))
+    mixer_zmq_command("volume@musicgain", "volume", f"{music:.4f}")
+    mixer_zmq_command("volume@directgain", "volume", f"{float(state.get('direct_level', 1.0)):.4f}")
+    mixer_zmq_command("volume@mastergain", "volume", f"{float(state.get('master_level', 1.0)):.4f}")
     return dict(state)
 
 
@@ -903,8 +925,8 @@ def realtime_cleanup(owner=None, force=False, stop_broadcast=True):
 
 class RadioMeter:
     STREAM_URL = "http://127.0.0.1:8000/stream.mp3"
-    LEVEL_RE = re.compile(r"FTPK:\\s*(-?\\d+(?:\\.\\d+)?)")
-    MOMENTARY_RE = re.compile(r"M:\\s*(-?\\d+(?:\\.\\d+)?)")
+    LEVEL_RE = re.compile(r"FTPK:\s*(-?\d+(?:\.\d+)?)")
+    MOMENTARY_RE = re.compile(r"M:\s*(-?\d+(?:\.\d+)?)")
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -987,6 +1009,11 @@ class BroadcastEngine:
         self.frames_received = 0
         self.bytes_received = 0
         self.peak_pct = 0.0
+        self.peak_left_pct = 0.0
+        self.peak_right_pct = 0.0
+        self.fifo_frames_written = 0
+        self.fifo_bytes_written = 0
+        self.fifo_last_write = 0.0
         self.playout_started = False
         self.stop_event = threading.Event()
         self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-mic-feeder")
@@ -1055,13 +1082,21 @@ class BroadcastEngine:
             except Exception:
                 pass
             self._clear_audio_locked()
+            try:
+                apply_mixer_state(mixer_state())
+            except Exception as exc:
+                print(f"GE Radio: could not restore music after live timeout: {exc}", flush=True)
 
     def _write_frame(self, frame):
         fd = self.fifo_fd
         if fd is None:
             return
         try:
-            os.write(fd, frame)
+            written = os.write(fd, frame)
+            if written:
+                self.fifo_frames_written += 1
+                self.fifo_bytes_written += int(written)
+                self.fifo_last_write = time.monotonic()
         except BlockingIOError:
             pass
         except BrokenPipeError:
@@ -1124,6 +1159,15 @@ class BroadcastEngine:
             self.frames_received = 0
             self.bytes_received = 0
             self.peak_pct = 0.0
+            self.peak_left_pct = 0.0
+            self.peak_right_pct = 0.0
+            self.fifo_frames_written = 0
+            self.fifo_bytes_written = 0
+            self.fifo_last_write = 0.0
+            try:
+                apply_mixer_state(mixer_state())
+            except Exception as exc:
+                print(f"GE Radio: could not apply live mixer duck: {exc}", flush=True)
             return self.status_locked()
 
     def write_pcm(self, data):
@@ -1136,13 +1180,18 @@ class BroadcastEngine:
             self._queue_pcm_bytes(data)
             self.bytes_received += len(data)
             self.frames_received += max(1, len(data) // max(1, self.FRAME_BYTES))
-            peak = 0
-            step = 32
-            for i in range(0, len(data) - 1, step):
-                sample = int.from_bytes(data[i:i+2], "little", signed=True)
-                if abs(sample) > peak:
-                    peak = abs(sample)
-            self.peak_pct = max(0.0, min(100.0, peak / 32768.0 * 100.0))
+            peak_left = 0
+            peak_right = 0
+            # Stereo s16le is interleaved L,R. Sample both channels separately
+            # so diagnostics can catch a one-sided contribution path.
+            for i in range(0, len(data) - 3, 16):
+                left = int.from_bytes(data[i:i+2], "little", signed=True)
+                right = int.from_bytes(data[i+2:i+4], "little", signed=True)
+                peak_left = max(peak_left, abs(left))
+                peak_right = max(peak_right, abs(right))
+            self.peak_left_pct = max(0.0, min(100.0, peak_left / 32768.0 * 100.0))
+            self.peak_right_pct = max(0.0, min(100.0, peak_right / 32768.0 * 100.0))
+            self.peak_pct = max(self.peak_left_pct, self.peak_right_pct)
             self.last_chunk = time.monotonic()
 
     def stop(self, owner=None, force=False):
@@ -1159,6 +1208,10 @@ class BroadcastEngine:
             except Exception:
                 pass
             self._clear_audio_locked()
+            try:
+                apply_mixer_state(mixer_state())
+            except Exception as exc:
+                print(f"GE Radio: could not restore music after live stop: {exc}", flush=True)
             return self.status_locked()
 
     def status_locked(self):
@@ -1173,6 +1226,11 @@ class BroadcastEngine:
             "frames_received": int(self.frames_received),
             "bytes_received": int(self.bytes_received),
             "peak_pct": float(self.peak_pct),
+            "peak_left_pct": float(self.peak_left_pct),
+            "peak_right_pct": float(self.peak_right_pct),
+            "fifo_frames_written": int(self.fifo_frames_written),
+            "fifo_bytes_written": int(self.fifo_bytes_written),
+            "fifo_last_write_age": max(0.0, time.monotonic() - self.fifo_last_write) if self.fifo_last_write else None,
         }
 
     def status(self):
