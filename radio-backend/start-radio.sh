@@ -11,8 +11,8 @@ mkdir -p \
   /app/runtime/uploads /app/logs "$XDG_CACHE_HOME" "$GE_DATA_DIR"
 
 # One low-latency browser contribution bus.
-# The control server writes 48 kHz stereo signed-16 PCM here.
-# Liquidsoap is the only reader. live.active gates the mic into the public master.
+# The control server writes continuous 48 kHz stereo signed-16 PCM here.
+# FFmpeg is the only reader. Silence is written whenever the mic is off.
 rm -f /app/runtime/mic.pcm /app/runtime/live.active /app/runtime/library.json.tmp
 mkfifo -m 600 /app/runtime/mic.pcm
 chmod 700 /app/runtime
@@ -93,40 +93,8 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
-# Runtime gain getters keep the public stream continuous while the DJ mixer
-# changes music bed, live contribution, and master levels.
-music_gain = file.getter.float(default=1.0, "/app/runtime/music.gain")
-direct_gain = file.getter.float(default=1.0, "/app/runtime/direct.gain")
-master_gain = file.getter.float(default=1.0, "/app/runtime/master.gain")
-
-music_public = amplify(id="musicgain", music_gain, automation)
-
-# Direct browser microphone. The Python control server owns the FIFO writer
-# and creates live.active only while a live source is armed.
-mic = input.external.rawaudio(
-  id="ge_direct_mic",
-  buffer=0.08,
-  max=0.40,
-  channels=2,
-  samplerate=48000,
-  restart=true,
-  restart_on_error=true,
-  "cat /app/runtime/mic.pcm"
-)
-mic = source.available(mic, { file.exists("/app/runtime/live.active") and source.is_ready(mic) })
-mic_public = amplify(id="directgain", direct_gain, mic)
-
-# Continuous public mixer: automation never leaves the master. The microphone
-# is added when available, while the server ducks the music gain underneath it.
-public_master = add(id="ge_public_master", normalize=false, [music_public, mic_public])
-public_master = amplify(id="mastergain", master_gain, public_master)
-
-output.icecast(
-  %ffmpeg(format="mp3", %audio(codec="libmp3lame", b="128k")),
-  host="127.0.0.1", port=8000, user="source", password="${SOURCE_PASSWORD}",
-  mount="/stream.mp3", name="Grand Element Radio", public=false, public_master
-)
-# Private music-only cue for future isolated mixing work.
+# Liquidsoap owns only the automation bed. The public /stream.mp3 mount is
+# created below by one continuous FFmpeg mixer that never changes topology.
 output.icecast(
   %ffmpeg(format="mp3", %audio(codec="libmp3lame", b="128k")),
   host="127.0.0.1", port=8000, user="source", password="${SOURCE_PASSWORD}",
@@ -297,7 +265,7 @@ sys.exit(1)
 PYHTTP
 }
 
-NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; HLS_PID=""
+NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MASTER_PID=""; HLS_PID=""
 
 start_nginx(){
   if pid_alive "$NGINX_PID"; then return 0; fi
@@ -320,6 +288,21 @@ stop_hls(){
   if pid_alive "$HLS_PID"; then kill "$HLS_PID" 2>/dev/null || true; fi
   HLS_PID=""
 }
+
+start_master(){
+  if pid_alive "$MASTER_PID"; then return 0; fi
+  if ! wait_http "http://127.0.0.1:8000/auto.mp3" 8; then return 1; fi
+  echo "GE Radio: starting simple continuous public mixer (music + DJ mic)..."
+  ffmpeg -hide_banner -loglevel warning -nostats \
+    -thread_queue_size 2048 -i http://127.0.0.1:8000/auto.mp3 \
+    -thread_queue_size 2048 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
+    -filter_complex "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[mic_sc][mic_mix];[music][mic_sc]sidechaincompress=threshold=0.018:ratio=8:attack=15:release=500[ducked];[ducked][mic_mix]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
+    -map "[out]" -vn -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k \
+    -content_type audio/mpeg -f mp3 \
+    "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/stream.mp3" & MASTER_PID=$!
+  sleep .35
+  pid_alive "$MASTER_PID"
+}
 start_hls(){
   if pid_alive "$HLS_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
@@ -337,8 +320,8 @@ start_hls(){
 }
 
 stop_audio(){
-  for p in "$LIQUIDSOAP_PID" "$ICECAST_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
-  sleep .4; LIQUIDSOAP_PID=""; ICECAST_PID=""
+  for p in "$MASTER_PID" "$LIQUIDSOAP_PID" "$ICECAST_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
+  sleep .4; MASTER_PID=""; LIQUIDSOAP_PID=""; ICECAST_PID=""
 }
 start_audio_stack(){
   [ -s /app/runtime/playlist.m3u ] || return 1
@@ -349,11 +332,12 @@ start_audio_stack(){
   if ! wait_port 8000 20; then echo "GE Radio: Icecast did not open port 8000; will retry."; stop_audio; return 1; fi
 
   liquidsoap -t /app/runtime/radio.liq & LIQUIDSOAP_PID=$!
-  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: protected public radio not ready; will retry."; stop_audio; return 1; fi
-  if ! wait_http "http://127.0.0.1:8000/auto.mp3" 10; then echo "GE Radio: automation cue warning."; fi
+  if ! wait_http "http://127.0.0.1:8000/auto.mp3" 35; then echo "GE Radio: automation cue not ready; will retry."; stop_audio; return 1; fi
+  if ! start_master; then echo "GE Radio: public master mixer did not start; will retry."; stop_audio; return 1; fi
+  if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: mixed public radio not ready; will retry."; stop_audio; return 1; fi
 
   start_hls || true
-  echo "GE Radio: protected 24/7 RADIO online. Public master = live microphone priority + automation fallback."
+  echo "GE Radio: protected 24/7 RADIO online. Public master = continuous music + microphone mix."
 }
 
 shutdown(){
@@ -373,7 +357,7 @@ while true; do
   if ! pid_alive "$CONTROL_PID"; then start_control || true; fi
   if ! pid_alive "$WATCHER_PID"; then start_watcher || true; fi
   if [ -s /app/runtime/playlist.m3u ]; then
-    if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID"; then
+    if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID" || ! pid_alive "$MASTER_PID"; then
       echo "GE Radio: radio backbone missing; restarting audio stack."
       start_audio_stack || true
     elif ! pid_alive "$HLS_PID"; then
