@@ -64,7 +64,8 @@ cat > /app/runtime/icecast.xml <<EOF
 EOF
 
 cat > /app/runtime/radio.liq <<EOF
-set("log.stdout", true)\nset("frame.audio.samplerate", 48000)
+set("log.stdout", true)
+set("frame.audio.samplerate", 48000)
 set("log.file", false)
 set("server.telnet", true)
 set("server.telnet.bind_addr", "127.0.0.1")
