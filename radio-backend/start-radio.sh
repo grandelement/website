@@ -18,6 +18,12 @@ mkfifo -m 600 /app/runtime/mic.pcm
 chmod 700 /app/runtime
 chmod 600 /app/runtime/mic.pcm
 
+# Runtime gain controls used by the continuous public mixer.
+# The control server updates these without restarting Liquidsoap.
+printf '1.0\n' > /app/runtime/music.gain
+printf '1.0\n' > /app/runtime/direct.gain
+printf '1.0\n' > /app/runtime/master.gain
+
 ## Persistent station defaults. Existing /app/data settings survive website/backend rebuilds.
 if [ ! -f "$GE_DATA_DIR/settings.json" ]; then
   printf '%s\n' '{"legacy": false, "crossfade_seconds": 5.0, "custom_mix_enabled": false, "custom_mix_id": ""}' > "$GE_DATA_DIR/settings.json"
@@ -70,7 +76,6 @@ set("log.file", false)
 set("server.telnet", true)
 set("server.telnet.bind_addr", "127.0.0.1")
 set("server.telnet.port", 1234)
-set("harbor.bind_addr", "127.0.0.1")
 
 def log_song(m)
   file.write(data="#{metadata.json.stringify(m)}", "/app/runtime/now.json")
@@ -88,6 +93,14 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
+# Runtime gain getters keep the public stream continuous while the DJ mixer
+# changes music bed, live contribution, and master levels.
+music_gain = file.getter.float(default=1.0, "/app/runtime/music.gain")
+direct_gain = file.getter.float(default=1.0, "/app/runtime/direct.gain")
+master_gain = file.getter.float(default=1.0, "/app/runtime/master.gain")
+
+music_public = amplify(id="musicgain", music_gain, automation)
+
 # Direct browser microphone. The Python control server owns the FIFO writer
 # and creates live.active only while a live source is armed.
 mic = input.external.rawaudio(
@@ -101,10 +114,12 @@ mic = input.external.rawaudio(
   "cat /app/runtime/mic.pcm"
 )
 mic = source.available(mic, { file.exists("/app/runtime/live.active") and source.is_ready(mic) })
+mic_public = amplify(id="directgain", direct_gain, mic)
 
-# Public master: live microphone has immediate priority while armed.
-# Automation never stops and becomes the source again as soon as live.active disappears.
-public_master = fallback(id="ge_public_master", track_sensitive=false, [mic, automation])
+# Continuous public mixer: automation never leaves the master. The microphone
+# is added when available, while the server ducks the music gain underneath it.
+public_master = add(id="ge_public_master", normalize=false, [music_public, mic_public])
+public_master = amplify(id="mastergain", master_gain, public_master)
 
 output.icecast(
   %ffmpeg(format="mp3", %audio(codec="libmp3lame", b="128k")),
