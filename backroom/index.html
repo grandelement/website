@@ -400,7 +400,18 @@ function escapeHtml(text){
 function introArrayToHtml(lines){
   const arr=Array.isArray(lines)?lines:[];
   if(!arr.length)return '';
-  return '<ul>'+arr.map(line=>'<li>'+escapeHtml(line)+'</li>').join('')+'</ul>';
+  return arr.map(line=>'<div>'+escapeHtml(line)+'</div>').join('');
+}
+function migrateLegacyAboutHtml(raw){
+  const doc=document.implementation.createHTMLDocument('');
+  const box=doc.createElement('div');box.innerHTML=String(raw||'');
+  const children=[...box.children];
+  if(children.length===1&&children[0].tagName==='UL'){
+    const list=children[0];
+    const simple=[...list.children].every(el=>el.tagName==='LI'&&!el.querySelector('ul,ol'));
+    if(simple)return [...list.children].map(li=>'<div>'+li.innerHTML+'</div>').join('');
+  }
+  return String(raw||'');
 }
 function cleanAboutHtml(raw){
   const doc=document.implementation.createHTMLDocument('');
@@ -445,7 +456,7 @@ function populate(){
   cfg.albums=cfg.albums||{};cfg.albums.layout=cfg.albums.layout||'random';cfg.albums.positions=cfg.albums.positions||{};
   checked('welcomeEnabled',cfg.welcome?.enabled!==false);field('welcomeTitle',cfg.welcome?.title||'WELCOME');field('welcomeBody',cfg.welcome?.body||'');field('welcomeContact',cfg.welcome?.contactText||'');field('welcomeEmail',cfg.welcome?.contactEmail||'');
   field('welcomeOpacity',cfg.visual.welcome.panelOpacity);$('welcomeOpacityValue').textContent=cfg.visual.welcome.panelOpacity+'%';
-  $('aboutIntro').innerHTML=cleanAboutHtml(cfg.about?.html||introArrayToHtml(cfg.about?.intro||[]));field('aboutOpacity',cfg.visual.about.panelOpacity);$('aboutOpacityValue').textContent=cfg.visual.about.panelOpacity+'%';
+  {const rawAbout=cfg.about?.html||(introArrayToHtml(cfg.about?.intro||[]));const shownAbout=Number(cfg.about?.richTextVersion)>=2?rawAbout:migrateLegacyAboutHtml(rawAbout);$('aboutIntro').innerHTML=cleanAboutHtml(shownAbout)}field('aboutOpacity',cfg.visual.about.panelOpacity);$('aboutOpacityValue').textContent=cfg.visual.about.panelOpacity+'%';
   field('planetLayout',cfg.albums.layout);numberIds.forEach(id=>field(id,cfg.easySettings?.[id]??''));
   checked('gamePoints',cfg.games?.points!==false);checked('gamePockets',cfg.games?.pockets!==false);checked('gamePlanets',cfg.games?.planets!==false);
   renderAlbums();loadSouls();dirty=false;setStatus('READY');
@@ -453,7 +464,7 @@ function populate(){
 function collect(){
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
   cfg.welcome={enabled:$('welcomeEnabled').checked,title:$('welcomeTitle').value.trim(),body:$('welcomeBody').value.trim(),contactText:$('welcomeContact').value.trim(),contactEmail:$('welcomeEmail').value.trim()};
-  {const aboutHtml=cleanAboutHtml($('aboutIntro').innerHTML);cfg.about={intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml};}
+  {const aboutHtml=cleanAboutHtml($('aboutIntro').innerHTML);cfg.about={intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml,richTextVersion:2};}
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
