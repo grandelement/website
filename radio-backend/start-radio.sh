@@ -293,7 +293,8 @@ start_master(){
   if pid_alive "$MASTER_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 8; then return 1; fi
   echo "GE Radio: starting simple continuous public mixer (music + DJ mic)..."
-  ffmpeg -hide_banner -loglevel warning -nostats \
+  rm -f /app/runtime/master-progress.txt
+  ffmpeg -hide_banner -loglevel warning -nostats -stats_period 1 -progress /app/runtime/master-progress.txt \
     -thread_queue_size 2048 -i http://127.0.0.1:8000/auto.mp3 \
     -thread_queue_size 2048 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
     -filter_complex "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[mic_sc][mic_mix];[music][mic_sc]sidechaincompress=threshold=0.018:ratio=8:attack=15:release=500[ducked];[ducked][mic_mix]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
