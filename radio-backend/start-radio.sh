@@ -97,7 +97,7 @@ mic = input.external.rawaudio(
   samplerate=48000,
   restart=true,
   restart_on_error=true,
-  { "cat /app/runtime/mic.pcm" }
+  "cat /app/runtime/mic.pcm"
 )
 mic = source.available(mic, { file.exists("/app/runtime/live.active") })
 
