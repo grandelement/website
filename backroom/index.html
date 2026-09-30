@@ -163,6 +163,7 @@ const WORK_KEY='GE_BACKROOM_TEST_CONFIG_V1';
 const TEXT_KEY='GE_BACKROOM_TEXT_SIZE_V1';
 const PROFILE_KEY='GE_GAME_PLAYER_PROFILES_V1';
 const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
+const PRESET_KEY='GE_BACKROOM_PRESETS_V1';
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
 const TEMP_PASS_HASH='cf3a76e30fcd7881e9202fda7785106684ea54abad2470dba3dd716ff3a7ab63';
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
@@ -221,6 +222,27 @@ function storeSoulNames(names){
   localStorage.setItem(PROFILE_KEY,JSON.stringify(next));
   loadSouls();
 }
+function localPresets(){
+  try{
+    const p=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]');
+    return Array.isArray(p)?p:[];
+  }catch(_e){return []}
+}
+function saveLocalPresets(list){
+  presets=Array.isArray(list)?list.slice(0,50):[];
+  localStorage.setItem(PRESET_KEY,JSON.stringify(presets));
+  renderPresets();
+}
+function mergePresets(a,b){
+  const map=new Map();
+  for(const p of [...(a||[]),...(b||[])]){
+    if(!p||!p.name)continue;
+    const key=String(p.name).trim().toLowerCase();
+    const old=map.get(key);
+    if(!old||String(p.updatedAt||'')>=String(old.updatedAt||''))map.set(key,p);
+  }
+  return [...map.values()].sort((x,y)=>String(y.updatedAt||'').localeCompare(String(x.updatedAt||''))).slice(0,50);
+}
 function renderPresets(){
   const sel=$('presetSelect');
   const current=sel.value;
@@ -235,35 +257,52 @@ function renderPresets(){
   if(presets.some(p=>p.id===current))sel.value=current;
 }
 async function refreshPresets(){
-  if(!serverAuthenticated||!token()){presets=[];renderPresets();return}
+  const local=localPresets();
+  presets=local;renderPresets();
+  if(!serverAuthenticated||!token())return;
   try{
     const r=await api('/presets',{method:'GET'});const d=await r.json().catch(()=>({}));
     if(!r.ok||!d.ok)throw new Error(d.error||'Could not load presets');
-    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();
-  }catch(e){
-    presets=[];renderPresets();setStatus('PRESETS UNAVAILABLE · '+String(e.message||e));
+    saveLocalPresets(mergePresets(local,Array.isArray(d.presets)?d.presets:[]));
+  }catch(_e){
+    presets=local;renderPresets();
   }
 }
 async function saveNamedPreset(){
-  if(!serverAuthenticated||!token()){setStatus('PRESETS NEED THE CLOUDFLARE PUBLISHER');return}
   const name=String($('presetName').value||'').trim();
   if(!name){setStatus('GIVE THE PRESET A NAME');$('presetName').focus();return}
   collect();
   const existing=presets.find(p=>String(p.name||'').toLowerCase()===name.toLowerCase());
   if(existing&&!confirm('Replace the saved preset named '+name+'?'))return;
-  setStatus('SAVING PRESET…');$('savePreset').disabled=true;
+
+  const item={
+    id:existing?.id||crypto.randomUUID(),
+    name,
+    updatedAt:new Date().toISOString(),
+    config:clone(cfg),
+    soulNames:currentSoulNames()
+  };
+  saveLocalPresets([item,...presets.filter(p=>p.id!==item.id&&String(p.name||'').toLowerCase()!==name.toLowerCase())]);
+  $('presetSelect').value=item.id;
+  dirty=false;
+  setStatus('PRESET SAVED · '+name);
+
+  if(!serverAuthenticated||!token())return;
+  $('savePreset').disabled=true;
   try{
     const r=await api('/presets',{method:'POST',body:JSON.stringify({
       action:'save',
-      preset:{name,config:clone(cfg),soulNames:currentSoulNames()}
+      preset:{name,config:clone(cfg),soulNames:item.soulNames}
     })});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok||!d.ok)throw new Error(d.error||'Preset save failed');
-    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();
-    if(d.saved?.id)$('presetSelect').value=d.saved.id;
-    setStatus('PRESET SAVED · '+name);
-  }catch(e){setStatus(String(e.message||e))}
-  finally{$('savePreset').disabled=false}
+    if(!r.ok||!d.ok)throw new Error(d.error||'Cloud sync failed');
+    saveLocalPresets(mergePresets(presets,Array.isArray(d.presets)?d.presets:[]));
+    const saved=presets.find(p=>String(p.name||'').toLowerCase()===name.toLowerCase());
+    if(saved)$('presetSelect').value=saved.id;
+    setStatus('PRESET SAVED · '+name+' · CLOUD BACKUP COMPLETE');
+  }catch(_e){
+    setStatus('PRESET SAVED · '+name+' · CLOUD BACKUP PENDING');
+  }finally{$('savePreset').disabled=false}
 }
 async function loadNamedPreset(){
   const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
@@ -281,15 +320,22 @@ async function deleteNamedPreset(){
   const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
   if(!p){setStatus('CHOOSE A SAVED PRESET');return}
   if(!confirm('Delete the saved preset '+p.name+'?'))return;
-  setStatus('DELETING PRESET…');$('deletePreset').disabled=true;
+
+  saveLocalPresets(presets.filter(x=>x.id!==id));
+  $('presetName').value='';
+  setStatus('PRESET DELETED · '+p.name);
+
+  if(!serverAuthenticated||!token())return;
+  $('deletePreset').disabled=true;
   try{
     const r=await api('/presets',{method:'POST',body:JSON.stringify({action:'delete',id})});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok||!d.ok)throw new Error(d.error||'Preset delete failed');
-    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();$('presetName').value='';
-    setStatus('PRESET DELETED · '+p.name);
-  }catch(e){setStatus(String(e.message||e))}
-  finally{$('deletePreset').disabled=false}
+    if(!r.ok||!d.ok)throw new Error(d.error||'Cloud delete failed');
+    saveLocalPresets(mergePresets(presets,Array.isArray(d.presets)?d.presets:[]));
+    setStatus('PRESET DELETED · '+p.name+' · CLOUD BACKUP UPDATED');
+  }catch(_e){
+    setStatus('PRESET DELETED ON THIS DEVICE · CLOUD BACKUP PENDING');
+  }finally{$('deletePreset').disabled=false}
 }
 $('savePreset').onclick=saveNamedPreset;
 $('loadPreset').onclick=loadNamedPreset;
