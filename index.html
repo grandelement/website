@@ -3833,7 +3833,31 @@ addEventListener('orientationchange',()=>{
     }
   }
   const intro=document.querySelector('#about .aboutIntro');
-  if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
+  if(intro&&cfg.about?.html){
+    const doc=document.implementation.createHTMLDocument('');
+    const box=doc.createElement('div');box.innerHTML=String(cfg.about.html||'');
+    const allowed=new Set(['B','STRONG','I','EM','U','BR','DIV','P','SPAN','UL','OL','LI','FONT']);
+    const styleAllowed=new Set(['text-align','color','font-size']);
+    const clean=node=>{
+      [...node.childNodes].forEach(child=>{
+        if(child.nodeType===1){
+          if(!allowed.has(child.tagName)){
+            const frag=doc.createDocumentFragment();while(child.firstChild)frag.appendChild(child.firstChild);child.replaceWith(frag);clean(node);return;
+          }
+          [...child.attributes].forEach(a=>{
+            if(a.name==='style'){
+              const keep=[];for(const part of a.value.split(';')){const [k,...rest]=part.split(':');const key=String(k||'').trim().toLowerCase(),value=rest.join(':').trim();if(styleAllowed.has(key)&&value&&!/[url(){}]/i.test(value))keep.push(key+':'+value)}
+              keep.length?child.setAttribute('style',keep.join(';')):child.removeAttribute('style');
+            }else if(child.tagName==='FONT'&&['color','size'].includes(a.name.toLowerCase())){
+            }else child.removeAttribute(a.name);
+          });
+          clean(child);
+        }else if(child.nodeType!==3)child.remove();
+      });
+    };
+    clean(box);
+    intro.replaceWith(...box.childNodes);
+  }else if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
     intro.innerHTML='';
     cfg.about.intro.forEach(line=>{const li=document.createElement('li');li.textContent=line;intro.appendChild(li);});
   }
