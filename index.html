@@ -213,6 +213,7 @@ Preserve together:
   .overlay.show{ display:grid; }
   .aboutText{ max-width:min(90vw, 820px); margin:0 16px; text-align:center; color:#eaf2ff; font-size:18px; line-height:1.6;
               text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25); position:relative; }
+  .aboutIntro>div,.aboutIntro>p{margin:.12em 0}
 
   /* ABOUT close button */
   .aboutClose{
@@ -2866,14 +2867,14 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
   <div class="overlay" id="about">
     <button class="aboutClose" id="aboutClose" aria-label="Close">×</button>
     <div class="aboutText">
-      <ul class="aboutIntro">
-        <li>Music for your soul. Experiments in sound and communication.</li>
-        <li>YOU, the listener, are the GRAND ELEMENT.</li>
-        <li>All things come from you.</li>
-        <li>Remember what you are.</li>
-        <li>Hypnotic rhythms and spacious soundscapes designed to entrance the body, speak directly to the soul, leave room for reflection, and reopen the body, mind, and soul to the voice of ENERGY, reminding us that we are all one, all energy, and all love.</li>
-        <li>Enjoy!!</li>
-      </ul>
+      <div class="aboutIntro">
+        <div>Music for your soul. Experiments in sound and communication.</div>
+        <div>YOU, the listener, are the GRAND ELEMENT.</div>
+        <div>All things come from you.</div>
+        <div>Remember what you are.</div>
+        <div>Hypnotic rhythms and spacious soundscapes designed to entrance the body, speak directly to the soul, leave room for reflection, and reopen the body, mind, and soul to the voice of ENERGY, reminding us that we are all one, all energy, and all love.</div>
+        <div>Enjoy!!</div>
+      </div>
 
      
       <div class="aboutSection">
@@ -3820,80 +3821,56 @@ addEventListener('orientationchange',()=>{
 /* ========= BACK ROOM SITE CONFIG ========= */
 (function applyBackRoomSiteConfig(){
   const cfg=window.GE_SITE_CONFIG||{};
+  const cleanRich=raw=>{
+    const doc=document.implementation.createHTMLDocument(''),box=doc.createElement('div');box.innerHTML=String(raw||'');
+    const allowed=new Set(['B','STRONG','I','EM','U','BR','DIV','P','SPAN','UL','OL','LI','FONT']);
+    const styleAllowed=new Set(['text-align','color','font-size']);
+    const walk=node=>{[...node.childNodes].forEach(child=>{if(child.nodeType===1){if(!allowed.has(child.tagName)){const frag=doc.createDocumentFragment();while(child.firstChild)frag.appendChild(child.firstChild);child.replaceWith(frag);walk(node);return}[...child.attributes].forEach(a=>{if(a.name==='style'){const keep=[];for(const part of a.value.split(';')){const [k,...rest]=part.split(':');const key=String(k||'').trim().toLowerCase(),value=rest.join(':').trim();if(styleAllowed.has(key)&&value&&!/[url(){}]/i.test(value))keep.push(key+':'+value)}keep.length?child.setAttribute('style',keep.join(';')):child.removeAttribute('style')}else if(child.tagName==='FONT'&&['color','size'].includes(a.name.toLowerCase())){}else child.removeAttribute(a.name)});walk(child)}else if(child.nodeType!==3)child.remove()})};walk(box);return box.innerHTML;
+  };
   const welcome=cfg.welcome||{};
   const welcomeCard=document.getElementById('geWelcomeCard');
   if(welcomeCard){
-    const t=document.getElementById('geWelcomeTitle');
-    const body=welcomeCard.querySelector('p');
-    const contact=welcomeCard.querySelector('.welcomeContact');
-    if(t&&welcome.title)t.textContent=welcome.title;
-    if(body&&welcome.body)body.textContent=welcome.body;
+    const t=document.getElementById('geWelcomeTitle'),body=welcomeCard.querySelector('p'),contact=welcomeCard.querySelector('.welcomeContact');
+    if(t){if(welcome.titleHtml)t.innerHTML=cleanRich(welcome.titleHtml);else if(welcome.title)t.textContent=welcome.title}
+    if(body){if(welcome.bodyHtml)body.innerHTML=cleanRich(welcome.bodyHtml);else if(welcome.body)body.textContent=welcome.body}
     if(contact){
-      if(welcome.contactText)contact.textContent=welcome.contactText;
+      if(welcome.contactHtml)contact.innerHTML=cleanRich(welcome.contactHtml);else if(welcome.contactText)contact.textContent=welcome.contactText;
       if(welcome.contactEmail)contact.href='mailto:'+welcome.contactEmail;
     }
   }
   const intro=document.querySelector('#about .aboutIntro');
   if(intro&&cfg.about?.html){
-    const doc=document.implementation.createHTMLDocument('');
     let rawAbout=String(cfg.about.html||'');
     if(Number(cfg.about?.richTextVersion)<2){
-      const legacy=doc.createElement('div');legacy.innerHTML=rawAbout;
+      const doc=document.implementation.createHTMLDocument(''),legacy=doc.createElement('div');legacy.innerHTML=rawAbout;
       const children=[...legacy.children];
       if(children.length===1&&children[0].tagName==='UL'&&[...children[0].children].every(el=>el.tagName==='LI'&&!el.querySelector('ul,ol'))){
         rawAbout=[...children[0].children].map(li=>'<div>'+li.innerHTML+'</div>').join('');
       }
     }
-    const box=doc.createElement('div');box.innerHTML=rawAbout;
-    const allowed=new Set(['B','STRONG','I','EM','U','BR','DIV','P','SPAN','UL','OL','LI','FONT']);
-    const styleAllowed=new Set(['text-align','color','font-size']);
-    const clean=node=>{
-      [...node.childNodes].forEach(child=>{
-        if(child.nodeType===1){
-          if(!allowed.has(child.tagName)){
-            const frag=doc.createDocumentFragment();while(child.firstChild)frag.appendChild(child.firstChild);child.replaceWith(frag);clean(node);return;
-          }
-          [...child.attributes].forEach(a=>{
-            if(a.name==='style'){
-              const keep=[];for(const part of a.value.split(';')){const [k,...rest]=part.split(':');const key=String(k||'').trim().toLowerCase(),value=rest.join(':').trim();if(styleAllowed.has(key)&&value&&!/[url(){}]/i.test(value))keep.push(key+':'+value)}
-              keep.length?child.setAttribute('style',keep.join(';')):child.removeAttribute('style');
-            }else if(child.tagName==='FONT'&&['color','size'].includes(a.name.toLowerCase())){
-            }else child.removeAttribute(a.name);
-          });
-          clean(child);
-        }else if(child.nodeType!==3)child.remove();
-      });
-    };
-    clean(box);
-    intro.replaceWith(...box.childNodes);
+    intro.innerHTML=cleanRich(rawAbout);
   }else if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
-    intro.innerHTML='';intro.style.listStyle='none';intro.style.paddingLeft='0';
-    cfg.about.intro.forEach(line=>{const li=document.createElement('li');li.textContent=line;intro.appendChild(li);});
+    intro.innerHTML='';cfg.about.intro.forEach(line=>{const row=document.createElement('div');row.textContent=line;intro.appendChild(row)});
   }
   const welcomeVisual=cfg.visual?.welcome||{};
   const welcomePositionCard=document.getElementById('geWelcomeCard');
   if(welcomePositionCard){
-    const wx=Math.max(0,Math.min(100,Number(welcomeVisual.x)||50));
-    const wy=Math.max(0,Math.min(100,Number(welcomeVisual.y)||50));
-    const wo=Math.max(.2,Math.min(1,(Number(welcomeVisual.panelOpacity)||78)/100));
-    welcomePositionCard.style.position='fixed';
-    welcomePositionCard.style.left=wx+'vw';
-    welcomePositionCard.style.top=wy+'vh';
-    welcomePositionCard.style.margin='0';
-    welcomePositionCard.style.transform='translate(-50%,-50%)';
-    welcomePositionCard.style.backgroundColor='rgba(4,18,32,'+wo+')';
+    const wx=Math.max(0,Math.min(100,Number(welcomeVisual.x)||50)),wy=Math.max(0,Math.min(100,Number(welcomeVisual.y)||50)),wo=Math.max(.2,Math.min(1,(Number(welcomeVisual.panelOpacity)||78)/100));
+    welcomePositionCard.style.position='fixed';welcomePositionCard.style.left=wx+'vw';welcomePositionCard.style.top=wy+'vh';welcomePositionCard.style.margin='0';welcomePositionCard.style.transform='translate(-50%,-50%)';welcomePositionCard.style.backgroundColor='rgba(4,18,32,'+wo+')';
+    if(Number.isFinite(Number(welcomeVisual.width))){welcomePositionCard.style.width=Math.max(25,Math.min(96,Number(welcomeVisual.width)))+'vw';welcomePositionCard.style.maxWidth='none'}
+    if(Number.isFinite(Number(welcomeVisual.height))){welcomePositionCard.style.height=Math.max(20,Math.min(92,Number(welcomeVisual.height)))+'vh';welcomePositionCard.style.maxHeight='none';welcomePositionCard.style.overflow='auto'}
+    welcomePositionCard.style.textAlign=['left','right','center'].includes(welcomeVisual.textAlign)?welcomeVisual.textAlign:'center';
+    const scale=Math.max(.55,Math.min(1.8,(Number(welcomeVisual.fontScale)||100)/100));
+    [document.getElementById('geWelcomeTitle'),welcomePositionCard.querySelector('p'),welcomePositionCard.querySelector('.welcomeContact')].filter(Boolean).forEach(node=>{const base=parseFloat(getComputedStyle(node).fontSize)||18;node.style.fontSize=(base*scale)+'px'});
   }
   const aboutVisual=cfg.visual?.about||{};
   const aboutPositionText=document.querySelector('#about .aboutText');
   if(aboutPositionText){
-    const ax=Math.max(0,Math.min(100,Number(aboutVisual.x)||50));
-    const ay=Math.max(0,Math.min(100,Number(aboutVisual.y)||50));
-    const ao=Math.max(.2,Math.min(1,(Number(aboutVisual.panelOpacity)||96)/100));
-    aboutPositionText.style.position='relative';
-    aboutPositionText.style.left=(ax-50)+'vw';
-    aboutPositionText.style.top=(ay-50)+'vh';
-    aboutPositionText.style.opacity=String(ao);
-    aboutPositionText.style.textAlign='center';
+    const ax=Math.max(0,Math.min(100,Number(aboutVisual.x)||50)),ay=Math.max(0,Math.min(100,Number(aboutVisual.y)||50)),ao=Math.max(.2,Math.min(1,(Number(aboutVisual.panelOpacity)||96)/100));
+    aboutPositionText.style.position='fixed';aboutPositionText.style.left=ax+'vw';aboutPositionText.style.top=ay+'vh';aboutPositionText.style.margin='0';aboutPositionText.style.transform='translate(-50%,-50%)';aboutPositionText.style.opacity=String(ao);aboutPositionText.style.textAlign=['left','right','center'].includes(aboutVisual.textAlign)?aboutVisual.textAlign:'center';
+    if(Number.isFinite(Number(aboutVisual.width))){aboutPositionText.style.width=Math.max(30,Math.min(96,Number(aboutVisual.width)))+'vw';aboutPositionText.style.maxWidth='none'}
+    if(Number.isFinite(Number(aboutVisual.height))){aboutPositionText.style.height=Math.max(20,Math.min(92,Number(aboutVisual.height)))+'vh';aboutPositionText.style.maxHeight='none';aboutPositionText.style.overflowY='auto';aboutPositionText.style.overflowX='hidden'}
+    aboutPositionText.style.fontSize=(18*Math.max(.55,Math.min(1.8,(Number(aboutVisual.fontScale)||100)/100)))+'px';
   }
   const games=cfg.games||{};
   const availability=[
