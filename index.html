@@ -3835,7 +3835,15 @@ addEventListener('orientationchange',()=>{
   const intro=document.querySelector('#about .aboutIntro');
   if(intro&&cfg.about?.html){
     const doc=document.implementation.createHTMLDocument('');
-    const box=doc.createElement('div');box.innerHTML=String(cfg.about.html||'');
+    let rawAbout=String(cfg.about.html||'');
+    if(Number(cfg.about?.richTextVersion)<2){
+      const legacy=doc.createElement('div');legacy.innerHTML=rawAbout;
+      const children=[...legacy.children];
+      if(children.length===1&&children[0].tagName==='UL'&&[...children[0].children].every(el=>el.tagName==='LI'&&!el.querySelector('ul,ol'))){
+        rawAbout=[...children[0].children].map(li=>'<div>'+li.innerHTML+'</div>').join('');
+      }
+    }
+    const box=doc.createElement('div');box.innerHTML=rawAbout;
     const allowed=new Set(['B','STRONG','I','EM','U','BR','DIV','P','SPAN','UL','OL','LI','FONT']);
     const styleAllowed=new Set(['text-align','color','font-size']);
     const clean=node=>{
@@ -3858,7 +3866,7 @@ addEventListener('orientationchange',()=>{
     clean(box);
     intro.replaceWith(...box.childNodes);
   }else if(intro&&Array.isArray(cfg.about?.intro)&&cfg.about.intro.length){
-    intro.innerHTML='';
+    intro.innerHTML='';intro.style.listStyle='none';intro.style.paddingLeft='0';
     cfg.about.intro.forEach(line=>{const li=document.createElement('li');li.textContent=line;intro.appendChild(li);});
   }
   const welcomeVisual=cfg.visual?.welcome||{};
