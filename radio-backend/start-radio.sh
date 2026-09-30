@@ -11,10 +11,12 @@ mkdir -p \
   /app/runtime/uploads /app/logs "$XDG_CACHE_HOME" "$GE_DATA_DIR"
 
 # One low-latency browser contribution bus.
-# The control server writes 48 kHz stereo signed-16 PCM here and the
-# public broadcast mixer is the ONLY reader.
-rm -f /app/runtime/mic.pcm
+# The control server writes 48 kHz stereo signed-16 PCM here.
+# Liquidsoap is the only reader. live.active gates the mic into the public master.
+rm -f /app/runtime/mic.pcm /app/runtime/live.active /app/runtime/library.json.tmp
 mkfifo -m 600 /app/runtime/mic.pcm
+chmod 700 /app/runtime
+chmod 600 /app/runtime/mic.pcm
 
 ## Persistent station defaults. Existing /app/data settings survive website/backend rebuilds.
 if [ ! -f "$GE_DATA_DIR/settings.json" ]; then
@@ -85,12 +87,28 @@ automation.on_track(log_song)
 automation = crossfade(duration=5., automation)
 automation = mksafe(automation)
 
-# The protected public station is published directly by Liquidsoap.
-# Nothing in the DJ microphone path owns, replaces, or restarts this mount.
+# Direct browser microphone. The Python control server owns the FIFO writer
+# and creates live.active only while a live source is armed.
+mic = input.external.rawaudio(
+  id="ge_direct_mic",
+  buffer=0.08,
+  max=0.40,
+  channels=2,
+  samplerate=48000,
+  restart=true,
+  restart_on_error=true,
+  { "cat /app/runtime/mic.pcm" }
+)
+mic = source.available(mic, { file.exists("/app/runtime/live.active") })
+
+# Public master: live microphone has immediate priority while armed.
+# Automation never stops and becomes the source again as soon as live.active disappears.
+public_master = fallback(id="ge_public_master", track_sensitive=false, [mic, automation])
+
 output.icecast(
   %ffmpeg(format="mp3", %audio(codec="libmp3lame", b="128k")),
   host="127.0.0.1", port=8000, user="source", password="${SOURCE_PASSWORD}",
-  mount="/stream.mp3", name="Grand Element Radio", public=false, automation
+  mount="/stream.mp3", name="Grand Element Radio", public=false, public_master
 )
 # Private music-only cue for future isolated mixing work.
 output.icecast(
@@ -319,7 +337,7 @@ start_audio_stack(){
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 10; then echo "GE Radio: automation cue warning."; fi
 
   start_hls || true
-  echo "GE Radio: protected 24/7 RADIO online. HLS follows Liquidsoap directly; microphone remains isolated."
+  echo "GE Radio: protected 24/7 RADIO online. Public master = live microphone priority + automation fallback."
 }
 
 shutdown(){
