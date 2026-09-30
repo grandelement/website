@@ -689,13 +689,15 @@ function applyRealRadioMeter(m){
  updateRadioDiagnostics()
 }
 async function pollRadioMeter(){
- if(!key)return;
+ if(!key||radioMeterBusy)return;
+ radioMeterBusy=true;
  try{
    const r=await api('/control/radio-meter'),d=await r.json().catch(function(){return {}});
    if(r.ok&&d.ok)applyRealRadioMeter(d.radio_meter||{})
  }catch(e){updateRadioDiagnostics()}
+ finally{radioMeterBusy=false}
 }
-function startRadioMeterPoll(){clearInterval(radioMeterPoller);pollRadioMeter();radioMeterPoller=setInterval(pollRadioMeter,250)}
+function startRadioMeterPoll(){clearInterval(radioMeterPoller);pollRadioMeter();radioMeterPoller=setInterval(pollRadioMeter,1000)}
 async function warmRadio(){return true}
 function updateRadioButton(){
  const b=$('dockRadio');if(!b)return;
