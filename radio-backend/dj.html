@@ -430,7 +430,20 @@ function installTouchMixer(rootSelector,gridSelector){
 let syncTouchFaders=function(){};
 let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0;let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
-let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
+let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
+let diagEvents=[],diagEpoch=performance.now(),diagLongTasks=0,diagLongestTask=0,diagEventLoopLag=0,diagLastFreeze=0;
+let diagWsOpenAt=0,diagWsCloseAt=0,diagWsCloseCode='',diagWsCloseReason='',diagWsReconnects=0;
+let diagMicChunks=0,diagMicLastChunkAt=0,diagMicLastChunkBytes=0,diagMicRateBytes=0,diagMicRateWindowAt=performance.now(),diagMicRateWindowBytes=0;
+let diagPlayerLastTimeupdate=0,diagPlayerLastProgress=0,diagPlayerLastWaiting=0,diagPlayerLastStalled=0,diagPlayerLastPlaying=0;
+function diagEvent(name,detail){
+ const now=performance.now(),delta=Math.round(now-diagEpoch),msg='+'+delta+'ms '+String(name||'EVENT')+(detail?' · '+detail:'');
+ diagEvents.push(msg);if(diagEvents.length>30)diagEvents.shift()
+}
+(function(){
+ let expected=performance.now()+500;
+ setInterval(function(){const now=performance.now(),lag=Math.max(0,now-expected);diagEventLoopLag=Math.round(lag);if(lag>250){diagLastFreeze=Math.round(lag);diagEvent('MAIN THREAD LAG',Math.round(lag)+'ms')}expected=now+500},500);
+ try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
+})();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micCueGain=null,micAirGain=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineCueGain=null,lineAirGain=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';
 let settings={mic:{level:100,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true},line:{level:100,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,phaserOn:false,delayOn:true,reverbOn:true}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line)}catch(e){}
 let djPermanentSaveTimer=0;
 function currentChannelVisibility(){const out={};document.querySelectorAll('[data-mixer-channel]').forEach(function(box){out[box.dataset.mixerChannel]=!!box.checked});return out}
@@ -737,25 +750,38 @@ function bufferAheadSeconds(a){
 }
 function diagnosticText(){
  const a=$('radioAudio'),pm=status&&status.public_master||{},b=status&&status.broadcast||{},rm=lastRadioMeterData||status&&status.radio_meter||{};
- const micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0];
+ const micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0],ms=micTrack&&micTrack.getSettings?micTrack.getSettings():{};
+ const ranges=[];try{if(a&&a.buffered)for(let i=0;i<a.buffered.length;i++)ranges.push(a.buffered.start(i).toFixed(2)+'-'+a.buffered.end(i).toFixed(2))}catch(e){}
+ const mem=performance&&performance.memory?formatBytes(performance.memory.usedJSHeapSize):'N/A';
+ const age=function(t){return t?((performance.now()-t)/1000).toFixed(2)+'s':'?'};
  const lines=[
   'GE DJ RADIO DIAGNOSTICS',
   'Time: '+new Date().toISOString(),
   'Server: '+(pm.ok?'OK':'ERROR')+(pm.status?' HTTP '+pm.status:'')+(pm.error?' · '+pm.error:''),
   'Server meter: '+(rm.active?(Number(rm.db||-60).toFixed(1)+' dB'):'IDLE')+' · age '+(rm.age==null?'?':Number(rm.age).toFixed(2)+'s'),
-  'Phone player: '+radioPlaybackState+' · paused '+(a?String(a.paused):'?'),
-  'HLS: ready '+(a?readyStateName(a.readyState):'?')+' · network '+(a?networkStateName(a.networkState):'?'),
-  'Buffer ahead: '+bufferAheadSeconds(a).toFixed(2)+'s',
+  'Phone player: '+radioPlaybackState+' · paused '+(a?String(a.paused):'?')+' · ended '+(a?String(a.ended):'?')+' · muted '+(a?String(a.muted):'?')+' · volume '+(a?Number(a.volume).toFixed(2):'?')+' · rate '+(a?Number(a.playbackRate).toFixed(2):'?'),
+  'Player time: '+(a?Number(a.currentTime||0).toFixed(2):'?')+'s · ready '+(a?readyStateName(a.readyState):'?')+' · network '+(a?networkStateName(a.networkState):'?'),
+  'Buffer: '+(ranges.length?ranges.join(', '):'none')+' · ahead '+bufferAheadSeconds(a).toFixed(2)+'s',
+  'Player event ages: timeupdate '+age(diagPlayerLastTimeupdate)+' · progress '+age(diagPlayerLastProgress)+' · waiting '+age(diagPlayerLastWaiting)+' · stalled '+age(diagPlayerLastStalled)+' · playing '+age(diagPlayerLastPlaying),
   'Browser: '+(navigator.onLine?'ONLINE':'OFFLINE')+' · '+document.visibilityState,
-  'AudioContext: '+(ctx?ctx.state:'NOT STARTED'),
+  'AudioContext: '+(ctx?ctx.state:'NOT STARTED')+' · sample rate '+(ctx?ctx.sampleRate:'?'),
+  'Performance: event loop lag '+diagEventLoopLag+'ms · long tasks '+diagLongTasks+' · longest '+diagLongestTask+'ms · last freeze '+diagLastFreeze+'ms · JS memory '+mem,
   'Mic track: '+(micTrack?(micTrack.readyState+(micTrack.muted?' MUTED':'')+(micTrack.enabled?' ENABLED':' DISABLED')):'CLOSED'),
-  'Mic WS: '+wsStateName(liveSocket)+' · server '+(b.active?'RECEIVING':'IDLE')+' · owner '+String(b.owner||'none'),
-  'Mic sent: '+formatBytes(liveSentBytes)+' · dropped '+liveDroppedFrames+' · last error '+(liveLastError||'none'),
+  'Mic format: PCM16 · '+String(ms.sampleRate||ctx&&ctx.sampleRate||'?')+' Hz · channels '+String(ms.channelCount||1)+' · MediaRecorder N/A (AudioWorklet PCM)',
+  'Mic WS: '+wsStateName(liveSocket)+' · buffered '+formatBytes(liveSocket?liveSocket.bufferedAmount:0)+' · opens '+(diagWsOpenAt?new Date(diagWsOpenAt).toISOString():'none')+' · closes '+(diagWsCloseAt?new Date(diagWsCloseAt).toISOString():'none'),
+  'Mic WS close: code '+String(diagWsCloseCode||'none')+' · reason '+String(diagWsCloseReason||'none')+' · connect attempts '+diagWsReconnects,
+  'Mic server: '+(b.active?'RECEIVING':'IDLE')+' · owner '+String(b.owner||'none')+' · transport '+String(b.transport||'?')+' · mode '+String(b.mode||'?'),
+  'Mic server queue: '+String(b.queue_frames==null?'?':b.queue_frames)+' frames · received '+String(b.frames_received==null?'?':b.frames_received)+' frames / '+formatBytes(b.bytes_received||0)+' · last chunk age '+(b.last_chunk_age==null?'?':Number(b.last_chunk_age).toFixed(3)+'s')+' · peak '+String(b.peak_pct==null?'?':Number(b.peak_pct).toFixed(1)+'%'),
+  'Mic sent: '+formatBytes(liveSentBytes)+' · chunks '+diagMicChunks+' · dropped '+liveDroppedFrames+' · send rate '+formatBytes(diagMicRateBytes)+'/s · last chunk '+formatBytes(diagMicLastChunkBytes)+' · age '+age(diagMicLastChunkAt)+' · last error '+(liveLastError||'none'),
   'Status poll age: '+(lastStatusPollAt?((Date.now()-lastStatusPollAt)/1000).toFixed(1)+'s':'?'),
   'Reconnects: '+radioReconnectCount+' · events play '+radioEvents.play+' pause '+radioEvents.pause+' waiting '+radioEvents.waiting+' stalled '+radioEvents.stalled+' ended '+radioEvents.ended+' error '+radioEvents.error,
+  'HLS/native audio: browser does not expose segment ID/load duration directly',
   'Radio URL: '+(a?(a.currentSrc||a.src||'none'):'none'),
   'Track: '+String(status&&status.now&&status.now.title||'unknown')+' · '+String(status&&status.now&&status.now.album||''),
-  'Playlist: '+String(status&&status.active_playlist_name||'unknown')
+  'Playlist: '+String(status&&status.active_playlist_name||'unknown'),
+  '',
+  'LAST 30 DIAGNOSTIC EVENTS',
+  ...(diagEvents.length?diagEvents:['(none yet)'])
  ];
  return lines.join('\n')
 }
@@ -802,33 +828,38 @@ async function ensurePcmBridge(){
  pcmProcessor.port.onmessage=function(e){
    const b=e.data;
    if(!(liveActive&&liveSocket&&liveSocket.readyState===WebSocket.OPEN&&b&&b.byteLength))return;
-   if(liveSocket.bufferedAmount>524288){liveDroppedFrames++;return}
-   try{liveSocket.send(b);liveSentBytes+=b.byteLength}catch(err){liveLastError='MIC SEND FAILED'}
+   diagMicChunks++;diagMicLastChunkAt=performance.now();diagMicLastChunkBytes=b.byteLength;diagMicRateWindowBytes+=b.byteLength;
+   const rn=performance.now();if(rn-diagMicRateWindowAt>=1000){diagMicRateBytes=diagMicRateWindowBytes/((rn-diagMicRateWindowAt)/1000);diagMicRateWindowBytes=0;diagMicRateWindowAt=rn}
+   if(liveSocket.bufferedAmount>524288){liveDroppedFrames++;diagEvent('MIC CHUNK DROPPED','WS buffered '+formatBytes(liveSocket.bufferedAmount));return}
+   try{liveSocket.send(b);liveSentBytes+=b.byteLength}catch(err){liveLastError='MIC SEND FAILED';diagEvent('MIC SEND FAILED',String(err&&err.message||err))}
  }
 }
 async function startMicOnAir(){
+ diagEpoch=performance.now();diagEvents=[];diagEvent('MIC BUTTON DOWN');diagWsReconnects++;
  if(liveActive)return true;
- await ensureMicOpen();
- await ensurePcmBridge();
+ await ensureMicOpen();diagEvent('MIC TRACK ACTIVE');
+ await ensurePcmBridge();diagEvent('PCM BRIDGE READY');
  $('micPathStatus').textContent='LOCAL MIC READY · CONNECTING MIC LINK…';
  const sr=await api('/control/broadcast/session',{method:'POST'}),sd=await sr.json().catch(function(){return {}});
  if(!sr.ok||!sd.ok)throw new Error(sd.error||'Could not create microphone session.');
  const br=await api('/control/broadcast/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'voice',transport:'websocket',owner:'dj'})}),bd=await br.json().catch(function(){return {}});
  if(!br.ok||!bd.ok)throw new Error(bd.error||'Microphone server is busy.');
+ diagEvent('MIC WS CONNECTING');
  const ws=new WebSocket(API.replace(/^http/,'ws')+'/control/live?token='+encodeURIComponent(sd.token));
  liveSocket=ws;ws.binaryType='arraybuffer';
  await new Promise(function(resolve,reject){
    const timer=setTimeout(function(){cleanup();reject(new Error('Microphone connection timed out.'))},5000);
    function cleanup(){clearTimeout(timer);ws.onopen=null;ws.onerror=null;ws.onclose=null}
-   ws.onopen=function(){cleanup();resolve()};
-   ws.onerror=function(){cleanup();reject(new Error('Microphone connection failed.'))};
-   ws.onclose=function(){cleanup();reject(new Error('Microphone connection closed.'))}
+   ws.onopen=function(){diagWsOpenAt=Date.now();diagEvent('MIC WS OPEN');cleanup();resolve()};
+   ws.onerror=function(){diagEvent('MIC WS ERROR');cleanup();reject(new Error('Microphone connection failed.'))};
+   ws.onclose=function(e){diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('MIC WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));cleanup();reject(new Error('Microphone connection closed.'))}
  });
  liveActive=true;liveTransport='direct';liveLastError='';liveSentBytes=0;liveDroppedFrames=0;
  micAirOn=true;micAirGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
- pcmProcessor.port.postMessage({type:'on',value:true});
- ws.onerror=function(){if(liveSocket===ws)liveLastError='MIC LINK ERROR'};
- ws.onclose=function(){
+ pcmProcessor.port.postMessage({type:'on',value:true});diagEvent('MIC PCM ON');
+ ws.onerror=function(){if(liveSocket===ws){liveLastError='MIC LINK ERROR';diagEvent('MIC LINK ERROR')}};
+ ws.onclose=function(e){
+   diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('MIC WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));
    if(liveSocket!==ws)return;
    liveSocket=null;liveActive=false;liveTransport='';
    pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
@@ -839,6 +870,7 @@ async function startMicOnAir(){
  updateAirButtons();return true
 }
 async function stopMicOnAir(){
+ diagEvent('MIC STOP REQUEST');
  micAirOn=false;
  if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
  pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
@@ -909,7 +941,10 @@ $('radioAudio').addEventListener('waiting',function(){radioPlaybackState='BUFFER
 $('radioAudio').addEventListener('stalled',function(){radioPlaybackState='STALLED';applyRealRadioMeter(null)});
 $('radioAudio').addEventListener('ended',function(){radioMonitorOn=false;radioPlaybackState='ENDED';applyRealRadioMeter(null);updateRadioButton()});
 $('radioAudio').addEventListener('error',function(){radioMonitorOn=false;radioPlaybackState='ERROR';applyRealRadioMeter(null);updateRadioButton()});
-['play','pause','waiting','stalled','ended','error'].forEach(function(ev){$('radioAudio').addEventListener(ev,function(){radioEvents[ev]=(radioEvents[ev]||0)+1;updateRadioDiagnostics()})});
+['play','pause','waiting','stalled','ended','error'].forEach(function(ev){$('radioAudio').addEventListener(ev,function(){radioEvents[ev]=(radioEvents[ev]||0)+1;if(ev==='waiting')diagPlayerLastWaiting=performance.now();if(ev==='stalled')diagPlayerLastStalled=performance.now();diagEvent('PLAYER '+ev.toUpperCase(),'ahead '+bufferAheadSeconds($('radioAudio')).toFixed(2)+'s');updateRadioDiagnostics()})});
+$('radioAudio').addEventListener('playing',function(){diagPlayerLastPlaying=performance.now();diagEvent('PLAYER PLAYING','ahead '+bufferAheadSeconds($('radioAudio')).toFixed(2)+'s')});
+$('radioAudio').addEventListener('timeupdate',function(){diagPlayerLastTimeupdate=performance.now()});
+$('radioAudio').addEventListener('progress',function(){diagPlayerLastProgress=performance.now()});
 window.addEventListener('online',updateRadioDiagnostics);window.addEventListener('offline',updateRadioDiagnostics);document.addEventListener('visibilitychange',updateRadioDiagnostics);
 setInterval(updateRadioDiagnostics,500);
 $('micOpen').onclick=function(){openMic().catch(function(e){alert(e.message||e)})};$('micAir').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('lineOpen').onclick=function(){openLine().catch(function(e){alert(e.message||e)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){openFx(b.dataset.fx)}});
