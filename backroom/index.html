@@ -32,6 +32,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .editorBar{position:absolute;z-index:8;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:7px;align-items:center;padding:7px;border:1px solid rgba(150,225,255,.65);border-radius:999px;background:rgba(1,9,18,.93);box-shadow:0 0 20px rgba(70,180,255,.26);max-width:94vw}
 .editorBar span{font-size:12px;font-weight:900;white-space:nowrap}.editorBar button{padding:7px 11px;white-space:nowrap}.editorBar.collapsed{left:auto;right:8px;transform:none}.editorBar.collapsed>*:not(#editorShowControls){display:none}.editorBar:not(.collapsed) #editorShowControls{display:none}
 .editorHint{position:absolute;z-index:6;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(94vw,560px);padding:8px 12px;text-align:center;border-radius:11px;background:rgba(0,8,17,.86);font-size:12px;color:#d8f3ff;pointer-events:none}
+.screenTextTools{position:absolute;z-index:9;top:max(62px,calc(env(safe-area-inset-top) + 58px));left:50%;transform:translateX(-50%);display:flex;gap:5px;align-items:center;max-width:94vw;padding:6px;border:1px solid rgba(125,214,255,.62);border-radius:13px;background:rgba(1,9,18,.94);box-shadow:0 0 18px rgba(55,175,235,.22);overflow-x:auto;white-space:nowrap}
+.screenTextTools.hiddenTools{display:none}.screenTextTools button{padding:6px 9px;min-width:35px}.screenTextTools input[type=color]{width:38px;height:32px;padding:2px;border:1px solid #28516d;border-radius:8px;background:#04111e}
+.screenTextTools .toolSep{width:1px;height:24px;background:rgba(135,215,255,.26);flex:0 0 auto}
+@media(max-width:700px){.screenTextTools{left:8px;right:8px;transform:none;justify-content:flex-start}}
 .planetPicker{position:absolute;z-index:8;left:10px;top:max(66px,calc(env(safe-area-inset-top) + 62px));width:min(250px,72vw);max-height:70vh;overflow:auto;padding:10px;border:1px solid rgba(125,214,255,.66);border-radius:14px;background:rgba(2,13,25,.94);box-shadow:0 0 22px rgba(45,165,230,.24)}.planetPicker.hiddenPanel{display:none}.planetPickerHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.planetPickerHead strong{font-size:13px}.planetPickerHead button{padding:5px 8px}.planetChoice{display:flex;align-items:center;gap:8px;padding:7px 4px;border-top:1px solid rgba(120,195,235,.12);font-size:13px;font-weight:800}.planetChoice input{width:20px;height:20px;flex:0 0 auto}.planetChoice span{flex:1}.planetCount{font-size:11px;color:#9edcf8;margin:4px 0 7px}.planetPickerTab{position:absolute;z-index:8;left:10px;top:max(66px,calc(env(safe-area-inset-top) + 62px));display:none}.planetPickerTab.show{display:block}
 @media(max-width:700px){.planetPicker{width:min(220px,66vw);max-height:62vh}.editorBar{left:8px;right:8px;transform:none;justify-content:center}.editorBar span{display:none}}
 @media(max-width:700px){.topControls,.grid,.grid3,.albumFields{grid-template-columns:1fr}.topControls button{width:100%}.albumHead{grid-template-columns:auto 1fr}.albumMove{grid-column:1/-1}.actions button{flex:1 1 44%}}
@@ -170,16 +174,35 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </main>
 
 <div id="screenEditor">
-  <iframe id="editorFrame" title="Website placement editor"></iframe>
+  <iframe id="editorFrame" title="Website visual editor"></iframe>
   <div class="editorBar" id="editorBar">
     <span id="editorTitle">EDIT ON SCREEN</span>
     <button id="editorHideControls" type="button">HIDE CONTROLS</button>
-    <button id="editorSave" type="button">SAVE POSITION</button>
+    <button id="editorSave" type="button">SAVE CHANGES</button>
     <button id="editorClose" type="button">CLOSE</button>
     <button id="editorShowControls" type="button">CONTROLS</button>
   </div>
+  <div class="screenTextTools hiddenTools" id="screenTextTools">
+    <button type="button" data-screen-cmd="bold"><b>B</b></button>
+    <button type="button" data-screen-cmd="italic"><i>I</i></button>
+    <button type="button" data-screen-cmd="underline"><u>U</u></button>
+    <input id="screenTextColor" type="color" value="#eaf2ff" title="Text color">
+    <span class="toolSep"></span>
+    <button id="screenTextSmaller" type="button">TEXT −</button>
+    <button id="screenTextLarger" type="button">TEXT +</button>
+    <span class="toolSep"></span>
+    <button type="button" data-screen-align="left">LEFT</button>
+    <button type="button" data-screen-align="center">CENTER</button>
+    <button type="button" data-screen-align="right">RIGHT</button>
+    <button type="button" data-screen-cmd="insertUnorderedList">• LIST</button>
+    <button type="button" data-screen-cmd="insertOrderedList">1. LIST</button>
+    <span class="toolSep"></span>
+    <button id="screenOpacityDown" type="button">FADE −</button>
+    <button id="screenOpacityUp" type="button">FADE +</button>
+  </div>
   <div class="planetPicker hiddenPanel" id="planetPicker">
     <div class="planetPickerHead"><strong>PLANETS</strong><button id="planetPickerHide" type="button">HIDE</button></div>
+    <label style="margin-bottom:8px"><span>ARRANGEMENT</span><select id="editorPlanetLayout"><option value="random">RANDOM</option><option value="spiral">SPIRAL</option><option value="custom">CUSTOM</option></select></label>
     <div class="planetCount" id="planetCount">0 selected</div>
     <div id="planetChoices"></div>
   </div>
@@ -199,7 +222,7 @@ const PRESET_KEY='GE_BACKROOM_PRESETS_V1';
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
 const TEMP_PASS_HASH='cf3a76e30fcd7881e9202fda7785106684ea54abad2470dba3dd716ff3a7ab63';
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
-let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[];
+let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null;
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const setStatus=t=>{$('status').textContent=t};
 const field=(id,v='')=>{if($(id))$(id).value=v??''};
@@ -452,7 +475,7 @@ function aboutPlainLinesFromHtml(raw){
     : box.innerText.split(/\n+/).map(x=>x.trim()).filter(Boolean);
 }
 function populate(){
-  cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96},cfg.visual.about||{});
+  cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78,width:72,height:56,fontScale:100,textAlign:'center'},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96,width:86,height:78,fontScale:100,textAlign:'center'},cfg.visual.about||{});
   cfg.albums=cfg.albums||{};cfg.albums.layout=cfg.albums.layout||'random';cfg.albums.positions=cfg.albums.positions||{};
   checked('welcomeEnabled',cfg.welcome?.enabled!==false);field('welcomeTitle',cfg.welcome?.title||'WELCOME');field('welcomeBody',cfg.welcome?.body||'');field('welcomeContact',cfg.welcome?.contactText||'');field('welcomeEmail',cfg.welcome?.contactEmail||'');
   field('welcomeOpacity',cfg.visual.welcome.panelOpacity);$('welcomeOpacityValue').textContent=cfg.visual.welcome.panelOpacity+'%';
@@ -463,7 +486,15 @@ function populate(){
 }
 function collect(){
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
-  cfg.welcome={enabled:$('welcomeEnabled').checked,title:$('welcomeTitle').value.trim(),body:$('welcomeBody').value.trim(),contactText:$('welcomeContact').value.trim(),contactEmail:$('welcomeEmail').value.trim()};
+  {
+    const prev=cfg.welcome||{};
+    const title=$('welcomeTitle').value.trim(),body=$('welcomeBody').value.trim(),contactText=$('welcomeContact').value.trim();
+    const textOf=raw=>{const d=document.createElement('div');d.innerHTML=String(raw||'');return d.textContent.trim()};
+    cfg.welcome={...prev,enabled:$('welcomeEnabled').checked,title,body,contactText,contactEmail:$('welcomeEmail').value.trim()};
+    if(!prev.titleHtml||textOf(prev.titleHtml)!==title)cfg.welcome.titleHtml=escapeHtml(title);
+    if(!prev.bodyHtml||textOf(prev.bodyHtml)!==body)cfg.welcome.bodyHtml=escapeHtml(body);
+    if(!prev.contactHtml||textOf(prev.contactHtml)!==contactText)cfg.welcome.contactHtml=escapeHtml(contactText);
+  }
   {const aboutHtml=cleanAboutHtml($('aboutIntro').innerHTML);cfg.about={intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml,richTextVersion:2};}
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign(cfg.visual.welcome||{},{panelOpacity:Number($('welcomeOpacity').value)||78});cfg.visual.about=Object.assign(cfg.visual.about||{},{panelOpacity:Number($('aboutOpacity').value)||96});
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
@@ -520,14 +551,76 @@ async function publish(){
 $('publishLive').onclick=publish;
 
 function addGuides(doc){
-  const s=doc.createElement('style');s.id='geBackroomGuides';s.textContent='body:before,body:after{content:"";position:fixed;z-index:2147483640;pointer-events:none;background:rgba(110,220,255,.48)}body:before{left:50%;top:0;bottom:0;width:1px}body:after{top:50%;left:0;right:0;height:1px}.ge-guide-edge{position:fixed;inset:5%;border:1px dashed rgba(110,220,255,.45);z-index:2147483639;pointer-events:none}.ge-editing-item{outline:2px solid #7de9ff!important;box-shadow:0 0 22px #36bfff!important;touch-action:none!important;cursor:move!important}.ge-editing-item .label{opacity:1!important;display:block!important;position:absolute!important;left:50%!important;top:calc(100% + 5px)!important;transform:translateX(-50%)!important;background:rgba(0,8,18,.86)!important;color:#fff!important;border:1px solid rgba(105,220,255,.75)!important;border-radius:999px!important;padding:3px 7px!important;font:900 11px/1.2 system-ui,sans-serif!important;white-space:nowrap!important;pointer-events:none!important;text-shadow:0 1px 4px #000!important}';doc.head.appendChild(s);const edge=doc.createElement('div');edge.className='ge-guide-edge';doc.body.appendChild(edge);
+  const s=doc.createElement('style');s.id='geBackroomGuides';s.textContent='body:before,body:after{content:"";position:fixed;z-index:2147483640;pointer-events:none;background:rgba(110,220,255,.48)}body:before{left:50%;top:0;bottom:0;width:1px}body:after{top:50%;left:0;right:0;height:1px}.ge-guide-edge{position:fixed;inset:5%;border:1px dashed rgba(110,220,255,.45);z-index:2147483639;pointer-events:none}.ge-editing-item{outline:2px solid #7de9ff!important;box-shadow:0 0 22px #36bfff!important;touch-action:none!important}.ge-editing-item .label{opacity:1!important;display:block!important;position:absolute!important;left:50%!important;top:calc(100% + 5px)!important;transform:translateX(-50%)!important;background:rgba(0,8,18,.86)!important;color:#fff!important;border:1px solid rgba(105,220,255,.75)!important;border-radius:999px!important;padding:3px 7px!important;font:900 11px/1.2 system-ui,sans-serif!important;white-space:nowrap!important;pointer-events:none!important;text-shadow:0 1px 4px #000!important}.ge-screen-editable{outline:1px dashed rgba(160,230,255,.55)!important;outline-offset:3px!important;cursor:text!important;user-select:text!important;-webkit-user-select:text!important;touch-action:auto!important}.ge-window-move{position:absolute!important;left:8px!important;top:8px!important;z-index:2147483646!important;padding:5px 8px!important;border:1px solid #8ee9ff!important;border-radius:999px!important;background:rgba(2,18,32,.94)!important;color:#fff!important;font:900 10px/1 system-ui,sans-serif!important;cursor:move!important;touch-action:none!important}.ge-window-resize{position:absolute!important;right:-7px!important;bottom:-7px!important;z-index:2147483646!important;width:28px!important;height:28px!important;border:2px solid #8ee9ff!important;border-radius:8px!important;background:rgba(2,18,32,.94)!important;box-shadow:0 0 12px rgba(80,200,255,.65)!important;cursor:nwse-resize!important;touch-action:none!important}.ge-window-resize:after{content:"↘";display:grid;place-items:center;width:100%;height:100%;color:#fff;font:900 15px/1 system-ui,sans-serif!important}';doc.head.appendChild(s);const edge=doc.createElement('div');edge.className='ge-guide-edge';doc.body.appendChild(edge);
 }
-function draggable(frameWin,el,onMove){
+function attachWindowEditor(frameWin,el,visual,onChange){
+  el.style.boxSizing='border-box';el.style.maxWidth='none';el.style.maxHeight='none';
+  const moveHandle=el.ownerDocument.createElement('button');moveHandle.type='button';moveHandle.className='ge-window-move';moveHandle.textContent='MOVE';
+  const resizeHandle=el.ownerDocument.createElement('div');resizeHandle.className='ge-window-resize';
+  el.append(moveHandle,resizeHandle);
+  let mode='',startX=0,startY=0,startLeft=0,startTop=0,startW=0,startH=0;
+  const down=(e,kind)=>{
+    mode=kind;startX=e.clientX;startY=e.clientY;const r=el.getBoundingClientRect();
+    startLeft=r.left+r.width/2;startTop=r.top+r.height/2;startW=r.width;startH=r.height;
+    moveHandle.setPointerCapture?.(e.pointerId);resizeHandle.setPointerCapture?.(e.pointerId);
+    e.preventDefault();e.stopPropagation();
+  };
+  const move=e=>{
+    if(!mode)return;
+    if(mode==='move'){
+      const x=Math.max(0,Math.min(frameWin.innerWidth,startLeft+(e.clientX-startX)));
+      const y=Math.max(0,Math.min(frameWin.innerHeight,startTop+(e.clientY-startY)));
+      el.style.left=x+'px';el.style.top=y+'px';
+      visual.x=+(x/frameWin.innerWidth*100).toFixed(2);visual.y=+(y/frameWin.innerHeight*100).toFixed(2);
+    }else{
+      const minW=180,minH=120;
+      const width=Math.max(minW,Math.min(frameWin.innerWidth*.96,startW+(e.clientX-startX)));
+      const height=Math.max(minH,Math.min(frameWin.innerHeight*.92,startH+(e.clientY-startY)));
+      el.style.width=width+'px';el.style.height=height+'px';el.style.overflow='auto';
+      visual.width=+(width/frameWin.innerWidth*100).toFixed(2);visual.height=+(height/frameWin.innerHeight*100).toFixed(2);
+    }
+    onChange?.();e.preventDefault();
+  };
+  const up=()=>mode='';
+  moveHandle.addEventListener('pointerdown',e=>down(e,'move'));
+  resizeHandle.addEventListener('pointerdown',e=>down(e,'resize'));
+  frameWin.addEventListener('pointermove',move,{passive:false});frameWin.addEventListener('pointerup',up);
+  return()=>{frameWin.removeEventListener('pointermove',move);frameWin.removeEventListener('pointerup',up);moveHandle.remove();resizeHandle.remove()};
+}
+function attachPlanetDrag(frameWin,el,onMove){
   let active=false,dx=0,dy=0;
   const down=e=>{active=true;const r=el.getBoundingClientRect();dx=e.clientX-(r.left+r.width/2);dy=e.clientY-(r.top+r.height/2);e.preventDefault();e.stopPropagation()};
   const move=e=>{if(!active)return;const x=Math.max(0,Math.min(frameWin.innerWidth,e.clientX-dx)),y=Math.max(0,Math.min(frameWin.innerHeight,e.clientY-dy));el.style.position='fixed';el.style.left=x+'px';el.style.top=y+'px';el.style.margin='0';el.style.transform='translate(-50%,-50%)';onMove(x/frameWin.innerWidth*100,y/frameWin.innerHeight*100);e.preventDefault()};
   const up=()=>active=false;el.addEventListener('pointerdown',down,{capture:true});frameWin.addEventListener('pointermove',move,{passive:false});frameWin.addEventListener('pointerup',up);
   return()=>{el.removeEventListener('pointerdown',down,{capture:true});frameWin.removeEventListener('pointermove',move);frameWin.removeEventListener('pointerup',up)}
+}
+function rememberEditorSelection(){
+  try{const w=$('editorFrame').contentWindow,sel=w.getSelection();if(sel&&sel.rangeCount)editorSavedRange=sel.getRangeAt(0).cloneRange()}catch(_e){}
+}
+function restoreEditorSelection(){
+  try{const w=$('editorFrame').contentWindow,sel=w.getSelection();if(editorSavedRange){sel.removeAllRanges();sel.addRange(editorSavedRange)}editorActiveText?.focus()}catch(_e){}
+}
+function editorVisual(){return editorTarget==='welcome'?cfg.visual.welcome:cfg.visual.about}
+function applyEditorTextScale(){
+  if(!editorActiveText)return;
+  const v=editorVisual(),scale=Math.max(55,Math.min(180,Number(v.fontScale)||100))/100;
+  const nodes=editorTarget==='welcome'
+    ? [...$('editorFrame').contentDocument.querySelectorAll('#geWelcomeTitle,#geWelcomeCard p,#geWelcomeCard .welcomeContact')]
+    : [$('editorFrame').contentDocument.querySelector('#about .aboutIntro')].filter(Boolean);
+  nodes.forEach(node=>{if(!node.dataset.geBaseFont)node.dataset.geBaseFont=String(parseFloat(getComputedStyle(node).fontSize)||18);node.style.fontSize=(Number(node.dataset.geBaseFont)*scale)+'px'});
+}
+function applyEditorAlignment(){
+  const v=editorVisual();const d=$('editorFrame').contentDocument;
+  const host=editorTarget==='welcome'?d.getElementById('geWelcomeCard'):d.querySelector('#about .aboutText');
+  if(host)host.style.textAlign=['left','right','center'].includes(v.textAlign)?v.textAlign:'center';
+}
+function applyEditorOpacity(){
+  const v=editorVisual(),d=$('editorFrame').contentDocument;
+  if(editorTarget==='welcome'){
+    const el=d.getElementById('geWelcomeCard');if(el)el.style.backgroundColor='rgba(4,18,32,'+(Math.max(20,Math.min(100,Number(v.panelOpacity)||78))/100)+')';
+  }else{
+    const el=d.querySelector('#about .aboutText');if(el)el.style.opacity=String(Math.max(20,Math.min(100,Number(v.panelOpacity)||96))/100);
+  }
 }
 function selectedPlanets(){
   cfg.albums=cfg.albums||{};cfg.albums.order=Array.isArray(cfg.albums.order)?cfg.albums.order:[];cfg.albums.visible=Array.isArray(cfg.albums.visible)?cfg.albums.visible:[];
@@ -537,6 +630,7 @@ function updatePlanetCount(){
   const count=selectedPlanets().size;$('planetCount').textContent=count+' selected';
 }
 function renderPlanetPicker(){
+  $('editorPlanetLayout').value=cfg.albums?.layout||$('planetLayout').value||'random';
   const wrap=$('planetChoices');wrap.innerHTML='';const selected=selectedPlanets();
   (cfg.albums.order||[]).forEach(name=>{
     const row=document.createElement('label');row.className='planetChoice';
@@ -560,36 +654,101 @@ function showPlanetPicker(show){
 }
 $('planetPickerHide').onclick=()=>showPlanetPicker(false);
 $('planetPickerTab').onclick=()=>showPlanetPicker(true);
-$('editorHideControls').onclick=()=>{$('editorBar').classList.add('collapsed');if(editorTarget==='planets')showPlanetPicker(false);$('editorHint').style.display='none'};
-$('editorShowControls').onclick=()=>{$('editorBar').classList.remove('collapsed');if(editorTarget==='planets')showPlanetPicker(true);$('editorHint').style.display='block'};
+$('editorPlanetLayout').addEventListener('change',()=>{
+  cfg.albums=cfg.albums||{};cfg.albums.layout=$('editorPlanetLayout').value||'random';$('planetLayout').value=cfg.albums.layout;
+  localStorage.setItem(WORK_KEY,JSON.stringify(cfg));reloadPlanetEditor();
+});
+$('editorHideControls').onclick=()=>{$('editorBar').classList.add('collapsed');if(editorTarget==='planets')showPlanetPicker(false);$('screenTextTools').classList.add('hiddenTools');$('editorHint').style.display='none'};
+$('editorShowControls').onclick=()=>{$('editorBar').classList.remove('collapsed');if(editorTarget==='planets')showPlanetPicker(true);else $('screenTextTools').classList.remove('hiddenTools');$('editorHint').style.display='block'};
 
 async function openEditor(target){
-  editorTarget=target;
+  editorTarget=target;editorStartCfg=clone(cfg);editorActiveText=null;editorSavedRange=null;
   if(target==='planets'){
-    cfg.albums=cfg.albums||{};
-    cfg.albums.positions=cfg.albums.positions||{};
-    cfg.albums.layout=$('planetLayout').value||cfg.albums.layout||'random';
+    cfg.albums=cfg.albums||{};cfg.albums.positions=cfg.albums.positions||{};cfg.albums.layout=$('planetLayout').value||cfg.albums.layout||'random';
   }
-  saveDraft();
+  localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
   $('editorBar').classList.remove('collapsed');$('editorHint').style.display='block';
-  $('editorTitle').textContent=target==='planets'?'PLACE ALBUM PLANETS':target==='about'?'PLACE ABOUT':'PLACE WELCOME';
+  $('editorTitle').textContent=target==='planets'?'EDIT PLANETS':target==='about'?'EDIT ABOUT ON SCREEN':'EDIT WELCOME ON SCREEN';
+  $('editorHint').textContent=target==='planets'?'Drag planets directly. Use the PLANETS panel for visibility and arrangement.':"Edit the words directly. Use MOVE to place the window and the glowing corner to resize it.";
   $('screenEditor').classList.add('show');
-  if(target==='planets'){renderPlanetPicker();showPlanetPicker(true)}else{showPlanetPicker(false);$('planetPickerTab').classList.remove('show')}
+  if(target==='planets'){renderPlanetPicker();showPlanetPicker(true);$('screenTextTools').classList.add('hiddenTools')}else{showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('screenTextTools').classList.remove('hiddenTools')}
   const frame=$('editorFrame');frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
-  frame.onload=()=>{try{const w=frame.contentWindow,d=frame.contentDocument;addGuides(d);if(dragCleanup)dragCleanup();let cleans=[];
-    if(target==='welcome'){const wrap=d.getElementById('geWelcome'),el=d.getElementById('geWelcomeCard');wrap.style.display='grid';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.setAttribute('aria-hidden','false');el.classList.add('ge-editing-item');const v=cfg.visual.welcome;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.backgroundColor='rgba(4,18,32,'+(v.panelOpacity/100)+')';cleans.push(draggable(w,el,(x,y)=>{cfg.visual.welcome.x=+x.toFixed(2);cfg.visual.welcome.y=+y.toFixed(2)}))}
-    if(target==='about'){const wrap=d.getElementById('about'),el=wrap?.querySelector('.aboutText');if(wrap&&el){wrap.classList.add('show');wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';el.classList.add('ge-editing-item');const v=cfg.visual.about;el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.opacity=String(v.panelOpacity/100);cleans.push(draggable(w,el,(x,y)=>{cfg.visual.about.x=+x.toFixed(2);cfg.visual.about.y=+y.toFixed(2)}))}}
-    if(target==='planets'){const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');el.removeAttribute('target');const name=el.dataset.album||el.title||'';const label=el.querySelector('.label');if(label)label.textContent=name;cleans.push(draggable(w,el,(x,y)=>{
-      cfg.albums.layout='custom';$('planetLayout').value='custom';
-      cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)};
-      localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
-    }))});$('planetCount').textContent=nodes.length+' visible · '+selectedPlanets().size+' selected'}
+  frame.onload=()=>{try{
+    const w=frame.contentWindow,d=frame.contentDocument;addGuides(d);if(dragCleanup)dragCleanup();let cleans=[];
+    const watchEditable=el=>{
+      if(!el)return;el.contentEditable='true';el.spellcheck=true;el.classList.add('ge-screen-editable');
+      const setActive=()=>{editorActiveText=el;rememberEditorSelection()};
+      el.addEventListener('focus',setActive);el.addEventListener('keyup',rememberEditorSelection);el.addEventListener('mouseup',rememberEditorSelection);el.addEventListener('input',()=>{editorActiveText=el;rememberEditorSelection()});
+      cleans.push(()=>{el.contentEditable='false';el.classList.remove('ge-screen-editable')});
+    };
+    if(target==='welcome'){
+      const wrap=d.getElementById('geWelcome'),el=d.getElementById('geWelcomeCard'),v=cfg.visual.welcome;
+      wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.setAttribute('aria-hidden','false');el.classList.add('ge-editing-item');
+      el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.width=Math.max(25,Math.min(96,Number(v.width)||72))+'vw';el.style.height=Math.max(20,Math.min(92,Number(v.height)||56))+'vh';el.style.maxWidth='none';el.style.maxHeight='none';el.style.overflow='auto';
+      const title=d.getElementById('geWelcomeTitle'),body=el.querySelector('p'),contact=el.querySelector('.welcomeContact');
+      if(title&&cfg.welcome?.titleHtml)title.innerHTML=cleanAboutHtml(cfg.welcome.titleHtml);
+      if(body&&cfg.welcome?.bodyHtml)body.innerHTML=cleanAboutHtml(cfg.welcome.bodyHtml);
+      if(contact){if(cfg.welcome?.contactHtml)contact.innerHTML=cleanAboutHtml(cfg.welcome.contactHtml);contact.removeAttribute('href');contact.addEventListener('click',e=>e.preventDefault())}
+      watchEditable(title);watchEditable(body);watchEditable(contact);editorActiveText=body||title;
+      cleans.push(attachWindowEditor(w,el,v,()=>{dirty=true}));applyEditorTextScale();applyEditorAlignment();applyEditorOpacity();
+    }
+    if(target==='about'){
+      const wrap=d.getElementById('about'),el=wrap?.querySelector('.aboutText'),v=cfg.visual.about;
+      if(wrap&&el){
+        wrap.classList.add('show');wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.style.overflow='hidden';el.classList.add('ge-editing-item');
+        el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.width=Math.max(30,Math.min(96,Number(v.width)||86))+'vw';el.style.height=Math.max(20,Math.min(92,Number(v.height)||78))+'vh';el.style.maxWidth='none';el.style.maxHeight='none';el.style.overflow='auto';el.style.opacity=String((Number(v.panelOpacity)||96)/100);
+        let intro=el.querySelector('.aboutIntro');
+        if(!intro){intro=d.createElement('div');intro.className='aboutIntro';el.prepend(intro)}
+        if(cfg.about?.html)intro.innerHTML=cleanAboutHtml(cfg.about.html);else intro.innerHTML=introArrayToHtml(cfg.about?.intro||[]);
+        watchEditable(intro);editorActiveText=intro;
+        cleans.push(attachWindowEditor(w,el,v,()=>{dirty=true}));applyEditorTextScale();applyEditorAlignment();applyEditorOpacity();
+      }
+    }
+    if(target==='planets'){
+      const nodes=[...d.querySelectorAll('#planets .planet')];nodes.forEach(el=>{el.classList.add('ge-editing-item');el.removeAttribute('href');el.removeAttribute('target');const name=el.dataset.album||el.title||'';const label=el.querySelector('.label');if(label)label.textContent=name;cleans.push(attachPlanetDrag(w,el,(x,y)=>{
+        cfg.albums.layout='custom';$('planetLayout').value='custom';$('editorPlanetLayout').value='custom';cfg.albums.positions[albumKey(name)]={x:+x.toFixed(2),y:+y.toFixed(2)};dirty=true;
+      }))});$('planetCount').textContent=nodes.length+' visible · '+selectedPlanets().size+' selected';
+    }
     dragCleanup=()=>cleans.forEach(fn=>fn());
-  }catch(e){setStatus('SCREEN EDITOR COULD NOT START')}}
+  }catch(e){setStatus('SCREEN EDITOR COULD NOT START')}}; 
+}
+function captureScreenEditor(){
+  const frame=$('editorFrame'),d=frame.contentDocument;if(!d)return;
+  if(editorTarget==='welcome'){
+    const title=d.getElementById('geWelcomeTitle'),body=d.querySelector('#geWelcomeCard p'),contact=d.querySelector('#geWelcomeCard .welcomeContact');
+    cfg.welcome=cfg.welcome||{};
+    if(title){cfg.welcome.titleHtml=cleanAboutHtml(title.innerHTML);cfg.welcome.title=title.textContent.trim()}
+    if(body){cfg.welcome.bodyHtml=cleanAboutHtml(body.innerHTML);cfg.welcome.body=body.textContent.trim()}
+    if(contact){cfg.welcome.contactHtml=cleanAboutHtml(contact.innerHTML);cfg.welcome.contactText=contact.textContent.trim()}
+  }
+  if(editorTarget==='about'){
+    const intro=d.querySelector('#about .aboutIntro');
+    if(intro){const aboutHtml=cleanAboutHtml(intro.innerHTML);cfg.about={...(cfg.about||{}),intro:aboutPlainLinesFromHtml(aboutHtml),html:aboutHtml,richTextVersion:2}}
+  }
+}
+function saveScreenEditor(){
+  captureScreenEditor();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));editorStartCfg=clone(cfg);dirty=false;
+  populate();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
+  setStatus('SCREEN CHANGES SAVED');
+  const frame=$('editorFrame');if(editorTarget&&frame.contentWindow){setTimeout(()=>{try{frame.contentWindow.focus()}catch(_e){}},0)}
+}
+function closeScreenEditor(){
+  if(editorStartCfg){cfg=clone(editorStartCfg);localStorage.setItem(WORK_KEY,JSON.stringify(cfg));populate()}
+  $('screenEditor').classList.remove('show');showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('screenTextTools').classList.add('hiddenTools');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null;editorTarget='';editorActiveText=null;editorSavedRange=null;editorStartCfg=null;
 }
 document.querySelectorAll('[data-edit-target]').forEach(b=>b.onclick=()=>openEditor(b.dataset.editTarget));
-$('editorSave').onclick=()=>{saveDraft();$('screenEditor').classList.remove('show');showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null;setStatus('POSITION SAVED')};
-$('editorClose').onclick=()=>{$('screenEditor').classList.remove('show');showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('editorFrame').src='about:blank';if(dragCleanup)dragCleanup();dragCleanup=null};
+$('editorSave').onclick=saveScreenEditor;
+$('editorClose').onclick=closeScreenEditor;
+
+document.querySelectorAll('#screenTextTools [data-screen-cmd]').forEach(btn=>btn.addEventListener('click',()=>{
+  if(!editorActiveText)return;restoreEditorSelection();try{$('editorFrame').contentDocument.execCommand(btn.dataset.screenCmd,false,null)}catch(_e){}rememberEditorSelection();dirty=true;
+}));
+$('screenTextColor').addEventListener('input',()=>{if(!editorActiveText)return;restoreEditorSelection();try{$('editorFrame').contentDocument.execCommand('foreColor',false,$('screenTextColor').value)}catch(_e){}rememberEditorSelection();dirty=true});
+$('screenTextSmaller').onclick=()=>{const v=editorVisual();v.fontScale=Math.max(55,(Number(v.fontScale)||100)-5);applyEditorTextScale();dirty=true};
+$('screenTextLarger').onclick=()=>{const v=editorVisual();v.fontScale=Math.min(180,(Number(v.fontScale)||100)+5);applyEditorTextScale();dirty=true};
+document.querySelectorAll('#screenTextTools [data-screen-align]').forEach(btn=>btn.addEventListener('click',()=>{const v=editorVisual();v.textAlign=btn.dataset.screenAlign;applyEditorAlignment();dirty=true}));
+$('screenOpacityDown').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.max(20,(Number(v.panelOpacity)||80)-5);applyEditorOpacity();dirty=true};
+$('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min(100,(Number(v.panelOpacity)||80)+5);applyEditorOpacity();dirty=true};
 
 async function bootBackroom(){
   applyText(localStorage.getItem(TEXT_KEY)||115);
