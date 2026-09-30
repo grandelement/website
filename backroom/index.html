@@ -55,6 +55,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </header>
 
 <section>
+  <h2>SAVED PRESETS</h2>
+  <p>Save the entire Back Room setup, including all text, album visibility and order, exact planet positions, Welcome and About placement, activity settings, games, first song, and Soul names.</p>
+  <div class="grid">
+    <label><span>Preset name</span><input id="presetName" type="text" maxlength="60" placeholder="Example: Favorite Universe"></label>
+    <label><span>Saved preset</span><select id="presetSelect"><option value="">No saved presets yet</option></select></label>
+  </div>
+  <div class="actions">
+    <button class="primary" id="savePreset" type="button">SAVE PRESET</button>
+    <button id="loadPreset" type="button">LOAD PRESET</button>
+    <button id="deletePreset" type="button">DELETE PRESET</button>
+  </div>
+</section>
+
+<section>
   <h2>WELCOME SCREEN</h2>
   <p>Edit the wording here or place the actual welcome box directly on the website.</p>
   <div class="check"><input id="welcomeEnabled" type="checkbox"><span>Show welcome screen</span></div>
@@ -152,7 +166,7 @@ const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
 const TEMP_PASS_HASH='cf3a76e30fcd7881e9202fda7785106684ea54abad2470dba3dd716ff3a7ab63';
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
-let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false;
+let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[];
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const setStatus=t=>{$('status').textContent=t};
 const field=(id,v='')=>{if($(id))$(id).value=v??''};
@@ -193,6 +207,97 @@ async function repoLive(){const r=await fetch('../config/site-live.json?'+Date.n
 function localDraft(){try{return JSON.parse(localStorage.getItem(WORK_KEY)||'null')}catch(_e){return null}}
 function saveDraft(){collect();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));dirty=false;setStatus('SAVED · working copy')}
 function mark(){dirty=true;setStatus('UNSAVED CHANGES')}
+
+function currentSoulNames(){
+  return Array.from({length:6},(_,i)=>String($('soulName'+(i+1))?.value||('Soul '+(i+1))).trim().slice(0,18));
+}
+function storeSoulNames(names){
+  if(!Array.isArray(names))return;
+  let old=[];try{old=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(_e){}
+  const next=Array.from({length:6},(_,i)=>({
+    ...(old?.[i]||{}),
+    name:String(names[i]||('Soul '+(i+1))).trim().slice(0,18)||('Soul '+(i+1))
+  }));
+  localStorage.setItem(PROFILE_KEY,JSON.stringify(next));
+  loadSouls();
+}
+function renderPresets(){
+  const sel=$('presetSelect');
+  const current=sel.value;
+  sel.innerHTML='';
+  if(!presets.length){
+    const o=document.createElement('option');o.value='';o.textContent='No saved presets yet';sel.appendChild(o);
+    return;
+  }
+  for(const p of presets){
+    const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);
+  }
+  if(presets.some(p=>p.id===current))sel.value=current;
+}
+async function refreshPresets(){
+  if(!serverAuthenticated||!token()){presets=[];renderPresets();return}
+  try{
+    const r=await api('/presets',{method:'GET'});const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.error||'Could not load presets');
+    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();
+  }catch(e){
+    presets=[];renderPresets();setStatus('PRESETS UNAVAILABLE · '+String(e.message||e));
+  }
+}
+async function saveNamedPreset(){
+  if(!serverAuthenticated||!token()){setStatus('PRESETS NEED THE CLOUDFLARE PUBLISHER');return}
+  const name=String($('presetName').value||'').trim();
+  if(!name){setStatus('GIVE THE PRESET A NAME');$('presetName').focus();return}
+  collect();
+  const existing=presets.find(p=>String(p.name||'').toLowerCase()===name.toLowerCase());
+  if(existing&&!confirm('Replace the saved preset named '+name+'?'))return;
+  setStatus('SAVING PRESET…');$('savePreset').disabled=true;
+  try{
+    const r=await api('/presets',{method:'POST',body:JSON.stringify({
+      action:'save',
+      preset:{name,config:clone(cfg),soulNames:currentSoulNames()}
+    })});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.error||'Preset save failed');
+    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();
+    if(d.saved?.id)$('presetSelect').value=d.saved.id;
+    setStatus('PRESET SAVED · '+name);
+  }catch(e){setStatus(String(e.message||e))}
+  finally{$('savePreset').disabled=false}
+}
+async function loadNamedPreset(){
+  const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
+  if(!p){setStatus('CHOOSE A SAVED PRESET');return}
+  if(dirty&&!confirm('Load '+p.name+' and replace the unsaved changes on this screen?'))return;
+  cfg=clone(p.config);
+  localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
+  populate();
+  await loadMusic();
+  storeSoulNames(p.soulNames||[]);
+  dirty=false;$('presetName').value=p.name;
+  setStatus('PRESET LOADED · '+p.name+' · PRESS PUBLISH LIVE WHEN READY');
+}
+async function deleteNamedPreset(){
+  const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
+  if(!p){setStatus('CHOOSE A SAVED PRESET');return}
+  if(!confirm('Delete the saved preset '+p.name+'?'))return;
+  setStatus('DELETING PRESET…');$('deletePreset').disabled=true;
+  try{
+    const r=await api('/presets',{method:'POST',body:JSON.stringify({action:'delete',id})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.error||'Preset delete failed');
+    presets=Array.isArray(d.presets)?d.presets:[];renderPresets();$('presetName').value='';
+    setStatus('PRESET DELETED · '+p.name);
+  }catch(e){setStatus(String(e.message||e))}
+  finally{$('deletePreset').disabled=false}
+}
+$('savePreset').onclick=saveNamedPreset;
+$('loadPreset').onclick=loadNamedPreset;
+$('deletePreset').onclick=deleteNamedPreset;
+$('presetSelect').addEventListener('change',()=>{
+  const p=presets.find(x=>x.id===$('presetSelect').value);
+  if(p)$('presetName').value=p.name;
+});
 
 function renderAlbums(){
   const wrap=$('albums');wrap.innerHTML='';
@@ -322,7 +427,13 @@ $('editorClose').onclick=()=>{$('screenEditor').classList.remove('show');showPla
 async function bootBackroom(){
   applyText(localStorage.getItem(TEXT_KEY)||115);
   cfg=localDraft()||await repoLive();populate();await loadMusic();
-  if(serverAuthenticated)setStatus('SIGNED IN · READY TO EDIT AND PUBLISH');else setStatus('READY TO EDIT · PUBLISHER STILL NEEDS CLOUDFLARE CONNECTION');
+  if(serverAuthenticated){
+    await refreshPresets();
+    setStatus('SIGNED IN · READY TO EDIT AND PUBLISH');
+  }else{
+    presets=[];renderPresets();
+    setStatus('READY TO EDIT · PUBLISHER STILL NEEDS CLOUDFLARE CONNECTION');
+  }
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 setTimeout(()=>$('gatePassword').focus(),100);
