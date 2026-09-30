@@ -134,6 +134,76 @@ async function publishLive(env,cfg){
   return {commit:result?.commit?.sha||'',contentSha:result?.content?.sha||'',config:out};
 }
 
+
+function decodeGithubText(content){
+  const raw=atob(String(content||'').replace(/\s/g,''));
+  const bytes=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  return dec.decode(bytes);
+}
+async function readPresetStore(env){
+  const branch=env.GITHUB_BRANCH||'main';
+  const path='config/backroom-presets.json';
+  const current=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+  if(current.status===404)return {store:{version:1,presets:[]},sha:''};
+  if(!current.ok)throw new Error('Could not read saved Back Room presets from GitHub.');
+  const data=await current.json();
+  let store={version:1,presets:[]};
+  try{store=JSON.parse(decodeGithubText(data.content||''))}catch(_e){}
+  if(!store||typeof store!=='object')store={version:1,presets:[]};
+  if(!Array.isArray(store.presets))store.presets=[];
+  return {store,sha:data.sha||''};
+}
+async function writePresetStore(env,store,sha=''){
+  const branch=env.GITHUB_BRANCH||'main';
+  const path='config/backroom-presets.json';
+  const content=JSON.stringify(store,null,2)+'\n';
+  if(content.length>1000000)throw new Error('Saved presets are too large.');
+  const body={
+    message:'Save Back Room website preset',
+    content:utf8B64(content),
+    branch
+  };
+  if(sha)body.sha=sha;
+  const update=await github(env,path,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  const result=await update.json().catch(()=>({}));
+  if(!update.ok)throw new Error(result?.message||'GitHub rejected the preset save.');
+  return result?.commit?.sha||'';
+}
+async function savePreset(env,preset){
+  if(!preset||typeof preset!=='object'||!validConfig(preset.config))throw new Error('Preset configuration is incomplete.');
+  const name=String(preset.name||'').trim().slice(0,60);
+  if(!name)throw new Error('Give this preset a name.');
+  const {store,sha}=await readPresetStore(env);
+  const now=new Date().toISOString();
+  const existing=(store.presets||[]).find(p=>String(p.name||'').toLowerCase()===name.toLowerCase());
+  const item={
+    id:existing?.id||crypto.randomUUID(),
+    name,
+    updatedAt:now,
+    config:structuredClone(preset.config),
+    soulNames:Array.isArray(preset.soulNames)?preset.soulNames.map(x=>String(x||'').slice(0,18)).slice(0,6):[]
+  };
+  store.version=1;
+  store.presets=(store.presets||[]).filter(p=>p.id!==item.id);
+  store.presets.unshift(item);
+  store.presets=store.presets.slice(0,50);
+  const commit=await writePresetStore(env,store,sha);
+  return {preset:item,presets:store.presets,commit};
+}
+async function deletePreset(env,id){
+  const {store,sha}=await readPresetStore(env);
+  const before=store.presets.length;
+  store.presets=store.presets.filter(p=>p.id!==id);
+  if(store.presets.length===before)throw new Error('Saved preset was not found.');
+  const commit=await writePresetStore(env,store,sha);
+  return {presets:store.presets,commit};
+}
+
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
@@ -169,6 +239,36 @@ export default {
     if(url.pathname==='/session'&&request.method==='GET'){
       const ok=await verifySession(env,bearer(request));
       return json({ok},ok?200:401,cors);
+    }
+
+    if(url.pathname==='/presets'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in again.'},401,cors);
+      try{
+        const {store}=await readPresetStore(env);
+        return json({ok:true,presets:store.presets||[]},200,cors);
+      }catch(error){
+        return json({ok:false,error:String(error?.message||error)},502,cors);
+      }
+    }
+
+    if(url.pathname==='/presets'&&request.method==='POST'){
+      if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in again.'},401,cors);
+      let body={};try{body=await request.json()}catch(_e){return json({ok:false,error:'Invalid JSON.'},400,cors)}
+      try{
+        if(body?.action==='save'){
+          const result=await savePreset(env,body.preset);
+          return json({ok:true,presets:result.presets,commit:result.commit,saved:result.preset},200,cors);
+        }
+        if(body?.action==='delete'){
+          const id=String(body.id||'');
+          if(!id)return json({ok:false,error:'Choose a preset.'},400,cors);
+          const result=await deletePreset(env,id);
+          return json({ok:true,presets:result.presets,commit:result.commit},200,cors);
+        }
+        return json({ok:false,error:'Unknown preset action.'},400,cors);
+      }catch(error){
+        return json({ok:false,error:String(error?.message||error)},502,cors);
+      }
     }
 
     if(url.pathname==='/publish'&&request.method==='POST'){
