@@ -1534,15 +1534,29 @@ def liquidsoap_command(command):
                 break
         return b"".join(chunks).decode("utf-8", "replace")
 
-def fade_music_gain(start_level, end_level, seconds=2.5, steps=12):
+MUSIC_FADE_LOCK = threading.RLock()
+MUSIC_FADE_GENERATION = 0
+
+def next_music_fade_generation():
+    global MUSIC_FADE_GENERATION
+    with MUSIC_FADE_LOCK:
+        MUSIC_FADE_GENERATION += 1
+        return MUSIC_FADE_GENERATION
+
+def fade_music_gain(start_level, end_level, seconds=2.5, steps=12, generation=None):
     start_level = max(0.0, min(1.25, float(start_level)))
     end_level = max(0.0, min(1.25, float(end_level)))
     steps = max(2, int(steps))
     pause = max(0.02, float(seconds) / steps)
     for i in range(1, steps + 1):
+        if generation is not None:
+            with MUSIC_FADE_LOCK:
+                if generation != MUSIC_FADE_GENERATION:
+                    return False
         value = start_level + (end_level - start_level) * (i / steps)
         mixer_zmq_command("volume@musicgain", "volume", f"{value:.4f}")
         time.sleep(pause)
+    return True
 
 def music_fade_action(action):
     state = mixer_state()
@@ -1552,22 +1566,27 @@ def music_fade_action(action):
     audible_target = base_target * (float(state.get("music_under_voice", 0.45)) if live else 1.0)
 
     if action in {"off", "fade_out"}:
+        generation = next_music_fade_generation()
         start = 0.0 if state.get("music_muted") else audible_target
-        fade_music_gain(start, 0.0, seconds=20.0, steps=80)
+        if not fade_music_gain(start, 0.0, seconds=20.0, steps=80, generation=generation):
+            return mixer_state(), "Music fade out was interrupted by another music command."
         state["music_muted"] = True
         write_json(MIXER_SETTINGS, state)
         permanent_state_save("radio_mixer_server", state)
         return state, "Music faded out over 20 seconds. Automation continues silently."
 
     if action in {"on", "fade_in"}:
+        generation = next_music_fade_generation()
         state["music_muted"] = False
         write_json(MIXER_SETTINGS, state)
         permanent_state_save("radio_mixer_server", state)
         mixer_zmq_command("volume@musicgain", "volume", "0.0")
-        fade_music_gain(0.0, audible_target, seconds=20.0, steps=80)
+        if not fade_music_gain(0.0, audible_target, seconds=20.0, steps=80, generation=generation):
+            return mixer_state(), "Music fade in was interrupted by another music command."
         return state, "Music faded in over 20 seconds at the current song position."
 
     if action == "stop":
+        next_music_fade_generation()
         mixer_zmq_command("volume@musicgain", "volume", "0.0")
         state["music_muted"] = True
         write_json(MIXER_SETTINGS, state)
