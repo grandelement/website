@@ -931,7 +931,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v32</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v33</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1676,13 +1676,23 @@ function micIsolationConfig(){
   const mode=MIC_ISOLATION_MODES[settings.mic.isolationMode]||MIC_ISOLATION_MODES.WALKING;
   return settings.mic.isolationOn?mode:{highpass:20,lowpass:20000,label:'MIC voice isolation off'};
 }
+function micIsolationNativeState(){
+  const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{},track=micStream?.getAudioTracks?.()[0],actual=track?.getSettings?.()||{};
+  return {echoSupported:!!supported.echoCancellation,noiseSupported:!!supported.noiseSuppression,echoActual:actual.echoCancellation===true,noiseActual:actual.noiseSuppression===true}
+}
 function syncMicIsolationUI(){
   const on=!!settings.mic.isolationOn,mode=String(settings.mic.isolationMode||'WALKING');
   const toggle=$('micIsolationToggle'),modes=$('micIsolationModes'),status=$('micIsolationStatus');
   if(toggle){toggle.classList.toggle('on',on);toggle.setAttribute('aria-pressed',on?'true':'false');toggle.textContent=on?'VOICE ISO ON':'VOICE ISO OFF'}
   if(modes)modes.hidden=!on;
   document.querySelectorAll('[data-iso-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.isoMode===mode)});
-  if(status){const cfg=micIsolationConfig();status.textContent=on?(cfg.label+' · native noise suppression requested'):'MIC voice isolation off'}
+  if(status){
+    const cfg=micIsolationConfig(),native=micIsolationNativeState();
+    if(!on)status.textContent='MIC voice isolation off';
+    else if(native.echoActual||native.noiseActual)status.textContent=cfg.label+' · iPHONE DSP ACTIVE'+(native.echoActual?' · ECHO CONTROL':'')+(native.noiseActual?' · NOISE SUPPRESSION':'');
+    else if(micStream)status.textContent=cfg.label+' · WEB VOICE FILTER ACTIVE · native suppression unavailable';
+    else status.textContent=cfg.label+' · opens with iPhone voice DSP + web filter';
+  }
 }
 function applyMicIsolationFilters(){
   const cfg=micIsolationConfig();
@@ -1692,7 +1702,7 @@ function applyMicIsolationFilters(){
 function micCaptureConstraints(){
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   const c={channelCount:{ideal:1},sampleRate:{ideal:48000}};
-  if(supported.echoCancellation)c.echoCancellation=false;
+  if(supported.echoCancellation)c.echoCancellation=!!settings.mic.isolationOn;
   if(supported.autoGainControl)c.autoGainControl=false;
   if(supported.noiseSuppression)c.noiseSuppression=!!settings.mic.isolationOn;
   const id=$('micDevice')?.value;if(id)c.deviceId={exact:id};
@@ -1704,14 +1714,14 @@ async function applyMicIsolation(){
   if(track?.applyConstraints){
     const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
     const c={channelCount:{ideal:1},sampleRate:{ideal:48000}};
-    if(supported.echoCancellation)c.echoCancellation=false;
+    if(supported.echoCancellation)c.echoCancellation=!!settings.mic.isolationOn;
     if(supported.autoGainControl)c.autoGainControl=false;
     if(supported.noiseSuppression)c.noiseSuppression=!!settings.mic.isolationOn;
-    try{await track.applyConstraints(c)}catch(_e){}
+    try{await track.applyConstraints(c)}catch(e){diagEvent('VOICE ISO CONSTRAINT',String(e&&e.message||e))}
   }
   syncMicIsolationUI();saveSettings();
 }
-async function ensureMicOpen(){await ensureAudio();if(micStream)return true;const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micPreamp).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();return true}
+async function ensureMicOpen(){await ensureAudio();if(micStream)return true;const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micPreamp).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();return true}
 async function openMic(){await ensureAudio();if(micStream){if(liveActive||micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';return}await ensureMicOpen();updateAirButtons()}
 async function warmDjSources(){await ensureAudio();await refreshDevices();updateAirButtons()}
 async function openLine(){await ensureAudio();if(lineStream){lineStream.getTracks().forEach(function(t){t.stop()});try{lineSource.disconnect()}catch(e){}lineStream=lineSource=null;$('lineOpen').textContent='OPEN INPUT';return}const id=$('lineDevice').value,cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000}};if(id)cons.deviceId={exact:id};lineStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(!lineGain)buildChannel('line');lineSource=ctx.createMediaStreamSource(lineStream);lineSource.connect(linePreamp).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineOpen').textContent='CLOSE INPUT';runChannelMeter('line')}
