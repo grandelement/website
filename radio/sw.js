@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.09.30-target-lock-live-meta-2';
+const VERSION='2026.09.30-loudness-lookahead-1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -21,6 +21,7 @@ const SHELL=[
   '../ge-images/images/ge-logo-2.jpg',
   '../ge-images/img/31.gif',
   './manifest.json',
+  './loudness.json',
   '../ge-images/img/manifest.json'
 ];
 
