@@ -254,7 +254,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .fanIdentity{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:5px;margin:7px 0}.fanIdentity input{min-height:38px;border:1px solid #3a4855;background:#02070b;color:#fff;border-radius:8px;padding:0 8px;font-size:calc(10px * var(--analytics-scale))}.fanIdentity button{min-height:38px;border:1px solid var(--accent);background:#10352f;color:#fff;border-radius:8px;font-size:calc(8px * var(--analytics-scale));font-weight:900}.fanTimeline{margin-top:7px;max-height:36vh;overflow:auto}
 @media(max-width:560px){.analyticsStats{grid-template-columns:1fr 1fr}#analyticsModal{padding:0}#analyticsModal .modalBox{height:100dvh;max-height:none;border-radius:0}.analyticsCustom{grid-template-columns:1fr}.analyticsDue{margin-left:0;width:100%}.analyticsDue input{flex:1}}
 
-/* v26 full-screen scalable mixer UI; V25 audio path frozen */
+/* v27 mixer reachability + cleaner DJ meters; V25 audio path frozen */
 .radioHealth{border-color:#31516a;background:linear-gradient(180deg,#07131d,#070b10)}
 .radioHealthHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .radioHealthState{font-size:11px;font-weight:950;color:var(--accent);margin-top:3px}
@@ -357,10 +357,36 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   #mixerSheet .touchFader{min-height:90px!important}
 }
 
+
+/* V27: mixer strips can extend below the visible grid and the whole grid scrolls vertically. */
+#mixerSheet .mixerGrid{
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  align-items:start!important;
+  overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:12px!important;
+}
+#mixerSheet .mixStrip{
+  height:max-content!important;
+  min-height:100%!important;
+  overflow:visible!important;
+}
+#mixerSheet .mixerScrollControl{
+  position:relative;
+  z-index:3;
+  background:#070b10;
+  border-top:1px solid #273744;
+}
+@media(max-width:560px){
+  #mixerSheet .mixerGrid{padding-bottom:18px!important}
+  #mixerSheet .touchFader{min-height:112px!important}
+}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v26</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v27</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth" id="radioHealth">
     <div class="radioHealthHead"><div><div class="label">RADIO CONNECTION + IPHONE DIAGNOSTICS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="copyDiagnostics">COPY STATS</button></div>
     <div class="radioHealthGrid">
@@ -380,7 +406,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
     </div>
     <div class="radioHealthActions"><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
   </div>
-  <div class="card"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div><button class="skipNow" id="skipNow" aria-label="Skip current track">▶▶</button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div><div class="hmeter"><div class="hmeterFill" id="radioMeter"></div></div></div>
+  <div class="card"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div><button class="skipNow" id="skipNow" aria-label="Skip current track">▶▶</button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div></div>
   <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><div class="sectionActions"><button class="miniAction" id="reshuffleQueue">RESHUFFLE</button><button class="miniAction" id="analyticsOpen">FANS</button><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
 </div>
 <audio id="radioAudio" preload="auto" playsinline crossorigin="anonymous" src="/hls/radio.m3u8"></audio>
