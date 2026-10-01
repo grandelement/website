@@ -1346,7 +1346,7 @@ document.querySelectorAll('[data-fxtoggle]').forEach(function(b){b.onclick=funct
 $('fxBalance').oninput=function(){settings[fxTarget].pan=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);syncFx()};
 $('fxReturnLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';$('mixFxLevel').value=this.value;$('mixFxRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
 $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.message||e)})};
-$('fxLoadPresets').onclick=function(){fxPresetLibraryOpen=!fxPresetLibraryOpen;syncFx()};
+$('fxLoadPresets').onclick=function(){fxPresetLibraryOpen=!fxPresetLibraryOpen;if(fxPresetLibraryOpen)loadFxPresets().catch(function(e){alert(e.message||e)});syncFx()};
 $('fxBackBtn').onclick=closeFx;
 document.querySelectorAll('[data-fxslot]').forEach(function(b){let timer=0,held=false;const clear=function(){if(timer){clearTimeout(timer);timer=0}};b.addEventListener('pointerdown',function(e){held=false;clear();timer=setTimeout(function(){held=true;saveCustomFxSlot(b.dataset.fxslot)},700);try{b.setPointerCapture(e.pointerId)}catch(_e){}});b.addEventListener('pointerup',function(){clear();if(!held)loadCustomFxSlot(b.dataset.fxslot)});b.addEventListener('pointercancel',clear);b.addEventListener('pointerleave',function(){if(!held)clear()})});
 async function setMixer(fields){const rr=await api('/control/mixer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)}),d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)throw new Error(d.error||'Mixer update failed');status.mixer=d.mixer;render()}
@@ -1416,7 +1416,7 @@ function applyMixerZoom(pct,save){
     if(grid)grid.style.setProperty('--mixer-cols',String(Math.max(1,visible)));
   }
   if($('mixerZoom'))$('mixerZoom').value=String(pct);
-  if($('mixerZoomRead'))$('mixerZoomRead').textContent=across===1?'1 STRIP':' '+across+' ACROSS';
+  if($('mixerZoomRead'))$('mixerZoomRead').textContent='WIDTH · '+(across===1?'1 STRIP':across+' ACROSS');
   requestAnimationFrame(syncTouchFaders);
   if(save)saveMixerLayout();
 }
