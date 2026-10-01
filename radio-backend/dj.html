@@ -1005,6 +1005,7 @@ async function ensurePcmBridge(){
  const blob=new Blob([PCM_WORKLET],{type:'application/javascript'}),url=URL.createObjectURL(blob);
  try{await ctx.audioWorklet.addModule(url)}finally{URL.revokeObjectURL(url)}
  pcmProcessor=new AudioWorkletNode(ctx,'ge-pcm',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
+ pcmProcessor.port.postMessage({type:'balance',value:clamp(Number(settings.mic.pan||0)/100,-1,1)});
  pcmMute=ctx.createGain();pcmMute.gain.value=0;
  liveGain.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(ctx.destination);
  pcmProcessor.port.onmessage=function(e){
