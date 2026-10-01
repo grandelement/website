@@ -582,6 +582,9 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   #mixerSheet .fxReturnLevel{grid-template-columns:100px 1fr}
 }
 
+
+#mixerSheet .fxMemoryHint{font-size:6px;letter-spacing:.08em;color:var(--muted);text-align:center;font-weight:900;margin:2px 0 3px}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
@@ -615,7 +618,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button><button data-close="mixerSheet">CLOSE</button></div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead" style="grid-column:1/-1">5 ACROSS</div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="remoteDeviceTools"><button id="linkDeviceBtn">LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxDockActions"><button id="fxBackBtn">BACK TO MIXER</button></div></div>
 <div class="fxPresetTop"><input id="fxPresetName" type="text" maxlength="80" placeholder="Preset name"><button id="fxSavePreset">SAVE</button><button id="fxLoadPresets">LOAD PRESETS</button></div>
-<div class="fxCustomSlots"><button data-fxslot="1">C1</button><button data-fxslot="2">C2</button><button data-fxslot="3">C3</button><button data-fxslot="4">C4</button></div>
+<div class="fxCustomSlots"><button data-fxslot="1">C1</button><button data-fxslot="2">C2</button><button data-fxslot="3">C3</button><button data-fxslot="4">C4</button></div><div class="fxMemoryHint">TAP = LOAD · HOLD = SAVE CURRENT FX</div>
 <div class="fxPresets fxPresetLibrary" id="fxPresets"></div>
 <div class="fxReturnPanel">
   <div class="fxLiveMeterHead"><b>FX RETURN</b><div></div><span id="fxReturnDb">-60 dB</span></div>
@@ -649,7 +652,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 <div class="mixStrip auxStrip auxHidden" id="mixAuxStudio"><h3>STUDIO</h3><small id="studioOwnerText">return</small><div class="hmeter"><div class="hmeterFill" id="mixStudioMeter"></div></div><input class="vf" id="mixStudioLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixStudioRead">100%</div><div class="mixBtns"><button id="studioOpenBtn">OPEN</button><button id="studioStopBtn">STOP</button></div><div class="mixBtns"><button data-close-aux="studio">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxFx"><h3>FX RETURN</h3><small id="mixFxTargetRead">MIC</small><div class="hmeter"><div class="hmeterFill" id="mixFxReturnMeter"></div></div><input class="vf" id="mixFxLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixFxRead">100%</div><div class="mixBtns"><button id="mixFxOpen">OPEN FX</button><button data-close-aux="fx">CLOSE</button></div></div>
 <div class="mixStrip master" data-channel-strip="master"><h3>MASTER</h3><small>PUBLIC OUTPUT</small><div class="masterMeterStack"><div class="masterMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="mixMasterRadioMeter"></div></div><span id="mixMasterRadioDb">-60</span></div><div class="masterMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="mixMasterDjMeter"></div></div><span id="mixMasterDjDb">-60</span></div><div class="masterMeterRow"><b>MASTER</b><div class="hmeter"><div class="hmeterFill" id="mixMasterMeter"></div></div><span id="mixMasterDb">-60</span></div></div><input class="vf" id="mixMasterLevel" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixMasterRead">100%</div><div class="mixBtns"><button id="masterMixControl">MIX</button><button id="masterRadioControl">RADIO</button><button id="masterStudioControl">STUDIO</button><button id="masterFxControl">FX</button></div><div class="mixBtns"><button id="masterStopLive">STOP LIVE</button></div></div>
-</div></div></div></div>
+</div></div></div>
 
 
 <div class="modal" id="analyticsModal"><div class="modalBox">
@@ -1347,7 +1350,7 @@ $('fxLoadPresets').onclick=function(){fxPresetLibraryOpen=!fxPresetLibraryOpen;s
 $('fxBackBtn').onclick=closeFx;
 document.querySelectorAll('[data-fxslot]').forEach(function(b){let timer=0,held=false;const clear=function(){if(timer){clearTimeout(timer);timer=0}};b.addEventListener('pointerdown',function(e){held=false;clear();timer=setTimeout(function(){held=true;saveCustomFxSlot(b.dataset.fxslot)},700);try{b.setPointerCapture(e.pointerId)}catch(_e){}});b.addEventListener('pointerup',function(){clear();if(!held)loadCustomFxSlot(b.dataset.fxslot)});b.addEventListener('pointercancel',clear);b.addEventListener('pointerleave',function(){if(!held)clear()})});
 async function setMixer(fields){const rr=await api('/control/mixer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)}),d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)throw new Error(d.error||'Mixer update failed');status.mixer=d.mixer;render()}
-function refreshMixerLayout(){applyMixerZoom(mixerLayout.zoom,false);requestAnimationFrame(syncTouchFaders)}
+function refreshMixerLayout(){const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');if(mixerLayout.locked){if(grid)grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));requestAnimationFrame(syncTouchFaders)}else applyMixerZoom(mixerLayout.zoom,false)}
 function setAuxVisible(id,show,buttonId){const el=$(id);if(!el)return;el.classList.toggle('auxHidden',!show);if(buttonId&&$(buttonId))$(buttonId).classList.toggle('on',show);refreshMixerLayout()}
 function toggleAux(id,buttonId){const el=$(id);if(!el)return;setAuxVisible(id,el.classList.contains('auxHidden'),buttonId)}
 function bindLocalMixer(){
@@ -1405,7 +1408,7 @@ function mixerVisibleCount(){return Array.from(document.querySelectorAll('#mixer
 function applyMixerZoom(pct,save){
   pct=clamp(Math.round(Number(pct)||20),20,100);
   pct=Math.round(pct/20)*20;mixerLayout.zoom=pct;
-  const visible=mixerVisibleCount(),wanted=clamp(6-Math.round(pct/20),1,5),across=Math.min(visible,wanted);
+  const visible=mixerVisibleCount(),widthMap={20:7,40:5,60:3,80:2,100:1},wanted=widthMap[pct]||3,across=Math.min(visible,wanted);
   const root=$('mixerSheet'),grid=root&&root.querySelector('.mixerGrid');
   if(root){
     root.style.setProperty('--mx-across',String(across));
@@ -1450,7 +1453,7 @@ function applyMixerChannels(save=true){
     if(strip){strip.classList.toggle('channelHidden',!box.checked);if(box.checked)visible++}
   });
   const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');
-  if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));applyMixerZoom(mixerLayout.zoom,false);requestAnimationFrame(function(){if(grid.scrollWidth<=grid.clientWidth+3)grid.scrollLeft=0})}
+  if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false);requestAnimationFrame(function(){if(grid.scrollWidth<=grid.clientWidth+3)grid.scrollLeft=0;syncTouchFaders()})}
   if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
   requestAnimationFrame(syncTouchFaders);
 }
