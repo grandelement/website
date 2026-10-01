@@ -278,6 +278,7 @@ body.arrange-mode *{user-select:none;-webkit-user-select:none;-webkit-touch-call
  #shipAnalysisHead{font-size:clamp(10px,.78vw,13px);font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#abebff;margin-bottom:5px}
  #shipAnalysisText{font-size:clamp(10px,.78vw,13px);line-height:1.30;white-space:pre-line;text-align:left}
  #shipStage.targeting-active #shipTargetReticle,#shipStage.targeting-active #shipTargetLabel{opacity:.94}
+ #shipStage.target-magnetic #shipTargetReticle .outer{border-color:rgba(168,246,255,.98);box-shadow:0 0 12px rgba(92,224,255,.62),0 0 28px rgba(56,232,255,.30)}
  #shipStage.target-locked #shipTargetReticle .outer{border-color:rgba(214,255,245,.98);box-shadow:0 0 10px rgba(117,255,222,.55),0 0 24px rgba(56,232,255,.28)}
  #shipStage.target-centered #shipTargetReticle .inner{border-color:rgba(255,255,255,1);box-shadow:0 0 12px rgba(255,255,255,.58)}
  #shipStage.scan-active #shipAnalysisPanel{opacity:1;transform:translateY(0)}
@@ -912,9 +913,9 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
         <div class="ship-reticle-h"></div><div class="ship-reticle-v"></div>
         <div class="ship-reticle-corners"><span></span><span></span><span></span><span></span></div>
       </div>
-      <div id="shipTargetLabel">Frequency Lock</div>
+      <div id="shipTargetLabel">Frequency Scan</div>
       <div id="shipAnalysisPanel">
-        <div id="shipAnalysisHead">Inner Planet Analysis</div>
+        <div id="shipAnalysisHead">Inner Frequency Analysis</div>
         <div id="shipAnalysisText">Passive scan active.</div>
       </div>
       <div id="shipEQOverlay" aria-hidden="true">
@@ -922,7 +923,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
         <div id="shipEQOverlayBars"></div>
       </div>
     </div>
-    <div id="shipRadarScope" role="button" tabindex="0" aria-label="Show target analysis"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div><div id="shipRadarTarget"></div></div>
+    <div id="shipRadarScope" role="button" tabindex="0" aria-label="Start frequency scan"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div><div id="shipRadarTarget"></div></div>
     <div id="shipDistanceMini">FREQUENCY RANGE<br>--</div>
     <div id="shipEQLeft" aria-hidden="true"></div>
     <div id="shipEQRight" role="button" tabindex="0" aria-label="Show live equalizer"></div>
@@ -1128,7 +1129,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.01-frequency-lock-1',
+  APP_VERSION: '2026.10.01-frequency-scan-game-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -3827,7 +3828,8 @@ $('reloadBtn').addEventListener('click',async()=>{
   const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
   let landscapeMode='ship';
   let analysisTypingTimer=0,analysisHideTimer=0;
-  let targetingActive=false,targetLocked=false,targetDiameterPx=0;
+  let targetingActive=false,targetLocked=false,targetDiameterPx=0,targetMagnetic=false;
+  const frequencyCursor={x:.50,y:.335,baseSize:76,lastReadAt:0,lastLabel:'FREQUENCY SCAN'};
   let autopilot=false,autopilotReason='manual';
   const approach={distance:.22,throttle:0,lastT:0,nextPing:0,dragging:false};
   const attitude={x:0,y:0,dragging:false};
@@ -4086,42 +4088,137 @@ $('reloadBtn').addEventListener('click',async()=>{
   function currentBackgroundZoom(){return lerp(1,1.22,Math.pow(approach.distance,1.18));}
   function currentVelocity(){return Math.abs(approach.throttle)<2?0:Math.round(Math.pow(Math.abs(approach.throttle)/100,1.65)*92000+120);}
   function currentEta(){const vel=currentVelocity(),dist=currentDistanceKm();if(approach.throttle<=2||!vel)return approach.throttle<-2?'Receding':'Holding';const sec=Math.max(1,Math.round(dist/vel));if(sec>3599)return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;}
-  function syncTargetToRenderedSun(){
-    if(!targetingActive||!stage||!shipLogo||!targetReticle)return false;
-    const stageRect=stage.getBoundingClientRect();
-    const sunRect=shipLogo.getBoundingClientRect();
-    if(!stageRect.width||!stageRect.height||!sunRect.width||!sunRect.height)return false;
+  function renderedSunGeometry(){
+    if(!stage||!shipLogo)return null;
+    const stageRect=stage.getBoundingClientRect(),sunRect=shipLogo.getBoundingClientRect();
+    if(!stageRect.width||!stageRect.height||!sunRect.width||!sunRect.height)return null;
+    return {
+      stageRect,
+      x:sunRect.left+sunRect.width/2-stageRect.left,
+      y:sunRect.top+sunRect.height/2-stageRect.top,
+      diameter:Math.max(sunRect.width,sunRect.height)
+    };
+  }
+  function frequencyFieldReading(distanceToSun,sunRadius){
+    const x=frequencyCursor.x,y=frequencyCursor.y;
+    const seed=Math.abs(Math.sin(x*19.73+y*31.17+approach.distance*7.91));
+    const seed2=Math.abs(Math.cos(x*37.11-y*17.63+approach.distance*11.47));
+    const flux=(6+seed*78).toFixed(1);
+    const phase=(seed2*360).toFixed(0);
+    const coherence=(18+(1-seed)*61).toFixed(1);
+    const harmonic=(3.2+seed2*28.4).toFixed(2);
+    const proximity=clamp(1-distanceToSun/Math.max(1,sunRadius*3.2),0,1);
+    if(targetLocked){
+      const dist=currentDistanceKm().toLocaleString();
+      const resonance=lerp(82.4,99.8,approach.distance).toFixed(1);
+      const ion=(48+seed*48).toFixed(1);
+      return `BLUE-SUN FREQUENCY ACQUIRED
+Frequency Range ${dist} km · ETA ${currentEta()}
+Core resonance ${resonance}% · Ion field ${ion}%
+Harmonic ${harmonic} THz · Phase ${phase}°
+Soul-field coherence ${(88+seed2*11).toFixed(1)}%`;
+    }
+    if(proximity>.18){
+      return `FREQUENCY PROXIMITY
+Blue-core harmonic detected · Capture ${Math.round(proximity*100)}%
+Local flux ${flux}% · Phase ${phase}°
+Resonance drift ${harmonic} THz
+Move deeper into the field to acquire frequency.`;
+    }
+    return `PARTICLE FIELD SCAN
+Local flux ${flux}% · Phase ${phase}°
+Field coherence ${coherence}% · Harmonic ${harmonic} THz
+Electron drift ${(seed*2-1).toFixed(2)} ψ · No dominant frequency acquired.`;
+  }
+  function syncFrequencyScanner(dt=.016){
+    if(!targetingActive||!stage||!targetReticle)return false;
+    const sun=renderedSunGeometry();
+    if(!sun)return false;
 
-    const centerX=sunRect.left+sunRect.width/2-stageRect.left;
-    const centerY=sunRect.top+sunRect.height/2-stageRect.top;
-    const xPct=centerX/stageRect.width*100;
-    const yPct=centerY/stageRect.height*100;
-    const diameter=Math.max(sunRect.width,sunRect.height);
-    const ringDiameter=Math.max(diameter*1.025,24);
+    const minX=.155,maxX=.845,minY=.09,maxY=.585;
+    frequencyCursor.x=clamp(frequencyCursor.x,minX,maxX);
+    frequencyCursor.y=clamp(frequencyCursor.y,minY,maxY);
 
-    targetDiameterPx=diameter;
-    targetReticle.style.left=centerX.toFixed(2)+'px';
-    targetReticle.style.top=centerY.toFixed(2)+'px';
+    let cursorX=frequencyCursor.x*sun.stageRect.width;
+    let cursorY=frequencyCursor.y*sun.stageRect.height;
+    const sunRadius=Math.max(12,sun.diameter/2);
+    let distance=Math.hypot(cursorX-sun.x,cursorY-sun.y);
+    const magneticRadius=Math.max(42,sunRadius*1.72);
+    const lockRadius=Math.max(18,sunRadius*.46);
+
+    // A deliberate strong steering move releases a locked frequency.
+    const manualBreak=targetLocked&&attitude.dragging&&Math.hypot(attitude.x,attitude.y)>.58;
+    if(manualBreak){
+      targetLocked=false;
+      targetMagnetic=false;
+      const nudgeX=attitude.x*sun.stageRect.width*.055;
+      const nudgeY=attitude.y*sun.stageRect.height*.055;
+      frequencyCursor.x=clamp((sun.x+nudgeX)/sun.stageRect.width,minX,maxX);
+      frequencyCursor.y=clamp((sun.y+nudgeY)/sun.stageRect.height,minY,maxY);
+      cursorX=frequencyCursor.x*sun.stageRect.width;
+      cursorY=frequencyCursor.y*sun.stageRect.height;
+      distance=Math.hypot(cursorX-sun.x,cursorY-sun.y);
+    }
+
+    if(!targetLocked){
+      targetMagnetic=distance<magneticRadius;
+      if(targetMagnetic){
+        const pull=clamp(1-distance/magneticRadius,0,1);
+        const alpha=clamp(dt*(1.4+pull*7.5),0,.36);
+        cursorX=lerp(cursorX,sun.x,alpha);
+        cursorY=lerp(cursorY,sun.y,alpha);
+        frequencyCursor.x=cursorX/sun.stageRect.width;
+        frequencyCursor.y=cursorY/sun.stageRect.height;
+        distance=Math.hypot(cursorX-sun.x,cursorY-sun.y);
+      }
+      if(distance<=lockRadius){
+        targetLocked=true;
+        targetMagnetic=true;
+        frequencyCursor.x=sun.x/sun.stageRect.width;
+        frequencyCursor.y=sun.y/sun.stageRect.height;
+        cursorX=sun.x;cursorY=sun.y;distance=0;
+      }
+    }else{
+      // Once acquired, lock follows the rendered blue sun until the user breaks it.
+      frequencyCursor.x=sun.x/sun.stageRect.width;
+      frequencyCursor.y=sun.y/sun.stageRect.height;
+      cursorX=sun.x;cursorY=sun.y;distance=0;
+      targetMagnetic=true;
+    }
+
+    const proximity=clamp(1-distance/magneticRadius,0,1);
+    const scanDiameter=Math.max(frequencyCursor.baseSize,Math.min(sun.stageRect.width*.12,116));
+    const ringDiameter=targetLocked
+      ? Math.max(24,sun.diameter*1.025)
+      : lerp(scanDiameter,Math.max(scanDiameter,sun.diameter*1.025),proximity*.72);
+
+    targetDiameterPx=ringDiameter;
+    targetReticle.style.left=cursorX.toFixed(2)+'px';
+    targetReticle.style.top=cursorY.toFixed(2)+'px';
     targetReticle.style.width=ringDiameter.toFixed(2)+'px';
     targetReticle.style.height=ringDiameter.toFixed(2)+'px';
 
-    // The windshield itself clips the target graphics. Lock state follows the
-    // real rendered sun center, not a second independent targeting coordinate.
-    targetLocked=xPct>14.8&&xPct<85.2&&yPct>8.0&&yPct<59.4;
-    const centered=targetLocked&&Math.max(Math.abs(course.x),Math.abs(course.y))<.035;
     stage.classList.toggle('target-locked',targetLocked);
-    stage.classList.toggle('target-centered',centered);
-    stage.classList.toggle('target-offscreen',!targetLocked);
+    stage.classList.toggle('target-magnetic',targetMagnetic&&!targetLocked);
+    stage.classList.toggle('target-centered',targetLocked);
+    stage.classList.remove('target-offscreen');
 
+    const xPct=cursorX/sun.stageRect.width*100,yPct=cursorY/sun.stageRect.height*100;
     if(targetLabel){
-      targetLabel.style.left=clamp(xPct+10,18,68)+'%';
+      targetLabel.style.left=clamp(xPct+8,18,68)+'%';
       targetLabel.style.top=clamp(yPct-7,9,48)+'%';
-      targetLabel.textContent=!targetLocked?'FREQUENCY OFFSCREEN':centered?'FREQUENCY CENTERED':'FREQUENCY LOCK';
+      targetLabel.textContent=targetLocked?'FREQUENCY LOCK':targetMagnetic?'FREQUENCY PULL':'FREQUENCY SCAN';
     }
     const analysisPanel=$('shipAnalysisPanel');
     if(analysisPanel){
-      analysisPanel.style.left=clamp(xPct+10,18,68)+'%';
+      analysisPanel.style.left=clamp(xPct+8,18,68)+'%';
       analysisPanel.style.top=clamp(yPct+1,14,46)+'%';
+    }
+
+    const now=performance.now();
+    if(now-frequencyCursor.lastReadAt>1150){
+      frequencyCursor.lastReadAt=now;
+      typeAnalysis(frequencyFieldReading(distance,sunRadius));
     }
     return targetLocked;
   }
@@ -4139,7 +4236,6 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(attitudeKnob){attitudeKnob.style.left=`${50+attitude.x*29}%`;attitudeKnob.style.top=`${50+attitude.y*29}%`;}
 
     if(radarTarget){radarTarget.style.left=`${clamp(50-course.x*31,4,96)}%`;radarTarget.style.top=`${clamp(50-course.y*31,4,96)}%`;}
-    if(targetingActive)syncTargetToRenderedSun();
   }
   function updateApproachUI(){
     const planetZoom=currentPlanetZoom(),backgroundZoom=currentBackgroundZoom(),throttle=approach.throttle;
@@ -4180,7 +4276,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(arrivalBg)arrivalBg.style.opacity=String(arrival);
     if(stageBg)stageBg.style.opacity=String(clamp(1-atmosphere*.18-arrival*.68,.14,1));
     const targetLayer=$('shipTargetLayer');if(targetLayer)targetLayer.style.opacity=String(clamp(1-atmosphere*.78,0.12,1));
-    if(arrival>.08 && stage){targetingActive=false;targetLocked=false;stage.classList.remove('scan-active','targeting-active','target-locked','target-centered');}
+    if(arrival>.08 && stage){targetingActive=false;targetLocked=false;stage.classList.remove('scan-active','targeting-active','target-locked','target-centered','target-magnetic');}
     if(approachLever){approachLever.setAttribute('aria-valuenow',String(Math.round(throttle)));approachLever.setAttribute('aria-valuetext',`${throttle>5?'Forward':throttle<-5?'Reverse':'Neutral'} ${Math.round(Math.abs(throttle))}%`);}
     if(approachKnob)approachKnob.style.top=`${50-throttle*.39}%`;
     const warp=clamp((Math.abs(throttle)-68)/32,0,1);if(warpLayer)warpLayer.style.opacity=String(warp*.82);
@@ -4201,7 +4297,6 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(distanceMini)distanceMini.innerHTML=`FREQUENCY RANGE<br>${currentDistanceKm().toLocaleString()} km`;
     if(radarTarget)radarTarget.style.width=`${clamp(5+planetZoom*2.2,5,38).toFixed(1)}%`;
     updateAttitudeUI();
-    if(targetingActive)syncTargetToRenderedSun();
   }
   function buildTelemetryLine(){
     const dist=currentDistanceKm(),distText=dist.toLocaleString(),eta=currentEta(),res=lerp(8.2,99.7,approach.distance).toFixed(1),flux=Math.round(lerp(12,98,approach.distance));
@@ -4230,20 +4325,20 @@ Vector ${vector}. ${pair[1]}.`;
     if(!analysisText)return;if(analysisTypingTimer)clearInterval(analysisTypingTimer);analysisText.textContent='';let i=0;
     analysisTypingTimer=setInterval(()=>{i+=1+((Math.random()*2)|0);analysisText.textContent=message.slice(0,i);if(i>=message.length){clearInterval(analysisTypingTimer);analysisTypingTimer=0;}},28+((Math.random()*32)|0));
   }
-  function triggerAnalysis(){
+  function triggerAnalysis({reset=false}={}){
     if(!stage || currentDistanceKm()<31)return;
-    if(analysisHideTimer)clearTimeout(analysisHideTimer);
+    if(analysisHideTimer){clearTimeout(analysisHideTimer);analysisHideTimer=0;}
+    if(reset||!targetingActive){
+      frequencyCursor.x=.50;
+      frequencyCursor.y=.335;
+      frequencyCursor.lastReadAt=0;
+      targetLocked=false;
+      targetMagnetic=false;
+    }
     targetingActive=true;
     stage.classList.add('targeting-active','scan-active');
-    const locked=syncTargetToRenderedSun();
-    const directionX=course.x>.18?'LEFT':course.x<-.18?'RIGHT':'';
-    const directionY=course.y>.18?'UP':course.y<-.18?'DOWN':'';
-    const direction=[directionY,directionX].filter(Boolean).join(' / ');
-    const diameterLine=targetDiameterPx>0?`FREQUENCY FIELD DIAMETER ${Math.round(targetDiameterPx)} px
-`:'';
-    typeAnalysis((!locked&&direction?`FREQUENCY OFFSCREEN — CORRECT ${direction}
-`:'')+diameterLine+buildTelemetryLine());
-    analysisHideTimer=setTimeout(()=>stage.classList.remove('scan-active'),rand(8500,13500));
+    stage.classList.remove('target-locked','target-centered','target-magnetic','target-offscreen');
+    syncFrequencyScanner(.016);
   }
   function updateRadarBlips(){
     if(!radarBlips)return;radarBlips.innerHTML='';const count=3+((Math.random()*3)|0);
@@ -4929,9 +5024,9 @@ Vector ${vector}. ${pair[1]}.`;
       bar.style.height=`${clamp(8+level*90,8,98).toFixed(1)}%`;bar.style.opacity=String(clamp(.32+level*.68,.32,1));
     });
   }
-  shipRadarScope?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();targetingActive=true;triggerAnalysis();});
-  window.addEventListener('resize',()=>{if(targetingActive)requestAnimationFrame(syncTargetToRenderedSun);});
-  shipRadarScope?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();targetingActive=true;triggerAnalysis();}});
+  shipRadarScope?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();triggerAnalysis({reset:true});});
+  window.addEventListener('resize',()=>{if(targetingActive)requestAnimationFrame(()=>syncFrequencyScanner(.016));});
+  shipRadarScope?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerAnalysis({reset:true});}});
   eqRight?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setEQOverlay(!eqOverlayOpen);});
   eqRight?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setEQOverlay(!eqOverlayOpen);}});
 
@@ -4982,8 +5077,9 @@ Vector ${vector}. ${pair[1]}.`;
     const arrivalSlow=(approach.throttle>0 && before<161)?lerp(.10,1,clamp(before/161,0,1)):1;
     approach.distance=clamp(approach.distance+Math.sign(approach.throttle)*rate*dt*arrivalSlow,.002,1);
     updateApproachUI();updateEQ();
+    if(targetingActive)syncFrequencyScanner(dt);
     if(!approach.nextPing)approach.nextPing=t+rand(18000,42000);
-    if(t>=approach.nextPing){if(targetingActive)triggerAnalysis();updateRadarBlips();approach.nextPing=t+rand(50000,135000);}
+    if(t>=approach.nextPing){if(targetingActive)syncFrequencyScanner(dt);updateRadarBlips();approach.nextPing=t+rand(50000,135000);}
     requestAnimationFrame(animationFrame);
   }
   function disengageAutopilot(){if(!autopilot)return;autopilot=false;autopilotReason='manual';setPressed(autoPilotBtn,false);}
@@ -5002,13 +5098,18 @@ Vector ${vector}. ${pair[1]}.`;
       rawX=soften(rawX);rawY=soften(rawY);
     }
     attitude.x=rawX;attitude.y=rawY;
+    if(targetingActive&&!targetLocked){
+      frequencyCursor.x=clamp(.50+rawX*.335,.155,.845);
+      frequencyCursor.y=clamp(.335+rawY*.245,.09,.585);
+      syncFrequencyScanner(.016);
+    }
     course.manualSteerAt=performance.now();
     updateAttitudeUI();
   }
   attitudeControl?.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();attitude.dragging=true;attitudeControl.setPointerCapture?.(event.pointerId);setAttitudeFromPoint(event.clientX,event.clientY);});
   attitudeControl?.addEventListener('pointermove',event=>{if(!attitude.dragging)return;event.preventDefault();setAttitudeFromPoint(event.clientX,event.clientY);});
   ['pointerup','pointercancel','lostpointercapture'].forEach(name=>attitudeControl?.addEventListener(name,()=>{attitude.dragging=false;}));
-  attitudeControl?.addEventListener('keydown',event=>{const step=event.shiftKey ? .25 : .12;let changed=true;if(event.key==='ArrowLeft')attitude.x=clamp(attitude.x-step,-1,1);else if(event.key==='ArrowRight')attitude.x=clamp(attitude.x+step,-1,1);else if(event.key==='ArrowUp')attitude.y=clamp(attitude.y-step,-1,1);else if(event.key==='ArrowDown')attitude.y=clamp(attitude.y+step,-1,1);else if(event.key==='Home'||event.key===' '){attitude.x=0;attitude.y=0;}else changed=false;if(changed){event.preventDefault();disengageAutopilot();updateAttitudeUI();}});
+  attitudeControl?.addEventListener('keydown',event=>{const step=event.shiftKey ? .25 : .12;let changed=true;if(event.key==='ArrowLeft')attitude.x=clamp(attitude.x-step,-1,1);else if(event.key==='ArrowRight')attitude.x=clamp(attitude.x+step,-1,1);else if(event.key==='ArrowUp')attitude.y=clamp(attitude.y-step,-1,1);else if(event.key==='ArrowDown')attitude.y=clamp(attitude.y+step,-1,1);else if(event.key==='Home'||event.key===' '){attitude.x=0;attitude.y=0;}else changed=false;if(changed){event.preventDefault();disengageAutopilot();if(targetingActive&&!targetLocked){frequencyCursor.x=clamp(.50+attitude.x*.335,.155,.845);frequencyCursor.y=clamp(.335+attitude.y*.245,.09,.585);syncFrequencyScanner(.016);}updateAttitudeUI();}});
 
   const REFLECTIONS_KEY='GE_SOUL_REFLECTIONS_V1';
   const SOUL_POST_ID_KEY='GE_SOUL_POST_ID_V2';
