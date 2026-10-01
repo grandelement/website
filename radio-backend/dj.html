@@ -797,7 +797,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v30</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v31</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth" id="radioHealth">
     <div class="radioHealthHead"><div><div class="label">RADIO CONNECTION + IPHONE DIAGNOSTICS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="copyDiagnostics">COPY STATS</button></div>
     <div class="radioHealthGrid">
@@ -825,43 +825,58 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 <div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO stays on the proven HLS monitor. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">LOCAL MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
 <div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">LINE / FILE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="note">Use an audio interface/line input or load a local audio file. LINE is off by default.</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="sourceSelect"><select id="lineDevice"><option value="">Default audio input</option></select><button id="lineOpen">OPEN INPUT</button></div><label class="sourceBtn" style="display:flex;align-items:center;justify-content:center">LOAD FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label><div class="note" id="lineName">No file loaded.</div><button class="cueBtn" id="lineCue">MONITOR OFF</button><button class="airBtn" id="lineAir">LINE OFF</button><button class="sourceBtn" id="lineFxOpen">LINE EFFECTS</button></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button><button data-close="mixerSheet">CLOSE</button></div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead" style="grid-column:1/-1">5 ACROSS</div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="remoteDeviceTools"><button id="linkDeviceBtn">LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
-<div class="fxDockHead"><div><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxDockActions"><button id="fxSetupToggle" aria-expanded="false">SETUP</button><button id="fxBackBtn">BACK TO MIXER</button></div></div>
-<div class="fxSetupDrawer" id="fxSetupDrawer" aria-hidden="true">
+<div class="fxDockHead"><div><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxDockActions"><button id="fxBackBtn">BACK TO MIXER</button></div></div>
+
 <div class="fxPresetTop"><input id="fxPresetName" type="text" maxlength="80" placeholder="Preset name"><button id="fxSavePreset">SAVE</button><button id="fxLoadPresets">LOAD PRESETS</button></div>
-<div class="fxCustomSlots"><button data-fxslot="1">C1</button><button data-fxslot="2">C2</button><button data-fxslot="3">C3</button><button data-fxslot="4">C4</button></div><div class="fxMemoryHint">TAP = LOAD · HOLD = SAVE CURRENT FX</div>
+<div class="fxCustomSlots"><button data-fxslot="1">C1</button><button data-fxslot="2">C2</button><button data-fxslot="3">C3</button><button data-fxslot="4">C4</button></div>
 <div class="fxPresets fxPresetLibrary" id="fxPresets"></div>
-<div class="fxIsolationPanel" id="fxIsolationPanel">
-  <button id="micIsolationToggle" type="button" aria-pressed="false">VOICE ISO OFF</button>
-  <div class="fxIsolationModes" id="micIsolationModes" hidden>
-    <button type="button" data-iso-mode="NATURAL">NATURAL</button>
-    <button type="button" data-iso-mode="WALKING">WALKING</button>
-    <button type="button" data-iso-mode="MAX">MAX</button>
+
+<div class="fxEffectButtons">
+  <button id="micIsolationToggle" class="voiceIso" type="button" aria-pressed="false">VOICE ISO OFF</button>
+  <button data-fxtoggle="comp">COMP</button>
+  <button data-fxtoggle="filter">FILTER</button>
+  <button data-fxtoggle="phaser">PHASER</button>
+  <button data-fxtoggle="delay">DELAY</button>
+  <button data-fxtoggle="reverb">REVERB</button>
+</div>
+<div class="fxIsolationModes" id="micIsolationModes" hidden>
+  <button type="button" data-iso-mode="NATURAL">NATURAL</button>
+  <button type="button" data-iso-mode="WALKING">WALKING</button>
+  <button type="button" data-iso-mode="MAX">MAX</button>
+</div>
+<small class="fxIsolationStatus" id="micIsolationStatus">MIC voice isolation off</small>
+
+<div class="fxLayoutBar">
+  <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
+  <input id="fxZoom" type="range" min="20" max="100" step="20" value="40" aria-label="Effect strip width">
+  <button id="fxZoomIn">+</button>
+  <label class="fxLock"><input id="fxLayoutLock" type="checkbox">LOCK</label>
+  <div class="fxZoomRead" id="fxZoomRead">WIDTH · 5 ACROSS</div>
+</div>
+
+<div class="fxCompactMeters">
+  <div class="fxReturnPanel">
+    <div class="fxLiveMeterHead"><b>FX RETURN</b><div></div><span id="fxReturnDb">-60 dB</span></div>
+    <div class="hmeter"><div class="hmeterFill" id="fxReturnMeter"></div></div>
+    <div class="fxReturnLevel"><label><span>RETURN</span><b id="fxReturnLevelRead">100%</b></label><input id="fxReturnLevel" type="range" min="0" max="150" value="100"></div>
   </div>
-  <small id="micIsolationStatus">MIC voice isolation off</small>
-</div>
-<div class="fxReturnPanel">
-  <div class="fxLiveMeterHead"><b>FX RETURN</b><div></div><span id="fxReturnDb">-60 dB</span></div>
-  <div class="hmeter"><div class="hmeterFill" id="fxReturnMeter"></div></div>
-  <div class="fxReturnLevel"><label><span>FX RETURN LEVEL</span><b id="fxReturnLevelRead">100%</b></label><input id="fxReturnLevel" type="range" min="0" max="150" value="100"></div>
-</div>
-<div class="fxLiveMeter">
-  <div class="fxLiveMeterHead"><b id="fxMeterLabel">MIC INPUT</b><div></div><span id="fxMeterDb">-60 dB</span></div>
-  <div class="hmeter" id="fxMeterTrack"><div class="hmeterFill" id="fxChannelMeter"></div><div class="threshold" id="fxThresholdMarker"></div></div>
-  <div class="fxLiveMeterFoot"><span>INPUT LEVEL</span><span id="fxCompLineText">COMP LINE -12 dB</span></div>
-</div>
-<div class="fxOutputControl"><label><span>OUTPUT BALANCE</span><b id="fxBalanceVal">C</b></label><input id="fxBalance" type="range" min="-100" max="100" value="0"></div>
-<div class="fxToggles"><button data-fxtoggle="comp">COMP</button><button data-fxtoggle="phaser">PHASER</button><button data-fxtoggle="delay">DELAY</button><button data-fxtoggle="reverb">REVERB</button></div>
+  <div class="fxLiveMeter">
+    <div class="fxLiveMeterHead"><b id="fxMeterLabel">MIC INPUT</b><div></div><span id="fxMeterDb">-60 dB</span></div>
+    <div class="hmeter" id="fxMeterTrack"><div class="hmeterFill" id="fxChannelMeter"></div><div class="threshold" id="fxThresholdMarker"></div></div>
+    <div class="fxLiveMeterFoot"><span>INPUT</span><span id="fxCompLineText">COMP LINE -12 dB</span></div>
+  </div>
+  <div class="fxOutputControl"><label><span>BALANCE</span><b id="fxBalanceVal">C</b></label><input id="fxBalance" type="range" min="-100" max="100" value="0"></div>
 </div>
 <div class="fxControlGrid">
-<div class="bigSlider"><label><span>INPUT GAIN</span><span id="fxPreampVal">+12 dB</span></label><input class="fxvf" orient="vertical" id="fxPreamp" type="range" min="0" max="30" step="1" value="12"></div>
-<div class="bigSlider"><label><span>COMP THRESHOLD</span><span id="fxThresholdVal"></span></label><input class="fxvf" orient="vertical" id="fxThreshold" type="range" min="-40" max="-2" value="-12"></div>
-<div class="bigSlider"><label><span>COMP RATIO</span><span id="fxRatioVal"></span></label><input class="fxvf" orient="vertical" id="fxRatio" type="range" min="1" max="20" value="6"></div>
-<div class="bigSlider"><label><span>FILTER</span><span id="fxFrequencyVal"></span></label><input class="fxvf" orient="vertical" id="fxFrequency" type="range" min="-100" max="100" value="0"></div>
-<div class="bigSlider"><label><span>PHASER</span><span id="fxPhaserVal"></span></label><input class="fxvf" orient="vertical" id="fxPhaser" type="range" min="0" max="100" value="0"></div>
-<div class="bigSlider"><label><span>A · DELAY</span><span id="fxDelayVal"></span></label><input class="fxvf" orient="vertical" id="fxDelay" type="range" min="0" max="100" value="20"></div>
-<div class="bigSlider"><label><span>DELAY TIME</span><span id="fxDelayTimeVal"></span></label><input class="fxvf" orient="vertical" id="fxDelayTime" type="range" min="40" max="1200" value="320"></div>
-<div class="bigSlider"><label><span>FEEDBACK</span><span id="fxFeedbackVal"></span></label><input class="fxvf" orient="vertical" id="fxFeedback" type="range" min="0" max="85" value="22"></div>
-<div class="bigSlider"><label><span>B · REVERB</span><span id="fxReverbVal"></span></label><input class="fxvf" orient="vertical" id="fxReverb" type="range" min="0" max="100" value="15"></div>
+<div class="bigSlider" data-fx-control="always"><label><span>INPUT GAIN</span><span id="fxPreampVal">+12 dB</span></label><input class="fxvf" orient="vertical" id="fxPreamp" type="range" min="0" max="30" step="1" value="12"></div>
+<div class="bigSlider" data-fx-control="comp"><label><span>COMP THRESHOLD</span><span id="fxThresholdVal"></span></label><input class="fxvf" orient="vertical" id="fxThreshold" type="range" min="-40" max="-2" value="-12"></div>
+<div class="bigSlider" data-fx-control="comp"><label><span>COMP RATIO</span><span id="fxRatioVal"></span></label><input class="fxvf" orient="vertical" id="fxRatio" type="range" min="1" max="20" value="6"></div>
+<div class="bigSlider" data-fx-control="filter"><label><span>FILTER</span><span id="fxFrequencyVal"></span></label><input class="fxvf" orient="vertical" id="fxFrequency" type="range" min="-100" max="100" value="0"></div>
+<div class="bigSlider" data-fx-control="phaser"><label><span>PHASER</span><span id="fxPhaserVal"></span></label><input class="fxvf" orient="vertical" id="fxPhaser" type="range" min="0" max="100" value="0"></div>
+<div class="bigSlider" data-fx-control="delay"><label><span>A · DELAY</span><span id="fxDelayVal"></span></label><input class="fxvf" orient="vertical" id="fxDelay" type="range" min="0" max="100" value="20"></div>
+<div class="bigSlider" data-fx-control="delay"><label><span>DELAY TIME</span><span id="fxDelayTimeVal"></span></label><input class="fxvf" orient="vertical" id="fxDelayTime" type="range" min="40" max="1200" value="320"></div>
+<div class="bigSlider" data-fx-control="delay"><label><span>FEEDBACK</span><span id="fxFeedbackVal"></span></label><input class="fxvf" orient="vertical" id="fxFeedback" type="range" min="0" max="85" value="22"></div>
+<div class="bigSlider" data-fx-control="reverb"><label><span>B · REVERB</span><span id="fxReverbVal"></span></label><input class="fxvf" orient="vertical" id="fxReverb" type="range" min="0" max="100" value="15"></div>
 </div></div>
 <div class="mixerGrid">
 <div class="mixStrip" data-channel-strip="mic"><h3>1 · MIC</h3><small>voice</small><div class="hmeter" data-mix-threshold="mic"><div class="hmeterFill" id="mixMicMeter"></div><div class="threshold" id="mixMicThreshold"></div></div><input class="vf" id="mixMicLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixMicRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixMicSendA">SEND A</button><button class="sendState" id="mixMicSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixMicSendB">SEND B</button><button class="sendState" id="mixMicSendBOn">ON</button></div><div class="mixBtns"><button id="mixMicCue">MONITOR</button><button id="mixMicAir">MIC LINK</button><button data-fx="mic">FX</button><button id="mixMicMute">MUTE</button></div></div>
@@ -903,6 +918,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
     <div class="playlistCommand">
       <input class="playlistName" id="playlistName" placeholder="Playlist name">
       <button id="playlistSelect">SELECT</button>
+      <button id="playlistLoad">LOAD</button>
       <button class="go" id="playlistSave">SAVE</button>
       <button class="go" id="playlistUse">USE ON RADIO</button>
     </div>
