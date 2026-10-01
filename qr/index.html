@@ -136,10 +136,6 @@ html,body{
   let animationFinished = false;
   let siteReady = false;
 
-  // Timing remains the same as the version you liked:
-  // 0 - 3.5s: stars only
-  // 3.5 - 5.2s: sun fades in while stationary
-  // 5.2 - 11.2s: continuous accelerating zoom
   const STARS_ONLY = 3500;
   const FADE_IN = 1700;
   const ZOOM_START = STARS_ONLY + FADE_IN;
@@ -163,17 +159,19 @@ html,body{
     if(leaving || !animationFinished || !siteReady) return;
 
     leaving = true;
-
-    // Keep the blurred portal frame over the already-loaded homepage,
-    // then dissolve it so the real site appears underneath.
     gate.classList.add('holding');
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => gate.classList.add('done'));
     });
 
+    // IMPORTANT: do not navigate to "/" here.
+    // The homepage is already fully loaded in the iframe behind the gate.
+    // Navigating again caused the visible second load/moon jump.
+    // Replace only the address-bar URL without reloading the page.
     setTimeout(() => {
-      try { location.replace('/'); } catch(e) {}
+      try { history.replaceState({qrGate:true}, '', '/'); } catch(e) {}
+      try { site.contentWindow.focus(); } catch(e) {}
     }, 900);
   }
 
@@ -181,8 +179,6 @@ html,body{
     if(animationFinished) return;
     animationFinished = true;
 
-    // IMPORTANT: never return to the stars after the sun disappears.
-    // Stay on the blurred portal until the homepage is ready.
     gate.classList.add('holding');
     stars.style.opacity = '0';
     portalBlur.style.opacity = '1';
@@ -215,8 +211,6 @@ html,body{
       brightness = 1 + 0.72 * Math.pow(p, 2.6);
       saturation = 1 + 0.08 * smoothstep(p);
 
-      // During the final rush, remove the stars while the sun itself
-      // blows out into the blur. That blur then remains until the site is ready.
       if(p > 0.86){
         const q = smoothstep((p - 0.86) / 0.14);
         starsOpacity = 1 - q;
@@ -280,8 +274,6 @@ html,body{
     rafId = requestAnimationFrame(draw);
   }
 
-  // Failsafe: if the homepage is unusually slow, stay blurred rather than
-  // exposing the star field again, then continue through after a reasonable wait.
   setTimeout(() => {
     if(!animationFinished) finishAnimation();
     if(!siteReady) siteReady = true;
