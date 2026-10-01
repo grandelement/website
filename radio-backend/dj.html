@@ -1204,10 +1204,15 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .sourceSelect select,.sourceSelect button,.sourceSelect label{font-size:10px!important}
 .livePathStatus{font-size:10px!important}
 
+
+/* V39 local monitor safety + stop/play state. */
+.nowTransport .playMusicNow{border-color:#55d8c1!important;background:#12382f!important}
+#dockCue.on,#mixMicCue.on,#micCue.on{border-color:#62adff!important;background:#18527d!important}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v38</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v39</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1627,10 +1632,18 @@ async function reshuffleQueue(){
  }
 }
 async function skipCurrent(){const b=$('skipNow');if(!b||b.disabled)return;b.disabled=true;try{const r=await api('/control/skip',{method:'POST'}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Skip failed');setTimeout(poll,350);setTimeout(poll,1400);if(radioMonitorOn){setTimeout(function(){reconnectRadioMonitor().catch(function(e){diagEvent('SKIP MONITOR RECONNECT',String(e&&e.message||e))})},500)}}catch(e){alert(e.message||e)}finally{setTimeout(function(){b.disabled=false},1200)}}
+function syncStopPlayButton(){
+ const b=$('stopMusicNow');if(!b)return;
+ const stopped=!!(status&&status.mixer&&status.mixer.music_muted);
+ b.classList.toggle('playMusicNow',stopped);
+ b.classList.toggle('stopMusicNow',!stopped);
+ b.innerHTML=stopped?'<b>▶</b><span>PLAY</span>':'<b>■</b><span>STOP</span>';
+ b.setAttribute('aria-label',stopped?'Play music immediately':'Stop music');
+}
 async function runMusicAction(action,button){
  if(!button||button.disabled)return;
- const old=button.innerHTML;button.disabled=true;
- const working=action==='fade_out'?'<b>↘</b><span>FADING…</span>':action==='fade_in'?'<b>↗</b><span>FADING…</span>':'<b>■</b><span>STOPPING…</span>';
+ button.disabled=true;
+ const working=action==='fade_out'?'<b>↘</b><span>FADING…</span>':action==='fade_in'?'<b>↗</b><span>FADING…</span>':action==='play'?'<b>▶</b><span>PLAYING…</span>':'<b>■</b><span>STOPPING…</span>';
  button.innerHTML=working;
  try{
    const r=await api('/control/music-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action})}),d=await r.json().catch(function(){return {}});
@@ -1638,10 +1651,10 @@ async function runMusicAction(action,button){
    if(status&&d.mixer)status.mixer=d.mixer;
    await poll();
  }catch(e){alert(e.message||e)}
- finally{button.innerHTML=old;button.disabled=false}
+ finally{button.disabled=false;syncStopPlayButton()}
 }
 function queueItems(){const a=[];if(status&&status.next&&status.next.slot)a.push(status.next);((status&&status.coming)||[]).forEach(function(x){if(x&&x.slot&&!a.some(function(y){return y.slot===x.slot}))a.push(x)});return a.slice(0,5)}
-function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
@@ -1876,20 +1889,21 @@ async function startMicOnAir(){
  $('micPathStatus').textContent='LOCAL MIC READY · MIC LINK CONNECTED';
  updateAirButtons();return true
 }
-async function stopMicOnAir(){
- diagEvent('MIC STOP REQUEST');
+async function stopMicOnAir(options){
+ const preserveMic=!!(options&&options.preserveMic);
+ diagEvent('MIC STOP REQUEST',preserveMic?'preserve local monitor':'close local mic');
  micAirOn=false;
  if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
  pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
  liveActive=false;liveTransport='';
  const ws=liveSocket;liveSocket=null;try{ws&&ws.close()}catch(e){}
  await api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'dj'})}).catch(function(){});
- if(!micCueOn&&micStream){
+ if(!preserveMic&&!micCueOn&&micStream){
    micStream.getTracks().forEach(function(t){t.stop()});
    try{micSource&&micSource.disconnect()}catch(e){}
    micStream=micSource=null;$('micOpen').textContent='OPEN MIC'
  }
- $('micPathStatus').textContent='MIC OFF · RADIO CONTINUES';
+ $('micPathStatus').textContent=preserveMic?'LOCAL MONITOR READY · MIC OFF AIR':'MIC OFF · RADIO CONTINUES';
  updateAirButtons()
 }
 async function toggleMicOnAir(){
@@ -2013,11 +2027,34 @@ function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if
 function runFxReturnMeter(kind){const an=kind==='mic'?micFxAnalyser:lineFxAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(fxTarget===kind){setMeterLevel('fxReturnMeter',pct);setMeterLevel('mixFxReturnMeter',pct);if($('fxReturnDb'))$('fxReturnDb').textContent=db.toFixed(0)+' dB'}if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind){setMeterLevel('sendAuxMeter',pct)}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runMasterMeter(){if(!contributionAnalyser)return;const a=new Uint8Array(contributionAnalyser.fftSize);const loop=function(){contributionAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);djLevelDb=db;djLevelPct=pct;setMeterLevel('mixMasterDjMeter',pct);if($('mixMasterDjDb'))$('mixMasterDjDb').textContent=db.toFixed(0);setMeterLevel('mixMasterMeter',pct);if($('mixMasterDb'))$('mixMasterDb').textContent=db.toFixed(0);requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 
-async function toggleCue(kind){await ensureAudio();const turningOn=kind==='mic'?!micCueOn:!lineCueOn;if(turningOn&&!(await allowCueMonitor()))return;if(kind==='mic'&&turningOn&&(liveActive||micAirOn))await stopMicOnAir();if(kind==='mic'&&!micStream)await ensureMicOpen();if(kind==='line'&&!lineGain)await openLine();if(kind==='mic'){micCueOn=!micCueOn;micCueGain.gain.setTargetAtTime(micCueOn?1:0,ctx.currentTime,.02)}else{lineCueOn=!lineCueOn;lineCueGain.gain.setTargetAtTime(lineCueOn?1:0,ctx.currentTime,.02)}updateAirButtons()}
+async function toggleCue(kind){
+ await ensureAudio();
+ const turningOn=kind==='mic'?!micCueOn:!lineCueOn;
+ if(turningOn&&!(await allowCueMonitor()))return;
+ if(kind==='mic'){
+   if(turningOn){
+     if(!micStream)await ensureMicOpen();
+     // V39: MONITOR is strictly local. Arm local monitoring first so LIVE -> MONITOR never closes the mic.
+     micCueOn=true;
+     if(liveActive||micAirOn)await stopMicOnAir({preserveMic:true});
+     if(micCueGain)micCueGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
+     $('micPathStatus').textContent='LOCAL MONITOR · OFF AIR · EFFECTS ACTIVE';
+   }else{
+     micCueOn=false;
+     if(micCueGain)micCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+     $('micPathStatus').textContent='LOCAL MIC READY · MONITOR OFF · MIC LINK OFF';
+   }
+ }else{
+   if(!lineGain)await openLine();
+   lineCueOn=!lineCueOn;
+   if(lineCueGain)lineCueGain.gain.setTargetAtTime(lineCueOn?1:0,ctx.currentTime,.02);
+ }
+ updateAirButtons()
+}
 function updateAirButtons(){
  const set=function(id,on,textOff,textOn){const e=$(id);if(!e)return;e.classList.toggle('on',on);e.classList.toggle('air',on);e.textContent=on?textOn:textOff};
- set('micCue',micCueOn,'MONITOR OFF','MONITOR ON');set('lineCue',lineCueOn,'MONITOR OFF','MONITOR ON');
-  set('mixMicCue',micCueOn,'MONITOR','MONITOR ON');set('mixLineCue',lineCueOn,'MONITOR','MONITOR ON');
+ set('micCue',micCueOn,'MONITOR OFF','LOCAL MONITOR');set('lineCue',lineCueOn,'MONITOR OFF','MONITOR ON');
+  set('mixMicCue',micCueOn,'MONITOR','LOCAL MONITOR');set('mixLineCue',lineCueOn,'MONITOR','MONITOR ON');
  const starting=!!micAirToggleBusy,on=!!(micAirOn&&liveActive);
  if($('micAir')){$('micAir').disabled=starting;$('micAir').classList.toggle('on',on);$('micAir').textContent=starting?'CONNECTING…':(on?'MIC LINKED':'MIC LINK OFF')}
  if($('mixMicAir')){$('mixMicAir').disabled=starting;$('mixMicAir').classList.toggle('air',on);$('mixMicAir').textContent=starting?'CONNECTING':(on?'MIC LINK':'MIC LINK')}
@@ -2025,7 +2062,7 @@ function updateAirButtons(){
  if($('mixLineAir')){$('mixLineAir').disabled=true;$('mixLineAir').textContent='ON AIR'}
  $('dockMic').disabled=starting;$('dockMic').classList.toggle('onair',on);
  $('dockMic').textContent=starting?'MIC CONNECTING':(on?'MIC LINKED':'MIC');
- $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'MONITOR ON':'MONITOR'
+ $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'LOCAL MONITOR':'MONITOR'
 }
 async function refreshDevices(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(function(d){return d.kind==='audioinput'});['micDevice','lineDevice'].forEach(function(id){const sel=$(id),cur=sel.value;sel.innerHTML='<option value="">Default audio input</option>';ds.forEach(function(d,i){const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Audio input '+(i+1));sel.appendChild(o)});if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur})}catch(e){}}
 function updateThresholds(){['mic','line'].forEach(function(k){const pct=clamp((settings[k].threshold+60)/60*100,0,100),cap=k==='mic'?'Mic':'Line';[k+'Threshold','mix'+cap+'Threshold'].forEach(function(id){const e=$(id);if(e)e.style.left=pct+'%'})})}function bindThreshold(el,kind){let drag=false;const set=function(e){const r=el.getBoundingClientRect(),f=clamp((e.clientX-r.left)/r.width,0,1),db=clamp(-60+f*60,-40,-2);settings[kind].threshold=Math.round(db);applyChannel(kind);if(fxTarget===kind)syncFx()};el.addEventListener('pointerdown',function(e){drag=true;el.setPointerCapture&&el.setPointerCapture(e.pointerId);set(e)});el.addEventListener('pointermove',function(e){if(drag)set(e)});el.addEventListener('pointerup',function(){drag=false});el.addEventListener('pointercancel',function(){drag=false})}bindThreshold($('micSheet').querySelector('[data-threshold-meter]'),'mic');bindThreshold($('lineSheet').querySelector('[data-line-threshold]'),'line');bindThreshold(document.querySelector('[data-mix-threshold="mic"]'),'mic');bindThreshold(document.querySelector('[data-mix-threshold="line"]'),'line');
@@ -2298,6 +2335,6 @@ $('playlistMasterSongs').onchange=function(){setAlbumChecked(playlistAlbum,this.
 $('skipNow').onclick=skipCurrent;
 $('fadeOutNow').onclick=function(){runMusicAction('fade_out',this)};
 $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
-$('stopMusicNow').onclick=function(){runMusicAction('stop',this)};
+$('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){})},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
