@@ -1593,6 +1593,14 @@ def music_fade_action(action):
         permanent_state_save("radio_mixer_server", state)
         return state, "Music stopped immediately. Automation continues silently."
 
+    if action == "play":
+        next_music_fade_generation()
+        state["music_muted"] = False
+        write_json(MIXER_SETTINGS, state)
+        permanent_state_save("radio_mixer_server", state)
+        apply_mixer_state(state)
+        return state, "Music restored immediately at the current song position."
+
     raise ValueError("Unknown music action.")
 
 
