@@ -1410,10 +1410,13 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 
 /* V43 simplified vocal strip */
 #micIsolationModes,#micIsolationStatus,#fxIsoLevelWrap{display:none!important}
+
+/* V45 framework reset: six primary DJ controls always stay on one row. */
+.dockin{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-auto-flow:column!important;width:100%!important;max-width:940px!important;gap:4px!important}.dockin>button{min-width:0!important;width:100%!important;padding-left:2px!important;padding-right:2px!important;overflow:hidden!important;white-space:nowrap!important}@media(max-width:560px){.dockin{grid-template-columns:repeat(6,minmax(0,1fr))!important}.dock button{min-height:50px!important;font-size:7px!important}}@media(orientation:landscape) and (max-height:620px){.dockin{grid-template-columns:repeat(6,minmax(0,1fr))!important}}
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v44</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v45</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2298,7 +2301,7 @@ function applyChannel(kind){
  if(g)g.gain.value=c.mute?0:c.level/100;
  if(fx)fx.gain.value=clamp(Number(c.fxLevel==null?100:c.fxLevel)/100,0,1.5);
  const bal=clamp(Number(c.pan||0)/100,-1,1);
- if(isMic&&micBalanceL&&micBalanceR){micBalanceL.gain.value=bal<=0?1:1-bal;micBalanceR.gain.value=bal>=0?1:1+bal;if(pcmProcessor)pcmProcessor.port.postMessage({type:'balance',value:bal})}
+ if(isMic&&micBalanceL&&micBalanceR){micBalanceL.gain.value=bal<=0?1:1-bal;micBalanceR.gain.value=bal>=0?1:1+bal}
  else if(pan&&pan.pan)pan.pan.value=bal;
  if(cuePan&&cuePan.pan)cuePan.pan.value=bal;
  const cs=clamp(Number(c.compStrength==null?(c.compOn?60:0):c.compStrength),0,100);
@@ -2479,7 +2482,7 @@ if($('fxReturnLevel'))$('fxReturnLevel').oninput=function(){settings[fxTarget].f
 $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.message||e)})};
 $('fxLoadPresets').onclick=function(){fxPresetLibraryOpen=!fxPresetLibraryOpen;if(fxPresetLibraryOpen)loadFxPresets().catch(function(e){alert(e.message||e)});syncFx()};
 $('fxBackBtn').onclick=closeFx;
-$('micIsolationToggle').onclick=function(){
+if($('micIsolationToggle'))$('micIsolationToggle').onclick=function(){
   if(settings.mic.isolationOn){settings.mic.isolationOn=false;isoModePickerOpen=false;void applyMicIsolation();return}
   isoModePickerOpen=true;syncMicIsolationUI();
 };
