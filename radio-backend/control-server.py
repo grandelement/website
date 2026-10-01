@@ -1697,6 +1697,28 @@ def drop_stop(fast=False):
         "mixer": mixer_state(),
     }
 
+
+def expand_lowband_voice(payload, pan=0.0):
+    """Expand 24 kHz mono s16le WebSocket voice to the engine's 48 kHz stereo s16le."""
+    if not payload:
+        return b""
+    try:
+        pan = max(-1.0, min(1.0, float(pan)))
+    except Exception:
+        pan = 0.0
+    gl = 1.0 if pan <= 0 else 1.0 - pan
+    gr = 1.0 if pan >= 0 else 1.0 + pan
+    out = bytearray()
+    usable = len(payload) - (len(payload) % 2)
+    for i in range(0, usable, 2):
+        sample = int.from_bytes(payload[i:i+2], "little", signed=True)
+        left = max(-32768, min(32767, int(sample * gl)))
+        right = max(-32768, min(32767, int(sample * gr)))
+        frame = left.to_bytes(2, "little", signed=True) + right.to_bytes(2, "little", signed=True)
+        out.extend(frame)
+        out.extend(frame)
+    return bytes(out)
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "GERadioDJ/1.0"
 
@@ -1770,7 +1792,7 @@ class Handler(BaseHTTPRequestHandler):
             head.extend(struct.pack("!Q", n))
         self.connection.sendall(bytes(head) + payload)
 
-    def _serve_live_websocket(self, token):
+    def _serve_live_websocket(self, token, voice_mode="", pan=0.0):
         if not consume_live_session(token):
             self.send_response(401)
             self.end_headers()
@@ -1821,8 +1843,17 @@ class Handler(BaseHTTPRequestHandler):
                     break
                 elif opcode == 0x9:
                     self._ws_send(0xA, payload[:125])
+                elif opcode == 0x1:
+                    try:
+                        command = payload.decode("utf-8", "ignore").strip()
+                        if command.upper().startswith("PAN "):
+                            pan = max(-1.0, min(1.0, float(command.split(None, 1)[1])))
+                    except Exception:
+                        pass
                 elif opcode == 0x2:
-                    broadcast_engine().write_pcm(payload)
+                    pcm = expand_lowband_voice(payload, pan) if voice_mode == "lowband" else payload
+                    if pcm:
+                        broadcast_engine().write_pcm(pcm)
         except Exception as exc:
             print(f"GE Radio: direct DJ WebSocket ended: {exc}", flush=True)
 
@@ -1884,7 +1915,10 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/control/live":
             qs = urllib.parse.parse_qs(parsed.query)
             token = (qs.get("token") or [""])[0]
-            self._serve_live_websocket(token)
+            voice_mode = (qs.get("voice") or [""])[0].strip().lower()
+            try: pan = float((qs.get("pan") or ["0"])[0])
+            except Exception: pan = 0.0
+            self._serve_live_websocket(token, voice_mode=voice_mode, pan=pan)
             return
 
         if parsed.path == "/control/realtime-ingest":
