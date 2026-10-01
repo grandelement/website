@@ -1546,26 +1546,33 @@ def fade_music_gain(start_level, end_level, seconds=2.5, steps=12):
 
 def music_fade_action(action):
     state = mixer_state()
-    action = str(action or "").lower()
-    target = float(state.get("music_level", 1.0))
-    if action == "off":
-        start = 0.0 if state.get("music_muted") else target
-        fade_music_gain(start, 0.0, seconds=2.8, steps=14)
+    action = str(action or "").strip().lower()
+    base_target = float(state.get("music_level", 1.0))
+    live = bool(globals().get("BROADCAST") is not None and getattr(globals().get("BROADCAST"), "active", False))
+    audible_target = base_target * (float(state.get("music_under_voice", 0.45)) if live else 1.0)
+
+    if action in {"off", "fade_out"}:
+        start = 0.0 if state.get("music_muted") else audible_target
+        fade_music_gain(start, 0.0, seconds=20.0, steps=80)
         state["music_muted"] = True
         write_json(MIXER_SETTINGS, state)
-        return state, "Music faded out. Automation continues silently."
+        permanent_state_save("radio_mixer_server", state)
+        return state, "Music faded out over 20 seconds. Automation continues silently."
 
-    if action == "on":
+    if action in {"on", "fade_in"}:
         state["music_muted"] = False
         write_json(MIXER_SETTINGS, state)
+        permanent_state_save("radio_mixer_server", state)
         mixer_zmq_command("volume@musicgain", "volume", "0.0")
-        try:
-            liquidsoap_command("radio.skip")
-        except Exception:
-            pass
-        time.sleep(0.15)
-        fade_music_gain(0.0, target, seconds=2.3, steps=12)
-        return state, "Music started at the beginning of a new song."
+        fade_music_gain(0.0, audible_target, seconds=20.0, steps=80)
+        return state, "Music faded in over 20 seconds at the current song position."
+
+    if action == "stop":
+        mixer_zmq_command("volume@musicgain", "volume", "0.0")
+        state["music_muted"] = True
+        write_json(MIXER_SETTINGS, state)
+        permanent_state_save("radio_mixer_server", state)
+        return state, "Music stopped immediately. Automation continues silently."
 
     raise ValueError("Unknown music action.")
 
@@ -2904,6 +2911,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 result = liquidsoap_command("radio.skip")
+                lower = result.lower()
+                if "unknown command" in lower or "no such command" in lower or "not found" in lower:
+                    raise RuntimeError("Liquidsoap did not accept radio.skip: " + result[-300:])
                 self.json_response({"ok": True, "result": result[-500:]})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 500)
