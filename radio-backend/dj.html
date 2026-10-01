@@ -905,28 +905,53 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   .playlistCommand .playlistName{grid-column:1/-1!important}
 }
 
+
+/* V32 collapsible radio stats drawer. */
+.radioHealth.statsCollapsed{padding:8px 10px!important}
+.radioStatsDrawer{
+  display:grid;grid-template-rows:0fr;opacity:0;overflow:hidden;
+  transition:grid-template-rows .22s ease,opacity .18s ease,margin-top .22s ease;
+  margin-top:0
+}
+.radioStatsDrawer>*{min-height:0}
+.radioHealth.statsOpen .radioStatsDrawer{
+  grid-template-rows:1fr;opacity:1;margin-top:7px
+}
+#statsToggle{
+  min-width:72px;border-color:#4b8fc8!important;background:#102a43!important
+}
+#statsToggle.on{background:#17392f!important;border-color:#55d8c1!important}
+.radioHealth.statsCollapsed:not(.statsOpen) .radioStatsDrawer{display:none}
+.radioHealthActions{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+@media(max-width:560px){
+  .radioHealthActions{grid-template-columns:1fr 1fr!important}
+  .radioHealthActions .reload{grid-column:auto!important}
+}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v31</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
-  <div class="card radioHealth" id="radioHealth">
-    <div class="radioHealthHead"><div><div class="label">RADIO CONNECTION + IPHONE DIAGNOSTICS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="copyDiagnostics">COPY STATS</button></div>
-    <div class="radioHealthGrid">
-      <div class="radioHealthStat"><span>SERVER</span><b id="diagServer">CHECKING</b></div>
-      <div class="radioHealthStat"><span>PHONE PLAYER</span><b id="diagPlayer">OFF</b></div>
-      <div class="radioHealthStat"><span>HLS STATE</span><b id="diagHls">0 / 0</b></div>
-      <div class="radioHealthStat"><span>BUFFER AHEAD</span><b id="diagBuffer">0.0 s</b></div>
-      <div class="radioHealthStat"><span>NETWORK</span><b id="diagNetwork">CHECKING</b></div>
-      <div class="radioHealthStat"><span>SCREEN</span><b id="diagVisibility">VISIBLE</b></div>
-      <div class="radioHealthStat"><span>MIC LINK</span><b id="diagMicLink">OFF</b></div>
-      <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v32</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="card radioHealth statsCollapsed" id="radioHealth">
+    <div class="radioHealthHead"><div><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
+    <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
+      <div class="radioHealthGrid">
+        <div class="radioHealthStat"><span>SERVER</span><b id="diagServer">CHECKING</b></div>
+        <div class="radioHealthStat"><span>PHONE PLAYER</span><b id="diagPlayer">OFF</b></div>
+        <div class="radioHealthStat"><span>HLS STATE</span><b id="diagHls">0 / 0</b></div>
+        <div class="radioHealthStat"><span>BUFFER AHEAD</span><b id="diagBuffer">0.0 s</b></div>
+        <div class="radioHealthStat"><span>NETWORK</span><b id="diagNetwork">CHECKING</b></div>
+        <div class="radioHealthStat"><span>SCREEN</span><b id="diagVisibility">VISIBLE</b></div>
+        <div class="radioHealthStat"><span>MIC LINK</span><b id="diagMicLink">OFF</b></div>
+        <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div>
+      </div>
+      <div class="radioHealthMeter">
+        <div class="radioHealthMeterHead"><b>SERVER RADIO AUDIO</b><span id="diagRadioDb">-60 dB · WAITING</span></div>
+        <div class="hmeter"><div class="hmeterFill" id="diagRadioMeter"></div></div>
+        <div class="radioHealthDetails" id="diagDetails">Waiting for status data.</div>
+      </div>
+      <div class="radioHealthActions"><button id="copyDiagnostics">COPY STATS</button><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
     </div>
-    <div class="radioHealthMeter">
-      <div class="radioHealthMeterHead"><b>SERVER RADIO AUDIO</b><span id="diagRadioDb">-60 dB · WAITING</span></div>
-      <div class="hmeter"><div class="hmeterFill" id="diagRadioMeter"></div></div>
-      <div class="radioHealthDetails" id="diagDetails">Waiting for status data.</div>
-    </div>
-    <div class="radioHealthActions"><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
   </div>
   <div class="card"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div><button class="skipNow" id="skipNow" aria-label="Skip current track">▶▶</button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div></div>
   <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><div class="sectionActions"><button class="miniAction" id="reshuffleQueue">RESHUFFLE</button><button class="miniAction" id="analyticsOpen">FANS</button><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div></div><div class="queue" id="queue"></div><div class="cross"><div><div class="label">CROSSFADE</div><div class="crossVal" id="crossVal">5.0s</div></div><input id="crossfade" type="range" min="0" max="12" step="0.5" value="5"><button class="perm" id="saveCross">UPDATE<br>PERMANENT</button><div class="saveStatus" id="crossStatus"></div></div></div>
@@ -1915,6 +1940,13 @@ $('remoteDeviceList').onclick=function(e){
 $('remoteDeviceList').onchange=function(e){const x=e.target.closest('[data-remote-level]');if(!x)return;sendRemoteCommand(x.dataset.remoteLevel,'level',Number(x.value)/100).catch(function(err){alert(err.message||err)})};
 loadMixerChannelPrefs();
 $('reconnectRadio').onclick=function(){reconnectRadioMonitor().catch(function(e){alert(e.message||e)})};
+$('statsToggle').onclick=function(){
+  const box=$('radioHealth'),drawer=$('radioStatsDrawer'),open=!box.classList.contains('statsOpen');
+  box.classList.toggle('statsOpen',open);box.classList.toggle('statsCollapsed',!open);
+  this.classList.toggle('on',open);this.setAttribute('aria-expanded',open?'true':'false');
+  drawer.setAttribute('aria-hidden',open?'false':'true');
+  if(open){poll();pollRadioMeter();updateRadioDiagnostics()}
+};
 $('refreshDiagnostics').onclick=function(){poll();pollRadioMeter();updateRadioDiagnostics()};
 $('copyDiagnostics').onclick=function(){copyRadioDiagnostics()};
 $('reloadConsole').onclick=function(){const u=new URL(location.href);u.searchParams.set('fresh',String(Date.now()));location.replace(u.toString())};
