@@ -439,6 +439,87 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   #mixerSheet .touchFader{min-height:108px!important}
 }
 
+
+/* V29 interaction + Ableton-inspired compact sends and device rack */
+#mixerSheet .touchFader{touch-action:pan-x!important;cursor:default!important}
+#mixerSheet .touchFaderThumb{pointer-events:auto!important;touch-action:none!important;cursor:grab}
+#mixerSheet .touchFader.dragging .touchFaderThumb{cursor:grabbing}
+
+#mixerSheet .sendPair{display:grid;grid-template-columns:1fr 34px;gap:3px;margin-top:5px}
+#mixerSheet .sendPair button{min-height:32px;border:1px solid #3a4a57;background:#101820;color:#fff;border-radius:7px;font-size:7px;font-weight:950}
+#mixerSheet .sendPair .sendOpen.on{border-color:#4b8fc8;background:#102a43}
+#mixerSheet .sendPair .sendState.on{border-color:#55d8c1;background:#12382f}
+#mixerSheet .sendPair .sendState{padding:0 2px}
+#mixerSheet .mixBtns{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#mixerSheet [data-channel-strip="mic"] .mixBtns:last-child,
+#mixerSheet [data-channel-strip="line"] .mixBtns:last-child{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+
+#mixerSheet .sendMiniDrawer,
+#mixerSheet .masterMiniDrawer{
+  display:none;position:absolute;z-index:95;width:92px;min-height:230px;
+  border:1px solid #40596b;border-radius:10px;background:#071018;padding:6px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6)
+}
+#mixerSheet .sendMiniDrawer.show,
+#mixerSheet .masterMiniDrawer.show{display:flex;flex-direction:column;gap:6px}
+#mixerSheet .masterMiniDrawer{width:154px}
+#mixerSheet .miniHead{display:flex;align-items:center;justify-content:space-between;gap:5px}
+#mixerSheet .miniHead b{font-size:8px;color:#dcecff}
+#mixerSheet .miniHead button{width:28px;height:28px;border:1px solid #3a4b58;background:#111a22;color:#fff;border-radius:6px}
+#mixerSheet .sendMiniDrawer>button,
+#mixerSheet .masterMiniDrawer button{min-height:32px;border:1px solid #3a4b58;background:#111a22;color:#fff;border-radius:7px;font-size:7px;font-weight:900}
+#mixerSheet .sendMiniDrawer>button.on,
+#mixerSheet .masterMiniDrawer button.on{border-color:#55d8c1;background:#12382f}
+#mixerSheet .sendMiniDrawer #sendMiniLevel{
+  writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;
+  width:38px;height:145px;margin:0 auto
+}
+#mixerSheet .sendMiniDrawer strong{text-align:center;font-size:9px}
+#mixerSheet .masterMiniDrawer label{display:grid;gap:4px;font-size:8px;font-weight:900}
+#mixerSheet .masterMiniDrawer small{font-size:7px;line-height:1.25;color:var(--muted)}
+#mixerSheet .masterMiniDrawer input[type="range"]{width:100%}
+
+/* Effects: balance is output-only and separate from the effect chain. */
+#mixerSheet .fxOutputControl{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:8px;margin:7px 0;padding:6px;border:1px solid #2d414f;border-radius:8px;background:#081018}
+#mixerSheet .fxOutputControl label{display:flex;justify-content:space-between;gap:6px;font-size:8px;font-weight:950}
+#mixerSheet .fxOutputControl b{color:#55d8c1}
+#mixerSheet .fxPresetTools{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:5px 0}
+#mixerSheet .fxPresetTools button{min-height:34px;border:1px solid #3a4b58;background:#101820;color:#fff;border-radius:7px;font-size:7px;font-weight:950}
+#mixerSheet .fxRackLayout{display:grid;grid-template-columns:44px 36px 1fr 36px 68px;gap:4px;align-items:center;margin:6px 0}
+#mixerSheet .fxRackLayout button,
+#mixerSheet .fxRackLayout label{min-height:32px;border:1px solid #334756;background:#101820;color:#fff;border-radius:7px;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center}
+#mixerSheet .fxRackLayout span{grid-column:1/-1;text-align:center;font-size:7px;color:var(--muted)}
+#mixerSheet .fxRackLayout input[type="range"]{min-height:32px}
+
+/* Side drawer stays compact; full rack becomes a scrollable vertical device mixer. */
+#mixerSheet .fxSideDrawer .fxControlGrid{display:grid!important;grid-template-columns:1fr!important;gap:5px!important;overflow:visible!important}
+#mixerSheet .fxSideDrawer .bigSlider{margin:3px 0!important}
+#mixerSheet .fxSideDrawer .bigSlider input.fxvf{width:100%;height:36px!important;writing-mode:horizontal-tb!important;direction:ltr!important;-webkit-appearance:auto!important}
+#mixerSheet.fxFull .fxSideDrawer{display:flex!important;flex-direction:column!important}
+#mixerSheet.fxFull .fxControlGrid{
+  display:flex!important;flex:1 1 auto;min-height:0;gap:5px!important;
+  overflow-x:auto!important;overflow-y:hidden!important;padding:5px 2px 10px;
+  scroll-snap-type:x proximity
+}
+#mixerSheet.fxFull .fxControlGrid .bigSlider{
+  flex:0 0 var(--fx-strip-basis,calc((100% - 15px)/4));
+  min-width:var(--fx-strip-basis,calc((100% - 15px)/4));
+  border:1px solid #2f4351;border-radius:10px;background:#071018;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:6px 4px;margin:0!important;scroll-snap-align:start
+}
+#mixerSheet.fxFull .fxControlGrid .bigSlider label{
+  min-height:38px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-size:7px!important;text-align:center
+}
+#mixerSheet.fxFull .fxControlGrid .bigSlider input.fxvf{
+  writing-mode:vertical-lr!important;direction:rtl!important;-webkit-appearance:slider-vertical!important;
+  width:42px!important;height:calc(100dvh - 360px)!important;min-height:190px!important;max-height:430px!important;margin:5px auto!important
+}
+#mixerSheet.fxFull .fxRackLayout{position:sticky;top:0;z-index:8;background:#050b11}
+#mixerSheet.fxFull .fxPresets{grid-template-columns:repeat(5,minmax(70px,1fr))!important;overflow-x:auto}
+#mixerSheet.fxFull .fxToggles{grid-template-columns:repeat(4,minmax(76px,1fr))!important}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
