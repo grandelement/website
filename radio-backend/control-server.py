@@ -744,18 +744,23 @@ def _write_runtime_gain(path, value):
     return value
 
 def mixer_zmq_command(target, command, value):
-    # V22 public mixer uses Liquidsoap file getters. Keep this function name so
-    # older mixer/drop code can continue to call the same interface.
+    # V29: persist the requested gain and, when the continuous FFmpeg master is
+    # online, push it live through FFmpeg's azmq filter. A startup call may
+    # legitimately happen before FFmpeg has bound port 5555, so the persisted
+    # value remains the fallback for the next master start.
+    written = None
     if command == "volume" and target in GAIN_FILES:
         written = _write_runtime_gain(GAIN_FILES[target], value)
-        return f"0 volume {written:.4f}"
+        value = f"{written:.4f}"
     if zmq is None:
+        if written is not None:
+            return f"0 volume {written:.4f} deferred"
         raise RuntimeError("Live mixer controls are unavailable on this server build.")
     ctx = zmq.Context.instance()
     sock = ctx.socket(zmq.REQ)
     sock.setsockopt(zmq.LINGER, 0)
-    sock.setsockopt(zmq.SNDTIMEO, 1200)
-    sock.setsockopt(zmq.RCVTIMEO, 1200)
+    sock.setsockopt(zmq.SNDTIMEO, 350)
+    sock.setsockopt(zmq.RCVTIMEO, 350)
     try:
         sock.connect("tcp://127.0.0.1:5555")
         sock.send_string(f"{target} {command} {value}")
@@ -763,6 +768,10 @@ def mixer_zmq_command(target, command, value):
         if not reply.startswith("0 "):
             raise RuntimeError(reply)
         return reply
+    except Exception:
+        if written is not None:
+            return f"0 volume {written:.4f} deferred"
+        raise
     finally:
         sock.close(0)
 
@@ -2391,7 +2400,7 @@ class Handler(BaseHTTPRequestHandler):
                 apply_mixer_state(state)
                 write_json(MIXER_SETTINGS, state)
                 permanent_state_save("radio_mixer_server", state)
-                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured(), "public_radio_isolated": False, "applied_to_public_radio": False})
+                self.json_response({"ok": True, "mixer": state, "vault_configured": vault_configured(), "public_radio_isolated": False, "applied_to_public_radio": True, "mix_strategy": "continuous-gain-mix"})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 503)
             return
