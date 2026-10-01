@@ -1179,7 +1179,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.30-rendered-sun-targeting-1',
+  APP_VERSION: '2026.09.30-live-song-metadata-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -1804,7 +1804,7 @@ async function resumeRadio(){
       audio.defaultMuted=false;
       audio.volume=window.GEGate?.desiredVolume?.() ?? 1;
       await audio.play();
-      setLiveStatus('RADIO • connected to the current broadcast',true);
+      setLiveStatus('RADIO • connected to the current broadcast',true);void window.GELiveMetadata?.poll?.();
       setStatus('Grand Element Radio');
       return;
     }catch(_e){
@@ -1828,7 +1828,7 @@ async function resumeLiveAtEdge(){
   clearLiveReconnect();
   state.playToken++;
   state.currentURL=CONFIG.LIVE_STREAM_URL;
-  titleBtn.textContent=CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
+  titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
   setLiveStatus('RADIO • joining the current broadcast…',true);
@@ -1850,7 +1850,7 @@ async function resumeLiveAtEdge(){
     audio.src=freshLiveStreamURL();
     audio.load();
     await audio.play();
-    setLiveStatus('RADIO • reconnected to the current broadcast',true);
+    setLiveStatus('RADIO • reconnected to the current broadcast',true);void window.GELiveMetadata?.poll?.();
     setStatus('Grand Element Radio');
   }catch(_e){
     setLiveStatus('RADIO • reconnecting to the current broadcast…',true);
@@ -1889,7 +1889,7 @@ async function enterLiveMode(){
   // One host, many listeners: every device receives this same continuous stream URL.
   // Keep the existing single <audio> element. No playlist reconstruction and no duration scan.
   state.currentURL=CONFIG.LIVE_STREAM_URL;
-  titleBtn.textContent=CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
+  titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
   audio.autoplay=true;
@@ -1909,7 +1909,7 @@ async function enterLiveMode(){
     state.livePreparing=false;
     state.live=true;
     syncModeButtons();
-    setLiveStatus('RADIO • connected to the Grand Element station',true);
+    setLiveStatus('RADIO • connected to the Grand Element station',true);void window.GELiveMetadata?.poll?.();
     setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
@@ -2008,6 +2008,93 @@ function reconnectLiveStream(){
   },1800);
 }
 window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAtEdge:resumeLiveAtEdge,shareURL:liveShareURL};
+
+// LIVE song metadata is independent of the optional Gate.
+(function createLiveMetadataController(){
+  const endpoint=String(GATE_CONFIG.liveMetadataURL||'').trim();
+  if(!endpoint)return;
+  let timer=0,inFlight=false,lastTitle='';
+
+  function sourceForStream(data){
+    const raw=data&&data.icestats&&data.icestats.source;
+    const sources=(Array.isArray(raw)?raw:[raw]).filter(Boolean);
+    if(!sources.length)return null;
+    let wanted='';
+    try{wanted=new URL(CONFIG.LIVE_STREAM_URL,location.href).pathname;}catch(_e){}
+    if(wanted){
+      const exact=sources.find(source=>{
+        const value=String(source.listenurl||source.listen_url||source.url||'');
+        try{return new URL(value,location.href).pathname===wanted;}
+        catch(_e){return value.indexOf(wanted)>=0;}
+      });
+      if(exact)return exact;
+    }
+    return sources[0];
+  }
+
+  function readTitle(data){
+    const source=sourceForStream(data);
+    return String(
+      (source&&(source.title||source.yp_currently_playing))||
+      (data&&data.now_playing&&data.now_playing.song&&(data.now_playing.song.text||data.now_playing.song.title))||
+      (data&&data.song&&(data.song.text||data.song.title))||
+      (data&&data.title)||
+      ''
+    ).trim();
+  }
+
+  function applyTitle(title){
+    title=String(title||'').trim();
+    if(!title||(state.live!==true&&state.livePreparing!==true))return;
+    lastTitle=title;
+    titleBtn.textContent=title;
+    try{
+      window.GEVault?.setTrackMetadata?.(audio,{
+        track_id:'live:'+title,
+        title:title,
+        artist:'Grand Element',
+        album:'Grand Element Radio',
+        source:'live_radio',
+        live:true
+      });
+    }catch(_e){}
+    try{
+      if('mediaSession' in navigator){
+        navigator.mediaSession.metadata=new MediaMetadata({
+          title:title,
+          artist:'Grand Element Radio',
+          album:'LIVE',
+          artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
+        });
+      }
+    }catch(_e){}
+  }
+
+  async function poll(){
+    if(inFlight||(state.live!==true&&state.livePreparing!==true))return;
+    inFlight=true;
+    try{
+      const url=new URL(endpoint,location.href);
+      url.searchParams.set('_ge_meta',String(Date.now()));
+      const response=await fetch(url.href,{cache:'no-store'});
+      if(!response.ok)return;
+      const title=readTitle(await response.json());
+      if(title)applyTitle(title);
+    }catch(_e){}
+    finally{inFlight=false;}
+  }
+
+  function start(){
+    if(timer)clearInterval(timer);
+    void poll();
+    timer=setInterval(()=>{void poll();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
+  }
+
+  audio.addEventListener('playing',()=>{if(state.live||state.livePreparing)start();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&(state.live||state.livePreparing))void poll();});
+  window.GELiveMetadata={poll,start,getTitle:()=>lastTitle};
+})();
+
 
 function updateMediaSession(url){
   if(!('mediaSession' in navigator)) return;
