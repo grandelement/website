@@ -912,7 +912,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
         <div class="ship-reticle-h"></div><div class="ship-reticle-v"></div>
         <div class="ship-reticle-corners"><span></span><span></span><span></span><span></span></div>
       </div>
-      <div id="shipTargetLabel">Target Lock</div>
+      <div id="shipTargetLabel">Frequency Lock</div>
       <div id="shipAnalysisPanel">
         <div id="shipAnalysisHead">Inner Planet Analysis</div>
         <div id="shipAnalysisText">Passive scan active.</div>
@@ -923,7 +923,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
       </div>
     </div>
     <div id="shipRadarScope" role="button" tabindex="0" aria-label="Show target analysis"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div><div id="shipRadarTarget"></div></div>
-    <div id="shipDistanceMini">TARGET RANGE<br>--</div>
+    <div id="shipDistanceMini">FREQUENCY RANGE<br>--</div>
     <div id="shipEQLeft" aria-hidden="true"></div>
     <div id="shipEQRight" role="button" tabindex="0" aria-label="Show live equalizer"></div>
   </div>
@@ -1128,7 +1128,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.30-loudness-lookahead-1',
+  APP_VERSION: '2026.10.01-frequency-lock-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -3839,7 +3839,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     ['Life-force envelope detected','Inner harmonic field responsive'],
     ['Approach corridor stable','Blue-core signature strengthening'],
     ['Magnetosphere coherent','Interior energy lattice resolving'],
-    ['Target memory field active','Arrival corridor narrowing']
+    ['Frequency memory field active','Arrival corridor narrowing']
   ];
 
   try{const saved=localStorage.getItem(VIEW_KEY);if(saved==='player'||saved==='ship')landscapeMode=saved;}catch(_e){}
@@ -4116,7 +4116,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(targetLabel){
       targetLabel.style.left=clamp(xPct+10,18,68)+'%';
       targetLabel.style.top=clamp(yPct-7,9,48)+'%';
-      targetLabel.textContent=!targetLocked?'TARGET OFFSCREEN':centered?'TARGET CENTERED':'TARGET LOCK';
+      targetLabel.textContent=!targetLocked?'FREQUENCY OFFSCREEN':centered?'FREQUENCY CENTERED':'FREQUENCY LOCK';
     }
     const analysisPanel=$('shipAnalysisPanel');
     if(analysisPanel){
@@ -4198,7 +4198,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       speedAlert.classList.toggle('auto-center',alert==='AUTO CENTER');
       speedAlert.style.opacity=alert?'1':'0';
     }
-    if(distanceMini)distanceMini.innerHTML=`TARGET RANGE<br>${currentDistanceKm().toLocaleString()} km`;
+    if(distanceMini)distanceMini.innerHTML=`FREQUENCY RANGE<br>${currentDistanceKm().toLocaleString()} km`;
     if(radarTarget)radarTarget.style.width=`${clamp(5+planetZoom*2.2,5,38).toFixed(1)}%`;
     updateAttitudeUI();
     if(targetingActive)syncTargetToRenderedSun();
@@ -4209,20 +4209,20 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(dist<50000){
       const life=(72+Math.random()*27).toFixed(1),ion=(44+Math.random()*49).toFixed(1),coh=(81+Math.random()*18).toFixed(1);
       return `INNER ATMOSPHERE ENTRY
-Target Range ${distText} km · ETA ${eta}
+Frequency Range ${distText} km · ETA ${eta}
 Life-form resonance ${life}% · Ion bloom ${ion}%
 Consciousness lattice coherence ${coh}% · Vector ${vector}`;
     }
     if(dist<804672){
       const pressure=(.8+Math.random()*3.6).toFixed(2),field=(61+Math.random()*36).toFixed(1);
       return `ATMOSPHERIC FIELD ACQUIRED
-Target Range ${distText} km · ETA ${eta}
+Frequency Range ${distText} km · ETA ${eta}
 Dimensional pressure ${pressure} Δψ · Life-force field ${field}%
 Molecular harmonic ${res} THz · Vector ${vector}`;
     }
     const pair=telemetryPhrases[(Math.random()*telemetryPhrases.length)|0];
     return `${pair[0]}.
-Target Range ${distText} km · ETA ${eta}
+Frequency Range ${distText} km · ETA ${eta}
 Resonance ${res} THz · Flux ${flux}%
 Vector ${vector}. ${pair[1]}.`;
   }
@@ -4239,9 +4239,9 @@ Vector ${vector}. ${pair[1]}.`;
     const directionX=course.x>.18?'LEFT':course.x<-.18?'RIGHT':'';
     const directionY=course.y>.18?'UP':course.y<-.18?'DOWN':'';
     const direction=[directionY,directionX].filter(Boolean).join(' / ');
-    const diameterLine=targetDiameterPx>0?`APPARENT TARGET DIAMETER ${Math.round(targetDiameterPx)} px
+    const diameterLine=targetDiameterPx>0?`FREQUENCY FIELD DIAMETER ${Math.round(targetDiameterPx)} px
 `:'';
-    typeAnalysis((!locked&&direction?`TARGET OFFSCREEN — CORRECT ${direction}
+    typeAnalysis((!locked&&direction?`FREQUENCY OFFSCREEN — CORRECT ${direction}
 `:'')+diameterLine+buildTelemetryLine());
     analysisHideTimer=setTimeout(()=>stage.classList.remove('scan-active'),rand(8500,13500));
   }
