@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.09.29-radio-reset-1';
+const VERSION='2026.09.30-radio-housekeeping-1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -17,7 +17,7 @@ const SHELL=[
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './cockpit-landscape.png',
-  './cockpit-landscape.png?v=20260916-recovery-radio-2',
+  './cockpit-landscape.png?v=20260930-heartbeat-steering-1',
   '../ge-images/images/ge-logo-2.jpg',
   '../ge-images/img/31.gif',
   './manifest.json',
@@ -245,11 +245,7 @@ self.addEventListener('fetch',event=>{
       const network=await fetchFresh(request);
       if(network.ok){
         const shell=await caches.open(SHELL_CACHE);
-        const media=await caches.open(MEDIA_CACHE);
-        await Promise.allSettled([
-          shell.put(request.url,network.clone()),
-          media.put(request.url,network.clone())
-        ]);
+        await shell.put(request.url,network.clone()).catch(()=>{});
       }
       return network;
     })());
