@@ -266,7 +266,7 @@ body.arrange-mode *{user-select:none;-webkit-user-select:none;-webkit-touch-call
  #shipHideControl{font-size:clamp(12px,.98vw,16px)}
  #shipSensorLayer{position:absolute;inset:0;z-index:9;pointer-events:none}
  #shipTargetLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none;clip-path:polygon(14.833% 8.077%,85.167% 8.077%,84.928% 38.257%,83.134% 47.290%,79.067% 54.729%,72.967% 59.299%,65.191% 57.067%,57.715% 55.048%,50.000% 53.879%,42.225% 55.048%,34.689% 57.067%,27.033% 59.299%,20.933% 54.729%,16.866% 47.290%,15.072% 38.257%)}
- #shipTargetReticle{position:absolute;left:50%;top:25.5%;width:15%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:0;transition:opacity .8s ease,width .5s ease,top .5s ease}
+ #shipTargetReticle{position:absolute;left:50%;top:25.5%;width:15%;aspect-ratio:1;transform:translate(-50%,-50%);opacity:0;transition:opacity .38s ease,width .10s linear,height .10s linear,left .08s linear,top .08s linear}
  .ship-reticle-ring{position:absolute;inset:0;border:2px solid rgba(236,248,255,.92);border-radius:50%;box-shadow:0 0 10px rgba(188,236,255,.35)}
  .ship-reticle-ring.inner{inset:15%;border-color:rgba(140,236,255,.95)}
  .ship-reticle-h,.ship-reticle-v{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.88)}
@@ -277,7 +277,9 @@ body.arrange-mode *{user-select:none;-webkit-user-select:none;-webkit-touch-call
  #shipAnalysisPanel{position:absolute;left:60.0%;top:18.1%;width:18.4%;max-height:27%;overflow:hidden;padding:9px 11px;border-radius:13px;background:rgba(4,15,28,.72);border:1px solid rgba(100,203,255,.38);color:#edfaff;box-shadow:0 0 14px rgba(0,138,255,.10);backdrop-filter:blur(4px);opacity:0;transform:translateY(5px);transition:opacity .8s ease,transform .8s ease}
  #shipAnalysisHead{font-size:clamp(10px,.78vw,13px);font-weight:900;letter-spacing:.11em;text-transform:uppercase;color:#abebff;margin-bottom:5px}
  #shipAnalysisText{font-size:clamp(10px,.78vw,13px);line-height:1.30;white-space:pre-line;text-align:left}
- #shipStage.scan-active #shipTargetReticle,#shipStage.scan-active #shipTargetLabel{opacity:.92}
+ #shipStage.targeting-active #shipTargetReticle,#shipStage.targeting-active #shipTargetLabel{opacity:.94}
+ #shipStage.target-locked #shipTargetReticle .outer{border-color:rgba(214,255,245,.98);box-shadow:0 0 10px rgba(117,255,222,.55),0 0 24px rgba(56,232,255,.28)}
+ #shipStage.target-centered #shipTargetReticle .inner{border-color:rgba(255,255,255,1);box-shadow:0 0 12px rgba(255,255,255,.58)}
  #shipStage.scan-active #shipAnalysisPanel{opacity:1;transform:translateY(0)}
  #shipApproachPanel{position:absolute;left:74.9%;top:61.7%;width:5.0%;height:20.5%;z-index:13;pointer-events:auto;touch-action:none}
  #shipApproachLever{position:absolute;inset:0;pointer-events:auto;touch-action:none;outline:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -1177,7 +1179,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.09.30-smooth-pulse-one-tap-1',
+  APP_VERSION: '2026.09.30-rendered-sun-targeting-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -3414,6 +3416,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   const VIEW_KEY='GE_RADIO_LANDSCAPE_VIEW_V2';
   let landscapeMode='ship';
   let analysisTypingTimer=0,analysisHideTimer=0;
+  let targetingActive=false,targetLocked=false,targetDiameterPx=0;
   let autopilot=false,autopilotReason='manual';
   const approach={distance:.22,throttle:0,lastT:0,nextPing:0,dragging:false};
   const attitude={x:0,y:0,dragging:false};
@@ -3672,6 +3675,46 @@ $('reloadBtn').addEventListener('click',async()=>{
   function currentBackgroundZoom(){return lerp(1,1.22,Math.pow(approach.distance,1.18));}
   function currentVelocity(){return Math.abs(approach.throttle)<2?0:Math.round(Math.pow(Math.abs(approach.throttle)/100,1.65)*92000+120);}
   function currentEta(){const vel=currentVelocity(),dist=currentDistanceKm();if(approach.throttle<=2||!vel)return approach.throttle<-2?'Receding':'Holding';const sec=Math.max(1,Math.round(dist/vel));if(sec>3599)return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;}
+  function syncTargetToRenderedSun(){
+    if(!targetingActive||!stage||!shipLogo||!targetReticle)return false;
+    const stageRect=stage.getBoundingClientRect();
+    const sunRect=shipLogo.getBoundingClientRect();
+    if(!stageRect.width||!stageRect.height||!sunRect.width||!sunRect.height)return false;
+
+    const centerX=sunRect.left+sunRect.width/2-stageRect.left;
+    const centerY=sunRect.top+sunRect.height/2-stageRect.top;
+    const xPct=centerX/stageRect.width*100;
+    const yPct=centerY/stageRect.height*100;
+    const diameter=Math.max(sunRect.width,sunRect.height);
+    const ringDiameter=clamp(diameter*1.035,24,Math.min(stageRect.width,stageRect.height)*.82);
+
+    targetDiameterPx=diameter;
+    targetReticle.style.left=centerX.toFixed(2)+'px';
+    targetReticle.style.top=centerY.toFixed(2)+'px';
+    targetReticle.style.width=ringDiameter.toFixed(2)+'px';
+    targetReticle.style.height=ringDiameter.toFixed(2)+'px';
+
+    // The windshield itself clips the target graphics. Lock state follows the
+    // real rendered sun center, not a second independent targeting coordinate.
+    targetLocked=xPct>14.8&&xPct<85.2&&yPct>8.0&&yPct<59.4;
+    const centered=targetLocked&&Math.max(Math.abs(course.x),Math.abs(course.y))<.035;
+    stage.classList.toggle('target-locked',targetLocked);
+    stage.classList.toggle('target-centered',centered);
+    stage.classList.toggle('target-offscreen',!targetLocked);
+
+    if(targetLabel){
+      targetLabel.style.left=clamp(xPct+10,18,68)+'%';
+      targetLabel.style.top=clamp(yPct-7,9,48)+'%';
+      targetLabel.textContent=!targetLocked?'TARGET OFFSCREEN':centered?'TARGET CENTERED':'TARGET LOCK';
+    }
+    const analysisPanel=$('shipAnalysisPanel');
+    if(analysisPanel){
+      analysisPanel.style.left=clamp(xPct+10,18,68)+'%';
+      analysisPanel.style.top=clamp(yPct+1,14,46)+'%';
+    }
+    return targetLocked;
+  }
+
   function updateAttitudeUI(){
     const stageW=stage?.clientWidth||1000,stageH=stage?.clientHeight||560;    // Steering input controls heading over time. The cockpit and glass never move.
     // The target/sun moves strongly while the distant background moves only a little.
@@ -3684,15 +3727,8 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(shipScene)shipScene.style.transform='none';
     if(attitudeKnob){attitudeKnob.style.left=`${50+attitude.x*29}%`;attitudeKnob.style.top=`${50+attitude.y*29}%`;}
 
-    // Reticle follows the actual sun center. If the sun is off-screen the reticle is too.
-    const planetLeft=50-course.x*58;
-    const planetTop=19.75-course.y*54;
-    if(targetReticle){targetReticle.style.left=`${planetLeft}%`;targetReticle.style.top=`${planetTop}%`;}
-    const onscreen=planetLeft>15&&planetLeft<85&&planetTop>7&&planetTop<60;
-    if(targetLabel){targetLabel.style.left=`${clamp(planetLeft+10,18,68)}%`;targetLabel.style.top=`${clamp(planetTop-7,9,48)}%`;}
-    const analysisPanel=$('shipAnalysisPanel');if(analysisPanel){analysisPanel.style.left=`${clamp(planetLeft+10,18,68)}%`;analysisPanel.style.top=`${clamp(planetTop+1,14,46)}%`;}
     if(radarTarget){radarTarget.style.left=`${clamp(50-course.x*31,4,96)}%`;radarTarget.style.top=`${clamp(50-course.y*31,4,96)}%`;}
-    stage?.classList.toggle('target-offscreen',!onscreen);
+    if(targetingActive)syncTargetToRenderedSun();
   }
   function updateApproachUI(){
     const planetZoom=currentPlanetZoom(),backgroundZoom=currentBackgroundZoom(),throttle=approach.throttle;
@@ -3752,9 +3788,9 @@ $('reloadBtn').addEventListener('click',async()=>{
       speedAlert.style.opacity=alert?'1':'0';
     }
     if(distanceMini)distanceMini.innerHTML=`TARGET RANGE<br>${currentDistanceKm().toLocaleString()} km`;
-    if(targetReticle){const size=clamp(18.5*planetZoom*1.05,2.6,70);targetReticle.style.width=`${size.toFixed(2)}%`;}
     if(radarTarget)radarTarget.style.width=`${clamp(5+planetZoom*2.2,5,38).toFixed(1)}%`;
     updateAttitudeUI();
+    if(targetingActive)syncTargetToRenderedSun();
   }
   function buildTelemetryLine(){
     const dist=currentDistanceKm(),distText=dist.toLocaleString(),eta=currentEta(),res=lerp(8.2,99.7,approach.distance).toFixed(1),flux=Math.round(lerp(12,98,approach.distance));
@@ -3786,15 +3822,16 @@ Vector ${vector}. ${pair[1]}.`;
   function triggerAnalysis(){
     if(!stage || currentDistanceKm()<31)return;
     if(analysisHideTimer)clearTimeout(analysisHideTimer);
-    stage.classList.add('scan-active');
-    const planetLeft=50-course.x*58,planetTop=19.75-course.y*54;
-    const onscreen=planetLeft>15&&planetLeft<85&&planetTop>7&&planetTop<60;
-    if(targetLabel){const d=currentDistanceKm();targetLabel.textContent=!onscreen?'TARGET OFFSCREEN':d<50000?'LIFE-FORM ANALYSIS':d<804672?'ATMOSPHERE ANALYSIS':approach.distance>.45?'TARGET ANALYSIS':'TARGET LOCK';}
+    targetingActive=true;
+    stage.classList.add('targeting-active','scan-active');
+    const locked=syncTargetToRenderedSun();
     const directionX=course.x>.18?'LEFT':course.x<-.18?'RIGHT':'';
     const directionY=course.y>.18?'UP':course.y<-.18?'DOWN':'';
     const direction=[directionY,directionX].filter(Boolean).join(' / ');
-    typeAnalysis((!onscreen&&direction?`TARGET OFFSCREEN — CORRECT ${direction}
-`:'')+buildTelemetryLine());
+    const diameterLine=targetDiameterPx>0?`APPARENT TARGET DIAMETER ${Math.round(targetDiameterPx)} px
+`:'';
+    typeAnalysis((!locked&&direction?`TARGET OFFSCREEN — CORRECT ${direction}
+`:'')+diameterLine+buildTelemetryLine());
     analysisHideTimer=setTimeout(()=>stage.classList.remove('scan-active'),rand(8500,13500));
   }
   function updateRadarBlips(){
@@ -4482,6 +4519,7 @@ Vector ${vector}. ${pair[1]}.`;
     });
   }
   shipRadarScope?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();triggerAnalysis();});
+  window.addEventListener('resize',()=>{if(targetingActive)requestAnimationFrame(syncTargetToRenderedSun);});
   shipRadarScope?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerAnalysis();}});
   eqRight?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setEQOverlay(!eqOverlayOpen);});
   eqRight?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setEQOverlay(!eqOverlayOpen);}});
