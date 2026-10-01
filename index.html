@@ -6628,7 +6628,15 @@ function collideElasticBilliards(a,b,rest=.985){
   return true;
 }
 
-function planetStep(){
+let gePlanetPhysicsLast=performance.now();
+function planetStep(frameNow){
+  const now=Number.isFinite(frameNow)?frameNow:performance.now();
+  // Physics must run in real time, not "one 60 Hz step per rendered frame".
+  // Game effects can lower iPad Safari's FPS; using elapsed time keeps Points
+  // moving at the exact same physical speed as normal-site planets.
+  let frameScale=(now-gePlanetPhysicsLast)/(1000/60);
+  gePlanetPhysicsLast=now;
+  frameScale=Math.max(.35,Math.min(3,Number.isFinite(frameScale)?frameScale:1));
   const gameActive=document.body.classList.contains('game-mode-active');
   const moving=planetNodes.some(p=>!p.poolPocketed&&(p.dragging||Math.hypot(p.vx||0,p.vy||0)>.5));
   const shotActive=!!window.GE_SHOT_CONTROL?.activeShot?.();
@@ -6642,7 +6650,11 @@ function planetStep(){
       const imx=moonRect.left+moonRect.width/2,imy=moonRect.top+moonRect.height/2,imr=moonRect.width/2;
       moonNear=planetNodes.some(p=>Math.hypot(p.x-imx,p.y-imy)<=p.r+imr+10);
     }
-    if(!moonNear){setTimeout(()=>requestAnimationFrame(planetStep),50);return;}
+    if(!moonNear){
+      // Do not let the 20 fps idle sampler create a large first physics step.
+      gePlanetPhysicsLast=performance.now();
+      setTimeout(()=>requestAnimationFrame(planetStep),50);return;
+    }
   }
   const bounds=getPlanetPlayBounds();
   const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
@@ -6665,7 +6677,7 @@ function planetStep(){
   for(const p of planetNodes){
     if(p.poolPocketed||p.dragging) continue;
     p._framePrevX=p.x;p._framePrevY=p.y;
-    p.x+=p.vx*(1/60); p.y+=p.vy*(1/60);
+    p.x+=p.vx*(1/60)*frameScale; p.y+=p.vy*(1/60)*frameScale;
     const freeModeFriction=(window.GE_EASY_SETTINGS?.PLANET_FRICTION ?? 0.984);
     let planetFriction=freeModeFriction;
     if(gameActive){
@@ -6680,12 +6692,14 @@ function planetStep(){
       }
     }
     // Keep the full visible roll natural. Only the last practically invisible creep gets extra damping.
-    p.vx*=planetFriction;p.vy*=planetFriction;
+    const frameFriction=Math.pow(planetFriction,frameScale);
+    p.vx*=frameFriction;p.vy*=frameFriction;
     let planetSpeed=Math.hypot(p.vx,p.vy);
     const creepSpeed=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_SPEED ?? 8);
     if(planetSpeed>0&&planetSpeed<creepSpeed){
       const creepFriction=(window.GE_EASY_SETTINGS?.PLANET_FINAL_CREEP_FRICTION ?? .94);
-      p.vx*=creepFriction;p.vy*=creepFriction;planetSpeed=Math.hypot(p.vx,p.vy);
+      const frameCreepFriction=Math.pow(creepFriction,frameScale);
+      p.vx*=frameCreepFriction;p.vy*=frameCreepFriction;planetSpeed=Math.hypot(p.vx,p.vy);
     }
     const planetStopSpeed=(window.GE_EASY_SETTINGS?.PLANET_STOP_SPEED ?? .8);
     if(planetSpeed<planetStopSpeed){p.vx=0;p.vy=0;p._launchSpeed=0;}
@@ -7257,6 +7271,21 @@ const GE_GAME = (()=>{
   const GAME_PREFS_KEY='GE_GAME_SETTINGS_PERSIST_V1';
   let gePersistentGamePrefs=(()=>{try{const x=JSON.parse(localStorage.getItem(GAME_PREFS_KEY)||'null');return x&&typeof x==='object'?x:{version:1,general:null,games:{}};}catch(_e){return {version:1,general:null,games:{}};}})();
   if(!gePersistentGamePrefs.games||typeof gePersistentGamePrefs.games!=='object')gePersistentGamePrefs.games={};
+  try{
+    const physicsVersion=Number(gePersistentGamePrefs.physicsBaselineVersion)||0;
+    if(physicsVersion<2){
+      const cfg=window.GE_EASY_SETTINGS||{},p=gePersistentGamePrefs.games.points;
+      if(p&&typeof p==='object'){
+        p.ballSpeed=Number(cfg.BALL_SPEED_DEFAULT)||1;
+        p.planetWeight=Number(cfg.PLANET_WEIGHT_DEFAULT)||1;
+        p.rollLength=Number(cfg.PLANET_ROLL_LENGTH_DEFAULT)||1;
+        p.wallBounce=Number(cfg.WALL_BOUNCE_DEFAULT)||.98;
+        p.planetBounce=Number(cfg.PLANET_BOUNCE_DEFAULT)||.98;
+      }
+      gePersistentGamePrefs.physicsBaselineVersion=2;
+      localStorage.setItem(GAME_PREFS_KEY,JSON.stringify(gePersistentGamePrefs));
+    }
+  }catch(_e){}
   // One-time migration from the old shipped Marbles defaults (5 / player circles)
   // to the new default (11 / mixed-scattered). Custom settings other than those old defaults are preserved.
   try{
@@ -8151,7 +8180,7 @@ const GE_GAME = (()=>{
     if(!state.active) return;
     const payload={
       active:true,
-      physicsProfileVersion:1,
+      physicsProfileVersion:2,
       gameType:state.gameType,
       scores:state.scores.slice(),
       players:state.players,
@@ -8237,18 +8266,20 @@ const GE_GAME = (()=>{
     state.tracerFadeMs=Math.max(2000,Math.min(30000,Number(saved.tracerFadeMs)||window.GE_EASY_SETTINGS?.TRACER_TURN_FADE_MS||15000));
     state.tracerWidth=Math.max(1,Math.min(8,Number(saved.tracerWidth)||3));state.tracerGas=Math.max(1,Math.min(6,Number(saved.tracerGas)||3.2));state.tracerGlow=Math.max(0,Math.min(30,Number(saved.tracerGlow)??18));state.tracerColorStrength=Math.max(.25,Math.min(1,Number(saved.tracerColorStrength)||.82));state.tracerCarryFade=!!saved.tracerCarryFade;
     state.planetSize=Math.max(.75,Math.min(1.5,Number(saved.planetSize)||1));
-    if(Number(saved.physicsProfileVersion)>=1){
+    if(Number(saved.physicsProfileVersion)>=2){
       state.planetWeight=Math.max(.4,Math.min(1.8,Number(saved.planetWeight)||1));
       state.rollLength=Math.max(.6,Math.min(1.6,Number(saved.rollLength)||1));
       state.wallBounce=Math.max(.7,Math.min(1.08,Number(saved.wallBounce)||.98));
       state.planetBounce=Math.max(.7,Math.min(1.08,Number(saved.planetBounce)||.98));
     }else{
-      // One-time migration from older test builds: reset motion to the normal-site baseline.
+      // v2 migration: older game builds could feel slower than normal mode on iPad.
+      // Reset the motion baseline once; deliberate changes made after v2 are preserved.
       const cfg=window.GE_EASY_SETTINGS||{};
       state.planetWeight=Number(cfg.PLANET_WEIGHT_DEFAULT)||1;
       state.rollLength=Number(cfg.PLANET_ROLL_LENGTH_DEFAULT)||1;
       state.wallBounce=Number(cfg.WALL_BOUNCE_DEFAULT)||.98;
       state.planetBounce=Number(cfg.PLANET_BOUNCE_DEFAULT)||.98;
+      if((saved.gameType||'score')==='score')state.ballSpeed=Number(cfg.BALL_SPEED_DEFAULT)||1;
     }
     state.rubberPower=['free','controlled','high','extreme','unlimited'].includes(saved.rubberPower)?saved.rubberPower:'free';
     document.documentElement.style.setProperty('--planet-size',(35*state.planetSize)+'px');
