@@ -726,8 +726,10 @@ async function loadDjPermanentState(){
       if(d.state.line)Object.assign(settings.line,d.state.line);
       if(d.state.visibleChannels)document.querySelectorAll('[data-mixer-channel]').forEach(function(box){if(Object.prototype.hasOwnProperty.call(d.state.visibleChannels,box.dataset.mixerChannel))box.checked=!!d.state.visibleChannels[box.dataset.mixerChannel]});
     }
+    let recentered=false;
+    try{if(localStorage.getItem('geDjV29BalanceMoved')!=='1'){settings.mic.pan=0;settings.line.pan=0;localStorage.setItem('geDjV29BalanceMoved','1');recentered=true}}catch(e){}
     try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}
-    syncDjMixerControls();applyMixerChannels(false);
+    syncDjMixerControls();applyMixerChannels(false);if(recentered)scheduleDjPermanentSave();
   }catch(e){console.warn('DJ permanent mixer state unavailable:',e)}
 }
 
