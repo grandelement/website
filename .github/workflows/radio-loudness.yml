@@ -1,0 +1,47 @@
+name: Build radio loudness map
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ge-music/**"
+      - ".github/scripts/analyze_radio_loudness.py"
+      - ".github/workflows/radio-loudness.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radio-loudness-map
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out music
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Analyze radio loudness
+        run: python3 .github/scripts/analyze_radio_loudness.py
+
+      - name: Commit loudness map
+        run: |
+          if git diff --quiet -- radio/loudness.json; then
+            echo "Loudness map already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add radio/loudness.json
+          git commit -m "Update radio loudness map"
+          git push
