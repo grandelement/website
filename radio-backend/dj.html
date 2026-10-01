@@ -1609,6 +1609,29 @@ function updateThresholds(){['mic','line'].forEach(function(k){const pct=clamp((
  el.addEventListener('pointerup',function(){drag=false});
  el.addEventListener('pointercancel',function(){drag=false})
 })();
+const FX_LAYOUT_KEY='geDjFxLayoutV2';
+let fxLayout={zoom:40,locked:false,across:5};
+function fxVisibleSliderCount(){return Array.from(document.querySelectorAll('#effectsSheet .bigSlider')).filter(function(x){return !x.classList.contains('fxControlHidden')}).length||1}
+function applyFxZoom(pct,save){
+  pct=clamp(Math.round(Number(pct)||40),20,100);pct=Math.round(pct/20)*20;fxLayout.zoom=pct;
+  const widthMap={20:7,40:5,60:3,80:2,100:1},visible=fxVisibleSliderCount();
+  if(!(fxLayout.locked&&!save))fxLayout.across=Math.min(visible,widthMap[pct]||5);
+  const across=Math.max(1,Math.min(visible,Number(fxLayout.across)||1)),root=$('effectsSheet');
+  if(root)root.style.setProperty('--fx-strip-basis','calc((100% - '+Math.max(0,(across-1)*4)+'px) / '+across+')');
+  $('fxZoom').value=String(pct);$('fxZoomRead').textContent='WIDTH · '+(across===1?'1 STRIP':across+' ACROSS');
+  if(save)saveFxLayout()
+}
+function fitFx(){if(fxLayout.locked)return;const visible=fxVisibleSliderCount();fxLayout.zoom=20;fxLayout.across=Math.min(visible,7);applyFxZoom(20,true);const grid=$('effectsSheet').querySelector('.fxControlGrid');if(grid)grid.scrollLeft=0}
+function applyFxLock(locked,save){fxLayout.locked=!!locked;['fxFit','fxZoomOut','fxZoom','fxZoomIn'].forEach(function(id){$(id).disabled=fxLayout.locked});$('fxLayoutLock').checked=fxLayout.locked;if(save)saveFxLayout()}
+function saveFxLayout(){try{localStorage.setItem(FX_LAYOUT_KEY,JSON.stringify(fxLayout))}catch(e){}}
+function loadFxLayout(){try{const x=JSON.parse(localStorage.getItem(FX_LAYOUT_KEY)||'{}');if(Number(x.zoom))fxLayout.zoom=clamp(Number(x.zoom),20,100);if(Number(x.across))fxLayout.across=clamp(Number(x.across),1,7);fxLayout.locked=!!x.locked}catch(e){}applyFxZoom(fxLayout.zoom,false);applyFxLock(fxLayout.locked,false)}
+$('fxFit').onclick=fitFx;
+$('fxZoomOut').onclick=function(){if(!fxLayout.locked)applyFxZoom(fxLayout.zoom-20,true)};
+$('fxZoomIn').onclick=function(){if(!fxLayout.locked)applyFxZoom(fxLayout.zoom+20,true)};
+$('fxZoom').oninput=function(){if(!fxLayout.locked)applyFxZoom(this.value,false)};
+$('fxZoom').onchange=function(){if(!fxLayout.locked)applyFxZoom(this.value,true)};
+$('fxLayoutLock').onchange=function(){applyFxLock(this.checked,true)};
+
 const PRESETS={CLEAN:{frequency:0,phaser:0,delay:0,reverb:0,threshold:-10,ratio:3,compOn:true,filterOn:false,phaserOn:false,delayOn:false,reverbOn:false,fxLevel:100},BROADCAST:{frequency:8,phaser:0,delay:6,reverb:5,threshold:-16,ratio:7,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100},ASTRONAUT:{frequency:-22,phaser:58,delay:32,reverb:38,threshold:-14,ratio:6,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},ROBOT:{frequency:28,phaser:82,delay:18,reverb:8,threshold:-18,ratio:10,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},SPACE:{frequency:-8,phaser:32,delay:42,reverb:56,threshold:-14,ratio:5,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},CUSTOM:{}};
 function panLabel(v){v=Math.round(Number(v)||0);return v===0?'C':(v<0?'L '+Math.abs(v):'R '+v)}
 function effectSnapshot(kind){const c=settings[kind];return {preamp:c.preamp,threshold:c.threshold,ratio:c.ratio,compOn:c.compOn,filterOn:!!c.filterOn,frequency:c.frequency,phaser:c.phaser,phaserOn:c.phaserOn,delay:c.delay,delayTime:c.delayTime,feedback:c.feedback,delayOn:c.delayOn,reverb:c.reverb,reverbOn:c.reverbOn,pan:c.pan,fxLevel:Number(c.fxLevel==null?100:c.fxLevel)}}
@@ -1807,7 +1830,8 @@ $('playlistOpen').onclick=function(){
 $('playlistClose').onclick=function(){$('playlistModal').classList.remove('show')};
 $('playlistSelect').onclick=function(){$('playlistChooser').classList.toggle('show');this.classList.toggle('selectOn',$('playlistChooser').classList.contains('show'));renderSavedPlaylists()};
 $('playlistChooserDone').onclick=function(){$('playlistChooser').classList.remove('show');$('playlistSelect').classList.remove('selectOn')};
-$('playlistChooserList').onchange=function(e){const c=e.target.closest('[data-playlist-choice]');if(!c)return;const id=String(c.dataset.playlistChoice);if(c.checked)playlistChooserIds.add(id);else playlistChooserIds.delete(id);applyPlaylistChooserSelection()};
+$('playlistLoad').onclick=function(){if(!playlistChooserIds.size){$('playlistChooser').classList.add('show');$('playlistSelect').classList.add('selectOn');renderSavedPlaylists();return setPlaylistStatus('SELECT A SAVED PLAYLIST, THEN TAP LOAD',true)}applyPlaylistChooserSelection();$('playlistChooser').classList.remove('show');$('playlistSelect').classList.remove('selectOn')};
+$('playlistChooserList').onchange=function(e){const c=e.target.closest('[data-playlist-choice]');if(!c)return;const id=String(c.dataset.playlistChoice);if(c.checked)playlistChooserIds.add(id);else playlistChooserIds.delete(id);renderSavedPlaylists();setPlaylistStatus(playlistChooserIds.size?('SELECTED · '+playlistChooserIds.size+' · TAP LOAD'):'SELECT A SAVED PLAYLIST')};
 $('playlistDeleteChecked').onclick=function(){deleteCheckedPlaylists().catch(function(e){setPlaylistStatus(e.message||e,true)})};
 $('playlistSave').onclick=function(){savePlaylist().catch(function(e){setPlaylistStatus(e.message||e,true)})};
 $('playlistUse').onclick=function(){usePlaylist().catch(function(e){setPlaylistStatus(e.message||e,true)})};
@@ -1818,5 +1842,5 @@ $('playlistSongs').onchange=function(e){const c=e.target.closest('[data-song-pat
 $('playlistMasterSongs').onchange=function(){setAlbumChecked(playlistAlbum,this.checked)};
 
 $('skipNow').onclick=skipCurrent;
-syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){})},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
+syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){})},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
