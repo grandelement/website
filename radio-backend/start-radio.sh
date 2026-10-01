@@ -308,13 +308,13 @@ start_hls(){
   if pid_alive "$HLS_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 6; then return 1; fi
   rm -f /app/runtime/hls/radio.m3u8 /app/runtime/hls/radio-*.ts
-  echo "GE Radio: starting iPhone-safe HLS monitor..."
+  echo "GE Radio: starting stabilized iPhone HLS monitor (2s segments / 24s live window)..."
   ffmpeg -hide_banner -loglevel warning -nostats \
     -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
     -i http://127.0.0.1:8000/stream.mp3 \
     -vn -c:a aac -b:a 128k -ar 48000 -ac 2 \
-    -f hls -hls_time 1 -hls_list_size 8 \
-    -hls_flags delete_segments+append_list+omit_endlist+independent_segments \
+    -f hls -hls_time 2 -hls_list_size 12 -hls_delete_threshold 12 \
+    -hls_flags delete_segments+omit_endlist+independent_segments+program_date_time \
     -hls_segment_filename "/app/runtime/hls/radio-%06d.ts" \
     /app/runtime/hls/radio.m3u8 & HLS_PID=$!
   return 0
