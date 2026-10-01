@@ -292,12 +292,15 @@ stop_hls(){
 start_master(){
   if pid_alive "$MASTER_PID"; then return 0; fi
   if ! wait_http "http://127.0.0.1:8000/auto.mp3" 8; then return 1; fi
-  echo "GE Radio: starting simple continuous public mixer (music + DJ mic)..."
+  echo "GE Radio: starting controllable continuous public mixer (radio + DJ mic + master)..."
   rm -f /app/runtime/master-progress.txt
+  MUSIC_GAIN="$(cat /app/runtime/music.gain 2>/dev/null || printf '1.0')"
+  DIRECT_GAIN="$(cat /app/runtime/direct.gain 2>/dev/null || printf '1.0')"
+  MASTER_GAIN="$(cat /app/runtime/master.gain 2>/dev/null || printf '1.0')"
   ffmpeg -hide_banner -loglevel warning -nostats -stats_period 1 -progress /app/runtime/master-progress.txt \
     -thread_queue_size 2048 -i http://127.0.0.1:8000/auto.mp3 \
     -thread_queue_size 2048 -f s16le -ar 48000 -ac 2 -i /app/runtime/mic.pcm \
-    -filter_complex "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[mic_sc][mic_mix];[music][mic_sc]sidechaincompress=threshold=0.018:ratio=8:attack=15:release=500[ducked];[ducked][mic_mix]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,alimiter=limit=0.95[out]" \
+    -filter_complex "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume@musicgain=volume=${MUSIC_GAIN}[music];[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume@directgain=volume=${DIRECT_GAIN}[mic];[music][mic]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,volume@mastergain=volume=${MASTER_GAIN},azmq,alimiter=limit=0.95[out]" \
     -map "[out]" -vn -ar 48000 -ac 2 -c:a libmp3lame -b:a 128k \
     -content_type audio/mpeg -f mp3 \
     "icecast://source:${SOURCE_PASSWORD}@127.0.0.1:8000/stream.mp3" & MASTER_PID=$!
@@ -338,7 +341,7 @@ start_audio_stack(){
   if ! wait_http "http://127.0.0.1:8000/stream.mp3" 35; then echo "GE Radio: mixed public radio not ready; will retry."; stop_audio; return 1; fi
 
   start_hls || true
-  echo "GE Radio: protected 24/7 RADIO online. Public master = continuous music + microphone mix."
+  echo "GE Radio: protected 24/7 RADIO online. Public master = controllable continuous radio + microphone mix."
 }
 
 shutdown(){
