@@ -1129,7 +1129,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v35</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v36</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1614,7 +1614,7 @@ async function startFreshRadioMonitor(){
  radioPlaybackState='CONNECTING';updateRadioButton();updateRadioDiagnostics();
  try{a.pause()}catch(e){}
  try{a.removeAttribute('src');a.load()}catch(e){}
- a.src=freshRadioUrl();a.muted=false;a.volume=1;a.preload='auto';a.load();
+ a.src=freshRadioUrl();a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);a.preload='auto';a.load();
  await a.play();
  radioMonitorOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
  updateRadioButton();updateRadioDiagnostics()
@@ -1891,9 +1891,8 @@ function syncMicIsolationUI(){
   if(status){
     const cfg=micIsolationConfig(),native=micIsolationNativeState();
     if(!on)status.textContent='MIC voice isolation off';
-    else if(native.echoActual||native.noiseActual)status.textContent=cfg.label+' · iPHONE DSP ACTIVE'+(native.echoActual?' · ECHO CONTROL':'')+(native.noiseActual?' · NOISE SUPPRESSION':'');
-    else if(micStream)status.textContent=cfg.label+' · WEB VOICE FILTER ACTIVE · native suppression unavailable';
-    else status.textContent=cfg.label+' · opens with iPhone voice DSP + web filter';
+    else if(micStream)status.textContent=cfg.label+' · MIC-ONLY WEB ISO · IPHONE VOICE DSP OFF';
+    else status.textContent=cfg.label+' · MIC-ONLY WEB ISO · opens with iPhone voice DSP off';
   }
 }
 function applyMicIsolationFilters(){
@@ -1905,23 +1904,16 @@ function applyMicIsolationFilters(){
 function micCaptureConstraints(){
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   const c={channelCount:{ideal:1},sampleRate:{ideal:48000}};
-  if(supported.echoCancellation)c.echoCancellation=!!settings.mic.isolationOn;
+  // V36: keep iPhone/browser voice processing OFF. Voice ISO is mic-only WebAudio DSP.
+  if(supported.echoCancellation)c.echoCancellation=false;
   if(supported.autoGainControl)c.autoGainControl=false;
-  if(supported.noiseSuppression)c.noiseSuppression=!!settings.mic.isolationOn;
+  if(supported.noiseSuppression)c.noiseSuppression=false;
   const id=$('micDevice')?.value;if(id)c.deviceId={exact:id};
   return c;
 }
 async function applyMicIsolation(){
+  // V36: ISO never reconfigures the iPhone audio session. It changes only the mic WebAudio filters/gain.
   applyMicIsolationFilters();
-  const track=micStream?.getAudioTracks?.()[0];
-  if(track?.applyConstraints){
-    const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
-    const c={channelCount:{ideal:1},sampleRate:{ideal:48000}};
-    if(supported.echoCancellation)c.echoCancellation=!!settings.mic.isolationOn;
-    if(supported.autoGainControl)c.autoGainControl=false;
-    if(supported.noiseSuppression)c.noiseSuppression=!!settings.mic.isolationOn;
-    try{await track.applyConstraints(c)}catch(e){diagEvent('VOICE ISO CONSTRAINT',String(e&&e.message||e))}
-  }
   syncMicIsolationUI();saveSettings();
 }
 async function ensureMicOpen(){await ensureAudio();if(micStream)return true;const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();return true}
