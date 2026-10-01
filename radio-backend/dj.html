@@ -1072,12 +1072,66 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   margin:1px auto!important;
 }
 
+
+/* V35: always-visible compact radio meter in status header. */
+.radioHealthHead{
+  display:grid!important;
+  grid-template-columns:minmax(112px,1fr) minmax(105px,180px) auto!important;
+  align-items:center!important;
+  gap:8px!important
+}
+.radioHeaderMeter{min-width:0;align-self:center}
+.radioHeaderMeterLine{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:7px;font-weight:950;color:#dce9f2}
+.radioHeaderMeterLine span{font-variant-numeric:tabular-nums;color:var(--muted)}
+.radioHeaderMeter .hmeter{height:12px!important;margin-top:3px!important}
+@media(max-width:420px){
+  .radioHealthHead{grid-template-columns:minmax(92px,.9fr) minmax(92px,1fr) 62px!important;gap:5px!important}
+  .radioHealthState{font-size:9px!important}
+  #statsToggle{min-width:62px!important;padding:3px!important}
+}
+
+/* Voice Isolation gets its own post-DSP level trim. */
+#mixerSheet #effectsSheet .fxIsoLevel{
+  display:grid;grid-template-columns:112px minmax(0,1fr);gap:6px;align-items:center;
+  min-height:31px;padding:2px 4px;margin:1px 0 2px;
+  border:1px solid #31516a;border-radius:8px;background:#07131d
+}
+#mixerSheet #effectsSheet .fxIsoLevel[hidden]{display:none!important}
+#mixerSheet #effectsSheet .fxIsoLevel label{
+  display:flex;align-items:center;justify-content:space-between;gap:5px;
+  font-size:8px;font-weight:950;white-space:nowrap
+}
+#mixerSheet #effectsSheet .fxIsoLevel label b{color:#55d8c1;font-size:9px}
+#mixerSheet #effectsSheet .fxIsoLevel input{width:100%;min-height:30px!important}
+
+/* Effect controls must be readable at arm's length. */
+#mixerSheet #effectsSheet .fxEffectButtons{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:4px!important
+}
+#mixerSheet #effectsSheet .fxEffectButtons button{
+  min-height:34px!important;
+  height:34px!important;
+  font-size:9px!important;
+  letter-spacing:.02em!important;
+  line-height:1.05!important;
+  padding:0 3px!important
+}
+#mixerSheet #effectsSheet .fxIsolationModes button{
+  font-size:9px!important;
+  font-weight:950!important
+}
+#mixerSheet #effectsSheet .fxIsolationStatus{
+  font-size:7px!important;
+  line-height:1.15!important
+}
+
 </style></head><body>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v34</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v35</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
-    <div class="radioHealthHead"><div><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
+    <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
       <div class="radioHealthGrid">
         <div class="radioHealthStat"><span>SERVER</span><b id="diagServer">CHECKING</b></div>
@@ -1125,6 +1179,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
   <button type="button" data-iso-mode="MAX">MAX</button>
 </div>
 <small class="fxIsolationStatus" id="micIsolationStatus">MIC voice isolation off</small>
+<div class="fxIsoLevel" id="fxIsoLevelWrap" hidden><label><span>VOICE ISO LEVEL</span><b id="fxIsoLevelRead">85%</b></label><input id="fxIsoLevel" type="range" min="25" max="125" step="1" value="85"></div>
 
 <div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
@@ -1285,8 +1340,8 @@ function diagEvent(name,detail){
  let expected=performance.now()+500;
  setInterval(function(){const now=performance.now(),lag=Math.max(0,now-expected);diagEventLoopLag=Math.round(lag);if(lag>250){diagLastFreeze=Math.round(lag);diagEvent('MAIN THREAD LAG',Math.round(lag)+'ms')}expected=now+500},500);
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
-})();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
-let settings={mic:{level:100,pan:0,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,isolationOn:false,isolationMode:'WALKING'},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=localStorage.getItem('geDjPublicRadioControl')==='1';radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
+})();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let settings={mic:{level:100,pan:0,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,isolationOn:false,isolationMode:'WALKING',isolationLevel:85},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=localStorage.getItem('geDjPublicRadioControl')==='1';radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
 let djPermanentSaveTimer=0;
 function currentChannelVisibility(){const out={};document.querySelectorAll('[data-mixer-channel]').forEach(function(box){out[box.dataset.mixerChannel]=!!box.checked});return out}
 function scheduleDjPermanentSave(){clearTimeout(djPermanentSaveTimer);if(!key)return;djPermanentSaveTimer=setTimeout(function(){api('/control/permanent-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:'dj_mixer',state:{mic:settings.mic,line:settings.line,visibleChannels:currentChannelVisibility(),customFxSlots:customFxSlots}})}).catch(function(e){console.warn('DJ Vault state save:',e)})},450)}
@@ -1530,10 +1585,10 @@ function applyRealRadioMeter(m){
  const serverActive=!!(m&&m.active),serverPct=serverActive?Number(m.pct||0):0,serverDb=serverActive?Number(m.db||-60):-60;
  const localActive=!!(playing&&serverActive),localPct=localActive?serverPct:0,localDb=localActive?serverDb:-60;
  setMeterLevel('radioMeter',localPct);setMeterLevel('dockRadioMeter',localPct);setMeterLevel('mixMasterRadioMeter',localPct);setMeterLevel('mixRadioAuxMeter',localPct);setMeterLevel('mixAuxMixMeter',localPct);
- setMeterLevel('diagRadioMeter',serverPct);
+ setMeterLevel('diagRadioMeter',serverPct);setMeterLevel('topRadioMeter',serverPct);
  $('dockRadioDb').textContent=localActive?localDb.toFixed(0):radioPlaybackState;
  if($('mixMasterRadioDb'))$('mixMasterRadioDb').textContent=localActive?localDb.toFixed(0):'OFF';
- if($('diagRadioDb'))$('diagRadioDb').textContent=serverActive?(serverDb.toFixed(1)+' dB · SERVER AUDIO ACTIVE'):'-60 dB · SERVER METER IDLE';
+ if($('diagRadioDb'))$('diagRadioDb').textContent=serverActive?(serverDb.toFixed(1)+' dB · SERVER AUDIO ACTIVE'):'-60 dB · SERVER METER IDLE';if($('topRadioDb'))$('topRadioDb').textContent=serverActive?serverDb.toFixed(0):'-60';
  updateRadioDiagnostics()
 }
 async function pollRadioMeter(){
@@ -1781,10 +1836,10 @@ function buildChannel(kind){
  fxReturn.connect(fxAnalyser);fxAnalyser.connect(sum);
  sum.connect(an);an.connect(cue).connect(ctx.destination);
  if(isMic){
-   const isoHP=ctx.createBiquadFilter(),isoLP=ctx.createBiquadFilter();isoHP.type='highpass';isoLP.type='lowpass';isoHP.Q.value=.707;isoLP.Q.value=.707;
+   const isoHP=ctx.createBiquadFilter(),isoLP=ctx.createBiquadFilter(),isoGain=ctx.createGain();isoHP.type='highpass';isoLP.type='lowpass';isoHP.Q.value=.707;isoLP.Q.value=.707;isoGain.gain.value=settings.mic.isolationOn?clamp(Number(settings.mic.isolationLevel==null?85:settings.mic.isolationLevel)/100,.25,1.25):1;
    const balL=ctx.createGain(),balR=ctx.createGain(),merge=ctx.createChannelMerger(2);
    an.connect(air);air.connect(liveGain);air.connect(balL);air.connect(balR);balL.connect(merge,0,0);balR.connect(merge,0,1);merge.connect(contributionBus);
-   micIsolationHP=isoHP;micIsolationLP=isoLP;micPreamp=pre;micFilter=filter;micPhaser=phaser;micPhaserLfo=lfo;micPhaserDepth=depth;micComp=comp;micGain=gain;micSum=sum;micDelay=delay;micDelayWet=dw;micDelayFb=fb;micReverb=rv;micReverbWet=rw;micAnalyser=an;micFxReturn=fxReturn;micFxAnalyser=fxAnalyser;micCueGain=cue;micAirGain=air;micPan=pan;micBalanceL=balL;micBalanceR=balR;micStereoMerge=merge
+   micIsolationHP=isoHP;micIsolationLP=isoLP;micIsolationGain=isoGain;micPreamp=pre;micFilter=filter;micPhaser=phaser;micPhaserLfo=lfo;micPhaserDepth=depth;micComp=comp;micGain=gain;micSum=sum;micDelay=delay;micDelayWet=dw;micDelayFb=fb;micReverb=rv;micReverbWet=rw;micAnalyser=an;micFxReturn=fxReturn;micFxAnalyser=fxAnalyser;micCueGain=cue;micAirGain=air;micPan=pan;micBalanceL=balL;micBalanceR=balR;micStereoMerge=merge
  }else{
    an.connect(air).connect(pan).connect(contributionBus);
    linePreamp=pre;lineFilter=filter;linePhaser=phaser;linePhaserLfo=lfo;linePhaserDepth=depth;lineComp=comp;lineGain=gain;lineSum=sum;lineDelay=delay;lineDelayWet=dw;lineDelayFb=fb;lineReverb=rv;lineReverbWet=rw;lineAnalyser=an;lineFxReturn=fxReturn;lineFxAnalyser=fxAnalyser;lineCueGain=cue;lineAirGain=air;linePan=pan
@@ -1826,9 +1881,12 @@ function micIsolationNativeState(){
 }
 function syncMicIsolationUI(){
   const on=!!settings.mic.isolationOn,mode=String(settings.mic.isolationMode||'WALKING');
-  const toggle=$('micIsolationToggle'),modes=$('micIsolationModes'),status=$('micIsolationStatus');
+  const toggle=$('micIsolationToggle'),modes=$('micIsolationModes'),status=$('micIsolationStatus'),levelWrap=$('fxIsoLevelWrap'),level=$('fxIsoLevel'),levelRead=$('fxIsoLevelRead');
   if(toggle){toggle.classList.toggle('on',on);toggle.setAttribute('aria-pressed',on?'true':'false');toggle.textContent=on?'VOICE ISO ON':'VOICE ISO OFF'}
   if(modes)modes.hidden=!on;
+  if(levelWrap)levelWrap.hidden=!on;
+  if(level)level.value=String(Number(settings.mic.isolationLevel==null?85:settings.mic.isolationLevel));
+  if(levelRead)levelRead.textContent=Math.round(Number(settings.mic.isolationLevel==null?85:settings.mic.isolationLevel))+'%';
   document.querySelectorAll('[data-iso-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.isoMode===mode)});
   if(status){
     const cfg=micIsolationConfig(),native=micIsolationNativeState();
@@ -1839,9 +1897,10 @@ function syncMicIsolationUI(){
   }
 }
 function applyMicIsolationFilters(){
-  const cfg=micIsolationConfig();
-  if(micIsolationHP)micIsolationHP.frequency.setTargetAtTime(cfg.highpass,ctx?.currentTime||0,.02);
-  if(micIsolationLP)micIsolationLP.frequency.setTargetAtTime(cfg.lowpass,ctx?.currentTime||0,.02);
+  const cfg=micIsolationConfig(),t=ctx?.currentTime||0;
+  if(micIsolationHP)micIsolationHP.frequency.setTargetAtTime(cfg.highpass,t,.02);
+  if(micIsolationLP)micIsolationLP.frequency.setTargetAtTime(cfg.lowpass,t,.02);
+  if(micIsolationGain)micIsolationGain.gain.setTargetAtTime(settings.mic.isolationOn?clamp(Number(settings.mic.isolationLevel==null?85:settings.mic.isolationLevel)/100,.25,1.25):1,t,.02);
 }
 function micCaptureConstraints(){
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
@@ -1865,7 +1924,7 @@ async function applyMicIsolation(){
   }
   syncMicIsolationUI();saveSettings();
 }
-async function ensureMicOpen(){await ensureAudio();if(micStream)return true;const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micPreamp).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();return true}
+async function ensureMicOpen(){await ensureAudio();if(micStream)return true;const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();return true}
 async function openMic(){await ensureAudio();if(micStream){if(liveActive||micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';return}await ensureMicOpen();updateAirButtons()}
 async function warmDjSources(){await ensureAudio();await refreshDevices();updateAirButtons()}
 async function openLine(){await ensureAudio();if(lineStream){lineStream.getTracks().forEach(function(t){t.stop()});try{lineSource.disconnect()}catch(e){}lineStream=lineSource=null;$('lineOpen').textContent='OPEN INPUT';return}const id=$('lineDevice').value,cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000}};if(id)cons.deviceId={exact:id};lineStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});if(!lineGain)buildChannel('line');lineSource=ctx.createMediaStreamSource(lineStream);lineSource.connect(linePreamp).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineOpen').textContent='CLOSE INPUT';runChannelMeter('line')}
@@ -1924,7 +1983,7 @@ $('fxLayoutLock').onchange=function(){applyFxLock(this.checked,true)};
 
 const PRESETS={CLEAN:{frequency:0,phaser:0,delay:0,reverb:0,threshold:-10,ratio:3,compOn:true,filterOn:false,phaserOn:false,delayOn:false,reverbOn:false,fxLevel:100},BROADCAST:{frequency:8,phaser:0,delay:6,reverb:5,threshold:-16,ratio:7,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100},ASTRONAUT:{frequency:-22,phaser:58,delay:32,reverb:38,threshold:-14,ratio:6,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},ROBOT:{frequency:28,phaser:82,delay:18,reverb:8,threshold:-18,ratio:10,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},SPACE:{frequency:-8,phaser:32,delay:42,reverb:56,threshold:-14,ratio:5,compOn:true,filterOn:true,phaserOn:true,delayOn:true,reverbOn:true,fxLevel:100},CUSTOM:{}};
 function panLabel(v){v=Math.round(Number(v)||0);return v===0?'C':(v<0?'L '+Math.abs(v):'R '+v)}
-function effectSnapshot(kind){const c=settings[kind];return {preamp:c.preamp,threshold:c.threshold,ratio:c.ratio,compOn:c.compOn,filterOn:!!c.filterOn,frequency:c.frequency,phaser:c.phaser,phaserOn:c.phaserOn,delay:c.delay,delayTime:c.delayTime,feedback:c.feedback,delayOn:c.delayOn,reverb:c.reverb,reverbOn:c.reverbOn,pan:c.pan,fxLevel:Number(c.fxLevel==null?100:c.fxLevel)}}
+function effectSnapshot(kind){const c=settings[kind],o={preamp:c.preamp,threshold:c.threshold,ratio:c.ratio,compOn:c.compOn,filterOn:!!c.filterOn,frequency:c.frequency,phaser:c.phaser,phaserOn:c.phaserOn,delay:c.delay,delayTime:c.delayTime,feedback:c.feedback,delayOn:c.delayOn,reverb:c.reverb,reverbOn:c.reverbOn,pan:c.pan,fxLevel:Number(c.fxLevel==null?100:c.fxLevel)};if(kind==='mic'){o.isolationOn=!!c.isolationOn;o.isolationMode=c.isolationMode||'WALKING';o.isolationLevel=Number(c.isolationLevel==null?85:c.isolationLevel)}return o}
 async function loadFxPresets(){const r=await api('/control/effect-presets?surface=dj'),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not load FX presets');customFxPresets=Array.isArray(d.items)?d.items:[];if($('effectsSheet')&&$('effectsSheet').classList.contains('show'))syncFx()}
 async function saveFxPreset(){const name=$('fxPresetName').value.trim();if(!name)throw new Error('Type a preset name first.');const r=await api('/control/effect-presets/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',name:name,settings:effectSnapshot(fxTarget)})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not save FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;selectedFxPreset=String((d.preset&&d.preset.id)||'');fxPresetLibraryOpen=true;syncFx()}
 function markFxButtons(){document.querySelectorAll('[data-fx]').forEach(function(b){b.classList.toggle('on',$('effectsSheet').classList.contains('show')&&b.dataset.fx===fxTarget)})}
@@ -1944,6 +2003,7 @@ $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.me
 $('fxLoadPresets').onclick=function(){fxPresetLibraryOpen=!fxPresetLibraryOpen;if(fxPresetLibraryOpen)loadFxPresets().catch(function(e){alert(e.message||e)});syncFx()};
 $('fxBackBtn').onclick=closeFx;
 $('micIsolationToggle').onclick=function(){settings.mic.isolationOn=!settings.mic.isolationOn;void applyMicIsolation();};
+$('fxIsoLevel').oninput=function(){settings.mic.isolationLevel=Number(this.value);settings.mic.preset='CUSTOM';applyMicIsolationFilters();$('fxIsoLevelRead').textContent=Math.round(Number(this.value))+'%';saveSettings()};
 document.querySelectorAll('[data-iso-mode]').forEach(function(b){b.onclick=function(){settings.mic.isolationMode=b.dataset.isoMode;settings.mic.isolationOn=true;void applyMicIsolation();};});
 document.querySelectorAll('[data-fxslot]').forEach(function(b){let timer=0,held=false;const clear=function(){if(timer){clearTimeout(timer);timer=0}};b.addEventListener('pointerdown',function(e){held=false;clear();timer=setTimeout(function(){held=true;saveCustomFxSlot(b.dataset.fxslot)},700);try{b.setPointerCapture(e.pointerId)}catch(_e){}});b.addEventListener('pointerup',function(){clear();if(!held)loadCustomFxSlot(b.dataset.fxslot)});b.addEventListener('pointercancel',clear);b.addEventListener('pointerleave',function(){if(!held)clear()})});
 async function setMixer(fields){const rr=await api('/control/mixer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)}),d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)throw new Error(d.error||'Mixer update failed');status.mixer=d.mixer;render()}
