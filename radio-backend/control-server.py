@@ -2042,7 +2042,7 @@ class Handler(BaseHTTPRequestHandler):
                 "broadcast": broadcast_engine().status(),
                 "public_master": public_master_health(),
                 "master_progress": master_progress_status(),
-                "audio_architecture": "v24-simple-continuous-ffmpeg-master",
+                "audio_architecture": "v29-controllable-continuous-ffmpeg-master",
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
             })
