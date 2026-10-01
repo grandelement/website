@@ -1221,7 +1221,7 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .djFileHead input{width:20px;height:20px}
 .djFileName{font-size:12px;font-weight:950}.djFileMeta{font-size:10px;color:var(--muted);margin-top:2px}
 .djFileRow audio{width:100%;height:38px}
-.djFileActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.djFileActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
 .djFileActions button{min-height:40px;font-size:10px;font-weight:950}
 .samplePad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
 .samplePad button{aspect-ratio:1/1;min-height:86px;border:1px solid #3d5669;background:#101923;color:#fff;border-radius:13px;font-weight:950;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
@@ -1447,7 +1447,7 @@ function diagEvent(name,detail){
  setInterval(function(){const now=performance.now(),lag=Math.max(0,now-expected);diagEventLoopLag=Math.round(lag);if(lag>250){diagLastFreeze=Math.round(lag);diagEvent('MAIN THREAD LAG',Math.round(lag)+'ms')}expected=now+500},500);
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';
-let djRecordDest=null,djRecorder=null,djRecordChunks=[],djRecordStartedAt=0,djRecordMime='',djRecordReason='',djDbPromise=null,djFileUrls=[],weakLinkTicks=0,weakFallbackBusy=false;
+let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
 let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 let settings={mic:{level:100,pan:0,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,isolationOn:false,isolationMode:'WALKING',isolationLevel:85},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=localStorage.getItem('geDjPublicRadioControl')==='1';radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
 let djPermanentSaveTimer=0;
@@ -1877,8 +1877,13 @@ function djClipName(row){const d=new Date(Number(row.createdAt||Date.now()));ret
 function djFmtDuration(ms){const sec=Math.max(0,Math.round(Number(ms||0)/1000)),m=Math.floor(sec/60),x=sec%60;return m+':'+String(x).padStart(2,'0')}
 function djRecorderMime(){
  if(!window.MediaRecorder)return '';
- const types=['audio/mp4;codecs=alac','audio/mp4','audio/webm;codecs=opus','audio/webm'];
+ // Prefer Opus for small local files; fall back to Safari MP4 when needed.
+ const types=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/mp4;codecs=alac'];
  return types.find(function(t){try{return MediaRecorder.isTypeSupported(t)}catch(e){return false}})||''
+}
+async function requestDjStoragePersistence(){
+ if(djPersistAsked)return;djPersistAsked=true;
+ try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
 }
 async function ensureDjRecordDest(){
  await ensureAudio();
@@ -1889,21 +1894,22 @@ async function ensureDjRecordDest(){
 async function startDjRecording(reason){
  if(djRecorder&&djRecorder.state!=='inactive')return true;
  if(!window.MediaRecorder)return false;
- const dest=await ensureDjRecordDest(),mime=djRecorderMime();
- djRecordChunks=[];djRecordStartedAt=Date.now();djRecordReason=String(reason||'MIC');djRecordMime=mime;
+ await requestDjStoragePersistence();
+ const dest=await ensureDjRecordDest(),mime=djRecorderMime(),started=Date.now(),recordReason=String(reason||'MIC'),chunks=[];
+ djRecordStartedAt=started;
  const rec=mime?new MediaRecorder(dest.stream,{mimeType:mime}):new MediaRecorder(dest.stream);
  djRecorder=rec;
- rec.ondataavailable=function(e){if(e.data&&e.data.size)djRecordChunks.push(e.data)};
+ rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
  rec.onerror=function(e){diagEvent('LOCAL RECORD ERROR',String(e&&e.error&&e.error.message||e&&e.message||e))};
  rec.onstop=async function(){
-   const chunks=djRecordChunks.slice(),started=djRecordStartedAt,duration=Date.now()-started,type=rec.mimeType||djRecordMime||'audio/mp4';
-   djRecordChunks=[];djRecordStartedAt=0;if(djRecorder===rec)djRecorder=null;
+   const duration=Date.now()-started,type=rec.mimeType||mime||'audio/mp4';
+   if(djRecorder===rec)djRecorder=null;if(djRecordStartedAt===started)djRecordStartedAt=0;
    if(!chunks.length||duration<250)return;
    const blob=new Blob(chunks,{type:type});
-   const row={id:'clip-'+started+'-'+Math.random().toString(36).slice(2,8),createdAt:started,durationMs:duration,size:blob.size,mimeType:type,reason:djRecordReason||'MIC',blob:blob,name:'',transcript:''};
+   const row={id:'clip-'+started+'-'+Math.random().toString(36).slice(2,8),createdAt:started,durationMs:duration,size:blob.size,mimeType:type,reason:recordReason,blob:blob,name:'',transcript:''};
    try{await djDbPut(row);diagEvent('LOCAL RECORD SAVED',djFmtDuration(duration)+' · '+formatBytes(blob.size));if($('djFilesModal').classList.contains('show'))renderDjFiles()}catch(err){diagEvent('LOCAL SAVE ERROR',String(err&&err.message||err))}
  };
- rec.start(1000);diagEvent('LOCAL RECORD START',djRecordReason);
+ rec.start(1000);diagEvent('LOCAL RECORD START',recordReason);
  return true
 }
 async function stopDjRecording(){
@@ -1912,15 +1918,18 @@ async function stopDjRecording(){
 }
 async function renderDjFiles(){
  const box=$('djFilesList');if(!box)return;
- djFileUrls.forEach(function(u){try{URL.revokeObjectURL(u)}catch(e){}});djFileUrls=[];
  let rows=[];try{rows=await djDbAll()}catch(e){box.innerHTML='<div class="note">Local storage error: '+esc(e.message||e)+'</div>';return}
  $('djFilesStatus').textContent=rows.length+' LOCAL RECORDING'+(rows.length===1?'':'S')+' · '+formatBytes(rows.reduce(function(n,x){return n+Number(x.size||0)},0));
  if(!rows.length){box.innerHTML='<div class="note">No DJ recordings yet. MIC and LOCAL MONITOR sessions will appear here.</div>';return}
  box.innerHTML=rows.map(function(row){
-   const u=URL.createObjectURL(row.blob);djFileUrls.push(u);
    const title=row.name||new Date(Number(row.createdAt||0)).toLocaleString();
-   return '<div class="djFileRow" data-djclip="'+esc(row.id)+'"><div class="djFileHead"><input type="checkbox" data-djselect="'+esc(row.id)+'"><div><div class="djFileName">'+esc(title)+'</div><div class="djFileMeta">'+esc(djFmtDuration(row.durationMs))+' · '+esc(formatBytes(row.size||0))+' · '+esc(row.reason||'MIC')+'</div></div></div><audio controls preload="metadata" src="'+esc(u)+'"></audio><div class="djFileActions"><button data-djshare="'+esc(row.id)+'">SHARE / DRIVE</button><button data-djsample="'+esc(row.id)+'">SAMPLE</button><button data-djdelete="'+esc(row.id)+'">DELETE</button></div></div>'
+   return '<div class="djFileRow" data-djclip="'+esc(row.id)+'"><div class="djFileHead"><input type="checkbox" data-djselect="'+esc(row.id)+'"><div><div class="djFileName">'+esc(title)+'</div><div class="djFileMeta">'+esc(djFmtDuration(row.durationMs))+' · '+esc(formatBytes(row.size||0))+' · '+esc(row.reason||'MIC')+'</div></div></div><div class="djFileActions"><button data-djplay="'+esc(row.id)+'">PLAY</button><button data-djshare="'+esc(row.id)+'">SHARE / DRIVE</button><button data-djsample="'+esc(row.id)+'">SAMPLE</button><button data-djdelete="'+esc(row.id)+'">DELETE</button></div></div>'
  }).join('')
+}
+async function playDjClip(id,toAir){
+ const row=await djDbGet(id);if(!row)return;
+ await ensureAudio();const data=await row.blob.arrayBuffer(),buf=await ctx.decodeAudioData(data),src=ctx.createBufferSource();src.buffer=buf;
+ src.connect(ctx.destination);if(contributionBus)src.connect(contributionBus);if(toAir&&liveActive&&liveGain)src.connect(liveGain);src.start()
 }
 async function shareDjClips(ids){
  const rows=[];for(const id of ids){const row=await djDbGet(id);if(row)rows.push(row)}
@@ -1941,9 +1950,7 @@ async function renderSamplePad(){
 }
 async function playDjSample(slot){
  const id=sampleSlots[String(slot||'')];if(!id)return;
- const row=await djDbGet(id);if(!row)return;
- await ensureAudio();const buf=await ctx.decodeAudioData(await row.blob.arrayBuffer()),src=ctx.createBufferSource();src.buffer=buf;
- src.connect(ctx.destination);if(contributionBus)src.connect(contributionBus);if(liveActive&&liveGain)src.connect(liveGain);src.start()
+ await playDjClip(id,true)
 }
 async function enterBufferedMic(reason){
  if(weakFallbackBusy)return;weakFallbackBusy=true;
@@ -2452,7 +2459,7 @@ $('djDriveFolder').onclick=function(){window.open('https://drive.google.com/driv
 $('djFilesSelectAll').onclick=function(){const boxes=Array.from(document.querySelectorAll('[data-djselect]')),all=boxes.length&&boxes.every(function(x){return x.checked});boxes.forEach(function(x){x.checked=!all})};
 $('djFilesShareSelected').onclick=function(){const ids=Array.from(document.querySelectorAll('[data-djselect]:checked')).map(function(x){return x.dataset.djselect});shareDjClips(ids).catch(function(e){alert(e.message||e)})};
 $('djFilesDeleteSelected').onclick=async function(){const ids=Array.from(document.querySelectorAll('[data-djselect]:checked')).map(function(x){return x.dataset.djselect});if(!ids.length)return;if(!confirm('Delete '+ids.length+' selected DJ recording'+(ids.length===1?'':'s')+' from this phone?'))return;for(const id of ids){await djDbDelete(id);Object.keys(sampleSlots).forEach(function(k){if(sampleSlots[k]===id)delete sampleSlots[k]})}saveSampleSlots();renderDjFiles();renderSamplePad()};
-$('djFilesList').onclick=function(e){const sh=e.target.closest('[data-djshare]'),sa=e.target.closest('[data-djsample]'),del=e.target.closest('[data-djdelete]');if(sh){shareDjClips([sh.dataset.djshare]).catch(function(err){alert(err.message||err)});return}if(sa){assignDjSample(sa.dataset.djsample).catch(function(err){alert(err.message||err)});return}if(del){if(confirm('Delete this DJ recording from this phone?'))djDbDelete(del.dataset.djdelete).then(function(){Object.keys(sampleSlots).forEach(function(k){if(sampleSlots[k]===del.dataset.djdelete)delete sampleSlots[k]});saveSampleSlots();renderDjFiles();renderSamplePad()});}};
+$('djFilesList').onclick=function(e){const pl=e.target.closest('[data-djplay]'),sh=e.target.closest('[data-djshare]'),sa=e.target.closest('[data-djsample]'),del=e.target.closest('[data-djdelete]');if(pl){playDjClip(pl.dataset.djplay,false).catch(function(err){alert(err.message||err)});return}if(sh){shareDjClips([sh.dataset.djshare]).catch(function(err){alert(err.message||err)});return}if(sa){assignDjSample(sa.dataset.djsample).catch(function(err){alert(err.message||err)});return}if(del){if(confirm('Delete this DJ recording from this phone?'))djDbDelete(del.dataset.djdelete).then(function(){Object.keys(sampleSlots).forEach(function(k){if(sampleSlots[k]===del.dataset.djdelete)delete sampleSlots[k]});saveSampleSlots();renderDjFiles();renderSamplePad()});}};
 $('fxSamplesOpen').onclick=function(){$('samplePadModal').classList.add('show');renderSamplePad()};
 $('samplePadClose').onclick=function(){$('samplePadModal').classList.remove('show')};
 $('samplePad').onclick=function(e){const b=e.target.closest('[data-sample-slot]');if(b)playDjSample(b.dataset.sampleSlot).catch(function(err){alert(err.message||err)})};
