@@ -84,9 +84,40 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 #view-mixer .strip{min-width:0!important}
 #view-mixer .touchFaderThumb{height:60px!important;left:3px!important;right:3px!important}
 @media(max-width:470px){#view-mixer .mixer{grid-template-columns:repeat(3,minmax(52px,1fr))!important}}
+
+/* Permanent whole-console display zoom. Audio routing is intentionally untouched. */
+.geDisplayZoomBar{
+ position:fixed;z-index:190;top:max(6px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+ width:min(430px,calc(100vw - 16px));min-height:42px;display:grid;
+ grid-template-columns:auto 38px minmax(100px,1fr) 38px 48px;gap:6px;align-items:center;
+ padding:4px 7px;border:1px solid #40505e;border-radius:11px;background:rgba(5,9,13,.97);
+ box-shadow:0 4px 16px rgba(0,0,0,.45);backdrop-filter:blur(10px)
+}
+.geDisplayZoomBar b{font-size:11px;letter-spacing:.08em;white-space:nowrap}
+.geDisplayZoomBar button{min-height:34px;border:1px solid #476275;background:#101923;color:#fff;border-radius:8px;font-size:18px;font-weight:950;padding:0}
+.geDisplayZoomBar input[type=range]{min-width:0;width:100%;height:32px}
+.geDisplayZoomBar output{font-size:11px;font-weight:950;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+.topShell{top:52px!important}
+.workspace{top:143px!important}
+.fxPanel{padding-top:calc(58px + env(safe-area-inset-top))!important}
+@media(orientation:landscape) and (max-height:650px){
+ .topShell{top:52px!important}
+ .workspace{top:52px!important}
+}
+@media(max-width:470px){
+ .geDisplayZoomBar{grid-template-columns:auto 34px minmax(74px,1fr) 34px 44px;gap:4px}
+ .geDisplayZoomBar b,.geDisplayZoomBar output{font-size:9px}
+ .geDisplayZoomBar button{min-height:32px}
+ .workspace{top:143px!important}
+}
 </style>
 </head>
 <body>
+<div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
+ <b>DISPLAY</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
+ <input id="geZoomRange" type="range" min="75" max="160" step="5" value="100" aria-label="GE Studio display zoom">
+ <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output>
+</div>
 <div class="lock" id="lock"><div class="login"><h1>GE STUDIO</h1><p>Creative workspace. Enter the radio password once on this device, or open Studio from the DJ Booth and it will be passed automatically.</p><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER STUDIO</button><div class="loginStatus" id="loginStatus"></div></div></div>
 
 <div class="topShell">
@@ -277,6 +308,66 @@ function updateDropUi(){[$('dropBig'),$('bottomDrop')].filter(Boolean).forEach(b
 function requestDrop(){if(dropActive){stopDrop();return}$('dropModal').classList.add('show')}$('dropBig').onclick=requestDrop;if($('bottomDrop'))$('bottomDrop').onclick=requestDrop;document.querySelectorAll('[data-drop]').forEach(b=>b.onclick=()=>{const m=b.dataset.drop;$('dropModal').classList.remove('show');if(m!=='cancel')beginDrop(m).catch(e=>{$('dropState').textContent=e.message||String(e);alert(e.message||e)})});
 
 document.addEventListener('pointerdown',function gePrimeStudio(){if(key)warmStudioSources().catch(function(){});},{once:true,capture:true});syncTouchFaders=installTouchMixer('#view-mixer','.mixer');setBgLevel(100);setInputLevel(inputSettings.level);setMaster(100);syncInputFx();refreshDevices();updateDropUi();syncTouchFaders();
+
+const GE_DISPLAY_ZOOM_KEY='geDisplayZoomV1';
+let geDisplayZoomPct=100;
+function geZoomCandidates(root){
+ const scope=root&&root.querySelectorAll?root:document;
+ return Array.from(scope.querySelectorAll('button,select,input:not([type="range"]),textarea,label,span,b,strong,small,p,h1,h2,h3,h4,h5,h6,a,th,td,div')).filter(function(el){
+   return !(el.closest&&el.closest('.geDisplayZoomBar'));
+ });
+}
+function geRegisterZoomBase(el){
+ if(!el||el.dataset.geZoomFontBase)return;
+ const cs=getComputedStyle(el),font=parseFloat(cs.fontSize);
+ if(Number.isFinite(font)&&font>0){
+   let base=font,p=el.parentElement;
+   if(geDisplayZoomPct!==100&&p&&p.dataset&&p.dataset.geZoomFontBase){
+     const pf=parseFloat(getComputedStyle(p).fontSize);
+     if(Number.isFinite(pf)&&Math.abs(font-pf)<.15)base=parseFloat(p.dataset.geZoomFontBase)||font;
+   }
+   el.dataset.geZoomFontBase=String(base);
+ }
+ if(el.matches&&el.matches('button,select,input:not([type="range"]),textarea')){
+   const mh=parseFloat(cs.minHeight),rect=el.getBoundingClientRect();
+   el.dataset.geZoomHeightBase=String(Number.isFinite(mh)&&mh>0?mh:Math.max(1,rect.height));
+ }
+}
+function applyGeDisplayZoom(value,persist){
+ geDisplayZoomPct=clamp(Math.round(Number(value)||100),75,160);
+ const scale=geDisplayZoomPct/100,buttonScale=scale<=1.2?1:(1+(scale-1.2)*1.25);
+ const els=geZoomCandidates(document);els.forEach(geRegisterZoomBase);
+ els.forEach(function(el){
+   const base=parseFloat(el.dataset.geZoomFontBase);
+   if(Number.isFinite(base))el.style.fontSize=(base*scale).toFixed(2)+'px';
+   const hb=parseFloat(el.dataset.geZoomHeightBase);
+   if(Number.isFinite(hb))el.style.minHeight=(hb*buttonScale).toFixed(1)+'px';
+ });
+ $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
+ if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
+ if(typeof syncTouchFaders==='function')requestAnimationFrame(syncTouchFaders);
+}
+function geResetZoomMeasurements(){
+ geZoomCandidates(document).forEach(function(el){
+   if(el.dataset.geZoomFontBase){el.style.removeProperty('font-size');delete el.dataset.geZoomFontBase}
+   if(el.dataset.geZoomHeightBase){el.style.removeProperty('min-height');delete el.dataset.geZoomHeightBase}
+ });
+ requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
+}
+(function initGeDisplayZoom(){
+ try{geDisplayZoomPct=clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),75,160)}catch(e){geDisplayZoomPct=100}
+ applyGeDisplayZoom(geDisplayZoomPct,false);
+ $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
+ $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
+ $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
+ let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(geResetZoomMeasurements,180)});
+ if(window.MutationObserver)new MutationObserver(function(muts){
+   let changed=false;
+   muts.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1&&!(n.closest&&n.closest('.geDisplayZoomBar')))changed=true})});
+   if(changed)requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
+ }).observe(document.body,{childList:true,subtree:true});
+})();
+
 const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(()=>sessionStorage.removeItem('geDjPassword'));
 </script>
 </body></html>
