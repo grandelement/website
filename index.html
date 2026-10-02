@@ -2897,6 +2897,237 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 }
 </style>
 
+<style id="ge-game-layout-system-v2">
+/* GE GAME COMPOSITION GRID
+   Visual rule: one center line, mirrored outer groups, equal controls and shared edges.
+   This intentionally overrides older ad-hoc HUD/modal placement without touching gameplay. */
+:root{
+  --ge-game-gap:8px;
+  --ge-game-control-h:42px;
+  --ge-game-edge:12px;
+}
+
+/* ---------- Common game windows ---------- */
+.gameOptionsPanel .gameCard,
+.gamePrompt .gameCard,
+.roundPrompt .gameCard,
+.musicOptionsPanel .gameCard,
+.playerOptionsPanel .gameCard,
+.scoreArchivePanel .gameCard{
+  box-sizing:border-box!important;
+}
+.gameOptionsPanel h2,
+.gameOptionsPanel h3,
+.gamePrompt h2,
+.roundPrompt h2,
+.musicOptionsPanel h2,
+.playerOptionsPanel h2,
+.scoreArchivePanel h2{
+  text-align:center!important;
+}
+.gameOptionsPanel .gameButton,
+.gamePrompt .gameButton,
+.roundPrompt .gameButton,
+.musicOptionsPanel .gameButton,
+.playerOptionsPanel .gameButton,
+.scoreArchivePanel .gameButton{
+  box-sizing:border-box!important;
+  min-height:var(--ge-game-control-h)!important;
+}
+
+/* Every modal action row follows 1 / 2 / 3 / 2x2 geometry instead of free-flow wrapping. */
+.gamePrompt .gameButtons,
+.gamePrompt .gameCardActions,
+.roundPrompt .gameButtons,
+.roundPrompt .gameCardActions,
+.musicOptionsPanel .gameButtons,
+.musicOptionsPanel .gameCardActions,
+.playerOptionsPanel .gameButtons,
+.playerOptionsPanel .gameCardActions,
+.scoreArchivePanel .gameButtons,
+.scoreArchivePanel .gameCardActions{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:var(--ge-game-gap)!important;
+  width:100%!important;
+  justify-content:stretch!important;
+  align-items:stretch!important;
+}
+.gamePrompt .gameButtons>:only-child,
+.gamePrompt .gameCardActions>:only-child,
+.roundPrompt .gameButtons>:only-child,
+.roundPrompt .gameCardActions>:only-child,
+.musicOptionsPanel .gameButtons>:only-child,
+.musicOptionsPanel .gameCardActions>:only-child,
+.playerOptionsPanel .gameButtons>:only-child,
+.playerOptionsPanel .gameCardActions>:only-child,
+.scoreArchivePanel .gameButtons>:only-child,
+.scoreArchivePanel .gameCardActions>:only-child{
+  grid-column:1/-1!important;
+}
+.gamePrompt .gameButtons:has(>:nth-child(3):last-child),
+.gamePrompt .gameCardActions:has(>:nth-child(3):last-child),
+.roundPrompt .gameButtons:has(>:nth-child(3):last-child),
+.roundPrompt .gameCardActions:has(>:nth-child(3):last-child){
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+.gamePrompt .gameButtons>*,
+.gamePrompt .gameCardActions>*,
+.roundPrompt .gameButtons>*,
+.roundPrompt .gameCardActions>*{
+  width:100%!important;margin:0!important;min-width:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+}
+
+/* Game chooser/options header: three equal zones — HOME | HIGH SCORES | CLOSE. */
+.geOptionsUtilityBar{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:var(--ge-game-gap)!important;
+  align-items:stretch!important;
+  width:100%!important;
+  margin:0 0 12px!important;
+}
+.geOptionsUtilityBar .gameButton{
+  width:100%!important;max-width:none!important;margin:0!important;
+  min-height:var(--ge-game-control-h)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+}
+.geGameNavHome{justify-self:stretch!important;text-align:center!important}
+.geGameNavScores{justify-self:stretch!important;text-align:center!important}
+.geGameNavClose{justify-self:stretch!important;font-size:22px!important;line-height:1!important}
+
+/* Detail screen uses the same three-zone header. The game kind is truly centered. */
+.geDetailNav{
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr!important;
+  align-items:center!important;
+  gap:var(--ge-game-gap)!important;
+  width:100%!important;
+}
+#geGameDetailBack{grid-column:1!important;justify-self:stretch!important;text-align:center!important}
+#geGameDetailKind{grid-column:2!important;justify-self:center!important;text-align:center!important}
+#geGameDetailTitle,
+#geGameDetailDescription{text-align:center!important}
+.geTopStartWrap{display:flex!important;justify-content:center!important;width:100%!important}
+.geTopStartWrap .gameButton{width:min(100%,360px)!important}
+
+/* ---------- Live game HUD ---------- */
+#gameHUD .gameHudBtn{
+  margin:0!important;position:static!important;min-width:0!important;
+  box-sizing:border-box!important;border-radius:11px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+}
+#gameHUD .gameBgControls,
+#gameHUD .gameBgBtn{margin:0!important;box-sizing:border-box!important}
+
+/* Portrait composition:
+   LEFT GROUP = New Game + Exit
+   CENTER = Options
+   RIGHT GROUP = Music + Offline
+   Context-only Push Out gets its own centered row. */
+@media (orientation:portrait){
+  body.game-mode-active #gameHUD{
+    display:grid!important;
+    grid-template-columns:repeat(12,minmax(0,1fr))!important;
+    grid-template-rows:minmax(52px,auto) var(--ge-game-control-h) auto!important;
+    gap:6px!important;
+    align-items:stretch!important;
+    padding-left:max(8px,env(safe-area-inset-left,0px))!important;
+    padding-right:max(8px,env(safe-area-inset-right,0px))!important;
+    height:auto!important;min-height:0!important;
+  }
+  #gameHUD .gameScoreWrap{grid-column:1/-1!important;grid-row:1!important;width:100%!important}
+  #gameNewBtn{grid-column:1/3!important;grid-row:2!important}
+  #gameExitTopBtn{grid-column:3/5!important;grid-row:2!important}
+  #gameOptionsBtn{grid-column:6/8!important;grid-row:2!important}
+  #gameMusicToggle{grid-column:9/11!important;grid-row:2!important}
+  #gameOfflineBtn{grid-column:11/13!important;grid-row:2!important}
+  #ninePushOutBtn{grid-column:5/9!important;grid-row:3!important;justify-self:stretch!important}
+  #gameHUD .gameHudBtn{
+    width:100%!important;height:var(--ge-game-control-h)!important;min-height:var(--ge-game-control-h)!important;
+    padding:4px!important;font-size:clamp(8px,2.35vw,10px)!important;line-height:1.05!important;white-space:normal!important;
+  }
+  #gameHUD .gameBgControls{display:none!important}
+}
+
+/* Landscape composition: disciplined two-column rail rather than a loose vertical pile. */
+@media (orientation:landscape){
+  body.game-mode-active #gameHUD{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-auto-rows:auto!important;
+    gap:var(--ge-game-gap)!important;
+    align-content:start!important;align-items:stretch!important;
+  }
+  #gameHUD .gameScoreWrap{grid-column:1/-1!important;width:100%!important;margin:0!important}
+  #gameNewBtn{grid-column:1!important}
+  #gameExitTopBtn{grid-column:2!important}
+  #gameOptionsBtn{grid-column:1/-1!important}
+  #ninePushOutBtn{grid-column:1/-1!important}
+  #gameMusicToggle{grid-column:1!important}
+  #gameOfflineBtn{grid-column:2!important}
+  #gameHUD .gameHudBtn{width:100%!important;min-height:40px!important;height:auto!important;padding:7px 5px!important}
+  #gameHUD .gameBgControls{
+    grid-column:1/-1!important;width:100%!important;
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;
+  }
+  #gameHUD .gameBgBtn{width:100%!important;min-width:0!important}
+}
+
+/* ---------- Music controls ----------
+   Media transport is a 3-button row; mode/settings are a 2-button row; timeline spans the width. */
+body.game-mode-active #gameMusicDock.open{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:7px!important;
+  align-items:center!important;
+}
+#gameMusicDock .gameMusicLabel{grid-column:1/-1!important;text-align:center!important}
+#gameMusicPrev{grid-column:1/3!important}
+#gameMusicPlay{grid-column:3/5!important}
+#gameMusicNext{grid-column:5/7!important}
+#gameMusicMode{grid-column:1/4!important}
+#gameMusicOptions{grid-column:4/7!important}
+#gameMusicDock .gameSeekWrap{grid-column:1/-1!important;width:100%!important;max-width:none!important}
+#gameMusicDock .gameMusicBtn{width:100%!important;margin:0!important;min-height:40px!important}
+
+/* ---------- Golf / Body top bars ----------
+   Same left-center-right geometry in every special game. */
+.geCourseTop,
+.geBodyRaceTop{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  align-items:center!important;
+  gap:var(--ge-game-gap)!important;
+}
+#geCourseExit{grid-column:1!important;justify-self:stretch!important}
+#geCourseTitle{grid-column:2!important;justify-self:center!important;text-align:center!important}
+#geCourseNext{grid-column:3!important;justify-self:stretch!important}
+.geCourseTop .geCourseBtn{width:100%!important;min-height:42px!important;text-align:center!important}
+
+#geBodyRaceExit{grid-column:1!important;justify-self:stretch!important}
+#geBodyRaceTitle{grid-column:2!important;justify-self:center!important;text-align:center!important}
+#geBodyRaceTimer{grid-column:3!important;justify-self:stretch!important;text-align:center!important}
+.geBodyRaceTop .geBodyRaceBtn{width:100%!important;min-height:42px!important}
+.geBodyRaceTitle{white-space:normal!important;line-height:1.15!important}
+.geBodyRaceActions{
+  left:50%!important;right:auto!important;transform:translateX(-50%)!important;
+  width:min(320px,78vw)!important;
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:var(--ge-game-gap)!important;
+}
+.geBodyRaceActions:has(#geBodyRaceNext[hidden]){grid-template-columns:1fr!important}
+.geBodyRaceActions .geBodyRaceBtn{width:100%!important;margin:0!important;text-align:center!important}
+
+@media(max-width:430px){
+  .geBodyRaceTop{grid-template-columns:1fr 1.35fr 1fr!important}
+  .geBodyRaceTimer{grid-column:3!important;margin-top:0!important;text-align:center!important}
+  .geBodyRaceTitle{font-size:10px!important}
+  .geBodyRaceBtn{font-size:10px!important;padding:7px 6px!important}
+}
+</style>
+
 <style id="ge-normal-mobile-planet-touch-v1">
 /* Normal universe only: restore thumb-friendly album planets. Game sizing stays independent. */
 @media (max-width:700px) and (orientation:portrait){
