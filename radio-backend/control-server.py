@@ -74,7 +74,7 @@ def station_settings():
     raw = read_json(SETTINGS, {})
     return {
         "legacy": bool(raw.get("legacy", False)),
-        "crossfade_seconds": max(0.0, min(12.0, float(raw.get("crossfade_seconds", 5.0) if raw.get("crossfade_seconds", 5.0) is not None else 5.0))),
+        "crossfade_seconds": max(0.0, min(30.0, float(raw.get("crossfade_seconds", 5.0) if raw.get("crossfade_seconds", 5.0) is not None else 5.0))),
         "custom_mix_enabled": bool(raw.get("custom_mix_enabled", False)),
         "custom_mix_id": str(raw.get("custom_mix_id", "") or ""),
     }
@@ -293,7 +293,7 @@ def vault_restore_crossfade():
                 value = raw
         else:
             value = row.get("value_text")
-        seconds = max(0.0, min(12.0, float(value)))
+        seconds = max(0.0, min(30.0, float(value)))
         settings = station_settings()
         settings["crossfade_seconds"] = seconds
         write_json(SETTINGS, settings)
@@ -629,6 +629,10 @@ def annotation(entry, commit_sha, cross=None):
     ]
     if cross is not None:
         fields.append(f'liq_cross_duration="{cross:.1f}"')
+        fields.append(f'liq_fade_in="{cross:.1f}"')
+        fields.append(f'liq_fade_out="{cross:.1f}"')
+        fields.append('liq_fade_in_type="sin"')
+        fields.append('liq_fade_out_type="sin"')
     path = entry.get("path", "")
     if entry.get("kind") == "temp_upload" or path.startswith("/app/runtime/uploads/"):
         source = path
@@ -2649,7 +2653,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_auth(): return
             try:
                 body = self.read_body_json()
-                seconds = max(0.0, min(12.0, float(body.get("seconds", 5.0))))
+                seconds = max(0.0, min(30.0, float(body.get("seconds", 5.0))))
                 settings = station_settings()
                 settings["crossfade_seconds"] = seconds
                 write_json(SETTINGS, settings)
