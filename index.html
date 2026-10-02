@@ -2775,6 +2775,119 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 .geBlueSunCup{background:radial-gradient(circle,#020713 0 25%,#096bb6 27%,#65d1ff 44%,rgba(55,180,255,.22) 64%,transparent 72%)!important;box-shadow:0 0 15px #72dcff,0 0 30px rgba(40,155,255,.8)!important}
 .geBodyObstacle{background:center/contain no-repeat url('ge-images/images/ge-logo-4-cutout.png')!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 10px #70d8ff)}
 </style>
+
+<style id="ge-game-layout-system-v1">
+/* GE GAME LAYOUT SYSTEM — authoritative geometry only. No gameplay/physics changes.
+   Rule: common edges, equal gaps, equal related controls, no arbitrary offsets. */
+:root{--ge-ui-gap:8px;--ge-ui-radius:11px;--ge-ui-control-h:38px}
+
+/* Dialog language: one centered content column with aligned groups. */
+.gamePrompt .gameCard{
+  display:flex!important;flex-direction:column!important;
+  align-items:stretch!important;
+  text-align:left!important;
+  gap:0!important;
+}
+.gamePrompt .gameCard>h2,
+.gamePrompt .gameCard>.geControlLead,
+.gamePrompt .gameCard>.gameCardTitle{text-align:center!important}
+.gamePrompt .gameButtons,
+.gamePrompt .gameCardActions,
+.gamePrompt .geHubButtons{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:var(--ge-ui-gap)!important;
+  width:100%!important;
+  align-items:stretch!important;
+  justify-content:stretch!important;
+}
+.gamePrompt .gameButtons>.gameButton,
+.gamePrompt .gameCardActions>.gameButton,
+.gamePrompt .geHubButtons>.gameButton{
+  width:100%!important;min-width:0!important;margin:0!important;
+  min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  text-align:center!important;
+}
+.gamePrompt .optionGrid,
+.gamePrompt .geEffectsGrid{
+  width:100%!important;gap:var(--ge-ui-gap)!important;
+}
+.gamePrompt .optionGroupTitle,
+.gamePrompt .gameFamilyTitle,
+.gamePrompt .albumPickerTitle{
+  width:100%!important;text-align:left!important;
+}
+
+/* Game HUD: remove legacy hand-positioned offsets. */
+#gameHUD .gameHudBtn{
+  margin:0!important;
+  position:static!important;
+  box-sizing:border-box!important;
+  min-width:0!important;
+  border-radius:var(--ge-ui-radius)!important;
+  text-align:center!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+#gameHUD .gameBgControls{margin:0!important;box-sizing:border-box!important}
+#gameHUD .gameBgBtn{margin:0!important;box-sizing:border-box!important;text-align:center!important}
+
+/* Portrait: score/status is row 1. Every global action lives on one regular grid below it. */
+@media (orientation:portrait){
+ body.game-mode-active #gameHUD{
+   display:grid!important;
+   grid-template-columns:repeat(6,minmax(0,1fr))!important;
+   grid-template-rows:minmax(48px,auto) auto!important;
+   column-gap:5px!important;row-gap:5px!important;
+   align-items:stretch!important;
+   padding-left:max(6px,env(safe-area-inset-left,0px))!important;
+   padding-right:max(6px,env(safe-area-inset-right,0px))!important;
+   height:auto!important;min-height:0!important;
+ }
+ #gameHUD .gameScoreWrap{grid-column:1/-1!important;grid-row:1!important;width:100%!important}
+ #gameNewBtn{grid-column:1!important;grid-row:2!important}
+ #gameExitTopBtn{grid-column:2!important;grid-row:2!important}
+ #gameOptionsBtn{grid-column:3!important;grid-row:2!important}
+ #ninePushOutBtn{grid-column:4!important;grid-row:2!important}
+ #gameMusicToggle{grid-column:5!important;grid-row:2!important}
+ #gameOfflineBtn{grid-column:6!important;grid-row:2!important}
+ #gameHUD .gameHudBtn{
+   width:100%!important;height:var(--ge-ui-control-h)!important;
+   min-height:var(--ge-ui-control-h)!important;
+   padding:4px 3px!important;font-size:clamp(7px,2.15vw,10px)!important;
+   white-space:normal!important;line-height:1.05!important;
+ }
+ #gameHUD .gameBgControls{display:none!important}
+}
+
+/* Landscape: one disciplined left rail; score block then full-width actions. */
+@media (orientation:landscape){
+ body.game-mode-active #gameHUD{
+   display:flex!important;flex-direction:column!important;
+   align-items:stretch!important;gap:var(--ge-ui-gap)!important;
+ }
+ #gameHUD .gameScoreWrap{width:100%!important;margin:0!important}
+ #gameHUD .gameHudBtn{
+   width:100%!important;min-height:38px!important;height:auto!important;
+   padding:7px 5px!important;
+ }
+ #gameHUD .gameBgControls{
+   width:100%!important;
+   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   gap:5px!important;
+ }
+ #gameHUD .gameBgBtn{width:100%!important;min-width:0!important}
+}
+
+/* Small dialogs: paired actions stay symmetrical; a lone action spans the row. */
+@media(max-width:520px){
+ .gamePrompt .gameButtons,
+ .gamePrompt .gameCardActions,
+ .gamePrompt .geHubButtons{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .gamePrompt .gameButtons>:only-child,
+ .gamePrompt .gameCardActions>:only-child,
+ .gamePrompt .geHubButtons>:only-child{grid-column:1/-1!important}
+}
+</style>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
