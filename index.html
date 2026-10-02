@@ -2370,6 +2370,7 @@ body.nine-planet-active.nine-push-available #ninePushOutBtn{display:flex!importa
 .geGameControlCard{padding-top:22px!important;overflow:auto!important;max-height:min(88dvh,980px)!important}
 .geGameHubHome,.geGameDetailScreen{display:block}
 .geControlLead{margin:4px 0 14px;text-align:center;opacity:.72;font-size:12px}
+.geHubStartTop{display:flex;justify-content:center;margin:8px 0 12px}.geHubStartTop .geStartGamePrimary{width:min(100%,360px);min-height:52px!important}
 .geGameList{display:grid;gap:9px;margin:8px 0 16px}
 .geGameRow{min-height:72px!important;display:grid!important;grid-template-columns:minmax(0,1fr) 28px!important;align-items:center!important;text-align:left!important;padding:12px 14px!important}
 .geGameRow>span{display:grid;gap:3px}.geGameRow b{font-size:16px!important}.geGameRow small{font-size:11px;opacity:.68;font-weight:650}.geGameRow i{font-style:normal;font-size:28px;line-height:1;text-align:center;opacity:.72}
@@ -2428,6 +2429,7 @@ body.marbles-game-active #sunWrap{display:none!important}body.marbles-game-activ
 .geResetChecklist label{display:flex!important;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:7px 9px;border:1px solid rgba(125,205,255,.16);border-radius:10px;background:rgba(255,255,255,.025);font-size:10px;font-weight:850;letter-spacing:.04em;}
 .geResetChecklist input{width:18px;height:18px;flex:0 0 auto;}
 @media(max-width:560px){.geResetChecklist{grid-template-columns:1fr}.geOptionsScoresOverlay{inset:6px}}
+@media(max-width:560px){#geGameHubHome .geGameList{gap:7px}#geGameHubHome .geGameRow{min-height:61px!important;padding:9px 12px!important}#geGameHubHome .geGameRow b{font-size:15px!important}#geGameHubHome .geGameRow small{font-size:10px!important;line-height:1.25}.geControlLead{margin-bottom:9px!important}}
 .geGameHubHome,.geGameDetailScreen{width:100%;box-sizing:border-box;}
 .geGameControlCard.geViewHub .geGameHubHome{display:block!important;}
 .geGameControlCard.geViewHub .geGameDetailScreen{display:none!important;}
@@ -3096,12 +3098,15 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 
       <section class="geGameHubHome" id="geGameHubHome">
         <h2 id="gameOptionsTitle">Game Control</h2>
-        <p class="geControlLead">Choose a game. Each game has its own setup screen.</p>
+        <div class="geHubStartTop"><button class="gameButton geStartGamePrimary" id="geHubStartGameBtn" type="button">START GAME</button></div>
+        <p class="geControlLead">Choose one of the five games. Tap a game to open its setup and options.</p>
 
         <div class="geGameList" id="basicGamePanel">
           <button class="basicGameCard geGameRow selected" id="basicThrowGame" type="button" data-game-detail="points"><span><b>POINTS</b><small>Send planets into banks, other planets and the Blue Sun to build a score.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicBlueSunPoolGame" type="button" data-game-detail="pockets"><span><b>POCKETS</b><small>Choose Center or 9 Ball and pocket the numbered album planets.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicMarblesGame" type="button" data-game-detail="planets"><span><b>PLANETS</b><small>Grand Element marbles. Throw your shooter and knock your planets out.</small></span><i>›</i></button>
+          <button class="basicGameCard geGameRow" id="basicGolfGame" type="button" data-game-detail="golf"><span><b>GOLF</b><small>33 holes. Rubber-band your planet into the Blue Sun cup.</small></span><i>›</i></button>
+          <button class="basicGameCard geGameRow" id="basicBodyGame" type="button" data-game-detail="body"><span><b>THE BODY</b><small>Guide The Body through progressively harder obstacle courses.</small></span><i>›</i></button>
         </div>
 
         <details class="geGeneralControlBlock geGameEffectsDisclosure" id="geGameEffectsDisclosure">
@@ -7142,13 +7147,16 @@ const GE_GAME = (()=>{
     blueSunPool:{title:'Pockets',kind:'POCKETS',description:'Choose Center or 9 Ball, then set the ball sizes, pocket size and shot feel for that game.'},
     ninePlanet:{title:'Pockets',kind:'POCKETS',description:'Choose Center or 9 Ball, then set the ball sizes, pocket size and shot feel for that game.'},
     planets:{title:'Planets',kind:'PLANETS',description:'Grand Element marbles. Throw the larger shooter and knock your own album planets beyond the playfield.'},
-    marbles:{title:'Planets',kind:'PLANETS',description:'Grand Element marbles. Throw the larger shooter and knock your own album planets beyond the playfield.'}
+    marbles:{title:'Planets',kind:'PLANETS',description:'Grand Element marbles. Throw the larger shooter and knock your own album planets beyond the playfield.'},
+    golf:{title:'Golf',kind:'GOLF',description:'33 progressively harder holes. Rubber-band your chosen planet into the Blue Sun cup.'},
+    body:{title:'The Body',kind:'THE BODY',description:'Guide The Body through obstacle courses without touching the course walls or obstacles.'}
   };
   let currentGameDetail='points',previewTimer=0,previewStep=0;
   optionsPanel.querySelector('.geGameControlCard')?.classList.add('geViewHub');
   function detailKindFromState(){if(state.gameType==='blueSunPool'||state.gameType==='ninePlanet')return'pockets';if(state.gameType==='marbles')return'planets';return'points';}
   function setDetailClasses(kind){
-    optionsPanel.classList.remove('detail-score','detail-pool','detail-nine','detail-marbles','detail-points','detail-pockets','detail-planets','pockets-center','pockets-nine');
+    optionsPanel.classList.remove('detail-score','detail-pool','detail-nine','detail-marbles','detail-points','detail-pockets','detail-planets','detail-golf','detail-body','pockets-center','pockets-nine');
+    if(kind==='golf'||kind==='body'){optionsPanel.classList.add('detail-'+kind);return;}
     if(kind==='pockets'||kind==='blueSunPool'||kind==='ninePlanet'){
       optionsPanel.classList.add('detail-pockets',state.gameType==='ninePlanet'?'pockets-nine':'pockets-center');
     }else if(kind==='planets'||kind==='marbles'){optionsPanel.classList.add('detail-planets','detail-marbles');}
@@ -7237,7 +7245,9 @@ const GE_GAME = (()=>{
     gePreviewBoard.innerHTML=html;gePreviewCaption.textContent=caption;
   }
   function openGameDetail(kind){
-    if(!GAME_DETAIL_META[kind])kind='points';currentGameDetail=kind;applyBasicPreset(kind);setDetailClasses(kind);if(kind==='pockets')syncPocketsModeToggle();
+    if(!GAME_DETAIL_META[kind])kind='points';currentGameDetail=kind;
+    if(kind!=='golf'&&kind!=='body')applyBasicPreset(kind);
+    setDetailClasses(kind);if(kind==='pockets')syncPocketsModeToggle();
     const meta=GAME_DETAIL_META[kind];if(geGameDetailTitle)geGameDetailTitle.textContent=meta.title;if(geGameDetailKind)geGameDetailKind.textContent=meta.kind;if(geGameDetailDescription)geGameDetailDescription.textContent=meta.description;
     if(geGameHubHome)geGameHubHome.hidden=true;if(geGameDetailScreen)geGameDetailScreen.hidden=false;
     const card=optionsPanel.querySelector('.geGameControlCard');
@@ -7249,6 +7259,7 @@ const GE_GAME = (()=>{
   }
   geGameDetailBack?.addEventListener('click',showGameHub);
   document.querySelectorAll('[data-game-detail]').forEach(btn=>btn.addEventListener('click',()=>openGameDetail(btn.dataset.gameDetail)));
+  document.getElementById('geHubStartGameBtn')?.addEventListener('click',()=>openGameDetail(currentGameDetail||detailKindFromState()));
   const pocketsCenterBtn=document.getElementById('pocketsCenterBtn'),pocketsNineBtn=document.getElementById('pocketsNineBtn'),pocketsModeHelp=document.getElementById('pocketsModeHelp');
   function syncPocketsModeToggle(){
     const nine=state.gameType==='ninePlanet';
