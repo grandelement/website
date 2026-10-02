@@ -3225,6 +3225,9 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
 .geBodyRaceTimer{min-width:64px;text-align:right;font-variant-numeric:tabular-nums;font-weight:1000;text-shadow:0 0 12px #54bfff}
 .geBodyRaceCountdown{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(64px,22vw,140px);font-weight:1000;text-shadow:0 0 24px #55c8ff,0 0 46px rgba(40,150,255,.75);pointer-events:none}
 .geBodyRaceMessage{position:absolute;left:50%;bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px));transform:translateX(-50%);max-width:86vw;padding:7px 12px;border:1px solid rgba(150,220,255,.4);border-radius:999px;background:rgba(0,10,22,.66);font-size:11px;font-weight:900;letter-spacing:.04em;text-align:center;white-space:nowrap}
+.geBodySoulMeter{position:absolute;top:max(66px,calc(env(safe-area-inset-top) + 58px));left:50%;transform:translateX(-50%);display:flex;gap:9px;align-items:center;justify-content:center}
+.geBodySoulDot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(218,247,255,.96);background:rgba(5,22,38,.38);box-shadow:0 0 7px rgba(73,193,255,.55);transition:background .2s,box-shadow .2s,transform .2s}
+.geBodySoulDot.filled{background:radial-gradient(circle at 35% 28%,#fff 0 18%,#79ddff 28%,#1687d7 67%,#052a4d 100%);box-shadow:0 0 8px #dff8ff,0 0 18px rgba(55,192,255,.88);transform:scale(1.08)}
 .geBodyRaceActions{position:absolute;right:10px;bottom:max(58px,calc(env(safe-area-inset-bottom) + 54px));display:flex;gap:7px;pointer-events:none}.geBodyRaceActions .geBodyRaceBtn{pointer-events:auto}
 body.ge-body-race-countdown #fx{pointer-events:none}
 /* THE BODY runs inside the real GE universe even while the normal game shell is active.
@@ -3234,6 +3237,8 @@ body.ge-body-race-countdown #fx{pointer-events:none}
 body.ge-body-race-active #fx,
 body.ge-body-race-active #fxFront{display:block!important}
 body.ge-body-race-active #gameHUD{display:none!important}
+body.ge-body-race-active #gameBackground,
+body.ge-body-race-active #orbit{display:none!important}
 body.ge-body-race-active #gameAimGuide,
 body.ge-body-race-active #gameTrails,
 body.ge-body-race-active #gameTrailsLive,
@@ -3396,6 +3401,7 @@ body.ge-body-race-active .geCourseMode{display:none!important}
       <div id="geBodyRaceTitle" class="geBodyRaceTitle">THE BODY · COURSE 1 / 33</div>
       <div id="geBodyRaceTimer" class="geBodyRaceTimer">0.00</div>
     </div>
+    <div id="geBodySoulMeter" class="geBodySoulMeter" aria-label="Souls collected"><span class="geBodySoulDot"></span><span class="geBodySoulDot"></span><span class="geBodySoulDot"></span></div>
     <div id="geBodyRaceCountdown" class="geBodyRaceCountdown"></div>
     <div id="geBodyRaceMessage" class="geBodyRaceMessage">FOLLOW THE DOTTED PATH</div>
     <div class="geBodyRaceActions">
@@ -5908,7 +5914,7 @@ function releaseSoulChoice(c,host){
   else{const a=rand(-Math.PI,Math.PI),sp=rand(45,115);c.vx=Math.cos(a)*sp;c.vy=Math.sin(a)*sp;}
 }
 function soulMayBreakTether(c,host,dt){
-  if(!c||c.dead||c.isSoulDrone)return false;
+  if(!c||c.dead||c.isSoulDrone||c.geRaceBonus)return false;
   c.tetherAge=(c.tetherAge||0)+dt;if(c.tetherAge<.42)return false;
   const agency=Math.max(.05,Math.min(1,Number(c.soulAgency)||.5));
   // Per-second choice rate. High-agency Souls visibly change their mind more often, but most still complete a tether.
@@ -6420,6 +6426,9 @@ canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
   if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
   if(bodyCourse){
+    if(window.GE_BODY_RACE_SOUL_TOUCH?.(e.clientX,e.clientY)){
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
     // BODY COURSE = movement only. The Body is hard-locked through 3-2-1 and cannot
     // accept a steering pointer until the exact frame GO releases the countdown class.
     if(document.body.classList.contains('ge-body-race-countdown')){
@@ -10572,7 +10581,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     path.setAttribute('points',pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));svg.hidden=false;
   }
   const bodyRaceTrack=document.getElementById('geBodyRaceTrack'),bodyRacePath=document.getElementById('geBodyRacePath'),bodyRaceHUD=document.getElementById('geBodyRaceHUD'),bodyRaceTitle=document.getElementById('geBodyRaceTitle'),bodyRaceTimer=document.getElementById('geBodyRaceTimer'),bodyRaceCountdown=document.getElementById('geBodyRaceCountdown'),bodyRaceMessage=document.getElementById('geBodyRaceMessage'),bodyRaceNext=document.getElementById('geBodyRaceNext');
-  let bodyRace=null,bodyRaceRAF=0,bodyRacePlanetSnapshot=null,bodyRaceToken=0;
+  let bodyRace=null,bodyRaceRAF=0,bodyRacePlanetSnapshot=null,bodyRaceSunSnapshot=null,bodyRaceAlbumSnapshot=null,bodyRaceToken=0;
 
   function bodyRacePathD(pts){
     if(!pts.length)return '';
@@ -10620,22 +10629,55 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     {name:'GAUNTLET',p:[[.18,1],[.66,.91],[.31,.81],[.69,.71],[.30,.61],[.68,.51],[.31,.41],[.69,.31],[.30,.21],[.62,.11],[.82,0]]},
     {name:'GRAND ELEMENT',p:[[.18,1],[.61,.91],[.75,.76],[.58,.61],[.34,.67],[.27,.49],[.48,.39],[.72,.47],[.70,.27],[.47,.18],[.31,.28],[.37,.10],[.82,0]]}
   ];
+  function sampleBodyRoute(points,t){
+    const segs=[];let total=0;
+    for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1],len=Math.hypot(b.x-a.x,b.y-a.y);segs.push({a,b,len});total+=len}
+    let want=clamp(t,0,1)*Math.max(1,total);
+    for(const seg of segs){
+      if(want<=seg.len||seg===segs[segs.length-1]){
+        const q=seg.len?clamp(want/seg.len,0,1):0,dx=seg.b.x-seg.a.x,dy=seg.b.y-seg.a.y,m=Math.hypot(dx,dy)||1;
+        return{x:seg.a.x+dx*q,y:seg.a.y+dy*q,tx:dx/m,ty:dy/m};
+      }
+      want-=seg.len;
+    }
+    const z=points[points.length-1];return{x:z.x,y:z.y,tx:1,ty:0};
+  }
   function bodyCourseSpec(n,w,h){
-    const mx=Math.max(62,w*.12),top=Math.max(118,h*.14),bottom=h-Math.max(145,h*.17);
+    const mx=Math.max(102,w*.24),top=Math.max(124,h*.145),bottom=h-Math.max(155,h*.18);
     const tpl=BODY_COURSE_TEMPLATES[Math.max(0,Math.min(32,(n|0)-1))]||BODY_COURSE_TEMPLATES[0];
     const spanX=Math.max(1,w-mx*2),spanY=Math.max(1,bottom-top);
     const points=tpl.p.map(([x,y])=>({x:mx+x*spanX,y:top+y*spanY}));
     const difficulty=(Math.max(1,Math.min(33,n))-1)/32;
-    return{name:tpl.name,points,gateRadius:Math.round(58-difficulty*26),gateHalf:Math.round(37-difficulty*12),nearPlanets:Math.min((window.planetNodes||[]).length,1+Math.floor((n-1)/5)),soulCount:Math.min(4,1+Math.floor((n-1)/10))};
+    const markerTs=[.18,.34,.50,.66,.82],markers=markerTs.map(t=>sampleBodyRoute(points,t));
+    return{name:tpl.name,points,markers,markerRadius:Math.round(54-difficulty*18)};
   }
   function saveBodyRacePlanets(){
     if(bodyRacePlanetSnapshot)return;
     bodyRacePlanetSnapshot=(window.planetNodes||[]).map(p=>({p,x:p.x,y:p.y,vx:p.vx,vy:p.vy}));
+    const sun=document.getElementById('sunWrap');
+    if(sun&&!bodyRaceSunSnapshot)bodyRaceSunSnapshot={left:sun.style.left,top:sun.style.top,transform:sun.style.transform};
+  }
+  function prepareBodyRaceUniverse(){
+    try{
+      if(typeof ALBUMS!=='undefined'&&Array.isArray(ALBUMS)&&!bodyRaceAlbumSnapshot)bodyRaceAlbumSnapshot=ALBUMS.slice();
+      if(typeof ALL_ALBUMS!=='undefined'&&Array.isArray(ALL_ALBUMS)&&typeof ALBUMS!=='undefined'){
+        ALBUMS=ALL_ALBUMS.slice();
+        if(typeof placePlanets==='function')placePlanets();
+        if(typeof buildPlanetPhysics==='function')buildPlanetPhysics();
+      }
+    }catch(err){console.error('GE Body all-planets setup recovered',err)}
   }
   function restoreBodyRacePlanets(){
-    if(!bodyRacePlanetSnapshot)return;
-    for(const q of bodyRacePlanetSnapshot){if(!q.p?.el)continue;q.p.x=q.x;q.p.y=q.y;q.p.vx=q.vx;q.p.vy=q.vy;q.p.el.style.left=(q.x-q.p.r)+'px';q.p.el.style.top=(q.y-q.p.r)+'px';}
-    bodyRacePlanetSnapshot=null;
+    const sun=document.getElementById('sunWrap');
+    if(sun&&bodyRaceSunSnapshot){sun.style.left=bodyRaceSunSnapshot.left;sun.style.top=bodyRaceSunSnapshot.top;sun.style.transform=bodyRaceSunSnapshot.transform;}
+    bodyRaceSunSnapshot=null;bodyRacePlanetSnapshot=null;
+    try{
+      if(bodyRaceAlbumSnapshot&&typeof ALBUMS!=='undefined'){
+        ALBUMS=bodyRaceAlbumSnapshot.slice();bodyRaceAlbumSnapshot=null;
+        if(typeof placePlanets==='function')placePlanets();
+        if(typeof buildPlanetPhysics==='function')requestAnimationFrame(buildPlanetPhysics);
+      }
+    }catch(err){console.error('GE Body planet restore recovered',err)}
   }
   const BODY_SIZE_KEY='GE_BODY_SIZE_PCT_V1',BODY_HITS_KEY='GE_BODY_HITS_V1';
   const optBodySize=document.getElementById('optBodySize'),optBodySizeValue=document.getElementById('optBodySizeValue'),optBodyHits=document.getElementById('optBodyHits');
@@ -10660,32 +10702,35 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function placeBodyRacePlanets(spec,s){
     saveBodyRacePlanets();
-    const list=window.planetNodes||[],pts=spec.points,bodyR=s?shipVisualRadius(s):34,near=Math.min(spec.nearPlanets||0,list.length),placed=[];
-    const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
-    if(sunRect?.width)placed.push({x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:Math.max(sunRect.width,sunRect.height)/2+24});
-    const start=pts[0],finish=pts[pts.length-1];
-    placed.push({x:start.x,y:start.y,r:bodyR+30},{x:finish.x,y:finish.y,r:48});
-    const slots=[[.82,.28],[.16,.30],[.84,.46],[.15,.55],[.82,.66],[.22,.72],[.64,.74],[.50,.27],[.72,.52],[.30,.43]];
-    function clearSpot(x,y,r){
-      const edge=r+18;if(x<edge||x>innerWidth-edge||y<Math.max(105,edge)||y>innerHeight-Math.max(125,edge))return false;
-      return placed.every(q=>Math.hypot(x-q.x,y-q.y)>r+q.r+24);
+    const list=(window.planetNodes||[]).slice(),bodyR=s?shipVisualRadius(s):24,sun=document.getElementById('sunWrap');
+    const sunRect=sun?.getBoundingClientRect(),sunR=Math.max(45,(sunRect?.width||100)/2);
+    const hazards=list.map((p,i)=>({kind:'planet',p,r:p.r||18,key:i}));
+    if(sun)hazards.push({kind:'sun',el:sun,r:sunR,key:99});
+    /* Rotate the hazard order every course so all nine planets and the Blue Sun form a
+       different set of five left/right marker pairs on every one of the 33 saved routes. */
+    const shift=(level*3)%Math.max(1,hazards.length),ordered=hazards.slice(shift).concat(hazards.slice(0,shift));
+    const markers=spec.markers||[],topSafe=105,bottomSafe=125;
+    function scorePos(h,x,y){
+      const edge=h.r+7;
+      if(x<edge||x>innerWidth-edge||y<Math.max(topSafe,edge)||y>innerHeight-Math.max(bottomSafe,edge))return-9999;
+      return Math.min(x-edge,innerWidth-edge-x,y-Math.max(topSafe,edge),innerHeight-Math.max(bottomSafe,edge)-y);
     }
-    for(let i=0;i<list.length;i++){
-      const p=list[i],r=p.r||24,candidates=[];
-      if(i<near&&pts.length>2){
-        const pi=1+Math.floor((i+1)*(pts.length-2)/(near+1)),base=pts[Math.min(pts.length-2,pi)],prev=pts[Math.max(0,pi-1)],nextP=pts[Math.min(pts.length-1,pi+1)],dx=nextP.x-prev.x,dy=nextP.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m;
-        const clear=bodyR+r+Math.max(50,78-level*.7),side=i%2?1:-1;
-        candidates.push([base.x+nx*clear*side,base.y+ny*clear*side],[base.x-nx*clear*side,base.y-ny*clear*side]);
+    function setHazard(h,x,y){
+      if(h.kind==='sun'){
+        h.el.style.left=x+'px';h.el.style.top=y+'px';h.el.style.transform='translate(-50%,-50%)';
+      }else if(h.p){
+        h.p.x=x;h.p.y=y;h.p.vx=0;h.p.vy=0;
+        if(h.p.el){h.p.el.style.left=(x-h.p.r)+'px';h.p.el.style.top=(y-h.p.r)+'px';h.p.el.classList.remove('previewZoom','draggingPlanet','justDragged');}
       }
-      for(let j=0;j<slots.length;j++){const q=slots[(j+i+level)%slots.length];candidates.push([innerWidth*q[0],innerHeight*q[1]]);}
-      let chosen=candidates.find(q=>clearSpot(q[0],q[1],r));
-      if(!chosen){
-        // Last-resort deterministic grid search: never stack album planets on each other or the Blue Sun.
-        outer:for(let gy=2;gy<=7;gy++)for(let gx=1;gx<=5;gx++){const x=innerWidth*(gx/6),y=innerHeight*(gy/9);if(clearSpot(x,y,r)){chosen=[x,y];break outer;}}
-      }
-      const x=chosen?chosen[0]:innerWidth*.82,y=chosen?chosen[1]:innerHeight*(.25+i*.1);
-      p.x=x;p.y=y;p.vx=0;p.vy=0;placed.push({x,y,r});
-      if(p.el){p.el.style.left=(x-r)+'px';p.el.style.top=(y-r)+'px';p.el.classList.remove('previewZoom','draggingPlanet','justDragged');}
+    }
+    for(let i=0;i<5;i++){
+      const m=markers[i]||sampleBodyRoute(spec.points,(i+1)/6),h1=ordered[i*2],h2=ordered[i*2+1];if(!h1||!h2)continue;
+      const nx=-m.ty,ny=m.tx,off1=bodyR+h1.r+15,off2=bodyR+h2.r+15;
+      const a1=[m.x-nx*off1,m.y-ny*off1],a2=[m.x+nx*off2,m.y+ny*off2];
+      const b1=[m.x+nx*off1,m.y+ny*off1],b2=[m.x-nx*off2,m.y-ny*off2];
+      const sa=scorePos(h1,a1[0],a1[1])+scorePos(h2,a2[0],a2[1]),sb=scorePos(h1,b1[0],b1[1])+scorePos(h2,b2[0],b2[1]);
+      const useB=sb>sa,p1=useB?b1:a1,p2=useB?b2:a2;
+      setHazard(h1,p1[0],p1[1]);setHazard(h2,p2[0],p2[1]);
     }
   }
   function clearBodyRaceBonuses(){
@@ -10700,15 +10745,43 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function spawnBodyRaceBonuses(spec){
     clearBodyRaceBonuses();if(typeof Comet==='undefined'||typeof comets==='undefined')return[];
-    const count=Math.max(1,Math.min(4,spec.soulCount||1)),out=[],pts=spec.points;
-    for(let i=0;i<count;i++){
-      const t=(i+1)/(count+1),idx=Math.max(1,Math.min(pts.length-2,Math.round(t*(pts.length-1)))),p=pts[idx],prev=pts[Math.max(0,idx-1)],next=pts[Math.min(pts.length-1,idx+1)];
-      const dx=next.x-prev.x,dy=next.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,side=i%2?1:-1,offset=26+Math.min(24,level*.8),c=new Comet();
-      c.x=clamp(p.x+nx*offset*side,18,innerWidth-18);c.y=clamp(p.y+ny*offset*side,115,innerHeight-135);
-      c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(9,c.r||8));c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;c.geRaceBonus=true;c.geRaceCollected=false;c.trail=[];comets.push(c);out.push(c);
+    const out=[],fractions=[.28,.52,.76];
+    for(let i=0;i<3;i++){
+      const p=sampleBodyRoute(spec.points,fractions[i]),nx=-p.ty,ny=p.tx,side=((level+i)%2)?1:-1,offset=26+((level+i*7)%18),c=new Comet();
+      c.x=clamp(p.x+nx*offset*side,20,innerWidth-20);c.y=clamp(p.y+ny*offset*side,112,innerHeight-135);
+      c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(9,c.r||8));c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;
+      c.geRaceBonus=true;c.geRaceCollected=false;c.bodyInteractive=true;c.trail=[];comets.push(c);out.push(c);
     }
     return out;
   }
+  function syncBodySoulMeter(){
+    const dots=document.querySelectorAll('#geBodySoulMeter .geBodySoulDot'),count=Math.max(0,Math.min(3,bodyRace?.collected||0));
+    dots.forEach((d,i)=>d.classList.toggle('filled',i<count));
+  }
+  function triggerBodyStar(){
+    if(!bodyRace||bodyRace.starCelebrated)return;
+    bodyRace.starCelebrated=true;
+    const z=bodyRace.spec.points[bodyRace.spec.points.length-1],ang=(-Math.PI*.85)+Math.random()*Math.PI*.70;
+    bodyRace.starFx={x:z.x,y:z.y,angle:ang,start:performance.now(),duration:1250,distance:110+Math.random()*90};
+    bodyRaceMessage.textContent='3 SOULS · STAR';
+  }
+  window.GE_BODY_RACE_SOUL_TOUCH=function(x,y){
+    if(!bodyRace||!bodyRace.startedAt||bodyRace.finished||bodyRace.failed||document.body.classList.contains('ge-body-race-countdown'))return false;
+    let best=null,bestD=Infinity;
+    for(const c of bodyRace.bonuses||[]){
+      if(!c||c.dead||c.geRaceCollected||c.state!=='fly')continue;
+      const d=Math.hypot(x-c.x,y-c.y),R=Math.max(24,(c.r||8)*3);
+      if(d<R&&d<bestD){best=c;bestD=d}
+    }
+    if(!best)return false;
+    const s=bodyRace.body;
+    best.dragging=false;best.vx=0;best.vy=0;best.state='tethered';best.tetherAge=0;best.preferredHost=null;best.capturedBy=s;
+    best.captureEntrySpeed=18;best.captureEntryAngle=Math.atan2(s.y-best.y,s.x-best.x);
+    if(!s.targets.includes(best))s.targets.push(best);
+    if(!s.coreCandidate&&!s.coreSoul)s.coreCandidate=best;
+    bodyRaceMessage.textContent='SOUL INCOMING';
+    return true;
+  };
   function bodyRaceRecord(ms){
     const key='GE_BODY_RACE_SCORES_V1';let all={};try{all=JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_e){}
     const k=String(level),list=Array.isArray(all[k])?all[k]:[],entry={ms:Math.round(ms),at:Date.now()};list.push(entry);list.sort((a,b)=>a.ms-b.ms);const rank=list.indexOf(entry)+1;all[k]=list.slice(0,10);try{localStorage.setItem(key,JSON.stringify(all))}catch(_e){}return rank;
@@ -10726,33 +10799,28 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const pts=bodyRace.spec.points||[];if(pts.length<2)return;
     const now=performance.now();
     g.save();g.lineCap='round';g.lineJoin='round';g.globalCompositeOperation='lighter';
-    g.strokeStyle='rgba(178,233,255,.86)';g.lineWidth=1.45;g.setLineDash([2,10]);g.lineDashOffset=-(now/85)%12;
-    g.shadowColor='rgba(65,180,255,.95)';g.shadowBlur=5;
-    g.beginPath();g.moveTo(pts[0].x,pts[0].y);
-    if(pts.length<3){for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);}
-    else for(let i=0;i<pts.length-1;i++){
-      const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-      g.bezierCurveTo(p1.x+(p2.x-p0.x)/6,p1.y+(p2.y-p0.y)/6,p2.x-(p3.x-p1.x)/6,p2.y-(p3.y-p1.y)/6,p2.x,p2.y);
-    }
-    g.stroke();g.setLineDash([]);
-    for(let i=1;i<pts.length-1;i++){
-      const p=pts[i],a=pts[i-1],b=pts[i+1],dx=b.x-a.x,dy=b.y-a.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,half=bodyRace.spec.gateHalf||30;
-      const passed=i<bodyRace.progress,nextGate=i===bodyRace.progress,alpha=passed?.18:(nextGate?.95:.34),r=nextGate?3.4:2.4;
-      g.strokeStyle='rgba(120,218,255,'+alpha+')';g.fillStyle='rgba(215,250,255,'+Math.min(1,alpha+.08)+')';g.shadowBlur=nextGate?13:5;g.lineWidth=nextGate?1.5:.8;
-      const x1=p.x+nx*half,y1=p.y+ny*half,x2=p.x-nx*half,y2=p.y-ny*half;
-      g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();
-      for(const q of [[x1,y1],[x2,y2]]){g.beginPath();g.arc(q[0],q[1],r,0,Math.PI*2);g.fill();}
-    }
+    /* The route is intentionally thin: the planets and Blue Sun are the visible markers. */
+    g.strokeStyle='rgba(160,227,255,.88)';g.lineWidth=1.25;g.setLineDash([2,9]);g.lineDashOffset=-(now/90)%11;
+    g.shadowColor='rgba(55,184,255,.86)';g.shadowBlur=4;
+    g.beginPath();g.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);g.stroke();g.setLineDash([]);
     const start=pts[0],finish=pts[pts.length-1];
-    g.shadowBlur=9;g.fillStyle='rgba(20,150,230,.08)';g.strokeStyle='rgba(210,245,255,.96)';g.lineWidth=1.7;
+    g.shadowBlur=8;g.fillStyle='rgba(20,150,230,.06)';g.strokeStyle='rgba(210,245,255,.92)';g.lineWidth=1.5;
     g.beginPath();g.arc(start.x,start.y,20,0,Math.PI*2);g.fill();g.stroke();
     g.setLineDash([4,5]);g.beginPath();g.arc(finish.x,finish.y,26,0,Math.PI*2);g.fill();g.stroke();g.setLineDash([]);
-    g.shadowBlur=7;g.fillStyle='#eefaff';g.strokeStyle='#001321';g.lineWidth=3.5;g.font='900 11px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.shadowBlur=6;g.fillStyle='#eefaff';g.strokeStyle='#001321';g.lineWidth=3;g.font='900 11px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';
     g.strokeText('START',start.x,start.y-30);g.fillText('START',start.x,start.y-30);g.strokeText('FINISH',finish.x,finish.y-35);g.fillText('FINISH',finish.x,finish.y-35);
     if(bodyRace.hitFx&&now<bodyRace.hitFx.until){
       const q=1-(bodyRace.hitFx.until-now)/560,r=12+q*48,alpha=(1-q)*.95;
       g.strokeStyle='rgba(190,242,255,'+alpha+')';g.shadowColor='rgba(80,190,255,.98)';g.shadowBlur=18;g.lineWidth=2;
       for(let k=0;k<3;k++){g.beginPath();g.arc(bodyRace.hitFx.x,bodyRace.hitFx.y,r+k*8,0,Math.PI*2);g.stroke();}
+    }
+    if(bodyRace.starFx){
+      const fx=bodyRace.starFx,p=clamp((now-fx.start)/fx.duration,0,1);
+      if(p<1){
+        const ease=1-Math.pow(1-p,2),x=fx.x+Math.cos(fx.angle)*fx.distance*ease,y=fx.y+Math.sin(fx.angle)*fx.distance*ease,size=4+58*ease,alpha=Math.pow(1-p,.72);
+        g.save();g.translate(x,y);g.rotate(p*2.4);g.globalAlpha=alpha;g.fillStyle='#ffd94a';g.strokeStyle='#fff4a8';g.lineWidth=1.2;g.shadowColor='#ffd84a';g.shadowBlur=18;
+        g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?size*.42:size;const px=Math.cos(a)*r,py=Math.sin(a)*r;i?g.lineTo(px,py):g.moveTo(px,py)}g.closePath();g.fill();g.stroke();g.restore();
+      }else bodyRace.starFx=null;
     }
     g.restore();
   };
@@ -10762,21 +10830,19 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.88)return{kind:'PLANET',x:p.x,y:p.y,el:p.el}}
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     if(sunRect?.width){const x=sunRect.left+sunRect.width/2,y=sunRect.top+sunRect.height/2,r=Math.min(sunRect.width,sunRect.height)*.43;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'BLUE SUN',x,y,el:document.getElementById('sunWrap')}}
-    const moon=document.querySelector('.moon'),mr=moon?.getBoundingClientRect();
-    if(mr?.width){const x=mr.left+mr.width/2,y=mr.top+mr.height/2,r=Math.min(mr.width,mr.height)*.40;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'MOON',x,y,el:moon}}
     return null;
   }
   function resetBodyRaceAfterHit(hit){
     if(!bodyRace||!bodyRace.body||!hit)return;const now=performance.now();if(now<(bodyRace.hitCooldown||0))return;
     bodyRace.hitCooldown=now+900;bodyRace.hits=(bodyRace.hits||0)+1;bodyRace.penaltyMs+=1500;bodyRace.hitFx={x:hit.x,y:hit.y,until:now+560};
-    const i=Math.max(0,Math.min(bodyRace.progress-1,bodyRace.spec.points.length-2)),p=bodyRace.spec.points[i],n=bodyRace.spec.points[Math.min(i+1,bodyRace.spec.points.length-1)],s=bodyRace.body;
+    const i=Math.max(0,bodyRace.progress-1),p=bodyRace.progress>0?(bodyRace.spec.markers[i]||bodyRace.spec.points[0]):bodyRace.spec.points[0],n=bodyRace.spec.markers[Math.min(bodyRace.progress,bodyRace.spec.markers.length-1)]||bodyRace.spec.points[bodyRace.spec.points.length-1],s=bodyRace.body;
     s.quantumFlashUntil=Math.max(s.quantumFlashUntil||0,now+550);s.x=p.x;s.y=p.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.angle=Math.atan2(n.y-p.y,n.x-p.x)+Math.PI;
     if(bodyRace.hits>=bodyRace.maxHits){
       bodyRace.failed=true;bodyRaceMessage.textContent=hit.kind+' CONTACT '+bodyRace.hits+'/'+bodyRace.maxHits+' · COURSE RESET';
       setTimeout(()=>{if(bodyRace){clearBodyRaceBonuses();renderBodyRace();}},720);return;
     }
-    bodyRaceMessage.textContent=hit.kind+' CONTACT '+bodyRace.hits+'/'+bodyRace.maxHits+' · RETURN TO GATE';
-    setTimeout(()=>{if(bodyRace&&!bodyRace.finished&&!bodyRace.failed){s.paused=false;bodyRaceMessage.textContent='GATE '+Math.min(bodyRace.progress,bodyRace.spec.points.length-2)+' / '+(bodyRace.spec.points.length-2);}},600);
+    bodyRaceMessage.textContent=hit.kind+' CONTACT '+bodyRace.hits+'/'+bodyRace.maxHits+' · RETURN TO ROUTE';
+    setTimeout(()=>{if(bodyRace&&!bodyRace.finished&&!bodyRace.failed){s.paused=false;bodyRaceMessage.textContent='FOLLOW BETWEEN THE PLANETS';}},600);
   }
   function finishBodyRace(){
     if(!bodyRace||bodyRace.finished)return;bodyRace.finished=true;bodyRace.body.paused=true;bodyRace.body.vx=0;bodyRace.body.vy=0;const ms=performance.now()-bodyRace.startedAt+bodyRace.penaltyMs,rank=bodyRaceRecord(ms),souls=bodyRace.collected;
@@ -10786,19 +10852,23 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(!bodyRace)return;const s=bodyRace.body;
     if(bodyRace.startedAt&&!bodyRace.finished&&!bodyRace.failed){
       bodyRaceTimer.textContent=((now-bodyRace.startedAt+bodyRace.penaltyMs)/1000).toFixed(2);
-      const nextP=bodyRace.spec.points[Math.min(bodyRace.progress,bodyRace.spec.points.length-1)],gateCount=bodyRace.spec.points.length-2;
-      if(nextP&&bodyRace.progress<bodyRace.spec.points.length-1&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(bodyRace.spec.gateRadius||36,shipVisualRadius(s)*.72)){
-        bodyRace.progress=Math.min(bodyRace.progress+1,bodyRace.spec.points.length-1);
-        if(bodyRace.progress<bodyRace.spec.points.length-1)bodyRaceMessage.textContent='GATE '+Math.min(bodyRace.progress,gateCount)+' / '+gateCount;
+      const markers=bodyRace.spec.markers||[],nextP=markers[bodyRace.progress];
+      if(nextP&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(bodyRace.spec.markerRadius||36,shipVisualRadius(s)*.78)){
+        bodyRace.progress=Math.min(bodyRace.progress+1,markers.length);
+        bodyRaceMessage.textContent='FOLLOW BETWEEN THE PLANETS';
       }
       for(const c of bodyRace.bonuses){
         if(c.geRaceCollected)continue;
-        if(c.capturedBy===s&&(c.state==='tethered'||c.state==='captured')){c.geRaceCollected=true;bodyRace.collected++;bodyRaceMessage.textContent='SOUL '+bodyRace.collected+' CAPTURED';}
+        if(c.capturedBy===s&&c.state==='captured'){
+          c.geRaceCollected=true;bodyRace.collected++;syncBodySoulMeter();
+          bodyRaceMessage.textContent='SOUL '+bodyRace.collected+' / 3';
+          if(bodyRace.collected>=3)triggerBodyStar();
+        }
       }
       const hit=bodyRaceHitHazard(s);if(hit)resetBodyRaceAfterHit(hit);
       const finish=bodyRace.spec.points[bodyRace.spec.points.length-1];
       if(Math.hypot(s.x-finish.x,s.y-finish.y)<Math.max(38,shipVisualRadius(s))){
-        if(bodyRace.progress>=bodyRace.spec.points.length-1)finishBodyRace();else bodyRaceMessage.textContent='OFF COURSE · FIND GATE '+Math.min(bodyRace.progress,gateCount);
+        if(bodyRace.progress>=markers.length)finishBodyRace();else bodyRaceMessage.textContent='OFF COURSE · PASS BETWEEN THE PLANETS';
       }
     }
     bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
@@ -10831,15 +10901,15 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function renderBodyRace(){
     const spec=bodyCourseSpec(level,innerWidth,innerHeight),s=ensureBodyRaceBody(spec.points[0],spec.points[1]);if(!s){bodyRaceMessage.textContent='THE BODY IS LOADING';return}
     placeBodyRacePlanets(spec,s);drawBodyRaceTrack(spec);const bonuses=spawnBodyRaceBonuses(spec);
-    bodyRace={spec,body:s,bonuses,progress:1,startedAt:0,penaltyMs:0,collected:0,hits:0,maxHits:bodyMaxHits,finished:false,failed:false,hitCooldown:0,hitFx:null};
-    bodyRaceTitle.textContent='THE BODY · '+level+' / 33 · '+spec.name;bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW THE LINE · PASS EVERY GATE';bodyRaceNext.hidden=true;bodyRaceToken++;startBodyRaceCountdown(bodyRaceToken);
+    bodyRace={spec,body:s,bonuses,progress:0,startedAt:0,penaltyMs:0,collected:0,hits:0,maxHits:bodyMaxHits,finished:false,failed:false,hitCooldown:0,hitFx:null,starFx:null,starCelebrated:false};
+    syncBodySoulMeter();bodyRaceTitle.textContent='THE BODY · '+level+' / 33 · '+spec.name;bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW BETWEEN THE PLANETS · 3 SOULS';bodyRaceNext.hidden=true;bodyRaceToken++;startBodyRaceCountdown(bodyRaceToken);
   }
   function openBodyRace(){
     courseType='body';level=1;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.remove('show');
     const gs=window.GE_GAME?.state||null;bodyRaceGameSnapshot=gs?{running:gs.running,gameType:gs.gameType}:null;
     if(gs){gs.running=false;gs.gameType='body';gs.pendingShot=null;}window.GE_SHOT_CONTROL?.cancel?.();window.GE_GAME_POINT_MARKS?.clear?.();window.GE_CLEAR_GAME_TRAILS?.();
     document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');
-    document.body.classList.add('ge-body-race-active');bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
+    document.body.classList.add('ge-body-race-active');prepareBodyRaceUniverse();bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
   function closeBodyRace(){
     bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();
