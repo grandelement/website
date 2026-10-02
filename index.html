@@ -8630,7 +8630,7 @@ const GE_GAME = (()=>{
   }
   function openNewGameSetup(){
     if(state.players<1){state.players=1;state.scores=[0];state.throwCounts=[0];state.turnProgress=[0];state.activePlayer=0;}
-    state.demoAwaitingPlayers=false;document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');setOptionsView('basic');updatePlayerOption();syncBasicGameCards();showGameHub();optionsPanel.classList.add('show');flash('NEW GAME · CHOOSE A GAME');
+    state.demoAwaitingPlayers=false;resetGamePromptDefault();document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');setOptionsView('basic');updatePlayerOption();syncBasicGameCards();showGameHub();optionsPanel.classList.add('show');flash('NEW GAME · CHOOSE A GAME');
   }
   newBtn?.addEventListener('click',()=>{newGame(false);});
   document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>{if(currentGameDetail==='golf'){window.GE_COURSE_GAMES?.openGolf?.();return}if(currentGameDetail==='body'){window.GE_COURSE_GAMES?.openBody?.();return}if(newGame(false))optionsPanel.classList.remove('show');});
@@ -8774,7 +8774,7 @@ const GE_GAME = (()=>{
     if(isBlueSunGame())safe('blue sun game',()=>poolLayout(true));else if(isMarbles())safe('marbles game',()=>marbleLayout(true));else{safe('blue sun teardown',poolTeardown);safe('marbles teardown',marbleTeardown);}
     safe('album picker',renderAlbumPicker);safe('nine planet picker',renderNinePlanetPicker);safe('HUD',()=>updateHUD(true));safe('save state',saveGameStateSoon);
     requestAnimationFrame(()=>{safe('clamp playfield',clampPlayfield);requestAnimationFrame(()=>safe('clamp playfield 2',clampPlayfield));});
-    if(firstSetup){setOptionsView('basic');showGameHub();optionsPanel.classList.add('show');safe('notice',()=>flash('CHOOSE A GAME'));}else safe('notice',()=>flash('GAME RESTORED'));
+    if(firstSetup){resetGamePromptDefault();setOptionsView('basic');showGameHub();optionsPanel.classList.add('show');safe('notice',()=>flash('CHOOSE A GAME'));}else safe('notice',()=>flash('GAME RESTORED'));
     safe('iOS prompt',maybeShowIOSGamePrompt);
   }
 
@@ -8856,6 +8856,14 @@ const GE_GAME = (()=>{
     requestAnimationFrame(clampPlayfield);
   }
 
+  function resetGamePromptDefault(){
+    try{
+      localStorage.removeItem(STORAGE_PROMPT);
+      localStorage.removeItem('GE_GAME_PROMPT_CHOICE_V1');
+    }catch(e){}
+    if(remember) remember.checked=false;
+  }
+
   function promptFromPlanetDrag(){
     if(state.active) return;
     let saved='';
@@ -8876,7 +8884,7 @@ const GE_GAME = (()=>{
   iosGamePromptLater?.addEventListener('click',()=>iosGamePrompt?.classList.remove('show'));
   iosGamePromptNever?.addEventListener('click',()=>{try{localStorage.setItem('GE_IOS_GAME_HOME_PROMPT_NEVER_V1','1');}catch(e){}iosGamePrompt?.classList.remove('show');});
 
-  optionsBtn.addEventListener('click',()=>{const dock=document.getElementById('gameMusicDock');dock?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');openGameDetail(detailKindFromState());optionsPanel.classList.add('show');});
+  optionsBtn.addEventListener('click',()=>{resetGamePromptDefault();const dock=document.getElementById('gameMusicDock');dock?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');openGameDetail(detailKindFromState());optionsPanel.classList.add('show');});
   optionsClose?.addEventListener('click',()=>optionsPanel.classList.remove('show'));
   exitBtn.addEventListener('click',confirmExitGame,{capture:true});
   exitTopBtn?.addEventListener('click',confirmExitGame,{capture:true});
@@ -9079,7 +9087,7 @@ const GE_GAME = (()=>{
     setOptionsView('basic');
     if(playerCountLabel)playerCountLabel.textContent='1 PLAYER';
     if(basicRuleLine)basicRuleLine.textContent=`3 throws per player · first to ${state.maxScore} · Bank 1 · Planet 2 · Blue Sun 3`;
-    showGameHub();optionsPanel.classList.add('show');
+    resetGamePromptDefault();showGameHub();optionsPanel.classList.add('show');
     flash('CHOOSE A GAME');
     try{e.preventDefault();e.stopImmediatePropagation();}catch(_e){}
   }
