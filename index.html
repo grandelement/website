@@ -2943,7 +2943,27 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
  #about .aboutSection{margin-top:6px!important}
  #about .details{padding:5px 7px!important}
 }
-</style></head>
+</style>
+<style id="ge-body-race-v2">
+.geBodyRaceTrack{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+.geBodyRaceTrack[hidden],.geBodyRaceHUD[hidden]{display:none!important}
+#geBodyRacePath{fill:none;stroke:rgba(205,242,255,.92);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:3 11;filter:drop-shadow(0 0 5px rgba(78,190,255,.95));vector-effect:non-scaling-stroke}
+.geBodyRaceMarker{fill:rgba(20,150,230,.08);stroke:rgba(190,238,255,.95);stroke-width:2;filter:drop-shadow(0 0 7px rgba(75,190,255,.8));vector-effect:non-scaling-stroke}
+.geBodyRaceFinishRing{stroke:#fff;stroke-dasharray:5 5;fill:rgba(80,205,255,.10)}
+.geBodyRaceSvgText{fill:#eefaff;font:900 12px/1 system-ui,sans-serif;letter-spacing:.14em;text-anchor:middle;paint-order:stroke;stroke:#001321;stroke-width:4px;stroke-linejoin:round}
+.geBodyRaceHUD{position:fixed;inset:0;z-index:40;pointer-events:none;color:#eefaff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.geBodyRaceTop{position:absolute;left:10px;right:10px;top:max(9px,env(safe-area-inset-top));display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}
+.geBodyRaceBtn{pointer-events:auto;appearance:none;border:1px solid rgba(150,220,255,.68);background:rgba(1,13,27,.86);color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;letter-spacing:.04em;min-height:40px}
+.geBodyRaceTitle{text-align:center;font-weight:1000;letter-spacing:.08em;text-shadow:0 0 12px #54bfff;font-size:clamp(13px,3.8vw,18px)}
+.geBodyRaceTimer{min-width:64px;text-align:right;font-variant-numeric:tabular-nums;font-weight:1000;text-shadow:0 0 12px #54bfff}
+.geBodyRaceCountdown{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(64px,22vw,140px);font-weight:1000;text-shadow:0 0 24px #55c8ff,0 0 46px rgba(40,150,255,.75);pointer-events:none}
+.geBodyRaceMessage{position:absolute;left:50%;bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px));transform:translateX(-50%);max-width:86vw;padding:7px 12px;border:1px solid rgba(150,220,255,.4);border-radius:999px;background:rgba(0,10,22,.66);font-size:11px;font-weight:900;letter-spacing:.04em;text-align:center;white-space:nowrap}
+.geBodyRaceActions{position:absolute;right:10px;bottom:max(58px,calc(env(safe-area-inset-bottom) + 54px));display:flex;gap:7px;pointer-events:none}.geBodyRaceActions .geBodyRaceBtn{pointer-events:auto}
+body.ge-body-race-countdown #fx{pointer-events:none}
+body.ge-body-race-active .geCourseMode{display:none!important}
+@media(max-width:430px){.geBodyRaceTop{grid-template-columns:auto 1fr}.geBodyRaceTimer{grid-column:2;text-align:center;margin-top:-4px}.geBodyRaceTitle{font-size:12px}.geBodyRaceMessage{font-size:10px}}
+</style>
+</head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
   <div id="gameBackground" aria-hidden="true"></div>
@@ -3076,6 +3096,26 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
   <div id="geCourseMode" class="geCourseMode" aria-hidden="true">
     <div class="geCourseTop"><button id="geCourseExit" class="geCourseBtn" type="button">‹ GAMES</button><div id="geCourseTitle" class="geCourseTitle">GOLF</div><button id="geCourseNext" class="geCourseBtn" type="button">NEXT</button></div>
     <div id="geCourseBoard" class="geCourseBoard"></div><div id="geCourseHelp" class="geCourseHelp"></div>
+  </div>
+  <svg id="geBodyRaceTrack" class="geBodyRaceTrack" aria-hidden="true" hidden>
+    <path id="geBodyRacePath"></path>
+    <circle id="geBodyRaceStartRing" class="geBodyRaceMarker geBodyRaceStartRing" r="22"></circle>
+    <circle id="geBodyRaceFinishRing" class="geBodyRaceMarker geBodyRaceFinishRing" r="28"></circle>
+    <text id="geBodyRaceStartText" class="geBodyRaceSvgText">START</text>
+    <text id="geBodyRaceFinishText" class="geBodyRaceSvgText">FINISH</text>
+  </svg>
+  <div id="geBodyRaceHUD" class="geBodyRaceHUD" aria-hidden="true" hidden>
+    <div class="geBodyRaceTop">
+      <button id="geBodyRaceExit" class="geBodyRaceBtn" type="button">‹ GAMES</button>
+      <div id="geBodyRaceTitle" class="geBodyRaceTitle">THE BODY · COURSE 1 / 33</div>
+      <div id="geBodyRaceTimer" class="geBodyRaceTimer">0.00</div>
+    </div>
+    <div id="geBodyRaceCountdown" class="geBodyRaceCountdown"></div>
+    <div id="geBodyRaceMessage" class="geBodyRaceMessage">FOLLOW THE DOTTED PATH</div>
+    <div class="geBodyRaceActions">
+      <button id="geBodyRaceReplay" class="geBodyRaceBtn" type="button">REPLAY</button>
+      <button id="geBodyRaceNext" class="geBodyRaceBtn" type="button" hidden>NEXT</button>
+    </div>
   </div>
   <div id="geMeditateOverlay" class="geMeditateOverlay" role="dialog" aria-modal="true" aria-label="Meditation">
     <div class="geMeditateCard">
@@ -5668,6 +5708,10 @@ class Ship{
         if(dist<this.captureRadius+c.r+5){c.state='captured';c.vx=0;c.vy=0;c.tetherAge=0;}
       }
       if(c.state==='captured'){
+        if(c.geRaceBonus){
+          c.x=this.x;c.y=this.y;c.vx=0;c.vy=0;
+          continue;
+        }
         if(c===this.coreCandidate&&!this.coreSoul)this.coreSoul=c;
         if(c===this.coreSoul){
           c.x=this.x;c.y=this.y;c.vx=0;c.vy=0;
@@ -5751,7 +5795,7 @@ class Ship{
       this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
     }
 
-    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=320;
+    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=((this.geRaceBoostUntil||0)>performance.now()?440:320);
     if(v<vmin && !this.guided && !this.controlActive){
       const a=Math.atan2(this.vy,this.vx);this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
     }
@@ -6077,7 +6121,7 @@ function queueShipCenterTap(s){
 function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until:Infinity,held:true,hit:new Set()};s.beam=1;shipRayHold={ship:s,id};try{canvas.setPointerCapture(id)}catch(_e){}}
 function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
 function endHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay?.held)s.manualRay=null;s.beam=Math.max(0,s.beam*.35);shipRayHold=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return true}
-function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
+function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,boost=((s.geRaceBoostUntil||0)>performance.now()?1.34:1),max=(window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330)*boost;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210*boost):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
 canvas.addEventListener('pointerdown',e=>{if(document.body.classList.contains('game-mode-active'))return;const hit=nearestShipHit(e.clientX,e.clientY);if(hit){if(hit.zone==='ray')startHeldRay(hit.ship,e.pointerId,e.clientX,e.clientY);else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}e.preventDefault();e.stopImmediatePropagation();return}const sh=nearestShipField(e.clientX,e.clientY);if(sh){shipSteer={ship:sh,id:e.pointerId};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}},{passive:false});
 canvas.addEventListener('pointermove',e=>{if(updateHeldRay(e)){e.preventDefault();return}if(shipCenterPress&&shipCenterPress.id===e.pointerId){const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}},{passive:false});
 function endShipPointer(e){if(endHeldRay(e))return;if(shipCenterPress&&shipCenterPress.id===e.pointerId){const cp=shipCenterPress;shipCenterPress=null;cp.ship.controlActive=false;cp.ship.guided=true;if(!cp.moved)queueShipCenterTap(cp.ship);try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return}if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}}
@@ -10075,20 +10119,158 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }
     path.setAttribute('points',pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));svg.hidden=false;
   }
+  const bodyRaceTrack=document.getElementById('geBodyRaceTrack'),bodyRacePath=document.getElementById('geBodyRacePath'),bodyRaceHUD=document.getElementById('geBodyRaceHUD'),bodyRaceTitle=document.getElementById('geBodyRaceTitle'),bodyRaceTimer=document.getElementById('geBodyRaceTimer'),bodyRaceCountdown=document.getElementById('geBodyRaceCountdown'),bodyRaceMessage=document.getElementById('geBodyRaceMessage'),bodyRaceNext=document.getElementById('geBodyRaceNext');
+  let bodyRace=null,bodyRaceRAF=0,bodyRacePlanetSnapshot=null,bodyRaceToken=0;
+
+  function bodyRacePathD(pts){
+    if(!pts.length)return '';
+    if(pts.length<3)return 'M '+pts.map(p=>p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' L ');
+    let d='M '+pts[0].x.toFixed(1)+' '+pts[0].y.toFixed(1);
+    for(let i=0;i<pts.length-1;i++){
+      const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+      const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
+      d+=' C '+c1x.toFixed(1)+' '+c1y.toFixed(1)+' '+c2x.toFixed(1)+' '+c2y.toFixed(1)+' '+p2.x.toFixed(1)+' '+p2.y.toFixed(1);
+    }
+    return d;
+  }
+  function bodyCourseSpec(n,w,h){
+    const mx=Math.max(64,w*.13),top=Math.max(92,h*.105),bottom=h-Math.max(100,h*.12);
+    const start={x:Math.max(mx,w*.22),y:bottom},finish={x:Math.min(w-mx,w*.78),y:top};
+    if(n===1)return{points:[start,{x:w*.50,y:h*.52},finish],nearPlanets:1};
+    if(n===2)return{points:[start,{x:w*.38,y:h*.62},{x:w*.55,y:h*.43},finish],nearPlanets:1};
+    if(n===3)return{points:[start,{x:w*.34,y:h*.68},{x:w*.66,y:h*.48},finish],nearPlanets:2};
+    const d=(n-1)/32,bends=Math.min(10,3+Math.floor((n-4)/3)),pts=[start],amp=w*(.10+.16*d),cycles=.65+n*.075,phase=(n%5)*.42;
+    for(let i=1;i<=bends;i++){
+      const t=i/(bends+1),baseX=start.x+(finish.x-start.x)*t;
+      let x=baseX+Math.sin((t*cycles+phase)*Math.PI*2)*amp;
+      let y=start.y+(finish.y-start.y)*t+Math.cos((t*(1.2+n*.018)+phase)*Math.PI*2)*h*.018*d;
+      x=clamp(x,mx,w-mx);y=clamp(y,top,bottom);
+      pts.push({x,y});
+    }
+    pts.push(finish);
+    if(n>=29){
+      const c={x:w*.50,y:h*.48},rx=w*(.18+.015*(n-29)),ry=h*.12;
+      const loop=[{x:c.x-rx,y:c.y+ry},{x:c.x+rx,y:c.y+ry*.55},{x:c.x+rx*.8,y:c.y-ry},{x:c.x-rx*.55,y:c.y-ry*1.05},{x:c.x-rx,y:c.y+ry*.1}];
+      pts.splice(Math.max(2,Math.floor(pts.length/2)-1),Math.min(4,pts.length-3),...loop);
+    }
+    return{points:pts,nearPlanets:Math.min((window.planetNodes||[]).length,2+Math.floor((n-1)/4))};
+  }
+  function saveBodyRacePlanets(){
+    if(bodyRacePlanetSnapshot)return;
+    bodyRacePlanetSnapshot=(window.planetNodes||[]).map(p=>({p,x:p.x,y:p.y,vx:p.vx,vy:p.vy}));
+  }
+  function restoreBodyRacePlanets(){
+    if(!bodyRacePlanetSnapshot)return;
+    for(const q of bodyRacePlanetSnapshot){if(!q.p?.el)continue;q.p.x=q.x;q.p.y=q.y;q.p.vx=q.vx;q.p.vy=q.vy;q.p.el.style.left=(q.x-q.p.r)+'px';q.p.el.style.top=(q.y-q.p.r)+'px';}
+    bodyRacePlanetSnapshot=null;
+  }
+  function ensureBodyRaceBody(start,nextPoint){
+    let s=(typeof ships!=='undefined'&&ships.find(x=>x&&!x.dead))||null;
+    if(!s&&typeof Ship!=='undefined'&&typeof ships!=='undefined'){s=new Ship(false);ships.push(s);try{firstShipPending=false}catch(_e){}}
+    if(!s)return null;
+    s.dead=false;s.x=start.x;s.y=start.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.geRaceBoostUntil=0;
+    if(nextPoint)s.angle=Math.atan2(nextPoint.y-start.y,nextPoint.x-start.x)+Math.PI;
+    return s;
+  }
+  function placeBodyRacePlanets(spec,s){
+    saveBodyRacePlanets();
+    const list=window.planetNodes||[],pts=spec.points,bodyR=s?shipVisualRadius(s):34,near=Math.min(spec.nearPlanets||0,list.length);
+    for(let i=0;i<list.length;i++){
+      const p=list[i],r=p.r||24;
+      let x,y;
+      if(i<near&&pts.length>2){
+        const pi=1+Math.floor((i+1)*(pts.length-2)/(near+1)),base=pts[Math.min(pts.length-2,pi)],prev=pts[Math.max(0,pi-1)],nextP=pts[Math.min(pts.length-1,pi+1)],dx=nextP.x-prev.x,dy=nextP.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,side=i%2?1:-1,clear=bodyR+r+Math.max(18,44-level*.7);
+        x=base.x+nx*clear*side;y=base.y+ny*clear*side;
+      }else{
+        const slots=[[.16,.24],[.82,.30],[.18,.48],[.84,.58],[.18,.70],[.82,.76],[.50,.20],[.50,.72]];
+        const q=slots[(i-near+level)%slots.length];x=innerWidth*q[0];y=innerHeight*q[1];
+      }
+      const edge=bodyR+r+18;x=clamp(x,edge,innerWidth-edge);y=clamp(y,edge,innerHeight-edge);p.x=x;p.y=y;p.vx=0;p.vy=0;
+      if(p.el){p.el.style.left=(x-r)+'px';p.el.style.top=(y-r)+'px';p.el.classList.remove('previewZoom','draggingPlanet','justDragged');}
+    }
+  }
+  function clearBodyRaceBonuses(){
+    if(typeof comets==='undefined')return;
+    for(let i=comets.length-1;i>=0;i--){const c=comets[i];if(!c?.geRaceBonus)continue;if(c.capturedBy?.targets)c.capturedBy.targets=c.capturedBy.targets.filter(x=>x!==c);comets.splice(i,1);}
+  }
+  function spawnBodyRaceBonuses(spec){
+    clearBodyRaceBonuses();if(typeof Comet==='undefined'||typeof comets==='undefined')return[];
+    const count=Math.min(4,1+Math.floor((level-1)/9)),out=[];
+    for(let i=0;i<count;i++){
+      const t=(i+1)/(count+1),idx=Math.max(1,Math.min(spec.points.length-2,Math.round(t*(spec.points.length-1)))),p=spec.points[idx],c=new Comet();
+      c.x=p.x;c.y=p.y;c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(10,c.r||8));c.depthLevel=7;c.depth='front';c.dragging=true;c.state='fly';c.dead=false;c.geRaceBonus=true;c.geRaceCollected=false;c.trail=[];comets.push(c);out.push(c);
+    }
+    return out;
+  }
+  function bodyRaceRecord(ms){
+    const key='GE_BODY_RACE_SCORES_V1';let all={};try{all=JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_e){}
+    const k=String(level),list=Array.isArray(all[k])?all[k]:[],entry={ms:Math.round(ms),at:Date.now()};list.push(entry);list.sort((a,b)=>a.ms-b.ms);const rank=list.indexOf(entry)+1;all[k]=list.slice(0,10);try{localStorage.setItem(key,JSON.stringify(all))}catch(_e){}return rank;
+  }
+  function drawBodyRaceTrack(spec){
+    const w=innerWidth,h=innerHeight;bodyRaceTrack.setAttribute('viewBox','0 0 '+w+' '+h);bodyRacePath.setAttribute('d',bodyRacePathD(spec.points));
+    const a=spec.points[0],z=spec.points[spec.points.length-1],startRing=document.getElementById('geBodyRaceStartRing'),finishRing=document.getElementById('geBodyRaceFinishRing'),st=document.getElementById('geBodyRaceStartText'),ft=document.getElementById('geBodyRaceFinishText');
+    startRing.setAttribute('cx',a.x);startRing.setAttribute('cy',a.y);finishRing.setAttribute('cx',z.x);finishRing.setAttribute('cy',z.y);
+    st.setAttribute('x',a.x);st.setAttribute('y',a.y-32);ft.setAttribute('x',z.x);ft.setAttribute('y',z.y-38);
+  }
+  function bodyRaceHitPlanet(s){
+    const br=shipVisualRadius(s)*.62;
+    for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.82)return true}
+    return false;
+  }
+  function resetBodyRaceAfterHit(){
+    if(!bodyRace||!bodyRace.body)return;const now=performance.now();if(now<(bodyRace.hitCooldown||0))return;bodyRace.hitCooldown=now+850;bodyRace.penaltyMs+=1500;
+    const i=Math.max(0,Math.min(bodyRace.progress-1,bodyRace.spec.points.length-2)),p=bodyRace.spec.points[i],n=bodyRace.spec.points[Math.min(i+1,bodyRace.spec.points.length-1)],s=bodyRace.body;
+    s.x=p.x;s.y=p.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.angle=Math.atan2(n.y-p.y,n.x-p.x)+Math.PI;
+    bodyRaceMessage.textContent='PLANET CONTACT · +1.5 SECONDS';setTimeout(()=>{if(bodyRace&&!bodyRace.finished)bodyRaceMessage.textContent='FOLLOW THE DOTTED PATH'},750);
+  }
+  function finishBodyRace(){
+    if(!bodyRace||bodyRace.finished)return;bodyRace.finished=true;bodyRace.body.paused=true;bodyRace.body.vx=0;bodyRace.body.vy=0;const ms=performance.now()-bodyRace.startedAt+bodyRace.penaltyMs,rank=bodyRaceRecord(ms),bonus=bodyRace.collected;
+    bodyRaceTimer.textContent=(ms/1000).toFixed(2);bodyRaceMessage.textContent=(rank<=3?(['1ST','2ND','3RD'][rank-1]+' PLACE · '):'FINISH · ')+(ms/1000).toFixed(2)+'s · '+bonus+' COMET'+(bonus===1?'':'S');bodyRaceNext.hidden=false;
+  }
+  function bodyRaceLoop(now){
+    if(!bodyRace)return;const s=bodyRace.body;
+    if(bodyRace.startedAt&&!bodyRace.finished){
+      bodyRaceTimer.textContent=((now-bodyRace.startedAt+bodyRace.penaltyMs)/1000).toFixed(2);
+      const nextP=bodyRace.spec.points[Math.min(bodyRace.progress,bodyRace.spec.points.length-1)];
+      if(nextP&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(46,shipVisualRadius(s)*.9)){bodyRace.progress=Math.min(bodyRace.progress+1,bodyRace.spec.points.length-1)}
+      for(const c of bodyRace.bonuses){if(c.geRaceCollected)continue;if(Math.hypot(s.x-c.x,s.y-c.y)<shipVisualRadius(s)*.72+(c.r||8)+12){c.geRaceCollected=true;c.dragging=false;c.state='captured';c.capturedBy=s;c.vx=c.vy=0;if(!s.targets.includes(c))s.targets.push(c);s.geRaceBoostUntil=performance.now()+4200;s.quantumFlashUntil=Math.max(s.quantumFlashUntil||0,performance.now()+650);bodyRace.collected++;bodyRaceMessage.textContent='COMET '+bodyRace.collected+' · SPEED BOOST';}}
+      if(bodyRaceHitPlanet(s))resetBodyRaceAfterHit();
+      const finish=bodyRace.spec.points[bodyRace.spec.points.length-1];
+      if(Math.hypot(s.x-finish.x,s.y-finish.y)<Math.max(42,shipVisualRadius(s))){if(bodyRace.progress>=bodyRace.spec.points.length-1)finishBodyRace();else bodyRaceMessage.textContent='FOLLOW THE PATH TO UNLOCK FINISH'}
+    }
+    bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
+  }
+  function startBodyRaceCountdown(token){
+    document.body.classList.add('ge-body-race-countdown');let step=3;bodyRaceCountdown.textContent='3';
+    const advance=()=>{if(!bodyRace||token!==bodyRaceToken)return;step--;if(step>0){bodyRaceCountdown.textContent=String(step);setTimeout(advance,700);return}if(step===0){bodyRaceCountdown.textContent='GO';bodyRace.startedAt=performance.now();bodyRace.body.paused=false;bodyRace.body.guided=true;setTimeout(()=>{if(bodyRace&&token===bodyRaceToken)bodyRaceCountdown.textContent=''},500);document.body.classList.remove('ge-body-race-countdown');return}};
+    setTimeout(advance,700);
+  }
+  function renderBodyRace(){
+    const spec=bodyCourseSpec(level,innerWidth,innerHeight),s=ensureBodyRaceBody(spec.points[0],spec.points[1]);if(!s){bodyRaceMessage.textContent='THE BODY IS LOADING';return}
+    placeBodyRacePlanets(spec,s);drawBodyRaceTrack(spec);const bonuses=spawnBodyRaceBonuses(spec);bodyRace={spec,body:s,bonuses,progress:1,startedAt:0,penaltyMs:0,collected:0,finished:false,hitCooldown:0};bodyRaceTitle.textContent='THE BODY · COURSE '+level+' / 33';bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW THE DOTTED PATH · COLLECT COMETS FOR SPEED';bodyRaceNext.hidden=true;bodyRaceToken++;startBodyRaceCountdown(bodyRaceToken);
+  }
+  function openBodyRace(){
+    courseType='body';level=1;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.remove('show');document.body.classList.add('ge-body-race-active');bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
+  }
+  function closeBodyRace(){
+    bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false}bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+  }
   function renderBody(){
-    const r=board.getBoundingClientRect(),t=(level-1)/20;obstacles=[];for(let i=0;i<Math.min(8,2+Math.floor(level/3));i++){const o={x:r.width*(.25+((i*31+level*9)%55)/100),y:r.height*(.12+((i*27+level*13)%70)/100),w:18+24*t,h:70+80*t};obstacles.push(o)}
-    board.innerHTML='<div class="geFinish" style="right:8%;top:8%;height:84%"></div>'+obstacles.map(o=>'<div class="geObstacle" style="left:'+o.x+'px;top:'+o.y+'px;width:'+o.w+'px;height:'+o.h+'px"></div>').join('')+'<div id="geCourseObject" class="geBodyCraft" style="left:10%;top:50%"></div>';
-    obj=document.getElementById('geCourseObject');obj.x=r.width*.10;obj.y=r.height*.50;obj.r=20;vx=vy=0;title.textContent='THE BODY · COURSE '+level;help.textContent='DRAG THE BODY · avoid every obstacle · reach the finish';next.style.display='none';
+    openBodyRace();
   }
   function hitObstacle(x,y,r){return obstacles.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h)}
   function tick(now){if(!mode.classList.contains('show'))return;const dt=Math.min(.035,(now-last)/1000);last=now;if(courseType==='golf'&&obj){if(Math.hypot(vx,vy)>.5){let nx=obj.x+vx*dt,ny=obj.y+vy*dt;const b=board.getBoundingClientRect();if(nx<obj.r||nx>b.width-obj.r){vx*=-.94;nx=clamp(nx,obj.r,b.width-obj.r)}if(ny<obj.r||ny>b.height-obj.r){vy*=-.94;ny=clamp(ny,obj.r,b.height-obj.r)}if(hitObstacle(nx,obj.y,obj.r))vx*=-.94;else obj.x=nx;if(hitObstacle(obj.x,ny,obj.r))vy*=-.94;else obj.y=ny;const f=Math.pow(.985,dt*60);vx*=f;vy*=f;obj.style.left=obj.x+'px';obj.style.top=obj.y+'px';const cup=board.querySelector('.geGolfCup'),cr=cup.getBoundingClientRect(),br=board.getBoundingClientRect(),cx=cr.left-br.left+cr.width/2,cy=cr.top-br.top+cr.height/2;if(Math.hypot(obj.x-cx,obj.y-cy)<Math.max(4,cr.width/2-obj.r)){vx=vy=0;obj.style.opacity='.18';help.textContent='HOLE '+level+' COMPLETE · '+strokes+' STROKE'+(strokes===1?'':'S');next.style.display='block';}}}
     raf=requestAnimationFrame(tick)}
-  function open(type){courseType=type;level=1;mode.classList.add('show');mode.setAttribute('aria-hidden','false');document.getElementById('gameOptionsPanel')?.classList.remove('show');type==='golf'?renderGolf():renderBody();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
+  function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
   board.addEventListener('pointerdown',e=>{if(!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(Math.hypot(x-obj.x,y-obj.y)>55)return;drag={x,y};board.setPointerCapture?.(e.pointerId);if(courseType==='golf'){const line=document.getElementById('geBankGuide');if(line)line.hidden=false}});
   board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(900,Math.hypot(dx,dy)*5);bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
   board.addEventListener('pointerup',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(900,Math.hypot(dx,dy)*5);const m=Math.hypot(dx,dy)||1;vx=dx/m*p;vy=dy/m*p;strokes++;help.textContent='HOLE '+level+' · '+strokes+' STROKE'+(strokes===1?'':'S');const line=document.getElementById('geBankGuide');if(line)line.hidden=true}drag=null});
-  next.addEventListener('click',()=>{level++;if(courseType==='golf'){if(level>33)level=1;renderGolf()}else{if(level>21)level=1;renderBody()}});
+  next.addEventListener('click',()=>{level++;if(level>33)level=1;renderGolf()});
   document.getElementById('geCourseExit').addEventListener('click',()=>{mode.classList.remove('show');mode.setAttribute('aria-hidden','true');cancelAnimationFrame(raf);document.getElementById('gameOptionsPanel')?.classList.add('show')});
+  document.getElementById('geBodyRaceExit')?.addEventListener('click',closeBodyRace);
+  document.getElementById('geBodyRaceReplay')?.addEventListener('click',()=>{if(!bodyRace)return;clearBodyRaceBonuses();renderBodyRace()});
+  document.getElementById('geBodyRaceNext')?.addEventListener('click',()=>{if(!bodyRace)return;clearBodyRaceBonuses();level=level>=33?1:level+1;renderBodyRace()});
+  window.addEventListener('resize',()=>{if(bodyRace&&!bodyRace.finished){const oldLevel=level;clearBodyRaceBonuses();level=oldLevel;renderBodyRace()}});
   window.GE_COURSE_GAMES={openGolf:()=>open('golf'),openBody:()=>open('body')};
 
   // Meditation: Web Audio pure tones + generated ambient noise. No external copyrighted audio.
