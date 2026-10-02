@@ -93,7 +93,8 @@ Meditation belongs under AUTOPILOT as a calm mode, not as a competitive game.
 - Each button shows album/chakra name above and frequency below.
 - Selecting one starts a generated continuous pure sine tone.
 - Left vertical slider: tone volume.
-- Right side: optional ambient layers such as ocean, rain, thunderstorm/water.
+- Right side: optional ambient layers such as ocean, rain, **meditation thunder**, thunderstorm/water.
+- Meditation Thunder is its own gentler layer: deep, distant, slow rolling thunder with long quiet gaps, separate from a normal rain/thunderstorm track. It should avoid abrupt close lightning cracks so it can sit behind a meditation tone.
 - Ambient volume is independent from tone volume.
 - No scoring, timer pressure or game HUD unless the listener explicitly enables a meditation timer.
 
