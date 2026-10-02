@@ -3230,8 +3230,12 @@ body.ge-body-race-active #gameAimGuide,
 body.ge-body-race-active #gameTrails,
 body.ge-body-race-active #gameTrailsLive,
 body.ge-body-race-active #gamePointMarks{display:none!important}
+body.ge-body-race-active #fx{pointer-events:auto!important;touch-action:none!important}
 body.ge-body-race-active #planets,
-body.ge-body-race-active #sunWrap{pointer-events:none!important}
+body.ge-body-race-active .planet,
+body.ge-body-race-active #sunWrap,
+body.ge-body-race-active .moon,
+body.ge-body-race-active #orbit{pointer-events:none!important}
 body.ge-body-race-active .geBodyRaceTrack{z-index:8!important}
 body.ge-body-race-active .geBodyRaceHUD{z-index:10050!important}
 body.ge-body-race-active .geCourseMode{display:none!important}
@@ -3635,6 +3639,7 @@ body.ge-body-race-active .geCourseMode{display:none!important}
           <button class="basicGameCard geGameRow" id="basicMarblesGame" type="button" data-game-detail="planets"><span><b>PLANETS</b><small>Grand Element marbles. Throw your shooter and knock your planets out.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicGolfGame" type="button" data-game-detail="golf"><span><b>GOLF</b><small>33 holes. Rubber-band your planet into the Blue Sun cup.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicBodyGame" type="button" data-game-detail="body"><span><b>THE BODY</b><small>Fly the Body with its normal universe controls. Pass every course gate, avoid planets and collect Souls.</small></span><i>›</i></button>
+<button class="basicGameCard geGameRow" id="basicFlightGame" type="button"><span><b>FLIGHT <small style="opacity:.65">· WORKING TITLE</small></b><small>Incoming-flight mode: keep the Body low on screen while planets and hazards stream toward it. Dodge collisions and collect Souls.</small></span><i>›</i></button>
         </div>
 
         <details class="geGeneralControlBlock geGameEffectsDisclosure" id="geGameEffectsDisclosure">
@@ -6403,9 +6408,50 @@ function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until
 function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
 function endHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay?.held)s.manualRay=null;s.beam=Math.max(0,s.beam*.35);shipRayHold=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return true}
 function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
-canvas.addEventListener('pointerdown',e=>{if(document.body.classList.contains('game-mode-active')&&!document.body.classList.contains('ge-body-race-active'))return;const hit=nearestShipHit(e.clientX,e.clientY);if(hit){if(hit.zone==='ray')startHeldRay(hit.ship,e.pointerId,e.clientX,e.clientY);else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}e.preventDefault();e.stopImmediatePropagation();return}const sh=nearestShipField(e.clientX,e.clientY);if(sh){shipSteer={ship:sh,id:e.pointerId};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}},{passive:false});
-canvas.addEventListener('pointermove',e=>{if(updateHeldRay(e)){e.preventDefault();return}if(shipCenterPress&&shipCenterPress.id===e.pointerId){const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}},{passive:false});
-function endShipPointer(e){if(endHeldRay(e))return;if(shipCenterPress&&shipCenterPress.id===e.pointerId){const cp=shipCenterPress;shipCenterPress=null;cp.ship.controlActive=false;cp.ship.guided=true;if(!cp.moved)queueShipCenterTap(cp.ship);try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return}if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}}
+canvas.addEventListener('pointerdown',e=>{
+  const bodyCourse=document.body.classList.contains('ge-body-race-active');
+  if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
+  if(bodyCourse){
+    // BODY COURSE = movement only. Reuse the normal-site steering field verbatim,
+    // but do not expose center taps, broadcast, ray or quantum gestures.
+    const sh=nearestShipField(e.clientX,e.clientY);
+    if(!sh)return;
+    shipRayHold=null;shipCenterPress=null;
+    if(sh.manualRay)sh.manualRay=null;sh.beam=0;
+    shipSteer={ship:sh,id:e.pointerId};
+    steerShip(sh,e.clientX,e.clientY,false);
+    try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
+    e.preventDefault();e.stopImmediatePropagation();return;
+  }
+  const hit=nearestShipHit(e.clientX,e.clientY);
+  if(hit){
+    if(hit.zone==='ray')startHeldRay(hit.ship,e.pointerId,e.clientX,e.clientY);
+    else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}
+    e.preventDefault();e.stopImmediatePropagation();return
+  }
+  const sh=nearestShipField(e.clientX,e.clientY);
+  if(sh){shipSteer={ship:sh,id:e.pointerId};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}
+},{passive:false});
+canvas.addEventListener('pointermove',e=>{
+  if(document.body.classList.contains('ge-body-race-active')){
+    if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
+    return;
+  }
+  if(updateHeldRay(e)){e.preventDefault();return}
+  if(shipCenterPress&&shipCenterPress.id===e.pointerId){const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}
+  if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
+},{passive:false});
+function endShipPointer(e){
+  if(document.body.classList.contains('ge-body-race-active')){
+    if(!shipSteer||shipSteer.id!==e.pointerId)return;
+    shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;
+    try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
+    return;
+  }
+  if(endHeldRay(e))return;
+  if(shipCenterPress&&shipCenterPress.id===e.pointerId){const cp=shipCenterPress;shipCenterPress=null;cp.ship.controlActive=false;cp.ship.guided=true;if(!cp.moved)queueShipCenterTap(cp.ship);try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return}
+  if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
+}
 canvas.addEventListener('pointerup',endShipPointer,{passive:true});canvas.addEventListener('pointercancel',endShipPointer,{passive:true});
 
 /* Drag & throw for comets */
@@ -7822,6 +7868,7 @@ const GE_GAME = (()=>{
   }
   geGameDetailBack?.addEventListener('click',showGameHub);
   document.querySelectorAll('[data-game-detail]').forEach(btn=>btn.addEventListener('click',()=>openGameDetail(btn.dataset.gameDetail)));
+  document.getElementById('basicFlightGame')?.addEventListener('click',()=>flash('FLIGHT · INCOMING OBSTACLE GAME SAVED FOR BUILD'));
   document.getElementById('geHubStartGameBtn')?.addEventListener('click',()=>openGameDetail(currentGameDetail||detailKindFromState()));
   const pocketsCenterBtn=document.getElementById('pocketsCenterBtn'),pocketsNineBtn=document.getElementById('pocketsNineBtn'),pocketsModeHelp=document.getElementById('pocketsModeHelp');
   function syncPocketsModeToggle(){
@@ -10504,6 +10551,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(!s&&typeof Ship!=='undefined'&&typeof ships!=='undefined'){s=new Ship(false);ships.push(s);try{firstShipPending=false}catch(_e){}}
     if(!s)return null;
     s.dead=false;s.x=start.x;s.y=start.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.geRaceBoostUntil=0;
+    // Course Body is movement-only: clear normal-universe gesture/effect state.
+    clearTimeout(s._gestureTimer);s._gestureTimer=0;s._gestureCount=0;s._gestureSeq=(s._gestureSeq||0)+1;
+    s.manualRay=null;s.broadcastWave=null;s.beam=0;s.quantumFlashUntil=0;
     if(!Number.isFinite(s.geRaceOriginalScale))s.geRaceOriginalScale=s.s;
     s.s=(MOBILE?.16:.20)*(bodySizePct/100);
     if(nextPoint)s.angle=Math.atan2(nextPoint.y-start.y,nextPoint.x-start.x)+Math.PI;
