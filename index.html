@@ -6242,8 +6242,10 @@ const MINI_MAX    = MOBILE ? 1 : 2;
 function loop(){
   try{
   if(!RUN){setTimeout(loop,500);return;}
-  // The normal universe is completely asleep during Game Mode.
-  if(typeof GE_GAME!=='undefined'&&GE_GAME.state.active){last=performance.now()/1000;setTimeout(loop,250);return;}
+  // The normal universe sleeps during ordinary Game Mode, but THE BODY deliberately
+  // uses the live GE universe, its Ship and Comets as the game world.
+  const bodyRaceLive=document.body.classList.contains('ge-body-race-active');
+  if(typeof GE_GAME!=='undefined'&&GE_GAME.state.active&&!bodyRaceLive){last=performance.now()/1000;setTimeout(loop,250);return;}
   const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;PERF.dt=dt;perfHeat(dt);
 
   const hot = PERF.heat>0.6;
@@ -6382,6 +6384,9 @@ function loop(){
   for(let i=miniShips.length-1;i>=0;i--) if(miniShips[i].dead) miniShips.splice(i,1);
 
   ctx.clearRect(0,0,W,H);if(frontCtx)frontCtx.clearRect(0,0,W,H);
+  // Body course is painted onto the same live FX canvas as the universe. This avoids
+  // mobile Safari SVG/layering failures and guarantees START / FINISH / dotted route visibility.
+  try{window.GE_BODY_RACE_DRAW?.(ctx)}catch(err){console.error('GE Body course draw recovered',err)}
   netStepDraw(dt);
   pairs.forEach(p=>p.draw());
   for(const q of quantumClusters){try{q.draw()}catch(err){console.error('GE quantum draw isolated an error',err)}}
@@ -10232,6 +10237,40 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     startRing.setAttribute('cx',a.x);startRing.setAttribute('cy',a.y);finishRing.setAttribute('cx',z.x);finishRing.setAttribute('cy',z.y);
     st.setAttribute('x',a.x);st.setAttribute('y',a.y-32);ft.setAttribute('x',z.x);ft.setAttribute('y',z.y-38);
   }
+  // Canvas fallback/primary renderer for THE BODY course. The SVG remains in the DOM
+  // as semantic/desktop backup, but iPhone rendering uses this live universe canvas path.
+  window.GE_BODY_RACE_DRAW=function(g){
+    if(!bodyRace?.spec||!document.body.classList.contains('ge-body-race-active')||!g)return;
+    const pts=bodyRace.spec.points||[];if(pts.length<2)return;
+    g.save();
+    g.lineCap='round';g.lineJoin='round';
+    g.strokeStyle='rgba(205,242,255,.96)';
+    g.lineWidth=2.6;
+    g.setLineDash([3,11]);
+    g.shadowColor='rgba(78,190,255,.95)';g.shadowBlur=7;
+    g.beginPath();g.moveTo(pts[0].x,pts[0].y);
+    if(pts.length<3){
+      for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);
+    }else{
+      for(let i=0;i<pts.length-1;i++){
+        const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+        const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6;
+        const c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
+        g.bezierCurveTo(c1x,c1y,c2x,c2y,p2.x,p2.y);
+      }
+    }
+    g.stroke();g.setLineDash([]);g.shadowBlur=10;
+    const start=pts[0],finish=pts[pts.length-1];
+    g.fillStyle='rgba(20,150,230,.10)';g.strokeStyle='rgba(210,245,255,.98)';g.lineWidth=2.2;
+    g.beginPath();g.arc(start.x,start.y,22,0,Math.PI*2);g.fill();g.stroke();
+    g.setLineDash([5,5]);g.beginPath();g.arc(finish.x,finish.y,28,0,Math.PI*2);g.fill();g.stroke();g.setLineDash([]);
+    g.shadowBlur=8;g.fillStyle='#eefaff';g.strokeStyle='#001321';g.lineWidth=4;
+    g.font='900 12px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.strokeText('START',start.x,start.y-33);g.fillText('START',start.x,start.y-33);
+    g.strokeText('FINISH',finish.x,finish.y-39);g.fillText('FINISH',finish.x,finish.y-39);
+    g.restore();
+  };
+
   function bodyRaceHitPlanet(s){
     const br=shipVisualRadius(s)*.62;
     for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.82)return true}
