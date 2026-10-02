@@ -6412,8 +6412,13 @@ canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
   if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
   if(bodyCourse){
-    // BODY COURSE = movement only. Reuse the normal-site steering field verbatim,
-    // but do not expose center taps, broadcast, ray or quantum gestures.
+    // BODY COURSE = movement only. The Body is hard-locked through 3-2-1 and cannot
+    // accept a steering pointer until the exact frame GO releases the countdown class.
+    if(document.body.classList.contains('ge-body-race-countdown')){
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
+    // Reuse the normal-site directional accelerator. Distance from the Body to the held
+    // finger is the throttle: near = slow, farther pull = faster, capped at the normal max.
     const sh=nearestShipField(e.clientX,e.clientY);
     if(!sh)return;
     shipRayHold=null;shipCenterPress=null;
@@ -6434,6 +6439,11 @@ canvas.addEventListener('pointerdown',e=>{
 },{passive:false});
 canvas.addEventListener('pointermove',e=>{
   if(document.body.classList.contains('ge-body-race-active')){
+    if(document.body.classList.contains('ge-body-race-countdown')){
+      if(shipSteer&&shipSteer.id===e.pointerId){shipSteer.ship.vx=0;shipSteer.ship.vy=0;shipSteer.ship.paused=true;shipSteer.ship.controlActive=false;shipSteer=null;}
+      if(e.cancelable)e.preventDefault();
+      return;
+    }
     if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
     return;
   }
@@ -10705,8 +10715,28 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
   function startBodyRaceCountdown(token){
-    document.body.classList.add('ge-body-race-countdown');let step=3;bodyRaceCountdown.textContent='3';
-    const advance=()=>{if(!bodyRace||token!==bodyRaceToken)return;step--;if(step>0){bodyRaceCountdown.textContent=String(step);setTimeout(advance,700);return}if(step===0){bodyRaceCountdown.textContent='GO';bodyRace.startedAt=performance.now();bodyRace.body.paused=false;bodyRace.body.guided=true;setTimeout(()=>{if(bodyRace&&token===bodyRaceToken)bodyRaceCountdown.textContent=''},500);document.body.classList.remove('ge-body-race-countdown');return}};
+    document.body.classList.add('ge-body-race-countdown');
+    let step=3;bodyRaceCountdown.textContent='3';
+    if(bodyRace?.body){
+      bodyRace.body.vx=0;bodyRace.body.vy=0;bodyRace.body.paused=true;
+      bodyRace.body.controlActive=false;bodyRace.body.guided=true;
+    }
+    const advance=()=>{
+      if(!bodyRace||token!==bodyRaceToken)return;
+      // Reassert the lock on every countdown beat so no stale pointer/velocity can creep the Body.
+      if(bodyRace.body){bodyRace.body.vx=0;bodyRace.body.vy=0;bodyRace.body.paused=true;bodyRace.body.controlActive=false;}
+      step--;
+      if(step>0){bodyRaceCountdown.textContent=String(step);setTimeout(advance,700);return}
+      if(step===0){
+        bodyRaceCountdown.textContent='GO';
+        bodyRace.startedAt=performance.now();
+        bodyRace.body.vx=0;bodyRace.body.vy=0;bodyRace.body.paused=false;bodyRace.body.guided=true;bodyRace.body.controlActive=false;
+        // GO is the sole release point for the steering lock.
+        document.body.classList.remove('ge-body-race-countdown');
+        setTimeout(()=>{if(bodyRace&&token===bodyRaceToken)bodyRaceCountdown.textContent=''},500);
+        return;
+      }
+    };
     setTimeout(advance,700);
   }
   function renderBodyRace(){
