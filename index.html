@@ -6149,9 +6149,11 @@ function loop(){
   for(const q of quantumClusters){try{q.draw()}catch(err){console.error('GE quantum draw isolated an error',err)}}
   comets.filter(c=>c.depth!=='front').forEach(c=>c.draw(ctx));
   miniShips.forEach(s=>s.draw());
-  // Full-size ship is physically closest to the visitor: render it on the foreground canvas,
-  // above planets, Sun, Moon and background Souls.
-  if(frontCtx)ships.forEach(s=>s.draw(frontCtx));else ships.forEach(s=>s.draw());
+  // Full-size Body is physically closest to the visitor. On low-power/mobile mode
+  // fxFront is intentionally hidden, so draw the Body on the visible main FX canvas instead.
+  // Otherwise keep the foreground render above the planets/Sun/Moon.
+  const bodyDrawCtx=(window.GE_LOW_POWER||document.body.classList.contains('ge-low-power')||!frontCtx)?ctx:frontCtx;
+  ships.forEach(s=>s.draw(bodyDrawCtx));
   if(frontCtx)comets.filter(c=>c.depth==='front').forEach(c=>c.draw(frontCtx));
 
 
