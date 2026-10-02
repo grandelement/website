@@ -2762,6 +2762,14 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 .geMeditateOverlay{position:fixed;z-index:24000;inset:0;display:none;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at 50% 38%,rgba(20,70,105,.34),rgba(0,3,9,.96));color:#eefaff;font-family:system-ui,sans-serif}.geMeditateOverlay.show{display:flex}.geMeditateCard{width:min(680px,94vw);max-height:90vh;overflow:auto;border:1px solid rgba(160,225,255,.35);border-radius:26px;padding:20px;background:rgba(3,12,25,.76);text-align:center}.geMeditateGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.geToneBtn,.geAmbientBtn{appearance:none;min-height:58px;border:1px solid rgba(170,225,255,.3);border-radius:16px;background:rgba(10,30,54,.7);color:#fff;font-weight:900}.geToneBtn.active,.geAmbientBtn.active{border-color:#e8fbff;box-shadow:0 0 18px rgba(80,190,255,.4)}.geMeditateControls{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:16px 0}.geMeditateControls input{width:100%}
 </style>
 
+<style id="ge-body-flight-v2">
+.gameOptionsPanel .modalTopClose{display:none!important}
+.geOptionsUtilityBar{display:grid!important;grid-template-columns:1fr 1.25fr 1fr!important;align-items:center;gap:8px!important;margin:0 0 12px!important}
+.geOptionsUtilityBar .gameButton{width:100%;min-height:40px!important;padding:7px 10px!important;font-size:11px!important}
+.geGameNavHome{text-align:left!important}.geGameNavScores{text-align:center!important}
+.geGameNavClose{justify-self:end;max-width:48px!important;font-size:23px!important;line-height:1!important}
+@media(max-width:560px){.geOptionsUtilityBar{grid-template-columns:1fr 1.15fr 42px!important}}
+</style>
 <style id="ge-special-game-detail-v1">
 .gameOptionsPanel.detail-golf .geScoreSpecificOptions,.gameOptionsPanel.detail-golf #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-golf #ninePlanetSpecificOptions,.gameOptionsPanel.detail-golf #marbleSpecificOptions,
 .gameOptionsPanel.detail-body .geScoreSpecificOptions,.gameOptionsPanel.detail-body #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-body #ninePlanetSpecificOptions,.gameOptionsPanel.detail-body #marbleSpecificOptions{display:none!important}
@@ -3339,8 +3347,10 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 
   <div class="gameOptionsPanel" id="gameOptionsPanel" role="dialog" aria-modal="true" aria-labelledby="gameOptionsTitle">
     <div class="gameCard geGameControlCard">
-      <div class="geOptionsUtilityBar">
-        <button class="gameButton" id="gameScoresBtn" type="button">HIGH SCORES</button>
+      <div class="geOptionsUtilityBar" aria-label="Game navigation">
+        <button class="gameButton geGameNavHome" id="geGameHomeTopBtn" type="button">‹ HOME</button>
+        <button class="gameButton geGameNavScores" id="gameScoresBtn" type="button">HIGH SCORES</button>
+        <button class="gameButton geGameNavClose" id="gameOptionsClose" type="button" aria-label="Close game options">×</button>
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
         <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button></div>
@@ -8930,6 +8940,7 @@ const GE_GAME = (()=>{
 
   optionsBtn.addEventListener('click',()=>{resetGamePromptDefault();const dock=document.getElementById('gameMusicDock');dock?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');openGameDetail(detailKindFromState());optionsPanel.classList.add('show');});
   optionsClose?.addEventListener('click',()=>optionsPanel.classList.remove('show'));
+  document.getElementById('geGameHomeTopBtn')?.addEventListener('click',confirmExitGame,{capture:true});
   exitBtn.addEventListener('click',confirmExitGame,{capture:true});
   exitTopBtn?.addEventListener('click',confirmExitGame,{capture:true});
   optBanks.addEventListener('change',()=>{state.showBanks=optBanks.checked;saveGameStateSoon();});
