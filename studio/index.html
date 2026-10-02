@@ -110,6 +110,14 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
  .geDisplayZoomBar button{min-height:32px}
  .workspace{top:143px!important}
 }
+
+/* Dynamic spacing for enlarged Studio controls. */
+@media not all and (orientation:landscape) and (max-height:650px){
+ .workspace{bottom:calc(var(--geStudioBottom,143px) + 7px)!important}
+}
+@media (orientation:landscape) and (max-height:650px){
+ .workspace{bottom:7px!important}
+}
 </style>
 </head>
 <body>
@@ -325,9 +333,15 @@ function geRegisterZoomBase(el){
  }
 }
 function syncGeDisplayBarSpace(){
- const bar=$('geDisplayZoomBar');if(!bar)return;
- const h=Math.ceil(bar.getBoundingClientRect().height+12);
- document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+ const bar=$('geDisplayZoomBar'),bottom=document.querySelector('.bottom');
+ if(bar){
+   const h=Math.ceil(bar.getBoundingClientRect().height+12);
+   document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+ }
+ if(bottom){
+   const h=Math.ceil(bottom.getBoundingClientRect().height);
+   document.documentElement.style.setProperty('--geStudioBottom',h+'px');
+ }
 }
 function applyGeDisplayZoom(value,persist){
  geDisplayZoomPct=clamp(Math.round(Number(value)||120),100,220);
