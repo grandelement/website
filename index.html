@@ -21,6 +21,23 @@ Preserve together:
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<script>
+(function(){
+  try{
+    var q=(window.location.search||'').toLowerCase();
+    if(q.indexOf('full=1')!==-1)return;
+    var lite=q.indexOf('lite=1')!==-1;
+    if(!lite){
+      try{new Function('var a={b:1};return a?.b;');}catch(e){lite=true;}
+    }
+    if(!lite&&window.screen&&screen.width&&screen.width<=280)lite=true;
+    var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+    if(!lite&&c&&(c.saveData||c.effectiveType==='slow-2g'||c.effectiveType==='2g'))lite=true;
+    if(!lite&&typeof navigator.deviceMemory==='number'&&navigator.deviceMemory<=1)lite=true;
+    if(lite&&window.location.pathname.indexOf('/lite/')===-1)window.location.replace('/lite/');
+  }catch(e){}
+})();
+</script>
 <title>Grand Element (Official Site) - Welcome!</title>
 <meta name="theme-color" content="#000000" />
 <meta name="application-name" content="Grand Element Website" />
