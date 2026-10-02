@@ -3,326 +3,244 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
-<title>Grand Element LITE Universe</title>
-<meta name="theme-color" content="#000814">
+<title>Grand Element Radio</title>
+<meta name="theme-color" content="#000000">
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000814;color:#eef9ff;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-webkit-user-select:none;user-select:none}
-body{position:fixed;left:0;right:0;top:0;bottom:0;background:
-radial-gradient(circle at 12% 18%,rgba(255,255,255,.85) 0 1px,transparent 1.5px),
-radial-gradient(circle at 77% 24%,rgba(130,210,255,.7) 0 1px,transparent 1.5px),
-radial-gradient(circle at 38% 73%,rgba(255,255,255,.72) 0 1px,transparent 1.5px),
-radial-gradient(circle at 88% 82%,rgba(160,220,255,.65) 0 1px,transparent 1.5px),
-linear-gradient(#00030a,#00101d 58%,#00050b)}
-button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
-#stage{position:absolute;left:0;right:0;top:0;bottom:0;overflow:hidden;touch-action:none}
-.topbar{position:absolute;z-index:90;left:7px;right:7px;top:7px;height:30px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
-.brand{font-size:10px;font-weight:bold;letter-spacing:2px;color:#b9ecff;text-shadow:0 0 8px #4abfff}
-.topActions{display:flex;gap:5px;pointer-events:auto}
-.tinyBtn{min-height:30px;padding:0 9px;border:1px solid #3f8fb3;border-radius:8px;background:#071a27;color:#eaf9ff;font-size:9px;font-weight:bold;text-decoration:none;display:flex;align-items:center}
-#sunWrap{position:absolute;z-index:20;width:108px;height:108px;left:30%;top:45%;margin:-54px 0 0 -54px;border-radius:50%;touch-action:none}
-#sunDrag{position:absolute;left:16px;right:16px;top:29px;bottom:29px;z-index:2;border-radius:50%;cursor:move}
-#sun{position:absolute;left:0;right:0;top:0;bottom:0;border-radius:50%;overflow:hidden;background:#0d3f6d;box-shadow:0 0 13px rgba(120,215,255,.7),0 0 27px rgba(35,125,220,.32)}
-#sun img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;pointer-events:none}
-.sunCtl{position:absolute;z-index:8;left:50%;transform:translateX(-50%);border:1px solid rgba(177,228,255,.55);background:rgba(1,12,23,.88);color:#eefaff;border-radius:8px;padding:4px 8px;font-size:9px;font-weight:bold;letter-spacing:.08em;white-space:nowrap;min-height:24px;touch-action:manipulation}
-#aboutBtn{top:10px}#musicBtn{bottom:10px}
-#moon{position:absolute;z-index:22;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;touch-action:none}
-#moonTap{position:absolute;left:-5px;right:-5px;top:-5px;bottom:-5px;z-index:4;border:0;background:transparent;border-radius:50%;padding:0;touch-action:manipulation}
-#moon img{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;box-shadow:0 0 7px #e6fbff,0 0 15px rgba(75,190,255,.72);pointer-events:none}
-#planets{position:absolute;left:0;right:0;top:0;bottom:0;z-index:14;pointer-events:none}
-.lite-js .liteFallbackPlanet{display:none}
-.planet{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;pointer-events:auto;touch-action:none;box-shadow:0 0 7px rgba(115,205,255,.42)}
-.planet img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;pointer-events:none}
-.planetLabel{position:absolute;top:30px;left:50%;transform:translateX(-50%);font-size:6px;font-weight:bold;color:#b9ddeb;white-space:nowrap;text-shadow:0 1px 3px #000;opacity:.75}
-.dragging{z-index:60!important;filter:brightness(1.2)}
-.panel{position:absolute;z-index:110;display:none;left:8px;right:8px;top:44px;max-height:calc(100% - 58px);overflow:auto;border:1px solid #2b6988;border-radius:13px;background:rgba(2,13,24,.97);padding:12px;box-shadow:0 0 18px rgba(34,145,210,.24);text-align:left}
-.panel.show{display:block}
-.panel h2{font-size:15px;margin:0 0 9px;letter-spacing:1px;text-align:center}
-.panel p{font-size:11px;line-height:1.45;color:#c5d8e2}
-.closePanel{width:100%;min-height:38px;border:1px solid #3d8caf;border-radius:8px;background:#092333;color:#fff;font-weight:bold}
-#musicPanel{padding-bottom:10px}
-.playerDock{position:absolute;z-index:100;left:8px;right:8px;bottom:8px;border:1px solid #2b6b89;border-radius:12px;background:rgba(3,15,27,.96);padding:7px;box-sizing:border-box;touch-action:none}
-.playerHandle{height:24px;display:flex;align-items:center;justify-content:space-between;font-size:9px;font-weight:bold;letter-spacing:.09em;color:#bdeaff;cursor:move}
-.playerHandle span:first-child{padding-left:5px}
-.dockBtns{display:flex;gap:4px}
-.dockBtn{height:24px;min-width:42px;border:1px solid #315e73;border-radius:6px;background:#071823;color:#dff7ff;font-size:7px;font-weight:bold}
-.playerDock audio{display:block;width:100%;height:31px}
-.albumLinks{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
-.albumLinks a{padding:5px 7px;border:1px solid #294f63;border-radius:6px;color:#d9f3ff;text-decoration:none;font-size:8px}
-.settingsRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #153142;font-size:11px}
-.settingsRow:last-child{border-bottom:0}
-.switchBtn{min-width:70px;min-height:34px;border:1px solid #397d9d;border-radius:8px;background:#082332;color:#fff;font-weight:bold;font-size:9px}
-.switchBtn.on{background:#0f4b69}
-.note{font-size:9px!important;color:#789aaa!important;text-align:center}
-#loadMeter{position:absolute;z-index:80;left:7px;bottom:74px;font-size:7px;color:#6e97a9;letter-spacing:.06em}
-@media(max-width:320px),(max-height:568px){
-  #sunWrap{width:92px;height:92px;margin:-46px 0 0 -46px}
-  .planet{width:24px;height:24px;margin:-12px 0 0 -12px}
-  .planetLabel{top:26px;font-size:5px}
-  #moon{width:38px;height:38px;margin:-19px 0 0 -19px}
-  .playerDock{left:5px;right:5px;bottom:5px}
-  #loadMeter{bottom:70px}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#02060b;color:#eef8ff;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+#bg{position:fixed;z-index:0;left:0;right:0;top:0;bottom:0;background:
+radial-gradient(circle at 12% 10%,rgba(255,255,255,.70) 0 1px,transparent 2px),
+radial-gradient(circle at 84% 16%,rgba(255,255,255,.58) 0 1px,transparent 2px),
+radial-gradient(circle at 58% 7%,rgba(155,215,255,.52) 0 1px,transparent 2px),
+radial-gradient(circle at 29% 29%,rgba(255,255,255,.52) 0 1px,transparent 2px),
+radial-gradient(circle at 72% 37%,rgba(255,255,255,.62) 0 1px,transparent 2px),
+radial-gradient(circle at 8% 53%,rgba(140,210,255,.42) 0 1px,transparent 2px),
+radial-gradient(circle at 91% 63%,rgba(255,255,255,.58) 0 1px,transparent 2px),
+radial-gradient(circle at 40% 76%,rgba(255,255,255,.46) 0 1px,transparent 2px),
+radial-gradient(circle at 77% 89%,rgba(155,220,255,.42) 0 1px,transparent 2px),
+linear-gradient(#00040b,#02111d 54%,#00060c)}
+#shade{position:fixed;z-index:1;left:0;right:0;top:0;bottom:0;background:linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.25));pointer-events:none}
+.wrap{position:relative;z-index:2;width:100%;max-width:760px;margin:0 auto;padding:9px 10px 24px;text-align:center}
+header{margin:2px 0 5px}
+.logoWrap{position:relative;width:184px;height:184px;margin:0 auto 8px;border-radius:50%}
+.logoWrap:before{content:"";position:absolute;left:-18px;right:-18px;top:-18px;bottom:-18px;border-radius:50%;border:1px solid rgba(55,160,255,.25);box-shadow:0 0 32px rgba(0,136,255,.18),inset 0 0 22px rgba(0,130,255,.12)}
+.logo{position:relative;z-index:2;width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;box-shadow:0 0 16px rgba(77,190,255,.30)}
+h1{font-size:27px;line-height:1.05;margin:0;font-weight:bold}
+.tag{font-size:17px;line-height:1.1;color:#d7e3eb;margin:3px 0 8px}
+button,.btnLink{appearance:none;-webkit-appearance:none;border:1px solid #31536b;border-radius:12px;background:rgba(11,32,47,.85);color:#f5fbff;font-weight:bold;text-decoration:none;text-align:center;-webkit-tap-highlight-color:transparent}
+#titleBtn{width:100%;height:42px;font-size:19px;margin:0 0 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#seek{display:block;width:96%;margin:5px auto 10px;height:23px}
+.row{font-size:0;width:100%;margin:0 0 6px}
+.row button{display:inline-block;width:32%;margin:0 .66%;height:54px;font-size:17px;vertical-align:top}
+#shuffleBtn.on{border:2px solid #35f0b4;box-shadow:0 0 12px rgba(25,245,175,.18)}
+#radioBtn.on{background:rgba(190,32,65,.92);border:2px solid #ff7892;box-shadow:0 0 14px rgba(255,60,100,.25)}
+#status{height:28px;line-height:26px;border:1px solid #31536b;border-radius:10px;background:rgba(3,18,29,.82);font-size:12px;color:#c8eafa;margin:4px 0 11px}
+.group{border:1px solid #31536b;border-radius:12px;background:rgba(7,25,38,.76);padding:8px;margin:0 0 9px}
+.sectionLabel{display:block;font-size:15px;font-weight:bold;margin:-3px 0 5px}
+.bgRow{font-size:0}
+.bgRow button{display:inline-block;width:32%;margin:3px .66%;height:40px;font-size:14px}
+.bgRow button.on{border:2px solid #35f0b4;box-shadow:0 0 10px rgba(25,245,175,.14)}
+.utility{font-size:0;margin-top:3px}
+.utility button,.utility a{display:inline-block;width:32%;margin:3px .66%;height:42px;line-height:40px;font-size:11px;vertical-align:top;padding:0 4px}
+.utility .buy{background:rgba(197,61,23,.88);border-color:#df714b;line-height:14px;padding-top:7px}
+.utility .access{border-color:#3c8baa}
+#showHud{display:none;position:fixed;z-index:50;left:0;right:0;top:0;bottom:0}
+body.hideHud .hideable{visibility:hidden}
+body.hideHud #showHud{display:block}
+footer{font-size:9px;color:#8597a4;letter-spacing:.04em;margin-top:13px}
+#hiddenAudio{display:none}
+@media(max-width:340px){
+  .wrap{padding:5px 6px 18px}
+  .logoWrap{width:154px;height:154px;margin-bottom:5px}
+  h1{font-size:22px}
+  .tag{font-size:14px;margin-bottom:6px}
+  #titleBtn{height:36px;font-size:16px;margin-bottom:4px}
+  #seek{margin:2px auto 6px;height:20px}
+  .row{margin-bottom:4px}
+  .row button{height:44px;font-size:15px;border-radius:10px}
+  #status{height:24px;line-height:22px;margin:3px 0 7px;font-size:10px}
+  .group{padding:5px;margin-bottom:5px}
+  .sectionLabel{font-size:13px;margin:0 0 2px}
+  .bgRow button{height:34px;font-size:12px;margin-top:2px;margin-bottom:2px}
+  .utility button,.utility a{height:36px;line-height:34px;font-size:9px;border-radius:9px}
+  .utility .buy{line-height:11px;padding-top:6px}
+  footer{margin-top:7px}
+}
+@media(max-height:570px) and (max-width:340px){
+  .logoWrap{width:132px;height:132px}
+  h1{font-size:20px}
+  .tag{font-size:13px}
+  .row button{height:40px}
+  .bgRow button{height:31px}
+  .utility button,.utility a{height:32px;line-height:30px}
+  .utility .buy{line-height:10px;padding-top:5px}
 }
 </style>
 </head>
 <body>
-<div id="stage">
-  <div class="topbar">
-    <div class="brand">GRAND ELEMENT · LITE</div>
-    <div class="topActions">
-      <button class="tinyBtn" id="settingsBtn" type="button">SETTINGS</button>
-      <a class="tinyBtn" href="/?full=1">FULL</a>
+<div id="bg"></div>
+<div id="shade"></div>
+<div id="showHud" title="Tap to show controls"></div>
+
+<main class="wrap">
+  <div class="hideable">
+    <header>
+      <a class="logoWrap" href="/?full=1"><img class="logo" src="../ge-images/images/ge-logo-2.jpg" alt="Grand Element"></a>
+      <h1>Grand Element Radio</h1>
+      <div class="tag">music to set your soul free</div>
+    </header>
+
+    <button id="titleBtn" type="button">Grand Element Radio</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" disabled>
+
+    <div class="row">
+      <button id="playBtn" type="button">Play</button>
+      <button id="prevBtn" type="button">Prev</button>
+      <button id="nextBtn" type="button">Next</button>
     </div>
-  </div>
+    <div class="row">
+      <button id="shuffleBtn" class="on" type="button">Shuffle</button>
+      <button id="radioBtn" class="on" type="button">RADIO</button>
+      <button id="shareBtn" type="button">Share</button>
+    </div>
 
-  <div id="sunWrap" data-kind="sun">
-    <div id="sun"><img id="sunImg" alt="Grand Element Blue Sun" src="../ge-images/images/ge-logo-2.jpg"></div>
-    <div id="sunDrag" aria-label="Drag Blue Sun"></div>
-    <button id="aboutBtn" class="sunCtl" type="button">ABOUT</button>
-    <button id="musicBtn" class="sunCtl" type="button">MUSIC</button>
-  </div>
+    <div id="status">RADIO • ready</div>
 
-  <div id="moon" data-kind="moon">
-    <img id="moonImg" alt="Grand Element Radio" src="../ge-images/images/ge-radio-logo.png">
-    <button id="moonTap" type="button" aria-label="Play Grand Element Radio"></button>
-  </div>
-  <div id="planets">
-    <div class="planet liteFallbackPlanet" style="left:20%;top:20%"><img alt="Fire" src="../ge-images/images/Grand%20Element%20-%20Fire.jpg"><div class="planetLabel">Fire</div></div>
-    <div class="planet liteFallbackPlanet" style="left:48%;top:18%"><img alt="Spirit" src="../ge-images/images/Grand%20Element%20-%20Spirit.jpg"><div class="planetLabel">Spirit</div></div>
-    <div class="planet liteFallbackPlanet" style="left:76%;top:23%"><img alt="Soul" src="../ge-images/images/Grand%20Element%20-%20Soul.jpg"><div class="planetLabel">Soul</div></div>
-    <div class="planet liteFallbackPlanet" style="left:82%;top:45%"><img alt="Love" src="../ge-images/images/Grand%20Element%20-%20Love.jpg"><div class="planetLabel">Love</div></div>
-    <div class="planet liteFallbackPlanet" style="left:72%;top:66%"><img alt="Intergy" src="../ge-images/images/Grand%20Element%20-%20Intergy.jpg"><div class="planetLabel">Intergy</div></div>
-  </div>
-
-  <div id="aboutPanel" class="panel">
-    <h2>GRAND ELEMENT</h2>
-    <p>This is the LITE universe: the same Grand Element Sun and album planets, rebuilt for old phones and slow connections. Drag the Sun or any planet. Release it and it can coast gently across the screen.</p>
-    <p>The full site keeps the advanced physics, games, Bodies, Souls, quantum effects, dimensional backgrounds and larger artwork. LITE keeps the core visual universe, Radio, album access and touch movement without loading the full engine.</p>
-    <button class="closePanel" data-close="aboutPanel" type="button">CLOSE</button>
-  </div>
-
-  <div id="settingsPanel" class="panel">
-    <h2>LITE SETTINGS</h2>
-    <div class="settingsRow"><span>PLANET MOTION</span><button id="motionToggle" class="switchBtn on" type="button">ON</button></div>
-    <div class="settingsRow"><span>ALBUM PLANETS</span><button id="planetCountToggle" class="switchBtn on" type="button">ALL 9</button></div>
-    <div class="settingsRow"><span>RADIO MOON ORBIT</span><button id="orbitToggle" class="switchBtn on" type="button">ON</button></div>
-    <div class="settingsRow"><span>PLAYER POSITION</span><button id="playerDockToggle" class="switchBtn" type="button">BOTTOM</button></div>
-    <p class="note">This page is independent of the full website. These controls only affect GE LITE.</p>
-    <button class="closePanel" data-close="settingsPanel" type="button">CLOSE</button>
-  </div>
-
-  <div id="musicPanel" class="panel">
-    <h2>MUSIC</h2>
-    <p>Radio uses the direct stream. Album buttons open the lightweight Bandcamp album pages.</p>
-    <div class="albumLinks" id="albumLinks"></div>
-    <button class="closePanel" data-close="musicPanel" type="button">CLOSE</button>
-  </div>
-
-  <div id="loadMeter">LITE v2 · IPHONE 5 · 320×568 READY</div>
-
-  <div id="playerDock" class="playerDock">
-    <div id="playerHandle" class="playerHandle">
-      <span>GE RADIO · DRAG</span>
-      <div class="dockBtns">
-        <button id="dockTop" class="dockBtn" type="button">TOP</button>
-        <button id="dockBottom" class="dockBtn" type="button">BOTTOM</button>
+    <section class="group">
+      <span class="sectionLabel">Backgrounds</span>
+      <div class="bgRow">
+        <button id="bgOff" type="button">Off</button>
+        <button id="bgPrev" type="button">Prev</button>
+        <button id="bgNext" type="button">Next</button>
+        <button id="bgPer" class="on" type="button">Per Song</button>
+        <button id="bgShuffle" class="on" type="button">Shuffle</button>
+        <button id="bgAuto" type="button">Auto</button>
       </div>
+    </section>
+
+    <div class="utility">
+      <button id="reloadBtn" type="button">Reload Library</button>
+      <button id="hideBtn" type="button">Hide Text</button>
+      <a class="btnLink buy" href="https://grandelement.bandcamp.com">Buy on<br>Bandcamp</a>
+      <a class="btnLink access" href="mailto:access@grandelement.com?subject=Grand%20Element%20Access&body=Hi%20Grand%20Element%2C%0A%0AI%20would%20like%20the%20access%20code.%20Please%20add%20me%20to%20the%20Grand%20Element%20fan%20list%20for%20occasional%20updates%20about%20shows%2C%20events%20and%20new%20releases.%0A%0AThanks.">Get Access</a>
+      <a class="btnLink" href="mailto:info@grandelement.com?subject=Grand%20Element">Contact</a>
+      <a class="btnLink" href="/radio/?full=1">Full Radio</a>
     </div>
-    <audio controls preload="none" playsinline>
-      <source src="https://radio.grandelement.blitz.cloud/stream.mp3" type="audio/mpeg">
-    </audio>
+
+    <footer>Copyright GE Studios and Grand Element. All rights reserved.</footer>
   </div>
-</div>
+
+  <audio id="hiddenAudio" preload="none"></audio>
+</main>
 
 <script>
 (function(){
-  var stage=document.getElementById('stage');
-  var sun=document.getElementById('sunWrap');
-  var moon=document.getElementById('moon');
-  var planetsHost=document.getElementById('planets');
-  var player=document.getElementById('playerDock');
-  var handle=document.getElementById('playerHandle');
-  var motion=true,orbit=true,allPlanets=true,orbitAngle=0;
-  var movers=[],activeDrag=null,lastFrame=0;
-  var base='../ge-images/images/';
-  var albums=[
-    ['Fire','Grand%20Element%20-%20Fire.jpg','https://grandelement.bandcamp.com/album/fire'],
-    ['Spirit','Grand%20Element%20-%20Spirit.jpg','https://grandelement.bandcamp.com/album/spirit'],
-    ['Soul','Grand%20Element%20-%20Soul.jpg','https://grandelement.bandcamp.com/album/soul'],
-    ['Love','Grand%20Element%20-%20Love.jpg','https://grandelement.bandcamp.com/album/love'],
-    ['Intergy','Grand%20Element%20-%20Intergy.jpg','https://grandelement.bandcamp.com/album/intergy'],
-    ['Sessions II','Grand%20Element%20-%20Sessions%20II.jpg','https://grandelement.bandcamp.com/album/sessions-ii'],
-    ['Sessions I','Grand%20Element%20-%20Sessions%20I.jpg','https://grandelement.bandcamp.com/album/sessions-i'],
-    ['Live!','Grand%20Element%20-%20Live.jpg','https://grandelement.bandcamp.com/album/live'],
-    ['Trio','Grand%20Element%20-%20Trio.jpg','https://grandelement.bandcamp.com/album/trio']
+  var STREAM='https://radio.grandelement.blitz.cloud/stream.mp3';
+  var audio=document.getElementById('hiddenAudio');
+  var titleBtn=document.getElementById('titleBtn');
+  var playBtn=document.getElementById('playBtn');
+  var radioBtn=document.getElementById('radioBtn');
+  var shuffleBtn=document.getElementById('shuffleBtn');
+  var seek=document.getElementById('seek');
+  var status=document.getElementById('status');
+  var bg=document.getElementById('bg');
+  var tracks=[],index=0,radioMode=true,shuffle=true,bgIndex=0,bgPer=true,bgShuffle=true,bgAuto=false,bgTimer=null;
+
+  var backgrounds=[
+    'radial-gradient(circle at 12% 10%,rgba(255,255,255,.70) 0 1px,transparent 2px),radial-gradient(circle at 84% 16%,rgba(255,255,255,.58) 0 1px,transparent 2px),radial-gradient(circle at 58% 7%,rgba(155,215,255,.52) 0 1px,transparent 2px),radial-gradient(circle at 29% 29%,rgba(255,255,255,.52) 0 1px,transparent 2px),radial-gradient(circle at 72% 37%,rgba(255,255,255,.62) 0 1px,transparent 2px),radial-gradient(circle at 8% 53%,rgba(140,210,255,.42) 0 1px,transparent 2px),radial-gradient(circle at 91% 63%,rgba(255,255,255,.58) 0 1px,transparent 2px),linear-gradient(#00040b,#02111d 54%,#00060c)',
+    'radial-gradient(circle at 50% 25%,rgba(22,109,178,.34),transparent 35%),radial-gradient(circle at 20% 18%,rgba(255,255,255,.55) 0 1px,transparent 2px),radial-gradient(circle at 82% 66%,rgba(148,216,255,.55) 0 1px,transparent 2px),linear-gradient(#01040c,#031528,#00060d)',
+    'radial-gradient(circle at 72% 28%,rgba(69,36,154,.28),transparent 34%),radial-gradient(circle at 13% 22%,rgba(255,255,255,.60) 0 1px,transparent 2px),radial-gradient(circle at 55% 62%,rgba(255,255,255,.48) 0 1px,transparent 2px),linear-gradient(#02020a,#100822,#02030a)',
+    'radial-gradient(circle at 40% 32%,rgba(0,156,190,.24),transparent 34%),radial-gradient(circle at 9% 63%,rgba(255,255,255,.58) 0 1px,transparent 2px),radial-gradient(circle at 89% 19%,rgba(255,255,255,.58) 0 1px,transparent 2px),linear-gradient(#00070b,#032129,#000508)'
   ];
-  var starts=[[72,96],[161,104],[248,116],[286,202],[243,286],[153,334],[73,306],[43,217],[166,218]];
 
-  function resized(path,w,q){
-    var clean=path.replace(/^\.\.\//,'');
-    return '/cdn-cgi/image/width='+w+',quality='+(q||58)+',format=auto/'+clean;
+  function addClass(el,name){if((' '+el.className+' ').indexOf(' '+name+' ')<0)el.className+=(el.className?' ':'')+name;}
+  function removeClass(el,name){el.className=(' '+el.className+' ').replace(' '+name+' ',' ').replace(/^\s+|\s+$/g,'');}
+  function toggleClass(el,name,on){if(on)addClass(el,name);else removeClass(el,name);}
+  function encodePath(p){var a=p.split('/'),i;for(i=0;i<a.length;i++)a[i]=encodeURIComponent(a[i]);return '/'+a.join('/');}
+  function cleanTitle(p){var s=p.split('/').pop()||p;s=s.replace(/\.mp3$/i,'');s=s.replace(/^[^_]+_/,'');s=s.replace(/\([^)]*\)/g,'');return s.replace(/_/g,' ').replace(/^\s+|\s+$/g,'')||'Grand Element';}
+  function setStatus(t){status.innerHTML=t;}
+  function setRadioState(on){radioMode=on;toggleClass(radioBtn,'on',on);seek.disabled=on;if(on){titleBtn.innerHTML='Grand Element Radio';setStatus('RADIO • ready');}}
+  function safePlay(){var p;try{p=audio.play();if(p&&p.catch)p.catch(function(){setStatus('Tap Play to start');});}catch(e){setStatus('Tap Play to start');}}
+  function tuneRadio(playNow){setRadioState(true);if(audio.src!==STREAM){audio.src=STREAM;audio.load();}if(playNow)safePlay();}
+  function loadTrack(n,playNow){
+    if(!tracks.length){setStatus('Music library loading');return;}
+    setRadioState(false);
+    if(n<0)n=tracks.length-1;if(n>=tracks.length)n=0;index=n;
+    audio.src=encodePath(tracks[index]);audio.load();titleBtn.innerHTML=cleanTitle(tracks[index]);
+    setStatus('MUSIC • '+(index+1)+' / '+tracks.length);
+    if(bgPer)changeBackground(bgShuffle?-1:bgIndex+1);
+    if(playNow)safePlay();
   }
-  function setLiteImage(img,path,w,q){
-    img._fallback=path;
-    img.onerror=function(){
-      if(img._fallback&&img.src.indexOf('/cdn-cgi/image/')!==-1){
-        var f=img._fallback;img._fallback='';img.src=f;
-      }
+  function nextTrack(playNow){if(shuffle&&tracks.length>1)loadTrack(Math.floor(Math.random()*tracks.length),playNow);else loadTrack(index+1,playNow);}
+  function previousTrack(){loadTrack(index-1,true);}
+  function reloadLibrary(){
+    var x=new XMLHttpRequest();
+    setStatus('Loading music library');
+    x.onreadystatechange=function(){
+      var data,i,p;
+      if(x.readyState!==4)return;
+      if(x.status>=200&&x.status<300){
+        try{
+          data=JSON.parse(x.responseText);tracks=[];
+          for(i=0;i<(data.files||[]).length;i++){p=data.files[i];if(/^ge-music\/music\//.test(p)&&/\.mp3$/i.test(p))tracks.push(p);}
+          setStatus(radioMode?'RADIO • ready':'MUSIC • library ready');
+        }catch(e){setStatus('RADIO • ready');}
+      }else setStatus('RADIO • ready');
     };
-    img.src=resized(path,w,q);
-  }
-  setLiteImage(document.getElementById('sunImg'),base+'ge-logo-2.jpg',120,58);
-  setLiteImage(document.getElementById('moonImg'),base+'ge-radio-logo.png',64,58);
-
-  function stageSize(){return{w:stage.clientWidth||320,h:stage.clientHeight||568};}
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-  function radius(el){return Math.max(10,el.offsetWidth/2);}
-  function register(el,x,y){
-    var o={el:el,x:x,y:y,vx:0,vy:0,kind:el.getAttribute('data-kind')||'planet'};
-    movers.push(o);place(o);bindDrag(o);return o;
-  }
-  function place(o){
-    o.el.style.left=Math.round(o.x)+'px';o.el.style.top=Math.round(o.y)+'px';
-  }
-  var sunObj=register(sun,96,255);
-  var sunDrag=document.getElementById('sunDrag');
-  var moonObj={el:moon,x:190,y:255,vx:0,vy:0,kind:'moon'};
-  place(moonObj);bindDrag(moonObj);
-
-  function createPlanets(){
-    planetsHost.innerHTML='';movers=[sunObj];var s=stageSize(),scaleX=s.w/320,scaleY=s.h/568;
-    var count=allPlanets?9:5;
-    for(var i=0;i<count;i++){
-      var el=document.createElement('div');el.className='planet';el.setAttribute('data-kind','planet');
-      var img=document.createElement('img');img.alt=albums[i][0];setLiteImage(img,base+albums[i][1],42,54);
-      var lab=document.createElement('div');lab.className='planetLabel';lab.appendChild(document.createTextNode(albums[i][0]));
-      el.appendChild(img);el.appendChild(lab);planetsHost.appendChild(el);
-      var sx=starts[i][0]*scaleX,sy=starts[i][1]*scaleY;
-      register(el,sx,sy);
-    }
+    x.open('GET','../radio/manifest.json?legacy=1',true);x.send(null);
   }
 
-  function pointFromEvent(e){
-    var t=e.touches&&e.touches.length?e.touches[0]:(e.changedTouches&&e.changedTouches.length?e.changedTouches[0]:e);
-    return{x:t.clientX,y:t.clientY};
+  function changeBackground(n){
+    if(n<0)n=Math.floor(Math.random()*backgrounds.length);
+    if(n>=backgrounds.length)n=0;if(n<0)n=backgrounds.length-1;
+    bgIndex=n;bg.style.background=backgrounds[bgIndex];removeClass(document.getElementById('bgOff'),'on');
   }
-  function bindDrag(o){
-    function down(e){
-      if(e.target&&((e.target.id==='aboutBtn')||(e.target.id==='musicBtn')||(e.target.id==='moonTap')))return;
-      if(o.kind==='moon')orbit=false;
-      var p=pointFromEvent(e);activeDrag={o:o,lastX:p.x,lastY:p.y,lastT:+new Date()};
-      o.vx=o.vy=0;o.el.className+=(o.el.className.indexOf('dragging')<0?' dragging':'');
-      if(e.preventDefault)e.preventDefault();
-    }
-    var target=(o.kind==='sun'&&sunDrag)?sunDrag:o.el;
-    target.addEventListener('touchstart',down,false);target.addEventListener('mousedown',down,false);
+  function setBgOff(){bg.style.background='#000';addClass(document.getElementById('bgOff'),'on');}
+  function syncBgButtons(){
+    toggleClass(document.getElementById('bgPer'),'on',bgPer);
+    toggleClass(document.getElementById('bgShuffle'),'on',bgShuffle);
+    toggleClass(document.getElementById('bgAuto'),'on',bgAuto);
   }
-  function moveDrag(e){
-    if(!activeDrag)return;
-    var p=pointFromEvent(e),o=activeDrag.o,s=stageSize(),r=radius(o.el),now=+new Date(),dt=Math.max(16,now-activeDrag.lastT);
-    var nx=clamp(p.x,r,s.w-r),ny=clamp(p.y,r+36,s.h-r-72);
-    o.vx=(nx-activeDrag.lastX)/(dt/16);o.vy=(ny-activeDrag.lastY)/(dt/16);
-    o.x=nx;o.y=ny;place(o);activeDrag.lastX=nx;activeDrag.lastY=ny;activeDrag.lastT=now;
-    if(e.preventDefault)e.preventDefault();
-  }
-  function endDrag(e){
-    if(!activeDrag)return;
-    var o=activeDrag.o;o.el.className=o.el.className.replace(/\s*dragging/g,'');activeDrag=null;
-    if(!motion){o.vx=0;o.vy=0;}
-    if(e&&e.preventDefault)e.preventDefault();
-  }
-  stage.addEventListener('touchmove',moveDrag,false);stage.addEventListener('mousemove',moveDrag,false);
-  stage.addEventListener('touchend',endDrag,false);stage.addEventListener('touchcancel',endDrag,false);stage.addEventListener('mouseup',endDrag,false);
-
-  function animate(ts){
-    if(!lastFrame)lastFrame=ts;var dt=Math.min(2,(ts-lastFrame)/16.67);lastFrame=ts;
-    if(motion&&!activeDrag){
-      var s=stageSize();
-      for(var i=0;i<movers.length;i++){
-        var o=movers[i],r=radius(o.el);
-        if(Math.abs(o.vx)<.02&&Math.abs(o.vy)<.02)continue;
-        o.x+=o.vx*dt;o.y+=o.vy*dt;o.vx*=Math.pow(.972,dt);o.vy*=Math.pow(.972,dt);
-        if(o.x<r){o.x=r;o.vx=Math.abs(o.vx)*.72}
-        if(o.x>s.w-r){o.x=s.w-r;o.vx=-Math.abs(o.vx)*.72}
-        if(o.y<r+36){o.y=r+36;o.vy=Math.abs(o.vy)*.72}
-        if(o.y>s.h-r-72){o.y=s.h-r-72;o.vy=-Math.abs(o.vy)*.72}
-        place(o);
-      }
-    }
-    if(orbit&&(!activeDrag||activeDrag.o.kind!=='moon')){
-      orbitAngle+=.008*dt;
-      var rr=Math.max(62,radius(sun)+36),s2=stageSize();
-      moonObj.x=clamp(sunObj.x+Math.cos(orbitAngle)*rr,22,s2.w-22);
-      moonObj.y=clamp(sunObj.y+Math.sin(orbitAngle)*rr,58,s2.h-96);place(moonObj);
-    }
-    requestAnimationFrame(animate);
+  function setAuto(){
+    if(bgTimer){clearInterval(bgTimer);bgTimer=null;}
+    if(bgAuto)bgTimer=setInterval(function(){changeBackground(bgShuffle?-1:bgIndex+1);},30000);
   }
 
-  function showPanel(id){document.getElementById(id).className='panel show';}
-  function hidePanel(id){document.getElementById(id).className='panel';}
-  function tapButton(el,fn){
-    var fired=0;
-    function go(e){
-      var now=+new Date();if(now-fired<350)return;fired=now;
-      if(e&&e.preventDefault)e.preventDefault();if(e&&e.stopPropagation)e.stopPropagation();fn();
-    }
-    el.addEventListener('touchend',go,false);el.addEventListener('click',go,false);
-  }
-  tapButton(document.getElementById('aboutBtn'),function(){showPanel('aboutPanel');});
-  tapButton(document.getElementById('musicBtn'),function(){showPanel('musicPanel');});
-  tapButton(document.getElementById('settingsBtn'),function(){showPanel('settingsPanel');});
-  tapButton(document.getElementById('moonTap'),function(){
-    var audio=player.getElementsByTagName('audio')[0];
-    if(audio){try{var p=audio.play();if(p&&p.catch)p.catch(function(){});}catch(_e){}}
-  });
-  var closers=document.querySelectorAll('[data-close]');
-  for(var ci=0;ci<closers.length;ci++)closers[ci].onclick=function(){hidePanel(this.getAttribute('data-close'));};
+  document.getElementById('playBtn').onclick=function(){if(!audio.src)tuneRadio(false);if(audio.paused)safePlay();else audio.pause();};
+  document.getElementById('radioBtn').onclick=function(){tuneRadio(true);};
+  document.getElementById('prevBtn').onclick=function(){previousTrack();};
+  document.getElementById('nextBtn').onclick=function(){nextTrack(true);};
+  document.getElementById('shuffleBtn').onclick=function(){shuffle=!shuffle;toggleClass(shuffleBtn,'on',shuffle);};
+  document.getElementById('shareBtn').onclick=function(){window.location.href='mailto:?subject=Grand%20Element%20Radio&body=https%3A%2F%2Fwww.grandelement.com%2Fradio%2F';};
+  document.getElementById('reloadBtn').onclick=function(){reloadLibrary();};
+  document.getElementById('hideBtn').onclick=function(){addClass(document.body,'hideHud');};
+  document.getElementById('showHud').onclick=function(){removeClass(document.body,'hideHud');};
+  document.getElementById('bgOff').onclick=function(){setBgOff();};
+  document.getElementById('bgPrev').onclick=function(){changeBackground(bgIndex-1);};
+  document.getElementById('bgNext').onclick=function(){changeBackground(bgIndex+1);};
+  document.getElementById('bgPer').onclick=function(){bgPer=!bgPer;syncBgButtons();};
+  document.getElementById('bgShuffle').onclick=function(){bgShuffle=!bgShuffle;syncBgButtons();};
+  document.getElementById('bgAuto').onclick=function(){bgAuto=!bgAuto;syncBgButtons();setAuto();};
 
-  var links=document.getElementById('albumLinks');
-  for(var ai=0;ai<albums.length;ai++){
-    var a=document.createElement('a');a.href=albums[ai][2];a.appendChild(document.createTextNode(albums[ai][0]));links.appendChild(a);
-  }
+  seek.onchange=function(){
+    if(radioMode||!audio.duration||!isFinite(audio.duration))return;
+    try{audio.currentTime=(Number(seek.value)/1000)*audio.duration;}catch(e){}
+  };
+  audio.ontimeupdate=function(){
+    if(radioMode||!audio.duration||!isFinite(audio.duration)){seek.value=0;return;}
+    seek.value=Math.round((audio.currentTime/audio.duration)*1000);
+  };
+  audio.onplay=function(){playBtn.innerHTML='Pause';setStatus(radioMode?'RADIO • playing':'MUSIC • playing');};
+  audio.onpause=function(){playBtn.innerHTML='Play';if(radioMode)setStatus('RADIO • ready');};
+  audio.onwaiting=function(){setStatus(radioMode?'RADIO • buffering':'MUSIC • buffering');};
+  audio.onplaying=function(){setStatus(radioMode?'RADIO • playing':'MUSIC • playing');};
+  audio.onerror=function(){setStatus('Audio connection interrupted • tap Play');};
+  audio.onended=function(){if(!radioMode)nextTrack(true);};
 
-  var motionBtn=document.getElementById('motionToggle');
-  motionBtn.onclick=function(){motion=!motion;motionBtn.className='switchBtn'+(motion?' on':'');motionBtn.innerHTML=motion?'ON':'OFF';if(!motion){for(var i=0;i<movers.length;i++){movers[i].vx=0;movers[i].vy=0;}}};
-  var planetBtn=document.getElementById('planetCountToggle');
-  planetBtn.onclick=function(){allPlanets=!allPlanets;planetBtn.className='switchBtn'+(allPlanets?' on':'');planetBtn.innerHTML=allPlanets?'ALL 9':'CORE 5';createPlanets();};
-  var orbitBtn=document.getElementById('orbitToggle');
-  orbitBtn.onclick=function(){orbit=!orbit;orbitBtn.className='switchBtn'+(orbit?' on':'');orbitBtn.innerHTML=orbit?'ON':'OFF';};
-  var dockToggle=document.getElementById('playerDockToggle');
-
-  function dockPlayer(where){
-    var s=stageSize();player.style.left='8px';player.style.right='8px';player.style.width='auto';player.style.transform='none';
-    if(where==='top'){player.style.top='42px';player.style.bottom='auto';dockToggle.innerHTML='TOP';}
-    else{player.style.top='auto';player.style.bottom='8px';dockToggle.innerHTML='BOTTOM';}
-    player.setAttribute('data-dock',where);
-  }
-  document.getElementById('dockTop').onclick=function(e){dockPlayer('top');if(e)e.stopPropagation();};
-  document.getElementById('dockBottom').onclick=function(e){dockPlayer('bottom');if(e)e.stopPropagation();};
-  dockToggle.onclick=function(){dockPlayer(player.getAttribute('data-dock')==='top'?'bottom':'top');};
-
-  var playerDrag=null;
-  function playerDown(e){
-    var p=pointFromEvent(e),r=player.getBoundingClientRect();playerDrag={dx:p.x-r.left,dy:p.y-r.top};
-    player.style.right='auto';player.style.bottom='auto';player.style.width=Math.min(360,stageSize().w-16)+'px';
-    if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation();
-  }
-  function playerMove(e){
-    if(!playerDrag)return;var p=pointFromEvent(e),s=stageSize(),w=player.offsetWidth,h=player.offsetHeight;
-    player.style.left=clamp(p.x-playerDrag.dx,4,s.w-w-4)+'px';player.style.top=clamp(p.y-playerDrag.dy,38,s.h-h-4)+'px';
-    if(e.preventDefault)e.preventDefault();
-  }
-  function playerUp(){playerDrag=null;}
-  handle.addEventListener('touchstart',playerDown,false);handle.addEventListener('mousedown',playerDown,false);
-  document.addEventListener('touchmove',playerMove,false);document.addEventListener('mousemove',playerMove,false);
-  document.addEventListener('touchend',playerUp,false);document.addEventListener('mouseup',playerUp,false);
-
-  function resize(){
-    var s=stageSize();sunObj.x=clamp(sunObj.x,46,s.w-46);sunObj.y=clamp(sunObj.y,82,s.h-120);place(sunObj);
-    for(var i=0;i<movers.length;i++){var o=movers[i],r=radius(o.el);o.x=clamp(o.x,r,s.w-r);o.y=clamp(o.y,r+36,s.h-r-72);place(o);}
-    var pr=player.getBoundingClientRect();if(pr.right>s.w||pr.bottom>s.h)dockPlayer('bottom');
-  }
-  window.addEventListener('resize',resize,false);
-  dockPlayer('bottom');createPlanets();requestAnimationFrame(animate);
+  tuneRadio(false);
+  reloadLibrary();
+  syncBgButtons();
 })();
 </script>
 </body>
