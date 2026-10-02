@@ -1498,6 +1498,11 @@ body{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
  .geDisplayZoomBar b,.geDisplayZoomBar output{font-size:9px}
  .geDisplayZoomBar button{min-height:32px}
 }
+
+/* V50 dynamic chrome spacing: enlarged controls may never cover the console. */
+body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
+.sheet{bottom:var(--geDockHeight,112px)!important}
+#mixerSheet{bottom:var(--geDockHeight,112px)!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <b>TEXT + BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
@@ -2838,9 +2843,15 @@ function geRegisterZoomBase(el){
  }
 }
 function syncGeDisplayBarSpace(){
- const bar=$('geDisplayZoomBar');if(!bar)return;
- const h=Math.ceil(bar.getBoundingClientRect().height+12);
- document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+ const bar=$('geDisplayZoomBar'),dock=document.querySelector('.dock');
+ if(bar){
+   const h=Math.ceil(bar.getBoundingClientRect().height+12);
+   document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+ }
+ if(dock){
+   const h=Math.ceil(dock.getBoundingClientRect().height);
+   document.documentElement.style.setProperty('--geDockHeight',h+'px');
+ }
 }
 function applyGeDisplayZoom(value,persist){
  geDisplayZoomPct=clamp(Math.round(Number(value)||120),100,220);
