@@ -4996,15 +4996,20 @@ class Comet{
     this.r=cometRadiusForDepth(this.depthLevel);
     const depthSpeed=18+this.depthLevel*7.2;
     const speedRoll=Math.random();
-    const s=speedRoll<.76?rand(depthSpeed*.72,depthSpeed*1.28):(speedRoll<.96?rand(depthSpeed*1.25,depthSpeed*1.85):rand(depthSpeed*1.7,depthSpeed*2.35));
+    // Most Souls drift slowly. A very small minority cross like shooting stars.
+    const shootingStar=speedRoll>.985;
+    const s=shootingStar?rand(depthSpeed*5.2,depthSpeed*8.5):(speedRoll<.76?rand(depthSpeed*.72,depthSpeed*1.28):(speedRoll<.96?rand(depthSpeed*1.25,depthSpeed*1.85):rand(depthSpeed*1.7,depthSpeed*2.35)));
     this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s;
+    this.shootingStar=shootingStar;
     this.depth=cometDepthClass(this.depthLevel);
     this.depthScale=1;
     // Physical contact is uncommon even when objects occupy compatible depth bands.
     this.physicalAffinity=Math.random();
     this.bodyInteractive=Math.random()<.18;
-    this.trailLife=rand(3400,6200);
-    this.trailMax=Math.max(34,Math.min(76,Math.round(this.trailLife/75)));
+    // Each Soul carries a different amount of visible "gas": short, medium and rare long tails.
+    const tailRoll=Math.random();
+    this.trailLife=this.shootingStar?rand(900,1800):(tailRoll<.52?rand(2600,4600):(tailRoll<.88?rand(5200,9000):rand(11000,18000)));
+    this.trailMax=Math.max(24,Math.min(220,Math.round(this.trailLife/75)));
     // Each soul gets its own small attraction field and temperament.
     const sizeFactor=Math.max(0.35,Math.min(1.4,this.r/8));
     this.magnetRadius=rand(12,34)*sizeFactor;
