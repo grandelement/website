@@ -42,7 +42,7 @@ All GE games use the same planet motion baseline as normal website play. Control
 10–12 Corridors: narrower lanes, angled walls.
 13–15 Choice: direct risky route vs longer bank route.
 16–18 Double banks: two-wall solutions and tighter power windows.
-19–21 Gates: narrow passages, GE emblem/ship obstacles.
+19–21 Gates: narrow passages, GE emblem/Body obstacles.
 22–24 Timing introduction: slow moving obstacle with generous window.
 25–27 Precision: smaller clearances and compound banks.
 28–30 Advanced timing: moving obstacles plus bank geometry.
@@ -56,22 +56,22 @@ Every hole must be solver-tested. Store a reference hole-in-one vector/power and
 - hard walls / rails
 - angled bank walls
 - GE emblem
-- ship
+- Body
 - album planets
 - gates
 - slow moving blockers
 - tunnels/corridors represented top-down
 - optional speed-control zones later
 
-## GE Flight
+## THE BODY
 
 ### Core rule
-- Pilot the existing GE ship through a visually obvious course from START to FINISH.
-- The ship itself remains the same ship and control language.
+- Pilot the existing GE Body through a visually obvious course from START to FINISH.
+- The Body itself remains the same Body and control language.
 - Touching a course wall/obstacle is a fault/reset/checkpoint according to mode.
 - Early courses are wide and slow; later courses become tighter.
 - From level 3 onward, slow moving obstacles can require timing and speed control.
-- Course geometry always accounts for the full ship hitbox, not merely its center point.
+- Course geometry always accounts for the full Body hitbox, not merely its center point.
 - Advanced levels may have tight gates, but every gate must retain a verified collision-safe path.
 - The route should be readable from walls/light rails; dotted guide is optional, not required by default.
 - Score can combine completion time + faults, with a precision/clean-run record.
@@ -107,6 +107,6 @@ Pure tones can be generated with Web Audio oscillators, so no large tone files a
 ## Implementation order
 1. Stabilize existing UI/physics defects.
 2. Build Golf engine + 33 verified layouts.
-3. Build Flight course engine using the existing ship.
+3. Build Flight course engine using the existing Body.
 4. Add Meditation under Autopilot.
 5. Add Back Room visual editors for Golf holes, Flight courses and Meditation mappings.
