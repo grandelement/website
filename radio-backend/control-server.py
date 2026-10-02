@@ -2460,6 +2460,13 @@ class Handler(BaseHTTPRequestHandler):
                 "audio_architecture": "v29-controllable-continuous-ffmpeg-master",
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
+                "dj_backend": {
+                    "input_profiles": True,
+                    "work_sessions": True,
+                    "trusted_devices": True,
+                    "phone_approval": False,
+                    "email_backup": False,
+                },
             })
             return
 
