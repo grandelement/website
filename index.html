@@ -2773,7 +2773,7 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 <style id="ge-special-game-detail-v1">
 .gameOptionsPanel.detail-golf .geScoreSpecificOptions,.gameOptionsPanel.detail-golf #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-golf #ninePlanetSpecificOptions,.gameOptionsPanel.detail-golf #marbleSpecificOptions,
 .gameOptionsPanel.detail-body .geScoreSpecificOptions,.gameOptionsPanel.detail-body #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-body #ninePlanetSpecificOptions,.gameOptionsPanel.detail-body #marbleSpecificOptions{display:none!important}
-.gameOptionsPanel.detail-golf #basicRuleLine::after{content:"33 HOLES · RUBBER BAND · BLUE SUN CUP";font-weight:900}.gameOptionsPanel.detail-body #basicRuleLine::after{content:"PASS EVERY GATE · AVOID ALL BODIES · REACH FINISH";font-weight:900}
+.gameOptionsPanel.detail-golf #basicRuleLine::after{content:"33 HOLES · RUBBER BAND · BLUE SUN CUP";font-weight:900}.gameOptionsPanel.detail-body #basicRuleLine::after{content:"PASS EVERY GATE · AVOID PLANETS + BLUE SUN · REACH FINISH";font-weight:900}
 .gameOptionsPanel.detail-golf #basicRuleLine,.gameOptionsPanel.detail-body #basicRuleLine{font-size:0}.gameOptionsPanel.detail-golf #basicRuleLine::after,.gameOptionsPanel.detail-body #basicRuleLine::after{font-size:11px}
 .geBodySpecificOptions{display:none!important;margin-top:8px!important}
 .gameOptionsPanel.detail-body .geBodySpecificOptions{display:grid!important}
@@ -7776,6 +7776,12 @@ const GE_GAME = (()=>{
       const vec=[['0px','-42px'],['-18px','-28px'],['35px','-20px'],['48px','6px'],['30px','36px'],['0px','40px'],['-32px','34px'],['-46px','5px'],['-31px','-24px']];
       pts.forEach((p,i)=>{let cls='';if(playing&&step===0)cls='previewScatter';if(playing&&step===1&&i===0)cls='previewPocketMove';html+=previewBall(i+1,p[0],p[1],cls,...(step===1&&i===0?['0px','35px']:vec[i]));});
       caption=step===0?'BREAK: the Blue Sun hits the rack first; the center hole stays inactive during the break.':step===1?'POCKET: drive the current target into the center. A made object planet keeps the turn.':'TURN: pocket nothing and play passes. The rack ends only when every object planet is gone.';
+    }else if(category==='body'){
+      html='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:7%;width:86%;height:86%;overflow:visible"><path d="M18 90 C32 74 68 75 56 56 S28 38 47 25 S73 18 82 8" fill="none" stroke="rgba(190,238,255,.92)" stroke-width=".8" stroke-dasharray="1.4 3.4"/><g fill="none" stroke="rgba(125,218,255,.75)" stroke-width=".65"><circle cx="18" cy="90" r="4"/><circle cx="82" cy="8" r="5" stroke-dasharray="2 2"/></g></svg>';
+      html+=previewBall('',27,58);html+=previewBall('',70,48);html+=previewBall('',38,28);
+      const shipLeft=playing?(step===0?'16%':(step===1?'42%':'67%')):'16%',shipTop=playing?(step===0?'73%':(step===1?'48%':'18%')):'73%';
+      html+='<img alt="" src="ge-images/images/ge-logo-4-cutout.png" style="position:absolute;width:23%;height:auto;left:'+shipLeft+';top:'+shipTop+';transform:translate(-50%,-50%);filter:drop-shadow(0 0 7px #68cfff)">';
+      caption=step===0?'START: the same Body and the same steering/control field used in the normal universe.':step===1?'GATES: the line is a guide. Leave it if you want, but pass every glowing checkpoint in order.':'FINISH: planets and the Blue Sun are fixed hazards. Souls use their normal Body capture behavior.';
     }else{
       for(let i=0;i<5;i++){const own=playing&&step===0&&i<2?'previewScatter':(playing&&step===1&&i===0?'previewPocketMove':'');html+=previewBall('',18+i*7,38+(i%2)*12,own,step===1&&i===0?'-90px':`${25+i*8}px`,step===1&&i===0?'0px':`${i%2?-18:14}px`);html+=previewBall('',62+i*6,42+((i+1)%2)*12,'','0px','0px');}
       html+=previewSun(18,76,playing&&step===0?'previewCueStrike':'');
@@ -7788,6 +7794,7 @@ const GE_GAME = (()=>{
     if(kind!=='golf'&&kind!=='body')applyBasicPreset(kind);
     setDetailClasses(kind);if(kind==='pockets')syncPocketsModeToggle();
     const meta=GAME_DETAIL_META[kind];if(geGameDetailTitle)geGameDetailTitle.textContent=meta.title;if(geGameDetailKind)geGameDetailKind.textContent=meta.kind;if(geGameDetailDescription)geGameDetailDescription.textContent=meta.description;
+    const startBtn=document.getElementById('gameStartNewBtn');if(startBtn)startBtn.textContent=kind==='body'?'START COURSE':(kind==='golf'?'START HOLE':'START GAME');
     if(geGameHubHome)geGameHubHome.hidden=true;if(geGameDetailScreen)geGameDetailScreen.hidden=false;
     const card=optionsPanel.querySelector('.geGameControlCard');
     card?.classList.remove('geViewHub');card?.classList.add('geViewDetail');
@@ -10517,7 +10524,13 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function clearBodyRaceBonuses(){
     if(typeof comets==='undefined')return;
-    for(let i=comets.length-1;i>=0;i--){const c=comets[i];if(!c?.geRaceBonus)continue;if(c.capturedBy?.targets)c.capturedBy.targets=c.capturedBy.targets.filter(x=>x!==c);comets.splice(i,1);}
+    for(let i=comets.length-1;i>=0;i--){
+      const c=comets[i];if(!c?.geRaceBonus)continue;
+      const host=c.capturedBy;if(host?.targets)host.targets=host.targets.filter(x=>x!==c);
+      if(host?.coreSoul===c)host.coreSoul=null;if(host?.coreCandidate===c)host.coreCandidate=null;
+      comets.splice(i,1);
+    }
+    if(typeof ships!=='undefined')for(const s of ships){if(s?.coreSoul?.geRaceBonus)s.coreSoul=null;if(s?.coreCandidate?.geRaceBonus)s.coreCandidate=null;if(Array.isArray(s?.targets))s.targets=s.targets.filter(x=>!x?.geRaceBonus);}
   }
   function spawnBodyRaceBonuses(spec){
     clearBodyRaceBonuses();if(typeof Comet==='undefined'||typeof comets==='undefined')return[];
