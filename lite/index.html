@@ -19,14 +19,17 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
 .brand{font-size:10px;font-weight:bold;letter-spacing:2px;color:#b9ecff;text-shadow:0 0 8px #4abfff}
 .topActions{display:flex;gap:5px;pointer-events:auto}
 .tinyBtn{min-height:30px;padding:0 9px;border:1px solid #3f8fb3;border-radius:8px;background:#071a27;color:#eaf9ff;font-size:9px;font-weight:bold;text-decoration:none;display:flex;align-items:center}
-#sunWrap{position:absolute;z-index:20;width:108px;height:108px;left:27%;top:51%;margin:-54px 0 0 -54px;border-radius:50%;touch-action:none}
+#sunWrap{position:absolute;z-index:20;width:108px;height:108px;left:30%;top:45%;margin:-54px 0 0 -54px;border-radius:50%;touch-action:none}
+#sunDrag{position:absolute;left:16px;right:16px;top:29px;bottom:29px;z-index:2;border-radius:50%;cursor:move}
 #sun{position:absolute;left:0;right:0;top:0;bottom:0;border-radius:50%;overflow:hidden;background:#0d3f6d;box-shadow:0 0 13px rgba(120,215,255,.7),0 0 27px rgba(35,125,220,.32)}
 #sun img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;pointer-events:none}
-.sunCtl{position:absolute;z-index:3;left:50%;transform:translateX(-50%);border:0;background:rgba(1,12,23,.62);color:#eefaff;border-radius:8px;padding:3px 7px;font-size:8px;font-weight:bold;letter-spacing:.08em;white-space:nowrap}
+.sunCtl{position:absolute;z-index:8;left:50%;transform:translateX(-50%);border:1px solid rgba(177,228,255,.55);background:rgba(1,12,23,.88);color:#eefaff;border-radius:8px;padding:4px 8px;font-size:9px;font-weight:bold;letter-spacing:.08em;white-space:nowrap;min-height:24px;touch-action:manipulation}
 #aboutBtn{top:10px}#musicBtn{bottom:10px}
 #moon{position:absolute;z-index:22;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;touch-action:none}
+#moonTap{position:absolute;left:-5px;right:-5px;top:-5px;bottom:-5px;z-index:4;border:0;background:transparent;border-radius:50%;padding:0;touch-action:manipulation}
 #moon img{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;box-shadow:0 0 7px #e6fbff,0 0 15px rgba(75,190,255,.72);pointer-events:none}
 #planets{position:absolute;left:0;right:0;top:0;bottom:0;z-index:14;pointer-events:none}
+.lite-js .liteFallbackPlanet{display:none}
 .planet{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;pointer-events:auto;touch-action:none;box-shadow:0 0 7px rgba(115,205,255,.42)}
 .planet img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;pointer-events:none}
 .planetLabel{position:absolute;top:30px;left:50%;transform:translateX(-50%);font-size:6px;font-weight:bold;color:#b9ddeb;white-space:nowrap;text-shadow:0 1px 3px #000;opacity:.75}
@@ -72,13 +75,23 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
   </div>
 
   <div id="sunWrap" data-kind="sun">
-    <div id="sun"><img id="sunImg" alt="Grand Element Blue Sun"></div>
+    <div id="sun"><img id="sunImg" alt="Grand Element Blue Sun" src="../ge-images/images/ge-logo-2.jpg"></div>
+    <div id="sunDrag" aria-label="Drag Blue Sun"></div>
     <button id="aboutBtn" class="sunCtl" type="button">ABOUT</button>
     <button id="musicBtn" class="sunCtl" type="button">MUSIC</button>
   </div>
 
-  <div id="moon" data-kind="moon"><img id="moonImg" alt="Grand Element Radio"></div>
-  <div id="planets"></div>
+  <div id="moon" data-kind="moon">
+    <img id="moonImg" alt="Grand Element Radio" src="../ge-images/images/ge-radio-logo.png">
+    <button id="moonTap" type="button" aria-label="Play Grand Element Radio"></button>
+  </div>
+  <div id="planets">
+    <div class="planet liteFallbackPlanet" style="left:20%;top:20%"><img alt="Fire" src="../ge-images/images/Grand%20Element%20-%20Fire.jpg"><div class="planetLabel">Fire</div></div>
+    <div class="planet liteFallbackPlanet" style="left:48%;top:18%"><img alt="Spirit" src="../ge-images/images/Grand%20Element%20-%20Spirit.jpg"><div class="planetLabel">Spirit</div></div>
+    <div class="planet liteFallbackPlanet" style="left:76%;top:23%"><img alt="Soul" src="../ge-images/images/Grand%20Element%20-%20Soul.jpg"><div class="planetLabel">Soul</div></div>
+    <div class="planet liteFallbackPlanet" style="left:82%;top:45%"><img alt="Love" src="../ge-images/images/Grand%20Element%20-%20Love.jpg"><div class="planetLabel">Love</div></div>
+    <div class="planet liteFallbackPlanet" style="left:72%;top:66%"><img alt="Intergy" src="../ge-images/images/Grand%20Element%20-%20Intergy.jpg"><div class="planetLabel">Intergy</div></div>
+  </div>
 
   <div id="aboutPanel" class="panel">
     <h2>GRAND ELEMENT</h2>
@@ -123,6 +136,7 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
 <script>
 (function(){
   var stage=document.getElementById('stage');
+  document.documentElement.className += ' lite-js';
   var sun=document.getElementById('sunWrap');
   var moon=document.getElementById('moon');
   var planetsHost=document.getElementById('planets');
@@ -130,7 +144,7 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
   var handle=document.getElementById('playerHandle');
   var motion=true,orbit=true,allPlanets=true,orbitAngle=0;
   var movers=[],activeDrag=null,lastFrame=0;
-  var base='ge-images/images/';
+  var base='../ge-images/images/';
   var albums=[
     ['Fire','Grand%20Element%20-%20Fire.jpg','https://grandelement.bandcamp.com/album/fire'],
     ['Spirit','Grand%20Element%20-%20Spirit.jpg','https://grandelement.bandcamp.com/album/spirit'],
@@ -145,7 +159,8 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
   var starts=[[72,96],[161,104],[248,116],[286,202],[243,286],[153,334],[73,306],[43,217],[166,218]];
 
   function resized(path,w,q){
-    return '/cdn-cgi/image/width='+w+',quality='+(q||58)+',format=auto/'+path;
+    var clean=path.replace(/^\.\.\//,'');
+    return '/cdn-cgi/image/width='+w+',quality='+(q||58)+',format=auto/'+clean;
   }
   function setLiteImage(img,path,w,q){
     img._fallback=path;
@@ -169,8 +184,9 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
   function place(o){
     o.el.style.left=Math.round(o.x)+'px';o.el.style.top=Math.round(o.y)+'px';
   }
-  var sunObj=register(sun,86,286);
-  var moonObj={el:moon,x:165,y:286,vx:0,vy:0,kind:'moon'};
+  var sunObj=register(sun,96,255);
+  var sunDrag=document.getElementById('sunDrag');
+  var moonObj={el:moon,x:190,y:255,vx:0,vy:0,kind:'moon'};
   place(moonObj);bindDrag(moonObj);
 
   function createPlanets(){
@@ -192,12 +208,14 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
   }
   function bindDrag(o){
     function down(e){
+      if(e.target&&((e.target.id==='aboutBtn')||(e.target.id==='musicBtn')||(e.target.id==='moonTap')))return;
       if(o.kind==='moon')orbit=false;
       var p=pointFromEvent(e);activeDrag={o:o,lastX:p.x,lastY:p.y,lastT:+new Date()};
       o.vx=o.vy=0;o.el.className+=(o.el.className.indexOf('dragging')<0?' dragging':'');
       if(e.preventDefault)e.preventDefault();
     }
-    o.el.addEventListener('touchstart',down,false);o.el.addEventListener('mousedown',down,false);
+    var target=(o.kind==='sun'&&sunDrag)?sunDrag:o.el;
+    target.addEventListener('touchstart',down,false);target.addEventListener('mousedown',down,false);
   }
   function moveDrag(e){
     if(!activeDrag)return;
@@ -242,9 +260,21 @@ button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
 
   function showPanel(id){document.getElementById(id).className='panel show';}
   function hidePanel(id){document.getElementById(id).className='panel';}
-  document.getElementById('aboutBtn').onclick=function(e){showPanel('aboutPanel');if(e)e.stopPropagation();};
-  document.getElementById('musicBtn').onclick=function(e){showPanel('musicPanel');if(e)e.stopPropagation();};
-  document.getElementById('settingsBtn').onclick=function(){showPanel('settingsPanel');};
+  function tapButton(el,fn){
+    var fired=0;
+    function go(e){
+      var now=+new Date();if(now-fired<350)return;fired=now;
+      if(e&&e.preventDefault)e.preventDefault();if(e&&e.stopPropagation)e.stopPropagation();fn();
+    }
+    el.addEventListener('touchend',go,false);el.addEventListener('click',go,false);
+  }
+  tapButton(document.getElementById('aboutBtn'),function(){showPanel('aboutPanel');});
+  tapButton(document.getElementById('musicBtn'),function(){showPanel('musicPanel');});
+  tapButton(document.getElementById('settingsBtn'),function(){showPanel('settingsPanel');});
+  tapButton(document.getElementById('moonTap'),function(){
+    var audio=player.getElementsByTagName('audio')[0];
+    if(audio){try{var p=audio.play();if(p&&p.catch)p.catch(function(){});}catch(_e){}}
+  });
   var closers=document.querySelectorAll('[data-close]');
   for(var ci=0;ci<closers.length;ci++)closers[ci].onclick=function(){hidePanel(this.getAttribute('data-close'));};
 
