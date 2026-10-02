@@ -197,14 +197,14 @@ Preserve together:
   .moon{ position:absolute; left:0; top:0; transform:translate(var(--orbit-radius), -50%);
          width:var(--moon-size); height:var(--moon-size); border-radius:50%; cursor:pointer; pointer-events:auto; display:grid; place-items:center; }
   .moon img{ width:100%; height:100%; object-fit:cover; border-radius:50%;
-    box-shadow:0 0 10px 4px rgba(190,232,255,.78),0 0 22px rgba(65,180,255,.58),0 0 34px rgba(120,215,255,.28); border:1px solid rgba(205,238,255,.88);
+    box-shadow:0 0 12px 5px rgba(225,248,255,.98),0 0 28px 10px rgba(80,195,255,.82),0 0 52px 18px rgba(80,180,255,.52),0 0 82px 28px rgba(70,160,255,.24); border:1.5px solid rgba(225,248,255,.98);
     background: radial-gradient(circle, rgba(235,250,255,.86) 0%, rgba(145,218,255,.48) 56%, rgba(100,190,255,0) 72%);
     animation:geMoonCoreSignal 3.6s ease-in-out infinite;
   }
   .moon::before,.moon::after{
     content:"";position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
     border:1.5px solid rgba(185,235,255,.92);
-    box-shadow:0 0 14px rgba(105,205,255,.78),0 0 26px rgba(95,190,255,.38);
+    box-shadow:0 0 18px 4px rgba(145,225,255,.96),0 0 38px 10px rgba(80,190,255,.62),0 0 64px 16px rgba(70,160,255,.30);
     animation:geMoonBroadcast 4.8s ease-out infinite;
   }
   .moon::after{animation-delay:2.4s;border-color:rgba(225,250,255,.82)}
@@ -255,6 +255,7 @@ Preserve together:
            background:#32406b; background-size:cover; background-position:center; box-shadow:0 0 calc(10px + (var(--pulse) * 26px)) rgba(255,255,255,.25), 0 0 calc(2px + (var(--pulse) * 12px)) rgba(0,170,255,.35);
            transition: transform var(--planet-preview-ms,850ms) ease, box-shadow .5s ease; }
   .planet.previewZoom{
+    z-index:58;
     transform:scale(var(--planet-hover-scale));
     box-shadow:0 0 var(--planet-glow) rgba(255,160,255,.65),0 0 2px 1px rgba(255,255,255,.25) inset;
   }
@@ -1450,6 +1451,25 @@ Preserve together:
     body.game-mode-active #gameHUD .gameScoreCluster{gap:2px!important;justify-content:space-between!important;}
     body.game-mode-active #gameHUD .scoreBallStack{min-width:calc(34px * var(--game-ui-scale))!important;}
   }
+
+
+  /* v10.19 visual cleanup: readable score identities and mathematically centered close controls. */
+  #gameHUD .playerScoreItem{min-width:76px!important;overflow:visible!important}
+  #gameHUD .scoreBallStack{min-width:44px!important}
+  #gameHUD .playerScoreLabel{
+    display:block!important;width:max-content!important;max-width:none!important;
+    overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important;
+    font-size:9px!important;line-height:1.15!important
+  }
+  .gameOptionsX{
+    appearance:none;position:absolute;top:12px;right:12px;width:42px;height:42px;
+    padding:0!important;margin:0!important;border-radius:50%;
+    border:1px solid rgba(190,225,255,.65);background:rgba(8,18,34,.96);color:#fff;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    font:900 30px/1 system-ui,-apple-system,Segoe UI,sans-serif!important;
+    text-align:center;text-indent:0;box-sizing:border-box;cursor:pointer;z-index:5
+  }
+  .gameOptionsX::first-line{line-height:1}
 
   /* Every overlay must have an escape route without scrolling to a hidden control. */
   #albumScan .albumScanCard{
@@ -3633,7 +3653,7 @@ function placePlanets(){
     albumPlanets[normAlbumName(alb.title)] = aEl;
 
     let previewReady=false, previewLocked=false, previewTimer=0, previewHoldTimer=0;
-    const previewMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_ZOOM_MS ?? 850);
+    const previewMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_ZOOM_MS ?? 1350);
     const holdMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_HOLD_MS ?? 3000);
     const shrinkMs=(window.GE_EASY_SETTINGS?.PLANET_PREVIEW_SHRINK_MS ?? 1100);
     aEl.style.setProperty('--planet-preview-ms',previewMs+'ms');
@@ -3681,9 +3701,19 @@ function placePlanets(){
       if(document.body.classList.contains('game-mode-active')){e.preventDefault();e.stopImmediatePropagation();return;}
       e.preventDefault();
       if(dragged){e.stopPropagation();endPreview();openAnalysisOnRelease=false;return;}
-      if(!aEl.classList.contains('previewZoom'))beginPreview();
-      lockBio();
-      window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
+      if(!aEl.classList.contains('previewZoom')||!previewReady){
+        beginPreview();
+        const token=Symbol('planetPreview');
+        aEl._gePreviewOpenToken=token;
+        setTimeout(()=>{
+          if(aEl._gePreviewOpenToken!==token||dragged||document.body.classList.contains('game-mode-active'))return;
+          lockBio();
+          window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
+        },previewMs+180);
+      }else{
+        lockBio();
+        window.GE_SHOW_ALBUM_SCAN?.(alb,aEl);
+      }
       openAnalysisOnRelease=false;
     });
 
@@ -8630,7 +8660,7 @@ const GE_GAME = (()=>{
   optTracerGas?.addEventListener('input',()=>{state.tracerGas=Math.max(1,Math.min(6,Number(optTracerGas.value)||3.2));optTracerGasValue.textContent=state.tracerGas.toFixed(1)+'×';saveGameStateSoon();});
   optTracerGlow?.addEventListener('input',()=>{state.tracerGlow=Math.max(0,Math.min(30,Number(optTracerGlow.value)||0));optTracerGlowValue.textContent=String(Math.round(state.tracerGlow));saveGameStateSoon();});
   optTracerColorStrength?.addEventListener('input',()=>{state.tracerColorStrength=Math.max(.25,Math.min(1,Number(optTracerColorStrength.value)/100||.82));optTracerColorStrengthValue.textContent=Math.round(state.tracerColorStrength*100)+'%';saveGameStateSoon();});
-  optPlanetSize?.addEventListener('input',()=>{state.planetSize=Math.max(.75,Math.min(1.5,Number(optPlanetSize.value)/100||1));optPlanetSizeValue.textContent=Math.round(state.planetSize*100)+'%';const base=35;document.documentElement.style.setProperty('--planet-size',(base*state.planetSize)+'px');placePlanets();requestAnimationFrame(()=>{buildPlanetPhysics();clampPlayfield();});saveGameStateSoon();});
+  optPlanetSize?.addEventListener('input',()=>{state.planetSize=Math.max(.75,Math.min(1.5,Number(optPlanetSize.value)/100||1));optPlanetSizeValue.textContent=Math.round(state.planetSize*100)+'%';const centers=(window.planetNodes||[]).map(p=>({p,x:p.x,y:p.y,vx:p.vx,vy:p.vy}));const base=35;document.documentElement.style.setProperty('--planet-size',(base*state.planetSize)+'px');requestAnimationFrame(()=>{for(const s of centers){s.p.x=s.x;s.p.y=s.y;s.p.vx=s.vx;s.p.vy=s.vy;s.p.r=(base*state.planetSize)/2;syncPlanet(s.p);}clampPlayfield();});saveGameStateSoon();});
   optPlanetWeight?.addEventListener('input',()=>{state.planetWeight=Math.max(.4,Math.min(1.8,Number(optPlanetWeight.value)/100||1));optPlanetWeightValue.textContent=Math.round(state.planetWeight*100)+'%';saveGameStateSoon();});
   optRollLength?.addEventListener('input',()=>{state.rollLength=Math.max(.6,Math.min(1.6,Number(optRollLength.value)/100||1));optRollLengthValue.textContent=Math.round(state.rollLength*100)+'%';saveGameStateSoon();});
   optWallBounce?.addEventListener('input',()=>{state.wallBounce=Math.max(.7,Math.min(1.08,Number(optWallBounce.value)/100||.98));optWallBounceValue.textContent=Math.round(state.wallBounce*100)+'%';saveGameStateSoon();});
