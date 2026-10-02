@@ -48,6 +48,9 @@ DEFAULT_PLAYLISTS = Path("/app/default-playlists.json")
 PERMANENT_STATE_CACHE = DATA / "permanent-state-cache.json"
 EFFECT_PRESETS_CACHE = DATA / "effect-presets-cache.json"
 REMOTE_DEVICES_FILE = DATA / "remote-devices.json"
+DJ_INPUT_PROFILES_FILE = DATA / "dj-input-profiles.json"
+DJ_WORK_LOG_FILE = DATA / "dj-work-log.json"
+DJ_TRUSTED_DEVICES_FILE = DATA / "dj-trusted-devices.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
@@ -1429,6 +1432,298 @@ def take_remote_commands(device_id):
         REMOTE_COMMANDS[str(device_id)] = []
     return items
 
+
+# GE DJ backend foundation:
+# - per-browser/device input profiles
+# - DJ work sessions/activity records
+# - remembered/trusted DJ devices
+# These services are deliberately separate from the live audio graph.
+DJ_BACKEND_LOCK = threading.RLock()
+
+def _dj_clean_text(value, fallback="", limit=80):
+    text = " ".join(str(value or "").split()).strip()
+    return (text or fallback)[:limit]
+
+def _dj_device_scope(value):
+    value = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(value or "").strip())[:96]
+    return value or "default"
+
+def _dj_input_data():
+    data = read_json(DJ_INPUT_PROFILES_FILE, {"version": 1, "devices": {}})
+    if not isinstance(data, dict):
+        data = {"version": 1, "devices": {}}
+    if not isinstance(data.get("devices"), dict):
+        data["devices"] = {}
+    data["version"] = 1
+    return data
+
+def _default_input_profile(device_scope):
+    return {
+        "version": 1,
+        "device_scope": _dj_device_scope(device_scope),
+        "updated_at": int(time.time()),
+        "slots": [{
+            "id": "mic",
+            "name": "MIC",
+            "kind": "mic",
+            "permanent": True,
+            "enabled": True,
+            "source_type": "audioinput",
+            "device_id": "",
+        }],
+    }
+
+def _normalize_input_slots(slots):
+    normalized = [{
+        "id": "mic",
+        "name": "MIC",
+        "kind": "mic",
+        "permanent": True,
+        "enabled": True,
+        "source_type": "audioinput",
+        "device_id": "",
+    }]
+    seen = {"mic"}
+    extras = slots if isinstance(slots, list) else []
+    for raw in extras:
+        if not isinstance(raw, dict):
+            continue
+        kind = str(raw.get("kind", "input") or "input").strip().lower()
+        slot_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(raw.get("id", "") or "").strip())[:64]
+        if kind == "mic" or slot_id == "mic":
+            # MIC always exists and cannot be removed/renamed.
+            normalized[0]["enabled"] = bool(raw.get("enabled", True))
+            normalized[0]["device_id"] = str(raw.get("device_id", "") or "")[:300]
+            continue
+        if len(normalized) >= 4:
+            break
+        if not slot_id or slot_id in seen:
+            slot_id = "input-" + uuid.uuid4().hex[:10]
+        seen.add(slot_id)
+        source_type = str(raw.get("source_type", "audioinput") or "audioinput").strip().lower()
+        if source_type not in {"audioinput", "desktop", "file"}:
+            source_type = "audioinput"
+        normalized.append({
+            "id": slot_id,
+            "name": _dj_clean_text(raw.get("name"), "INPUT", 40),
+            "kind": "input",
+            "permanent": False,
+            "enabled": bool(raw.get("enabled", True)),
+            "source_type": source_type,
+            # Browser device IDs are opaque and browser/origin-specific.
+            "device_id": str(raw.get("device_id", "") or "")[:300],
+        })
+    return normalized
+
+def dj_input_profile_load(device_scope):
+    scope = _dj_device_scope(device_scope)
+    with DJ_BACKEND_LOCK:
+        data = _dj_input_data()
+        row = data["devices"].get(scope)
+        if not isinstance(row, dict):
+            return _default_input_profile(scope)
+        profile = _default_input_profile(scope)
+        profile["updated_at"] = int(row.get("updated_at", profile["updated_at"]) or profile["updated_at"])
+        profile["slots"] = _normalize_input_slots(row.get("slots", []))
+        return profile
+
+def dj_input_profile_save(device_scope, slots):
+    scope = _dj_device_scope(device_scope)
+    profile = {
+        "version": 1,
+        "device_scope": scope,
+        "updated_at": int(time.time()),
+        "slots": _normalize_input_slots(slots),
+    }
+    with DJ_BACKEND_LOCK:
+        data = _dj_input_data()
+        data["devices"][scope] = profile
+        write_json(DJ_INPUT_PROFILES_FILE, data)
+    if vault_configured():
+        threading.Thread(
+            target=vault_save_scoped_setting,
+            args=("dj_input_profiles", "state", data),
+            daemon=True,
+            name="ge-vault-dj-input-profiles",
+        ).start()
+    return profile
+
+def _dj_work_data():
+    data = read_json(DJ_WORK_LOG_FILE, {"version": 1, "sessions": [], "events": []})
+    if not isinstance(data, dict):
+        data = {"version": 1, "sessions": [], "events": []}
+    if not isinstance(data.get("sessions"), list):
+        data["sessions"] = []
+    if not isinstance(data.get("events"), list):
+        data["events"] = []
+    data["version"] = 1
+    return data
+
+def _write_dj_work_data(data):
+    data["sessions"] = list(data.get("sessions", []))[-1200:]
+    data["events"] = list(data.get("events", []))[-6000:]
+    write_json(DJ_WORK_LOG_FILE, data)
+
+def _dj_work_event_locked(data, session_id, event_type, detail=None):
+    row = {
+        "id": "dje-" + uuid.uuid4().hex[:16],
+        "session_id": str(session_id or "")[:80],
+        "type": _dj_clean_text(event_type, "activity", 60).lower().replace(" ", "_"),
+        "created_at": int(time.time()),
+        "detail": detail if isinstance(detail, dict) else {},
+    }
+    data["events"].append(row)
+    return row
+
+def dj_work_session_start(device_scope, device_name="", auth_method="password"):
+    now = int(time.time())
+    session_id = "djs-" + uuid.uuid4().hex[:16]
+    row = {
+        "id": session_id,
+        "device_scope": _dj_device_scope(device_scope),
+        "device_name": _dj_clean_text(device_name, "DJ device", 100),
+        "auth_method": _dj_clean_text(auth_method, "password", 40),
+        "started_at": now,
+        "last_activity_at": now,
+        "ended_at": 0,
+    }
+    with DJ_BACKEND_LOCK:
+        data = _dj_work_data()
+        data["sessions"].append(row)
+        _dj_work_event_locked(data, session_id, "login", {
+            "device_scope": row["device_scope"],
+            "device_name": row["device_name"],
+            "auth_method": row["auth_method"],
+        })
+        _write_dj_work_data(data)
+    return row
+
+def dj_work_event(session_id, event_type, detail=None):
+    session_id = str(session_id or "").strip()[:80]
+    if not session_id:
+        raise ValueError("Missing DJ session id.")
+    with DJ_BACKEND_LOCK:
+        data = _dj_work_data()
+        session = next((x for x in reversed(data["sessions"]) if str(x.get("id")) == session_id), None)
+        if session is None:
+            raise ValueError("DJ session was not found.")
+        session["last_activity_at"] = int(time.time())
+        row = _dj_work_event_locked(data, session_id, event_type, detail)
+        _write_dj_work_data(data)
+        return row
+
+def dj_work_session_end(session_id):
+    session_id = str(session_id or "").strip()[:80]
+    if not session_id:
+        raise ValueError("Missing DJ session id.")
+    with DJ_BACKEND_LOCK:
+        data = _dj_work_data()
+        session = next((x for x in reversed(data["sessions"]) if str(x.get("id")) == session_id), None)
+        if session is None:
+            raise ValueError("DJ session was not found.")
+        now = int(time.time())
+        session["last_activity_at"] = now
+        session["ended_at"] = now
+        _dj_work_event_locked(data, session_id, "logout", {})
+        _write_dj_work_data(data)
+        return dict(session)
+
+def dj_work_log(limit=100):
+    try:
+        limit = max(1, min(500, int(limit)))
+    except Exception:
+        limit = 100
+    with DJ_BACKEND_LOCK:
+        data = _dj_work_data()
+        return {
+            "sessions": list(data["sessions"])[-limit:],
+            "events": list(data["events"])[-(limit * 5):],
+        }
+
+def _dj_trusted_data():
+    data = read_json(DJ_TRUSTED_DEVICES_FILE, {"version": 1, "items": []})
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        data = {"version": 1, "items": []}
+    data["version"] = 1
+    return data
+
+def _dj_trusted_hash(token):
+    return hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
+
+def _dj_trusted_public(row):
+    return {
+        "id": str(row.get("id", "")),
+        "name": str(row.get("name", "Remembered device")),
+        "device_scope": str(row.get("device_scope", "")),
+        "created_at": int(row.get("created_at", 0) or 0),
+        "last_seen": int(row.get("last_seen", 0) or 0),
+        "expires_at": int(row.get("expires_at", 0) or 0),
+    }
+
+def list_dj_trusted_devices():
+    now = int(time.time())
+    with DJ_BACKEND_LOCK:
+        data = _dj_trusted_data()
+        live = [x for x in data["items"] if int(x.get("expires_at", 0) or 0) > now]
+        if len(live) != len(data["items"]):
+            data["items"] = live
+            write_json(DJ_TRUSTED_DEVICES_FILE, data)
+        return [_dj_trusted_public(x) for x in live]
+
+def create_dj_trusted_device(name, device_scope, days=30):
+    try:
+        days = max(1, min(180, int(days)))
+    except Exception:
+        days = 30
+    now = int(time.time())
+    device_id = "djdev-" + uuid.uuid4().hex[:16]
+    token = secrets.token_urlsafe(32)
+    row = {
+        "id": device_id,
+        "name": _dj_clean_text(name, "Remembered device", 100),
+        "device_scope": _dj_device_scope(device_scope),
+        "token_hash": _dj_trusted_hash(token),
+        "created_at": now,
+        "last_seen": now,
+        "expires_at": now + days * 86400,
+    }
+    with DJ_BACKEND_LOCK:
+        data = _dj_trusted_data()
+        data["items"].append(row)
+        data["items"] = data["items"][-100:]
+        write_json(DJ_TRUSTED_DEVICES_FILE, data)
+    return _dj_trusted_public(row), token
+
+def dj_trusted_device_auth(headers, touch=True):
+    device_id = str(headers.get("X-GE-DJ-Device-ID", "") or "").strip()
+    token = str(headers.get("X-GE-DJ-Device-Token", "") or "").strip()
+    if not device_id or not token:
+        return None
+    wanted = _dj_trusted_hash(token)
+    now = int(time.time())
+    with DJ_BACKEND_LOCK:
+        data = _dj_trusted_data()
+        row = next((x for x in data["items"] if str(x.get("id")) == device_id), None)
+        if not row or int(row.get("expires_at", 0) or 0) <= now:
+            return None
+        if not hmac.compare_digest(str(row.get("token_hash", "")), wanted):
+            return None
+        if touch and now - int(row.get("last_seen", 0) or 0) >= 60:
+            row["last_seen"] = now
+            write_json(DJ_TRUSTED_DEVICES_FILE, data)
+        return dict(row)
+
+def revoke_dj_trusted_device(device_id):
+    device_id = str(device_id or "").strip()
+    with DJ_BACKEND_LOCK:
+        data = _dj_trusted_data()
+        before = len(data["items"])
+        data["items"] = [x for x in data["items"] if str(x.get("id")) != device_id]
+        if len(data["items"]) == before:
+            return False
+        write_json(DJ_TRUSTED_DEVICES_FILE, data)
+        return True
+
 BROADCAST = None
 RADIO_METER = None
 LIVE_SESSIONS = {}
@@ -1728,12 +2023,39 @@ class Handler(BaseHTTPRequestHandler):
     def password_configured(self):
         return bool(os.environ.get("DJ_PASSWORD", "").strip())
 
-    def authorized(self):
+    def password_authorized(self):
         password = os.environ.get("DJ_PASSWORD", "")
         if not password:
             return False
         supplied = self.headers.get("X-GE-DJ-Key", "")
         return hmac.compare_digest(supplied, password)
+
+    def trusted_device(self):
+        return dj_trusted_device_auth(self.headers)
+
+    def authorized(self):
+        return self.password_authorized() or bool(self.trusted_device())
+
+    def auth_method(self):
+        if self.password_authorized():
+            return "password"
+        if self.trusted_device():
+            return "remembered_device"
+        return "unknown"
+
+    def require_password_auth(self):
+        if not self.password_configured():
+            body = b"Set DJ_PASSWORD in the Blitz app Environment settings, then restart the app."
+            self.send_response(503)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return False
+        if not self.password_authorized():
+            self.json_response({"ok": False, "error": "DJ password confirmation required."}, 401)
+            return False
+        return True
 
     def require_auth(self):
         if not self.password_configured():
@@ -1969,6 +2291,31 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response({"ok": True, "items": list_remote_devices()})
             return
 
+        if parsed.path == "/control/input-profiles":
+            if not self.require_auth(): return
+            try:
+                qs = urllib.parse.parse_qs(parsed.query)
+                scope = (qs.get("device_scope") or ["default"])[0]
+                self.json_response({"ok": True, "profile": dj_input_profile_load(scope)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if parsed.path == "/control/work-log":
+            if not self.require_auth(): return
+            try:
+                qs = urllib.parse.parse_qs(parsed.query)
+                limit = (qs.get("limit") or ["100"])[0]
+                self.json_response({"ok": True, **dj_work_log(limit)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if parsed.path == "/control/auth/trusted-devices":
+            if not self.require_auth(): return
+            self.json_response({"ok": True, "items": list_dj_trusted_devices()})
+            return
+
         if parsed.path == "/control/vault/analytics":
             if not self.require_auth():
                 return
@@ -2198,6 +2545,74 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/input-profiles":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                profile = dj_input_profile_save(body.get("device_scope", "default"), body.get("slots", []))
+                self.json_response({"ok": True, "profile": profile})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/work-session":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                action = str(body.get("action", "start") or "start").strip().lower()
+                if action == "start":
+                    row = dj_work_session_start(
+                        body.get("device_scope", "default"),
+                        body.get("device_name", ""),
+                        self.auth_method(),
+                    )
+                    self.json_response({"ok": True, "session": row})
+                elif action == "event":
+                    row = dj_work_event(
+                        body.get("session_id", ""),
+                        body.get("event_type", "activity"),
+                        body.get("detail") if isinstance(body.get("detail"), dict) else {},
+                    )
+                    self.json_response({"ok": True, "event": row})
+                elif action == "end":
+                    row = dj_work_session_end(body.get("session_id", ""))
+                    self.json_response({"ok": True, "session": row})
+                else:
+                    raise ValueError("Unknown DJ work-session action.")
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/auth/trust-device":
+            if not self.require_password_auth(): return
+            try:
+                body = self.read_body_json()
+                row, token = create_dj_trusted_device(
+                    body.get("name", "Remembered device"),
+                    body.get("device_scope", "default"),
+                    body.get("days", 30),
+                )
+                self.json_response({"ok": True, "device": row, "device_token": token})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/auth/trusted-devices/revoke":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                device_id = str(body.get("id", "") or "").strip()
+                current = dj_trusted_device_auth(self.headers, touch=False)
+                if not self.password_authorized():
+                    if not current or str(current.get("id", "")) != device_id:
+                        self.json_response({"ok": False, "error": "Password confirmation is required to revoke another device."}, 403)
+                        return
+                removed = revoke_dj_trusted_device(device_id)
+                self.json_response({"ok": True, "removed": bool(removed)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/clip/extract":
             if not self.require_auth(): return
             try:
