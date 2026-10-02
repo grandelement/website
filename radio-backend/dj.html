@@ -1456,6 +1456,29 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
  }
 }
 
+
+/* V50 readable-console correction: these are the BASE sizes before DISPLAY zoom.
+   Deliberately UI-only; no audio graph/routing changes. */
+#mixerSheet #effectsSheet .fxToggles button{
+  font-size:15px!important;min-height:66px!important;line-height:1.08!important;padding:8px 7px!important
+}
+#mixerSheet #effectsSheet .fxPresets button{
+  font-size:13px!important;min-height:54px!important;line-height:1.08!important;padding:7px 6px!important
+}
+#mixerSheet #effectsSheet .bigSlider label,
+#mixerSheet #effectsSheet .fxLiveMeterHead,
+#mixerSheet #effectsSheet .masterMeterRow,
+#mixerSheet #effectsSheet .sendRow{
+  font-size:13px!important
+}
+#mixerSheet #effectsSheet .fxTitleBlock .label{font-size:13px!important}
+#mixerSheet #effectsSheet .fxTitleBlock .sheetTitle{font-size:22px!important}
+#mixerSheet #effectsSheet .fxDockActions button,
+#mixerSheet #effectsSheet .fxLayoutBar button,
+#mixerSheet #effectsSheet .mixerLock{
+  font-size:13px!important
+}
+
 /* V49 permanent whole-console display zoom. Audio graph is intentionally untouched. */
 .geDisplayZoomBar{
  position:fixed;z-index:95;top:max(6px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
@@ -1468,8 +1491,8 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .geDisplayZoomBar button{min-height:34px;border:1px solid #476275;background:#101923;color:#fff;border-radius:8px;font-size:18px;font-weight:950;padding:0}
 .geDisplayZoomBar input[type=range]{min-width:0;width:100%;height:32px}
 .geDisplayZoomBar output{font-size:11px;font-weight:950;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
-body{padding-top:58px!important}
-#mixerSheet.show{top:52px!important}
+body{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
+#mixerSheet.show{top:var(--geDisplayTop,54px)!important}
 @media(max-width:560px){
  .geDisplayZoomBar{grid-template-columns:auto 34px minmax(74px,1fr) 34px 44px;gap:4px}
  .geDisplayZoomBar b,.geDisplayZoomBar output{font-size:9px}
@@ -1477,13 +1500,13 @@ body{padding-top:58px!important}
 }
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
- <b>DISPLAY</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
- <input id="geZoomRange" type="range" min="75" max="160" step="5" value="100" aria-label="GE DJ display zoom">
- <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output>
+ <b>TEXT + BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
+ <input id="geZoomRange" type="range" min="100" max="220" step="5" value="120" aria-label="GE DJ display zoom">
+ <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">120%</output>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v49</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v50</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2799,53 +2822,51 @@ $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
 $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
 
-const GE_DISPLAY_ZOOM_KEY='geDisplayZoomV1';
-let geDisplayZoomPct=100;
+const GE_DISPLAY_ZOOM_KEY='geDisplayZoomV2';
+let geDisplayZoomPct=120;
 function geZoomCandidates(root){
  const scope=root&&root.querySelectorAll?root:document;
- return Array.from(scope.querySelectorAll('button,select,input:not([type="range"]),textarea,label,span,b,strong,small,p,h1,h2,h3,h4,h5,h6,a,th,td,div')).filter(function(el){
-   return !(el.closest&&el.closest('.geDisplayZoomBar'));
- });
+ return Array.from(scope.querySelectorAll('button,select,input:not([type="range"]),textarea,label,span,b,strong,small,p,h1,h2,h3,h4,h5,h6,a,th,td,div,output'));
 }
 function geRegisterZoomBase(el){
  if(!el||el.dataset.geZoomFontBase)return;
  const cs=getComputedStyle(el),font=parseFloat(cs.fontSize);
- if(Number.isFinite(font)&&font>0){
-   let base=font,p=el.parentElement;
-   if(geDisplayZoomPct!==100&&p&&p.dataset&&p.dataset.geZoomFontBase){
-     const pf=parseFloat(getComputedStyle(p).fontSize);
-     if(Number.isFinite(pf)&&Math.abs(font-pf)<.15)base=parseFloat(p.dataset.geZoomFontBase)||font;
-   }
-   el.dataset.geZoomFontBase=String(base);
- }
+ if(Number.isFinite(font)&&font>0)el.dataset.geZoomFontBase=String(font);
  if(el.matches&&el.matches('button,select,input:not([type="range"]),textarea')){
    const mh=parseFloat(cs.minHeight),rect=el.getBoundingClientRect();
    el.dataset.geZoomHeightBase=String(Number.isFinite(mh)&&mh>0?mh:Math.max(1,rect.height));
  }
 }
+function syncGeDisplayBarSpace(){
+ const bar=$('geDisplayZoomBar');if(!bar)return;
+ const h=Math.ceil(bar.getBoundingClientRect().height+12);
+ document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+}
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||100),75,160);
- const scale=geDisplayZoomPct/100,buttonScale=scale<=1.2?1:(1+(scale-1.2)*1.25);
+ geDisplayZoomPct=clamp(Math.round(Number(value)||120),100,220);
+ const scale=geDisplayZoomPct/100;
+ const buttonScale=1+Math.max(0,scale-1)*0.82;
  const els=geZoomCandidates(document);els.forEach(geRegisterZoomBase);
  els.forEach(function(el){
    const base=parseFloat(el.dataset.geZoomFontBase);
-   if(Number.isFinite(base))el.style.fontSize=(base*scale).toFixed(2)+'px';
+   if(Number.isFinite(base))el.style.setProperty('font-size',(base*scale).toFixed(2)+'px','important');
    const hb=parseFloat(el.dataset.geZoomHeightBase);
-   if(Number.isFinite(hb))el.style.minHeight=(hb*buttonScale).toFixed(1)+'px';
+   if(Number.isFinite(hb))el.style.setProperty('min-height',(hb*buttonScale).toFixed(1)+'px','important');
  });
- $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
+ $('geZoomRange').value=String(geDisplayZoomPct);
+ $('geZoomRead').textContent=geDisplayZoomPct+'%';
  if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
- if(typeof syncTouchFaders==='function')requestAnimationFrame(syncTouchFaders);
+ requestAnimationFrame(function(){syncGeDisplayBarSpace();if(typeof syncTouchFaders==='function')syncTouchFaders()});
 }
 function geResetZoomMeasurements(){
  geZoomCandidates(document).forEach(function(el){
-   if(el.dataset.geZoomFontBase){el.style.removeProperty('font-size');delete el.dataset.geZoomFontBase}
-   if(el.dataset.geZoomHeightBase){el.style.removeProperty('min-height');delete el.dataset.geZoomHeightBase}
+   el.style.removeProperty('font-size');el.style.removeProperty('min-height');
+   delete el.dataset.geZoomFontBase;delete el.dataset.geZoomHeightBase;
  });
  requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
 }
 (function initGeDisplayZoom(){
- try{geDisplayZoomPct=clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),75,160)}catch(e){geDisplayZoomPct=100}
+ try{geDisplayZoomPct=clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||120),100,220)}catch(e){geDisplayZoomPct=120}
  applyGeDisplayZoom(geDisplayZoomPct,false);
  $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
  $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
@@ -2853,10 +2874,11 @@ function geResetZoomMeasurements(){
  let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(geResetZoomMeasurements,180)});
  if(window.MutationObserver)new MutationObserver(function(muts){
    let changed=false;
-   muts.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1&&!(n.closest&&n.closest('.geDisplayZoomBar')))changed=true})});
+   muts.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1)changed=true})});
    if(changed)requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
  }).observe(document.body,{childList:true,subtree:true});
 })();
+;
 
 document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){})},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
