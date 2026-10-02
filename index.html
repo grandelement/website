@@ -2773,8 +2773,11 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 <style id="ge-special-game-detail-v1">
 .gameOptionsPanel.detail-golf .geScoreSpecificOptions,.gameOptionsPanel.detail-golf #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-golf #ninePlanetSpecificOptions,.gameOptionsPanel.detail-golf #marbleSpecificOptions,
 .gameOptionsPanel.detail-body .geScoreSpecificOptions,.gameOptionsPanel.detail-body #blueSunPoolSpecificOptions,.gameOptionsPanel.detail-body #ninePlanetSpecificOptions,.gameOptionsPanel.detail-body #marbleSpecificOptions{display:none!important}
-.gameOptionsPanel.detail-golf #basicRuleLine::after{content:"33 HOLES · RUBBER BAND · BLUE SUN CUP";font-weight:900}.gameOptionsPanel.detail-body #basicRuleLine::after{content:"DOTTED COURSE · COLLECT COMETS · FASTEST TIME";font-weight:900}
+.gameOptionsPanel.detail-golf #basicRuleLine::after{content:"33 HOLES · RUBBER BAND · BLUE SUN CUP";font-weight:900}.gameOptionsPanel.detail-body #basicRuleLine::after{content:"PASS EVERY GATE · AVOID ALL BODIES · REACH FINISH";font-weight:900}
 .gameOptionsPanel.detail-golf #basicRuleLine,.gameOptionsPanel.detail-body #basicRuleLine{font-size:0}.gameOptionsPanel.detail-golf #basicRuleLine::after,.gameOptionsPanel.detail-body #basicRuleLine::after{font-size:11px}
+.geBodySpecificOptions{display:none!important;margin-top:8px!important}
+.gameOptionsPanel.detail-body .geBodySpecificOptions{display:grid!important}
+.gameOptionsPanel.detail-body .geDetailTopControls{display:none!important}
 </style>
 <style id="ge-golf-space-v2">
 #geCourseMode .geCourseBoard{background:radial-gradient(circle at 20% 20%,rgba(55,135,210,.18),transparent 28%),radial-gradient(circle at 75% 70%,rgba(30,85,180,.15),transparent 32%),#010713}
@@ -3203,9 +3206,15 @@ body.ge-body-race-countdown #fx{pointer-events:none}
    The general game-mode rule hides both FX canvases, which also hid the Body and race comets.
    Restore those canvases for Body, put the dotted course above the planets/background, keep the
    Body/front comets above the course, and remove the unrelated POINTS HUD while racing. */
-body.ge-body-race-active.game-mode-active #fx,
-body.ge-body-race-active.game-mode-active #fxFront{display:block!important}
+body.ge-body-race-active #fx,
+body.ge-body-race-active #fxFront{display:block!important}
 body.ge-body-race-active #gameHUD{display:none!important}
+body.ge-body-race-active #gameAimGuide,
+body.ge-body-race-active #gameTrails,
+body.ge-body-race-active #gameTrailsLive,
+body.ge-body-race-active #gamePointMarks{display:none!important}
+body.ge-body-race-active #planets,
+body.ge-body-race-active #sunWrap{pointer-events:none!important}
 body.ge-body-race-active .geBodyRaceTrack{z-index:8!important}
 body.ge-body-race-active .geBodyRaceHUD{z-index:10050!important}
 body.ge-body-race-active .geCourseMode{display:none!important}
@@ -3608,7 +3617,7 @@ body.ge-body-race-active .geCourseMode{display:none!important}
           <button class="basicGameCard geGameRow" id="basicBlueSunPoolGame" type="button" data-game-detail="pockets"><span><b>POCKETS</b><small>Choose Center or 9 Ball and pocket the numbered album planets.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicMarblesGame" type="button" data-game-detail="planets"><span><b>PLANETS</b><small>Grand Element marbles. Throw your shooter and knock your planets out.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicGolfGame" type="button" data-game-detail="golf"><span><b>GOLF</b><small>33 holes. Rubber-band your planet into the Blue Sun cup.</small></span><i>›</i></button>
-          <button class="basicGameCard geGameRow" id="basicBodyGame" type="button" data-game-detail="body"><span><b>THE BODY</b><small>Fly the GE ship along dotted courses. Steer around planets and the Blue Sun; collect comets for speed.</small></span><i>›</i></button>
+          <button class="basicGameCard geGameRow" id="basicBodyGame" type="button" data-game-detail="body"><span><b>THE BODY</b><small>Fly the Body with its normal universe controls. Pass every course gate, avoid planets and collect Souls.</small></span><i>›</i></button>
         </div>
 
         <details class="geGeneralControlBlock geGameEffectsDisclosure" id="geGameEffectsDisclosure">
@@ -3675,6 +3684,15 @@ body.ge-body-race-active .geCourseMode{display:none!important}
         </div>
 
         <div class="basicRuleLine" id="basicRuleLine">Throw / Flick · 3 turns · first to 369</div>
+
+        <div class="geSpecificOptions geBodySpecificOptions" id="geBodySpecificOptions">
+          <div class="optionGroupTitle">THE BODY OPTIONS</div>
+          <div class="optionGrid">
+            <label class="tuneRow"><span>Body size</span><input type="range" id="optBodySize" min="10" max="200" step="5" value="100"><small class="tuneValue" id="optBodySizeValue">100%</small></label>
+            <label><span>Contacts before restart</span><select id="optBodyHits"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
+          </div>
+          <p class="small">100% is the normal website Body size. Steering, tap, broadcast, ray and quantum controls are the same as the normal universe. Planets are fixed course hazards.</p>
+        </div>
 
         <div class="geSpecificOptions geScoreSpecificOptions" id="geScoreSpecificOptions">
           <div class="optionGroupTitle">GAME OPTIONS</div>
@@ -5958,10 +5976,6 @@ class Ship{
         if(dist<this.captureRadius+c.r+5){c.state='captured';c.vx=0;c.vy=0;c.tetherAge=0;}
       }
       if(c.state==='captured'){
-        if(c.geRaceBonus){
-          c.x=this.x;c.y=this.y;c.vx=0;c.vy=0;
-          continue;
-        }
         if(c===this.coreCandidate&&!this.coreSoul)this.coreSoul=c;
         if(c===this.coreSoul){
           c.x=this.x;c.y=this.y;c.vx=0;c.vy=0;
@@ -6045,7 +6059,7 @@ class Ship{
       this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
     }
 
-    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=((this.geRaceBoostUntil||0)>performance.now()?440:320);
+    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=320;
     if(v<vmin && !this.guided && !this.controlActive){
       const a=Math.atan2(this.vy,this.vx);this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
     }
@@ -6371,7 +6385,7 @@ function queueShipCenterTap(s){
 function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until:Infinity,held:true,hit:new Set()};s.beam=1;shipRayHold={ship:s,id};try{canvas.setPointerCapture(id)}catch(_e){}}
 function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
 function endHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay?.held)s.manualRay=null;s.beam=Math.max(0,s.beam*.35);shipRayHold=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return true}
-function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,boost=((s.geRaceBoostUntil||0)>performance.now()?1.34:1),max=(window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330)*boost;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210*boost):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
+function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
 canvas.addEventListener('pointerdown',e=>{if(document.body.classList.contains('game-mode-active')&&!document.body.classList.contains('ge-body-race-active'))return;const hit=nearestShipHit(e.clientX,e.clientY);if(hit){if(hit.zone==='ray')startHeldRay(hit.ship,e.pointerId,e.clientX,e.clientY);else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}e.preventDefault();e.stopImmediatePropagation();return}const sh=nearestShipField(e.clientX,e.clientY);if(sh){shipSteer={ship:sh,id:e.pointerId};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}},{passive:false});
 canvas.addEventListener('pointermove',e=>{if(updateHeldRay(e)){e.preventDefault();return}if(shipCenterPress&&shipCenterPress.id===e.pointerId){const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}},{passive:false});
 function endShipPointer(e){if(endHeldRay(e))return;if(shipCenterPress&&shipCenterPress.id===e.pointerId){const cp=shipCenterPress;shipCenterPress=null;cp.ship.controlActive=false;cp.ship.guided=true;if(!cp.moved)queueShipCenterTap(cp.ship);try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return}if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}}
@@ -6644,6 +6658,7 @@ requestAnimationFrame(loop);
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dragPointerId=null, dx=0, dy=0, moved=false;
   wrap.addEventListener('pointerdown', (e)=>{
+    if(document.body.classList.contains('ge-body-race-active')){if(e.cancelable)e.preventDefault();return;}
     // ABOUT, Music/player controls and the Radio moon are independent controls.
     // Never let the draggable Sun steal their pointer gesture on iPhone.
     if(e.target.closest('#aboutBtn,#btnMusic,#mini,#orbit,#moon,button,input,select,a,.btn,.toggle')) return;
@@ -7062,6 +7077,7 @@ buildPlanetPhysics();
     return beginGameShot(p,(last.x-ref.x)/dt*power*sensitivity,(last.y-ref.y)/dt*power*sensitivity,'throw');
   }
   host.addEventListener('pointerdown',e=>{
+    if(document.body.classList.contains('ge-body-race-active')){if(e.cancelable)e.preventDefault();e.stopPropagation();return;}
     const el=e.target.closest('.planet');if(!el)return;const p=(window.planetNodes||[]).find(q=>q.el===el);if(!p)return;
     if(isGame()){
       const gs=gameState(),poolState=window.GE_BLUE_SUN_POOL?.state;
@@ -7194,6 +7210,16 @@ function planetStep(frameNow){
   gePlanetPhysicsLast=now;
   frameScale=Math.max(.35,Math.min(3,Number.isFinite(frameScale)?frameScale:1));
   const gameActive=document.body.classList.contains('game-mode-active');
+  const bodyCourseActive=document.body.classList.contains('ge-body-race-active');
+  if(bodyCourseActive){
+    for(const p of planetNodes){
+      p.vx=0;p.vy=0;p.dragging=false;
+      if(p.el){p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';}
+    }
+    gePlanetPhysicsLast=now;
+    setTimeout(()=>requestAnimationFrame(planetStep),50);
+    return;
+  }
   const moving=planetNodes.some(p=>!p.poolPocketed&&(p.dragging||Math.hypot(p.vx||0,p.vy||0)>.5));
   const shotActive=!!window.GE_SHOT_CONTROL?.activeShot?.();
   const moonNode=document.querySelector('.moon');
@@ -7662,7 +7688,7 @@ const GE_GAME = (()=>{
     planets:{title:'Planets',kind:'PLANETS',description:'Grand Element marbles. Throw the larger shooter and knock your own album planets beyond the playfield.'},
     marbles:{title:'Planets',kind:'PLANETS',description:'Grand Element marbles. Throw the larger shooter and knock your own album planets beyond the playfield.'},
     golf:{title:'Golf',kind:'GOLF',description:'33 progressively harder holes. Rubber-band your chosen planet into the Blue Sun cup.'},
-    body:{title:'The Body',kind:'THE BODY',description:'Follow dotted routes through the GE universe. Steer around planets and the Blue Sun, collect comets for speed, and finish as quickly as possible.'}
+    body:{title:'The Body',kind:'THE BODY',description:'The normal GE Body controls, turned into a course game. Follow the thin route, pass each gate in order, avoid every planet and the Blue Sun, and capture Souls exactly as you do in the universe.'}
   };
   let currentGameDetail='points',previewTimer=0,previewStep=0;
   optionsPanel.querySelector('.geGameControlCard')?.classList.add('geViewHub');
@@ -10389,28 +10415,48 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }
     return d;
   }
+  const BODY_COURSE_TEMPLATES=[
+    {name:'OPEN LINE',p:[[.18,1],[.33,.74],[.50,.49],[.66,.25],[.82,0]]},
+    {name:'EASY BEND',p:[[.18,1],[.29,.77],[.45,.57],[.66,.35],[.82,0]]},
+    {name:'SOFT S',p:[[.18,1],[.38,.80],[.67,.62],[.38,.41],[.60,.21],[.82,0]]},
+    {name:'WIDE SLALOM',p:[[.18,1],[.63,.83],[.34,.65],[.67,.47],[.35,.28],[.82,0]]},
+    {name:'LONG ARC',p:[[.18,1],[.25,.77],[.42,.57],[.69,.43],[.75,.22],[.82,0]]},
+    {name:'LEFT HOOK',p:[[.18,1],[.30,.79],[.62,.65],[.72,.47],[.42,.31],[.55,.16],[.82,0]]},
+    {name:'RIGHT HOOK',p:[[.18,1],[.55,.82],[.72,.64],[.41,.47],[.30,.31],[.58,.15],[.82,0]]},
+    {name:'DOUBLE BEND',p:[[.18,1],[.35,.82],[.67,.69],[.56,.51],[.31,.37],[.52,.20],[.82,0]]},
+    {name:'ZIG ONE',p:[[.18,1],[.66,.84],[.30,.68],[.70,.52],[.32,.35],[.68,.18],[.82,0]]},
+    {name:'ZIG TWO',p:[[.18,1],[.58,.87],[.29,.73],[.69,.59],[.31,.44],[.71,.29],[.42,.14],[.82,0]]},
+    {name:'SNAKE',p:[[.18,1],[.42,.87],[.69,.74],[.33,.61],[.67,.48],[.31,.35],[.63,.21],[.82,0]]},
+    {name:'CRESCENT',p:[[.18,1],[.28,.78],[.43,.61],[.65,.52],[.74,.34],[.62,.18],[.82,0]]},
+    {name:'SWITCHBACK I',p:[[.18,1],[.70,.86],[.29,.72],[.71,.58],[.28,.44],[.69,.30],[.34,.16],[.82,0]]},
+    {name:'SWITCHBACK II',p:[[.18,1],[.35,.88],[.72,.76],[.30,.63],[.70,.50],[.29,.37],[.69,.24],[.45,.12],[.82,0]]},
+    {name:'NARROW S',p:[[.18,1],[.44,.86],[.60,.72],[.42,.58],[.59,.44],[.41,.30],[.58,.16],[.82,0]]},
+    {name:'CROSSWIND',p:[[.18,1],[.66,.87],[.58,.72],[.30,.61],[.41,.46],[.72,.35],[.57,.20],[.82,0]]},
+    {name:'WAVE',p:[[.18,1],[.31,.86],[.64,.75],[.69,.60],[.39,.48],[.31,.34],[.62,.23],[.82,0]]},
+    {name:'PINCH',p:[[.18,1],[.68,.86],[.54,.70],[.47,.57],[.53,.44],[.46,.31],[.61,.18],[.82,0]]},
+    {name:'HOOKED S',p:[[.18,1],[.38,.87],[.70,.73],[.52,.58],[.28,.48],[.47,.34],[.72,.22],[.82,0]]},
+    {name:'TRIPLE GATE',p:[[.18,1],[.55,.88],[.71,.74],[.37,.64],[.29,.50],[.64,.39],[.70,.24],[.43,.13],[.82,0]]},
+    {name:'LIGHTNING',p:[[.18,1],[.68,.88],[.31,.75],[.72,.62],[.29,.49],[.70,.36],[.30,.23],[.64,.11],[.82,0]]},
+    {name:'REVERSE LIGHTNING',p:[[.18,1],[.36,.89],[.72,.77],[.29,.65],[.70,.52],[.31,.39],[.71,.26],[.40,.13],[.82,0]]},
+    {name:'SPIRAL ENTRY',p:[[.18,1],[.64,.86],[.76,.65],[.62,.48],[.42,.43],[.32,.57],[.45,.69],[.64,.61],[.70,.40],[.58,.20],[.82,0]]},
+    {name:'SPIRAL EXIT',p:[[.18,1],[.34,.82],[.29,.61],[.43,.45],[.64,.44],[.73,.59],[.60,.70],[.41,.61],[.35,.40],[.50,.20],[.82,0]]},
+    {name:'BOX WEAVE',p:[[.18,1],[.69,.87],[.69,.69],[.31,.69],[.31,.52],[.70,.52],[.70,.35],[.32,.35],[.32,.18],[.82,0]]},
+    {name:'CORKSCREW',p:[[.18,1],[.61,.88],[.73,.70],[.58,.54],[.37,.57],[.30,.72],[.46,.80],[.67,.72],[.72,.50],[.55,.32],[.34,.24],[.50,.11],[.82,0]]},
+    {name:'TIGHT SLALOM',p:[[.18,1],[.62,.90],[.36,.80],[.64,.70],[.35,.60],[.65,.50],[.34,.40],[.64,.30],[.36,.20],[.63,.10],[.82,0]]},
+    {name:'DEEP SWITCHBACK',p:[[.18,1],[.72,.90],[.28,.79],[.71,.68],[.29,.57],[.72,.46],[.28,.35],[.70,.24],[.34,.13],[.82,0]]},
+    {name:'ORBIT ONE',p:[[.18,1],[.55,.88],[.74,.70],[.69,.48],[.50,.36],[.31,.47],[.28,.67],[.45,.78],[.67,.68],[.71,.43],[.58,.23],[.82,0]]},
+    {name:'ORBIT TWO',p:[[.18,1],[.35,.85],[.27,.64],[.38,.45],[.59,.36],[.74,.49],[.73,.69],[.57,.80],[.37,.72],[.29,.50],[.42,.29],[.65,.17],[.82,0]]},
+    {name:'THE KNOT',p:[[.18,1],[.67,.88],[.73,.69],[.48,.56],[.29,.67],[.33,.42],[.61,.48],[.70,.31],[.45,.22],[.34,.10],[.82,0]]},
+    {name:'GAUNTLET',p:[[.18,1],[.66,.91],[.31,.81],[.69,.71],[.30,.61],[.68,.51],[.31,.41],[.69,.31],[.30,.21],[.62,.11],[.82,0]]},
+    {name:'GRAND ELEMENT',p:[[.18,1],[.61,.91],[.75,.76],[.58,.61],[.34,.67],[.27,.49],[.48,.39],[.72,.47],[.70,.27],[.47,.18],[.31,.28],[.37,.10],[.82,0]]}
+  ];
   function bodyCourseSpec(n,w,h){
-    // Keep the playable course clear of the mobile top controls and bottom instruction/browser area.
-    const mx=Math.max(64,w*.13),top=Math.max(122,h*.15),bottom=h-Math.max(150,h*.18);
-    const start={x:Math.max(mx,w*.22),y:bottom},finish={x:Math.min(w-mx,w*.78),y:top};
-    if(n===1)return{points:[start,{x:w*.50,y:h*.52},finish],nearPlanets:1};
-    if(n===2)return{points:[start,{x:w*.38,y:h*.62},{x:w*.55,y:h*.43},finish],nearPlanets:1};
-    if(n===3)return{points:[start,{x:w*.34,y:h*.68},{x:w*.66,y:h*.48},finish],nearPlanets:2};
-    const d=(n-1)/32,bends=Math.min(10,3+Math.floor((n-4)/3)),pts=[start],amp=w*(.10+.16*d),cycles=.65+n*.075,phase=(n%5)*.42;
-    for(let i=1;i<=bends;i++){
-      const t=i/(bends+1),baseX=start.x+(finish.x-start.x)*t;
-      let x=baseX+Math.sin((t*cycles+phase)*Math.PI*2)*amp;
-      let y=start.y+(finish.y-start.y)*t+Math.cos((t*(1.2+n*.018)+phase)*Math.PI*2)*h*.018*d;
-      x=clamp(x,mx,w-mx);y=clamp(y,top,bottom);
-      pts.push({x,y});
-    }
-    pts.push(finish);
-    if(n>=29){
-      const c={x:w*.50,y:h*.48},rx=w*(.18+.015*(n-29)),ry=h*.12;
-      const loop=[{x:c.x-rx,y:c.y+ry},{x:c.x+rx,y:c.y+ry*.55},{x:c.x+rx*.8,y:c.y-ry},{x:c.x-rx*.55,y:c.y-ry*1.05},{x:c.x-rx,y:c.y+ry*.1}];
-      pts.splice(Math.max(2,Math.floor(pts.length/2)-1),Math.min(4,pts.length-3),...loop);
-    }
-    return{points:pts,nearPlanets:Math.min((window.planetNodes||[]).length,2+Math.floor((n-1)/4))};
+    const mx=Math.max(62,w*.12),top=Math.max(118,h*.14),bottom=h-Math.max(145,h*.17);
+    const tpl=BODY_COURSE_TEMPLATES[Math.max(0,Math.min(32,(n|0)-1))]||BODY_COURSE_TEMPLATES[0];
+    const spanX=Math.max(1,w-mx*2),spanY=Math.max(1,bottom-top);
+    const points=tpl.p.map(([x,y])=>({x:mx+x*spanX,y:top+y*spanY}));
+    const difficulty=(Math.max(1,Math.min(33,n))-1)/32;
+    return{name:tpl.name,points,gateRadius:Math.round(58-difficulty*26),gateHalf:Math.round(37-difficulty*12),nearPlanets:Math.min((window.planetNodes||[]).length,1+Math.floor((n-1)/5)),soulCount:Math.min(4,1+Math.floor((n-1)/10))};
   }
   function saveBodyRacePlanets(){
     if(bodyRacePlanetSnapshot)return;
@@ -10421,15 +10467,21 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     for(const q of bodyRacePlanetSnapshot){if(!q.p?.el)continue;q.p.x=q.x;q.p.y=q.y;q.p.vx=q.vx;q.p.vy=q.vy;q.p.el.style.left=(q.x-q.p.r)+'px';q.p.el.style.top=(q.y-q.p.r)+'px';}
     bodyRacePlanetSnapshot=null;
   }
+  const BODY_SIZE_KEY='GE_BODY_SIZE_PCT_V1',BODY_HITS_KEY='GE_BODY_HITS_V1';
+  const optBodySize=document.getElementById('optBodySize'),optBodySizeValue=document.getElementById('optBodySizeValue'),optBodyHits=document.getElementById('optBodyHits');
+  let bodySizePct=100,bodyMaxHits=3,bodyRaceGameSnapshot=null;
+  try{bodySizePct=Math.max(10,Math.min(200,Number(localStorage.getItem(BODY_SIZE_KEY))||100));bodyMaxHits=Math.max(1,Math.min(5,Number(localStorage.getItem(BODY_HITS_KEY))||3));}catch(_e){}
+  if(optBodySize){optBodySize.value=String(bodySizePct);if(optBodySizeValue)optBodySizeValue.textContent=bodySizePct+'%';}
+  if(optBodyHits)optBodyHits.value=String(bodyMaxHits);
+  optBodySize?.addEventListener('input',()=>{bodySizePct=Math.max(10,Math.min(200,Number(optBodySize.value)||100));if(optBodySizeValue)optBodySizeValue.textContent=bodySizePct+'%';try{localStorage.setItem(BODY_SIZE_KEY,String(bodySizePct))}catch(_e){}if(bodyRace?.body)bodyRace.body.s=(MOBILE?.16:.20)*(bodySizePct/100);});
+  optBodyHits?.addEventListener('change',()=>{bodyMaxHits=Math.max(1,Math.min(5,Number(optBodyHits.value)||3));try{localStorage.setItem(BODY_HITS_KEY,String(bodyMaxHits))}catch(_e){}if(bodyRace)bodyRace.maxHits=bodyMaxHits;});
   function ensureBodyRaceBody(start,nextPoint){
     let s=(typeof ships!=='undefined'&&ships.find(x=>x&&!x.dead))||null;
     if(!s&&typeof Ship!=='undefined'&&typeof ships!=='undefined'){s=new Ship(false);ships.push(s);try{firstShipPending=false}catch(_e){}}
     if(!s)return null;
     s.dead=false;s.x=start.x;s.y=start.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.geRaceBoostUntil=0;
-    // THE BODY is the same horizontal GE craft used on the front page (ge-logo-4-cutout.png).
-    // Make it large enough to steer on a phone, while preserving the original scale for exit.
     if(!Number.isFinite(s.geRaceOriginalScale))s.geRaceOriginalScale=s.s;
-    s.s=Math.max(s.s||0,MOBILE?.28:.25);
+    s.s=(MOBILE?.16:.20)*(bodySizePct/100);
     if(nextPoint)s.angle=Math.atan2(nextPoint.y-start.y,nextPoint.x-start.x)+Math.PI;
     return s;
   }
@@ -10469,10 +10521,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function spawnBodyRaceBonuses(spec){
     clearBodyRaceBonuses();if(typeof Comet==='undefined'||typeof comets==='undefined')return[];
-    const count=Math.min(4,1+Math.floor((level-1)/9)),out=[];
+    const count=Math.max(1,Math.min(4,spec.soulCount||1)),out=[],pts=spec.points;
     for(let i=0;i<count;i++){
-      const t=(i+1)/(count+1),idx=Math.max(1,Math.min(spec.points.length-2,Math.round(t*(spec.points.length-1)))),p=spec.points[idx],c=new Comet();
-      c.x=p.x;c.y=p.y;c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(10,c.r||8));c.depthLevel=7;c.depth='front';c.dragging=true;c.state='fly';c.dead=false;c.geRaceBonus=true;c.geRaceCollected=false;c.trail=[];comets.push(c);out.push(c);
+      const t=(i+1)/(count+1),idx=Math.max(1,Math.min(pts.length-2,Math.round(t*(pts.length-1)))),p=pts[idx],prev=pts[Math.max(0,idx-1)],next=pts[Math.min(pts.length-1,idx+1)];
+      const dx=next.x-prev.x,dy=next.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,side=i%2?1:-1,offset=26+Math.min(24,level*.8),c=new Comet();
+      c.x=clamp(p.x+nx*offset*side,18,innerWidth-18);c.y=clamp(p.y+ny*offset*side,115,innerHeight-135);
+      c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(9,c.r||8));c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;c.geRaceBonus=true;c.geRaceCollected=false;c.trail=[];comets.push(c);out.push(c);
     }
     return out;
   }
@@ -10491,60 +10545,82 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   window.GE_BODY_RACE_DRAW=function(g){
     if(!bodyRace?.spec||!document.body.classList.contains('ge-body-race-active')||!g)return;
     const pts=bodyRace.spec.points||[];if(pts.length<2)return;
-    g.save();
-    g.lineCap='round';g.lineJoin='round';
-    g.strokeStyle='rgba(205,242,255,.96)';
-    g.lineWidth=2.6;
-    g.setLineDash([3,11]);
-    g.shadowColor='rgba(78,190,255,.95)';g.shadowBlur=7;
+    const now=performance.now();
+    g.save();g.lineCap='round';g.lineJoin='round';g.globalCompositeOperation='lighter';
+    g.strokeStyle='rgba(178,233,255,.86)';g.lineWidth=1.45;g.setLineDash([2,10]);g.lineDashOffset=-(now/85)%12;
+    g.shadowColor='rgba(65,180,255,.95)';g.shadowBlur=5;
     g.beginPath();g.moveTo(pts[0].x,pts[0].y);
-    if(pts.length<3){
-      for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);
-    }else{
-      for(let i=0;i<pts.length-1;i++){
-        const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-        const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6;
-        const c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
-        g.bezierCurveTo(c1x,c1y,c2x,c2y,p2.x,p2.y);
-      }
+    if(pts.length<3){for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);}
+    else for(let i=0;i<pts.length-1;i++){
+      const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+      g.bezierCurveTo(p1.x+(p2.x-p0.x)/6,p1.y+(p2.y-p0.y)/6,p2.x-(p3.x-p1.x)/6,p2.y-(p3.y-p1.y)/6,p2.x,p2.y);
     }
-    g.stroke();g.setLineDash([]);g.shadowBlur=10;
+    g.stroke();g.setLineDash([]);
+    for(let i=1;i<pts.length-1;i++){
+      const p=pts[i],a=pts[i-1],b=pts[i+1],dx=b.x-a.x,dy=b.y-a.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,half=bodyRace.spec.gateHalf||30;
+      const passed=i<bodyRace.progress,nextGate=i===bodyRace.progress,alpha=passed?.18:(nextGate?.95:.34),r=nextGate?3.4:2.4;
+      g.strokeStyle='rgba(120,218,255,'+alpha+')';g.fillStyle='rgba(215,250,255,'+Math.min(1,alpha+.08)+')';g.shadowBlur=nextGate?13:5;g.lineWidth=nextGate?1.5:.8;
+      const x1=p.x+nx*half,y1=p.y+ny*half,x2=p.x-nx*half,y2=p.y-ny*half;
+      g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();
+      for(const q of [[x1,y1],[x2,y2]]){g.beginPath();g.arc(q[0],q[1],r,0,Math.PI*2);g.fill();}
+    }
     const start=pts[0],finish=pts[pts.length-1];
-    g.fillStyle='rgba(20,150,230,.10)';g.strokeStyle='rgba(210,245,255,.98)';g.lineWidth=2.2;
-    g.beginPath();g.arc(start.x,start.y,22,0,Math.PI*2);g.fill();g.stroke();
-    g.setLineDash([5,5]);g.beginPath();g.arc(finish.x,finish.y,28,0,Math.PI*2);g.fill();g.stroke();g.setLineDash([]);
-    g.shadowBlur=8;g.fillStyle='#eefaff';g.strokeStyle='#001321';g.lineWidth=4;
-    g.font='900 12px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';
-    g.strokeText('START',start.x,start.y-33);g.fillText('START',start.x,start.y-33);
-    g.strokeText('FINISH',finish.x,finish.y-39);g.fillText('FINISH',finish.x,finish.y-39);
+    g.shadowBlur=9;g.fillStyle='rgba(20,150,230,.08)';g.strokeStyle='rgba(210,245,255,.96)';g.lineWidth=1.7;
+    g.beginPath();g.arc(start.x,start.y,20,0,Math.PI*2);g.fill();g.stroke();
+    g.setLineDash([4,5]);g.beginPath();g.arc(finish.x,finish.y,26,0,Math.PI*2);g.fill();g.stroke();g.setLineDash([]);
+    g.shadowBlur=7;g.fillStyle='#eefaff';g.strokeStyle='#001321';g.lineWidth=3.5;g.font='900 11px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.strokeText('START',start.x,start.y-30);g.fillText('START',start.x,start.y-30);g.strokeText('FINISH',finish.x,finish.y-35);g.fillText('FINISH',finish.x,finish.y-35);
+    if(bodyRace.hitFx&&now<bodyRace.hitFx.until){
+      const q=1-(bodyRace.hitFx.until-now)/560,r=12+q*48,alpha=(1-q)*.95;
+      g.strokeStyle='rgba(190,242,255,'+alpha+')';g.shadowColor='rgba(80,190,255,.98)';g.shadowBlur=18;g.lineWidth=2;
+      for(let k=0;k<3;k++){g.beginPath();g.arc(bodyRace.hitFx.x,bodyRace.hitFx.y,r+k*8,0,Math.PI*2);g.stroke();}
+    }
     g.restore();
   };
 
-  function bodyRaceHitPlanet(s){
-    const br=shipVisualRadius(s)*.62;
-    for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.82)return true}
-    return false;
+  function bodyRaceHitHazard(s){
+    const br=Math.max(4,shipVisualRadius(s)*.72);
+    for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.88)return{kind:'PLANET',x:p.x,y:p.y,el:p.el}}
+    const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
+    if(sunRect?.width){const x=sunRect.left+sunRect.width/2,y=sunRect.top+sunRect.height/2,r=Math.min(sunRect.width,sunRect.height)*.43;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'BLUE SUN',x,y,el:document.getElementById('sunWrap')}}
+    const moon=document.querySelector('.moon'),mr=moon?.getBoundingClientRect();
+    if(mr?.width){const x=mr.left+mr.width/2,y=mr.top+mr.height/2,r=Math.min(mr.width,mr.height)*.40;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'MOON',x,y,el:moon}}
+    return null;
   }
-  function resetBodyRaceAfterHit(){
-    if(!bodyRace||!bodyRace.body)return;const now=performance.now();if(now<(bodyRace.hitCooldown||0))return;bodyRace.hitCooldown=now+850;bodyRace.penaltyMs+=1500;
+  function resetBodyRaceAfterHit(hit){
+    if(!bodyRace||!bodyRace.body||!hit)return;const now=performance.now();if(now<(bodyRace.hitCooldown||0))return;
+    bodyRace.hitCooldown=now+900;bodyRace.hits=(bodyRace.hits||0)+1;bodyRace.penaltyMs+=1500;bodyRace.hitFx={x:hit.x,y:hit.y,until:now+560};
     const i=Math.max(0,Math.min(bodyRace.progress-1,bodyRace.spec.points.length-2)),p=bodyRace.spec.points[i],n=bodyRace.spec.points[Math.min(i+1,bodyRace.spec.points.length-1)],s=bodyRace.body;
-    s.x=p.x;s.y=p.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.angle=Math.atan2(n.y-p.y,n.x-p.x)+Math.PI;
-    bodyRaceMessage.textContent='PLANET CONTACT · +1.5 SECONDS';setTimeout(()=>{if(bodyRace&&!bodyRace.finished)bodyRaceMessage.textContent='FOLLOW THE DOTTED PATH'},750);
+    s.quantumFlashUntil=Math.max(s.quantumFlashUntil||0,now+550);s.x=p.x;s.y=p.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.angle=Math.atan2(n.y-p.y,n.x-p.x)+Math.PI;
+    if(bodyRace.hits>=bodyRace.maxHits){
+      bodyRace.failed=true;bodyRaceMessage.textContent=hit.kind+' CONTACT '+bodyRace.hits+'/'+bodyRace.maxHits+' · COURSE RESET';
+      setTimeout(()=>{if(bodyRace){clearBodyRaceBonuses();renderBodyRace();}},720);return;
+    }
+    bodyRaceMessage.textContent=hit.kind+' CONTACT '+bodyRace.hits+'/'+bodyRace.maxHits+' · RETURN TO GATE';
+    setTimeout(()=>{if(bodyRace&&!bodyRace.finished&&!bodyRace.failed){s.paused=false;bodyRaceMessage.textContent='GATE '+Math.min(bodyRace.progress,bodyRace.spec.points.length-2)+' / '+(bodyRace.spec.points.length-2);}},600);
   }
   function finishBodyRace(){
-    if(!bodyRace||bodyRace.finished)return;bodyRace.finished=true;bodyRace.body.paused=true;bodyRace.body.vx=0;bodyRace.body.vy=0;const ms=performance.now()-bodyRace.startedAt+bodyRace.penaltyMs,rank=bodyRaceRecord(ms),bonus=bodyRace.collected;
-    bodyRaceTimer.textContent=(ms/1000).toFixed(2);bodyRaceMessage.textContent=(rank<=3?(['1ST','2ND','3RD'][rank-1]+' PLACE · '):'FINISH · ')+(ms/1000).toFixed(2)+'s · '+bonus+' COMET'+(bonus===1?'':'S');bodyRaceNext.hidden=false;
+    if(!bodyRace||bodyRace.finished)return;bodyRace.finished=true;bodyRace.body.paused=true;bodyRace.body.vx=0;bodyRace.body.vy=0;const ms=performance.now()-bodyRace.startedAt+bodyRace.penaltyMs,rank=bodyRaceRecord(ms),souls=bodyRace.collected;
+    bodyRaceTimer.textContent=(ms/1000).toFixed(2);bodyRaceMessage.textContent=(rank<=3?(['1ST','2ND','3RD'][rank-1]+' PLACE · '):'FINISH · ')+(ms/1000).toFixed(2)+'s · '+souls+' SOUL'+(souls===1?'':'S')+' · '+bodyRace.hits+' CONTACT'+(bodyRace.hits===1?'':'S');bodyRaceNext.hidden=false;
   }
   function bodyRaceLoop(now){
     if(!bodyRace)return;const s=bodyRace.body;
-    if(bodyRace.startedAt&&!bodyRace.finished){
+    if(bodyRace.startedAt&&!bodyRace.finished&&!bodyRace.failed){
       bodyRaceTimer.textContent=((now-bodyRace.startedAt+bodyRace.penaltyMs)/1000).toFixed(2);
-      const nextP=bodyRace.spec.points[Math.min(bodyRace.progress,bodyRace.spec.points.length-1)];
-      if(nextP&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(46,shipVisualRadius(s)*.9)){bodyRace.progress=Math.min(bodyRace.progress+1,bodyRace.spec.points.length-1)}
-      for(const c of bodyRace.bonuses){if(c.geRaceCollected)continue;if(Math.hypot(s.x-c.x,s.y-c.y)<shipVisualRadius(s)*.72+(c.r||8)+12){c.geRaceCollected=true;c.dragging=false;c.state='captured';c.capturedBy=s;c.vx=c.vy=0;if(!s.targets.includes(c))s.targets.push(c);s.geRaceBoostUntil=performance.now()+4200;s.quantumFlashUntil=Math.max(s.quantumFlashUntil||0,performance.now()+650);bodyRace.collected++;bodyRaceMessage.textContent='COMET '+bodyRace.collected+' · SPEED BOOST';}}
-      if(bodyRaceHitPlanet(s))resetBodyRaceAfterHit();
+      const nextP=bodyRace.spec.points[Math.min(bodyRace.progress,bodyRace.spec.points.length-1)],gateCount=bodyRace.spec.points.length-2;
+      if(nextP&&bodyRace.progress<bodyRace.spec.points.length-1&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(bodyRace.spec.gateRadius||36,shipVisualRadius(s)*.72)){
+        bodyRace.progress=Math.min(bodyRace.progress+1,bodyRace.spec.points.length-1);
+        if(bodyRace.progress<bodyRace.spec.points.length-1)bodyRaceMessage.textContent='GATE '+Math.min(bodyRace.progress,gateCount)+' / '+gateCount;
+      }
+      for(const c of bodyRace.bonuses){
+        if(c.geRaceCollected)continue;
+        if(c.capturedBy===s&&(c.state==='tethered'||c.state==='captured')){c.geRaceCollected=true;bodyRace.collected++;bodyRaceMessage.textContent='SOUL '+bodyRace.collected+' CAPTURED';}
+      }
+      const hit=bodyRaceHitHazard(s);if(hit)resetBodyRaceAfterHit(hit);
       const finish=bodyRace.spec.points[bodyRace.spec.points.length-1];
-      if(Math.hypot(s.x-finish.x,s.y-finish.y)<Math.max(42,shipVisualRadius(s))){if(bodyRace.progress>=bodyRace.spec.points.length-1)finishBodyRace();else bodyRaceMessage.textContent='FOLLOW THE PATH TO UNLOCK FINISH'}
+      if(Math.hypot(s.x-finish.x,s.y-finish.y)<Math.max(38,shipVisualRadius(s))){
+        if(bodyRace.progress>=bodyRace.spec.points.length-1)finishBodyRace();else bodyRaceMessage.textContent='OFF COURSE · FIND GATE '+Math.min(bodyRace.progress,gateCount);
+      }
     }
     bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
@@ -10555,13 +10631,22 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function renderBodyRace(){
     const spec=bodyCourseSpec(level,innerWidth,innerHeight),s=ensureBodyRaceBody(spec.points[0],spec.points[1]);if(!s){bodyRaceMessage.textContent='THE BODY IS LOADING';return}
-    placeBodyRacePlanets(spec,s);drawBodyRaceTrack(spec);const bonuses=spawnBodyRaceBonuses(spec);bodyRace={spec,body:s,bonuses,progress:1,startedAt:0,penaltyMs:0,collected:0,finished:false,hitCooldown:0};bodyRaceTitle.textContent='THE BODY · COURSE '+level+' / 33';bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW THE DOTTED PATH · COLLECT COMETS FOR SPEED';bodyRaceNext.hidden=true;bodyRaceToken++;startBodyRaceCountdown(bodyRaceToken);
+    placeBodyRacePlanets(spec,s);drawBodyRaceTrack(spec);const bonuses=spawnBodyRaceBonuses(spec);
+    bodyRace={spec,body:s,bonuses,progress:1,startedAt:0,penaltyMs:0,collected:0,hits:0,maxHits:bodyMaxHits,finished:false,failed:false,hitCooldown:0,hitFx:null};
+    bodyRaceTitle.textContent='THE BODY · '+level+' / 33 · '+spec.name;bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW THE LINE · PASS EVERY GATE';bodyRaceNext.hidden=true;bodyRaceToken++;startBodyRaceCountdown(bodyRaceToken);
   }
   function openBodyRace(){
-    courseType='body';level=1;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.remove('show');document.body.classList.add('ge-body-race-active');bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
+    courseType='body';level=1;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.remove('show');
+    const gs=window.GE_GAME?.state||null;bodyRaceGameSnapshot=gs?{running:gs.running,gameType:gs.gameType}:null;
+    if(gs){gs.running=false;gs.gameType='body';gs.pendingShot=null;}window.GE_SHOT_CONTROL?.cancel?.();window.GE_GAME_POINT_MARKS?.clear?.();window.GE_CLEAR_GAME_TRAILS?.();
+    document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');
+    document.body.classList.add('ge-body-race-active');bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
   function closeBodyRace(){
-    bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false;if(Number.isFinite(bodyRace.body.geRaceOriginalScale)){bodyRace.body.s=bodyRace.body.geRaceOriginalScale;delete bodyRace.body.geRaceOriginalScale}}bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+    bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();
+    if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false;if(Number.isFinite(bodyRace.body.geRaceOriginalScale)){bodyRace.body.s=bodyRace.body.geRaceOriginalScale;delete bodyRace.body.geRaceOriginalScale}}
+    const gs=window.GE_GAME?.state||null;if(gs&&bodyRaceGameSnapshot){gs.running=bodyRaceGameSnapshot.running;gs.gameType=bodyRaceGameSnapshot.gameType;}bodyRaceGameSnapshot=null;
+    bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
   }
   function renderBody(){
     openBodyRace();
