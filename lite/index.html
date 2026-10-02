@@ -2,73 +2,299 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Grand Element LITE</title>
-<meta name="theme-color" content="#02050a">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<title>Grand Element LITE Universe</title>
+<meta name="theme-color" content="#000814">
 <style>
-html,body{margin:0;padding:0;background:#02050a;color:#eef8ff;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%}
-body{min-height:100%;text-align:center}
-.wrap{width:92%;max-width:520px;margin:0 auto;padding:22px 0 50px}
-.mark{width:78px;height:78px;margin:4px auto 10px;border:2px solid #65cfff;border-radius:50%;line-height:78px;font-size:27px;font-weight:bold;color:#98e3ff;box-shadow:0 0 22px #176d9b}
-h1{margin:0;font-size:28px;letter-spacing:2px}
-.sub{margin:6px 0 22px;color:#a9bfcc;font-size:13px}
-.card{margin:13px 0;padding:16px;border:1px solid #294c61;border-radius:12px;background:#07111a}
-.card h2{margin:0 0 10px;font-size:17px;letter-spacing:1px}
-p{font-size:14px;line-height:1.45;color:#c9d9e2}
-audio{display:block;width:100%;margin:11px 0}
-.btn{display:block;margin:9px 0;padding:13px 10px;border:1px solid #4daed8;border-radius:9px;background:#0b2636;color:#fff;text-decoration:none;font-weight:bold;font-size:14px}
-.btn.alt{border-color:#566a78;background:#111820}
-.small{font-size:11px;color:#8296a3;line-height:1.4}
-.album{display:inline-block;margin:4px 3px;padding:8px 9px;border:1px solid #314655;border-radius:7px;color:#d9edf7;text-decoration:none;font-size:12px}
-hr{border:0;border-top:1px solid #1e3442;margin:18px 0}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000814;color:#eef9ff;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-webkit-user-select:none;user-select:none}
+body{position:fixed;inset:0;background:
+radial-gradient(circle at 12% 18%,rgba(255,255,255,.85) 0 1px,transparent 1.5px),
+radial-gradient(circle at 77% 24%,rgba(130,210,255,.7) 0 1px,transparent 1.5px),
+radial-gradient(circle at 38% 73%,rgba(255,255,255,.72) 0 1px,transparent 1.5px),
+radial-gradient(circle at 88% 82%,rgba(160,220,255,.65) 0 1px,transparent 1.5px),
+linear-gradient(#00030a,#00101d 58%,#00050b)}
+button,a,input,audio{font-family:Arial,Helvetica,sans-serif}
+#stage{position:absolute;inset:0;overflow:hidden;touch-action:none}
+.topbar{position:absolute;z-index:90;left:7px;right:7px;top:7px;height:30px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.brand{font-size:10px;font-weight:bold;letter-spacing:2px;color:#b9ecff;text-shadow:0 0 8px #4abfff}
+.topActions{display:flex;gap:5px;pointer-events:auto}
+.tinyBtn{min-height:30px;padding:0 9px;border:1px solid #3f8fb3;border-radius:8px;background:#071a27;color:#eaf9ff;font-size:9px;font-weight:bold;text-decoration:none;display:flex;align-items:center}
+#sunWrap{position:absolute;z-index:20;width:108px;height:108px;left:27%;top:51%;margin:-54px 0 0 -54px;border-radius:50%;touch-action:none}
+#sun{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#0d3f6d;box-shadow:0 0 13px rgba(120,215,255,.7),0 0 27px rgba(35,125,220,.32)}
+#sun img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;pointer-events:none}
+.sunCtl{position:absolute;z-index:3;left:50%;transform:translateX(-50%);border:0;background:rgba(1,12,23,.62);color:#eefaff;border-radius:8px;padding:3px 7px;font-size:8px;font-weight:bold;letter-spacing:.08em;white-space:nowrap}
+#aboutBtn{top:10px}#musicBtn{bottom:10px}
+#moon{position:absolute;z-index:22;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;touch-action:none}
+#moon img{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;box-shadow:0 0 7px #e6fbff,0 0 15px rgba(75,190,255,.72);pointer-events:none}
+#planets{position:absolute;inset:0;z-index:14;pointer-events:none}
+.planet{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;pointer-events:auto;touch-action:none;box-shadow:0 0 7px rgba(115,205,255,.42)}
+.planet img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;pointer-events:none}
+.planetLabel{position:absolute;top:30px;left:50%;transform:translateX(-50%);font-size:6px;font-weight:bold;color:#b9ddeb;white-space:nowrap;text-shadow:0 1px 3px #000;opacity:.75}
+.dragging{z-index:60!important;filter:brightness(1.2)}
+.panel{position:absolute;z-index:110;display:none;left:8px;right:8px;top:44px;max-height:calc(100% - 58px);overflow:auto;border:1px solid #2b6988;border-radius:13px;background:rgba(2,13,24,.97);padding:12px;box-shadow:0 0 18px rgba(34,145,210,.24);text-align:left}
+.panel.show{display:block}
+.panel h2{font-size:15px;margin:0 0 9px;letter-spacing:1px;text-align:center}
+.panel p{font-size:11px;line-height:1.45;color:#c5d8e2}
+.closePanel{width:100%;min-height:38px;border:1px solid #3d8caf;border-radius:8px;background:#092333;color:#fff;font-weight:bold}
+#musicPanel{padding-bottom:10px}
+.playerDock{position:absolute;z-index:100;left:8px;right:8px;bottom:8px;border:1px solid #2b6b89;border-radius:12px;background:rgba(3,15,27,.96);padding:7px;box-sizing:border-box;touch-action:none}
+.playerHandle{height:24px;display:flex;align-items:center;justify-content:space-between;font-size:9px;font-weight:bold;letter-spacing:.09em;color:#bdeaff;cursor:move}
+.playerHandle span:first-child{padding-left:5px}
+.dockBtns{display:flex;gap:4px}
+.dockBtn{height:24px;min-width:42px;border:1px solid #315e73;border-radius:6px;background:#071823;color:#dff7ff;font-size:7px;font-weight:bold}
+.playerDock audio{display:block;width:100%;height:31px}
+.albumLinks{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.albumLinks a{padding:5px 7px;border:1px solid #294f63;border-radius:6px;color:#d9f3ff;text-decoration:none;font-size:8px}
+.settingsRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #153142;font-size:11px}
+.settingsRow:last-child{border-bottom:0}
+.switchBtn{min-width:70px;min-height:34px;border:1px solid #397d9d;border-radius:8px;background:#082332;color:#fff;font-weight:bold;font-size:9px}
+.switchBtn.on{background:#0f4b69}
+.note{font-size:9px!important;color:#789aaa!important;text-align:center}
+#loadMeter{position:absolute;z-index:80;left:7px;bottom:74px;font-size:7px;color:#6e97a9;letter-spacing:.06em}
+@media(max-width:320px),(max-height:568px){
+  #sunWrap{width:92px;height:92px;margin:-46px 0 0 -46px}
+  .planet{width:24px;height:24px;margin:-12px 0 0 -12px}
+  .planetLabel{top:26px;font-size:5px}
+  #moon{width:38px;height:38px;margin:-19px 0 0 -19px}
+  .playerDock{left:5px;right:5px;bottom:5px}
+  #loadMeter{bottom:70px}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="mark">GE</div>
-  <h1>GRAND ELEMENT</h1>
-  <div class="sub">LITE · MUSIC FIRST · LOW DATA</div>
+<div id="stage">
+  <div class="topbar">
+    <div class="brand">GRAND ELEMENT · LITE</div>
+    <div class="topActions">
+      <button class="tinyBtn" id="settingsBtn" type="button">SETTINGS</button>
+      <a class="tinyBtn" href="/?full=1">FULL</a>
+    </div>
+  </div>
 
-  <div class="card" id="radio">
-    <h2>LIVE RADIO</h2>
-    <p>Tap play. This lightweight player connects directly to the Grand Element live radio stream.</p>
-    <audio controls preload="none">
+  <div id="sunWrap" data-kind="sun">
+    <div id="sun"><img id="sunImg" alt="Grand Element Blue Sun"></div>
+    <button id="aboutBtn" class="sunCtl" type="button">ABOUT</button>
+    <button id="musicBtn" class="sunCtl" type="button">MUSIC</button>
+  </div>
+
+  <div id="moon" data-kind="moon"><img id="moonImg" alt="Grand Element Radio"></div>
+  <div id="planets"></div>
+
+  <div id="aboutPanel" class="panel">
+    <h2>GRAND ELEMENT</h2>
+    <p>This is the LITE universe: the same Grand Element Sun and album planets, rebuilt for old phones and slow connections. Drag the Sun or any planet. Release it and it can coast gently across the screen.</p>
+    <p>The full site keeps the advanced physics, games, Bodies, Souls, quantum effects, dimensional backgrounds and larger artwork. LITE keeps the core visual universe, Radio, album access and touch movement without loading the full engine.</p>
+    <button class="closePanel" data-close="aboutPanel" type="button">CLOSE</button>
+  </div>
+
+  <div id="settingsPanel" class="panel">
+    <h2>LITE SETTINGS</h2>
+    <div class="settingsRow"><span>PLANET MOTION</span><button id="motionToggle" class="switchBtn on" type="button">ON</button></div>
+    <div class="settingsRow"><span>ALBUM PLANETS</span><button id="planetCountToggle" class="switchBtn on" type="button">ALL 9</button></div>
+    <div class="settingsRow"><span>RADIO MOON ORBIT</span><button id="orbitToggle" class="switchBtn on" type="button">ON</button></div>
+    <div class="settingsRow"><span>PLAYER POSITION</span><button id="playerDockToggle" class="switchBtn" type="button">BOTTOM</button></div>
+    <p class="note">This page is independent of the full website. These controls only affect GE LITE.</p>
+    <button class="closePanel" data-close="settingsPanel" type="button">CLOSE</button>
+  </div>
+
+  <div id="musicPanel" class="panel">
+    <h2>MUSIC</h2>
+    <p>Radio uses the direct stream. Album buttons open the lightweight Bandcamp album pages.</p>
+    <div class="albumLinks" id="albumLinks"></div>
+    <button class="closePanel" data-close="musicPanel" type="button">CLOSE</button>
+  </div>
+
+  <div id="loadMeter">LITE · 320×568 READY</div>
+
+  <div id="playerDock" class="playerDock">
+    <div id="playerHandle" class="playerHandle">
+      <span>GE RADIO · DRAG</span>
+      <div class="dockBtns">
+        <button id="dockTop" class="dockBtn" type="button">TOP</button>
+        <button id="dockBottom" class="dockBtn" type="button">BOTTOM</button>
+      </div>
+    </div>
+    <audio controls preload="none" playsinline>
       <source src="https://radio.grandelement.blitz.cloud/stream.mp3" type="audio/mpeg">
-      Your browser cannot show the audio controls.
     </audio>
-    <a class="btn" href="https://radio.grandelement.blitz.cloud/stream.mp3">OPEN RADIO DIRECTLY</a>
-    <div class="small">Designed for older phones, basic browsers, watches, slow connections and low-data use.</div>
   </div>
-
-  <div class="card" id="access">
-    <h2>GET ACCESS</h2>
-    <p>Want the Grand Element access code? Send us an email. If you join the fan list, we will send the code back and can let you know about shows, events and new releases.</p>
-    <a class="btn" href="mailto:access@grandelement.com?subject=Grand%20Element%20Access&body=Hi%20Grand%20Element%2C%0A%0AI%20would%20like%20the%20access%20code.%20Please%20add%20me%20to%20the%20Grand%20Element%20fan%20list%20for%20occasional%20updates%20about%20shows%2C%20events%20and%20new%20releases.%0A%0AThanks.">EMAIL FOR ACCESS</a>
-    <div class="small">You can ask to be removed from the fan list at any time.</div>
-  </div>
-
-  <div class="card" id="music">
-    <h2>MUSIC / DOWNLOADS</h2>
-    <p>Album pages may use more data than this LITE page.</p>
-    <a class="album" href="https://grandelement.bandcamp.com/album/fire">Fire</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/spirit">Spirit</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/soul">Soul</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/love">Love</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/intergy">Intergy</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/sessions-ii">Sessions II</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/sessions-i">Sessions I</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/live">Live!</a>
-    <a class="album" href="https://grandelement.bandcamp.com/album/trio">Trio</a>
-  </div>
-
-  <div class="card" id="contact">
-    <h2>CONTACT</h2>
-    <a class="btn alt" href="mailto:info@grandelement.com?subject=Grand%20Element">info@grandelement.com</a>
-  </div>
-
-  <hr>
-  <a class="btn alt" href="/?full=1">TRY FULL GRAND ELEMENT SITE</a>
-  <div class="small">The full site uses advanced graphics and audio features and may not work on older devices.</div>
 </div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var sun=document.getElementById('sunWrap');
+  var moon=document.getElementById('moon');
+  var planetsHost=document.getElementById('planets');
+  var player=document.getElementById('playerDock');
+  var handle=document.getElementById('playerHandle');
+  var motion=true,orbit=true,allPlanets=true,orbitAngle=0;
+  var movers=[],activeDrag=null,lastFrame=0;
+  var base='ge-images/images/';
+  var albums=[
+    ['Fire','Grand%20Element%20-%20Fire.jpg','https://grandelement.bandcamp.com/album/fire'],
+    ['Spirit','Grand%20Element%20-%20Spirit.jpg','https://grandelement.bandcamp.com/album/spirit'],
+    ['Soul','Grand%20Element%20-%20Soul.jpg','https://grandelement.bandcamp.com/album/soul'],
+    ['Love','Grand%20Element%20-%20Love.jpg','https://grandelement.bandcamp.com/album/love'],
+    ['Intergy','Grand%20Element%20-%20Intergy.jpg','https://grandelement.bandcamp.com/album/intergy'],
+    ['Sessions II','Grand%20Element%20-%20Sessions%20II.jpg','https://grandelement.bandcamp.com/album/sessions-ii'],
+    ['Sessions I','Grand%20Element%20-%20Sessions%20I.jpg','https://grandelement.bandcamp.com/album/sessions-i'],
+    ['Live!','Grand%20Element%20-%20Live.jpg','https://grandelement.bandcamp.com/album/live'],
+    ['Trio','Grand%20Element%20-%20Trio.jpg','https://grandelement.bandcamp.com/album/trio']
+  ];
+  var starts=[[72,96],[161,104],[248,116],[286,202],[243,286],[153,334],[73,306],[43,217],[166,218]];
+
+  function resized(path,w,q){
+    return '/cdn-cgi/image/width='+w+',quality='+(q||58)+',format=auto/'+path;
+  }
+  function setLiteImage(img,path,w,q){
+    img._fallback=path;
+    img.onerror=function(){
+      if(img._fallback&&img.src.indexOf('/cdn-cgi/image/')!==-1){
+        var f=img._fallback;img._fallback='';img.src=f;
+      }
+    };
+    img.src=resized(path,w,q);
+  }
+  setLiteImage(document.getElementById('sunImg'),base+'ge-logo-2.jpg',120,58);
+  setLiteImage(document.getElementById('moonImg'),base+'ge-radio-logo.png',64,58);
+
+  function stageSize(){return{w:stage.clientWidth||320,h:stage.clientHeight||568};}
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function radius(el){return Math.max(10,el.offsetWidth/2);}
+  function register(el,x,y){
+    var o={el:el,x:x,y:y,vx:0,vy:0,kind:el.getAttribute('data-kind')||'planet'};
+    movers.push(o);place(o);bindDrag(o);return o;
+  }
+  function place(o){
+    o.el.style.left=Math.round(o.x)+'px';o.el.style.top=Math.round(o.y)+'px';
+  }
+  var sunObj=register(sun,86,286);
+  var moonObj={el:moon,x:165,y:286,vx:0,vy:0,kind:'moon'};
+  place(moonObj);bindDrag(moonObj);
+
+  function createPlanets(){
+    planetsHost.innerHTML='';movers=[sunObj];var s=stageSize(),scaleX=s.w/320,scaleY=s.h/568;
+    var count=allPlanets?9:5;
+    for(var i=0;i<count;i++){
+      var el=document.createElement('div');el.className='planet';el.setAttribute('data-kind','planet');
+      var img=document.createElement('img');img.alt=albums[i][0];setLiteImage(img,base+albums[i][1],42,54);
+      var lab=document.createElement('div');lab.className='planetLabel';lab.appendChild(document.createTextNode(albums[i][0]));
+      el.appendChild(img);el.appendChild(lab);planetsHost.appendChild(el);
+      var sx=starts[i][0]*scaleX,sy=starts[i][1]*scaleY;
+      register(el,sx,sy);
+    }
+  }
+
+  function pointFromEvent(e){
+    var t=e.touches&&e.touches.length?e.touches[0]:(e.changedTouches&&e.changedTouches.length?e.changedTouches[0]:e);
+    return{x:t.clientX,y:t.clientY};
+  }
+  function bindDrag(o){
+    function down(e){
+      if(o.kind==='moon')orbit=false;
+      var p=pointFromEvent(e);activeDrag={o:o,lastX:p.x,lastY:p.y,lastT:+new Date()};
+      o.vx=o.vy=0;o.el.className+=(o.el.className.indexOf('dragging')<0?' dragging':'');
+      if(e.preventDefault)e.preventDefault();
+    }
+    o.el.addEventListener('touchstart',down,false);o.el.addEventListener('mousedown',down,false);
+  }
+  function moveDrag(e){
+    if(!activeDrag)return;
+    var p=pointFromEvent(e),o=activeDrag.o,s=stageSize(),r=radius(o.el),now=+new Date(),dt=Math.max(16,now-activeDrag.lastT);
+    var nx=clamp(p.x,r,s.w-r),ny=clamp(p.y,r+36,s.h-r-72);
+    o.vx=(nx-activeDrag.lastX)/(dt/16);o.vy=(ny-activeDrag.lastY)/(dt/16);
+    o.x=nx;o.y=ny;place(o);activeDrag.lastX=nx;activeDrag.lastY=ny;activeDrag.lastT=now;
+    if(e.preventDefault)e.preventDefault();
+  }
+  function endDrag(e){
+    if(!activeDrag)return;
+    var o=activeDrag.o;o.el.className=o.el.className.replace(/\s*dragging/g,'');activeDrag=null;
+    if(!motion){o.vx=0;o.vy=0;}
+    if(e&&e.preventDefault)e.preventDefault();
+  }
+  stage.addEventListener('touchmove',moveDrag,false);stage.addEventListener('mousemove',moveDrag,false);
+  stage.addEventListener('touchend',endDrag,false);stage.addEventListener('touchcancel',endDrag,false);stage.addEventListener('mouseup',endDrag,false);
+
+  function animate(ts){
+    if(!lastFrame)lastFrame=ts;var dt=Math.min(2,(ts-lastFrame)/16.67);lastFrame=ts;
+    if(motion&&!activeDrag){
+      var s=stageSize();
+      for(var i=0;i<movers.length;i++){
+        var o=movers[i],r=radius(o.el);
+        if(Math.abs(o.vx)<.02&&Math.abs(o.vy)<.02)continue;
+        o.x+=o.vx*dt;o.y+=o.vy*dt;o.vx*=Math.pow(.972,dt);o.vy*=Math.pow(.972,dt);
+        if(o.x<r){o.x=r;o.vx=Math.abs(o.vx)*.72}
+        if(o.x>s.w-r){o.x=s.w-r;o.vx=-Math.abs(o.vx)*.72}
+        if(o.y<r+36){o.y=r+36;o.vy=Math.abs(o.vy)*.72}
+        if(o.y>s.h-r-72){o.y=s.h-r-72;o.vy=-Math.abs(o.vy)*.72}
+        place(o);
+      }
+    }
+    if(orbit&&(!activeDrag||activeDrag.o.kind!=='moon')){
+      orbitAngle+=.008*dt;
+      var rr=Math.max(62,radius(sun)+36),s2=stageSize();
+      moonObj.x=clamp(sunObj.x+Math.cos(orbitAngle)*rr,22,s2.w-22);
+      moonObj.y=clamp(sunObj.y+Math.sin(orbitAngle)*rr,58,s2.h-96);place(moonObj);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function showPanel(id){document.getElementById(id).className='panel show';}
+  function hidePanel(id){document.getElementById(id).className='panel';}
+  document.getElementById('aboutBtn').onclick=function(e){showPanel('aboutPanel');if(e)e.stopPropagation();};
+  document.getElementById('musicBtn').onclick=function(e){showPanel('musicPanel');if(e)e.stopPropagation();};
+  document.getElementById('settingsBtn').onclick=function(){showPanel('settingsPanel');};
+  var closers=document.querySelectorAll('[data-close]');
+  for(var ci=0;ci<closers.length;ci++)closers[ci].onclick=function(){hidePanel(this.getAttribute('data-close'));};
+
+  var links=document.getElementById('albumLinks');
+  for(var ai=0;ai<albums.length;ai++){
+    var a=document.createElement('a');a.href=albums[ai][2];a.appendChild(document.createTextNode(albums[ai][0]));links.appendChild(a);
+  }
+
+  var motionBtn=document.getElementById('motionToggle');
+  motionBtn.onclick=function(){motion=!motion;motionBtn.className='switchBtn'+(motion?' on':'');motionBtn.innerHTML=motion?'ON':'OFF';if(!motion){for(var i=0;i<movers.length;i++){movers[i].vx=0;movers[i].vy=0;}}};
+  var planetBtn=document.getElementById('planetCountToggle');
+  planetBtn.onclick=function(){allPlanets=!allPlanets;planetBtn.className='switchBtn'+(allPlanets?' on':'');planetBtn.innerHTML=allPlanets?'ALL 9':'CORE 5';createPlanets();};
+  var orbitBtn=document.getElementById('orbitToggle');
+  orbitBtn.onclick=function(){orbit=!orbit;orbitBtn.className='switchBtn'+(orbit?' on':'');orbitBtn.innerHTML=orbit?'ON':'OFF';};
+  var dockToggle=document.getElementById('playerDockToggle');
+
+  function dockPlayer(where){
+    var s=stageSize();player.style.left='8px';player.style.right='8px';player.style.width='auto';player.style.transform='none';
+    if(where==='top'){player.style.top='42px';player.style.bottom='auto';dockToggle.innerHTML='TOP';}
+    else{player.style.top='auto';player.style.bottom='8px';dockToggle.innerHTML='BOTTOM';}
+    player.setAttribute('data-dock',where);
+  }
+  document.getElementById('dockTop').onclick=function(e){dockPlayer('top');if(e)e.stopPropagation();};
+  document.getElementById('dockBottom').onclick=function(e){dockPlayer('bottom');if(e)e.stopPropagation();};
+  dockToggle.onclick=function(){dockPlayer(player.getAttribute('data-dock')==='top'?'bottom':'top');};
+
+  var playerDrag=null;
+  function playerDown(e){
+    var p=pointFromEvent(e),r=player.getBoundingClientRect();playerDrag={dx:p.x-r.left,dy:p.y-r.top};
+    player.style.right='auto';player.style.bottom='auto';player.style.width=Math.min(360,stageSize().w-16)+'px';
+    if(e.preventDefault)e.preventDefault();if(e.stopPropagation)e.stopPropagation();
+  }
+  function playerMove(e){
+    if(!playerDrag)return;var p=pointFromEvent(e),s=stageSize(),w=player.offsetWidth,h=player.offsetHeight;
+    player.style.left=clamp(p.x-playerDrag.dx,4,s.w-w-4)+'px';player.style.top=clamp(p.y-playerDrag.dy,38,s.h-h-4)+'px';
+    if(e.preventDefault)e.preventDefault();
+  }
+  function playerUp(){playerDrag=null;}
+  handle.addEventListener('touchstart',playerDown,false);handle.addEventListener('mousedown',playerDown,false);
+  document.addEventListener('touchmove',playerMove,false);document.addEventListener('mousemove',playerMove,false);
+  document.addEventListener('touchend',playerUp,false);document.addEventListener('mouseup',playerUp,false);
+
+  function resize(){
+    var s=stageSize();sunObj.x=clamp(sunObj.x,46,s.w-46);sunObj.y=clamp(sunObj.y,82,s.h-120);place(sunObj);
+    for(var i=0;i<movers.length;i++){var o=movers[i],r=radius(o.el);o.x=clamp(o.x,r,s.w-r);o.y=clamp(o.y,r+36,s.h-r-72);place(o);}
+    var pr=player.getBoundingClientRect();if(pr.right>s.w||pr.bottom>s.h)dockPlayer('bottom');
+  }
+  window.addEventListener('resize',resize,false);
+  dockPlayer('bottom');createPlanets();requestAnimationFrame(animate);
+})();
+</script>
 </body>
 </html>
