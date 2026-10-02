@@ -6384,10 +6384,10 @@ function loop(){
   for(let i=miniShips.length-1;i>=0;i--) if(miniShips[i].dead) miniShips.splice(i,1);
 
   ctx.clearRect(0,0,W,H);if(frontCtx)frontCtx.clearRect(0,0,W,H);
-  // Body course is painted onto the same live FX canvas as the universe. This avoids
-  // mobile Safari SVG/layering failures and guarantees START / FINISH / dotted route visibility.
-  try{window.GE_BODY_RACE_DRAW?.(ctx)}catch(err){console.error('GE Body course draw recovered',err)}
   netStepDraw(dt);
+  // THE BODY course belongs in the foreground with the craft. Using fxFront avoids the
+  // normal planet DOM from covering the route, including on iPhone.
+  try{window.GE_BODY_RACE_DRAW?.(bodyRaceLive&&frontCtx?frontCtx:ctx)}catch(err){console.error('GE Body course draw recovered',err)}
   pairs.forEach(p=>p.draw());
   for(const q of quantumClusters){try{q.draw()}catch(err){console.error('GE quantum draw isolated an error',err)}}
   comets.filter(c=>c.depth!=='front').forEach(c=>c.draw(ctx));
@@ -6395,7 +6395,7 @@ function loop(){
   // Full-size Body is physically closest to the visitor. On low-power/mobile mode
   // fxFront is intentionally hidden, so draw the Body on the visible main FX canvas instead.
   // Otherwise keep the foreground render above the planets/Sun/Moon.
-  const bodyDrawCtx=(window.GE_LOW_POWER||document.body.classList.contains('ge-low-power')||!frontCtx)?ctx:frontCtx;
+  const bodyDrawCtx=(bodyRaceLive&&frontCtx)?frontCtx:((window.GE_LOW_POWER||document.body.classList.contains('ge-low-power')||!frontCtx)?ctx:frontCtx);
   ships.forEach(s=>s.draw(bodyDrawCtx));
   if(frontCtx)comets.filter(c=>c.depth==='front').forEach(c=>c.draw(frontCtx));
 
@@ -10159,7 +10159,8 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     return d;
   }
   function bodyCourseSpec(n,w,h){
-    const mx=Math.max(64,w*.13),top=Math.max(92,h*.105),bottom=h-Math.max(100,h*.12);
+    // Keep the playable course clear of the mobile top controls and bottom instruction/browser area.
+    const mx=Math.max(64,w*.13),top=Math.max(122,h*.15),bottom=h-Math.max(150,h*.18);
     const start={x:Math.max(mx,w*.22),y:bottom},finish={x:Math.min(w-mx,w*.78),y:top};
     if(n===1)return{points:[start,{x:w*.50,y:h*.52},finish],nearPlanets:1};
     if(n===2)return{points:[start,{x:w*.38,y:h*.62},{x:w*.55,y:h*.43},finish],nearPlanets:1};
@@ -10194,23 +10195,40 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(!s&&typeof Ship!=='undefined'&&typeof ships!=='undefined'){s=new Ship(false);ships.push(s);try{firstShipPending=false}catch(_e){}}
     if(!s)return null;
     s.dead=false;s.x=start.x;s.y=start.y;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.geRaceBoostUntil=0;
+    // THE BODY is the same horizontal GE craft used on the front page (ge-logo-4-cutout.png).
+    // Make it large enough to steer on a phone, while preserving the original scale for exit.
+    if(!Number.isFinite(s.geRaceOriginalScale))s.geRaceOriginalScale=s.s;
+    s.s=Math.max(s.s||0,MOBILE?.28:.25);
     if(nextPoint)s.angle=Math.atan2(nextPoint.y-start.y,nextPoint.x-start.x)+Math.PI;
     return s;
   }
   function placeBodyRacePlanets(spec,s){
     saveBodyRacePlanets();
-    const list=window.planetNodes||[],pts=spec.points,bodyR=s?shipVisualRadius(s):34,near=Math.min(spec.nearPlanets||0,list.length);
+    const list=window.planetNodes||[],pts=spec.points,bodyR=s?shipVisualRadius(s):34,near=Math.min(spec.nearPlanets||0,list.length),placed=[];
+    const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
+    if(sunRect?.width)placed.push({x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:Math.max(sunRect.width,sunRect.height)/2+24});
+    const start=pts[0],finish=pts[pts.length-1];
+    placed.push({x:start.x,y:start.y,r:bodyR+30},{x:finish.x,y:finish.y,r:48});
+    const slots=[[.82,.28],[.16,.30],[.84,.46],[.15,.55],[.82,.66],[.22,.72],[.64,.74],[.50,.27],[.72,.52],[.30,.43]];
+    function clearSpot(x,y,r){
+      const edge=r+18;if(x<edge||x>innerWidth-edge||y<Math.max(105,edge)||y>innerHeight-Math.max(125,edge))return false;
+      return placed.every(q=>Math.hypot(x-q.x,y-q.y)>r+q.r+24);
+    }
     for(let i=0;i<list.length;i++){
-      const p=list[i],r=p.r||24;
-      let x,y;
+      const p=list[i],r=p.r||24,candidates=[];
       if(i<near&&pts.length>2){
-        const pi=1+Math.floor((i+1)*(pts.length-2)/(near+1)),base=pts[Math.min(pts.length-2,pi)],prev=pts[Math.max(0,pi-1)],nextP=pts[Math.min(pts.length-1,pi+1)],dx=nextP.x-prev.x,dy=nextP.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,side=i%2?1:-1,clear=bodyR+r+Math.max(18,44-level*.7);
-        x=base.x+nx*clear*side;y=base.y+ny*clear*side;
-      }else{
-        const slots=[[.16,.24],[.82,.30],[.18,.48],[.84,.58],[.18,.70],[.82,.76],[.50,.20],[.50,.72]];
-        const q=slots[(i-near+level)%slots.length];x=innerWidth*q[0];y=innerHeight*q[1];
+        const pi=1+Math.floor((i+1)*(pts.length-2)/(near+1)),base=pts[Math.min(pts.length-2,pi)],prev=pts[Math.max(0,pi-1)],nextP=pts[Math.min(pts.length-1,pi+1)],dx=nextP.x-prev.x,dy=nextP.y-prev.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m;
+        const clear=bodyR+r+Math.max(50,78-level*.7),side=i%2?1:-1;
+        candidates.push([base.x+nx*clear*side,base.y+ny*clear*side],[base.x-nx*clear*side,base.y-ny*clear*side]);
       }
-      const edge=bodyR+r+18;x=clamp(x,edge,innerWidth-edge);y=clamp(y,edge,innerHeight-edge);p.x=x;p.y=y;p.vx=0;p.vy=0;
+      for(let j=0;j<slots.length;j++){const q=slots[(j+i+level)%slots.length];candidates.push([innerWidth*q[0],innerHeight*q[1]]);}
+      let chosen=candidates.find(q=>clearSpot(q[0],q[1],r));
+      if(!chosen){
+        // Last-resort deterministic grid search: never stack album planets on each other or the Blue Sun.
+        outer:for(let gy=2;gy<=7;gy++)for(let gx=1;gx<=5;gx++){const x=innerWidth*(gx/6),y=innerHeight*(gy/9);if(clearSpot(x,y,r)){chosen=[x,y];break outer;}}
+      }
+      const x=chosen?chosen[0]:innerWidth*.82,y=chosen?chosen[1]:innerHeight*(.25+i*.1);
+      p.x=x;p.y=y;p.vx=0;p.vy=0;placed.push({x,y,r});
       if(p.el){p.el.style.left=(x-r)+'px';p.el.style.top=(y-r)+'px';p.el.classList.remove('previewZoom','draggingPlanet','justDragged');}
     }
   }
@@ -10312,7 +10330,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     courseType='body';level=1;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.remove('show');document.body.classList.add('ge-body-race-active');bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
   function closeBodyRace(){
-    bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false}bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+    bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false;if(Number.isFinite(bodyRace.body.geRaceOriginalScale)){bodyRace.body.s=bodyRace.body.geRaceOriginalScale;delete bodyRace.body.geRaceOriginalScale}}bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
   }
   function renderBody(){
     openBodyRace();
