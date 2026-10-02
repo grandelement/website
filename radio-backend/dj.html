@@ -1499,6 +1499,14 @@ body{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
  .geDisplayZoomBar button{min-height:32px}
 }
 
+
+/* V50 hotfix: the LINE source label under the channel name is the source selector. */
+#mixerSheet .mixSourceLabel{
+ appearance:none;width:100%;min-height:30px;border:1px solid #3b5365;background:#0b151d;color:var(--accent);
+ border-radius:7px;padding:3px 5px;font-size:11px!important;font-weight:950;line-height:1.1;cursor:pointer
+}
+#mixerSheet .mixSourceLabel:active{background:#12304c}
+
 /* V50 dynamic chrome spacing: enlarged controls may never cover the console. */
 body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 .sheet{bottom:var(--geDockHeight,112px)!important}
@@ -1590,7 +1598,7 @@ body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 <div class="mixerGrid">
 <div class="mixStrip" data-channel-strip="mic"><h3>1 · MIC</h3><small>voice</small><div class="hmeter" data-mix-threshold="mic"><div class="hmeterFill" id="mixMicMeter"></div><div class="threshold" id="mixMicThreshold"></div></div><input class="vf" id="mixMicLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixMicRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixMicSendA">SEND A</button><button class="sendState" id="mixMicSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixMicSendB">SEND B</button><button class="sendState" id="mixMicSendBOn">ON</button></div><div class="mixBtns"><button id="mixMicCue">MONITOR</button><button id="mixMicAir">MIC LINK</button><button data-fx="mic">FX</button><button id="mixMicMute">MUTE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="sendAuxStrip"><h3 id="sendAuxTitle">SEND A</h3><small id="sendAuxMeta">MIC · DELAY</small><div class="hmeter"><div class="hmeterFill" id="sendAuxMeter"></div></div><input class="vf" id="sendAuxLevel" type="range" min="0" max="100" value="20"><div class="mixRead" id="sendAuxRead">20%</div><div class="mixBtns"><button id="sendAuxToggle">ON</button><button id="sendAuxFx">FX</button></div><div class="mixBtns"><button id="sendAuxClose">CLOSE</button></div></div>
-<div class="mixStrip" data-channel-strip="line"><h3>2 · LINE</h3><small>input / file</small><div class="hmeter" data-mix-threshold="line"><div class="hmeterFill" id="mixLineMeter"></div><div class="threshold" id="mixLineThreshold"></div></div><input class="vf" id="mixLineLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixLineRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixLineSendA">SEND A</button><button class="sendState" id="mixLineSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixLineSendB">SEND B</button><button class="sendState" id="mixLineSendBOn">ON</button></div><div class="mixBtns"><button id="mixLineInput">INPUT</button><button id="mixLineCue">MONITOR</button><button id="mixLineAir">ON AIR</button><button data-fx="line">FX</button><button id="mixLineMute">MUTE</button></div></div>
+<div class="mixStrip" data-channel-strip="line"><h3>2 · LINE</h3><button type="button" class="mixSourceLabel" id="mixLineSource">INPUT / FILE</button><div class="hmeter" data-mix-threshold="line"><div class="hmeterFill" id="mixLineMeter"></div><div class="threshold" id="mixLineThreshold"></div></div><input class="vf" id="mixLineLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixLineRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixLineSendA">SEND A</button><button class="sendState" id="mixLineSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixLineSendB">SEND B</button><button class="sendState" id="mixLineSendBOn">ON</button></div><div class="mixBtns"><button id="mixLineCue">MONITOR</button><button id="mixLineAir">ON AIR</button><button data-fx="line">FX</button><button id="mixLineMute">MUTE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxMix"><h3>MIX</h3><small>radio under mic</small><div class="hmeter"><div class="hmeterFill" id="mixAuxMixMeter"></div></div><input class="vf" id="masterMixLevel" type="range" min="0" max="100" value="45"><div class="mixRead" id="masterMixRead">45%</div><div class="mixBtns"><button data-close-aux="mix">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxRadio"><h3>RADIO</h3><small id="radioControlNote">PUBLIC CONTROL OFF</small><div class="hmeter"><div class="hmeterFill" id="mixRadioAuxMeter"></div></div><input class="vf" id="mixRadioBed" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixRadioRead">100%</div><div class="mixBtns"><button id="publicRadioArm">CONTROL OFF</button><button id="publicRadioMute">MUTE</button></div><div class="mixBtns"><button data-close-aux="radio">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxStudio"><h3>STUDIO</h3><small id="studioOwnerText">return</small><div class="hmeter"><div class="hmeterFill" id="mixStudioMeter"></div></div><input class="vf" id="mixStudioLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixStudioRead">100%</div><div class="mixBtns"><button id="studioOpenBtn">OPEN</button><button id="studioStopBtn">STOP</button></div><div class="mixBtns"><button data-close-aux="studio">CLOSE</button></div></div>
@@ -2612,7 +2620,7 @@ function bindLocalMixer(){
  $('mixRadioBed').onchange=function(){if(publicRadioControl)setMixer({music_level:Number(this.value)/100,music_muted:false}).catch(function(e){alert(e.message)})};
  $('mixFxLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';$('mixFxRead').textContent=Math.round(this.value)+'%';if($('fxReturnLevel'))$('fxReturnLevel').value=this.value;if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
  $('mixMicMute').onclick=function(){settings.mic.mute=!settings.mic.mute;applyChannel('mic');this.classList.toggle('on',settings.mic.mute)};
- $('mixLineInput').onclick=function(){$('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');refreshDevices()};
+ $('mixLineSource').onclick=function(){$('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');refreshDevices()};
 $('mixLineMute').onclick=function(){settings.line.mute=!settings.line.mute;applyChannel('line');this.classList.toggle('on',settings.line.mute)}
 }
 bindLocalMixer();
