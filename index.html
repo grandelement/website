@@ -2799,6 +2799,14 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 <style id="ge-golf-space-v2">
 #geCourseMode .geCourseBoard{background:radial-gradient(circle at 20% 20%,rgba(55,135,210,.18),transparent 28%),radial-gradient(circle at 75% 70%,rgba(30,85,180,.15),transparent 32%),#010713}
 .geForceRail{background:rgba(80,190,255,.09)!important;border:1px solid rgba(210,245,255,.96)!important;box-shadow:0 0 7px #9ee5ff,0 0 20px rgba(45,175,255,.8),inset 0 0 8px rgba(100,215,255,.55)!important;border-radius:999px!important}
+.geGolfCourseShape{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;overflow:visible}
+.geGolfCourseShape .geGolfFloor{fill:rgba(3,20,36,.91);stroke:rgba(34,214,255,.30);stroke-width:15;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.geGolfCourseShape .geGolfRailGlow{fill:none;stroke:rgba(18,213,255,.66);stroke-width:8;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 7px rgba(42,226,255,.95)) drop-shadow(0 0 16px rgba(31,169,255,.72));animation:geGolfRailBreath 2.8s ease-in-out infinite}
+.geGolfCourseShape .geGolfRailCore{fill:none;stroke:#d8fbff;stroke-width:2.2;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 3px #50e7ff)}
+.geGolfCourseShape .geGolfInnerLine{fill:none;stroke:rgba(85,224,255,.28);stroke-width:.8;stroke-dasharray:2 11;vector-effect:non-scaling-stroke}
+@keyframes geGolfRailBreath{0%,100%{opacity:.72}50%{opacity:1}}
+#geCourseMode.geGolfShapedCourse .geCourseBoard{border-color:rgba(85,213,255,.16);box-shadow:inset 0 0 50px rgba(0,80,130,.10)}
+#geCourseMode.geGolfShapedCourse .geObstacle{display:none}
 .geBankGuide{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible}.geBankGuide polyline{fill:none;stroke:rgba(220,250,255,.95);stroke-width:2;stroke-dasharray:7 7;filter:drop-shadow(0 0 5px #6fd5ff)}
 .geBlueSunCup{background:radial-gradient(circle,#020713 0 25%,#096bb6 27%,#65d1ff 44%,rgba(55,180,255,.22) 64%,transparent 72%)!important;box-shadow:0 0 15px #72dcff,0 0 30px rgba(40,155,255,.8)!important}
 .geBodyObstacle{background:center/contain no-repeat url('ge-images/images/ge-logo-4-cutout.png')!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 10px #70d8ff)}
@@ -10449,9 +10457,39 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 <script id="ge-golf-body-meditation-v1-script">
 (function(){
   const mode=document.getElementById('geCourseMode'),board=document.getElementById('geCourseBoard'),title=document.getElementById('geCourseTitle'),help=document.getElementById('geCourseHelp'),next=document.getElementById('geCourseNext');
-  let courseType='',level=1,raf=0,drag=null,obj=null,vx=0,vy=0,strokes=0,last=performance.now(),obstacles=[];
+  let courseType='',level=1,raf=0,drag=null,obj=null,vx=0,vy=0,strokes=0,last=performance.now(),obstacles=[],courseRails=[];
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  /* First five holes establish the permanent GE Golf design language:
+     the playable floor itself is a shaped mini-golf course and its aqua perimeter
+     is the physical bank surface. Coordinates are normalized to the board. */
+  const GE_GOLF_SHAPES=[
+    {name:'FIRST TURN',start:[.23,.88],cup:[.78,.18],poly:[
+      [.10,.95],[.10,.55],[.27,.55],[.27,.10],[.88,.10],[.88,.32],[.49,.32],[.49,.72],[.32,.72],[.32,.95]
+    ]},
+    {name:'DOUBLE BACK',start:[.20,.88],cup:[.25,.16],poly:[
+      [.09,.95],[.09,.61],[.60,.61],[.60,.43],[.30,.43],[.30,.10],[.77,.10],[.77,.29],[.49,.29],[.49,.78],[.29,.78],[.29,.95]
+    ]},
+    {name:'BLUE S',start:[.20,.88],cup:[.77,.17],poly:[
+      [.09,.95],[.09,.70],[.54,.70],[.54,.55],[.24,.55],[.24,.34],[.72,.34],[.72,.10],[.89,.10],[.89,.49],[.42,.49],[.42,.62],[.72,.62],[.72,.84],[.29,.84],[.29,.95]
+    ]},
+    {name:'ZIGZAG',start:[.18,.89],cup:[.80,.15],poly:[
+      [.08,.96],[.08,.76],[.62,.76],[.62,.62],[.25,.62],[.25,.47],[.75,.47],[.75,.31],[.38,.31],[.38,.09],[.91,.09],[.91,.24],[.55,.24],[.55,.40],[.89,.40],[.89,.55],[.46,.55],[.46,.69],[.78,.69],[.78,.90],[.28,.90],[.28,.96]
+    ]},
+    {name:'AQUA FUNNEL',start:[.20,.88],cup:[.76,.16],poly:[
+      [.08,.96],[.08,.67],[.30,.67],[.30,.50],[.18,.50],[.18,.31],[.43,.31],[.52,.18],[.91,.18],[.91,.36],[.63,.36],[.54,.49],[.76,.49],[.76,.64],[.47,.64],[.47,.80],[.29,.80],[.29,.96]
+    ]}
+  ];
+  function polygonRails(poly,w,h){
+    const pts=poly.map(p=>({x:p[0]*w,y:p[1]*h})),rails=[];
+    for(let i=0;i<pts.length;i++)rails.push({a:pts[i],b:pts[(i+1)%pts.length]});
+    return {pts,rails};
+  }
   function holeSpec(n,w,h){
+    if(n>=1&&n<=GE_GOLF_SHAPES.length){
+      const t=GE_GOLF_SHAPES[n-1],shape=polygonRails(t.poly,w,h);
+      return {name:t.name,sx:t.start[0]*w,sy:t.start[1]*h,tx:t.cup[0]*w,ty:t.cup[1]*h,walls:[],poly:shape.pts,rails:shape.rails};
+    }
     const walls=[],k=(n-1)%6,tier=Math.floor((n-1)/6);
     const add=(x,y,ww,hh)=>walls.push({x:x*w,y:y*h,w:ww*w,h:hh*h});
     if(k===0){add(.30,.18,.035,.48);add(.30,.63,.38,.035);}
@@ -10461,16 +10499,67 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(k===4){add(.27,.16,.035,.54);add(.27,.67,.42,.035);add(.67,.38,.035,.32);}
     if(k===5){add(.18,.52,.25,.035);add(.41,.29,.035,.26);add(.41,.29,.31,.035);add(.69,.29,.035,.38);}
     if(n>=8)add(.48,.44,.10,.10); if(n>=16)add(.55,.69,.13,.055); if(tier>=4)add(.38,.76,.24,.035);
-    return {sx:w*.13,sy:h*.82,tx:w*.82,ty:h*.18,walls};
+    return {name:'HOLE '+n,sx:w*.13,sy:h*.82,tx:w*.82,ty:h*.18,walls,poly:null,rails:[]};
+  }
+
+  function pointSegInfo(px,py,rail){
+    const ax=rail.a.x,ay=rail.a.y,bx=rail.b.x,by=rail.b.y,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy||1;
+    const t=clamp(((px-ax)*dx+(py-ay)*dy)/l2,0,1),qx=ax+dx*t,qy=ay+dy*t,rx=px-qx,ry=py-qy,d=Math.hypot(rx,ry);
+    return {d,qx,qy,tx:dx/Math.sqrt(l2),ty:dy/Math.sqrt(l2),rx,ry};
+  }
+  function railCollision(x,y,r){
+    let best=null;
+    for(const rail of courseRails){
+      const hit=pointSegInfo(x,y,rail);
+      if(hit.d<=r+4&&(!best||hit.d<best.hit.d))best={rail,hit};
+    }
+    return best;
+  }
+  function reflectFromRail(col){
+    if(!col)return;
+    const tx=col.hit.tx,ty=col.hit.ty,dot=vx*tx+vy*ty;
+    vx=(2*dot*tx-vx)*.94;vy=(2*dot*ty-vy)*.94;
   }
   function renderGolf(){
-    const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);obstacles=s.walls;
-    board.innerHTML='<div class="geGolfCup geBlueSunCup" style="left:'+s.tx+'px;top:'+s.ty+'px"></div>'+s.walls.map((o,i)=>'<div class="geObstacle geForceRail '+(i===s.walls.length-1&&level>=16?'geBodyObstacle':'')+'" style="left:'+o.x+'px;top:'+o.y+'px;width:'+o.w+'px;height:'+o.h+'px"></div>').join('')+'<div id="geCourseObject" class="geGolfBall" style="left:'+s.sx+'px;top:'+s.sy+'px"></div><svg id="geBankGuide" class="geBankGuide" width="100%" height="100%" viewBox="0 0 '+r.width+' '+r.height+'" preserveAspectRatio="none" hidden><polyline id="geBankGuidePath" points="" /></svg>';
-    obj=document.getElementById('geCourseObject');obj.x=s.sx;obj.y=s.sy;obj.r=17;vx=vy=0;strokes=0;title.textContent='GOLF · HOLE '+level+' / 33';help.textContent='RUBBER BAND · '+strokes+' STROKES · pull behind the planet and release';next.style.display='none';
+    const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);obstacles=s.walls;courseRails=s.rails||[];
+    mode.classList.toggle('geGolfShapedCourse',!!s.poly);
+    let shape='';
+    if(s.poly){
+      const pts=s.poly.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+      shape='<svg class="geGolfCourseShape" viewBox="0 0 '+r.width+' '+r.height+'" preserveAspectRatio="none" aria-hidden="true">'+
+        '<polygon class="geGolfFloor" points="'+pts+'"></polygon>'+
+        '<polygon class="geGolfRailGlow" points="'+pts+'"></polygon>'+
+        '<polygon class="geGolfRailCore" points="'+pts+'"></polygon>'+
+        '<polygon class="geGolfInnerLine" points="'+pts+'"></polygon>'+
+      '</svg>';
+    }
+    board.innerHTML=shape+'<div class="geGolfCup geBlueSunCup" style="left:'+s.tx+'px;top:'+s.ty+'px"></div>'+
+      s.walls.map((o,i)=>'<div class="geObstacle geForceRail '+(i===s.walls.length-1&&level>=16?'geBodyObstacle':'')+'" style="left:'+o.x+'px;top:'+o.y+'px;width:'+o.w+'px;height:'+o.h+'px"></div>').join('')+
+      '<div id="geCourseObject" class="geGolfBall" style="left:'+s.sx+'px;top:'+s.sy+'px"></div>'+
+      '<svg id="geBankGuide" class="geBankGuide" width="100%" height="100%" viewBox="0 0 '+r.width+' '+r.height+'" preserveAspectRatio="none" hidden><polyline id="geBankGuidePath" points="" /></svg>';
+    obj=document.getElementById('geCourseObject');obj.x=s.sx;obj.y=s.sy;obj.r=17;vx=vy=0;strokes=0;
+    title.textContent='GOLF · '+level+' / 33 · '+s.name;
+    help.textContent='RUBBER BAND · '+strokes+' STROKES · pull behind the planet and release';next.style.display='none';
   }
   function bankGuide(dx,dy,power){
     const svg=document.getElementById('geBankGuide'),path=document.getElementById('geBankGuidePath'); if(!svg||!path)return;
     const b=board.getBoundingClientRect(),rad=obj.r; let m=Math.hypot(dx,dy)||1,ux=dx/m,uy=dy/m,x=obj.x,y=obj.y,left=Math.min(900,90+power*.8),pts=[[x,y]];
+    if(courseRails.length){
+      /* Simulate the ball center against the true shaped border so the preview works
+         on diagonal/irregular GE rails, not just old horizontal/vertical blocks. */
+      for(let bank=0;bank<5&&left>3;bank++){
+        let traveled=0,hit=null,hx=x,hy=y;
+        while(traveled<left){
+          const step=Math.min(4,left-traveled);hx+=ux*step;hy+=uy*step;traveled+=step;
+          hit=railCollision(hx,hy,rad);if(hit)break;
+        }
+        if(!hit){pts.push([x+ux*left,y+uy*left]);break}
+        pts.push([hx,hy]);left-=traveled;
+        const tx=hit.hit.tx,ty=hit.hit.ty,dot=ux*tx+uy*ty;ux=2*dot*tx-ux;uy=2*dot*ty-uy;
+        const um=Math.hypot(ux,uy)||1;ux/=um;uy/=um;x=hx+ux*5;y=hy+uy*5;
+      }
+      path.setAttribute('points',pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));svg.hidden=false;return;
+    }
     for(let bank=0;bank<4&&left>2;bank++){let best=null;
       for(const o of obstacles){const minX=o.x-rad,maxX=o.x+o.w+rad,minY=o.y-rad,maxY=o.y+o.h+rad;
         const tests=[['x',minX,-1,0],['x',maxX,1,0],['y',minY,0,-1],['y',maxY,0,1]];
@@ -10762,8 +10851,38 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     openBodyRace();
   }
   function hitObstacle(x,y,r){return obstacles.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h)}
-  function tick(now){if(!mode.classList.contains('show'))return;const dt=Math.min(.035,(now-last)/1000);last=now;if(courseType==='golf'&&obj){if(Math.hypot(vx,vy)>.5){let nx=obj.x+vx*dt,ny=obj.y+vy*dt;const b=board.getBoundingClientRect();if(nx<obj.r||nx>b.width-obj.r){vx*=-.94;nx=clamp(nx,obj.r,b.width-obj.r)}if(ny<obj.r||ny>b.height-obj.r){vy*=-.94;ny=clamp(ny,obj.r,b.height-obj.r)}if(hitObstacle(nx,obj.y,obj.r))vx*=-.94;else obj.x=nx;if(hitObstacle(obj.x,ny,obj.r))vy*=-.94;else obj.y=ny;const f=Math.pow(.985,dt*60);vx*=f;vy*=f;obj.style.left=obj.x+'px';obj.style.top=obj.y+'px';const cup=board.querySelector('.geGolfCup'),cr=cup.getBoundingClientRect(),br=board.getBoundingClientRect(),cx=cr.left-br.left+cr.width/2,cy=cr.top-br.top+cr.height/2;if(Math.hypot(obj.x-cx,obj.y-cy)<Math.max(4,cr.width/2-obj.r)){vx=vy=0;obj.style.opacity='.18';help.textContent='HOLE '+level+' COMPLETE · '+strokes+' STROKE'+(strokes===1?'':'S');next.style.display='block';}}}
-    raf=requestAnimationFrame(tick)}
+  function tick(now){
+    if(!mode.classList.contains('show'))return;
+    const dt=Math.min(.035,(now-last)/1000);last=now;
+    if(courseType==='golf'&&obj&&Math.hypot(vx,vy)>.5){
+      const b=board.getBoundingClientRect();
+      if(courseRails.length){
+        const travel=Math.hypot(vx,vy)*dt,steps=Math.max(1,Math.ceil(travel/6)),sd=dt/steps;
+        for(let i=0;i<steps;i++){
+          let nx=obj.x+vx*sd,ny=obj.y+vy*sd;
+          const col=railCollision(nx,ny,obj.r);
+          if(col){
+            reflectFromRail(col);
+            /* keep the center on the playable side and separate it from the glowing rail */
+            const info=pointSegInfo(obj.x,obj.y,col.rail),d=Math.max(.001,info.d),need=obj.r+5;
+            if(d<need){obj.x=info.qx+(info.rx/d)*need;obj.y=info.qy+(info.ry/d)*need;}
+          }else{obj.x=nx;obj.y=ny;}
+        }
+      }else{
+        let nx=obj.x+vx*dt,ny=obj.y+vy*dt;
+        if(nx<obj.r||nx>b.width-obj.r){vx*=-.94;nx=clamp(nx,obj.r,b.width-obj.r)}
+        if(ny<obj.r||ny>b.height-obj.r){vy*=-.94;ny=clamp(ny,obj.r,b.height-obj.r)}
+        if(hitObstacle(nx,obj.y,obj.r))vx*=-.94;else obj.x=nx;
+        if(hitObstacle(obj.x,ny,obj.r))vy*=-.94;else obj.y=ny;
+      }
+      const f=Math.pow(.985,dt*60);vx*=f;vy*=f;obj.style.left=obj.x+'px';obj.style.top=obj.y+'px';
+      const cup=board.querySelector('.geGolfCup'),cr=cup.getBoundingClientRect(),br=board.getBoundingClientRect(),cx=cr.left-br.left+cr.width/2,cy=cr.top-br.top+cr.height/2;
+      if(Math.hypot(obj.x-cx,obj.y-cy)<Math.max(4,cr.width/2-obj.r)){
+        vx=vy=0;obj.style.opacity='.18';help.textContent='HOLE '+level+' COMPLETE · '+strokes+' STROKE'+(strokes===1?'':'S');next.style.display='block';
+      }
+    }
+    raf=requestAnimationFrame(tick)
+  }
   function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
   board.addEventListener('pointerdown',e=>{if(!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(Math.hypot(x-obj.x,y-obj.y)>55)return;drag={x,y};board.setPointerCapture?.(e.pointerId);if(courseType==='golf'){const line=document.getElementById('geBankGuide');if(line)line.hidden=false}});
   board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(900,Math.hypot(dx,dy)*5);bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
