@@ -9862,10 +9862,16 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   let courseType='',level=1,raf=0,drag=null,obj=null,vx=0,vy=0,strokes=0,last=performance.now(),obstacles=[];
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function holeSpec(n,w,h){
-    const t=(n-1)/32, walls=[];
-    const count=Math.min(7,Math.floor((n-1)/4));
-    for(let i=0;i<count;i++){const vertical=i%2===0;walls.push({x:w*(.22+((i*19+n*7)%58)/100),y:h*(.20+((i*23+n*11)%55)/100),w:vertical?18:w*(.16+t*.05),h:vertical?h*(.15+t*.08):18});}
-    return {sx:w*(.14+(n%3)*.03),sy:h*(.82-(n%2)*.05),tx:w*(.78+(n%2)*.07),ty:h*(.16+(n%4)*.06),walls};
+    const walls=[],k=(n-1)%6,tier=Math.floor((n-1)/6);
+    const add=(x,y,ww,hh)=>walls.push({x:x*w,y:y*h,w:ww*w,h:hh*h});
+    if(k===0){add(.30,.18,.035,.48);add(.30,.63,.38,.035);}
+    if(k===1){add(.18,.55,.50,.035);add(.65,.27,.035,.31);}
+    if(k===2){add(.24,.18,.035,.45);add(.24,.60,.45,.035);add(.66,.38,.035,.25);}
+    if(k===3){add(.18,.31,.47,.035);add(.62,.31,.035,.35);add(.38,.63,.27,.035);}
+    if(k===4){add(.27,.16,.035,.54);add(.27,.67,.42,.035);add(.67,.38,.035,.32);}
+    if(k===5){add(.18,.52,.25,.035);add(.41,.29,.035,.26);add(.41,.29,.31,.035);add(.69,.29,.035,.38);}
+    if(n>=8)add(.48,.44,.10,.10); if(n>=16)add(.55,.69,.13,.055); if(tier>=4)add(.38,.76,.24,.035);
+    return {sx:w*.13,sy:h*.82,tx:w*.82,ty:h*.18,walls};
   }
   function renderGolf(){
     const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);obstacles=s.walls;
