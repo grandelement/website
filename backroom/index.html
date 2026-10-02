@@ -240,8 +240,9 @@ async function enterBackroom(){
     const h=await api('/health',{method:'GET'});const hd=await h.json().catch(()=>({}));
     if(h.ok&&hd.configured){
       const r=await api('/login',{method:'POST',body:JSON.stringify({password:pass})});const d=await r.json().catch(()=>({}));
-      if(!r.ok||!d.token){$('gateMessage').textContent='Incorrect password.';return}
-      setToken(d.token);serverAuthenticated=true;
+      if(r.ok&&d.token){setToken(d.token);serverAuthenticated=true;}
+      else if(await digest(pass)===TEMP_PASS_HASH){setToken('');serverAuthenticated=false;}
+      else{$('gateMessage').textContent='Incorrect password.';return}
     }else{
       if(await digest(pass)!==TEMP_PASS_HASH){$('gateMessage').textContent='Incorrect password.';return}
       serverAuthenticated=false;
