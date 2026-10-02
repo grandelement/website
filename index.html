@@ -2899,7 +2899,21 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
  body:not(.game-mode-active) .planet{width:28px!important;height:28px!important}
 }
 </style>
-</head>
+<style id="ge-main-universe-layer-radio-v1">
+body:not(.game-mode-active) #fxFront{z-index:9!important}
+body:not(.game-mode-active) .planets{z-index:4!important}
+body:not(.game-mode-active) .sunWrap{z-index:5!important}
+body:not(.game-mode-active) .orbit{z-index:6!important}
+body:not(.game-mode-active) .moon::before{inset:-22%!important;background:radial-gradient(circle,rgba(255,255,255,.94) 0 8%,rgba(211,244,255,.58) 25%,rgba(89,194,255,.25) 51%,rgba(67,166,255,0) 76%)!important;box-shadow:0 0 18px rgba(232,250,255,.78),0 0 38px rgba(96,205,255,.55),0 0 72px rgba(58,155,255,.36)!important}
+body:not(.game-mode-active) .moon::after{inset:-14%!important;background:radial-gradient(circle,rgba(255,255,255,0) 38%,rgba(202,240,255,.46) 53%,rgba(99,202,255,.22) 65%,rgba(65,165,255,0) 79%)!important}
+body:not(.game-mode-active) .moon img{box-shadow:0 0 9px 3px rgba(242,252,255,.72),0 0 20px 7px rgba(105,211,255,.48),0 0 40px 12px rgba(65,165,255,.28)!important;filter:brightness(calc(1.05 + var(--moon-level) * .45)) saturate(calc(1 + var(--moon-level) * .28))!important}
+body:not(.game-mode-active) .moon.radio-live-reactive::before{transform:scale(calc(.94 + var(--moon-level) * .42))!important;opacity:calc(.30 + var(--moon-level) * .70)!important}
+body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(calc(.94 + var(--moon-level) * .26))!important;opacity:calc(.20 + var(--moon-level) * .65)!important}
+@keyframes geMoonOfflinePulseStrong{0%,100%{transform:scale(.94);opacity:.24}50%{transform:scale(1.18);opacity:.62}}
+@keyframes geMoonOfflineHaloStrong{0%,100%{transform:scale(.96);opacity:.14}50%{transform:scale(1.11);opacity:.42}}
+body:not(.game-mode-active) .moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulseStrong 2.03s ease-in-out infinite!important}
+body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHaloStrong 2.03s ease-in-out infinite!important}
+</style></head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
   <div id="gameBackground" aria-hidden="true"></div>
@@ -10484,8 +10498,8 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     level+=(v-level)*(v>level?.48:.16);
     const visual=Math.sqrt(level);
     moon.style.setProperty('--moon-level',visual.toFixed(4));
-    moon.style.setProperty('--moon-scale',(.985+visual*.065).toFixed(4));
-    moon.style.setProperty('--moon-opacity',(.11+visual*.17).toFixed(4));
+    moon.style.setProperty('--moon-scale',(.94+visual*.42).toFixed(4));
+    moon.style.setProperty('--moon-opacity',(.30+visual*.70).toFixed(4));
     moon.classList.add('radio-live-reactive');moon.dataset.radioMeter='live';
   }
   function fallback(disconnect=false){
