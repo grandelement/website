@@ -8,7 +8,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 18) {
-                Text("GE REMOTE MIC").font(.title2).bold()
+                Text("GE DEVICE LINK").font(.title2).bold()
                 statusCard
 
                 if controller.paired {
@@ -43,7 +43,7 @@ struct ContentView: View {
                     }
 
                     Spacer()
-                    Button("FORGET THIS PAIRING", role: .destructive) {
+                    Button("FORGET VERIFIED DEVICE", role: .destructive) {
                         Task { await controller.forgetDevice() }
                     }
                 } else {
@@ -53,7 +53,7 @@ struct ContentView: View {
                         .font(.title3)
                         .multilineTextAlignment(.center)
 
-                    Button("PAIR WITH DJ BOOTH") {
+                    Button("VERIFY / PAIR DEVICE") {
                         busy = true
                         Task {
                             defer { busy = false }
@@ -64,7 +64,7 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(pairingCode.count != 6 || busy)
 
-                    Text("Create a pairing code from DJ → MIXER → CHANNELS → LINK DEVICE.")
+                    Text("Enter the one-time verification code shown inside this device channel in GE DJ. After verification, this device stays linked.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
