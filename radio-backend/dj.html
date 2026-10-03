@@ -2041,6 +2041,8 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 #mixerSheet .stripStatusDot.connected{background:#55d8c1;box-shadow:0 0 8px #55d8c1}
 #mixerSheet .stripStatusDot.self{background:#58a5ff;box-shadow:0 0 9px #58a5ff}
 #mixerSheet .stripStatusDot.air{background:#ff6178;box-shadow:0 0 9px #ff6178}
+
+/* V70 top COMPUTER status means the computer board is online; source state is shown inside COMPUTER. */
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2048,7 +2050,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v69</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v70</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3884,7 +3886,11 @@ function openDeviceChannel(kind){
 }
 function geChannelConnection(kind){
  if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'MIC'};
- if(kind==='line'){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();return {connected:!!(h&&h.line_connected),air:!!(h&&h.line_air),label:'COMPUTER'}}return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'COMPUTER'};}
+ if(kind==='line'){
+   const h=homeBoardState(),self=GE_BOARD_ROLE==='home';
+   if(self)return {connected:true,air:!!lineAirOn,label:'COMPUTER',self:true,board:(h&&String(h.id||'')===String(GE_BOARD_ID)?h:null),sourceConnected:geTrackLive(lineStream)||!!lineMediaSource};
+   return {connected:!!h,air:!!(h&&h.line_air),label:'COMPUTER',self:false,board:h||null,sourceConnected:!!(h&&h.line_connected)}
+ }
  if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=GE_DEVICE_KIND===kind||!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b||self,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
  return {connected:false,air:false,label:String(kind||'').toUpperCase()}
 }
@@ -3895,8 +3901,8 @@ function renderChannelStatusBubbles(){
   const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
   b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);
   b.disabled=!enabled;b.setAttribute('aria-pressed',s.connected?'true':'false');
-  if(kind==='iphone'||kind==='ipad')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO OPEN CHANNEL'+(s.air?' · MIC ON AIR':'');
-  else b.title=s.label+' · '+(s.connected?'CONNECTED · TAP TO DISCONNECT':'DISCONNECTED · TAP TO CONNECT')+(s.air?' · ON AIR':'')
+  if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO OPEN CHANNEL'+(s.air?' · ON AIR':'');
+  else b.title=s.label+' · '+(s.connected?'CONNECTED':'DISCONNECTED')+' · TAP TO OPEN MIC'+(s.air?' · ON AIR':'')
  })
  renderMixerStripStatusDots()
 }
@@ -3920,25 +3926,9 @@ async function toggleChannelConnection(kind){
   if(kind==='mic'){
    $('micSheet').classList.add('show');$('mixerSheet').classList.remove('show');setGeDisplayScope('mic');syncDockViewState();return
   }else if(kind==='line'){
-   if(GE_BOARD_ROLE==='remote'){
-    $('lineSheet').classList.add('show');$('mixerSheet').classList.remove('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();return
-   }
-   const connected=geChannelConnection('line').connected;
-   if(connected){
-    if(lineAirOn)await stopLineOnAir();
-    if(lineStream)stopLineInput();
-    if(lineMediaSource&&lineAudio){try{lineAudio.pause()}catch(e){}try{lineMediaSource.disconnect()}catch(e){}lineMediaSource=null}
-   }else if(lineSourceMode==='computer'){
-    await startComputerAudioCapture();
-   }else if(lineSourceMode==='file'&&lineAudio){
-    if(!lineMediaSource){lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain)}
-    await lineAudio.play()
-   }else if($('lineDevice')&&$('lineDevice').value){
-    await startSelectedLineInput()
-   }else{
-    $('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();
-    if($('lineProfileStatus'))$('lineProfileStatus').textContent='CHOOSE ABLETON / VB-CABLE OR YOUTUBE · LOCAL MIC IS SEPARATE'
-   }
+   $('lineSheet').classList.add('show');$('mixerSheet').classList.remove('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();
+   if(GE_BOARD_ROLE==='home')refreshDevices().then(function(){renderLineSavedInputs();if(geArrangement===2)scanGeAudioSources()});
+   return
   }else if(kind==='iphone'||kind==='ipad'){
    openDeviceChannel(kind);return
   }
