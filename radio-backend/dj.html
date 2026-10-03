@@ -2355,14 +2355,102 @@ html.geDayMode .hmeter,html.geDayMode .touchFaderRail{background:#d7e0e6!importa
 }
 .geArrangeDragging{opacity:.72!important;outline:2px solid #55d8c1!important;z-index:998!important}
 .geArrangeDragging>.geArrangeHandle{cursor:grabbing!important}
+
+/* V78 accessibility/readability pass.
+   One master TEXT / BUTTONS scale now controls the full DJ surface, including login,
+   queue rows, controls, modals and the fixed dock. Queue actions use their own row
+   so REPLACE cannot run off-screen. */
+:root{
+ --ge-font-body:calc(14px * var(--ge-ui-scale))!important;
+ --ge-font-control:calc(15px * var(--ge-ui-scale))!important;
+ --ge-font-category:calc(16px * var(--ge-ui-scale))!important;
+ --ge-font-title:calc(22px * var(--ge-ui-scale))!important;
+ --ge-control-h:clamp(42px,calc(48px * var(--ge-ui-scale)),96px)!important;
+ --ge-header-h:clamp(38px,calc(42px * var(--ge-ui-scale)),84px)!important;
+}
+body *{font-size:var(--ge-font-body)!important}
+body button,body button *,body select,body input:not([type="range"]),body textarea,
+body .sourceBtn,body .cueBtn,body .airBtn,body output,
+.geDisplayZoomBar,.geDisplayZoomBar *{font-size:var(--ge-font-control)!important}
+body .label,body h3,body .sectionHead .label,body .lineSectionTitle,
+body .radioHealthState,body .studioLinkHead b,body .fxIsolationStatus,
+body .fxControlGrid .bigSlider label span:first-child,
+body .mixerLock,body .mixerZoomRead,body .fxZoomRead{font-size:var(--ge-font-category)!important}
+body .brand,body .nowTitle,body .sheetTitle,body .modalHead b,
+body .login h1,#mixerSheet .mixStrip h3,#mixerSheet #effectsSheet .fxTitleBlock .sheetTitle,
+#lineSheet .lineRemoteCard strong{font-size:var(--ge-font-title)!important}
+
+/* Login must be readable before entering the booth, and the text adjuster remains reachable. */
+.geDisplayZoomBar{z-index:120!important}
+.lock{z-index:110!important;padding-top:calc(var(--geDisplayTop,72px) + 14px)!important}
+.login{width:min(520px,100%)!important}
+.login .note{font-size:var(--ge-font-body)!important;line-height:1.5!important}
+.login input,.login button{font-size:var(--ge-font-control)!important;min-height:var(--ge-control-h)!important}
+
+/* Home / queue readability. */
+.statusPill,.nowMeta,.nowPlaylist,.qmeta,.saveStatus,.radioHealthStat span,.radioHealthStat b,
+.radioHealthDetails,.dockMeterRow b,.dockMeterRow span{font-size:var(--ge-font-body)!important}
+.qrow{
+ grid-template-columns:minmax(30px,auto) minmax(0,1fr)!important;
+ grid-template-areas:"num title" "num actions"!important;
+ gap:6px 8px!important;
+ min-height:0!important;
+ padding:8px!important;
+ overflow:hidden!important
+}
+.qnum{grid-area:num!important;align-self:center!important;font-size:var(--ge-font-category)!important}
+.qrow>div:nth-child(2){grid-area:title!important;min-width:0!important}
+.qtitle{
+ font-size:var(--ge-font-category)!important;
+ line-height:1.2!important;
+ white-space:normal!important;
+ overflow:visible!important;
+ text-overflow:clip!important;
+ overflow-wrap:anywhere!important
+}
+.qmeta{line-height:1.25!important;overflow-wrap:anywhere!important}
+.qbtns{
+ grid-area:actions!important;
+ display:grid!important;
+ grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:6px!important;
+ width:100%!important;
+ min-width:0!important
+}
+.qbtns button,.qbtns .replace{
+ min-width:0!important;
+ width:100%!important;
+ min-height:var(--ge-control-h)!important;
+ padding:6px 8px!important;
+ font-size:var(--ge-font-control)!important;
+ line-height:1.1!important;
+ white-space:normal!important;
+ overflow-wrap:anywhere!important
+}
+.dock button{font-size:var(--ge-font-control)!important;min-height:var(--ge-control-h)!important}
+
+/* Day mode must keep every queue title readable. */
+html.geDayMode .qrow{
+ background:#fff!important;color:#111820!important;border-color:#8396a5!important
+}
+html.geDayMode .qtitle{color:#111820!important}
+html.geDayMode .qmeta{color:#53616d!important}
+
+/* Scale text itself stays legible and all controls can grow without clipping. */
+.geDisplayZoomBar .geScaleControls{overflow:visible!important}
+.geDisplayZoomBar button,.geDisplayZoomBar output,.geChannelBubble,.geChannelBubble span{
+ font-size:var(--ge-font-control)!important
+}
+button,select,input,textarea{max-width:100%}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="50" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="75" max="240" step="10" value="125" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v77</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v78</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4813,10 +4901,10 @@ $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
 $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
 
-const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV1';
-let geDisplayZoomScope='home',geDisplayZoomPct=100;
+const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV2';
+let geDisplayZoomScope='home',geDisplayZoomPct=125;
 function geStoredZoom(){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),50,180)}catch(e){return 100}
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||125),75,240)}catch(e){return 125}
 }
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
@@ -4853,7 +4941,7 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||100),50,180);
+ geDisplayZoomPct=clamp(Math.round(Number(value)||125),75,240);
  document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
  $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
  if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
@@ -4870,8 +4958,8 @@ applyGeAutoTheme();
  geDisplayZoomPct=geStoredZoom();
  setGeDisplayScope('home');
  $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
- $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
- $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
+ $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-10,true)};
+ $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+10,true)};
  let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){applyGeDisplayZoom(geDisplayZoomPct,false)},180)});
 })();
 
