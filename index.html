@@ -3330,6 +3330,45 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 @media(max-width:430px){.geFlightTop{grid-template-columns:auto 1fr auto}.geFlightBtn{font-size:10px;padding:7px 10px}.geFlightTitle b{font-size:13px}.geFlightDistance{font-size:11px}}
 </style>
 
+
+<style id="ge-options-sticky-transparency-v1">
+#gameOptionsPanel .geGameControlCard{overflow:auto!important}
+#gameOptionsPanel .geOptionsStickyTop{
+  position:sticky!important;
+  top:0!important;
+  z-index:120!important;
+  margin:-6px -4px 12px!important;
+  padding:6px 4px 8px!important;
+  background:linear-gradient(180deg,rgba(4,13,27,.98) 0%,rgba(4,13,27,.94) 76%,rgba(4,13,27,0) 100%)!important;
+  backdrop-filter:blur(8px)!important;
+  -webkit-backdrop-filter:blur(8px)!important;
+}
+#gameOptionsPanel .geOptionsStickyTop .geOptionsUtilityBar{margin:0 0 6px!important}
+#gameOptionsPanel .geOptionsTransparencyTop{
+  display:grid!important;
+  grid-template-columns:auto minmax(80px,1fr) auto!important;
+  align-items:center!important;
+  gap:9px!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:6px 10px!important;
+  border:1px solid rgba(132,211,248,.30)!important;
+  border-radius:999px!important;
+  background:rgba(4,20,35,.90)!important;
+  box-shadow:0 0 12px rgba(56,176,230,.10)!important;
+}
+#gameOptionsPanel .geOptionsTransparencyTop>span{
+  font-size:9px!important;font-weight:1000!important;letter-spacing:.11em!important;white-space:nowrap!important
+}
+#gameOptionsPanel .geOptionsTransparencyTop input{width:100%!important;min-width:0!important}
+#gameOptionsPanel .geOptionsTransparencyTop small{font-size:9px!important;font-weight:900!important;min-width:30px!important;text-align:right!important}
+@media(max-width:430px){
+  #gameOptionsPanel .geOptionsStickyTop{margin:-5px -2px 10px!important;padding:5px 2px 7px!important}
+  #gameOptionsPanel .geOptionsTransparencyTop{padding:5px 8px!important;gap:7px!important}
+}
+</style>
+
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -3755,10 +3794,13 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 
   <div class="gameOptionsPanel" id="gameOptionsPanel" role="dialog" aria-modal="true" aria-labelledby="gameOptionsTitle">
     <div class="gameCard geGameControlCard">
-      <div class="geOptionsUtilityBar" aria-label="Game navigation">
-        <button class="gameButton geGameNavHome" id="geGameHomeTopBtn" type="button">‹ HOME</button>
-        <button class="gameButton geGameNavScores" id="gameScoresBtn" type="button">HIGH SCORES</button>
-        <button class="gameButton geGameNavClose" id="gameOptionsClose" type="button" aria-label="Close game options">×</button>
+      <div class="geOptionsStickyTop">
+        <div class="geOptionsUtilityBar" aria-label="Game navigation">
+          <button class="gameButton geGameNavHome" id="geGameHomeTopBtn" type="button">‹ HOME</button>
+          <button class="gameButton geGameNavScores" id="gameScoresBtn" type="button">HIGH SCORES</button>
+          <button class="gameButton geGameNavClose" id="gameOptionsClose" type="button" aria-label="Close game options">×</button>
+        </div>
+        <label class="optionsOpacityRow geOptionsTransparencyTop"><span>WINDOW</span><input id="optPanelTransparency" type="range" min="0" max="100" step="1" value="72"><small class="optionsOpacityValue" id="optPanelTransparencyValue">72%</small></label>
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
         <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button></div>
@@ -3818,7 +3860,6 @@ body.ge-body-race-active .geCourseMode{display:none!important}
           <button class="gameButton" id="gameExitBtn" type="button">EXIT GAME</button>
         </div>
 
-        <label class="optionsOpacityRow geWindowScaleBottom"><span>WINDOW</span><input id="optPanelTransparency" type="range" min="0" max="100" step="1" value="72"><small class="optionsOpacityValue" id="optPanelTransparencyValue">72%</small></label>
       </section>
 
       <section class="geGameDetailScreen" id="geGameDetailScreen" hidden>
@@ -5146,6 +5187,15 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
       if(!matches.length)return false;setShuffleMode(false);pIndex=matches[0].idx;startCurrent();return true;
     },
     getCurrent:()=>PLAYLIST[pIndex]||null,
+    ensurePlaying:async()=>{
+      if(!wantedPlayback||!PLAYLIST.length)return false;
+      try{
+        if(!player.src)return await startCurrent();
+        if(player.paused)await player.play();
+        return !player.paused;
+      }catch(_e){return false}
+    },
+    wantsPlayback:()=>!!wantedPlayback,
     saveSharedState:()=>saveSharedMusicState(true),
     getSharedState:()=>SHARED_STATE?.read?.()||null
   };
@@ -5205,6 +5255,29 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     const d=Number(player.duration),t=Number(player.currentTime);
     if(Number.isFinite(d)&&d>0&&Number.isFinite(t)){try{navigator.mediaSession.setPositionState({duration:d,position:Math.max(0,Math.min(d,t)),playbackRate:1});}catch(_e){}}
   });
+
+  // Game/options continuity: changing UI layers must never stop a track that the listener
+  // explicitly left playing. We only retry when wantedPlayback is true, so Pause remains Pause.
+  const keepGameMusicContinuous=()=>{
+    if(!wantedPlayback||!PLAYLIST.length)return;
+    if(player.paused){
+      if(!player.src)startCurrent();
+      else player.play().catch(()=>{});
+    }
+  };
+  document.addEventListener('click',e=>{
+    if(e.target?.closest?.('#gameOptionsPanel,#gamePrompt,#geCourseMode,#geBodyRaceHUD,#geGravityMode,#geFlightMode,#gameHUD')){
+      setTimeout(keepGameMusicContinuous,0);
+      setTimeout(keepGameMusicContinuous,180);
+    }
+  },true);
+  const gameLayerObserver=new MutationObserver(()=>{
+    if(!document.hidden)setTimeout(keepGameMusicContinuous,0);
+  });
+  gameLayerObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
+  for(const id of ['gameOptionsPanel','geCourseMode','geBodyRaceHUD','geGravityMode','geFlightMode']){
+    const el=document.getElementById(id);if(el)gameLayerObserver.observe(el,{attributes:true,attributeFilter:['class','hidden','aria-hidden']});
+  }
 
   addEventListener('resize', ()=>{ if(PLAYLIST.length){ setTitle(PLAYLIST[pIndex]); } }, {passive:true});
 
