@@ -1837,6 +1837,11 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_BROADCAST_RESPOND_MS: 6500,
   SHIP_BROADCAST_MAX_RESPONDERS: 1,
   SHIP_RAY_WIDTH: 8,
+  SHIP_MULTI_RAY_MAX: 5,
+  SHIP_MULTI_RAY_SOUL_CAP: 24,
+  SHIP_MULTI_RAY_SPAWN_BASE_MS: 1350,
+  SHIP_MULTI_RAY_SPAWN_PER_RAY_MS: 170,
+  SHIP_MULTI_RAY_ANGLE_LAG: 0.22,
   SHIP_RAY_TIP_DISTANCE: 0.82,       // rear-of-ship activation point; ray itself still originates at ship center
   SHIP_RAY_TIP_RADIUS: 11,          // compact rear thumb target so it cannot swallow center/quantum gestures
   SHIP_CONTROL_RADIUS: 220,
@@ -6229,7 +6234,7 @@ class Ship{
     }
     this.ax=rand(-30,30);this.ay=rand(-30,30);this.curveT=rand(2,5);this.curveP=rand(0,Math.PI*2);
     this.angle=0;this.dead=false;this.paused=false;this.savedVx=this.vx;this.savedVy=this.vy;
-    this.targets=[];this.beam=0;this.manualRay=null;this.controlThrottle=0;
+    this.targets=[];this.beam=0;this.manualRay=null;this.manualRays=new Map();this.multiRaySpawnAt=0;this.controlThrottle=0;
     this.maxTargets=window.GE_EASY_SETTINGS?.SHIP_MAX_SOULS??120;
     this.captureRadius=22;
     this.haloPhase=rand(0,Math.PI*2);
@@ -6246,29 +6251,66 @@ class Ship{
     };
   }
   rayLength(){return Math.hypot(W,H)*1.25;}
-  rayHitTest(c){
-    if(!this.manualRay||c.dead||c.dragging||c.state!=='fly') return false;if(c.lastHost===this&&performance.now()<(c.hostCooldownUntil||0))return false;
-    const ux=Math.cos(this.manualRay.angle),uy=Math.sin(this.manualRay.angle);
-    const dx=c.x-this.x,dy=c.y-this.y;
-    const along=dx*ux+dy*uy;
-    if(along<0||along>this.rayLength()) return false;
+  rayHitTest(c,ray=this.manualRay){
+    if(!ray||c.dead||c.dragging||c.state!=='fly')return false;
+    if(c.lastHost===this&&performance.now()<(c.hostCooldownUntil||0))return false;
+    const ux=Math.cos(ray.angle),uy=Math.sin(ray.angle),dx=c.x-this.x,dy=c.y-this.y;
+    const along=dx*ux+dy*uy;if(along<0||along>this.rayLength())return false;
     const perp=Math.abs(dx*uy-dy*ux);
-    return perp <= (window.GE_EASY_SETTINGS?.SHIP_RAY_WIDTH??8)+Math.max(2,c.r);
+    return perp<=(window.GE_EASY_SETTINGS?.SHIP_RAY_WIDTH??8)+Math.max(2,c.r);
+  }
+  captureRaySoul(c,ray){
+    if(!c||c.dead||c.state!=='fly')return;
+    ray?.hit?.add?.(c);
+    c.captureEntrySpeed=Math.max(12,Math.hypot(c.vx||0,c.vy||0));
+    c.captureEntryAngle=Math.atan2(c.vy||0,c.vx||1);
+    c.state='tethered';c.tetherAge=0;c.preferredHost=null;c.capturedBy=this;
+    if(!this.targets.includes(c))this.targets.push(c);
+    this.beam=1;
+  }
+  spawnMultiRaySoul(rayCount){
+    const cap=Math.max(8,window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_SOUL_CAP??24);
+    if(comets.filter(c=>c&&!c.dead).length>=cap)return;
+    const c=new Comet(),side=(Math.random()*4)|0,margin=24;
+    if(side===0){c.x=-margin;c.y=rand(H*.08,H*.92)}
+    else if(side===1){c.x=W+margin;c.y=rand(H*.08,H*.92)}
+    else if(side===2){c.x=rand(W*.06,W*.94);c.y=-margin}
+    else{c.x=rand(W*.06,W*.94);c.y=H+margin}
+    const dx=this.x-c.x,dy=this.y-c.y,d=Math.hypot(dx,dy)||1,sp=rand(32,68)+(rayCount-2)*5;
+    c.vx=dx/d*sp+rand(-12,12);c.vy=dy/d*sp+rand(-12,12);
+    c.depthLevel=8;c.depth='front';c.bodyInteractive=true;c.state='fly';c.dead=false;
+    comets.push(c);
   }
   scanManualRay(){
-    if(!this.manualRay) return;
-    if(!this.manualRay.held && performance.now()>this.manualRay.until){this.manualRay=null;return;}
-    for(const c of comets){
-      if(this.targets.length>=this.maxTargets) break;
-      if(this.manualRay.hit.has(c)) continue;
-      if(this.rayHitTest(c)){
-        this.manualRay.hit.add(c);
-        c.captureEntrySpeed=Math.max(12,Math.hypot(c.vx||0,c.vy||0));
-        c.captureEntryAngle=Math.atan2(c.vy||0,c.vx||1);
-        c.state='tethered';c.tetherAge=0;c.preferredHost=null;
-        c.capturedBy=this;
-        if(!this.targets.includes(c)) this.targets.push(c);
-        this.beam=1;
+    const now=performance.now(),rays=[];
+    if(this.manualRay){
+      if(!this.manualRay.held&&now>this.manualRay.until)this.manualRay=null;
+      else rays.push(this.manualRay);
+    }
+    if(this.manualRays?.size){
+      const lag=Math.max(.04,Math.min(.6,window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_ANGLE_LAG??.22));
+      for(const ray of this.manualRays.values()){
+        if(Number.isFinite(ray.targetAngle)){
+          let d=ray.targetAngle-ray.angle;
+          while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
+          ray.angle+=d*lag;
+        }
+        rays.push(ray);
+      }
+      if(this.manualRays.size>=2&&now>=(this.multiRaySpawnAt||0)){
+        this.spawnMultiRaySoul(this.manualRays.size);
+        const base=window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_SPAWN_BASE_MS??1350;
+        const per=window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_SPAWN_PER_RAY_MS??170;
+        this.multiRaySpawnAt=now+Math.max(480,base-this.manualRays.size*per);
+      }
+    }
+    if(!rays.length)return;
+    for(const ray of rays){
+      if(!(ray.hit instanceof Set))ray.hit=new Set();
+      for(const c of comets){
+        if(this.targets.length>=this.maxTargets)break;
+        if(ray.hit.has(c)||c.state!=='fly')continue;
+        if(this.rayHitTest(c,ray))this.captureRaySoul(c,ray);
       }
     }
   }
@@ -6427,16 +6469,24 @@ class Ship{
       }
     }
 
-    if(this.manualRay&&performance.now()<this.manualRay.until){
-      const len=this.rayLength(),phase=performance.now()/145;
-      const remaining=this.manualRay.held?1:Math.max(0,(this.manualRay.until-performance.now())/(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400));
-      g.save();g.rotate(this.manualRay.angle-ang);g.globalCompositeOperation='lighter';
-      g.strokeStyle='rgba(118,208,255,.96)';g.shadowColor='rgba(100,195,255,.95)';g.shadowBlur=16;
-      g.globalAlpha=.28+.48*remaining;g.lineWidth=4.5;g.beginPath();
-      for(let x=10;x<=len;x+=5){const u=x/len,yy=Math.sin(u*Math.PI*11+phase)*7*(.35+.65*Math.sin(Math.PI*u));if(x===10)g.moveTo(x,yy);else g.lineTo(x,yy);}g.stroke();
-      g.globalAlpha=.92;g.lineWidth=1.2;g.shadowBlur=7;g.beginPath();
-      for(let x=10;x<=len;x+=5){const u=x/len,yy=Math.sin(u*Math.PI*11+phase)*7*(.35+.65*Math.sin(Math.PI*u));if(x===10)g.moveTo(x,yy);else g.lineTo(x,yy);}g.stroke();g.restore();
-    }
+    const drawLoveWave=(ray,slot=0)=>{
+      if(!ray)return;
+      const len=this.rayLength(),phase=performance.now()/150+slot*.83;
+      const remaining=ray.held?1:Math.max(0,(ray.until-performance.now())/(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400));
+      g.save();g.rotate(ray.angle-ang);g.globalCompositeOperation='lighter';g.lineCap='round';
+      // Broad frequency field.
+      g.strokeStyle='rgba(72,178,255,.34)';g.shadowColor='rgba(88,198,255,.92)';g.shadowBlur=18;g.globalAlpha=.24+.34*remaining;g.lineWidth=7;
+      g.beginPath();for(let x=8;x<=len;x+=5){const u=x/len,e=.28+.72*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*8+phase)*10*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      // Second overtone.
+      g.strokeStyle='rgba(125,221,255,.76)';g.shadowBlur=10;g.globalAlpha=.50+.30*remaining;g.lineWidth=2.3;
+      g.beginPath();for(let x=8;x<=len;x+=4){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*13-phase*.72)*6.3*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      // Bright center frequency.
+      g.strokeStyle='rgba(239,253,255,.98)';g.shadowColor='rgba(177,236,255,.98)';g.shadowBlur=6;g.globalAlpha=.86+.12*remaining;g.lineWidth=1.05;
+      g.beginPath();for(let x=8;x<=len;x+=4){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*19+phase*1.18)*2.2*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      g.restore();
+    };
+    if(this.manualRay&&performance.now()<this.manualRay.until)drawLoveWave(this.manualRay,0);
+    if(this.manualRays?.size){let slot=1;for(const ray of this.manualRays.values())drawLoveWave(ray,slot++);}
     if(this.controlActive){
       const dx=this.controlX-this.x,dy=this.controlY-this.y;
       g.save();g.rotate(Math.atan2(dy,dx)-ang);g.globalAlpha=.34;g.strokeStyle='rgba(145,220,255,.8)';g.setLineDash([3,7]);g.beginPath();g.moveTo(12,0);g.lineTo(Math.hypot(dx,dy),0);g.stroke();g.restore();
@@ -6645,7 +6695,7 @@ function collideElastic(a,b,rest=0.98){
 /* Ship control v10.6:
    large center target = 1 tap stop/start, 2 taps broadcast/soul-center signal, 3 taps quantum;
    thin outer ring = continuous held ray; surrounding field = flight control. */
-let shipSteer=null,shipRayHold=null,shipCenterPress=null;
+let shipSteer=null,shipRayHold=null,shipCenterPress=null,shipMultiRaySession=null;
 function shipVisualRadius(s){return Math.max(24,(shipImg.height||100)*s.s*.32);}
 function shipHitGeometry(s,x,y){
   const visualR=shipVisualRadius(s),d=Math.hypot(x-s.x,y-s.y);
@@ -6697,9 +6747,51 @@ function queueShipCenterTap(s){
     else if(count===2)broadcastShipWave(s);
   },wait);
 }
-function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until:Infinity,held:true,hit:new Set()};s.beam=1;shipRayHold={ship:s,id};try{canvas.setPointerCapture(id)}catch(_e){}}
-function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
+function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until:Infinity,held:true,hit:new Set()};s.beam=1;shipRayHold={ship:s,id,x,y};try{canvas.setPointerCapture(id)}catch(_e){}}
+function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;shipRayHold.x=e.clientX;shipRayHold.y=e.clientY;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
 function endHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay?.held)s.manualRay=null;s.beam=Math.max(0,s.beam*.35);shipRayHold=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return true}
+function activeShipPointer(s){
+  if(shipCenterPress?.ship===s)return{id:shipCenterPress.id,x:shipCenterPress.lastX??shipCenterPress.x,y:shipCenterPress.lastY??shipCenterPress.y};
+  if(shipRayHold?.ship===s)return{id:shipRayHold.id,x:shipRayHold.x,y:shipRayHold.y};
+  if(shipSteer?.ship===s)return{id:shipSteer.id,x:shipSteer.x??s.x,y:shipSteer.y??s.y};
+  return null;
+}
+function addMultiRayPointer(session,id,x,y){
+  if(!session||session.pointers.size>=(window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_MAX??5))return false;
+  const s=session.ship,d=Math.hypot(x-s.x,y-s.y),fallback=s.angle+(session.pointers.size%2?Math.PI/2:-Math.PI/2);
+  const a=d<Math.max(12,shipVisualRadius(s)*.35)?fallback:Math.atan2(y-s.y,x-s.x);
+  session.pointers.set(id,{x,y});
+  s.manualRays.set(id,{angle:a,targetAngle:a,until:Infinity,held:true,hit:new Set()});
+  s.beam=1;return true;
+}
+function beginMultiRay(s,first,e){
+  if(!s||!first)return false;
+  shipMultiRaySession={ship:s,pointers:new Map()};
+  s.manualRay=null;s.manualRays.clear();s.multiRaySpawnAt=performance.now();
+  s.savedVx=s.vx;s.savedVy=s.vy;s.vx=0;s.vy=0;s.paused=true;s.guided=true;s.controlActive=false;s.controlThrottle=0;
+  addMultiRayPointer(shipMultiRaySession,first.id,first.x,first.y);
+  addMultiRayPointer(shipMultiRaySession,e.pointerId,e.clientX,e.clientY);
+  shipCenterPress=null;shipRayHold=null;shipSteer=null;
+  try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
+  return true;
+}
+function updateMultiRay(e){
+  const session=shipMultiRaySession;if(!session||!session.pointers.has(e.pointerId))return false;
+  const p=session.pointers.get(e.pointerId);p.x=e.clientX;p.y=e.clientY;
+  const ray=session.ship.manualRays.get(e.pointerId);
+  if(ray){ray.targetAngle=Math.atan2(e.clientY-session.ship.y,e.clientX-session.ship.x);ray.until=Infinity;ray.held=true}
+  session.ship.vx=0;session.ship.vy=0;session.ship.paused=true;return true;
+}
+function endMultiRay(e){
+  const session=shipMultiRaySession;if(!session||!session.pointers.has(e.pointerId))return false;
+  session.pointers.delete(e.pointerId);session.ship.manualRays.delete(e.pointerId);
+  try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
+  if(!session.pointers.size){
+    session.ship.manualRays.clear();session.ship.beam=Math.max(0,session.ship.beam*.45);
+    session.ship.paused=true;session.ship.vx=0;session.ship.vy=0;shipMultiRaySession=null;
+  }
+  return true;
+}
 function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;s.controlThrottle=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead)));s.controlThrottle=normalized;const speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
 canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
@@ -6724,14 +6816,22 @@ canvas.addEventListener('pointerdown',e=>{
     try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
     e.preventDefault();e.stopImmediatePropagation();return;
   }
+  if(shipMultiRaySession){
+    if(addMultiRayPointer(shipMultiRaySession,e.pointerId,e.clientX,e.clientY)){
+      try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
+  }
   const hit=nearestShipHit(e.clientX,e.clientY);
   if(hit){
+    const first=activeShipPointer(hit.ship);
+    if(first&&first.id!==e.pointerId&&beginMultiRay(hit.ship,first,e)){e.preventDefault();e.stopImmediatePropagation();return}
     if(hit.zone==='ray')startHeldRay(hit.ship,e.pointerId,e.clientX,e.clientY);
-    else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}
+    else{shipCenterPress={ship:hit.ship,id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};try{canvas.setPointerCapture(e.pointerId)}catch(_e){}}
     e.preventDefault();e.stopImmediatePropagation();return
   }
   const sh=nearestShipField(e.clientX,e.clientY);
-  if(sh){shipSteer={ship:sh,id:e.pointerId};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}
+  if(sh){shipSteer={ship:sh,id:e.pointerId,x:e.clientX,y:e.clientY};steerShip(sh,e.clientX,e.clientY,false);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopImmediatePropagation()}
 },{passive:false});
 canvas.addEventListener('pointermove',e=>{
   if(document.body.classList.contains('ge-body-race-active')){
@@ -6743,9 +6843,10 @@ canvas.addEventListener('pointermove',e=>{
     if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
     return;
   }
+  if(updateMultiRay(e)){e.preventDefault();return}
   if(updateHeldRay(e)){e.preventDefault();return}
-  if(shipCenterPress&&shipCenterPress.id===e.pointerId){const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}
-  if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
+  if(shipCenterPress&&shipCenterPress.id===e.pointerId){shipCenterPress.lastX=e.clientX;shipCenterPress.lastY=e.clientY;const d=Math.hypot(e.clientX-shipCenterPress.x,e.clientY-shipCenterPress.y);if(d>8){shipCenterPress.moved=true;steerShip(shipCenterPress.ship,e.clientX,e.clientY,true)}e.preventDefault();return}
+  if(shipSteer&&shipSteer.id===e.pointerId){shipSteer.x=e.clientX;shipSteer.y=e.clientY;steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
 },{passive:false});
 function endShipPointer(e){
   if(document.body.classList.contains('ge-body-race-active')){
@@ -6754,6 +6855,7 @@ function endShipPointer(e){
     try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
     return;
   }
+  if(endMultiRay(e))return;
   if(endHeldRay(e))return;
   if(shipCenterPress&&shipCenterPress.id===e.pointerId){const cp=shipCenterPress;shipCenterPress=null;cp.ship.controlActive=false;cp.ship.guided=true;if(!cp.moved)queueShipCenterTap(cp.ship);try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return}
   if(!shipSteer||shipSteer.id!==e.pointerId)return;shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
