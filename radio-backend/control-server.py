@@ -1546,8 +1546,10 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "line_connected": bool(channel_state.get("line_connected", False)),
         "line_air": bool(channel_state.get("line_air", False)),
         "line_source": " ".join(str(channel_state.get("line_source", "") or "").split())[:160],
+        "line_peak": clamp_number(channel_state.get("line_peak"), 0.0, 100.0, 0.0),
         "mic_connected": bool(channel_state.get("mic_connected", False)),
         "mic_air": bool(channel_state.get("mic_air", False)),
+        "mic_peak": clamp_number(channel_state.get("mic_peak"), 0.0, 100.0, 0.0),
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
