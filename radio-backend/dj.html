@@ -2266,6 +2266,44 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 .geRemoteComputerSignal #mixLineMeter{
  transition:width .16s linear!important
 }
+
+/* V74 analytics expansion */
+#analyticsModal .analyticsSearchGrid{
+ display:grid;grid-template-columns:repeat(4,minmax(145px,1fr)) auto auto;gap:7px;align-items:end
+}
+#analyticsModal .analyticsSearchGrid label{
+ display:grid;gap:4px;color:#9eabb5;font-weight:900;font-size:calc(8px * var(--analytics-scale,1))!important
+}
+#analyticsModal .analyticsSearchGrid input{
+ min-height:40px;border:1px solid #3a5365;border-radius:8px;background:#071018;color:#fff;padding:7px 9px;
+ font-size:calc(9px * var(--analytics-scale,1))!important
+}
+#analyticsModal .analyticsSearchGrid button{
+ min-height:40px;border:1px solid #4b8fc8;border-radius:8px;background:#102a43;color:#fff;font-weight:950;
+ font-size:calc(8px * var(--analytics-scale,1))!important;padding:0 10px
+}
+#analyticsModal .fanProfileGrid{
+ display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:6px;margin:8px 0
+}
+#analyticsModal .fanProfileCell{
+ border:1px solid #2d414e;border-radius:8px;background:#071018;padding:7px;overflow-wrap:anywhere
+}
+#analyticsModal .fanProfileCell span{display:block;color:#82929e;font-size:calc(7px * var(--analytics-scale,1))!important}
+#analyticsModal .fanProfileCell b{display:block;margin-top:2px;font-size:calc(9px * var(--analytics-scale,1))!important}
+#analyticsModal .fanIdentity textarea{
+ width:100%;min-height:58px;border:1px solid #3a5365;border-radius:8px;background:#071018;color:#fff;padding:7px;
+ font-size:calc(9px * var(--analytics-scale,1))!important
+}
+#analyticsModal .fanSummaryBlock{margin:8px 0}
+#analyticsModal .fanSummaryBlock h4{margin:6px 0;font-size:calc(8px * var(--analytics-scale,1))!important;color:#b9c8d2}
+#analyticsModal .fanIdentified{color:#55d8c1;font-weight:950}
+@media(max-width:760px){
+ #analyticsModal .analyticsSearchGrid{grid-template-columns:1fr 1fr}
+ #analyticsModal .fanProfileGrid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+ #analyticsModal .analyticsSearchGrid,#analyticsModal .fanProfileGrid{grid-template-columns:1fr}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2273,7 +2311,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v73</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v74</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2391,12 +2429,27 @@ body .brand>span{font-size:var(--ge-font-body)!important}
   </div>
   <div class="analyticsStatus" id="analyticsStatus"></div>
   <div class="analyticsStats" id="analyticsStats"></div>
+  <div class="analyticsSection"><h3>ACTIVITY GROUPS</h3><div class="analyticsChips" id="analyticsGroups"></div></div>
+  <div class="analyticsSection"><h3>WHERE THEY USED GE</h3><div class="analyticsChips" id="analyticsSurfaces"></div></div>
+  <div class="analyticsSection"><h3>EVENT TYPES</h3><div class="analyticsChips" id="analyticsEventTypes"></div></div>
+  <div class="analyticsSection"><h3>ACTIVITY BY DATE</h3><div class="analyticsChips" id="analyticsByDay"></div></div>
   <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
   <div class="analyticsSection"><h3>NETWORK / LANGUAGE / REFERRERS</h3><div class="analyticsChips" id="analyticsTechnology"></div></div>
   <div class="analyticsSection"><h3>INDIVIDUAL FANS · TAP A ROW FOR FULL HISTORY</h3><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="fans"><thead><tr><th data-sort="display_name">NAME / FAN ID</th><th data-sort="last_seen_at">TIME</th><th data-sort="city">LOCATION</th><th data-sort="sessions">SESSIONS</th><th data-sort="events">EVENTS</th><th data-sort="unique_tracks">SONGS</th><th data-sort="listened_seconds">LISTENED</th><th data-sort="campaign">CAMPAIGN</th></tr></thead><tbody id="analyticsFans"></tbody></table></div><div class="fanDetail" id="analyticsFanDetail"></div></div>
   <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="music"><thead><tr><th data-sort="track_title">TRACK</th><th data-sort="album">ALBUM</th><th data-sort="performances">PLAYS</th><th data-sort="unique_listeners">LISTENERS</th><th data-sort="total_listened_seconds">LISTENED</th><th data-sort="average_listened_seconds">AVG</th><th data-sort="completed">COMPLETE</th><th data-sort="ascap_work_id">ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
   <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">One server-side record is created for each Grand Element Radio song start. ASCAP Work ID and registration status are carried with matching registered songs.</div><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="station"><thead><tr><th data-sort="track_title">TRACK</th><th data-sort="album">ALBUM</th><th data-sort="performances">PERFORMANCES</th><th data-sort="last_played_at">TIME</th><th data-sort="ascap_work_id">ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
+  <div class="analyticsSection analyticsSearchSection"><h3>SEARCH / DATE / LOCATION</h3>
+    <div class="analyticsSearchGrid">
+      <label>FAN / CAMPAIGN<input id="analyticsFanSearch" type="search" placeholder="Name, fan ID, campaign"></label>
+      <label>LOCATION<input id="analyticsLocationSearch" type="search" placeholder="City, region, country"></label>
+      <label>FROM<input id="analyticsBottomStart" type="datetime-local"></label>
+      <label>TO<input id="analyticsBottomEnd" type="datetime-local"></label>
+      <button id="analyticsBottomApply" type="button">APPLY SEARCH</button>
+      <button id="analyticsBottomClear" type="button">CLEAR</button>
+    </div>
+    <div class="note">Location is the coarse city / region / country supplied with the web request. GE does not collect precise GPS here.</div>
+  </div>
 </div></div>
 <div class="modal" id="playlistModal"><div class="modalBox">
   <div class="modalHead"><div><b>PLAYLISTS</b><div class="note">Choose albums and songs, save the selection, then use any saved playlist as the radio rotation.</div></div><button id="playlistClose">CLOSE</button></div>
@@ -2836,7 +2889,7 @@ async function normalRotation(){
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:false,playlist_id:''})}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();cacheCurrentPlaylists();setPlaylistStatus('NORMAL RADIO ROTATION')
 }
-let analyticsData=null,analyticsCurrentFan='',analyticsScale=Number(localStorage.getItem('geAnalyticsScale')||1)||1;
+let analyticsData=null,analyticsCurrentFan='',analyticsScale=Number(localStorage.getItem('geAnalyticsScale')||1)||1,analyticsFanFilter='',analyticsLocationFilter='';
 const analyticsSort={fans:{key:'last_seen_at',dir:'desc'},music:{key:'total_listened_seconds',dir:'desc'},station:{key:'last_played_at',dir:'desc'}};
 function analyticsFmtSeconds(v){v=Math.max(0,Number(v)||0);const h=Math.floor(v/3600),m=Math.floor((v%3600)/60),s=Math.floor(v%60);return h?h+'h '+m+'m':m?m+'m '+s+'s':s+'s'}
 function analyticsChips(rows,empty){if(!Array.isArray(rows)||!rows.length)return '<span class="note">'+esc(empty||'No data yet.')+'</span>';return rows.slice(0,12).map(function(x){return '<span class="analyticsChip">'+esc(x.name||'Unknown')+' · '+Number(x.count||0)+'</span>'}).join('')}
@@ -2846,16 +2899,113 @@ function analyticsRangeQuery(){const value=$('analyticsRange').value||'d30',p=ne
 function setDefaultCustomRange(){if($('analyticsStart').value||$('analyticsEnd').value)return;const end=new Date(),start=new Date(end.getTime()-24*3600*1000),local=function(d){const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,16)};$('analyticsStart').value=local(start);$('analyticsEnd').value=local(end)}
 function applyAnalyticsScale(delta){analyticsScale=clamp(Math.round((analyticsScale+delta)*100)/100,.75,1.75);localStorage.setItem('geAnalyticsScale',String(analyticsScale));$('analyticsModal').querySelector('.modalBox').style.setProperty('--analytics-scale',analyticsScale);$('analyticsTextValue').textContent=Math.round(analyticsScale*100)+'%'}
 function updateAscapDue(){const input=$('analyticsAscapDue'),wrap=$('analyticsDueWrap');if(!input||!wrap)return;const saved=localStorage.getItem('geAscapReportDue')||'';if(!input.value&&saved)input.value=saved;if(!input.value){wrap.classList.remove('dueSoon');return}const due=new Date(input.value+'T23:59:59'),days=(due-Date.now())/86400000;wrap.classList.toggle('dueSoon',days<=7)}
-function renderAnalytics(d){analyticsData=d||{};const t=d&&d.totals||{},acq=d&&d.acquisition||{},geo=d&&d.geography||{},tech=d&&d.technology||{};$('analyticsStats').innerHTML=[['QR SCANS',t.qr_scans||0],['UNIQUE FANS',t.unique_visitors||0],['SESSIONS',t.sessions||0],['PAGE VIEWS',t.page_views||0],['RADIO OPENS',t.radio_opens||0],['STATION PLAYS',t.station_performances||0],['GAME FINISHES',t.game_completions||0],['EVENTS',t.events||0]].map(function(x){return '<div class="analyticsStat"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join('');$('analyticsCampaigns').innerHTML=analyticsChips(acq.campaigns,'No QR campaign scans yet.')+analyticsChips(acq.placements,'');$('analyticsLocations').innerHTML=analyticsChips(geo.cities,'No location data yet.')+analyticsChips(geo.regions,'');$('analyticsTechnology').innerHTML=analyticsChips(tech.networks,'No network data yet.')+analyticsChips(tech.languages,'')+analyticsChips(tech.referrers,'');
- const fans=analyticsSortRows(Array.isArray(d&&d.fans)?d.fans:[],'fans');$('analyticsFans').innerHTML=fans.slice(0,500).map(function(x){const loc=[x.city,x.region,x.country].filter(Boolean).join(', ')||'—',last=x.last_seen_at?new Date(Number(x.last_seen_at)*1000).toLocaleString():'',short=String(x.anon_id||'').replace(/^visitor-/,'').slice(0,12),name=String(x.display_name||'').trim();return '<tr class="fanRow" data-anon="'+esc(x.anon_id||'')+'"><td>'+esc(name||('Fan '+short))+(name?'<span class="fanSub">'+esc(short)+'</span>':'')+'</td><td>'+esc(last)+'</td><td>'+esc(loc)+'</td><td>'+Number(x.sessions||0)+'</td><td>'+Number(x.events||0)+'</td><td>'+Number(x.unique_tracks||0)+'</td><td>'+esc(analyticsFmtSeconds(x.listened_seconds))+'</td><td>'+esc(x.campaign||'—')+'</td></tr>'}).join('')||'<tr><td colspan="8" class="note">No individual fan records yet.</td></tr>';
- const music=analyticsSortRows((Array.isArray(d&&d.music)?d.music:[]).filter(function(x){return !x.station_id}),'music');$('analyticsMusic').innerHTML=music.slice(0,250).map(function(x){return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
- const station=analyticsSortRows(Array.isArray(d&&d.station_music)?d.station_music:[],'station');$('analyticsStation').innerHTML=station.slice(0,250).map(function(x){const dt=x.last_played_at?new Date(Number(x.last_played_at)*1000).toLocaleString():'';return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';updateAnalyticsSortHeads()}
-function fanEventDescription(e){const m=e&&e.metadata||{},bits=[];if(e.track_title)bits.push(e.track_title+(e.album?' · '+e.album:''));else if(e.page_path)bits.push(e.page_path);if(m.listened_seconds!=null)bits.push('listened '+analyticsFmtSeconds(m.listened_seconds));if(m.completion_pct!=null)bits.push(Math.round(Number(m.completion_pct)||0)+'% complete');if(e.utm_campaign)bits.push('campaign '+e.utm_campaign);if(m.qr_id)bits.push('QR '+m.qr_id);return bits.join(' · ')||'—'}
-async function saveFanIdentity(anon){const input=$('fanIdentityName'),statusEl=$('fanIdentityStatus');if(!input)return;if(statusEl)statusEl.textContent='SAVING…';const rr=await api('/control/vault/fan-label',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anon_id:anon,display_name:input.value.trim()})}),d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){if(statusEl)statusEl.textContent='SAVE ERROR · '+(d.error||'Could not save name');return}if(statusEl)statusEl.textContent='SAVED';await loadAnalytics();await loadFanDetail(anon)}
-async function loadFanDetail(anon){if(!anon)return;analyticsCurrentFan=anon;const box=$('analyticsFanDetail');box.classList.add('show');box.innerHTML='<div class="analyticsStatus">LOADING FAN HISTORY…</div>';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.toggle('selected',r.dataset.anon===anon)});try{const q=analyticsRangeQuery();q.set('anon_id',anon);const rr=await api('/control/vault/fan-detail?'+q.toString()),d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)throw new Error(d.error||'Fan history could not be loaded.');const events=Array.isArray(d.events)?d.events:[],latest=events[0]||{},first=events.length?events[events.length-1]:{},meta=latest.metadata||{},device=meta.device||{},loc=[latest.city,latest.region,latest.country].filter(Boolean).join(', ')||'Unknown',network=latest.cf_as_org||(latest.cf_asn?'ASN '+latest.cf_asn:'Unknown'),campaign=latest.utm_campaign||meta.qr_campaign||'None',ua=latest.user_agent||'',deviceText=[device.platform||'',device.screen_width&&device.screen_height?(device.screen_width+'×'+device.screen_height):'',device.touch_points!=null?('touch '+device.touch_points):'',device.browser_timezone||latest.timezone||''].filter(Boolean).join(' · '),nickname=String(d.profile&&d.profile.display_name||'');box.innerHTML='<div class="fanDetailHead"><div><b>'+esc(nickname||anon)+'</b><div class="fanDetailMeta">Fan ID: '+esc(anon)+'<br>First seen: '+esc(first.occurred_at?new Date(Number(first.occurred_at)*1000).toLocaleString():'')+'<br>Last seen: '+esc(latest.occurred_at?new Date(Number(latest.occurred_at)*1000).toLocaleString():'')+'<br>Location: '+esc(loc)+'<br>Network: '+esc(network)+'<br>Language: '+esc(latest.language||'Unknown')+'<br>Campaign: '+esc(campaign)+(deviceText?'<br>Device: '+esc(deviceText):'')+(ua?'<br>Browser: '+esc(ua):'')+'</div></div><button class="miniAction" id="fanDetailClose">CLOSE</button></div><div class="fanIdentity"><input id="fanIdentityName" maxlength="200" placeholder="Identify / nickname this fan" value="'+esc(nickname)+'"><button id="fanIdentitySave">SAVE NAME</button></div><div class="analyticsStatus" id="fanIdentityStatus"></div><div class="analyticsTableWrap fanTimeline"><table class="analyticsTable"><thead><tr><th>TIME</th><th>EVENT</th><th>DETAIL</th><th>LOCATION</th></tr></thead><tbody>'+events.map(function(e){const dt=e.occurred_at?new Date(Number(e.occurred_at)*1000).toLocaleString():'',l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+'</tbody></table></div>';$('fanDetailClose').onclick=function(){box.classList.remove('show');analyticsCurrentFan='';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};$('fanIdentitySave').onclick=function(){saveFanIdentity(anon).catch(function(e){$('fanIdentityStatus').textContent='SAVE ERROR · '+(e.message||e)})};$('fanIdentityName').addEventListener('keydown',function(e){if(e.key==='Enter')$('fanIdentitySave').click()})}catch(e){box.innerHTML='<div class="analyticsStatus">FAN DETAIL ERROR · '+esc(e.message||e)+'</div>'}}
+function analyticsFilterFans(rows){
+ const fanQ=String(analyticsFanFilter||'').trim().toLowerCase(),locQ=String(analyticsLocationFilter||'').trim().toLowerCase();
+ return (rows||[]).filter(function(x){
+   const fanText=[x.display_name,x.anon_id,x.fan_id,x.campaign,x.qr_id,x.placement].filter(Boolean).join(' ').toLowerCase();
+   const locText=[x.city,x.region,x.country,x.timezone].filter(Boolean).join(' ').toLowerCase();
+   return (!fanQ||fanText.includes(fanQ))&&(!locQ||locText.includes(locQ))
+ })
+}
+function renderAnalytics(d){
+ analyticsData=d||{};
+ const t=d&&d.totals||{},acq=d&&d.acquisition||{},geo=d&&d.geography||{},tech=d&&d.technology||{};
+ $('analyticsStats').innerHTML=[
+  ['UNIQUE FANS',t.unique_visitors||0],['IDENTIFIED',t.identified_fans||0],['ANONYMOUS',t.anonymous_fans||0],
+  ['SESSIONS',t.sessions||0],['EVENTS',t.events||0],['ACTIONS',t.interaction_actions||0],
+  ['PAGE VIEWS',t.page_views||0],['RADIO OPENS',t.radio_opens||0],['STATION PLAYS',t.station_performances||0],
+  ['SONG LISTENING',analyticsFmtSeconds(t.total_listened_seconds||0)],['QR SCANS',t.qr_scans||0],['GAME FINISHES',t.game_completions||0],
+  ['COUNTRIES',t.countries||0],['CITIES',t.cities||0]
+ ].map(function(x){return '<div class="analyticsStat"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join('');
+ $('analyticsGroups').innerHTML=analyticsChips(d.activity_groups,'No grouped activity yet.');
+ $('analyticsSurfaces').innerHTML=analyticsChips(d.surfaces,'No surface data yet.');
+ $('analyticsEventTypes').innerHTML=analyticsChips(d.event_counts,'No event data yet.');
+ $('analyticsByDay').innerHTML=analyticsChips((d.activity_by_day||[]).slice().reverse(),'No dated activity yet.');
+ $('analyticsCampaigns').innerHTML=analyticsChips(acq.campaigns,'No QR campaign scans yet.')+analyticsChips(acq.placements,'');
+ $('analyticsLocations').innerHTML=analyticsChips(geo.cities,'No location data yet.')+analyticsChips(geo.regions,'')+analyticsChips(geo.countries,'');
+ $('analyticsTechnology').innerHTML=analyticsChips(tech.networks,'No network data yet.')+analyticsChips(tech.languages,'')+analyticsChips(tech.referrers,'');
+
+ const fans=analyticsSortRows(analyticsFilterFans(Array.isArray(d&&d.fans)?d.fans:[]),'fans');
+ $('analyticsFans').innerHTML=fans.slice(0,500).map(function(x){
+  const loc=[x.city,x.region,x.country].filter(Boolean).join(', ')||'—',last=x.last_seen_at?new Date(Number(x.last_seen_at)*1000).toLocaleString():'',short=String(x.anon_id||'').replace(/^visitor-/,'').slice(0,12),name=String(x.display_name||'').trim();
+  return '<tr class="fanRow" data-anon="'+esc(x.anon_id||'')+'"><td>'+esc(name||('Fan '+short))+(x.identified?'<span class="fanSub fanIdentified">IDENTIFIED</span>':(name?'<span class="fanSub">'+esc(short)+'</span>':''))+'</td><td>'+esc(last)+'</td><td>'+esc(loc)+'</td><td>'+Number(x.sessions||0)+'</td><td>'+Number(x.events||0)+'</td><td>'+Number(x.unique_tracks||0)+'</td><td>'+esc(analyticsFmtSeconds(x.listened_seconds))+'</td><td>'+esc(x.campaign||'—')+'</td></tr>'
+ }).join('')||'<tr><td colspan="8" class="note">No fans match this search.</td></tr>';
+
+ const music=analyticsSortRows((Array.isArray(d&&d.music)?d.music:[]).filter(function(x){return !x.station_id}),'music');
+ $('analyticsMusic').innerHTML=music.slice(0,250).map(function(x){return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
+
+ const station=analyticsSortRows(Array.isArray(d&&d.station_music)?d.station_music:[],'station');
+ $('analyticsStation').innerHTML=station.slice(0,250).map(function(x){const dt=x.last_played_at?new Date(Number(x.last_played_at)*1000).toLocaleString():'';return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';
+ updateAnalyticsSortHeads()
+}
+function fanEventDescription(e){
+ const m=e&&e.metadata||{},bits=[];
+ if(e.track_title)bits.push(e.track_title+(e.album?' · '+e.album:''));
+ else if(e.page_path)bits.push(e.page_path);
+ if(e.event_type==='button_click'||e.event_type==='control_change'){
+   const ctl=m.label||m.id||m.control||'';if(ctl)bits.push('control '+ctl)
+ }
+ if(e.event_type==='internal_link'||e.event_type==='external_link'){
+   const link=m.label||m.path||m.host||'';if(link)bits.push('link '+link)
+ }
+ if(e.event_type==='form_submit'){bits.push('form '+(m.label||m.id||m.action_path||'submitted'))}
+ if(m.listened_seconds!=null)bits.push('listened '+analyticsFmtSeconds(m.listened_seconds));
+ if(m.completion_pct!=null)bits.push(Math.round(Number(m.completion_pct)||0)+'% complete');
+ if(e.utm_campaign)bits.push('campaign '+e.utm_campaign);
+ if(m.qr_id)bits.push('QR '+m.qr_id);
+ return bits.join(' · ')||'—'
+}
+async function saveFanIdentity(anon){
+ const input=$('fanIdentityName'),notes=$('fanIdentityNotes'),statusEl=$('fanIdentityStatus');if(!input)return;
+ if(statusEl)statusEl.textContent='SAVING…';
+ const rr=await api('/control/vault/fan-label',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anon_id:anon,display_name:input.value.trim(),notes:notes?notes.value.trim():''})}),d=await rr.json().catch(function(){return {}});
+ if(!rr.ok||!d.ok){if(statusEl)statusEl.textContent='SAVE ERROR · '+(d.error||'Could not save profile');return}
+ if(statusEl)statusEl.textContent='SAVED';await loadAnalytics();await loadFanDetail(anon)
+}
+async function loadFanDetail(anon){
+ if(!anon)return;analyticsCurrentFan=anon;
+ const box=$('analyticsFanDetail');box.classList.add('show');box.innerHTML='<div class="analyticsStatus">LOADING FAN HISTORY…</div>';
+ Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.toggle('selected',r.dataset.anon===anon)});
+ try{
+  const q=analyticsRangeQuery();q.set('anon_id',anon);
+  const rr=await api('/control/vault/fan-detail?'+q.toString()),d=await rr.json().catch(function(){return {}});
+  if(!rr.ok||!d.ok)throw new Error(d.error||'Fan history could not be loaded.');
+  const events=Array.isArray(d.events)?d.events:[],latest=events[0]||{},first=events.length?events[events.length-1]:{},meta=latest.metadata||{},device=meta.device||{},profile=d.profile||{},summary=d.summary||{};
+  const loc=[latest.city,latest.region,latest.country].filter(Boolean).join(', ')||'Unknown',network=latest.cf_as_org||(latest.cf_asn?'ASN '+latest.cf_asn:'Unknown'),campaign=latest.utm_campaign||meta.qr_campaign||'None',ua=latest.user_agent||'';
+  const deviceText=[device.platform||'',device.screen_width&&device.screen_height?(device.screen_width+'×'+device.screen_height):'',device.touch_points!=null?('touch '+device.touch_points):'',device.browser_timezone||latest.timezone||''].filter(Boolean).join(' · ');
+  const nickname=String(profile.display_name||''),contact=[profile.email,profile.phone].filter(Boolean).join(' · ')||'Not voluntarily linked';
+  const consent=(profile.consent_analytics?'Analytics yes':'Analytics not linked')+' · '+(profile.consent_contact?'Contact yes':'Contact not linked');
+  const summaryHtml='<div class="fanSummaryBlock"><h4>ACTIVITY TOTALS</h4><div class="analyticsStats">'+[
+   ['EVENTS',summary.events||events.length],['SESSIONS',summary.sessions||0],['SONGS',summary.unique_tracks||0]
+  ].map(function(x){return '<div class="analyticsStat"><b>'+esc(x[1])+'</b><span>'+esc(x[0])+'</span></div>'}).join('')+'</div>'+
+  '<h4>ACTIVITY GROUPS</h4><div class="analyticsChips">'+analyticsChips(summary.activity_groups,'No grouped activity.')+'</div>'+
+  '<h4>GE SURFACES</h4><div class="analyticsChips">'+analyticsChips(summary.surfaces,'No surface data.')+'</div>'+
+  '<h4>LOCATION HISTORY</h4><div class="analyticsChips">'+analyticsChips(summary.locations,'No coarse location history.')+'</div></div>';
+
+  box.innerHTML='<div class="fanDetailHead"><div><b>'+esc(nickname||anon)+'</b><div class="fanDetailMeta">Fan ID: '+esc(anon)+'<br>First seen: '+esc(first.occurred_at?new Date(Number(first.occurred_at)*1000).toLocaleString():'')+'<br>Last seen: '+esc(latest.occurred_at?new Date(Number(latest.occurred_at)*1000).toLocaleString():'')+'</div></div><button class="miniAction" id="fanDetailClose">CLOSE</button></div>'+
+  '<div class="fanProfileGrid">'+
+   '<div class="fanProfileCell"><span>LOCATION</span><b>'+esc(loc)+'</b></div>'+
+   '<div class="fanProfileCell"><span>NETWORK</span><b>'+esc(network)+'</b></div>'+
+   '<div class="fanProfileCell"><span>LANGUAGE</span><b>'+esc(latest.language||'Unknown')+'</b></div>'+
+   '<div class="fanProfileCell"><span>CAMPAIGN</span><b>'+esc(campaign)+'</b></div>'+
+   '<div class="fanProfileCell"><span>CONTACT PROFILE</span><b>'+esc(contact)+'</b></div>'+
+   '<div class="fanProfileCell"><span>CONSENT</span><b>'+esc(consent)+'</b></div>'+
+   (deviceText?'<div class="fanProfileCell"><span>DEVICE</span><b>'+esc(deviceText)+'</b></div>':'')+
+   (ua?'<div class="fanProfileCell"><span>BROWSER</span><b>'+esc(ua)+'</b></div>':'')+
+  '</div>'+summaryHtml+
+  '<div class="fanIdentity"><input id="fanIdentityName" maxlength="200" placeholder="Identify / nickname this fan" value="'+esc(nickname)+'"><textarea id="fanIdentityNotes" maxlength="2000" placeholder="Private notes">'+esc(profile.notes||'')+'</textarea><button id="fanIdentitySave">SAVE PROFILE</button></div>'+
+  '<div class="analyticsStatus" id="fanIdentityStatus"></div>'+
+  '<div class="analyticsTableWrap fanTimeline"><table class="analyticsTable"><thead><tr><th>TIME</th><th>EVENT</th><th>DETAIL</th><th>LOCATION</th></tr></thead><tbody>'+
+  events.map(function(e){const dt=e.occurred_at?new Date(Number(e.occurred_at)*1000).toLocaleString():'',l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+
+  '</tbody></table></div>';
+  $('fanDetailClose').onclick=function(){box.classList.remove('show');analyticsCurrentFan='';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};
+  $('fanIdentitySave').onclick=function(){saveFanIdentity(anon).catch(function(e){$('fanIdentityStatus').textContent='SAVE ERROR · '+(e.message||e)})};
+  $('fanIdentityName').addEventListener('keydown',function(e){if(e.key==='Enter')$('fanIdentitySave').click()})
+ }catch(e){box.innerHTML='<div class="analyticsStatus">FAN DETAIL ERROR · '+esc(e.message||e)+'</div>'}
+}
 function csvCell(v){const s=String(v==null?'':v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportAscapCsv(){const rows=analyticsData&&analyticsData.station_performance_events||[];if(!rows.length){alert('No station performances in this time range.');return}const headers=['PERFORMED_AT_UTC','DATE_UTC','TIME_UTC','TITLE','ASCAP_TITLE','ASCAP_WORK_ID','ASCAP_STATUS','ALBUM','ARTIST','WRITER','PUBLISHER','ISWC','TRACK_ID','SOURCE'],lines=[headers.join(',')];rows.forEach(function(x){const d=new Date(Number(x.occurred_at||0)*1000),iso=d.toISOString();lines.push([iso,iso.slice(0,10),iso.slice(11,19),x.track_title||'',x.ascap_title||'',x.ascap_work_id||'',x.ascap_status||'',x.album||'',x.artist||'Grand Element',x.writer||'',x.publisher||'',x.iswc||'',x.track_id||'',x.source||''].map(csvCell).join(','))});const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='GE-ASCAP-Music-Use-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)}
-async function loadAnalytics(){const q=analyticsRangeQuery();$('analyticsStatus').textContent='LOADING VAULT…';try{const r=await api('/control/vault/analytics?'+q.toString()),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');renderAnalytics(d);const a=d.since?new Date(Number(d.since)*1000).toLocaleString():'',b=d.until?new Date(Number(d.until)*1000).toLocaleString():'';$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals&&d.totals.events||0)+' EVENTS · '+a+' → '+b}catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}}
+async function loadAnalytics(){if($('analyticsStart')&&$('analyticsBottomStart'))$('analyticsBottomStart').value=$('analyticsStart').value||'';if($('analyticsEnd')&&$('analyticsBottomEnd'))$('analyticsBottomEnd').value=$('analyticsEnd').value||'';const q=analyticsRangeQuery();$('analyticsStatus').textContent='LOADING VAULT…';try{const r=await api('/control/vault/analytics?'+q.toString()),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');renderAnalytics(d);const a=d.since?new Date(Number(d.since)*1000).toLocaleString():'',b=d.until?new Date(Number(d.until)*1000).toLocaleString():'';$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals&&d.totals.events||0)+' EVENTS · '+a+' → '+b}catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt).then(function(r){if(!r.ok&&typeof geUxCount==='function')geUxCount('errors','API '+String(path).split('?')[0]+' · '+r.status);return r})}
 
 function geUxCount(bucket,name,amount){
@@ -4377,6 +4527,21 @@ $('analyticsClose').onclick=function(){$('analyticsModal').classList.remove('sho
 $('analyticsRefresh').onclick=function(){loadAnalytics()};
 $('analyticsRange').onchange=function(){const custom=this.value==='custom';$('analyticsCustom').classList.toggle('show',custom);if(custom)setDefaultCustomRange();else loadAnalytics()};
 $('analyticsCustomApply').onclick=function(){loadAnalytics()};
+$('analyticsFanSearch').oninput=function(){analyticsFanFilter=this.value||'';if(analyticsData)renderAnalytics(analyticsData)};
+$('analyticsLocationSearch').oninput=function(){analyticsLocationFilter=this.value||'';if(analyticsData)renderAnalytics(analyticsData)};
+$('analyticsBottomApply').onclick=function(){
+ $('analyticsRange').value='custom';$('analyticsCustom').classList.add('show');
+ if($('analyticsBottomStart').value)$('analyticsStart').value=$('analyticsBottomStart').value;
+ if($('analyticsBottomEnd').value)$('analyticsEnd').value=$('analyticsBottomEnd').value;
+ analyticsFanFilter=$('analyticsFanSearch').value||'';analyticsLocationFilter=$('analyticsLocationSearch').value||'';
+ loadAnalytics()
+};
+$('analyticsBottomClear').onclick=function(){
+ analyticsFanFilter='';analyticsLocationFilter='';
+ $('analyticsFanSearch').value='';$('analyticsLocationSearch').value='';
+ $('analyticsBottomStart').value='';$('analyticsBottomEnd').value='';
+ $('analyticsRange').value='d30';$('analyticsCustom').classList.remove('show');loadAnalytics()
+};
 $('analyticsTextDown').onclick=function(){applyAnalyticsScale(-.1)};
 $('analyticsTextUp').onclick=function(){applyAnalyticsScale(.1)};
 $('analyticsAscapExport').onclick=exportAscapCsv;
