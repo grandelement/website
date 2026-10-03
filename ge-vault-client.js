@@ -12,6 +12,7 @@
   const SESSION_KEY='GE_VAULT_SESSION_V1';
   const ACQ_KEY='GE_VAULT_ACQUISITION_V1';
   const SCORE_KEY='GE_GAME_SCORES_V3';
+  const OWNER_UX_KEY='GE_OWNER_UX_MODE_V1';
   const SCORE_MIGRATION_KEY='GE_VAULT_SCORES_MIGRATED_V1';
   const RIGHTS_URL='/ge-music/ascap-work-ids.json';
   const MEDIA_PROGRESS_MS=30000;
@@ -232,6 +233,111 @@
       ...data,
       session_duration_seconds:Math.max(0,Math.round((Date.now()-sessionStartedAt)/1000))
     }),{beacon:true});
+  }
+
+  function ownerUxModeEnabled(){
+    try{
+      const p=new URL(location.href).searchParams.get('ge_ux');
+      if(p==='1')localStorage.setItem(OWNER_UX_KEY,'1');
+      if(p==='0')localStorage.removeItem(OWNER_UX_KEY);
+      return global.GE_SITE_MODE==='test'||global.GE_SITE_MODE==='live-draft'||localStorage.getItem(OWNER_UX_KEY)==='1';
+    }catch(_e){
+      return global.GE_SITE_MODE==='test'||global.GE_SITE_MODE==='live-draft';
+    }
+  }
+  const OWNER_UX_ENABLED=ownerUxModeEnabled();
+  let ownerUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
+  let ownerUxViews=[],ownerUxLastClick={key:'',at:0,count:0,burst:false};
+
+  function ownerUxBump(bucket,name,amount=1){
+    if(!OWNER_UX_ENABLED||!ownerUxPending[bucket])return;
+    name=String(name||'').replace(/\s+/g,' ').trim().slice(0,120);
+    if(!name)return;
+    ownerUxPending[bucket][name]=(ownerUxPending[bucket][name]||0)+(Number(amount)||1);
+  }
+  function ownerUxView(){
+    const body=document.body;
+    if(body&&body.classList.contains('marbles-game-active'))return 'GAME · MARBLES';
+    if(body&&body.classList.contains('blue-sun-pool-active'))return 'GAME · BLUE SUN';
+    if(body&&body.classList.contains('game-mode-active'))return 'GAME';
+    const shown=document.querySelector('.modal.show,.show[role="dialog"],dialog[open]');
+    if(shown&&shown.id)return 'OVERLAY · '+String(shown.id).slice(0,70);
+    return 'WEBSITE';
+  }
+  function ownerUxControl(el){
+    if(!el)return '';
+    if(el.id)return String(el.id).slice(0,100);
+    const ev=el.getAttribute&&el.getAttribute('data-ge-event');
+    if(ev)return 'event:'+String(ev).slice(0,80);
+    const ds=el.dataset||{};
+    for(const k of ['act','action','game','mode','view','screen']){
+      if(ds[k])return k+':'+String(ds[k]).slice(0,70);
+    }
+    const aria=el.getAttribute&&el.getAttribute('aria-label');
+    if(aria)return 'aria:'+String(aria).replace(/\s+/g,' ').trim().slice(0,70);
+    const cls=String(el.className||'').split(/\s+/).find(x=>/^ge|game|radio|planet|album/i.test(x));
+    return cls?('class:'+cls.slice(0,70)):String(el.tagName||'CONTROL')
+  }
+  function ownerUxObserveView(){
+    if(!OWNER_UX_ENABLED)return;
+    const view=ownerUxView(),last=ownerUxViews[ownerUxViews.length-1];
+    if(last===view)return;
+    if(last)ownerUxBump('transitions',last+' → '+view);
+    ownerUxViews.push(view);if(ownerUxViews.length>8)ownerUxViews.shift();
+    const n=ownerUxViews.length;
+    if(n>=3){
+      const a=ownerUxViews[n-3],b=ownerUxViews[n-2],cc=ownerUxViews[n-1];
+      if(a===cc&&a!==b)ownerUxBump('backtracks',a+' ↔ '+b)
+    }
+  }
+  function ownerUxClick(el){
+    if(!OWNER_UX_ENABLED)return;
+    const key=ownerUxView()+' · '+ownerUxControl(el);
+    ownerUxBump('clicks',key);
+    const t=Date.now();
+    if(ownerUxLastClick.key===key&&t-ownerUxLastClick.at<20000){
+      ownerUxLastClick.count++;
+      if(ownerUxLastClick.count>=3&&!ownerUxLastClick.burst){ownerUxBump('repeats',key);ownerUxLastClick.burst=true}
+    }else ownerUxLastClick={key,at:t,count:1,burst:false};
+    ownerUxLastClick.at=t;
+    setTimeout(ownerUxObserveView,80)
+  }
+  function ownerUxHasPending(){
+    return OWNER_UX_ENABLED&&Object.keys(ownerUxPending).some(k=>Object.keys(ownerUxPending[k]||{}).length);
+  }
+  function ownerUxTakePending(){
+    const out=ownerUxPending;
+    ownerUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
+    return out
+  }
+  function ownerUxFlush(){
+    if(!ownerUxHasPending())return Promise.resolve(false);
+    const detail=ownerUxTakePending();
+    return track('website','owner_ux_batch',{
+      metadata:{
+        owner_ux:true,
+        site_mode:String(global.GE_SITE_MODE||'live'),
+        clicks:detail.clicks,
+        changes:detail.changes,
+        transitions:detail.transitions,
+        backtracks:detail.backtracks,
+        repeats:detail.repeats,
+        errors:detail.errors
+      }
+    }).catch(()=>{
+      Object.keys(detail).forEach(bucket=>{
+        Object.keys(detail[bucket]||{}).forEach(name=>{
+          ownerUxPending[bucket][name]=(ownerUxPending[bucket][name]||0)+Number(detail[bucket][name]||0)
+        })
+      });
+      return false
+    })
+  }
+  if(OWNER_UX_ENABLED){
+    ownerUxViews=[ownerUxView()];
+    setInterval(ownerUxFlush,30000);
+    global.addEventListener('error',()=>ownerUxBump('errors','JAVASCRIPT ERROR'));
+    global.addEventListener('unhandledrejection',()=>ownerUxBump('errors','UNHANDLED PROMISE'));
   }
 
   function cleanTrack(src){
@@ -467,6 +573,8 @@
     anonId,
     sessionId,
     acquisition,
+    ownerUxEnabled:OWNER_UX_ENABLED,
+    ownerUxFlush,
     track,
     trackExit,
     setTrackMetadata,
@@ -496,6 +604,7 @@
   }
 
   global.addEventListener('pagehide',()=>{
+    if(OWNER_UX_ENABLED)ownerUxFlush();
     trackedMedia.forEach(el=>{
       const state=mediaStates.get(el);
       if(state&&state.active)finalizeMedia(el,'track_stop',{reason:'pagehide'},true);
@@ -511,6 +620,7 @@
     const explicit=el.getAttribute('data-ge-event');
     const id=(el.id||'').slice(0,100);
     const label=(el.getAttribute('aria-label')||el.textContent||'').trim().replace(/\s+/g,' ').slice(0,120);
+    if(OWNER_UX_ENABLED)ownerUxClick(el);
     if(explicit)track(surface,explicit,{id,label});
     if(el.matches('button,[role="button"]'))track(surface,'button_click',{id,label,control_type:el.tagName.toLowerCase()});
     if(id.toLowerCase().includes('share')||/\bshare\b/i.test(label))track(surface,'share_track',{control:id||label});
@@ -520,6 +630,14 @@
         if(u.origin!==location.origin)track(surface,'external_link',{host:u.host,path:u.pathname,label});
       }catch(_e){}
     }
+  },true);
+
+  document.addEventListener('change',e=>{
+    if(!OWNER_UX_ENABLED)return;
+    const el=e.target;
+    if(!el||!el.matches)return;
+    if(el.matches('input[type="text"],input[type="password"],input[type="email"],textarea'))return;
+    if(el.matches('input,select'))ownerUxBump('changes',ownerUxView()+' · '+ownerUxControl(el))
   },true);
 
   loadRightsCatalog().then(()=>{
