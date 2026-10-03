@@ -1281,6 +1281,22 @@ function analyticsCanonicalAlbum(album, trackId) {
   return current;
 }
 
+function analyticsCentralDay(epochSeconds) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(Number(epochSeconds || 0) * 1000));
+    const out = {};
+    for (const part of parts) if (part.type !== "literal") out[part.type] = part.value;
+    return [out.year, out.month, out.day].filter(Boolean).join("-");
+  } catch {
+    return new Date(Number(epochSeconds || 0) * 1000).toISOString().slice(0, 10);
+  }
+}
+
 function analyticsEventCategory(eventType) {
   const t = String(eventType || "").toLowerCase();
   if (!t) return "OTHER";
@@ -1336,7 +1352,7 @@ async function adminAnalytics(env, url) {
     bumpCount(categories, analyticsEventCategory(row.event_type));
     bumpCount(surfaces, row.surface || "website");
     if (row.occurred_at) {
-      const day = new Date(Number(row.occurred_at) * 1000).toISOString().slice(0, 10);
+      const day = analyticsCentralDay(row.occurred_at);
       bumpCount(activityDays, day);
     }
     bumpCount(campaigns, row.utm_campaign);
@@ -1645,6 +1661,8 @@ async function adminAnalytics(env, url) {
     range_mode: range.mode,
     range_seconds: range.range_seconds,
     generated_at: now(),
+    display_time_zone: "America/Chicago",
+    display_time_zone_label: "Kansas City Central Time",
     totals: {
       events: items.length,
       unique_visitors: visitors.size,
