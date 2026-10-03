@@ -1008,14 +1008,14 @@ class BroadcastEngine:
     SAMPLE_BYTES = 2
     FRAME_MS = 10
     FRAME_BYTES = SAMPLE_RATE * CHANNELS * SAMPLE_BYTES * FRAME_MS // 1000
+    FRAME_SAMPLES = FRAME_BYTES // SAMPLE_BYTES
     STALE_SECONDS = 6.5
     FIFO_PATH = RUNTIME / "mic.pcm"
     ACTIVE_PATH = RUNTIME / "live.active"
 
     def __init__(self):
         self.lock = threading.RLock()
-        self.pcm = queue.Queue(maxsize=40)
-        self.pending = bytearray()
+        self.sources = {}
         self.fifo_fd = None
         self.active = False
         self.mode = "off"
@@ -1037,9 +1037,8 @@ class BroadcastEngine:
         self.fifo_audio_frames = 0
         self.fifo_silence_frames = 0
         self.fifo_last_audio = 0.0
-        self.playout_started = False
         self.stop_event = threading.Event()
-        self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-mic-feeder")
+        self.feeder = threading.Thread(target=self._feeder_loop, daemon=True, name="ge-direct-live-mixer")
         self.feeder.start()
 
     def _ensure_fifo_locked(self):
@@ -1054,61 +1053,130 @@ class BroadcastEngine:
             self.fifo_fd = os.open(str(self.FIFO_PATH), os.O_RDWR | os.O_NONBLOCK)
             return True
         except Exception as exc:
-            print(f"GE Radio: microphone FIFO open failed: {exc}", flush=True)
+            print(f"GE Radio: live mixer FIFO open failed: {exc}", flush=True)
             self.fifo_fd = None
             return False
 
-    def _drop_oldest(self):
-        try:
-            self.pcm.get_nowait()
-        except queue.Empty:
-            pass
+    def _new_source(self, owner, mode, transport):
+        return {
+            "owner": owner,
+            "mode": mode,
+            "transport": str(transport or "websocket"),
+            "pcm": queue.Queue(maxsize=40),
+            "pending": bytearray(),
+            "last_chunk": time.monotonic(),
+            "frames_received": 0,
+            "bytes_received": 0,
+            "peak_pct": 0.0,
+            "peak_left_pct": 0.0,
+            "peak_right_pct": 0.0,
+            "playout_started": False,
+        }
 
-    def _queue_frame(self, frame):
-        if len(frame) != self.FRAME_BYTES:
-            return
-        while self.pcm.qsize() > 18:
-            self._drop_oldest()
-        try:
-            self.pcm.put_nowait(frame)
-        except queue.Full:
-            self._drop_oldest()
-            try:
-                self.pcm.put_nowait(frame)
-            except queue.Full:
-                pass
-
-    def _queue_pcm_bytes(self, data):
-        self.pending.extend(data)
-        while len(self.pending) >= self.FRAME_BYTES:
-            frame = bytes(self.pending[:self.FRAME_BYTES])
-            del self.pending[:self.FRAME_BYTES]
-            self._queue_frame(frame)
-
-    def _clear_audio_locked(self):
-        self.pending.clear()
-        self.playout_started = False
+    def _clear_source_audio(self, source):
+        source["pending"].clear()
+        source["playout_started"] = False
+        q = source["pcm"]
         while True:
             try:
-                self.pcm.get_nowait()
+                q.get_nowait()
             except queue.Empty:
                 break
 
-    def _expire_if_stale_locked(self):
-        if self.active and self.last_chunk and (time.monotonic() - self.last_chunk) > self.STALE_SECONDS:
-            print("GE Radio: direct live input timed out; returning public master to automation.", flush=True)
-            self.active = False
+    def _queue_frame(self, source, frame):
+        if len(frame) != self.FRAME_BYTES:
+            return
+        q = source["pcm"]
+        while q.qsize() > 18:
+            try:
+                q.get_nowait()
+            except queue.Empty:
+                break
+        try:
+            q.put_nowait(frame)
+        except queue.Full:
+            try:
+                q.get_nowait()
+                q.put_nowait(frame)
+            except queue.Empty:
+                pass
+            except queue.Full:
+                pass
+
+    def _queue_pcm_bytes(self, source, data):
+        pending = source["pending"]
+        pending.extend(data)
+        while len(pending) >= self.FRAME_BYTES:
+            frame = bytes(pending[:self.FRAME_BYTES])
+            del pending[:self.FRAME_BYTES]
+            self._queue_frame(source, frame)
+
+    def _refresh_state_locked(self):
+        owners = sorted(self.sources.keys())
+        self.active = bool(owners)
+        if not owners:
             self.mode = "off"
+            self.transport = "websocket"
             self.owner = "none"
+            self.last_chunk = 0.0
             try:
                 self.ACTIVE_PATH.unlink(missing_ok=True)
             except Exception:
                 pass
-            self._clear_audio_locked()
+            return
+        newest = max((float(self.sources[o].get("last_chunk", 0.0) or 0.0) for o in owners), default=0.0)
+        self.last_chunk = newest
+        if len(owners) == 1:
+            s = self.sources[owners[0]]
+            self.owner = owners[0]
+            self.mode = str(s.get("mode", "voice"))
+            self.transport = str(s.get("transport", "websocket"))
+        else:
+            self.owner = "multi"
+            self.mode = "mixed"
+            self.transport = "websocket"
+        try:
+            self.ACTIVE_PATH.write_text("\n".join(owners) + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
+    def _expire_if_stale_locked(self):
+        now = time.monotonic()
+        stale = [
+            owner for owner, source in self.sources.items()
+            if source.get("last_chunk") and (now - float(source["last_chunk"])) > self.STALE_SECONDS
+        ]
+        if not stale:
+            return
+        was_active = self.active
+        for owner in stale:
+            print(f"GE Radio: live input {owner} timed out.", flush=True)
+            source = self.sources.pop(owner, None)
+            if source:
+                self._clear_source_audio(source)
+        self._refresh_state_locked()
+        if was_active and not self.active:
             try:
                 apply_mixer_state(mixer_state())
             except Exception as exc:
                 print(f"GE Radio: could not restore music after live timeout: {exc}", flush=True)
+
+    def _mix_frames(self, frames):
+        if not frames:
+            return b"\x00" * self.FRAME_BYTES
+        if len(frames) == 1:
+            return frames[0]
+        fmt = "<" + ("h" * self.FRAME_SAMPLES)
+        unpacked = [struct.unpack(fmt, frame) for frame in frames]
+        mixed = []
+        for values in zip(*unpacked):
+            value = sum(values)
+            if value > 32767:
+                value = 32767
+            elif value < -32768:
+                value = -32768
+            mixed.append(value)
+        return struct.pack(fmt, *mixed)
 
     def _write_frame(self, frame):
         fd = self.fifo_fd
@@ -1146,31 +1214,28 @@ class BroadcastEngine:
                     pass
                 self.fifo_fd = None
         except Exception as exc:
-            print(f"GE Radio: microphone FIFO write failed: {exc}", flush=True)
+            print(f"GE Radio: live mixer FIFO write failed: {exc}", flush=True)
 
     def _feeder_loop(self):
         silence = b"\x00" * self.FRAME_BYTES
         frame_seconds = self.FRAME_MS / 1000.0
         deadline = time.monotonic()
         while not self.stop_event.is_set():
+            frames = []
             with self.lock:
                 self._expire_if_stale_locked()
                 self._ensure_fifo_locked()
-                active = self.active
-
-            frame = silence
-            if active:
-                if not self.playout_started and self.pcm.qsize() >= 8:
-                    self.playout_started = True
-                if self.playout_started:
-                    try:
-                        frame = self.pcm.get_nowait()
-                    except queue.Empty:
-                        self.playout_started = False
-                        frame = silence
-
-            self._write_frame(frame)
-
+                sources = list(self.sources.values())
+                for source in sources:
+                    q = source["pcm"]
+                    if not source["playout_started"] and q.qsize() >= 8:
+                        source["playout_started"] = True
+                    if source["playout_started"]:
+                        try:
+                            frames.append(q.get_nowait())
+                        except queue.Empty:
+                            source["playout_started"] = False
+            self._write_frame(self._mix_frames(frames) if frames else silence)
             deadline += frame_seconds
             wait = deadline - time.monotonic()
             if wait > 0:
@@ -1182,93 +1247,117 @@ class BroadcastEngine:
         mode = str(mode or "voice").strip().lower()
         if mode not in {"voice", "performance"}:
             mode = "voice"
-        owner = str(owner or "unknown").strip().lower()[:32] or "unknown"
+        owner = str(owner or "unknown").strip().lower()[:80] or "unknown"
         with self.lock:
             self._expire_if_stale_locked()
-            if self.active and self.owner not in {"none", owner}:
-                raise RuntimeError(f"Live audio is already owned by {self.owner}. Stop that live source before taking over.")
+            was_active = self.active
             self._ensure_fifo_locked()
-            self._clear_audio_locked()
-            self.active = True
-            self.mode = mode
-            self.transport = str(transport or "websocket")
-            self.owner = owner
-            self.last_chunk = time.monotonic()
-            self.ACTIVE_PATH.write_text(owner + "\n", encoding="utf-8")
-            self.frames_received = 0
-            self.bytes_received = 0
-            self.peak_pct = 0.0
-            self.peak_left_pct = 0.0
-            self.peak_right_pct = 0.0
-            self.fifo_frames_written = 0
-            self.fifo_bytes_written = 0
-            self.fifo_last_write = 0.0
-            self.fifo_blocked_writes = 0
-            self.fifo_partial_writes = 0
-            self.fifo_peak_left_pct = 0.0
-            self.fifo_peak_right_pct = 0.0
-            self.fifo_audio_frames = 0
-            self.fifo_silence_frames = 0
-            self.fifo_last_audio = 0.0
+            old = self.sources.pop(owner, None)
+            if old:
+                self._clear_source_audio(old)
+            self.sources[owner] = self._new_source(owner, mode, transport)
+            self._refresh_state_locked()
+            if not was_active:
+                self.fifo_frames_written = 0
+                self.fifo_bytes_written = 0
+                self.fifo_last_write = 0.0
+                self.fifo_blocked_writes = 0
+                self.fifo_partial_writes = 0
+                self.fifo_peak_left_pct = 0.0
+                self.fifo_peak_right_pct = 0.0
+                self.fifo_audio_frames = 0
+                self.fifo_silence_frames = 0
+                self.fifo_last_audio = 0.0
             try:
                 apply_mixer_state(mixer_state())
             except Exception as exc:
                 print(f"GE Radio: could not apply live mixer duck: {exc}", flush=True)
             return self.status_locked()
 
-    def write_pcm(self, data):
+    def write_pcm(self, data, owner=None):
         if not data:
-            raise ValueError("Empty microphone audio.")
+            raise ValueError("Empty live audio.")
         with self.lock:
             self._expire_if_stale_locked()
-            if not self.active:
-                raise RuntimeError("Live input is not active.")
-            self._queue_pcm_bytes(data)
-            self.bytes_received += len(data)
-            self.frames_received += max(1, len(data) // max(1, self.FRAME_BYTES))
+            owner = str(owner or "").strip().lower()
+            if not owner:
+                if "dj" in self.sources:
+                    owner = "dj"
+                elif len(self.sources) == 1:
+                    owner = next(iter(self.sources))
+                else:
+                    raise RuntimeError("Live source owner is required while multiple inputs are active.")
+            source = self.sources.get(owner)
+            if not source:
+                raise RuntimeError(f"Live input {owner} is not active.")
+            self._queue_pcm_bytes(source, data)
+            source["bytes_received"] += len(data)
+            source["frames_received"] += max(1, len(data) // max(1, self.FRAME_BYTES))
             peak_left = 0
             peak_right = 0
-            # Stereo s16le is interleaved L,R. Sample both channels separately
-            # so diagnostics can catch a one-sided contribution path.
             for i in range(0, len(data) - 3, 16):
                 left = int.from_bytes(data[i:i+2], "little", signed=True)
                 right = int.from_bytes(data[i+2:i+4], "little", signed=True)
                 peak_left = max(peak_left, abs(left))
                 peak_right = max(peak_right, abs(right))
-            self.peak_left_pct = max(0.0, min(100.0, peak_left / 32768.0 * 100.0))
-            self.peak_right_pct = max(0.0, min(100.0, peak_right / 32768.0 * 100.0))
-            self.peak_pct = max(self.peak_left_pct, self.peak_right_pct)
-            self.last_chunk = time.monotonic()
+            source["peak_left_pct"] = max(0.0, min(100.0, peak_left / 32768.0 * 100.0))
+            source["peak_right_pct"] = max(0.0, min(100.0, peak_right / 32768.0 * 100.0))
+            source["peak_pct"] = max(source["peak_left_pct"], source["peak_right_pct"])
+            source["last_chunk"] = time.monotonic()
+            self._refresh_state_locked()
 
     def stop(self, owner=None, force=False):
         owner = str(owner or "").strip().lower()
         with self.lock:
             self._expire_if_stale_locked()
-            if self.active and owner and self.owner not in {"none", owner} and not force:
-                raise RuntimeError(f"Live audio is owned by {self.owner}.")
-            self.active = False
-            self.mode = "off"
-            self.owner = "none"
-            try:
-                self.ACTIVE_PATH.unlink(missing_ok=True)
-            except Exception:
-                pass
-            self._clear_audio_locked()
-            try:
-                apply_mixer_state(mixer_state())
-            except Exception as exc:
-                print(f"GE Radio: could not restore music after live stop: {exc}", flush=True)
+            was_active = self.active
+            if owner:
+                source = self.sources.pop(owner, None)
+                if source:
+                    self._clear_source_audio(source)
+            elif force or self.sources:
+                for source in self.sources.values():
+                    self._clear_source_audio(source)
+                self.sources.clear()
+            self._refresh_state_locked()
+            if was_active and not self.active:
+                try:
+                    apply_mixer_state(mixer_state())
+                except Exception as exc:
+                    print(f"GE Radio: could not restore music after live stop: {exc}", flush=True)
             return self.status_locked()
 
     def status_locked(self):
+        now = time.monotonic()
+        source_rows = []
+        for owner, source in sorted(self.sources.items()):
+            source_rows.append({
+                "owner": owner,
+                "mode": str(source.get("mode", "")),
+                "transport": str(source.get("transport", "")),
+                "last_chunk_age": max(0.0, now - float(source.get("last_chunk", 0.0) or 0.0)) if source.get("last_chunk") else None,
+                "queue_frames": source["pcm"].qsize(),
+                "frames_received": int(source.get("frames_received", 0)),
+                "bytes_received": int(source.get("bytes_received", 0)),
+                "peak_pct": float(source.get("peak_pct", 0.0)),
+                "peak_left_pct": float(source.get("peak_left_pct", 0.0)),
+                "peak_right_pct": float(source.get("peak_right_pct", 0.0)),
+            })
+        self.frames_received = sum(x["frames_received"] for x in source_rows)
+        self.bytes_received = sum(x["bytes_received"] for x in source_rows)
+        self.peak_pct = max([x["peak_pct"] for x in source_rows] or [0.0])
+        self.peak_left_pct = max([x["peak_left_pct"] for x in source_rows] or [0.0])
+        self.peak_right_pct = max([x["peak_right_pct"] for x in source_rows] or [0.0])
         return {
             "ready": bool(self.fifo_fd is not None),
             "active": bool(self.active),
             "mode": self.mode,
             "transport": self.transport,
             "owner": self.owner,
-            "last_chunk_age": max(0.0, time.monotonic() - self.last_chunk) if self.last_chunk else None,
-            "queue_frames": self.pcm.qsize(),
+            "source_count": len(source_rows),
+            "sources": source_rows,
+            "last_chunk_age": max(0.0, now - self.last_chunk) if self.last_chunk else None,
+            "queue_frames": sum(x["queue_frames"] for x in source_rows),
             "frames_received": int(self.frames_received),
             "bytes_received": int(self.bytes_received),
             "peak_pct": float(self.peak_pct),
@@ -1435,6 +1524,41 @@ def take_remote_commands(device_id):
         items = list(REMOTE_COMMANDS.get(str(device_id), []))
         REMOTE_COMMANDS[str(device_id)] = []
     return items
+
+
+DJ_BOARD_LOCK = threading.RLock()
+DJ_BOARD_PRESENCE = {}
+
+def update_dj_board_presence(board_id, role, label="", app_state="active"):
+    board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
+    role = str(role or "").strip().lower()
+    if role not in {"home", "remote"}:
+        role = "home"
+    if not board_id:
+        raise ValueError("Missing DJ board id.")
+    now = time.time()
+    row = {
+        "id": board_id,
+        "role": role,
+        "label": " ".join(str(label or role.upper()).split())[:60],
+        "app_state": " ".join(str(app_state or "active").split())[:40],
+        "last_seen": now,
+    }
+    with DJ_BOARD_LOCK:
+        DJ_BOARD_PRESENCE[board_id] = row
+        for old_id, old in list(DJ_BOARD_PRESENCE.items()):
+            if now - float(old.get("last_seen", 0) or 0) > 300:
+                DJ_BOARD_PRESENCE.pop(old_id, None)
+    return row
+
+def list_dj_board_presence():
+    now = time.time()
+    with DJ_BOARD_LOCK:
+        rows = [dict(x) for x in DJ_BOARD_PRESENCE.values()]
+    for row in rows:
+        row["online"] = bool(now - float(row.get("last_seen", 0) or 0) < 15)
+    rows.sort(key=lambda x: (x.get("role", ""), -float(x.get("last_seen", 0) or 0)))
+    return rows
 
 
 # GE DJ backend foundation:
@@ -1733,23 +1857,33 @@ RADIO_METER = None
 LIVE_SESSIONS = {}
 LIVE_SESSIONS_LOCK = threading.Lock()
 
-def create_live_session():
+def create_live_session(owner="unknown"):
     token = uuid.uuid4().hex + uuid.uuid4().hex
     expires = time.monotonic() + 60.0
+    owner = str(owner or "unknown").strip().lower()[:80] or "unknown"
     with LIVE_SESSIONS_LOCK:
         now = time.monotonic()
-        for old, exp in list(LIVE_SESSIONS.items()):
+        for old, item in list(LIVE_SESSIONS.items()):
+            exp = float(item.get("expires", 0.0) if isinstance(item, dict) else item or 0.0)
             if exp < now:
                 LIVE_SESSIONS.pop(old, None)
-        LIVE_SESSIONS[token] = expires
+        LIVE_SESSIONS[token] = {"expires": expires, "owner": owner}
     return token
 
 def consume_live_session(token):
     if not token:
-        return False
+        return None
     with LIVE_SESSIONS_LOCK:
-        expires = LIVE_SESSIONS.pop(token, None)
-    return bool(expires and expires >= time.monotonic())
+        item = LIVE_SESSIONS.pop(token, None)
+    if not item:
+        return None
+    if isinstance(item, dict):
+        expires = float(item.get("expires", 0.0) or 0.0)
+        owner = str(item.get("owner", "unknown") or "unknown").strip().lower()[:80] or "unknown"
+    else:
+        expires = float(item or 0.0)
+        owner = "unknown"
+    return owner if expires >= time.monotonic() else None
 
 
 def broadcast_engine():
@@ -2119,7 +2253,8 @@ class Handler(BaseHTTPRequestHandler):
         self.connection.sendall(bytes(head) + payload)
 
     def _serve_live_websocket(self, token, voice_mode="", pan=0.0):
-        if not consume_live_session(token):
+        live_owner = consume_live_session(token)
+        if not live_owner:
             self.send_response(401)
             self.end_headers()
             return
@@ -2179,7 +2314,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif opcode == 0x2:
                     pcm = expand_lowband_voice(payload, pan) if voice_mode == "lowband" else payload
                     if pcm:
-                        broadcast_engine().write_pcm(pcm)
+                        broadcast_engine().write_pcm(pcm, owner=live_owner)
         except Exception as exc:
             print(f"GE Radio: direct DJ WebSocket ended: {exc}", flush=True)
 
@@ -2231,7 +2366,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif opcode == 0x2:
                     pcm = cloudflare_pcm_payload(payload)
                     if pcm:
-                        broadcast_engine().write_pcm(pcm)
+                        broadcast_engine().write_pcm(pcm, owner=str(realtime_state().get("owner", "") or "realtime"))
         except Exception as exc:
             print(f"GE Radio: Cloudflare Realtime adapter disconnected: {exc}", flush=True)
 
@@ -2464,6 +2599,7 @@ class Handler(BaseHTTPRequestHandler):
                 "audio_architecture": "v29-controllable-continuous-ffmpeg-master",
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
+                "dj_boards": list_dj_board_presence(),
                 "dj_backend": {
                     "input_profiles": True,
                     "work_sessions": True,
@@ -3019,6 +3155,21 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 409)
             return
 
+        if self.path == "/control/board/heartbeat":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                row = update_dj_board_presence(
+                    body.get("board_id"),
+                    body.get("role"),
+                    body.get("label", ""),
+                    body.get("app_state", "active"),
+                )
+                self.json_response({"ok": True, "board": row, "boards": list_dj_board_presence()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/device/pair/create":
             if not self.require_auth(): return
             try:
@@ -3085,7 +3236,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise RuntimeError("Remote device is not armed.")
                 owner = "remote-" + row["id"]
                 state = broadcast_engine().start("voice", "websocket", owner)
-                token = create_live_session()
+                token = create_live_session(owner)
                 self.json_response({"ok": True, "token": token, "expires_seconds": 60, "owner": owner, "broadcast": state})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 409)
@@ -3107,8 +3258,10 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/control/broadcast/session":
             if not self.require_auth(): return
             try:
-                token = create_live_session()
-                self.json_response({"ok": True, "token": token, "expires_seconds": 60})
+                body = self.read_body_json()
+                owner = str(body.get("owner", "dj") or "dj").strip().lower()[:80] or "dj"
+                token = create_live_session(owner)
+                self.json_response({"ok": True, "token": token, "expires_seconds": 60, "owner": owner})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 500)
             return
