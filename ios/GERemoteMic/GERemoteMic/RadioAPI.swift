@@ -60,9 +60,9 @@ final class RadioAPI {
         return r
     }
 
-    func claim(code: String, name: String, model: String) async throws -> DeviceCredentials {
+    func claim(code: String, name: String, model: String, capabilities: [String]) async throws -> DeviceCredentials {
         let r = try request(path: "/control/device/pair/claim", body: [
-            "code": code, "name": name, "platform": "ios", "model": model
+            "code": code, "name": name, "platform": "ios", "model": model, "capabilities": capabilities
         ])
         let (data, response) = try await URLSession.shared.data(for: r)
         guard let http = response as? HTTPURLResponse, http.statusCode < 300 else {
