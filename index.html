@@ -1797,6 +1797,15 @@ window.GE_EASY_SETTINGS = Object.assign({
   AMBIENT_ORBIT_SUN_RADIUS_X_PX: 58,
   AMBIENT_ORBIT_SUN_RADIUS_Y_PX: 34,
 
+  // RADIO MOON — live-EQ tuning. These are intentionally grouped for easy visual tuning.
+  MOON_GLOW_SIZE: 0.90,
+  MOON_GLOW_BRIGHTNESS: 0.50,
+  MOON_EQ_RESPONSE: 0.72,
+  MOON_EQ_ATTACK: 0.38,
+  MOON_EQ_RELEASE: 0.12,
+  MOON_EQ_SAMPLE_MS: 84,
+  MOON_EQ_NO_SIGNAL_MS: 5500,
+
   // Rare quiet-sky events.
   METEOR_SHOWER_MIN_SEC: 480,
   METEOR_SHOWER_MAX_SEC: 1200,
@@ -3371,6 +3380,43 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 }
 </style>
 
+<style id="ge-start-bubbles-moon-tune-v1">
+/* Start controls hug the words instead of spanning the window. */
+.geHubStartTop,.geTopStartWrap{display:flex!important;justify-content:center!important;align-items:center!important}
+.geHubStartTop .geStartGamePrimary,.geTopStartWrap .geStartGamePrimary{
+  width:max-content!important;max-width:calc(100% - 24px)!important;min-width:0!important;
+  min-height:46px!important;align-self:center!important;justify-self:center!important;
+  padding:10px 22px!important;white-space:normal!important;line-height:1.15!important;
+  border-radius:999px!important;animation:geStartPulseHug 1.7s ease-in-out infinite!important
+}
+#geGravityEnableTilt{
+  width:max-content!important;max-width:calc(100% - 20px)!important;
+  margin:8px auto!important;padding-left:22px!important;padding-right:22px!important;
+  animation:geStartPulseHug 1.7s ease-in-out infinite!important
+}
+.geFlightStart{animation:geStartButtonPulse 1.65s ease-in-out infinite!important}
+@keyframes geStartPulseHug{
+  0%,100%{box-shadow:0 0 8px rgba(80,195,255,.18),inset 0 0 8px rgba(75,180,255,.04)}
+  50%{box-shadow:0 0 24px rgba(90,210,255,.72),0 0 42px rgba(60,150,255,.24),inset 0 0 14px rgba(115,220,255,.14)}
+}
+
+/* Radio moon: about half the old halo brightness and a slightly tighter footprint. */
+body:not(.game-mode-active) .moon::before{
+  inset:-18%!important;
+  background:radial-gradient(circle,rgba(255,255,255,.48) 0 8%,rgba(211,244,255,.29) 25%,rgba(89,194,255,.13) 51%,rgba(67,166,255,0) 76%)!important;
+  box-shadow:0 0 11px rgba(232,250,255,.39),0 0 24px rgba(96,205,255,.27),0 0 45px rgba(58,155,255,.18)!important
+}
+body:not(.game-mode-active) .moon::after{
+  inset:-11%!important;
+  background:radial-gradient(circle,rgba(255,255,255,0) 38%,rgba(202,240,255,.23) 53%,rgba(99,202,255,.11) 65%,rgba(65,165,255,0) 79%)!important
+}
+body:not(.game-mode-active) .moon img{
+  box-shadow:0 0 6px 2px rgba(242,252,255,.42),0 0 13px 4px rgba(105,211,255,.25),0 0 25px 8px rgba(65,165,255,.14)!important;
+  filter:brightness(calc(1.025 + var(--moon-level) * .24)) saturate(calc(1 + var(--moon-level) * .18))!important
+}
+body:not(.game-mode-active) .moon.radio-live-reactive::before{transform:scale(var(--moon-scale))!important;opacity:var(--moon-opacity)!important}
+body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(calc(.92 + var(--moon-level) * .20))!important;opacity:calc(.10 + var(--moon-level) * .34)!important}
+</style>
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -11674,22 +11720,34 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const moon=document.getElementById('moon');if(!moon)return;
   const LIVE_URL='https://radio.grandelement.blitz.cloud/stream.mp3';
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
-  const SAMPLE_MS=84,NO_SIGNAL_MS=5500;
+  const settings=window.GE_EASY_SETTINGS||{};
+  const TUNING={
+    size:Math.max(.65,Math.min(1.25,Number(settings.MOON_GLOW_SIZE)||.90)),
+    brightness:Math.max(.1,Math.min(1.2,Number(settings.MOON_GLOW_BRIGHTNESS)||.50)),
+    response:Math.max(.2,Math.min(1.5,Number(settings.MOON_EQ_RESPONSE)||.72)),
+    attack:Math.max(.03,Math.min(1,Number(settings.MOON_EQ_ATTACK)||.38)),
+    release:Math.max(.02,Math.min(1,Number(settings.MOON_EQ_RELEASE)||.12)),
+    sampleMs:Math.max(40,Math.min(240,Number(settings.MOON_EQ_SAMPLE_MS)||84)),
+    noSignalMs:Math.max(1000,Number(settings.MOON_EQ_NO_SIGNAL_MS)||5500)
+  };
+  const SAMPLE_MS=TUNING.sampleMs,NO_SIGNAL_MS=TUNING.noSignalMs;
   let audio=null,ctx=null,source=null,analyser=null,data=null,timer=0;
   let connected=false,level=0,lastSignalAt=0,starting=false,externalUntil=0;
   function paint(v){
     v=Math.max(0,Math.min(1,Number(v)||0));
-    level+=(v-level)*(v>level?.48:.16);
-    const visual=Math.sqrt(level);
+    level+=(v-level)*(v>level?TUNING.attack:TUNING.release);
+    const visual=Math.min(1,Math.sqrt(level)*TUNING.response);
+    const scale=(.92+visual*.28)*TUNING.size;
+    const opacity=(.14+visual*.35)*TUNING.brightness;
     moon.style.setProperty('--moon-level',visual.toFixed(4));
-    moon.style.setProperty('--moon-scale',(.94+visual*.42).toFixed(4));
-    moon.style.setProperty('--moon-opacity',(.30+visual*.70).toFixed(4));
+    moon.style.setProperty('--moon-scale',scale.toFixed(4));
+    moon.style.setProperty('--moon-opacity',opacity.toFixed(4));
     moon.classList.add('radio-live-reactive');moon.dataset.radioMeter='live';
   }
   function fallback(disconnect=false){
     if(disconnect)connected=false;level=0;
     moon.classList.remove('radio-live-reactive');
-    moon.style.setProperty('--moon-level','0');moon.style.setProperty('--moon-scale','1');moon.style.setProperty('--moon-opacity','.12');
+    moon.style.setProperty('--moon-level','0');moon.style.setProperty('--moon-scale',(.92*TUNING.size).toFixed(4));moon.style.setProperty('--moon-opacity',(.12*TUNING.brightness).toFixed(4));
     moon.dataset.radioMeter='fallback';
   }
   function readLevel(){
@@ -11741,7 +11799,8 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   window.GE_MOON_RADIO_METER={
     set(levelValue,live=true){externalUntil=Date.now()+1800;if(live){lastSignalAt=Date.now();paint(levelValue)}else fallback(false)},
     fallback:()=>fallback(false),reconnect:startVisible,
-    getState(){return{live:moon.classList.contains('radio-live-reactive'),level,url:LIVE_URL,lastSignalAt,connected}}
+    getState(){return{live:moon.classList.contains('radio-live-reactive'),level,url:LIVE_URL,lastSignalAt,connected,tuning:{...TUNING}}},
+    tuning:TUNING
   };
 })();
 </script>
