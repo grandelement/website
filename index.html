@@ -1787,9 +1787,10 @@ window.GE_EASY_SETTINGS = Object.assign({
 
   // NORMAL WEBSITE ALBUM ORBITS.
   // Each album owns a different randomly tilted oval that is regenerated on refresh.
-  // Fire = 33s, Spirit = 66s, Soul = 99s, then +33s per album.
+  // Fire is the fastest at 66s; each album behind it is 18s slower.
   AMBIENT_ORBIT_ENABLED: true,
-  AMBIENT_ORBIT_BASE_SEC: 33,
+  AMBIENT_ORBIT_BASE_SEC: 66,
+  AMBIENT_ORBIT_STEP_SEC: 18,
   AMBIENT_ORBIT_PERIOD_SEC: 43200, // Blue Sun's own extremely slow drift
   AMBIENT_ORBIT_TICK_MS: 80,
   AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX: 24,
@@ -4428,6 +4429,10 @@ function placePlanets(){
     else { aEl.removeAttribute('href'); aEl.removeAttribute('target'); }
     aEl.dataset.album=alb.musicTitle||alb.title;
     aEl.title=alb.title;
+    // Depth is independent from orbit position. Earlier albums in the active
+    // front-to-back sequence always visually cover later ones, while the
+    // entire planet layer remains behind the Blue Sun.
+    aEl.style.zIndex=String(Math.max(1,100-i));
     aEl.innerHTML = `<span class="label">${alb.title}</span>`;
     aEl.style.backgroundImage = `url('${alb.cover}')`;
     albumPlanets[normAlbumName(alb.title)] = aEl;
@@ -7131,10 +7136,9 @@ function loop(){
   for(const q of quantumClusters){try{q.draw()}catch(err){console.error('GE quantum draw isolated an error',err)}}
   comets.filter(c=>c.depth!=='front').forEach(c=>c.draw(ctx));
   miniShips.forEach(s=>s.draw());
-  // NORMAL WEBSITE: restore the stable renderer used before the game-layer work.
-  // Full-size Bodies belong on the main FX canvas in ordinary non-game mode.
-  // THE BODY course may still use the foreground canvas so its game craft stays above hazards.
-  const bodyDrawCtx=(bodyRaceLive&&frontCtx)?frontCtx:ctx;
+  // Full-size Bodies are the nearest objects in the GE universe.
+  // They render on the foreground FX canvas, above the Blue Sun and every album planet.
+  const bodyDrawCtx=frontCtx||ctx;
   ships.forEach(s=>s.draw(bodyDrawCtx));
   if(frontCtx)comets.filter(c=>c.depth==='front').forEach(c=>c.draw(frontCtx));
 
@@ -12163,7 +12167,8 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const settings=window.GE_EASY_SETTINGS||{};
   if(settings.AMBIENT_ORBIT_ENABLED===false)return;
 
-  const BASE_SEC=Math.max(8,Number(settings.AMBIENT_ORBIT_BASE_SEC)||33);
+  const BASE_SEC=Math.max(8,Number(settings.AMBIENT_ORBIT_BASE_SEC)||66);
+  const STEP_SEC=Math.max(1,Number(settings.AMBIENT_ORBIT_STEP_SEC)||18);
   const SUN_PERIOD_MS=Math.max(60000,Number(settings.AMBIENT_ORBIT_PERIOD_SEC||43200)*1000);
   const TICK_MS=Math.max(35,Math.min(180,Number(settings.AMBIENT_ORBIT_TICK_MS)||80));
   const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
@@ -12216,7 +12221,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const phase=Math.atan2(ly/Math.max(1,ry),lx/Math.max(1,rx));
     return{
       cx,cy,rx,ry,axis,phase,dir:Math.random()<.5?-1:1,
-      period:BASE_SEC*1000*(idx+1),index:idx,
+      period:(BASE_SEC+STEP_SEC*idx)*1000,index:idx,
       start:performance.now(),dynamic:false,
       blendFrom:{x:a.x,y:a.y},blendStart:performance.now(),
       wobblePhase:rand(0,Math.PI*2),wobble:rand(.012,.032)
@@ -12323,7 +12328,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   timer=setInterval(tick,TICK_MS);tick();
   window.GE_AMBIENT_GALAXY={
     reseedAll(){sunState=null;document.querySelectorAll('#planets .planet').forEach(el=>planetState.delete(el));tick()},
-    periods(){return ORDER.map((album,i)=>({album,seconds:BASE_SEC*(i+1)}))},
+    periods(){return ORDER.map((album,i)=>({album,seconds:BASE_SEC+STEP_SEC*i}))},
     stop(){if(timer){clearInterval(timer);timer=0}}
   };
 })();
