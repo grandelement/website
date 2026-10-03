@@ -1626,15 +1626,73 @@ body{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 .sheet{bottom:var(--geDockHeight,112px)!important}
 #mixerSheet{bottom:var(--geDockHeight,112px)!important}
+
+/* V54 console cleanup + navigation + readable controls. */
+body{padding-top:10px!important}
+body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
+#mixerSheet.show{top:max(7px,env(safe-area-inset-top))!important}
+.geDisplayZoomBar{
+ grid-template-columns:auto 34px minmax(90px,1fr) 34px 48px auto auto!important;
+ width:min(760px,calc(100vw - 16px))!important
+}
+.geDisplayZoomBar.inHeader{
+ position:static!important;left:auto!important;top:auto!important;transform:none!important;
+ width:auto!important;max-width:none!important;min-width:330px!important;margin:0!important;
+ box-shadow:none!important;background:#071018!important;backdrop-filter:none!important
+}
+.geDisplayZoomBar .geUtilityAction{min-height:34px!important;padding:0 9px!important;font-size:10px!important;white-space:nowrap}
+.geDisplayZoomBar .geUtilityAction:disabled{opacity:.38}
+@media(max-width:700px),(pointer:coarse){.geDesktopOnly{display:none!important}}
+#mixerSheet .mixerHeader{grid-template-columns:auto minmax(330px,1fr) auto auto!important}
+#mixerSheet #effectsSheet .fxDockHead{
+ grid-template-columns:auto minmax(330px,1fr) minmax(280px,1fr)!important;
+ align-items:center!important
+}
+#mixerSheet #effectsSheet .fxDockHead .geDisplayZoomBar{grid-column:2!important}
+#mixerSheet #effectsSheet .fxLayoutBar{grid-column:3!important}
+#mixerSheet .mixerZoomRead,#mixerSheet #effectsSheet .fxZoomRead{display:none!important}
+#mixerSheet #effectsSheet .fxEffectButtons{display:grid!important;grid-template-columns:repeat(6,minmax(82px,1fr))!important;gap:6px!important}
+#mixerSheet #effectsSheet .fxEffectButtons button{font-size:14px!important;min-height:48px!important}
+#mixerSheet #effectsSheet .fxRightRail{display:grid!important;grid-template-columns:minmax(140px,1.4fr) repeat(4,minmax(58px,.6fr))!important;gap:6px!important;align-items:stretch!important}
+#mixerSheet #effectsSheet .fxPresetSelectWrap{grid-column:1!important}
+#mixerSheet #effectsSheet .fxCustomSlots{display:contents!important}
+#mixerSheet #effectsSheet .fxCustomSlots button{font-size:22px!important;min-height:48px!important;font-weight:950!important}
+#mixerSheet #effectsSheet .fxPresetManager{grid-column:1/-1!important}
+#mixerSheet #effectsSheet .fxOutputControl label{font-size:15px!important;align-items:center!important;gap:10px!important}
+#mixerSheet #effectsSheet #fxBalanceVal{font-size:15px!important}
+#mixerSheet #effectsSheet #fxBalanceLock{
+ min-height:32px!important;border:1px solid var(--accent)!important;background:#12382f!important;
+ color:#fff!important;border-radius:7px!important;padding:0 9px!important;font-size:10px!important;font-weight:950!important
+}
+#mixerSheet #effectsSheet #fxBalanceLock.unlocked{border-color:#ffc765!important;background:#403013!important}
+#mixerSheet #effectsSheet #fxBalance:disabled{opacity:.58;filter:saturate(.55)}
+#mixerSheet #effectsSheet .bigSlider label{font-size:13px!important}
+#mixerSheet #effectsSheet .bigSlider label span:first-child{font-size:14px!important}
+#mixerSheet .masterMeterRow b,#mixerSheet .masterMeterRow span{font-size:12px!important}
+#mixerSheet .mixRead{font-size:14px!important}
+#mixerSheet .mixBtns button,#mixerSheet .sendPair button{font-size:12px!important}
+#publicRadioArm{display:none!important}
+.dock button.activeView{outline:2px solid var(--accent)!important;outline-offset:-2px;background:#17392f!important}
+@media(max-width:850px){
+ .geDisplayZoomBar.inHeader{min-width:0!important;grid-template-columns:auto 32px minmax(70px,1fr) 32px 44px auto!important}
+ .geDisplayZoomBar.inHeader .geDesktopOnly{display:none!important}
+ #mixerSheet .mixerHeader,#mixerSheet #effectsSheet .fxDockHead{grid-template-columns:1fr!important}
+ #mixerSheet #effectsSheet .fxDockHead .geDisplayZoomBar,
+ #mixerSheet #effectsSheet .fxLayoutBar{grid-column:1!important}
+ #mixerSheet #effectsSheet .fxEffectButtons{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #mixerSheet #effectsSheet .fxRightRail{grid-template-columns:1fr repeat(4,minmax(48px,.55fr))!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <b>TEXT + BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
  <input id="geZoomRange" type="range" min="100" max="220" step="5" value="120" aria-label="GE DJ display zoom">
  <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">120%</output>
+ <button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button>
+ <button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v53</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v54</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1663,14 +1721,14 @@ body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 <div class="dock"><div class="dockin"><button id="dockRadio">RADIO</button><button class="cue" id="dockCue">MONITOR</button><button class="mic" id="dockMic">MIC</button><button id="dockMixer">MIXER</button><button id="dockFx">EFFECTS</button><button class="studio" id="dockStudio">STUDIO</button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
 <div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">LOCAL MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
 <div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">INPUT / DEVICE / FILE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="note">Choose any audio input this browser can see. Save the ones you use so Channel 2 can switch between Ableton/VB-CABLE, a laptop input, USB interface, or another device.</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="sourceSelect"><select id="lineDevice"><option value="">Default audio input</option></select><button id="lineOpen">OPEN INPUT</button></div><div class="lineActiveDevice" id="lineActiveDevice">ACTIVE DEVICE · NONE</div><div class="lineInputManager"><div class="label">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="Name this input — e.g. ABLETON"><button type="button" id="lineProfileAdd">+ ADD DEVICE</button></div><div class="note" id="lineProfileStatus">Choose a device above, then save it here.</div></div><div class="lineQuickActions"><label class="sourceBtn">LOAD FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label><button class="cueBtn" id="lineCue">MONITOR OFF</button><button class="airBtn" id="lineAir">LINE OFF</button><button class="sourceBtn" id="lineFxOpen">LINE EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTitleBlock"><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button><button data-close="mixerSheet">CLOSE</button></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="remoteDeviceTools"><button id="linkDeviceBtn">LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTitleBlock"><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="remoteDeviceTools"><button id="linkDeviceBtn">LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
   <input id="fxZoom" type="range" min="20" max="100" step="20" value="40" aria-label="Effect strip width">
   <button id="fxZoomIn">+</button>
   <label class="fxLock"><input id="fxLayoutLock" type="checkbox">LOCK</label>
   <div class="fxZoomRead" id="fxZoomRead">WIDTH · 5 ACROSS</div>
-</div><div class="fxDockActions"><button id="fxBackBtn">BACK TO MIXER</button></div></div>
+</div></div>
 
 <div class="fxLandscapeBody">
 <div class="fxLeftRail">
@@ -1688,7 +1746,7 @@ body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 
 <div class="fxCenterRack">
 <div class="fxCompactMeters fxBalanceOnly">
-  <div class="fxOutputControl"><label><span>BALANCE</span><b id="fxBalanceVal">C</b></label><input id="fxBalance" type="range" min="-100" max="100" value="0"></div>
+  <div class="fxOutputControl"><label><span>BALANCE</span><b id="fxBalanceVal">C</b><button type="button" id="fxBalanceLock">LOCKED</button></label><input id="fxBalance" type="range" min="-100" max="100" value="0"></div>
 </div>
 <div class="fxIsoLevel" id="fxIsoLevelWrap" hidden><label><span>VOICE ISO LEVEL</span><b id="fxIsoLevelRead">85%</b></label><input id="fxIsoLevel" type="range" min="25" max="125" step="1" value="85"></div>
 <div class="fxControlGrid">
@@ -1706,7 +1764,7 @@ body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 </div></div>
 <div class="fxRightRail">
 <div class="fxPresetSelectWrap"><select id="fxPresetSelect" aria-label="Effect preset"><option value="">PRESETS ▾</option></select></div>
-<div class="fxCustomSlots"><button data-fxslot="1">C1</button><button data-fxslot="2">C2</button><button data-fxslot="3">C3</button><button data-fxslot="4">C4</button></div>
+<div class="fxCustomSlots"><button data-fxslot="1">1</button><button data-fxslot="2">2</button><button data-fxslot="3">3</button><button data-fxslot="4">4</button></div>
 <details class="fxPresetManager" id="fxPresetManager"><summary>MANAGE SAVED PRESETS</summary><div class="fxPresetTop"><input id="fxPresetName" type="text" maxlength="80" placeholder="Preset name"><button id="fxSavePreset">SAVE</button><button id="fxLoadPresets">REFRESH</button></div><div class="fxPresets fxPresetLibrary show" id="fxPresets"></div></details>
 </div>
 </div></div>
@@ -1715,10 +1773,10 @@ body{padding-bottom:calc(var(--geDockHeight,112px) + 10px)!important}
 <div class="mixStrip auxStrip auxHidden" id="sendAuxStrip"><h3 id="sendAuxTitle">SEND A</h3><small id="sendAuxMeta">MIC · DELAY</small><div class="hmeter"><div class="hmeterFill" id="sendAuxMeter"></div></div><input class="vf" id="sendAuxLevel" type="range" min="0" max="100" value="20"><div class="mixRead" id="sendAuxRead">20%</div><div class="mixBtns"><button id="sendAuxToggle">ON</button><button id="sendAuxFx">FX</button></div><div class="mixBtns"><button id="sendAuxClose">CLOSE</button></div></div>
 <div class="mixStrip" data-channel-strip="line"><h3>2 · LINE</h3><button type="button" class="mixSourceLabel" id="mixLineSource">INPUT / FILE</button><div class="hmeter" data-mix-threshold="line"><div class="hmeterFill" id="mixLineMeter"></div><div class="threshold" id="mixLineThreshold"></div></div><input class="vf" id="mixLineLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixLineRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixLineSendA">SEND A</button><button class="sendState" id="mixLineSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixLineSendB">SEND B</button><button class="sendState" id="mixLineSendBOn">ON</button></div><div class="mixBtns"><button id="mixLineCue">MONITOR</button><button id="mixLineAir">ON AIR</button><button data-fx="line">FX</button><button id="mixLineMute">MUTE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxMix"><h3>MIX</h3><small>radio under mic</small><div class="hmeter"><div class="hmeterFill" id="mixAuxMixMeter"></div></div><input class="vf" id="masterMixLevel" type="range" min="0" max="100" value="45"><div class="mixRead" id="masterMixRead">45%</div><div class="mixBtns"><button data-close-aux="mix">CLOSE</button></div></div>
-<div class="mixStrip auxStrip auxHidden" id="mixAuxRadio"><h3>RADIO</h3><small id="radioControlNote">PUBLIC CONTROL OFF</small><div class="hmeter"><div class="hmeterFill" id="mixRadioAuxMeter"></div></div><input class="vf" id="mixRadioBed" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixRadioRead">100%</div><div class="mixBtns"><button id="publicRadioArm">CONTROL OFF</button><button id="publicRadioMute">MUTE</button></div><div class="mixBtns"><button data-close-aux="radio">CLOSE</button></div></div>
+<div class="mixStrip auxStrip auxHidden" id="mixAuxRadio"><h3>RADIO</h3><small id="radioControlNote">PUBLIC RADIO</small><div class="hmeter"><div class="hmeterFill" id="mixRadioAuxMeter"></div></div><input class="vf" id="mixRadioBed" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixRadioRead">100%</div><button id="publicRadioArm" hidden>CONTROL ON</button><div class="mixBtns"><button id="publicRadioMute">MUTE</button><button data-close-aux="radio">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxStudio"><h3>STUDIO</h3><small id="studioOwnerText">return</small><div class="hmeter"><div class="hmeterFill" id="mixStudioMeter"></div></div><input class="vf" id="mixStudioLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixStudioRead">100%</div><div class="mixBtns"><button id="studioOpenBtn">OPEN</button><button id="studioStopBtn">STOP</button></div><div class="mixBtns"><button data-close-aux="studio">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxFx"><h3>FX RETURN</h3><small id="mixFxTargetRead">MIC</small><div class="hmeter"><div class="hmeterFill" id="mixFxReturnMeter"></div></div><input class="vf" id="mixFxLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixFxRead">100%</div><div class="mixBtns"><button id="mixFxOpen">OPEN FX</button><button data-close-aux="fx">CLOSE</button></div></div>
-<div class="mixStrip master" data-channel-strip="master"><h3>MASTER</h3><small>PUBLIC OUTPUT</small><div class="masterMeterStack"><div class="masterMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="mixMasterRadioMeter"></div></div><span id="mixMasterRadioDb">-60</span></div><div class="masterMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="mixMasterDjMeter"></div></div><span id="mixMasterDjDb">-60</span></div><div class="masterMeterRow"><b>MASTER</b><div class="hmeter"><div class="hmeterFill" id="mixMasterMeter"></div></div><span id="mixMasterDb">-60</span></div></div><input class="vf" id="mixMasterLevel" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixMasterRead">100%</div><div class="mixBtns"><button id="masterMixControl">MIX</button><button id="masterRadioControl">RADIO</button><button id="masterStudioControl">STUDIO</button><button id="masterFxControl">FX RETURN</button></div><div class="mixBtns"><button id="masterStopLive">STOP LIVE</button></div></div>
+<div class="mixStrip master" data-channel-strip="master"><h3>MASTER</h3><small>PUBLIC OUTPUT</small><div class="masterMeterStack"><div class="masterMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="mixMasterRadioMeter"></div></div><span id="mixMasterRadioDb">-60</span></div><div class="masterMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="mixMasterDjMeter"></div></div><span id="mixMasterDjDb">-60</span></div><div class="masterMeterRow"><b>MASTER</b><div class="hmeter"><div class="hmeterFill" id="mixMasterMeter"></div></div><span id="mixMasterDb">-60</span></div></div><input class="vf" id="mixMasterLevel" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixMasterRead">100%</div><div class="mixBtns"><button id="masterMixControl">MIX</button><button id="masterRadioControl">RADIO</button><button id="masterStudioControl">STUDIO</button><button id="masterFxControl">FX RETURN</button></div></div>
 </div></div></div>
 
 
@@ -1817,8 +1875,8 @@ function installTouchMixer(rootSelector,gridSelector){
     function end(e){if(!dragging)return;dragging=false;wrap.classList.remove('dragging');document.body.classList.remove('geFaderDragging');try{wrap.releasePointerCapture?.(e.pointerId)}catch(_e){}range.dispatchEvent(new Event('change',{bubbles:true}))}
     wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
     wrap.addEventListener('keydown',function(e){
-      const v=values();let delta=0;if(e.key==='ArrowUp'||e.key==='ArrowRight')delta=v.step;if(e.key==='ArrowDown'||e.key==='ArrowLeft')delta=-v.step;if(e.key==='PageUp')delta=v.step*10;if(e.key==='PageDown')delta=-v.step*10;if(!delta)return;
-      range.value=String(clamp(v.val+delta,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));range.dispatchEvent(new Event('change',{bubbles:true}));e.preventDefault();
+      const v=values();if(e.key==='ArrowLeft'||e.key==='ArrowRight'){moveGeFocus(wrap,e.key==='ArrowRight'?1:-1);e.preventDefault();return}let delta=0;if(e.key==='ArrowUp')delta=v.step;if(e.key==='ArrowDown')delta=-v.step;if(e.key==='PageUp')delta=v.step*10;if(e.key==='PageDown')delta=-v.step*10;if(!delta)return;
+      captureGeUndo();range.value=String(clamp(v.val+delta,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));range.dispatchEvent(new Event('change',{bubbles:true}));e.preventDefault();
     });
     range.addEventListener('input',sync);range.addEventListener('change',sync);enhanced.push(sync);requestAnimationFrame(sync);
   });
@@ -1851,7 +1909,7 @@ function diagEvent(name,detail){
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
-let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
    Preserve this object when experimenting with later FX/UI revisions.
    Audio path baseline: processed mono MIC -> explicit L/R monitor duplication -> balance;
@@ -2422,7 +2480,7 @@ async function renderDjFiles(){
  const box=$('djFilesList');if(!box)return;
  let rows=[];try{rows=await djDbAll()}catch(e){box.innerHTML='<div class="note">Local storage error: '+esc(e.message||e)+'</div>';return}
  $('djFilesStatus').textContent=rows.length+' LOCAL RECORDING'+(rows.length===1?'':'S')+' · '+formatBytes(rows.reduce(function(n,x){return n+Number(x.size||0)},0));
- if(!rows.length){box.innerHTML='<div class="note">No DJ recordings yet. MIC and LOCAL MONITOR sessions will appear here.</div>';return}
+ if(!rows.length){box.innerHTML='<div class="note">No DJ recordings yet. MIC LINK sessions and buffered-link safety recordings will appear here.</div>';return}
  box.innerHTML=rows.map(function(row){
    const title=row.name||new Date(Number(row.createdAt||0)).toLocaleString();
    const assigned=Object.keys(sampleSlots).find(function(k){return sampleSlots[k]===String(row.id)})||'';
@@ -2554,7 +2612,7 @@ async function stopMicOnAir(options){
    try{micSource&&micSource.disconnect()}catch(e){}
    micStream=micSource=null;$('micOpen').textContent='OPEN MIC'
  }
- if(!keepRecording&&!micCueOn)await stopDjRecording();
+ if(!keepRecording)await stopDjRecording();
  $('micPathStatus').textContent=preserveMic?'LOCAL MIC READY · MIC OFF AIR':'MIC OFF · RADIO CONTINUES';
  if(preserveMic)setGeAudioSession('play-and-record');else setGeAudioSession('playback');
  await reassertGeOutputRoute();
@@ -2737,16 +2795,14 @@ async function toggleCue(kind){
  if(kind==='mic'){
    if(turningOn){
      if(!micStream)await ensureMicOpen();
-     await startDjRecording('LOCAL MONITOR');
-     // V41: MONITOR is strictly local and preserves the same recording through a LIVE -> MONITOR handoff.
+     // V54: local MONITOR never starts or keeps a DJ recording.
+     if(liveActive||micAirOn)await stopMicOnAir({preserveMic:true});
      micCueOn=true;
-     if(liveActive||micAirOn)await stopMicOnAir({preserveMic:true,keepRecording:true});
      if(micCueGain)micCueGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
-     $('micPathStatus').textContent='LOCAL MONITOR · OFF AIR · EFFECTS ACTIVE';
+     $('micPathStatus').textContent='LOCAL MONITOR · OFF AIR · EFFECTS ACTIVE · NOT RECORDING';
    }else{
      micCueOn=false;
      if(micCueGain)micCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
-     if(!liveActive&&!micAirOn)await stopDjRecording();
      $('micPathStatus').textContent='LOCAL MIC READY · MONITOR OFF · MIC LINK OFF';
    }
  }else{
@@ -2832,12 +2888,13 @@ async function loadFxPresets(){const r=await api('/control/effect-presets?surfac
 async function deleteFxPreset(id){const r=await api('/control/effect-presets/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',id:String(id||'')})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not delete FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;if(selectedFxPreset===String(id))selectedFxPreset='';syncFx()}
 async function saveFxPreset(){const name=$('fxPresetName').value.trim();if(!name)throw new Error('Type a preset name first.');const r=await api('/control/effect-presets/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',name:name,settings:effectSnapshot(fxTarget)})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not save FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;selectedFxPreset=String((d.preset&&d.preset.id)||'');fxPresetLibraryOpen=true;syncFx()}
 function markFxButtons(){document.querySelectorAll('[data-fx]').forEach(function(b){b.classList.toggle('on',$('effectsSheet').classList.contains('show')&&b.dataset.fx===fxTarget)})}
-function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');markFxButtons();requestAnimationFrame(syncTouchFaders)}
-function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'LINE')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();syncFx();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
-function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=slot&&slot.name?('C'+n+' · '+String(slot.name).slice(0,10)):('C'+n)})}
+function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');markFxButtons();if($('mixerSheet').classList.contains('show'))setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders)}
+function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'LINE')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
+function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=n;b.title=slot&&slot.name?String(slot.name):('Preset '+n)})}
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
-function syncFx(){const c=settings[fxTarget];if(c.compStrength==null)c.compStrength=c.compOn?60:0;if(c.eqOn==null)c.eqOn=false;if(c.eqLow==null)c.eqLow=0;if(c.eqMid==null)c.eqMid=0;if(c.eqHigh==null)c.eqHigh=0;$('fxPreamp').value=Number(c.preamp||0);$('fxCompStrength').value=Number(c.compStrength||0);$('fxCompStrengthVal').textContent=Math.round(Number(c.compStrength||0))+'%';$('fxEqLow').value=Number(c.eqLow||0);$('fxEqMid').value=Number(c.eqMid||0);$('fxEqHigh').value=Number(c.eqHigh||0);$('fxEqLowVal').textContent=(Number(c.eqLow||0)>0?'+':'')+Math.round(Number(c.eqLow||0))+' dB';$('fxEqMidVal').textContent=(Number(c.eqMid||0)>0?'+':'')+Math.round(Number(c.eqMid||0))+' dB';$('fxEqHighVal').textContent=(Number(c.eqHigh||0)>0?'+':'')+Math.round(Number(c.eqHigh||0))+' dB';$('fxPreampVal').textContent=(Number(c.preamp||0)>=0?'+':'')+Math.round(Number(c.preamp||0))+' dB';$('fxFrequency').value=c.frequency;$('fxPhaser').value=c.phaser;$('fxDelay').value=c.delay;$('fxDelayTime').value=c.delayTime;$('fxFeedback').value=c.feedback;$('fxReverb').value=c.reverb;if($('fxThreshold'))$('fxThreshold').value=c.threshold;if($('fxRatio'))$('fxRatio').value=c.ratio;$('fxBalance').value=Number(c.pan||0);$('fxBalanceVal').textContent=panLabel(c.pan);if($('fxReturnLevel'))$('fxReturnLevel').value=Number(c.fxLevel==null?100:c.fxLevel);if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxLevel').value=Number(c.fxLevel==null?100:c.fxLevel);$('mixFxRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxTargetRead').textContent=fxTarget.toUpperCase();$('fxFrequencyVal').textContent=Math.round(c.frequency);$('fxPhaserVal').textContent=Math.round(c.phaser)+'%';$('fxDelayVal').textContent=Math.round(c.delay)+'%';$('fxDelayTimeVal').textContent=Math.round(c.delayTime)+'ms';$('fxFeedbackVal').textContent=Math.round(c.feedback)+'%';$('fxReverbVal').textContent=Math.round(c.reverb)+'%';if($('fxThresholdVal'))$('fxThresholdVal').textContent=Math.round(c.threshold)+' dB';if($('fxRatioVal'))$('fxRatioVal').textContent=Math.round(c.ratio)+':1';if($('fxMeterLabel'))$('fxMeterLabel').textContent=fxTarget.toUpperCase()+' INPUT';const tp=clamp((Number(c.threshold)+60)/60*100,0,100);if($('fxThresholdMarker')){$('fxThresholdMarker').style.left=tp+'%';$('fxThresholdMarker').classList.toggle('compOff',!c.compOn)}if($('fxCompLineText'))$('fxCompLineText').textContent='COMP '+Math.round(c.threshold)+' dB · '+Math.round(c.ratio)+':1 · '+(c.compOn?'ON':'OFF');const saved=customFxPresets.map(function(p){const id=String(p.id||''),name=String(p.name||'SAVED');return '<span class="fxPresetItem" data-preset-item="'+esc(id)+'"><button data-saved-preset="'+esc(id)+'" class="'+(selectedFxPreset===id?'on':'')+'">'+esc(name)+'</button><button class="fxPresetDelete" data-delete-saved="'+esc(id)+'" aria-label="Delete '+esc(name)+'">×</button></span>'}).join('');$('fxPresets').innerHTML=saved||'<div class="note">No saved presets.</div>';$('fxPresets').classList.add('show');syncFxPresetSelect();document.querySelectorAll('[data-fxtoggle]').forEach(function(b){const k=b.dataset.fxtoggle+'On';b.classList.toggle('on',!!c[k]);b.textContent=b.dataset.fxtoggle.toUpperCase()+(c[k]?' ON':' OFF')});document.querySelectorAll('#effectsSheet [data-fx-control]').forEach(function(el){const k=el.dataset.fxControl,on=k==='always'||!!c[k+'On'];el.classList.toggle('fxControlHidden',!on);el.classList.remove('fxControlOff')});syncSendToggles();syncCustomFxSlots();syncMicIsolationUI();applyFxZoom(fxLayout.zoom,false)}
+function syncFxBalanceLock(){const b=$('fxBalanceLock'),r=$('fxBalance');if(r)r.disabled=!!fxBalanceLocked;if(b){b.textContent=fxBalanceLocked?'LOCKED':'UNLOCKED';b.classList.toggle('unlocked',!fxBalanceLocked)}}
+function syncFx(){syncFxBalanceLock();const c=settings[fxTarget];if(c.compStrength==null)c.compStrength=c.compOn?60:0;if(c.eqOn==null)c.eqOn=false;if(c.eqLow==null)c.eqLow=0;if(c.eqMid==null)c.eqMid=0;if(c.eqHigh==null)c.eqHigh=0;$('fxPreamp').value=Number(c.preamp||0);$('fxCompStrength').value=Number(c.compStrength||0);$('fxCompStrengthVal').textContent=Math.round(Number(c.compStrength||0))+'%';$('fxEqLow').value=Number(c.eqLow||0);$('fxEqMid').value=Number(c.eqMid||0);$('fxEqHigh').value=Number(c.eqHigh||0);$('fxEqLowVal').textContent=(Number(c.eqLow||0)>0?'+':'')+Math.round(Number(c.eqLow||0))+' dB';$('fxEqMidVal').textContent=(Number(c.eqMid||0)>0?'+':'')+Math.round(Number(c.eqMid||0))+' dB';$('fxEqHighVal').textContent=(Number(c.eqHigh||0)>0?'+':'')+Math.round(Number(c.eqHigh||0))+' dB';$('fxPreampVal').textContent=(Number(c.preamp||0)>=0?'+':'')+Math.round(Number(c.preamp||0))+' dB';$('fxFrequency').value=c.frequency;$('fxPhaser').value=c.phaser;$('fxDelay').value=c.delay;$('fxDelayTime').value=c.delayTime;$('fxFeedback').value=c.feedback;$('fxReverb').value=c.reverb;if($('fxThreshold'))$('fxThreshold').value=c.threshold;if($('fxRatio'))$('fxRatio').value=c.ratio;$('fxBalance').value=Number(c.pan||0);$('fxBalanceVal').textContent=panLabel(c.pan);if($('fxReturnLevel'))$('fxReturnLevel').value=Number(c.fxLevel==null?100:c.fxLevel);if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxLevel').value=Number(c.fxLevel==null?100:c.fxLevel);$('mixFxRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxTargetRead').textContent=fxTarget.toUpperCase();$('fxFrequencyVal').textContent=Math.round(c.frequency);$('fxPhaserVal').textContent=Math.round(c.phaser)+'%';$('fxDelayVal').textContent=Math.round(c.delay)+'%';$('fxDelayTimeVal').textContent=Math.round(c.delayTime)+'ms';$('fxFeedbackVal').textContent=Math.round(c.feedback)+'%';$('fxReverbVal').textContent=Math.round(c.reverb)+'%';if($('fxThresholdVal'))$('fxThresholdVal').textContent=Math.round(c.threshold)+' dB';if($('fxRatioVal'))$('fxRatioVal').textContent=Math.round(c.ratio)+':1';if($('fxMeterLabel'))$('fxMeterLabel').textContent=fxTarget.toUpperCase()+' INPUT';const tp=clamp((Number(c.threshold)+60)/60*100,0,100);if($('fxThresholdMarker')){$('fxThresholdMarker').style.left=tp+'%';$('fxThresholdMarker').classList.toggle('compOff',!c.compOn)}if($('fxCompLineText'))$('fxCompLineText').textContent='COMP '+Math.round(c.threshold)+' dB · '+Math.round(c.ratio)+':1 · '+(c.compOn?'ON':'OFF');const saved=customFxPresets.map(function(p){const id=String(p.id||''),name=String(p.name||'SAVED');return '<span class="fxPresetItem" data-preset-item="'+esc(id)+'"><button data-saved-preset="'+esc(id)+'" class="'+(selectedFxPreset===id?'on':'')+'">'+esc(name)+'</button><button class="fxPresetDelete" data-delete-saved="'+esc(id)+'" aria-label="Delete '+esc(name)+'">×</button></span>'}).join('');$('fxPresets').innerHTML=saved||'<div class="note">No saved presets.</div>';$('fxPresets').classList.add('show');syncFxPresetSelect();document.querySelectorAll('[data-fxtoggle]').forEach(function(b){const k=b.dataset.fxtoggle+'On';b.classList.toggle('on',!!c[k]);b.textContent=b.dataset.fxtoggle.toUpperCase()+(c[k]?' ON':' OFF')});document.querySelectorAll('#effectsSheet [data-fx-control]').forEach(function(el){const k=el.dataset.fxControl,on=k==='always'||!!c[k+'On'];el.classList.toggle('fxControlHidden',!on);el.classList.remove('fxControlOff')});syncSendToggles();syncCustomFxSlots();syncMicIsolationUI();applyFxZoom(fxLayout.zoom,false)}
 $('effectsSheet').addEventListener('pointerdown',function(){if(ctx&&ctx.state==='suspended')ctx.resume().catch(function(){})},{passive:true});
 let fxPresetHoldTimer=0;
 function clearFxPresetHold(){if(fxPresetHoldTimer){clearTimeout(fxPresetHoldTimer);fxPresetHoldTimer=0}}
@@ -2846,12 +2903,12 @@ $('fxPresets').addEventListener('pointerdown',function(e){const b=e.target.close
 $('fxPresets').onclick=function(e){const b=e.target.closest('button');if(!b)return;if(b.dataset.deleteSaved){const p=customFxPresets.find(function(x){return String(x.id)===String(b.dataset.deleteSaved)}),name=String(p&&p.name||'this preset');if(confirm('Delete preset '+name+'?'))deleteFxPreset(b.dataset.deleteSaved).catch(function(err){alert(err.message||err)});return}if(b.dataset.holdDelete==='1'){delete b.dataset.holdDelete;return}if(b.dataset.preset){const n=b.dataset.preset,p=PRESETS[n];Object.keys(p).forEach(function(k){settings[fxTarget][k]=p[k]});settings[fxTarget].preset=n;selectedFxPreset='';applyChannel(fxTarget);syncFx();return}if(b.dataset.savedPreset){const p=customFxPresets.find(function(x){return String(x.id)===String(b.dataset.savedPreset)});if(!p||!p.settings)return;Object.assign(settings[fxTarget],p.settings);if(typeof p.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset=String(p.id);$('fxPresetName').value=String(p.name||'');applyChannel(fxTarget);syncFx()}};
 document.querySelectorAll('[data-fxtoggle]').forEach(function(b){b.onclick=function(){const k=b.dataset.fxtoggle+'On';settings[fxTarget][k]=!settings[fxTarget][k];settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);syncFx()}});
 [['fxPreamp','preamp'],['fxCompStrength','compStrength'],['fxEqLow','eqLow'],['fxEqMid','eqMid'],['fxEqHigh','eqHigh'],['fxFrequency','frequency'],['fxPhaser','phaser'],['fxDelay','delay'],['fxDelayTime','delayTime'],['fxFeedback','feedback'],['fxReverb','reverb']].forEach(function(pair){$(pair[0]).oninput=function(){settings[fxTarget][pair[1]]=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);syncFx()}});
-$('fxBalance').oninput=function(){settings[fxTarget].pan=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);if(fxTarget==='mic'&&liveSocket&&liveSocket.readyState===WebSocket.OPEN){try{liveSocket.send('PAN '+clamp(Number(settings.mic.pan||0)/100,-1,1))}catch(e){}}syncFx()};
+$('fxBalance').oninput=function(){settings[fxTarget].pan=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);if(fxTarget==='mic'&&liveSocket&&liveSocket.readyState===WebSocket.OPEN){try{liveSocket.send('PAN '+clamp(Number(settings.mic.pan||0)/100,-1,1))}catch(e){}}syncFx()};$('fxBalanceLock').onclick=function(){fxBalanceLocked=!fxBalanceLocked;try{localStorage.setItem('geFxBalanceLockedV1',fxBalanceLocked?'1':'0')}catch(e){}syncFxBalanceLock()};
 if($('fxReturnLevel'))$('fxReturnLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';$('mixFxLevel').value=this.value;$('mixFxRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
 $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.message||e)})};
 $('fxLoadPresets').onclick=function(){loadFxPresets().catch(function(e){alert(e.message||e)})};
 $('fxPresetSelect').onchange=function(){applyFxPresetChoice(this.value)};
-$('fxBackBtn').onclick=closeFx;
+if($('fxBackBtn'))$('fxBackBtn').onclick=closeFx;
 if($('micIsolationToggle'))$('micIsolationToggle').onclick=function(){
   if(settings.mic.isolationOn){settings.mic.isolationOn=false;isoModePickerOpen=false;void applyMicIsolation();return}
   isoModePickerOpen=true;syncMicIsolationUI();
@@ -2863,17 +2920,30 @@ async function setMixer(fields){const rr=await api('/control/mixer',{method:'POS
 function refreshMixerLayout(){const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');if(mixerLayout.locked){if(grid)grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));requestAnimationFrame(syncTouchFaders)}else applyMixerZoom(mixerLayout.zoom,false)}
 function setAuxVisible(id,show,buttonId){const el=$(id);if(!el)return;el.classList.toggle('auxHidden',!show);if(buttonId&&$(buttonId))$(buttonId).classList.toggle('on',show);refreshMixerLayout()}
 function toggleAux(id,buttonId){const el=$(id);if(!el)return;setAuxVisible(id,el.classList.contains('auxHidden'),buttonId)}
+let publicRadioLevelTimer=0,pendingPublicRadioLevel=1;
+function queuePublicRadioLevel(v){
+ pendingPublicRadioLevel=clamp(Number(v)||0,0,1.25);
+ if(publicRadioLevelTimer)return;
+ publicRadioLevelTimer=setTimeout(async function(){
+   publicRadioLevelTimer=0;
+   try{
+     const rr=await api('/control/mixer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({music_level:pendingPublicRadioLevel,music_muted:false})});
+     const d=await rr.json().catch(function(){return {}});
+     if(rr.ok&&d.ok&&status)status.mixer=d.mixer;
+   }catch(e){}
+ },70)
+}
 function bindLocalMixer(){
  function level(kind,v){settings[kind].level=Number(v);applyChannel(kind);$('mix'+(kind==='mic'?'Mic':'Line')+'Read').textContent=Math.round(v)+'%'}
  $('mixMicLevel').oninput=function(){level('mic',this.value)};
  $('mixLineLevel').oninput=function(){level('line',this.value)};
  $('mixStudioLevel').onchange=function(){setMixer({direct_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
  $('mixMasterLevel').onchange=function(){setMixer({master_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
- $('mixRadioBed').oninput=function(){const v=Number(this.value)||0;$('mixRadioRead').textContent=Math.round(v)+'%';if(!publicRadioControl){radioCueLevel=clamp(v,0,100);$('radioAudio').volume=radioCueLevel/100;try{localStorage.setItem('geDjRadioCueLevel',String(radioCueLevel))}catch(e){}}};
+ $('mixRadioBed').oninput=function(){const v=Number(this.value)||0;$('mixRadioRead').textContent=Math.round(v)+'%';if(publicRadioControl)queuePublicRadioLevel(v/100);else{radioCueLevel=clamp(v,0,100);$('radioAudio').volume=radioCueLevel/100;try{localStorage.setItem('geDjRadioCueLevel',String(radioCueLevel))}catch(e){}}};
  $('mixRadioBed').onchange=function(){if(publicRadioControl)setMixer({music_level:Number(this.value)/100,music_muted:false}).catch(function(e){alert(e.message)})};
  $('mixFxLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';$('mixFxRead').textContent=Math.round(this.value)+'%';if($('fxReturnLevel'))$('fxReturnLevel').value=this.value;if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
  $('mixMicMute').onclick=function(){settings.mic.mute=!settings.mic.mute;applyChannel('mic');this.classList.toggle('on',settings.mic.mute)};
- $('mixLineSource').onclick=function(){$('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');refreshDevices().then(function(){renderLineSavedInputs()})};
+ $('mixLineSource').onclick=function(){$('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();refreshDevices().then(function(){renderLineSavedInputs()})};
 $('mixLineMute').onclick=function(){settings.line.mute=!settings.line.mute;applyChannel('line');this.classList.toggle('on',settings.line.mute)}
 }
 bindLocalMixer();
@@ -2888,15 +2958,15 @@ $('sendAuxToggle').onclick=function(){toggleSendState(sendMiniKind,sendMiniWhich
 $('sendAuxLevel').oninput=function(){const key=sendMiniWhich==='delay'?'delay':'reverb';settings[sendMiniKind][key]=Number(this.value);$('sendAuxRead').textContent=Math.round(this.value)+'%';settings[sendMiniKind].preset='CUSTOM';applyChannel(sendMiniKind)};
 $('sendAuxFx').onclick=function(){openFx(sendMiniKind,sendMiniWhich)};
 
-function syncPublicRadioArm(){if(!$('publicRadioArm'))return;$('publicRadioArm').classList.toggle('on',publicRadioControl);$('publicRadioArm').textContent=publicRadioControl?'CONTROL ON':'CONTROL OFF';if($('radioControlNote'))$('radioControlNote').textContent=publicRadioControl?'PUBLIC RADIO':'LOCAL MONITOR'}
+function syncPublicRadioArm(){if($('publicRadioArm')){$('publicRadioArm').classList.toggle('on',publicRadioControl);$('publicRadioArm').textContent='CONTROL ON'}if($('radioControlNote'))$('radioControlNote').textContent='PUBLIC RADIO'}
 $('masterMixControl').onclick=function(){toggleAux('mixAuxMix','masterMixControl')};
-$('masterRadioControl').onclick=function(){toggleAux('mixAuxRadio','masterRadioControl')};
+$('masterRadioControl').onclick=function(){publicRadioControl=true;try{localStorage.setItem('geDjPublicRadioControl','1')}catch(e){}syncPublicRadioArm();if(status&&status.mixer){const v=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100);$('mixRadioBed').value=String(clamp(v,0,125));$('mixRadioRead').textContent=v+'%'}toggleAux('mixAuxRadio','masterRadioControl');requestAnimationFrame(syncTouchFaders)};
 $('masterStudioControl').onclick=function(){toggleAux('mixAuxStudio','masterStudioControl')};
 $('masterFxControl').onclick=function(){toggleAux('mixAuxFx','masterFxControl');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();syncFx()};
 document.querySelectorAll('[data-close-aux]').forEach(function(b){b.onclick=function(){const map={mix:['mixAuxMix','masterMixControl'],radio:['mixAuxRadio','masterRadioControl'],studio:['mixAuxStudio','masterStudioControl'],fx:['mixAuxFx','masterFxControl']},x=map[b.dataset.closeAux];if(x)setAuxVisible(x[0],false,x[1])}});
 $('masterMixLevel').oninput=function(){$('masterMixRead').textContent=Math.round(this.value)+'%'};
 $('masterMixLevel').onchange=function(){setMixer({music_under_voice:Number(this.value)/100}).catch(function(e){alert(e.message)})};
-$('publicRadioArm').onclick=function(){publicRadioControl=!publicRadioControl;try{localStorage.setItem('geDjPublicRadioControl',publicRadioControl?'1':'0')}catch(e){}syncPublicRadioArm();if(status&&status.mixer){const v=publicRadioControl?Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100):radioCueLevel;$('mixRadioBed').value=String(clamp(v,0,publicRadioControl?125:100));$('mixRadioRead').textContent=Math.round(v)+'%';requestAnimationFrame(syncTouchFaders)}};
+if($('publicRadioArm'))$('publicRadioArm').onclick=function(){publicRadioControl=true;syncPublicRadioArm()};
 $('publicRadioMute').onclick=function(){if(!publicRadioControl)return alert('Turn CONTROL ON first.');const muted=!(status&&status.mixer&&status.mixer.music_muted);setMixer({music_muted:muted}).catch(function(e){alert(e.message)})};
 $('mixFxOpen').onclick=function(){openFx(fxTarget)};
 syncSendToggles();syncPublicRadioArm();
@@ -3024,12 +3094,14 @@ function returnToMixer(){
   if($('picker'))$('picker').classList.remove('show');
   if($('mixerChannelPicker'))$('mixerChannelPicker').classList.remove('show');
   if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.remove('on');
-  closeFx();
-  $('mixerSheet').classList.add('show');
-  requestAnimationFrame(syncTouchFaders);
+  closeFx();$('mixerSheet').classList.add('show');setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders);
 }
-$('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};$('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('dockMixer').onclick=returnToMixer;$('dockFx').onclick=function(){openFx('mic')};
-function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};$('masterStopLive').onclick=function(){if(liveActive||micAirOn)stopMicOnAir().catch(function(){});else api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
+$('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};
+$('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};
+$('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};
+$('dockMixer').onclick=function(){if($('mixerSheet').classList.contains('show')&&!$('effectsSheet').classList.contains('show'))returnHome();else returnToMixer()};
+$('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))returnHome();else openFx('mic')};
+function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
 function openDjFilesModal(){$('djFilesModal').classList.add('show');$('djFilesSelectAll').checked=false;renderDjFiles()}
@@ -3090,8 +3162,9 @@ $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
 $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
 
-const GE_DISPLAY_ZOOM_KEY='geDisplayZoomV2';
-let geDisplayZoomPct=120;
+const GE_DISPLAY_ZOOM_PREFIX='geDisplayZoomV3:';
+let geDisplayZoomScope='home',geDisplayZoomPct=120;
+const geDisplayDefaults={home:120,mixer:120,effects:135,mic:120,line:120};
 function geZoomCandidates(root){
  const scope=root&&root.querySelectorAll?root:document;
  return Array.from(scope.querySelectorAll('button,select,input:not([type="range"]),textarea,label,span,b,strong,small,p,h1,h2,h3,h4,h5,h6,a,th,td,div,output'));
@@ -3105,9 +3178,22 @@ function geRegisterZoomBase(el){
    el.dataset.geZoomHeightBase=String(Number.isFinite(mh)&&mh>0?mh:Math.max(1,rect.height));
  }
 }
+function geStoredZoom(scope){
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_PREFIX+scope)||geDisplayDefaults[scope]||120),100,220)}catch(e){return geDisplayDefaults[scope]||120}
+}
+function placeGeDisplayBar(scope){
+ const bar=$('geDisplayZoomBar');if(!bar)return;
+ let host=null,before=null;
+ if(scope==='effects'){host=document.querySelector('#effectsSheet .fxDockHead');before=host&&host.querySelector('.fxLayoutBar')}
+ else if(scope==='mixer'){host=document.querySelector('#mixerSheet .mixerHeader');before=host&&host.querySelector('.mixerLayoutBar')}
+ else if(scope==='mic'){host=document.querySelector('#micSheet .sheetHead');before=host&&host.lastElementChild}
+ else if(scope==='line'){host=document.querySelector('#lineSheet .sheetHead');before=host&&host.lastElementChild}
+ if(host){bar.classList.add('inHeader');host.insertBefore(bar,before||null);document.body.classList.remove('geHomeZoom')}
+ else{bar.classList.remove('inHeader');document.body.insertBefore(bar,document.body.firstChild);document.body.classList.add('geHomeZoom')}
+}
 function syncGeDisplayBarSpace(){
  const bar=$('geDisplayZoomBar'),dock=document.querySelector('.dock');
- if(bar){
+ if(bar&&!bar.classList.contains('inHeader')){
    const h=Math.ceil(bar.getBoundingClientRect().height+12);
    document.documentElement.style.setProperty('--geDisplayTop',h+'px');
  }
@@ -3117,9 +3203,8 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||120),100,220);
- const scale=geDisplayZoomPct/100;
- const buttonScale=1+Math.max(0,scale-1)*0.82;
+ geDisplayZoomPct=clamp(Math.round(Number(value)||geDisplayDefaults[geDisplayZoomScope]||120),100,220);
+ const scale=geDisplayZoomPct/100,buttonScale=1+Math.max(0,scale-1)*0.82;
  const els=geZoomCandidates(document);els.forEach(geRegisterZoomBase);
  els.forEach(function(el){
    const base=parseFloat(el.dataset.geZoomFontBase);
@@ -3127,9 +3212,8 @@ function applyGeDisplayZoom(value,persist){
    const hb=parseFloat(el.dataset.geZoomHeightBase);
    if(Number.isFinite(hb))el.style.setProperty('min-height',(hb*buttonScale).toFixed(1)+'px','important');
  });
- $('geZoomRange').value=String(geDisplayZoomPct);
- $('geZoomRead').textContent=geDisplayZoomPct+'%';
- if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
+ $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
+ if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_PREFIX+geDisplayZoomScope,String(geDisplayZoomPct))}catch(e){}
  requestAnimationFrame(function(){syncGeDisplayBarSpace();if(typeof syncTouchFaders==='function')syncTouchFaders()});
 }
 function geResetZoomMeasurements(){
@@ -3139,20 +3223,93 @@ function geResetZoomMeasurements(){
  });
  requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
 }
+function setGeDisplayScope(scope){
+ geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);
+ geDisplayZoomPct=geStoredZoom(geDisplayZoomScope);geResetZoomMeasurements()
+}
 (function initGeDisplayZoom(){
- try{geDisplayZoomPct=clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||120),100,220)}catch(e){geDisplayZoomPct=120}
- applyGeDisplayZoom(geDisplayZoomPct,false);
+ setGeDisplayScope('home');
  $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
  $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
  $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
  let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(geResetZoomMeasurements,180)});
- if(window.MutationObserver)new MutationObserver(function(muts){
-   let changed=false;
-   muts.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1)changed=true})});
-   if(changed)requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
- }).observe(document.body,{childList:true,subtree:true});
 })();
+
 ;
 
+
+function syncDockViewState(){
+ const mixOpen=$('mixerSheet')&&$('mixerSheet').classList.contains('show'),fxOpen=$('effectsSheet')&&$('effectsSheet').classList.contains('show');
+ if($('dockMixer'))$('dockMixer').classList.toggle('activeView',mixOpen&&!fxOpen);
+ if($('dockFx'))$('dockFx').classList.toggle('activeView',fxOpen)
+}
+function returnHome(){
+ ['micSheet','lineSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
+ document.querySelectorAll('.modal.show').forEach(function(el){el.classList.remove('show')});
+ if($('picker'))$('picker').classList.remove('show');
+ if($('mixerChannelPicker'))$('mixerChannelPicker').classList.remove('show');
+ if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.remove('on');
+ closeFx();$('mixerSheet').classList.remove('show');setGeDisplayScope('home');syncDockViewState()
+}
+function geActiveFocusRoot(){
+ return document.querySelector('#effectsSheet.show')||document.querySelector('#mixerSheet.show')||document.querySelector('#lineSheet.show')||document.querySelector('#micSheet.show')||document.querySelector('.wrap')
+}
+function geFocusable(root){
+ return Array.from((root||document).querySelectorAll('button:not([disabled]),select:not([disabled]),input[type="range"]:not([disabled]),[role="slider"]:not([aria-disabled="true"])')).filter(function(el){return !!(el.offsetWidth||el.offsetHeight||el.getClientRects().length)})
+}
+function moveGeFocus(from,dir){
+ const list=geFocusable(geActiveFocusRoot()),i=list.indexOf(from);if(!list.length)return;
+ const next=list[(i<0?0:(i+(dir>0?1:-1)+list.length)%list.length)];if(next)next.focus()
+}
+function stepNativeRange(el,dir){
+ const min=Number(el.min||0),max=Number(el.max||100),step=Number(el.step||1)||1,val=Number(el.value||0);
+ el.value=String(clamp(val+(dir>0?step:-step),min,max));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))
+}
+document.addEventListener('keydown',function(e){
+ const t=e.target;
+ if(t&&t.matches&&t.matches('input[type="range"]:not(.vf)')){
+   if(e.key==='ArrowUp'||e.key==='ArrowDown'){captureGeUndo();stepNativeRange(t,e.key==='ArrowUp'?1:-1);e.preventDefault();return}
+   if(e.key==='ArrowLeft'||e.key==='ArrowRight'){moveGeFocus(t,e.key==='ArrowRight'?1:-1);e.preventDefault();return}
+ }
+ if(t&&t.matches&&t.matches('button')&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){moveGeFocus(t,e.key==='ArrowRight'?1:-1);e.preventDefault()}
+});
+let geUndoStack=[],geUndoRestoring=false;
+function geUndoSnapshot(){
+ return {
+   settings:JSON.parse(JSON.stringify(settings)),
+   mixer:status&&status.mixer?{master_level:Number(status.mixer.master_level==null?1:status.mixer.master_level),music_level:Number(status.mixer.music_level==null?1:status.mixer.music_level),direct_level:Number(status.mixer.direct_level==null?1:status.mixer.direct_level),music_under_voice:Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice),music_muted:!!status.mixer.music_muted}:null,
+   publicRadioControl:!!publicRadioControl,radioCueLevel:Number(radioCueLevel),fxTarget:String(fxTarget||'mic')
+ }
+}
+function captureGeUndo(){
+ if(geUndoRestoring)return;const s=geUndoSnapshot(),last=geUndoStack[geUndoStack.length-1];
+ const js=JSON.stringify(s);if(last&&last._json===js)return;s._json=js;geUndoStack.push(s);if(geUndoStack.length>30)geUndoStack.shift();
+ if($('geUndo'))$('geUndo').disabled=false
+}
+async function undoGeAdjustment(){
+ const s=geUndoStack.pop();if(!s)return;geUndoRestoring=true;
+ try{
+   settings=JSON.parse(JSON.stringify(s.settings));fxTarget=s.fxTarget||fxTarget;publicRadioControl=!!s.publicRadioControl;radioCueLevel=Number(s.radioCueLevel||100);
+   applyChannel('mic');applyChannel('line');syncDjMixerControls();syncFx();syncPublicRadioArm();
+   if(s.mixer)await setMixer(s.mixer);
+ }finally{geUndoRestoring=false;if($('geUndo'))$('geUndo').disabled=!geUndoStack.length}
+}
+document.addEventListener('pointerdown',function(e){
+ const t=e.target.closest&&e.target.closest('#mixerSheet input[type="range"],#effectsSheet input[type="range"],#mixerSheet button[data-fxtoggle],#mixerSheet .sendState,#mixMicMute,#mixLineMute,#publicRadioMute');
+ if(t&&!t.closest('.geDisplayZoomBar'))captureGeUndo()
+},{capture:true});
+$('geUndo').onclick=function(){undoGeAdjustment().catch(function(e){alert(e.message||e)})};
+$('gePlayer').onclick=function(){
+ if(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)return;
+ const q=new URLSearchParams(location.search);
+ if(q.get('player')==='1'){
+   if(document.fullscreenElement)document.exitFullscreen&&document.exitFullscreen();else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();
+   return
+ }
+ const u=new URL(location.href);u.searchParams.set('player','1');
+ const w=window.open(u.toString(),'ge-dj-player','popup=yes,width=1280,height=820,resizable=yes,scrollbars=no,toolbar=no,location=no,menubar=no,status=no');
+ if(!w&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen()
+};
+if(new URLSearchParams(location.search).get('player')==='1')$('gePlayer').textContent='FULLSCREEN';
 document.addEventListener('pointerdown',function gePrimeDj(){if(key)warmDjSources().catch(function(){})},{once:true,capture:true});const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');if(saved)verify(saved).catch(function(){sessionStorage.removeItem('geDjPassword')});
 </script></body></html>
