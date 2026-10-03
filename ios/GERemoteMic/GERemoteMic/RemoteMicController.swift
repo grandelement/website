@@ -1,5 +1,6 @@
 import Foundation
 import AVFAudio
+import AVFoundation
 import UIKit
 
 @MainActor
@@ -33,7 +34,7 @@ final class RemoteMicController: ObservableObject {
     func pair(code: String) async throws {
         let model = UIDevice.current.model
         let name = UIDevice.current.name
-        let creds = try await RadioAPI.shared.claim(code: code, name: name, model: model, capabilities: ["audio", "microphone"])
+        let creds = try await RadioAPI.shared.claim(code: code, name: name, model: model, capabilities: mediaCapabilities())
         CredentialsStore.save(creds)
         credentials = creds
         paired = true
@@ -101,6 +102,26 @@ final class RemoteMicController: ObservableObject {
         }
     }
 
+    private func cameraAvailable() -> Bool {
+        AVCaptureDevice.default(for: .video) != nil
+    }
+
+    private func cameraPermissionState() -> String {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: return "granted"
+        case .denied: return "denied"
+        case .restricted: return "restricted"
+        case .notDetermined: return "not-requested"
+        @unknown default: return "unknown"
+        }
+    }
+
+    private func mediaCapabilities() -> [String] {
+        var caps = ["audio", "microphone"]
+        if cameraAvailable() { caps.append("camera") }
+        return caps
+    }
+
     private func requestMicPermission() async -> Bool {
         await withCheckedContinuation { continuation in
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
@@ -162,7 +183,13 @@ final class RemoteMicController: ObservableObject {
                 "level": level,
                 "peak_pct": peak,
                 "app_state": appState,
-                "last_error": lastError
+                "last_error": lastError,
+                "capabilities": mediaCapabilities(),
+                "camera_available": cameraAvailable(),
+                "camera_permission": cameraPermissionState(),
+                "video_transport": "not-built",
+                "video_active": false,
+                "video_error": ""
             ])
             for command in result.commands ?? [] {
                 await handle(command)
