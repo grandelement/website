@@ -2619,7 +2619,15 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 qs = urllib.parse.parse_qs(parsed.query)
                 days = (qs.get("days") or ["14"])[0]
-                self.json_response({"ok": True, **dj_ux_summary(days)})
+                summary = dj_ux_summary(days)
+                website = {"ok": False, "error": "GE Vault is not configured."}
+                if vault_configured():
+                    try:
+                        q = urllib.parse.urlencode({"days": days})
+                        website = vault_request("GET", "/v1/admin/owner-ux-summary?" + q)
+                    except Exception as vault_exc:
+                        website = {"ok": False, "error": str(vault_exc)}
+                self.json_response({"ok": True, **summary, "website": website})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
