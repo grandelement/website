@@ -1413,6 +1413,8 @@ def _remote_public(row):
         "name": str(row.get("name", "Remote Device")),
         "platform": str(row.get("platform", "ios")),
         "model": str(row.get("model", "")),
+        "kind": str(row.get("kind", "")),
+        "capabilities": list(row.get("capabilities", [])) if isinstance(row.get("capabilities"), list) else [],
         "online": bool(last_seen and now - last_seen < 15),
         "last_seen": last_seen,
         "remote_ready": bool(row.get("remote_ready", False)),
@@ -1425,15 +1427,18 @@ def _remote_public(row):
         "last_error": str(row.get("last_error", "")),
     }
 
-def create_remote_pairing():
+def create_remote_pairing(target_kind=""):
     code = f"{secrets.randbelow(1000000):06d}"
     token = uuid.uuid4().hex
+    target_kind = str(target_kind or "").strip().lower()
+    if target_kind not in {"iphone", "ipad"}:
+        target_kind = ""
     with REMOTE_DEVICE_LOCK:
         now = time.time()
         for old, item in list(REMOTE_PAIRINGS.items()):
             if float(item.get("expires_at", 0)) < now:
                 REMOTE_PAIRINGS.pop(old, None)
-        REMOTE_PAIRINGS[code] = {"claim_token": token, "expires_at": now + 600}
+        REMOTE_PAIRINGS[code] = {"claim_token": token, "expires_at": now + 600, "target_kind": target_kind}
     return code
 
 def check_remote_pair_rate(ip):
@@ -1446,7 +1451,7 @@ def check_remote_pair_rate(ip):
         times.append(now)
         REMOTE_PAIR_ATTEMPTS[ip] = times
 
-def claim_remote_pairing(code, name, platform="ios", model=""):
+def claim_remote_pairing(code, name, platform="ios", model="", capabilities=None):
     code = str(code or "").strip()
     with REMOTE_DEVICE_LOCK:
         pair = REMOTE_PAIRINGS.pop(code, None)
@@ -1454,11 +1459,23 @@ def claim_remote_pairing(code, name, platform="ios", model=""):
         raise ValueError("Pairing code is invalid or expired.")
     device_id = "device-" + uuid.uuid4().hex[:16]
     device_key = uuid.uuid4().hex + uuid.uuid4().hex
+    raw_caps = capabilities if isinstance(capabilities, list) else []
+    caps = []
+    for item in raw_caps:
+        cap = re.sub(r"[^a-z0-9_-]+", "-", str(item or "").strip().lower())[:32]
+        if cap and cap not in caps:
+            caps.append(cap)
+    target_kind = str(pair.get("target_kind", "") or "").strip().lower()
+    if target_kind not in {"iphone", "ipad"}:
+        model_text = (str(model or "") + " " + str(name or "")).lower()
+        target_kind = "ipad" if "ipad" in model_text else ("iphone" if "iphone" in model_text or "ipod" in model_text else "")
     row = {
         "id": device_id,
-        "name": " ".join(str(name or "GE Remote Mic").split())[:80],
+        "name": " ".join(str(name or "GE Device").split())[:80],
         "platform": str(platform or "ios")[:40],
         "model": str(model or "")[:100],
+        "kind": target_kind,
+        "capabilities": caps,
         "token_hash": _remote_device_token_hash(device_key),
         "created_at": int(time.time()),
         "last_seen": 0,
@@ -1493,7 +1510,7 @@ def remote_device_auth(headers):
         return dict(row)
 
 def update_remote_device(device_id, fields):
-    allowed = {"name","model","last_seen","remote_ready","mic_active","on_air","muted","level","peak_pct","app_state","last_error"}
+    allowed = {"name","model","kind","capabilities","last_seen","remote_ready","mic_active","on_air","muted","level","peak_pct","app_state","last_error"}
     with REMOTE_DEVICE_LOCK:
         data = _remote_devices()
         row = next((x for x in data["items"] if str(x.get("id")) == str(device_id)), None)
@@ -3408,8 +3425,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/control/device/pair/create":
             if not self.require_auth(): return
             try:
-                code = create_remote_pairing()
-                self.json_response({"ok": True, "code": code, "expires_seconds": 600})
+                body = self.read_body_json()
+                code = create_remote_pairing(body.get("target_kind", ""))
+                self.json_response({"ok": True, "code": code, "expires_seconds": 600, "target_kind": str(body.get("target_kind", "") or "")})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 500)
             return
@@ -3419,7 +3437,7 @@ class Handler(BaseHTTPRequestHandler):
                 client_ip = (self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
                 check_remote_pair_rate(client_ip)
                 body = self.read_body_json()
-                device_id, device_key = claim_remote_pairing(body.get("code"), body.get("name"), body.get("platform", "ios"), body.get("model", ""))
+                device_id, device_key = claim_remote_pairing(body.get("code"), body.get("name"), body.get("platform", "ios"), body.get("model", ""), body.get("capabilities") or [])
                 self.json_response({"ok": True, "device_id": device_id, "device_key": device_key})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
@@ -3441,6 +3459,7 @@ class Handler(BaseHTTPRequestHandler):
                     "peak_pct": clamp_number(body.get("peak_pct"), 0.0, 100.0, 0.0),
                     "app_state": str(body.get("app_state", ""))[:40],
                     "last_error": str(body.get("last_error", ""))[:300],
+                    "capabilities": [re.sub(r"[^a-z0-9_-]+", "-", str(x or "").strip().lower())[:32] for x in (body.get("capabilities") if isinstance(body.get("capabilities"), list) else []) if str(x or "").strip()][:12],
                 }
                 updated = update_remote_device(row["id"], fields)
                 self.json_response({"ok": True, "device": _remote_public(updated), "commands": take_remote_commands(row["id"])})
