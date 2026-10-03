@@ -2623,7 +2623,7 @@ html.geDayMode #djFilesModal .modalHead{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v86</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v87</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4465,7 +4465,7 @@ async function loadLineFile(file){
  lineSourceMode='file';lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
 }
 function setMeterLevel(id,pct){const e=$(id);if(!e)return;e.style.setProperty('--meter-level',clamp(Number(pct)||0,0,100)+'%')}
-function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(kind==='line')lineInputPct=pct;else micInputPct=pct;setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
+function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(kind==='line')lineInputPct=pct;else micInputPct=pct;setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0);if($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===GE_DEVICE_KIND)setMeterLevel('deviceChannelMeter',pct)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runFxReturnMeter(kind){const an=kind==='mic'?micFxAnalyser:lineFxAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(fxTarget===kind){setMeterLevel('fxReturnMeter',pct);setMeterLevel('mixFxReturnMeter',pct);if($('fxReturnDb'))$('fxReturnDb').textContent=db.toFixed(0)+' dB'}if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind){setMeterLevel('sendAuxMeter',pct)}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runMasterMeter(){if(!contributionAnalyser)return;const a=new Uint8Array(contributionAnalyser.fftSize);const loop=function(){contributionAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);djLevelDb=db;djLevelPct=pct;setMeterLevel('mixMasterDjMeter',pct);if($('mixMasterDjDb'))$('mixMasterDjDb').textContent=db.toFixed(0);setMeterLevel('mixMasterMeter',pct);if($('mixMasterDb'))$('mixMasterDb').textContent=db.toFixed(0);requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 
@@ -4740,23 +4740,57 @@ function boardForDeviceKind(kind){
 function renderDeviceChannelSheet(){
  if(!geOpenDeviceKind)return;
  const kind=geOpenDeviceKind,board=boardForDeviceKind(kind),remote=remoteDeviceFor(kind);
- const self=GE_DEVICE_KIND===kind,boardOnline=!!board||self,deviceOnline=!!(remote&&remote.online),verified=!!remote,online=boardOnline||deviceOnline,ready=!!(remote&&remote.online&&remote.remote_ready),air=!!(remote&&remote.online&&remote.on_air),muted=!!(remote&&remote.muted);
+ const self=GE_DEVICE_KIND===kind,boardOnline=!!board||self,deviceOnline=!!(remote&&remote.online),verified=!!remote,online=boardOnline||deviceOnline;
+ const localMic=!!(self&&geTrackLive(micStream));
+ const boardMic=!!(!self&&board&&board.mic_connected);
+ const browserMic=localMic||boardMic;
+ const browserAir=self?!!micAirOn:!!(board&&board.mic_air);
+ const remoteReady=!!(remote&&remote.online&&remote.remote_ready),remoteAir=!!(remote&&remote.online&&remote.on_air);
+ const ready=browserMic||remoteReady,air=browserAir||remoteAir,muted=self?!!settings.mic.mute:!!(remote&&remote.muted);
  const label=kind==='ipad'?'iPAD':'iPHONE';
+ const meterPct=self?Number(micInputPct||0):(boardMic?Number(board.mic_peak||0):(remote&&remote.online?Number(remote.peak_pct||0):0));
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online);
- if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=online?(verified?'VERIFIED + CONNECTED':'CONNECTED'):'OFFLINE';
- if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=verified?(String(remote.name||label)+' · DEVICE VERIFIED'+(boardOnline?' · DJ CONTROL LINKED':' · APP LINKED')):(online?((self||board&&String(board.id||'')===String(GE_BOARD_ID)?'THIS DEVICE · ':'')+String(board&&board.label||label)+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED');
- setMeterLevel('deviceChannelMeter',remote&&remote.online?Number(remote.peak_pct||0):0);
- if($('deviceChannelMicState'))$('deviceChannelMicState').textContent=!remote?'MICROPHONE APP NOT LINKED':(!remote.online?'MICROPHONE APP OFFLINE':(air?'MICROPHONE ON AIR':ready?'MICROPHONE READY':'MICROPHONE CONNECTED · NOT READY'));
- const pct=Math.round(Number(remote&&remote.level!=null?remote.level:1)*100);
- if($('deviceChannelLevel')){$('deviceChannelLevel').value=String(pct);$('deviceChannelLevel').disabled=!(remote&&remote.online);$('deviceChannelLevel').dataset.remoteDevice=remote&&remote.id||''}
+ if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=online?'CONNECTED':'OFFLINE';
+ if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((self?'THIS DEVICE · ':'')+label+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
+ setMeterLevel('deviceChannelMeter',meterPct);
+ if($('deviceChannelMicState')){
+   $('deviceChannelMicState').textContent=self?
+     (localMic?(micAirOn?'MICROPHONE ON AIR':'MICROPHONE READY'):'MICROPHONE CLOSED · TAP OPEN MIC'):
+     (boardMic?(browserAir?'MICROPHONE ON AIR':'MICROPHONE READY'):(remote?(!remote.online?'MICROPHONE APP OFFLINE':(remoteAir?'MICROPHONE ON AIR':remoteReady?'MICROPHONE READY':'MICROPHONE CONNECTED · NOT READY')):'MICROPHONE NOT OPEN ON '+label));
+ }
+ const pct=self?Math.round(Number(settings.mic.level==null?100:settings.mic.level)):Math.round(Number(remote&&remote.level!=null?remote.level:100));
+ if($('deviceChannelLevel')){
+   $('deviceChannelLevel').value=String(pct);
+   $('deviceChannelLevel').disabled=self?!online:!(remote&&remote.online);
+   $('deviceChannelLevel').dataset.remoteDevice=remote&&remote.id||'';
+ }
  if($('deviceChannelLevelRead'))$('deviceChannelLevelRead').textContent=pct+'%';
- if($('deviceChannelReady')){$('deviceChannelReady').disabled=!(remote&&remote.online);$('deviceChannelReady').dataset.remoteDevice=remote&&remote.id||'';$('deviceChannelReady').textContent=ready?'DISCONNECT MIC':'MIC READY';$('deviceChannelReady').classList.toggle('on',ready)}
- if($('deviceChannelAir')){$('deviceChannelAir').disabled=!(remote&&remote.online&&ready);$('deviceChannelAir').dataset.remoteDevice=remote&&remote.id||'';$('deviceChannelAir').textContent=air?'STOP AIR':'ON AIR';$('deviceChannelAir').classList.toggle('air',air)}
- if($('deviceChannelMute')){$('deviceChannelMute').disabled=!(remote&&remote.online);$('deviceChannelMute').dataset.remoteDevice=remote&&remote.id||'';$('deviceChannelMute').textContent=muted?'UNMUTE':'MUTE';$('deviceChannelMute').classList.toggle('on',muted)}
+ if($('deviceChannelReady')){
+   $('deviceChannelReady').disabled=self?!online:!(remote&&remote.online);
+   $('deviceChannelReady').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelReady').textContent=self?(localMic?'CLOSE MIC':'OPEN MIC'):(remoteReady?'DISCONNECT MIC':'MIC READY');
+   $('deviceChannelReady').classList.toggle('on',self?localMic:remoteReady);
+ }
+ if($('deviceChannelAir')){
+   $('deviceChannelAir').disabled=self?!localMic:!(remote&&remote.online&&remoteReady);
+   $('deviceChannelAir').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelAir').textContent=air?'STOP AIR':'ON AIR';
+   $('deviceChannelAir').classList.toggle('air',air);
+ }
+ if($('deviceChannelMute')){
+   $('deviceChannelMute').disabled=self?!localMic:!(remote&&remote.online);
+   $('deviceChannelMute').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelMute').textContent=muted?'UNMUTE':'MUTE';
+   $('deviceChannelMute').classList.toggle('on',muted);
+ }
  if($('deviceChannelLinkMic')){$('deviceChannelLinkMic').textContent=online?'DEVICE CONNECTED':'CONNECT DEVICE';$('deviceChannelLinkMic').disabled=online}
  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent=online?'CONNECTED · NO CODE OR PASSWORD REQUIRED':'TAP CONNECT DEVICE';
- if($('deviceChannelHelp'))$('deviceChannelHelp').textContent=online?label+' is connected to GE DJ. The browser connection is the device connection.':('Connect this '+label+' directly to GE DJ. This button does not create a pairing code or ask for a password.');
+ if($('deviceChannelHelp')){
+   $('deviceChannelHelp').textContent=self?
+     (localMic?label+' microphone is open. The meter above is the live microphone signal.':'Tap OPEN MIC once on this '+label+'. Safari may ask for microphone permission; then the meter will move immediately.'):
+     (boardMic?label+' browser microphone is open and its live meter is shown here.':'Open the microphone on the '+label+' itself to activate its meter.');
+ }
 }
 function openDeviceChannel(kind){
  geOpenDeviceKind=kind;
@@ -4907,11 +4941,34 @@ async function createDevicePairCode(targetKind){
   if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='ENTER '+d.code+' IN THE GE DEVICE APP · ONE-TIME VERIFICATION';
   return d.code
 }
-$('deviceChannelLevel').oninput=function(){if($('deviceChannelLevelRead'))$('deviceChannelLevelRead').textContent=Math.round(Number(this.value))+'%'};
-$('deviceChannelLevel').onchange=function(){const id=this.dataset.remoteDevice;if(!id)return;sendRemoteCommand(id,'level',Number(this.value)/100).then(function(){setTimeout(poll,150)}).catch(function(e){alert(e.message||e)})};
-$('deviceChannelReady').onclick=function(){const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'arm',!d.remote_ready).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})};
-$('deviceChannelAir').onclick=function(){const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'air',!d.on_air).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})};
-$('deviceChannelMute').onclick=function(){const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})};
+$('deviceChannelLevel').oninput=function(){
+ if($('deviceChannelLevelRead'))$('deviceChannelLevelRead').textContent=Math.round(Number(this.value))+'%';
+ if(GE_DEVICE_KIND===geOpenDeviceKind){settings.mic.level=Number(this.value);applyChannel('mic');pushSharedDjControls({mic_level:Number(this.value)},false)}
+};
+$('deviceChannelLevel').onchange=function(){
+ if(GE_DEVICE_KIND===geOpenDeviceKind){settings.mic.level=Number(this.value);applyChannel('mic');pushSharedDjControls({mic_level:Number(this.value)},true);saveSettings();return}
+ const id=this.dataset.remoteDevice;if(!id)return;sendRemoteCommand(id,'level',Number(this.value)/100).then(function(){setTimeout(poll,150)}).catch(function(e){alert(e.message||e)})
+};
+$('deviceChannelReady').onclick=function(){
+ if(GE_DEVICE_KIND===geOpenDeviceKind){
+   openMic().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
+   return
+ }
+ const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'arm',!d.remote_ready).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+};
+$('deviceChannelAir').onclick=function(){
+ if(GE_DEVICE_KIND===geOpenDeviceKind){
+   toggleMicOnAir().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
+   return
+ }
+ const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'air',!d.on_air).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+};
+$('deviceChannelMute').onclick=function(){
+ if(GE_DEVICE_KIND===geOpenDeviceKind){
+   settings.mic.mute=!settings.mic.mute;applyChannel('mic');saveSettings();renderDeviceChannelSheet();return
+ }
+ const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+};
 async function connectDeviceChannel(kind){
  if(kind!=='iphone'&&kind!=='ipad')throw new Error('Choose iPHONE or iPAD first.');
  const label=kind==='ipad'?'iPAD':'iPHONE';
