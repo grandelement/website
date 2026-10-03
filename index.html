@@ -1785,11 +1785,13 @@ window.GE_EASY_SETTINGS = Object.assign({
   SOUL_SPAWN_MIN_SEC: 70.0,
   SOUL_SPAWN_MAX_SEC: 180.0,
 
-  // Very slow background travel. Each ambient path closes after twelve hours.
-  // The exact path is regenerated on every fresh page load.
+  // NORMAL WEBSITE ALBUM ORBITS.
+  // Each album owns a different randomly tilted oval that is regenerated on refresh.
+  // Fire = 33s, Spirit = 66s, Soul = 99s, then +33s per album.
   AMBIENT_ORBIT_ENABLED: true,
-  AMBIENT_ORBIT_PERIOD_SEC: 43200,
-  AMBIENT_ORBIT_TICK_MS: 250,
+  AMBIENT_ORBIT_BASE_SEC: 33,
+  AMBIENT_ORBIT_PERIOD_SEC: 43200, // Blue Sun's own extremely slow drift
+  AMBIENT_ORBIT_TICK_MS: 80,
   AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX: 24,
   AMBIENT_ORBIT_PLANET_RADIUS_MAX_PX: 72,
   AMBIENT_ORBIT_SUN_RADIUS_X_PX: 58,
@@ -11998,11 +12000,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const settings=window.GE_EASY_SETTINGS||{};
   if(settings.AMBIENT_ORBIT_ENABLED===false)return;
 
-  // True independent album orbits around the live Blue Sun.
-  // One complete angular cycle remains twelve hours by default.
-  const PERIOD_MS=Math.max(3600000,Number(settings.AMBIENT_ORBIT_PERIOD_SEC||43200)*1000);
-  const TICK_MS=Math.max(50,Math.min(250,Number(settings.AMBIENT_ORBIT_TICK_MS||250)));
-  const BREATH_MS=90000; // 480 exact breaths per 12-hour orbit.
+  // Independent viewport-scale album orbits. The screen is the visible universe boundary.
+  const SUN_PERIOD_MS=Math.max(3600000,Number(settings.AMBIENT_ORBIT_PERIOD_SEC||43200)*1000);
+  const BASE_ORBIT_MS=Math.max(8000,Number(settings.AMBIENT_ORBIT_BASE_SEC||33)*1000);
+  const TICK_MS=Math.max(40,Math.min(250,Number(settings.AMBIENT_ORBIT_TICK_MS||80)));
+  const BREATH_MS=90000;
   const planetState=new WeakMap();
   const held=new WeakSet();
   const sun=document.getElementById('sunWrap');
@@ -12036,17 +12038,30 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
 
   function makeOrbit(el,index,total){
-    const s=sunCenter(),r=el.getBoundingClientRect();
-    const x=r.left+r.width/2,y=r.top+r.height/2,dx=x-s.x,dy=y-s.y;
-    const minDim=Math.max(1,Math.min(innerWidth,innerHeight));
-    const minR=Math.max(s.r+34,minDim*.16),maxR=Math.max(minR+18,minDim*.43);
-    const current=Math.max(minR,Math.hypot(dx,dy)||minR);
-    const spread=total>1?(index/(total-1)-.5):0;
-    const rx=clamp(current*(1+spread*.16),minR,maxR);
-    const ry=clamp(current*(.76+(index%3)*.08),minR*.66,maxR*.94);
+    const r=el.getBoundingClientRect(),pr=Math.max(8,(r.width||24)/2),W=Math.max(1,innerWidth),H=Math.max(1,innerHeight);
+    const x=r.left+r.width/2,y=r.top+r.height/2;
+    // Large projected ovals use most of the screen, but every planet gets a different
+    // axis ratio, rotation, direction and center. These values live only for this refresh.
+    const rot=Math.random()*Math.PI;
+    let rx=W*(.34+Math.random()*.10),ry=H*(.26+Math.random()*.14);
+    if(index%3===1){const t=rx;rx=Math.min(W*.44,ry*1.15);ry=Math.min(H*.40,t*.72)}
+    const ca=Math.cos(rot),sa=Math.sin(rot);
+    let ex=Math.sqrt(rx*rx*ca*ca+ry*ry*sa*sa),ey=Math.sqrt(rx*rx*sa*sa+ry*ry*ca*ca);
+    const maxEx=Math.max(28,W*.5-pr-10),maxEy=Math.max(36,H*.5-pr-16),scale=Math.min(1,maxEx/Math.max(1,ex),maxEy/Math.max(1,ey));
+    rx*=scale;ry*=scale;ex*=scale;ey*=scale;
+    const roomX=Math.max(0,W*.5-ex-pr-8),roomY=Math.max(0,H*.5-ey-pr-12);
+    const cx=W*.5+(Math.random()*2-1)*roomX*.75,cy=H*.5+(Math.random()*2-1)*roomY*.75;
+    // Choose the phase nearest the planet's current visual position so entering/rejoining
+    // an orbit does not create an obvious jump.
+    let bestPhase=0,bestD=Infinity;
+    for(let k=0;k<72;k++){
+      const a=k/72*Math.PI*2,ux=Math.cos(a)*rx,uy=Math.sin(a)*ry;
+      const px=cx+ux*ca-uy*sa,py=cy+ux*sa+uy*ca,d=(px-x)*(px-x)+(py-y)*(py-y);
+      if(d<bestD){bestD=d;bestPhase=a}
+    }
     return{
-      phase:Math.atan2(dy/(ry||1),dx/(rx||1)),
-      rx,ry,
+      phase:bestPhase,rx,ry,rot,cx,cy,
+      period:BASE_ORBIT_MS*(index+1),
       dir:index%2?-1:1,
       start:performance.now(),
       breathPhase:(index/Math.max(1,total))*Math.PI*2,
@@ -12078,7 +12093,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function moveSun(now){
     if(!sun||held.has(sun)||sun.classList.contains('dragging'))return;
     if(!sunDrift)seedSunDrift();
-    const a=((now-sunDrift.start)%PERIOD_MS)/PERIOD_MS*Math.PI*2;
+    const a=((now-sunDrift.start)%SUN_PERIOD_MS)/SUN_PERIOD_MS*Math.PI*2;
     const x=sunDrift.cx+Math.cos(a)*sunDrift.rx;
     const y=sunDrift.cy+Math.sin(a)*sunDrift.ry;
     const r=sun.getBoundingClientRect();
@@ -12096,7 +12111,6 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     moveSun(now);
 
     const els=Array.from(document.querySelectorAll('#planets .planet'));
-    const s=sunCenter();
 
     els.forEach((el,index)=>{
       if(held.has(el)||el.classList.contains('previewZoom')||el.classList.contains('albumBioOpen'))return;
@@ -12114,13 +12128,10 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       let st=planetState.get(el);
       if(!st||st.dynamic)st=reseed(el,index,els.length);
 
-      const a=st.phase+st.dir*((now-st.start)%PERIOD_MS)/PERIOD_MS*Math.PI*2;
+      const a=st.phase+st.dir*((now-st.start)%st.period)/st.period*Math.PI*2;
       const breath=Math.sin((now/BREATH_MS)*Math.PI*2+st.breathPhase);
-      putPlanet(
-        el,node,
-        s.x+Math.cos(a)*(st.rx+breath*4),
-        s.y+Math.sin(a)*(st.ry+breath*3)
-      );
+      const rx=st.rx+breath*3,ry=st.ry+breath*2,ux=Math.cos(a)*rx,uy=Math.sin(a)*ry,ca=Math.cos(st.rot),sa=Math.sin(st.rot);
+      putPlanet(el,node,st.cx+ux*ca-uy*sa,st.cy+ux*sa+uy*ca);
     });
   }
 
