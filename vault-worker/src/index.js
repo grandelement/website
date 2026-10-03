@@ -1179,6 +1179,77 @@ function analyticsWindow(url, defaultDays = 30) {
   };
 }
 
+function mergeOwnerUxCounts(map, value) {
+  if (!value || typeof value !== "object") return;
+  for (const [rawName, rawCount] of Object.entries(value).slice(0, 160)) {
+    const name = String(rawName || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    const count = Math.max(0, Math.min(1000000, Number(rawCount) || 0));
+    if (!name || !count) continue;
+    bumpCount(map, name, count);
+  }
+}
+
+async function adminOwnerUxSummary(env, url) {
+  const range = analyticsWindow(url, 14);
+  const { since, until, days } = range;
+  const rows = await env.VAULT_DB.prepare(
+    "SELECT occurred_at,anon_id,session_id,metadata_json FROM fan_events WHERE event_type='owner_ux_batch' AND occurred_at>=? AND occurred_at<=? ORDER BY occurred_at ASC LIMIT 50000",
+  ).bind(since, until).all();
+
+  const maps = {
+    clicks: new Map(),
+    changes: new Map(),
+    transitions: new Map(),
+    backtracks: new Map(),
+    repeats: new Map(),
+    errors: new Map(),
+  };
+  const sessions = new Set();
+  const anonIds = new Set();
+  let lastEventAt = 0;
+  let batches = 0;
+
+  for (const row of rows.results || []) {
+    const meta = parseStoredJson(row.metadata_json);
+    if (!meta.owner_ux) continue;
+    batches += 1;
+    if (row.session_id) sessions.add(String(row.session_id));
+    if (row.anon_id) anonIds.add(String(row.anon_id));
+    lastEventAt = Math.max(lastEventAt, Number(row.occurred_at || 0));
+    for (const key of Object.keys(maps)) mergeOwnerUxCounts(maps[key], meta[key]);
+  }
+
+  const top = (key, limit = 12) => topCountRows(maps[key], limit);
+  const signals = [];
+  for (const row of top("backtracks", 6)) {
+    if (row.count >= 3) signals.push({ kind: "backtrack", ...row, note: "Frequent website back-and-forth navigation." });
+  }
+  for (const row of top("repeats", 6)) {
+    if (row.count >= 3) signals.push({ kind: "repeat", ...row, note: "The same website control was used repeatedly in a short period." });
+  }
+  for (const row of top("errors", 6)) {
+    if (row.count >= 1) signals.push({ kind: "error", ...row, note: "The website reported a JavaScript error while owner UX mode was active." });
+  }
+
+  return {
+    ok: true,
+    days,
+    since,
+    until,
+    last_event_at: lastEventAt,
+    session_count: sessions.size,
+    owner_device_count: anonIds.size,
+    event_batches: batches,
+    top_clicks: top("clicks"),
+    top_changes: top("changes"),
+    top_transitions: top("transitions"),
+    top_backtracks: top("backtracks"),
+    top_repeats: top("repeats"),
+    top_errors: top("errors"),
+    signals: signals.slice(0, 12),
+  };
+}
+
 async function adminAnalytics(env, url) {
   const range = analyticsWindow(url, 30);
   const { since, until, days } = range;
@@ -1689,6 +1760,11 @@ export default {
       if (url.pathname === "/v1/admin/summary" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminSummary(env), 200, cors);
+      }
+
+      if (url.pathname === "/v1/admin/owner-ux-summary" && request.method === "GET") {
+        if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
+        return json(await adminOwnerUxSummary(env, url), 200, cors);
       }
 
       if (url.pathname === "/v1/admin/analytics" && request.method === "GET") {
