@@ -2342,14 +2342,27 @@ html.geDayMode .geChannelBubble.connected,html.geDayMode .studioNode.online{back
 html.geDayMode .geChannelBubble.selfDevice{background:#dcecff!important;color:#10243a!important;border-color:#3f8fe8!important}
 html.geDayMode .air,html.geDayMode .onair{background:#ffe2e7!important;color:#4d101b!important;border-color:#d94f65!important}
 html.geDayMode .hmeter,html.geDayMode .touchFaderRail{background:#d7e0e6!important;border-color:#7f919f!important}
+
+/* V77 Arrange mode: same-parent block reorder with snap-to-layout behavior. */
+#geArrange.on{border-color:#ffc765!important;background:#403013!important;color:#fff!important}
+.geArrangeMode .geArrangeItem{outline:1px dashed #ffc765!important;outline-offset:-2px!important}
+.geArrangeHandle{
+ position:absolute!important;z-index:999!important;left:2px!important;top:2px!important;
+ width:25px!important;height:25px!important;min-width:25px!important;min-height:25px!important;
+ padding:0!important;border-radius:7px!important;border:1px solid #ffc765!important;
+ background:#201a0d!important;color:#ffc765!important;font-size:16px!important;line-height:1!important;
+ touch-action:none!important;cursor:grab!important
+}
+.geArrangeDragging{opacity:.72!important;outline:2px solid #55d8c1!important;z-index:998!important}
+.geArrangeDragging>.geArrangeHandle{cursor:grabbing!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="50" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="50" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v76</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v77</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4848,7 +4861,8 @@ function applyGeDisplayZoom(value,persist){
 }
 function geResetZoomMeasurements(){applyGeDisplayZoom(geDisplayZoomPct,false)}
 function setGeDisplayScope(scope){
- geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom(geDisplayZoomPct,false)
+ geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom(geDisplayZoomPct,false);
+ if(geArrangeOn)setTimeout(refreshGeArrangeHandles,0)
 }
 if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener)navigator.mediaDevices.addEventListener('devicechange',function(){refreshDevices().catch(function(){})});
 applyGeAutoTheme();
@@ -4863,6 +4877,87 @@ applyGeAutoTheme();
 
 ;
 
+
+const GE_ARRANGE_KEY='geDjArrangeV1';
+let geArrangeOn=false,geArrangeDrag=null;
+const geArrangeParents=[
+ ['home','.wrap',function(el){return el.matches('.card')}],
+ ['mixer','#mixerSheet .mixerGrid',function(el){return el.matches('.mixStrip')}],
+ ['mixerTools','#mixerSheet .mixerSecondRow',function(){return true}],
+ ['computer','#arr1LineSetup',function(){return true}],
+ ['computerControls','#lineSheet .lineControlGrid',function(){return true}],
+ ['mic','#micSheet .sheetIn',function(el){return !el.classList.contains('sheetHead')&&!el.classList.contains('geDisplayZoomBar')}],
+ ['fxButtons','#effectsSheet .fxEffectButtons',function(){return true}],
+ ['fxSliders','#effectsSheet .fxControlGrid',function(el){return el.classList.contains('bigSlider')}]
+];
+function geArrangeData(){try{const x=JSON.parse(localStorage.getItem(GE_ARRANGE_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch(e){return {}}}
+function geArrangeSave(data){try{localStorage.setItem(GE_ARRANGE_KEY,JSON.stringify(data||{}))}catch(e){}}
+function geArrangeChildKey(el,index){
+ if(el.dataset.geArrangeKey)return el.dataset.geArrangeKey;
+ let key=el.id||el.getAttribute('data-channel-strip')||el.getAttribute('data-fx-control')||el.getAttribute('data-fxtoggle')||'';
+ if(!key){
+  const t=String(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,36);
+  key=(el.tagName||'BLOCK').toLowerCase()+'-'+(t||index)
+ }
+ el.dataset.geArrangeKey=key;return key
+}
+function geArrangeItems(parent,filter){
+ return Array.from(parent.children).filter(function(el){return el&&!el.classList.contains('geArrangeHandle')&&filter(el)})
+}
+function applySavedGeArrange(){
+ const data=geArrangeData();
+ geArrangeParents.forEach(function(row){
+  const key=row[0],parent=document.querySelector(row[1]);if(!parent)return;
+  const items=geArrangeItems(parent,row[2]),byKey={};
+  items.forEach(function(el,i){byKey[geArrangeChildKey(el,i)]=el});
+  (data[key]||[]).forEach(function(k){if(byKey[k])parent.appendChild(byKey[k])})
+ })
+}
+function saveGeArrangeParent(parent,key,filter){
+ const data=geArrangeData(),items=geArrangeItems(parent,filter);
+ data[key]=items.map(function(el,i){return geArrangeChildKey(el,i)});geArrangeSave(data)
+}
+function geArrangeHandleFor(el,parentKey,parentFilter){
+ if(el.querySelector(':scope > .geArrangeHandle'))return;
+ el.classList.add('geArrangeItem');el.style.position=el.style.position||'relative';
+ const h=document.createElement('button');h.type='button';h.className='geArrangeHandle';h.textContent='☰';h.setAttribute('aria-label','Move this block');
+ h.addEventListener('pointerdown',function(e){
+  geArrangeDrag={item:el,parent:el.parentElement,key:parentKey,filter:parentFilter,pointerId:e.pointerId};
+  el.classList.add('geArrangeDragging');try{h.setPointerCapture&&h.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();e.stopPropagation()
+ });
+ el.insertBefore(h,el.firstChild)
+}
+function refreshGeArrangeHandles(){
+ document.querySelectorAll('.geArrangeHandle').forEach(function(x){x.remove()});
+ document.querySelectorAll('.geArrangeItem').forEach(function(x){x.classList.remove('geArrangeItem','geArrangeDragging')});
+ if(!geArrangeOn)return;
+ geArrangeParents.forEach(function(row){
+  const key=row[0],parent=document.querySelector(row[1]);if(!parent||parent.offsetParent===null)return;
+  geArrangeItems(parent,row[2]).forEach(function(el){geArrangeHandleFor(el,key,row[2])})
+ })
+}
+function toggleGeArrange(){
+ geArrangeOn=!geArrangeOn;document.body.classList.toggle('geArrangeMode',geArrangeOn);
+ if($('geArrange')){$('geArrange').classList.toggle('on',geArrangeOn);$('geArrange').textContent=geArrangeOn?'SAVE':'ARRANGE'}
+ refreshGeArrangeHandles()
+}
+document.addEventListener('pointermove',function(e){
+ if(!geArrangeDrag)return;
+ const hit=document.elementFromPoint(e.clientX,e.clientY),target=hit&&hit.closest&&hit.closest('.geArrangeItem');
+ if(!target||target===geArrangeDrag.item||target.parentElement!==geArrangeDrag.parent)return;
+ const r=target.getBoundingClientRect(),horizontal=r.width>r.height*1.35;
+ const after=horizontal?e.clientX>r.left+r.width/2:e.clientY>r.top+r.height/2;
+ if(after)target.after(geArrangeDrag.item);else target.before(geArrangeDrag.item)
+});
+function endGeArrangeDrag(){
+ if(!geArrangeDrag)return;
+ saveGeArrangeParent(geArrangeDrag.parent,geArrangeDrag.key,geArrangeDrag.filter);
+ geArrangeDrag.item.classList.remove('geArrangeDragging');geArrangeDrag=null
+}
+document.addEventListener('pointerup',endGeArrangeDrag);
+document.addEventListener('pointercancel',endGeArrangeDrag);
+$('geArrange').onclick=toggleGeArrange;
+setTimeout(applySavedGeArrange,0);
 
 function syncDockViewState(){
  const mixOpen=$('mixerSheet')&&$('mixerSheet').classList.contains('show'),fxOpen=$('effectsSheet')&&$('effectsSheet').classList.contains('show');
