@@ -1822,6 +1822,116 @@ def dj_work_log(limit=100):
             "events": list(data["events"])[-(limit * 5):],
         }
 
+def _ux_count_map(value, max_items=120):
+    if not isinstance(value, dict):
+        return {}
+    out = {}
+    for key, raw in list(value.items())[:max_items]:
+        name = " ".join(str(key or "").split())[:120]
+        if not name:
+            continue
+        try:
+            count = int(raw)
+        except Exception:
+            continue
+        if count <= 0:
+            continue
+        out[name] = min(count, 1000000)
+    return out
+
+def sanitize_ux_detail(detail):
+    detail = detail if isinstance(detail, dict) else {}
+    return {
+        "surface": _dj_clean_text(detail.get("surface"), "dj", 30),
+        "arrangement": max(1, min(9, int(detail.get("arrangement", 1) or 1))),
+        "clicks": _ux_count_map(detail.get("clicks")),
+        "changes": _ux_count_map(detail.get("changes")),
+        "transitions": _ux_count_map(detail.get("transitions")),
+        "backtracks": _ux_count_map(detail.get("backtracks")),
+        "repeats": _ux_count_map(detail.get("repeats")),
+        "errors": _ux_count_map(detail.get("errors"), 60),
+    }
+
+def dj_ux_summary(days=14):
+    try:
+        days = max(1, min(90, int(days)))
+    except Exception:
+        days = 14
+    since = int(time.time()) - days * 86400
+    merged = {
+        "clicks": {},
+        "changes": {},
+        "transitions": {},
+        "backtracks": {},
+        "repeats": {},
+        "errors": {},
+    }
+    sessions = set()
+    last_event_at = 0
+    arrangements = {}
+    with DJ_BACKEND_LOCK:
+        data = _dj_work_data()
+        events = [
+            row for row in data.get("events", [])
+            if str(row.get("type", "")) == "ux_summary"
+            and int(row.get("created_at", 0) or 0) >= since
+        ]
+        for row in events:
+            sessions.add(str(row.get("session_id", "") or ""))
+            last_event_at = max(last_event_at, int(row.get("created_at", 0) or 0))
+            detail = sanitize_ux_detail(row.get("detail") or {})
+            arr = str(detail.get("arrangement", 1))
+            arrangements[arr] = arrangements.get(arr, 0) + 1
+            for bucket in merged:
+                for name, count in detail.get(bucket, {}).items():
+                    merged[bucket][name] = merged[bucket].get(name, 0) + int(count)
+
+    def top(bucket, limit=12):
+        rows = sorted(merged[bucket].items(), key=lambda item: (-item[1], item[0]))
+        return [{"name": name, "count": count} for name, count in rows[:limit]]
+
+    signals = []
+    for row in top("backtracks", 6):
+        if row["count"] >= 3:
+            signals.append({
+                "kind": "backtrack",
+                "name": row["name"],
+                "count": row["count"],
+                "note": "Frequent back-and-forth navigation.",
+            })
+    for row in top("repeats", 6):
+        if row["count"] >= 3:
+            signals.append({
+                "kind": "repeat",
+                "name": row["name"],
+                "count": row["count"],
+                "note": "The same control was used repeatedly in a short period.",
+            })
+    for row in top("errors", 6):
+        if row["count"] >= 1:
+            signals.append({
+                "kind": "error",
+                "name": row["name"],
+                "count": row["count"],
+                "note": "A control or API path reported an error.",
+            })
+
+    return {
+        "days": days,
+        "since": since,
+        "last_event_at": last_event_at,
+        "session_count": len([x for x in sessions if x]),
+        "event_batches": len(events),
+        "arrangements": arrangements,
+        "top_clicks": top("clicks"),
+        "top_changes": top("changes"),
+        "top_transitions": top("transitions"),
+        "top_backtracks": top("backtracks"),
+        "top_repeats": top("repeats"),
+        "top_errors": top("errors"),
+        "signals": signals[:12],
+    }
+
 def _dj_trusted_data():
     data = read_json(DJ_TRUSTED_DEVICES_FILE, {"version": 1, "items": []})
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
@@ -2504,6 +2614,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
 
+        if parsed.path == "/control/ux-summary":
+            if not self.require_auth(): return
+            try:
+                qs = urllib.parse.parse_qs(parsed.query)
+                days = (qs.get("days") or ["14"])[0]
+                self.json_response({"ok": True, **dj_ux_summary(days)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if parsed.path == "/control/auth/trusted-devices":
             if not self.require_auth(): return
             self.json_response({"ok": True, "items": list_dj_trusted_devices()})
@@ -2770,10 +2890,14 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     self.json_response({"ok": True, "session": row})
                 elif action == "event":
+                    event_type = body.get("event_type", "activity")
+                    detail = body.get("detail") if isinstance(body.get("detail"), dict) else {}
+                    if str(event_type or "").strip().lower().replace(" ", "_") == "ux_summary":
+                        detail = sanitize_ux_detail(detail)
                     row = dj_work_event(
                         body.get("session_id", ""),
-                        body.get("event_type", "activity"),
-                        body.get("detail") if isinstance(body.get("detail"), dict) else {},
+                        event_type,
+                        detail,
                     )
                     self.json_response({"ok": True, "event": row})
                 elif action == "end":
