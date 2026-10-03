@@ -628,16 +628,33 @@
       try{
         const u=new URL(el.href,location.href);
         if(u.origin!==location.origin)track(surface,'external_link',{host:u.host,path:u.pathname,label});
+        else track(surface,'internal_link',{path:u.pathname,label});
       }catch(_e){}
     }
   },true);
 
   document.addEventListener('change',e=>{
-    if(!OWNER_UX_ENABLED)return;
     const el=e.target;
     if(!el||!el.matches)return;
-    if(el.matches('input[type="text"],input[type="password"],input[type="email"],textarea'))return;
-    if(el.matches('input,select'))ownerUxBump('changes',ownerUxView()+' · '+ownerUxControl(el))
+    if(el.matches('input[type="text"],input[type="password"],input[type="email"],input[type="tel"],input[type="search"],textarea'))return;
+    if(OWNER_UX_ENABLED&&el.matches('input,select'))ownerUxBump('changes',ownerUxView()+' · '+ownerUxControl(el));
+    if(el.matches('select,input[type="checkbox"],input[type="radio"],input[type="range"],input[type="file"]')){
+      const id=(el.id||'').slice(0,100);
+      const label=String(el.getAttribute('aria-label')||el.name||id||el.tagName).replace(/\s+/g,' ').trim().slice(0,120);
+      track(surface,'control_change',{id,label,control_type:String(el.type||el.tagName).toLowerCase()});
+    }
+  },true);
+
+  document.addEventListener('submit',e=>{
+    const form=e.target;
+    if(!form||String(form.tagName||'').toLowerCase()!=='form')return;
+    let actionPath='';
+    try{actionPath=new URL(form.action||location.href,location.href).pathname}catch(_e){}
+    track(surface,'form_submit',{
+      id:String(form.id||'').slice(0,100),
+      label:String(form.getAttribute('aria-label')||form.name||form.id||'form').replace(/\s+/g,' ').trim().slice(0,120),
+      action_path:actionPath
+    });
   },true);
 
   loadRightsCatalog().then(()=>{
