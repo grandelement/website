@@ -1561,6 +1561,49 @@ def list_dj_board_presence():
     return rows
 
 
+DJ_SHARED_CONTROL_LOCK = threading.RLock()
+DJ_SHARED_CONTROLS = {
+    "revision": 0,
+    "updated_at": 0.0,
+    "updated_by": "",
+    "mic_level": 100.0,
+    "line_level": 100.0,
+}
+
+def dj_shared_controls():
+    with DJ_SHARED_CONTROL_LOCK:
+        return dict(DJ_SHARED_CONTROLS)
+
+def update_dj_shared_controls(board_id, values):
+    board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
+    if not board_id:
+        raise ValueError("Missing DJ board id.")
+    if not isinstance(values, dict):
+        raise ValueError("Control values must be an object.")
+    changed = {}
+    if "mic_level" in values:
+        changed["mic_level"] = clamp_number(values.get("mic_level"), 0.0, 150.0, 100.0)
+    if "line_level" in values:
+        changed["line_level"] = clamp_number(values.get("line_level"), 0.0, 150.0, 100.0)
+    if not changed:
+        return dj_shared_controls()
+    with DJ_SHARED_CONTROL_LOCK:
+        DJ_SHARED_CONTROLS.update(changed)
+        DJ_SHARED_CONTROLS["revision"] = int(DJ_SHARED_CONTROLS.get("revision", 0)) + 1
+        DJ_SHARED_CONTROLS["updated_at"] = time.time()
+        DJ_SHARED_CONTROLS["updated_by"] = board_id
+        result = dict(DJ_SHARED_CONTROLS)
+    if "mic_level" in changed:
+        remote_level = float(changed["mic_level"]) / 100.0
+        for device in list_remote_devices():
+            if device.get("online"):
+                try:
+                    queue_remote_command(device.get("id"), "level", remote_level)
+                except Exception:
+                    pass
+    return result
+
+
 # GE DJ backend foundation:
 # - per-browser/device input profiles
 # - DJ work sessions/activity records
@@ -2600,6 +2643,7 @@ class Handler(BaseHTTPRequestHandler):
                 "mixer": mixer_state(),
                 "remote_devices": list_remote_devices(),
                 "dj_boards": list_dj_board_presence(),
+                "dj_controls": dj_shared_controls(),
                 "dj_backend": {
                     "input_profiles": True,
                     "work_sessions": True,
@@ -3166,6 +3210,16 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("app_state", "active"),
                 )
                 self.json_response({"ok": True, "board": row, "boards": list_dj_board_presence()})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/board/control":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                controls = update_dj_shared_controls(body.get("board_id"), body.get("values") or {})
+                self.json_response({"ok": True, "controls": controls})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
