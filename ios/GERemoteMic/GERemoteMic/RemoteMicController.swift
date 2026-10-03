@@ -33,7 +33,7 @@ final class RemoteMicController: ObservableObject {
     func pair(code: String) async throws {
         let model = UIDevice.current.model
         let name = UIDevice.current.name
-        let creds = try await RadioAPI.shared.claim(code: code, name: name, model: model)
+        let creds = try await RadioAPI.shared.claim(code: code, name: name, model: model, capabilities: ["audio", "microphone"])
         CredentialsStore.save(creds)
         credentials = creds
         paired = true
