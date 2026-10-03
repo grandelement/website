@@ -6744,7 +6744,12 @@ function loop(){
     // Planets/Sun/Moon occupy a middle depth band. Even a compatible Soul usually passes without contact.
     const bodyDepthCompatible=Math.abs(level-6)<=1;
     if (window.planetNodes && bodyDepthCompatible && c.bodyInteractive) {
-      for (const p of planetNodes) collideElastic(c, {x:p.x,y:p.y,r:p.r,vx:0,vy:0}, 0.95);
+      // Normal universe contact transfers momentum into the actual album planet.
+      // THE BODY course keeps hazards fixed separately; this is only the free website universe.
+      for (const p of planetNodes){
+        if(!p||p.dragging||p.poolPocketed)continue;
+        collideElastic(c,p,0.95);
+      }
     }
     if(bodyDepthCompatible && c.bodyInteractive && sr) collideElastic(c,{x:sx,y:sy,r:sr},0.95);
     if(bodyDepthCompatible && c.bodyInteractive && mr) collideElastic(c,{x:mx,y:my,r:mr},0.95);
