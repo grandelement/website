@@ -1785,10 +1785,10 @@ window.GE_EASY_SETTINGS = Object.assign({
   SOUL_SPAWN_MIN_SEC: 70.0,
   SOUL_SPAWN_MAX_SEC: 180.0,
 
-  // Very slow background travel. One full orbit is one hour by default.
-  // Change AMBIENT_ORBIT_PERIOD_SEC later if you want the drift more or less noticeable.
+  // Very slow background travel. Each ambient path closes after twelve hours.
+  // The exact path is regenerated on every fresh page load.
   AMBIENT_ORBIT_ENABLED: true,
-  AMBIENT_ORBIT_PERIOD_SEC: 3600,
+  AMBIENT_ORBIT_PERIOD_SEC: 43200,
   AMBIENT_ORBIT_TICK_MS: 250,
   AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX: 24,
   AMBIENT_ORBIT_PLANET_RADIUS_MAX_PX: 72,
@@ -7776,5 +7776,239 @@ window.planetNodes = planetNodes;
 </script>
 
 <!-- GE DEPLOY MARKER: GRAVITY V1 -->
+
+<!-- GE AMBIENT GALAXY V1 — 12 HOUR RANDOMIZED CLOSED PATHS -->
+<style id="ge-broadcast-background-style">
+  body.ge-broadcast-background #geWelcome,
+  body.ge-broadcast-background .gamePrompt,
+  body.ge-broadcast-background .roundPrompt,
+  body.ge-broadcast-background .gameOptionsPanel,
+  body.ge-broadcast-background .musicOptionsPanel,
+  body.ge-broadcast-background .scoreArchivePanel,
+  body.ge-broadcast-background #albumScan,
+  body.ge-broadcast-background .miniPlayer,
+  body.ge-broadcast-background .sunOverlayTop,
+  body.ge-broadcast-background .sunHUD,
+  body.ge-broadcast-background footer.ge-footer{
+    display:none!important;
+  }
+</style>
+<script id="ge-broadcast-background-script">
+(()=>{
+  const broadcast=new URLSearchParams(location.search).get('broadcast')==='1';
+  if(!broadcast)return;
+  document.body.classList.add('ge-broadcast-background');
+  try{document.getElementById('gePlayer')?.pause?.();}catch(_e){}
+})();
+</script>
+<script id="ge-ambient-galaxy-v1">
+
+(function installGEAmbientGalaxy(){
+  'use strict';
+  const settings=window.GE_EASY_SETTINGS||{};
+  if(settings.AMBIENT_ORBIT_ENABLED===false)return;
+
+  const PERIOD_MS=Math.max(3600000,Number(settings.AMBIENT_ORBIT_PERIOD_SEC||43200)*1000);
+  const TICK_MS=Math.max(100,Number(settings.AMBIENT_ORBIT_TICK_MS||250));
+  const PATH_POINTS=32;
+  const planetState=new WeakMap();
+  const held=new WeakSet();
+  const sun=document.getElementById('sunWrap');
+  let sunState=null;
+  let timer=0;
+
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  const smooth=t=>t*t*(3-2*t);
+  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+  function boundsFor(el,type){
+    const r=el.getBoundingClientRect();
+    const vw=Math.max(1,innerWidth),vh=Math.max(1,innerHeight);
+    if(type==='sun'){
+      const keep=clamp(Number(settings.SUN_VISIBLE_FRACTION??0.25),0.05,1);
+      const minX=(r.width*(keep-.5))/vw;
+      const maxX=1+(r.width*(.5-keep))/vw;
+      const minY=(r.height*(keep-.5))/vh;
+      const maxY=1+(r.height*(.5-keep))/vh;
+      return {minX,maxX,minY,maxY};
+    }
+    const padX=Math.min(.18,(Math.max(8,r.width/2)+10)/vw);
+    const padY=Math.min(.18,(Math.max(8,r.height/2)+10)/vh);
+    return {minX:padX,maxX:1-padX,minY:padY,maxY:1-padY};
+  }
+
+  function currentPoint(el,b){
+    const r=el.getBoundingClientRect();
+    return {
+      x:clamp((r.left+r.width/2)/Math.max(1,innerWidth),b.minX,b.maxX),
+      y:clamp((r.top+r.height/2)/Math.max(1,innerHeight),b.minY,b.maxY)
+    };
+  }
+
+  function randomTarget(prev,b,type,forceNear){
+    const corners=[
+      {x:b.minX,y:b.minY},{x:b.maxX,y:b.minY},
+      {x:b.maxX,y:b.maxY},{x:b.minX,y:b.maxY}
+    ];
+    for(let tries=0;tries<60;tries++){
+      let p;
+      if(!forceNear&&Math.random()<(type==='sun'?.30:.20)){
+        const c=corners[(Math.random()*corners.length)|0];
+        const jx=(b.maxX-b.minX)*rand(-.08,.08);
+        const jy=(b.maxY-b.minY)*rand(-.08,.08);
+        p={x:clamp(c.x+jx,b.minX,b.maxX),y:clamp(c.y+jy,b.minY,b.maxY)};
+      }else{
+        p={x:rand(b.minX,b.maxX),y:rand(b.minY,b.maxY)};
+      }
+      const d=distance(prev,p);
+      const minD=forceNear?.10:.16;
+      const maxD=forceNear?.38:.58;
+      if(d>=minD&&d<=maxD)return p;
+    }
+    return {
+      x:clamp(prev.x+rand(-.28,.28),b.minX,b.maxX),
+      y:clamp(prev.y+rand(-.28,.28),b.minY,b.maxY)
+    };
+  }
+
+  function buildPath(el,type){
+    const b=boundsFor(el,type);
+    const first=currentPoint(el,b);
+    const pts=[first];
+    for(let i=1;i<PATH_POINTS;i++){
+      const nearClose=i===PATH_POINTS-1;
+      let p=randomTarget(pts[i-1],b,type,nearClose);
+      if(nearClose&&distance(p,first)>.42){
+        p={
+          x:clamp(first.x+rand(-.24,.24),b.minX,b.maxX),
+          y:clamp(first.y+rand(-.24,.24),b.minY,b.maxY)
+        };
+      }
+      pts.push(p);
+    }
+    return {points:pts,start:performance.now(),period:PERIOD_MS,type,dynamic:false};
+  }
+
+  function pointAt(state,now){
+    const pts=state.points,n=pts.length;
+    const unit=((((now-state.start)%state.period)+state.period)%state.period)/state.period*n;
+    const i=Math.floor(unit)%n;
+    const f=smooth(unit-Math.floor(unit));
+    const a=pts[i],b=pts[(i+1)%n];
+    return {x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};
+  }
+
+  function nodeFor(el){
+    const nodes=Array.isArray(window.planetNodes)?window.planetNodes:[];
+    return nodes.find(p=>p&&p.el===el)||null;
+  }
+
+  function putPlanet(el,state,p){
+    const node=nodeFor(el);
+    if(node){
+      const speed=Math.hypot(Number(node.vx)||0,Number(node.vy)||0);
+      if(node.dragging||speed>1.5){
+        state.dynamic=true;
+        return;
+      }
+      if(state.dynamic){
+        state.dynamic=false;
+        planetState.set(el,buildPath(el,'planet'));
+        return;
+      }
+    }
+
+    const r=el.getBoundingClientRect();
+    const radius=Math.max(1,(r.width||r.height||20)/2);
+    const x=clamp(p.x*innerWidth,radius+8,Math.max(radius+8,innerWidth-radius-8));
+    const y=clamp(p.y*innerHeight,radius+8,Math.max(radius+8,innerHeight-radius-8));
+
+    if(node){
+      node.x=x;node.y=y;
+      try{
+        if(typeof window.syncPlanet==='function')window.syncPlanet(node);
+        else if(typeof syncPlanet==='function')syncPlanet(node);
+        else {el.style.left=x+'px';el.style.top=y+'px';}
+      }catch(_e){el.style.left=x+'px';el.style.top=y+'px';}
+    }else{
+      el.style.left=x+'px';
+      el.style.top=y+'px';
+    }
+  }
+
+  function putSun(state,p){
+    if(!sun)return;
+    const r=sun.getBoundingClientRect();
+    const keep=clamp(Number(settings.SUN_VISIBLE_FRACTION??0.25),0.05,1);
+    const minX=r.width*(keep-.5);
+    const maxX=innerWidth+r.width*(.5-keep);
+    const minY=r.height*(keep-.5);
+    const maxY=innerHeight+r.height*(.5-keep);
+    sun.style.left=clamp(p.x*innerWidth,minX,maxX)+'px';
+    sun.style.top=clamp(p.y*innerHeight,minY,maxY)+'px';
+    sun.style.transform='translate(-50%,-50%)';
+  }
+
+  function reseed(el,type){
+    if(!el)return;
+    if(type==='sun')sunState=buildPath(el,'sun');
+    else planetState.set(el,buildPath(el,'planet'));
+  }
+
+  function ambientAllowed(){
+    return !document.hidden &&
+      !document.body.classList.contains('game-mode-active') &&
+      !document.body.classList.contains('ge-body-race-active');
+  }
+
+  function tick(){
+    if(!ambientAllowed())return;
+    const now=performance.now();
+
+    if(sun&&!sun.classList.contains('dragging')&&!held.has(sun)){
+      if(!sunState)sunState=buildPath(sun,'sun');
+      putSun(sunState,pointAt(sunState,now));
+    }
+
+    document.querySelectorAll('#planets .planet').forEach(el=>{
+      if(held.has(el)||el.classList.contains('previewZoom')||el.classList.contains('albumBioOpen'))return;
+      let state=planetState.get(el);
+      if(!state){state=buildPath(el,'planet');planetState.set(el,state);}
+      putPlanet(el,state,pointAt(state,now));
+    });
+  }
+
+  document.addEventListener('pointerdown',e=>{
+    const el=e.target?.closest?.('#sunWrap,#planets .planet');
+    if(el)held.add(el);
+  },true);
+
+  const release=e=>{
+    const el=e.target?.closest?.('#sunWrap,#planets .planet');
+    if(!el)return;
+    held.delete(el);
+    setTimeout(()=>reseed(el,el===sun?'sun':'planet'),80);
+  };
+  document.addEventListener('pointerup',release,true);
+  document.addEventListener('pointercancel',release,true);
+
+  addEventListener('ge-universe-camera-shift',()=>{
+    sunState=null;
+    document.querySelectorAll('#planets .planet').forEach(el=>planetState.delete(el));
+  },{passive:true});
+
+  timer=setInterval(tick,TICK_MS);
+  tick();
+  window.GE_AMBIENT_GALAXY={
+    reseedAll(){
+      sunState=null;
+      document.querySelectorAll('#planets .planet').forEach(el=>planetState.delete(el));
+      tick();
+    },
+    stop(){clearInterval(timer);}
+  };
+})();
+</script>
 </body>
 </html>
