@@ -3111,9 +3111,11 @@ function queuePublicRadioLevel(v){
  },70)
 }
 function bindLocalMixer(){
- function level(kind,v){settings[kind].level=Number(v);applyChannel(kind);$('mix'+(kind==='mic'?'Mic':'Line')+'Read').textContent=Math.round(v)+'%'}
- $('mixMicLevel').oninput=function(){level('mic',this.value)};
- $('mixLineLevel').oninput=function(){level('line',this.value)};
+ function level(kind,v,finalPush){settings[kind].level=Number(v);applyChannel(kind);$('mix'+(kind==='mic'?'Mic':'Line')+'Read').textContent=Math.round(v)+'%';const values={};values[kind+'_level']=Number(v);pushSharedDjControls(values,!!finalPush)}
+ $('mixMicLevel').oninput=function(){level('mic',this.value,false)};
+ $('mixLineLevel').oninput=function(){level('line',this.value,false)};
+ $('mixMicLevel').addEventListener('change',function(){level('mic',this.value,true)});
+ $('mixLineLevel').addEventListener('change',function(){level('line',this.value,true)});
  $('mixStudioLevel').onchange=function(){setMixer({direct_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
  $('mixMasterLevel').onchange=function(){setMixer({master_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
  $('mixRadioBed').oninput=function(){const v=Number(this.value)||0;$('mixRadioRead').textContent=Math.round(v)+'%';if(publicRadioControl)queuePublicRadioLevel(v/100);else{radioCueLevel=clamp(v,0,100);$('radioAudio').volume=radioCueLevel/100;try{localStorage.setItem('geDjRadioCueLevel',String(radioCueLevel))}catch(e){}}};
