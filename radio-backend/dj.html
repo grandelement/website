@@ -1731,6 +1731,10 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 .geChannelBubble i{display:block;width:7px;height:7px;border-radius:50%;background:#3a444d;box-shadow:none}
 .geChannelBubble.connected{border-color:#55d8c1!important;background:#102b26!important;color:#fff!important}
 .geChannelBubble.connected i{background:#55d8c1;box-shadow:0 0 9px #55d8c1}
+.geChannelBubble.selfDevice{border-color:#58a5ff!important;background:#102a43!important;color:#fff!important}
+.geChannelBubble.selfDevice i{background:#58a5ff!important;box-shadow:0 0 10px #58a5ff!important}
+.geChannelBubble.selfDevice.onAir{border-color:#ff6178!important;box-shadow:inset 0 0 0 1px #58a5ff}
+
 .geChannelBubble.onAir{border-color:#ff6178!important}
 .geChannelBubble.busy{opacity:.5;pointer-events:none}
 .geChannelBubble.channelDisabled{display:none!important}
@@ -2003,7 +2007,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v65</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v66</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3794,7 +3798,11 @@ function boardForDeviceKind(kind){
  const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards:[];
  const re=kind==='ipad'?/ipad/i:/iphone|ipod/i;
  const matches=rows.filter(function(x){return x&&x.online&&re.test(String(x.label||''))});
- matches.sort(function(a,b){return Number(b.last_seen||0)-Number(a.last_seen||0)});
+ matches.sort(function(a,b){
+   const as=String(a.id||'')===String(GE_BOARD_ID),bs=String(b.id||'')===String(GE_BOARD_ID);
+   if(as!==bs)return as?-1:1;
+   return Number(b.last_seen||0)-Number(a.last_seen||0)
+ });
  return matches[0]||null
 }
 function renderDeviceChannelSheet(){
@@ -3805,7 +3813,7 @@ function renderDeviceChannelSheet(){
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online);
  if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=online?'CONNECTED':'OFFLINE';
- if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?String(board.label||label)+' · GE DJ BOARD':'CHANNEL ENABLED · DEVICE NOT CONNECTED';
+ if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((String(board.id||'')===String(GE_BOARD_ID)?'THIS DEVICE · ':'')+String(board.label||label)+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
  setMeterLevel('deviceChannelMeter',remote&&remote.online?Number(remote.peak_pct||0):0);
  if($('deviceChannelMicState'))$('deviceChannelMicState').textContent=!remote?'MICROPHONE APP NOT LINKED':(!remote.online?'MICROPHONE APP OFFLINE':(air?'MICROPHONE ON AIR':ready?'MICROPHONE READY':'MICROPHONE CONNECTED · NOT READY'));
  const pct=Math.round(Number(remote&&remote.level!=null?remote.level:1)*100);
@@ -3824,7 +3832,7 @@ function openDeviceChannel(kind){
 function geChannelConnection(kind){
  if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'MIC'};
  if(kind==='line'){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();return {connected:!!(h&&h.line_connected),air:!!(h&&h.line_air),label:'LINE'}}return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'LINE'};}
- if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind);return {connected:!!b,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null}}
+ if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
  return {connected:false,air:false,label:String(kind||'').toUpperCase()}
 }
 function renderChannelStatusBubbles(){
@@ -3832,9 +3840,9 @@ function renderChannelStatusBubbles(){
  ['mic','line','iphone','ipad'].forEach(function(kind){
   const b=root.querySelector('[data-channel-bubble="'+kind+'"]');if(!b)return;
   const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
-  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('onAir',!!s.air);
+  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);
   b.disabled=!enabled;b.setAttribute('aria-pressed',s.connected?'true':'false');
-  if(kind==='iphone'||kind==='ipad')b.title=s.label+' · '+(s.connected?'CONNECTED':'OFFLINE')+' · TAP TO OPEN CHANNEL'+(s.air?' · MIC ON AIR':'');
+  if(kind==='iphone'||kind==='ipad')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO OPEN CHANNEL'+(s.air?' · MIC ON AIR':'');
   else b.title=s.label+' · '+(s.connected?'CONNECTED · TAP TO DISCONNECT':'DISCONNECTED · TAP TO CONNECT')+(s.air?' · ON AIR':'')
  })
 }
