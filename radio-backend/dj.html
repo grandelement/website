@@ -2039,7 +2039,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v67</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v68</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2254,9 +2254,13 @@ let geUxSessionId='',geUxFlushTimer=0,geUxStarting=false;
 let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
 let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
 let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null;let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
-const GE_BOARD_ROLE=/iPhone|iPad|iPod/i.test(navigator.userAgent)?'remote':'home';
+const GE_UA=String(navigator.userAgent||''),GE_PLATFORM=String(navigator.platform||'');
+const GE_IS_IPAD=/iPad/i.test(GE_UA)||((/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM))&&Number(navigator.maxTouchPoints||0)>1);
+const GE_IS_IPHONE=/iPhone|iPod/i.test(GE_UA);
+const GE_DEVICE_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE?'iphone':'home');
+const GE_BOARD_ROLE=GE_DEVICE_KIND==='home'?'home':'remote';
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
-const GE_BOARD_LABEL=/iPad/i.test(navigator.userAgent)?'iPAD':(/iPhone|iPod/i.test(navigator.userAgent)?'iPHONE':'HOME');
+const GE_BOARD_LABEL=GE_DEVICE_KIND==='ipad'?'iPAD':(GE_DEVICE_KIND==='iphone'?'iPHONE':'HOME');
 let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
@@ -3847,12 +3851,12 @@ function boardForDeviceKind(kind){
 function renderDeviceChannelSheet(){
  if(!geOpenDeviceKind)return;
  const kind=geOpenDeviceKind,board=boardForDeviceKind(kind),remote=remoteDeviceFor(kind);
- const online=!!board,ready=!!(remote&&remote.online&&remote.remote_ready),air=!!(remote&&remote.online&&remote.on_air),muted=!!(remote&&remote.muted);
+ const self=GE_DEVICE_KIND===kind,online=!!board||self,ready=!!(remote&&remote.online&&remote.remote_ready),air=!!(remote&&remote.online&&remote.on_air),muted=!!(remote&&remote.muted);
  const label=kind==='ipad'?'iPAD':'iPHONE';
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online);
  if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=online?'CONNECTED':'OFFLINE';
- if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((String(board.id||'')===String(GE_BOARD_ID)?'THIS DEVICE · ':'')+String(board.label||label)+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
+ if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((self||board&&String(board.id||'')===String(GE_BOARD_ID)?'THIS DEVICE · ':'')+String(board&&board.label||label)+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
  setMeterLevel('deviceChannelMeter',remote&&remote.online?Number(remote.peak_pct||0):0);
  if($('deviceChannelMicState'))$('deviceChannelMicState').textContent=!remote?'MICROPHONE APP NOT LINKED':(!remote.online?'MICROPHONE APP OFFLINE':(air?'MICROPHONE ON AIR':ready?'MICROPHONE READY':'MICROPHONE CONNECTED · NOT READY'));
  const pct=Math.round(Number(remote&&remote.level!=null?remote.level:1)*100);
@@ -3871,7 +3875,7 @@ function openDeviceChannel(kind){
 function geChannelConnection(kind){
  if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'LOCAL MIC'};
  if(kind==='line'){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();return {connected:!!(h&&h.line_connected),air:!!(h&&h.line_air),label:'COMPUTER'}}return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'COMPUTER'};}
- if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
+ if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=GE_DEVICE_KIND===kind||!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b||self,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
  return {connected:false,air:false,label:String(kind||'').toUpperCase()}
 }
 function renderChannelStatusBubbles(){
