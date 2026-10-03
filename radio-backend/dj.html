@@ -2312,6 +2312,36 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 .lineAudioDiagHead>div{display:flex;gap:4px}
 .lineAudioDiagHead button{min-height:28px!important;padding:3px 8px!important}
 .lineAudioDiagText{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:calc(8.5px * var(--ge-ui-scale))!important;line-height:1.25;color:var(--muted)}
+
+.analyticsTimezone{margin:5px 0 8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;color:var(--accent);font-size:calc(8px * var(--analytics-scale,1))!important;font-weight:900}
+
+/* V76: proportional mixer type with less empty space inside controls. */
+#mixerSheet .mixStrip h3{font-size:calc(11.5px * var(--ge-ui-scale))!important;line-height:1.08!important;min-height:0!important}
+#mixerSheet .mixSourceLabel{font-size:calc(10.5px * var(--ge-ui-scale))!important;line-height:1.08!important;min-height:0!important;height:auto!important;padding:calc(3px * var(--ge-ui-scale)) calc(4px * var(--ge-ui-scale))!important}
+#mixerSheet .mixBtns button,#mixerSheet .sendPair button,#mixerSheet .masterFxBtns button,#mixerSheet .remoteMixStrip .mixBtns button{
+ font-size:calc(10px * var(--ge-ui-scale))!important;line-height:1.05!important;min-height:0!important;height:auto!important;
+ padding:calc(4px * var(--ge-ui-scale)) calc(3px * var(--ge-ui-scale))!important
+}
+#lineSheet .sourceBtn,#lineSheet .sourceSelect button,#lineSheet .lineControlGrid button,#lineSheet .lineAddDevice button{
+ font-size:calc(10.5px * var(--ge-ui-scale))!important;line-height:1.08!important;min-height:0!important;height:auto!important;
+ padding:calc(6px * var(--ge-ui-scale)) calc(6px * var(--ge-ui-scale))!important
+}
+
+/* Automatic Kansas City daylight theme. */
+html.geDayMode{--bg:#eef3f6;--card:#ffffff;--line:#8fa0ad;--text:#111820;--muted:#53616d}
+html.geDayMode body,html.geDayMode .sheet,html.geDayMode .modal{background:#eef3f6!important;color:#111820!important}
+html.geDayMode .card,html.geDayMode .sheetIn,html.geDayMode .modalBox,
+html.geDayMode .mixStrip,html.geDayMode .lineRemoteCard,html.geDayMode .lineInputManager,
+html.geDayMode .lineAudioDiag,html.geDayMode .deviceChannelStatusCard,html.geDayMode .deviceChannelMic,
+html.geDayMode .radioHealthMeter,html.geDayMode .fanDetail{background:#fff!important;color:#111820!important;border-color:#95a6b2!important}
+html.geDayMode button,html.geDayMode select,html.geDayMode input:not([type="range"]),html.geDayMode textarea,html.geDayMode .sourceBtn{
+ background:#f9fbfc!important;color:#111820!important;border-color:#8396a5!important
+}
+html.geDayMode .note,html.geDayMode .nowMeta,html.geDayMode .qmeta,html.geDayMode .lineAudioDiagText{color:#53616d!important}
+html.geDayMode .geChannelBubble.connected,html.geDayMode .studioNode.online{background:#dff7f0!important;color:#10251f!important;border-color:#35aa8e!important}
+html.geDayMode .geChannelBubble.selfDevice{background:#dcecff!important;color:#10243a!important;border-color:#3f8fe8!important}
+html.geDayMode .air,html.geDayMode .onair{background:#ffe2e7!important;color:#4d101b!important;border-color:#d94f65!important}
+html.geDayMode .hmeter,html.geDayMode .touchFaderRail{background:#d7e0e6!important;border-color:#7f919f!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2319,7 +2349,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v75</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v76</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2331,7 +2361,10 @@ body .brand>span{font-size:var(--ge-font-body)!important}
         <div class="radioHealthStat"><span>NETWORK</span><b id="diagNetwork">CHECKING</b></div>
         <div class="radioHealthStat"><span>SCREEN</span><b id="diagVisibility">VISIBLE</b></div>
         <div class="radioHealthStat"><span>MIC LINK</span><b id="diagMicLink">OFF</b></div>
-        <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div><div class="radioHealthStat"><span>UX LEARNING</span><b id="diagUx">STARTING</b></div>
+        <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div>
+<div class="radioHealthStat"><span>TIME ZONE</span><b id="diagTimezone">KANSAS CITY · CT</b></div>
+<div class="radioHealthStat"><span>DISPLAY</span><b id="diagTheme">AUTO</b></div>
+<div class="radioHealthStat"><span>UX LEARNING</span><b id="diagUx">STARTING</b></div>
       </div>
       <div class="radioHealthMeter">
         <div class="radioHealthMeterHead"><b>SERVER RADIO AUDIO</b><span id="diagRadioDb">-60 dB · WAITING</span></div>
@@ -2443,6 +2476,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
     <div class="analyticsCustom" id="analyticsCustom"><span>FROM</span><input id="analyticsStart" type="datetime-local"><span>TO</span><input id="analyticsEnd" type="datetime-local"><button id="analyticsCustomApply">APPLY</button></div>
   </div>
   <div class="analyticsStatus" id="analyticsStatus"></div>
+<div class="analyticsTimezone">TIME REFERENCE · KANSAS CITY CENTRAL TIME · AMERICA/CHICAGO</div>
   <div class="analyticsStats" id="analyticsStats"></div>
   <div class="analyticsSection"><h3>ACTIVITY GROUPS</h3><div class="analyticsChips" id="analyticsGroups"></div></div>
   <div class="analyticsSection"><h3>WHERE THEY USED GE</h3><div class="analyticsChips" id="analyticsSurfaces"></div></div>
@@ -2500,6 +2534,48 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 <div class="modal" id="picker"><div class="modalBox"><div class="modalHead"><div><b>REPLACE TRACK</b><div class="note" id="replaceWhich"></div></div><button id="closePicker">CLOSE</button></div><label class="upload">UPLOAD TEMP MP3<input id="upload" type="file" accept="audio/mpeg,.mp3"></label><input class="search" id="search" placeholder="Search song or album"><div class="library" id="library"></div></div></div>
 <script>
 const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
+const GE_TIME_ZONE='America/Chicago',GE_KC_LAT=39.0997,GE_KC_LON=-94.5786;
+function geCentralParts(date){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:GE_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date||new Date()),o={};
+ parts.forEach(function(p){if(p.type!=='literal')o[p.type]=Number(p.value)});
+ return {year:o.year,month:o.month,day:o.day}
+}
+function geDayOfYear(y,m,d){return Math.floor((Date.UTC(y,m-1,d)-Date.UTC(y,0,0))/86400000)}
+function geNorm360(v){v%=360;return v<0?v+360:v}
+function geSolarUTC(y,m,d,rise){
+ const N=geDayOfYear(y,m,d),lngHour=GE_KC_LON/15,t=N+(((rise?6:18)-lngHour)/24),rad=Math.PI/180;
+ const M=(.9856*t)-3.289;
+ let L=geNorm360(M+(1.916*Math.sin(M*rad))+(.020*Math.sin(2*M*rad))+282.634);
+ let RA=geNorm360(Math.atan(.91764*Math.tan(L*rad))/rad);
+ const Lq=Math.floor(L/90)*90,RAq=Math.floor(RA/90)*90;RA=(RA+(Lq-RAq))/15;
+ const sinDec=.39782*Math.sin(L*rad),cosDec=Math.cos(Math.asin(sinDec));
+ const cosH=(Math.cos(90.833*rad)-(sinDec*Math.sin(GE_KC_LAT*rad)))/(cosDec*Math.cos(GE_KC_LAT*rad));
+ if(cosH>1||cosH<-1)return null;
+ const H=(rise?(360-(Math.acos(cosH)/rad)):(Math.acos(cosH)/rad))/15;
+ let UT=(H+RA-(.06571*t)-6.622)-lngHour;UT=((UT%24)+24)%24;return UT
+}
+function geKCSunWindow(now){
+ now=now||new Date();const p=geCentralParts(now),r=geSolarUTC(p.year,p.month,p.day,true),s=geSolarUTC(p.year,p.month,p.day,false);
+ if(r==null||s==null)return null;
+ const base=Date.UTC(p.year,p.month-1,p.day,0,0,0);
+ const rise=new Date(base+r*3600000);let set=new Date(base+s*3600000);
+ if(set<=rise)set=new Date(set.getTime()+86400000);
+ return {rise:rise,set:set,day:now>=rise&&now<set}
+}
+function geFmtCentral(epoch){
+ const d=epoch instanceof Date?epoch:new Date(Number(epoch||0)*1000);
+ return new Intl.DateTimeFormat('en-US',{timeZone:GE_TIME_ZONE,year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit',timeZoneName:'short'}).format(d)
+}
+function applyGeAutoTheme(){
+ const win=geKCSunWindow(new Date()),day=!!(win&&win.day);
+ document.documentElement.classList.toggle('geDayMode',day);
+ document.documentElement.dataset.geTheme=day?'day':'night';
+ if($('diagTheme'))$('diagTheme').textContent=day?'DAY · LIGHT':'NIGHT · DARK';
+ if($('diagTimezone'))$('diagTimezone').textContent='KANSAS CITY · CT'
+}
+setInterval(applyGeAutoTheme,300000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)applyGeAutoTheme()});
+
 function installTouchMixer(rootSelector,gridSelector){
   const root=document.querySelector(rootSelector),grid=root&&root.querySelector(gridSelector);if(!root||!grid)return function(){};
   const enhanced=[];
@@ -2907,10 +2983,17 @@ async function normalRotation(){
 let analyticsData=null,analyticsCurrentFan='',analyticsScale=Number(localStorage.getItem('geAnalyticsScale')||1)||1,analyticsFanFilter='',analyticsLocationFilter='';
 const analyticsSort={fans:{key:'last_seen_at',dir:'desc'},music:{key:'total_listened_seconds',dir:'desc'},station:{key:'last_played_at',dir:'desc'}};
 function analyticsFmtSeconds(v){v=Math.max(0,Number(v)||0);const h=Math.floor(v/3600),m=Math.floor((v%3600)/60),s=Math.floor(v%60);return h?h+'h '+m+'m':m?m+'m '+s+'s':s+'s'}
+function analyticsFmtTime(v){return v?geFmtCentral(Number(v)):''}
+function analyticsCentralEpoch(value){
+ const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);if(!m)return 0;
+ const y=+m[1],mo=+m[2],d=+m[3],h=+m[4],mi=+m[5],wanted=Date.UTC(y,mo-1,d,h,mi);
+ function shown(ms){const parts=new Intl.DateTimeFormat('en-US',{timeZone:GE_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms)),o={};parts.forEach(function(p){if(p.type!=='literal')o[p.type]=+p.value});return Date.UTC(o.year,o.month-1,o.day,o.hour,o.minute)}
+ let ms=wanted;for(let i=0;i<2;i++)ms+=wanted-shown(ms);return Math.round(ms/1000)
+}
 function analyticsChips(rows,empty){if(!Array.isArray(rows)||!rows.length)return '<span class="note">'+esc(empty||'No data yet.')+'</span>';return rows.slice(0,12).map(function(x){return '<span class="analyticsChip">'+esc(x.name||'Unknown')+' · '+Number(x.count||0)+'</span>'}).join('')}
 function analyticsSortRows(rows,table){const s=analyticsSort[table]||{key:'',dir:'desc'},dir=s.dir==='asc'?1:-1,key=s.key;return (rows||[]).slice().sort(function(a,b){let av=a&&a[key],bv=b&&b[key];if(key==='display_name'){av=String(a.display_name||a.anon_id||'').toLowerCase();bv=String(b.display_name||b.anon_id||'').toLowerCase()}const an=Number(av),bn=Number(bv),bothNum=Number.isFinite(an)&&Number.isFinite(bn)&&String(av==null?'':av).trim()!==''&&String(bv==null?'':bv).trim()!=='';if(bothNum)return(an-bn)*dir;return String(av==null?'':av).localeCompare(String(bv==null?'':bv),undefined,{numeric:true,sensitivity:'base'})*dir})}
 function updateAnalyticsSortHeads(){document.querySelectorAll('[data-analytics-table] th[data-sort]').forEach(function(th){const table=th.closest('[data-analytics-table]')&&th.closest('[data-analytics-table]').dataset.analyticsTable,s=analyticsSort[table];th.classList.toggle('sortAsc',!!s&&s.key===th.dataset.sort&&s.dir==='asc');th.classList.toggle('sortDesc',!!s&&s.key===th.dataset.sort&&s.dir==='desc')})}
-function analyticsRangeQuery(){const value=$('analyticsRange').value||'d30',p=new URLSearchParams();if(value==='custom'){const a=$('analyticsStart').value,b=$('analyticsEnd').value,start=a?Math.round(new Date(a).getTime()/1000):0,end=b?Math.round(new Date(b).getTime()/1000):0;if(start)p.set('start',String(start));if(end)p.set('end',String(end))}else if(value==='all')p.set('days','3650');else if(value[0]==='m')p.set('minutes',value.slice(1));else if(value[0]==='h')p.set('hours',value.slice(1));else if(value[0]==='d')p.set('days',value.slice(1));return p}
+function analyticsRangeQuery(){const value=$('analyticsRange').value||'d30',p=new URLSearchParams();if(value==='custom'){const a=$('analyticsStart').value,b=$('analyticsEnd').value,start=a?analyticsCentralEpoch(a):0,end=b?analyticsCentralEpoch(b):0;if(start)p.set('start',String(start));if(end)p.set('end',String(end))}else if(value==='all')p.set('days','3650');else if(value[0]==='m')p.set('minutes',value.slice(1));else if(value[0]==='h')p.set('hours',value.slice(1));else if(value[0]==='d')p.set('days',value.slice(1));return p}
 function setDefaultCustomRange(){if($('analyticsStart').value||$('analyticsEnd').value)return;const end=new Date(),start=new Date(end.getTime()-24*3600*1000),local=function(d){const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,16)};$('analyticsStart').value=local(start);$('analyticsEnd').value=local(end)}
 function applyAnalyticsScale(delta){analyticsScale=clamp(Math.round((analyticsScale+delta)*100)/100,.75,1.75);localStorage.setItem('geAnalyticsScale',String(analyticsScale));$('analyticsModal').querySelector('.modalBox').style.setProperty('--analytics-scale',analyticsScale);$('analyticsTextValue').textContent=Math.round(analyticsScale*100)+'%'}
 function updateAscapDue(){const input=$('analyticsAscapDue'),wrap=$('analyticsDueWrap');if(!input||!wrap)return;const saved=localStorage.getItem('geAscapReportDue')||'';if(!input.value&&saved)input.value=saved;if(!input.value){wrap.classList.remove('dueSoon');return}const due=new Date(input.value+'T23:59:59'),days=(due-Date.now())/86400000;wrap.classList.toggle('dueSoon',days<=7)}
@@ -2942,7 +3025,7 @@ function renderAnalytics(d){
 
  const fans=analyticsSortRows(analyticsFilterFans(Array.isArray(d&&d.fans)?d.fans:[]),'fans');
  $('analyticsFans').innerHTML=fans.slice(0,500).map(function(x){
-  const loc=[x.city,x.region,x.country].filter(Boolean).join(', ')||'—',last=x.last_seen_at?new Date(Number(x.last_seen_at)*1000).toLocaleString():'',short=String(x.anon_id||'').replace(/^visitor-/,'').slice(0,12),name=String(x.display_name||'').trim();
+  const loc=[x.city,x.region,x.country].filter(Boolean).join(', ')||'—',last=x.last_seen_at?analyticsFmtTime(x.last_seen_at):'',short=String(x.anon_id||'').replace(/^visitor-/,'').slice(0,12),name=String(x.display_name||'').trim();
   return '<tr class="fanRow" data-anon="'+esc(x.anon_id||'')+'"><td>'+esc(name||('Fan '+short))+(x.identified?'<span class="fanSub fanIdentified">IDENTIFIED</span>':(name?'<span class="fanSub">'+esc(short)+'</span>':''))+'</td><td>'+esc(last)+'</td><td>'+esc(loc)+'</td><td>'+Number(x.sessions||0)+'</td><td>'+Number(x.events||0)+'</td><td>'+Number(x.unique_tracks||0)+'</td><td>'+esc(analyticsFmtSeconds(x.listened_seconds))+'</td><td>'+esc(x.campaign||'—')+'</td></tr>'
  }).join('')||'<tr><td colspan="8" class="note">No fans match this search.</td></tr>';
 
@@ -2950,7 +3033,7 @@ function renderAnalytics(d){
  $('analyticsMusic').innerHTML=music.slice(0,250).map(function(x){return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+Number(x.unique_listeners||0)+'</td><td>'+esc(analyticsFmtSeconds(x.total_listened_seconds))+'</td><td>'+esc(analyticsFmtSeconds(x.average_listened_seconds))+'</td><td>'+Number(x.completed||0)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="8" class="note">No song-listening sessions recorded yet.</td></tr>';
 
  const station=analyticsSortRows(Array.isArray(d&&d.station_music)?d.station_music:[],'station');
- $('analyticsStation').innerHTML=station.slice(0,250).map(function(x){const dt=x.last_played_at?new Date(Number(x.last_played_at)*1000).toLocaleString():'';return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';
+ $('analyticsStation').innerHTML=station.slice(0,250).map(function(x){const dt=x.last_played_at?analyticsFmtTime(x.last_played_at):'';return '<tr><td>'+esc(x.track_title||x.track_id||'Unknown')+'</td><td>'+esc(x.album||'')+'</td><td>'+Number(x.performances||0)+'</td><td>'+esc(dt)+'</td><td>'+esc((x.ascap_work_id||x.iswc||'—')+(x.ascap_status?' · '+x.ascap_status:''))+'</td></tr>'}).join('')||'<tr><td colspan="5" class="note">No server-side station performances recorded yet.</td></tr>';
  updateAnalyticsSortHeads()
 }
 function fanEventDescription(e){
@@ -2997,7 +3080,7 @@ async function loadFanDetail(anon){
   '<h4>GE SURFACES</h4><div class="analyticsChips">'+analyticsChips(summary.surfaces,'No surface data.')+'</div>'+
   '<h4>LOCATION HISTORY</h4><div class="analyticsChips">'+analyticsChips(summary.locations,'No coarse location history.')+'</div></div>';
 
-  box.innerHTML='<div class="fanDetailHead"><div><b>'+esc(nickname||anon)+'</b><div class="fanDetailMeta">Fan ID: '+esc(anon)+'<br>First seen: '+esc(first.occurred_at?new Date(Number(first.occurred_at)*1000).toLocaleString():'')+'<br>Last seen: '+esc(latest.occurred_at?new Date(Number(latest.occurred_at)*1000).toLocaleString():'')+'</div></div><button class="miniAction" id="fanDetailClose">CLOSE</button></div>'+
+  box.innerHTML='<div class="fanDetailHead"><div><b>'+esc(nickname||anon)+'</b><div class="fanDetailMeta">Fan ID: '+esc(anon)+'<br>First seen: '+esc(first.occurred_at?analyticsFmtTime(first.occurred_at):'')+'<br>Last seen: '+esc(latest.occurred_at?analyticsFmtTime(latest.occurred_at):'')+'</div></div><button class="miniAction" id="fanDetailClose">CLOSE</button></div>'+
   '<div class="fanProfileGrid">'+
    '<div class="fanProfileCell"><span>LOCATION</span><b>'+esc(loc)+'</b></div>'+
    '<div class="fanProfileCell"><span>NETWORK</span><b>'+esc(network)+'</b></div>'+
@@ -3011,7 +3094,7 @@ async function loadFanDetail(anon){
   '<div class="fanIdentity"><input id="fanIdentityName" maxlength="200" placeholder="Identify / nickname this fan" value="'+esc(nickname)+'"><textarea id="fanIdentityNotes" maxlength="2000" placeholder="Private notes">'+esc(profile.notes||'')+'</textarea><button id="fanIdentitySave">SAVE PROFILE</button></div>'+
   '<div class="analyticsStatus" id="fanIdentityStatus"></div>'+
   '<div class="analyticsTableWrap fanTimeline"><table class="analyticsTable"><thead><tr><th>TIME</th><th>EVENT</th><th>DETAIL</th><th>LOCATION</th></tr></thead><tbody>'+
-  events.map(function(e){const dt=e.occurred_at?new Date(Number(e.occurred_at)*1000).toLocaleString():'',l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+
+  events.map(function(e){const dt=e.occurred_at?analyticsFmtTime(e.occurred_at):'',l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+
   '</tbody></table></div>';
   $('fanDetailClose').onclick=function(){box.classList.remove('show');analyticsCurrentFan='';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};
   $('fanIdentitySave').onclick=function(){saveFanIdentity(anon).catch(function(e){$('fanIdentityStatus').textContent='SAVE ERROR · '+(e.message||e)})};
@@ -3020,7 +3103,7 @@ async function loadFanDetail(anon){
 }
 function csvCell(v){const s=String(v==null?'':v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportAscapCsv(){const rows=analyticsData&&analyticsData.station_performance_events||[];if(!rows.length){alert('No station performances in this time range.');return}const headers=['PERFORMED_AT_UTC','DATE_UTC','TIME_UTC','TITLE','ASCAP_TITLE','ASCAP_WORK_ID','ASCAP_STATUS','ALBUM','ARTIST','WRITER','PUBLISHER','ISWC','TRACK_ID','SOURCE'],lines=[headers.join(',')];rows.forEach(function(x){const d=new Date(Number(x.occurred_at||0)*1000),iso=d.toISOString();lines.push([iso,iso.slice(0,10),iso.slice(11,19),x.track_title||'',x.ascap_title||'',x.ascap_work_id||'',x.ascap_status||'',x.album||'',x.artist||'Grand Element',x.writer||'',x.publisher||'',x.iswc||'',x.track_id||'',x.source||''].map(csvCell).join(','))});const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='GE-ASCAP-Music-Use-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)}
-async function loadAnalytics(){if($('analyticsStart')&&$('analyticsBottomStart'))$('analyticsBottomStart').value=$('analyticsStart').value||'';if($('analyticsEnd')&&$('analyticsBottomEnd'))$('analyticsBottomEnd').value=$('analyticsEnd').value||'';const q=analyticsRangeQuery();$('analyticsStatus').textContent='LOADING VAULT…';try{const r=await api('/control/vault/analytics?'+q.toString()),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');renderAnalytics(d);const a=d.since?new Date(Number(d.since)*1000).toLocaleString():'',b=d.until?new Date(Number(d.until)*1000).toLocaleString():'';$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals&&d.totals.events||0)+' EVENTS · '+a+' → '+b}catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}}
+async function loadAnalytics(){if($('analyticsStart')&&$('analyticsBottomStart'))$('analyticsBottomStart').value=$('analyticsStart').value||'';if($('analyticsEnd')&&$('analyticsBottomEnd'))$('analyticsBottomEnd').value=$('analyticsEnd').value||'';const q=analyticsRangeQuery();$('analyticsStatus').textContent='LOADING VAULT…';try{const r=await api('/control/vault/analytics?'+q.toString()),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');renderAnalytics(d);const a=d.since?analyticsFmtTime(d.since):'',b=d.until?analyticsFmtTime(d.until):'';$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals&&d.totals.events||0)+' EVENTS · '+a+' → '+b}catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt).then(function(r){if(!r.ok&&typeof geUxCount==='function')geUxCount('errors','API '+String(path).split('?')[0]+' · '+r.status);return r})}
 
 function geUxCount(bucket,name,amount){
@@ -4768,6 +4851,7 @@ function setGeDisplayScope(scope){
  geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom(geDisplayZoomPct,false)
 }
 if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener)navigator.mediaDevices.addEventListener('devicechange',function(){refreshDevices().catch(function(){})});
+applyGeAutoTheme();
 (function initGeDisplayZoom(){
  geDisplayZoomPct=geStoredZoom();
  setGeDisplayScope('home');
