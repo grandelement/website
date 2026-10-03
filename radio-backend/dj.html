@@ -2602,13 +2602,20 @@ async function startDjLiveTransport(mode){
  if(mode==='lowband')wsUrl+='&voice=lowband&pan='+encodeURIComponent(clamp(Number(settings.mic.pan||0)/100,-1,1));
  const ws=new WebSocket(wsUrl);
  liveSocket=ws;ws.binaryType='arraybuffer';
- await new Promise(function(resolve,reject){
-   const timer=setTimeout(function(){cleanup();reject(new Error('DJ audio connection timed out.'))},15000);
-   function cleanup(){clearTimeout(timer);ws.onopen=null;ws.onerror=null;ws.onclose=null}
-   ws.onopen=function(){diagWsOpenAt=Date.now();diagEvent('DJ WS OPEN',mode);cleanup();resolve()};
-   ws.onerror=function(){diagEvent('DJ WS ERROR',mode);cleanup();reject(new Error('DJ audio connection failed.'))};
-   ws.onclose=function(e){diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('DJ WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));cleanup();reject(new Error('DJ audio connection closed.'))}
- });
+ try{
+   await new Promise(function(resolve,reject){
+     const timer=setTimeout(function(){cleanup();reject(new Error('DJ audio connection timed out.'))},15000);
+     function cleanup(){clearTimeout(timer);ws.onopen=null;ws.onerror=null;ws.onclose=null}
+     ws.onopen=function(){diagWsOpenAt=Date.now();diagEvent('DJ WS OPEN',mode);cleanup();resolve()};
+     ws.onerror=function(){diagEvent('DJ WS ERROR',mode);cleanup();reject(new Error('DJ audio connection failed.'))};
+     ws.onclose=function(e){diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('DJ WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));cleanup();reject(new Error('DJ audio connection closed.'))}
+   })
+ }catch(e){
+   if(liveSocket===ws)liveSocket=null;
+   try{ws.close()}catch(closeErr){}
+   await api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'dj'})}).catch(function(){});
+   throw e
+ }
  liveActive=true;liveTransport='direct';livePcmMode=mode;liveLastError='';liveSentBytes=0;liveDroppedFrames=0;
  pcmProcessor.port.postMessage({type:'on',value:true});diagEvent('DJ PCM ON',mode);
  ws.onerror=function(){if(liveSocket===ws){liveLastError='DJ LINK ERROR';diagEvent('DJ LINK ERROR')}};
