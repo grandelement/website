@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>GE DJ LITE</title>
+<style>
+html,body{margin:0;padding:0;background:#03070b;color:#eef7fb;font-family:Arial,Helvetica,sans-serif}
+body{min-height:100vh}
+*{box-sizing:border-box}
+button,input{font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:14px}
+.top{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #243747;padding-bottom:10px}
+.brand{font-size:28px;font-weight:bold;letter-spacing:2px}.brand span{font-size:12px;color:#58a5ff}
+.pill{border:1px solid #365264;border-radius:18px;padding:8px 13px;font-size:12px;font-weight:bold;color:#7f909c}
+.pill.on{color:#55d8c1;border-color:#55d8c1}
+.card{border:1px solid #304554;border-radius:12px;background:#071018;margin-top:10px;padding:12px}
+.label{font-size:11px;color:#8697a3;font-weight:bold;letter-spacing:1px}
+.big{font-size:22px;font-weight:bold;margin-top:4px}
+.small{font-size:12px;color:#91a1ac;margin-top:4px;line-height:1.35}
+.devices{display:flex;flex-wrap:wrap;margin:-3px}
+.device{display:flex;align-items:center;border:1px solid #384956;border-radius:18px;padding:8px 11px;margin:3px;font-size:11px;font-weight:bold;color:#81909b}
+.dot{width:8px;height:8px;border-radius:50%;background:#39444e;margin-right:6px}
+.device.online{color:#fff;border-color:#55d8c1;background:#102b26}.device.online .dot{background:#55d8c1}
+.device.self{color:#fff;border-color:#58a5ff;background:#102a43}.device.self .dot{background:#58a5ff}
+.row{display:flex;align-items:center;margin-top:10px}
+.row .grow{flex:1}
+.btn{min-height:46px;border:1px solid #3d5668;border-radius:9px;background:#101922;color:#fff;font-size:12px;font-weight:bold;padding:0 14px}
+.btn.on{border-color:#55d8c1;background:#12382f}
+.btn.air{border-color:#ff667b;background:#541923}
+.btn:disabled{opacity:.45}
+.slider{width:100%;height:42px}
+.read{font-size:18px;font-weight:bold;text-align:right;min-width:62px;margin-left:10px}
+.meter{height:12px;border:1px solid #40505e;border-radius:9px;background:#111b22;overflow:hidden;margin-top:10px}.meter i{display:block;height:100%;width:0;background:#55d8c1}
+.actions{display:flex;flex-wrap:wrap;margin:8px -3px -3px}.actions .btn{flex:1;margin:3px;min-width:120px}
+.warn{border-color:#6b5a2f;background:#171407}.warn .big{color:#f0cc66}
+.lock{position:fixed;left:0;top:0;right:0;bottom:0;background:#03070b;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.login{width:100%;max-width:420px;border:1px solid #355064;border-radius:14px;padding:18px;background:#071018}
+.login h1{margin:0 0 8px;font-size:26px}.login input{width:100%;height:48px;border:1px solid #3e5363;border-radius:8px;background:#02070b;color:#fff;padding:0 12px;font-size:16px;margin:10px 0}
+.login .btn{width:100%}.hide{display:none}
+.statusline{font-size:12px;color:#55d8c1;font-weight:bold;margin-top:5px}
+.now{font-size:24px;font-weight:bold;margin-top:4px}.meta{font-size:12px;color:#8ea0ad;margin-top:4px}
+hr{border:0;border-top:1px solid #243747;margin:12px 0}
+@media(max-width:560px){.wrap{padding:9px}.brand{font-size:23px}.big{font-size:19px}.row{display:block}.read{text-align:left;margin:3px 0 0}.actions .btn{min-width:100px}}
+</style>
+</head>
+<body>
+<div class="lock" id="lock">
+ <div class="login">
+  <h1>GE DJ LITE</h1>
+  <div class="small">Compatibility controller for older Mac / Safari.</div>
+  <input id="password" type="password" placeholder="DJ password">
+  <button class="btn" id="loginBtn">CONNECT</button>
+  <div class="small" id="loginStatus"></div>
+ </div>
+</div>
+
+<div class="wrap">
+ <div class="top">
+  <div class="brand">GE DJ <span>LITE v1</span></div>
+  <div class="pill" id="serverPill">OFFLINE</div>
+ </div>
+
+ <div class="card">
+  <div class="label">CONNECTED CHANNELS</div>
+  <div class="devices" style="margin-top:8px">
+   <div class="device self" id="computerBubble"><span class="dot"></span>COMPUTER</div>
+   <div class="device" id="iphoneBubble"><span class="dot"></span>iPHONE</div>
+   <div class="device" id="ipadBubble"><span class="dot"></span>iPAD</div>
+  </div>
+ </div>
+
+ <div class="card">
+  <div class="label">RADIO STATUS</div>
+  <div class="statusline" id="radioStatus">WAITING FOR SERVER</div>
+  <div class="label" style="margin-top:12px">NOW PLAYING</div>
+  <div class="now" id="nowTitle">Grand Element Radio</div>
+  <div class="meta" id="nowMeta"></div>
+ </div>
+
+ <div class="card">
+  <div class="label">COMPUTER CHANNEL</div>
+  <div class="big" id="computerState">CONNECTED · CONTROL SURFACE</div>
+  <div class="small">This old Safari page can control the shared COMPUTER channel. Capturing Ableton/system audio from this Mac requires the separate legacy audio helper.</div>
+  <div class="meter"><i id="computerMeter"></i></div>
+  <div class="row">
+   <div class="grow"><input class="slider" id="computerLevel" type="range" min="0" max="150" value="100"></div>
+   <div class="read" id="computerLevelRead">100%</div>
+  </div>
+  <div class="actions">
+   <button class="btn" id="computerAir">COMPUTER OFF AIR</button>
+   <button class="btn" id="refreshBtn">REFRESH</button>
+  </div>
+ </div>
+
+ <div class="card">
+  <div class="label">RADIO</div>
+  <div class="actions">
+   <button class="btn" id="monitorBtn">MONITOR</button>
+   <button class="btn" id="skipBtn">SKIP SONG</button>
+  </div>
+  <audio id="radioAudio" preload="none"></audio>
+ </div>
+
+ <div class="card warn">
+  <div class="label">LEGACY MODE</div>
+  <div class="big">OLD MAC CONNECTED</div>
+  <div class="small">GE DJ LITE avoids modern JavaScript and modern browser-capture APIs. Full effects, screen capture, tab discovery, recording and direct browser audio ingest remain on the modern DJ.</div>
+ </div>
+</div>
+
+<script>
+(function(){
+ var API='',key='',status=null,poller=0,heartbeatTimer=0,boardId='',radioOn=false;
+ var $=function(id){return document.getElementById(id);};
+
+ function safeStoreGet(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
+ function safeStoreSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+ function jsonParse(s){try{return JSON.parse(s||'{}');}catch(e){return {};}}
+ function request(path,method,body,cb){
+   var x=new XMLHttpRequest();
+   x.open(method||'GET',API+path,true);
+   try{x.setRequestHeader('X-GE-DJ-Key',key);}catch(e){}
+   if(body!==null&&body!==undefined){
+     try{x.setRequestHeader('Content-Type','application/json');}catch(e){}
+   }
+   x.onreadystatechange=function(){
+     if(x.readyState!==4)return;
+     var d=jsonParse(x.responseText);
+     cb(x.status,d,x);
+   };
+   try{x.send(body!==null&&body!==undefined?JSON.stringify(body):null);}
+   catch(e){cb(0,{ok:false,error:String(e)},x);}
+ }
+ function boardRows(){return status&&status.dj_boards&&status.dj_boards.length?status.dj_boards:[];}
+ function hasBoard(re){
+   var rows=boardRows(),i,label;
+   for(i=0;i<rows.length;i++){
+     if(!rows[i]||!rows[i].online)continue;
+     label=String(rows[i].label||'');
+     if(re.test(label))return true;
+   }
+   return false;
+ }
+ function setDevice(id,on,self){
+   var el=$(id);if(!el)return;
+   el.className='device'+(self?' self':(on?' online':''));
+ }
+ function render(){
+   if(!status)return;
+   $('serverPill').className='pill on';$('serverPill').innerHTML='CONNECTED';
+   var n=status.now||{};
+   $('nowTitle').innerHTML=escapeHtml(n.title||'Grand Element Radio');
+   $('nowMeta').innerHTML=escapeHtml((n.album||'')+(n.artist?' · '+n.artist:''));
+   $('radioStatus').innerHTML='SERVER AUDIO OK · '+(status.broadcast&&status.broadcast.active?'LIVE INPUT ACTIVE':'RADIO READY');
+   setDevice('computerBubble',true,true);
+   setDevice('iphoneBubble',hasBoard(/iphone|ipod/i),false);
+   setDevice('ipadBubble',hasBoard(/ipad/i),false);
+   var shared=status.dj_controls||{};
+   var level=Number(shared.line_level);
+   if(isNaN(level))level=100;
+   $('computerLevel').value=String(level);
+   $('computerLevelRead').innerHTML=Math.round(level)+'%';
+   var air=!!shared.line_air;
+   $('computerAir').innerHTML=air?'STOP COMPUTER ON AIR':'COMPUTER OFF AIR';
+   $('computerAir').className='btn'+(air?' air':'');
+   var home=null,rows=boardRows(),i;
+   for(i=0;i<rows.length;i++){
+     if(rows[i]&&rows[i].role==='home'&&rows[i].online&&rows[i].id!==boardId){home=rows[i];break;}
+   }
+   if(home&&home.line_connected){
+     $('computerState').innerHTML='COMPUTER AUDIO SOURCE CONNECTED';
+     $('computerMeter').style.width=Math.max(0,Math.min(100,Number(home.line_peak||0)))+'%';
+   }else{
+     $('computerState').innerHTML='CONNECTED · CONTROL SURFACE';
+     $('computerMeter').style.width='0%';
+   }
+ }
+ function poll(){
+   request('/control/status','GET',null,function(code,d){
+     if(code>=200&&code<300){
+       status=d;render();
+     }else{
+       $('serverPill').className='pill';$('serverPill').innerHTML='OFFLINE';
+     }
+   });
+ }
+ function heartbeat(){
+   if(!key)return;
+   request('/control/board/heartbeat','POST',{
+     board_id:boardId,
+     role:'home',
+     label:'STUDIO MAC',
+     app_state:'active',
+     channel_state:{
+       line_connected:false,line_air:false,line_source:'',
+       line_peak:0,mic_connected:false,mic_air:false,mic_peak:0
+     }
+   },function(code,d){
+     if(code>=200&&code<300&&d&&d.boards&&status){status.dj_boards=d.boards;render();}
+   });
+ }
+ function sendComputer(values){
+   request('/control/board/control','POST',{board_id:boardId,values:values},function(code,d){
+     if(code>=200&&code<300&&d&&d.controls){
+       if(!status)status={};
+       status.dj_controls=d.controls;render();
+     }else alert((d&&d.error)||'Computer control failed.');
+   });
+ }
+ function login(){
+   key=$('password').value||'';
+   $('loginStatus').innerHTML='CONNECTING...';
+   request('/control/status','GET',null,function(code,d){
+     if(code>=200&&code<300){
+       status=d;safeStoreSet('geDjPassword',key);
+       $('lock').className='lock hide';
+       if(!boardId){boardId=safeStoreGet('geDjLegacyBoardIdV1');if(!boardId){boardId='legacy-'+String(new Date().getTime())+'-'+String(Math.random()).slice(2,9);safeStoreSet('geDjLegacyBoardIdV1',boardId);}}
+       render();heartbeat();poll();
+       if(poller)clearInterval(poller);poller=setInterval(poll,2500);
+       if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,5000);
+     }else{
+       $('loginStatus').innerHTML='PASSWORD NOT ACCEPTED';
+     }
+   });
+ }
+ function escapeHtml(s){
+   return String(s===null||s===undefined?'':s).replace(/[&<>"]/g,function(ch){
+     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
+   });
+ }
+
+ $('loginBtn').onclick=login;
+ $('password').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)login();};
+ $('computerLevel').onchange=function(){var v=Number(this.value)||0;$('computerLevelRead').innerHTML=Math.round(v)+'%';sendComputer({line_level:v});};
+ $('computerAir').onclick=function(){var shared=status&&status.dj_controls||{};sendComputer({line_air:!shared.line_air});};
+ $('refreshBtn').onclick=function(){poll();heartbeat();};
+ $('skipBtn').onclick=function(){
+   var b=this;b.disabled=true;b.innerHTML='SKIPPING...';
+   request('/control/skip','POST',{},function(code,d){
+     b.disabled=false;b.innerHTML='SKIP SONG';
+     if(!(code>=200&&code<300))alert((d&&d.error)||'Skip failed.');
+     setTimeout(poll,700);
+   });
+ };
+ $('monitorBtn').onclick=function(){
+   var a=$('radioAudio');
+   if(!radioOn){
+     a.src='/stream.mp3?lite='+String(new Date().getTime());
+     try{a.play();radioOn=true;this.className='btn on';this.innerHTML='STOP MONITOR';}
+     catch(e){alert('Safari could not start the monitor.');}
+   }else{
+     try{a.pause();}catch(e){}
+     a.removeAttribute('src');try{a.load();}catch(e){}
+     radioOn=false;this.className='btn';this.innerHTML='MONITOR';
+   }
+ };
+
+ key=safeStoreGet('geDjPassword');
+ if(key){$('password').value=key;login();}
+})();
+</script>
+</body>
+</html>
