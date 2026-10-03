@@ -1898,6 +1898,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 #mixerSheet .mixerZoomRead{display:none!important}
 
 @media(max-width:700px){
+ :root{--ge-header-h:clamp(26px,calc(34px * var(--ge-ui-scale)),54px)}
  .geDisplayZoomBar .geScaleControls{grid-template-columns:auto 30px minmax(60px,1fr) 30px 43px auto!important}
  .geDisplayZoomBar .geScaleControls #gePlayer{display:none!important}
  #mixerSheet .mixerSecondRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
@@ -1909,11 +1910,11 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>LINE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="75" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="50" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v61</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v62</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3747,7 +3748,7 @@ syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();
 const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV1';
 let geDisplayZoomScope='home',geDisplayZoomPct=100;
 function geStoredZoom(){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),75,180)}catch(e){return 100}
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),50,180)}catch(e){return 100}
 }
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
@@ -3784,7 +3785,7 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||100),75,180);
+ geDisplayZoomPct=clamp(Math.round(Number(value)||100),50,180);
  document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
  $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
  if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
