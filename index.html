@@ -5038,10 +5038,22 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   }
 
   function updateMediaSession(it){
-    if(!('mediaSession' in navigator) || !it) return;
+    if(!it) return;
+    const trackTitle=String(it.track||'').replace(/^.*?_\d{1,3}_/,'').replace(/_/g,' ').trim()||'Grand Element';
+    try{
+      window.GEVault?.setTrackMetadata?.(player,{
+        track_id:it.path||it.url||trackTitle,
+        track_title:trackTitle,
+        title:trackTitle,
+        artist:'Grand Element',
+        album:it.album||'Grand Element',
+        source:'website_player'
+      });
+    }catch(_e){}
+    if(!('mediaSession' in navigator)) return;
     try{
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: 'Grand Element',
+        title: trackTitle,
         artist: 'Grand Element',
         album: it.album || 'Grand Element',
         artwork: [
