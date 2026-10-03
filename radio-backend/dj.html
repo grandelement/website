@@ -2495,6 +2495,85 @@ html.geDayMode .mixerChannelPicker label{
   line-height:1.35!important;
 }
 
+
+/* V81 compact responsive layout rules.
+   Controls use the fewest rows that fit without shrinking labels below the master text size.
+   Related actions stay together when wrapping is required. */
+.djFilesTools{
+ display:grid!important;
+ grid-template-columns:repeat(auto-fit,minmax(128px,1fr))!important;
+ gap:6px!important;
+ align-items:stretch!important;
+ margin:8px 0!important;
+}
+.djFilesTools>*{
+ min-width:0!important;
+ width:100%!important;
+ margin:0!important;
+ box-sizing:border-box!important;
+}
+.djSelectAll{
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ gap:7px!important;
+ min-height:var(--ge-control-h)!important;
+ padding:5px 8px!important;
+ border:1px solid #3c5669!important;
+ border-radius:8px!important;
+ font-size:var(--ge-font-control)!important;
+ font-weight:950!important;
+}
+.djSelectAll input{flex:0 0 auto!important}
+
+/* Recording rows: metadata stays together; PLAY + ASSIGN share the action side when room exists. */
+.djFileRow{
+ display:grid!important;
+ grid-template-columns:30px minmax(0,1fr) minmax(82px,.35fr) minmax(132px,.55fr)!important;
+ grid-template-areas:"check info play assign"!important;
+ gap:7px!important;
+ align-items:center!important;
+ padding:7px 8px!important;
+}
+.djFileCheck{grid-area:check!important}
+.djFileInfo{grid-area:info!important;min-width:0!important}
+.djPlayBtn{grid-area:play!important}
+.djAssignSelect{grid-area:assign!important}
+.djPlayBtn,.djAssignSelect{
+ width:100%!important;
+ min-width:0!important;
+ min-height:var(--ge-control-h)!important;
+ font-size:var(--ge-font-control)!important;
+}
+
+/* Narrow phones: identity is one row, related actions are the second row. */
+@media(max-width:599px){
+ .djFilesTools{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .djFileRow{
+  grid-template-columns:30px minmax(0,1fr) minmax(0,1fr)!important;
+  grid-template-areas:
+   "check info info"
+   ". play assign"!important;
+ }
+}
+@media(max-width:330px){
+ .djFilesTools{grid-template-columns:1fr!important}
+ .djFileRow{
+  grid-template-columns:30px minmax(0,1fr)!important;
+  grid-template-areas:
+   "check info"
+   "play play"
+   "assign assign"!important;
+ }
+}
+
+/* Day mode for the newly styled selection control. */
+html.geDayMode .djSelectAll{
+ background:#f9fbfc!important;
+ color:#111820!important;
+ border-color:#8396a5!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2502,7 +2581,7 @@ html.geDayMode .mixerChannelPicker label{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v80</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v81</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
