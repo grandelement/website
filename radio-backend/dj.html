@@ -1781,18 +1781,139 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
  #mixerSheet #effectsSheet .fxEffectButtons{grid-template-columns:repeat(3,minmax(0,1fr))!important}
  #mixerSheet #effectsSheet .fxRightRail{grid-template-columns:1fr repeat(4,minmax(48px,.55fr))!important}
 }
+
+/* V61: two-row mixer chrome + one global four-tier text/button scale. */
+:root{
+ --ge-ui-scale:1;
+ --ge-font-title:calc(18px * var(--ge-ui-scale));
+ --ge-font-category:calc(13px * var(--ge-ui-scale));
+ --ge-font-control:calc(11px * var(--ge-ui-scale));
+ --ge-font-body:calc(9.5px * var(--ge-ui-scale));
+ --ge-control-h:clamp(34px,calc(42px * var(--ge-ui-scale)),68px);
+ --ge-header-h:clamp(30px,calc(34px * var(--ge-ui-scale)),54px);
+}
+
+/* Every text-bearing element starts from one BODY size; the next rules assign the
+   three larger tiers. This intentionally overrides old one-off pixel sizes. */
+body *{font-size:var(--ge-font-body)!important}
+body button,body button *,body select,body input:not([type="range"]),body textarea,
+body .sourceBtn,body .cueBtn,body .airBtn,body output,
+.geDisplayZoomBar,.geDisplayZoomBar *{font-size:var(--ge-font-control)!important}
+body .label,body h3,body .sectionHead .label,body .lineSectionTitle,
+body .radioHealthState,body .studioLinkHead b,body .fxIsolationStatus,
+body .fxControlGrid .bigSlider label span:first-child,
+body .mixerLock,body .mixerZoomRead,body .fxZoomRead{font-size:var(--ge-font-category)!important}
+body .brand,body .nowTitle,body .sheetTitle,body .modalHead b,
+#mixerSheet .mixStrip h3,#mixerSheet #effectsSheet .fxTitleBlock .sheetTitle,
+#lineSheet .lineRemoteCard strong{font-size:var(--ge-font-title)!important}
+body .brand>span{font-size:var(--ge-font-body)!important}
+
+/* Controls grow/shrink with the same master percentage. */
+#lineSheet .sheetIn button,#lineSheet .sheetIn select,#lineSheet .sheetIn input:not([type="range"]),
+#micSheet .sheetIn button,#micSheet .sheetIn select,#micSheet .sheetIn input:not([type="range"]),
+#mixerSheet .sheetIn>button,#mixerSheet .mixStrip button,#mixerSheet .mixerChannelPicker button,
+#mixerSheet .mixerChannelPicker label,#mixerSheet .remoteDeviceCard button,
+#mixerSheet #effectsSheet button,#mixerSheet #effectsSheet select,#mixerSheet #effectsSheet input:not([type="range"]){
+ min-height:var(--ge-control-h)!important;height:auto!important
+}
+#lineSheet .lineSourceButtons .sourceBtn,#lineSheet .lineControlGrid button,
+#lineSheet .sourceSelect button,#lineSheet .lineAddDevice button,
+#lineSheet .lineAddDevice input,#lineSheet .sourceSelect select{
+ min-height:var(--ge-control-h)!important;height:auto!important
+}
+
+/* The persistent top control is two clean rows everywhere except mixer, where
+   CHANNELS are moved into the dedicated first mixer row. */
+.geDisplayZoomBar{
+ display:grid!important;grid-template-columns:1fr!important;gap:5px!important;
+ padding:5px 7px!important;min-height:0!important
+}
+.geDisplayZoomBar .geChannelStatus{
+ display:flex!important;width:100%!important;gap:5px!important;overflow-x:auto!important;
+ align-items:center!important
+}
+.geDisplayZoomBar .geScaleControls{
+ display:grid!important;grid-template-columns:auto 34px minmax(72px,1fr) 34px 48px auto auto!important;
+ gap:5px!important;align-items:center!important;min-width:0!important
+}
+.geDisplayZoomBar .geScaleControls>b{white-space:nowrap!important}
+.geDisplayZoomBar .geScaleControls button{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important}
+.geDisplayZoomBar .geScaleControls output{white-space:nowrap!important}
+.geChannelBubble{
+ min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;
+ padding:0 9px!important;font-size:var(--ge-font-control)!important
+}
+.geChannelBubble span{font-size:var(--ge-font-control)!important}
+.geChannelBubble[data-channel-bubble="iphone"] span,
+.geChannelBubble[data-channel-bubble="ipad"] span{font-size:var(--ge-font-control)!important}
+.geChannelBubble[data-channel-bubble="iphone"] span:after,
+.geChannelBubble[data-channel-bubble="ipad"] span:after{content:none!important}
+
+/* MIXER ROW 1 = channels + LINK + CHANNELS.
+   MIXER ROW 2 = TEXT/BUTTONS scale + FIT/width/lock. */
+#mixerSheet .mixerHeader{
+ display:grid!important;grid-template-columns:1fr!important;gap:5px!important;
+ align-items:stretch!important;min-height:0!important;padding:0!important
+}
+#mixerSheet .mixerTopRow{
+ display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+ gap:6px!important;align-items:center!important;min-width:0!important
+}
+#mixerSheet .mixerChannelHost{min-width:0!important;overflow:hidden!important}
+#mixerSheet .mixerChannelHost .geChannelStatus{
+ display:flex!important;gap:5px!important;overflow-x:auto!important;align-items:center!important;
+ width:100%!important;scrollbar-width:none!important
+}
+#mixerSheet .mixerChannelHost .geChannelStatus::-webkit-scrollbar{display:none!important}
+#mixerSheet .mixerHeadActions{display:flex!important;gap:5px!important;align-items:center!important}
+#mixerSheet .mixerHeadActions button{
+ min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;
+ padding:0 10px!important;font-size:var(--ge-font-control)!important
+}
+#mixerSheet .mixerSecondRow{
+ display:grid!important;grid-template-columns:minmax(260px,.95fr) minmax(290px,1.05fr)!important;
+ gap:6px!important;align-items:center!important;min-width:0!important
+}
+#mixerSheet .mixerScaleHost{min-width:0!important}
+#mixerSheet .mixerScaleHost .geDisplayZoomBar{
+ position:static!important;inset:auto!important;left:auto!important;top:auto!important;
+ transform:none!important;width:100%!important;max-width:none!important;min-width:0!important;
+ margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;
+ display:block!important
+}
+#mixerSheet .mixerScaleHost .geScaleControls{
+ display:grid!important;grid-template-columns:auto 32px minmax(68px,1fr) 32px 45px auto!important;
+ gap:4px!important;align-items:center!important
+}
+#mixerSheet .mixerScaleHost #gePlayer{display:none!important}
+#mixerSheet .mixerLayoutBar{
+ display:grid!important;grid-template-columns:auto 34px minmax(76px,1fr) 34px auto!important;
+ gap:4px!important;align-items:center!important;margin:0!important;padding:0!important
+}
+#mixerSheet .mixerLayoutBar button,#mixerSheet .mixerLock{
+ min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;
+ font-size:var(--ge-font-control)!important;padding:0 7px!important
+}
+#mixerSheet .mixerZoomRead{display:none!important}
+
+@media(max-width:700px){
+ .geDisplayZoomBar .geScaleControls{grid-template-columns:auto 30px minmax(60px,1fr) 30px 43px auto!important}
+ .geDisplayZoomBar .geScaleControls #gePlayer{display:none!important}
+ #mixerSheet .mixerSecondRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+ #mixerSheet .mixerScaleHost .geScaleControls{grid-template-columns:auto 28px minmax(45px,1fr) 28px 40px!important}
+ #mixerSheet .mixerScaleHost #geUndo{display:none!important}
+ #mixerSheet .mixerLayoutBar{grid-template-columns:auto 30px minmax(50px,1fr) 30px auto!important}
+ #mixerSheet .mixerHeadActions button{padding:0 8px!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
- <b>TEXT + BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button>
- <input id="geZoomRange" type="range" min="100" max="220" step="5" value="120" aria-label="GE DJ display zoom">
- <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">120%</output>
- <button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button>
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>LINE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
- <button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="75" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v60</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v61</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1821,7 +1942,7 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 <div class="dock"><div class="dockin"><button id="dockRadio">RADIO</button><button class="cue" id="dockCue">MONITOR</button><button class="mic" id="dockMic">MIC</button><button id="dockMixer">MIXER</button><button id="dockFx">EFFECTS</button><button class="studio" id="dockStudio">STUDIO</button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
 <div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">LOCAL MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
 <div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">LINE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="lineModeBanner" id="lineModeBanner">HOME SOURCE</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="lineLocalControls" id="lineLocalControls"><div class="lineSectionTitle">CHOOSE SOURCE</div><div class="sourceSelect"><select id="lineDevice"><option value="">ABLETON / LINE INPUT</option></select><button id="lineOpen">CONNECT</button></div><div class="lineSourceButtons"><button class="sourceBtn computerAudioBtn" id="lineComputerAudio" type="button">YOUTUBE / COMPUTER</button><label class="sourceBtn">AUDIO FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label></div><div class="lineActiveDevice" id="lineActiveDevice">NO SOURCE CONNECTED</div><div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that LINE.</div></div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTitleBlock"><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div><div class="mixerHeadActions"><button id="mixerLinkBtn" class="mixerLinkBtn" type="button"><i class="lamp"></i><span>LINK</span></button><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerLinkBtn" class="mixerLinkBtn" type="button"><i class="lamp"></i><span>LINK</span></button><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
   <input id="fxZoom" type="range" min="20" max="100" step="20" value="40" aria-label="Effect strip width">
@@ -3623,30 +3744,29 @@ $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
 $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
 
-const GE_DISPLAY_ZOOM_PREFIX='geDisplayZoomV3:';
-let geDisplayZoomScope='home',geDisplayZoomPct=120;
-const geDisplayDefaults={home:120,mixer:120,effects:135,mic:120,line:120};
-function geZoomCandidates(root){
- const scope=root&&root.querySelectorAll?root:document;
- return Array.from(scope.querySelectorAll('button,select,input:not([type="range"]),textarea,label,span,b,strong,small,p,h1,h2,h3,h4,h5,h6,a,th,td,div,output'));
+const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV1';
+let geDisplayZoomScope='home',geDisplayZoomPct=100;
+function geStoredZoom(){
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||100),75,180)}catch(e){return 100}
 }
-function geRegisterZoomBase(el){
- if(!el||el.dataset.geZoomFontBase)return;
- const cs=getComputedStyle(el),font=parseFloat(cs.fontSize);
- if(Number.isFinite(font)&&font>0)el.dataset.geZoomFontBase=String(font);
- if(el.matches&&el.matches('button,select,input:not([type="range"]),textarea')){
-   const mh=parseFloat(cs.minHeight),rect=el.getBoundingClientRect();
-   el.dataset.geZoomHeightBase=String(Number.isFinite(mh)&&mh>0?mh:Math.max(1,rect.height));
- }
-}
-function geStoredZoom(scope){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_PREFIX+scope)||geDisplayDefaults[scope]||120),100,220)}catch(e){return geDisplayDefaults[scope]||120}
+function restoreGeChannelsToBar(){
+ const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
+ if(bar&&channels&&channels.parentElement!==bar)bar.insertBefore(channels,bar.firstChild)
 }
 function placeGeDisplayBar(scope){
  const bar=$('geDisplayZoomBar');if(!bar)return;
+ restoreGeChannelsToBar();
+ bar.classList.remove('mixerScaleBar');
  let host=null,before=null;
+ if(scope==='mixer'){
+   const channelHost=$('mixerChannelHost'),scaleHost=$('mixerScaleHost'),channels=$('geChannelStatus');
+   if(channelHost&&channels)channelHost.appendChild(channels);
+   if(scaleHost)scaleHost.appendChild(bar);
+   bar.classList.add('inHeader','mixerScaleBar');
+   document.body.classList.remove('geHomeZoom');
+   return
+ }
  if(scope==='effects'){host=document.querySelector('#effectsSheet .fxDockHead');before=host&&host.querySelector('.fxLayoutBar')}
- else if(scope==='mixer'){host=document.querySelector('#mixerSheet .mixerHeader');before=host&&host.querySelector('.mixerLayoutBar')}
  else if(scope==='mic'){host=document.querySelector('#micSheet .sheetHead');before=host&&host.lastElementChild}
  else if(scope==='line'){host=document.querySelector('#lineSheet .sheetHead');before=host&&host.lastElementChild}
  if(host){bar.classList.add('inHeader');host.insertBefore(bar,before||null);document.body.classList.remove('geHomeZoom')}
@@ -3664,36 +3784,23 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||geDisplayDefaults[geDisplayZoomScope]||120),100,220);
- const scale=geDisplayZoomPct/100,buttonScale=1+Math.max(0,scale-1)*0.82;
- const els=geZoomCandidates(document);els.forEach(geRegisterZoomBase);
- els.forEach(function(el){
-   const base=parseFloat(el.dataset.geZoomFontBase);
-   if(Number.isFinite(base))el.style.setProperty('font-size',(base*scale).toFixed(2)+'px','important');
-   const hb=parseFloat(el.dataset.geZoomHeightBase);
-   if(Number.isFinite(hb))el.style.setProperty('min-height',(hb*buttonScale).toFixed(1)+'px','important');
- });
+ geDisplayZoomPct=clamp(Math.round(Number(value)||100),75,180);
+ document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
  $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
- if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_PREFIX+geDisplayZoomScope,String(geDisplayZoomPct))}catch(e){}
+ if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
  requestAnimationFrame(function(){syncGeDisplayBarSpace();if(typeof syncTouchFaders==='function')syncTouchFaders()});
 }
-function geResetZoomMeasurements(){
- geZoomCandidates(document).forEach(function(el){
-   el.style.removeProperty('font-size');el.style.removeProperty('min-height');
-   delete el.dataset.geZoomFontBase;delete el.dataset.geZoomHeightBase;
- });
- requestAnimationFrame(function(){applyGeDisplayZoom(geDisplayZoomPct,false)});
-}
+function geResetZoomMeasurements(){applyGeDisplayZoom(geDisplayZoomPct,false)}
 function setGeDisplayScope(scope){
- geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);
- geDisplayZoomPct=geStoredZoom(geDisplayZoomScope);geResetZoomMeasurements()
+ geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom(geDisplayZoomPct,false)
 }
 (function initGeDisplayZoom(){
+ geDisplayZoomPct=geStoredZoom();
  setGeDisplayScope('home');
  $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
  $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
  $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
- let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(geResetZoomMeasurements,180)});
+ let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){applyGeDisplayZoom(geDisplayZoomPct,false)},180)});
 })();
 
 ;
