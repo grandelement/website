@@ -2660,17 +2660,33 @@ function formatGeUxRows(title,rows){
  return title+'\n'+rows.slice(0,8).map(function(x){return '  '+x.count+' × '+x.name}).join('\n')+'\n'
 }
 function geUxReportText(d){
- let out='GE DJ UX REPORT · LAST '+Number(d.days||14)+' DAYS\n';
- out+='Sessions: '+Number(d.session_count||0)+' · Data batches: '+Number(d.event_batches||0)+'\n\n';
+ let out='GE OWNER UX REPORT · LAST '+Number(d.days||14)+' DAYS\n\n';
+ out+='DJ / RADIO\n';
+ out+='Sessions: '+Number(d.session_count||0)+' · Data batches: '+Number(d.event_batches||0)+'\n';
  out+=formatGeUxRows('MOST USED',d.top_clicks);
  out+=formatGeUxRows('SCREEN PATHS',d.top_transitions);
  out+=formatGeUxRows('BACK-AND-FORTH',d.top_backtracks);
  out+=formatGeUxRows('REPEATED CONTROLS',d.top_repeats);
  out+=formatGeUxRows('ERRORS',d.top_errors);
  if(Array.isArray(d.signals)&&d.signals.length){
-   out+='PATTERNS TO REVIEW\n'+d.signals.slice(0,10).map(function(x){return '  '+x.count+' × '+x.name+' · '+x.note}).join('\n')+'\n'
+   out+='DJ PATTERNS TO REVIEW\n'+d.signals.slice(0,10).map(function(x){return '  '+x.count+' × '+x.name+' · '+x.note}).join('\n')+'\n'
  }
- out+='\nPrivacy: control names/counts only; no typed text, passwords, document contents, or visited-page contents.';
+ const w=d.website;
+ if(w&&w.ok){
+   out+='\nWEBSITE OWNER MODE\n';
+   out+='Sessions: '+Number(w.session_count||0)+' · Devices: '+Number(w.owner_device_count||0)+' · Data batches: '+Number(w.event_batches||0)+'\n';
+   out+=formatGeUxRows('MOST USED',w.top_clicks);
+   out+=formatGeUxRows('SCREEN PATHS',w.top_transitions);
+   out+=formatGeUxRows('BACK-AND-FORTH',w.top_backtracks);
+   out+=formatGeUxRows('REPEATED CONTROLS',w.top_repeats);
+   out+=formatGeUxRows('ERRORS',w.top_errors);
+   if(Array.isArray(w.signals)&&w.signals.length){
+     out+='WEBSITE PATTERNS TO REVIEW\n'+w.signals.slice(0,10).map(function(x){return '  '+x.count+' × '+x.name+' · '+x.note}).join('\n')+'\n'
+   }
+ }else{
+   out+='\nWEBSITE OWNER MODE\nNo private owner summary available yet.\n'
+ }
+ out+='\nPrivacy: control IDs/counts only; no typed text, passwords, document contents, or visited-page contents.';
  return out
 }
 function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll();startGeUxSession()}
