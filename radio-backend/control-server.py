@@ -1529,19 +1529,25 @@ def take_remote_commands(device_id):
 DJ_BOARD_LOCK = threading.RLock()
 DJ_BOARD_PRESENCE = {}
 
-def update_dj_board_presence(board_id, role, label="", app_state="active"):
+def update_dj_board_presence(board_id, role, label="", app_state="active", channel_state=None):
     board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
     role = str(role or "").strip().lower()
     if role not in {"home", "remote"}:
         role = "home"
     if not board_id:
         raise ValueError("Missing DJ board id.")
+    channel_state = channel_state if isinstance(channel_state, dict) else {}
     now = time.time()
     row = {
         "id": board_id,
         "role": role,
         "label": " ".join(str(label or role.upper()).split())[:60],
         "app_state": " ".join(str(app_state or "active").split())[:40],
+        "line_connected": bool(channel_state.get("line_connected", False)),
+        "line_air": bool(channel_state.get("line_air", False)),
+        "line_source": " ".join(str(channel_state.get("line_source", "") or "").split())[:160],
+        "mic_connected": bool(channel_state.get("mic_connected", False)),
+        "mic_air": bool(channel_state.get("mic_air", False)),
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
@@ -1568,6 +1574,7 @@ DJ_SHARED_CONTROLS = {
     "updated_by": "",
     "mic_level": 100.0,
     "line_level": 100.0,
+    "line_air": False,
 }
 
 def dj_shared_controls():
@@ -1585,6 +1592,8 @@ def update_dj_shared_controls(board_id, values):
         changed["mic_level"] = clamp_number(values.get("mic_level"), 0.0, 150.0, 100.0)
     if "line_level" in values:
         changed["line_level"] = clamp_number(values.get("line_level"), 0.0, 150.0, 100.0)
+    if "line_air" in values:
+        changed["line_air"] = bool(values.get("line_air"))
     if not changed:
         return dj_shared_controls()
     with DJ_SHARED_CONTROL_LOCK:
@@ -3208,6 +3217,7 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("role"),
                     body.get("label", ""),
                     body.get("app_state", "active"),
+                    body.get("channel_state") or {},
                 )
                 self.json_response({"ok": True, "board": row, "boards": list_dj_board_presence()})
             except Exception as exc:
