@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Grand Element Live</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  #stage{position:fixed;inset:0;background:#000}
+  .siteFrame{position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);border:0;pointer-events:none;opacity:0;transition:opacity 2.4s ease;background:#000}
+  .siteFrame.active{opacity:1}
+  #shade{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,rgba(0,0,0,.02) 0%,rgba(0,0,0,.04) 34%,rgba(0,0,0,.26) 100%)}
+  #eq{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #identity{position:absolute;left:50%;top:50%;width:min(31vw,43vh);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;pointer-events:none;filter:drop-shadow(0 0 22px rgba(70,170,255,.36))}
+  #halo{position:absolute;inset:-8%;border-radius:50%;background:radial-gradient(circle,rgba(120,210,255,.18),rgba(60,145,255,.08) 46%,transparent 72%);filter:blur(10px)}
+  #logo{position:relative;width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;box-shadow:0 0 34px rgba(100,195,255,.50),0 0 90px rgba(65,145,255,.22);will-change:transform,filter}
+  #liveBug{position:absolute;left:50%;bottom:3.5vh;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.34);border:1px solid rgba(190,230,255,.26);backdrop-filter:blur(10px);font-size:clamp(11px,1.1vw,18px);font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:rgba(235,248,255,.88);text-shadow:0 0 12px rgba(90,180,255,.35);white-space:nowrap}
+  #now{position:absolute;left:2.3vw;bottom:2.8vh;max-width:42vw;color:rgba(235,248,255,.72);font-size:clamp(10px,.9vw,16px);letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #site{position:absolute;right:2.3vw;bottom:2.8vh;color:rgba(235,248,255,.62);font-size:clamp(10px,.9vw,16px);letter-spacing:.08em;text-shadow:0 2px 8px rgba(0,0,0,.92)}
+  @media (max-aspect-ratio:1/1){
+    #identity{width:min(54vw,38vh)}
+    #now{max-width:60vw}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <iframe id="frameA" class="siteFrame active" title="Grand Element universe"></iframe>
+  <iframe id="frameB" class="siteFrame" title="Grand Element universe"></iframe>
+  <div id="shade"></div>
+  <canvas id="eq"></canvas>
+  <div id="identity">
+    <div id="halo"></div>
+    <img id="logo" src="../ge-images/images/ge-logo-2.jpg" alt="Grand Element">
+  </div>
+  <div id="now">GRAND ELEMENT RADIO</div>
+  <div id="liveBug">GE LIVE · RADIO</div>
+  <div id="site">grandelement.com</div>
+</div>
+<audio id="station" crossorigin="anonymous" autoplay playsinline preload="none"></audio>
+<script>
+(()=>{
+  'use strict';
+  const STREAM='https://radio.grandelement.blitz.cloud/stream.mp3';
+  const STATUS='https://radio.grandelement.blitz.cloud/status-json.xsl';
+  const BACKGROUND_REFRESH_MS=5*60*1000;
+  const params=new URLSearchParams(location.search);
+  const muted=params.get('mute')==='1';
+  const frameA=document.getElementById('frameA');
+  const frameB=document.getElementById('frameB');
+  const audio=document.getElementById('station');
+  const canvas=document.getElementById('eq');
+  const ctx=canvas.getContext('2d');
+  const logo=document.getElementById('logo');
+  const halo=document.getElementById('halo');
+  const nowEl=document.getElementById('now');
+
+  let front=frameA,back=frameB;
+  function siteURL(){
+    return '../?broadcast=1&ge_live_refresh='+Date.now();
+  }
+  function bootFrames(){
+    front.src=siteURL();
+    back.src='about:blank';
+  }
+  function refreshBackground(){
+    const next=back;
+    next.onload=()=>{
+      next.onload=null;
+      next.classList.add('active');
+      front.classList.remove('active');
+      const old=front;
+      front=next;
+      back=old;
+      setTimeout(()=>{back.src='about:blank';},2800);
+    };
+    next.src=siteURL();
+  }
+  bootFrames();
+  setInterval(refreshBackground,BACKGROUND_REFRESH_MS);
+
+  let dpr=1,w=0,h=0;
+  function fit(){
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    w=innerWidth;h=innerHeight;
+    canvas.width=Math.round(w*dpr);
+    canvas.height=Math.round(h*dpr);
+    canvas.style.width=w+'px';
+    canvas.style.height=h+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  addEventListener('resize',fit,{passive:true});
+  fit();
+
+  let ac=null,source=null,analyser=null,gain=null,data=null;
+  async function startAudio(){
+    try{
+      if(!audio.src)audio.src=STREAM;
+      if(!ac){
+        ac=new (window.AudioContext||window.webkitAudioContext)();
+        source=ac.createMediaElementSource(audio);
+        analyser=ac.createAnalyser();
+        analyser.fftSize=512;
+        analyser.smoothingTimeConstant=.82;
+        gain=ac.createGain();
+        gain.gain.value=muted?0:1;
+        source.connect(analyser);
+        analyser.connect(gain);
+        gain.connect(ac.destination);
+        data=new Uint8Array(analyser.frequencyBinCount);
+      }
+      if(ac.state==='suspended')await ac.resume();
+      await audio.play();
+    }catch(_e){}
+  }
+  audio.src=STREAM;
+  startAudio();
+  document.addEventListener('pointerdown',startAudio,{passive:true});
+  setInterval(()=>{
+    if(audio.paused||audio.readyState<2)startAudio();
+  },5000);
+  audio.addEventListener('error',()=>{
+    setTimeout(()=>{
+      try{audio.pause();audio.removeAttribute('src');audio.load();audio.src=STREAM;startAudio();}catch(_e){}
+    },3000);
+  });
+
+  function level(){
+    if(!analyser||!data||ac?.state!=='running')return .08+.035*(Math.sin(performance.now()/480)+1);
+    analyser.getByteFrequencyData(data);
+    let sum=0,weight=0;
+    const max=Math.min(data.length,150);
+    for(let i=2;i<max;i++){
+      const emphasis=i<35?1.65:(i<85?1.05:.65);
+      sum+=data[i]*emphasis;
+      weight+=255*emphasis;
+    }
+    return Math.max(.015,Math.min(1,sum/Math.max(1,weight)));
+  }
+
+  let lastDraw=0;
+  function draw(t){
+    requestAnimationFrame(draw);
+    if(t-lastDraw<32)return;
+    lastDraw=t;
+    ctx.clearRect(0,0,w,h);
+
+    const r=logo.getBoundingClientRect();
+    const cx=r.left+r.width/2,cy=r.top+r.height/2;
+    const base=Math.max(30,r.width/2+15);
+    const lv=level();
+    const bars=96;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.lineCap='round';
+    for(let i=0;i<bars;i++){
+      const a=(i/bars)*Math.PI*2-Math.PI/2;
+      let sample=lv;
+      if(analyser&&data&&ac?.state==='running'){
+        const idx=Math.min(data.length-1,2+Math.floor((i/bars)*Math.min(170,data.length-3)));
+        sample=(data[idx]||0)/255;
+      }
+      const ripple=(Math.sin(t*.004+i*.41)+1)*.5;
+      const amp=5+sample*(22+lv*34)+ripple*2.5;
+      const r1=base,r2=base+amp;
+      const x1=cx+Math.cos(a)*r1,y1=cy+Math.sin(a)*r1;
+      const x2=cx+Math.cos(a)*r2,y2=cy+Math.sin(a)*r2;
+      const blue=175+Math.round(sample*70);
+      ctx.strokeStyle='rgba('+(105+Math.round(sample*80))+','+blue+',255,'+(.22+sample*.68)+')';
+      ctx.shadowColor='rgba(85,180,255,.9)';
+      ctx.shadowBlur=8+sample*20;
+      ctx.lineWidth=1.2+sample*3.2;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    }
+    ctx.restore();
+
+    const scale=1+lv*.055;
+    logo.style.transform='scale('+scale.toFixed(4)+')';
+    logo.style.filter='brightness('+(1+lv*.18).toFixed(3)+') saturate('+(1+lv*.12).toFixed(3)+')';
+    halo.style.opacity=String(.50+lv*.48);
+    halo.style.transform='scale('+(1+lv*.16).toFixed(3)+')';
+  }
+  requestAnimationFrame(draw);
+
+  async function updateMetadata(){
+    try{
+      const res=await fetch(STATUS,{cache:'no-store'});
+      if(!res.ok)return;
+      const json=await res.json();
+      let sources=json?.icestats?.source||[];
+      if(!Array.isArray(sources))sources=[sources];
+      const src=sources.find(s=>String(s?.listenurl||s?.listen_url||'').includes('/stream.mp3'))||sources[0];
+      const title=String(src?.title||src?.server_name||'').trim();
+      nowEl.textContent=title&&title.toLowerCase()!=='grand element radio'?'NOW PLAYING · '+title:'GRAND ELEMENT RADIO';
+    }catch(_e){}
+  }
+  updateMetadata();
+  setInterval(updateMetadata,10000);
+})();
+</script>
+</body>
+</html>
