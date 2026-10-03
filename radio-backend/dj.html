@@ -1735,13 +1735,16 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 .geChannelBubble.selfDevice i{background:#58a5ff!important;box-shadow:0 0 10px #58a5ff!important}
 .geChannelBubble.selfDevice.onAir{border-color:#ff6178!important;box-shadow:inset 0 0 0 1px #58a5ff}
 
-.geChannelBubble.onAir{border-color:#ff6178!important}
+.geChannelBubble.onAir{border-color:#ff6178!important;background:#541923!important;color:#fff!important}
+.geChannelBubble.onAir i{background:#ff6178!important;box-shadow:0 0 10px #ff6178!important}
+.geChannelBubble.micIdle{display:none!important}
 .geChannelBubble.busy{opacity:.5;pointer-events:none}
 .geChannelBubble.channelDisabled{display:none!important}
 @media(max-width:700px){
  .geChannelBubble{padding:0 6px!important;font-size:7px!important}
  .geChannelBubble[data-channel-bubble="iphone"] span{font-size:0!important}.geChannelBubble[data-channel-bubble="iphone"] span:after{content:"PHONE";font-size:7px}
  .geChannelBubble[data-channel-bubble="ipad"] span{font-size:0!important}.geChannelBubble[data-channel-bubble="ipad"] span:after{content:"PAD";font-size:7px}
+ .geChannelBubble[data-channel-bubble="iphone5"] span{font-size:0!important}.geChannelBubble[data-channel-bubble="iphone5"] span:after{content:"PHONE 5";font-size:7px}
 }
 
 .geDisplayZoomBar .geUtilityAction:disabled{opacity:.38}
@@ -2000,6 +2003,10 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 #deviceChannelSheet .deviceChannelButtons button.on{border-color:#55d8c1;background:#12382f}
 #deviceChannelSheet .deviceChannelButtons button.air{border-color:#ff667b;background:#541923}
 #deviceChannelSheet #deviceChannelLinkMic{margin-top:8px}
+#deviceChannelSheet .deviceChannelMic{display:none!important}
+#deviceChannelSheet .deviceChannelStatusCard .hmeter{display:none!important}
+#deviceChannelSheet .deviceChannelMicLive{display:block;border:1px solid #ff6178;background:#541923;color:#fff;border-radius:9px;padding:9px 10px;margin:8px 0;font-weight:950;text-align:center}
+#deviceChannelSheet .deviceChannelMicLive[hidden]{display:none!important}
 
 /* V67: tactile mixer faders. Entire lane is draggable on touch. */
 #mixerSheet .touchFader{
@@ -2618,12 +2625,12 @@ html.geDayMode #djFilesModal .modalHead{
 .qrow{grid-template-columns:minmax(30px,auto) minmax(0,1fr) auto!important;grid-template-areas:"num title actions"!important;align-items:center!important;padding:6px 8px!important}.qbtns{grid-area:actions!important;grid-template-columns:50px 50px 118px!important;width:auto!important;justify-self:end!important;gap:5px!important}.qbtns button,.qbtns .replace{min-height:46px!important;width:100%!important;padding:4px 6px!important;white-space:nowrap!important}.qtitle,.qmeta{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}@media(max-width:599px){.qrow{grid-template-columns:minmax(30px,auto) minmax(0,1fr)!important;grid-template-areas:"num title" "num actions"!important}.qbtns{width:100%!important;grid-template-columns:1fr 1fr 1.5fr!important;justify-self:stretch!important}.qtitle,.qmeta{white-space:normal!important}}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
- <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
+ <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble micIdle" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone5"><i></i><span>iPHONE 5</span></button></div>
  <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="75" max="240" step="10" value="125" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v87</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v88</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2662,7 +2669,7 @@ html.geDayMode #djFilesModal .modalHead{
 <div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that COMPUTER channel.</div>
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div></div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC READY</button><button id="deviceChannelAir" disabled>ON AIR</button><button id="deviceChannelMute" disabled>MUTE</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
+<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC READY</button><button id="deviceChannelAir" disabled>ON AIR</button><button id="deviceChannelMute" disabled>MUTE</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div><label><input type="checkbox" data-mixer-channel="line" checked>COMPUTER</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="note" style="grid-column:1/-1">MIC is always available. Use these switches only to show or hide the other mixer channels.</div><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ PAIR REMOTE MIC APP</button><strong id="pairingCode"></strong><div class="note remotePairHelp">This code is only for the separate GE Remote Mic app. To connect an iPhone or iPad as a GE DJ control device, simply open GE DJ on that device. No pairing code is needed.</div></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
@@ -2911,11 +2918,13 @@ const GE_APPLE_TOUCH_DESKTOP=(/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM))
 const GE_APPLE_SHORT_EDGE=Math.min(Number(screen&&screen.width||innerWidth||0),Number(screen&&screen.height||innerHeight||0));
 const GE_IS_IPAD=/iPad/i.test(GE_UA)||(GE_APPLE_TOUCH_DESKTOP&&GE_APPLE_SHORT_EDGE>=600);
 const GE_IS_IPHONE=/iPhone|iPod/i.test(GE_UA)||(GE_APPLE_TOUCH_DESKTOP&&GE_APPLE_SHORT_EDGE>0&&GE_APPLE_SHORT_EDGE<600);
-const GE_DEVICE_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE?'iphone':'home');
+const GE_APPLE_LONG_EDGE=Math.max(Number(screen&&screen.width||innerWidth||0),Number(screen&&screen.height||innerHeight||0));
+const GE_IS_IPHONE5=GE_IS_IPHONE&&GE_APPLE_SHORT_EDGE>0&&GE_APPLE_SHORT_EDGE<=320&&GE_APPLE_LONG_EDGE<=568;
+const GE_DEVICE_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':'home'));
 const GE_BOARD_ROLE=GE_DEVICE_KIND==='home'?'home':'remote';
 if(GE_BOARD_ROLE==='remote')document.documentElement.classList.add('geRemoteComputerSignal');
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
-const GE_BOARD_LABEL=GE_DEVICE_KIND==='ipad'?'iPAD':(GE_DEVICE_KIND==='iphone'?'iPHONE':'HOME');
+const GE_BOARD_LABEL=GE_DEVICE_KIND==='ipad'?'iPAD':(GE_DEVICE_KIND==='iphone5'?'iPHONE 5':(GE_DEVICE_KIND==='iphone'?'iPHONE':'HOME'));
 let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
@@ -4722,14 +4731,20 @@ function fitMixer(){
   const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');if(grid)grid.scrollLeft=0;
 }
 function geChannelEnabled(kind){
- if(kind==='mic')return true;
+ if(kind==='mic'||kind==='iphone5')return true;
  const box=document.querySelector('[data-mixer-channel="'+kind+'"]');return box?!!box.checked:false
 }
 function geTrackLive(stream){try{const t=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];return !!(t&&t.readyState==='live')}catch(e){return false}}
 function boardForDeviceKind(kind){
  const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards:[];
- const re=kind==='ipad'?/ipad/i:/iphone|ipod/i;
- const matches=rows.filter(function(x){return x&&x.online&&re.test(String(x.label||''))});
+ const matches=rows.filter(function(x){
+   if(!x||!x.online)return false;
+   const label=String(x.label||'');
+   if(kind==='ipad')return /ipad/i.test(label);
+   if(kind==='iphone5')return /iphone\s*5/i.test(label);
+   if(kind==='iphone')return /iphone|ipod/i.test(label)&&!/iphone\s*5/i.test(label);
+   return false
+ });
  matches.sort(function(a,b){
    const as=String(a.id||'')===String(GE_BOARD_ID),bs=String(b.id||'')===String(GE_BOARD_ID);
    if(as!==bs)return as?-1:1;
@@ -4747,11 +4762,12 @@ function renderDeviceChannelSheet(){
  const browserAir=self?!!micAirOn:!!(board&&board.mic_air);
  const remoteReady=!!(remote&&remote.online&&remote.remote_ready),remoteAir=!!(remote&&remote.online&&remote.on_air);
  const ready=browserMic||remoteReady,air=browserAir||remoteAir,muted=self?!!settings.mic.mute:!!(remote&&remote.muted);
- const label=kind==='ipad'?'iPAD':'iPHONE';
+ const label=kind==='ipad'?'iPAD':(kind==='iphone5'?'iPHONE 5':'iPHONE');
  const meterPct=self?Number(micInputPct||0):(boardMic?Number(board.mic_peak||0):(remote&&remote.online?Number(remote.peak_pct||0):0));
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online);
  if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=online?'CONNECTED':'OFFLINE';
+ if($('deviceChannelMicLive')){$('deviceChannelMicLive').hidden=!air;$('deviceChannelMicLive').textContent=label+' MIC LIVE'}
  if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((self?'THIS DEVICE · ':'')+label+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
  setMeterLevel('deviceChannelMeter',meterPct);
  if($('deviceChannelMicState')){
@@ -4804,18 +4820,18 @@ function geChannelConnection(kind){
    if(self)return {connected:true,air:!!lineAirOn,label:'COMPUTER',self:true,board:(h&&String(h.id||'')===String(GE_BOARD_ID)?h:null),sourceConnected:geTrackLive(lineStream)||!!lineMediaSource};
    return {connected:!!h,air:!!(h&&h.line_air),label:'COMPUTER',self:false,board:h||null,sourceConnected:!!(h&&h.line_connected)}
  }
- if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=GE_DEVICE_KIND===kind||!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b||self||!!(d&&d.online),verified:!!d,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
+ if(kind==='iphone'||kind==='ipad'||kind==='iphone5'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=GE_DEVICE_KIND===kind||!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b||self||!!(d&&d.online),verified:!!d,air:!!(self?micAirOn:(b&&b.mic_air)||(d&&d.on_air)),label:kind==='ipad'?'iPAD':(kind==='iphone5'?'iPHONE 5':'iPHONE'),device:d||null,board:b||null,self:self}}
  return {connected:false,air:false,label:String(kind||'').toUpperCase()}
 }
 function renderChannelStatusBubbles(){
  const root=$('geChannelStatus');if(!root)return;
- ['mic','line','iphone','ipad'].forEach(function(kind){
+ ['mic','line','iphone','ipad','iphone5'].forEach(function(kind){
   const b=root.querySelector('[data-channel-bubble="'+kind+'"]');if(!b)return;
   const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
   const panelOpen=kind==='mic'?!!($('micSheet')&&$('micSheet').classList.contains('show')):
                   kind==='line'?!!($('lineSheet')&&$('lineSheet').classList.contains('show')):
                   !!($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===kind);
-  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);b.classList.toggle('panelOpen',panelOpen);
+  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);b.classList.toggle('panelOpen',panelOpen);if(kind==='mic')b.classList.toggle('micIdle',!s.air);
   b.disabled=!enabled;b.setAttribute('aria-pressed',panelOpen?'true':'false');b.setAttribute('aria-expanded',panelOpen?'true':'false');
   if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'');
   else b.title=s.label+' · '+(s.connected?'CONNECTED':'DISCONNECTED')+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'')
@@ -4857,7 +4873,7 @@ async function toggleChannelConnection(kind){
    sheet.classList.add('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();
    if(GE_BOARD_ROLE==='home')refreshDevices().then(function(){renderLineSavedInputs();if(geArrangement===2)scanGeAudioSources()});
    return
-  }else if(kind==='iphone'||kind==='ipad'){
+  }else if(kind==='iphone'||kind==='ipad'||kind==='iphone5'){
    const sheet=$('deviceChannelSheet');
    if(sheet&&sheet.classList.contains('show')&&geOpenDeviceKind===kind){
     sheet.classList.remove('show');geOpenDeviceKind='';setGeDisplayScope('home');syncDockViewState();return
@@ -4894,8 +4910,13 @@ function applyMixerChannels(save=true){
 
 function remoteDeviceFor(kind){
  const items=Array.isArray(status&&status.remote_devices)?status.remote_devices:[];
- const needle=kind==='ipad'?/ipad/i:/iphone|ipod/i;
- const matches=items.filter(function(d){return String(d.kind||'').toLowerCase()===kind||needle.test(String(d.model||'')+' '+String(d.name||''))});
+ const matches=items.filter(function(d){
+   const explicit=String(d.kind||'').toLowerCase(),text=String(d.model||'')+' '+String(d.name||'');
+   if(kind==='ipad')return explicit==='ipad'||/ipad/i.test(text);
+   if(kind==='iphone5')return explicit==='iphone5'||/iphone\s*5/i.test(text);
+   if(kind==='iphone')return (explicit==='iphone'||/iphone|ipod/i.test(text))&&!/iphone\s*5/i.test(text);
+   return false
+ });
  matches.sort(function(a,b){if(!!a.online!==!!b.online)return a.online?-1:1;return Number(b.last_seen||0)-Number(a.last_seen||0)});
  return matches[0]||null
 }
@@ -4970,8 +4991,8 @@ $('deviceChannelMute').onclick=function(){
  const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
 };
 async function connectDeviceChannel(kind){
- if(kind!=='iphone'&&kind!=='ipad')throw new Error('Choose iPHONE or iPAD first.');
- const label=kind==='ipad'?'iPAD':'iPHONE';
+ if(kind!=='iphone'&&kind!=='ipad'&&kind!=='iphone5')throw new Error('Choose iPHONE, iPAD, or iPHONE 5 first.');
+ const label=kind==='ipad'?'iPAD':(kind==='iphone5'?'iPHONE 5':'iPHONE');
  if(GE_DEVICE_KIND===kind){
    await geBoardHeartbeat();
    await poll();
