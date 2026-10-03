@@ -6819,8 +6819,10 @@ canvas.addEventListener('pointerdown',e=>{
   if(shipMultiRaySession){
     if(addMultiRayPointer(shipMultiRaySession,e.pointerId,e.clientX,e.clientY)){
       try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
-      e.preventDefault();e.stopImmediatePropagation();return;
     }
+    // Five is the deliberate visual/memory ceiling. Extra touches are ignored rather
+    // than falling through into steering or another ship gesture.
+    e.preventDefault();e.stopImmediatePropagation();return;
   }
   const hit=nearestShipHit(e.clientX,e.clientY);
   if(hit){
