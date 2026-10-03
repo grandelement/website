@@ -29,6 +29,17 @@ async function scanAudioTabs() {
 }
 
 browser.runtime.onMessage.addListener((msg) => {
-  if (!msg || msg.type !== "ge-audio-scan") return;
-  return scanAudioTabs().then(sources => ({ ok: true, sources }));
+  if (!msg) return;
+  if (msg.type === "ge-audio-scan") {
+    return scanAudioTabs().then(sources => ({ ok: true, sources }));
+  }
+  if (msg.type === "ge-audio-focus") {
+    const tabId = Number(msg.tabId);
+    if (!Number.isFinite(tabId)) return Promise.resolve({ ok: false, error: "Invalid tab" });
+    return browser.tabs.get(tabId).then(tab =>
+      browser.windows.update(tab.windowId, { focused: true })
+        .then(() => browser.tabs.update(tabId, { active: true }))
+        .then(() => ({ ok: true }))
+    );
+  }
 });
