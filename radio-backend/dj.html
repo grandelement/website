@@ -1907,7 +1907,7 @@ function diagEvent(name,detail){
  let expected=performance.now()+500;
  setInterval(function(){const now=performance.now(),lag=Math.max(0,now-expected);diagEventLoopLag=Math.round(lag);if(lag>250){diagLastFreeze=Math.round(lag);diagEvent('MAIN THREAD LAG',Math.round(lag)+'ms')}expected=now+500},500);
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
-})();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='';
+})();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='',livePcmMode='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
 let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
@@ -2246,7 +2246,7 @@ async function poll(){try{const r=await api('/control/status');if(r.ok){status=a
 $('crossfade').addEventListener('pointerdown',function(){crossDirty=true});$('crossfade').addEventListener('input',function(){crossDirty=true;$('crossVal').textContent=Number($('crossfade').value).toFixed(1)+'s';$('crossStatus').textContent='READY TO SAVE'});async function saveCross(){if(crossSaving)return;crossSaving=true;const seconds=Number($('crossfade').value);$('crossStatus').textContent='SAVING…';try{const r=await api('/control/crossfade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seconds:seconds})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Save failed');crossDirty=false;$('crossStatus').textContent=d.vault_configured?'SAVED · VAULT PERMANENT':'SAVED · LOCAL CACHE'}catch(e){$('crossStatus').textContent=e.message||'Save failed'}finally{crossSaving=false}}$('saveCross').onclick=saveCross;$('crossfade').addEventListener('change',saveCross);
 $('reshuffleQueue').onclick=function(){reshuffleQueue()};$('queue').onclick=async function(e){const b=e.target.closest('button[data-act]'),row=e.target.closest('.qrow');if(!b||!row)return;const act=b.dataset.act,slot=row.dataset.slot;if(act==='replace'){openPicker(slot,row.querySelector('.qtitle').textContent);return}const slots=queueItems().map(function(x){return x.slot}),i=slots.indexOf(slot),j=i+(act==='up'?-1:1);if(i<0||j<0||j>=slots.length)return;const tmp=slots[i];slots[i]=slots[j];slots[j]=tmp;const rr=await api('/control/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slots:slots})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)alert(d.error||'Queue update failed');else setTimeout(poll,250)};
 async function loadLibrary(){try{const r=await api('/control/library'),d=await r.json();library=d.items||[];renderLibrary()}catch(e){library=[]}}function renderLibrary(){const q=$('search').value.trim().toLowerCase();$('library').innerHTML=library.filter(function(x){return x.kind==='song'||x.kind==='temp_upload'}).filter(function(x){return !q||(String(x.title)+' '+String(x.album)).toLowerCase().includes(q)}).slice(0,250).map(function(x){return '<button class="track" data-path="'+esc(x.path)+'"><b>'+esc(x.picker_title||x.title)+'</b><span>'+esc(x.album||'')+'</span></button>'}).join('')}function openPicker(slot,title){targetSlot=slot;$('replaceWhich').textContent='Replacing '+title;$('picker').classList.add('show');renderLibrary()}$('closePicker').onclick=function(){$('picker').classList.remove('show')};$('search').oninput=renderLibrary;$('library').onclick=async function(e){const b=e.target.closest('.track');if(!b||!targetSlot)return;const rr=await api('/control/replace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:targetSlot,path:b.dataset.path})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Replace failed');return}$('picker').classList.remove('show');setTimeout(poll,250)};$('upload').onchange=async function(e){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;const rr=await api('/control/upload',{method:'POST',headers:{'Content-Type':'audio/mpeg','X-GE-File-Name':encodeURIComponent(f.name)},body:f});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Upload failed');return}await loadLibrary()};
-const PCM_WORKLET='class GEPCM extends AudioWorkletProcessor{constructor(){super();this.on=false;this.n=960;this.b=new Int16Array(this.n);this.p=0;this.dec=0;this.port.onmessage=e=>{const x=e.data||{};if(x.type==="on"){this.on=!!x.value;if(!this.on){this.p=0;this.dec=0}}}}emit(){const o=this.b.slice();this.port.postMessage(o.buffer,[o.buffer]);this.p=0}process(ins,outs){const x=ins[0]||[],o=outs[0]||[],mono=x[0];if(o[0]&&mono)o[0].set(mono);if(o[1]&&mono)o[1].set(mono);if(!this.on||!mono)return true;for(let i=0;i<mono.length;i++){if((this.dec++&1)!==0)continue;let s=Math.max(-1,Math.min(1,mono[i]||0));this.b[this.p++]=s<0?Math.round(s*32768):Math.round(s*32767);if(this.p===this.n)this.emit()}return true}}registerProcessor("ge-pcm",GEPCM);'
+const PCM_WORKLET='class GEPCM extends AudioWorkletProcessor{constructor(){super();this.on=false;this.mode="lowband";this.lowN=960;this.fullN=3840;this.b=new Int16Array(this.fullN);this.p=0;this.dec=0;this.port.onmessage=e=>{const x=e.data||{};if(x.type==="on"){this.on=!!x.value;if(!this.on){this.p=0;this.dec=0}}else if(x.type==="mode"){this.mode=x.value==="full"?"full":"lowband";this.p=0;this.dec=0}}}q(s){s=Math.max(-1,Math.min(1,s||0));return s<0?Math.round(s*32768):Math.round(s*32767)}emit(){if(!this.p)return;const o=this.b.slice(0,this.p);this.port.postMessage(o.buffer,[o.buffer]);this.p=0}process(ins,outs){const x=ins[0]||[],o=outs[0]||[],l=x[0],r=x[1]||l;if(o[0]&&l)o[0].set(l);if(o[1]&&(r||l))o[1].set(r||l);if(!this.on||!l)return true;if(this.mode==="full"){for(let i=0;i<l.length;i++){this.b[this.p++]=this.q(l[i]);this.b[this.p++]=this.q(r?r[i]:l[i]);if(this.p>=this.fullN)this.emit()}}else{for(let i=0;i<l.length;i++){if((this.dec++&1)!==0)continue;const m=r?((l[i]||0)+(r[i]||0))*.5:(l[i]||0);this.b[this.p++]=this.q(m);if(this.p>=this.lowN)this.emit()}}return true}}registerProcessor("ge-pcm",GEPCM);'
 function makeImpulse(seconds){const len=Math.floor(ctx.sampleRate*seconds),b=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const a=b.getChannelData(c);for(let i=0;i<len;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5)}return b}
 async function ensureAudio(){if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC({sampleRate:48000,latencyHint:'interactive'});contributionBus=ctx.createGain();liveGain=ctx.createGain();liveGain.gain.value=1;contributionAnalyser=ctx.createAnalyser();contributionAnalyser.fftSize=256;contributionBus.connect(contributionAnalyser);runMasterMeter()}if(ctx.state==='suspended'){try{await ctx.resume()}catch(e){}}}
 function applyRealRadioMeter(m){
@@ -2519,7 +2519,10 @@ async function enterBufferedMic(reason){
  try{
    await startDjRecording('BUFFERED MIC');
    micCueOn=true;if(micCueGain&&ctx)micCueGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
-   micAirOn=false;liveActive=false;liveTransport='';pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
+   micAirOn=false;lineAirOn=false;
+   if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   if(lineAirGain&&ctx)lineAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   liveActive=false;liveTransport='';livePcmMode='';pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
    const ws=liveSocket;liveSocket=null;try{ws&&ws.close()}catch(e){}
    api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'dj'})}).catch(function(){});
    updateAirButtons();$('micPathStatus').textContent='BUFFERED MIC · OFF AIR · CLEAN LOCAL RECORDING · '+String(reason||'WEAK LINK');
@@ -2530,90 +2533,125 @@ async function enterBufferedMic(reason){
 async function ensurePcmBridge(){
  await ensureAudio();
  if(pcmProcessor)return;
- if(!ctx.audioWorklet)throw new Error('This browser cannot run the microphone bridge.');
+ if(!ctx.audioWorklet)throw new Error('This browser cannot run the DJ audio bridge.');
  const blob=new Blob([PCM_WORKLET],{type:'application/javascript'}),url=URL.createObjectURL(blob);
  try{await ctx.audioWorklet.addModule(url)}finally{URL.revokeObjectURL(url)}
  pcmProcessor=new AudioWorkletNode(ctx,'ge-pcm',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
  pcmMute=ctx.createGain();pcmMute.gain.value=0;
- liveGain.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(ctx.destination);
+ contributionBus.connect(pcmProcessor);pcmProcessor.connect(pcmMute).connect(ctx.destination);
  pcmProcessor.port.onmessage=function(e){
    const b=e.data;
    if(!(liveActive&&liveSocket&&liveSocket.readyState===WebSocket.OPEN&&b&&b.byteLength))return;
    diagMicChunks++;diagMicLastChunkAt=performance.now();diagMicLastChunkBytes=b.byteLength;diagMicRateWindowBytes+=b.byteLength;
    const rn=performance.now();if(rn-diagMicRateWindowAt>=1000){diagMicRateBytes=diagMicRateWindowBytes/((rn-diagMicRateWindowAt)/1000);diagMicRateWindowBytes=0;diagMicRateWindowAt=rn}
    if(liveSocket.bufferedAmount>262144){
-     liveDroppedFrames++;weakLinkTicks++;diagEvent('MIC LINK BACKLOG','WS buffered '+formatBytes(liveSocket.bufferedAmount));
-     if(weakLinkTicks>=6){weakLinkTicks=0;enterBufferedMic('NETWORK BACKLOG').catch(function(){});}
+     liveDroppedFrames++;weakLinkTicks++;diagEvent('DJ LINK BACKLOG','WS buffered '+formatBytes(liveSocket.bufferedAmount));
+     if(weakLinkTicks>=6){weakLinkTicks=0;handleDjLinkFailure('NETWORK BACKLOG').catch(function(){});}
      return
    }
    if(liveSocket.bufferedAmount<65536)weakLinkTicks=0;
-   try{liveSocket.send(b);liveSentBytes+=b.byteLength}catch(err){liveLastError='MIC SEND FAILED';diagEvent('MIC SEND FAILED',String(err&&err.message||err));enterBufferedMic('SEND FAILURE').catch(function(){})}
+   try{liveSocket.send(b);liveSentBytes+=b.byteLength}catch(err){liveLastError='DJ SEND FAILED';diagEvent('DJ SEND FAILED',String(err&&err.message||err));handleDjLinkFailure('SEND FAILURE').catch(function(){})}
  }
 }
-async function startMicOnAir(){
- diagEpoch=performance.now();diagEvents=[];diagEvent('MIC BUTTON DOWN');diagWsReconnects++;
+function liveAirRequested(){return !!(micAirOn||lineAirOn)}
+function requestedLiveMode(){return lineAirOn?'full':'lowband'}
+async function stopDjLiveTransport(options){
+ const keepRecording=!!(options&&options.keepRecording);
+ pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
+ liveActive=false;liveTransport='';livePcmMode='';
+ const ws=liveSocket;liveSocket=null;try{ws&&ws.close()}catch(e){}
+ await api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'dj'})}).catch(function(){});
+ if(!keepRecording)await stopDjRecording()
+}
+async function handleDjLinkFailure(reason){
+ const hadMic=!!micAirOn,hadLine=!!lineAirOn;
+ micAirOn=false;lineAirOn=false;
+ if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+ if(lineAirGain&&ctx)lineAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+ await stopDjLiveTransport({keepRecording:hadMic&&!hadLine});
+ if(hadMic&&!hadLine){
+   await enterBufferedMic(reason||'DJ LINK LOST');
+ }else{
+   await stopDjRecording();
+   updateAirButtons();
+   if($('micPathStatus'))$('micPathStatus').textContent='DJ LINK OFF · '+String(reason||'CONNECTION LOST')
+ }
+}
+async function startDjLiveTransport(mode){
  if(liveActive)return true;
- await ensureMicOpen();diagEvent('MIC TRACK ACTIVE');
- await startDjRecording('MIC SESSION');
-  if(micCueOn){micCueOn=false;if(micCueGain)micCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02);updateAirButtons()}
-  await ensurePcmBridge();diagEvent('PCM BRIDGE READY');
- $('micPathStatus').textContent='LOCAL MIC READY · CONNECTING MIC LINK…';
+ mode=mode==='full'?'full':'lowband';
+ await ensurePcmBridge();
+ pcmProcessor.port.postMessage({type:'mode',value:mode});
  let sr=null,sd={};
  for(let attempt=1;attempt<=5;attempt++){
    try{
      sr=await api('/control/broadcast/session',{method:'POST'});
      sd=await sr.json().catch(function(){return {}});
      if(sr.ok&&sd.ok)break;
-     liveLastError='MIC SESSION HTTP '+sr.status;
+     liveLastError='DJ SESSION HTTP '+sr.status;
    }catch(err){
-     liveLastError=String(err&&err.message||err||'MIC SESSION NETWORK ERROR');
+     liveLastError=String(err&&err.message||err||'DJ SESSION NETWORK ERROR');
    }
-   if(attempt<5){diagEvent('MIC SESSION RETRY','attempt '+(attempt+1));await new Promise(function(resolve){setTimeout(resolve,700)})}
+   if(attempt<5){diagEvent('DJ SESSION RETRY','attempt '+(attempt+1));await new Promise(function(resolve){setTimeout(resolve,700)})}
  }
- if(!sr||!sr.ok||!sd.ok)throw new Error(sd.error||liveLastError||'Could not create microphone session.');
- const br=await api('/control/broadcast/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'voice',transport:'websocket',owner:'dj'})}),bd=await br.json().catch(function(){return {}});
- if(!br.ok||!bd.ok)throw new Error(bd.error||'Microphone server is busy.');
- diagEvent('MIC WS CONNECTING');
- const ws=new WebSocket(API.replace(/^http/,'ws')+'/control/live?token='+encodeURIComponent(sd.token)+'&voice=lowband&pan='+encodeURIComponent(clamp(Number(settings.mic.pan||0)/100,-1,1)));
+ if(!sr||!sr.ok||!sd.ok)throw new Error(sd.error||liveLastError||'Could not create DJ live session.');
+ const br=await api('/control/broadcast/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode==='full'?'performance':'voice',transport:'websocket',owner:'dj'})}),bd=await br.json().catch(function(){return {}});
+ if(!br.ok||!bd.ok)throw new Error(bd.error||'DJ audio server is busy.');
+ diagEvent('DJ WS CONNECTING',mode);
+ let wsUrl=API.replace(/^http/,'ws')+'/control/live?token='+encodeURIComponent(sd.token);
+ if(mode==='lowband')wsUrl+='&voice=lowband&pan='+encodeURIComponent(clamp(Number(settings.mic.pan||0)/100,-1,1));
+ const ws=new WebSocket(wsUrl);
  liveSocket=ws;ws.binaryType='arraybuffer';
  await new Promise(function(resolve,reject){
-   const timer=setTimeout(function(){cleanup();reject(new Error('Microphone connection timed out.'))},15000);
+   const timer=setTimeout(function(){cleanup();reject(new Error('DJ audio connection timed out.'))},15000);
    function cleanup(){clearTimeout(timer);ws.onopen=null;ws.onerror=null;ws.onclose=null}
-   ws.onopen=function(){diagWsOpenAt=Date.now();diagEvent('MIC WS OPEN');cleanup();resolve()};
-   ws.onerror=function(){diagEvent('MIC WS ERROR');cleanup();reject(new Error('Microphone connection failed.'))};
-   ws.onclose=function(e){diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('MIC WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));cleanup();reject(new Error('Microphone connection closed.'))}
+   ws.onopen=function(){diagWsOpenAt=Date.now();diagEvent('DJ WS OPEN',mode);cleanup();resolve()};
+   ws.onerror=function(){diagEvent('DJ WS ERROR',mode);cleanup();reject(new Error('DJ audio connection failed.'))};
+   ws.onclose=function(e){diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('DJ WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));cleanup();reject(new Error('DJ audio connection closed.'))}
  });
- liveActive=true;liveTransport='direct';liveLastError='';liveSentBytes=0;liveDroppedFrames=0;
- micAirOn=true;micAirGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
- pcmProcessor.port.postMessage({type:'on',value:true});diagEvent('MIC PCM ON');
- ws.onerror=function(){if(liveSocket===ws){liveLastError='MIC LINK ERROR';diagEvent('MIC LINK ERROR')}};
+ liveActive=true;liveTransport='direct';livePcmMode=mode;liveLastError='';liveSentBytes=0;liveDroppedFrames=0;
+ pcmProcessor.port.postMessage({type:'on',value:true});diagEvent('DJ PCM ON',mode);
+ ws.onerror=function(){if(liveSocket===ws){liveLastError='DJ LINK ERROR';diagEvent('DJ LINK ERROR')}};
  ws.onclose=function(e){
-   diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('MIC WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));
+   diagWsCloseAt=Date.now();diagWsCloseCode=e&&e.code||'';diagWsCloseReason=e&&e.reason||'';diagEvent('DJ WS CLOSED','code '+diagWsCloseCode+(diagWsCloseReason?' · '+diagWsCloseReason:''));
    if(liveSocket!==ws)return;
-   liveSocket=null;liveActive=false;liveTransport='';
+   liveSocket=null;liveActive=false;liveTransport='';livePcmMode='';
    pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
-   micAirOn=false;if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
-   enterBufferedMic('MIC LINK LOST').catch(function(){updateAirButtons();$('micPathStatus').textContent='MIC LINK CLOSED'})
+   handleDjLinkFailure('DJ LINK LOST').catch(function(){updateAirButtons()})
  };
- $('micPathStatus').textContent='LOCAL MIC READY · MIC LINK CONNECTED';
+ updateAirButtons();return true
+}
+async function startMicOnAir(){
+ diagEpoch=performance.now();diagEvents=[];diagEvent('MIC BUTTON DOWN');diagWsReconnects++;
+ if(micAirOn)return true;
+ await ensureMicOpen();diagEvent('MIC TRACK ACTIVE');
+ if(micCueOn){micCueOn=false;if(micCueGain)micCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02)}
+ micAirOn=true;if(micAirGain)micAirGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
+ try{
+   if(!liveActive){
+     await startDjRecording('MIC SESSION');
+     if($('micPathStatus'))$('micPathStatus').textContent='LOCAL MIC READY · CONNECTING DJ LINK…';
+     await startDjLiveTransport(requestedLiveMode())
+   }
+ }catch(e){
+   micAirOn=false;if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   throw e
+ }
+ if($('micPathStatus'))$('micPathStatus').textContent='MIC ON AIR · '+(lineAirOn?'LINE ON AIR · ':'')+'DJ LINK CONNECTED';
  updateAirButtons();return true
 }
 async function stopMicOnAir(options){
- const preserveMic=!!(options&&options.preserveMic),keepRecording=!!(options&&options.keepRecording);
- diagEvent('MIC STOP REQUEST',preserveMic?'preserve local monitor':'close local mic');
+ const preserveMic=!!(options&&options.preserveMic);
+ diagEvent('MIC STOP REQUEST',preserveMic?'preserve local mic':'close local mic');
  micAirOn=false;
  if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
- pcmProcessor&&pcmProcessor.port.postMessage({type:'on',value:false});
- liveActive=false;liveTransport='';
- const ws=liveSocket;liveSocket=null;try{ws&&ws.close()}catch(e){}
- await api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'dj'})}).catch(function(){});
+ if(!lineAirOn&&liveActive)await stopDjLiveTransport();
  if(!preserveMic&&!micCueOn&&micStream){
    micStream.getTracks().forEach(function(t){t.stop()});
    try{micSource&&micSource.disconnect()}catch(e){}
    micStream=micSource=null;$('micOpen').textContent='OPEN MIC'
  }
- if(!keepRecording)await stopDjRecording();
- $('micPathStatus').textContent=preserveMic?'LOCAL MIC READY · MIC OFF AIR':'MIC OFF · RADIO CONTINUES';
+ if($('micPathStatus'))$('micPathStatus').textContent=lineAirOn?'MIC OFF AIR · LINE REMAINS ON AIR':'LOCAL MIC READY · MIC OFF AIR';
  if(preserveMic)setGeAudioSession('play-and-record');else setGeAudioSession('playback');
  await reassertGeOutputRoute();
  updateAirButtons()
@@ -2622,9 +2660,52 @@ async function toggleMicOnAir(){
  if(micAirToggleBusy)return;
  micAirToggleBusy=true;updateAirButtons();
  try{
-   if(micAirOn||liveActive)await stopMicOnAir({preserveMic:true});
-   else{try{await startMicOnAir()}catch(e){await enterBufferedMic('LIVE CONNECTION FAILED');diagEvent('LIVE FALLBACK ERROR',String(e&&e.message||e))}}
+   if(micAirOn)await stopMicOnAir({preserveMic:true});
+   else{
+     try{await startMicOnAir()}
+     catch(e){
+       if(!lineAirOn&&!liveActive){await enterBufferedMic('LIVE CONNECTION FAILED');diagEvent('LIVE FALLBACK ERROR',String(e&&e.message||e))}
+       else throw e
+     }
+   }
  }finally{micAirToggleBusy=false;updateAirButtons()}
+}
+async function startLineOnAir(){
+ if(lineAirOn)return true;
+ await ensureAudio();
+ if(!lineStream&&!lineMediaSource)await startSelectedLineInput();
+ if(!lineGain)throw new Error('Open a LINE input first.');
+ lineAirOn=true;if(lineAirGain)lineAirGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
+ try{
+   if(!djRecorder||djRecorder.state==='inactive')await startDjRecording('LINE SESSION');
+   if(!liveActive)await startDjLiveTransport('full');
+   else if(livePcmMode!=='full'){
+     await stopDjLiveTransport({keepRecording:true});
+     await startDjLiveTransport('full')
+   }
+ }catch(e){
+   lineAirOn=false;if(lineAirGain&&ctx)lineAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   if(micAirOn&&!liveActive){
+     try{await startDjLiveTransport('lowband')}catch(recoverErr){await handleDjLinkFailure('LINE START FAILED')}
+   }
+   throw e
+ }
+ if($('lineProfileStatus'))$('lineProfileStatus').textContent='LINE ON AIR · '+($('lineActiveDevice')?$('lineActiveDevice').textContent.replace(/^ACTIVE DEVICE · /,''):'CONNECTED');
+ updateAirButtons();return true
+}
+async function stopLineOnAir(){
+ lineAirOn=false;
+ if(lineAirGain&&ctx)lineAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+ if(!micAirOn&&liveActive)await stopDjLiveTransport();
+ if($('lineProfileStatus'))$('lineProfileStatus').textContent='LINE OFF AIR · INPUT REMAINS OPEN';
+ if($('micPathStatus')&&micAirOn)$('micPathStatus').textContent='MIC ON AIR · LINE OFF AIR · DJ LINK CONNECTED';
+ updateAirButtons()
+}
+async function toggleLineOnAir(){
+ if(lineAirToggleBusy)return;
+ lineAirToggleBusy=true;updateAirButtons();
+ try{if(lineAirOn)await stopLineOnAir();else await startLineOnAir()}
+ finally{lineAirToggleBusy=false;updateAirButtons()}
 }
 
 function buildChannel(kind){
@@ -2741,7 +2822,7 @@ async function applyMicIsolation(){
   syncMicIsolationUI();saveSettings();
 }
 async function ensureMicOpen(){await ensureAudio();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();return true}
-async function openMic(){await ensureAudio();if(micStream){if(liveActive||micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();return}await ensureMicOpen();updateAirButtons()}
+async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();return}await ensureMicOpen();updateAirButtons()}
 async function warmDjSources(){await ensureAudio();await refreshDevices();updateAirButtons()}
 function stopLineInput(){
  if(lineStream){lineStream.getTracks().forEach(function(t){try{t.stop()}catch(e){}})}
@@ -2774,15 +2855,25 @@ async function startSelectedLineInput(){
  }
 }
 async function openLine(){
- if(lineStream){stopLineInput();return}
+ if(lineStream){if(lineAirOn)await stopLineOnAir();stopLineInput();return}
  return startSelectedLineInput()
 }
 async function selectAndOpenLineInput(){
+ if(lineAirOn)await stopLineOnAir();
  stopLineInput();
+ if(lineAudio){lineAudio.pause();try{lineMediaSource&&lineMediaSource.disconnect()}catch(e){}lineAudio=null;lineMediaSource=null;$('lineName').textContent='No file loaded.'}
  updateLineSourceLabel();
  return startSelectedLineInput()
 }
-async function loadLineFile(file){if(!file)return;await ensureAudio();if(!lineGain)buildChannel('line');if(lineAudio){lineAudio.pause();try{lineMediaSource.disconnect()}catch(e){}}lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line')}
+async function loadLineFile(file){
+ if(!file)return;
+ await ensureAudio();
+ if(lineAirOn)await stopLineOnAir();
+ stopLineInput();
+ if(!lineGain)buildChannel('line');
+ if(lineAudio){lineAudio.pause();try{lineMediaSource&&lineMediaSource.disconnect()}catch(e){}}
+ lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
+}
 function setMeterLevel(id,pct){const e=$(id);if(!e)return;e.style.setProperty('--meter-level',clamp(Number(pct)||0,0,100)+'%')}
 function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runFxReturnMeter(kind){const an=kind==='mic'?micFxAnalyser:lineFxAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(fxTarget===kind){setMeterLevel('fxReturnMeter',pct);setMeterLevel('mixFxReturnMeter',pct);if($('fxReturnDb'))$('fxReturnDb').textContent=db.toFixed(0)+' dB'}if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind){setMeterLevel('sendAuxMeter',pct)}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
@@ -2796,7 +2887,7 @@ async function toggleCue(kind){
    if(turningOn){
      if(!micStream)await ensureMicOpen();
      // V54: local MONITOR never starts or keeps a DJ recording.
-     if(liveActive||micAirOn)await stopMicOnAir({preserveMic:true});
+     if(micAirOn)await stopMicOnAir({preserveMic:true});
      micCueOn=true;
      if(micCueGain)micCueGain.gain.setTargetAtTime(1,ctx.currentTime,.02);
      $('micPathStatus').textContent='LOCAL MONITOR · OFF AIR · EFFECTS ACTIVE · NOT RECORDING';
@@ -2815,14 +2906,14 @@ async function toggleCue(kind){
 function updateAirButtons(){
  const set=function(id,on,textOff,textOn){const e=$(id);if(!e)return;e.classList.toggle('on',on);e.classList.toggle('air',on);e.textContent=on?textOn:textOff};
  set('micCue',micCueOn,'MONITOR OFF','LOCAL MONITOR');set('lineCue',lineCueOn,'MONITOR OFF','MONITOR ON');
-  set('mixMicCue',micCueOn,'MONITOR','LOCAL MONITOR');set('mixLineCue',lineCueOn,'MONITOR','MONITOR ON');
- const starting=!!micAirToggleBusy,on=!!(micAirOn&&liveActive);
- if($('micAir')){$('micAir').disabled=starting;$('micAir').classList.toggle('on',on);$('micAir').textContent=starting?'CONNECTING…':(on?'MIC LINKED':'MIC LINK OFF')}
- if($('mixMicAir')){$('mixMicAir').disabled=starting;$('mixMicAir').classList.toggle('air',on);$('mixMicAir').textContent=starting?'CONNECTING':(on?'MIC LINK':'MIC LINK')}
- if($('lineAir')){$('lineAir').disabled=true;$('lineAir').textContent='LINE AIR OFF'}
- if($('mixLineAir')){$('mixLineAir').disabled=true;$('mixLineAir').textContent='ON AIR'}
- $('dockMic').disabled=starting;$('dockMic').classList.toggle('onair',on);
- $('dockMic').textContent=starting?'MIC CONNECTING':(on?'MIC LINKED':'MIC');
+ set('mixMicCue',micCueOn,'MONITOR','LOCAL MONITOR');set('mixLineCue',lineCueOn,'MONITOR','MONITOR ON');
+ const micStarting=!!micAirToggleBusy,lineStarting=!!lineAirToggleBusy,micOn=!!(micAirOn&&liveActive),lineOn=!!(lineAirOn&&liveActive);
+ if($('micAir')){$('micAir').disabled=micStarting;$('micAir').classList.toggle('on',micOn);$('micAir').textContent=micStarting?'CONNECTING…':(micOn?'MIC ON AIR':'MIC OFF AIR')}
+ if($('mixMicAir')){$('mixMicAir').disabled=micStarting;$('mixMicAir').classList.toggle('air',micOn);$('mixMicAir').textContent=micStarting?'CONNECTING':(micOn?'MIC ON AIR':'MIC OFF AIR')}
+ if($('lineAir')){$('lineAir').disabled=lineStarting;$('lineAir').classList.toggle('on',lineOn);$('lineAir').classList.toggle('air',lineOn);$('lineAir').textContent=lineStarting?'CONNECTING…':(lineOn?'LINE ON AIR':'LINE OFF AIR')}
+ if($('mixLineAir')){$('mixLineAir').disabled=lineStarting;$('mixLineAir').classList.toggle('air',lineOn);$('mixLineAir').textContent=lineStarting?'CONNECTING':(lineOn?'LINE ON AIR':'LINE OFF AIR')}
+ $('dockMic').disabled=micStarting;$('dockMic').classList.toggle('onair',micOn);
+ $('dockMic').textContent=micStarting?'MIC CONNECTING':(micOn?'MIC ON AIR':'MIC');
  $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'LOCAL MONITOR':'MONITOR'
 }
 async function refreshDevices(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(function(d){return d.kind==='audioinput'});['micDevice','lineDevice'].forEach(function(id){const sel=$(id),cur=sel.value;sel.innerHTML='<option value="">Default audio input</option>';ds.forEach(function(d,i){const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Audio input '+(i+1));sel.appendChild(o)});if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur});updateLineSourceLabel()}catch(e){}}
@@ -2982,7 +3073,7 @@ $('radioAudio').addEventListener('timeupdate',function(){diagPlayerLastTimeupdat
 $('radioAudio').addEventListener('progress',function(){diagPlayerLastProgress=performance.now()});
 window.addEventListener('online',updateRadioDiagnostics);window.addEventListener('offline',updateRadioDiagnostics);document.addEventListener('visibilitychange',updateRadioDiagnostics);
 setInterval(updateRadioDiagnostics,500);
-$('micOpen').onclick=function(){openMic().catch(function(e){alert(e.message||e)})};$('micAir').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('lineOpen').onclick=function(){openLine().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if($('effectsSheet').classList.contains('show')&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx)}});
+$('micOpen').onclick=function(){openMic().catch(function(e){alert(e.message||e)})};$('micAir').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};$('lineOpen').onclick=function(){openLine().catch(function(e){alert(e.message||e)})};$('lineAir').onclick=function(){toggleLineOnAir().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if($('effectsSheet').classList.contains('show')&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx)}});
 const MIXER_LAYOUT_KEY='geDjMixerLayoutV2';
 let mixerLayout={zoom:20,locked:false};
 function mixerVisibleCount(){return Array.from(document.querySelectorAll('#mixerSheet .mixerGrid>.mixStrip')).filter(function(x){return !x.classList.contains('channelHidden')&&!x.classList.contains('auxHidden')}).length||1}
