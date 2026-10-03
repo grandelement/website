@@ -1425,6 +1425,11 @@ def _remote_public(row):
         "peak_pct": float(row.get("peak_pct", 0.0) or 0.0),
         "app_state": str(row.get("app_state", "")),
         "last_error": str(row.get("last_error", "")),
+        "camera_available": bool(row.get("camera_available", False)),
+        "camera_permission": str(row.get("camera_permission", "unknown")),
+        "video_transport": str(row.get("video_transport", "not-built")),
+        "video_active": bool(row.get("video_active", False)),
+        "video_error": str(row.get("video_error", "")),
     }
 
 def create_remote_pairing(target_kind=""):
@@ -1487,6 +1492,11 @@ def claim_remote_pairing(code, name, platform="ios", model="", capabilities=None
         "peak_pct": 0.0,
         "app_state": "",
         "last_error": "",
+        "camera_available": False,
+        "camera_permission": "unknown",
+        "video_transport": "not-built",
+        "video_active": False,
+        "video_error": "",
     }
     with REMOTE_DEVICE_LOCK:
         data = _remote_devices()
@@ -1510,7 +1520,7 @@ def remote_device_auth(headers):
         return dict(row)
 
 def update_remote_device(device_id, fields):
-    allowed = {"name","model","kind","capabilities","last_seen","remote_ready","mic_active","on_air","muted","level","peak_pct","app_state","last_error"}
+    allowed = {"name","model","kind","capabilities","last_seen","remote_ready","mic_active","on_air","muted","level","peak_pct","app_state","last_error","camera_available","camera_permission","video_transport","video_active","video_error"}
     with REMOTE_DEVICE_LOCK:
         data = _remote_devices()
         row = next((x for x in data["items"] if str(x.get("id")) == str(device_id)), None)
@@ -1572,6 +1582,12 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "audio_error": " ".join(str(channel_state.get("audio_error", "") or "").split())[:240],
         "secure_context": bool(channel_state.get("secure_context", False)),
         "line_track_state": " ".join(str(channel_state.get("line_track_state", "") or "").split())[:40],
+        "mic_track_state": " ".join(str(channel_state.get("mic_track_state", "") or "").split())[:40],
+        "video_inputs": [" ".join(str(x or "").split())[:120] for x in (channel_state.get("video_inputs") if isinstance(channel_state.get("video_inputs"), list) else [])[:8]],
+        "video_input_count": int(clamp_number(channel_state.get("video_input_count"), 0, 16, 0)),
+        "camera_permission": " ".join(str(channel_state.get("camera_permission", "unknown") or "unknown").split())[:40],
+        "video_track_state": " ".join(str(channel_state.get("video_track_state", "") or "").split())[:40],
+        "media_error": " ".join(str(channel_state.get("media_error", "") or "").split())[:240],
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
@@ -3460,6 +3476,11 @@ class Handler(BaseHTTPRequestHandler):
                     "app_state": str(body.get("app_state", ""))[:40],
                     "last_error": str(body.get("last_error", ""))[:300],
                     "capabilities": [re.sub(r"[^a-z0-9_-]+", "-", str(x or "").strip().lower())[:32] for x in (body.get("capabilities") if isinstance(body.get("capabilities"), list) else []) if str(x or "").strip()][:12],
+                    "camera_available": bool(body.get("camera_available", False)),
+                    "camera_permission": str(body.get("camera_permission", "unknown"))[:40],
+                    "video_transport": str(body.get("video_transport", "not-built"))[:40],
+                    "video_active": bool(body.get("video_active", False)),
+                    "video_error": str(body.get("video_error", ""))[:300],
                 }
                 updated = update_remote_device(row["id"], fields)
                 self.json_response({"ok": True, "device": _remote_public(updated), "commands": take_remote_commands(row["id"])})
