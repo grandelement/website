@@ -6713,6 +6713,20 @@ function loop(){
 
   comets.forEach(c=>c.step(dt));
   ships.forEach(s=>s.step(dt));
+
+  // Free website physics: a Body can physically nudge an album planet.
+  // Game/BODY-course planets remain governed by their own game rules.
+  if(!bodyRaceLive&&!document.body.classList.contains('game-mode-active')&&window.planetNodes){
+    for(const s of ships){
+      if(!s||s.dead)continue;
+      const bodyR=Math.max(12,shipVisualRadius(s)*.62);
+      for(const p of planetNodes){
+        if(!p||p.dragging||p.poolPocketed)continue;
+        collideMovingCircle(p,s.x,s.y,bodyR,s.vx||0,s.vy||0,.92);
+      }
+    }
+  }
+
   pairs.forEach(p=>p.step(dt));
   for(const q of quantumClusters){try{q.step(dt)}catch(err){console.error('GE quantum controller isolated an error',err);try{q.abort?.()}catch(_e){q.dead=true}}}
   miniShips.forEach(s=>s.step(dt));
@@ -7165,6 +7179,7 @@ buildPlanetPhysics();
   }
   window.GE_APPLY_BALL_ACCESS=applyBallAccessVisuals;
   function syncPlanet(p){p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';}
+  window.syncPlanet=syncPlanet;
   function clearAim(){aimPoint=null;ag.clearRect(0,0,w,h);}
   function traceGuide(anchor,pointer,r){
     ag.clearRect(0,0,w,h);if(!isGame())return;
@@ -11735,102 +11750,29 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   try{document.getElementById('gePlayer')?.pause?.();}catch(_e){}
 })();
 </script>
-<script id="ge-ambient-galaxy-v1">
-
+<script id="ge-ambient-galaxy-v2">
 (function installGEAmbientGalaxy(){
   'use strict';
   const settings=window.GE_EASY_SETTINGS||{};
   if(settings.AMBIENT_ORBIT_ENABLED===false)return;
 
+  // True independent album orbits around the live Blue Sun.
+  // One complete angular cycle remains twelve hours by default.
   const PERIOD_MS=Math.max(3600000,Number(settings.AMBIENT_ORBIT_PERIOD_SEC||43200)*1000);
-  const TICK_MS=Math.max(100,Number(settings.AMBIENT_ORBIT_TICK_MS||250));
-  const PATH_POINTS=32;
+  const TICK_MS=Math.max(50,Math.min(250,Number(settings.AMBIENT_ORBIT_TICK_MS||250)));
+  const BREATH_MS=90000; // 480 exact breaths per 12-hour orbit.
   const planetState=new WeakMap();
   const held=new WeakSet();
   const sun=document.getElementById('sunWrap');
-  let sunState=null;
-  let timer=0;
+  let sunDrift=null,timer=0;
 
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  const rand=(a,b)=>a+Math.random()*(b-a);
-  const smooth=t=>t*t*(3-2*t);
-  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  function boundsFor(el,type){
-    const r=el.getBoundingClientRect();
-    const vw=Math.max(1,innerWidth),vh=Math.max(1,innerHeight);
-    if(type==='sun'){
-      const keep=clamp(Number(settings.SUN_VISIBLE_FRACTION??0.25),0.05,1);
-      const minX=(r.width*(keep-.5))/vw;
-      const maxX=1+(r.width*(.5-keep))/vw;
-      const minY=(r.height*(keep-.5))/vh;
-      const maxY=1+(r.height*(.5-keep))/vh;
-      return {minX,maxX,minY,maxY};
-    }
-    const padX=Math.min(.18,(Math.max(8,r.width/2)+10)/vw);
-    const padY=Math.min(.18,(Math.max(8,r.height/2)+10)/vh);
-    return {minX:padX,maxX:1-padX,minY:padY,maxY:1-padY};
-  }
-
-  function currentPoint(el,b){
-    const r=el.getBoundingClientRect();
-    return {
-      x:clamp((r.left+r.width/2)/Math.max(1,innerWidth),b.minX,b.maxX),
-      y:clamp((r.top+r.height/2)/Math.max(1,innerHeight),b.minY,b.maxY)
-    };
-  }
-
-  function randomTarget(prev,b,type,forceNear){
-    const corners=[
-      {x:b.minX,y:b.minY},{x:b.maxX,y:b.minY},
-      {x:b.maxX,y:b.maxY},{x:b.minX,y:b.maxY}
-    ];
-    for(let tries=0;tries<60;tries++){
-      let p;
-      if(!forceNear&&Math.random()<(type==='sun'?.30:.20)){
-        const c=corners[(Math.random()*corners.length)|0];
-        const jx=(b.maxX-b.minX)*rand(-.08,.08);
-        const jy=(b.maxY-b.minY)*rand(-.08,.08);
-        p={x:clamp(c.x+jx,b.minX,b.maxX),y:clamp(c.y+jy,b.minY,b.maxY)};
-      }else{
-        p={x:rand(b.minX,b.maxX),y:rand(b.minY,b.maxY)};
-      }
-      const d=distance(prev,p);
-      const minD=forceNear?.10:.16;
-      const maxD=forceNear?.38:.58;
-      if(d>=minD&&d<=maxD)return p;
-    }
-    return {
-      x:clamp(prev.x+rand(-.28,.28),b.minX,b.maxX),
-      y:clamp(prev.y+rand(-.28,.28),b.minY,b.maxY)
-    };
-  }
-
-  function buildPath(el,type){
-    const b=boundsFor(el,type);
-    const first=currentPoint(el,b);
-    const pts=[first];
-    for(let i=1;i<PATH_POINTS;i++){
-      const nearClose=i===PATH_POINTS-1;
-      let p=randomTarget(pts[i-1],b,type,nearClose);
-      if(nearClose&&distance(p,first)>.42){
-        p={
-          x:clamp(first.x+rand(-.24,.24),b.minX,b.maxX),
-          y:clamp(first.y+rand(-.24,.24),b.minY,b.maxY)
-        };
-      }
-      pts.push(p);
-    }
-    return {points:pts,start:performance.now(),period:PERIOD_MS,type,dynamic:false};
-  }
-
-  function pointAt(state,now){
-    const pts=state.points,n=pts.length;
-    const unit=((((now-state.start)%state.period)+state.period)%state.period)/state.period*n;
-    const i=Math.floor(unit)%n;
-    const f=smooth(unit-Math.floor(unit));
-    const a=pts[i],b=pts[(i+1)%n];
-    return {x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};
+  function sunCenter(){
+    const r=sun?.getBoundingClientRect();
+    return r&&r.width
+      ? {x:r.left+r.width/2,y:r.top+r.height/2,r:r.width/2}
+      : {x:innerWidth*.5,y:innerHeight*.5,r:50};
   }
 
   function nodeFor(el){
@@ -11838,78 +11780,105 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     return nodes.find(p=>p&&p.el===el)||null;
   }
 
-  function putPlanet(el,state,p){
-    const node=nodeFor(el);
-    if(node){
-      const speed=Math.hypot(Number(node.vx)||0,Number(node.vy)||0);
-      if(node.dragging||speed>1.5){
-        state.dynamic=true;
-        return;
-      }
-      if(state.dynamic){
-        state.dynamic=false;
-        planetState.set(el,buildPath(el,'planet'));
-        return;
-      }
-    }
-
-    const r=el.getBoundingClientRect();
-    const radius=Math.max(1,(r.width||r.height||20)/2);
-    const x=clamp(p.x*innerWidth,radius+8,Math.max(radius+8,innerWidth-radius-8));
-    const y=clamp(p.y*innerHeight,radius+8,Math.max(radius+8,innerHeight-radius-8));
-
+  function putPlanet(el,node,x,y){
+    const r=node?.r||Math.max(1,el.getBoundingClientRect().width/2||12);
+    x=clamp(x,r+8,Math.max(r+8,innerWidth-r-8));
+    y=clamp(y,r+8,Math.max(r+8,innerHeight-r-8));
     if(node){
       node.x=x;node.y=y;
-      try{
-        if(typeof window.syncPlanet==='function')window.syncPlanet(node);
-        else if(typeof syncPlanet==='function')syncPlanet(node);
-        else {el.style.left=x+'px';el.style.top=y+'px';}
-      }catch(_e){el.style.left=x+'px';el.style.top=y+'px';}
+      if(typeof window.syncPlanet==='function')window.syncPlanet(node);
+      else{el.style.left=(x-r)+'px';el.style.top=(y-r)+'px';}
     }else{
-      el.style.left=x+'px';
-      el.style.top=y+'px';
+      el.style.left=(x-r)+'px';el.style.top=(y-r)+'px';
     }
   }
 
-  function putSun(state,p){
-    if(!sun)return;
-    const r=sun.getBoundingClientRect();
-    const keep=clamp(Number(settings.SUN_VISIBLE_FRACTION??0.25),0.05,1);
-    const minX=r.width*(keep-.5);
-    const maxX=innerWidth+r.width*(.5-keep);
-    const minY=r.height*(keep-.5);
-    const maxY=innerHeight+r.height*(.5-keep);
-    sun.style.left=clamp(p.x*innerWidth,minX,maxX)+'px';
-    sun.style.top=clamp(p.y*innerHeight,minY,maxY)+'px';
-    sun.style.transform='translate(-50%,-50%)';
+  function makeOrbit(el,index,total){
+    const s=sunCenter(),r=el.getBoundingClientRect();
+    const x=r.left+r.width/2,y=r.top+r.height/2,dx=x-s.x,dy=y-s.y;
+    const minDim=Math.max(1,Math.min(innerWidth,innerHeight));
+    const minR=Math.max(s.r+34,minDim*.16),maxR=Math.max(minR+18,minDim*.43);
+    const current=Math.max(minR,Math.hypot(dx,dy)||minR);
+    const spread=total>1?(index/(total-1)-.5):0;
+    const rx=clamp(current*(1+spread*.16),minR,maxR);
+    const ry=clamp(current*(.76+(index%3)*.08),minR*.66,maxR*.94);
+    return{
+      phase:Math.atan2(dy/(ry||1),dx/(rx||1)),
+      rx,ry,
+      dir:index%2?-1:1,
+      start:performance.now(),
+      breathPhase:(index/Math.max(1,total))*Math.PI*2,
+      dynamic:false
+    };
   }
 
-  function reseed(el,type){
-    if(!el)return;
-    if(type==='sun')sunState=buildPath(el,'sun');
-    else planetState.set(el,buildPath(el,'planet'));
+  function reseed(el,index,total){
+    const st=makeOrbit(el,index,total);
+    planetState.set(el,st);
+    return st;
   }
 
-  function ambientAllowed(){
+  function allowed(){
     return !document.hidden &&
       !document.body.classList.contains('game-mode-active') &&
       !document.body.classList.contains('ge-body-race-active');
   }
 
+  function seedSunDrift(){
+    const s=sunCenter();
+    sunDrift={
+      cx:s.x,cy:s.y,start:performance.now(),
+      rx:Math.min(28,innerWidth*.045),
+      ry:Math.min(18,innerHeight*.03)
+    };
+  }
+
+  function moveSun(now){
+    if(!sun||held.has(sun)||sun.classList.contains('dragging'))return;
+    if(!sunDrift)seedSunDrift();
+    const a=((now-sunDrift.start)%PERIOD_MS)/PERIOD_MS*Math.PI*2;
+    const x=sunDrift.cx+Math.cos(a)*sunDrift.rx;
+    const y=sunDrift.cy+Math.sin(a)*sunDrift.ry;
+    const r=sun.getBoundingClientRect();
+    const keep=clamp(Number(settings.SUN_VISIBLE_FRACTION??.25),.05,1);
+    const minX=r.width*(keep-.5),maxX=innerWidth+r.width*(.5-keep);
+    const minY=r.height*(keep-.5),maxY=innerHeight+r.height*(.5-keep);
+    sun.style.left=clamp(x,minX,maxX)+'px';
+    sun.style.top=clamp(y,minY,maxY)+'px';
+    sun.style.transform='translate(-50%,-50%)';
+  }
+
   function tick(){
-    if(!ambientAllowed())return;
+    if(!allowed())return;
     const now=performance.now();
+    moveSun(now);
 
-    if(sun&&!sun.classList.contains('dragging')&&!held.has(sun)){
-      if(!sunState)sunState=buildPath(sun,'sun');
-      putSun(sunState,pointAt(sunState,now));
-    }
+    const els=Array.from(document.querySelectorAll('#planets .planet'));
+    const s=sunCenter();
 
-    document.querySelectorAll('#planets .planet').forEach(el=>{
+    els.forEach((el,index)=>{
       if(held.has(el)||el.classList.contains('previewZoom')||el.classList.contains('albumBioOpen'))return;
-      let state=planetState.get(el);
-      if(!state){state=buildPath(el,'planet');planetState.set(el,state);}
-      putPlanet(el,state,pointAt(state,now));
+
+      const node=nodeFor(el);
+      if(node){
+        const speed=Math.hypot(Number(node.vx)||0,Number(node.vy)||0);
+        if(node.dragging||speed>1.5){
+          const existing=planetState.get(el);
+          if(existing)existing.dynamic=true;
+          return;
+        }
+      }
+
+      let st=planetState.get(el);
+      if(!st||st.dynamic)st=reseed(el,index,els.length);
+
+      const a=st.phase+st.dir*((now-st.start)%PERIOD_MS)/PERIOD_MS*Math.PI*2;
+      const breath=Math.sin((now/BREATH_MS)*Math.PI*2+st.breathPhase);
+      putPlanet(
+        el,node,
+        s.x+Math.cos(a)*(st.rx+breath*4),
+        s.y+Math.sin(a)*(st.ry+breath*3)
+      );
     });
   }
 
@@ -11918,25 +11887,46 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(el)held.add(el);
   },true);
 
-  const release=e=>{
+  function release(e){
     const el=e.target?.closest?.('#sunWrap,#planets .planet');
     if(!el)return;
     held.delete(el);
-    setTimeout(()=>reseed(el,el===sun?'sun':'planet'),80);
-  };
+
+    if(el===sun){
+      sunDrift=null;
+      return;
+    }
+
+    // A grabbed/thrown or collision-moved planet is allowed to coast naturally first.
+    // The orbit re-seeds from wherever it finally settles, so it never snaps backward.
+    const els=Array.from(document.querySelectorAll('#planets .planet'));
+    const index=Math.max(0,els.indexOf(el));
+    const wait=()=>{
+      const node=nodeFor(el);
+      if(held.has(el))return;
+      if(node&&(node.dragging||Math.hypot(Number(node.vx)||0,Number(node.vy)||0)>1.5)){
+        setTimeout(wait,180);
+        return;
+      }
+      reseed(el,index,els.length);
+    };
+    setTimeout(wait,180);
+  }
+
   document.addEventListener('pointerup',release,true);
   document.addEventListener('pointercancel',release,true);
 
   addEventListener('ge-universe-camera-shift',()=>{
-    sunState=null;
+    sunDrift=null;
     document.querySelectorAll('#planets .planet').forEach(el=>planetState.delete(el));
   },{passive:true});
 
   timer=setInterval(tick,TICK_MS);
   tick();
+
   window.GE_AMBIENT_GALAXY={
     reseedAll(){
-      sunState=null;
+      sunDrift=null;
       document.querySelectorAll('#planets .planet').forEach(el=>planetState.delete(el));
       tick();
     },
