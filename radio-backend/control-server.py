@@ -1550,6 +1550,11 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "mic_connected": bool(channel_state.get("mic_connected", False)),
         "mic_air": bool(channel_state.get("mic_air", False)),
         "mic_peak": clamp_number(channel_state.get("mic_peak"), 0.0, 100.0, 0.0),
+        "audio_permission": " ".join(str(channel_state.get("audio_permission", "unknown") or "unknown").split())[:24],
+        "audio_inputs": [" ".join(str(x or "").split())[:120] for x in (channel_state.get("audio_inputs") if isinstance(channel_state.get("audio_inputs"), list) else [])[:12]],
+        "audio_error": " ".join(str(channel_state.get("audio_error", "") or "").split())[:240],
+        "secure_context": bool(channel_state.get("secure_context", False)),
+        "line_track_state": " ".join(str(channel_state.get("line_track_state", "") or "").split())[:40],
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
