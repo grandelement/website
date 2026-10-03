@@ -1976,6 +1976,9 @@ body .brand>span{font-size:var(--ge-font-body)!important}
  #mixerSheet .arrangementPicker{grid-template-columns:1fr 82px 82px}
  .geArrangement2 #lineSheet .geAudioSourceCard{grid-template-columns:9px minmax(0,1fr) auto}
 }
+
+#uxReportBtn{border-color:#55d8c1!important;background:#102b26!important}
+@media(min-width:700px){.radioHealthActions{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>LINE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -1983,7 +1986,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v63</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v64</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1995,14 +1998,14 @@ body .brand>span{font-size:var(--ge-font-body)!important}
         <div class="radioHealthStat"><span>NETWORK</span><b id="diagNetwork">CHECKING</b></div>
         <div class="radioHealthStat"><span>SCREEN</span><b id="diagVisibility">VISIBLE</b></div>
         <div class="radioHealthStat"><span>MIC LINK</span><b id="diagMicLink">OFF</b></div>
-        <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div>
+        <div class="radioHealthStat"><span>AUDIO ENGINE</span><b id="diagAudio">NOT STARTED</b></div><div class="radioHealthStat"><span>UX LEARNING</span><b id="diagUx">STARTING</b></div>
       </div>
       <div class="radioHealthMeter">
         <div class="radioHealthMeterHead"><b>SERVER RADIO AUDIO</b><span id="diagRadioDb">-60 dB · WAITING</span></div>
         <div class="hmeter"><div class="hmeterFill" id="diagRadioMeter"></div></div>
         <div class="radioHealthDetails" id="diagDetails">Waiting for status data.</div>
       </div>
-      <div class="radioHealthActions"><button id="copyDiagnostics">COPY STATS</button><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
+      <div class="radioHealthActions"><button id="copyDiagnostics">COPY STATS</button><button id="uxReportBtn">UX REPORT</button><button class="reconnect" id="reconnectRadio">RECONNECT RADIO</button><button id="refreshDiagnostics">REFRESH STATS</button><button class="reload" id="reloadConsole">RELOAD DJ CONSOLE</button></div>
     </div>
   </div>
   <div class="card nowCard"><div class="label">NOW PLAYING</div><div class="nowMain"><div><div class="nowTitle" id="nowTitle">Grand Element Radio</div><div class="nowMeta" id="nowMeta">Loading…</div><div class="nowPlaylist" id="nowPlaylist">PLAYLIST · Normal Rotation</div></div></div><div class="nowTransport"><button id="fadeOutNow" class="fadeOutNow" aria-label="Fade music out over 20 seconds"><b>↘</b><span>FADE OUT</span></button><button id="fadeInNow" class="fadeInNow" aria-label="Fade music in over 20 seconds"><b>↗</b><span>FADE IN</span></button><button id="stopMusicNow" class="stopMusicNow" aria-label="Stop music"><b>■</b><span>STOP</span></button><button class="skipNow" id="skipNow" aria-label="Skip current track"><b>▶▶</b><span>SKIP</span></button></div><div class="songProgress"><div class="songProgressFill" id="songProgress"></div></div><div class="songTime"><span id="songElapsed">0:00</span><span id="songDuration">--:--</span></div></div>
@@ -2186,6 +2189,9 @@ function installTouchMixer(rootSelector,gridSelector){
 }
 let syncTouchFaders=function(){};
 let key='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0,radioMeterBusy=false;
+let geUxSessionId='',geUxFlushTimer=0,geUxStarting=false;
+let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
+let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
 let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null;let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
 const GE_BOARD_ROLE=/iPhone|iPad|iPod/i.test(navigator.userAgent)?'remote':'home';
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
@@ -2228,7 +2234,7 @@ function applyGeArrangement(value,persist){
    b.setAttribute('aria-pressed',Number(b.dataset.geArrangement)===geArrangement?'true':'false')
  });
  if($('mixerChannelsBtn'))$('mixerChannelsBtn').textContent='CHANNELS · A'+geArrangement;
- if(persist!==false)try{localStorage.setItem(GE_ARRANGEMENT_KEY,String(geArrangement))}catch(e){}
+ if(persist!==false)try{localStorage.setItem(GE_ARRANGEMENT_KEY,String(geArrangement))}catch(e){};if(geUxSessionId)geUxCount('changes','ARRANGEMENT → '+geArrangement)
  if(geArrangement===2&&GE_BOARD_ROLE==='home')setTimeout(scanGeAudioSources,0);
  requestAnimationFrame(function(){if(typeof syncTouchFaders==='function')syncTouchFaders()})
 }
@@ -2549,8 +2555,125 @@ async function loadFanDetail(anon){if(!anon)return;analyticsCurrentFan=anon;cons
 function csvCell(v){const s=String(v==null?'':v);return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportAscapCsv(){const rows=analyticsData&&analyticsData.station_performance_events||[];if(!rows.length){alert('No station performances in this time range.');return}const headers=['PERFORMED_AT_UTC','DATE_UTC','TIME_UTC','TITLE','ASCAP_TITLE','ASCAP_WORK_ID','ASCAP_STATUS','ALBUM','ARTIST','WRITER','PUBLISHER','ISWC','TRACK_ID','SOURCE'],lines=[headers.join(',')];rows.forEach(function(x){const d=new Date(Number(x.occurred_at||0)*1000),iso=d.toISOString();lines.push([iso,iso.slice(0,10),iso.slice(11,19),x.track_title||'',x.ascap_title||'',x.ascap_work_id||'',x.ascap_status||'',x.album||'',x.artist||'Grand Element',x.writer||'',x.publisher||'',x.iswc||'',x.track_id||'',x.source||''].map(csvCell).join(','))});const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='GE-ASCAP-Music-Use-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)}
 async function loadAnalytics(){const q=analyticsRangeQuery();$('analyticsStatus').textContent='LOADING VAULT…';try{const r=await api('/control/vault/analytics?'+q.toString()),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Analytics could not be loaded.');renderAnalytics(d);const a=d.since?new Date(Number(d.since)*1000).toLocaleString():'',b=d.until?new Date(Number(d.until)*1000).toLocaleString():'';$('analyticsStatus').textContent='VAULT CONNECTED · '+Number(d.totals&&d.totals.events||0)+' EVENTS · '+a+' → '+b}catch(e){$('analyticsStatus').textContent='ANALYTICS ERROR · '+(e.message||e)}}
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
-function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll()}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}function headers(extra){return Object.assign({},extra||{}, {'X-GE-DJ-Key':key})}function api(path,opt){opt=opt||{};opt.headers=headers(opt.headers);opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt).then(function(r){if(!r.ok&&typeof geUxCount==='function')geUxCount('errors','API '+String(path).split('?')[0]+' · '+r.status);return r})}
+
+function geUxCount(bucket,name,amount){
+ if(!geUxPending[bucket])return;
+ name=String(name||'');
+ name=String(name||'').replace(/\s+/g,' ').trim().slice(0,120);
+ if(!name)return;geUxPending[bucket][name]=(geUxPending[bucket][name]||0)+(Number(amount)||1)
+}
+function geUxView(){
+ if($('lineSheet')&&$('lineSheet').classList.contains('show'))return 'LINE';
+ if($('micSheet')&&$('micSheet').classList.contains('show'))return 'MIC';
+ if($('mixerSheet')&&$('mixerSheet').classList.contains('show')){
+   if($('effectsSheet')&&$('effectsSheet').classList.contains('show'))return 'EFFECTS';
+   if($('mixerChannelPicker')&&$('mixerChannelPicker').classList.contains('show'))return 'CHANNELS';
+   return 'MIXER'
+ }
+ const modal=document.querySelector('.modal.show');
+ if(modal)return String(modal.id||'MODAL').replace(/Modal$/,'').toUpperCase();
+ return 'HOME'
+}
+function geUxTargetLabel(el){
+ if(!el)return '';
+ const id=String(el.id||'').trim();if(id)return id;
+ const dc=el.dataset||{};
+ for(const k of ['geArrangement','channelBubble','mixerChannel','fx','fxtoggle','act']){
+   if(dc[k])return k+':'+String(dc[k]).slice(0,50)
+ }
+ let txt=String(el.getAttribute&&el.getAttribute('aria-label')||el.textContent||'').replace(/\s+/g,' ').trim();
+ if(!txt&&el.tagName)txt=el.tagName;
+ return txt.slice(0,70)
+}
+function geUxObserveView(){
+ const v=geUxView(),last=geUxRecentViews[geUxRecentViews.length-1];
+ if(last===v)return;
+ if(last)geUxCount('transitions',last+' → '+v);
+ geUxRecentViews.push(v);if(geUxRecentViews.length>8)geUxRecentViews.shift();
+ const n=geUxRecentViews.length;
+ if(n>=3){
+   const a=geUxRecentViews[n-3],b=geUxRecentViews[n-2],c=geUxRecentViews[n-1];
+   if(a===c&&a!==b)geUxCount('backtracks',a+' ↔ '+b)
+ }
+}
+function geUxTrackClick(el){
+ const view=geUxView(),label=geUxTargetLabel(el);if(!label)return;
+ const key=view+' · '+label;geUxCount('clicks',key);
+ const now=Date.now();
+ if(geUxLastClick.key===key&&now-geUxLastClick.at<20000){
+   geUxLastClick.count++;
+   if(geUxLastClick.count>=3&&!geUxLastClick.burst){geUxCount('repeats',key);geUxLastClick.burst=true}
+ }else geUxLastClick={key:key,at:now,count:1,burst:false};
+ geUxLastClick.at=now;
+ setTimeout(geUxObserveView,80)
+}
+function geUxHasPending(){
+ return Object.keys(geUxPending).some(function(k){return Object.keys(geUxPending[k]||{}).length})
+}
+function geUxTakePending(){
+ const out=geUxPending;
+ geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
+ return out
+}
+function geUxMergeBack(detail){
+ Object.keys(detail||{}).forEach(function(bucket){
+   if(!geUxPending[bucket])return;
+   Object.keys(detail[bucket]||{}).forEach(function(name){
+     geUxPending[bucket][name]=(geUxPending[bucket][name]||0)+Number(detail[bucket][name]||0)
+   })
+ })
+}
+async function geUxFlush(){
+ if(!geUxSessionId||!key||!geUxHasPending())return;
+ const detail=geUxTakePending();
+ try{
+   const r=await api('/control/work-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'event',session_id:geUxSessionId,event_type:'ux_summary',detail:{surface:'dj',arrangement:Number(geArrangement||1),...detail}})});
+   if(!r.ok)throw new Error('UX save failed');
+   if($('diagUx'))$('diagUx').textContent='ACTIVE'
+ }catch(e){
+   geUxMergeBack(detail);if($('diagUx'))$('diagUx').textContent='RETRYING'
+ }
+}
+async function startGeUxSession(){
+ if(geUxSessionId||geUxStarting||!key)return;
+ geUxStarting=true;
+ try{
+   const r=await api('/control/work-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',device_scope:getDjBrowserScope(),device_name:GE_BOARD_LABEL+' · '+navigator.platform})});
+   const d=await r.json().catch(function(){return {}});
+   if(!r.ok||!d.ok||!d.session)throw new Error(d.error||'UX session failed');
+   geUxSessionId=String(d.session.id||'');
+   geUxRecentViews=[geUxView()];
+   if($('diagUx'))$('diagUx').textContent='ACTIVE';
+   clearInterval(geUxFlushTimer);geUxFlushTimer=setInterval(geUxFlush,30000)
+ }catch(e){if($('diagUx'))$('diagUx').textContent='LOCAL ONLY'}
+ finally{geUxStarting=false}
+}
+async function loadGeUxReport(days){
+ await geUxFlush();
+ const r=await api('/control/ux-summary?days='+(Number(days)||14)),d=await r.json().catch(function(){return {}});
+ if(!r.ok||!d.ok)throw new Error(d.error||'UX report unavailable');
+ return d
+}
+function formatGeUxRows(title,rows){
+ if(!Array.isArray(rows)||!rows.length)return '';
+ return title+'\n'+rows.slice(0,8).map(function(x){return '  '+x.count+' × '+x.name}).join('\n')+'\n'
+}
+function geUxReportText(d){
+ let out='GE DJ UX REPORT · LAST '+Number(d.days||14)+' DAYS\n';
+ out+='Sessions: '+Number(d.session_count||0)+' · Data batches: '+Number(d.event_batches||0)+'\n\n';
+ out+=formatGeUxRows('MOST USED',d.top_clicks);
+ out+=formatGeUxRows('SCREEN PATHS',d.top_transitions);
+ out+=formatGeUxRows('BACK-AND-FORTH',d.top_backtracks);
+ out+=formatGeUxRows('REPEATED CONTROLS',d.top_repeats);
+ out+=formatGeUxRows('ERRORS',d.top_errors);
+ if(Array.isArray(d.signals)&&d.signals.length){
+   out+='PATTERNS TO REVIEW\n'+d.signals.slice(0,10).map(function(x){return '  '+x.count+' × '+x.name+' · '+x.note}).join('\n')+'\n'
+ }
+ out+='\nPrivacy: control names/counts only; no typed text, passwords, document contents, or visited-page contents.';
+ return out
+}
+function applyEmbedMode(){if(new URLSearchParams(location.search).get('embed')==='mixer'){document.body.classList.add('embedMixer');$('mixerSheet').classList.add('show')}}async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll();startGeUxSession()}
 $('enter').onclick=async function(){try{$('loginStatus').textContent='CONNECTING…';await ensureAudio();await verify($('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}};$('password').addEventListener('keydown',function(e){if(e.key==='Enter')$('enter').click()});
 
 let nowProgressRAF=0;
@@ -3830,6 +3953,21 @@ $('remoteDeviceList').onchange=function(e){const x=e.target.closest('[data-remot
 });
 loadMixerChannelPrefs();
 loadGeArrangement();
+document.addEventListener('click',function(e){
+ if(!key||!geUxSessionId)return;
+ const el=e.target&&e.target.closest&&e.target.closest('button,[role="button"],label,a,select');
+ if(!el||el.closest('#lock'))return;
+ geUxTrackClick(el)
+},{capture:true});
+document.addEventListener('change',function(e){
+ if(!key||!geUxSessionId)return;
+ const el=e.target;if(!el||el.closest&&el.closest('#lock'))return;
+ if(el.matches&&el.matches('input[type="text"],input[type="password"],textarea'))return;
+ const label=geUxTargetLabel(el);if(label)geUxCount('changes',geUxView()+' · '+label)
+},{capture:true});
+window.addEventListener('error',function(){if(geUxSessionId)geUxCount('errors','JAVASCRIPT ERROR')});
+window.addEventListener('unhandledrejection',function(){if(geUxSessionId)geUxCount('errors','UNHANDLED PROMISE')});
+window.addEventListener('pagehide',function(){geUxFlush()});
 $('reconnectRadio').onclick=function(){reconnectRadioMonitor().catch(function(e){alert(e.message||e)})};
 $('statsToggle').onclick=function(){
   const box=$('radioHealth'),drawer=$('radioStatsDrawer'),open=!box.classList.contains('statsOpen');
@@ -3840,6 +3978,15 @@ $('statsToggle').onclick=function(){
 };
 $('refreshDiagnostics').onclick=function(){poll();pollRadioMeter();updateRadioDiagnostics()};
 $('copyDiagnostics').onclick=function(){copyRadioDiagnostics()};
+$('uxReportBtn').onclick=async function(){
+ const b=this,old=b.textContent;b.disabled=true;b.textContent='BUILDING…';
+ try{
+   const d=await loadGeUxReport(14),txt=geUxReportText(d);
+   if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(txt);b.textContent='UX COPIED'}
+   else{alert(txt);b.textContent='UX READY'}
+ }catch(e){b.textContent='UX ERROR';alert(e.message||e)}
+ finally{setTimeout(function(){b.textContent=old;b.disabled=false},1400)}
+};
 $('reloadConsole').onclick=function(){const u=new URL(location.href);u.searchParams.set('fresh',String(Date.now()));location.replace(u.toString())};
 function returnToMixer(){
   ['micSheet','lineSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
