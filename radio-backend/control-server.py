@@ -2571,6 +2571,38 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        if parsed.path == "/control/public-now":
+            now = public_track(read_json(NOW, {}))
+            rot = read_json(ROTATION, {"entries": []})
+            entries = rot.get("entries", []) if isinstance(rot, dict) else []
+            slot = str(now.get("slot", "") or "")
+            upcoming = []
+            if slot:
+                for i, entry in enumerate(entries):
+                    if str(entry.get("slot", "") or "") == slot:
+                        upcoming = entries[i+1:i+6]
+                        break
+            if not upcoming:
+                upcoming = entries[:5]
+            def public_queue_track(entry):
+                return {
+                    "title": str(entry.get("title", "") or ""),
+                    "album": str(entry.get("album", "") or ""),
+                    "artist": "Grand Element",
+                    "kind": str(entry.get("kind", "") or ""),
+                }
+            nxt = public_queue_track(upcoming[0]) if upcoming else public_track(read_json(NEXT, {}))
+            coming = [public_queue_track(entry) for entry in upcoming[1:5]]
+            live_state = broadcast_engine().status()
+            self.json_response({
+                "ok": True,
+                "now": now,
+                "next": nxt,
+                "coming": coming,
+                "live_active": bool(live_state.get("active", False)),
+            })
+            return
+
         if self.path == "/dj":
             self.send_response(302)
             self.send_header("Location", "/dj/")
