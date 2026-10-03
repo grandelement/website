@@ -192,10 +192,6 @@ http {
     location = /dj/ { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj/index.html { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj.html { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj-lite { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj-lite/ { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj-lite/index.html { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj-lite.html { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj/ { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj.html { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
