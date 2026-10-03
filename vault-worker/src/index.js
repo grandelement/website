@@ -691,7 +691,7 @@ function allowedPublicEventType(value) {
     "download","offline_enable","offline_disable",
     "ship_open","ship_arrival","gate_open","gate_unlock","access_request",
     "soul_reflection","soul_reflection_open","soul_reflection_place","comment_submit",
-    "playlist_view","background_change","button_click","external_link",
+    "playlist_view","background_change","button_click","control_change","form_submit","internal_link","external_link",
     "game_start","game_complete"
   ]);
   return allowed.has(type) ? type : "";
@@ -1231,6 +1231,11 @@ async function adminOwnerUxSummary(env, url) {
     if (row.count >= 1) signals.push({ kind: "error", ...row, note: "The website reported a JavaScript error while owner UX mode was active." });
   }
 
+  const totalListenedSeconds = music.reduce((sum, row) => sum + Number(row.total_listened_seconds || 0), 0);
+  const identifiedFans = fans.filter((row) => row.identified).length;
+  const actionEvents = ["button_click","control_change","form_submit","internal_link","external_link"]
+    .reduce((sum, name) => sum + Number(eventCounts.get(name) || 0), 0);
+
   return {
     ok: true,
     days,
@@ -1250,6 +1255,47 @@ async function adminOwnerUxSummary(env, url) {
   };
 }
 
+function analyticsCanonicalTrackTitle(trackTitle, trackId) {
+  const current = safeText(trackTitle, 300);
+  if (current && !/^(grand element(?: radio)?|radio|unknown)$/i.test(current)) return current;
+  let raw = String(trackId || "");
+  if (!raw) return current;
+  try { raw = decodeURIComponent(raw); } catch {}
+  try {
+    if (/^https?:\/\//i.test(raw)) raw = new URL(raw).pathname;
+  } catch {}
+  let base = raw.split(/[\\/]/).pop() || "";
+  base = base.split("?")[0].split("#")[0].replace(/\.[A-Za-z0-9]{2,5}$/i, "");
+  base = base.replace(/^.*?_\d{1,3}_/, "").replace(/^\d{1,3}[ ._-]+/, "");
+  base = base.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  return safeText(base || current, 300);
+}
+
+function analyticsCanonicalAlbum(album, trackId) {
+  const current = safeText(album, 200);
+  if (current && !/^(grand element|grand element radio|unknown)$/i.test(current)) return current;
+  let raw = String(trackId || "");
+  try { raw = decodeURIComponent(raw); } catch {}
+  const match = raw.match(/ge-music\/music\/Grand Element - \d{4} - ([^/]+)/i);
+  if (match && match[1]) return safeText(match[1], 200);
+  return current;
+}
+
+function analyticsEventCategory(eventType) {
+  const t = String(eventType || "").toLowerCase();
+  if (!t) return "OTHER";
+  if (t === "qr_scan") return "QR / ACQUISITION";
+  if (t.startsWith("track_") || t.startsWith("audio_")) return "MUSIC";
+  if (t.startsWith("radio_")) return "RADIO";
+  if (t.startsWith("game_")) return "GAMES";
+  if (t.startsWith("share_") || t === "track_share" || t === "download") return "SHARING";
+  if (t === "button_click" || t === "control_change" || t === "form_submit") return "CONTROLS";
+  if (t === "page_view" || t === "session_start" || t === "session_end" || t === "internal_link" || t === "external_link") return "NAVIGATION";
+  if (t.includes("reflection") || t === "comment_submit") return "COMMUNITY";
+  if (t.includes("gate") || t.includes("access") || t.includes("offline")) return "ACCESS";
+  return "OTHER";
+}
+
 async function adminAnalytics(env, url) {
   const range = analyticsWindow(url, 30);
   const { since, until, days } = range;
@@ -1258,7 +1304,7 @@ async function adminAnalytics(env, url) {
   ).bind(since, until).all();
   const items = rows.results || [];
   const profileRows = await env.VAULT_DB.prepare(
-    "SELECT id,display_name,notes FROM fans"
+    "SELECT id,display_name,email,phone,country,region,city,timezone,consent_analytics,consent_contact,notes,metadata_json FROM fans"
   ).all();
   const profiles = new Map((profileRows.results || []).map((row) => [String(row.id || ""), row]));
 
@@ -1276,6 +1322,9 @@ async function adminAnalytics(env, url) {
   const languages = new Map();
   const referrers = new Map();
   const fanMap = new Map();
+  const categories = new Map();
+  const surfaces = new Map();
+  const activityDays = new Map();
 
   const mediaSessions = new Map();
   const stationTracks = new Map();
@@ -1284,6 +1333,12 @@ async function adminAnalytics(env, url) {
     if (row.anon_id && row.anon_id !== "ge-radio-station") visitors.add(String(row.anon_id));
     if (row.session_id && row.event_type !== "station_performance") sessions.add(String(row.session_id));
     bumpCount(eventCounts, row.event_type);
+    bumpCount(categories, analyticsEventCategory(row.event_type));
+    bumpCount(surfaces, row.surface || "website");
+    if (row.occurred_at) {
+      const day = new Date(Number(row.occurred_at) * 1000).toISOString().slice(0, 10);
+      bumpCount(activityDays, day);
+    }
     bumpCount(campaigns, row.utm_campaign);
     bumpCount(sources, row.utm_source);
     bumpCount(countries, row.country);
@@ -1329,12 +1384,18 @@ async function adminAnalytics(env, url) {
           placement: "",
           listened_seconds: 0,
           tracks: new Set(),
+          event_types: new Map(),
+          surfaces: new Map(),
+          locations: new Map(),
         };
         fanMap.set(anon, fan);
       }
       fan.first_seen_at = Math.min(Number(fan.first_seen_at || row.occurred_at), Number(row.occurred_at || 0));
       fan.last_seen_at = Math.max(Number(fan.last_seen_at || row.occurred_at), Number(row.occurred_at || 0));
       fan.events += 1;
+      bumpCount(fan.event_types, row.event_type);
+      bumpCount(fan.surfaces, row.surface || "website");
+      bumpCount(fan.locations, [row.city,row.region,row.country].filter(Boolean).join(", "));
       if (row.fan_id) fan.fan_id = String(row.fan_id);
       if (row.session_id) fan.sessions.add(String(row.session_id));
       if (row.event_type === "page_view") fan.page_views += 1;
@@ -1354,13 +1415,15 @@ async function adminAnalytics(env, url) {
     }
 
     if (row.event_type === "station_performance") {
-      const stationKey = [row.track_id || "", row.track_title || "", row.album || ""].join("|");
+      const stationTitle = analyticsCanonicalTrackTitle(row.track_title, row.track_id);
+      const stationAlbum = analyticsCanonicalAlbum(row.album, row.track_id);
+      const stationKey = [row.track_id || "", stationTitle || "", stationAlbum || ""].join("|");
       let st = stationTracks.get(stationKey);
       if (!st) {
         st = {
           track_id: row.track_id || "",
-          track_title: row.track_title || "",
-          album: row.album || "",
+          track_title: stationTitle || "",
+          album: stationAlbum || "",
           performances: 0,
           first_played_at: row.occurred_at,
           last_played_at: row.occurred_at,
@@ -1396,8 +1459,8 @@ async function adminAnalytics(env, url) {
         media_session_id: mediaId,
         anon_id: row.anon_id || "",
         track_id: row.track_id || "",
-        track_title: row.track_title || "",
-        album: row.album || "",
+        track_title: analyticsCanonicalTrackTitle(row.track_title, row.track_id),
+        album: analyticsCanonicalAlbum(row.album, row.track_id),
         source: String(meta.source || row.surface || ""),
         station_id: !!meta.station_id,
         ascap_work_id: String(meta.ascap_work_id || ""),
@@ -1420,8 +1483,8 @@ async function adminAnalytics(env, url) {
       mediaSessions.set(key, s);
     }
     s.track_id ||= row.track_id || "";
-    s.track_title ||= row.track_title || "";
-    s.album ||= row.album || "";
+    s.track_title ||= analyticsCanonicalTrackTitle(row.track_title, row.track_id);
+    s.album ||= analyticsCanonicalAlbum(row.album, row.track_id);
     s.source ||= String(meta.source || row.surface || "");
     s.station_id = s.station_id || !!meta.station_id;
     s.ascap_work_id ||= String(meta.ascap_work_id || "");
@@ -1497,7 +1560,13 @@ async function adminAnalytics(env, url) {
     anon_id: fan.anon_id,
     fan_id: fan.fan_id || "",
     display_name: String(profile?.display_name || ""),
+    email: String(profile?.email || ""),
+    phone: String(profile?.phone || ""),
+    consent_analytics: !!profile?.consent_analytics,
+    consent_contact: !!profile?.consent_contact,
     notes: String(profile?.notes || ""),
+    profile_metadata: parseStoredJson(profile?.metadata_json),
+    identified: !!fan.fan_id,
     first_seen_at: fan.first_seen_at,
     last_seen_at: fan.last_seen_at,
     events: fan.events,
@@ -1518,6 +1587,9 @@ async function adminAnalytics(env, url) {
     placement: fan.placement,
     listened_seconds: Number(fan.listened_seconds.toFixed(2)),
     unique_tracks: fan.tracks.size,
+    event_types: topCountRows(fan.event_types, 30),
+    surfaces: topCountRows(fan.surfaces, 20),
+    locations: topCountRows(fan.locations, 20),
   };
   }).sort((a, b) => b.last_seen_at - a.last_seen_at);
 
@@ -1552,8 +1624,8 @@ async function adminAnalytics(env, url) {
       return {
         occurred_at: Number(row.occurred_at || 0),
         track_id: row.track_id || "",
-        track_title: row.track_title || "",
-        album: row.album || "",
+        track_title: analyticsCanonicalTrackTitle(row.track_title, row.track_id),
+        album: analyticsCanonicalAlbum(row.album, row.track_id),
         artist: String(meta.artist || "Grand Element"),
         ascap_work_id: String(meta.ascap_work_id || ""),
         ascap_title: String(meta.ascap_title || ""),
@@ -1583,8 +1655,17 @@ async function adminAnalytics(env, url) {
       station_performances: Number(eventCounts.get("station_performance") || 0),
       game_completions: Number(eventCounts.get("game_complete") || 0),
       soul_reflections: Number(eventCounts.get("soul_reflection") || 0) + Number(eventCounts.get("soul_reflection_place") || 0),
+      identified_fans: identifiedFans,
+      anonymous_fans: Math.max(0, visitors.size - identifiedFans),
+      total_listened_seconds: Number(totalListenedSeconds.toFixed(2)),
+      interaction_actions: actionEvents,
+      countries: countries.size,
+      cities: cities.size,
     },
     event_counts: topCountRows(eventCounts, 100),
+    activity_groups: topCountRows(categories, 30),
+    surfaces: topCountRows(surfaces, 30),
+    activity_by_day: [...activityDays.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([name,count]) => ({name,count})),
     acquisition: {
       campaigns: topCountRows(campaigns),
       sources: topCountRows(sources),
@@ -1618,14 +1699,37 @@ async function adminFanDetail(env, url) {
   ).bind(anonId, since, until).all();
   const events = (rows.results || []).map((row) => ({
     ...row,
+    track_title: analyticsCanonicalTrackTitle(row.track_title, row.track_id),
+    album: analyticsCanonicalAlbum(row.album, row.track_id),
     metadata: parseStoredJson(row.metadata_json),
     metadata_json: undefined,
   }));
   const fanId = String(events.find((x) => x.fan_id)?.fan_id || "");
   const profile = fanId
-    ? await env.VAULT_DB.prepare("SELECT id,display_name,notes FROM fans WHERE id=?").bind(fanId).first()
+    ? await env.VAULT_DB.prepare("SELECT id,display_name,email,phone,country,region,city,timezone,consent_analytics,consent_contact,notes,metadata_json FROM fans WHERE id=?").bind(fanId).first()
     : null;
-  return { ok: true, anon_id: anonId, fan_id: fanId, profile: profile || null, days, since, until, events };
+  const eventCounts = new Map(), surfaceCounts = new Map(), categoryCounts = new Map(), locationCounts = new Map(), sessions = new Set(), tracks = new Set();
+  for (const event of events) {
+    bumpCount(eventCounts, event.event_type);
+    bumpCount(surfaceCounts, event.surface || "website");
+    bumpCount(categoryCounts, analyticsEventCategory(event.event_type));
+    bumpCount(locationCounts, [event.city,event.region,event.country].filter(Boolean).join(", "));
+    if (event.session_id) sessions.add(String(event.session_id));
+    if (event.track_title || event.track_id) tracks.add(String(event.track_title || event.track_id));
+  }
+  return {
+    ok: true, anon_id: anonId, fan_id: fanId, profile: profile ? {...profile, metadata: parseStoredJson(profile.metadata_json), metadata_json: undefined} : null,
+    days, since, until, events,
+    summary: {
+      events: events.length,
+      sessions: sessions.size,
+      unique_tracks: tracks.size,
+      event_types: topCountRows(eventCounts, 50),
+      surfaces: topCountRows(surfaceCounts, 20),
+      activity_groups: topCountRows(categoryCounts, 20),
+      locations: topCountRows(locationCounts, 20),
+    }
+  };
 }
 
 async function adminSetFanLabel(request, env) {
