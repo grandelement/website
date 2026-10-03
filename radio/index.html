@@ -1396,7 +1396,7 @@ const GATE_CONFIG = Object.freeze({
   triggerAtSeconds: 71,
   hardLimitSeconds: 1800,
   // LIVE METADATA
-  liveMetadataURL: 'https://radio.grandelement.blitz.cloud/status-json.xsl',
+  liveMetadataURL: 'https://radio.grandelement.blitz.cloud/control/public-now',
   liveMetadataPollSeconds: 10,
   // VISUAL AND AUDIO SEQUENCE BASE TIMES
   blurLeadSeconds: 6,
@@ -2543,6 +2543,12 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   }
 
   function readTitle(data){
+    if(data&&data.now&&data.now.title){
+      const album=String(data.now.album||'').trim();
+      const title=String(data.now.title||'').trim();
+      const livePrefix=data.live_active?'LIVE • ':'';
+      return livePrefix+(album?album+' • '+title:title);
+    }
     const source=sourceForStream(data);
     const candidates=[
       data?.now_playing?.song?.text,
