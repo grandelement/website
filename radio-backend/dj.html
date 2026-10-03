@@ -2000,14 +2000,46 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 #deviceChannelSheet .deviceChannelButtons button.on{border-color:#55d8c1;background:#12382f}
 #deviceChannelSheet .deviceChannelButtons button.air{border-color:#ff667b;background:#541923}
 #deviceChannelSheet #deviceChannelLinkMic{margin-top:8px}
+
+/* V67: tactile mixer faders. Entire lane is draggable on touch. */
+#mixerSheet .touchFader{
+ touch-action:none!important;cursor:ns-resize!important;
+ min-height:190px!important;padding:0 2px!important
+}
+#mixerSheet .touchFaderThumb{
+ pointer-events:none!important;
+ left:1px!important;right:1px!important;height:66px!important;
+ border-radius:14px!important;
+ background:linear-gradient(180deg,#194d72 0%,#0f314d 48%,#092136 52%,#174867 100%)!important;
+ border:2px solid #69d8ff!important;
+ box-shadow:0 5px 15px rgba(0,0,0,.68),0 0 0 2px rgba(88,165,255,.18),inset 0 1px 0 rgba(255,255,255,.22)!important
+}
+#mixerSheet .touchFaderThumb:before{
+ content:"";position:absolute;left:18%;right:18%;top:19px;height:3px;border-radius:3px;
+ background:#9be8ff;box-shadow:0 8px 0 #65c6e7,0 16px 0 #9be8ff;
+ opacity:.95
+}
+#mixerSheet .touchFaderThumb:after{
+ content:"";position:absolute;left:8%;right:8%;top:50%;height:2px;
+ transform:translateY(-50%);background:#d6f7ff;box-shadow:0 0 8px rgba(105,216,255,.9)
+}
+#mixerSheet .touchFader.dragging .touchFaderThumb{
+ border-color:#d8f8ff!important;
+ box-shadow:0 5px 15px rgba(0,0,0,.68),0 0 16px rgba(88,165,255,.9),inset 0 1px 0 rgba(255,255,255,.25)!important;
+ transform:scale(1.035)
+}
+@media(max-width:560px){
+ #mixerSheet .touchFader{min-height:165px!important}
+ #mixerSheet .touchFaderThumb{height:70px!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
- <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>LINE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
+ <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>LOCAL MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
  <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">−</button><input id="geZoomRange" type="range" min="50" max="180" step="5" value="100" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">100%</output><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v66</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v67</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2035,9 +2067,9 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 <audio id="radioAudio" preload="none" playsinline crossorigin="anonymous"></audio>
 <div class="dock"><div class="dockin"><button id="dockRadio">RADIO</button><button class="cue" id="dockCue">MONITOR</button><button class="mic" id="dockMic">MIC</button><button id="dockMixer">MIXER</button><button id="dockFx">EFFECTS</button><button class="studio" id="dockStudio">STUDIO</button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
 <div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">LOCAL MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
-<div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">LINE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="lineModeBanner" id="lineModeBanner">HOME SOURCE</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="lineLocalControls" id="lineLocalControls"><div class="arr2LineSourceBrowser" id="arr2LineSourceBrowser"><div class="arr2SourceHead"><div><div class="lineSectionTitle">AUDIO SOURCES</div><div class="note" id="geAudioHelperState">SCAN FOR AUDIO</div></div><button type="button" id="geAudioScan">SCAN</button></div><div class="arr2CurrentSource"><span>CONNECTED SOURCE</span><strong id="arr2CurrentLineSource">NONE</strong></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">PLAYING NOW</div><div class="geAudioSourceList" id="geAudioPlaying"><div class="note">Nothing detected yet.</div></div></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">AVAILABLE AUDIO</div><div class="geAudioSourceList" id="geAudioAvailable"><div class="note">Tap SCAN.</div></div></div><button type="button" class="arr2MoreInputs" id="arr2MoreInputs">MORE INPUTS / SETUP</button></div><div class="arr1LineSetup" id="arr1LineSetup"><div class="lineSectionTitle">CHOOSE SOURCE</div><div class="sourceSelect"><select id="lineDevice"><option value="">ABLETON / LINE INPUT</option></select><button id="lineOpen">CONNECT</button></div><div class="lineSourceButtons"><button class="sourceBtn computerAudioBtn" id="lineComputerAudio" type="button">YOUTUBE / COMPUTER</button><label class="sourceBtn">AUDIO FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label></div><div class="lineActiveDevice" id="lineActiveDevice">NO SOURCE CONNECTED</div><div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that LINE.</div></div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
+<div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">COMPUTER AUDIO</div><div class="sheetTitle">COMPUTER</div></div><button data-close="lineSheet">CLOSE</button></div><div class="lineModeBanner" id="lineModeBanner">HOME SOURCE</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="lineLocalControls" id="lineLocalControls"><div class="arr2LineSourceBrowser" id="arr2LineSourceBrowser"><div class="arr2SourceHead"><div><div class="lineSectionTitle">AUDIO SOURCES</div><div class="note" id="geAudioHelperState">SCAN FOR AUDIO</div></div><button type="button" id="geAudioScan">SCAN</button></div><div class="arr2CurrentSource"><span>CONNECTED SOURCE</span><strong id="arr2CurrentLineSource">NONE</strong></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">PLAYING NOW</div><div class="geAudioSourceList" id="geAudioPlaying"><div class="note">Nothing detected yet.</div></div></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">AVAILABLE AUDIO</div><div class="geAudioSourceList" id="geAudioAvailable"><div class="note">Tap SCAN.</div></div></div><button type="button" class="arr2MoreInputs" id="arr2MoreInputs">MORE INPUTS / SETUP</button></div><div class="arr1LineSetup" id="arr1LineSetup"><div class="lineSectionTitle">CHOOSE SOURCE</div><div class="sourceSelect"><select id="lineDevice"><option value="">ABLETON / LINE INPUT</option></select><button id="lineOpen">CONNECT</button></div><div class="lineSourceButtons"><button class="sourceBtn computerAudioBtn" id="lineComputerAudio" type="button">YOUTUBE / COMPUTER</button><label class="sourceBtn">AUDIO FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label></div><div class="lineActiveDevice" id="lineActiveDevice">NO SOURCE CONNECTED</div><div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that LINE.</div></div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
 <div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div></div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC READY</button><button id="deviceChannelAir" disabled>ON AIR</button><button id="deviceChannelMute" disabled>MUTE</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">LINK / PAIR MICROPHONE APP</button><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div><label><input type="checkbox" data-mixer-channel="mic">LOCAL MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>COMPUTER</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
   <input id="fxZoom" type="range" min="20" max="100" step="20" value="40" aria-label="Effect strip width">
@@ -2085,11 +2117,11 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 </div></div>
 <div class="mixerGrid">
-<div class="mixStrip" data-channel-strip="mic"><h3>1 · MIC</h3><button type="button" class="mixSourceLabel" id="mixMicFiles">FILES / RECORDINGS</button><div class="hmeter" data-mix-threshold="mic"><div class="hmeterFill" id="mixMicMeter"></div><div class="threshold" id="mixMicThreshold"></div></div><input class="vf" id="mixMicLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixMicRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixMicSendA">SEND A</button><button class="sendState" id="mixMicSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixMicSendB">SEND B</button><button class="sendState" id="mixMicSendBOn">ON</button></div><div class="mixBtns"><button id="mixMicCue">MONITOR</button><button id="mixMicAir">MIC LINK</button><button data-fx="mic">FX</button><button id="mixMicMute">MUTE</button></div></div>
+<div class="mixStrip" data-channel-strip="mic"><h3>LOCAL MIC</h3><button type="button" class="mixSourceLabel" id="mixMicFiles">FILES / RECORDINGS</button><div class="hmeter" data-mix-threshold="mic"><div class="hmeterFill" id="mixMicMeter"></div><div class="threshold" id="mixMicThreshold"></div></div><input class="vf" id="mixMicLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixMicRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixMicSendA">SEND A</button><button class="sendState" id="mixMicSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixMicSendB">SEND B</button><button class="sendState" id="mixMicSendBOn">ON</button></div><div class="mixBtns"><button id="mixMicCue">MONITOR</button><button id="mixMicAir">MIC LINK</button><button data-fx="mic">FX</button><button id="mixMicMute">MUTE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="sendAuxStrip"><h3 id="sendAuxTitle">SEND A</h3><small id="sendAuxMeta">MIC · DELAY</small><div class="hmeter"><div class="hmeterFill" id="sendAuxMeter"></div></div><input class="vf" id="sendAuxLevel" type="range" min="0" max="100" value="20"><div class="mixRead" id="sendAuxRead">20%</div><div class="mixBtns"><button id="sendAuxToggle">ON</button><button id="sendAuxFx">FX</button></div><div class="mixBtns"><button id="sendAuxClose">CLOSE</button></div></div>
-<div class="mixStrip" data-channel-strip="line"><h3>2 · LINE</h3><button type="button" class="mixSourceLabel" id="mixLineSource">INPUT / FILE</button><div class="hmeter" data-mix-threshold="line"><div class="hmeterFill" id="mixLineMeter"></div><div class="threshold" id="mixLineThreshold"></div></div><input class="vf" id="mixLineLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixLineRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixLineSendA">SEND A</button><button class="sendState" id="mixLineSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixLineSendB">SEND B</button><button class="sendState" id="mixLineSendBOn">ON</button></div><div class="mixBtns"><button id="mixLineCue">MONITOR</button><button id="mixLineAir">ON AIR</button><button data-fx="line">FX</button><button id="mixLineMute">MUTE</button></div></div>
-<div class="mixStrip remoteMixStrip" data-channel-strip="iphone" data-remote-kind="iphone"><h3>3 · iPHONE</h3><small id="mixIphoneStatus">OFFLINE · LINK IN CHANNELS</small><div class="hmeter"><div class="hmeterFill" id="mixIphoneMeter"></div></div><input class="vf" id="mixIphoneLevel" type="range" min="0" max="150" value="100" disabled><div class="mixRead" id="mixIphoneRead">100%</div><div class="mixBtns"><button id="mixIphoneArm" disabled>READY</button><button id="mixIphoneAir" disabled>ON AIR</button><button id="mixIphoneMute" disabled>MUTE</button></div></div>
-<div class="mixStrip remoteMixStrip" data-channel-strip="ipad" data-remote-kind="ipad"><h3>4 · iPAD</h3><small id="mixIpadStatus">OFFLINE · LINK IN CHANNELS</small><div class="hmeter"><div class="hmeterFill" id="mixIpadMeter"></div></div><input class="vf" id="mixIpadLevel" type="range" min="0" max="150" value="100" disabled><div class="mixRead" id="mixIpadRead">100%</div><div class="mixBtns"><button id="mixIpadArm" disabled>READY</button><button id="mixIpadAir" disabled>ON AIR</button><button id="mixIpadMute" disabled>MUTE</button></div></div>
+<div class="mixStrip" data-channel-strip="line"><h3>1 · COMPUTER</h3><button type="button" class="mixSourceLabel" id="mixLineSource">INPUT / FILE</button><div class="hmeter" data-mix-threshold="line"><div class="hmeterFill" id="mixLineMeter"></div><div class="threshold" id="mixLineThreshold"></div></div><input class="vf" id="mixLineLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixLineRead">100%</div><div class="sendPair"><button class="sendOpen" id="mixLineSendA">SEND A</button><button class="sendState" id="mixLineSendAOn">ON</button></div><div class="sendPair"><button class="sendOpen" id="mixLineSendB">SEND B</button><button class="sendState" id="mixLineSendBOn">ON</button></div><div class="mixBtns"><button id="mixLineCue">MONITOR</button><button id="mixLineAir">ON AIR</button><button data-fx="line">FX</button><button id="mixLineMute">MUTE</button></div></div>
+<div class="mixStrip remoteMixStrip" data-channel-strip="iphone" data-remote-kind="iphone"><h3>2 · iPHONE</h3><small id="mixIphoneStatus">OFFLINE · LINK IN CHANNELS</small><div class="hmeter"><div class="hmeterFill" id="mixIphoneMeter"></div></div><input class="vf" id="mixIphoneLevel" type="range" min="0" max="150" value="100" disabled><div class="mixRead" id="mixIphoneRead">100%</div><div class="mixBtns"><button id="mixIphoneArm" disabled>READY</button><button id="mixIphoneAir" disabled>ON AIR</button><button id="mixIphoneMute" disabled>MUTE</button></div></div>
+<div class="mixStrip remoteMixStrip" data-channel-strip="ipad" data-remote-kind="ipad"><h3>3 · iPAD</h3><small id="mixIpadStatus">OFFLINE · LINK IN CHANNELS</small><div class="hmeter"><div class="hmeterFill" id="mixIpadMeter"></div></div><input class="vf" id="mixIpadLevel" type="range" min="0" max="150" value="100" disabled><div class="mixRead" id="mixIpadRead">100%</div><div class="mixBtns"><button id="mixIpadArm" disabled>READY</button><button id="mixIpadAir" disabled>ON AIR</button><button id="mixIpadMute" disabled>MUTE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxMix"><h3>MIX</h3><small>radio under mic</small><div class="hmeter"><div class="hmeterFill" id="mixAuxMixMeter"></div></div><input class="vf" id="masterMixLevel" type="range" min="0" max="100" value="45"><div class="mixRead" id="masterMixRead">45%</div><div class="mixBtns"><button data-close-aux="mix">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxRadio"><h3>RADIO</h3><small id="radioControlNote">PUBLIC RADIO</small><div class="hmeter"><div class="hmeterFill" id="mixRadioAuxMeter"></div></div><input class="vf" id="mixRadioBed" type="range" min="0" max="125" value="100"><div class="mixRead" id="mixRadioRead">100%</div><button id="publicRadioArm" hidden>CONTROL ON</button><div class="mixBtns"><button id="publicRadioMute">MUTE</button><button data-close-aux="radio">CLOSE</button></div></div>
 <div class="mixStrip auxStrip auxHidden" id="mixAuxStudio"><h3>STUDIO</h3><small id="studioOwnerText">return</small><div class="hmeter"><div class="hmeterFill" id="mixStudioMeter"></div></div><input class="vf" id="mixStudioLevel" type="range" min="0" max="150" value="100"><div class="mixRead" id="mixStudioRead">100%</div><div class="mixBtns"><button id="studioOpenBtn">OPEN</button><button id="studioStopBtn">STOP</button></div><div class="mixBtns"><button data-close-aux="studio">CLOSE</button></div></div>
@@ -2171,7 +2203,7 @@ function installTouchMixer(rootSelector,gridSelector){
   const enhanced=[];
   grid.querySelectorAll('input.vf[type="range"]').forEach(function(range){
     if(range.dataset.touchFader==='1')return;range.dataset.touchFader='1';
-    const wrap=document.createElement('div');wrap.className='touchFader';wrap.tabIndex=0;wrap.setAttribute('role','slider');wrap.setAttribute('aria-label',(range.id||'mixer fader').replace(/^mix/,'').replace(/Level$/,' level'));
+    const wrap=document.createElement('div');wrap.className='touchFader';wrap.tabIndex=0;wrap.setAttribute('role','slider');wrap.setAttribute('aria-label',(range.id||'mixer fader').replace(/^mix/,'').replace(/Level$/,' level'));wrap.setAttribute('aria-description','Touch anywhere on this fader and drag up or down');
     const rail=document.createElement('div');rail.className='touchFaderRail';
     const fill=document.createElement('div');fill.className='touchFaderFill';
     const thumb=document.createElement('div');thumb.className='touchFaderThumb';
@@ -2188,7 +2220,14 @@ function installTouchMixer(rootSelector,gridSelector){
       range.value=String(clamp(snapped,v.min,v.max));sync();range.dispatchEvent(new Event('input',{bubbles:true}));
     }
     let dragging=false;
-    wrap.addEventListener('pointerdown',function(e){if(e.target!==thumb)return;dragging=true;wrap.classList.add('dragging');document.body.classList.add('geFaderDragging');wrap.setPointerCapture?.(e.pointerId);setFromPointer(e);e.preventDefault()});
+    wrap.addEventListener('pointerdown',function(e){
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      dragging=true;
+      if(typeof captureGeUndo==='function')captureGeUndo();
+      wrap.classList.add('dragging');document.body.classList.add('geFaderDragging');
+      try{wrap.setPointerCapture&&wrap.setPointerCapture(e.pointerId)}catch(_e){}
+      setFromPointer(e);e.preventDefault()
+    });
     wrap.addEventListener('pointermove',function(e){if(dragging){setFromPointer(e);e.preventDefault()}});
     function end(e){if(!dragging)return;dragging=false;wrap.classList.remove('dragging');document.body.classList.remove('geFaderDragging');try{wrap.releasePointerCapture?.(e.pointerId)}catch(_e){}range.dispatchEvent(new Event('change',{bubbles:true}))}
     wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
@@ -2290,7 +2329,7 @@ function renderGeAudioSources(){
  playing.innerHTML=liveHtml||'<div class="note">No browser audio is playing right now.</div>';
  let availHtml=idle.map(function(x){return tabCard(x,allTabs.indexOf(x),false)}).join('');
  availHtml+=geAudioInputSources.map(function(x,i){
-   return '<button type="button" class="geAudioSourceCard" data-ge-input-index="'+i+'"><i></i><span><b>'+esc(x.label||'LINE INPUT')+'</b><small>WINDOWS / VIRTUAL AUDIO INPUT</small></span><em>CONNECT</em></button>'
+   return '<button type="button" class="geAudioSourceCard" data-ge-input-index="'+i+'"><i></i><span><b>'+esc(x.label||'COMPUTER INPUT')+'</b><small>WINDOWS / VIRTUAL AUDIO INPUT</small></span><em>CONNECT</em></button>'
  }).join('');
  available.innerHTML=availHtml||'<div class="note">No audio sources detected. Start YouTube/Ableton or connect VB-CABLE, then tap SCAN.</div>'
 }
@@ -2797,7 +2836,7 @@ function localLineSourceName(){
  const name=String($('lineName')&&$('lineName').textContent||'').trim();
  if(lineSourceMode==='file'&&name&&name!=='No file loaded.')return name.replace(/ · playing locally$/,'');
  if(lineSourceMode==='computer'&&geTrackLive(lineStream))return 'COMPUTER AUDIO';
- const sel=$('lineDevice');if(sel&&sel.value)return String(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'LINE INPUT');
+ const sel=$('lineDevice');if(sel&&sel.value)return String(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'COMPUTER INPUT');
  return ''
 }
 function renderLineRoleUi(){
@@ -2807,16 +2846,16 @@ function renderLineRoleUi(){
  sheet.classList.toggle('remoteLineMode',isRemote);
  if(local)local.hidden=isRemote;if(remote)remote.hidden=!isRemote;
  if(!isRemote){
-   if(banner)banner.textContent=(geTrackLive(lineStream)||!!lineMediaSource)?'HOME LINE · CONNECTED':'HOME LINE · CHOOSE A SOURCE';
+   if(banner)banner.textContent=(geTrackLive(lineStream)||!!lineMediaSource)?'HOME COMPUTER · CONNECTED':'HOME COMPUTER · CHOOSE A SOURCE';
    renderGeAudioSources();
    return
  }
  const home=homeBoardState(),connected=!!(home&&home.line_connected),air=!!(home&&home.line_air),source=String(home&&home.line_source||'').trim();
  if(banner)banner.textContent=home?'REMOTE CONTROL · HOME CONNECTED':'REMOTE CONTROL · HOME OFFLINE';
  if($('lineRemoteLinkState')){$('lineRemoteLinkState').textContent=home?'CONNECTED':'OFFLINE';$('lineRemoteLinkState').classList.toggle('online',!!home)}
- if($('lineRemoteSource'))$('lineRemoteSource').textContent=connected?(source||'HOME LINE SOURCE'):'NO HOME SOURCE CONNECTED';
+ if($('lineRemoteSource'))$('lineRemoteSource').textContent=connected?(source||'HOME COMPUTER SOURCE'):'NO HOME COMPUTER SOURCE CONNECTED';
  if($('lineRemoteHelp'))$('lineRemoteHelp').textContent=home?(connected?'This source is running on the HOME laptop. Control it here.':'Choose Ableton or YouTube on the HOME laptop once. This phone will then control it.'):'Open GE DJ on the HOME laptop to connect this remote.';
- if($('lineAir')){$('lineAir').disabled=!connected;$('lineAir').classList.toggle('on',air);$('lineAir').classList.toggle('air',air);$('lineAir').textContent=air?'STOP LINE ON AIR':(connected?'PUT HOME LINE ON AIR':'HOME LINE OFFLINE')}
+ if($('lineAir')){$('lineAir').disabled=!connected;$('lineAir').classList.toggle('on',air);$('lineAir').classList.toggle('air',air);$('lineAir').textContent=air?'STOP COMPUTER ON AIR':(connected?'PUT HOME COMPUTER ON AIR':'HOME COMPUTER OFFLINE')}
  if(home)setMeterLevel('lineMeter',Number(home.line_peak||0));else setMeterLevel('lineMeter',0)
 }
 function geBoardAppState(){return document.visibilityState==='visible'?'active':'background'}
@@ -3281,7 +3320,7 @@ async function startMicOnAir(){
    micAirOn=false;if(micAirGain&&ctx)micAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
    throw e
  }
- if($('micPathStatus'))$('micPathStatus').textContent='MIC ON AIR · '+(lineAirOn?'LINE ON AIR · ':'')+'DJ LINK CONNECTED';
+ if($('micPathStatus'))$('micPathStatus').textContent='MIC ON AIR · '+(lineAirOn?'COMPUTER ON AIR · ':'')+'DJ LINK CONNECTED';
  updateAirButtons();return true
 }
 async function stopMicOnAir(options){
@@ -3334,7 +3373,7 @@ async function startLineOnAir(){
    }
    throw e
  }
- if($('lineProfileStatus'))$('lineProfileStatus').textContent='LINE ON AIR · '+($('lineActiveDevice')?$('lineActiveDevice').textContent.replace(/^ACTIVE DEVICE · /,''):'CONNECTED');
+ if($('lineProfileStatus'))$('lineProfileStatus').textContent='COMPUTER ON AIR · '+($('lineActiveDevice')?$('lineActiveDevice').textContent.replace(/^ACTIVE DEVICE · /,''):'CONNECTED');
  if(!applyingSharedLineAir)pushSharedDjControls({line_air:true},true);geBoardHeartbeat();renderLineRoleUi();
  updateAirButtons();return true
 }
@@ -3342,8 +3381,8 @@ async function stopLineOnAir(){
  lineAirOn=false;
  if(lineAirGain&&ctx)lineAirGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
  if(!micAirOn&&liveActive)await stopDjLiveTransport();
- if($('lineProfileStatus'))$('lineProfileStatus').textContent='LINE OFF AIR · INPUT REMAINS OPEN';
- if($('micPathStatus')&&micAirOn)$('micPathStatus').textContent='MIC ON AIR · LINE OFF AIR · DJ LINK CONNECTED';
+ if($('lineProfileStatus'))$('lineProfileStatus').textContent='COMPUTER OFF AIR · INPUT REMAINS OPEN';
+ if($('micPathStatus')&&micAirOn)$('micPathStatus').textContent='MIC ON AIR · COMPUTER OFF AIR · DJ LINK CONNECTED';
  if(!applyingSharedLineAir)pushSharedDjControls({line_air:false},true);geBoardHeartbeat();renderLineRoleUi();
  updateAirButtons()
 }
@@ -3590,8 +3629,8 @@ function updateAirButtons(){
  const micStarting=!!micAirToggleBusy,lineStarting=!!lineAirToggleBusy,micOn=!!(micAirOn&&liveActive),lineOn=!!(lineAirOn&&liveActive);
  if($('micAir')){$('micAir').disabled=micStarting;$('micAir').classList.toggle('on',micOn);$('micAir').textContent=micStarting?'CONNECTING…':(micOn?'MIC ON AIR':'MIC OFF AIR')}
  if($('mixMicAir')){$('mixMicAir').disabled=micStarting;$('mixMicAir').classList.toggle('air',micOn);$('mixMicAir').textContent=micStarting?'CONNECTING':(micOn?'MIC ON AIR':'MIC OFF AIR')}
- if($('lineAir')){$('lineAir').disabled=lineStarting;$('lineAir').classList.toggle('on',lineOn);$('lineAir').classList.toggle('air',lineOn);$('lineAir').textContent=lineStarting?'CONNECTING…':(lineOn?'LINE ON AIR':'LINE OFF AIR')}
- if($('mixLineAir')){$('mixLineAir').disabled=lineStarting;$('mixLineAir').classList.toggle('air',lineOn);$('mixLineAir').textContent=lineStarting?'CONNECTING':(lineOn?'LINE ON AIR':'LINE OFF AIR')}
+ if($('lineAir')){$('lineAir').disabled=lineStarting;$('lineAir').classList.toggle('on',lineOn);$('lineAir').classList.toggle('air',lineOn);$('lineAir').textContent=lineStarting?'CONNECTING…':(lineOn?'COMPUTER ON AIR':'COMPUTER OFF AIR')}
+ if($('mixLineAir')){$('mixLineAir').disabled=lineStarting;$('mixLineAir').classList.toggle('air',lineOn);$('mixLineAir').textContent=lineStarting?'CONNECTING':(lineOn?'COMPUTER ON AIR':'COMPUTER OFF AIR')}
  $('dockMic').disabled=micStarting;$('dockMic').classList.toggle('onair',micOn);
  $('dockMic').textContent=micStarting?'MIC CONNECTING':(micOn?'MIC ON AIR':'MIC');
  $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'LOCAL MONITOR':'MONITOR'
@@ -3660,7 +3699,7 @@ async function deleteFxPreset(id){const r=await api('/control/effect-presets/del
 async function saveFxPreset(){const name=$('fxPresetName').value.trim();if(!name)throw new Error('Type a preset name first.');const r=await api('/control/effect-presets/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',name:name,settings:effectSnapshot(fxTarget)})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not save FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;selectedFxPreset=String((d.preset&&d.preset.id)||'');fxPresetLibraryOpen=true;syncFx()}
 function markFxButtons(){document.querySelectorAll('[data-fx]').forEach(function(b){b.classList.toggle('on',$('effectsSheet').classList.contains('show')&&b.dataset.fx===fxTarget)})}
 function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');markFxButtons();if($('mixerSheet').classList.contains('show'))setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders)}
-function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'LINE')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
+function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'LOCAL MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
 function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=n;b.title=slot&&slot.name?String(slot.name):('Preset '+n)})}
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
@@ -3722,7 +3761,7 @@ $('mixLineMute').onclick=function(){settings.line.mute=!settings.line.mute;apply
 bindLocalMixer();
 
 function toggleSendState(kind,which){const key=which==='delay'?'delayOn':'reverbOn';settings[kind][key]=!settings[kind][key];settings[kind].preset='CUSTOM';applyChannel(kind);syncSendToggles();if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind&&sendMiniWhich===which)syncSendAux()}
-function syncSendAux(){const isDelay=sendMiniWhich==='delay',cfg=settings[sendMiniKind],levelKey=isDelay?'delay':'reverb',onKey=isDelay?'delayOn':'reverbOn';$('sendAuxTitle').textContent='SEND '+(isDelay?'A':'B');$('sendAuxMeta').textContent=(sendMiniKind==='mic'?'MIC':'LINE')+' · '+(isDelay?'DELAY':'REVERB');$('sendAuxLevel').value=cfg[levelKey];$('sendAuxRead').textContent=Math.round(cfg[levelKey])+'%';$('sendAuxToggle').textContent=cfg[onKey]?'ON':'OFF';$('sendAuxToggle').classList.toggle('on',!!cfg[onKey])}
+function syncSendAux(){const isDelay=sendMiniWhich==='delay',cfg=settings[sendMiniKind],levelKey=isDelay?'delay':'reverb',onKey=isDelay?'delayOn':'reverbOn';$('sendAuxTitle').textContent='SEND '+(isDelay?'A':'B');$('sendAuxMeta').textContent=(sendMiniKind==='mic'?'LOCAL MIC':'COMPUTER')+' · '+(isDelay?'DELAY':'REVERB');$('sendAuxLevel').value=cfg[levelKey];$('sendAuxRead').textContent=Math.round(cfg[levelKey])+'%';$('sendAuxToggle').textContent=cfg[onKey]?'ON':'OFF';$('sendAuxToggle').classList.toggle('on',!!cfg[onKey])}
 function toggleSendAux(kind,which){const strip=$('sendAuxStrip'),same=!strip.classList.contains('auxHidden')&&sendMiniKind===kind&&sendMiniWhich===which;if(same){setAuxVisible('sendAuxStrip',false);return}sendMiniKind=kind;sendMiniWhich=which;const source=document.querySelector('[data-channel-strip="'+kind+'"]');if(source&&source.parentNode)source.insertAdjacentElement('afterend',strip);syncSendAux();setAuxVisible('sendAuxStrip',true)}
 [['mixMicSendA','mic','delay'],['mixMicSendB','mic','reverb'],['mixLineSendA','line','delay'],['mixLineSendB','line','reverb']].forEach(function(x){$(x[0]).onclick=function(e){e.preventDefault();e.stopPropagation();toggleSendAux(x[1],x[2])}});
 [['mixMicSendAOn','mic','delay'],['mixMicSendBOn','mic','reverb'],['mixLineSendAOn','line','delay'],['mixLineSendBOn','line','reverb']].forEach(function(x){$(x[0]).onclick=function(e){e.preventDefault();e.stopPropagation();toggleSendState(x[1],x[2])}});
@@ -3830,8 +3869,8 @@ function openDeviceChannel(kind){
  $('deviceChannelSheet').classList.add('show');setGeDisplayScope('home');renderDeviceChannelSheet();syncDockViewState()
 }
 function geChannelConnection(kind){
- if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'MIC'};
- if(kind==='line'){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();return {connected:!!(h&&h.line_connected),air:!!(h&&h.line_air),label:'LINE'}}return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'LINE'};}
+ if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'LOCAL MIC'};
+ if(kind==='line'){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();return {connected:!!(h&&h.line_connected),air:!!(h&&h.line_air),label:'COMPUTER'}}return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'COMPUTER'};}
  if(kind==='iphone'||kind==='ipad'){const b=boardForDeviceKind(kind),d=remoteDeviceFor(kind),self=!!(b&&String(b.id||'')===String(GE_BOARD_ID));return {connected:!!b,air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null,board:b||null,self:self}}
  return {connected:false,air:false,label:String(kind||'').toUpperCase()}
 }
@@ -3870,7 +3909,7 @@ async function toggleChannelConnection(kind){
     await startSelectedLineInput()
    }else{
     $('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();
-    if($('lineProfileStatus'))$('lineProfileStatus').textContent='CHOOSE ABLETON / VB-CABLE OR COMPUTER AUDIO · MICROPHONE IS BLOCKED FROM LINE'
+    if($('lineProfileStatus'))$('lineProfileStatus').textContent='CHOOSE ABLETON / VB-CABLE OR YOUTUBE · LOCAL MIC IS SEPARATE'
    }
   }else if(kind==='iphone'||kind==='ipad'){
    openDeviceChannel(kind);return
@@ -3878,7 +3917,7 @@ async function toggleChannelConnection(kind){
  }catch(e){alert(e.message||e)}
  finally{if(b)b.classList.remove('busy');renderChannelStatusBubbles()}
 }
-const MIXER_CHANNELS_KEY='geDjVisibleChannelsV1';
+const MIXER_CHANNELS_KEY='geDjVisibleChannelsV2';
 function loadMixerChannelPrefs(){
   let saved=null;try{saved=JSON.parse(localStorage.getItem(MIXER_CHANNELS_KEY)||'null')}catch(e){}
   document.querySelectorAll('[data-mixer-channel]').forEach(function(box){
@@ -3978,7 +4017,7 @@ function handleGeAudioSourceClick(e){
    const src=geAudioInputSources[Number(input.dataset.geInputIndex)];if(!src)return;
    const sel=$('lineDevice');if(!sel)return;
    if(!Array.from(sel.options).some(function(o){return String(o.value)===String(src.deviceId)})){
-     const o=document.createElement('option');o.value=src.deviceId;o.textContent=src.label||'LINE INPUT';sel.appendChild(o)
+     const o=document.createElement('option');o.value=src.deviceId;o.textContent=src.label||'COMPUTER INPUT';sel.appendChild(o)
    }
    sel.value=String(src.deviceId);geAudioRequestedTitle='';updateLineSourceLabel();
    selectAndOpenLineInput().then(function(){renderGeAudioSources();geBoardHeartbeat()}).catch(function(err){if($('geAudioHelperState'))$('geAudioHelperState').textContent='INPUT ERROR · '+(err.message||err)})
