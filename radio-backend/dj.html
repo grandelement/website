@@ -2574,6 +2574,13 @@ html.geDayMode .djSelectAll{
  border-color:#8396a5!important;
 }
 
+
+/* V82: top channel bubbles are persistent toggle controls. */
+.geChannelBubble.panelOpen{
+ outline:2px solid var(--accent)!important;
+ outline-offset:1px!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2581,7 +2588,7 @@ html.geDayMode .djSelectAll{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v81</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v82</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4732,10 +4739,13 @@ function renderChannelStatusBubbles(){
  ['mic','line','iphone','ipad'].forEach(function(kind){
   const b=root.querySelector('[data-channel-bubble="'+kind+'"]');if(!b)return;
   const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
-  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);
-  b.disabled=!enabled;b.setAttribute('aria-pressed',s.connected?'true':'false');
-  if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO OPEN CHANNEL'+(s.air?' · ON AIR':'');
-  else b.title=s.label+' · '+(s.connected?'CONNECTED':'DISCONNECTED')+' · TAP TO OPEN MIC'+(s.air?' · ON AIR':'')
+  const panelOpen=kind==='mic'?!!($('micSheet')&&$('micSheet').classList.contains('show')):
+                  kind==='line'?!!($('lineSheet')&&$('lineSheet').classList.contains('show')):
+                  !!($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===kind);
+  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);b.classList.toggle('panelOpen',panelOpen);
+  b.disabled=!enabled;b.setAttribute('aria-pressed',panelOpen?'true':'false');b.setAttribute('aria-expanded',panelOpen?'true':'false');
+  if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'');
+  else b.title=s.label+' · '+(s.connected?'CONNECTED':'DISCONNECTED')+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'')
  })
  renderMixerStripStatusDots()
 }
@@ -4757,12 +4767,29 @@ async function toggleChannelConnection(kind){
  if(b)b.classList.add('busy');
  try{
   if(kind==='mic'){
-   $('micSheet').classList.add('show');$('mixerSheet').classList.remove('show');setGeDisplayScope('mic');syncDockViewState();return
+   const sheet=$('micSheet');
+   if(sheet&&sheet.classList.contains('show')){
+    sheet.classList.remove('show');setGeDisplayScope('home');syncDockViewState();return
+   }
+   ['lineSheet','deviceChannelSheet','mixerSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
+   geOpenDeviceKind='';
+   sheet.classList.add('show');setGeDisplayScope('mic');syncDockViewState();return
   }else if(kind==='line'){
-   $('lineSheet').classList.add('show');$('mixerSheet').classList.remove('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();
+   const sheet=$('lineSheet');
+   if(sheet&&sheet.classList.contains('show')){
+    sheet.classList.remove('show');setGeDisplayScope('home');syncDockViewState();return
+   }
+   ['micSheet','deviceChannelSheet','mixerSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
+   geOpenDeviceKind='';
+   sheet.classList.add('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();
    if(GE_BOARD_ROLE==='home')refreshDevices().then(function(){renderLineSavedInputs();if(geArrangement===2)scanGeAudioSources()});
    return
   }else if(kind==='iphone'||kind==='ipad'){
+   const sheet=$('deviceChannelSheet');
+   if(sheet&&sheet.classList.contains('show')&&geOpenDeviceKind===kind){
+    sheet.classList.remove('show');geOpenDeviceKind='';setGeDisplayScope('home');syncDockViewState();return
+   }
+   ['micSheet','lineSheet','mixerSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
    openDeviceChannel(kind);return
   }
  }catch(e){alert(e.message||e)}
