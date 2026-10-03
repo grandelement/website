@@ -6650,10 +6650,12 @@ const MINI_MAX    = MOBILE ? 1 : 2;
 function loop(){
   try{
   if(!RUN){setTimeout(loop,500);return;}
-  // The normal universe sleeps during ordinary Game Mode, but THE BODY deliberately
-  // uses the live GE universe, its Ship and Comets as the game world.
+  // Only the visible Game Mode class is allowed to sleep the normal universe.
+  // Do not trust a stale GE_GAME.state.active flag after leaving a game: that regression
+  // could stop normal-site Bodies/Souls from ever spawning or drawing.
   const bodyRaceLive=document.body.classList.contains('ge-body-race-active');
-  if(typeof GE_GAME!=='undefined'&&GE_GAME.state.active&&!bodyRaceLive){last=performance.now()/1000;setTimeout(loop,250);return;}
+  const visibleGameMode=document.body.classList.contains('game-mode-active');
+  if(visibleGameMode&&!bodyRaceLive){last=performance.now()/1000;setTimeout(loop,250);return;}
   const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;PERF.dt=dt;perfHeat(dt);
 
   const hot = PERF.heat>0.6;
@@ -6800,10 +6802,10 @@ function loop(){
   for(const q of quantumClusters){try{q.draw()}catch(err){console.error('GE quantum draw isolated an error',err)}}
   comets.filter(c=>c.depth!=='front').forEach(c=>c.draw(ctx));
   miniShips.forEach(s=>s.draw());
-  // Full-size Body is physically closest to the visitor. On low-power/mobile mode
-  // fxFront is intentionally hidden, so draw the Body on the visible main FX canvas instead.
-  // Otherwise keep the foreground render above the planets/Sun/Moon.
-  const bodyDrawCtx=(bodyRaceLive&&frontCtx)?frontCtx:((window.GE_LOW_POWER||document.body.classList.contains('ge-low-power')||!frontCtx)?ctx:frontCtx);
+  // NORMAL WEBSITE: restore the stable renderer used before the game-layer work.
+  // Full-size Bodies belong on the main FX canvas in ordinary non-game mode.
+  // THE BODY course may still use the foreground canvas so its game craft stays above hazards.
+  const bodyDrawCtx=(bodyRaceLive&&frontCtx)?frontCtx:ctx;
   ships.forEach(s=>s.draw(bodyDrawCtx));
   if(frontCtx)comets.filter(c=>c.depth==='front').forEach(c=>c.draw(frontCtx));
 
