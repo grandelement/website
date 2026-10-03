@@ -2120,6 +2120,152 @@ body .brand>span{font-size:var(--ge-font-body)!important}
   min-width:0!important
  }
 }
+
+/* V73: hard separation of channel row and text/layout row. */
+.geDisplayZoomBar,
+.geDisplayZoomBar.inHeader,
+#mixerSheet .mixerScaleHost .geDisplayZoomBar{
+ display:flex!important;
+ flex-direction:column!important;
+ align-items:stretch!important;
+ gap:5px!important;
+ grid-template-columns:none!important;
+ width:100%!important;
+ max-width:none!important;
+ min-width:0!important
+}
+.geDisplayZoomBar .geChannelStatus{
+ order:1!important;
+ display:flex!important;
+ width:100%!important;
+ min-width:0!important;
+ gap:5px!important;
+ overflow-x:auto!important
+}
+.geDisplayZoomBar .geScaleControls{
+ order:2!important;
+ width:100%!important;
+ min-width:0!important
+}
+
+/* MIC / COMPUTER / EFFECTS headers: title + CLOSE first row, display controls below. */
+#lineSheet .sheetHead,
+#micSheet .sheetHead{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto!important;
+ grid-template-rows:auto auto!important;
+ align-items:center!important;
+ gap:6px!important
+}
+#lineSheet .sheetHead>div:first-child,
+#micSheet .sheetHead>div:first-child{grid-column:1!important;grid-row:1!important;min-width:0!important}
+#lineSheet .sheetHead>button[data-close],
+#micSheet .sheetHead>button[data-close]{grid-column:2!important;grid-row:1!important}
+#lineSheet .sheetHead>.geDisplayZoomBar,
+#micSheet .sheetHead>.geDisplayZoomBar{
+ grid-column:1/-1!important;grid-row:2!important;
+ margin-top:2px!important
+}
+#mixerSheet #effectsSheet .fxDockHead{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto!important;
+ grid-template-rows:auto auto!important;
+ align-items:center!important;
+ gap:6px!important
+}
+#mixerSheet #effectsSheet .fxDockHead>.geDisplayZoomBar{
+ grid-column:1/-1!important;grid-row:2!important
+}
+
+/* V73 proportional mixer typography: every size derives from the same master scale. */
+#mixerSheet .mixStrip h3{
+ font-size:clamp(9px,calc(12px * var(--ge-ui-scale)),20px)!important;
+ line-height:1.05!important;
+ white-space:normal!important;
+ overflow-wrap:anywhere!important;
+ min-height:0!important;
+ margin:0 0 5px!important
+}
+#mixerSheet .mixStrip small,
+#mixerSheet .mixStrip .mixMeta,
+#mixerSheet .remoteMixStrip>small{
+ font-size:clamp(7px,calc(8.5px * var(--ge-ui-scale)),14px)!important;
+ line-height:1.15!important;
+ white-space:normal!important;
+ overflow-wrap:anywhere!important
+}
+#mixerSheet .mixSourceLabel{
+ font-size:clamp(8px,calc(10px * var(--ge-ui-scale)),16px)!important;
+ line-height:1.08!important;
+ white-space:normal!important;
+ overflow-wrap:anywhere!important;
+ min-height:clamp(34px,calc(42px * var(--ge-ui-scale)),64px)!important;
+ height:auto!important;
+ padding:calc(5px * var(--ge-ui-scale)) calc(6px * var(--ge-ui-scale))!important
+}
+#mixerSheet .mixBtns button,
+#mixerSheet .sendPair button,
+#mixerSheet .masterFxBtns button,
+#mixerSheet .remoteMixStrip .mixBtns button{
+ font-size:clamp(7px,calc(9px * var(--ge-ui-scale)),15px)!important;
+ line-height:1.06!important;
+ white-space:normal!important;
+ overflow-wrap:anywhere!important;
+ min-height:clamp(30px,calc(38px * var(--ge-ui-scale)),60px)!important;
+ height:auto!important;
+ padding:calc(4px * var(--ge-ui-scale)) calc(4px * var(--ge-ui-scale))!important
+}
+#mixerSheet .mixRead{
+ font-size:clamp(10px,calc(13px * var(--ge-ui-scale)),21px)!important;
+ line-height:1!important
+}
+#mixerSheet .stripStatusDot{
+ width:clamp(6px,calc(8px * var(--ge-ui-scale)),12px)!important;
+ height:clamp(6px,calc(8px * var(--ge-ui-scale)),12px)!important;
+ margin-right:calc(4px * var(--ge-ui-scale))!important
+}
+
+/* Allow the button boxes to follow wrapped text instead of clipping it. */
+#mixerSheet button{
+ overflow:visible!important;
+ text-overflow:clip!important
+}
+#mixerSheet .mixBtns{
+ align-items:stretch!important
+}
+#mixerSheet .mixBtns button{
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ text-align:center!important
+}
+
+/* Phone: full first row = channels; full second row = compact TEXT controls. */
+@media(max-width:560px){
+ .geDisplayZoomBar .geScaleControls{
+  grid-template-columns:auto 38px 48px 38px!important;
+  justify-content:start!important;
+  width:100%!important
+ }
+ #lineSheet .sheetHead .geDisplayZoomBar,
+ #micSheet .sheetHead .geDisplayZoomBar,
+ #effectsSheet .fxDockHead .geDisplayZoomBar{
+  min-width:0!important;
+  max-width:none!important;
+  width:100%!important;
+  flex:auto!important
+ }
+ #lineSheet .sheetHead .geDisplayZoomBar .geChannelStatus,
+ #micSheet .sheetHead .geDisplayZoomBar .geChannelStatus,
+ #effectsSheet .fxDockHead .geDisplayZoomBar .geChannelStatus{
+  display:flex!important
+ }
+}
+
+/* Remote COMPUTER meter is a true remote signal indicator. */
+.geRemoteComputerSignal #mixLineMeter{
+ transition:width .16s linear!important
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2127,7 +2273,7 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v72</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v73</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2347,6 +2493,7 @@ const GE_IS_IPAD=/iPad/i.test(GE_UA)||((/Macintosh|MacIntel/i.test(GE_UA+' '+GE_
 const GE_IS_IPHONE=/iPhone|iPod/i.test(GE_UA);
 const GE_DEVICE_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE?'iphone':'home');
 const GE_BOARD_ROLE=GE_DEVICE_KIND==='home'?'home':'remote';
+if(GE_BOARD_ROLE==='remote')document.documentElement.classList.add('geRemoteComputerSignal');
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
 const GE_BOARD_LABEL=GE_DEVICE_KIND==='ipad'?'iPAD':(GE_DEVICE_KIND==='iphone'?'iPHONE':'HOME');
 let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
@@ -2946,6 +3093,7 @@ function renderLineRoleUi(){
  if(banner)banner.textContent=home?'REMOTE CONTROL · HOME CONNECTED':'REMOTE CONTROL · HOME OFFLINE';
  if($('lineRemoteLinkState')){$('lineRemoteLinkState').textContent=home?'CONNECTED':'OFFLINE';$('lineRemoteLinkState').classList.toggle('online',!!home)}
  if($('lineRemoteSource'))$('lineRemoteSource').textContent=connected?(source||'HOME COMPUTER SOURCE'):'NO HOME COMPUTER SOURCE CONNECTED';
+ if(GE_BOARD_ROLE==='remote'&&$('mixLineSource'))$('mixLineSource').textContent=connected?(source||'COMPUTER SOURCE'):'SELECT SOURCE';
  if($('lineRemoteHelp'))$('lineRemoteHelp').textContent=home?(connected?'This source is running on the HOME laptop. Control it here.':'Choose Ableton or YouTube on the HOME laptop once. This phone will then control it.'):'Open GE DJ on the HOME laptop to connect this remote.';
  if($('lineAir')){$('lineAir').disabled=!connected;$('lineAir').classList.toggle('on',air);$('lineAir').classList.toggle('air',air);$('lineAir').textContent=air?'STOP COMPUTER ON AIR':(connected?'PUT HOME COMPUTER ON AIR':'HOME COMPUTER OFFLINE')}
  if(home)setMeterLevel('lineMeter',Number(home.line_peak||0));else setMeterLevel('lineMeter',0)
@@ -2963,7 +3111,7 @@ async function geBoardHeartbeat(){
 function startBoardHeartbeat(){
  clearInterval(boardHeartbeatTimer);
  geBoardHeartbeat();
- boardHeartbeatTimer=setInterval(geBoardHeartbeat,5000)
+ boardHeartbeatTimer=setInterval(geBoardHeartbeat,1000)
 }
 async function requestBoardWakeLock(){
  try{
@@ -2999,7 +3147,7 @@ function openConnectedStudio(role){
   const p=$('mixerChannelPicker');if(p){p.classList.add('show');$('mixerChannelsBtn')&&$('mixerChannelsBtn').classList.add('on')}
  }
 }
-function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderDeviceChannelSheet();applySharedDjControls();syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderDeviceChannelSheet();applySharedDjControls();if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();setMeterLevel('mixLineMeter',h?Number(h.line_peak||0):0)};syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
