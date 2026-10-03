@@ -240,6 +240,17 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 #mixerSheet .remoteMixStrip .mixBtns button.on{border-color:#55d8c1;background:#12382f}
 #mixerSheet .remoteMixStrip .mixBtns button.air{border-color:#ff657b;background:#681b29}
 #mixerSheet .remoteMixStrip input:disabled,.remoteMixStrip button:disabled{opacity:.42}
+/* V59: two-size control typography. All controls share one size; titles use one larger size. */
+#mixerSheet,#lineSheet,#micSheet{--geCtlText:12px;--geTitleText:17px}
+#mixerSheet button,#mixerSheet label,#mixerSheet small,#mixerSheet .note,#mixerSheet .label,#mixerSheet .mixRead,#mixerSheet select,#mixerSheet input:not([type="range"]),
+#lineSheet button,#lineSheet label,#lineSheet small,#lineSheet .note,#lineSheet .label,#lineSheet select,#lineSheet input:not([type="range"]),
+#micSheet button,#micSheet label,#micSheet small,#micSheet .note,#micSheet .label,#micSheet select,#micSheet input:not([type="range"]){
+ font-size:var(--geCtlText)!important;line-height:1.15!important
+}
+#mixerSheet .sheetTitle,#mixerSheet .mixStrip h3,#mixerSheet .fxTitleBlock .sheetTitle,
+#lineSheet .sheetTitle,#micSheet .sheetTitle{font-size:var(--geTitleText)!important;line-height:1.1!important}
+#lineSheet .computerAudioBtn{margin:7px 0 0!important;border-color:#58a5ff!important;background:#102a43!important}
+
 
 #mixerSheet .remoteDeviceCard button{min-height:40px;border:1px solid #3c5669;background:#111820;color:#fff;border-radius:8px;font-size:8px;font-weight:950}
 #mixerSheet .remoteDeviceCard button.airOn{border-color:#ff667b;background:#541923}
@@ -1660,7 +1671,7 @@ body{padding-top:10px!important}
 body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 #mixerSheet.show{top:max(7px,env(safe-area-inset-top))!important}
 .geDisplayZoomBar{
- grid-template-columns:auto 34px minmax(90px,1fr) 34px 48px auto auto!important;
+ grid-template-columns:auto 34px minmax(72px,1fr) 34px 48px auto minmax(125px,auto) auto!important;
  width:min(760px,calc(100vw - 16px))!important
 }
 .geDisplayZoomBar.inHeader{
@@ -1669,6 +1680,21 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
  box-shadow:none!important;background:#071018!important;backdrop-filter:none!important
 }
 .geDisplayZoomBar .geUtilityAction{min-height:34px!important;padding:0 9px!important;font-size:10px!important;white-space:nowrap}
+.geChannelStatus{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.geChannelStatus::-webkit-scrollbar{display:none}
+.geChannelBubble{appearance:none;display:inline-flex;align-items:center;gap:4px;min-height:30px!important;padding:0 7px!important;border:1px solid #39444e!important;background:#0c1116!important;color:#7d8993!important;border-radius:999px!important;font-size:8px!important;font-weight:950!important;white-space:nowrap;flex:0 0 auto}
+.geChannelBubble i{display:block;width:7px;height:7px;border-radius:50%;background:#3a444d;box-shadow:none}
+.geChannelBubble.connected{border-color:#55d8c1!important;background:#102b26!important;color:#fff!important}
+.geChannelBubble.connected i{background:#55d8c1;box-shadow:0 0 9px #55d8c1}
+.geChannelBubble.onAir{border-color:#ff6178!important}
+.geChannelBubble.busy{opacity:.5;pointer-events:none}
+.geChannelBubble.channelDisabled{display:none!important}
+@media(max-width:700px){
+ .geChannelBubble{padding:0 6px!important;font-size:7px!important}
+ .geChannelBubble[data-channel-bubble="iphone"] span{font-size:0!important}.geChannelBubble[data-channel-bubble="iphone"] span:after{content:"PHONE";font-size:7px}
+ .geChannelBubble[data-channel-bubble="ipad"] span{font-size:0!important}.geChannelBubble[data-channel-bubble="ipad"] span:after{content:"PAD";font-size:7px}
+}
+
 .geDisplayZoomBar .geUtilityAction:disabled{opacity:.38}
 @media(max-width:700px),(pointer:coarse){.geDesktopOnly{display:none!important}}
 #mixerSheet .mixerHeader{grid-template-columns:auto minmax(330px,1fr) auto auto!important}
@@ -1716,11 +1742,12 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
  <input id="geZoomRange" type="range" min="100" max="220" step="5" value="120" aria-label="GE DJ display zoom">
  <button type="button" id="geZoomUp" aria-label="Increase display text">+</button><output id="geZoomRead">120%</output>
  <button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button>
+ <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>LINE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
  <button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v58</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="font-size:9px;color:var(--accent)">v59</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -1748,7 +1775,7 @@ body.geHomeZoom{padding-top:calc(var(--geDisplayTop,54px) + 6px)!important}
 <audio id="radioAudio" preload="none" playsinline crossorigin="anonymous"></audio>
 <div class="dock"><div class="dockin"><button id="dockRadio">RADIO</button><button class="cue" id="dockCue">MONITOR</button><button class="mic" id="dockMic">MIC</button><button id="dockMixer">MIXER</button><button id="dockFx">EFFECTS</button><button class="studio" id="dockStudio">STUDIO</button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
 <div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">LOCAL MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
-<div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">INPUT / DEVICE / FILE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="note">Choose any audio input this browser can see. Save the ones you use so Channel 2 can switch between Ableton/VB-CABLE, a laptop input, USB interface, or another device.</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="sourceSelect"><select id="lineDevice"><option value="">Default audio input</option></select><button id="lineOpen">OPEN INPUT</button></div><div class="lineActiveDevice" id="lineActiveDevice">ACTIVE DEVICE · NONE</div><div class="lineInputManager"><div class="label">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="Name this input — e.g. ABLETON"><button type="button" id="lineProfileAdd">+ ADD DEVICE</button></div><div class="note" id="lineProfileStatus">Choose a device above, then save it here.</div></div><div class="lineQuickActions"><label class="sourceBtn">LOAD FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label><button class="cueBtn" id="lineCue">MONITOR OFF</button><button class="airBtn" id="lineAir">LINE OFF</button><button class="sourceBtn" id="lineFxOpen">LINE EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
+<div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 2</div><div class="sheetTitle">LINE SOURCE</div></div><button data-close="lineSheet">CLOSE</button></div><div class="note">LINE never uses the microphone. Choose Ableton / VB-CABLE below, or use COMPUTER AUDIO for YouTube or another shared tab/window.</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="sourceSelect"><select id="lineDevice"><option value="">CHOOSE LINE INPUT — NO MIC FALLBACK</option></select><button id="lineOpen">OPEN INPUT</button></div><button class="sourceBtn computerAudioBtn" id="lineComputerAudio" type="button">COMPUTER AUDIO / YOUTUBE</button><div class="lineActiveDevice" id="lineActiveDevice">ACTIVE DEVICE · NONE</div><div class="lineInputManager"><div class="label">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="Name this input — e.g. ABLETON"><button type="button" id="lineProfileAdd">+ ADD DEVICE</button></div><div class="note" id="lineProfileStatus">Choose a specific LINE device. The default microphone is blocked here.</div></div><div class="lineQuickActions"><label class="sourceBtn">LOAD FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label><button class="cueBtn" id="lineCue">MONITOR OFF</button><button class="airBtn" id="lineAir">LINE OFF</button><button class="sourceBtn" id="lineFxOpen">LINE EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTitleBlock"><div class="label">LIVE CONSOLE</div><div class="sheetTitle">MIXER</div></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut">−</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn">+</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div><div class="mixerHeadActions"><button id="mixerLinkBtn" class="mixerLinkBtn" type="button"><i class="lamp"></i><span>LINK</span></button><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><label><input type="checkbox" data-mixer-channel="mic" checked>MIC</label><label><input type="checkbox" data-mixer-channel="line" checked>LINE</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ LINK DEVICE</button><strong id="pairingCode"></strong></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut">−</button>
@@ -1951,6 +1978,7 @@ let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSl
    cellular broadcast uses the V44 24 kHz mono low-bandwidth transport and server stereo expansion. */
 const GE_SAFE_MIC_DEFAULT=Object.freeze({level:100,pan:0,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,isolationOn:false,isolationMode:'WALKING',isolationLevel:85,compStrength:65,eqOn:false,eqLow:0,eqMid:0,eqHigh:0});
 let settings={mic:{...GE_SAFE_MIC_DEFAULT},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,compStrength:55,eqOn:false,eqLow:0,eqMid:0,eqHigh:0}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=localStorage.getItem('geDjPublicRadioControl')==='1';radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
+let lineSourceMode='device';
 let djInputProfile={version:1,device_scope:'',slots:[]};
 let djBrowserScope='';
 function getDjBrowserScope(){
@@ -2009,7 +2037,7 @@ async function addCurrentLineDevice(){
 function updateLineSourceLabel(){
  const b=$('mixLineSource'),sel=$('lineDevice');if(!b||!sel)return;
  const id=String(sel.value||''),saved=djExtraInputSlots().find(function(x){return String(x.device_id||'')===id});
- b.textContent=saved&&saved.name?String(saved.name).toUpperCase():(id?(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'INPUT'):'INPUT / FILE');
+ b.textContent=saved&&saved.name?String(saved.name).toUpperCase():(id?(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'INPUT'):(lineSourceMode==='computer'?'COMPUTER AUDIO':'SELECT SOURCE'));
  renderLineSavedInputs()
 }
 async function switchSavedLineDevice(slotId){
@@ -2336,7 +2364,7 @@ function openConnectedStudio(role){
   const p=$('mixerChannelPicker');if(p){p.classList.add('show');$('mixerChannelsBtn')&&$('mixerChannelsBtn').classList.add('on')}
  }
 }
-function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();applySharedDjControls();syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderChannelStatusBubbles();applySharedDjControls();syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
@@ -2933,8 +2961,8 @@ async function applyMicIsolation(){
   applyMicIsolationFilters();
   syncMicIsolationUI();saveSettings();
 }
-async function ensureMicOpen(){await ensureAudio();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();return true}
-async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();return}await ensureMicOpen();updateAirButtons()}
+async function ensureMicOpen(){await ensureAudio();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='LOCAL MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();renderChannelStatusBubbles();return true}
+async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='LOCAL MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();renderChannelStatusBubbles();return}await ensureMicOpen();updateAirButtons();renderChannelStatusBubbles()}
 async function warmDjSources(){await ensureAudio();await refreshDevices();updateAirButtons()}
 function stopLineInput(){
  if(lineStream){lineStream.getTracks().forEach(function(t){try{t.stop()}catch(e){}})}
@@ -2942,12 +2970,18 @@ function stopLineInput(){
  lineStream=null;lineSource=null;
  $('lineOpen').textContent='OPEN INPUT';
  const active=$('lineActiveDevice');if(active){active.textContent='ACTIVE DEVICE · NONE';active.classList.remove('bad')}
+ if(typeof renderChannelStatusBubbles==='function')renderChannelStatusBubbles()
 }
 async function startSelectedLineInput(){
  await ensureAudio();
- const sel=$('lineDevice'),id=sel.value,cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000}};
- if(id)cons.deviceId={exact:id};
- const requested=id?(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'Selected input'):'Default audio input';
+ const sel=$('lineDevice'),id=String(sel&&sel.value||'');
+ if(!id){
+   if($('lineProfileStatus'))$('lineProfileStatus').textContent='LINE BLOCKED · CHOOSE ABLETON / VB-CABLE OR COMPUTER AUDIO · MICROPHONE WILL NOT BE USED';
+   throw new Error('Choose a specific LINE input. GE DJ will not use the default microphone for LINE.');
+ }
+ const cons={echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2},sampleRate:{ideal:48000},deviceId:{exact:id}};
+ const requested=sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||'Selected LINE input';
+ lineSourceMode='device';
  try{
    lineStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});
    const track=lineStream.getAudioTracks&&lineStream.getAudioTracks()[0];
@@ -2958,10 +2992,10 @@ async function startSelectedLineInput(){
    $('lineOpen').textContent='CLOSE INPUT';
    const active=$('lineActiveDevice');if(active){active.textContent='ACTIVE DEVICE · '+actual;active.classList.remove('bad')}
    const statusBox=$('lineProfileStatus');if(statusBox)statusBox.textContent='CONNECTED · '+actual;
-   runChannelMeter('line');updateLineSourceLabel();
+   runChannelMeter('line');updateLineSourceLabel();renderChannelStatusBubbles();
    return actual
  }catch(e){
-   stopLineInput();
+   stopLineInput();renderChannelStatusBubbles();
    const active=$('lineActiveDevice');if(active){active.textContent='ACTIVE DEVICE · FAILED · '+requested;active.classList.add('bad')}
    throw e
  }
@@ -2970,6 +3004,34 @@ async function openLine(){
  if(lineStream){if(lineAirOn)await stopLineOnAir();stopLineInput();return}
  return startSelectedLineInput()
 }
+async function startComputerAudioCapture(){
+ await ensureAudio();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia)throw new Error('This browser does not provide computer-audio capture here.');
+ if(lineAirOn)await stopLineOnAir();
+ stopLineInput();
+ if(lineAudio){try{lineAudio.pause()}catch(e){}try{lineMediaSource&&lineMediaSource.disconnect()}catch(e){}lineAudio=null;lineMediaSource=null}
+ const display=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true,systemAudio:'include',windowAudio:'system',selfBrowserSurface:'exclude'});
+ const audioTrack=display.getAudioTracks&&display.getAudioTracks()[0];
+ if(!audioTrack){
+   display.getTracks().forEach(function(t){try{t.stop()}catch(e){}});
+   throw new Error('That shared screen/window did not provide audio. Choose a tab/window with audio sharing enabled.');
+ }
+ lineSourceMode='computer';
+ lineStream=display;
+ if(!lineGain)buildChannel('line');
+ lineSource=ctx.createMediaStreamSource(display);
+ lineSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);
+ const actual=String(audioTrack.label||'Computer Audio');
+ $('lineOpen').textContent='CLOSE INPUT';
+ if($('lineActiveDevice')){$('lineActiveDevice').textContent='ACTIVE DEVICE · COMPUTER AUDIO · '+actual;$('lineActiveDevice').classList.remove('bad')}
+ if($('lineProfileStatus'))$('lineProfileStatus').textContent='CONNECTED · COMPUTER AUDIO · MICROPHONE OFF';
+ if($('lineName'))$('lineName').textContent='Shared computer / tab audio.';
+ const videoTrack=display.getVideoTracks&&display.getVideoTracks()[0];
+ if(videoTrack)videoTrack.onended=function(){if(lineStream===display){stopLineInput();renderChannelStatusBubbles()}};
+ audioTrack.onended=function(){if(lineStream===display){stopLineInput();renderChannelStatusBubbles()}};
+ runChannelMeter('line');updateLineSourceLabel();renderChannelStatusBubbles();return actual
+}
+
 async function selectAndOpenLineInput(){
  if(lineAirOn)await stopLineOnAir();
  stopLineInput();
@@ -2984,7 +3046,7 @@ async function loadLineFile(file){
  stopLineInput();
  if(!lineGain)buildChannel('line');
  if(lineAudio){lineAudio.pause();try{lineMediaSource&&lineMediaSource.disconnect()}catch(e){}}
- lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
+ lineSourceMode='file';lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
 }
 function setMeterLevel(id,pct){const e=$(id);if(!e)return;e.style.setProperty('--meter-level',clamp(Number(pct)||0,0,100)+'%')}
 function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
@@ -3028,7 +3090,7 @@ function updateAirButtons(){
  $('dockMic').textContent=micStarting?'MIC CONNECTING':(micOn?'MIC ON AIR':'MIC');
  $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'LOCAL MONITOR':'MONITOR'
 }
-async function refreshDevices(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(function(d){return d.kind==='audioinput'});['micDevice','lineDevice'].forEach(function(id){const sel=$(id),cur=sel.value;sel.innerHTML='<option value="">Default audio input</option>';ds.forEach(function(d,i){const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Audio input '+(i+1));sel.appendChild(o)});if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur});updateLineSourceLabel()}catch(e){}}
+async function refreshDevices(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(function(d){return d.kind==='audioinput'});['micDevice','lineDevice'].forEach(function(id){const sel=$(id),cur=sel.value;sel.innerHTML=id==='micDevice'?'<option value="">Default microphone</option>':'<option value="">CHOOSE LINE INPUT — NO MIC FALLBACK</option>';ds.forEach(function(d,i){const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Audio input '+(i+1));sel.appendChild(o)});if(Array.from(sel.options).some(function(o){return o.value===cur}))sel.value=cur});updateLineSourceLabel()}catch(e){}}
 function updateThresholds(){['mic','line'].forEach(function(k){const pct=clamp((settings[k].threshold+60)/60*100,0,100),cap=k==='mic'?'Mic':'Line';[k+'Threshold','mix'+cap+'Threshold'].forEach(function(id){const e=$(id);if(e)e.style.left=pct+'%'})})}function bindThreshold(el,kind){let drag=false;const set=function(e){const r=el.getBoundingClientRect(),f=clamp((e.clientX-r.left)/r.width,0,1),db=clamp(-60+f*60,-40,-2);settings[kind].threshold=Math.round(db);applyChannel(kind);if(fxTarget===kind)syncFx()};el.addEventListener('pointerdown',function(e){drag=true;el.setPointerCapture&&el.setPointerCapture(e.pointerId);set(e)});el.addEventListener('pointermove',function(e){if(drag)set(e)});el.addEventListener('pointerup',function(){drag=false});el.addEventListener('pointercancel',function(){drag=false})}bindThreshold($('micSheet').querySelector('[data-threshold-meter]'),'mic');bindThreshold($('lineSheet').querySelector('[data-line-threshold]'),'line');bindThreshold(document.querySelector('[data-mix-threshold="mic"]'),'mic');bindThreshold(document.querySelector('[data-mix-threshold="line"]'),'line');
 (function bindFxMeterThreshold(){
  const el=$('fxMeterTrack');if(!el)return;let drag=false;
@@ -3222,6 +3284,60 @@ function fitMixer(){
   applyMixerZoom(20,true);
   const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');if(grid)grid.scrollLeft=0;
 }
+function geChannelEnabled(kind){
+ const box=document.querySelector('[data-mixer-channel="'+kind+'"]');return box?!!box.checked:false
+}
+function geTrackLive(stream){try{const t=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];return !!(t&&t.readyState==='live')}catch(e){return false}}
+function geChannelConnection(kind){
+ if(kind==='mic')return {connected:geTrackLive(micStream),air:!!micAirOn,label:'MIC'};
+ if(kind==='line')return {connected:geTrackLive(lineStream)||!!lineMediaSource,air:!!lineAirOn,label:'LINE'};
+ if(kind==='iphone'||kind==='ipad'){const d=remoteDeviceFor(kind);return {connected:!!(d&&d.online&&d.remote_ready),air:!!(d&&d.on_air),label:kind==='iphone'?'iPHONE':'iPAD',device:d||null}}
+ return {connected:false,air:false,label:String(kind||'').toUpperCase()}
+}
+function renderChannelStatusBubbles(){
+ const root=$('geChannelStatus');if(!root)return;
+ ['mic','line','iphone','ipad'].forEach(function(kind){
+  const b=root.querySelector('[data-channel-bubble="'+kind+'"]');if(!b)return;
+  const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
+  b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('onAir',!!s.air);
+  b.disabled=!enabled;b.setAttribute('aria-pressed',s.connected?'true':'false');
+  if((kind==='iphone'||kind==='ipad')&&!s.device)b.title=s.label+' · NOT LINKED · TAP TO OPEN CHANNELS';
+  else b.title=s.label+' · '+(s.connected?'CONNECTED · TAP TO DISCONNECT':'DISCONNECTED · TAP TO CONNECT')+(s.air?' · ON AIR':'')
+ })
+}
+async function toggleChannelConnection(kind){
+ const root=$('geChannelStatus'),b=root&&root.querySelector('[data-channel-bubble="'+kind+'"]');if(!geChannelEnabled(kind))return;
+ if(b)b.classList.add('busy');
+ try{
+  if(kind==='mic'){
+   await openMic();
+  }else if(kind==='line'){
+   const connected=geChannelConnection('line').connected;
+   if(connected){
+    if(lineAirOn)await stopLineOnAir();
+    if(lineStream)stopLineInput();
+    if(lineMediaSource&&lineAudio){try{lineAudio.pause()}catch(e){}try{lineMediaSource.disconnect()}catch(e){}lineMediaSource=null}
+   }else if(lineSourceMode==='computer'){
+    await startComputerAudioCapture();
+   }else if(lineSourceMode==='file'&&lineAudio){
+    if(!lineMediaSource){lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain)}
+    await lineAudio.play()
+   }else if($('lineDevice')&&$('lineDevice').value){
+    await startSelectedLineInput()
+   }else{
+    $('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();
+    if($('lineProfileStatus'))$('lineProfileStatus').textContent='CHOOSE ABLETON / VB-CABLE OR COMPUTER AUDIO · MICROPHONE IS BLOCKED FROM LINE'
+   }
+  }else if(kind==='iphone'||kind==='ipad'){
+   const d=remoteDeviceFor(kind);
+   if(!d){
+    returnToMixer();const p=$('mixerChannelPicker');if(p)p.classList.add('show');if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.add('on');return
+   }
+   await sendRemoteCommand(d.id,'arm',!d.remote_ready);setTimeout(poll,180)
+  }
+ }catch(e){alert(e.message||e)}
+ finally{if(b)b.classList.remove('busy');renderChannelStatusBubbles()}
+}
 const MIXER_CHANNELS_KEY='geDjVisibleChannelsV1';
 function loadMixerChannelPrefs(){
   let saved=null;try{saved=JSON.parse(localStorage.getItem(MIXER_CHANNELS_KEY)||'null')}catch(e){}
@@ -3241,6 +3357,7 @@ function applyMixerChannels(save=true){
   const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');
   if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false);requestAnimationFrame(function(){if(grid.scrollWidth<=grid.clientWidth+3)grid.scrollLeft=0;syncTouchFaders()})}
   if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
+  renderChannelStatusBubbles();
   requestAnimationFrame(syncTouchFaders);
 }
 
@@ -3301,6 +3418,8 @@ $('studioExtra').onclick=function(e){const b=e.target.closest('[data-board-id]')
 document.addEventListener('visibilitychange',function(){geBoardHeartbeat();if(document.visibilityState==='visible')requestBoardWakeLock()});
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
+$('geChannelStatus').onclick=function(e){const b=e.target.closest('[data-channel-bubble]');if(!b)return;toggleChannelConnection(b.dataset.channelBubble)};
+$('lineComputerAudio').onclick=function(){startComputerAudioCapture().catch(function(e){alert(e.message||e)})};
 $('mixerChannelsBtn').onclick=function(){
   const p=$('mixerChannelPicker'),open=!p.classList.contains('show');
   p.classList.toggle('show',open);this.classList.toggle('on',open);
