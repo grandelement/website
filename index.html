@@ -1831,6 +1831,14 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_CONTROL_RADIUS: 220,
   SHIP_CONTROL_DEADZONE: 18,
   SHIP_CONTROL_MAX_SPEED: 330,
+  // GE Body engines: the three ends of the E are thrusters. The middle engine becomes
+  // the turbo and grows disproportionately once the Body is being pushed hard.
+  SHIP_THRUSTERS_ENABLED: true,
+  SHIP_THRUSTER_MIN: 0.10,
+  SHIP_THRUSTER_MAX_LENGTH: 0.30,
+  SHIP_TURBO_START: 0.62,
+  SHIP_TURBO_EXTRA_LENGTH: 0.46,
+  SHIP_THRUSTER_SPREAD: 0.235,
   SHIP_EXIT_MARGIN: 130,
   SHIP_MAX_SOULS: 120,
 
@@ -3305,6 +3313,23 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 }
 </style>
 
+
+<style id="ge-flight-draft-v1">
+.geFlightMode{position:fixed;inset:0;z-index:22750;display:none;overflow:hidden;background:#00050c;color:#eefaff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none}
+.geFlightMode.show{display:block}
+#geFlightCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.geFlightTop{position:absolute;z-index:4;left:10px;right:10px;top:max(9px,env(safe-area-inset-top));display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;pointer-events:none}
+.geFlightBtn{pointer-events:auto;appearance:none;border:1px solid rgba(150,220,255,.66);background:rgba(1,13,27,.88);color:#fff;border-radius:999px;padding:9px 13px;min-height:40px;font-weight:900;letter-spacing:.05em}
+.geFlightTitle{text-align:center;font-weight:1000;letter-spacing:.13em;text-shadow:0 0 13px #54bfff}.geFlightTitle b{display:block;font-size:15px}.geFlightTitle small{display:block;font-size:7px;opacity:.66;margin-top:2px}
+.geFlightDistance{font-weight:1000;font-variant-numeric:tabular-nums;text-shadow:0 0 11px #54bfff;white-space:nowrap}
+.geFlightStatus,.geFlightStats{position:absolute;z-index:4;left:50%;transform:translateX(-50%);border:1px solid rgba(135,215,255,.30);background:rgba(2,13,25,.70);border-radius:999px;padding:6px 10px;font-size:9px;font-weight:900;letter-spacing:.06em;white-space:nowrap}
+.geFlightStatus{bottom:max(44px,calc(env(safe-area-inset-bottom) + 38px))}.geFlightStats{top:max(57px,calc(env(safe-area-inset-top) + 50px));font-size:8px}
+.geFlightStart{position:absolute;z-index:6;left:50%;top:58%;transform:translate(-50%,-50%);appearance:none;width:max-content;max-width:calc(100vw - 36px);border:1px solid rgba(182,235,255,.82);background:rgba(4,24,43,.94);color:#fff;border-radius:999px;padding:12px 22px;min-height:46px;font-weight:1000;letter-spacing:.09em;box-shadow:0 0 18px rgba(71,192,255,.26)}
+.gePulseStart{animation:geStartButtonPulse 1.65s ease-in-out infinite}
+@keyframes geStartButtonPulse{0%,100%{box-shadow:0 0 8px rgba(80,195,255,.18);transform:translate(-50%,-50%) scale(1)}50%{box-shadow:0 0 24px rgba(90,210,255,.72),0 0 42px rgba(60,150,255,.24);transform:translate(-50%,-50%) scale(1.045)}}
+@media(max-width:430px){.geFlightTop{grid-template-columns:auto 1fr auto}.geFlightBtn{font-size:10px;padding:7px 10px}.geFlightTitle b{font-size:13px}.geFlightDistance{font-size:11px}}
+</style>
+
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -3496,6 +3521,18 @@ body.ge-body-race-active .geCourseMode{display:none!important}
       <button id="geBodyRaceNext" class="geBodyRaceBtn" type="button" hidden>NEXT</button>
     </div>
   </div>
+  <div id="geFlightMode" class="geFlightMode" aria-hidden="true">
+    <canvas id="geFlightCanvas"></canvas>
+    <div class="geFlightTop">
+      <button id="geFlightExit" class="geFlightBtn" type="button">‹ GAMES</button>
+      <div class="geFlightTitle"><b>FLIGHT</b><small>ASSEMBLY DRAFT</small></div>
+      <div id="geFlightDistance" class="geFlightDistance">0 m</div>
+    </div>
+    <div id="geFlightStatus" class="geFlightStatus">SLIDE LEFT / RIGHT TO DODGE</div>
+    <div id="geFlightStats" class="geFlightStats">SOULS 0 · CONTACTS 0 / 3</div>
+    <button id="geFlightStart" class="geFlightStart gePulseStart" type="button">START FLIGHT</button>
+  </div>
+
   <div id="geMeditateOverlay" class="geMeditateOverlay" role="dialog" aria-modal="true" aria-label="Meditation">
     <div class="geMeditateCard">
       <h2>MEDITATE</h2><p class="autoHint">Choose a GE tone and layer the environment underneath it.</p>
@@ -3741,7 +3778,7 @@ body.ge-body-race-active .geCourseMode{display:none!important}
           <button class="basicGameCard geGameRow" id="basicGolfGame" type="button" data-game-detail="golf"><span><b>GOLF</b><small>33 holes. Rubber-band your planet into the Blue Sun cup.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicGravityGame" type="button"><span><b>GRAVITY</b><small>33 tilt mazes. Move the phone to roll the Blue Sun through aqua energy courses.</small></span><i>›</i></button>
           <button class="basicGameCard geGameRow" id="basicBodyGame" type="button" data-game-detail="body"><span><b>THE BODY</b><small>Fly the Body with its normal universe controls. Pass every course gate, avoid planets and collect Souls.</small></span><i>›</i></button>
-<button class="basicGameCard geGameRow" id="basicFlightGame" type="button"><span><b>FLIGHT <small style="opacity:.65">· WORKING TITLE</small></b><small>Incoming-flight mode: keep the Body low on screen while planets and hazards stream toward it. Dodge collisions and collect Souls.</small></span><i>›</i></button>
+<button class="basicGameCard geGameRow" id="basicFlightGame" type="button"><span><b>FLIGHT <small style="opacity:.65">· DRAFT</small></b><small>Assembly-line flight: hold the Body near you while obstacles stream out of the horizon. Slide left/right, dodge contacts and collect Souls.</small></span><i>›</i></button>
         </div>
 
         <details class="geGeneralControlBlock geGameEffectsDisclosure" id="geGameEffectsDisclosure">
@@ -6025,6 +6062,35 @@ function soulHostChoiceField(dt){
   }
 }
 
+function drawGEBodyThrusters(g,drawW,drawH,throttle=0,turboOverride=null){
+  if(window.GE_EASY_SETTINGS?.SHIP_THRUSTERS_ENABLED===false||!g||drawW<=0||drawH<=0)return;
+  const clamp01=v=>Math.max(0,Math.min(1,Number(v)||0));
+  const t=clamp01(throttle),turboStart=Math.max(.2,Math.min(.95,Number(window.GE_EASY_SETTINGS?.SHIP_TURBO_START)||.62));
+  const turbo=turboOverride==null?clamp01((t-turboStart)/(1-turboStart)):clamp01(turboOverride);
+  const min=Math.max(.02,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_MIN)||.10);
+  const maxLen=Math.max(.08,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_MAX_LENGTH)||.30);
+  const turboExtra=Math.max(.08,Number(window.GE_EASY_SETTINGS?.SHIP_TURBO_EXTRA_LENGTH)||.46);
+  const spread=Math.max(.12,Math.min(.34,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_SPREAD)||.235));
+  const rearX=drawW*.675,base=drawW*(min+t*maxLen),now=performance.now();
+  const ys=[-drawH*spread,0,drawH*spread];
+  g.save();g.globalCompositeOperation='lighter';g.lineCap='round';
+  for(let i=0;i<3;i++){
+    const middle=i===1,flicker=.90+.10*Math.sin(now/48+i*2.1),len=(base+(middle?drawW*turboExtra*Math.pow(turbo,1.42):0))*flicker;
+    const y=ys[i],flare=Math.max(1.3,drawH*(.018+t*.014+(middle?turbo*.012:0)));
+    const grad=g.createLinearGradient(rearX,y,rearX+len,y);
+    grad.addColorStop(0,'rgba(244,253,255,.98)');
+    grad.addColorStop(.18,'rgba(124,224,255,.96)');
+    grad.addColorStop(.58,'rgba(30,139,255,.62)');
+    grad.addColorStop(1,'rgba(20,92,255,0)');
+    g.strokeStyle=grad;g.shadowColor='rgba(82,205,255,.95)';g.shadowBlur=7+t*10+(middle?turbo*8:0);g.lineWidth=flare*2.8;
+    g.beginPath();g.moveTo(rearX,y);g.lineTo(rearX+len,y);g.stroke();
+    g.strokeStyle='rgba(236,252,255,'+(.78+t*.18)+')';g.shadowBlur=3;g.lineWidth=Math.max(.8,flare*.72);
+    g.beginPath();g.moveTo(rearX,y);g.lineTo(rearX+len*.68,y);g.stroke();
+  }
+  g.restore();
+}
+window.GE_DRAW_BODY_THRUSTERS=drawGEBodyThrusters;
+
 class Ship{
   constructor(openingPass=false){
     const side=openingPass?'r':choice(['l','r','t','b']);
@@ -6042,7 +6108,7 @@ class Ship{
     }
     this.ax=rand(-30,30);this.ay=rand(-30,30);this.curveT=rand(2,5);this.curveP=rand(0,Math.PI*2);
     this.angle=0;this.dead=false;this.paused=false;this.savedVx=this.vx;this.savedVy=this.vy;
-    this.targets=[];this.beam=0;this.manualRay=null;
+    this.targets=[];this.beam=0;this.manualRay=null;this.controlThrottle=0;
     this.maxTargets=window.GE_EASY_SETTINGS?.SHIP_MAX_SOULS??120;
     this.captureRadius=22;
     this.haloPhase=rand(0,Math.PI*2);
@@ -6210,6 +6276,10 @@ class Ship{
     const w=shipImg.width*this.s,h=shipImg.height*this.s;
     g.save();g.translate(this.x,this.y);g.rotate(ang);
     const drawW=w*.6,drawH=h*.6;
+    const maxShipSpeed=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;
+    const speedRatio=Math.max(0,Math.min(1,Math.hypot(this.vx||0,this.vy||0)/Math.max(1,maxShipSpeed)));
+    const engineThrottle=Math.max(speedRatio*.82,this.controlActive?Math.max(0,Math.min(1,this.controlThrottle||0)):0);
+    drawGEBodyThrusters(g,drawW,drawH,engineThrottle);
     g.drawImage(shipImg,-drawW*.3,-drawH*.5,drawW,drawH);
     const hitR=shipVisualRadius(this),centerCue=Math.max(32,hitR*(window.GE_EASY_SETTINGS?.SHIP_CENTER_RADIUS_FACTOR??.68));
     const rayTip=-hitR*(window.GE_EASY_SETTINGS?.SHIP_RAY_TIP_DISTANCE??.82);
@@ -6509,7 +6579,7 @@ function queueShipCenterTap(s){
 function startHeldRay(s,id,x,y){s.manualRay={angle:Math.atan2(y-s.y,x-s.x),until:Infinity,held:true,hit:new Set()};s.beam=1;shipRayHold={ship:s,id};try{canvas.setPointerCapture(id)}catch(_e){}}
 function updateHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay){s.manualRay.angle=Math.atan2(e.clientY-s.y,e.clientX-s.x);s.manualRay.until=Infinity;s.manualRay.held=true}return true}
 function endHeldRay(e){if(!shipRayHold||shipRayHold.id!==e.pointerId)return false;const s=shipRayHold.ship;if(s.manualRay?.held)s.manualRay=null;s.beam=Math.max(0,s.beam*.35);shipRayHold=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}return true}
-function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead))),speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
+function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;s.controlThrottle=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead)));s.controlThrottle=normalized;const speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
 canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
   if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
@@ -7939,7 +8009,7 @@ const GE_GAME = (()=>{
   }
   geGameDetailBack?.addEventListener('click',showGameHub);
   document.querySelectorAll('[data-game-detail]').forEach(btn=>btn.addEventListener('click',()=>openGameDetail(btn.dataset.gameDetail)));
-  document.getElementById('basicFlightGame')?.addEventListener('click',()=>flash('FLIGHT · INCOMING OBSTACLE GAME SAVED FOR BUILD'));
+  document.getElementById('basicFlightGame')?.addEventListener('click',()=>{if(window.GE_FLIGHT?.open)window.GE_FLIGHT.open();else flash('FLIGHT IS LOADING')});
   document.getElementById('geHubStartGameBtn')?.addEventListener('click',()=>openGameDetail(currentGameDetail||detailKindFromState()));
   const pocketsCenterBtn=document.getElementById('pocketsCenterBtn'),pocketsNineBtn=document.getElementById('pocketsNineBtn'),pocketsModeHelp=document.getElementById('pocketsModeHelp');
   function syncPocketsModeToggle(){
@@ -12033,5 +12103,131 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   };
 })();
 </script>
+
+<script id="ge-flight-draft-v1-script">
+(function installGEFlight(){
+  const mode=document.getElementById('geFlightMode'),canvas=document.getElementById('geFlightCanvas'),startBtn=document.getElementById('geFlightStart');
+  const exitBtn=document.getElementById('geFlightExit'),distanceEl=document.getElementById('geFlightDistance'),statusEl=document.getElementById('geFlightStatus'),statsEl=document.getElementById('geFlightStats');
+  if(!mode||!canvas||!startBtn)return;
+  const g=canvas.getContext('2d'),img=new Image();img.src='ge-images/images/ge-logo-4-cutout.png';
+  let active=false,running=false,raf=0,last=0,startAt=0,distance=0,souls=0,contacts=0,spawnClock=0,objects=[],pointerId=null,shipX=0,targetX=0,flashUntil=0;
+  let W=0,H=0,DPR=1;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a);
+
+  function fit(){
+    DPR=Math.min(1.75,devicePixelRatio||1);W=innerWidth;H=innerHeight;
+    canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width=W+'px';canvas.style.height=H+'px';g.setTransform(DPR,0,0,DPR,0,0);
+    if(!shipX)shipX=targetX=W*.5;shipX=clamp(shipX,W*.12,W*.88);targetX=clamp(targetX,W*.12,W*.88);
+  }
+  function spawn(){
+    const soul=Math.random()<.16;
+    objects.push({kind:soul?'soul':(Math.random()<.22?'beam':'orb'),lane:rand(-.92,.92),z:0,size:rand(.72,1.22),spin:rand(-2.5,2.5),phase:rand(0,Math.PI*2),hit:false});
+  }
+  function perspective(o){
+    const p=clamp(o.z,0,1.08),ease=Math.pow(p,1.34),horizon=H*.14,near=H*.92;
+    return{x:W*.5+o.lane*(W*.45)*(.10+.90*ease),y:horizon+(near-horizon)*ease,s:(5+55*Math.pow(p,1.18))*o.size,p};
+  }
+  function drawStarfield(now){
+    g.fillStyle='#00050b';g.fillRect(0,0,W,H);
+    const horizonY=H*.14,phase=(now*.012)%42;
+    g.save();g.globalCompositeOperation='lighter';
+    for(let i=0;i<34;i++){
+      const x=((i*97.3)%W),y=((i*53.7+phase*(1+i%3))%(H*.86))+H*.08,a=.18+(i%5)*.08;
+      g.fillStyle='rgba(180,225,255,'+a+')';g.fillRect(x,y,1,1);
+    }
+    g.strokeStyle='rgba(72,185,255,.20)';g.lineWidth=1;
+    for(let lane=-3;lane<=3;lane++){g.beginPath();g.moveTo(W*.5+lane*4,horizonY);g.lineTo(W*.5+lane*(W*.13),H);g.stroke();}
+    for(let k=0;k<8;k++){const p=(k/8+(now*.00012)%1)%1,y=horizonY+(H-horizonY)*p*p;const half=(W*.04)+(W*.44)*p;g.globalAlpha=.08+.18*p;g.beginPath();g.moveTo(W*.5-half,y);g.lineTo(W*.5+half,y);g.stroke();}
+    g.restore();
+  }
+  function drawObject(o,now){
+    const q=perspective(o),pulse=.88+.12*Math.sin(now/150+o.phase);
+    g.save();g.translate(q.x,q.y);g.rotate(o.spin*q.p);
+    if(o.kind==='soul'){
+      g.globalCompositeOperation='lighter';g.shadowColor='#c9f4ff';g.shadowBlur=12*q.p+5;
+      const rg=g.createRadialGradient(-q.s*.18,-q.s*.18,1,0,0,q.s*.52);rg.addColorStop(0,'rgba(255,255,255,.98)');rg.addColorStop(.25,'rgba(193,241,255,.92)');rg.addColorStop(.7,'rgba(65,172,255,.45)');rg.addColorStop(1,'rgba(55,150,255,0)');
+      g.fillStyle=rg;g.beginPath();g.arc(0,0,q.s*.55*pulse,0,Math.PI*2);g.fill();
+    }else if(o.kind==='beam'){
+      g.globalCompositeOperation='lighter';g.strokeStyle='rgba(222,250,255,.96)';g.shadowColor='#39cfff';g.shadowBlur=8+q.s*.16;g.lineWidth=Math.max(2,q.s*.10);
+      g.beginPath();g.moveTo(-q.s*.95,0);g.lineTo(q.s*.95,0);g.stroke();
+      g.strokeStyle='rgba(31,174,255,.38)';g.lineWidth=Math.max(5,q.s*.23);g.beginPath();g.moveTo(-q.s*.95,0);g.lineTo(q.s*.95,0);g.stroke();
+    }else{
+      const rg=g.createRadialGradient(-q.s*.18,-q.s*.22,1,0,0,q.s*.58);rg.addColorStop(0,'#f5fbff');rg.addColorStop(.18,'#6ed9ff');rg.addColorStop(.58,'#175fa7');rg.addColorStop(1,'#04182d');
+      g.fillStyle=rg;g.shadowColor='rgba(69,190,255,.72)';g.shadowBlur=8+q.s*.12;g.beginPath();g.arc(0,0,q.s*.55,0,Math.PI*2);g.fill();
+    }
+    g.restore();
+    return q;
+  }
+  function drawShip(now){
+    const y=H*.82,drawW=Math.min(W*.30,150),ratio=(img.naturalWidth&&img.naturalHeight)?img.naturalHeight/img.naturalWidth:.45,drawH=drawW*ratio;
+    const level=Math.min(1,.48+distance/2600),swerve=Math.min(1,Math.abs(targetX-shipX)/(W*.22));
+    g.save();g.translate(shipX,y);g.rotate(Math.PI/2);
+    if(window.GE_DRAW_BODY_THRUSTERS)window.GE_DRAW_BODY_THRUSTERS(g,drawW,drawH,Math.max(level,swerve),Math.max(0,(level-.65)/.35));
+    if(img.complete&&img.naturalWidth)g.drawImage(img,-drawW*.3,-drawH*.5,drawW,drawH);
+    else{g.fillStyle='#dff8ff';g.shadowColor='#5ccaff';g.shadowBlur=12;g.beginPath();g.moveTo(-drawW*.30,0);g.lineTo(drawW*.28,-drawH*.42);g.lineTo(drawW*.62,0);g.lineTo(drawW*.28,drawH*.42);g.closePath();g.fill();}
+    g.restore();
+    return{y,r:Math.max(13,drawW*.18)};
+  }
+  function collision(q,ship){
+    if(q.p<.72||q.p>1.04)return false;
+    const dx=Math.abs(q.x-shipX),dy=Math.abs(q.y-ship.y),R=q.s*.46+ship.r;
+    return dx<R&&dy<R*.75;
+  }
+  function hit(o){
+    if(o.hit)return;o.hit=true;
+    if(o.kind==='soul'){souls++;statusEl.textContent='SOUL COLLECTED';window.GEVault?.track?.('flight_soul',{distance_m:Math.round(distance),souls});}
+    else{
+      contacts++;flashUntil=performance.now()+260;statusEl.textContent='CONTACT '+contacts+' / 3';
+      window.GEVault?.track?.('flight_contact',{distance_m:Math.round(distance),contacts,souls,kind:o.kind});
+      if(contacts>=3)endRun();
+    }
+    statsEl.textContent='SOULS '+souls+' · CONTACTS '+contacts+' / 3';
+  }
+  function endRun(){
+    if(!running)return;running=false;statusEl.textContent='RUN COMPLETE · '+Math.round(distance)+' m · '+souls+' SOUL'+(souls===1?'':'S');startBtn.textContent='FLY AGAIN';startBtn.style.display='block';
+    window.GEVault?.track?.('flight_complete',{distance_m:Math.round(distance),souls,contacts,duration_ms:startAt?Math.round(performance.now()-startAt):0});
+  }
+  function startRun(){
+    objects=[];distance=0;souls=0;contacts=0;spawnClock=0;shipX=targetX=W*.5;running=true;startAt=performance.now();last=startAt;startBtn.style.display='none';statusEl.textContent='SLIDE LEFT / RIGHT TO DODGE';statsEl.textContent='SOULS 0 · CONTACTS 0 / 3';
+    window.GEVault?.track?.('flight_start',{mode:'assembly_draft'});
+  }
+  function loop(now){
+    if(!active)return;const dt=Math.min(.035,Math.max(.001,(now-last)/1000||.016));last=now;
+    drawStarfield(now);
+    if(running){
+      const speed=.24+Math.min(.22,distance/4500),spawnEvery=Math.max(.30,.78-distance/7200);
+      spawnClock+=dt;if(spawnClock>=spawnEvery){spawnClock=0;spawn();if(distance>900&&Math.random()<.18)spawn();}
+      distance+=dt*(48+Math.min(88,distance*.014));distanceEl.textContent=Math.round(distance)+' m';
+      const smooth=1-Math.pow(.0008,dt);shipX+=(targetX-shipX)*smooth;
+      const ship=drawShip(now);
+      for(let i=objects.length-1;i>=0;i--){
+        const o=objects[i];o.z+=dt*speed;const q=drawObject(o,now);
+        if(!o.hit&&collision(q,ship))hit(o);
+        if(o.z>1.08)objects.splice(i,1);
+      }
+    }else{
+      drawShip(now);
+      for(const o of objects)drawObject(o,now);
+    }
+    if(now<flashUntil){g.fillStyle='rgba(210,247,255,'+(.22*(1-(flashUntil-now)/260))+')';g.fillRect(0,0,W,H);}
+    raf=requestAnimationFrame(loop);
+  }
+  function open(){
+    active=true;running=false;document.getElementById('gameOptionsPanel')?.classList.remove('show');mode.classList.add('show');mode.setAttribute('aria-hidden','false');fit();objects=[];distance=0;souls=0;contacts=0;shipX=targetX=W*.5;distanceEl.textContent='0 m';statsEl.textContent='SOULS 0 · CONTACTS 0 / 3';statusEl.textContent='ASSEMBLY LINE · OBSTACLES COME TO YOU';startBtn.textContent='START FLIGHT';startBtn.style.display='block';cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(loop);
+  }
+  function close(){
+    if(running)window.GEVault?.track?.('flight_exit',{distance_m:Math.round(distance),souls,contacts,duration_ms:startAt?Math.round(performance.now()-startAt):0});
+    active=false;running=false;cancelAnimationFrame(raf);raf=0;pointerId=null;mode.classList.remove('show');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+  }
+  function setTarget(e){targetX=clamp(e.clientX,W*.10,W*.90);}
+  canvas.addEventListener('pointerdown',e=>{if(!active||!running)return;pointerId=e.pointerId;setTarget(e);try{canvas.setPointerCapture(e.pointerId)}catch(_e){}e.preventDefault();},{passive:false});
+  canvas.addEventListener('pointermove',e=>{if(pointerId!==e.pointerId||!running)return;setTarget(e);e.preventDefault();},{passive:false});
+  function release(e){if(pointerId!==e.pointerId)return;pointerId=null;try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}}
+  canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+  startBtn.addEventListener('click',startRun);exitBtn.addEventListener('click',close);addEventListener('resize',()=>{if(active)fit()},{passive:true});
+  window.GE_FLIGHT={open,close,start:startRun};
+})();
+</script>
+
 </body>
 </html>
