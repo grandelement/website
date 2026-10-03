@@ -2581,6 +2581,39 @@ html.geDayMode .djSelectAll{
  outline-offset:1px!important;
 }
 
+
+/* V83: DJ FILES must always have an exit. Keep its header/close button visible
+   below the persistent device bar while the recording list scrolls. */
+#djFilesModal{
+ padding-top:calc(var(--geDisplayTop,84px) + 8px)!important;
+ padding-bottom:calc(var(--geDockHeight,70px) + 8px)!important;
+ align-items:flex-start!important;
+}
+#djFilesModal .djFilesBox{
+ max-height:calc(100dvh - var(--geDisplayTop,84px) - var(--geDockHeight,70px) - 24px)!important;
+ overflow-y:auto!important;
+ overscroll-behavior:contain!important;
+}
+#djFilesModal .modalHead{
+ position:sticky!important;
+ top:0!important;
+ z-index:8!important;
+ margin:-12px -12px 8px!important;
+ padding:10px 12px!important;
+ background:#0b1016!important;
+ border-bottom:1px solid #34414e!important;
+}
+#djFilesModal #djFilesClose{
+ flex:0 0 auto!important;
+ min-width:88px!important;
+ font-size:var(--ge-font-control)!important;
+}
+html.geDayMode #djFilesModal .modalHead{
+ background:#fff!important;
+ color:#111820!important;
+ border-bottom-color:#95a6b2!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button></div>
@@ -2588,7 +2621,7 @@ html.geDayMode .djSelectAll{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v82</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v83</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4991,10 +5024,14 @@ $('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))r
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet'||b.dataset.close==='deviceChannelSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet')geOpenDeviceKind='';syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
-function openDjFilesModal(){$('djFilesModal').classList.add('show');$('djFilesSelectAll').checked=false;renderDjFiles()}
-$('djFilesOpen').onclick=openDjFilesModal;
-$('mixMicFiles').onclick=openDjFilesModal;
-$('djFilesClose').onclick=function(){$('djFilesModal').classList.remove('show')};
+function openDjFilesModal(){const m=$('djFilesModal'),box=m&&m.querySelector('.djFilesBox');if(!m)return;m.classList.add('show');$('djFilesSelectAll').checked=false;if(box)box.scrollTop=0;renderDjFiles()}
+function closeDjFilesModal(){const m=$('djFilesModal');if(m)m.classList.remove('show')}
+function toggleDjFilesModal(){const m=$('djFilesModal');if(m&&m.classList.contains('show'))closeDjFilesModal();else openDjFilesModal()}
+$('djFilesOpen').onclick=toggleDjFilesModal;
+$('mixMicFiles').onclick=toggleDjFilesModal;
+$('djFilesClose').onclick=closeDjFilesModal;
+$('djFilesModal').addEventListener('click',function(e){if(e.target===this)closeDjFilesModal()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('djFilesModal').classList.contains('show'))closeDjFilesModal()});
 $('djFilesSelectAll').onchange=function(){const on=this.checked;document.querySelectorAll('[data-djselect]').forEach(function(x){x.checked=on})};
 function selectedDjFileIds(){return Array.from(document.querySelectorAll('[data-djselect]:checked')).map(function(x){return x.dataset.djselect})}
 async function shareSelectedDjFiles(mode){
