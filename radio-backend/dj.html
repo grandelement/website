@@ -5161,8 +5161,14 @@ function renderDeviceChannelSheet(){
    $('deviceChannelMute').classList.toggle('on',muted);
  }
  if($('deviceChannelLinkMic')){
-   $('deviceChannelLinkMic').textContent=kind==='mic'?(audioConnected?'MIC CONNECTED':'OPEN MIC'):(kind==='line'?(audioConnected?'COMPUTER AUDIO CONNECTED':'OPEN COMPUTER CONTROLS'):(online?'DEVICE CONNECTED':'CONNECT DEVICE'));
-   $('deviceChannelLinkMic').disabled=(kind==='mic'&&audioConnected)||(isRemoteDevice&&online);
+   let linkText='CONNECT DEVICE',linkDisabled=false;
+   if(kind==='mic'){linkText=audioConnected?'MIC CONNECTED':'OPEN MIC';linkDisabled=audioConnected}
+   else if(kind==='line'){linkText=audioConnected?'COMPUTER AUDIO CONNECTED':'OPEN COMPUTER CONTROLS';linkDisabled=false}
+   else if(audioConnected){linkText='AUDIO CONNECTED';linkDisabled=true}
+   else if(self){linkText='OPEN MIC';linkDisabled=false}
+   else if(remote&&remote.online){linkText='CONNECT AUDIO';linkDisabled=false}
+   else if(online){linkText='OPEN MIC ON '+label;linkDisabled=true}
+   $('deviceChannelLinkMic').textContent=linkText;$('deviceChannelLinkMic').disabled=linkDisabled;
  }
  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='AUDIO METER IS ALWAYS VISIBLE · VIDEO BAR SHOWS CAMERA / STREAM STATE';
  if($('deviceChannelHelp'))$('deviceChannelHelp').textContent=videoLive?'Audio and video are both live.':(videoSeen?'Audio meter is live when audio is open. Camera is detected, but no live video transport is active yet.':'Audio meter remains visible at 0% until signal arrives. Video remains at NO VIDEO INPUT until a camera is detected.');
@@ -5199,9 +5205,7 @@ function renderChannelStatusBubbles(){
  ['mic','line','iphone','ipad','iphone5'].forEach(function(kind){
   const b=root.querySelector('[data-channel-bubble="'+kind+'"]');if(!b)return;
   const enabled=geChannelEnabled(kind),s=geChannelConnection(kind);
-  const panelOpen=kind==='mic'?!!($('micSheet')&&$('micSheet').classList.contains('show')):
-                  kind==='line'?!!($('lineSheet')&&$('lineSheet').classList.contains('show')):
-                  !!($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===kind);
+  const panelOpen=!!($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===kind);
   b.classList.toggle('channelDisabled',!enabled);b.classList.toggle('connected',!!s.connected);b.classList.toggle('selfDevice',!!s.self);b.classList.toggle('onAir',!!s.air);b.classList.toggle('panelOpen',panelOpen);if(kind==='mic')b.classList.toggle('micIdle',!s.air);
   b.disabled=!enabled;b.setAttribute('aria-pressed',panelOpen?'true':'false');b.setAttribute('aria-expanded',panelOpen?'true':'false');
   if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'');
@@ -5362,7 +5366,7 @@ async function connectDeviceChannel(kind){
 }
 $('deviceChannelLinkMic').onclick=function(){
  const kind=geOpenDeviceKind||'';
- if(kind==='mic'){
+ if(kind==='mic'||((kind==='iphone'||kind==='ipad'||kind==='iphone5')&&GE_DEVICE_KIND===kind)){
    openMic().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
    return
  }
@@ -5370,6 +5374,11 @@ $('deviceChannelLinkMic').onclick=function(){
    $('deviceChannelSheet').classList.remove('show');geOpenDeviceKind='';
    $('lineSheet').classList.add('show');setGeDisplayScope('line');renderLineRoleUi();syncDockViewState();
    if(GE_BOARD_ROLE==='home')refreshDevices().then(function(){renderLineSavedInputs();if(geArrangement===2)scanGeAudioSources()});
+   return
+ }
+ const d=remoteDeviceFor(kind);
+ if(d&&d.online&&!d.remote_ready){
+   sendRemoteCommand(d.id,'arm',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});
    return
  }
  connectDeviceChannel(kind).catch(function(e){alert(e.message||e)})
@@ -5491,7 +5500,7 @@ $('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.messa
 $('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};
 $('dockMixer').onclick=function(){if($('mixerSheet').classList.contains('show')&&!$('effectsSheet').classList.contains('show'))returnHome();else returnToMixer()};
 $('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))returnHome();else openFx('mic')};
-function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet'||b.dataset.close==='deviceChannelSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet')geOpenDeviceKind='';syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
+function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
 function openDjFilesModal(){const m=$('djFilesModal'),box=m&&m.querySelector('.djFilesBox');if(!m)return;m.classList.add('show');$('djFilesSelectAll').checked=false;if(box)box.scrollTop=0;renderDjFiles()}
