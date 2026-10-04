@@ -5334,6 +5334,143 @@ function geChannelEnabled(kind){
  const box=document.querySelector('[data-mixer-channel="'+kind+'"]');return box?!!box.checked:false
 }
 function geTrackLive(stream){try{const t=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];return !!(t&&t.readyState==='live')}catch(e){return false}}
+function knownBoardRows(){
+ const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards.slice():[];
+ rows.sort(function(a,b){
+   const ao=!!a.online,bo=!!b.online;if(ao!==bo)return ao?-1:1;
+   const as=String(a.id||'')===String(GE_BOARD_ID),bs=String(b.id||'')===String(GE_BOARD_ID);if(as!==bs)return as?-1:1;
+   return Number(b.last_seen||0)-Number(a.last_seen||0)
+ });
+ return rows
+}
+function boardBaseName(row){
+ const raw=String(row&&row.device_name||row&&row.label||row&&row.device_kind||'DEVICE').trim();
+ return raw?raw.toUpperCase():'DEVICE'
+}
+function knownBoardViews(){
+ const rows=knownBoardRows(),totals={},seen={};
+ rows.forEach(function(r){const base=boardBaseName(r);totals[base]=(totals[base]||0)+1});
+ return rows.map(function(r){
+   const base=boardBaseName(r);seen[base]=(seen[base]||0)+1;
+   const label=totals[base]>1?base+' '+seen[base]:base;
+   return {row:r,label:label}
+ })
+}
+function boardById(boardId){
+ return knownBoardRows().find(function(x){return String(x.id||'')===String(boardId||'')})||null
+}
+function boardMediaSupported(row){return !!(row&&row.media_capture_supported)&&String(row&&row.device_kind||'').toLowerCase()!=='iphone5'}
+function boardNeedsSetup(row){
+ if(!row||!row.online||!boardMediaSupported(row))return false;
+ return !row.mic_connected||String(row.video_track_state||'').toLowerCase()!=='live'
+}
+function renderKnownDeviceBubbles(){
+ const host=$('geKnownDevices');if(!host)return;
+ host.innerHTML=knownBoardViews().map(function(v){
+   const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,air=!!r.mic_air,needs=boardNeedsSetup(r);
+   const cls='geChannelBubble '+(online?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'')+(needs?'needsSetup ':'');
+   const title=v.label+' · '+(online?'ONLINE':'KNOWN · OFFLINE')+(self?' · THIS DEVICE':'')+(needs?' · TAP TO SET UP AUDIO + VIDEO':' · TAP FOR CONTROLS');
+   return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>'
+ }).join('')
+}
+function boardDisplayLabel(board){
+ const v=knownBoardViews().find(function(x){return String(x.row.id||'')===String(board&&board.id||'')});
+ return v?v.label:boardBaseName(board)
+}
+function renderBoardDeviceChannelSheet(board){
+ if(!board)return;
+ const self=String(board.id||'')===String(GE_BOARD_ID),online=!!board.online;
+ const audioConnected=self?geTrackLive(micStream):!!board.mic_connected;
+ const audioPct=self?Number(micInputPct||0):Number(board.mic_peak||0);
+ const air=self?!!micAirOn:!!board.mic_air;
+ const muted=self?!!settings.mic.mute:!!board.mic_muted;
+ const videoTrack=self&&cameraStream&&cameraStream.getVideoTracks?cameraStream.getVideoTracks()[0]:null;
+ const videoLive=self?!!(videoTrack&&videoTrack.readyState==='live'):String(board.video_track_state||'').toLowerCase()==='live';
+ const videoSeen=videoLive||Number(board.video_input_count||0)>0||String(board.camera_permission||'').toLowerCase()==='granted'||String(board.camera_permission||'').toLowerCase()==='device seen';
+ const supported=self?!GE_IS_IPHONE5&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board);
+ const label=boardDisplayLabel(board);
+ if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
+ if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online||self);
+ if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=(online||self)?'DEVICE ONLINE':'KNOWN DEVICE · OFFLINE';
+ if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=(self?'THIS DEVICE · ':'')+(supported?'AUDIO + VIDEO CAPABLE':'CONTROL ONLY');
+ setMeterLevel('deviceChannelMeter',audioConnected?audioPct:0);
+ if($('deviceChannelMeterRead'))$('deviceChannelMeterRead').textContent=Math.round(audioConnected?audioPct:0)+'%';
+ setMeterLevel('deviceChannelVideoMeter',videoLive?100:(videoSeen?35:0));
+ if($('deviceChannelVideoState'))$('deviceChannelVideoState').textContent=videoLive?'CAMERA CAPTURE LIVE':(videoSeen?'CAMERA SEEN · CAPTURE OFF':(supported?'CAMERA NOT OPEN':'VIDEO UNSUPPORTED'));
+ const preview=$('deviceChannelVideoPreview');
+ if(videoLive&&!self){refreshRemoteVideoPreview(board.id)}else if(preview)preview.hidden=true;
+ if($('deviceChannelMicLive')){$('deviceChannelMicLive').hidden=!air;$('deviceChannelMicLive').textContent=label+' AUDIO LIVE'}
+ if($('deviceChannelMicState'))$('deviceChannelMicState').textContent=audioConnected?'AUDIO INPUT CONNECTED':(supported?'AUDIO INPUT NOT OPEN':'AUDIO CAPTURE UNSUPPORTED');
+ const pct=self?Math.round(Number(settings.mic.level==null?100:settings.mic.level)):100;
+ if($('deviceChannelLevel')){
+   $('deviceChannelLevel').value=String(pct);$('deviceChannelLevel').disabled=!(online||self)||!supported;
+   $('deviceChannelLevel').dataset.remoteDevice='';$('deviceChannelLevel').dataset.boardId=String(board.id||'')
+ }
+ if($('deviceChannelLevelRead'))$('deviceChannelLevelRead').textContent=pct+'%';
+ if($('deviceChannelReady')){
+   $('deviceChannelReady').disabled=!(online||self)||!supported;
+   $('deviceChannelReady').dataset.remoteDevice='';$('deviceChannelReady').dataset.boardId=String(board.id||'');
+   $('deviceChannelReady').textContent=(audioConnected&&videoLive)?'MEDIA READY':'SET UP A/V';
+   $('deviceChannelReady').classList.toggle('on',audioConnected&&videoLive)
+ }
+ if($('deviceChannelAir')){
+   $('deviceChannelAir').disabled=!(online||self)||!audioConnected;
+   $('deviceChannelAir').dataset.remoteDevice='';$('deviceChannelAir').dataset.boardId=String(board.id||'');
+   $('deviceChannelAir').textContent=air?'STOP AIR':'ON AIR';$('deviceChannelAir').classList.toggle('air',air)
+ }
+ if($('deviceChannelMute')){
+   $('deviceChannelMute').disabled=!(online||self)||!audioConnected;
+   $('deviceChannelMute').dataset.remoteDevice='';$('deviceChannelMute').dataset.boardId=String(board.id||'');
+   $('deviceChannelMute').textContent=muted?'UNMUTE':'MUTE';$('deviceChannelMute').classList.toggle('on',muted)
+ }
+ if($('deviceChannelLinkMic')){$('deviceChannelLinkMic').hidden=true;$('deviceChannelLinkMic').disabled=true}
+ if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='';
+ if($('deviceChannelHelp')){
+   $('deviceChannelHelp').textContent=!(online||self)?'This device is remembered but is not online. Open GE DJ on it to reconnect automatically.':(!supported?'This device can control GE DJ, but this browser cannot provide microphone/camera capture.':((audioConnected&&videoLive)?'Audio and video are configured. The live meter and camera monitor are available to the controller.':'Tap SET UP A/V. GE DJ will request microphone/camera access on that device if permission has not already been granted.'))
+ }
+ if($('deviceChannelDiagText')){
+   const last=board.last_seen?Math.max(0,Math.round(Date.now()/1000-Number(board.last_seen))):null;
+   $('deviceChannelDiagText').textContent=[
+    'DEVICE ID: '+String(board.id||''),
+    'STATUS: '+((online||self)?'ONLINE':'OFFLINE'),
+    last!=null?'LAST SEEN: '+last+'s AGO':'',
+    'TYPE: '+String(board.device_kind||'DEVICE').toUpperCase(),
+    board.ios_version?'iOS: '+String(board.ios_version):'',
+    'MEDIA CAPTURE: '+(supported?'SUPPORTED':'UNSUPPORTED'),
+    'AUDIO: '+(audioConnected?'CONNECTED':'NOT CONNECTED'),
+    'AUDIO SIGNAL: '+Math.round(audioConnected?audioPct:0)+'%',
+    'VIDEO: '+(videoLive?'CAPTURE LIVE':(videoSeen?'CAMERA SEEN':'NOT OPEN')),
+    board.media_error?('LAST ERROR: '+String(board.media_error)):''
+   ].filter(Boolean).join('\n')
+ }
+}
+function positionBoardDeviceDrawer(boardId){
+ const bubble=document.querySelector('[data-board-device="'+CSS.escape(String(boardId||''))+'"]');
+ const bar=$('geDisplayZoomBar'),anchor=(bubble&&bar&&bar.contains(bubble))?bar:(bubble||bar);
+ const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
+ const top=Math.max(6,Math.ceil(rect?rect.bottom+5:92));
+ document.documentElement.style.setProperty('--deviceDrawerTop',top+'px')
+}
+function openBoardDeviceChannel(boardId){
+ const board=boardById(boardId);if(!board)return;
+ geOpenBoardId=String(boardId||'');geOpenDeviceKind='board';
+ positionBoardDeviceDrawer(boardId);
+ const sheet=$('deviceChannelSheet');if(sheet){sheet.dataset.autoMedia='1';sheet.classList.add('show')}
+ renderBoardDeviceChannelSheet(board);renderKnownDeviceBubbles()
+}
+async function toggleKnownBoard(boardId){
+ const sheet=$('deviceChannelSheet');
+ if(sheet&&sheet.classList.contains('show')&&String(geOpenBoardId)===String(boardId)){
+   sheet.classList.remove('show');geOpenBoardId='';geOpenDeviceKind='';renderKnownDeviceBubbles();return
+ }
+ openBoardDeviceChannel(boardId);
+ const board=boardById(boardId);
+ if(board&&board.online&&boardNeedsSetup(board)&&boardMediaSupported(board)&&String(board.id)!==String(GE_BOARD_ID)){
+   sendBoardCommand(board.id,'media_ready',true).catch(function(e){diagEvent('AUTO DEVICE SETUP',String(e&&e.message||e))})
+ }else if(board&&String(board.id)===String(GE_BOARD_ID)&&boardNeedsSetup(board)){
+   autoConnectDeviceMedia().catch(function(e){diagEvent('AUTO DEVICE SETUP',String(e&&e.message||e))})
+ }
+}
 function boardForDeviceKind(kind){
  const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards:[];
  const matches=rows.filter(function(x){
@@ -5366,8 +5503,10 @@ function latestBoardForDeviceKind(kind){
 }
 
 function renderDeviceChannelSheet(){
+ if(geOpenBoardId){const board=boardById(geOpenBoardId);if(board){renderBoardDeviceChannelSheet(board);return}}
  if(!geOpenDeviceKind)return;
  const kind=geOpenDeviceKind;
+ if($('deviceChannelLinkMic'))$('deviceChannelLinkMic').hidden=false;
  const isRemoteDevice=kind==='iphone'||kind==='ipad'||kind==='iphone5';
  const board=isRemoteDevice?boardForDeviceKind(kind):(kind==='line'?(GE_BOARD_ROLE==='home'?null:homeBoardState()):null);
  const lastBoard=isRemoteDevice?latestBoardForDeviceKind(kind):board;
