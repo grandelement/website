@@ -2977,7 +2977,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 .geChannelBubble.needsSetup i{background:#ffc765!important}
 #mixerSheet .legacyRemoteStrip{display:none!important}
 #mixerSheet .boardMixStrip small{white-space:normal!important;overflow-wrap:anywhere!important}
-#mixerSheet .boardMixStrip .mixBtns{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#mixerSheet .boardMixStrip .mixBtns{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 #mixerSheet .boardMixStrip .mixBtns button{min-width:0!important;padding-left:3px!important;padding-right:3px!important}
 
 /* V100 cleanup: legacy app-pairing UI is retained only as backend compatibility,
@@ -5789,8 +5789,9 @@ function updateBoardMixerStrip(strip,v){
  const level=strip.querySelector('[data-board-level]'),read=strip.querySelector('[data-board-level-read]');
  if(level){level.disabled=!online||!supported;if(document.activeElement!==level&&!document.body.classList.contains('geFaderDragging'))level.value=String(pct)}
  if(read&&document.activeElement!==level)read.textContent=pct+'%';
- const setup=strip.querySelector('[data-board-action="setup"]'),airBtn=strip.querySelector('[data-board-action="air"]'),muteBtn=strip.querySelector('[data-board-action="mute"]'),videoBtn=strip.querySelector('[data-board-action="video"]');
+ const setup=strip.querySelector('[data-board-action="setup"]'),monitorBtn=strip.querySelector('[data-board-action="monitor"]'),airBtn=strip.querySelector('[data-board-action="air"]'),muteBtn=strip.querySelector('[data-board-action="mute"]'),videoBtn=strip.querySelector('[data-board-action="video"]');
  if(setup){setup.disabled=!online||!supported;setup.textContent=audio&&video?'A/V READY':'SETUP A/V'}
+ if(monitorBtn){monitorBtn.disabled=!online||!supported;monitorBtn.textContent=boardMonitorSelected[id]?'MONITORING':'MONITOR';monitorBtn.classList.toggle('on',!!boardMonitorSelected[id])}
  if(airBtn){airBtn.disabled=!online||!audio;airBtn.textContent=air?'STOP AIR':'ON AIR';airBtn.classList.toggle('air',air)}
  if(muteBtn){muteBtn.disabled=!online||!audio;muteBtn.textContent=muted?'UNMUTE':'MUTE';muteBtn.classList.toggle('on',muted)}
  if(videoBtn){videoBtn.disabled=!online||!supported;videoBtn.classList.toggle('on',!!boardVideoSelected[id])}
@@ -5811,6 +5812,7 @@ function renderKnownDeviceMixer(){
       '<div class="mixRead" data-board-level-read="'+esc(id)+'">100%</div>'+
       '<div class="mixBtns">'+
        '<button data-board-action="setup" data-board-id="'+esc(id)+'">SETUP A/V</button>'+
+       '<button data-board-action="monitor" data-board-id="'+esc(id)+'">MONITOR</button>'+
        '<button data-board-action="air" data-board-id="'+esc(id)+'">ON AIR</button>'+
        '<button data-board-action="mute" data-board-id="'+esc(id)+'">MUTE</button>'+
        '<button data-board-action="video" data-board-id="'+esc(id)+'">VIDEO</button>'+
@@ -5870,10 +5872,67 @@ function toggleBoardVideo(boardId){
  if(!boardVideoSelected[boardId])delete boardVideoSelected[boardId];
  saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer()
 }
+function selectedBoardMonitorIds(){return Object.keys(boardMonitorSelected).filter(function(id){return !!boardMonitorSelected[id]})}
+async function refreshBoardMonitorAudio(boardId){
+ if(!boardMonitorSelected[boardId]||boardMonitorFetchBusy[boardId])return;
+ const board=boardById(boardId);if(!board||!board.online)return;
+ boardMonitorFetchBusy[boardId]=true;
+ try{
+  const after=Number(boardMonitorSeq[boardId]||0);
+  const r=await api('/control/board/audio-monitor',{headers:{'X-GE-Board-ID':String(boardId),'X-GE-Audio-After':String(after)}});
+  if(r.status===204)return;
+  if(!r.ok)return;
+  const seq=Number(r.headers.get('X-GE-Audio-Seq')||0),rate=Number(r.headers.get('X-GE-Audio-Rate')||16000),ab=await r.arrayBuffer();
+  if(!ab.byteLength)return;
+  boardMonitorSeq[boardId]=seq||after;
+  await ensureAudio();if(ctx.state==='suspended')await ctx.resume();
+  const pcm=new Int16Array(ab),buf=ctx.createBuffer(1,pcm.length,rate),ch=buf.getChannelData(0);
+  for(let i=0;i<pcm.length;i++)ch[i]=pcm[i]/32768;
+  let gain=boardMonitorGains[boardId];
+  if(!gain){gain=ctx.createGain();gain.gain.value=1;gain.connect(ctx.destination);boardMonitorGains[boardId]=gain}
+  const src=ctx.createBufferSource();src.buffer=buf;src.connect(gain);
+  const now=ctx.currentTime,prev=Number(boardMonitorNextTime[boardId]||0);
+  const start=(prev>now&&prev<now+.8)?prev:now+.04;
+  src.start(start);boardMonitorNextTime[boardId]=start+buf.duration
+ }catch(e){diagEvent('REMOTE MONITOR ERROR',String(e&&e.message||e))}
+ finally{boardMonitorFetchBusy[boardId]=false}
+}
+function startBoardMonitorPolling(){
+ if(boardMonitorPollTimer)return;
+ selectedBoardMonitorIds().forEach(refreshBoardMonitorAudio);
+ boardMonitorPollTimer=setInterval(function(){selectedBoardMonitorIds().forEach(refreshBoardMonitorAudio)},120)
+}
+function stopBoardMonitorPollingIfIdle(){
+ if(selectedBoardMonitorIds().length)return;
+ if(boardMonitorPollTimer){clearInterval(boardMonitorPollTimer);boardMonitorPollTimer=0}
+}
+async function toggleBoardMonitor(boardId){
+ boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online)return;
+ const on=!boardMonitorSelected[boardId];
+ if(on){
+  await ensureAudio();if(ctx&&ctx.state==='suspended')await ctx.resume();
+  boardMonitorSelected[boardId]=true;boardMonitorSeq[boardId]=0;boardMonitorNextTime[boardId]=0;
+  if(!board.mic_connected)await sendBoardCommand(boardId,'media_ready',true);
+  await sendBoardCommand(boardId,'monitor_stream',true);
+  startBoardMonitorPolling()
+ }else{
+  delete boardMonitorSelected[boardId];delete boardMonitorSeq[boardId];delete boardMonitorNextTime[boardId];
+  try{await sendBoardCommand(boardId,'monitor_stream',false)}catch(e){}
+  if(boardMonitorGains[boardId]){try{boardMonitorGains[boardId].disconnect()}catch(e){}delete boardMonitorGains[boardId]}
+  stopBoardMonitorPollingIfIdle()
+ }
+ renderKnownDeviceMixer()
+}
 async function handleBoardMixerAction(action,boardId){
  const board=boardById(boardId);if(!board)return;
- if(action==='video'){toggleBoardVideo(boardId);return}
  if(!board.online)return;
+ if(action==='video'){
+   if(!boardVideoSelected[String(boardId)]&&boardMediaSupported(board)&&String(board.video_track_state||'').toLowerCase()!=='live'){
+     if(String(board.id)===String(GE_BOARD_ID))await autoConnectDeviceMedia();else await sendBoardCommand(board.id,'media_ready',true)
+   }
+   toggleBoardVideo(boardId);setTimeout(poll,180);return
+ }
+ if(action==='monitor'){await toggleBoardMonitor(boardId);setTimeout(poll,180);return}
  if(action==='setup'){
    if(String(board.id)===String(GE_BOARD_ID))await autoConnectDeviceMedia();
    else await sendBoardCommand(board.id,'media_ready',true);
