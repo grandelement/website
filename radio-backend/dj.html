@@ -2986,7 +2986,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v99</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v100</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -5352,7 +5352,8 @@ function knownBoardViews(){
  rows.forEach(function(r){const base=boardBaseName(r);totals[base]=(totals[base]||0)+1});
  return rows.map(function(r){
    const base=boardBaseName(r);seen[base]=(seen[base]||0)+1;
-   const label=totals[base]>1?base+' '+seen[base]:base;
+   const suffix=String(r.id||'').replace(/[^A-Za-z0-9]/g,'').slice(-3).toUpperCase();
+   const label=totals[base]>1?base+(suffix?' · '+suffix:' '+seen[base]):base;
    return {row:r,label:label}
  })
 }
@@ -5720,28 +5721,45 @@ function boardMixerStateText(board){
  if(board.mic_connected)return 'AUDIO READY · VIDEO NOT OPEN';
  return 'ONLINE · SETUP NEEDED'
 }
+function updateBoardMixerStrip(strip,v){
+ const b=v.row,online=!!b.online,supported=boardMediaSupported(b),audio=!!b.mic_connected,video=String(b.video_track_state||'').toLowerCase()==='live',air=!!b.mic_air,muted=!!b.mic_muted;
+ const pct=Math.round(Number(b.mic_level==null?100:b.mic_level)),peak=clamp(Number(b.mic_peak||0),0,100),id=String(b.id||'');
+ strip.classList.toggle('deviceOnline',online);strip.classList.toggle('deviceAir',air);
+ const title=strip.querySelector('h3');if(title)title.innerHTML='<i class="stripStatusDot '+(online?'connected ':'')+(air?'air ':'')+'"></i>'+esc(v.label);
+ const open=strip.querySelector('[data-board-open]');if(open){open.textContent=boardMixerStateText(b);open.dataset.boardOpen=id}
+ const fill=strip.querySelector('.hmeterFill');if(fill)fill.style.setProperty('--meter-level',peak+'%');
+ const level=strip.querySelector('[data-board-level]'),read=strip.querySelector('[data-board-level-read]');
+ if(level){level.disabled=!online||!supported;if(document.activeElement!==level&&!document.body.classList.contains('geFaderDragging'))level.value=String(pct)}
+ if(read&&document.activeElement!==level)read.textContent=pct+'%';
+ const setup=strip.querySelector('[data-board-action="setup"]'),airBtn=strip.querySelector('[data-board-action="air"]'),muteBtn=strip.querySelector('[data-board-action="mute"]'),videoBtn=strip.querySelector('[data-board-action="video"]');
+ if(setup){setup.disabled=!online||!supported;setup.textContent=audio&&video?'A/V READY':'SETUP A/V'}
+ if(airBtn){airBtn.disabled=!online||!audio;airBtn.textContent=air?'STOP AIR':'ON AIR';airBtn.classList.toggle('air',air)}
+ if(muteBtn){muteBtn.disabled=!online||!audio;muteBtn.textContent=muted?'UNMUTE':'MUTE';muteBtn.classList.toggle('on',muted)}
+ if(videoBtn){videoBtn.disabled=!online||!supported;videoBtn.classList.toggle('on',!!boardVideoSelected[id])}
+}
 function renderKnownDeviceMixer(){
  const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');if(!grid)return;
- grid.querySelectorAll('.boardMixStrip').forEach(function(x){x.remove()});
- const master=grid.querySelector('[data-channel-strip="master"]');
- boardMixerRows().forEach(function(v){
-   const b=v.row,online=!!b.online,supported=boardMediaSupported(b),audio=!!b.mic_connected,video=String(b.video_track_state||'').toLowerCase()==='live',air=!!b.mic_air,muted=!!b.mic_muted;
-   const pct=Math.round(Number(b.mic_level==null?100:b.mic_level)),peak=clamp(Number(b.mic_peak||0),0,100);
-   const strip=document.createElement('div');
-   strip.className='mixStrip boardMixStrip'+(online?' deviceOnline':'')+(air?' deviceAir':'');
-   strip.dataset.boardMix=String(b.id||'');
-   strip.innerHTML='<h3><i class="stripStatusDot '+(online?'connected ':'')+(air?'air ':'')+'"></i>'+esc(v.label)+'</h3>'+
-    '<button type="button" class="mixSourceLabel" data-board-open="'+esc(b.id||'')+'">'+esc(boardMixerStateText(b))+'</button>'+
-    '<div class="hmeter"><div class="hmeterFill" style="--meter-level:'+peak+'%"></div></div>'+
-    '<input class="vf" data-board-level="'+esc(b.id||'')+'" type="range" min="0" max="150" value="'+pct+'" '+(!online||!supported?'disabled':'')+'>'+
-    '<div class="mixRead" data-board-level-read="'+esc(b.id||'')+'">'+pct+'%</div>'+
-    '<div class="mixBtns">'+
-      '<button data-board-action="setup" data-board-id="'+esc(b.id||'')+'" '+(!online||!supported?'disabled':'')+'>'+(audio&&video?'A/V READY':'SETUP A/V')+'</button>'+
-      '<button data-board-action="air" data-board-id="'+esc(b.id||'')+'" '+(!online||!audio?'disabled':'')+' class="'+(air?'air':'')+'">'+(air?'STOP AIR':'ON AIR')+'</button>'+
-      '<button data-board-action="mute" data-board-id="'+esc(b.id||'')+'" '+(!online||!audio?'disabled':'')+' class="'+(muted?'on':'')+'">'+(muted?'UNMUTE':'MUTE')+'</button>'+
-      '<button data-board-action="video" data-board-id="'+esc(b.id||'')+'" '+(!online||!supported?'disabled':'')+' class="'+(boardVideoSelected[String(b.id||'')]?'on':'')+'">VIDEO</button>'+
-    '</div>';
-   if(master)grid.insertBefore(strip,master);else grid.appendChild(strip)
+ const master=grid.querySelector('[data-channel-strip="master"]'),rows=boardMixerRows(),wanted={};
+ rows.forEach(function(v){wanted[String(v.row.id||'')]=v});
+ grid.querySelectorAll('.boardMixStrip').forEach(function(strip){if(!wanted[String(strip.dataset.boardMix||'')])strip.remove()});
+ rows.forEach(function(v){
+   const b=v.row,id=String(b.id||'');let strip=Array.from(grid.querySelectorAll('.boardMixStrip')).find(function(x){return String(x.dataset.boardMix||'')===id})||null;
+   if(!strip){
+     strip=document.createElement('div');strip.className='mixStrip boardMixStrip';strip.dataset.boardMix=id;
+     strip.innerHTML='<h3><i class="stripStatusDot"></i>'+esc(v.label)+'</h3>'+
+      '<button type="button" class="mixSourceLabel" data-board-open="'+esc(id)+'"></button>'+
+      '<div class="hmeter"><div class="hmeterFill"></div></div>'+
+      '<input class="vf" data-board-level="'+esc(id)+'" type="range" min="0" max="150" value="100">'+
+      '<div class="mixRead" data-board-level-read="'+esc(id)+'">100%</div>'+
+      '<div class="mixBtns">'+
+       '<button data-board-action="setup" data-board-id="'+esc(id)+'">SETUP A/V</button>'+
+       '<button data-board-action="air" data-board-id="'+esc(id)+'">ON AIR</button>'+
+       '<button data-board-action="mute" data-board-id="'+esc(id)+'">MUTE</button>'+
+       '<button data-board-action="video" data-board-id="'+esc(id)+'">VIDEO</button>'+
+      '</div>';
+     if(master)grid.insertBefore(strip,master);else grid.appendChild(strip)
+   }
+   updateBoardMixerStrip(strip,v)
  });
  if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false);
  requestAnimationFrame(syncTouchFaders)
