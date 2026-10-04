@@ -4100,7 +4100,7 @@ function openConnectedStudio(role){
   const p=$('mixerChannelPicker');if(p){p.classList.add('show');$('mixerChannelsBtn')&&$('mixerChannelsBtn').classList.add('on')}
  }
 }
-function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderDeviceChannelSheet();renderGeAudioDiagnostics();applySharedDjControls();if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();setMeterLevel('mixLineMeter',h?Number(h.line_peak||0):0)};syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderKnownDeviceMixer();renderDeviceChannelSheet();renderGeAudioDiagnostics();applySharedDjControls();if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();setMeterLevel('mixLineMeter',h?Number(h.line_peak||0):0)};syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
@@ -5401,7 +5401,7 @@ function renderBoardDeviceChannelSheet(board){
  if(videoLive&&!self){refreshRemoteVideoPreview(board.id)}else if(preview)preview.hidden=true;
  if($('deviceChannelMicLive')){$('deviceChannelMicLive').hidden=!air;$('deviceChannelMicLive').textContent=label+' AUDIO LIVE'}
  if($('deviceChannelMicState'))$('deviceChannelMicState').textContent=audioConnected?'AUDIO INPUT CONNECTED':(supported?'AUDIO INPUT NOT OPEN':'AUDIO CAPTURE UNSUPPORTED');
- const pct=self?Math.round(Number(settings.mic.level==null?100:settings.mic.level)):100;
+ const pct=self?Math.round(Number(settings.mic.level==null?100:settings.mic.level)):Math.round(Number(board.mic_level==null?100:board.mic_level));
  if($('deviceChannelLevel')){
    $('deviceChannelLevel').value=String(pct);$('deviceChannelLevel').disabled=!(online||self)||!supported;
    $('deviceChannelLevel').dataset.remoteDevice='';$('deviceChannelLevel').dataset.boardId=String(board.id||'')
@@ -5663,6 +5663,7 @@ function positionDeviceChannelDrawer(kind){
  document.documentElement.style.setProperty('--deviceDrawerTop',top+'px');
 }
 function openDeviceChannel(kind){
+ geOpenBoardId='';
  geOpenDeviceKind=kind;
  positionDeviceChannelDrawer(kind);
  const sheet=$('deviceChannelSheet');
@@ -5692,7 +5693,8 @@ function renderChannelStatusBubbles(){
   if(kind==='iphone'||kind==='ipad'||kind==='line')b.title=s.label+' · '+(s.self?'THIS DEVICE':(s.connected?'CONNECTED':'OFFLINE'))+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'');
   else b.title=s.label+' · '+(s.connected?'CONNECTED':'DISCONNECTED')+' · TAP TO '+(panelOpen?'CLOSE':'OPEN')+' CONTROLS'+(s.air?' · ON AIR':'')
  })
- renderMixerStripStatusDots()
+ renderMixerStripStatusDots();
+ renderKnownDeviceBubbles()
 }
 function setStripStatusDot(id,connected,air,self){
  const d=$(id);if(!d)return;
@@ -5803,7 +5805,7 @@ async function handleBoardMixerAction(action,boardId){
  }
  if(action==='air'){
    if(!board.mic_connected){if(String(board.id)===String(GE_BOARD_ID))await autoConnectDeviceMedia();else await sendBoardCommand(board.id,'media_ready',true)}
-   if(String(board.id)===String(GE_BOARD_ID)){if(!!micAirOn!==!board.mic_air)await toggleMicOnAir()}
+   if(String(board.id)===String(GE_BOARD_ID)){const wanted=!board.mic_air;if(!!micAirOn!==wanted)await toggleMicOnAir()}
    else await sendBoardCommand(board.id,'mic_air',!board.mic_air);
    setTimeout(poll,180);return
  }
@@ -5928,7 +5930,10 @@ $('deviceChannelReady').onclick=function(){
  }
  const id=this.dataset.remoteDevice,boardId=this.dataset.boardId,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});
  if(id&&d){sendRemoteCommand(id,'arm',!d.remote_ready).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});return}
- if(boardId)sendBoardCommand(boardId,'camera_ready',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ if(boardId){
+   if(String(boardId)===String(GE_BOARD_ID))autoConnectDeviceMedia().then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});
+   else sendBoardCommand(boardId,'media_ready',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ }
 };
 $('deviceChannelAir').onclick=function(){
  if(GE_DEVICE_KIND===geOpenDeviceKind){
@@ -6004,7 +6009,10 @@ if(GE_IS_IPAD||GE_IS_IPHONE){
 document.addEventListener('visibilitychange',function(){geBoardHeartbeat();if(document.visibilityState==='visible')requestBoardWakeLock()});
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
-$('geChannelStatus').onclick=function(e){const b=e.target.closest('[data-channel-bubble]');if(!b)return;toggleChannelConnection(b.dataset.channelBubble)};
+$('geChannelStatus').onclick=function(e){
+ const known=e.target.closest('[data-board-device]');if(known){toggleKnownBoard(known.dataset.boardDevice).catch(function(err){alert(err.message||err)});return}
+ const b=e.target.closest('[data-channel-bubble]');if(!b)return;geOpenBoardId='';toggleChannelConnection(b.dataset.channelBubble)
+};
 document.querySelectorAll('[data-ge-arrangement]').forEach(function(b){b.onclick=function(){applyGeArrangement(this.dataset.geArrangement,true)}});
 if($('geAudioScan'))$('geAudioScan').onclick=function(){scanGeAudioSources()};
 if($('arr2MoreInputs'))$('arr2MoreInputs').onclick=function(){
@@ -6131,7 +6139,7 @@ $('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.messa
 $('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};
 $('dockMixer').onclick=function(){if($('mixerSheet').classList.contains('show')&&!$('effectsSheet').classList.contains('show'))returnHome();else returnToMixer()};
 $('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))returnHome();else openFx('mic')};
-function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
+function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';geOpenBoardId='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
 function openDjFilesModal(){const m=$('djFilesModal'),box=m&&m.querySelector('.djFilesBox');if(!m)return;m.classList.add('show');$('djFilesSelectAll').checked=false;if(box)box.scrollTop=0;renderDjFiles()}
