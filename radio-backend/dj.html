@@ -2912,6 +2912,27 @@ html.geDayMode #deviceChannelSheet{
 }
 html.geDayMode #deviceChannelSheet .deviceVideoSignal{border-top-color:#a6b4be!important}
 
+
+/* V94 iPad FX interaction hardening.
+   FX faders use explicit touch/pointer math instead of relying on Safari's
+   inconsistent native vertical-range dragging. */
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider input.fxvf{
+  touch-action:none!important;
+  pointer-events:auto!important;
+  user-select:none!important;
+  -webkit-user-select:none!important;
+}
+#mixerSheet #effectsSheet .fxEffectButtons button,
+#mixerSheet #effectsSheet .fxCustomSlots button,
+#mixerSheet #effectsSheet .fxDockActions button,
+#mixerSheet #effectsSheet .fxLayoutBar button{
+  touch-action:manipulation!important;
+  pointer-events:auto!important;
+}
+#mixerSheet #effectsSheet.fxTouchActive .fxControlGrid{
+  scroll-snap-type:none!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble micIdle" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone5"><i></i><span>iPHONE 5</span></button></div>
@@ -2919,7 +2940,7 @@ html.geDayMode #deviceChannelSheet .deviceVideoSignal{border-top-color:#a6b4be!i
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v93</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v94</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4894,8 +4915,63 @@ function clearFxPresetHold(){if(fxPresetHoldTimer){clearTimeout(fxPresetHoldTime
 $('fxPresets').addEventListener('pointerdown',function(e){const b=e.target.closest('[data-saved-preset]');if(!b)return;clearFxPresetHold();document.querySelectorAll('#fxPresets .fxPresetItem.deleteReady').forEach(function(x){if(x!==b.closest('.fxPresetItem'))x.classList.remove('deleteReady')});fxPresetHoldTimer=setTimeout(function(){fxPresetHoldTimer=0;b.dataset.holdDelete='1';const item=b.closest('.fxPresetItem');if(item)item.classList.add('deleteReady')},650)});
 ['pointerup','pointercancel','pointerleave'].forEach(function(ev){$('fxPresets').addEventListener(ev,clearFxPresetHold)});
 $('fxPresets').onclick=function(e){const b=e.target.closest('button');if(!b)return;if(b.dataset.deleteSaved){const p=customFxPresets.find(function(x){return String(x.id)===String(b.dataset.deleteSaved)}),name=String(p&&p.name||'this preset');if(confirm('Delete preset '+name+'?'))deleteFxPreset(b.dataset.deleteSaved).catch(function(err){alert(err.message||err)});return}if(b.dataset.holdDelete==='1'){delete b.dataset.holdDelete;return}if(b.dataset.preset){const n=b.dataset.preset,p=PRESETS[n];Object.keys(p).forEach(function(k){settings[fxTarget][k]=p[k]});settings[fxTarget].preset=n;selectedFxPreset='';applyChannel(fxTarget);syncFx();return}if(b.dataset.savedPreset){const p=customFxPresets.find(function(x){return String(x.id)===String(b.dataset.savedPreset)});if(!p||!p.settings)return;Object.assign(settings[fxTarget],p.settings);if(typeof p.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset=String(p.id);$('fxPresetName').value=String(p.name||'');applyChannel(fxTarget);syncFx()}};
-document.querySelectorAll('[data-fxtoggle]').forEach(function(b){b.onclick=function(){const k=b.dataset.fxtoggle+'On';settings[fxTarget][k]=!settings[fxTarget][k];settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);syncFx()}});
-[['fxPreamp','preamp'],['fxCompStrength','compStrength'],['fxEqLow','eqLow'],['fxEqMid','eqMid'],['fxEqHigh','eqHigh'],['fxFrequency','frequency'],['fxPhaser','phaser'],['fxDelay','delay'],['fxDelayTime','delayTime'],['fxFeedback','feedback'],['fxReverb','reverb']].forEach(function(pair){$(pair[0]).oninput=function(){settings[fxTarget][pair[1]]=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);syncFx()}});
+document.querySelectorAll('[data-fxtoggle]').forEach(function(b){b.onclick=function(){
+ const k=b.dataset.fxtoggle+'On';settings[fxTarget][k]=!settings[fxTarget][k];settings[fxTarget].preset='CUSTOM';
+ if(ctx&&ctx.state==='suspended')ctx.resume().catch(function(){});
+ applyChannel(fxTarget);syncFx();diagEvent('FX TOGGLE',String(b.dataset.fxtoggle||'')+' '+(settings[fxTarget][k]?'ON':'OFF')+' · '+fxTarget.toUpperCase())
+}});
+[['fxPreamp','preamp'],['fxCompStrength','compStrength'],['fxEqLow','eqLow'],['fxEqMid','eqMid'],['fxEqHigh','eqHigh'],['fxFrequency','frequency'],['fxPhaser','phaser'],['fxDelay','delay'],['fxDelayTime','delayTime'],['fxFeedback','feedback'],['fxReverb','reverb']].forEach(function(pair){$(pair[0]).oninput=function(){
+ settings[fxTarget][pair[1]]=Number(this.value);settings[fxTarget].preset='CUSTOM';
+ if(ctx&&ctx.state==='suspended')ctx.resume().catch(function(){});
+ applyChannel(fxTarget);syncFx()
+}});
+
+/* Safari/iPad fallback for the vertical FX faders. Native vertical range input
+   has varied across iPadOS releases; this maps the finger position directly
+   to the range value and then uses the normal FX input handler above. */
+(function installIpadFxTouch(){
+ const root=$('effectsSheet');if(!root)return;
+ root.querySelectorAll('input.fxvf[type="range"]').forEach(function(range){
+  if(range.dataset.geFxTouch==='1')return;range.dataset.geFxTouch='1';
+  let active=false,pointerId=null;
+  function setAt(clientY){
+    const r=range.getBoundingClientRect(),min=Number(range.min||0),max=Number(range.max||100),step=Number(range.step||1)||1;
+    if(!r.height)return;
+    const pct=clamp((r.bottom-clientY)/r.height,0,1),raw=min+pct*(max-min),snapped=Math.round((raw-min)/step)*step+min;
+    const next=clamp(snapped,min,max);
+    if(Number(range.value)!==next){range.value=String(next);range.dispatchEvent(new Event('input',{bubbles:true}))}
+  }
+  if(window.PointerEvent){
+    range.addEventListener('pointerdown',function(e){
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      active=true;pointerId=e.pointerId;root.classList.add('fxTouchActive');
+      try{range.setPointerCapture&&range.setPointerCapture(e.pointerId)}catch(_e){}
+      if(typeof captureGeUndo==='function')captureGeUndo();
+      setAt(e.clientY);e.preventDefault();e.stopPropagation()
+    });
+    range.addEventListener('pointermove',function(e){if(active&&e.pointerId===pointerId){setAt(e.clientY);e.preventDefault();e.stopPropagation()}});
+    function endPointer(e){
+      if(!active||e.pointerId!==pointerId)return;
+      active=false;pointerId=null;root.classList.remove('fxTouchActive');
+      range.dispatchEvent(new Event('change',{bubbles:true}));
+      e.preventDefault();e.stopPropagation()
+    }
+    range.addEventListener('pointerup',endPointer);range.addEventListener('pointercancel',endPointer)
+  }else{
+    range.addEventListener('touchstart',function(e){
+      const t=e.touches&&e.touches[0];if(!t)return;
+      active=true;root.classList.add('fxTouchActive');if(typeof captureGeUndo==='function')captureGeUndo();
+      setAt(t.clientY);e.preventDefault();e.stopPropagation()
+    },{passive:false});
+    range.addEventListener('touchmove',function(e){
+      if(!active)return;const t=e.touches&&e.touches[0];if(!t)return;
+      setAt(t.clientY);e.preventDefault();e.stopPropagation()
+    },{passive:false});
+    range.addEventListener('touchend',function(e){if(!active)return;active=false;root.classList.remove('fxTouchActive');range.dispatchEvent(new Event('change',{bubbles:true}));e.preventDefault();e.stopPropagation()},{passive:false});
+    range.addEventListener('touchcancel',function(){active=false;root.classList.remove('fxTouchActive')},{passive:false})
+  }
+ });
+})();
 $('fxBalance').oninput=function(){settings[fxTarget].pan=Number(this.value);settings[fxTarget].preset='CUSTOM';applyChannel(fxTarget);if(fxTarget==='mic'&&liveSocket&&liveSocket.readyState===WebSocket.OPEN){try{liveSocket.send('PAN '+clamp(Number(settings.mic.pan||0)/100,-1,1))}catch(e){}}syncFx()};$('fxBalanceLock').onclick=function(){fxBalanceLocked=!fxBalanceLocked;try{localStorage.setItem('geFxBalanceLockedV1',fxBalanceLocked?'1':'0')}catch(e){}syncFxBalanceLock()};
 if($('fxReturnLevel'))$('fxReturnLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';$('mixFxLevel').value=this.value;$('mixFxRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
 $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.message||e)})};
