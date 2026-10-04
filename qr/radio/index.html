@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Grand Element Radio</title>
+
+<link rel="preload" as="image" href="/ge-images/images/favicon-square.jpg">
+<link rel="preload" as="image" href="/ge-images/images/stars%20backgrounds/4.jpg">
+
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+}
+#site{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#000;
+  z-index:0;
+}
+#gate{
+  position:fixed;
+  inset:0;
+  z-index:10;
+  overflow:hidden;
+  background:transparent;
+  opacity:1;
+  transition:opacity .82s ease;
+  touch-action:manipulation;
+}
+#stars{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background:#000 url("/ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
+  opacity:1;
+  will-change:opacity,filter;
+}
+#stars::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 50%,
+    rgba(15,120,255,.03) 0%,
+    rgba(0,0,0,.05) 52%,
+    rgba(0,0,0,.26) 100%);
+  pointer-events:none;
+}
+#portalBlur{
+  position:absolute;
+  inset:-30px;
+  z-index:1;
+  opacity:0;
+  background:rgba(0,22,48,.22);
+  backdrop-filter:blur(24px) brightness(.88);
+  -webkit-backdrop-filter:blur(24px) brightness(.88);
+  will-change:opacity;
+  pointer-events:none;
+}
+#sunWrap{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:min(50vmin,430px);
+  aspect-ratio:1;
+  transform:translate(-50%,-50%) scale(.76);
+  transform-origin:50% 50%;
+  opacity:0;
+  will-change:transform,opacity,filter;
+  z-index:2;
+}
+#sun{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:50%;
+  box-shadow:
+    0 0 26px rgba(0,210,255,.56),
+    0 0 74px rgba(0,110,255,.32);
+  user-select:none;
+  -webkit-user-drag:none;
+}
+#gate.holding #stars{
+  opacity:0 !important;
+}
+#gate.holding #portalBlur{
+  opacity:1 !important;
+}
+#gate.done{
+  opacity:0;
+  pointer-events:none;
+}
+@media (prefers-reduced-motion:reduce){
+  #sunWrap{
+    opacity:1 !important;
+    transform:translate(-50%,-50%) scale(.86) !important;
+    filter:none !important;
+  }
+}
+</style>
+</head>
+
+<body>
+<iframe id="site" src="/radio/" title="Grand Element Radio"></iframe>
+
+<div id="gate" aria-label="Entering Grand Element Radio" role="button" tabindex="0">
+  <div id="stars"></div>
+  <div id="portalBlur"></div>
+  <div id="sunWrap">
+    <img id="sun" src="/ge-images/images/favicon-square.jpg" alt="Grand Element">
+  </div>
+</div>
+
+<script src="../../ge-vault-client.js"></script>
+<script>
+(function(){
+  const gate = document.getElementById('gate');
+  const stars = document.getElementById('stars');
+  const portalBlur = document.getElementById('portalBlur');
+  const sunWrap = document.getElementById('sunWrap');
+  const site = document.getElementById('site');
+
+  let leaving = false;
+  let rafId = 0;
+  let startTime = 0;
+  let animationFinished = false;
+  let siteReady = false;
+
+  const STARS_ONLY = 3500;
+  const FADE_IN = 1700;
+  const ZOOM_START = STARS_ONLY + FADE_IN;
+  const ZOOM_TIME = 6000;
+  const TOTAL = ZOOM_START + ZOOM_TIME;
+
+  const START_SCALE = 0.76;
+  const END_SCALE = 8.5;
+  const SCALE_RATIO = END_SCALE / START_SCALE;
+
+  function clamp01(v){
+    return Math.max(0, Math.min(1, v));
+  }
+
+  function smoothstep(t){
+    t = clamp01(t);
+    return t * t * (3 - 2 * t);
+  }
+
+  function revealSite(){
+    if(leaving || !animationFinished || !siteReady) return;
+
+    leaving = true;
+    gate.classList.add('holding');
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => gate.classList.add('done'));
+    });
+
+    // The radio is already loaded behind the gate.
+    // Change only the address-bar URL so there is no second radio reload.
+    setTimeout(() => {
+      try { history.replaceState({qrRadioGate:true}, '', '/radio/'); } catch(e) {}
+      try { site.contentWindow.focus(); } catch(e) {}
+    }, 900);
+  }
+
+  function finishAnimation(){
+    if(animationFinished) return;
+    animationFinished = true;
+
+    gate.classList.add('holding');
+    stars.style.opacity = '0';
+    portalBlur.style.opacity = '1';
+    sunWrap.style.opacity = '0';
+
+    revealSite();
+  }
+
+  function draw(now){
+    if(!startTime) startTime = now;
+    const elapsed = now - startTime;
+
+    let opacity = 0;
+    let scale = START_SCALE;
+    let brightness = 1;
+    let saturation = 1;
+    let blur = 0;
+    let starsOpacity = 1;
+    let portalOpacity = 0;
+
+    if(elapsed >= STARS_ONLY){
+      opacity = smoothstep((elapsed - STARS_ONLY) / FADE_IN);
+    }
+
+    if(elapsed >= ZOOM_START){
+      const p = clamp01((elapsed - ZOOM_START) / ZOOM_TIME);
+      const accelerated = Math.pow(p, 3.0);
+
+      scale = START_SCALE * Math.pow(SCALE_RATIO, accelerated);
+      brightness = 1 + 0.72 * Math.pow(p, 2.6);
+      saturation = 1 + 0.08 * smoothstep(p);
+
+      if(p > 0.86){
+        const q = smoothstep((p - 0.86) / 0.14);
+        starsOpacity = 1 - q;
+        portalOpacity = q;
+      }
+
+      if(p > 0.90){
+        const q = smoothstep((p - 0.90) / 0.10);
+        opacity *= (1 - q);
+        blur = 2.2 * q;
+      }
+    }
+
+    sunWrap.style.opacity = opacity.toFixed(4);
+    sunWrap.style.transform =
+      'translate(-50%,-50%) scale(' + scale.toFixed(5) + ')';
+    sunWrap.style.filter =
+      'brightness(' + brightness.toFixed(3) + ') saturate(' +
+      saturation.toFixed(3) + ') blur(' + blur.toFixed(2) + 'px)';
+
+    stars.style.opacity = starsOpacity.toFixed(4);
+    portalBlur.style.opacity = portalOpacity.toFixed(4);
+
+    if(elapsed < TOTAL){
+      rafId = requestAnimationFrame(draw);
+    }else{
+      finishAnimation();
+    }
+  }
+
+  function skip(){
+    if(leaving) return;
+    if(rafId) cancelAnimationFrame(rafId);
+    animationFinished = true;
+    siteReady = true;
+    gate.classList.add('holding');
+    revealSite();
+  }
+
+  site.addEventListener('load', () => {
+    siteReady = true;
+    revealSite();
+  }, {once:true});
+
+  gate.addEventListener('click', skip);
+  gate.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      skip();
+    }
+  });
+
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    gate.classList.add('holding');
+    animationFinished = true;
+    setTimeout(() => {
+      siteReady = true;
+      revealSite();
+    }, 900);
+  }else{
+    rafId = requestAnimationFrame(draw);
+  }
+
+  setTimeout(() => {
+    if(!animationFinished) finishAnimation();
+    if(!siteReady) siteReady = true;
+    revealSite();
+  }, TOTAL + 5000);
+})();
+</script>
+</body>
+</html>
