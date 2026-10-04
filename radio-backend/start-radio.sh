@@ -123,7 +123,7 @@ http {
   # and earlier to the compatibility controller automatically.
   map $http_user_agent $ge_legacy_dj {
     default 0;
-    ~*"(iPhone|iPod|iPad).*OS ([1-9]_|10_)" 1;
+    "~*(iPhone|iPod|iPad).*OS ([1-9]_|10_)" 1;
   }
   client_body_temp_path /app/runtime/client_temp;
   proxy_temp_path /app/runtime/proxy_temp;
