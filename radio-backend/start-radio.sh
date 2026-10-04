@@ -118,6 +118,13 @@ http {
     "https://www.grandelement.com" $http_origin;
     "https://grandelement.github.io" $http_origin;
   }
+
+  # Old iOS Safari cannot parse the modern GE DJ JavaScript. Route iOS 10
+  # and earlier to the compatibility controller automatically.
+  map $http_user_agent $ge_legacy_dj {
+    default 0;
+    ~*"(iPhone|iPod|iPad).*OS ([1-9]_|10_)" 1;
+  }
   client_body_temp_path /app/runtime/client_temp;
   proxy_temp_path /app/runtime/proxy_temp;
   fastcgi_temp_path /app/runtime/fastcgi_temp;
@@ -188,10 +195,25 @@ http {
       add_header Cache-Control "no-store" always; add_header X-Accel-Buffering "no" always;
     }
 
-    location = /dj { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj/ { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj/index.html { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
-    location = /dj.html { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
+    location = /dj {
+      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
+      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
+    }
+    location = /dj/ {
+      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
+      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
+    }
+    location = /dj/index.html {
+      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
+      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
+    }
+    location = /dj.html {
+      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
+      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
+    }
+    location = /dj-lite { return 302 /dj-lite/; }
+    location = /dj-lite/ { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
+    location = /dj-lite.html { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj/ { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj.html { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
