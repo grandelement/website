@@ -3430,6 +3430,63 @@ body:not(.game-mode-active) .moon img{
 body:not(.game-mode-active) .moon.radio-live-reactive::before{transform:scale(var(--moon-scale))!important;opacity:var(--moon-opacity)!important}
 body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(calc(.92 + var(--moon-level) * .20))!important;opacity:calc(.10 + var(--moon-level) * .34)!important}
 </style>
+
+<style id="ge-about-viewport-fix-v2">
+#about{
+  box-sizing:border-box!important;
+  padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+#about .aboutText{
+  box-sizing:border-box!important;
+  width:min(620px,calc(100vw - 24px))!important;
+  max-width:calc(100vw - 24px)!important;
+  max-height:calc(100vh - 28px)!important;
+  max-height:calc(100dvh - 28px)!important;
+  margin:0 auto!important;
+  padding:14px 14px 18px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  font-size:clamp(11px,3.3vw,15px)!important;
+  line-height:1.3!important;
+  border-radius:15px!important;
+}
+#about .aboutClose{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  position:fixed!important;
+  top:max(7px,env(safe-area-inset-top))!important;
+  right:max(7px,env(safe-area-inset-right))!important;
+  width:36px!important;height:36px!important;
+  z-index:100!important;
+  padding:0!important;
+}
+#about .aboutIntro{font-size:inherit!important;line-height:inherit!important}
+#about .aboutSection{margin-top:7px!important}
+#about .details{font-size:11px!important;line-height:1.25!important;padding:7px 8px!important}
+#about .overlayBottomClose{min-height:36px!important;margin-top:8px!important}
+@media(max-width:390px){
+  #about{padding:max(7px,env(safe-area-inset-top)) 7px max(7px,env(safe-area-inset-bottom))!important}
+  #about .aboutText{
+    width:calc(100vw - 14px)!important;
+    max-width:calc(100vw - 14px)!important;
+    max-height:calc(100vh - 14px)!important;
+    max-height:calc(100dvh - 14px)!important;
+    padding:10px 9px 13px!important;
+    font-size:11px!important;
+    line-height:1.2!important;
+  }
+  #about .aboutIntro{font-size:11px!important}
+  #about .details{font-size:10px!important;line-height:1.18!important;padding:5px 6px!important}
+  #about .pill{font-size:10px!important;padding:4px 7px!important}
+  #about .gameButton{min-height:34px!important;font-size:11px!important;padding:5px 8px!important}
+}
+</style>
+
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -6996,7 +7053,7 @@ function loop(){
   // Do not trust a stale GE_GAME.state.active flag after leaving a game: that regression
   // could stop normal-site Bodies/Souls from ever spawning or drawing.
   const bodyRaceLive=document.body.classList.contains('ge-body-race-active');
-  const visibleGameMode=document.body.classList.contains('game-mode-active');
+  const visibleGameMode=document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;
   if(visibleGameMode&&!bodyRaceLive){last=performance.now()/1000;setTimeout(loop,250);return;}
   const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;PERF.dt=dt;perfHeat(dt);
 
@@ -7098,7 +7155,7 @@ function loop(){
     const r = c.r || 0;
     const level=Math.max(1,Math.min(10,c.depthLevel||1));
     // Planets/Sun/Moon occupy a middle depth band. Even a compatible Soul usually passes without contact.
-    const bodyDepthCompatible=Math.abs(level-6)<=1;
+    const bodyDepthCompatible=level>=4&&level<=9;
     if (window.planetNodes && bodyDepthCompatible) {
       // Normal universe contact transfers momentum into the actual album planet.
       // THE BODY course keeps hazards fixed separately; this is only the free website universe.
@@ -7490,7 +7547,7 @@ buildPlanetPhysics();
   const ag=aim.getContext('2d');let dpr=1,w=0,h=0,drag=null,hist=[],seq=0,activeShot=null,aimPoint=null;
   function fit(){dpr=Math.min(innerWidth<700?1.4:1.75,devicePixelRatio||1);w=innerWidth;h=innerHeight;aim.width=Math.round(w*dpr);aim.height=Math.round(h*dpr);aim.style.width=w+'px';aim.style.height=h+'px';ag.setTransform(dpr,0,0,dpr,0,0);}
   addEventListener('resize',fit,{passive:true});fit();
-  function isGame(){return document.body.classList.contains('game-mode-active');}
+  function isGame(){return document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;}
   function gameState(){return window.GE_GAME?.state||null;}
   function speed(p){return Math.hypot(p?.vx||0,p?.vy||0);}
   function tableStill(){const lim=window.GE_EASY_SETTINGS?.PLANET_INPUT_UNLOCK_SPEED??12;return (window.planetNodes||[]).every(p=>p.dragging||speed(p)<=lim);}
@@ -7739,7 +7796,7 @@ function planetStep(frameNow){
   let frameScale=(now-gePlanetPhysicsLast)/(1000/60);
   gePlanetPhysicsLast=now;
   frameScale=Math.max(.35,Math.min(3,Number.isFinite(frameScale)?frameScale:1));
-  const gameActive=document.body.classList.contains('game-mode-active');
+  const gameActive=document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;
   const bodyCourseActive=document.body.classList.contains('ge-body-race-active');
   if(bodyCourseActive){
     for(const p of planetNodes){
@@ -9430,7 +9487,30 @@ const GE_GAME = (()=>{
     state.demoAwaitingPlayers=false;resetGamePromptDefault();document.getElementById('gameMusicDock')?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');setOptionsView('basic');updatePlayerOption();syncBasicGameCards();showGameHub();optionsPanel.classList.add('show');flash('NEW GAME · CHOOSE A GAME');
   }
   newBtn?.addEventListener('click',()=>{newGame(false);});
-  document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>{if(currentGameDetail==='golf'){window.GE_COURSE_GAMES?.openGolf?.();return}if(currentGameDetail==='body'){window.GE_COURSE_GAMES?.openBody?.();return}if(newGame(false))optionsPanel.classList.remove('show');});
+  document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>{
+    try{
+      if(currentGameDetail==='golf'){
+        optionsPanel.classList.remove('show');
+        if(window.GE_COURSE_GAMES?.openGolf)window.GE_COURSE_GAMES.openGolf();
+        else setTimeout(()=>window.GE_COURSE_GAMES?.openGolf?.(),80);
+        return;
+      }
+      if(currentGameDetail==='body'){
+        optionsPanel.classList.remove('show');
+        if(window.GE_COURSE_GAMES?.openBody)window.GE_COURSE_GAMES.openBody();
+        else setTimeout(()=>window.GE_COURSE_GAMES?.openBody?.(),80);
+        return;
+      }
+      if(newGame(false)){
+        optionsPanel.classList.remove('show');
+        document.body.classList.add('game-mode-active');
+        hud?.classList.add('show');hud?.setAttribute('aria-hidden','false');
+      }
+    }catch(err){
+      console.error('[GE game activation] recovered',err);
+      flash('GAME START RECOVERED · TAP START AGAIN');
+    }
+  });
   addEventListener('pagehide',saveGameStateNow);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGameStateNow();});
 
@@ -9665,14 +9745,15 @@ const GE_GAME = (()=>{
     if(state.active) return;
     let saved='';
     try{ saved=localStorage.getItem(STORAGE_PROMPT)||localStorage.getItem('GE_GAME_PROMPT_CHOICE_V1')||''; }catch(e){}
-    if(saved==='start'){ startGame(); return; }
+    if(saved==='start'){ openNewGameSetup(); return; }
     if(saved==='explore') return;
     prompt.classList.add('show');
   }
 
   accept.addEventListener('click',()=>{
     if(remember.checked){ try{ localStorage.setItem(STORAGE_PROMPT,'start'); }catch(e){} }
-    startGame();
+    prompt.classList.remove('show');
+    openNewGameSetup();
   });
   explore.addEventListener('click',()=>{
     if(remember.checked){ try{ localStorage.setItem(STORAGE_PROMPT,'explore'); }catch(e){} }
@@ -10564,7 +10645,7 @@ const GE_GAME = (()=>{
   geLockDocumentScroll();
 
   updateHUD();
-  return {start:startGame,exit:confirmExitGame,state,registerThrow,finishThrow,reflow,sunCollision,planetContact,saveGameStateNow,notify:flash,newGame,blueSunPool:bluePool};
+  return {start:openNewGameSetup,openChooser:openNewGameSetup,activate:startGame,exit:confirmExitGame,state,registerThrow,finishThrow,reflow,sunCollision,planetContact,saveGameStateNow,notify:flash,newGame,blueSunPool:bluePool};
 })();
 window.GE_GAME=GE_GAME;
 try{
@@ -12284,8 +12365,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function centerOf(el){const r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2,r:Math.max(1,(r.width||r.height||20)/2)}}
   function albumRank(el,fallback){const k=key(el?.dataset?.album||el?.title||'');const i=ORDER_KEYS.indexOf(k);return i>=0?i:fallback}
   function allowed(){
+    const coreGameActive=document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;
     return !document.hidden &&
-      !document.body.classList.contains('game-mode-active') &&
+      !coreGameActive &&
       !document.body.classList.contains('ge-body-race-active') &&
       !document.getElementById('geGravityMode')?.classList.contains('show');
   }
@@ -12384,7 +12466,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       if(held.has(el)||node?.dragging){st.dynamic=true;st.lastDynamic=now;return}
       if(node){
         const speed=Math.hypot(Number(node.vx)||0,Number(node.vy)||0);
-        if(speed>1.5){st.dynamic=true;st.lastDynamic=now;return}
+        if(speed>.25){st.dynamic=true;st.lastDynamic=now;return}
       }
       if(st.dynamic){
         if(now-st.lastDynamic<REJOIN_MS)return;
