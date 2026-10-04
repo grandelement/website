@@ -2945,7 +2945,7 @@ html.geDayMode #deviceChannelSheet .deviceVideoSignal{border-top-color:#a6b4be!i
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v96</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v97</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3985,13 +3985,34 @@ function renderLineRoleUi(){
  if(home)setMeterLevel('lineMeter',Number(home.line_peak||0));else setMeterLevel('lineMeter',0)
 }
 function geBoardAppState(){return document.visibilityState==='visible'?'active':'background'}
+async function handleDjBoardCommands(items){
+ if(!Array.isArray(items)||!items.length||GE_BOARD_ROLE!=='remote')return;
+ for(const c of items){
+  try{
+   if(c.action==='mic_air'){
+    const wanted=!!c.value;
+    if(wanted&&!micAirOn)await startMicOnAir();
+    else if(!wanted&&micAirOn)await stopMicOnAir({preserveMic:true})
+   }else if(c.action==='mic_mute'){
+    settings.mic.mute=!!c.value;applyChannel('mic');saveSettings()
+   }else if(c.action==='mic_level'){
+    settings.mic.level=clamp(Number(c.value)||0,0,150);applyChannel('mic');saveSettings()
+   }else if(c.action==='camera_ready'&&c.value){
+    await ensureCameraOpen()
+   }
+  }catch(e){diagEvent('REMOTE DEVICE COMMAND ERROR',String(e&&e.message||e))}
+ }
+}
 async function geBoardHeartbeat(){
- if(!key||boardHeartbeatBusy)return;
+ if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
   const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
   const d=await r.json().catch(function(){return {}});
-  if(r.ok&&d.ok&&status)status.dj_boards=d.boards||status.dj_boards;
+  if(r.ok&&d.ok){
+   if(status)status.dj_boards=d.boards||status.dj_boards;
+   if(d.commands&&d.commands.length)await handleDjBoardCommands(d.commands)
+  }
  }catch(e){}finally{boardHeartbeatBusy=false}
 }
 function startBoardHeartbeat(){
@@ -5253,7 +5274,7 @@ function renderDeviceChannelSheet(){
  const videoLive=videoTrackState==='live'||!!(remote&&remote.video_active);
  const videoSeen=videoLive||remoteVideoAvailable||boardVideoInputs.length>0||localVideoInputs.length>0;
  const videoPct=videoLive?100:(videoSeen?35:0);
- const videoState=videoLive?'VIDEO LIVE':(videoSeen?'CAMERA SEEN · STREAM OFF':'NO VIDEO INPUT');
+ const videoState=videoLive?'CAMERA CAPTURE LIVE':(videoSeen?'CAMERA SEEN · CAPTURE OFF':'NO VIDEO INPUT');
 
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online);
@@ -5309,25 +5330,29 @@ function renderDeviceChannelSheet(){
  const pct=self?Math.round(Number(settings.mic.level==null?100:settings.mic.level)):Math.round(Number(remote&&remote.level!=null?remote.level:100));
  if($('deviceChannelLevel')){
    $('deviceChannelLevel').value=String(pct);
-   $('deviceChannelLevel').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online));
+   $('deviceChannelLevel').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online)&&!boardOnline);
    $('deviceChannelLevel').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelLevel').dataset.boardId=board&&board.id||'';
  }
  if($('deviceChannelLevelRead'))$('deviceChannelLevelRead').textContent=pct+'%';
  if($('deviceChannelReady')){
-   $('deviceChannelReady').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online));
+   $('deviceChannelReady').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online)&&!boardOnline);
    $('deviceChannelReady').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelReady').dataset.boardId=board&&board.id||'';
    $('deviceChannelReady').textContent=ready?'AUDIO READY':'OPEN AUDIO';
    $('deviceChannelReady').classList.toggle('on',ready);
  }
  if($('deviceChannelAir')){
    $('deviceChannelAir').disabled=!isRemoteDevice||!ready;
    $('deviceChannelAir').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelAir').dataset.boardId=board&&board.id||'';
    $('deviceChannelAir').textContent=air?'STOP AIR':'ON AIR';
    $('deviceChannelAir').classList.toggle('air',air);
  }
  if($('deviceChannelMute')){
-   $('deviceChannelMute').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online));
+   $('deviceChannelMute').disabled=!isRemoteDevice||(!self&&!(remote&&remote.online)&&!boardOnline);
    $('deviceChannelMute').dataset.remoteDevice=remote&&remote.id||'';
+   $('deviceChannelMute').dataset.boardId=board&&board.id||'';
    $('deviceChannelMute').textContent=muted?'UNMUTE':'MUTE';
    $('deviceChannelMute').classList.toggle('on',muted);
  }
@@ -5481,6 +5506,12 @@ async function sendRemoteCommand(deviceId,action,value){
   const r=await api('/control/device/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:deviceId,action:action,value:value})}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok)throw new Error(d.error||'Remote device command failed');
 }
+async function sendBoardCommand(boardId,action,value){
+ const r=await api('/control/board/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:boardId,action:action,value:value})}),d=await r.json().catch(function(){return {}});
+ if(!r.ok||!d.ok)throw new Error(d.error||'Remote browser command failed');
+ return d
+}
+
 async function createDevicePairCode(targetKind){
   const body=targetKind?JSON.stringify({target_kind:targetKind}):'{}';
   const r=await api('/control/device/pair/create',{method:'POST',headers:{'Content-Type':'application/json'},body:body}),d=await r.json().catch(function(){return {}});
@@ -5495,27 +5526,36 @@ $('deviceChannelLevel').oninput=function(){
 };
 $('deviceChannelLevel').onchange=function(){
  if(GE_DEVICE_KIND===geOpenDeviceKind){settings.mic.level=Number(this.value);applyChannel('mic');pushSharedDjControls({mic_level:Number(this.value)},true);saveSettings();return}
- const id=this.dataset.remoteDevice;if(!id)return;sendRemoteCommand(id,'level',Number(this.value)/100).then(function(){setTimeout(poll,150)}).catch(function(e){alert(e.message||e)})
+ const id=this.dataset.remoteDevice,boardId=this.dataset.boardId;
+ if(id){sendRemoteCommand(id,'level',Number(this.value)/100).then(function(){setTimeout(poll,150)}).catch(function(e){alert(e.message||e)});return}
+ if(boardId)sendBoardCommand(boardId,'mic_level',Number(this.value)).then(function(){setTimeout(poll,150)}).catch(function(e){alert(e.message||e)})
 };
 $('deviceChannelReady').onclick=function(){
  if(GE_DEVICE_KIND===geOpenDeviceKind){
-   openMic().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
+   autoConnectDeviceMedia().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
    return
  }
- const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'arm',!d.remote_ready).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ const id=this.dataset.remoteDevice,boardId=this.dataset.boardId,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});
+ if(id&&d){sendRemoteCommand(id,'arm',!d.remote_ready).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});return}
+ if(boardId)sendBoardCommand(boardId,'camera_ready',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
 };
 $('deviceChannelAir').onclick=function(){
  if(GE_DEVICE_KIND===geOpenDeviceKind){
    toggleMicOnAir().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
    return
  }
- const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'air',!d.on_air).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ const id=this.dataset.remoteDevice,boardId=this.dataset.boardId,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});
+ if(id&&d){sendRemoteCommand(id,'air',!d.on_air).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});return}
+ const b=(status.dj_boards||[]).find(function(x){return String(x.id)===String(boardId)});
+ if(boardId)sendBoardCommand(boardId,'mic_air',!(b&&b.mic_air)).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
 };
 $('deviceChannelMute').onclick=function(){
  if(GE_DEVICE_KIND===geOpenDeviceKind){
    settings.mic.mute=!settings.mic.mute;applyChannel('mic');saveSettings();renderDeviceChannelSheet();return
  }
- const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ const id=this.dataset.remoteDevice,boardId=this.dataset.boardId,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});
+ if(id&&d){sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});return}
+ if(boardId)sendBoardCommand(boardId,'mic_mute',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
 };
 async function connectDeviceChannel(kind){
  if(kind!=='iphone'&&kind!=='ipad'&&kind!=='iphone5')throw new Error('Choose iPHONE, iPAD, or iPHONE 5 first.');
