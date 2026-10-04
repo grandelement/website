@@ -1456,6 +1456,19 @@ def check_remote_pair_rate(ip):
         times.append(now)
         REMOTE_PAIR_ATTEMPTS[ip] = times
 
+LEGACY_DJ_LOGIN_ATTEMPTS = {}
+LEGACY_DJ_LOGIN_LOCK = threading.Lock()
+
+def check_legacy_dj_login_rate(ip):
+    ip = str(ip or "unknown")[:120]
+    now = time.time()
+    with LEGACY_DJ_LOGIN_LOCK:
+        times = [x for x in LEGACY_DJ_LOGIN_ATTEMPTS.get(ip, []) if now - x < 60]
+        if len(times) >= 8:
+            raise RuntimeError("Too many login attempts. Wait one minute.")
+        times.append(now)
+        LEGACY_DJ_LOGIN_ATTEMPTS[ip] = times
+
 def claim_remote_pairing(code, name, platform="ios", model="", capabilities=None):
     code = str(code or "").strip()
     with REMOTE_DEVICE_LOCK:
@@ -2986,6 +2999,35 @@ class Handler(BaseHTTPRequestHandler):
                     self.json_response({"ok": True, "session": row})
                 else:
                     raise ValueError("Unknown DJ work-session action.")
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+
+        if self.path == "/control/auth/legacy-login":
+            try:
+                client_ip = (self.headers.get("CF-Connecting-IP") or self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+                check_legacy_dj_login_rate(client_ip)
+                if not self.password_configured():
+                    self.json_response({"ok": False, "error": "DJ_PASSWORD is not configured on the radio server."}, 503)
+                    return
+                body = self.read_body_json()
+                supplied = str(body.get("password", "") or "")
+                expected = os.environ.get("DJ_PASSWORD", "")
+                if not supplied or not hmac.compare_digest(supplied, expected):
+                    self.json_response({"ok": False, "error": "Password rejected."}, 401)
+                    return
+                name = str(body.get("name", "Legacy iPhone") or "Legacy iPhone")[:100]
+                scope = str(body.get("device_scope", "legacy-iphone5") or "legacy-iphone5")[:100]
+                row, token = create_dj_trusted_device(name, scope, 180)
+                self.json_response({
+                    "ok": True,
+                    "device": row,
+                    "device_token": token,
+                    "auth_method": "legacy_password_exchange",
+                })
+            except RuntimeError as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 429)
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
