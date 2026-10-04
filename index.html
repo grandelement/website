@@ -7098,7 +7098,7 @@ function loop(){
     const level=Math.max(1,Math.min(10,c.depthLevel||1));
     // Planets/Sun/Moon occupy a middle depth band. Even a compatible Soul usually passes without contact.
     const bodyDepthCompatible=Math.abs(level-6)<=1;
-    if (window.planetNodes && bodyDepthCompatible && c.bodyInteractive) {
+    if (window.planetNodes && bodyDepthCompatible) {
       // Normal universe contact transfers momentum into the actual album planet.
       // THE BODY course keeps hazards fixed separately; this is only the free website universe.
       for (const p of planetNodes){
@@ -11588,11 +11588,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     checkFadeTimer=setTimeout(()=>{fn();requestAnimationFrame(()=>checkCard?.classList.remove('geAutoFade'));},235);
   }
   function showAlbumChooser(){
-    closeOverlay(musicPanel);closeOverlay(displayPanel);hideCheck();
+    closeOverlay(musicPanel);closeOverlay(displayPanel);clearTimeout(checkFadeTimer);checkCard?.classList.remove('geAutoFade');
     checkTitle.textContent='CHOOSE THE MUSIC';
     checkText.textContent='Pick an album, choose shuffle, or keep what is already playing.';
     const buttons=albumChoices().map(a=>`<button type="button" data-auto-album="${String(a).replace(/"/g,'&quot;')}">${a}</button>`).join('');
-    checkExtra.innerHTML=`<div class="autoChoiceGrid"><button type="button" class="wide" data-auto-mode="shuffle">SHUFFLE</button><button type="button" class="wide" data-auto-mode="keep">KEEP PLAYING</button>${buttons}</div><div class="autoHint">Autopilot will let you move the planets around or relax and listen.</div>`;
+    checkExtra.innerHTML=`<div class="autoChoiceGrid"><button type="button" class="wide" data-auto-mode="shuffle">SHUFFLE</button><button type="button" class="wide" data-auto-mode="keep">KEEP PLAYING</button>${buttons}</div>`;
     setActionButtons('CANCEL');
     check.dataset.mode='choose';check.classList.add('show');
     checkExtra.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
