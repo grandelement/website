@@ -1858,7 +1858,7 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_THRUSTER_MAX_LENGTH: 0.30,
   SHIP_TURBO_START: 0.62,
   SHIP_TURBO_EXTRA_LENGTH: 0.46,
-  SHIP_THRUSTER_SPREAD: 0.235,
+  SHIP_THRUSTER_SPREAD: 0.3525,
   SHIP_EXIT_MARGIN: 130,
   SHIP_MAX_SOULS: 120,
 
@@ -6224,13 +6224,14 @@ function drawGEBodyThrusters(g,drawW,drawH,throttle=0,turboOverride=null){
   const min=Math.max(.02,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_MIN)||.10);
   const maxLen=Math.max(.08,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_MAX_LENGTH)||.30);
   const turboExtra=Math.max(.08,Number(window.GE_EASY_SETTINGS?.SHIP_TURBO_EXTRA_LENGTH)||.46);
-  const spread=Math.max(.12,Math.min(.34,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_SPREAD)||.235));
+  // Outer engines sit about 50% farther toward the ends of the E than the previous layout.
+  const spread=Math.max(.12,Math.min(.52,Number(window.GE_EASY_SETTINGS?.SHIP_THRUSTER_SPREAD)||.3525));
   const rearX=drawW*.675,base=drawW*(min+t*maxLen),now=performance.now();
   const ys=[-drawH*spread,0,drawH*spread];
   g.save();g.globalCompositeOperation='lighter';g.lineCap='round';
   for(let i=0;i<3;i++){
     const middle=i===1,flicker=.90+.10*Math.sin(now/48+i*2.1),len=(base+(middle?drawW*turboExtra*Math.pow(turbo,1.42):0))*flicker;
-    const y=ys[i],flare=Math.max(1.3,drawH*(.018+t*.014+(middle?turbo*.012:0)));
+    const y=ys[i],flare=Math.max(2.6,drawH*(.036+t*.028+(middle?turbo*.024:0)));
     const grad=g.createLinearGradient(rearX,y,rearX+len,y);
     grad.addColorStop(0,'rgba(244,253,255,.98)');
     grad.addColorStop(.18,'rgba(124,224,255,.96)');
