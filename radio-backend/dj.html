@@ -2741,6 +2741,102 @@ html.geDayMode #mixerSheet #effectsSheet .fxPresetManager{
   border:1px solid #8396a5!important;
 }
 
+
+/* V91 viewport lock + always-visible device signal diagnostics. */
+html,body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-y!important;
+}
+body,.wrap,.card,.sheet,.sheetIn,.modal,.modalBox,.dock,.dockin,
+.geDisplayZoomBar,.geChannelStatus,.geScaleControls{
+  box-sizing:border-box!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+.geDisplayZoomBar:not(.inHeader){
+  left:max(6px,env(safe-area-inset-left))!important;
+  right:max(6px,env(safe-area-inset-right))!important;
+  width:auto!important;
+  transform:none!important;
+}
+.geDisplayZoomBar .geChannelStatus{
+  overflow-x:hidden!important;
+  flex-wrap:wrap!important;
+}
+.geChannelBubble{
+  flex:0 1 auto!important;
+  max-width:100%!important;
+}
+.geDisplayZoomBar .geScaleControls{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  gap:5px!important;
+  width:100%!important;
+}
+.geDisplayZoomBar .geScaleControls>*{max-width:100%!important}
+#mixerSheet .mixerChannelHost .geChannelStatus{
+  overflow-x:hidden!important;
+  flex-wrap:wrap!important;
+}
+#mixerSheet .mixerSecondRow,
+#mixerSheet .mixerLayoutBar,
+#mixerSheet #effectsSheet .fxLayoutBar{
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.dock{width:100%!important;overflow:hidden!important}
+.dockin{width:100%!important;grid-template-columns:repeat(6,minmax(0,1fr))!important}
+.dock button{
+  min-width:0!important;
+  width:100%!important;
+  padding:5px 3px!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+@media(max-width:560px){
+  .dockin{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+
+/* Device panel always shows the actual live input meter. */
+#deviceChannelSheet .deviceChannelStatusCard .hmeter{
+  display:block!important;
+  height:22px!important;
+  margin-top:5px!important;
+}
+#deviceChannelSheet .deviceSignalHead{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+  margin-top:10px!important;
+  font-weight:950!important;
+}
+#deviceChannelSheet .deviceSignalHead span{
+  font-variant-numeric:tabular-nums!important;
+  color:var(--accent)!important;
+}
+#deviceChannelSheet .deviceChannelDiag{
+  margin-top:8px!important;
+  padding:8px!important;
+  border:1px solid #334754!important;
+  border-radius:9px!important;
+  background:#071018!important;
+}
+#deviceChannelSheet .deviceChannelDiagText{
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.35!important;
+}
+html.geDayMode #deviceChannelSheet .deviceChannelDiag{
+  background:#fff!important;
+  color:#111820!important;
+  border-color:#8396a5!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble micIdle" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone"><i></i><span>iPHONE</span></button><button type="button" class="geChannelBubble" data-channel-bubble="ipad"><i></i><span>iPAD</span></button><button type="button" class="geChannelBubble" data-channel-bubble="iphone5"><i></i><span>iPHONE 5</span></button></div>
@@ -2748,7 +2844,7 @@ html.geDayMode #mixerSheet #effectsSheet .fxPresetManager{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v90</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v91</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -2787,7 +2883,7 @@ html.geDayMode #mixerSheet #effectsSheet .fxPresetManager{
 <div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that COMPUTER channel.</div>
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC READY</button><button id="deviceChannelAir" disabled>ON AIR</button><button id="deviceChannelMute" disabled>MUTE</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
+<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>LIVE INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC READY</button><button id="deviceChannelAir" disabled>ON AIR</button><button id="deviceChannelMute" disabled>MUTE</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div><label><input type="checkbox" data-mixer-channel="line" checked>COMPUTER</label><label><input type="checkbox" data-mixer-channel="iphone" checked>iPHONE</label><label><input type="checkbox" data-mixer-channel="ipad" checked>iPAD</label><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="note" style="grid-column:1/-1">MIC is always available. Use these switches only to show or hide the other mixer channels.</div><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ PAIR REMOTE MIC APP</button><strong id="pairingCode"></strong><div class="note remotePairHelp">This code is only for the separate GE Remote Mic app. To connect an iPhone or iPad as a GE DJ control device, simply open GE DJ on that device. No pairing code is needed.</div></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut" aria-label="Show fewer effect controls">↓</button>
@@ -3754,7 +3850,7 @@ async function geBoardHeartbeat(){
  if(!key||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||'')}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:(geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN',video_track_state:'',media_error:String(geAudioDiag.lastError||'').slice(0,240)}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok&&status)status.dj_boards=d.boards||status.dj_boards;
  }catch(e){}finally{boardHeartbeatBusy=false}
@@ -4408,7 +4504,7 @@ function stopLineInput(){
  const active=$('lineActiveDevice');if(active){active.textContent='ACTIVE DEVICE · NONE';active.classList.remove('bad')}
  if(typeof renderChannelStatusBubbles==='function')renderChannelStatusBubbles()
 }
-let geAudioDiag={permission:'unknown',inputs:[],labelsUnlocked:false,lastError:'',lastScan:0};
+let geAudioDiag={permission:'unknown',inputs:[],videoInputs:[],labelsUnlocked:false,lastError:'',lastScan:0};
 async function geAudioPermissionState(){
  let state='unknown';
  try{
@@ -4426,7 +4522,8 @@ async function geEnumerateAudioInputs(){
  try{
   const all=await navigator.mediaDevices.enumerateDevices();
   const ds=all.filter(function(d){return d.kind==='audioinput'}).map(function(d,i){return {id:String(d.deviceId||''),label:String(d.label||''),name:String(d.label||('Audio input '+(i+1)))}}); 
-  geAudioDiag.inputs=ds;geAudioDiag.labelsUnlocked=ds.some(function(d){return !!d.label});geAudioDiag.lastScan=Date.now();
+  const vs=all.filter(function(d){return d.kind==='videoinput'}).map(function(d,i){return {id:String(d.deviceId||''),label:String(d.label||''),name:String(d.label||('Video input '+(i+1)))}}); 
+  geAudioDiag.inputs=ds;geAudioDiag.videoInputs=vs;geAudioDiag.labelsUnlocked=ds.some(function(d){return !!d.label})||vs.some(function(d){return !!d.label});geAudioDiag.lastScan=Date.now();
   await geAudioPermissionState();renderGeAudioDiagnostics();return ds
  }catch(e){
   geAudioDiag.inputs=[];geAudioDiag.lastError=String(e&&e.message||e);geAudioDiag.lastScan=Date.now();renderGeAudioDiagnostics();return []
@@ -4888,6 +4985,27 @@ function renderDeviceChannelSheet(){
  if($('deviceChannelMicLive')){$('deviceChannelMicLive').hidden=!air;$('deviceChannelMicLive').textContent=label+' MIC LIVE'}
  if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=online?((self?'THIS DEVICE · ':'')+label+' · GE DJ BOARD'):'CHANNEL ENABLED · DEVICE NOT CONNECTED';
  setMeterLevel('deviceChannelMeter',meterPct);
+ if($('deviceChannelMeterRead'))$('deviceChannelMeterRead').textContent=Math.round(meterPct)+'%';
+ if($('deviceChannelDiagText')){
+   const boardAudioInputs=board&&Array.isArray(board.audio_inputs)?board.audio_inputs:[];
+   const boardVideoInputs=board&&Array.isArray(board.video_inputs)?board.video_inputs:[];
+   const remoteCaps=remote&&Array.isArray(remote.capabilities)?remote.capabilities:[];
+   const micTrack=self?String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||'NONE'):String(board&&board.mic_track_state||remote&&remote.mic_active?'LIVE':'NONE');
+   const lines=[
+     'BOARD: '+(boardOnline?'ONLINE':'OFFLINE'),
+     'APP: '+(deviceOnline?'ONLINE':'OFFLINE'),
+     'MIC: '+(ready?'OPEN':'CLOSED'),
+     'MIC TRACK: '+micTrack.toUpperCase(),
+     'SIGNAL: '+Math.round(meterPct)+'%',
+     board&&board.audio_permission?('AUDIO PERMISSION: '+String(board.audio_permission).toUpperCase()):'',
+     boardAudioInputs.length?('AUDIO INPUTS: '+boardAudioInputs.join(' | ')):'',
+     remoteCaps.length?('APP CAPABILITIES: '+remoteCaps.join(' | ').toUpperCase()):'',
+     (remote&&remote.camera_available)?('CAMERA: AVAILABLE · PERMISSION '+String(remote.camera_permission||'UNKNOWN').toUpperCase()):(boardVideoInputs.length?('CAMERA INPUTS: '+boardVideoInputs.join(' | ')):'CAMERA: NOT CONFIRMED'),
+     remote&&remote.video_transport?('VIDEO TRANSPORT: '+String(remote.video_transport).toUpperCase()):'VIDEO TRANSPORT: NOT ACTIVE',
+     String(board&&board.audio_error||remote&&remote.last_error||'')?('LAST ERROR: '+String(board&&board.audio_error||remote&&remote.last_error||'')):''
+   ].filter(Boolean);
+   $('deviceChannelDiagText').textContent=lines.join('\n');
+ }
  if($('deviceChannelMicState')){
    $('deviceChannelMicState').textContent=self?
      (localMic?(micAirOn?'MICROPHONE ON AIR':'MICROPHONE READY'):'MICROPHONE CLOSED · TAP OPEN MIC'):
