@@ -4759,6 +4759,60 @@ async function refreshRemoteVideoPreview(boardId){
   if($('deviceChannelVideoState'))$('deviceChannelVideoState').textContent='REMOTE VIDEO PREVIEW LIVE'
  }catch(e){img.hidden=true}
 }
+function mixerVideoKinds(){return ['iphone','ipad'].filter(function(kind){return !!mixerVideoSelected[kind]})}
+function saveMixerVideoSelection(){try{localStorage.setItem(MIXER_VIDEO_KEY,JSON.stringify(mixerVideoSelected))}catch(e){}}
+function mixerVideoLabel(kind){return kind==='ipad'?'iPAD':'iPHONE'}
+function mixerVideoBoard(kind){return boardForDeviceKind(kind)}
+function renderMixerVideoWall(){
+ const wall=$('mixerVideoWall'),grid=$('mixerVideoGrid'),count=$('mixerVideoCount');if(!wall||!grid)return;
+ const kinds=mixerVideoKinds();
+ wall.hidden=!kinds.length;
+ if(count)count.textContent=kinds.length+' CAMERA'+(kinds.length===1?'':'S');
+ grid.innerHTML=kinds.map(function(kind){
+   const board=mixerVideoBoard(kind),online=!!(board&&board.online),live=!!(board&&String(board.video_track_state||'').toLowerCase()==='live');
+   const state=!online?'DEVICE OFFLINE':(live?'CAMERA LIVE':'WAITING FOR CAMERA');
+   return '<div class="mixerVideoTile" data-video-tile="'+kind+'"><img data-video-img="'+kind+'" alt="'+mixerVideoLabel(kind)+' camera monitor" hidden><div class="mixerVideoOffline" data-video-offline="'+kind+'">'+state+'</div><div class="mixerVideoOverlay"><span>'+mixerVideoLabel(kind)+'</span><span data-video-state="'+kind+'">'+state+'</span></div></div>'
+ }).join('');
+ ['iphone','ipad'].forEach(function(kind){
+   const b=$('mix'+(kind==='ipad'?'Ipad':'Iphone')+'Video');
+   if(b){b.classList.toggle('on',!!mixerVideoSelected[kind]);b.setAttribute('aria-pressed',mixerVideoSelected[kind]?'true':'false')}
+ });
+ if(kinds.length)startMixerVideoMonitor();else stopMixerVideoMonitor()
+}
+async function refreshMixerVideoKind(kind){
+ if(!mixerVideoSelected[kind]||mixerVideoBusy[kind])return;
+ const board=mixerVideoBoard(kind),img=document.querySelector('[data-video-img="'+kind+'"]'),offline=document.querySelector('[data-video-offline="'+kind+'"]'),stateEl=document.querySelector('[data-video-state="'+kind+'"]');
+ if(!img)return;
+ if(!board||!board.online){
+   img.hidden=true;if(offline){offline.hidden=false;offline.textContent='DEVICE OFFLINE'}if(stateEl)stateEl.textContent='DEVICE OFFLINE';return
+ }
+ if(String(board.video_track_state||'').toLowerCase()!=='live'){
+   img.hidden=true;if(offline){offline.hidden=false;offline.textContent='WAITING FOR CAMERA'}if(stateEl)stateEl.textContent='WAITING FOR CAMERA';return
+ }
+ mixerVideoBusy[kind]=true;
+ try{
+   const r=await api('/control/board/video-frame',{headers:{'X-GE-Board-ID':String(board.id||'')}});
+   if(!r.ok)throw new Error('No frame');
+   const blob=await r.blob(),url=URL.createObjectURL(blob);
+   if(mixerVideoUrls[kind])URL.revokeObjectURL(mixerVideoUrls[kind]);
+   mixerVideoUrls[kind]=url;img.src=url;img.hidden=false;
+   if(offline)offline.hidden=true;if(stateEl)stateEl.textContent='LIVE'
+ }catch(e){
+   img.hidden=true;if(offline){offline.hidden=false;offline.textContent='CAMERA LIVE · WAITING FOR VIDEO'}if(stateEl)stateEl.textContent='WAITING FOR VIDEO'
+ }finally{mixerVideoBusy[kind]=false}
+}
+function refreshMixerVideoWall(){mixerVideoKinds().forEach(function(kind){refreshMixerVideoKind(kind)})}
+function startMixerVideoMonitor(){if(mixerVideoTimer)return;refreshMixerVideoWall();mixerVideoTimer=setInterval(refreshMixerVideoWall,750)}
+function stopMixerVideoMonitor(){
+ if(mixerVideoTimer){clearInterval(mixerVideoTimer);mixerVideoTimer=0}
+ Object.keys(mixerVideoUrls).forEach(function(kind){try{URL.revokeObjectURL(mixerVideoUrls[kind])}catch(e){}});
+ mixerVideoUrls={}
+}
+function toggleMixerVideo(kind){
+ if(kind!=='iphone'&&kind!=='ipad')return;
+ mixerVideoSelected[kind]=!mixerVideoSelected[kind];
+ saveMixerVideoSelection();renderMixerVideoWall()
+}
 async function warmDjSources(){await ensureAudio();await refreshDevices();updateAirButtons()}
 function stopLineInput(){
  if(lineStream){lineStream.getTracks().forEach(function(t){try{t.stop()}catch(e){}})}
@@ -5553,7 +5607,7 @@ function remoteDeviceFor(kind){
 }
 function remoteChannelIds(kind){
  const cap=kind==='ipad'?'Ipad':'Iphone';
- return {strip:document.querySelector('[data-remote-kind="'+kind+'"]'),status:$('mix'+cap+'Status'),meter:'mix'+cap+'Meter',level:$('mix'+cap+'Level'),read:$('mix'+cap+'Read'),arm:$('mix'+cap+'Arm'),air:$('mix'+cap+'Air'),mute:$('mix'+cap+'Mute')}
+ return {strip:document.querySelector('[data-remote-kind="'+kind+'"]'),status:$('mix'+cap+'Status'),meter:'mix'+cap+'Meter',level:$('mix'+cap+'Level'),read:$('mix'+cap+'Read'),arm:$('mix'+cap+'Arm'),air:$('mix'+cap+'Air'),mute:$('mix'+cap+'Mute'),video:$('mix'+cap+'Video')}
 }
 function renderRemoteChannel(kind){
  const d=remoteDeviceFor(kind),ui=remoteChannelIds(kind);if(!ui.strip)return;
@@ -5567,9 +5621,11 @@ function renderRemoteChannel(kind){
  if(ui.arm){ui.arm.disabled=!online;ui.arm.dataset.remoteDevice=d&&d.id||'';ui.arm.textContent=ready?'DISARM':'READY';ui.arm.classList.toggle('on',ready)}
  if(ui.air){ui.air.disabled=!online||!ready;ui.air.dataset.remoteDevice=d&&d.id||'';ui.air.textContent=air?'STOP AIR':'ON AIR';ui.air.classList.toggle('air',air)}
  if(ui.mute){ui.mute.disabled=!online;ui.mute.dataset.remoteDevice=d&&d.id||'';ui.mute.textContent=muted?'UNMUTE':'MUTE';ui.mute.classList.toggle('on',muted)}
- setMeterLevel(ui.meter,online?Number(d.peak_pct||0):0)
+ const videoBoard=boardForDeviceKind(kind),videoOnline=!!(videoBoard&&videoBoard.online),videoLive=!!(videoOnline&&String(videoBoard.video_track_state||'').toLowerCase()==='live');
+ if(ui.video){ui.video.disabled=!videoOnline;ui.video.textContent=videoLive?'VIDEO':'VIDEO WAIT';ui.video.classList.toggle('on',!!mixerVideoSelected[kind]);ui.video.title=videoLive?'Show or hide this live camera above the mixer':(videoOnline?'Camera not live yet':'Device offline')}
+ setMeterLevel(ui.meter,online?Number(d.peak_pct||0):Number(videoBoard&&videoBoard.mic_peak||0))
 }
-function renderRemoteDeviceChannels(){renderRemoteChannel('iphone');renderRemoteChannel('ipad')}
+function renderRemoteDeviceChannels(){renderRemoteChannel('iphone');renderRemoteChannel('ipad');if($('mixerVideoWall')&&!$('mixerVideoWall').hidden)renderMixerVideoWall()}
 function renderRemoteDevices(){
   renderRemoteDeviceChannels();
   const box=$('remoteDeviceList');if(!box)return;
@@ -5738,6 +5794,8 @@ $('remoteDeviceList').onclick=function(e){
   if(air){const d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(air.dataset.remoteAir)});sendRemoteCommand(air.dataset.remoteAir,'air',!(d&&d.on_air)).catch(function(err){alert(err.message||err)});}
 };
 $('remoteDeviceList').onchange=function(e){const x=e.target.closest('[data-remote-level]');if(!x)return;sendRemoteCommand(x.dataset.remoteLevel,'level',Number(x.value)/100).catch(function(err){alert(err.message||err)})};
+document.querySelectorAll('[data-mix-video]').forEach(function(b){b.onclick=function(){toggleMixerVideo(this.dataset.mixVideo)}});
+if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){mixerVideoSelected.iphone=false;mixerVideoSelected.ipad=false;saveMixerVideoSelection();renderMixerVideoWall()};
 ['iphone','ipad'].forEach(function(kind){
  const ui=remoteChannelIds(kind);
  if(ui.level){
@@ -5749,6 +5807,7 @@ $('remoteDeviceList').onchange=function(e){const x=e.target.closest('[data-remot
  if(ui.mute)ui.mute.onclick=function(){const id=this.dataset.remoteDevice,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});if(!id||!d)return;sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,200)}).catch(function(err){alert(err.message||err)})}
 });
 loadMixerChannelPrefs();
+renderMixerVideoWall();
 loadGeArrangement();
 document.addEventListener('click',function(e){
  if(!key||!geUxSessionId)return;
