@@ -1572,6 +1572,7 @@ DJ_BOARD_PRESENCE = {}
 DJ_BOARD_COMMANDS = {}
 DJ_VIDEO_FRAME_LOCK = threading.Lock()
 DJ_VIDEO_FRAMES = {}
+DJ_BOARD_REGISTRY_SAVED_AT = {}
 
 def _dj_board_registry_data():
     data = read_json(DJ_BOARD_REGISTRY_FILE, {"version": 1, "items": {}})
@@ -1586,6 +1587,12 @@ def _save_dj_board_registry_row(row):
     board_id = str(row.get("id", "") or "").strip()
     if not board_id:
         return
+    now = time.time()
+    # Heartbeats run once per second. Persisting every heartbeat needlessly hammers
+    # the data volume; 20-second registry freshness is more than enough for known-device recovery.
+    if now - float(DJ_BOARD_REGISTRY_SAVED_AT.get(board_id, 0) or 0) < 20:
+        return
+    DJ_BOARD_REGISTRY_SAVED_AT[board_id] = now
     data = _dj_board_registry_data()
     keep = {
         "id": board_id,
