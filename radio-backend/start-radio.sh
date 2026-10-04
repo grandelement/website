@@ -195,22 +195,15 @@ http {
       add_header Cache-Control "no-store" always; add_header X-Accel-Buffering "no" always;
     }
 
-    location = /dj {
-      if ($ge_legacy_dj = 1) { return 302 /iphone5/; }
-      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
-    }
-    location = /dj/ {
-      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
-      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
-    }
-    location = /dj/index.html {
-      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
-      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
-    }
-    location = /dj.html {
-      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
-      root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
-    }
+    # One normal GE DJ address for every device. A tiny ES5 entry page
+    # checks the browser's actual capabilities, then sends it to modern DJ
+    # or GE DJ LITE automatically.
+    location = /dj { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /dj/ { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /dj/index.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /dj.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /dj-modern { return 302 /dj-modern/; }
+    location = /dj-modern/ { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj-lite { return 302 /dj-lite/; }
     location = /dj-lite/ { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj-lite.html { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
