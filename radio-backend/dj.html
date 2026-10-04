@@ -2919,7 +2919,7 @@ html.geDayMode #deviceChannelSheet .deviceVideoSignal{border-top-color:#a6b4be!i
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v92</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v93</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3203,6 +3203,7 @@ let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},er
 let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
 let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null;let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
 const GE_UA=String(navigator.userAgent||''),GE_PLATFORM=String(navigator.platform||'');
+const GE_IOS_VERSION=(function(){const m=GE_UA.match(/OS (\d+)[_\.](\d+)(?:[_\.](\d+))?/i);return m?(m[1]+'.'+m[2]+(m[3]?'.'+m[3]:'')):''})();
 const GE_APPLE_TOUCH_DESKTOP=(/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM))&&Number(navigator.maxTouchPoints||0)>1;
 const GE_APPLE_SHORT_EDGE=Math.min(Number(screen&&screen.width||innerWidth||0),Number(screen&&screen.height||innerHeight||0));
 const GE_IS_IPAD=/iPad/i.test(GE_UA)||(GE_APPLE_TOUCH_DESKTOP&&GE_APPLE_SHORT_EDGE>=600);
@@ -3925,7 +3926,7 @@ async function geBoardHeartbeat(){
  if(!key||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:(geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN',video_track_state:'',media_error:String(geAudioDiag.lastError||'').slice(0,240)}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:(geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN',video_track_state:'',media_error:String(geAudioDiag.lastError||'').slice(0,240)}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok&&status)status.dj_boards=d.boards||status.dj_boards;
  }catch(e){}finally{boardHeartbeatBusy=false}
@@ -5042,11 +5043,26 @@ function boardForDeviceKind(kind){
  });
  return matches[0]||null
 }
+function latestBoardForDeviceKind(kind){
+ const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards:[];
+ const matches=rows.filter(function(x){
+   if(!x)return false;
+   const label=String(x.label||'');
+   if(kind==='ipad')return /ipad/i.test(label);
+   if(kind==='iphone5')return /iphone\s*5/i.test(label);
+   if(kind==='iphone')return /iphone|ipod/i.test(label)&&!/iphone\s*5/i.test(label);
+   return false
+ });
+ matches.sort(function(a,b){return Number(b.last_seen||0)-Number(a.last_seen||0)});
+ return matches[0]||null
+}
+
 function renderDeviceChannelSheet(){
  if(!geOpenDeviceKind)return;
  const kind=geOpenDeviceKind;
  const isRemoteDevice=kind==='iphone'||kind==='ipad'||kind==='iphone5';
  const board=isRemoteDevice?boardForDeviceKind(kind):(kind==='line'?(GE_BOARD_ROLE==='home'?null:homeBoardState()):null);
+ const lastBoard=isRemoteDevice?latestBoardForDeviceKind(kind):board;
  const remote=isRemoteDevice?remoteDeviceFor(kind):null;
  const self=isRemoteDevice?GE_DEVICE_KIND===kind:(kind==='mic'||(kind==='line'&&GE_BOARD_ROLE==='home'));
  let label=kind==='mic'?'MIC':(kind==='line'?'COMPUTER':(kind==='ipad'?'iPAD':(kind==='iphone5'?'iPHONE 5':'iPHONE')));
@@ -5108,27 +5124,35 @@ function renderDeviceChannelSheet(){
  if($('deviceChannelMicLive')){$('deviceChannelMicLive').hidden=!air;$('deviceChannelMicLive').textContent=label+' AUDIO LIVE'}
 
  if($('deviceChannelDiagText')){
-   const boardAudioInputs=board&&Array.isArray(board.audio_inputs)?board.audio_inputs:[];
+   const diagBoard=board||lastBoard;
+   const boardAudioInputs=diagBoard&&Array.isArray(diagBoard.audio_inputs)?diagBoard.audio_inputs:[];
    const remoteCaps=remote&&Array.isArray(remote.capabilities)?remote.capabilities:[];
    const localMicTrack=String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||'NONE');
    const lineTrack=String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||'NONE');
    const reportedMicTrack=String((board&&board.mic_track_state)||(remote&&remote.mic_active?'LIVE':'NONE'));
    const audioTrack=kind==='line'?(GE_BOARD_ROLE==='home'?lineTrack:String(board&&board.line_track_state||'NONE')):(kind==='mic'?localMicTrack:(self?localMicTrack:reportedMicTrack));
-   const videoInputs=localVideoInputs.length?localVideoInputs:boardVideoInputs;
+   const videoInputs=localVideoInputs.length?localVideoInputs:(diagBoard&&Array.isArray(diagBoard.video_inputs)?diagBoard.video_inputs:boardVideoInputs);
+   const lastSeenAge=diagBoard&&diagBoard.last_seen?Math.max(0,Math.round(Date.now()/1000-Number(diagBoard.last_seen))):null;
+   const mediaCaptureSupported=diagBoard?!!diagBoard.media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+   const iosVersion=String(diagBoard&&diagBoard.ios_version||((self&&GE_IOS_VERSION)?GE_IOS_VERSION:''));
+
    const lines=[
      'DEVICE: '+(online?'ONLINE':'OFFLINE'),
+     (lastSeenAge!=null?'LAST SEEN: '+lastSeenAge+'s AGO':''),
+     (iosVersion?'iOS: '+iosVersion:''),
+     'BROWSER MEDIA CAPTURE: '+(mediaCaptureSupported?'SUPPORTED':'UNSUPPORTED'),
      isRemoteDevice?('APP: '+(deviceOnline?'ONLINE':'OFFLINE')):'',
      'AUDIO: '+(audioConnected?'CONNECTED':'NOT CONNECTED'),
      'AUDIO TRACK: '+String(audioTrack||'NONE').toUpperCase(),
      'AUDIO SIGNAL: '+Math.round(meterPct)+'%',
-     board&&board.audio_permission?('AUDIO PERMISSION: '+String(board.audio_permission).toUpperCase()):'',
+     diagBoard&&diagBoard.audio_permission?('AUDIO PERMISSION: '+String(board.audio_permission).toUpperCase()):'',
      boardAudioInputs.length?('AUDIO INPUTS: '+boardAudioInputs.join(' | ')):'',
      remoteCaps.length?('APP CAPABILITIES: '+remoteCaps.join(' | ').toUpperCase()):'',
      'VIDEO: '+videoState,
      videoInputs.length?('VIDEO INPUTS: '+videoInputs.join(' | ')):'',
      remote&&remote.camera_permission?('CAMERA PERMISSION: '+String(remote.camera_permission).toUpperCase()):'',
      remote&&remote.video_transport?('VIDEO TRANSPORT: '+String(remote.video_transport).toUpperCase()):'VIDEO TRANSPORT: NOT ACTIVE',
-     String(board&&board.media_error||board&&board.audio_error||remote&&remote.last_error||remote&&remote.video_error||'')?('LAST ERROR: '+String(board&&board.media_error||board&&board.audio_error||remote&&remote.last_error||remote&&remote.video_error||'')):''
+     String(diagBoard&&diagBoard.media_error||diagBoard&&diagBoard.audio_error||remote&&remote.last_error||remote&&remote.video_error||'')?('LAST ERROR: '+String(diagBoard&&diagBoard.media_error||diagBoard&&diagBoard.audio_error||remote&&remote.last_error||remote&&remote.video_error||'')):''
    ].filter(Boolean);
    $('deviceChannelDiagText').textContent=lines.join('\n');
  }
