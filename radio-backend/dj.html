@@ -4703,9 +4703,10 @@ async function applyMicIsolation(){
   applyMicIsolationFilters();
   syncMicIsolationUI();saveSettings();
 }
-async function ensureMicOpen(){await ensureAudio();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();renderChannelStatusBubbles();return true}
+async function ensureMicOpen(){await ensureAudio();requestBoardWakeLock();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();renderChannelStatusBubbles();return true}
 async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();renderChannelStatusBubbles();return}await ensureMicOpen();updateAirButtons();renderChannelStatusBubbles()}
 async function ensureCameraOpen(){
+ requestBoardWakeLock();
  if(GE_IS_IPHONE5){cameraPermission='unsupported';return false}
  if(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live')return true;
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){cameraPermission='unsupported';cameraLastError='CAMERA API NOT AVAILABLE';return false}
@@ -4726,6 +4727,7 @@ async function ensureCameraOpen(){
 }
 async function autoConnectDeviceMedia(){
  if(GE_IS_IPHONE5)return false;
+ requestBoardWakeLock();
  let micOk=false,camOk=false;
  try{micOk=await ensureMicOpen()}catch(e){geAudioDiag.lastError=String(e&&e.message||e)}
  try{camOk=await ensureCameraOpen()}catch(e){cameraLastError=String(e&&e.message||e)}
@@ -4733,6 +4735,56 @@ async function autoConnectDeviceMedia(){
  await geBoardHeartbeat();
  renderChannelStatusBubbles();renderDeviceChannelSheet();
  return !!(micOk||camOk)
+}
+function downsampleMonitorInput(input,sourceRate,targetRate){
+ if(!input||!input.length)return new Float32Array(0);
+ if(sourceRate<=targetRate)return new Float32Array(input);
+ const ratio=sourceRate/targetRate,outLen=Math.max(1,Math.floor(input.length/ratio)),out=new Float32Array(outLen);
+ for(let i=0;i<outLen;i++){
+  const start=Math.floor(i*ratio),end=Math.min(input.length,Math.floor((i+1)*ratio));
+  let sum=0,count=0;
+  for(let j=start;j<end;j++){sum+=input[j];count++}
+  out[i]=count?sum/count:0
+ }
+ return out
+}
+async function postBoardMonitorChunk(floatSamples){
+ if(boardMonitorPostBusy||!boardMonitorUploadOn||!floatSamples||!floatSamples.length)return;
+ const pcm=new Int16Array(floatSamples.length);
+ for(let i=0;i<floatSamples.length;i++){const v=clamp(Number(floatSamples[i]||0),-1,1);pcm[i]=v<0?v*32768:v*32767}
+ boardMonitorPostBusy=true;
+ try{
+  await api('/control/board/audio-monitor',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-GE-Board-ID':GE_BOARD_ID,'X-GE-Audio-Rate':'16000'},body:pcm.buffer})
+ }catch(e){diagEvent('MONITOR UPLOAD ERROR',String(e&&e.message||e))}
+ finally{boardMonitorPostBusy=false}
+}
+async function startBoardMonitorUpload(){
+ if(GE_IS_IPHONE5)return false;
+ await ensureMicOpen();requestBoardWakeLock();
+ if(boardMonitorUploadOn&&boardMonitorProcessor)return true;
+ if(!ctx||!micAnalyser)return false;
+ boardMonitorUploadOn=true;boardMonitorAccum=[];
+ const proc=ctx.createScriptProcessor?ctx.createScriptProcessor(4096,1,1):null;
+ if(!proc){diagEvent('MONITOR UPLOAD','ScriptProcessor unavailable');return false}
+ const silent=ctx.createGain();silent.gain.value=0;
+ proc.onaudioprocess=function(e){
+  if(!boardMonitorUploadOn)return;
+  const input=e.inputBuffer&&e.inputBuffer.getChannelData?e.inputBuffer.getChannelData(0):null;if(!input)return;
+  const ds=downsampleMonitorInput(input,ctx.sampleRate||48000,16000);
+  for(let i=0;i<ds.length;i++)boardMonitorAccum.push(ds[i]);
+  if(boardMonitorAccum.length>=3200&&!boardMonitorPostBusy){
+   const take=boardMonitorAccum.splice(0,3200);
+   postBoardMonitorChunk(Float32Array.from(take))
+  }
+ };
+ micAnalyser.connect(proc);proc.connect(silent).connect(ctx.destination);
+ boardMonitorProcessor=proc;boardMonitorSilentGain=silent;return true
+}
+function stopBoardMonitorUpload(){
+ boardMonitorUploadOn=false;boardMonitorAccum=[];
+ try{if(boardMonitorProcessor){boardMonitorProcessor.onaudioprocess=null;boardMonitorProcessor.disconnect()}}catch(e){}
+ try{if(boardMonitorSilentGain)boardMonitorSilentGain.disconnect()}catch(e){}
+ boardMonitorProcessor=null;boardMonitorSilentGain=null
 }
 async function uploadCameraPreviewFrame(){
  if(cameraUploadBusy||!cameraStream||document.hidden)return;
@@ -6030,7 +6082,10 @@ if(GE_IS_IPAD||GE_IS_IPHONE){
  ['gesturestart','gesturechange','gestureend'].forEach(function(type){document.addEventListener(type,function(e){e.preventDefault()},{passive:false})});
  document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
 }
-document.addEventListener('visibilitychange',function(){geBoardHeartbeat();if(document.visibilityState==='visible')requestBoardWakeLock()});
+document.addEventListener('visibilitychange',function(){
+ geBoardHeartbeat();
+ if(document.visibilityState==='visible'&&(micStream||cameraStream||boardMonitorUploadOn))requestBoardWakeLock()
+});
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
 $('geChannelStatus').onclick=function(e){
