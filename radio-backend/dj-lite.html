@@ -50,7 +50,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
   <h1>GE DJ LITE</h1>
   <div class="small">Compatibility controller for older iPhone / iPad / Safari.</div>
   <input id="password" type="password" placeholder="DJ password" autocapitalize="off" autocorrect="off" spellcheck="false">
-  <button class="btn" id="loginBtn">CONNECT WITH PASSWORD</button>
+  <button class="btn" id="loginBtn">CONNECT WITH PASSWORD · v4</button>
   <div class="small" style="margin:12px 0 4px">OR PAIR THIS iPHONE 5 ONCE</div>
   <input id="pairCode" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit pairing code" autocomplete="off">
   <button class="btn" id="pairBtn">PAIR THIS DEVICE</button>
@@ -60,7 +60,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v3</span></div>
+  <div class="brand">GE DJ <span>LITE v4</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -231,19 +231,33 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,5000);
  }
  function login(){
-   key=$('password').value||'';
+   var supplied=$('password').value||'';
    $('loginStatus').innerHTML='CHECKING PASSWORD...';
-   request('/control/status','GET',null,function(code,d,x){
-     if(code>=200&&code<300){
-       safeStoreSet('geDjPassword',key);enterBooth(d);
+   key='';djDeviceId='';djDeviceToken='';
+   request('/control/auth/legacy-login','POST',{
+     password:supplied,
+     name:'iPHONE 5',
+     device_scope:'legacy-iphone5'
+   },function(code,d){
+     if(code>=200&&code<300&&d&&d.ok&&d.device&&d.device.id&&d.device_token){
+       djDeviceId=String(d.device.id);djDeviceToken=String(d.device_token);
+       safeStoreSet('geDjLegacyTrustedId',djDeviceId);safeStoreSet('geDjLegacyTrustedToken',djDeviceToken);
+       safeStoreSet('geDjPassword','');
+       $('loginStatus').innerHTML='PASSWORD ACCEPTED · OPENING DJ BOOTH...';
+       request('/control/status','GET',null,function(code2,d2){
+         if(code2>=200&&code2<300)enterBooth(d2);
+         else $('loginStatus').innerHTML='AUTHORIZED, BUT STATUS FAILED · HTTP '+String(code2);
+       });
      }else if(code===401){
-       $('loginStatus').innerHTML='PASSWORD REJECTED · USE THE PAIR CODE OPTION BELOW';
+       $('loginStatus').innerHTML='PASSWORD REJECTED';
      }else if(code===503){
-       $('loginStatus').innerHTML='DJ PASSWORD IS NOT CONFIGURED ON THE RADIO SERVER';
+       $('loginStatus').innerHTML=(d&&d.error)?String(d.error):'DJ PASSWORD IS NOT CONFIGURED';
+     }else if(code===429){
+       $('loginStatus').innerHTML='TOO MANY ATTEMPTS · WAIT ONE MINUTE';
      }else if(code===0){
        $('loginStatus').innerHTML='COULD NOT REACH THE RADIO SERVER';
      }else{
-       $('loginStatus').innerHTML='LOGIN ERROR · HTTP '+String(code);
+       $('loginStatus').innerHTML=(d&&d.error)?String(d.error):('LOGIN ERROR · HTTP '+String(code));
      }
    });
  }
