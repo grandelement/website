@@ -49,15 +49,18 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  <div class="login">
   <h1>GE DJ LITE</h1>
   <div class="small">Compatibility controller for older iPhone / iPad / Safari.</div>
-  <input id="password" type="password" placeholder="DJ password">
-  <button class="btn" id="loginBtn">CONNECT</button>
+  <input id="password" type="password" placeholder="DJ password" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <button class="btn" id="loginBtn">CONNECT WITH PASSWORD</button>
+  <div class="small" style="margin:12px 0 4px">OR PAIR THIS iPHONE 5 ONCE</div>
+  <input id="pairCode" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit pairing code" autocomplete="off">
+  <button class="btn" id="pairBtn">PAIR THIS DEVICE</button>
   <div class="small" id="loginStatus"></div>
  </div>
 </div>
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v2</span></div>
+  <div class="brand">GE DJ <span>LITE v3</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -112,7 +115,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
 
 <script>
 (function(){
- var API='',key='',status=null,poller=0,heartbeatTimer=0,boardId='',radioOn=false;
+ var API='',key='',status=null,poller=0,heartbeatTimer=0,boardId='',radioOn=false,djDeviceId='',djDeviceToken='';
  var ua=String(navigator.userAgent||''),sw=Math.min(Number(screen.width||0),Number(screen.height||0)),sh=Math.max(Number(screen.width||0),Number(screen.height||0));
  var isIpad=/iPad/i.test(ua),isIphone=/iPhone|iPod/i.test(ua);
  var deviceKind=isIpad?'ipad':(isIphone&&sw<=320&&sh<=568?'iphone5':(isIphone?'iphone':'computer'));
@@ -126,7 +129,8 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  function request(path,method,body,cb){
    var x=new XMLHttpRequest();
    x.open(method||'GET',API+path,true);
-   try{x.setRequestHeader('X-GE-DJ-Key',key);}catch(e){}
+   try{if(key)x.setRequestHeader('X-GE-DJ-Key',key);}catch(e){}
+   try{if(djDeviceId&&djDeviceToken){x.setRequestHeader('X-GE-DJ-Device-ID',djDeviceId);x.setRequestHeader('X-GE-DJ-Device-Token',djDeviceToken);}}catch(e){}
    if(body!==null&&body!==undefined){
      try{x.setRequestHeader('Content-Type','application/json');}catch(e){}
    }
@@ -218,19 +222,54 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      }else alert((d&&d.error)||'Computer control failed.');
    });
  }
+ function enterBooth(d){
+   status=d;
+   $('lock').className='lock hide';
+   if(!boardId){boardId=safeStoreGet('geDjLegacyBoardIdV1');if(!boardId){boardId='legacy-'+String(new Date().getTime())+'-'+String(Math.random()).slice(2,9);safeStoreSet('geDjLegacyBoardIdV1',boardId);}}
+   render();heartbeat();poll();
+   if(poller)clearInterval(poller);poller=setInterval(poll,2500);
+   if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,5000);
+ }
  function login(){
    key=$('password').value||'';
-   $('loginStatus').innerHTML='CONNECTING...';
-   request('/control/status','GET',null,function(code,d){
+   $('loginStatus').innerHTML='CHECKING PASSWORD...';
+   request('/control/status','GET',null,function(code,d,x){
      if(code>=200&&code<300){
-       status=d;safeStoreSet('geDjPassword',key);
-       $('lock').className='lock hide';
-       if(!boardId){boardId=safeStoreGet('geDjLegacyBoardIdV1');if(!boardId){boardId='legacy-'+String(new Date().getTime())+'-'+String(Math.random()).slice(2,9);safeStoreSet('geDjLegacyBoardIdV1',boardId);}}
-       render();heartbeat();poll();
-       if(poller)clearInterval(poller);poller=setInterval(poll,2500);
-       if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,5000);
+       safeStoreSet('geDjPassword',key);enterBooth(d);
+     }else if(code===401){
+       $('loginStatus').innerHTML='PASSWORD REJECTED · USE THE PAIR CODE OPTION BELOW';
+     }else if(code===503){
+       $('loginStatus').innerHTML='DJ PASSWORD IS NOT CONFIGURED ON THE RADIO SERVER';
+     }else if(code===0){
+       $('loginStatus').innerHTML='COULD NOT REACH THE RADIO SERVER';
      }else{
-       $('loginStatus').innerHTML='PASSWORD NOT ACCEPTED';
+       $('loginStatus').innerHTML='LOGIN ERROR · HTTP '+String(code);
+     }
+   });
+ }
+ function pairLegacy(){
+   var code=String($('pairCode').value||'').replace(/[^0-9]/g,'');
+   if(code.length!==6){$('loginStatus').innerHTML='ENTER THE 6-DIGIT CODE FROM THE iPAD';return;}
+   $('loginStatus').innerHTML='PAIRING iPHONE 5...';
+   key='';
+   request('/control/device/pair/claim','POST',{
+     code:code,
+     name:'iPHONE 5',
+     platform:'web-legacy',
+     model:'iPhone 5',
+     capabilities:['control']
+   },function(statusCode,d){
+     if(statusCode>=200&&statusCode<300&&d&&d.ok&&d.dj_device_id&&d.dj_device_token){
+       djDeviceId=String(d.dj_device_id);djDeviceToken=String(d.dj_device_token);
+       safeStoreSet('geDjLegacyTrustedId',djDeviceId);safeStoreSet('geDjLegacyTrustedToken',djDeviceToken);
+       safeStoreSet('geDjPassword','');
+       $('loginStatus').innerHTML='PAIRED · OPENING DJ BOOTH...';
+       request('/control/status','GET',null,function(code2,d2){
+         if(code2>=200&&code2<300)enterBooth(d2);
+         else $('loginStatus').innerHTML='PAIRED, BUT DJ AUTHORIZATION FAILED · HTTP '+String(code2);
+       });
+     }else{
+       $('loginStatus').innerHTML=(d&&d.error)?String(d.error):('PAIRING FAILED · HTTP '+String(statusCode));
      }
    });
  }
@@ -241,7 +280,9 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  }
 
  $('loginBtn').onclick=login;
+ $('pairBtn').onclick=pairLegacy;
  $('password').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)login();};
+ $('pairCode').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)pairLegacy();};
  $('computerLevel').onchange=function(){var v=Number(this.value)||0;$('computerLevelRead').innerHTML=Math.round(v)+'%';sendComputer({line_level:v});};
  $('computerAir').onclick=function(){var shared=status&&status.dj_controls||{};sendComputer({line_air:!shared.line_air});};
  $('refreshBtn').onclick=function(){poll();heartbeat();};
@@ -266,8 +307,17 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    }
  };
 
- key=safeStoreGet('geDjPassword');
- if(key){$('password').value=key;login();}
+ djDeviceId=safeStoreGet('geDjLegacyTrustedId');djDeviceToken=safeStoreGet('geDjLegacyTrustedToken');
+ if(djDeviceId&&djDeviceToken){
+   $('loginStatus').innerHTML='CHECKING REMEMBERED DEVICE...';
+   request('/control/status','GET',null,function(code,d){
+     if(code>=200&&code<300){enterBooth(d);}
+     else{djDeviceId='';djDeviceToken='';safeStoreSet('geDjLegacyTrustedId','');safeStoreSet('geDjLegacyTrustedToken','');key=safeStoreGet('geDjPassword');if(key){$('password').value=key;login();}}
+   });
+ }else{
+   key=safeStoreGet('geDjPassword');
+   if(key){$('password').value=key;login();}
+ }
 })();
 </script>
 </body>
