@@ -1568,6 +1568,7 @@ def take_remote_commands(device_id):
 
 DJ_BOARD_LOCK = threading.RLock()
 DJ_BOARD_PRESENCE = {}
+DJ_BOARD_COMMANDS = {}
 
 def update_dj_board_presence(board_id, role, label="", app_state="active", channel_state=None):
     board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
@@ -1621,6 +1622,35 @@ def list_dj_board_presence():
         row["online"] = bool(now - float(row.get("last_seen", 0) or 0) < 15)
     rows.sort(key=lambda x: (x.get("role", ""), -float(x.get("last_seen", 0) or 0)))
     return rows
+
+def queue_dj_board_command(board_id, action, value=None):
+    board_id = str(board_id or "").strip()
+    action = str(action or "").strip().lower()
+    if not board_id:
+        raise ValueError("Missing target board.")
+    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "ping"}:
+        raise ValueError("Unsupported DJ board command.")
+    command = {
+        "id": uuid.uuid4().hex[:16],
+        "action": action,
+        "value": value,
+        "created_at": int(time.time()),
+    }
+    with DJ_BOARD_LOCK:
+        if board_id not in DJ_BOARD_PRESENCE:
+            raise ValueError("Target DJ board is not known.")
+        DJ_BOARD_COMMANDS.setdefault(board_id, []).append(command)
+        DJ_BOARD_COMMANDS[board_id] = DJ_BOARD_COMMANDS[board_id][-40:]
+    return command
+
+def take_dj_board_commands(board_id):
+    board_id = str(board_id or "").strip()
+    if not board_id:
+        return []
+    with DJ_BOARD_LOCK:
+        items = list(DJ_BOARD_COMMANDS.get(board_id, []))
+        DJ_BOARD_COMMANDS[board_id] = []
+    return items
 
 
 DJ_SHARED_CONTROL_LOCK = threading.RLock()
@@ -3468,7 +3498,17 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("app_state", "active"),
                     body.get("channel_state") or {},
                 )
-                self.json_response({"ok": True, "board": row, "boards": list_dj_board_presence()})
+                self.json_response({"ok": True, "board": row, "boards": list_dj_board_presence(), "commands": take_dj_board_commands(row.get("id"))})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/board/command":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                command = queue_dj_board_command(body.get("board_id"), body.get("action"), body.get("value"))
+                self.json_response({"ok": True, "command": command})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
