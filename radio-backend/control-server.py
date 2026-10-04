@@ -1569,6 +1569,8 @@ def take_remote_commands(device_id):
 DJ_BOARD_LOCK = threading.RLock()
 DJ_BOARD_PRESENCE = {}
 DJ_BOARD_COMMANDS = {}
+DJ_VIDEO_FRAME_LOCK = threading.Lock()
+DJ_VIDEO_FRAMES = {}
 
 def update_dj_board_presence(board_id, role, label="", app_state="active", channel_state=None):
     board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
@@ -2647,6 +2649,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": "Clip expired."}, 404); return
             raw = path.read_bytes(); self.send_response(200); self.send_header("Content-Type", "audio/wav"); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw); return
 
+        if parsed.path == "/control/board/video-frame":
+            if not self.require_auth(): return
+            board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
+            with DJ_VIDEO_FRAME_LOCK:
+                frame = DJ_VIDEO_FRAMES.get(board_id)
+                frame = dict(frame) if isinstance(frame, dict) else None
+            if not frame or time.time() - float(frame.get("time", 0) or 0) > 6:
+                self.json_response({"ok": False, "error": "No live video preview frame."}, 404)
+                return
+            raw = frame.get("data", b"")
+            self.send_response(200)
+            self.send_header("Content-Type", str(frame.get("content_type", "image/jpeg")))
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+
         if self.path == "/control/healthz":
             body = b"DJ control OK\n"
             self.send_response(200)
@@ -2992,6 +3012,30 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/board/video-frame":
+            if not self.require_auth(): return
+            try:
+                board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
+                if not board_id:
+                    raise ValueError("Missing DJ board id.")
+                n = int(self.headers.get("Content-Length", "0") or "0")
+                if n <= 0 or n > 450000:
+                    raise ValueError("Video preview frame must be between 1 byte and 450 KB.")
+                content_type = str(self.headers.get("Content-Type", "image/jpeg") or "image/jpeg").split(";")[0].strip().lower()
+                if content_type not in {"image/jpeg", "image/webp"}:
+                    raise ValueError("Unsupported preview frame type.")
+                raw = self.rfile.read(n)
+                with DJ_VIDEO_FRAME_LOCK:
+                    DJ_VIDEO_FRAMES[board_id] = {"data": raw, "content_type": content_type, "time": time.time()}
+                    if len(DJ_VIDEO_FRAMES) > 20:
+                        oldest = sorted(DJ_VIDEO_FRAMES.items(), key=lambda item: float(item[1].get("time", 0) or 0))[:-20]
+                        for old_id, _ in oldest:
+                            DJ_VIDEO_FRAMES.pop(old_id, None)
+                self.json_response({"ok": True, "bytes": len(raw)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/input-profiles":
             if not self.require_auth(): return
             try:
