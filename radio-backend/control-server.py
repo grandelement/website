@@ -51,6 +51,7 @@ REMOTE_DEVICES_FILE = DATA / "remote-devices.json"
 DJ_INPUT_PROFILES_FILE = DATA / "dj-input-profiles.json"
 DJ_WORK_LOG_FILE = DATA / "dj-work-log.json"
 DJ_TRUSTED_DEVICES_FILE = DATA / "dj-trusted-devices.json"
+DJ_BOARD_REGISTRY_FILE = DATA / "dj-board-registry.json"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_TEMP_STORAGE_BYTES = 256 * 1024 * 1024
 CLIP_DIR = RUNTIME / "clips"
@@ -1572,6 +1573,42 @@ DJ_BOARD_COMMANDS = {}
 DJ_VIDEO_FRAME_LOCK = threading.Lock()
 DJ_VIDEO_FRAMES = {}
 
+def _dj_board_registry_data():
+    data = read_json(DJ_BOARD_REGISTRY_FILE, {"version": 1, "items": {}})
+    if not isinstance(data, dict):
+        data = {"version": 1, "items": {}}
+    if not isinstance(data.get("items"), dict):
+        data["items"] = {}
+    data["version"] = 1
+    return data
+
+def _save_dj_board_registry_row(row):
+    board_id = str(row.get("id", "") or "").strip()
+    if not board_id:
+        return
+    data = _dj_board_registry_data()
+    keep = {
+        "id": board_id,
+        "role": str(row.get("role", "remote") or "remote")[:20],
+        "label": str(row.get("label", "DEVICE") or "DEVICE")[:60],
+        "device_kind": str(row.get("device_kind", "device") or "device")[:40],
+        "device_name": str(row.get("device_name", "") or "")[:100],
+        "media_capture_supported": bool(row.get("media_capture_supported", False)),
+        "ios_version": str(row.get("ios_version", "") or "")[:32],
+        "last_seen": float(row.get("last_seen", time.time()) or time.time()),
+    }
+    data["items"][board_id] = keep
+    # Bound the permanent registry so abandoned test browsers do not grow forever.
+    rows = sorted(data["items"].values(), key=lambda x: float(x.get("last_seen", 0) or 0), reverse=True)[:40]
+    data["items"] = {str(x.get("id")): x for x in rows if x.get("id")}
+    write_json(DJ_BOARD_REGISTRY_FILE, data)
+
+def _known_dj_board_rows():
+    data = _dj_board_registry_data()
+    rows = [dict(x) for x in data.get("items", {}).values() if isinstance(x, dict)]
+    rows.sort(key=lambda x: float(x.get("last_seen", 0) or 0), reverse=True)
+    return rows
+
 def update_dj_board_presence(board_id, role, label="", app_state="active", channel_state=None):
     board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(board_id or "").strip())[:96]
     role = str(role or "").strip().lower()
@@ -1608,6 +1645,8 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "media_capture_supported": bool(channel_state.get("media_capture_supported", False)),
         "ios_version": " ".join(str(channel_state.get("ios_version", "") or "").split())[:32],
         "user_agent": " ".join(str(channel_state.get("user_agent", "") or "").split())[:220],
+        "device_kind": " ".join(str(channel_state.get("device_kind", "device") or "device").split())[:40],
+        "device_name": " ".join(str(channel_state.get("device_name", "") or "").split())[:100],
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
@@ -1615,15 +1654,21 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         for old_id, old in list(DJ_BOARD_PRESENCE.items()):
             if now - float(old.get("last_seen", 0) or 0) > 300:
                 DJ_BOARD_PRESENCE.pop(old_id, None)
+        _save_dj_board_registry_row(row)
     return row
 
 def list_dj_board_presence():
     now = time.time()
+    known = {str(x.get("id")): dict(x) for x in _known_dj_board_rows() if x.get("id")}
     with DJ_BOARD_LOCK:
-        rows = [dict(x) for x in DJ_BOARD_PRESENCE.values()]
-    for row in rows:
-        row["online"] = bool(now - float(row.get("last_seen", 0) or 0) < 15)
-    rows.sort(key=lambda x: (x.get("role", ""), -float(x.get("last_seen", 0) or 0)))
+        live = {str(x.get("id")): dict(x) for x in DJ_BOARD_PRESENCE.values() if x.get("id")}
+    rows = []
+    for board_id in set(known) | set(live):
+        row = dict(known.get(board_id, {}))
+        row.update(live.get(board_id, {}))
+        row["online"] = bool(board_id in live and now - float(row.get("last_seen", 0) or 0) < 15)
+        rows.append(row)
+    rows.sort(key=lambda x: (0 if x.get("online") else 1, -float(x.get("last_seen", 0) or 0)))
     return rows
 
 def queue_dj_board_command(board_id, action, value=None):
@@ -1631,7 +1676,7 @@ def queue_dj_board_command(board_id, action, value=None):
     action = str(action or "").strip().lower()
     if not board_id:
         raise ValueError("Missing target board.")
-    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "ping"}:
+    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "media_ready", "ping"}:
         raise ValueError("Unsupported DJ board command.")
     command = {
         "id": uuid.uuid4().hex[:16],
