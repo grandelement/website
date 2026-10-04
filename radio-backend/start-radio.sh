@@ -196,7 +196,7 @@ http {
     }
 
     location = /dj {
-      if ($ge_legacy_dj = 1) { return 302 /dj-lite/; }
+      if ($ge_legacy_dj = 1) { return 302 /iphone5/; }
       root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always;
     }
     location = /dj/ {
@@ -214,6 +214,14 @@ http {
     location = /dj-lite { return 302 /dj-lite/; }
     location = /dj-lite/ { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj-lite.html { root /app; try_files /dj-lite.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
+    # Dedicated legacy iPhone 5 controller route. This avoids relying on old Safari UA redirects/cache.
+    location = /iphone5 { return 302 /iphone5/; }
+    location = /iphone5/ {
+      root /app; try_files /dj-lite.html =404; default_type text/html;
+      add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+      add_header Pragma "no-cache" always;
+      add_header Expires "0" always;
+    }
     location = /live-dj { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj/ { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /live-dj.html { root /app; try_files /live-dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
