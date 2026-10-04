@@ -2940,7 +2940,7 @@ html.geDayMode #deviceChannelSheet .deviceVideoSignal{border-top-color:#a6b4be!i
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v94</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v95</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -5413,7 +5413,7 @@ async function createDevicePairCode(targetKind){
   const r=await api('/control/device/pair/create',{method:'POST',headers:{'Content-Type':'application/json'},body:body}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok)throw new Error(d.error||'Could not create verification code');
   if($('pairingCode'))$('pairingCode').textContent='VERIFY CODE · '+d.code+' · 10 MIN';
-  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='ENTER '+d.code+' IN THE GE DEVICE APP · ONE-TIME VERIFICATION';
+  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent=targetKind==='iphone5'?('ENTER '+d.code+' ON iPHONE 5 · GE DJ LITE · ONE-TIME PAIRING'):('ENTER '+d.code+' IN THE GE DEVICE APP · ONE-TIME VERIFICATION');
   return d.code
 }
 $('deviceChannelLevel').oninput=function(){
@@ -5459,6 +5459,12 @@ async function connectDeviceChannel(kind){
    renderDeviceChannelSheet();
    renderChannelStatusBubbles();
    return true
+ }
+ if(kind==='iphone5'){
+   const code=await createDevicePairCode('iphone5');
+   if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='PAIR CODE · '+code+' · ENTER ON iPHONE 5 GE DJ LITE';
+   if($('deviceChannelHelp'))$('deviceChannelHelp').textContent='On the iPhone 5, open GE DJ LITE, enter this 6-digit code under PAIR THIS iPHONE 5 ONCE, then tap PAIR THIS DEVICE.';
+   return false
  }
  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='WAITING FOR '+label+' · OPEN GE DJ ON THAT DEVICE';
  if($('deviceChannelHelp'))$('deviceChannelHelp').textContent='As soon as '+label+' is running GE DJ, it connects here automatically. No pairing code is required.';
