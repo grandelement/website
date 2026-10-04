@@ -3273,10 +3273,11 @@ const GE_IS_IPHONE=/iPhone|iPod/i.test(GE_UA)||(GE_APPLE_TOUCH_DESKTOP&&GE_APPLE
 const GE_APPLE_LONG_EDGE=Math.max(Number(screen&&screen.width||innerWidth||0),Number(screen&&screen.height||innerHeight||0));
 const GE_IS_IPHONE5=GE_IS_IPHONE&&GE_APPLE_SHORT_EDGE>0&&GE_APPLE_SHORT_EDGE<=320&&GE_APPLE_LONG_EDGE<=568;
 const GE_DEVICE_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':'home'));
+const GE_PHYSICAL_KIND=GE_IS_IPAD?'ipad':(GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':(/Android/i.test(GE_UA)?'android':(/Windows/i.test(GE_UA+' '+GE_PLATFORM)?'windows':(/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM)?'mac':(/Linux/i.test(GE_UA+' '+GE_PLATFORM)?'linux':'computer'))))));
 const GE_BOARD_ROLE=GE_DEVICE_KIND==='home'?'home':'remote';
 if(GE_BOARD_ROLE==='remote')document.documentElement.classList.add('geRemoteComputerSignal');
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
-const GE_BOARD_LABEL=GE_DEVICE_KIND==='ipad'?'iPAD':(GE_DEVICE_KIND==='iphone5'?'iPHONE 5':(GE_DEVICE_KIND==='iphone'?'iPHONE':'HOME'));
+const GE_BOARD_LABEL=GE_PHYSICAL_KIND==='ipad'?'iPAD':(GE_PHYSICAL_KIND==='iphone5'?'iPHONE 5':(GE_PHYSICAL_KIND==='iphone'?'iPHONE':(GE_PHYSICAL_KIND==='android'?'ANDROID':(GE_PHYSICAL_KIND==='windows'?'WINDOWS COMPUTER':(GE_PHYSICAL_KIND==='mac'?'MAC':(GE_PHYSICAL_KIND==='linux'?'LINUX COMPUTER':'COMPUTER'))))));
 let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
@@ -3908,7 +3909,7 @@ $('enter').onclick=async function(){
   $('loginStatus').textContent='CONNECTING…';
   await ensureAudio();
   await verify($('password').value);
-  if(GE_BOARD_ROLE==='remote'&&!GE_IS_IPHONE5)await autoConnectDeviceMedia();
+  if(!GE_IS_IPHONE5)await autoConnectDeviceMedia();
   $('loginStatus').textContent=''
  }catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}
 };
@@ -4021,7 +4022,7 @@ function renderLineRoleUi(){
 }
 function geBoardAppState(){return document.visibilityState==='visible'?'active':'background'}
 async function handleDjBoardCommands(items){
- if(!Array.isArray(items)||!items.length||GE_BOARD_ROLE!=='remote')return;
+ if(!Array.isArray(items)||!items.length)return;
  for(const c of items){
   try{
    if(c.action==='mic_air'){
@@ -4032,8 +4033,8 @@ async function handleDjBoardCommands(items){
     settings.mic.mute=!!c.value;applyChannel('mic');saveSettings()
    }else if(c.action==='mic_level'){
     settings.mic.level=clamp(Number(c.value)||0,0,150);applyChannel('mic');saveSettings()
-   }else if(c.action==='camera_ready'&&c.value){
-    await ensureCameraOpen()
+   }else if((c.action==='camera_ready'||c.action==='media_ready')&&c.value){
+    await autoConnectDeviceMedia()
    }
   }catch(e){diagEvent('REMOTE DEVICE COMMAND ERROR',String(e&&e.message||e))}
  }
@@ -4042,7 +4043,7 @@ async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),device_kind:GE_PHYSICAL_KIND,device_name:GE_BOARD_LABEL,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok){
    if(status)status.dj_boards=d.boards||status.dj_boards;
@@ -4710,7 +4711,7 @@ async function ensureCameraOpen(){
  }
 }
 async function autoConnectDeviceMedia(){
- if(GE_BOARD_ROLE!=='remote'||GE_IS_IPHONE5)return false;
+ if(GE_IS_IPHONE5)return false;
  let micOk=false,camOk=false;
  try{micOk=await ensureMicOpen()}catch(e){geAudioDiag.lastError=String(e&&e.message||e)}
  try{camOk=await ensureCameraOpen()}catch(e){cameraLastError=String(e&&e.message||e)}
@@ -6159,14 +6160,14 @@ $('gePlayer').onclick=function(){
 if(new URLSearchParams(location.search).get('player')==='1')$('gePlayer').textContent='FULLSCREEN';
 document.addEventListener('pointerdown',function gePrimeDj(){
  if(key||djTrustedId)warmDjSources().catch(function(){});
- if(GE_BOARD_ROLE==='remote'&&!GE_IS_IPHONE5)autoConnectDeviceMedia().catch(function(){})
+ if(!GE_IS_IPHONE5)autoConnectDeviceMedia().catch(function(){})
 },{once:true,capture:true});
 if(djTrustedId&&djTrustedToken){
- verify('').then(function(){if(GE_BOARD_ROLE==='remote'&&!GE_IS_IPHONE5)return autoConnectDeviceMedia()}).catch(function(){
+ verify('').then(function(){if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}).catch(function(){
   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
  })
 }else{
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
- if(saved)verify(saved).then(function(){if(GE_BOARD_ROLE==='remote'&&!GE_IS_IPHONE5)return autoConnectDeviceMedia()}).catch(function(){sessionStorage.removeItem('geDjPassword')})
+ if(saved)verify(saved).then(function(){if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script></body></html>
