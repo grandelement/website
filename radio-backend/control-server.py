@@ -1588,6 +1588,9 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "camera_permission": " ".join(str(channel_state.get("camera_permission", "unknown") or "unknown").split())[:40],
         "video_track_state": " ".join(str(channel_state.get("video_track_state", "") or "").split())[:40],
         "media_error": " ".join(str(channel_state.get("media_error", "") or "").split())[:240],
+        "media_capture_supported": bool(channel_state.get("media_capture_supported", False)),
+        "ios_version": " ".join(str(channel_state.get("ios_version", "") or "").split())[:32],
+        "user_agent": " ".join(str(channel_state.get("user_agent", "") or "").split())[:220],
         "last_seen": now,
     }
     with DJ_BOARD_LOCK:
