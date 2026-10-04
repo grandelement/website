@@ -3469,7 +3469,7 @@ async function removeSavedLineDevice(slotId){
 }
 let djPermanentSaveTimer=0;
 function currentChannelVisibility(){const out={};document.querySelectorAll('[data-mixer-channel]').forEach(function(box){out[box.dataset.mixerChannel]=!!box.checked});return out}
-function scheduleDjPermanentSave(){clearTimeout(djPermanentSaveTimer);if(!key)return;djPermanentSaveTimer=setTimeout(function(){api('/control/permanent-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:'dj_mixer',state:{mic:settings.mic,line:settings.line,visibleChannels:currentChannelVisibility(),customFxSlots:customFxSlots}})}).catch(function(e){console.warn('DJ Vault state save:',e)})},450)}
+function scheduleDjPermanentSave(){clearTimeout(djPermanentSaveTimer);if(!key&&!djTrustedId)return;djPermanentSaveTimer=setTimeout(function(){api('/control/permanent-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:'dj_mixer',state:{mic:settings.mic,line:settings.line,visibleChannels:currentChannelVisibility(),customFxSlots:customFxSlots}})}).catch(function(e){console.warn('DJ Vault state save:',e)})},450)}
 function saveSettings(){try{localStorage.setItem('geDjMixerV7',JSON.stringify(settings))}catch(e){}scheduleDjPermanentSave()}
 function syncSendToggles(){
   [['mixMicSendA','mixMicSendAOn','mic','delayOn'],['mixMicSendB','mixMicSendBOn','mic','reverbOn'],['mixLineSendA','mixLineSendAOn','line','delayOn'],['mixLineSendB','mixLineSendBOn','line','reverbOn']].forEach(function(x){
@@ -3833,7 +3833,7 @@ function geUxMergeBack(detail){
  })
 }
 async function geUxFlush(){
- if(!geUxSessionId||!key||!geUxHasPending())return;
+ if(!geUxSessionId||(!key&&!djTrustedId)||!geUxHasPending())return;
  const detail=geUxTakePending();
  try{
    const r=await api('/control/work-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'event',session_id:geUxSessionId,event_type:'ux_summary',detail:{surface:'dj',arrangement:Number(geArrangement||1),...detail}})});
@@ -3844,7 +3844,7 @@ async function geUxFlush(){
  }
 }
 async function startGeUxSession(){
- if(geUxSessionId||geUxStarting||!key)return;
+ if(geUxSessionId||geUxStarting||(!key&&!djTrustedId))return;
  geUxStarting=true;
  try{
    const r=await api('/control/work-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start',device_scope:getDjBrowserScope(),device_name:GE_BOARD_LABEL+' · '+navigator.platform})});
@@ -3997,7 +3997,7 @@ function applySharedDjControls(){
  requestAnimationFrame(syncTouchFaders)
 }
 async function sendSharedDjControls(){
- const values=djControlPending;djControlPending={};if(!Object.keys(values).length||!key)return;
+ const values=djControlPending;djControlPending={};if(!Object.keys(values).length||(!key&&!djTrustedId))return;
  try{const r=await api('/control/board/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,values:values})});const d=await r.json().catch(function(){return {}});if(r.ok&&d.ok&&d.controls){djControlRevisionSeen=Number(d.controls.revision||djControlRevisionSeen);if(status)status.dj_controls=d.controls}}catch(e){}
 }
 function pushSharedDjControls(values,now){Object.assign(djControlPending,values||{});clearTimeout(djControlPushTimer);if(now)sendSharedDjControls();else djControlPushTimer=setTimeout(sendSharedDjControls,70)}
@@ -4136,7 +4136,7 @@ function applyRealRadioMeter(m){
  updateRadioDiagnostics()
 }
 async function pollRadioMeter(){
- if(!key||radioMeterBusy)return;
+ if((!key&&!djTrustedId)||radioMeterBusy)return;
  radioMeterBusy=true;
  try{
    const r=await api('/control/radio-meter'),d=await r.json().catch(function(){return {}});
@@ -4735,7 +4735,7 @@ async function autoConnectDeviceMedia(){
  return !!(micOk||camOk)
 }
 async function uploadCameraPreviewFrame(){
- if(cameraUploadBusy||GE_BOARD_ROLE!=='remote'||!cameraStream||document.hidden)return;
+ if(cameraUploadBusy||!cameraStream||document.hidden)return;
  const track=cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0];
  if(!track||track.readyState!=='live')return;
  try{
@@ -6116,7 +6116,7 @@ loadMixerChannelPrefs();
 renderBoardVideoWall();
 loadGeArrangement();
 document.addEventListener('click',function(e){
- if(!key||!geUxSessionId)return;
+ if((!key&&!djTrustedId)||!geUxSessionId)return;
  const el=e.target&&e.target.closest&&e.target.closest('button,[role="button"],label,a,select');
  if(!el||el.closest('#lock'))return;
  geUxTrackClick(el)
