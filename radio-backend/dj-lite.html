@@ -57,7 +57,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v5</span></div>
+  <div class="brand">GE DJ <span>LITE v6</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -194,7 +194,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    });
  }
  function heartbeat(){
-   if(!key)return;
+   if(!key&&!(djDeviceId&&djDeviceToken))return;
    request('/control/board/heartbeat','POST',{
      board_id:boardId,
      role:boardRole,
@@ -202,8 +202,10 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      app_state:'active',
      channel_state:{
        line_connected:false,line_air:false,line_source:'',
-       line_peak:0,mic_connected:false,mic_air:false,mic_peak:0,
+       line_peak:0,mic_connected:false,mic_air:false,mic_muted:false,mic_level:100,mic_peak:0,
        media_capture_supported:false,
+       device_kind:deviceKind,
+       device_name:boardLabel,
        ios_version:(function(){var m=ua.match(/OS (\d+)[_\.](\d+)/i);return m?(m[1]+'.'+m[2]):'';})(),
        user_agent:ua
      }
