@@ -1686,7 +1686,7 @@ def queue_dj_board_command(board_id, action, value=None):
     action = str(action or "").strip().lower()
     if not board_id:
         raise ValueError("Missing target board.")
-    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "media_ready", "monitor_stream", "ping"}:
+    if action not in {"mic_air", "mic_mute", "mic_level", "mic_ready", "camera_ready", "media_ready", "monitor_stream", "ping"}:
         raise ValueError("Unsupported DJ board command.")
     command = {
         "id": uuid.uuid4().hex[:16],
