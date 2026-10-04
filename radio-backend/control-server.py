@@ -1572,6 +1572,8 @@ DJ_BOARD_PRESENCE = {}
 DJ_BOARD_COMMANDS = {}
 DJ_VIDEO_FRAME_LOCK = threading.Lock()
 DJ_VIDEO_FRAMES = {}
+DJ_AUDIO_MONITOR_LOCK = threading.Lock()
+DJ_AUDIO_MONITOR = {}
 DJ_BOARD_REGISTRY_SAVED_AT = {}
 
 def _dj_board_registry_data():
@@ -1684,7 +1686,7 @@ def queue_dj_board_command(board_id, action, value=None):
     action = str(action or "").strip().lower()
     if not board_id:
         raise ValueError("Missing target board.")
-    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "media_ready", "ping"}:
+    if action not in {"mic_air", "mic_mute", "mic_level", "camera_ready", "media_ready", "monitor_stream", "ping"}:
         raise ValueError("Unsupported DJ board command.")
     command = {
         "id": uuid.uuid4().hex[:16],
@@ -2702,6 +2704,32 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": "Clip expired."}, 404); return
             raw = path.read_bytes(); self.send_response(200); self.send_header("Content-Type", "audio/wav"); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw); return
 
+        if parsed.path == "/control/board/audio-monitor":
+            if not self.require_auth(): return
+            board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
+            try:
+                after = int(self.headers.get("X-GE-Audio-After", "0") or "0")
+            except Exception:
+                after = 0
+            with DJ_AUDIO_MONITOR_LOCK:
+                state = DJ_AUDIO_MONITOR.get(board_id) or {}
+                chunks = list(state.get("chunks", []))
+            chunk = next((x for x in chunks if int(x.get("seq", 0) or 0) > after), None)
+            if not chunk:
+                self.json_response({"ok": False, "error": "No new monitor audio."}, 204)
+                return
+            raw = chunk.get("data", b"")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+            self.send_header("X-GE-Audio-Seq", str(int(chunk.get("seq", 0) or 0)))
+            self.send_header("X-GE-Audio-Rate", str(int(chunk.get("rate", 16000) or 16000)))
+            self.send_header("X-GE-Audio-Channels", "1")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+
         if parsed.path == "/control/board/video-frame":
             if not self.require_auth(): return
             board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
@@ -3065,6 +3093,35 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/board/audio-monitor":
+            if not self.require_auth(): return
+            try:
+                board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
+                if not board_id:
+                    raise ValueError("Missing DJ board id.")
+                n = int(self.headers.get("Content-Length", "0") or "0")
+                if n <= 0 or n > 160000:
+                    raise ValueError("Monitor audio chunk must be between 1 byte and 160 KB.")
+                rate = int(self.headers.get("X-GE-Audio-Rate", "16000") or "16000")
+                rate = max(8000, min(48000, rate))
+                raw = self.rfile.read(n)
+                now = time.time()
+                with DJ_AUDIO_MONITOR_LOCK:
+                    state = DJ_AUDIO_MONITOR.setdefault(board_id, {"seq": 0, "chunks": []})
+                    seq = int(state.get("seq", 0) or 0) + 1
+                    state["seq"] = seq
+                    state["chunks"].append({"seq": seq, "rate": rate, "data": raw, "time": now})
+                    state["chunks"] = [x for x in state["chunks"] if now - float(x.get("time", 0) or 0) < 4][-24:]
+                    # Bound abandoned device buffers.
+                    if len(DJ_AUDIO_MONITOR) > 40:
+                        stale = sorted(DJ_AUDIO_MONITOR.items(), key=lambda item: float((item[1].get("chunks") or [{}])[-1].get("time", 0) if item[1].get("chunks") else 0))[:-40]
+                        for old_id, _ in stale:
+                            DJ_AUDIO_MONITOR.pop(old_id, None)
+                self.json_response({"ok": True, "seq": seq, "bytes": len(raw)})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/board/video-frame":
             if not self.require_auth(): return
             try:
