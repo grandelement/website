@@ -1785,18 +1785,21 @@ window.GE_EASY_SETTINGS = Object.assign({
   SOUL_SPAWN_MIN_SEC: 70.0,
   SOUL_SPAWN_MAX_SEC: 180.0,
 
-  // NORMAL WEBSITE NESTED ORBITS.
-  // The Blue Sun makes one large orbit in about 366 seconds. Every album planet owns a
-  // different tilted oval around that moving Sun, so the combined geometry is compound.
+  // NORMAL WEBSITE PLANETARY TELEMETRY.
+  // Every album owns a different universe-sized tilted ellipse. The Blue Sun is a weak
+  // gravitational reference, not the center of those ellipses. Moving it bends each
+  // trajectory a little without pulling the planets into a tight solar-system cluster.
   AMBIENT_ORBIT_ENABLED: true,
-  AMBIENT_ORBIT_BASE_SEC: 66,
-  AMBIENT_ORBIT_STEP_SEC: 18,
+  AMBIENT_ORBIT_BASE_SEC: 96,
+  AMBIENT_ORBIT_STEP_SEC: 23,
   AMBIENT_ORBIT_PERIOD_SEC: 360,
   AMBIENT_ORBIT_TICK_MS: 80,
-  AMBIENT_ORBIT_PLANET_RADIUS_MIN_PX: 24,
-  AMBIENT_ORBIT_PLANET_RADIUS_MAX_PX: 72,
+  AMBIENT_ORBIT_REJOIN_MS: 1100,
+  AMBIENT_ORBIT_BLEND_MS: 5600,
   AMBIENT_ORBIT_SUN_RADIUS_X_PX: 58,
   AMBIENT_ORBIT_SUN_RADIUS_Y_PX: 34,
+  AMBIENT_ORBIT_SUN_GRAVITY_MIN: 0.05,
+  AMBIENT_ORBIT_SUN_GRAVITY_MAX: 0.16,
 
   // RADIO MOON — live-EQ tuning. These are intentionally grouped for easy visual tuning.
   MOON_GLOW_SIZE: 0.90,
@@ -2735,9 +2738,13 @@ body.autopilot-active #autopilotHUD{display:flex}
 .autoEffectBtn{appearance:none;min-height:58px;border-radius:18px;border:1px solid rgba(168,225,255,.28);background:rgba(5,23,42,.55);color:#eaf8ff;font:900 11px/1.15 system-ui,sans-serif;letter-spacing:.08em;padding:10px;touch-action:manipulation}
 .autoEffectBtn.active{border-color:rgba(220,248,255,.85);background:rgba(32,119,177,.35);box-shadow:inset 0 0 18px rgba(89,192,255,.18),0 0 10px rgba(80,185,255,.12)}
 .autoEffectWide{grid-column:1/-1}
+.autoSunPatternControls{display:grid;gap:10px;margin:16px 0 0;padding-top:14px;border-top:1px solid rgba(168,225,255,.18)}
+.autoSunPatternRow{display:grid;grid-template-columns:118px 1fr 44px;gap:9px;align-items:center;text-align:left;font:900 10px/1.2 system-ui,sans-serif;letter-spacing:.06em}
+.autoSunPatternRow input{width:100%;min-width:0;accent-color:#dff6ff}.autoSunPatternRow output{text-align:right;color:#cceeff}
 #autopilotCheckin{position:fixed;z-index:50;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,4,12,.26);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);pointer-events:auto}
 #autopilotCheckin.show{display:flex}
-#autopilotCheckin .autoCard{width:min(420px,92vw);border:1px solid rgba(168,225,255,.3);border-radius:22px;background:rgba(2,10,22,.78);box-shadow:0 0 34px rgba(78,176,255,.15);padding:22px;text-align:center;color:#f1fbff;font-family:system-ui,sans-serif}
+#autopilotCheckin .autoCard{width:min(420px,92vw);border:1px solid rgba(168,225,255,.3);border-radius:22px;background:rgba(2,10,22,.78);box-shadow:0 0 34px rgba(78,176,255,.15);padding:22px;text-align:center;color:#f1fbff;font-family:system-ui,sans-serif;opacity:1;transform:translateY(0) scale(1);transition:opacity .28s ease,transform .28s ease}
+#autopilotCheckin .autoCard.geAutoFade{opacity:0;transform:translateY(6px) scale(.988)}
 #autopilotCheckin h2{margin:0 0 10px;font-size:19px;letter-spacing:.13em}
 #autopilotCheckin p{margin:0 0 16px;font-size:14px;line-height:1.45;opacity:.9}
 #autopilotCheckin .autoCardActions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
@@ -3533,20 +3540,24 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <button class="autoEffectBtn" type="button" data-auto-effect="sunwaves">SUN WAVES</button>
         <button class="autoEffectBtn" type="button" data-auto-effect="spectrum">SPECTRUM</button>
         <button class="autoEffectBtn" type="button" data-auto-effect="kaleidoscope">KALEIDOSCOPE</button>
-        <button class="autoEffectBtn autoEffectWide" type="button" data-auto-effect="mix">AUTO MIX</button>
+        <button class="autoEffectBtn" type="button" data-auto-effect="curves">CURVES</button>
+        <button class="autoEffectBtn" type="button" data-auto-effect="sacred">SACRED GEOMETRY</button>
+        <button class="autoEffectBtn autoEffectWide active" type="button" data-auto-effect="mix">AUTO MIX</button>
+      </div>
+      <div class="autoSunPatternControls">
+        <label class="autoSunPatternRow"><span>SUN PATTERN SIZE</span><input id="autopilotSunPatternSize" type="range" min="50" max="200" step="5" value="100"><output id="autopilotSunPatternSizeValue">100%</output></label>
+        <label class="autoSunPatternRow"><span>SUN REACTION</span><input id="autopilotSunPatternEnergy" type="range" min="25" max="200" step="5" value="100"><output id="autopilotSunPatternEnergyValue">100%</output></label>
       </div>
       <p class="autoHint" style="margin-top:16px">Tap outside this window to close.</p>
     </div>
   </div>
   <div id="autopilotCheckin" role="dialog" aria-modal="true" aria-labelledby="autopilotCheckTitle">
     <div class="autoCard">
-      <h2 id="autopilotCheckTitle">WATER CHECK</h2>
-      <p id="autopilotCheckText">Need water? Small sips if you are thirsty. Check your temperature and comfort too.</p>
+      <h2 id="autopilotCheckTitle">NEED SOME WATER?</h2>
+      <p id="autopilotCheckText"></p>
       <div id="autopilotCheckExtra"></div>
       <div class="autoCardActions" id="autopilotCheckActions">
         <button id="autopilotGoodBtn" type="button">I'M GOOD</button>
-        <button id="autopilotCalmFromCheckBtn" type="button">CALM SCREEN</button>
-        <button id="autopilotHelpBtn" type="button">HELP</button>
       </div>
     </div>
   </div>
@@ -11458,14 +11469,25 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const musicDur=document.getElementById('autopilotMusicDur');
   const musicVol=document.getElementById('autopilotMusicVol');
   const musicVolText=document.getElementById('autopilotMusicVolText');
+  const sunPatternSize=document.getElementById('autopilotSunPatternSize');
+  const sunPatternSizeValue=document.getElementById('autopilotSunPatternSizeValue');
+  const sunPatternEnergy=document.getElementById('autopilotSunPatternEnergy');
+  const sunPatternEnergyValue=document.getElementById('autopilotSunPatternEnergyValue');
   const player=document.getElementById('gePlayer');
   if(!spirit||!canvas||!ctx||!hud||!check||!checkExtra)return;
 
   const COLORS=['#61c9ff','#b4f0ff','#ad9dff','#ff9bd5','#ffd184','#86f6c8','#ffffff','#7ba8ff','#e7f7ff'];
   const PREF_KEY='GE_AUTOPILOT_DISPLAY_V1';
-  const DEFAULT_EFFECTS={trails:true,mirror:false,ripples:false,echo:false,constellation:false,stardust:false,orbit:false,breath:false,sunwaves:true,spectrum:true,kaleidoscope:false,mix:false};
+  const MIX_DEFAULT_KEY='GE_AUTOPILOT_AUTOMIX_DEFAULT_V2';
+  const DEFAULT_EFFECTS={trails:true,mirror:false,ripples:false,echo:false,constellation:false,stardust:false,orbit:false,breath:false,sunwaves:true,spectrum:true,kaleidoscope:false,curves:false,sacred:false,mix:true,sunPatternSize:1,sunPatternEnergy:1};
   let effects={...DEFAULT_EFFECTS};
-  try{const saved=JSON.parse(localStorage.getItem(PREF_KEY)||'null');if(saved&&typeof saved==='object')effects={...effects,...saved};}catch(_e){}
+  try{
+    const saved=JSON.parse(localStorage.getItem(PREF_KEY)||'null');
+    if(saved&&typeof saved==='object')effects={...effects,...saved};
+    if(localStorage.getItem(MIX_DEFAULT_KEY)!=='1'){
+      effects.mix=true;localStorage.setItem(MIX_DEFAULT_KEY,'1');localStorage.setItem(PREF_KEY,JSON.stringify(effects));
+    }
+  }catch(_e){effects.mix=true}
   let active=false,calm=false,startAt=0,raf=0,lastFrame=0,lastImpulse=0,nextImpulse=0,lastPos=new Map();
   let spiritTimer=0,spiritAnimation=null,waterTimer=0,sessionTimer=0,hudTimer=0,mixTimer=0,spiritRAF=0;
   let spiritPos={x:Math.max(24,innerWidth-64),y:92,vx:24,vy:17};
@@ -11554,10 +11576,16 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     (window.PLAYLIST||[]).forEach(it=>{const a=(it?.album||'').trim();const k=a.toLowerCase();if(a&&!seen.has(k)){seen.add(k);out.push(a);}});
     return out.length?out:['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
   }
-  function setActionButtons(good="I'M GOOD",calm='CALM SCREEN',help='HELP',showCalm=true,showHelp=true){
-    btnGood.textContent=good;btnCalmCheck.textContent=calm;btnHelp.textContent=help;
-    btnCalmCheck.style.display=showCalm?'':'none';
-    btnHelp.style.display=showHelp?'':'none';
+  const checkCard=check.querySelector('.autoCard');
+  let checkFadeTimer=0;
+  function setActionButtons(good="I'M GOOD"){
+    btnGood.textContent=good;
+  }
+  function changeCheck(fn){
+    clearTimeout(checkFadeTimer);
+    if(!check.classList.contains('show')){fn();check.classList.add('show');return}
+    checkCard?.classList.add('geAutoFade');
+    checkFadeTimer=setTimeout(()=>{fn();requestAnimationFrame(()=>checkCard?.classList.remove('geAutoFade'));},235);
   }
   function showAlbumChooser(){
     closeOverlay(musicPanel);closeOverlay(displayPanel);hideCheck();
@@ -11565,7 +11593,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     checkText.textContent='Pick an album, choose shuffle, or keep what is already playing.';
     const buttons=albumChoices().map(a=>`<button type="button" data-auto-album="${String(a).replace(/"/g,'&quot;')}">${a}</button>`).join('');
     checkExtra.innerHTML=`<div class="autoChoiceGrid"><button type="button" class="wide" data-auto-mode="shuffle">SHUFFLE</button><button type="button" class="wide" data-auto-mode="keep">KEEP PLAYING</button>${buttons}</div><div class="autoHint">Autopilot will let you move the planets around or relax and listen.</div>`;
-    setActionButtons('CANCEL','','',false,false);
+    setActionButtons('CANCEL');
     check.dataset.mode='choose';check.classList.add('show');
     checkExtra.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
       if(b.dataset.autoMode==='shuffle'){autopilotChoice={mode:'shuffle',album:null};try{window.GE_MUSIC_CONTROLLER?.setShuffle?.(true);}catch(_e){};ensureMusic();showAutopilotReady();return;}
@@ -11580,11 +11608,13 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }));
   }
   function showAutopilotReady(){
-    checkTitle.textContent='READY?';
-    checkText.textContent='Have some water now if you want it. Then you can move the planets around, or relax and let the tracers and music carry the screen.';
-    checkExtra.innerHTML='<div class="autoHint">Autopilot keeps the tracer art running on its own, and you can still drag planets to paint your own patterns.</div>';
-    setActionButtons("I'M GOOD",'WATER FIRST','BACK',true,true);
-    check.dataset.mode='ready';check.classList.add('show');
+    changeCheck(()=>{
+      checkTitle.textContent='NEED SOME WATER?';
+      checkText.textContent='';
+      checkExtra.innerHTML='';
+      setActionButtons("I'M GOOD");
+      check.dataset.mode='ready';
+    });
   }
   function updateMusicPanel(){
     if(!player)return;
@@ -11604,31 +11634,19 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 
   function showCheck(mode='water'){
     if(!active)return;
-    closeOverlay(musicPanel);closeOverlay(displayPanel);checkExtra.innerHTML='';
-    if(mode==='intro'){
-      checkTitle.textContent='AUTOPILOT';
-      checkText.textContent='Move the planets to paint the space with tracers, or relax and let the music and Autopilot carry the visuals.';
-      setActionButtons('LET IT FLOW','','',false,false);
-    }else if(mode==='water-first'){
-      checkTitle.textContent='WATER FIRST';
-      checkText.textContent='Take your time. Have some water if you want it, then tap BEGIN when you are ready.';
-      setActionButtons('BEGIN','','BACK',false,true);
-    }else if(mode==='help'){
-      checkTitle.textContent='KEEP IT SIMPLE';
-      checkText.textContent='Stay somewhere safe and reduce stimulation. A trusted person can help. If there is trouble breathing, a seizure, dangerous overheating, loss of consciousness, or someone may hurt themselves or others, get emergency medical help now.';
-      setActionButtons('BACK','','',false,false);
-    }else if(mode==='four'){
-      checkTitle.textContent='4 HOUR VISUAL SESSION';
-      checkText.textContent='Autopilot can keep going. Check water, temperature, comfort and whether you want more or less stimulation.';
-      setActionButtons('CONTINUE','CALM SCREEN','HELP',true,true);
-    }else{
-      checkTitle.textContent='WATER CHECK';
-      checkText.textContent='Need water? Small sips if you are thirsty. Check your temperature and comfort too.';
-      setActionButtons("I'M GOOD",'CALM SCREEN','HELP',true,true);
-    }
-    check.dataset.mode=mode;check.classList.add('show');
+    closeOverlay(musicPanel);closeOverlay(displayPanel);
+    changeCheck(()=>{
+      checkTitle.textContent='NEED SOME WATER?';
+      checkText.textContent='';
+      checkExtra.innerHTML='';
+      setActionButtons("I'M GOOD");
+      check.dataset.mode=mode;
+    });
   }
-  function hideCheck(){check.classList.remove('show');check.dataset.mode='';checkExtra.innerHTML='';btnCalmCheck.style.display='';btnHelp.style.display='';}
+  function hideCheck(){
+    clearTimeout(checkFadeTimer);checkCard?.classList.add('geAutoFade');
+    checkFadeTimer=setTimeout(()=>{check.classList.remove('show');check.dataset.mode='';checkExtra.innerHTML='';checkCard?.classList.remove('geAutoFade');},240);
+  }
   function setCalm(v){calm=!!v;document.body.classList.toggle('autopilot-calm',calm);btnCalm.textContent=calm?'NORMAL':'CALM';}
 
   function saveEffects(){try{localStorage.setItem(PREF_KEY,JSON.stringify(effects));}catch(_e){}}
@@ -11637,7 +11655,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function randomizeMix(){
     if(!effects.mix)return;
-    const pool=['mirror','ripples','echo','constellation','stardust','orbit','breath','sunwaves','spectrum','kaleidoscope'];
+    const pool=['mirror','ripples','echo','constellation','stardust','orbit','breath','sunwaves','spectrum','kaleidoscope','curves','sacred'];
     const shuffled=[...pool].sort(()=>Math.random()-.5);
     pool.forEach(k=>effects[k]=false);
     effects.trails=true;
@@ -11652,7 +11670,15 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     else{effects[k]=!effects[k];if(effects.mix){effects.mix=false;syncMixTimer();}}
     saveEffects();syncEffectButtons();
   }));
-  syncEffectButtons();
+  function syncSunPatternControls(){
+    effects.sunPatternSize=Math.max(.5,Math.min(2,Number(effects.sunPatternSize)||1));
+    effects.sunPatternEnergy=Math.max(.25,Math.min(2,Number(effects.sunPatternEnergy)||1));
+    if(sunPatternSize){sunPatternSize.value=String(Math.round(effects.sunPatternSize*100));sunPatternSizeValue.textContent=Math.round(effects.sunPatternSize*100)+'%';}
+    if(sunPatternEnergy){sunPatternEnergy.value=String(Math.round(effects.sunPatternEnergy*100));sunPatternEnergyValue.textContent=Math.round(effects.sunPatternEnergy*100)+'%';}
+  }
+  sunPatternSize?.addEventListener('input',()=>{effects.sunPatternSize=Math.max(.5,Math.min(2,Number(sunPatternSize.value)/100||1));sunPatternSizeValue.textContent=Math.round(effects.sunPatternSize*100)+'%';saveEffects();});
+  sunPatternEnergy?.addEventListener('input',()=>{effects.sunPatternEnergy=Math.max(.25,Math.min(2,Number(sunPatternEnergy.value)/100||1));sunPatternEnergyValue.textContent=Math.round(effects.sunPatternEnergy*100)+'%';saveEffects();});
+  syncEffectButtons();syncSunPatternControls();
 
   function planetColor(p,i){
     const album=(p?.el?.dataset?.album||'').toLowerCase();
@@ -11661,18 +11687,23 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function activeNodes(){return (window.planetNodes||[]).filter(p=>p&&p.el&&p.el.offsetParent!==null&&!p.el.classList.contains('poolPocketed')&&!p.el.classList.contains('gameDuelHidden'));}
   function seedMotion(strength=1){
+    if(window.GE_AMBIENT_GALAXY?.pulse){window.GE_AMBIENT_GALAXY.pulse(strength);return;}
     const nodes=activeNodes();if(!nodes.length)return;
-    const count=Math.max(1,Math.min(nodes.length,calm?1:Math.ceil(nodes.length*.45)));
+    const count=Math.max(1,Math.min(nodes.length,calm?1:Math.ceil(nodes.length*.35)));
     const pick=[...nodes].sort(()=>Math.random()-.5).slice(0,count);
     for(const p of pick){
       if(p.dragging)continue;
-      let a=Math.random()*Math.PI*2;
-      if(effects.orbit){const dx=(Number(p.x)||innerWidth/2)-innerWidth/2,dy=(Number(p.y)||innerHeight/2)-innerHeight/2;a=Math.atan2(dy,dx)+(Math.random()<.5?Math.PI/2:-Math.PI/2)+(Math.random()-.5)*.35;}
-      const sp=(calm?18+Math.random()*32:38+Math.random()*105)*strength;
-      p.vx=(Number(p.vx)||0)*.35+Math.cos(a)*sp;p.vy=(Number(p.vy)||0)*.35+Math.sin(a)*sp;
+      const a=Math.random()*Math.PI*2,sp=(calm?12+Math.random()*18:22+Math.random()*42)*strength;
+      p.vx=(Number(p.vx)||0)*.4+Math.cos(a)*sp;p.vy=(Number(p.vy)||0)*.4+Math.sin(a)*sp;
     }
   }
   function strokeSegment(x1,y1,x2,y2,c,width,alpha,blur){ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=alpha;ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=blur;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();}
+  function strokeCurve(old,x,y,c,width,alpha,blur,t,i){
+    if(!effects.curves)return;const dx=x-old.x,dy=y-old.y,d=Math.hypot(dx,dy);if(d<.2)return;
+    const nx=-dy/d,ny=dx/d,wave=Math.sin((t||0)/620+i*.91),bend=Math.min(54,7+d*1.4)*wave;
+    ctx.save();ctx.globalCompositeOperation='screen';ctx.lineCap='round';ctx.globalAlpha=Math.min(.42,alpha*.72);ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=Math.min(12,blur*.55);ctx.lineWidth=Math.max(.8,width*.72);
+    ctx.beginPath();ctx.moveTo(old.x,old.y);ctx.quadraticCurveTo((old.x+x)/2+nx*bend,(old.y+y)/2+ny*bend,x,y);ctx.stroke();ctx.restore();
+  }
   function drawMirror(old,x,y,c,width,alpha,blur){
     if(!effects.mirror)return;
     const W=innerWidth,H=innerHeight;
@@ -11700,6 +11731,36 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }
     ctx.restore();
   }
+  function drawSacredGeometry(nodes,t,musicLevel=0){
+    if(!effects.sacred||!active)return;
+    const sunEl=document.getElementById('sunWrap'),rect=sunEl?.getBoundingClientRect();if(!rect?.width)return;
+    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2,time=(t||performance.now())/1000;
+    const size=Math.max(34,rect.width*.62)*(Number(effects.sunPatternSize)||1),energy=Math.min(.62,musicLevel*(Number(effects.sunPatternEnergy)||1));
+    const spin=time*.055,petalR=size*(1.02+energy*.24);
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(spin);ctx.globalCompositeOperation='source-over';ctx.lineWidth=.72+energy*.45;ctx.shadowBlur=4+energy*4;ctx.shadowColor='rgba(64,190,255,.55)';
+    /* Flower-of-life circles. */
+    for(let ring=1;ring<=2;ring++){
+      const count=ring===1?6:12,rr=petalR*ring*.54,cr=petalR*(ring===1?.58:.36);
+      for(let i=0;i<count;i++){
+        const a=i/count*Math.PI*2,px=Math.cos(a)*rr,py=Math.sin(a)*rr;
+        ctx.globalAlpha=.075+energy*.075;ctx.strokeStyle=i%3===0?'rgba(74,188,255,.9)':(i%3===1?'rgba(148,118,255,.82)':'rgba(112,229,218,.82)');
+        ctx.beginPath();ctx.arc(px,py,cr,0,Math.PI*2);ctx.stroke();
+      }
+    }
+    /* Twelve-point wheel + interlaced star polygons. */
+    const pts=[];for(let i=0;i<12;i++){const a=i/12*Math.PI*2,rr=petalR*(i%2?1.34:1.08);pts.push([Math.cos(a)*rr,Math.sin(a)*rr]);}
+    ctx.globalAlpha=.11+energy*.10;ctx.strokeStyle='rgba(92,205,255,.88)';ctx.beginPath();for(let i=0;i<pts.length;i++){const p=pts[i];i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}ctx.closePath();ctx.stroke();
+    for(const step of [5,7]){
+      ctx.globalAlpha=.07+energy*.08;ctx.strokeStyle=step===5?'rgba(164,130,255,.78)':'rgba(95,226,218,.76)';ctx.beginPath();
+      let idx=0;for(let k=0;k<=12;k++){const p=pts[idx];k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);idx=(idx+step)%12;}ctx.stroke();
+    }
+    /* Planet telemetry spokes connect the art to the actual moving albums. */
+    const visible=(nodes||[]).slice(0,9);ctx.rotate(-spin*.45);
+    visible.forEach((p,i)=>{const dx=p.x-cx,dy=p.y-cy,d=Math.hypot(dx,dy)||1,max=petalR*1.55,ex=dx/d*Math.min(max,d*.23),ey=dy/d*Math.min(max,d*.23);
+      ctx.globalAlpha=.045+energy*.055;ctx.strokeStyle=planetColor(p,i);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(ex,ey);ctx.stroke();
+    });
+    ctx.restore();
+  }
   function getMusicLevel(t){
     const cssPulse=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pulse'))||0;
     const pulseLevel=Math.max(0,Math.min(1,(cssPulse-.015)/.23));
@@ -11710,37 +11771,33 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function drawSunMusic(level,t){
     if((!effects.sunwaves&&!effects.spectrum)||!active)return;
-    const sunWrap=document.querySelector('.sunWrap');
-    if(!sunWrap) return;
-    const rect=sunWrap.getBoundingClientRect();
-    if(rect.width<10||rect.height<10) return;
-    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2,r=Math.max(18,rect.width/2);
-    const time=(t||performance.now())/1000;
+    const sunWrap=document.querySelector('.sunWrap');if(!sunWrap)return;
+    const rect=sunWrap.getBoundingClientRect();if(rect.width<10||rect.height<10)return;
+    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2,r=Math.max(18,rect.width/2),time=(t||performance.now())/1000;
+    const size=Math.max(.5,Math.min(2,Number(effects.sunPatternSize)||1));
+    const reaction=Math.max(.25,Math.min(2,Number(effects.sunPatternEnergy)||1));
+    /* Hard ceiling prevents additive stacking from bleaching the Blue Sun into a white blob. */
+    const energy=Math.min(.72,Math.max(0,level)*reaction);
     if(effects.sunwaves){
-      ctx.save();ctx.globalCompositeOperation='lighter';
-      const rings=4;
+      ctx.save();ctx.globalCompositeOperation='source-over';const rings=4;
       for(let i=0;i<rings;i++){
-        const phase=((time*0.55)+(i/rings))%1;
-        const rr=r+8+phase*(40+level*65);
-        ctx.globalAlpha=(1-phase)*(.10+level*.18)*(calm?.72:1);
-        ctx.strokeStyle=i%2===0?'rgba(88,176,255,.95)':'rgba(170,230,255,.9)';
-        ctx.shadowColor='rgba(92,180,255,.9)';ctx.shadowBlur=14+level*18;ctx.lineWidth=1.2+level*2.4;
+        const phase=((time*.48)+(i/rings))%1,rr=r+7+phase*(34+energy*48)*size;
+        ctx.globalAlpha=Math.min(.25,(1-phase)*(.065+energy*.16))*(calm?.68:1);
+        ctx.strokeStyle=i%2===0?'rgba(60,168,244,.90)':'rgba(111,214,245,.82)';
+        ctx.shadowColor='rgba(52,165,235,.62)';ctx.shadowBlur=Math.min(10,5+energy*7);ctx.lineWidth=.9+energy*1.25;
         ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();
       }
       ctx.restore();
     }
     if(effects.spectrum){
-      ctx.save();ctx.globalCompositeOperation='lighter';
-      const bars=48,baseR=r+10;
+      ctx.save();ctx.globalCompositeOperation='source-over';const bars=32,baseR=r+9;
       for(let i=0;i<bars;i++){
-        const ang=(i/bars)*Math.PI*2 + time*.25;
-        const localBeat=(Math.sin(time*4.6+i*.55)+Math.sin(time*7.4+i*.21))*0.5;
-        const amp=(6+level*24)*(0.35+(localBeat*.5+.5)*0.9);
-        const x1=cx+Math.cos(ang)*baseR,y1=cy+Math.sin(ang)*baseR;
-        const x2=cx+Math.cos(ang)*(baseR+amp),y2=cy+Math.sin(ang)*(baseR+amp);
-        ctx.globalAlpha=(.18+level*.42)*(calm?.8:1);
-        ctx.strokeStyle=i%3===0?'rgba(122,210,255,.96)':(i%3===1?'rgba(95,145,255,.92)':'rgba(210,235,255,.92)');
-        ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=8+level*14;ctx.lineWidth=1+(level*1.8);
+        const ang=(i/bars)*Math.PI*2+time*.19,localBeat=(Math.sin(time*4.1+i*.61)+Math.sin(time*6.8+i*.27))*.5;
+        const amp=(5+energy*22)*(0.40+(localBeat*.5+.5)*.72)*size;
+        const x1=cx+Math.cos(ang)*baseR,y1=cy+Math.sin(ang)*baseR,x2=cx+Math.cos(ang)*(baseR+amp),y2=cy+Math.sin(ang)*(baseR+amp);
+        ctx.globalAlpha=Math.min(.34,.11+energy*.28)*(calm?.74:1);
+        ctx.strokeStyle=i%3===0?'rgba(58,180,255,.92)':(i%3===1?'rgba(91,126,241,.86)':'rgba(90,225,221,.84)');
+        ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=Math.min(10,4+energy*7);ctx.lineWidth=.8+energy*1.05;
         ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
       }
       ctx.restore();
@@ -11757,7 +11814,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const dt=Math.min(50,t-(lastFrame||t));lastFrame=t;
     const musicLevel=getMusicLevel(t);
     ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle=calm?`rgba(0,0,0,${0.026-musicLevel*0.007})`:`rgba(0,0,0,${0.014-musicLevel*0.004})`;ctx.fillRect(0,0,innerWidth,innerHeight);ctx.restore();
-    const nodes=activeNodes();drawConstellation(nodes);drawBreath(nodes,t,musicLevel);drawSunMusic(musicLevel,t);const autoSun=document.getElementById('sunWrap');if(autoSun)autoSun.style.filter=`brightness(${(1+musicLevel*.90).toFixed(2)}) saturate(${(1+musicLevel*.26).toFixed(2)})`;
+    const nodes=activeNodes();drawConstellation(nodes);drawBreath(nodes,t,musicLevel);drawSacredGeometry(nodes,t,musicLevel);drawSunMusic(musicLevel,t);const autoSun=document.getElementById('sunWrap');if(autoSun){const react=Math.max(.25,Math.min(2,Number(effects.sunPatternEnergy)||1));autoSun.style.filter=`brightness(${(1+Math.min(.34,musicLevel*.24*react)).toFixed(2)}) saturate(${(1+Math.min(.20,musicLevel*.14*react)).toFixed(2)})`;}
     const rippleNow=t-lastRipple>(420-musicLevel*140);if(rippleNow)lastRipple=t;
     nodes.forEach((p,i)=>{
       const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))return;
@@ -11765,7 +11822,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       const d=Math.hypot(x-old.x,y-old.y);if(d<.15||d>Math.hypot(innerWidth,innerHeight)*.35)return;
       const c=planetColor(p,i),speed=Math.min(1,d/10),dragBoost=p.dragging?1.6:1;
       const width=(calm?3.5:7.5)*(0.55+speed*.9)*(1+musicLevel*.45),alpha=((calm?.16:.30)+(musicLevel*.08))*dragBoost,blur=(calm?10:24)+musicLevel*12;
-      if(effects.trails){strokeSegment(old.x,old.y,x,y,c,width,alpha,blur);strokeSegment(old.x,old.y,x,y,'rgba(235,250,255,.95)',(calm?1.1:2.2)*(0.7+speed*.7),(calm?.28:.58)*dragBoost,calm?5:11);drawMirror(old,x,y,c,width,alpha,blur);drawKaleidoscope(old,x,y,c,width,alpha,blur,t);}
+      if(effects.trails){strokeSegment(old.x,old.y,x,y,c,width,alpha,blur);strokeSegment(old.x,old.y,x,y,'rgba(195,235,255,.82)',(calm?1.0:1.65)*(0.7+speed*.7),(calm?.22:.42)*dragBoost,calm?4:8);strokeCurve(old,x,y,c,width,alpha,blur,t,i);drawMirror(old,x,y,c,width,alpha,blur);drawKaleidoscope(old,x,y,c,width,alpha,blur,t);}
       if(effects.echo){ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=(calm?.08:.16)+musicLevel*.06;ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=10+musicLevel*8;ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(old.x,old.y,12+speed*14+musicLevel*8,0,Math.PI*2);ctx.stroke();ctx.restore();}
       if(effects.ripples&&rippleNow&&(p.dragging||speed>.25||musicLevel>.24)){ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=(calm?.10:.20)+musicLevel*.08;ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=14+musicLevel*10;ctx.lineWidth=1.2+musicLevel*1.2;for(let r=0;r<3;r++){ctx.beginPath();ctx.arc(x,y,12+r*(11+musicLevel*4),0,Math.PI*2);ctx.stroke();}ctx.restore();}
       if(effects.stardust){ctx.save();ctx.globalCompositeOperation='lighter';ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=8+musicLevel*8;for(let n=0;n<(calm?1:3)+Math.round(musicLevel*2);n++){const q=Math.random(),sx=old.x+(x-old.x)*q+(Math.random()-.5)*12,sy=old.y+(y-old.y)*q+(Math.random()-.5)*12;ctx.globalAlpha=.18+Math.random()*.34+musicLevel*.12;ctx.beginPath();ctx.arc(sx,sy,.8+Math.random()*1.7+musicLevel*.6,0,Math.PI*2);ctx.fill();}ctx.restore();}
@@ -11779,7 +11836,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     active=true;calm=false;startAt=Date.now();lastFrame=0;lastImpulse=0;nextImpulse=800;lastPos.clear();
     hideSpirit();try{spiritAnimation?.cancel?.()}catch(_e){}
     document.body.classList.add('autopilot-active');document.body.classList.remove('autopilot-calm');
-    fit();ctx.clearRect(0,0,innerWidth,innerHeight);ensureMusic();seedMotion(.85);syncMixTimer();
+    effects.mix=true;syncEffectButtons();fit();ctx.clearRect(0,0,innerWidth,innerHeight);ensureMusic();seedMotion(.85);syncMixTimer();
     hudTimer=setInterval(updateHud,1000);updateHud();
     waterTimer=setInterval(()=>showCheck('water'),30*60*1000);
     sessionTimer=setTimeout(()=>showCheck('four'),FOUR_HOURS);
@@ -11819,15 +11876,15 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   btnGood.addEventListener('click',()=>{
     const mode=check.dataset.mode||'';
     if(mode==='choose'){hideCheck();spirit.classList.remove('selected');return;}
-    if(mode==='ready'||mode==='water-first'){hideCheck();startAutopilot();setTimeout(()=>showCheck('intro'),260);return;}
+    if(mode==='ready'){hideCheck();setTimeout(startAutopilot,250);return;}
     hideCheck();
   });
-  btnCalmCheck.addEventListener('click',()=>{
+  btnCalmCheck?.addEventListener('click',()=>{
     const mode=check.dataset.mode||'';
     if(mode==='ready'){showCheck('water-first');return;}
     setCalm(true);hideCheck();
   });
-  btnHelp.addEventListener('click',()=>{const mode=check.dataset.mode||'';if(mode==='ready'){showAlbumChooser();return;}if(mode==='water-first'){showAutopilotReady();return;}showCheck('help');});
+  btnHelp?.addEventListener('click',()=>showCheck('water'));
   musicPrev?.addEventListener('click',()=>{window.GE_MUSIC_CONTROLLER?.prev?.();setTimeout(updateMusicPanel,120);});
   musicPlay?.addEventListener('click',()=>{window.GE_MUSIC_CONTROLLER?.playPause?.();setTimeout(updateMusicPanel,80);});
   musicNext?.addEventListener('click',()=>{window.GE_MUSIC_CONTROLLER?.next?.();setTimeout(updateMusicPanel,120);});
