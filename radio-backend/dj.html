@@ -4007,7 +4007,7 @@ async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok){
    if(status)status.dj_boards=d.boards||status.dj_boards;
@@ -5262,7 +5262,7 @@ function renderDeviceChannelSheet(){
    audioConnected=localMic||boardMic||remoteReady;
    ready=audioConnected;
    air=browserAir||remoteAir;
-   muted=self?!!settings.mic.mute:!!(remote&&remote.muted);
+   muted=self?!!settings.mic.mute:!!((board&&board.mic_muted)||(remote&&remote.muted));
    meterPct=self?Number(micInputPct||0):(boardMic?Number(board.mic_peak||0):(remote&&remote.online?Number(remote.peak_pct||0):0));
  }
 
@@ -5555,7 +5555,7 @@ $('deviceChannelMute').onclick=function(){
  }
  const id=this.dataset.remoteDevice,boardId=this.dataset.boardId,d=(status.remote_devices||[]).find(function(x){return String(x.id)===String(id)});
  if(id&&d){sendRemoteCommand(id,'mute',!d.muted).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)});return}
- if(boardId)sendBoardCommand(boardId,'mic_mute',true).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})
+ if(boardId){const b=(status.dj_boards||[]).find(function(x){return String(x.id)===String(boardId)});sendBoardCommand(boardId,'mic_mute',!(b&&b.mic_muted)).then(function(){setTimeout(poll,180)}).catch(function(e){alert(e.message||e)})}
 };
 async function connectDeviceChannel(kind){
  if(kind!=='iphone'&&kind!=='ipad'&&kind!=='iphone5')throw new Error('Choose iPHONE, iPAD, or iPHONE 5 first.');
