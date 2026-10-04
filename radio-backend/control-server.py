@@ -1590,6 +1590,7 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "line_peak": clamp_number(channel_state.get("line_peak"), 0.0, 100.0, 0.0),
         "mic_connected": bool(channel_state.get("mic_connected", False)),
         "mic_air": bool(channel_state.get("mic_air", False)),
+        "mic_muted": bool(channel_state.get("mic_muted", False)),
         "mic_peak": clamp_number(channel_state.get("mic_peak"), 0.0, 100.0, 0.0),
         "audio_permission": " ".join(str(channel_state.get("audio_permission", "unknown") or "unknown").split())[:24],
         "audio_inputs": [" ".join(str(x or "").split())[:120] for x in (channel_state.get("audio_inputs") if isinstance(channel_state.get("audio_inputs"), list) else [])[:12]],
