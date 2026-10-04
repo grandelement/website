@@ -50,17 +50,14 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
   <h1>GE DJ LITE</h1>
   <div class="small">Compatibility controller for older iPhone / iPad / Safari.</div>
   <input id="password" type="password" placeholder="DJ password" autocapitalize="off" autocorrect="off" spellcheck="false">
-  <button class="btn" id="loginBtn">CONNECT WITH PASSWORD · v4</button>
-  <div class="small" style="margin:12px 0 4px">OR PAIR THIS iPHONE 5 ONCE</div>
-  <input id="pairCode" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit pairing code" autocomplete="off">
-  <button class="btn" id="pairBtn">PAIR THIS DEVICE</button>
-  <div class="small" id="loginStatus"></div>
+  <button class="btn" id="loginBtn">CONNECT</button>
+  <div class="small" id="loginStatus">One successful login remembers this device automatically.</div>
  </div>
 </div>
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v4</span></div>
+  <div class="brand">GE DJ <span>LITE v5</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -109,7 +106,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  <div class="card warn">
   <div class="label">LEGACY MODE</div>
   <div class="big">LEGACY DEVICE MODE</div>
-  <div class="small">GE DJ LITE avoids modern JavaScript so very old Safari can still connect as a control surface. On iOS 10, microphone and camera capture are not available in Safari, so this device is control-only for those media sources.</div>
+  <div class="small">GE DJ LITE automatically remembers this device after the first successful login. This original iPhone 5 can control GE DJ, but iOS 10 Safari cannot provide microphone or camera capture.</div>
  </div>
 </div>
 
@@ -261,32 +258,6 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      }
    });
  }
- function pairLegacy(){
-   var code=String($('pairCode').value||'').replace(/[^0-9]/g,'');
-   if(code.length!==6){$('loginStatus').innerHTML='ENTER THE 6-DIGIT CODE FROM THE iPAD';return;}
-   $('loginStatus').innerHTML='PAIRING iPHONE 5...';
-   key='';
-   request('/control/device/pair/claim','POST',{
-     code:code,
-     name:'iPHONE 5',
-     platform:'web-legacy',
-     model:'iPhone 5',
-     capabilities:['control']
-   },function(statusCode,d){
-     if(statusCode>=200&&statusCode<300&&d&&d.ok&&d.dj_device_id&&d.dj_device_token){
-       djDeviceId=String(d.dj_device_id);djDeviceToken=String(d.dj_device_token);
-       safeStoreSet('geDjLegacyTrustedId',djDeviceId);safeStoreSet('geDjLegacyTrustedToken',djDeviceToken);
-       safeStoreSet('geDjPassword','');
-       $('loginStatus').innerHTML='PAIRED · OPENING DJ BOOTH...';
-       request('/control/status','GET',null,function(code2,d2){
-         if(code2>=200&&code2<300)enterBooth(d2);
-         else $('loginStatus').innerHTML='PAIRED, BUT DJ AUTHORIZATION FAILED · HTTP '+String(code2);
-       });
-     }else{
-       $('loginStatus').innerHTML=(d&&d.error)?String(d.error):('PAIRING FAILED · HTTP '+String(statusCode));
-     }
-   });
- }
  function escapeHtml(s){
    return String(s===null||s===undefined?'':s).replace(/[&<>"]/g,function(ch){
      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
@@ -294,9 +265,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  }
 
  $('loginBtn').onclick=login;
- $('pairBtn').onclick=pairLegacy;
  $('password').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)login();};
- $('pairCode').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)pairLegacy();};
  $('computerLevel').onchange=function(){var v=Number(this.value)||0;$('computerLevelRead').innerHTML=Math.round(v)+'%';sendComputer({line_level:v});};
  $('computerAir').onclick=function(){var shared=status&&status.dj_controls||{};sendComputer({line_air:!shared.line_air});};
  $('refreshBtn').onclick=function(){poll();heartbeat();};
