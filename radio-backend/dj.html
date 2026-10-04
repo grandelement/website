@@ -2979,6 +2979,10 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 #mixerSheet .boardMixStrip small{white-space:normal!important;overflow-wrap:anywhere!important}
 #mixerSheet .boardMixStrip .mixBtns{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 #mixerSheet .boardMixStrip .mixBtns button{min-width:0!important;padding-left:3px!important;padding-right:3px!important}
+
+/* V100 cleanup: legacy app-pairing UI is retained only as backend compatibility,
+   not shown in the browser controller. */
+#remoteDeviceList,.remoteDeviceTools{display:none!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble micIdle" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
@@ -5716,6 +5720,8 @@ function boardMixerRows(){
 function boardMixerStateText(board){
  if(!board.online)return 'KNOWN · OFFLINE';
  if(!boardMediaSupported(board))return 'ONLINE · CONTROL ONLY';
+ const err=String(board.media_error||board.audio_error||'').toLowerCase();
+ if(/notallowed|denied|permission/.test(err))return 'PERMISSION NEEDED ON DEVICE';
  if(board.mic_air)return 'ON AIR';
  if(board.mic_connected&&String(board.video_track_state||'').toLowerCase()==='live')return 'AUDIO + VIDEO READY';
  if(board.mic_connected)return 'AUDIO READY · VIDEO NOT OPEN';
