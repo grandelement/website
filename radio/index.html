@@ -908,59 +908,26 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 </style>
 
 
-<style id="ge-sun-after-hud-v1">
-/* Hide Text is now two-stage in Player view:
-   controls/text disappear first; the blue sun remains alone, movable and scalable,
-   then fades separately after its grace period. */
-.logo-wrap{
-  --ge-sun-x:0px;
-  --ge-sun-y:0px;
-  --ge-sun-scale:1;
-  transform:translate3d(var(--ge-sun-x),var(--ge-sun-y),0) scale(var(--ge-sun-scale))!important;
-  transform-origin:center center!important;
-  touch-action:none!important;
-  -webkit-user-select:none!important;
-  user-select:none!important;
-  cursor:grab;
+<style id="ge-floating-sun-safe-v2">
+/* Safe isolated visual-mode Sun. Normal logo stays a normal homepage link. */
+@media (orientation:portrait) and (max-width:700px){
+  body.view-player.portrait-player header{transform:none!important}
 }
-.logo-wrap.ge-sun-dragging{cursor:grabbing}
-body.view-player.hud-hidden .wrap{
-  opacity:1!important;
-  pointer-events:none!important;
-  z-index:10000!important;
+#geFloatingSun{
+  position:fixed;z-index:31010;display:none;left:0;top:0;width:180px;height:180px;
+  border-radius:50%;pointer-events:none;touch-action:none;-webkit-user-select:none;user-select:none;
+  transform:translate3d(0,0,0) scale(1);transform-origin:center center;
+  opacity:0;transition:opacity 1.25s ease;cursor:grab
 }
-body.view-player.hud-hidden .wrap > *:not(header){
-  opacity:0!important;
-  pointer-events:none!important;
-  transition:opacity .30s ease!important;
+#geFloatingSun img{
+  width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;pointer-events:none;
+  box-shadow:0 0 18px rgba(63,190,255,.38),0 0 42px rgba(0,128,255,.18)
 }
-body.view-player.hud-hidden header{
-  opacity:1!important;
-  pointer-events:none!important;
-}
-body.view-player.hud-hidden header h1,
-body.view-player.hud-hidden header .tag{
-  opacity:0!important;
-  pointer-events:none!important;
-  transition:opacity .30s ease!important;
-}
-body.view-player.hud-hidden .logo-wrap{
-  opacity:1!important;
-  pointer-events:auto!important;
-  transition:opacity 1.25s ease!important;
-}
-body.view-player.hud-hidden.sun-faded .logo-wrap{
-  opacity:0!important;
-  pointer-events:none!important;
-}
-body.hud-hidden #radioCopyright,
-body.hud-hidden footer{
-  opacity:0!important;
-  pointer-events:none!important;
-  transition:opacity .30s ease!important;
-}
+body.view-player.hud-hidden #geFloatingSun{display:block;opacity:1;pointer-events:auto}
+body.view-player.hud-hidden.sun-faded #geFloatingSun{opacity:0;pointer-events:none}
+body.view-ship #geFloatingSun{display:none!important;pointer-events:none!important}
+body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;pointer-events:none!important}
 </style>
-
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -988,6 +955,7 @@ body.hud-hidden footer{
 <img id="bgImage" alt="" aria-hidden="true">
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
+<div id="geFloatingSun" aria-hidden="true"><img id="geFloatingSunImg" alt=""></div>
 <button id="viewToggle" type="button">Ship View</button>
 <div id="shipStage" aria-hidden="true">
   <div id="shipWindowViewport" aria-hidden="true">
@@ -3038,17 +3006,32 @@ window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLi
   let lastActivity=Date.now();
   let sunFadeTimer=0;
   const SUN_GRACE_MS=6000;
+  const floatingSun=$('geFloatingSun');
+  const floatingSunImg=$('geFloatingSunImg');
 
-  function clearSunFade(){
-    if(sunFadeTimer){clearTimeout(sunFadeTimer);sunFadeTimer=0;}
+  function clearSunFade(){if(sunFadeTimer){clearTimeout(sunFadeTimer);sunFadeTimer=0;}}
+  function positionFloatingSunFromLogo(){
+    const logo=$('homeLink');
+    if(!logo||!floatingSun)return;
+    const rect=logo.getBoundingClientRect();
+    floatingSun.style.width=Math.max(64,rect.width)+'px';
+    floatingSun.style.height=Math.max(64,rect.height)+'px';
+    floatingSun.style.left=rect.left+'px';
+    floatingSun.style.top=rect.top+'px';
+    floatingSun.dataset.baseLeft=String(rect.left);
+    floatingSun.dataset.baseTop=String(rect.top);
+    floatingSun.dataset.baseWidth=String(rect.width);
+    floatingSun.dataset.baseHeight=String(rect.height);
+    floatingSun.dataset.x='0';floatingSun.dataset.y='0';floatingSun.dataset.scale='1';
+    floatingSun.style.transform='translate3d(0px,0px,0) scale(1)';
+    if(floatingSunImg&&$('geLogo'))floatingSunImg.src=$('geLogo').currentSrc||$('geLogo').src||'';
   }
-  function keepSunVisible(){document.body.classList.remove('sun-faded');}
   function scheduleSunFade(delay){
     clearSunFade();
-    keepSunVisible();
+    document.body.classList.remove('sun-faded');
     sunFadeTimer=setTimeout(()=>{
       sunFadeTimer=0;
-      if(document.body.classList.contains('hud-hidden')&&document.body.classList.contains('view-player')){
+      if(document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
         document.body.classList.add('sun-faded');
       }
     },Math.max(0,Number(delay)||0));
@@ -3066,13 +3049,14 @@ window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLi
   function hideNow(){
     if(trackList.classList.contains('open'))return;
     if(document.body.classList.contains('hud-hidden'))return;
+    if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
     document.body.classList.add('hud-hidden');
     document.body.classList.remove('sun-faded');
     if(document.body.classList.contains('view-player'))scheduleSunFade(SUN_GRACE_MS);
   }
   function sunActivity(){
     lastActivity=Date.now();
-    if(document.body.classList.contains('hud-hidden')&&document.body.classList.contains('view-player')){
+    if(document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
       scheduleSunFade(CONFIG.HUD_IDLE_MS);
     }
   }
@@ -6100,161 +6084,92 @@ gateTestBtn?.addEventListener('click',()=>{
 })();
 </script>
 
-<script id="ge-sun-interaction-v1">
+<script id="ge-floating-sun-interaction-v2">
 (function(){
-  var sun=document.getElementById('homeLink');
-  if(!sun||sun.dataset.geInteractiveSun==='1')return;
-  sun.dataset.geInteractiveSun='1';
+  var sun=document.getElementById('geFloatingSun');
+  if(!sun||sun.dataset.bound==='1')return;
+  sun.dataset.bound='1';
 
-  var x=0,y=0,scale=1;
-  var dragging=false,moved=false;
-  var startX=0,startY=0,startSunX=0,startSunY=0;
-  var lastX=0,lastY=0,lastT=0,vx=0,vy=0;
-  var pinchStartDistance=0,pinchStartScale=1;
-  var inertia=0;
+  var x=0,y=0,scale=1,dragging=false,moved=false;
+  var sx=0,sy=0,ox=0,oy=0,lx=0,ly=0,lt=0,vx=0,vy=0;
+  var pinchDistance=0,pinchScale=1,raf=0;
 
-  function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   function apply(){
-    sun.style.setProperty('--ge-sun-x',x.toFixed(2)+'px');
-    sun.style.setProperty('--ge-sun-y',y.toFixed(2)+'px');
-    sun.style.setProperty('--ge-sun-scale',scale.toFixed(3));
+    sun.dataset.x=String(x);sun.dataset.y=String(y);sun.dataset.scale=String(scale);
+    sun.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,0) scale('+scale.toFixed(3)+')';
   }
-  function activity(){
-    if(window.GEHUD&&window.GEHUD.sunActivity)window.GEHUD.sunActivity();
-  }
-  function baseCenter(){
-    var r=sun.getBoundingClientRect();
-    return {cx:(r.left+r.right)/2-x,cy:(r.top+r.bottom)/2-y,w:r.width,h:r.height};
-  }
+  function activity(){if(window.GEHUD&&window.GEHUD.sunActivity)window.GEHUD.sunActivity();}
+  function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}
   function wrap(){
-    var b=baseCenter(),vw=window.innerWidth||document.documentElement.clientWidth||0,vh=window.innerHeight||document.documentElement.clientHeight||0;
-    var halfW=(b.w/2),halfH=(b.h/2);
-    var cx=b.cx+x,cy=b.cy+y;
-    if(cx<-halfW)x=(vw+halfW)-b.cx;
-    else if(cx>vw+halfW)x=(-halfW)-b.cx;
-    if(cy<-halfH)y=(vh+halfH)-b.cy;
-    else if(cy>vh+halfH)y=(-halfH)-b.cy;
+    var left=Number(sun.dataset.baseLeft||0),top=Number(sun.dataset.baseTop||0);
+    var w=(Number(sun.dataset.baseWidth||sun.offsetWidth)||sun.offsetWidth)*scale;
+    var h=(Number(sun.dataset.baseHeight||sun.offsetHeight)||sun.offsetHeight)*scale;
+    var cx=left+x+w/2,cy=top+y+h/2,vw=window.innerWidth||0,vh=window.innerHeight||0;
+    if(cx<-w/2)x=(vw+w/2)-left-w/2;
+    else if(cx>vw+w/2)x=(-w/2)-left-w/2;
+    if(cy<-h/2)y=(vh+h/2)-top-h/2;
+    else if(cy>vh+h/2)y=(-h/2)-top-h/2;
   }
-  function stopInertia(){if(inertia){cancelAnimationFrame(inertia);inertia=0;}}
-  function startInertia(){
-    stopInertia();
+  function inertia(){
+    stop();
     function step(){
       x+=vx;y+=vy;vx*=.955;vy*=.955;wrap();apply();
-      if(Math.abs(vx)>.08||Math.abs(vy)>.08){
-        activity();
-        inertia=requestAnimationFrame(step);
-      }else{
-        inertia=0;
-        activity();
-      }
+      if(Math.abs(vx)>.08||Math.abs(vy)>.08){activity();raf=requestAnimationFrame(step);}
+      else{raf=0;activity();}
     }
-    if(Math.abs(vx)>.18||Math.abs(vy)>.18)inertia=requestAnimationFrame(step);
+    if(Math.abs(vx)>.18||Math.abs(vy)>.18)raf=requestAnimationFrame(step);
   }
-
-  function point(e){
-    if(e.touches&&e.touches.length)return {x:e.touches[0].clientX,y:e.touches[0].clientY};
-    return {x:e.clientX,y:e.clientY};
-  }
-  function distance(touches){
-    if(!touches||touches.length<2)return 0;
-    var dx=touches[0].clientX-touches[1].clientX;
-    var dy=touches[0].clientY-touches[1].clientY;
+  function dist(t){
+    if(!t||t.length<2)return 0;
+    var dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;
     return Math.sqrt(dx*dx+dy*dy);
   }
-
-  function beginDrag(px,py){
-    stopInertia();dragging=true;moved=false;
-    startX=px;startY=py;startSunX=x;startSunY=y;
-    lastX=px;lastY=py;lastT=Date.now();vx=0;vy=0;
-    sun.classList.add('ge-sun-dragging');activity();
+  function begin(px,py){
+    stop();dragging=true;moved=false;sx=px;sy=py;ox=x;oy=y;lx=px;ly=py;lt=Date.now();vx=vy=0;activity();
   }
-  function moveDrag(px,py){
+  function move(px,py){
     if(!dragging)return;
-    var now=Date.now(),dt=Math.max(8,now-lastT);
-    var dx=px-startX,dy=py-startY;
-    if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
-    x=startSunX+dx;y=startSunY+dy;
-    vx=(px-lastX)/(dt/16);vy=(py-lastY)/(dt/16);
-    lastX=px;lastY=py;lastT=now;
+    var now=Date.now(),dt=Math.max(8,now-lt);
+    var dx=px-sx,dy=py-sy;if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
+    x=ox+dx;y=oy+dy;vx=(px-lx)/(dt/16);vy=(py-ly)/(dt/16);lx=px;ly=py;lt=now;
     wrap();apply();activity();
   }
-  function endDrag(){
-    if(!dragging)return;
-    dragging=false;sun.classList.remove('ge-sun-dragging');
-    vx=clamp(vx,-7,7);vy=clamp(vy,-7,7);
-    startInertia();activity();
+  function end(){
+    if(!dragging)return;dragging=false;vx=clamp(vx,-7,7);vy=clamp(vy,-7,7);inertia();activity();
   }
 
-  sun.addEventListener('mousedown',function(e){
-    if(e.button!==0)return;
-    beginDrag(e.clientX,e.clientY);
-    e.preventDefault();
+  sun.addEventListener('pointerdown',function(e){
+    if(e.pointerType==='touch')return;
+    begin(e.clientX,e.clientY);sun.setPointerCapture&&sun.setPointerCapture(e.pointerId);e.preventDefault();
   });
-  window.addEventListener('mousemove',function(e){
-    if(!dragging)return;
-    moveDrag(e.clientX,e.clientY);
-    e.preventDefault();
-  },{passive:false});
-  window.addEventListener('mouseup',endDrag);
+  sun.addEventListener('pointermove',function(e){
+    if(!dragging||e.pointerType==='touch')return;move(e.clientX,e.clientY);e.preventDefault();
+  });
+  sun.addEventListener('pointerup',function(e){if(e.pointerType!=='touch')end();});
 
   sun.addEventListener('touchstart',function(e){
-    stopInertia();
-    if(e.touches.length>=2){
-      dragging=false;
-      pinchStartDistance=distance(e.touches);
-      pinchStartScale=scale;
-      moved=true;
-      activity();
-    }else if(e.touches.length===1){
-      var p=point(e);beginDrag(p.x,p.y);
-    }
+    stop();
+    if(e.touches.length>=2){dragging=false;pinchDistance=dist(e.touches);pinchScale=scale;moved=true;activity();}
+    else if(e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);}
     if(e.cancelable)e.preventDefault();
   },{passive:false});
-
   sun.addEventListener('touchmove',function(e){
     if(e.touches.length>=2){
-      var d=distance(e.touches);
-      if(pinchStartDistance>0){
-        scale=clamp(pinchStartScale*(d/pinchStartDistance),.35,3.2);
-        moved=true;apply();activity();
-      }
-    }else if(e.touches.length===1){
-      var p=point(e);moveDrag(p.x,p.y);
-    }
+      var d=dist(e.touches);
+      if(pinchDistance>0){scale=clamp(pinchScale*(d/pinchDistance),.35,3.2);moved=true;apply();activity();}
+    }else if(e.touches.length===1){move(e.touches[0].clientX,e.touches[0].clientY);}
     if(e.cancelable)e.preventDefault();
   },{passive:false});
-
   sun.addEventListener('touchend',function(e){
-    if(e.touches&&e.touches.length>=2){
-      pinchStartDistance=distance(e.touches);
-      pinchStartScale=scale;
-      return;
-    }
-    if(e.touches&&e.touches.length===1){
-      var p=point(e);
-      beginDrag(p.x,p.y);
-      return;
-    }
-    pinchStartDistance=0;
-    endDrag();
-    if(e.cancelable)e.preventDefault();
+    if(e.touches&&e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);return;}
+    pinchDistance=0;end();if(e.cancelable)e.preventDefault();
   },{passive:false});
 
   sun.addEventListener('wheel',function(e){
-    scale=clamp(scale*(e.deltaY<0?1.08:.92),.35,3.2);
-    moved=true;apply();activity();
-    e.preventDefault();
+    scale=clamp(scale*(e.deltaY<0?1.08:.92),.35,3.2);moved=true;apply();activity();e.preventDefault();
   },{passive:false});
-
-  sun.addEventListener('click',function(e){
-    if(moved||document.body.classList.contains('hud-hidden')){
-      e.preventDefault();e.stopPropagation();moved=false;activity();
-    }
-  },true);
-
-  apply();
 })();
 </script>
-
 </body>
 </html>
