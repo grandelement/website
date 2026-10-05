@@ -1652,6 +1652,7 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "video_inputs": [" ".join(str(x or "").split())[:120] for x in (channel_state.get("video_inputs") if isinstance(channel_state.get("video_inputs"), list) else [])[:8]],
         "video_input_count": int(clamp_number(channel_state.get("video_input_count"), 0, 16, 0)),
         "camera_permission": " ".join(str(channel_state.get("camera_permission", "unknown") or "unknown").split())[:40],
+        "camera_facing": " ".join(str(channel_state.get("camera_facing", "environment") or "environment").split())[:20],
         "video_track_state": " ".join(str(channel_state.get("video_track_state", "") or "").split())[:40],
         "camera_error": " ".join(str(channel_state.get("camera_error", "") or "").split())[:240],
         "media_error": " ".join(str(channel_state.get("media_error", "") or "").split())[:240],
@@ -1705,7 +1706,7 @@ def queue_dj_board_command(board_id, action, value=None):
     action = str(action or "").strip().lower()
     if not board_id:
         raise ValueError("Missing target board.")
-    if action not in {"mic_air", "mic_mute", "mic_level", "mic_ready", "camera_ready", "media_ready", "monitor_stream", "ping"}:
+    if action not in {"mic_air", "mic_mute", "mic_level", "mic_ready", "camera_ready", "camera_facing", "media_ready", "monitor_stream", "ping"}:
         raise ValueError("Unsupported DJ board command.")
     command = {
         "id": uuid.uuid4().hex[:16],
