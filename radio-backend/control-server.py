@@ -1654,6 +1654,8 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "camera_error": " ".join(str(channel_state.get("camera_error", "") or "").split())[:240],
         "media_error": " ".join(str(channel_state.get("media_error", "") or "").split())[:240],
         "media_capture_supported": bool(channel_state.get("media_capture_supported", False)),
+        "audio_capture_supported": bool(channel_state.get("audio_capture_supported", channel_state.get("media_capture_supported", False))),
+        "camera_capture_supported": bool(channel_state.get("camera_capture_supported", channel_state.get("media_capture_supported", False))),
         "ios_version": " ".join(str(channel_state.get("ios_version", "") or "").split())[:32],
         "user_agent": " ".join(str(channel_state.get("user_agent", "") or "").split())[:220],
         "device_kind": " ".join(str(channel_state.get("device_kind", "device") or "device").split())[:40],
