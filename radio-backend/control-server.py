@@ -1574,6 +1574,8 @@ DJ_VIDEO_FRAME_LOCK = threading.Lock()
 DJ_VIDEO_FRAMES = {}
 DJ_AUDIO_MONITOR_LOCK = threading.Lock()
 DJ_AUDIO_MONITOR = {}
+DJ_BOARD_METER_LOCK = threading.Lock()
+DJ_BOARD_METERS = {}
 DJ_BOARD_REGISTRY_SAVED_AT = {}
 
 def _dj_board_registry_data():
@@ -2721,6 +2723,35 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response({"ok": False, "error": "Clip expired."}, 404); return
             raw = path.read_bytes(); self.send_response(200); self.send_header("Content-Type", "audio/wav"); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw); return
 
+        if parsed.path == "/control/board/meters":
+            if not self.require_auth(): return
+            now = time.time()
+            with DJ_BOARD_METER_LOCK:
+                meters = {str(k): dict(v) for k, v in DJ_BOARD_METERS.items()}
+            with DJ_VIDEO_FRAME_LOCK:
+                frames = {str(k): dict(v) for k, v in DJ_VIDEO_FRAMES.items()}
+            items = []
+            for board_id in set(meters) | set(frames):
+                meter = meters.get(board_id, {})
+                updated = float(meter.get("time", 0) or 0)
+                age = max(0.0, now - updated) if updated else None
+                frame = frames.get(board_id, {})
+                frame_time = float(frame.get("time", 0) or 0)
+                frame_age = max(0.0, now - frame_time) if frame_time else None
+                frame_live = bool(frame_time and frame_age is not None and frame_age < 1.2)
+                video_level = 100.0 if frame_live and frame_age < 0.5 else (65.0 if frame_live else 0.0)
+                items.append({
+                    "board_id": board_id,
+                    "mic_peak": clamp_number(meter.get("mic_peak"), 0.0, 100.0, 0.0) if age is not None and age < 1.2 else 0.0,
+                    "mic_connected": bool(meter.get("mic_connected", False)) if age is not None and age < 1.2 else False,
+                    "age": age,
+                    "video_frame_live": frame_live,
+                    "video_frame_age": frame_age,
+                    "video_level": video_level,
+                })
+            self.json_response({"ok": True, "items": items})
+            return
+
         if parsed.path == "/control/board/audio-monitor":
             if not self.require_auth(): return
             board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(self.headers.get("X-GE-Board-ID", "") or "").strip())[:96]
@@ -3110,6 +3141,51 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if self.path == "/control/board/meter":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                board_id = re.sub(r"[^A-Za-z0-9._:-]+", "-", str(body.get("board_id", "") or "").strip())[:96]
+                if not board_id:
+                    raise ValueError("Missing DJ board id.")
+                now = time.time()
+                with DJ_BOARD_METER_LOCK:
+                    DJ_BOARD_METERS[board_id] = {
+                        "mic_peak": clamp_number(body.get("mic_peak"), 0.0, 100.0, 0.0),
+                        "mic_connected": bool(body.get("mic_connected", False)),
+                        "time": now,
+                    }
+                    for old_id, meter in list(DJ_BOARD_METERS.items()):
+                        if now - float((meter or {}).get("time", 0) or 0) > 10:
+                            DJ_BOARD_METERS.pop(old_id, None)
+                with DJ_BOARD_METER_LOCK:
+                    meters = {str(k): dict(v) for k, v in DJ_BOARD_METERS.items()}
+                with DJ_VIDEO_FRAME_LOCK:
+                    frames = {str(k): dict(v) for k, v in DJ_VIDEO_FRAMES.items()}
+                items = []
+                for meter_id in set(meters) | set(frames):
+                    meter = meters.get(meter_id, {})
+                    updated = float(meter.get("time", 0) or 0)
+                    age = max(0.0, now - updated) if updated else None
+                    frame = frames.get(meter_id, {})
+                    frame_time = float(frame.get("time", 0) or 0)
+                    frame_age = max(0.0, now - frame_time) if frame_time else None
+                    frame_live = bool(frame_time and frame_age is not None and frame_age < 1.2)
+                    video_level = 100.0 if frame_live and frame_age < 0.5 else (65.0 if frame_live else 0.0)
+                    items.append({
+                        "board_id": meter_id,
+                        "mic_peak": clamp_number(meter.get("mic_peak"), 0.0, 100.0, 0.0) if age is not None and age < 1.2 else 0.0,
+                        "mic_connected": bool(meter.get("mic_connected", False)) if age is not None and age < 1.2 else False,
+                        "age": age,
+                        "video_frame_live": frame_live,
+                        "video_frame_age": frame_age,
+                        "video_level": video_level,
+                    })
+                self.json_response({"ok": True, "items": items})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
         if self.path == "/control/board/audio-monitor":
             if not self.require_auth(): return
             try:
