@@ -25,7 +25,9 @@ final class RemoteMicController: ObservableObject {
         credentials = CredentialsStore.load()
         paired = credentials != nil
         status = paired ? "PAIRED" : "NOT PAIRED"
-        if paired && autoReady {
+        if paired {
+            autoReady = true
+            UserDefaults.standard.set(true, forKey: "GERemoteReadyDefault")
             try? await setRemoteReady(true)
         }
         startHeartbeat()
@@ -39,6 +41,7 @@ final class RemoteMicController: ObservableObject {
         credentials = creds
         paired = true
         status = "PAIRED"
+        try await setRemoteReady(true)
         startHeartbeat()
     }
 
@@ -60,7 +63,8 @@ final class RemoteMicController: ObservableObject {
             remoteReady = true
             autoReady = true
             UserDefaults.standard.set(true, forKey: "GERemoteReadyDefault")
-            status = "REMOTE READY"
+            UIApplication.shared.isIdleTimerDisabled = true
+            status = "CONNECTED"
         } else {
             await setAir(false)
             engine.stop()
@@ -72,7 +76,8 @@ final class RemoteMicController: ObservableObject {
             remoteReady = false
             autoReady = false
             UserDefaults.standard.set(false, forKey: "GERemoteReadyDefault")
-            status = paired ? "PAIRED" : "NOT PAIRED"
+            UIApplication.shared.isIdleTimerDisabled = false
+            status = paired ? "DISCONNECTED" : "NOT PAIRED"
         }
     }
 
@@ -97,7 +102,7 @@ final class RemoteMicController: ObservableObject {
         } else {
             streamer.disconnect()
             onAir = false
-            if remoteReady { status = "REMOTE READY" }
+            if remoteReady { status = "CONNECTED" }
             await RadioAPI.shared.liveStop(device: credentials)
         }
     }
