@@ -3123,11 +3123,11 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
   <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
  </div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="25" max="75" step="5" value="50" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">50%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="25" max="100" step="5" value="50" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">50%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v109</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v110</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4891,7 +4891,23 @@ async function applyMicIsolation(){
   applyMicIsolationFilters();
   syncMicIsolationUI();saveSettings();
 }
-async function ensureMicOpen(){await ensureAudio();requestBoardWakeLock();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');micStream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});setGeAudioSession('play-and-record');if(ctx.state==='suspended')await ctx.resume();if(!micGain)buildChannel('mic');applyMicIsolationFilters();micSource=ctx.createMediaStreamSource(micStream);micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);$('micOpen').textContent='CLOSE MIC';const track=micStream.getAudioTracks()[0];if(track){track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE';};track.onunmute=function(){$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');};track.onended=function(){$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE';}}syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');if(ctx.state==='suspended')await ctx.resume();await reassertGeOutputRoute();renderChannelStatusBubbles();return true}
+async function attachGeMicTrackV110(track){
+ if(!track||track.readyState!=='live')return false;
+ await ensureAudio();if(ctx.state==='suspended')await ctx.resume();
+ const oldStream=micStream,oldTrack=oldStream&&oldStream.getAudioTracks?oldStream.getAudioTracks()[0]:null;
+ try{if(micSource)micSource.disconnect()}catch(e){}
+ if(!micGain)buildChannel('mic');
+ applyMicIsolationFilters();
+ micStream=new MediaStream([track]);
+ micSource=ctx.createMediaStreamSource(micStream);
+ micSource.connect(micIsolationHP).connect(micIsolationLP).connect(micIsolationGain).connect(micPreamp).connect(micEqLow).connect(micEqMid).connect(micEqHigh).connect(micFilter).connect(micPhaser).connect(micComp).connect(micGain);
+ track.onmute=function(){$('micPathStatus').textContent='MICROPHONE TEMPORARILY MUTED BY IPHONE'};
+ track.onunmute=function(){$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF')};
+ track.onended=function(){if(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]===track)$('micPathStatus').textContent='MICROPHONE CLOSED BY IPHONE'};
+ if(oldTrack&&oldTrack!==track){try{oldTrack.onended=null;oldTrack.stop()}catch(e){}}
+ setGeAudioSession('play-and-record');$('micOpen').textContent='CLOSE MIC';syncMicIsolationUI();runChannelMeter('mic');$('micPathStatus').textContent='MIC READY · DJ LINK '+(liveActive?'CONNECTED':'OFF');await reassertGeOutputRoute();renderChannelStatusBubbles();return true
+}
+async function ensureMicOpen(){await ensureAudio();requestBoardWakeLock();if(micStream){setGeAudioSession('play-and-record');await reassertGeOutputRoute();return true}const cons=micCaptureConstraints();$('micPathStatus').textContent='OPENING IPHONE MICROPHONE…';setGeAudioSession('auto');const stream=await navigator.mediaDevices.getUserMedia({audio:cons,video:false});const track=stream.getAudioTracks&&stream.getAudioTracks()[0];if(!track)throw new Error('No microphone audio track was returned.');return await attachGeMicTrackV110(track)}
 async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();renderChannelStatusBubbles();return}await ensureMicOpen();updateAirButtons();renderChannelStatusBubbles()}
 async function ensureCameraOpen(){
  requestBoardWakeLock();
@@ -4899,17 +4915,25 @@ async function ensureCameraOpen(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){cameraPermission='unsupported';cameraLastError='CAMERA API NOT AVAILABLE';return false}
  try{
   cameraPermission='requesting';cameraLastError='';
-  cameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:cameraFacing},width:{ideal:960},height:{ideal:540}}});
-  const track=cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0];
-  if(!track)throw new Error('No camera video track was returned.');
+  const wantsCombined=!!((GE_IS_IPHONE||GE_IS_IPAD)&&micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState==='live');
+  const constraints={
+   audio:wantsCombined?micCaptureConstraints():false,
+   video:{facingMode:{ideal:cameraFacing},width:{ideal:960},height:{ideal:540}}
+  };
+  const stream=await navigator.mediaDevices.getUserMedia(constraints);
+  const videoTrack=stream.getVideoTracks&&stream.getVideoTracks()[0],audioTrack=stream.getAudioTracks&&stream.getAudioTracks()[0];
+  if(!videoTrack)throw new Error('No camera video track was returned.');
+  if(wantsCombined&&audioTrack)await attachGeMicTrackV110(audioTrack);
+  cameraStream=new MediaStream([videoTrack]);
   cameraPermission='granted';
-  track.onended=function(){cameraPermission='ended';cameraStream=null;if(cameraUploadTimer){clearInterval(cameraUploadTimer);cameraUploadTimer=0}geBoardHeartbeat();renderDeviceChannelSheet()};
+  videoTrack.onended=function(){if(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]===videoTrack){cameraPermission='ended';cameraStream=null;if(cameraUploadTimer){clearInterval(cameraUploadTimer);cameraUploadTimer=0}geBoardHeartbeat();renderDeviceChannelSheet()}};
   await geEnumerateAudioInputs().catch(function(){});
   startCameraPreviewUpload();
   geBoardHeartbeat();renderDeviceChannelSheet();return true
  }catch(e){
-  cameraPermission=(String(e&&e.name||'').toLowerCase().indexOf('notallowed')>=0||String(e&&e.message||'').toLowerCase().indexOf('denied')>=0)?'denied':'error';
-  cameraLastError=String(e&&e.message||e);geAudioDiag.lastError=cameraLastError;geBoardHeartbeat();renderDeviceChannelSheet();return false
+  const msg=String(e&&e.message||e),name=String(e&&e.name||'').toLowerCase();
+  cameraPermission=(name.indexOf('notallowed')>=0||name.indexOf('permission')>=0||msg.toLowerCase().indexOf('denied')>=0)?'denied':'error';
+  cameraLastError=msg;geAudioDiag.lastError=cameraLastError;geBoardHeartbeat();renderDeviceChannelSheet();return false
  }
 }
 async function setLocalMicCaptureV102(wanted){
@@ -6252,7 +6276,12 @@ async function toggleBoardMonitor(boardId){
 async function handleBoardMixerAction(action,boardId){
  const board=boardById(boardId);if(!board||!board.online)return;
  if(action==='mic'){await setBoardMicV102(boardId,!board.mic_connected);return}
- if(action==='video'){await setBoardVideoV102(boardId,String(board.video_track_state||'').toLowerCase()!=='live');return}
+ if(action==='video'){
+   const self=String(boardId)===String(GE_BOARD_ID),localLive=!!(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live');
+   await setBoardVideoV102(boardId,self?!localLive:String(board.video_track_state||'').toLowerCase()!=='live');
+   if(self&&cameraPermission==='denied'&&!localLive)alert('iPHONE CAMERA PERMISSION IS BLOCKED. Allow Camera for this GE DJ site in Safari/iPhone settings, then tap VIDEO again.');
+   return
+ }
  if(action==='flip'){await flipBoardCameraV106(boardId);return}
  if(action==='monitor'){await toggleBoardMonitor(boardId);return}
 }
@@ -6377,7 +6406,16 @@ $('deviceChannelReady').onclick=function(){
  }
 };
 $('deviceChannelAir').onclick=function(){
- if(geOpenBoardId){const b=boardById(geOpenBoardId);if(b)setBoardVideoV102(geOpenBoardId,String(b.video_track_state||'').toLowerCase()!=='live').catch(function(e){alert(e.message||e)});return}
+ if(geOpenBoardId){
+   const b=boardById(geOpenBoardId);
+   if(b){
+     const self=String(geOpenBoardId)===String(GE_BOARD_ID),localLive=!!(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live');
+     setBoardVideoV102(geOpenBoardId,self?!localLive:String(b.video_track_state||'').toLowerCase()!=='live').then(function(){
+       if(self&&cameraPermission==='denied'&&!localLive)alert('iPHONE CAMERA PERMISSION IS BLOCKED. Allow Camera for this GE DJ site in Safari/iPhone settings, then tap VIDEO again.');
+     }).catch(function(e){alert(e.message||e)})
+   }
+   return
+ }
  if(GE_DEVICE_KIND===geOpenDeviceKind){
    toggleMicOnAir().then(function(){geBoardHeartbeat();renderDeviceChannelSheet();renderChannelStatusBubbles()}).catch(function(e){alert(e.message||e)});
    return
@@ -6674,7 +6712,7 @@ syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();
 const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV3';
 let geDisplayZoomScope='home',geDisplayZoomPct=50;
 function geStoredZoom(){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||50),25,75)}catch(e){return 50}
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||50),25,100)}catch(e){return 50}
 }
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
@@ -6711,7 +6749,7 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||50),25,75);
+ geDisplayZoomPct=clamp(Math.round(Number(value)||50),25,100);
  document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
  $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
  if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
