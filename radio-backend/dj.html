@@ -3007,14 +3007,37 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
  .geScaleControls{overflow-x:auto!important}
  .geChannelStatus{order:-1!important}
 }
+
+/* V103 HOST + DEVICE MIXER */
+.geConnectionRail{display:flex!important;align-items:center!important;gap:5px!important;min-width:0!important;overflow:hidden!important}
+.geHostGroup{display:flex!important;align-items:center!important;gap:4px!important;flex:0 0 auto!important;padding:2px 4px!important;border:1px solid #334756!important;border-radius:8px!important;background:#071018!important}
+.geHostGroup>b{font-size:8px!important;line-height:1!important;white-space:nowrap!important}
+.geHostGroup .studioConnections{display:flex!important;align-items:center!important;gap:3px!important}
+.geHostGroup .studioNode{min-height:25px!important;height:25px!important;padding:0 5px!important;border-radius:6px!important;font-size:9px!important}
+.geHostGroup .studioNode .lamp{width:6px!important;height:6px!important}
+.geChannelStatus{flex:1 1 auto!important}
+#mixerSheet [data-channel-strip="mic"],
+#mixerSheet [data-channel-strip="line"]{display:none!important}
+#mixerSheet .boardMixStrip{order:10}
+#mixerSheet [data-channel-strip="master"]{order:90}
+#mixerSheet .mixerChannelPicker .studioLinkSection{display:none!important}
+#mixerSheet .mixerChannelPicker label{min-height:30px!important}
+#mixerSheet .fxEffectButtons button{min-height:28px!important;padding:2px 5px!important}
+@media(max-width:680px){
+ .geConnectionRail{width:100%!important;overflow-x:auto!important}
+ .geHostGroup{position:sticky!important;left:0!important;z-index:2!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
- <div class="geChannelStatus" id="geChannelStatus" aria-label="Channel connection status"><button type="button" class="geChannelBubble micIdle" data-channel-bubble="mic"><i></i><span>MIC</span></button><button type="button" class="geChannelBubble" data-channel-bubble="line"><i></i><span>COMPUTER</span></button><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
+ <div class="geConnectionRail">
+  <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><span id="studioExtra"></span></div></div>
+  <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
+ </div>
  <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="75" max="240" step="10" value="125" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v102</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v103</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3054,7 +3077,16 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
 <div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">REMOTE DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker"><div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div><label><input type="checkbox" data-mixer-channel="line" checked>COMPUTER</label><div class="note autoDeviceNote">DEVICE CHANNELS · ADDED AUTOMATICALLY WHEN GE DJ SEES THEM</div><label><input type="checkbox" data-mixer-channel="master" checked>MASTER</label><div class="note" style="grid-column:1/-1">MIC is always available. Use these switches only to show or hide the other mixer channels.</div><div class="studioLinkSection"><div class="studioLinkHead"><b>STUDIO CONNECTIONS</b><span class="note">LIGHT = CONNECTED</span></div><div class="studioConnections"><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>REMOTE</span></button><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><span id="studioExtra"></span></div></div><div class="remoteDeviceTools"><button id="linkDeviceBtn">+ PAIR REMOTE MIC APP</button><strong id="pairingCode"></strong><div class="note remotePairHelp">This code is only for the separate GE Remote Mic app. To connect an iPhone or iPad as a GE DJ control device, simply open GE DJ on that device. No pairing code is needed.</div></div><div class="remoteDeviceList" id="remoteDeviceList"></div></div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
+ <div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div>
+ <label><input type="checkbox" data-device-channel="computer" checked>1 · COMPUTER</label>
+ <label><input type="checkbox" data-device-channel="iphone" checked>2 · iPHONE</label>
+ <label><input type="checkbox" data-device-channel="ipad" checked>3 · iPAD</label>
+ <label><input type="checkbox" data-device-channel="iphone5" checked>4 · iPHONE 5</label>
+ <div class="note autoDeviceNote" style="grid-column:1/-1">DEVICE CHANNELS APPEAR WHEN THAT DEVICE IS ONLINE. MASTER STAYS AVAILABLE.</div>
+ <div class="remoteDeviceTools"><button id="linkDeviceBtn">+ PAIR REMOTE MIC APP</button><strong id="pairingCode"></strong><div class="note remotePairHelp">Legacy iPhone 5 pairing remains available here when needed.</div></div>
+ <div class="remoteDeviceList" id="remoteDeviceList"></div>
+</div><div class="mixerFxPanel fxSideDrawer" id="effectsSheet">
 <div class="fxDockHead"><div class="fxTitleBlock"><div class="label">DEVICE / EFFECT RACK</div><div class="sheetTitle" id="fxTitle">MIC EFFECTS</div></div><div class="fxLayoutBar">
   <button id="fxFit">FIT</button><button id="fxZoomOut" aria-label="Show fewer effect controls">↓</button>
   <input id="fxZoom" type="range" min="20" max="100" step="20" value="40" aria-label="Effect strip width">
@@ -3331,13 +3363,13 @@ function diagEvent(name,detail){
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='',livePcmMode='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
-let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='';const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=false,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='';const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
    Preserve this object when experimenting with later FX/UI revisions.
    Audio path baseline: processed mono MIC -> explicit L/R monitor duplication -> balance;
    cellular broadcast uses the V44 24 kHz mono low-bandwidth transport and server stereo expansion. */
 const GE_SAFE_MIC_DEFAULT=Object.freeze({level:100,pan:0,preamp:12,delay:20,reverb:15,delayTime:320,feedback:22,frequency:0,phaser:0,threshold:-12,ratio:6,preset:'BROADCAST',mute:false,compOn:true,filterOn:true,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,isolationOn:false,isolationMode:'WALKING',isolationLevel:85,compStrength:65,eqOn:false,eqLow:0,eqMid:0,eqHigh:0});
-let settings={mic:{...GE_SAFE_MIC_DEFAULT},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,compStrength:55,eqOn:false,eqLow:0,eqMid:0,eqHigh:0}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=localStorage.getItem('geDjPublicRadioControl')==='1';radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
+let settings={mic:{...GE_SAFE_MIC_DEFAULT},line:{level:100,pan:0,preamp:0,delay:12,reverb:10,delayTime:320,feedback:18,frequency:0,phaser:0,threshold:-10,ratio:4,preset:'CLEAN',mute:false,compOn:true,filterOn:false,phaserOn:false,delayOn:true,reverbOn:true,fxLevel:100,compStrength:55,eqOn:false,eqLow:0,eqMid:0,eqHigh:0}};try{const x=JSON.parse(localStorage.getItem('geDjMixerV7')||'{}');if(x.mic)Object.assign(settings.mic,x.mic);if(x.line)Object.assign(settings.line,x.line);publicRadioControl=true;radioCueLevel=clamp(Number(localStorage.getItem('geDjRadioCueLevel')||100),0,100);const slots=JSON.parse(localStorage.getItem('geDjFxSlotsV1')||'null');if(slots&&typeof slots==='object')Object.assign(customFxSlots,slots)}catch(e){}
 let lineSourceMode='device';
 const GE_ARRANGEMENT_KEY='geDjArrangementV1';
 let geArrangement=1;
@@ -4117,7 +4149,7 @@ function renderStudioStatus(){
   const on=rows.length>0,self=rows.some(function(x){return x.id===GE_BOARD_ID});
   b.disabled=!on;b.classList.toggle('online',on);b.classList.toggle('offline',!on);b.classList.toggle('self',self);
   b.querySelector('span').textContent=label+(rows.length>1?' '+rows.length:'');
-  b.title=on?(label+' connected'+(self?' · THIS DEVICE':'')):(label+' offline')
+  b.title=on?(label+(label==='HOME'?' HOST':'')+' connected'+(self?' · THIS DEVICE':'')):(label+(label==='HOME'?' HOST':'')+' offline')
  }
  setMain('studioRemote','REMOTE',remotes);setMain('studioHome','HOME',homes);
  const extras=[];
@@ -4133,7 +4165,7 @@ function openConnectedStudio(role){
   const p=$('mixerChannelPicker');if(p){p.classList.add('show');$('mixerChannelsBtn')&&$('mixerChannelsBtn').classList.add('on')}
  }
 }
-function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderKnownDeviceMixer();renderDeviceChannelSheet();renderGeAudioDiagnostics();applySharedDjControls();if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();setMeterLevel('mixLineMeter',h?Number(h.line_peak||0):0)};syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';if(publicRadioControl){$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%'}else{$('mixRadioBed').max='100';$('mixRadioBed').value=radioCueLevel;$('mixRadioRead').textContent=Math.round(radioCueLevel)+'%';$('radioAudio').volume=clamp(radioCueLevel/100,0,1)}syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
+function render(){if(!status)return;lastStatusPollAt=Date.now();$('statusPill').textContent='CONNECTED';renderStudioStatus();renderLineRoleUi();renderChannelStatusBubbles();renderKnownDeviceMixer();renderDeviceChannelSheet();renderGeAudioDiagnostics();applySharedDjControls();if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();setMeterLevel('mixLineMeter',h?Number(h.line_peak||0):0)};syncStopPlayButton();$('nowTitle').textContent=(status.now&&status.now.title)||'Grand Element Radio';$('nowMeta').textContent=((status.now&&status.now.album)||'')+' · '+((status.now&&status.now.artist)||'Grand Element');$('nowPlaylist').textContent='PLAYLIST · '+(status.active_playlist_name||'Normal Rotation');updateNowProgress();$('queue').innerHTML=queueItems().map(function(x,i){return '<div class="qrow" data-slot="'+esc(x.slot)+'"><div class="qnum">'+(i+1)+'</div><div><div class="qtitle">'+esc(x.title)+'</div><div class="qmeta">'+esc(x.album||'')+'</div></div><div class="qbtns"><button data-act="up">↑</button><button data-act="down">↓</button><button class="replace" data-act="replace">REPLACE</button></div></div>'}).join('')||'<div class="note">Queue loading.</div>';const cf=Number(status.crossfade_seconds==null?5:status.crossfade_seconds);if(!crossDirty&&!crossSaving){$('crossfade').value=cf;$('crossVal').textContent=cf.toFixed(1)+'s'}const b=status.broadcast||{};$('studioOwnerText').textContent=b.active&&b.owner==='studio'?'LIVE NOW':'return';setMeterLevel('mixStudioMeter',b.active&&b.owner==='studio'?Number(b.peak_pct||0):0);if(status.mixer){const direct=Math.round(Number(status.mixer.direct_level==null?1:status.mixer.direct_level)*100),master=Math.round(Number(status.mixer.master_level==null?1:status.mixer.master_level)*100),publicRadio=Math.round(Number(status.mixer.music_level==null?1:status.mixer.music_level)*100),mix=Math.round(Number(status.mixer.music_under_voice==null?.45:status.mixer.music_under_voice)*100);$('mixStudioLevel').value=direct;$('mixStudioRead').textContent=direct+'%';$('mixMasterLevel').value=master;$('mixMasterRead').textContent=master+'%';$('masterMixLevel').value=mix;$('masterMixRead').textContent=mix+'%';$('publicRadioMute').textContent=status.mixer.music_muted?'UNMUTE':'MUTE';$('mixRadioBed').max='125';$('mixRadioBed').value=publicRadio;$('mixRadioRead').textContent=publicRadio+'%';syncPublicRadioArm();requestAnimationFrame(syncTouchFaders)}if($('effectsSheet').classList.contains('show')||!$('mixAuxFx').classList.contains('auxHidden'))syncFx();updateLiveDiagnostics();renderRemoteDevices();updateRadioDiagnostics()}
 function updateLiveDiagnostics(){
  const e=$('micPathStatus');if(!e)return;
  const pm=status&&status.public_master||{},b=status&&status.broadcast||{};
@@ -5342,8 +5374,8 @@ function bindLocalMixer(){
  $('mixLineLevel').addEventListener('change',function(){level('line',this.value,true)});
  $('mixStudioLevel').onchange=function(){setMixer({direct_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
  $('mixMasterLevel').onchange=function(){setMixer({master_level:Number(this.value)/100}).catch(function(e){alert(e.message)})};
- $('mixRadioBed').oninput=function(){const v=Number(this.value)||0;$('mixRadioRead').textContent=Math.round(v)+'%';if(publicRadioControl)queuePublicRadioLevel(v/100);else{radioCueLevel=clamp(v,0,100);$('radioAudio').volume=radioCueLevel/100;try{localStorage.setItem('geDjRadioCueLevel',String(radioCueLevel))}catch(e){}}};
- $('mixRadioBed').onchange=function(){if(publicRadioControl)setMixer({music_level:Number(this.value)/100,music_muted:false}).catch(function(e){alert(e.message)})};
+ $('mixRadioBed').oninput=function(){const v=Number(this.value)||0;$('mixRadioRead').textContent=Math.round(v)+'%';queuePublicRadioLevel(v/100)};
+ $('mixRadioBed').onchange=function(){setMixer({music_level:Number(this.value)/100,music_muted:false}).catch(function(e){alert(e.message)})};
  $('mixFxLevel').oninput=function(){settings[fxTarget].fxLevel=Number(this.value);settings[fxTarget].preset='CUSTOM';$('mixFxRead').textContent=Math.round(this.value)+'%';if($('fxReturnLevel'))$('fxReturnLevel').value=this.value;if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(this.value)+'%';applyChannel(fxTarget)};
  $('mixMicMute').onclick=function(){settings.mic.mute=!settings.mic.mute;applyChannel('mic');this.classList.toggle('on',settings.mic.mute)};
  $('mixLineSource').onclick=function(){$('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();renderLineRoleUi();if(GE_BOARD_ROLE==='home')refreshDevices().then(function(){renderLineSavedInputs();if(geArrangement===2)scanGeAudioSources()})};
@@ -5370,7 +5402,7 @@ document.querySelectorAll('[data-close-aux]').forEach(function(b){b.onclick=func
 $('masterMixLevel').oninput=function(){$('masterMixRead').textContent=Math.round(this.value)+'%'};
 $('masterMixLevel').onchange=function(){setMixer({music_under_voice:Number(this.value)/100}).catch(function(e){alert(e.message)})};
 if($('publicRadioArm'))$('publicRadioArm').onclick=function(){publicRadioControl=true;syncPublicRadioArm()};
-$('publicRadioMute').onclick=function(){if(!publicRadioControl)return alert('Turn CONTROL ON first.');const muted=!(status&&status.mixer&&status.mixer.music_muted);setMixer({music_muted:muted}).catch(function(e){alert(e.message)})};
+$('publicRadioMute').onclick=function(){const muted=!(status&&status.mixer&&status.mixer.music_muted);setMixer({music_muted:muted}).catch(function(e){alert(e.message)})};
 $('mixFxOpen').onclick=function(){openFx(fxTarget)};
 syncSendToggles();syncPublicRadioArm();
 $('radioAudio').addEventListener('play',function(){radioMonitorOn=true;radioPlaybackState='PLAYING';updateRadioButton();pollRadioMeter()});
@@ -5434,9 +5466,24 @@ function geChannelEnabled(kind){
  const box=document.querySelector('[data-mixer-channel="'+kind+'"]');return box?!!box.checked:false
 }
 function geTrackLive(stream){try{const t=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];return !!(t&&t.readyState==='live')}catch(e){return false}}
+function boardSlotKind(row){
+ const k=String(row&&row.device_kind||'').toLowerCase();
+ if(k==='iphone5')return 'iphone5';
+ if(k==='iphone')return 'iphone';
+ if(k==='ipad')return 'ipad';
+ if(k==='windows'||k==='mac'||k==='linux'||k==='computer'||k==='home')return 'computer';
+ return 'other'
+}
+function boardSlotRank(row){
+ const k=boardSlotKind(row);return k==='computer'?0:(k==='iphone'?1:(k==='ipad'?2:(k==='iphone5'?3:9)))
+}
+function boardSlotTitle(row){
+ const k=boardSlotKind(row);return k==='computer'?'1 · COMPUTER':(k==='iphone'?'2 · iPHONE':(k==='ipad'?'3 · iPAD':(k==='iphone5'?'4 · iPHONE 5':boardBaseName(row))))
+}
 function knownBoardRows(){
  const rows=Array.isArray(status&&status.dj_boards)?status.dj_boards.slice():[];
  rows.sort(function(a,b){
+   const ar=boardSlotRank(a),br=boardSlotRank(b);if(ar!==br)return ar-br;
    const ao=!!a.online,bo=!!b.online;if(ao!==bo)return ao?-1:1;
    const as=String(a.id||'')===String(GE_BOARD_ID),bs=String(b.id||'')===String(GE_BOARD_ID);if(as!==bs)return as?-1:1;
    return Number(b.last_seen||0)-Number(a.last_seen||0)
@@ -5449,12 +5496,12 @@ function boardBaseName(row){
 }
 function knownBoardViews(){
  const rows=knownBoardRows(),totals={},seen={};
- rows.forEach(function(r){const base=boardBaseName(r);totals[base]=(totals[base]||0)+1});
+ rows.forEach(function(r){const base=boardSlotTitle(r);totals[base]=(totals[base]||0)+1});
  return rows.map(function(r){
-   const base=boardBaseName(r);seen[base]=(seen[base]||0)+1;
+   const base=boardSlotTitle(r),slotKind=boardSlotKind(r),slotRank=boardSlotRank(r);seen[base]=(seen[base]||0)+1;
    const suffix=String(r.id||'').replace(/[^A-Za-z0-9]/g,'').slice(-3).toUpperCase();
    const label=totals[base]>1?base+(suffix?' · '+suffix:' '+seen[base]):base;
-   return {row:r,label:label}
+   return {row:r,label:label,slotKind:slotKind,slotRank:slotRank}
  })
 }
 function boardById(boardId){
@@ -5467,7 +5514,7 @@ function boardNeedsSetup(row){
 }
 function renderKnownDeviceBubbles(){
  const host=$('geKnownDevices');if(!host)return;
- host.innerHTML=knownBoardViews().map(function(v){
+ host.innerHTML=knownBoardViews().filter(function(v){return v.slotRank<4}).map(function(v){
    const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,air=!!r.mic_air,needs=boardNeedsSetup(r);
    const cls='geChannelBubble '+(online?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'')+(needs?'needsSetup ':'');
    const title=v.label+' · '+(online?'ONLINE':'KNOWN · OFFLINE')+(self?' · THIS DEVICE':'')+(needs?' · TAP TO SET UP AUDIO + VIDEO':' · TAP FOR CONTROLS');
@@ -5811,8 +5858,12 @@ function renderMixerStripStatusDots(){
  setStripStatusDot('mixIphoneStatusDot',phone.connected,phone.air,phone.self);
  setStripStatusDot('mixIpadStatusDot',pad.connected,pad.air,pad.self)
 }
+function geDeviceSlotEnabled(kind){
+ const box=document.querySelector('[data-device-channel="'+String(kind||'')+'"]');
+ return box?!!box.checked:true
+}
 function boardMixerRows(){
- return knownBoardViews().filter(function(v){return !!v.row.online&&String(v.row.id||'')!==String(GE_BOARD_ID)})
+ return knownBoardViews().filter(function(v){return !!v.row.online&&v.slotRank<4&&geDeviceSlotEnabled(v.slotKind)})
 }
 function boardMixerStateText(board){
  if(!board.online)return 'KNOWN · OFFLINE';
@@ -6042,28 +6093,27 @@ async function toggleChannelConnection(kind){
  }catch(e){alert(e.message||e)}
  finally{if(b)b.classList.remove('busy');renderChannelStatusBubbles()}
 }
-const MIXER_CHANNELS_KEY='geDjVisibleChannelsV2';
+const MIXER_CHANNELS_KEY='geDjVisibleChannelsV3';
 function loadMixerChannelPrefs(){
-  let saved=null;try{saved=JSON.parse(localStorage.getItem(MIXER_CHANNELS_KEY)||'null')}catch(e){}
-  document.querySelectorAll('[data-mixer-channel]').forEach(function(box){
-    const key=box.dataset.mixerChannel;
-    if(saved&&Object.prototype.hasOwnProperty.call(saved,key))box.checked=!!saved[key];
-  });
-  applyMixerChannels(false);
+ let saved=null;try{saved=JSON.parse(localStorage.getItem(MIXER_CHANNELS_KEY)||'null')}catch(e){}
+ document.querySelectorAll('[data-device-channel]').forEach(function(box){
+   const key=box.dataset.deviceChannel;
+   if(saved&&Object.prototype.hasOwnProperty.call(saved,key))box.checked=!!saved[key]
+ });
+ applyMixerChannels(false)
 }
 function applyMixerChannels(save=true){
-  const prefs={};let visible=1;
-  const micStrip=document.querySelector('[data-channel-strip="mic"]');if(micStrip)micStrip.classList.remove('channelHidden');
-  document.querySelectorAll('[data-mixer-channel]').forEach(function(box){
-    const key=box.dataset.mixerChannel;prefs[key]=!!box.checked;
-    const strip=document.querySelector('[data-channel-strip="'+key+'"]');
-    if(strip){strip.classList.toggle('channelHidden',!box.checked);if(box.checked)visible++}
-  });
-  const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');
-  if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false);requestAnimationFrame(function(){if(grid.scrollWidth<=grid.clientWidth+3)grid.scrollLeft=0;syncTouchFaders()})}
-  if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
-  renderChannelStatusBubbles();
-  requestAnimationFrame(syncTouchFaders);
+ const prefs={};
+ document.querySelectorAll('[data-device-channel]').forEach(function(box){prefs[box.dataset.deviceChannel]=!!box.checked});
+ const micStrip=document.querySelector('[data-channel-strip="mic"]'),lineStrip=document.querySelector('[data-channel-strip="line"]'),master=document.querySelector('[data-channel-strip="master"]');
+ if(micStrip)micStrip.classList.add('channelHidden');
+ if(lineStrip)lineStrip.classList.add('channelHidden');
+ if(master)master.classList.remove('channelHidden');
+ renderKnownDeviceMixer();
+ const grid=$('mixerSheet')&&$('mixerSheet').querySelector('.mixerGrid');
+ if(grid){grid.style.setProperty('--mixer-cols',String(Math.max(1,mixerVisibleCount())));if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false)}
+ if(save){try{localStorage.setItem(MIXER_CHANNELS_KEY,JSON.stringify(prefs))}catch(e){}scheduleDjPermanentSave()}
+ requestAnimationFrame(syncTouchFaders)
 }
 
 function remoteDeviceFor(kind){
@@ -6266,7 +6316,7 @@ $('mixerChannelsBtn').onclick=function(){
   const p=$('mixerChannelPicker'),open=!p.classList.contains('show');
   p.classList.toggle('show',open);this.classList.toggle('on',open);
 };
-$('mixerChannelPicker').onchange=function(e){if(e.target.matches('[data-mixer-channel]'))applyMixerChannels(true)};
+$('mixerChannelPicker').onchange=function(e){if(e.target.matches('[data-device-channel]'))applyMixerChannels(true)};
 $('mixerFit').onclick=fitMixer;
 $('mixerZoomOut').onclick=function(){if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom-20,true)};
 $('mixerZoomIn').onclick=function(){if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom+20,true)};
@@ -6663,14 +6713,15 @@ $('gePlayer').onclick=function(){
 if(new URLSearchParams(location.search).get('player')==='1')$('gePlayer').textContent='FULLSCREEN';
 document.addEventListener('pointerdown',function gePrimeDj(){
  if(key||djTrustedId)warmDjSources().catch(function(){});
- requestBoardWakeLock()
+ requestBoardWakeLock();
+ if((key||djTrustedId)&&!GE_IS_IPHONE5&&!geTrackLive(micStream))autoConnectDeviceMedia().catch(function(){})
 },{once:true,capture:true});
 if(djTrustedId&&djTrustedToken){
- verify('').then(function(){geBoardHeartbeat();return true}).catch(function(){
+ verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
  })
 }else{
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
- if(saved)verify(saved).then(function(){geBoardHeartbeat();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
+ if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script></body></html>
