@@ -3037,7 +3037,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v103</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v104</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -5507,7 +5507,8 @@ function knownBoardViews(){
 function boardById(boardId){
  return knownBoardRows().find(function(x){return String(x.id||'')===String(boardId||'')})||null
 }
-function boardMediaSupported(row){return !!(row&&row.media_capture_supported)&&String(row&&row.device_kind||'').toLowerCase()!=='iphone5'}
+function boardMediaSupported(row){return !!(row&&row.media_capture_supported)}
+function boardVideoSupported(row){return boardMediaSupported(row)&&String(row&&row.device_kind||'').toLowerCase()!=='iphone5'}
 function boardNeedsSetup(row){
  if(!row||!row.online||!boardMediaSupported(row))return false;
  return !row.mic_connected&&String(row.video_track_state||'').toLowerCase()!=='live'
@@ -5534,12 +5535,12 @@ function renderBoardDeviceChannelSheet(board){
  const videoTrack=self&&cameraStream&&cameraStream.getVideoTracks?cameraStream.getVideoTracks()[0]:null;
  const videoLive=self?!!(videoTrack&&videoTrack.readyState==='live'):String(board.video_track_state||'').toLowerCase()==='live';
  const videoSeen=videoLive||Number(board.video_input_count||0)>0||String(board.camera_permission||'').toLowerCase()==='granted'||String(board.camera_permission||'').toLowerCase()==='device seen';
- const supported=self?!GE_IS_IPHONE5&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board);
+ const supported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board),videoSupported=self?!GE_IS_IPHONE5&&supported:boardVideoSupported(board);
  const monitoring=!!boardMonitorSelected[id],label=boardDisplayLabel(board);
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online||self);
  if($('deviceChannelConnection'))$('deviceChannelConnection').textContent=(online||self)?'DEVICE ONLINE':'KNOWN DEVICE · OFFLINE';
- if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=(self?'THIS DEVICE · ':'')+(supported?'GE DEVICE BUS · AUDIO + VIDEO':'GE DEVICE BUS · CONTROL ONLY');
+ if($('deviceChannelBoardName'))$('deviceChannelBoardName').textContent=(self?'THIS DEVICE · ':'')+(supported?(videoSupported?'GE DEVICE BUS · AUDIO + VIDEO':'GE DEVICE BUS · AUDIO LITE'):'GE DEVICE BUS · CONTROL ONLY');
  setMeterLevel('deviceChannelMeter',audioConnected?audioPct:0);
  if($('deviceChannelMeterRead'))$('deviceChannelMeterRead').textContent=Math.round(audioConnected?audioPct:0)+'%';
  setMeterLevel('deviceChannelVideoMeter',videoLive?100:(videoSeen?35:0));
@@ -5561,9 +5562,9 @@ function renderBoardDeviceChannelSheet(board){
    $('deviceChannelReady').classList.toggle('on',audioConnected)
  }
  if($('deviceChannelAir')){
-   $('deviceChannelAir').disabled=!(online||self)||!supported;
+   $('deviceChannelAir').disabled=!(online||self)||!videoSupported;
    $('deviceChannelAir').dataset.remoteDevice='';$('deviceChannelAir').dataset.boardId=id;
-   $('deviceChannelAir').textContent=videoLive?'VIDEO ON':'VIDEO OFF';
+   $('deviceChannelAir').textContent=videoSupported?(videoLive?'VIDEO ON':'VIDEO OFF'):'NO VIDEO';
    $('deviceChannelAir').classList.toggle('on',videoLive);$('deviceChannelAir').classList.remove('air')
  }
  if($('deviceChannelMute')){
@@ -5580,7 +5581,7 @@ function renderBoardDeviceChannelSheet(board){
  }
  if($('deviceChannelPairState'))$('deviceChannelPairState').textContent='';
  if($('deviceChannelHelp')){
-   $('deviceChannelHelp').textContent=!(online||self)?'Open GE DJ on this device to bring it back online.':(!supported?'This browser can control GE DJ but cannot provide microphone/camera capture.':(!audioConnected&&!videoLive?'Tap CONNECT DEVICE once. GE DJ will configure the available microphone and camera and create the channel automatically.':'MIC and VIDEO can be switched independently. MONITOR keeps the selected sources private; LIVE sends the microphone to the radio output.'))
+   $('deviceChannelHelp').textContent=!(online||self)?'Open GE DJ on this device to bring it back online.':(!supported?'This browser can control GE DJ but cannot provide microphone capture.':(!videoSupported?(!audioConnected?'Tap CONNECT DEVICE to open the lightweight microphone channel. This device is audio-only.':'AUDIO LITE · use MIC, MONITOR/LIVE and the simple effects on GE DJ LITE.'):( !audioConnected&&!videoLive?'Tap CONNECT DEVICE once. GE DJ will configure the available microphone and camera and create the channel automatically.':'MIC and VIDEO can be switched independently. MONITOR keeps the selected sources private; LIVE sends the microphone to the radio output.')))
  }
  if($('deviceChannelDiagText')){
    const last=board.last_seen?Math.max(0,Math.round(Date.now()/1000-Number(board.last_seen))):null;
@@ -5590,7 +5591,8 @@ function renderBoardDeviceChannelSheet(board){
     last!=null?'LAST SEEN: '+last+'s AGO':'',
     'TYPE: '+String(board.device_kind||'DEVICE').toUpperCase(),
     board.ios_version?'iOS: '+String(board.ios_version):'',
-    'MEDIA CAPTURE: '+(supported?'SUPPORTED':'UNSUPPORTED'),
+    'AUDIO CAPTURE: '+(supported?'SUPPORTED':'UNSUPPORTED'),
+    'VIDEO CAPTURE: '+(videoSupported?'SUPPORTED':'OFF / LITE'),
     'MIC: '+(audioConnected?'ACTIVE':'OFF'),
     'MIC SIGNAL: '+Math.round(audioConnected?audioPct:0)+'%',
     'VIDEO: '+(videoLive?'ACTIVE':(videoSeen?'AVAILABLE':'OFF')),
@@ -5877,20 +5879,20 @@ function boardMixerStateText(board){
  return 'ONLINE · CONNECT DEVICE'
 }
 function updateBoardMixerStrip(strip,v){
- const b=v.row,online=!!b.online,supported=boardMediaSupported(b),audio=!!b.mic_connected,video=String(b.video_track_state||'').toLowerCase()==='live',air=!!b.mic_air;
+ const b=v.row,online=!!b.online,supported=boardMediaSupported(b),videoSupported=boardVideoSupported(b),audio=!!b.mic_connected,video=String(b.video_track_state||'').toLowerCase()==='live',air=!!b.mic_air;
  const pct=Math.round(Number(b.mic_level==null?100:b.mic_level)),peak=clamp(Number(b.mic_peak||0),0,100),id=String(b.id||''),monitoring=!!boardMonitorSelected[id];
  strip.classList.toggle('deviceOnline',online);strip.classList.toggle('deviceAir',air&&!monitoring);
  const title=strip.querySelector('h3');if(title)title.innerHTML='<i class="stripStatusDot '+(online?'connected ':'')+((air&&!monitoring)?'air ':'')+'"></i>'+esc(v.label);
  const open=strip.querySelector('[data-board-open]');if(open){open.textContent=boardMixerStateText(b);open.dataset.boardOpen=id}
  const audioFill=strip.querySelector('[data-board-audio-meter]'),videoFill=strip.querySelector('[data-board-video-meter]');
  if(audioFill)audioFill.style.setProperty('--meter-level',(audio?peak:0)+'%');
- if(videoFill)videoFill.style.setProperty('--meter-level',(video?100:(Number(b.video_input_count||0)>0?35:0))+'%');
+ if(videoFill){videoFill.style.setProperty('--meter-level',(video?100:(Number(b.video_input_count||0)>0?35:0))+'%');if(videoFill.closest('.boardMeterRow'))videoFill.closest('.boardMeterRow').hidden=!videoSupported}
  const level=strip.querySelector('[data-board-level]'),read=strip.querySelector('[data-board-level-read]');
  if(level){level.disabled=!online||!supported;if(document.activeElement!==level&&!document.body.classList.contains('geFaderDragging'))level.value=String(pct)}
  if(read&&document.activeElement!==level)read.textContent=pct+'%';
  const micBtn=strip.querySelector('[data-board-action="mic"]'),videoBtn=strip.querySelector('[data-board-action="video"]'),monitorBtn=strip.querySelector('[data-board-action="monitor"]');
  if(micBtn){micBtn.disabled=!online||!supported;micBtn.textContent=audio?'MIC ON':'MIC OFF';micBtn.classList.toggle('on',audio)}
- if(videoBtn){videoBtn.disabled=!online||!supported;videoBtn.textContent=video?'VIDEO ON':'VIDEO OFF';videoBtn.classList.toggle('on',video)}
+ if(videoBtn){videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=video?'VIDEO ON':'VIDEO OFF';videoBtn.classList.toggle('on',video)}
  if(monitorBtn){
    monitorBtn.disabled=!online||!supported;
    monitorBtn.textContent=monitoring?'MONITOR ✓':(air?'LIVE':'MONITOR');
@@ -6043,7 +6045,7 @@ async function setBoardMicV102(boardId,wanted){
  setTimeout(poll,180);renderKnownDeviceMixer()
 }
 async function setBoardVideoV102(boardId,wanted){
- boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online)return;
+ boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online||!boardVideoSupported(board))return;
  wanted=!!wanted;
  if(boardId===String(GE_BOARD_ID))await setLocalCameraCaptureV102(wanted);
  else await sendBoardCommand(boardId,'camera_ready',wanted);
