@@ -4955,7 +4955,7 @@ function renderMixerVideoWall(){
  if(count)count.textContent=kinds.length+' CAMERA'+(kinds.length===1?'':'S');
  grid.innerHTML=kinds.map(function(kind){
    const board=mixerVideoBoard(kind),online=!!(board&&board.online),live=!!(board&&String(board.video_track_state||'').toLowerCase()==='live');
-   const state=!online?'DEVICE OFFLINE':(live?'CAMERA LIVE':'WAITING FOR CAMERA');
+   const state=!online?'DEVICE OFFLINE':(live?'LOADING VIDEO':'WAITING FOR CAMERA');
    return '<div class="mixerVideoTile" data-video-tile="'+kind+'"><img data-video-img="'+kind+'" alt="'+mixerVideoLabel(kind)+' camera monitor" hidden><div class="mixerVideoOffline" data-video-offline="'+kind+'">'+state+'</div><div class="mixerVideoOverlay"><span>'+mixerVideoLabel(kind)+'</span><span data-video-state="'+kind+'">'+state+'</span></div></div>'
  }).join('');
  ['iphone','ipad'].forEach(function(kind){
@@ -5988,7 +5988,8 @@ function renderKnownDeviceMixer(){
       '</div>';
      if(master)grid.insertBefore(strip,master);else grid.appendChild(strip)
    }
-   updateBoardMixerStrip(strip,v)
+   updateBoardMixerStrip(strip,v);
+   if(master)grid.insertBefore(strip,master)
  });
  if(!mixerLayout.locked)applyMixerZoom(mixerLayout.zoom,false);
  requestAnimationFrame(syncTouchFaders)
@@ -6007,7 +6008,7 @@ function renderBoardVideoWall(){
  if(count)count.textContent=ids.length+' CAMERA'+(ids.length===1?'':'S');
  grid.innerHTML=ids.map(function(id){
    const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&boardHasLiveFrame(board));
-   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?'CAMERA LIVE':'WAITING FOR CAMERA'));
+   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?'LOADING VIDEO':'WAITING FOR CAMERA'));
    return '<div class="mixerVideoTile" data-board-video-tile="'+esc(id)+'"><img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden><div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'">'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div></div>'
  }).join('');
  if(ids.length)startBoardVideoMonitor();else stopBoardVideoMonitor()
