@@ -5837,7 +5837,7 @@ function renderBoardDeviceChannelSheet(board){
  const videoTrack=self&&cameraStream&&cameraStream.getVideoTracks?cameraStream.getVideoTracks()[0]:null;
  const fast=boardFastMeters[id]||null,fastFresh=!!(fast&&Number(fast.age||0)<1.2);
  const trackLive=self?!!(videoTrack&&videoTrack.readyState==='live'):String(board.video_track_state||'').toLowerCase()==='live';
- const videoLive=fastFresh?!!fast.video_frame_live:!!board.video_frame_live;
+ const videoLive=self?trackLive:(fastFresh?!!fast.video_frame_live:!!board.video_frame_live);
  const videoSeen=videoLive||trackLive||Number(board.video_input_count||0)>0||String(board.camera_permission||'').toLowerCase()==='granted'||String(board.camera_permission||'').toLowerCase()==='device seen';
  const supported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board),videoSupported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardVideoSupported(board);
  const monitoring=!!boardMonitorSelected[id],label=boardDisplayLabel(board);
