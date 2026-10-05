@@ -3144,7 +3144,34 @@ body.geModalFocus .modal.show .modalBox{margin-top:0!important}
  #mixerSheet .mixerVideoTile.expanded .videoFxBar{grid-template-columns:repeat(4,minmax(0,1fr));}
  #mixerSheet .videoFxAmount{grid-column:1/-1}
 }
-</style></head><body>
+
+/* V112 readable device controls + direct iPhone self-video. */
+#mixerSheet .boardMixStrip .mixBtns{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:5px!important
+}
+#mixerSheet .boardMixStrip .mixBtns button{
+ width:100%!important;min-width:0!important;min-height:42px!important;
+ padding:4px 5px!important;font-size:10px!important;line-height:1.08!important;
+ white-space:normal!important;word-break:normal!important;overflow-wrap:normal!important;
+ hyphens:none!important;text-align:center!important
+}
+@media(max-width:560px){
+ #mixerSheet .boardMixStrip .mixBtns button{min-height:46px!important;font-size:10px!important}
+}
+#mixerSheet .mixerVideoTile video[data-board-video-local]{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+ display:block;background:#02070b;z-index:1
+}
+#mixerSheet .mixerVideoTile canvas[data-board-video-local-canvas]{
+ z-index:2;background:transparent!important;pointer-events:none
+}
+#mixerSheet .mixerVideoTile.rawVideo canvas[data-board-video-local-canvas]{display:none!important}
+#mixerSheet .mixerVideoTile.rawVideo video[data-board-video-local]{display:block!important}
+#mixerSheet .mixerVideoTile.fxVideo video[data-board-video-local]{display:block!important}
+#mixerSheet .mixerVideoTile.fxVideo canvas[data-board-video-local-canvas]{display:block!important}
+
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
@@ -3154,7 +3181,7 @@ body.geModalFocus .modal.show .modalBox{margin-top:0!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v111</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v112</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3193,7 +3220,7 @@ body.geModalFocus .modal.show .modalBox{margin-top:0!important}
 <div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that COMPUTER channel.</div>
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
+<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><video id="deviceChannelLocalVideoPreview" autoplay muted playsinline hidden style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid #3e596b;border-radius:9px;background:#02070b"></video><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
  <div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div>
  <label><input type="checkbox" data-device-channel="computer" checked>COMPUTER</label>
@@ -4961,7 +4988,7 @@ async function ensureCameraOpen(){
   videoTrack.onended=function(){if(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]===videoTrack){cameraPermission='ended';cameraStream=null;if(cameraUploadTimer){clearInterval(cameraUploadTimer);cameraUploadTimer=0}geBoardHeartbeat();renderDeviceChannelSheet()}};
   await geEnumerateAudioInputs().catch(function(){});
   startCameraPreviewUpload();
-  geBoardHeartbeat();renderDeviceChannelSheet();return true
+  geBoardHeartbeat();renderDeviceChannelSheet();renderBoardVideoWall();bindLocalVideoElementsV112();return true
  }catch(e){
   const msg=String(e&&e.message||e),name=String(e&&e.name||'').toLowerCase();
   cameraPermission=(name.indexOf('notallowed')>=0||name.indexOf('permission')>=0||msg.toLowerCase().indexOf('denied')>=0)?'denied':'error';
@@ -4981,7 +5008,7 @@ async function setLocalCameraCaptureV102(wanted){
  if(cameraStream){try{cameraStream.getTracks().forEach(function(t){t.stop()})}catch(e){}}
  cameraStream=null;cameraPermission='closed';cameraLastError='';
  if(cameraPreviewVideo){try{cameraPreviewVideo.pause()}catch(e){}cameraPreviewVideo.srcObject=null}
- geBoardHeartbeat();renderDeviceChannelSheet();return false
+ bindLocalVideoElementsV112();geBoardHeartbeat();renderDeviceChannelSheet();renderBoardVideoWall();return false
 }
 async function setLocalCameraFacingV106(facing){
  cameraFacing=String(facing||'').toLowerCase()==='user'?'user':'environment';
@@ -5089,6 +5116,26 @@ function renderVideoFxV111(raw,out){
  }else o.drawImage(raw,0,0,w,h);
  o.restore()
 }
+async function bindLocalVideoElementsV112(){
+ const live=!!(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live');
+ const nodes=Array.from(document.querySelectorAll('video[data-board-video-local="'+GE_BOARD_ID+'"]'));
+ const drawer=$('deviceChannelLocalVideoPreview');if(drawer)nodes.push(drawer);
+ nodes.forEach(function(v){
+   try{
+     v.muted=true;v.autoplay=true;v.playsInline=true;v.setAttribute('playsinline','');
+     if(live&&v.srcObject!==cameraStream)v.srcObject=cameraStream;
+     if(live){v.hidden=false;const p=v.play();if(p&&p.catch)p.catch(function(){})}
+     else{v.hidden=true;try{v.pause()}catch(e){}if(v.srcObject)v.srcObject=null}
+   }catch(e){}
+ })
+}
+function localCameraDecodeVideoV112(){
+ const visible=document.querySelector('video[data-board-video-local="'+GE_BOARD_ID+'"]');
+ if(visible&&visible.videoWidth&&visible.videoHeight)return visible;
+ const drawer=$('deviceChannelLocalVideoPreview');
+ if(drawer&&drawer.videoWidth&&drawer.videoHeight)return drawer;
+ return cameraPreviewVideo&&cameraPreviewVideo.videoWidth&&cameraPreviewVideo.videoHeight?cameraPreviewVideo:null
+}
 function paintLocalVideoPreviewV111(){
  if(!cameraPreviewCanvas)return;
  document.querySelectorAll('[data-board-video-local-canvas="'+GE_BOARD_ID+'"]').forEach(function(c){
@@ -5121,11 +5168,12 @@ async function uploadCameraPreviewFrame(){
    document.body.appendChild(cameraPreviewVideo)
   }
   if(cameraPreviewVideo.srcObject!==cameraStream){cameraPreviewVideo.srcObject=cameraStream;try{await cameraPreviewVideo.play()}catch(e){}}
-  if(!cameraPreviewVideo.videoWidth||!cameraPreviewVideo.videoHeight)return;
+  bindLocalVideoElementsV112();
+  const decodeVideo=localCameraDecodeVideoV112();if(!decodeVideo)return;
   if(!cameraPreviewCanvas){cameraPreviewCanvas=document.createElement('canvas');cameraPreviewCanvas.width=360;cameraPreviewCanvas.height=202}
   const raw=ensureVideoFxCanvasV111('raw',360,202),ctx2=raw.getContext('2d');if(!ctx2)return;
-  const sw=cameraPreviewVideo.videoWidth,sh=cameraPreviewVideo.videoHeight,tw=360,th=202,scale=Math.max(tw/sw,th/sh),dw=sw*scale,dh=sh*scale,dx=(tw-dw)/2,dy=(th-dh)/2;
-  ctx2.clearRect(0,0,tw,th);ctx2.drawImage(cameraPreviewVideo,dx,dy,dw,dh);
+  const sw=decodeVideo.videoWidth,sh=decodeVideo.videoHeight,tw=360,th=202,scale=Math.max(tw/sw,th/sh),dw=sw*scale,dh=sh*scale,dx=(tw-dw)/2,dy=(th-dh)/2;
+  ctx2.clearRect(0,0,tw,th);ctx2.drawImage(decodeVideo,dx,dy,dw,dh);
   renderVideoFxV111(raw,cameraPreviewCanvas);paintLocalVideoPreviewV111();
   cameraUploadBusy=true;
   const blob=await new Promise(function(resolve){cameraPreviewCanvas.toBlob(resolve,'image/jpeg',.45)});
@@ -5844,6 +5892,7 @@ function renderBoardDeviceChannelSheet(board){
  if($('deviceChannelHelp')){
    $('deviceChannelHelp').textContent=!(online||self)?'Open GE DJ on this device to bring it back online.':(!supported?'This browser can control GE DJ but cannot provide microphone capture.':(!videoSupported?(!audioConnected?'Tap CONNECT DEVICE to open the lightweight microphone channel. This device is audio-only.':'AUDIO LITE · use MIC, MONITOR/LIVE and the simple effects on GE DJ LITE.'):( !audioConnected&&!videoLive?'Tap CONNECT DEVICE once. GE DJ will configure the available microphone and camera and create the channel automatically.':'MIC and VIDEO can be switched independently. MONITOR keeps the selected sources private; LIVE sends the microphone to the radio output.')))
  }
+ if(self)bindLocalVideoElementsV112();
  if($('deviceChannelDiagText')){
    const last=board.last_seen?Math.max(0,Math.round(Date.now()/1000-Number(board.last_seen))):null;
    $('deviceChannelDiagText').textContent=[
@@ -6164,11 +6213,11 @@ function updateBoardMixerStrip(strip,v){
  if(read&&document.activeElement!==level)read.textContent=pct+'%';
  const micBtn=strip.querySelector('[data-board-action="mic"]'),videoBtn=strip.querySelector('[data-board-action="video"]'),flipBtn=strip.querySelector('[data-board-action="flip"]'),monitorBtn=strip.querySelector('[data-board-action="monitor"]');
  if(micBtn){micBtn.disabled=!online||!supported;micBtn.textContent=audio?'MIC ON':'MIC OFF';micBtn.classList.toggle('on',audio)}
- if(videoBtn){const trackOn=String(b.video_track_state||'').toLowerCase()==='live';videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=video?'VIDEO LIVE':(trackOn?'VIDEO WAIT':'VIDEO OFF');videoBtn.classList.toggle('on',video||trackOn)}
- if(flipBtn){const facing=String(b.camera_facing||'environment').toLowerCase();flipBtn.hidden=!videoSupported;flipBtn.disabled=!online||!videoSupported;flipBtn.textContent=facing==='user'?'BACK':'FRONT'}
+ if(videoBtn){const self=String(b.id||'')===String(GE_BOARD_ID),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),trackOn=localLive||String(b.video_track_state||'').toLowerCase()==='live';videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=trackOn?'VIDEO ON':'VIDEO OFF';videoBtn.classList.toggle('on',trackOn)}
+ if(flipBtn){const facing=String(b.camera_facing||'environment').toLowerCase();flipBtn.hidden=!videoSupported;flipBtn.disabled=!online||!videoSupported;flipBtn.textContent=facing==='user'?'BACK CAM':'FRONT CAM'}
  if(monitorBtn){
    monitorBtn.disabled=!online||!supported;
-   monitorBtn.textContent=monitoring?'MONITOR ✓':(air?'LIVE':'MONITOR');
+   monitorBtn.textContent=monitoring?'MONITOR ON':(air?'LIVE':'MONITOR');
    monitorBtn.classList.toggle('on',monitoring);monitorBtn.classList.toggle('live',!monitoring&&air)
  }
 }
@@ -6220,18 +6269,18 @@ function renderBoardVideoWall(){
  grid.innerHTML=ids.map(function(id){
    const board=boardById(id),self=String(id)===String(GE_BOARD_ID),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),live=localLive||!!(board&&boardHasLiveFrame(board)),expanded=String(boardVideoExpandedId)===String(id);
    const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?(self?'LIVE':'LOADING VIDEO'):'WAITING FOR CAMERA'));
-   const media=self?'<canvas data-board-video-local-canvas="'+esc(id)+'" width="360" height="202"></canvas>':'<img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden>';
    const fxMode=self?videoFxMode:String(board&&board.video_fx_mode||'raw'),fxAmount=self?videoFxAmount:Number(board&&board.video_fx_amount==null?60:board.video_fx_amount);
+   const media=self?'<video data-board-video-local="'+esc(id)+'" autoplay muted playsinline></video><canvas data-board-video-local-canvas="'+esc(id)+'" width="360" height="202"></canvas>':'<img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden>';
    const fx=expanded?'<div class="videoFxBar" data-video-fx-board="'+esc(id)+'">'+['raw','hue','trail','space'].map(function(m){return '<button type="button" data-video-fx-mode="'+m+'" class="'+(fxMode===m?'on':'')+'">'+m.toUpperCase()+'</button>'}).join('')+'<label class="videoFxAmount">AMOUNT<input type="range" min="0" max="100" value="'+Math.round(fxAmount)+'" data-video-fx-amount></label></div>':'';
-   return '<div class="mixerVideoTile '+(expanded?'expanded':'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'">'+media+'<div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'" '+(live?'hidden':'')+'>'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div>'+fx+'</div>'
+   return '<div class="mixerVideoTile '+(expanded?'expanded ':'')+(self?(fxMode==='raw'?'rawVideo':'fxVideo'):'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'">'+media+'<div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'" '+(live?'hidden':'')+'>'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div>'+fx+'</div>'
  }).join('');
- paintLocalVideoPreviewV111();
+ paintLocalVideoPreviewV111();bindLocalVideoElementsV112();
  if(ids.length)startBoardVideoMonitor();else stopBoardVideoMonitor()
 }
 async function refreshBoardVideoFrame(boardId){
  if(!boardVideoSelected[boardId]||boardVideoBusy[boardId])return;
  const board=boardById(boardId);
- if(String(boardId)===String(GE_BOARD_ID)){paintLocalVideoPreviewV111();const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;if(stateEl)stateEl.textContent='LIVE';return}
+ if(String(boardId)===String(GE_BOARD_ID)){bindLocalVideoElementsV112();paintLocalVideoPreviewV111();const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;if(stateEl)stateEl.textContent='LIVE';return}
  const img=Array.from(document.querySelectorAll('[data-board-video-img]')).find(function(x){return String(x.dataset.boardVideoImg||'')===String(boardId)})||null;
  const offline=Array.from(document.querySelectorAll('[data-board-video-offline]')).find(function(x){return String(x.dataset.boardVideoOffline||'')===String(boardId)})||null;
  const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;
