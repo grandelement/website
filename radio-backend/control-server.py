@@ -1651,6 +1651,7 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
         "video_input_count": int(clamp_number(channel_state.get("video_input_count"), 0, 16, 0)),
         "camera_permission": " ".join(str(channel_state.get("camera_permission", "unknown") or "unknown").split())[:40],
         "video_track_state": " ".join(str(channel_state.get("video_track_state", "") or "").split())[:40],
+        "camera_error": " ".join(str(channel_state.get("camera_error", "") or "").split())[:240],
         "media_error": " ".join(str(channel_state.get("media_error", "") or "").split())[:240],
         "media_capture_supported": bool(channel_state.get("media_capture_supported", False)),
         "ios_version": " ".join(str(channel_state.get("ios_version", "") or "").split())[:32],
@@ -1672,11 +1673,25 @@ def list_dj_board_presence():
     known = {str(x.get("id")): dict(x) for x in _known_dj_board_rows() if x.get("id")}
     with DJ_BOARD_LOCK:
         live = {str(x.get("id")): dict(x) for x in DJ_BOARD_PRESENCE.values() if x.get("id")}
+    with DJ_VIDEO_FRAME_LOCK:
+        frames = {
+            str(board_id): {
+                "time": float((frame or {}).get("time", 0) or 0),
+                "bytes": len((frame or {}).get("data", b"") or b""),
+            }
+            for board_id, frame in DJ_VIDEO_FRAMES.items()
+        }
     rows = []
     for board_id in set(known) | set(live):
         row = dict(known.get(board_id, {}))
         row.update(live.get(board_id, {}))
         row["online"] = bool(board_id in live and now - float(row.get("last_seen", 0) or 0) < 15)
+        frame = frames.get(board_id) or {}
+        frame_time = float(frame.get("time", 0) or 0)
+        frame_age = max(0.0, now - frame_time) if frame_time else None
+        row["video_frame_age"] = frame_age
+        row["video_frame_bytes"] = int(frame.get("bytes", 0) or 0)
+        row["video_frame_live"] = bool(frame_time and frame_age is not None and frame_age < 2.5 and row["online"])
         rows.append(row)
     rows.sort(key=lambda x: (0 if x.get("online") else 1, -float(x.get("last_seen", 0) or 0)))
     return rows
