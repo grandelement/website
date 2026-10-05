@@ -2003,8 +2003,6 @@ body .brand>span{font-size:var(--ge-font-body)!important}
 #deviceChannelSheet .deviceChannelButtons button.on{border-color:#55d8c1;background:#12382f}
 #deviceChannelSheet .deviceChannelButtons button.air{border-color:#ff667b;background:#541923}
 #deviceChannelSheet #deviceChannelLinkMic{margin-top:8px}
-#deviceChannelSheet .deviceChannelMic{display:none!important}
-#deviceChannelSheet .deviceChannelStatusCard .hmeter{display:none!important}
 #deviceChannelSheet .deviceChannelMicLive{display:block;border:1px solid #ff6178;background:#541923;color:#fff;border-radius:9px;padding:9px 10px;margin:8px 0;font-weight:950;text-align:center}
 #deviceChannelSheet .deviceChannelMicLive[hidden]{display:none!important}
 
@@ -3172,6 +3170,207 @@ body.geModalFocus .modal.show .modalBox{margin-top:0!important}
 #mixerSheet .mixerVideoTile.fxVideo video[data-board-video-local]{display:block!important}
 #mixerSheet .mixerVideoTile.fxVideo canvas[data-board-video-local-canvas]{display:block!important}
 
+
+/* V113 device-specialized layouts.
+   Phone, tablet and desktop keep the same audio/video engine; only presentation differs. */
+#deviceChannelSheet .deviceChannelMic{display:block!important}
+#deviceChannelSheet .deviceChannelStatusCard .hmeter{display:block!important}
+
+/* Device drawer controls must stay readable and horizontal. */
+#deviceChannelSheet .deviceChannelButtons{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:6px!important
+}
+#deviceChannelSheet .deviceChannelButtons button{
+  writing-mode:horizontal-tb!important;
+  text-orientation:mixed!important;
+  white-space:normal!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+  min-width:0!important
+}
+
+/* PHONE: two mixer channels across, no vertical-letter buttons, stacked tool rows. */
+html.geFormatPhone #mixerSheet .mixerSecondRow{
+  grid-template-columns:1fr!important;
+  gap:5px!important
+}
+html.geFormatPhone #mixerSheet .mixerGrid{
+  grid-template-columns:repeat(2,minmax(calc((100% - 5px)/2),calc((100% - 5px)/2)))!important;
+  gap:5px!important
+}
+html.geFormatPhone #mixerSheet .mixStrip{
+  min-width:0!important;
+  padding:7px!important
+}
+html.geFormatPhone #mixerSheet .mixStrip h3{
+  font-size:clamp(15px,var(--ge-font-title),20px)!important;
+  line-height:1.06!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important
+}
+html.geFormatPhone #mixerSheet .mixSourceLabel{
+  min-height:50px!important;
+  line-height:1.05!important
+}
+html.geFormatPhone #mixerSheet .boardMixStrip .mixBtns{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important
+}
+html.geFormatPhone #mixerSheet .boardMixStrip .mixBtns button{
+  min-height:48px!important;
+  font-size:clamp(10px,var(--ge-font-control),13px)!important;
+  writing-mode:horizontal-tb!important;
+  text-orientation:mixed!important;
+  white-space:normal!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+  line-height:1.05!important
+}
+html.geFormatPhone #mixerSheet .mixerScaleHost .geScaleControls{
+  grid-template-columns:auto 42px 54px 42px auto!important;
+  justify-content:start!important
+}
+html.geFormatPhone #mixerSheet .mixerScaleHost #geZoomRange,
+html.geFormatPhone #mixerSheet .mixerScaleHost #geUndo,
+html.geFormatPhone #mixerSheet .mixerScaleHost #gePlayer{display:none!important}
+html.geFormatPhone #mixerSheet .mixerLayoutBar{
+  grid-template-columns:auto 42px 42px auto!important;
+  justify-content:start!important
+}
+html.geFormatPhone #mixerSheet .mixerLayoutBar #mixerZoom,
+html.geFormatPhone #mixerSheet .mixerLayoutBar .mixerLock{display:none!important}
+html.geFormatPhone #deviceChannelSheet .deviceChannelButtons{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important
+}
+html.geFormatPhone #deviceChannelSheet .deviceChannelButtons button{
+  min-height:48px!important;
+  font-size:clamp(11px,var(--ge-font-control),14px)!important
+}
+
+/* Phone effects: cards instead of a squeezed desktop rack. */
+html.geFormatPhone #mixerSheet #effectsSheet{
+  overflow:auto!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxLandscapeBody{
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:visible!important;
+  gap:7px!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxLeftRail,
+html.geFormatPhone #mixerSheet #effectsSheet .fxRightRail,
+html.geFormatPhone #mixerSheet #effectsSheet .fxCenterRack{
+  width:100%!important;
+  min-width:0!important;
+  overflow:visible!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxEffectButtons{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxRightRail{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:6px!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxControlGrid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;
+  overflow:visible!important;
+  height:auto!important
+}
+html.geFormatPhone #mixerSheet #effectsSheet .fxControlGrid .bigSlider{
+  min-width:0!important;
+  width:auto!important;
+  min-height:210px!important;
+  height:210px!important
+}
+
+/* TABLET: deliberately different from desktop. Keep the top compact and use the full
+   iPad width for effects instead of the old left/center/right desktop rails. */
+html.geFormatTablet #mixerSheet .mixerGrid{
+  grid-template-columns:repeat(var(--mixer-cols,4),minmax(0,1fr))!important
+}
+html.geFormatTablet #mixerSheet .boardMixStrip .mixBtns{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important
+}
+html.geFormatTablet #mixerSheet .boardMixStrip .mixBtns button{
+  min-height:42px!important;
+  font-size:clamp(11px,var(--ge-font-control),14px)!important;
+  writing-mode:horizontal-tb!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxLandscapeBody{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  gap:7px!important;
+  overflow:auto!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxLeftRail{
+  grid-row:1!important;
+  display:block!important;
+  overflow:visible!important;
+  padding:5px!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxEffectButtons{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:5px!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxEffectButtons button{
+  min-height:44px!important;
+  font-size:clamp(11px,var(--ge-font-control),14px)!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxRightRail{
+  grid-row:2!important;
+  display:grid!important;
+  grid-template-columns:minmax(150px,1fr) repeat(4,minmax(56px,.55fr))!important;
+  gap:5px!important;
+  overflow:visible!important;
+  padding:5px!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxCenterRack{
+  grid-row:3!important;
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  overflow:visible!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxControlGrid{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:6px!important;
+  width:100%!important;
+  height:auto!important;
+  overflow:visible!important
+}
+html.geFormatTablet #mixerSheet #effectsSheet .fxControlGrid .bigSlider{
+  width:auto!important;
+  min-width:0!important;
+  height:clamp(240px,43vh,430px)!important;
+  min-height:240px!important
+}
+html.geFormatTablet.geFormatPortrait #mixerSheet #effectsSheet .fxEffectButtons{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important
+}
+html.geFormatTablet.geFormatPortrait #mixerSheet #effectsSheet .fxRightRail{
+  grid-template-columns:1fr repeat(4,minmax(52px,.55fr))!important
+}
+html.geFormatTablet.geFormatPortrait #mixerSheet #effectsSheet .fxControlGrid{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important
+}
+
+/* DESKTOP keeps the existing wide console. */
+html.geFormatDesktop #deviceChannelSheet .deviceChannelButtons{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
@@ -3182,7 +3381,7 @@ body.geModalFocus .modal.show .modalBox{margin-top:0!important}
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v112</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v113</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3491,6 +3690,15 @@ const GE_BOARD_ROLE=GE_DEVICE_KIND==='home'?'home':'remote';
 if(GE_BOARD_ROLE==='remote')document.documentElement.classList.add('geRemoteComputerSignal');
 let GE_BOARD_ID='';try{GE_BOARD_ID=localStorage.getItem('geDjBoardIdV1')||'';if(!GE_BOARD_ID){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('geDjBoardIdV1',GE_BOARD_ID)}}catch(e){GE_BOARD_ID='board-'+Math.random().toString(36).slice(2)}
 const GE_BOARD_LABEL=GE_PHYSICAL_KIND==='ipad'?'iPAD':(GE_PHYSICAL_KIND==='iphone5'?'iPHONE 5':(GE_PHYSICAL_KIND==='iphone'?'iPHONE':(GE_PHYSICAL_KIND==='android'?'ANDROID':(GE_PHYSICAL_KIND==='windows'?'WINDOWS COMPUTER':(GE_PHYSICAL_KIND==='mac'?'MAC':(GE_PHYSICAL_KIND==='linux'?'LINUX COMPUTER':'COMPUTER'))))));
+const GE_FORMAT_CLASS=(GE_IS_IPHONE||GE_IS_IPHONE5)?'geFormatPhone':(GE_IS_IPAD?'geFormatTablet':'geFormatDesktop');
+document.documentElement.classList.add(GE_FORMAT_CLASS);
+function syncGeFormatOrientation(){
+ document.documentElement.classList.toggle('geFormatPortrait',innerHeight>=innerWidth);
+ document.documentElement.classList.toggle('geFormatLandscape',innerWidth>innerHeight)
+}
+syncGeFormatOrientation();
+window.addEventListener('resize',function(){clearTimeout(syncGeFormatOrientation._t);syncGeFormatOrientation._t=setTimeout(syncGeFormatOrientation,120)});
+
 let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
@@ -5862,13 +6070,13 @@ function renderBoardDeviceChannelSheet(board){
  if($('deviceChannelReady')){
    $('deviceChannelReady').disabled=!(online||self)||!supported;
    $('deviceChannelReady').dataset.remoteDevice='';$('deviceChannelReady').dataset.boardId=id;
-   $('deviceChannelReady').textContent=audioConnected?'MIC ON':'MIC OFF';
+   $('deviceChannelReady').textContent=audioConnected?'MIC ON':'START MIC';
    $('deviceChannelReady').classList.toggle('on',audioConnected)
  }
  if($('deviceChannelAir')){
    $('deviceChannelAir').disabled=!(online||self)||!videoSupported;
    $('deviceChannelAir').dataset.remoteDevice='';$('deviceChannelAir').dataset.boardId=id;
-   $('deviceChannelAir').textContent=videoSupported?(videoLive?'VIDEO ON':'VIDEO OFF'):'NO VIDEO';
+   $('deviceChannelAir').textContent=videoSupported?(videoLive?'VIDEO ON':'START VIDEO'):'NO VIDEO';
    $('deviceChannelAir').classList.toggle('on',videoLive);$('deviceChannelAir').classList.remove('air')
  }
  if($('deviceChannelFlip')){
@@ -6213,8 +6421,8 @@ function updateBoardMixerStrip(strip,v){
  if(level){level.disabled=!online||!supported;if(document.activeElement!==level&&!document.body.classList.contains('geFaderDragging'))level.value=String(pct)}
  if(read&&document.activeElement!==level)read.textContent=pct+'%';
  const micBtn=strip.querySelector('[data-board-action="mic"]'),videoBtn=strip.querySelector('[data-board-action="video"]'),flipBtn=strip.querySelector('[data-board-action="flip"]'),monitorBtn=strip.querySelector('[data-board-action="monitor"]');
- if(micBtn){micBtn.disabled=!online||!supported;micBtn.textContent=audio?'MIC ON':'MIC OFF';micBtn.classList.toggle('on',audio)}
- if(videoBtn){const self=String(b.id||'')===String(GE_BOARD_ID),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),trackOn=localLive||String(b.video_track_state||'').toLowerCase()==='live';videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=trackOn?'VIDEO ON':'VIDEO OFF';videoBtn.classList.toggle('on',trackOn)}
+ if(micBtn){micBtn.disabled=!online||!supported;micBtn.textContent=audio?'MIC ON':'START MIC';micBtn.classList.toggle('on',audio)}
+ if(videoBtn){const self=String(b.id||'')===String(GE_BOARD_ID),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),trackOn=localLive||String(b.video_track_state||'').toLowerCase()==='live';videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=trackOn?'VIDEO ON':'START VIDEO';videoBtn.classList.toggle('on',trackOn)}
  if(flipBtn){const facing=String(b.camera_facing||'environment').toLowerCase();flipBtn.hidden=!videoSupported;flipBtn.disabled=!online||!videoSupported;flipBtn.textContent=facing==='user'?'BACK CAM':'FRONT CAM'}
  if(monitorBtn){
    monitorBtn.disabled=!online||!supported;
@@ -6378,11 +6586,16 @@ async function setBoardMicV102(boardId,wanted){
 }
 async function setBoardVideoV102(boardId,wanted){
  boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online||!boardVideoSupported(board))return;
- wanted=!!wanted;
- if(boardId===String(GE_BOARD_ID))await setLocalCameraCaptureV102(wanted);
- else await sendBoardCommand(boardId,'camera_ready',wanted);
- if(wanted)boardVideoSelected[boardId]=true;else delete boardVideoSelected[boardId];
- saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180)
+ wanted=!!wanted;let active=wanted;
+ if(boardId===String(GE_BOARD_ID)){
+   active=wanted?!!(await setLocalCameraCaptureV102(true)):false;
+   if(!wanted)await setLocalCameraCaptureV102(false)
+ }else{
+   await sendBoardCommand(boardId,'camera_ready',wanted)
+ }
+ if(active)boardVideoSelected[boardId]=true;else delete boardVideoSelected[boardId];
+ saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180);
+ return active
 }
 async function flipBoardCameraV106(boardId){
  boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online||!boardVideoSupported(board))return;
