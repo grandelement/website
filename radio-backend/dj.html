@@ -3027,17 +3027,107 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
  .geConnectionRail{width:100%!important;overflow-x:auto!important}
  .geHostGroup{position:sticky!important;left:0!important;z-index:2!important}
 }
+
+/* V108 compact back-room layout: video thumbnails never displace the mixer. */
+:root{
+ --ge-control-h:clamp(18px,calc(42px * var(--ge-ui-scale)),34px);
+ --ge-header-h:clamp(18px,calc(34px * var(--ge-ui-scale)),30px);
+}
+.geChannelBubble{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;padding:0 calc(7px * var(--ge-ui-scale) + 2px)!important;font-size:var(--ge-font-control)!important}
+.geHostGroup .studioNode{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;font-size:var(--ge-font-control)!important;padding:0 4px!important}
+.geHostGroup>b{font-size:var(--ge-font-body)!important}
+.geScaleControls button,.geScaleControls .geUtilityAction{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;font-size:var(--ge-font-control)!important}
+#mixerSheet .mixerHeadActions button,
+#mixerSheet .mixerLayoutBar button,
+#mixerSheet .mixerLock{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;font-size:var(--ge-font-control)!important}
+#mixerSheet .boardMixStrip h3{font-size:var(--ge-font-title)!important}
+#mixerSheet .boardMixStrip .boardMeterRow b{font-size:var(--ge-font-body)!important}
+#mixerSheet .boardMixStrip .mixBtns button{font-size:var(--ge-font-control)!important;min-height:var(--ge-control-h)!important}
+#mixerSheet .mixRead{font-size:var(--ge-font-control)!important}
+#mixerSheet .sheetIn{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important}
+#mixerSheet .mixerHeader{flex:0 0 auto!important}
+#mixerSheet .mixerVideoWall{
+ flex:0 0 auto!important;
+ margin:2px 0 3px!important;
+ padding:3px 4px!important;
+ max-height:68px!important;
+ min-height:0!important;
+ overflow:hidden!important;
+ border-radius:7px!important;
+}
+#mixerSheet .mixerVideoWallHead{margin:0 0 2px!important;min-height:18px!important}
+#mixerSheet .mixerVideoWallHead b{font-size:var(--ge-font-control)!important}
+#mixerSheet .mixerVideoWallHead span{font-size:var(--ge-font-body)!important}
+#mixerSheet #mixerVideoCloseAll{min-height:18px!important;height:18px!important;padding:0 7px!important;font-size:var(--ge-font-body)!important}
+#mixerSheet .mixerVideoGrid{
+ display:flex!important;
+ flex-wrap:nowrap!important;
+ gap:3px!important;
+ height:44px!important;
+ width:100%!important;
+ overflow-x:auto!important;
+ overflow-y:hidden!important;
+ -webkit-overflow-scrolling:touch!important;
+}
+#mixerSheet .mixerVideoTile{
+ flex:0 0 74px!important;
+ width:74px!important;
+ height:42px!important;
+ min-width:74px!important;
+ aspect-ratio:auto!important;
+ border-radius:5px!important;
+ cursor:pointer!important;
+}
+#mixerSheet .mixerVideoTile .mixerVideoOverlay{padding:2px 3px!important;font-size:5px!important}
+#mixerSheet .mixerVideoTile .mixerVideoOffline{padding:3px!important;font-size:5px!important}
+#mixerSheet .mixerVideoWall.videoExpanded{max-height:min(31vh,245px)!important}
+#mixerSheet .mixerVideoWall.videoExpanded .mixerVideoGrid{
+ height:min(27vh,215px)!important;
+ align-items:flex-start!important;
+}
+#mixerSheet .mixerVideoWall.videoExpanded .mixerVideoTile.expanded{
+ flex:0 0 min(78vw,360px)!important;
+ width:min(78vw,360px)!important;
+ height:min(27vh,215px)!important;
+ min-width:min(78vw,360px)!important;
+ order:-1!important;
+}
+#mixerSheet .mixerVideoWall.videoExpanded .mixerVideoTile.expanded .mixerVideoOverlay{font-size:var(--ge-font-body)!important;padding:4px 6px!important}
+#mixerSheet .mixerGrid{
+ flex:1 1 auto!important;
+ min-height:0!important;
+ height:auto!important;
+ overflow-x:auto!important;
+ overflow-y:auto!important;
+ -webkit-overflow-scrolling:touch!important;
+ padding-bottom:12px!important;
+}
+#mixerSheet .mixerScrollControl{
+ flex:0 0 30px!important;
+ min-height:30px!important;
+ position:sticky!important;
+ bottom:0!important;
+ z-index:25!important;
+}
+@media(max-width:560px){
+ #mixerSheet .mixerVideoWall{max-height:62px!important}
+ #mixerSheet .mixerVideoGrid{height:39px!important}
+ #mixerSheet .mixerVideoTile{flex-basis:66px!important;width:66px!important;min-width:66px!important;height:37px!important}
+ #mixerSheet .mixerVideoWall.videoExpanded{max-height:min(28vh,220px)!important}
+ #mixerSheet .mixerVideoWall.videoExpanded .mixerVideoGrid{height:min(24vh,190px)!important}
+ #mixerSheet .mixerVideoWall.videoExpanded .mixerVideoTile.expanded{height:min(24vh,190px)!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
   <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
  </div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="75" max="240" step="10" value="125" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">100%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="25" max="75" step="5" value="50" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">50%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v107</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v108</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3363,7 +3453,7 @@ function diagEvent(name,detail){
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='',livePcmMode='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
-let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='';const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='';const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardVideoExpandedId='',boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
    Preserve this object when experimenting with later FX/UI revisions.
    Audio path baseline: processed mono MIC -> explicit L/R monitor duplication -> balance;
@@ -6005,11 +6095,13 @@ function renderBoardVideoWall(){
  const wall=$('mixerVideoWall'),grid=$('mixerVideoGrid'),count=$('mixerVideoCount');if(!wall||!grid)return;
  const ids=selectedBoardVideoIds();
  wall.hidden=!ids.length;
- if(count)count.textContent=ids.length+' CAMERA'+(ids.length===1?'':'S');
+ if(boardVideoExpandedId&&ids.indexOf(String(boardVideoExpandedId))<0)boardVideoExpandedId='';
+ wall.classList.toggle('videoExpanded',!!boardVideoExpandedId);
+ if(count)count.textContent=ids.length+' LIVE'+(ids.length===1?'':' CAMERAS');
  grid.innerHTML=ids.map(function(id){
-   const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&boardHasLiveFrame(board));
+   const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&boardHasLiveFrame(board)),expanded=String(boardVideoExpandedId)===String(id);
    const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?'LOADING VIDEO':'WAITING FOR CAMERA'));
-   return '<div class="mixerVideoTile" data-board-video-tile="'+esc(id)+'"><img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden><div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'">'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div></div>'
+   return '<div class="mixerVideoTile '+(expanded?'expanded':'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'"><img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden><div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'">'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div></div>'
  }).join('');
  if(ids.length)startBoardVideoMonitor();else stopBoardVideoMonitor()
 }
@@ -6431,7 +6523,8 @@ if(mixerGridEl){
    else sendBoardCommand(id,'mic_level',Number(x.value)).then(function(){setTimeout(poll,150)}).catch(function(err){alert(err.message||err)})
  })
 }
-if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){boardVideoSelected={};saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer()};
+if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){boardVideoExpandedId='';boardVideoSelected={};saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer()};
+if($('mixerVideoGrid'))$('mixerVideoGrid').onclick=function(e){const tile=e.target&&e.target.closest&&e.target.closest('[data-board-video-tile]');if(!tile)return;const id=String(tile.dataset.boardVideoTile||'');boardVideoExpandedId=String(boardVideoExpandedId)===id?'':id;renderBoardVideoWall()};
 ['iphone','ipad'].forEach(function(kind){
  const ui=remoteChannelIds(kind);
  if(ui.level){
@@ -6574,9 +6667,9 @@ $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&stat
 syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
 
 const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV2';
-let geDisplayZoomScope='home',geDisplayZoomPct=125;
+let geDisplayZoomScope='home',geDisplayZoomPct=50;
 function geStoredZoom(){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||125),75,240)}catch(e){return 125}
+ try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||50),25,75)}catch(e){return 50}
 }
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
@@ -6613,7 +6706,7 @@ function syncGeDisplayBarSpace(){
  }
 }
 function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||125),75,240);
+ geDisplayZoomPct=clamp(Math.round(Number(value)||50),25,75);
  document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
  $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
  if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
@@ -6630,8 +6723,8 @@ applyGeAutoTheme();
  geDisplayZoomPct=geStoredZoom();
  setGeDisplayScope('home');
  $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
- $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-10,true)};
- $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+10,true)};
+ $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
+ $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
  let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){applyGeDisplayZoom(geDisplayZoomPct,false)},180)});
 })();
 
