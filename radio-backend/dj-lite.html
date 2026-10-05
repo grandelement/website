@@ -61,7 +61,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v9</span></div>
+  <div class="brand">GE DJ <span>LITE v10</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -144,7 +144,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  var API='',key='',status=null,poller=0,heartbeatTimer=0,meterTimer=0,meterBusy=false,boardId='',radioOn=false,djDeviceId='',djDeviceToken='';
  var audioCtx=null,micStream=null,micSource=null,micGain=null,micHP=null,micComp=null,micDelay=null,micEchoGain=null,micEchoFb=null,micSum=null,micAnalyser=null,micProcessor=null,micSilent=null;
  var micReady=false,micAir=false,micMuted=false,micPeak=0,micLevel=100,compAmount=55,echoAmount=8,liveSocket=null,liveOwner='',monitorUpload=false,monitorSamples=[],monitorPosting=false;
- var cameraStream=null,cameraVideo=null,cameraCanvas=null,cameraTimer=0,cameraBusy=false,cameraError='',cameraPermission='unknown',cameraFacing='environment';
+ var cameraStream=null,cameraVideo=null,cameraCanvas=null,cameraTimer=0,cameraBusy=false,cameraError='',cameraPermission='unknown',cameraFacing='environment',mediaOpening=false;
  var ua=String(navigator.userAgent||''),sw=Math.min(Number(screen.width||0),Number(screen.height||0)),sh=Math.max(Number(screen.width||0),Number(screen.height||0));
  var isIpad=/iPad/i.test(ua),isIphone=/iPhone|iPod/i.test(ua);
  var deviceKind=isIpad?'ipad':(isIphone&&sw<=320&&sh<=568?'iphone5':(isIphone?'iphone':'computer'));
@@ -266,20 +266,45 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    }
    applyLiteFx();runLiteMeter();
  }
+ function teardownLiteMicGraph(stopAudio){
+   var i,tracks;
+   monitorUpload=false;monitorSamples=[];
+   try{if(micProcessor){micProcessor.onaudioprocess=null;micProcessor.disconnect();}}catch(e){}
+   try{if(micSource)micSource.disconnect();}catch(e){}
+   try{if(micHP)micHP.disconnect();}catch(e){}
+   try{if(micComp)micComp.disconnect();}catch(e){}
+   try{if(micGain)micGain.disconnect();}catch(e){}
+   try{if(micDelay)micDelay.disconnect();}catch(e){}
+   try{if(micEchoGain)micEchoGain.disconnect();}catch(e){}
+   try{if(micEchoFb)micEchoFb.disconnect();}catch(e){}
+   try{if(micSum)micSum.disconnect();}catch(e){}
+   try{if(micAnalyser)micAnalyser.disconnect();}catch(e){}
+   if(stopAudio&&micStream){
+     try{tracks=micStream.getAudioTracks?micStream.getAudioTracks():[];for(i=0;i<tracks.length;i++)tracks[i].stop();}catch(e){}
+   }
+   micStream=null;micSource=null;micGain=null;micHP=null;micComp=null;micDelay=null;micEchoGain=null;micEchoFb=null;micSum=null;micAnalyser=null;micProcessor=null;micSilent=null;micReady=false;micPeak=0;
+ }
+ function adoptLiteMicStream(stream){
+   var tracks=stream&&stream.getAudioTracks?stream.getAudioTracks():[],live=false,i,old=micStream;
+   for(i=0;i<tracks.length;i++){if(tracks[i]&&tracks[i].readyState==='live'){live=true;break;}}
+   if(!live)return false;
+   teardownLiteMicGraph(false);
+   if(old&&old!==stream){try{var oldTracks=old.getAudioTracks?old.getAudioTracks():[];for(i=0;i<oldTracks.length;i++)oldTracks[i].stop();}catch(e){}}
+   micStream=stream;micReady=true;
+   try{if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended'&&audioCtx.resume)audioCtx.resume();}catch(e){}
+   buildLiteMicGraph();updateMicUi();return true;
+ }
  function openLiteMic(cb){
    if(micReady){if(cb)cb(true);return;}
    if(!micCaptureSupported){if(cb)cb(false);return;}
    try{if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended'&&audioCtx.resume)audioCtx.resume();}catch(e){}
    navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){
-     micStream=stream;micReady=true;buildLiteMicGraph();updateMicUi();heartbeat();if(cb)cb(true);
+     var ok=adoptLiteMicStream(stream);heartbeat();if(cb)cb(ok);
    }).catch(function(err){setMicState('MIC ERROR · '+escapeHtml(err&&err.message||err),'');if(cb)cb(false);});
  }
  function closeLiteMic(){
    if(micAir)stopLiteAir();
-   monitorUpload=false;monitorSamples=[];
-   try{if(micProcessor){micProcessor.onaudioprocess=null;micProcessor.disconnect();}}catch(e){}
-   try{if(micStream){var ts=micStream.getTracks();for(var i=0;i<ts.length;i++)ts[i].stop();}}catch(e){}
-   micStream=null;micSource=null;micGain=null;micHP=null;micComp=null;micDelay=null;micEchoGain=null;micEchoFb=null;micSum=null;micAnalyser=null;micProcessor=null;micSilent=null;micReady=false;micPeak=0;
+   teardownLiteMicGraph(true);
    $('liteMicMeter').style.width='0%';updateMicUi();heartbeat();
  }
  function liveWsUrl(token){
@@ -361,34 +386,44 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      else sendBlob(dataUrlToBlob(cameraCanvas.toDataURL('image/jpeg',.40)));
    }catch(e){cameraBusy=false;cameraError=String(e&&e.message||e);updateVideoUi();}
  }
- function startLiteCamera(){
-   if(cameraTrackLive()){updateVideoUi();return;}
+ function startLiteCamera(force){
+   var oldCamera=cameraStream,oldMic=micStream;
+   if(cameraTrackLive()&&!force){updateVideoUi();return;}
+   if(mediaOpening)return;
    if(!cameraCaptureSupported){cameraPermission='unsupported';updateVideoUi();return;}
-   cameraPermission='requesting';cameraError='';$('liteVideoState').innerHTML='REQUESTING CAMERA…';
-   navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:cameraFacing},width:{ideal:640},height:{ideal:360}}}).then(function(stream){
+   mediaOpening=true;cameraPermission='requesting';cameraError='';$('liteVideoState').innerHTML='REQUESTING CAMERA + AUDIO…';
+   function acceptStream(stream){
+     var vt=stream.getVideoTracks&&stream.getVideoTracks()[0],i,ts;
+     if(!vt)throw new Error('No camera video track returned.');
+     if(oldCamera&&oldCamera!==stream){try{ts=oldCamera.getTracks?oldCamera.getTracks():[];for(i=0;i<ts.length;i++){try{ts[i].onended=null;ts[i].stop();}catch(e){}}}catch(e){}}
      cameraStream=stream;cameraPermission='granted';
-     var t=stream.getVideoTracks&&stream.getVideoTracks()[0];if(t)t.onended=function(){stopLiteCamera();};
+     vt.onended=function(){if(cameraStream===stream)stopLiteCamera();};
+     if(stream.getAudioTracks&&stream.getAudioTracks().length)adoptLiteMicStream(stream);
+     else if(oldMic&&oldMic!==oldCamera&&!micReady){micStream=oldMic;}
      if(cameraTimer)clearInterval(cameraTimer);uploadLiteVideoFrame();cameraTimer=setInterval(uploadLiteVideoFrame,110);
-     updateVideoUi();heartbeat();
-   }).catch(function(err){cameraPermission='denied';cameraError=String(err&&err.message||err);updateVideoUi();heartbeat();});
+     mediaOpening=false;updateMicUi();updateVideoUi();heartbeat();sendFastMeter();
+   }
+   var constraints={audio:!!micCaptureSupported,video:{facingMode:{ideal:cameraFacing},width:{ideal:640},height:{ideal:360}}};
+   navigator.mediaDevices.getUserMedia(constraints).then(acceptStream).catch(function(err){
+     if(micCaptureSupported){
+       navigator.mediaDevices.getUserMedia({audio:false,video:constraints.video}).then(acceptStream).catch(function(err2){
+         mediaOpening=false;cameraPermission='denied';cameraError=String(err2&&err2.message||err2||err);updateVideoUi();heartbeat();
+       });
+     }else{
+       mediaOpening=false;cameraPermission='denied';cameraError=String(err&&err.message||err);updateVideoUi();heartbeat();
+     }
+   });
  }
  function setLiteCameraFacing(facing){
-   var wanted=String(facing||'').toLowerCase()==='user'?'user':'environment',wasLive=cameraTrackLive(),tracks,i;
+   var wanted=String(facing||'').toLowerCase()==='user'?'user':'environment',wasLive=cameraTrackLive();
    cameraFacing=wanted;
    if(!wasLive){updateVideoUi();heartbeat();return;}
-   if(cameraTimer){clearInterval(cameraTimer);cameraTimer=0;}
-   try{
-     tracks=cameraStream&&cameraStream.getTracks?cameraStream.getTracks():[];
-     for(i=0;i<tracks.length;i++){try{tracks[i].onended=null;tracks[i].stop();}catch(e){}}
-   }catch(e){}
-   cameraStream=null;
-   if(cameraVideo){try{cameraVideo.pause();}catch(e){}try{cameraVideo.srcObject=null;}catch(e){}}
-   startLiteCamera();
+   startLiteCamera(true);
  }
  function stopLiteCamera(){
    if(cameraTimer){clearInterval(cameraTimer);cameraTimer=0;}
-   try{if(cameraStream){var ts=cameraStream.getTracks();for(var i=0;i<ts.length;i++)ts[i].stop();}}catch(e){}
-   cameraStream=null;cameraPermission='closed';cameraError='';cameraBusy=false;
+   try{if(cameraStream){var ts=cameraStream.getVideoTracks?cameraStream.getVideoTracks():[];for(var i=0;i<ts.length;i++){ts[i].onended=null;ts[i].stop();}}}catch(e){}
+   cameraStream=null;cameraPermission='closed';cameraError='';cameraBusy=false;mediaOpening=false;
    if(cameraVideo){try{cameraVideo.pause();}catch(e){}try{cameraVideo.srcObject=null;}catch(e){}}
    updateVideoUi();heartbeat();
  }
@@ -400,6 +435,13 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  function startFastMeter(){
    if(meterTimer)clearInterval(meterTimer);sendFastMeter();meterTimer=setInterval(sendFastMeter,150);
  }
+ function ensureLiteMedia(){
+   if((!key&&!(djDeviceId&&djDeviceToken))||mediaOpening)return;
+   try{if(audioCtx&&audioCtx.state==='suspended'&&audioCtx.resume)audioCtx.resume();}catch(e){}
+   if(cameraCaptureSupported){
+     if(!cameraTrackLive()||(micCaptureSupported&&!micReady))startLiteCamera(cameraTrackLive());
+   }else if(micCaptureSupported&&!micReady)openLiteMic();
+ }
  function handleBoardCommands(items){
    if(!items||!items.length)return;
    var i,c,a,v;
@@ -408,7 +450,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      if(a==='mic_ready'){if(v)openLiteMic();else closeLiteMic();}
      else if(a==='camera_ready'){if(v)startLiteCamera();else stopLiteCamera();}
      else if(a==='camera_facing'){setLiteCameraFacing(v);}
-     else if(a==='media_ready'){if(v){openLiteMic();startLiteCamera();}else{closeLiteMic();stopLiteCamera();}}
+     else if(a==='media_ready'){if(v)ensureLiteMedia();else{closeLiteMic();stopLiteCamera();}}
      else if(a==='mic_air'){if(v)startLiteAir();else stopLiteAir();}
      else if(a==='mic_mute'){micMuted=!!v;applyLiteFx();updateMicUi();}
      else if(a==='mic_level'){micLevel=clamp(v,0,150);applyLiteFx();updateMicUi();}
@@ -524,7 +566,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    render();heartbeat();poll();
    if(poller)clearInterval(poller);poller=setInterval(poll,2500);
    if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,1000);
-   startFastMeter();
+   startFastMeter();setTimeout(ensureLiteMedia,80);
  }
  function login(){
    var supplied=$('password').value||'';
@@ -563,6 +605,8 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    });
  }
 
+ document.addEventListener('touchstart',function(){ensureLiteMedia();},{passive:true});
+ document.addEventListener('click',function(){ensureLiteMedia();},false);
  $('loginBtn').onclick=login;
  $('password').onkeypress=function(e){e=e||window.event;if((e.keyCode||e.which)===13)login();};
  $('computerLevel').onchange=function(){var v=Number(this.value)||0;$('computerLevelRead').innerHTML=Math.round(v)+'%';sendComputer({line_level:v});};
