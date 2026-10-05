@@ -41,7 +41,11 @@ button,input{font-family:Arial,Helvetica,sans-serif}
 .statusline{font-size:12px;color:#55d8c1;font-weight:bold;margin-top:5px}
 .now{font-size:24px;font-weight:bold;margin-top:4px}.meta{font-size:12px;color:#8ea0ad;margin-top:4px}
 hr{border:0;border-top:1px solid #243747;margin:12px 0}
-@media(max-width:560px){.wrap{padding:9px}.brand{font-size:23px}.big{font-size:19px}.row{display:block}.read{text-align:left;margin:3px 0 0}.actions .btn{min-width:100px}}
+.fxline{display:grid;grid-template-columns:76px 1fr 46px;gap:7px;align-items:center;margin-top:8px}
+.fxline span{font-size:10px;font-weight:bold;color:#91a1ac}.fxline b{font-size:11px;text-align:right}
+.micStatus{font-size:12px;font-weight:bold;color:#91a1ac;margin-top:5px}.micStatus.ready{color:#55d8c1}.micStatus.air{color:#ff7b8d}
+.micUnavailable{display:none;margin-top:8px;padding:8px;border:1px solid #6b5a2f;border-radius:8px;background:#171407;color:#f0cc66;font-size:11px;line-height:1.35}
+@media(max-width:560px){.wrap{padding:9px}.brand{font-size:23px}.big{font-size:19px}.row{display:block}.read{text-align:left;margin:3px 0 0}.actions .btn{min-width:90px}.fxline{grid-template-columns:62px 1fr 42px}}
 </style>
 </head>
 <body>
@@ -57,7 +61,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
 
 <div class="wrap">
  <div class="top">
-  <div class="brand">GE DJ <span>LITE v6</span></div>
+  <div class="brand">GE DJ <span>LITE v7</span></div>
   <div class="pill" id="serverPill">OFFLINE</div>
  </div>
 
@@ -94,6 +98,25 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
   </div>
  </div>
 
+ <div class="card" id="liteMicCard">
+  <div class="label">iPHONE 5 · SIMPLE MIC MIXER</div>
+  <div class="big">DEVICE AUDIO</div>
+  <div class="micStatus" id="liteMicState">MIC CLOSED</div>
+  <div class="meter"><i id="liteMicMeter"></i></div>
+  <div class="row">
+   <div class="grow"><input class="slider" id="liteMicLevel" type="range" min="0" max="150" value="100"></div>
+   <div class="read" id="liteMicLevelRead">100%</div>
+  </div>
+  <div class="fxline"><span>VOICE</span><input class="slider" id="liteComp" type="range" min="0" max="100" value="55"><b id="liteCompRead">55%</b></div>
+  <div class="fxline"><span>ECHO</span><input class="slider" id="liteEcho" type="range" min="0" max="60" value="8"><b id="liteEchoRead">8%</b></div>
+  <div class="actions">
+   <button class="btn" id="liteMicOpen">OPEN MIC</button>
+   <button class="btn" id="liteMicAir" disabled>ON AIR</button>
+   <button class="btn" id="liteMicMute" disabled>MUTE</button>
+  </div>
+  <div class="micUnavailable" id="liteMicUnavailable"></div>
+ </div>
+
  <div class="card">
   <div class="label">RADIO</div>
   <div class="actions">
@@ -106,19 +129,23 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
  <div class="card warn">
   <div class="label">LEGACY MODE</div>
   <div class="big">LEGACY DEVICE MODE</div>
-  <div class="small">GE DJ LITE automatically remembers this device after the first successful login. This original iPhone 5 can control GE DJ, but iOS 10 Safari cannot provide microphone or camera capture.</div>
+  <div class="small" id="legacyNote">GE DJ LITE automatically remembers this device after the first successful login.</div>
  </div>
 </div>
 
 <script>
 (function(){
  var API='',key='',status=null,poller=0,heartbeatTimer=0,boardId='',radioOn=false,djDeviceId='',djDeviceToken='';
+ var audioCtx=null,micStream=null,micSource=null,micGain=null,micHP=null,micComp=null,micDelay=null,micEchoGain=null,micEchoFb=null,micSum=null,micAnalyser=null,micProcessor=null,micSilent=null;
+ var micReady=false,micAir=false,micMuted=false,micPeak=0,micLevel=100,compAmount=55,echoAmount=8,liveSocket=null,liveOwner='',monitorUpload=false,monitorSamples=[],monitorPosting=false;
  var ua=String(navigator.userAgent||''),sw=Math.min(Number(screen.width||0),Number(screen.height||0)),sh=Math.max(Number(screen.width||0),Number(screen.height||0));
  var isIpad=/iPad/i.test(ua),isIphone=/iPhone|iPod/i.test(ua);
  var deviceKind=isIpad?'ipad':(isIphone&&sw<=320&&sh<=568?'iphone5':(isIphone?'iphone':'computer'));
  var boardRole=deviceKind==='computer'?'home':'remote';
  var boardLabel=deviceKind==='ipad'?'iPAD':(deviceKind==='iphone5'?'iPHONE 5':(deviceKind==='iphone'?'iPHONE':'LEGACY COMPUTER'));
  var $=function(id){return document.getElementById(id);};
+ var AudioCtx=window.AudioContext||window.webkitAudioContext;
+ var micCaptureSupported=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&AudioCtx);
 
  function safeStoreGet(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
  function safeStoreSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
@@ -138,6 +165,156 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    };
    try{x.send(body!==null&&body!==undefined?JSON.stringify(body):null);}
    catch(e){cb(0,{ok:false,error:String(e)},x);}
+ }
+ function postBinary(path,buffer,headers,cb){
+   var x=new XMLHttpRequest(),k;
+   x.open('POST',API+path,true);
+   try{if(key)x.setRequestHeader('X-GE-DJ-Key',key);}catch(e){}
+   try{if(djDeviceId&&djDeviceToken){x.setRequestHeader('X-GE-DJ-Device-ID',djDeviceId);x.setRequestHeader('X-GE-DJ-Device-Token',djDeviceToken);}}catch(e){}
+   headers=headers||{};for(k in headers){if(headers.hasOwnProperty(k)){try{x.setRequestHeader(k,headers[k]);}catch(e){}}}
+   x.onreadystatechange=function(){if(x.readyState===4&&cb)cb(x.status,x);};
+   try{x.send(buffer);}catch(e){if(cb)cb(0,x);}
+ }
+ function clamp(v,a,b){v=Number(v)||0;return Math.max(a,Math.min(b,v));}
+ function setMicState(text,mode){
+   var e=$('liteMicState');if(!e)return;e.innerHTML=text;e.className='micStatus'+(mode?' '+mode:'');
+ }
+ function applyLiteFx(){
+   if(micGain)micGain.gain.value=micMuted?0:clamp(micLevel/100,0,1.5);
+   if(micComp){
+     var c=clamp(compAmount,0,100);
+     micComp.threshold.value=-8-(c*.28);micComp.ratio.value=1+(c*.09);micComp.attack.value=.008;micComp.release.value=.22;
+   }
+   if(micEchoGain)micEchoGain.gain.value=clamp(echoAmount/100,0,.6);
+   if(micEchoFb)micEchoFb.gain.value=clamp(echoAmount/100*.42,0,.28);
+ }
+ function pcmDownsample(input,fromRate,toRate){
+   var ratio=fromRate/toRate,len=Math.max(1,Math.floor(input.length/ratio)),out=new Int16Array(len),i,j,a,b,sum,count,v;
+   for(i=0;i<len;i++){
+     a=Math.floor(i*ratio);b=Math.min(input.length,Math.floor((i+1)*ratio));sum=0;count=0;
+     for(j=a;j<b;j++){sum+=input[j];count++;}
+     v=clamp(count?sum/count:0,-1,1);out[i]=v<0?v*32768:v*32767;
+   }
+   return out;
+ }
+ function updateMicUi(){
+   $('liteMicLevel').value=String(micLevel);$('liteMicLevelRead').innerHTML=Math.round(micLevel)+'%';
+   $('liteComp').value=String(compAmount);$('liteCompRead').innerHTML=Math.round(compAmount)+'%';
+   $('liteEcho').value=String(echoAmount);$('liteEchoRead').innerHTML=Math.round(echoAmount)+'%';
+   $('liteMicOpen').innerHTML=micReady?'CLOSE MIC':'OPEN MIC';
+   $('liteMicAir').disabled=!micReady;$('liteMicMute').disabled=!micReady;
+   $('liteMicAir').innerHTML=micAir?'STOP AIR':'ON AIR';$('liteMicAir').className='btn'+(micAir?' air':'');
+   $('liteMicMute').innerHTML=micMuted?'UNMUTE':'MUTE';$('liteMicMute').className='btn'+(micMuted?' on':'');
+   if(micAir)setMicState('MIC ON AIR · EFFECTS ACTIVE','air');else if(micReady)setMicState('MIC READY · EFFECTS ACTIVE','ready');else setMicState('MIC CLOSED','');
+ }
+ function runLiteMeter(){
+   if(!micAnalyser)return;
+   var data=new Uint8Array(micAnalyser.fftSize);
+   function tick(){
+     if(!micAnalyser)return;
+     micAnalyser.getByteTimeDomainData(data);
+     var i,d,sum=0;for(i=0;i<data.length;i++){d=(data[i]-128)/128;sum+=d*d;}
+     micPeak=clamp(Math.sqrt(sum/data.length)*300,0,100);
+     $('liteMicMeter').style.width=micPeak+'%';
+     window.requestAnimationFrame?window.requestAnimationFrame(tick):setTimeout(tick,80);
+   }
+   tick();
+ }
+ function sendMonitorChunk(samples){
+   if(monitorPosting||!samples||!samples.length)return;
+   monitorPosting=true;
+   postBinary('/control/board/audio-monitor',samples.buffer,{'Content-Type':'application/octet-stream','X-GE-Board-ID':boardId,'X-GE-Audio-Rate':'16000'},function(){monitorPosting=false;});
+ }
+ function buildLiteMicGraph(){
+   if(!audioCtx)audioCtx=new AudioCtx();
+   micSource=audioCtx.createMediaStreamSource(micStream);
+   micHP=audioCtx.createBiquadFilter();micHP.type='highpass';micHP.frequency.value=95;micHP.Q.value=.7;
+   micComp=audioCtx.createDynamicsCompressor();
+   micGain=audioCtx.createGain();micDelay=audioCtx.createDelay(1);micDelay.delayTime.value=.18;
+   micEchoGain=audioCtx.createGain();micEchoFb=audioCtx.createGain();micSum=audioCtx.createGain();
+   micAnalyser=audioCtx.createAnalyser();micAnalyser.fftSize=256;
+   micProcessor=audioCtx.createScriptProcessor?audioCtx.createScriptProcessor(2048,1,1):null;
+   micSilent=audioCtx.createGain();micSilent.gain.value=0;
+   micSource.connect(micHP);micHP.connect(micComp);micComp.connect(micGain);micGain.connect(micSum);
+   micGain.connect(micDelay);micDelay.connect(micEchoGain);micEchoGain.connect(micSum);micDelay.connect(micEchoFb);micEchoFb.connect(micDelay);
+   micSum.connect(micAnalyser);
+   if(micProcessor){
+     micAnalyser.connect(micProcessor);micProcessor.connect(micSilent);micSilent.connect(audioCtx.destination);
+     micProcessor.onaudioprocess=function(e){
+       var input=e.inputBuffer&&e.inputBuffer.getChannelData?e.inputBuffer.getChannelData(0):null,livePcm,monPcm,i;
+       if(!input)return;
+       if(micAir&&liveSocket&&liveSocket.readyState===1){
+         livePcm=pcmDownsample(input,audioCtx.sampleRate||44100,24000);
+         try{if(liveSocket.bufferedAmount<131072)liveSocket.send(livePcm.buffer);}catch(err){stopLiteAir();}
+       }
+       if(monitorUpload){
+         monPcm=pcmDownsample(input,audioCtx.sampleRate||44100,16000);
+         for(i=0;i<monPcm.length;i++)monitorSamples.push(monPcm[i]);
+         if(monitorSamples.length>=3200&&!monitorPosting){
+           var chunk=new Int16Array(monitorSamples.splice(0,3200));sendMonitorChunk(chunk);
+         }
+       }
+     };
+   }
+   applyLiteFx();runLiteMeter();
+ }
+ function openLiteMic(cb){
+   if(micReady){if(cb)cb(true);return;}
+   if(!micCaptureSupported){if(cb)cb(false);return;}
+   try{if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended'&&audioCtx.resume)audioCtx.resume();}catch(e){}
+   navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){
+     micStream=stream;micReady=true;buildLiteMicGraph();updateMicUi();heartbeat();if(cb)cb(true);
+   }).catch(function(err){setMicState('MIC ERROR · '+escapeHtml(err&&err.message||err),'');if(cb)cb(false);});
+ }
+ function closeLiteMic(){
+   if(micAir)stopLiteAir();
+   monitorUpload=false;monitorSamples=[];
+   try{if(micProcessor){micProcessor.onaudioprocess=null;micProcessor.disconnect();}}catch(e){}
+   try{if(micStream){var ts=micStream.getTracks();for(var i=0;i<ts.length;i++)ts[i].stop();}}catch(e){}
+   micStream=null;micSource=null;micGain=null;micHP=null;micComp=null;micDelay=null;micEchoGain=null;micEchoFb=null;micSum=null;micAnalyser=null;micProcessor=null;micSilent=null;micReady=false;micPeak=0;
+   $('liteMicMeter').style.width='0%';updateMicUi();heartbeat();
+ }
+ function liveWsUrl(token){
+   var base=window.location.protocol==='https:'?'wss://':'ws://';
+   return base+window.location.host+'/control/live?token='+encodeURIComponent(token)+'&voice=lowband&pan=0';
+ }
+ function startLiteAir(){
+   if(micAir)return;
+   openLiteMic(function(ok){
+     if(!ok)return;
+     liveOwner='lite-'+String(boardId||'iphone5');
+     setMicState('CONNECTING TO RADIO…','ready');
+     request('/control/broadcast/session','POST',{owner:liveOwner},function(code,d){
+       if(!(code>=200&&code<300&&d&&d.ok&&d.token)){setMicState('RADIO LINK FAILED','');return;}
+       request('/control/broadcast/start','POST',{mode:'voice',transport:'websocket',owner:liveOwner},function(code2,d2){
+         if(!(code2>=200&&code2<300&&d2&&d2.ok)){setMicState('RADIO BUSY · '+escapeHtml(d2&&d2.error||''),'');return;}
+         var ws;
+         try{ws=new WebSocket(liveWsUrl(d.token));ws.binaryType='arraybuffer';}catch(e){setMicState('WEBSOCKET NOT AVAILABLE','');return;}
+         liveSocket=ws;
+         ws.onopen=function(){if(liveSocket!==ws)return;micAir=true;monitorUpload=false;updateMicUi();heartbeat();};
+         ws.onerror=function(){if(liveSocket===ws)setMicState('LIVE AUDIO LINK ERROR','');};
+         ws.onclose=function(){if(liveSocket===ws){liveSocket=null;micAir=false;updateMicUi();heartbeat();}};
+       });
+     });
+   });
+ }
+ function stopLiteAir(){
+   micAir=false;var ws=liveSocket;liveSocket=null;try{if(ws)ws.close();}catch(e){}
+   if(liveOwner)request('/control/broadcast/stop','POST',{owner:liveOwner},function(){});
+   updateMicUi();heartbeat();
+ }
+ function handleBoardCommands(items){
+   if(!items||!items.length)return;
+   var i,c,a,v;
+   for(i=0;i<items.length;i++){
+     c=items[i]||{};a=String(c.action||'');v=c.value;
+     if(a==='mic_ready'){if(v)openLiteMic();else closeLiteMic();}
+     else if(a==='media_ready'){if(v)openLiteMic();else closeLiteMic();}
+     else if(a==='mic_air'){if(v)startLiteAir();else stopLiteAir();}
+     else if(a==='mic_mute'){micMuted=!!v;applyLiteFx();updateMicUi();}
+     else if(a==='mic_level'){micLevel=clamp(v,0,150);applyLiteFx();updateMicUi();}
+     else if(a==='monitor_stream'){monitorUpload=!!v;if(monitorUpload&&micAir)stopLiteAir();if(monitorUpload&&!micReady)openLiteMic();}
+   }
  }
  function boardRows(){return status&&status.dj_boards&&status.dj_boards.length?status.dj_boards:[];}
  function hasBoard(re){
@@ -164,6 +341,15 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    setDevice('iphoneBubble',deviceKind==='iphone'||hasBoard(/iphone|ipod/i),deviceKind==='iphone');
    setDevice('ipadBubble',deviceKind==='ipad'||hasBoard(/ipad/i),deviceKind==='ipad');
    setDevice('iphone5Bubble',deviceKind==='iphone5'||hasBoard(/iphone\s*5/i),deviceKind==='iphone5');
+   if(!micCaptureSupported){
+     $('liteMicUnavailable').style.display='block';
+     $('liteMicUnavailable').innerHTML='THIS SAFARI VERSION CANNOT CAPTURE THE MICROPHONE. THE CONTROL SURFACE STILL WORKS.';
+     $('legacyNote').innerHTML='A true original iPhone 5 is limited to iOS 10.3.4, whose Safari cannot supply microphone capture to a webpage. If GE DJ LITE is opened on a later small iPhone with microphone support, this mixer becomes a live audio channel automatically.';
+   }else{
+     $('liteMicUnavailable').style.display='none';
+     $('legacyNote').innerHTML='LIGHTWEIGHT AUDIO MODE · MIC + METER + LEVEL + VOICE + ECHO + LIVE. VIDEO IS LEFT OFF TO KEEP THIS DEVICE LIGHT.';
+   }
+   updateMicUi();
    var shared=status.dj_controls||{};
    var level=Number(shared.line_level);
    if(isNaN(level))level=100;
@@ -202,15 +388,18 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      app_state:'active',
      channel_state:{
        line_connected:false,line_air:false,line_source:'',
-       line_peak:0,mic_connected:false,mic_air:false,mic_muted:false,mic_level:100,mic_peak:0,
-       media_capture_supported:false,
+       line_peak:0,mic_connected:micReady,mic_air:micAir,mic_muted:micMuted,mic_level:micLevel,mic_peak:micPeak,
+       media_capture_supported:micCaptureSupported,
        device_kind:deviceKind,
        device_name:boardLabel,
        ios_version:(function(){var m=ua.match(/OS (\d+)[_\.](\d+)/i);return m?(m[1]+'.'+m[2]):'';})(),
        user_agent:ua
      }
    },function(code,d){
-     if(code>=200&&code<300&&d&&d.boards&&status){status.dj_boards=d.boards;render();}
+     if(code>=200&&code<300&&d){
+       if(d.boards&&status){status.dj_boards=d.boards;render();}
+       if(d.commands&&d.commands.length)handleBoardCommands(d.commands);
+     }
    });
  }
  function sendComputer(values){
@@ -227,7 +416,7 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    if(!boardId){boardId=safeStoreGet('geDjLegacyBoardIdV1');if(!boardId){boardId='legacy-'+String(new Date().getTime())+'-'+String(Math.random()).slice(2,9);safeStoreSet('geDjLegacyBoardIdV1',boardId);}}
    render();heartbeat();poll();
    if(poller)clearInterval(poller);poller=setInterval(poll,2500);
-   if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,5000);
+   if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=setInterval(heartbeat,1000);
  }
  function login(){
    var supplied=$('password').value||'';
@@ -279,6 +468,13 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
      setTimeout(poll,700);
    });
  };
+ $('liteMicOpen').onclick=function(){if(micReady)closeLiteMic();else openLiteMic();};
+ $('liteMicAir').onclick=function(){if(micAir)stopLiteAir();else startLiteAir();};
+ $('liteMicMute').onclick=function(){micMuted=!micMuted;applyLiteFx();updateMicUi();heartbeat();};
+ $('liteMicLevel').oninput=function(){micLevel=clamp(this.value,0,150);$('liteMicLevelRead').innerHTML=Math.round(micLevel)+'%';applyLiteFx();};
+ $('liteMicLevel').onchange=function(){heartbeat();};
+ $('liteComp').oninput=function(){compAmount=clamp(this.value,0,100);$('liteCompRead').innerHTML=Math.round(compAmount)+'%';applyLiteFx();};
+ $('liteEcho').oninput=function(){echoAmount=clamp(this.value,0,60);$('liteEchoRead').innerHTML=Math.round(echoAmount)+'%';applyLiteFx();};
  $('monitorBtn').onclick=function(){
    var a=$('radioAudio');
    if(!radioOn){
@@ -292,6 +488,8 @@ hr{border:0;border-top:1px solid #243747;margin:12px 0}
    }
  };
 
+ updateMicUi();
+ if(!micCaptureSupported){$('liteMicUnavailable').style.display='block';$('liteMicUnavailable').innerHTML='MICROPHONE CAPTURE IS NOT AVAILABLE IN THIS SAFARI VERSION.';}
  djDeviceId=safeStoreGet('geDjLegacyTrustedId');djDeviceToken=safeStoreGet('geDjLegacyTrustedToken');
  if(djDeviceId&&djDeviceToken){
    $('loginStatus').innerHTML='CHECKING REMEMBERED DEVICE...';
