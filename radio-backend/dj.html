@@ -3117,6 +3117,33 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
  #mixerSheet .mixerVideoWall.videoExpanded .mixerVideoGrid{height:min(24vh,190px)!important}
  #mixerSheet .mixerVideoWall.videoExpanded .mixerVideoTile.expanded{height:min(24vh,190px)!important}
 }
+
+/* V111 authentication, modal focus, self-video preview and first live video FX. */
+body:not(.geAuthenticated) .geDisplayZoomBar{display:none!important}
+body:not(.geAuthenticated){padding-top:0!important}
+body.geModalFocus .geDisplayZoomBar{display:none!important}
+body.geModalFocus{padding-top:0!important}
+body.geModalFocus .modal.show{padding-top:max(4px,env(safe-area-inset-top))!important}
+body.geModalFocus .modal.show .modalBox{margin-top:0!important}
+#mixerSheet .mixerVideoTile video,
+#mixerSheet .mixerVideoTile canvas[data-board-video-local-canvas]{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:#02070b
+}
+#mixerSheet .videoFxBar{display:none}
+#mixerSheet .mixerVideoTile.expanded .mixerVideoOverlay{top:0;bottom:auto}
+#mixerSheet .mixerVideoTile.expanded .videoFxBar{
+ display:grid;position:absolute;left:4px;right:4px;bottom:4px;z-index:7;
+ grid-template-columns:repeat(4,minmax(0,1fr)) minmax(78px,1.4fr);gap:3px;
+ padding:4px;border:1px solid #3f596c;border-radius:8px;background:rgba(3,8,12,.88);backdrop-filter:blur(8px)
+}
+#mixerSheet .videoFxBar button{min-width:0;min-height:28px;border:1px solid #3f596c;border-radius:6px;background:#101923;color:#fff;font-size:8px;font-weight:950;padding:2px}
+#mixerSheet .videoFxBar button.on{border-color:#55d8c1;background:#12382f}
+#mixerSheet .videoFxAmount{display:grid;grid-template-columns:auto 1fr;gap:4px;align-items:center;color:#55d8c1;font-size:7px;font-weight:950;min-width:0}
+#mixerSheet .videoFxAmount input{width:100%;min-width:0}
+@media(max-width:560px){
+ #mixerSheet .mixerVideoTile.expanded .videoFxBar{grid-template-columns:repeat(4,minmax(0,1fr));}
+ #mixerSheet .videoFxAmount{grid-column:1/-1}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
@@ -3127,7 +3154,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v110</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v111</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3453,7 +3480,7 @@ function diagEvent(name,detail){
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='',livePcmMode='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
-let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='';const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardVideoExpandedId='',boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraRawCanvas=null,cameraFxTrailCanvas=null,cameraSpaceCanvas=null,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='',videoFxMode='raw',videoFxAmount=60;try{videoFxMode=String(localStorage.getItem('geVideoFxModeV1')||'raw');videoFxAmount=clamp(Number(localStorage.getItem('geVideoFxAmountV1')||60),0,100)}catch(e){}const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardVideoExpandedId='',boardMonitorSelected={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
    Preserve this object when experimenting with later FX/UI revisions.
    Audio path baseline: processed mono MIC -> explicit L/R monitor duplication -> balance;
@@ -4057,6 +4084,7 @@ async function verify(k){
  const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');
  status=await r.json();
  if(key)await rememberDjDevice();
+ document.body.classList.add('geAuthenticated');
  $('lock').classList.add('hide');
  await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});
  render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});
@@ -4197,6 +4225,10 @@ async function handleDjBoardCommands(items){
     await setLocalCameraCaptureV102(!!c.value)
    }else if(c.action==='camera_facing'){
     await setLocalCameraFacingV106(c.value)
+   }else if(c.action==='video_fx_mode'){
+    setLocalVideoFxV111(c.value,null)
+   }else if(c.action==='video_fx_amount'){
+    setLocalVideoFxV111(null,c.value)
    }else if(c.action==='media_ready'){
     if(c.value)await autoConnectDeviceMedia();
     else{await setLocalCameraCaptureV102(false);await setLocalMicCaptureV102(false)}
@@ -4244,7 +4276,7 @@ async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_level:Number(settings.mic.level==null?100:settings.mic.level),mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),audio_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),camera_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),device_kind:GE_PHYSICAL_KIND,device_name:GE_BOARD_LABEL,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),camera_facing:cameraFacing,video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),camera_error:String(cameraLastError||'').slice(0,240),media_error:''}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_level:Number(settings.mic.level==null?100:settings.mic.level),mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),audio_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),camera_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),device_kind:GE_PHYSICAL_KIND,device_name:GE_BOARD_LABEL,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),camera_facing:cameraFacing,video_fx_mode:videoFxMode,video_fx_amount:videoFxAmount,video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),camera_error:String(cameraLastError||'').slice(0,240),media_error:''}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok){
    if(status)status.dj_boards=d.boards||status.dj_boards;
@@ -5020,6 +5052,63 @@ function stopBoardMonitorUpload(){
  try{if(boardMonitorSilentGain)boardMonitorSilentGain.disconnect()}catch(e){}
  boardMonitorProcessor=null;boardMonitorSilentGain=null
 }
+function normalizeVideoFxModeV111(mode){
+ mode=String(mode||'raw').toLowerCase();
+ return ['raw','hue','trail','space'].indexOf(mode)>=0?mode:'raw'
+}
+function setLocalVideoFxV111(mode,amount){
+ if(mode!=null)videoFxMode=normalizeVideoFxModeV111(mode);
+ if(amount!=null)videoFxAmount=clamp(Number(amount)||0,0,100);
+ try{localStorage.setItem('geVideoFxModeV1',videoFxMode);localStorage.setItem('geVideoFxAmountV1',String(videoFxAmount))}catch(e){}
+ if(videoFxMode!=='trail'&&cameraFxTrailCanvas){const c=cameraFxTrailCanvas.getContext('2d');if(c)c.clearRect(0,0,cameraFxTrailCanvas.width,cameraFxTrailCanvas.height)}
+ geBoardHeartbeat();renderBoardVideoWall()
+}
+function ensureVideoFxCanvasV111(name,w,h){
+ let c=name==='raw'?cameraRawCanvas:(name==='trail'?cameraFxTrailCanvas:cameraSpaceCanvas);
+ if(!c){c=document.createElement('canvas');if(name==='raw')cameraRawCanvas=c;else if(name==='trail')cameraFxTrailCanvas=c;else cameraSpaceCanvas=c}
+ if(c.width!==w||c.height!==h){c.width=w;c.height=h;if(name==='space'){const x=c.getContext('2d');if(x){x.fillStyle='#01040a';x.fillRect(0,0,w,h);for(let i=0;i<150;i++){const px=(i*97%997)/997*w,py=(i*193%991)/991*h,r=(i%11===0?1.5:.55);x.fillStyle=i%7===0?'#8bdcff':'#ffffff';x.globalAlpha=.25+((i*17)%70)/100;x.beginPath();x.arc(px,py,r,0,Math.PI*2);x.fill()}x.globalAlpha=1}}}
+ return c
+}
+function renderVideoFxV111(raw,out){
+ const w=raw.width,h=raw.height,o=out.getContext('2d');if(!o)return;
+ o.save();o.globalAlpha=1;o.globalCompositeOperation='source-over';o.filter='none';o.clearRect(0,0,w,h);
+ if(videoFxMode==='hue'){
+   try{o.filter='hue-rotate('+Math.round(videoFxAmount*3.6)+'deg) saturate('+(1.2+videoFxAmount/55).toFixed(2)+') contrast(1.08)'}catch(e){}
+   o.drawImage(raw,0,0,w,h)
+ }else if(videoFxMode==='trail'){
+   const t=ensureVideoFxCanvasV111('trail',w,h),tc=t.getContext('2d'),fade=.05+(100-videoFxAmount)/700;
+   tc.save();tc.globalCompositeOperation='source-over';tc.globalAlpha=fade;tc.fillStyle='#000';tc.fillRect(0,0,w,h);
+   tc.globalAlpha=.34+videoFxAmount/220;tc.globalCompositeOperation='screen';
+   try{tc.filter='hue-rotate('+Math.round(videoFxAmount*2.7)+'deg) saturate(1.65)'}catch(e){}
+   tc.drawImage(raw,0,0,w,h);tc.restore();o.drawImage(t,0,0,w,h)
+ }else if(videoFxMode==='space'){
+   const stars=ensureVideoFxCanvasV111('space',w,h);o.drawImage(stars,0,0,w,h);
+   o.globalCompositeOperation='screen';o.globalAlpha=.28+videoFxAmount/155;
+   try{o.filter='hue-rotate('+Math.round(videoFxAmount*2.2)+'deg) saturate(1.7) contrast(1.18)'}catch(e){}
+   o.drawImage(raw,0,0,w,h)
+ }else o.drawImage(raw,0,0,w,h);
+ o.restore()
+}
+function paintLocalVideoPreviewV111(){
+ if(!cameraPreviewCanvas)return;
+ document.querySelectorAll('[data-board-video-local-canvas="'+GE_BOARD_ID+'"]').forEach(function(c){
+   const x=c.getContext&&c.getContext('2d');if(!x)return;
+   if(c.width!==cameraPreviewCanvas.width)c.width=cameraPreviewCanvas.width;
+   if(c.height!==cameraPreviewCanvas.height)c.height=cameraPreviewCanvas.height;
+   x.drawImage(cameraPreviewCanvas,0,0,c.width,c.height)
+ })
+}
+async function setBoardVideoFxV111(boardId,mode,amount){
+ boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online)return;
+ mode=normalizeVideoFxModeV111(mode==null?(board.video_fx_mode||'raw'):mode);
+ amount=clamp(Number(amount==null?(board.video_fx_amount==null?60:board.video_fx_amount):amount)||0,0,100);
+ if(boardId===String(GE_BOARD_ID))setLocalVideoFxV111(mode,amount);
+ else{
+   await sendBoardCommand(boardId,'video_fx_mode',mode);
+   await sendBoardCommand(boardId,'video_fx_amount',amount);
+   board.video_fx_mode=mode;board.video_fx_amount=amount;renderBoardVideoWall()
+ }
+}
 async function uploadCameraPreviewFrame(){
  if(cameraUploadBusy||!cameraStream||document.hidden)return;
  const track=cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0];
@@ -5034,9 +5123,10 @@ async function uploadCameraPreviewFrame(){
   if(cameraPreviewVideo.srcObject!==cameraStream){cameraPreviewVideo.srcObject=cameraStream;try{await cameraPreviewVideo.play()}catch(e){}}
   if(!cameraPreviewVideo.videoWidth||!cameraPreviewVideo.videoHeight)return;
   if(!cameraPreviewCanvas){cameraPreviewCanvas=document.createElement('canvas');cameraPreviewCanvas.width=360;cameraPreviewCanvas.height=202}
-  const ctx2=cameraPreviewCanvas.getContext('2d');if(!ctx2)return;
+  const raw=ensureVideoFxCanvasV111('raw',360,202),ctx2=raw.getContext('2d');if(!ctx2)return;
   const sw=cameraPreviewVideo.videoWidth,sh=cameraPreviewVideo.videoHeight,tw=360,th=202,scale=Math.max(tw/sw,th/sh),dw=sw*scale,dh=sh*scale,dx=(tw-dw)/2,dy=(th-dh)/2;
-  ctx2.drawImage(cameraPreviewVideo,dx,dy,dw,dh);
+  ctx2.clearRect(0,0,tw,th);ctx2.drawImage(cameraPreviewVideo,dx,dy,dw,dh);
+  renderVideoFxV111(raw,cameraPreviewCanvas);paintLocalVideoPreviewV111();
   cameraUploadBusy=true;
   const blob=await new Promise(function(resolve){cameraPreviewCanvas.toBlob(resolve,'image/jpeg',.45)});
   if(blob){const vr=await api('/control/board/video-frame',{method:'POST',headers:{'Content-Type':'image/jpeg','X-GE-Board-ID':GE_BOARD_ID},body:blob});if(!vr.ok)throw new Error('VIDEO FRAME UPLOAD FAILED · HTTP '+vr.status);cameraLastError=''}
@@ -6114,7 +6204,7 @@ function renderKnownDeviceMixer(){
  requestAnimationFrame(syncTouchFaders)
 }
 function saveBoardVideoSelection(){try{localStorage.setItem(BOARD_VIDEO_KEY,JSON.stringify(boardVideoSelected))}catch(e){}}
-function selectedBoardVideoIds(){return Object.keys(boardVideoSelected).filter(function(id){const b=boardById(id);return !!boardVideoSelected[id]&&!!b&&!!b.online&&boardHasLiveFrame(b)})}
+function selectedBoardVideoIds(){return Object.keys(boardVideoSelected).filter(function(id){const b=boardById(id),self=String(id)===String(GE_BOARD_ID),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live');return !!boardVideoSelected[id]&&!!b&&!!b.online&&(localLive||boardHasLiveFrame(b))})}
 function stopBoardVideoMonitor(){
  if(boardVideoTimer){clearInterval(boardVideoTimer);boardVideoTimer=0}
  Object.keys(boardVideoUrls).forEach(function(id){try{URL.revokeObjectURL(boardVideoUrls[id])}catch(e){}});
@@ -6128,15 +6218,20 @@ function renderBoardVideoWall(){
  wall.classList.toggle('videoExpanded',!!boardVideoExpandedId);
  if(count)count.textContent=ids.length+' LIVE'+(ids.length===1?'':' CAMERAS');
  grid.innerHTML=ids.map(function(id){
-   const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&boardHasLiveFrame(board)),expanded=String(boardVideoExpandedId)===String(id);
-   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?'LOADING VIDEO':'WAITING FOR CAMERA'));
-   return '<div class="mixerVideoTile '+(expanded?'expanded':'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'"><img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden><div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'">'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div></div>'
+   const board=boardById(id),self=String(id)===String(GE_BOARD_ID),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),live=localLive||!!(board&&boardHasLiveFrame(board)),expanded=String(boardVideoExpandedId)===String(id);
+   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?(self?'LIVE':'LOADING VIDEO'):'WAITING FOR CAMERA'));
+   const media=self?'<canvas data-board-video-local-canvas="'+esc(id)+'" width="360" height="202"></canvas>':'<img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden>';
+   const fxMode=self?videoFxMode:String(board&&board.video_fx_mode||'raw'),fxAmount=self?videoFxAmount:Number(board&&board.video_fx_amount==null?60:board.video_fx_amount);
+   const fx=expanded?'<div class="videoFxBar" data-video-fx-board="'+esc(id)+'">'+['raw','hue','trail','space'].map(function(m){return '<button type="button" data-video-fx-mode="'+m+'" class="'+(fxMode===m?'on':'')+'">'+m.toUpperCase()+'</button>'}).join('')+'<label class="videoFxAmount">AMOUNT<input type="range" min="0" max="100" value="'+Math.round(fxAmount)+'" data-video-fx-amount></label></div>':'';
+   return '<div class="mixerVideoTile '+(expanded?'expanded':'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'">'+media+'<div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'" '+(live?'hidden':'')+'>'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div>'+fx+'</div>'
  }).join('');
+ paintLocalVideoPreviewV111();
  if(ids.length)startBoardVideoMonitor();else stopBoardVideoMonitor()
 }
 async function refreshBoardVideoFrame(boardId){
  if(!boardVideoSelected[boardId]||boardVideoBusy[boardId])return;
  const board=boardById(boardId);
+ if(String(boardId)===String(GE_BOARD_ID)){paintLocalVideoPreviewV111();const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;if(stateEl)stateEl.textContent='LIVE';return}
  const img=Array.from(document.querySelectorAll('[data-board-video-img]')).find(function(x){return String(x.dataset.boardVideoImg||'')===String(boardId)})||null;
  const offline=Array.from(document.querySelectorAll('[data-board-video-offline]')).find(function(x){return String(x.dataset.boardVideoOffline||'')===String(boardId)})||null;
  const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;
@@ -6567,7 +6662,13 @@ if(mixerGridEl){
  })
 }
 if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){boardVideoExpandedId='';boardVideoSelected={};saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer()};
-if($('mixerVideoGrid'))$('mixerVideoGrid').onclick=function(e){const tile=e.target&&e.target.closest&&e.target.closest('[data-board-video-tile]');if(!tile)return;const id=String(tile.dataset.boardVideoTile||'');boardVideoExpandedId=String(boardVideoExpandedId)===id?'':id;renderBoardVideoWall()};
+if($('mixerVideoGrid'))$('mixerVideoGrid').onclick=function(e){
+ const tile=e.target&&e.target.closest&&e.target.closest('[data-board-video-tile]');if(!tile)return;const id=String(tile.dataset.boardVideoTile||'');
+ const fxBtn=e.target.closest&&e.target.closest('[data-video-fx-mode]');if(fxBtn){e.stopPropagation();setBoardVideoFxV111(id,fxBtn.dataset.videoFxMode,null).catch(function(err){alert(err.message||err)});return}
+ if(e.target&&e.target.matches&&e.target.matches('[data-video-fx-amount]'))return;
+ boardVideoExpandedId=String(boardVideoExpandedId)===id?'':id;renderBoardVideoWall()
+};
+if($('mixerVideoGrid'))$('mixerVideoGrid').oninput=function(e){if(!(e.target&&e.target.matches&&e.target.matches('[data-video-fx-amount]')))return;const tile=e.target.closest('[data-board-video-tile]'),id=tile&&tile.dataset.boardVideoTile;if(!id)return;setBoardVideoFxV111(id,null,Number(e.target.value)).catch(function(err){console.warn(err)})};
 ['iphone','ipad'].forEach(function(kind){
  const ui=remoteChannelIds(kind);
  if(ui.level){
@@ -6657,7 +6758,9 @@ $('fxSamplesOpen').onclick=function(){$('samplePadModal').classList.add('show');
 $('samplePadClose').onclick=function(){$('samplePadModal').classList.remove('show')};
 $('samplePad').onclick=function(e){const b=e.target.closest('[data-sample-slot]');if(b)playDjSample(b.dataset.sampleSlot).catch(function(err){alert(err.message||err)})};
 
-$('analyticsOpen').onclick=function(){$('analyticsModal').classList.add('show');applyAnalyticsScale(0);updateAscapDue();loadAnalytics()};
+function syncGeModalFocusV111(){const open=!!document.querySelector('.modal.show');document.body.classList.toggle('geModalFocus',open)}
+document.querySelectorAll('.modal').forEach(function(m){new MutationObserver(syncGeModalFocusV111).observe(m,{attributes:true,attributeFilter:['class']})});
+$('analyticsOpen').onclick=function(){$('analyticsModal').classList.add('show');syncGeModalFocusV111();applyAnalyticsScale(0);updateAscapDue();loadAnalytics()};
 $('analyticsClose').onclick=function(){$('analyticsModal').classList.remove('show')};
 $('analyticsRefresh').onclick=function(){loadAnalytics()};
 $('analyticsRange').onchange=function(){const custom=this.value==='custom';$('analyticsCustom').classList.toggle('show',custom);if(custom)setDefaultCustomRange();else loadAnalytics()};
