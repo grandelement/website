@@ -12,7 +12,7 @@ struct ContentView: View {
                 statusCard
 
                 if controller.paired {
-                    Toggle("REMOTE READY", isOn: Binding(
+                    Toggle("CONNECTED", isOn: Binding(
                         get: { controller.remoteReady },
                         set: { value in Task { try? await controller.setRemoteReady(value) } }
                     ))
@@ -34,7 +34,7 @@ struct ContentView: View {
                     .tint(controller.onAir ? .red : .blue)
                     .controlSize(.large)
 
-                    Text("When REMOTE READY is on, the microphone audio session stays active so the paired DJ booth can control this channel while iOS allows the background audio session to continue.")
+                    Text("CONNECTED is the virtual cable. After login it turns on automatically, keeps the GE audio session ready, and prevents the iPhone from auto-locking while the app is in use. Turn it off only when you want to disconnect this device.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
