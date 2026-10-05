@@ -1701,6 +1701,64 @@ def list_dj_board_presence():
     rows.sort(key=lambda x: (0 if x.get("online") else 1, -float(x.get("last_seen", 0) or 0)))
     return rows
 
+def _public_camera_id(board_id):
+    secret = os.environ.get("DJ_PASSWORD", "").strip() or "GE-PUBLIC-CAMERA"
+    return hmac.new(secret.encode("utf-8"), str(board_id or "").encode("utf-8"), hashlib.sha256).hexdigest()[:20]
+
+def _public_camera_label(row):
+    kind = str((row or {}).get("device_kind", "") or "").strip().lower()
+    if kind == "iphone5":
+        return "iPHONE 5"
+    if kind == "iphone":
+        return "iPHONE"
+    if kind == "ipad":
+        return "iPAD"
+    if kind in {"windows", "mac", "linux", "computer", "home"}:
+        return "COMPUTER"
+    name = " ".join(str((row or {}).get("device_name", "") or "").split()).strip()
+    return name[:40] or "CAMERA"
+
+def _public_camera_rank(row):
+    kind = str((row or {}).get("device_kind", "") or "").strip().lower()
+    if kind in {"windows", "mac", "linux", "computer", "home"}:
+        return 0
+    if kind == "iphone":
+        return 1
+    if kind == "ipad":
+        return 2
+    if kind == "iphone5":
+        return 3
+    return 9
+
+def public_live_video_cameras():
+    try:
+        live_active = bool(broadcast_engine().status().get("active", False))
+    except Exception:
+        live_active = False
+    if not live_active:
+        return []
+    rows = [
+        row for row in list_dj_board_presence()
+        if row.get("online") and row.get("video_frame_live")
+    ]
+    rows.sort(key=lambda row: (_public_camera_rank(row), -float(row.get("last_seen", 0) or 0)))
+    return [{
+        "id": _public_camera_id(row.get("id")),
+        "label": _public_camera_label(row),
+        "order": _public_camera_rank(row),
+        "facing": str(row.get("camera_facing", "") or "")[:20],
+    } for row in rows]
+
+def public_live_video_board(camera_id):
+    camera_id = str(camera_id or "").strip()
+    if not camera_id:
+        return None
+    for row in list_dj_board_presence():
+        board_id = str(row.get("id", "") or "")
+        if row.get("online") and row.get("video_frame_live") and hmac.compare_digest(_public_camera_id(board_id), camera_id):
+            return board_id
+    return None
+
 def queue_dj_board_command(board_id, action, value=None):
     board_id = str(board_id or "").strip()
     action = str(action or "").strip().lower()
@@ -2549,6 +2607,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def public_json_response(self, value, status=200):
+        raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
     def read_body_json(self):
         n = int(self.headers.get("Content-Length", "0") or "0")
         if n <= 0:
@@ -2723,6 +2791,51 @@ class Handler(BaseHTTPRequestHandler):
             if not path.exists():
                 self.json_response({"ok": False, "error": "Clip expired."}, 404); return
             raw = path.read_bytes(); self.send_response(200); self.send_header("Content-Type", "audio/wav"); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw); return
+
+        if parsed.path == "/control/public-live-video":
+            try:
+                live_state = broadcast_engine().status()
+                live_active = bool(live_state.get("active", False))
+            except Exception:
+                live_active = False
+            cameras = public_live_video_cameras() if live_active else []
+            self.public_json_response({
+                "ok": True,
+                "radio_live": live_active,
+                "video_live": bool(cameras),
+                "cameras": cameras,
+            })
+            return
+
+        if parsed.path == "/control/public-live-video-frame":
+            try:
+                live_state = broadcast_engine().status()
+                live_active = bool(live_state.get("active", False))
+            except Exception:
+                live_active = False
+            if not live_active:
+                self.public_json_response({"ok": False, "error": "Live radio video is not active."}, 404)
+                return
+            camera_id = (urllib.parse.parse_qs(parsed.query).get("id") or [""])[0]
+            board_id = public_live_video_board(camera_id)
+            if not board_id:
+                self.public_json_response({"ok": False, "error": "Camera is not live."}, 404)
+                return
+            with DJ_VIDEO_FRAME_LOCK:
+                frame = DJ_VIDEO_FRAMES.get(board_id)
+                frame = dict(frame) if isinstance(frame, dict) else None
+            if not frame or time.time() - float(frame.get("time", 0) or 0) > 2.5:
+                self.public_json_response({"ok": False, "error": "Camera frame expired."}, 404)
+                return
+            raw = frame.get("data", b"")
+            self.send_response(200)
+            self.send_header("Content-Type", str(frame.get("content_type", "image/jpeg")))
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
 
         if parsed.path == "/control/board/meters":
             if not self.require_auth(): return
