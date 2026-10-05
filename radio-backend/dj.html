@@ -4841,7 +4841,7 @@ async function setLocalCameraFacingV106(facing){
  const wasLive=!!(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live');
  if(!wasLive){geBoardHeartbeat();renderDeviceChannelSheet();return true}
  if(cameraUploadTimer){clearInterval(cameraUploadTimer);cameraUploadTimer=0}
- try{cameraStream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+ try{cameraStream.getTracks().forEach(function(t){t.onended=null;t.stop()})}catch(e){}
  cameraStream=null;
  if(cameraPreviewVideo){try{cameraPreviewVideo.pause()}catch(e){}cameraPreviewVideo.srcObject=null}
  const ok=await ensureCameraOpen();geBoardHeartbeat();renderDeviceChannelSheet();return ok
