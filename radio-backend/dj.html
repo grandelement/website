@@ -3037,7 +3037,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v104</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v105</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3331,7 +3331,7 @@ try{djTrustedId=localStorage.getItem('geDjTrustedIdV1')||'';djTrustedToken=local
 let geUxSessionId='',geUxFlushTimer=0,geUxStarting=false;
 let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
 let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
-let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null;let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
+let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null,boardFastMeterTimer=0,boardFastMeterBusy=false,boardFastMeters={};let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
 const GE_UA=String(navigator.userAgent||''),GE_PLATFORM=String(navigator.platform||'');
 const GE_IOS_VERSION=(function(){const m=GE_UA.match(/OS (\d+)[_\.](\d+)(?:[_\.](\d+))?/i);return m?(m[1]+'.'+m[2]+(m[3]?'.'+m[3]:'')):''})();
 const GE_APPLE_TOUCH_DESKTOP=(/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM))&&Number(navigator.maxTouchPoints||0)>1;
@@ -4114,11 +4114,45 @@ async function handleDjBoardCommands(items){
   }catch(e){diagEvent('REMOTE DEVICE COMMAND ERROR',String(e&&e.message||e))}
  }
 }
+function applyBoardFastMeters(items){
+ if(!Array.isArray(items))return;
+ let videoChanged=false;
+ items.forEach(function(m){
+   const id=String(m&&m.board_id||'');if(!id)return;
+   const prev=boardFastMeters[id],now={mic_peak:clamp(Number(m.mic_peak||0),0,100),mic_connected:!!m.mic_connected,age:Number(m.age==null?99:m.age),video_frame_live:!!m.video_frame_live,video_frame_age:m.video_frame_age==null?null:Number(m.video_frame_age),video_level:clamp(Number(m.video_level||0),0,100)};
+   if(!prev||!!prev.video_frame_live!==!!now.video_frame_live)videoChanged=true;
+   boardFastMeters[id]=now;
+   const strip=Array.from(document.querySelectorAll('.boardMixStrip')).find(function(x){return String(x.dataset.boardMix||'')===id})||null;
+   if(strip){
+     const a=strip.querySelector('[data-board-audio-meter]'),v=strip.querySelector('[data-board-video-meter]');
+     if(a)a.style.setProperty('--meter-level',(now.mic_connected?now.mic_peak:0)+'%');
+     if(v)v.style.setProperty('--meter-level',now.video_level+'%')
+   }
+ });
+ if(geOpenBoardId){
+   const m=boardFastMeter(geOpenBoardId);
+   if(m){setMeterLevel('deviceChannelMeter',m.mic_connected?m.mic_peak:0);if($('deviceChannelMeterRead'))$('deviceChannelMeterRead').textContent=Math.round(m.mic_connected?m.mic_peak:0)+'%';setMeterLevel('deviceChannelVideoMeter',m.video_level)}
+ }
+ if(videoChanged){renderKnownDeviceMixer();renderBoardVideoWall()}
+}
+async function pushBoardFastMeter(){
+ if((!key&&!djTrustedId)||boardFastMeterBusy)return;
+ boardFastMeterBusy=true;
+ try{
+   const r=await api('/control/board/meter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,mic_peak:Number(micInputPct||0),mic_connected:geTrackLive(micStream)})});
+   if(r.ok){const d=await r.json().catch(function(){return {}});if(d&&d.ok)applyBoardFastMeters(d.items||[])}
+ }catch(e){}finally{boardFastMeterBusy=false}
+}
+function startBoardFastMeterBus(){
+ if(boardFastMeterTimer)clearInterval(boardFastMeterTimer);
+ pushBoardFastMeter();
+ boardFastMeterTimer=setInterval(pushBoardFastMeter,120)
+}
 async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
  boardHeartbeatBusy=true;
  try{
-  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_level:Number(settings.mic.level==null?100:settings.mic.level),mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),device_kind:GE_PHYSICAL_KIND,device_name:GE_BOARD_LABEL,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),media_error:String(cameraLastError||geAudioDiag.lastError||'').slice(0,240)}})});
+  const r=await api('/control/board/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,role:GE_BOARD_ROLE,label:GE_BOARD_LABEL,app_state:geBoardAppState(),channel_state:{line_connected:geTrackLive(lineStream)||!!lineMediaSource,line_air:!!lineAirOn,line_source:localLineSourceName(),line_peak:lineInputPct,mic_connected:geTrackLive(micStream),mic_air:!!micAirOn,mic_muted:!!settings.mic.mute,mic_level:Number(settings.mic.level==null?100:settings.mic.level),mic_peak:micInputPct,audio_permission:geAudioDiag.permission,audio_inputs:(geAudioDiag.inputs||[]).map(function(x){return x.name}).slice(0,12),audio_error:String(geAudioDiag.lastError||'').slice(0,240),secure_context:!!window.isSecureContext,media_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),audio_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),camera_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),ios_version:GE_IOS_VERSION,user_agent:GE_UA.slice(0,220),device_kind:GE_PHYSICAL_KIND,device_name:GE_BOARD_LABEL,line_track_state:String(lineStream&&lineStream.getAudioTracks&&lineStream.getAudioTracks()[0]&&lineStream.getAudioTracks()[0].readyState||''),mic_track_state:String(micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0]&&micStream.getAudioTracks()[0].readyState||''),video_inputs:(geAudioDiag.videoInputs||[]).map(function(x){return x.name}).slice(0,8),video_input_count:(geAudioDiag.videoInputs||[]).length,camera_permission:cameraPermission==='unknown'?((geAudioDiag.videoInputs||[]).length?'DEVICE SEEN':'UNKNOWN'):cameraPermission.toUpperCase(),video_track_state:String(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState||''),camera_error:String(cameraLastError||'').slice(0,240),media_error:''}})});
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok){
    if(status)status.dj_boards=d.boards||status.dj_boards;
@@ -4176,7 +4210,7 @@ function updateLiveDiagnostics(){
  e.textContent=local+' · '+link+' · '+server+' · '+master;
  e.classList.toggle('bad',!pm.ok||((micAirOn||liveActive)&&!b.active))
 }
-async function poll(){try{const r=await api('/control/status');if(r.ok){status=await r.json();render();if(!(status.dj_boards||[]).some(function(x){return x.id===GE_BOARD_ID&&x.online}))geBoardHeartbeat()}}catch(e){$('statusPill').textContent='OFFLINE';renderStudioStatus()}}function startPoll(){clearInterval(poller);poller=setInterval(poll,1200);poll();startBoardHeartbeat()}
+async function poll(){try{const r=await api('/control/status');if(r.ok){status=await r.json();render();if(!(status.dj_boards||[]).some(function(x){return x.id===GE_BOARD_ID&&x.online}))geBoardHeartbeat()}}catch(e){$('statusPill').textContent='OFFLINE';renderStudioStatus()}}function startPoll(){clearInterval(poller);poller=setInterval(poll,1200);poll();startBoardHeartbeat();startBoardFastMeterBus()}
 $('crossfade').addEventListener('pointerdown',function(){crossDirty=true});$('crossfade').addEventListener('input',function(){crossDirty=true;$('crossVal').textContent=Number($('crossfade').value).toFixed(1)+'s';$('crossStatus').textContent='READY TO SAVE'});async function saveCross(){if(crossSaving)return;crossSaving=true;const seconds=Number($('crossfade').value);$('crossStatus').textContent='SAVING…';try{const r=await api('/control/crossfade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seconds:seconds})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Save failed');crossDirty=false;$('crossStatus').textContent=d.vault_configured?'SAVED · VAULT PERMANENT':'SAVED · LOCAL CACHE'}catch(e){$('crossStatus').textContent=e.message||'Save failed'}finally{crossSaving=false}}$('saveCross').onclick=saveCross;$('crossfade').addEventListener('change',saveCross);
 $('reshuffleQueue').onclick=function(){reshuffleQueue()};$('queue').onclick=async function(e){const b=e.target.closest('button[data-act]'),row=e.target.closest('.qrow');if(!b||!row)return;const act=b.dataset.act,slot=row.dataset.slot;if(act==='replace'){openPicker(slot,row.querySelector('.qtitle').textContent);return}const slots=queueItems().map(function(x){return x.slot}),i=slots.indexOf(slot),j=i+(act==='up'?-1:1);if(i<0||j<0||j>=slots.length)return;const tmp=slots[i];slots[i]=slots[j];slots[j]=tmp;const rr=await api('/control/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slots:slots})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok)alert(d.error||'Queue update failed');else setTimeout(poll,250)};
 async function loadLibrary(){try{const r=await api('/control/library'),d=await r.json();library=d.items||[];renderLibrary()}catch(e){library=[]}}function renderLibrary(){const q=$('search').value.trim().toLowerCase();$('library').innerHTML=library.filter(function(x){return x.kind==='song'||x.kind==='temp_upload'}).filter(function(x){return !q||(String(x.title)+' '+String(x.album)).toLowerCase().includes(q)}).slice(0,250).map(function(x){return '<button class="track" data-path="'+esc(x.path)+'"><b>'+esc(x.picker_title||x.title)+'</b><span>'+esc(x.album||'')+'</span></button>'}).join('')}function openPicker(slot,title){targetSlot=slot;$('replaceWhich').textContent='Replacing '+title;$('picker').classList.add('show');renderLibrary()}$('closePicker').onclick=function(){$('picker').classList.remove('show')};$('search').oninput=renderLibrary;$('library').onclick=async function(e){const b=e.target.closest('.track');if(!b||!targetSlot)return;const rr=await api('/control/replace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:targetSlot,path:b.dataset.path})});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Replace failed');return}$('picker').classList.remove('show');setTimeout(poll,250)};$('upload').onchange=async function(e){const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;const rr=await api('/control/upload',{method:'POST',headers:{'Content-Type':'audio/mpeg','X-GE-File-Name':encodeURIComponent(f.name)},body:f});const d=await rr.json().catch(function(){return {}});if(!rr.ok||!d.ok){alert(d.error||'Upload failed');return}await loadLibrary()};
@@ -4768,7 +4802,6 @@ async function ensureMicOpen(){await ensureAudio();requestBoardWakeLock();if(mic
 async function openMic(){await ensureAudio();if(micStream){if(micAirOn)await stopMicOnAir();micCueOn=false;if(micCueGain)micCueGain.gain.value=0;await stopDjRecording();micStream&&micStream.getTracks().forEach(function(t){t.stop()});try{micSource&&micSource.disconnect()}catch(e){}micStream=micSource=null;setGeAudioSession('playback');$('micOpen').textContent='OPEN MIC';updateAirButtons();$('micPathStatus').textContent='MIC CLOSED · MIC LINK OFF';await reassertGeOutputRoute();renderChannelStatusBubbles();return}await ensureMicOpen();updateAirButtons();renderChannelStatusBubbles()}
 async function ensureCameraOpen(){
  requestBoardWakeLock();
- if(GE_IS_IPHONE5){cameraPermission='unsupported';return false}
  if(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live')return true;
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){cameraPermission='unsupported';cameraLastError='CAMERA API NOT AVAILABLE';return false}
  try{
@@ -4802,7 +4835,6 @@ async function setLocalCameraCaptureV102(wanted){
  geBoardHeartbeat();renderDeviceChannelSheet();return false
 }
 async function autoConnectDeviceMedia(){
- if(GE_IS_IPHONE5)return false;
  requestBoardWakeLock();
  let micOk=false,camOk=false;
  try{micOk=await ensureMicOpen()}catch(e){geAudioDiag.lastError=String(e&&e.message||e)}
@@ -4835,7 +4867,6 @@ async function postBoardMonitorChunk(floatSamples){
  finally{boardMonitorPostBusy=false}
 }
 async function startBoardMonitorUpload(){
- if(GE_IS_IPHONE5)return false;
  await ensureMicOpen();requestBoardWakeLock();
  if(boardMonitorUploadOn&&boardMonitorProcessor)return true;
  if(!ctx||!micAnalyser)return false;
@@ -4870,7 +4901,7 @@ async function uploadCameraPreviewFrame(){
   if(!cameraPreviewVideo){
    cameraPreviewVideo=document.createElement('video');
    cameraPreviewVideo.muted=true;cameraPreviewVideo.autoplay=true;cameraPreviewVideo.playsInline=true;
-   cameraPreviewVideo.setAttribute('playsinline','');cameraPreviewVideo.style.position='fixed';cameraPreviewVideo.style.left='-9999px';cameraPreviewVideo.style.width='1px';cameraPreviewVideo.style.height='1px';
+   cameraPreviewVideo.setAttribute('playsinline','');cameraPreviewVideo.style.position='fixed';cameraPreviewVideo.style.left='0';cameraPreviewVideo.style.top='0';cameraPreviewVideo.style.width='2px';cameraPreviewVideo.style.height='2px';cameraPreviewVideo.style.opacity='.01';cameraPreviewVideo.style.pointerEvents='none';cameraPreviewVideo.style.zIndex='-1';
    document.body.appendChild(cameraPreviewVideo)
   }
   if(cameraPreviewVideo.srcObject!==cameraStream){cameraPreviewVideo.srcObject=cameraStream;try{await cameraPreviewVideo.play()}catch(e){}}
@@ -4881,7 +4912,7 @@ async function uploadCameraPreviewFrame(){
   ctx2.drawImage(cameraPreviewVideo,dx,dy,dw,dh);
   cameraUploadBusy=true;
   const blob=await new Promise(function(resolve){cameraPreviewCanvas.toBlob(resolve,'image/jpeg',.55)});
-  if(blob)await api('/control/board/video-frame',{method:'POST',headers:{'Content-Type':'image/jpeg','X-GE-Board-ID':GE_BOARD_ID},body:blob});
+  if(blob){const vr=await api('/control/board/video-frame',{method:'POST',headers:{'Content-Type':'image/jpeg','X-GE-Board-ID':GE_BOARD_ID},body:blob});if(!vr.ok)throw new Error('VIDEO FRAME UPLOAD FAILED · HTTP '+vr.status);cameraLastError=''}
  }catch(e){cameraLastError=String(e&&e.message||e)}
  finally{cameraUploadBusy=false}
 }
@@ -5150,7 +5181,7 @@ async function loadLineFile(file){
  lineSourceMode='file';lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);lineMediaSource.connect(linePreamp).connect(lineEqLow).connect(lineEqMid).connect(lineEqHigh).connect(lineFilter).connect(linePhaser).connect(lineComp).connect(lineGain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
 }
 function setMeterLevel(id,pct){const e=$(id);if(!e)return;e.style.setProperty('--meter-level',clamp(Number(pct)||0,0,100)+'%')}
-function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(kind==='line')lineInputPct=pct;else micInputPct=pct;setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0);if($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&geOpenDeviceKind===GE_DEVICE_KIND)setMeterLevel('deviceChannelMeter',pct)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
+function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(kind==='line')lineInputPct=pct;else micInputPct=pct;setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0);const selfStrip=Array.from(document.querySelectorAll('.boardMixStrip')).find(function(x){return String(x.dataset.boardMix||'')===String(GE_BOARD_ID)})||null;if(selfStrip){const selfMeter=selfStrip.querySelector('[data-board-audio-meter]');if(selfMeter)selfMeter.style.setProperty('--meter-level',pct+'%')}if($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&(geOpenDeviceKind===GE_DEVICE_KIND||String(geOpenBoardId)===String(GE_BOARD_ID)))setMeterLevel('deviceChannelMeter',pct)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runFxReturnMeter(kind){const an=kind==='mic'?micFxAnalyser:lineFxAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(fxTarget===kind){setMeterLevel('fxReturnMeter',pct);setMeterLevel('mixFxReturnMeter',pct);if($('fxReturnDb'))$('fxReturnDb').textContent=db.toFixed(0)+' dB'}if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind){setMeterLevel('sendAuxMeter',pct)}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runMasterMeter(){if(!contributionAnalyser)return;const a=new Uint8Array(contributionAnalyser.fftSize);const loop=function(){contributionAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);djLevelDb=db;djLevelPct=pct;setMeterLevel('mixMasterDjMeter',pct);if($('mixMasterDjDb'))$('mixMasterDjDb').textContent=db.toFixed(0);setMeterLevel('mixMasterMeter',pct);if($('mixMasterDb'))$('mixMasterDb').textContent=db.toFixed(0);requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 
@@ -5507,8 +5538,9 @@ function knownBoardViews(){
 function boardById(boardId){
  return knownBoardRows().find(function(x){return String(x.id||'')===String(boardId||'')})||null
 }
-function boardMediaSupported(row){return !!(row&&row.media_capture_supported)}
-function boardVideoSupported(row){return boardMediaSupported(row)&&String(row&&row.device_kind||'').toLowerCase()!=='iphone5'}
+function boardAudioSupported(row){return !!(row&&(row.audio_capture_supported!=null?row.audio_capture_supported:row.media_capture_supported))}
+function boardVideoSupported(row){return !!(row&&(row.camera_capture_supported!=null?row.camera_capture_supported:row.media_capture_supported))}
+function boardMediaSupported(row){return boardAudioSupported(row)||boardVideoSupported(row)}
 function boardNeedsSetup(row){
  if(!row||!row.online||!boardMediaSupported(row))return false;
  return !row.mic_connected&&String(row.video_track_state||'').toLowerCase()!=='live'
@@ -5529,13 +5561,16 @@ function boardDisplayLabel(board){
 function renderBoardDeviceChannelSheet(board){
  if(!board)return;
  const id=String(board.id||''),self=id===String(GE_BOARD_ID),online=!!board.online;
+ const selfFast=boardFastMeters[id]||null;
  const audioConnected=self?geTrackLive(micStream):!!board.mic_connected;
- const audioPct=self?Number(micInputPct||0):Number(board.mic_peak||0);
+ const audioPct=self?Number(micInputPct||0):(selfFast&&Number(selfFast.age||0)<1.2?Number(selfFast.mic_peak||0):Number(board.mic_peak||0));
  const air=self?!!micAirOn:!!board.mic_air;
  const videoTrack=self&&cameraStream&&cameraStream.getVideoTracks?cameraStream.getVideoTracks()[0]:null;
- const videoLive=self?!!(videoTrack&&videoTrack.readyState==='live'):String(board.video_track_state||'').toLowerCase()==='live';
- const videoSeen=videoLive||Number(board.video_input_count||0)>0||String(board.camera_permission||'').toLowerCase()==='granted'||String(board.camera_permission||'').toLowerCase()==='device seen';
- const supported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board),videoSupported=self?!GE_IS_IPHONE5&&supported:boardVideoSupported(board);
+ const fast=boardFastMeters[id]||null,fastFresh=!!(fast&&Number(fast.age||0)<1.2);
+ const trackLive=self?!!(videoTrack&&videoTrack.readyState==='live'):String(board.video_track_state||'').toLowerCase()==='live';
+ const videoLive=fastFresh?!!fast.video_frame_live:!!board.video_frame_live;
+ const videoSeen=videoLive||trackLive||Number(board.video_input_count||0)>0||String(board.camera_permission||'').toLowerCase()==='granted'||String(board.camera_permission||'').toLowerCase()==='device seen';
+ const supported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardMediaSupported(board),videoSupported=self?!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia):boardVideoSupported(board);
  const monitoring=!!boardMonitorSelected[id],label=boardDisplayLabel(board);
  if($('deviceChannelTitle'))$('deviceChannelTitle').textContent=label;
  if($('deviceChannelLamp'))$('deviceChannelLamp').classList.toggle('online',online||self);
@@ -5867,32 +5902,43 @@ function geDeviceSlotEnabled(kind){
 function boardMixerRows(){
  return knownBoardViews().filter(function(v){return !!v.row.online&&v.slotRank<4&&geDeviceSlotEnabled(v.slotKind)})
 }
+function boardFastMeter(boardId){
+ const m=boardFastMeters[String(boardId||'')];return m&&Number(m.age||0)<1.2?m:null
+}
+function boardHasLiveFrame(board){
+ const m=boardFastMeter(board&&board.id);return m?!!m.video_frame_live:!!(board&&board.video_frame_live)
+}
+function boardVideoMeterLevel(board){
+ const m=boardFastMeter(board&&board.id);return m?clamp(Number(m.video_level||0),0,100):(board&&board.video_frame_live?100:0)
+}
 function boardMixerStateText(board){
  if(!board.online)return 'KNOWN · OFFLINE';
  if(!boardMediaSupported(board))return 'ONLINE · CONTROL ONLY';
- const id=String(board.id||''),monitoring=!!boardMonitorSelected[id],audio=!!board.mic_connected,video=String(board.video_track_state||'').toLowerCase()==='live';
- const err=String(board.media_error||board.audio_error||'').toLowerCase();
- if(/notallowed|denied|permission/.test(err))return 'PERMISSION NEEDED ON DEVICE';
+ const id=String(board.id||''),monitoring=!!boardMonitorSelected[id],audio=!!board.mic_connected,video=boardHasLiveFrame(board),trackLive=String(board.video_track_state||'').toLowerCase()==='live';
+ const audioErr=String(board.audio_error||'').toLowerCase(),cameraErr=String(board.camera_error||'').toLowerCase();
+ if(!audio&&/notallowed|denied|permission/.test(audioErr))return 'MIC PERMISSION NEEDED';
+ if(!video&&/notallowed|denied|permission/.test(cameraErr))return 'CAMERA PERMISSION NEEDED';
+ if(trackLive&&!video)return audio?'MIC READY · VIDEO CONNECTING':'VIDEO CONNECTING';
  if(monitoring)return 'MONITOR · '+(audio&&video?'MIC + VIDEO':(audio?'MIC':(video?'VIDEO':'READY')));
  if(board.mic_air)return 'LIVE · '+(video?'MIC + VIDEO':'MIC');
  if(audio||video)return 'READY · '+(audio&&video?'MIC + VIDEO':(audio?'MIC':'VIDEO'));
  return 'ONLINE · CONNECT DEVICE'
 }
 function updateBoardMixerStrip(strip,v){
- const b=v.row,online=!!b.online,supported=boardMediaSupported(b),videoSupported=boardVideoSupported(b),audio=!!b.mic_connected,video=String(b.video_track_state||'').toLowerCase()==='live',air=!!b.mic_air;
- const pct=Math.round(Number(b.mic_level==null?100:b.mic_level)),peak=clamp(Number(b.mic_peak||0),0,100),id=String(b.id||''),monitoring=!!boardMonitorSelected[id];
+ const b=v.row,online=!!b.online,supported=boardMediaSupported(b),videoSupported=boardVideoSupported(b),audio=!!b.mic_connected,video=boardHasLiveFrame(b),air=!!b.mic_air;
+ const id=String(b.id||''),fm=boardFastMeter(id),pct=Math.round(Number(b.mic_level==null?100:b.mic_level)),peak=clamp(Number(fm?fm.mic_peak:b.mic_peak||0),0,100),monitoring=!!boardMonitorSelected[id];
  strip.classList.toggle('deviceOnline',online);strip.classList.toggle('deviceAir',air&&!monitoring);
  const title=strip.querySelector('h3');if(title)title.innerHTML='<i class="stripStatusDot '+(online?'connected ':'')+((air&&!monitoring)?'air ':'')+'"></i>'+esc(v.label);
  const open=strip.querySelector('[data-board-open]');if(open){open.textContent=boardMixerStateText(b);open.dataset.boardOpen=id}
  const audioFill=strip.querySelector('[data-board-audio-meter]'),videoFill=strip.querySelector('[data-board-video-meter]');
  if(audioFill)audioFill.style.setProperty('--meter-level',(audio?peak:0)+'%');
- if(videoFill){videoFill.style.setProperty('--meter-level',(video?100:(Number(b.video_input_count||0)>0?35:0))+'%');if(videoFill.closest('.boardMeterRow'))videoFill.closest('.boardMeterRow').hidden=!videoSupported}
+ if(videoFill){videoFill.style.setProperty('--meter-level',boardVideoMeterLevel(b)+'%');if(videoFill.closest('.boardMeterRow'))videoFill.closest('.boardMeterRow').hidden=!videoSupported}
  const level=strip.querySelector('[data-board-level]'),read=strip.querySelector('[data-board-level-read]');
  if(level){level.disabled=!online||!supported;if(document.activeElement!==level&&!document.body.classList.contains('geFaderDragging'))level.value=String(pct)}
  if(read&&document.activeElement!==level)read.textContent=pct+'%';
  const micBtn=strip.querySelector('[data-board-action="mic"]'),videoBtn=strip.querySelector('[data-board-action="video"]'),monitorBtn=strip.querySelector('[data-board-action="monitor"]');
  if(micBtn){micBtn.disabled=!online||!supported;micBtn.textContent=audio?'MIC ON':'MIC OFF';micBtn.classList.toggle('on',audio)}
- if(videoBtn){videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=video?'VIDEO ON':'VIDEO OFF';videoBtn.classList.toggle('on',video)}
+ if(videoBtn){const trackOn=String(b.video_track_state||'').toLowerCase()==='live';videoBtn.hidden=!videoSupported;videoBtn.disabled=!online||!videoSupported;videoBtn.textContent=video?'VIDEO LIVE':(trackOn?'VIDEO WAIT':'VIDEO OFF');videoBtn.classList.toggle('on',video||trackOn)}
  if(monitorBtn){
    monitorBtn.disabled=!online||!supported;
    monitorBtn.textContent=monitoring?'MONITOR ✓':(air?'LIVE':'MONITOR');
@@ -5929,7 +5975,7 @@ function renderKnownDeviceMixer(){
  requestAnimationFrame(syncTouchFaders)
 }
 function saveBoardVideoSelection(){try{localStorage.setItem(BOARD_VIDEO_KEY,JSON.stringify(boardVideoSelected))}catch(e){}}
-function selectedBoardVideoIds(){return Object.keys(boardVideoSelected).filter(function(id){return !!boardVideoSelected[id]})}
+function selectedBoardVideoIds(){return Object.keys(boardVideoSelected).filter(function(id){const b=boardById(id);return !!boardVideoSelected[id]&&!!b&&!!b.online&&boardHasLiveFrame(b)})}
 function stopBoardVideoMonitor(){
  if(boardVideoTimer){clearInterval(boardVideoTimer);boardVideoTimer=0}
  Object.keys(boardVideoUrls).forEach(function(id){try{URL.revokeObjectURL(boardVideoUrls[id])}catch(e){}});
@@ -5941,7 +5987,7 @@ function renderBoardVideoWall(){
  wall.hidden=!ids.length;
  if(count)count.textContent=ids.length+' CAMERA'+(ids.length===1?'':'S');
  grid.innerHTML=ids.map(function(id){
-   const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&String(board.video_track_state||'').toLowerCase()==='live');
+   const board=boardById(id),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),live=!!(board&&boardHasLiveFrame(board));
    const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?'CAMERA LIVE':'WAITING FOR CAMERA'));
    return '<div class="mixerVideoTile" data-board-video-tile="'+esc(id)+'"><img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden><div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'">'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div></div>'
  }).join('');
@@ -5955,7 +6001,7 @@ async function refreshBoardVideoFrame(boardId){
  const stateEl=Array.from(document.querySelectorAll('[data-board-video-state]')).find(function(x){return String(x.dataset.boardVideoState||'')===String(boardId)})||null;
  if(!img)return;
  if(!board||!board.online){img.hidden=true;if(offline){offline.hidden=false;offline.textContent='DEVICE OFFLINE'}if(stateEl)stateEl.textContent='DEVICE OFFLINE';return}
- if(String(board.video_track_state||'').toLowerCase()!=='live'){img.hidden=true;if(offline){offline.hidden=false;offline.textContent='WAITING FOR CAMERA'}if(stateEl)stateEl.textContent='WAITING FOR CAMERA';return}
+ if(!boardHasLiveFrame(board)){img.hidden=true;if(offline){offline.hidden=false;offline.textContent='WAITING FOR VIDEO FRAME'}if(stateEl)stateEl.textContent='WAITING FOR VIDEO FRAME';return}
  boardVideoBusy[boardId]=true;
  try{
    const r=await api('/control/board/video-frame',{headers:{'X-GE-Board-ID':String(boardId)}});
