@@ -3127,7 +3127,7 @@ html.geDayMode .mixerVideoTile .mixerVideoOffline{background:#dfe7ec!important;c
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v108</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v109</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -3421,7 +3421,7 @@ try{djTrustedId=localStorage.getItem('geDjTrustedIdV1')||'';djTrustedToken=local
 let geUxSessionId='',geUxFlushTimer=0,geUxStarting=false;
 let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
 let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
-let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null,boardFastMeterTimer=0,boardFastMeterBusy=false,boardFastMeters={};let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
+let boardHeartbeatTimer=0,boardHeartbeatBusy=false,boardWakeLock=null,boardWakeKeepAliveTimer=0,boardFastMeterTimer=0,boardFastMeterBusy=false,boardFastMeters={};let djControlRevisionSeen=0,djControlPushTimer=0;let djControlPending={};
 const GE_UA=String(navigator.userAgent||''),GE_PLATFORM=String(navigator.platform||'');
 const GE_IOS_VERSION=(function(){const m=GE_UA.match(/OS (\d+)[_\.](\d+)(?:[_\.](\d+))?/i);return m?(m[1]+'.'+m[2]+(m[3]?'.'+m[3]:'')):''})();
 const GE_APPLE_TOUCH_DESKTOP=(/Macintosh|MacIntel/i.test(GE_UA+' '+GE_PLATFORM))&&Number(navigator.maxTouchPoints||0)>1;
@@ -4255,7 +4255,12 @@ async function geBoardHeartbeat(){
 function startBoardHeartbeat(){
  clearInterval(boardHeartbeatTimer);
  geBoardHeartbeat();
- boardHeartbeatTimer=setInterval(geBoardHeartbeat,1000)
+ boardHeartbeatTimer=setInterval(geBoardHeartbeat,1000);
+ if(boardWakeKeepAliveTimer)clearInterval(boardWakeKeepAliveTimer);
+ requestBoardWakeLock();
+ boardWakeKeepAliveTimer=setInterval(function(){
+   if((key||djTrustedId)&&document.visibilityState==='visible')requestBoardWakeLock()
+ },10000)
 }
 async function requestBoardWakeLock(){
  try{
@@ -6451,7 +6456,7 @@ if(GE_IS_IPAD||GE_IS_IPHONE){
 }
 document.addEventListener('visibilitychange',function(){
  geBoardHeartbeat();
- if(document.visibilityState==='visible'&&(micStream||cameraStream||boardMonitorUploadOn))requestBoardWakeLock()
+ if(document.visibilityState==='visible'&&(key||djTrustedId))requestBoardWakeLock()
 });
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
