@@ -86,6 +86,21 @@ body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-righ
   background:#000;
   transition:opacity .2s ease;
 }
+#liveCameraLayer{display:none;position:fixed;inset:0;z-index:0;background:#000;overflow:hidden;touch-action:pan-y}
+body.ge-live-video #liveCameraLayer{display:block}
+body.ge-live-video #bgImage{opacity:0!important}
+#liveCameraSingle,#liveCameraGrid{position:absolute;inset:0}
+#liveCameraSingle img{width:100%;height:100%;object-fit:cover;display:block}
+#liveCameraGrid{display:none;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:50%;gap:2px;background:#000}
+#liveCameraGrid.show{display:grid}
+#liveCameraGrid .liveCameraCell{position:relative;overflow:hidden;background:#03070a;min-width:0;min-height:0}
+#liveCameraGrid img{width:100%;height:100%;object-fit:cover;display:block}
+#liveCameraLabel,#liveCameraHint,.liveCameraCell span{position:absolute;z-index:2;color:#fff;background:rgba(0,0,0,.42);border:1px solid rgba(170,225,255,.20);backdrop-filter:blur(7px);text-shadow:0 1px 5px #000}
+#liveCameraLabel{left:max(10px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));padding:5px 9px;border-radius:999px;font-size:11px;font-weight:850;letter-spacing:.08em}
+#liveCameraHint{right:max(10px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));padding:5px 8px;border-radius:999px;font-size:9px;letter-spacing:.08em;opacity:.72}
+.liveCameraCell span{left:6px;bottom:6px;padding:3px 6px;border-radius:999px;font-size:9px;font-weight:800}
+#liveCameraOffline{position:absolute;inset:0;display:grid;place-items:center;color:#b9c8d4;font-size:12px;font-weight:800;letter-spacing:.08em}
+body:not(.ge-live-video) #liveCameraLayer{pointer-events:none}
 #shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.12),rgba(0,0,0,.30))}
 #hudTap{position:fixed;inset:0;z-index:9998;display:none;background:transparent}
 body.hud-hidden #hudTap{display:block}
@@ -953,6 +968,15 @@ body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;point
 </div>
 
 <img id="bgImage" alt="" aria-hidden="true">
+<div id="liveCameraLayer" aria-hidden="true">
+  <div id="liveCameraSingle">
+    <img id="liveCameraMain" alt="Live Grand Element camera">
+    <div id="liveCameraOffline">LIVE CAMERA CONNECTING</div>
+    <div id="liveCameraLabel"></div>
+    <div id="liveCameraHint">SWIPE CAMERA · DOUBLE TAP ALL</div>
+  </div>
+  <div id="liveCameraGrid"></div>
+</div>
 <div id="shade"></div>
 <div id="hudTap" title="Tap to show controls"></div>
 <div id="geFloatingSun" aria-hidden="true"><img id="geFloatingSunImg" alt=""></div>
@@ -1230,6 +1254,8 @@ const CONFIG = Object.freeze({
   // Example only: https://radio.example.com/listen/grand_element/radio.mp3
   LIVE_STREAM_URL: 'https://radio.grandelement.blitz.cloud/stream.mp3',
   LIVE_STREAM_TITLE: 'Grand Element Radio',
+  LIVE_VIDEO_INDEX_URL: 'https://radio.grandelement.blitz.cloud/control/public-live-video',
+  LIVE_VIDEO_FRAME_URL: 'https://radio.grandelement.blitz.cloud/control/public-live-video-frame',
   LIVE_SHARE_PARAM: 'radio',
   BACKGROUND_FOCAL: {
     // This creates real movement even when cover has no vertical crop.
@@ -1596,6 +1622,168 @@ const state = {
   upNext:[]
 
 };
+
+/* GE RADIO live-camera background.
+   This controller is intentionally hard-gated by state.live. PLAYER mode never
+   consumes or displays the back-room camera feed. */
+(function createLiveVideoController(){
+  const layer=$('liveCameraLayer'),single=$('liveCameraSingle'),main=$('liveCameraMain'),label=$('liveCameraLabel'),offline=$('liveCameraOffline'),grid=$('liveCameraGrid');
+  if(!layer||!single||!main||!grid)return;
+  const liveVideo={
+    active:false,
+    grid:false,
+    cameras:[],
+    selectedId:'',
+    pollTimer:0,
+    frameTimer:0,
+    mainBusy:false,
+    gridBusy:{},
+    gridCursor:0,
+    signature:'',
+    touchX:0,
+    touchY:0,
+    touchAt:0,
+    lastTapAt:0
+  };
+  function frameURL(id){
+    const u=new URL(CONFIG.LIVE_VIDEO_FRAME_URL,location.href);
+    u.searchParams.set('id',id);
+    u.searchParams.set('_ge_frame',String(Date.now()));
+    return u.href;
+  }
+  function currentCamera(){
+    if(!liveVideo.cameras.length)return null;
+    let c=liveVideo.cameras.find(x=>x.id===liveVideo.selectedId);
+    if(!c){c=liveVideo.cameras[0];liveVideo.selectedId=c.id}
+    return c;
+  }
+  function setActive(on){
+    on=!!on&&!!state.live;
+    liveVideo.active=on;
+    document.body.classList.toggle('ge-live-video',on);
+    layer.setAttribute('aria-hidden',on?'false':'true');
+    if(!on){
+      liveVideo.grid=false;
+      grid.classList.remove('show');
+      single.style.display='';
+      liveVideo.mainBusy=false;
+      liveVideo.gridBusy={};
+      main.removeAttribute('src');
+      main.style.visibility='hidden';
+      offline.style.display='grid';
+      label.textContent='';
+    }
+  }
+  function buildGrid(){
+    const sig=liveVideo.cameras.map(c=>c.id+':'+c.label).join('|');
+    if(sig===liveVideo.signature)return;
+    liveVideo.signature=sig;
+    grid.innerHTML=liveVideo.cameras.map(c=>'<div class="liveCameraCell" data-live-camera="'+String(c.id).replace(/"/g,'&quot;')+'"><img alt="'+String(c.label||'LIVE CAMERA').replace(/"/g,'&quot;')+'" data-live-camera-img="'+String(c.id).replace(/"/g,'&quot;')+'"><span>'+String(c.label||'CAMERA').replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]))+'</span></div>').join('');
+    liveVideo.gridBusy={};
+  }
+  function reflect(){
+    const c=currentCamera();
+    if(!liveVideo.active||!c)return;
+    buildGrid();
+    single.style.display=liveVideo.grid?'none':'block';
+    grid.classList.toggle('show',liveVideo.grid);
+    label.textContent=(c.label||'LIVE CAMERA')+(liveVideo.cameras.length>1?' · '+(liveVideo.cameras.findIndex(x=>x.id===c.id)+1)+'/'+liveVideo.cameras.length:'');
+  }
+  async function poll(){
+    if(!state.live){
+      setActive(false);
+      return;
+    }
+    try{
+      const r=await fetch(CONFIG.LIVE_VIDEO_INDEX_URL,{cache:'no-store',mode:'cors'});
+      if(!r.ok)throw new Error('camera index');
+      const d=await r.json();
+      const cams=Array.isArray(d&&d.cameras)?d.cameras:[];
+      if(!d||!d.radio_live||!d.video_live||!cams.length){
+        liveVideo.cameras=[];
+        liveVideo.signature='';
+        setActive(false);
+        return;
+      }
+      liveVideo.cameras=cams;
+      if(!cams.some(c=>c.id===liveVideo.selectedId))liveVideo.selectedId=cams[0].id;
+      setActive(true);
+      reflect();
+    }catch(_e){
+      liveVideo.cameras=[];
+      liveVideo.signature='';
+      setActive(false);
+    }
+  }
+  function refreshMain(){
+    if(!liveVideo.active||liveVideo.grid||liveVideo.mainBusy)return;
+    const c=currentCamera();if(!c)return;
+    liveVideo.mainBusy=true;
+    const url=frameURL(c.id);
+    const done=()=>{liveVideo.mainBusy=false};
+    main.onload=()=>{main.style.visibility='visible';offline.style.display='none';done()};
+    main.onerror=()=>{offline.style.display='grid';done()};
+    main.src=url;
+  }
+  function refreshOneGrid(){
+    if(!liveVideo.active||!liveVideo.grid||!liveVideo.cameras.length)return;
+    const c=liveVideo.cameras[liveVideo.gridCursor%liveVideo.cameras.length];liveVideo.gridCursor++;
+    if(!c||liveVideo.gridBusy[c.id])return;
+    const img=grid.querySelector('[data-live-camera-img="'+CSS.escape(c.id)+'"]');if(!img)return;
+    liveVideo.gridBusy[c.id]=true;
+    const done=()=>{liveVideo.gridBusy[c.id]=false};
+    img.onload=done;img.onerror=done;img.src=frameURL(c.id);
+  }
+  function refreshFrames(){
+    if(!liveVideo.active)return;
+    if(liveVideo.grid)refreshOneGrid();else refreshMain();
+  }
+  function selectDelta(delta){
+    if(!liveVideo.active||liveVideo.cameras.length<2)return;
+    const current=currentCamera(),i=Math.max(0,liveVideo.cameras.findIndex(c=>c.id===current.id));
+    const next=liveVideo.cameras[(i+delta+liveVideo.cameras.length)%liveVideo.cameras.length];
+    liveVideo.selectedId=next.id;
+    liveVideo.mainBusy=false;
+    reflect();
+    refreshMain();
+  }
+  function toggleGrid(){
+    if(!liveVideo.active||liveVideo.cameras.length<2)return;
+    liveVideo.grid=!liveVideo.grid;
+    reflect();
+    refreshFrames();
+  }
+  function start(){
+    if(liveVideo.pollTimer)clearInterval(liveVideo.pollTimer);
+    if(liveVideo.frameTimer)clearInterval(liveVideo.frameTimer);
+    poll();
+    liveVideo.pollTimer=setInterval(poll,700);
+    liveVideo.frameTimer=setInterval(refreshFrames,110);
+  }
+  function stop(){
+    if(liveVideo.pollTimer){clearInterval(liveVideo.pollTimer);liveVideo.pollTimer=0}
+    if(liveVideo.frameTimer){clearInterval(liveVideo.frameTimer);liveVideo.frameTimer=0}
+    liveVideo.cameras=[];liveVideo.signature='';setActive(false);
+  }
+  function interactiveTarget(t){
+    return !!(t&&t.closest&&t.closest('button,a,input,select,textarea,audio,[role="button"],#trackList,#trackBackdrop'));
+  }
+  document.addEventListener('touchstart',e=>{
+    if(!liveVideo.active||interactiveTarget(e.target)||!e.touches||e.touches.length!==1)return;
+    const t=e.touches[0];liveVideo.touchX=t.clientX;liveVideo.touchY=t.clientY;liveVideo.touchAt=Date.now();
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!liveVideo.active||interactiveTarget(e.target)||!e.changedTouches||e.changedTouches.length!==1)return;
+    const t=e.changedTouches[0],dx=t.clientX-liveVideo.touchX,dy=t.clientY-liveVideo.touchY,elapsed=Date.now()-liveVideo.touchAt;
+    if(elapsed<700&&Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25){selectDelta(dx<0?1:-1);liveVideo.lastTapAt=0;return}
+    if(elapsed<330&&Math.abs(dx)<18&&Math.abs(dy)<18){
+      const now=Date.now();
+      if(now-liveVideo.lastTapAt<330){liveVideo.lastTapAt=0;toggleGrid()}else liveVideo.lastTapAt=now;
+    }
+  },{passive:true});
+  document.addEventListener('dblclick',e=>{if(liveVideo.active&&!interactiveTarget(e.target))toggleGrid()});
+  window.GELiveVideo={start,stop,poll,next:()=>selectDelta(1),previous:()=>selectDelta(-1),toggleGrid};
+})();
 
 // ---------------------------------------------------------------
 // RADIO LOUDNESS LOOK-AHEAD
@@ -2265,6 +2453,7 @@ async function enterLiveMode(){
     state.livePreparing=false;
     state.live=true;
     syncModeButtons();
+    window.GELiveVideo?.start?.();
     setLiveStatus('RADIO • connected to the Grand Element station',true);void window.GELiveMetadata?.poll?.();
     setStatus('Grand Element Radio');
   }catch(error){
@@ -2274,6 +2463,7 @@ async function enterLiveMode(){
     // than silently falling back to the local music player.
     state.live=true;
     state.livePreparing=false;
+    window.GELiveVideo?.start?.();
     liveState.autoplayBlocked=true;
     liveState.hasPlayed=false;
     liveState.needsFreshEdge=false;
@@ -2288,6 +2478,7 @@ function exitLiveMode(message='RADIO ended.'){
   clearLiveReconnect();
   state.live=false;
   state.livePreparing=false;
+  window.GELiveVideo?.stop?.();
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
   liveState.autoplayBlocked=false;
