@@ -3682,6 +3682,283 @@ html.geFormatPhone #mixerSheet #effectsSheet .fxControlGrid .bigSlider:not([data
   min-height:84px!important;
   max-height:84px!important
 }
+
+
+/* V117 Axia-inspired responsive console layout. */
+/* Keep the GE engine and controls; reorganize the mixer around a broadcast-console workflow:
+   portrait = VIDEO TOP / FADERS CENTER / DRAWERS BOTTOM
+   landscape = FADERS LEFT / VIDEO TOP-RIGHT / DRAWERS BOTTOM-RIGHT. */
+
+/* Broadcast strips stay narrow, tall and readable. */
+#mixerSheet .mixerGrid{
+  align-items:stretch!important;
+  min-height:0!important;
+}
+#mixerSheet .mixStrip{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+}
+#mixerSheet .mixStrip input[type=range].vf{
+  flex:1 1 auto!important;
+  min-height:120px!important;
+  max-height:none!important;
+}
+#mixerSheet .mixStrip .mixBtns{
+  margin-top:auto!important;
+}
+#mixerSheet .mixerVideoWall{
+  min-width:0!important;
+}
+#mixerSheet .mixerVideoTile{
+  background:#000!important;
+}
+
+/* PORTRAIT — cameras live across the top, console strips below,
+   CHANNELS and FX become bottom drawers instead of covering the mixer. */
+html.geFormatPhone.geFormatPortrait #mixerSheet .sheetIn,
+html.geFormatTablet.geFormatPortrait #mixerSheet .sheetIn{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  gap:4px!important;
+  overflow:hidden!important;
+  position:relative!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerHeader,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerHeader{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-width:0!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerVideoWall,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerVideoWall{
+  grid-column:1!important;
+  grid-row:2!important;
+  margin:0!important;
+  max-height:min(29vh,250px)!important;
+  overflow:hidden!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerVideoGrid,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerVideoGrid{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  width:100%!important;
+  height:min(23vh,205px)!important;
+  gap:5px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerVideoTile,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerVideoTile{
+  flex:0 0 min(58vw,330px)!important;
+  width:min(58vw,330px)!important;
+  height:100%!important;
+  min-width:min(58vw,330px)!important;
+  aspect-ratio:16/9!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerVideoWall:not(.videoExpanded) .mixerVideoGrid,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerVideoWall:not(.videoExpanded) .mixerVideoGrid{
+  height:min(18vh,155px)!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerVideoWall:not(.videoExpanded) .mixerVideoTile,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerVideoWall:not(.videoExpanded) .mixerVideoTile{
+  flex-basis:min(46vw,250px)!important;
+  width:min(46vw,250px)!important;
+  min-width:min(46vw,250px)!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerGrid,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerGrid{
+  grid-column:1!important;
+  grid-row:3!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:2px 0 max(4px,env(safe-area-inset-bottom))!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixStrip input[type=range].vf{
+  min-height:150px!important;
+}
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixStrip input[type=range].vf{
+  min-height:210px!important;
+}
+
+/* Bottom CHANNELS drawer. */
+html.geFormatPhone.geFormatPortrait #mixerSheet .mixerChannelPicker.show,
+html.geFormatTablet.geFormatPortrait #mixerSheet .mixerChannelPicker.show{
+  display:grid!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:auto!important;
+  bottom:0!important;
+  z-index:115!important;
+  width:100%!important;
+  max-height:min(48vh,430px)!important;
+  overflow:auto!important;
+  margin:0!important;
+  border-radius:13px 13px 0 0!important;
+  box-shadow:0 -16px 38px rgba(0,0,0,.62)!important;
+}
+
+/* Bottom FX drawer. It intentionally leaves the video/mixer visible above it. */
+html.geFormatPhone.geFormatPortrait #mixerSheet #effectsSheet.show,
+html.geFormatTablet.geFormatPortrait #mixerSheet #effectsSheet.show{
+  display:flex!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:auto!important;
+  bottom:0!important;
+  inset:auto 0 0 0!important;
+  width:100%!important;
+  height:min(48vh,440px)!important;
+  max-height:min(48vh,440px)!important;
+  border-radius:14px 14px 0 0!important;
+  transform:none!important;
+  overflow:auto!important;
+  z-index:120!important;
+  box-shadow:0 -18px 42px rgba(0,0,0,.68)!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet.fxFull .mixerGrid,
+html.geFormatTablet.geFormatPortrait #mixerSheet.fxFull .mixerGrid{
+  display:grid!important;
+}
+html.geFormatPhone.geFormatPortrait #mixerSheet.fxFull .mixerVideoWall,
+html.geFormatTablet.geFormatPortrait #mixerSheet.fxFull .mixerVideoWall{
+  display:block!important;
+}
+
+/* LANDSCAPE — true console-left / monitor-right arrangement. */
+html.geFormatPhone.geFormatLandscape #mixerSheet .sheetIn,
+html.geFormatTablet.geFormatLandscape #mixerSheet .sheetIn{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(250px,34vw,430px)!important;
+  grid-template-rows:auto minmax(126px,42%) minmax(0,1fr)!important;
+  gap:5px!important;
+  overflow:hidden!important;
+  position:relative!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerHeader,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerHeader{
+  grid-column:1 / 3!important;
+  grid-row:1!important;
+  min-width:0!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerGrid,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerGrid{
+  grid-column:1!important;
+  grid-row:2 / 4!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:2px 3px 3px 0!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerGrid{
+  grid-template-columns:repeat(3,minmax(108px,1fr))!important;
+}
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerGrid{
+  grid-template-columns:repeat(4,minmax(118px,1fr))!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixStrip input[type=range].vf,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixStrip input[type=range].vf{
+  min-height:150px!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerVideoWall,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerVideoWall{
+  grid-column:2!important;
+  grid-row:2!important;
+  align-self:stretch!important;
+  width:100%!important;
+  max-width:100%!important;
+  max-height:none!important;
+  min-height:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerVideoGrid,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerVideoGrid{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-auto-rows:minmax(0,1fr)!important;
+  width:100%!important;
+  height:calc(100% - 24px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  gap:4px!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerVideoTile,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerVideoTile{
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:96px!important;
+  aspect-ratio:16/9!important;
+}
+
+/* Right-side drawers sit under the video monitor. */
+html.geFormatPhone.geFormatLandscape #mixerSheet .mixerChannelPicker.show,
+html.geFormatTablet.geFormatLandscape #mixerSheet .mixerChannelPicker.show{
+  display:grid!important;
+  position:relative!important;
+  grid-column:2!important;
+  grid-row:3!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  width:100%!important;
+  height:100%!important;
+  max-height:none!important;
+  overflow:auto!important;
+  margin:0!important;
+  z-index:90!important;
+  border-radius:9px!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet #effectsSheet.show,
+html.geFormatTablet.geFormatLandscape #mixerSheet #effectsSheet.show{
+  display:flex!important;
+  position:relative!important;
+  grid-column:2!important;
+  grid-row:3!important;
+  inset:auto!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  width:100%!important;
+  height:100%!important;
+  max-height:none!important;
+  min-height:0!important;
+  border-radius:9px!important;
+  transform:none!important;
+  overflow:auto!important;
+  z-index:100!important;
+  box-shadow:none!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet.fxFull .mixerGrid,
+html.geFormatTablet.geFormatLandscape #mixerSheet.fxFull .mixerGrid{
+  display:grid!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet.fxFull .mixerVideoWall,
+html.geFormatTablet.geFormatLandscape #mixerSheet.fxFull .mixerVideoWall{
+  display:block!important;
+}
+
+/* Right rail is deliberately compact in landscape so the faders keep most of the screen. */
+html.geFormatPhone.geFormatLandscape #mixerSheet #effectsSheet .fxDockHead,
+html.geFormatTablet.geFormatLandscape #mixerSheet #effectsSheet .fxDockHead{
+  padding:3px!important;
+}
+html.geFormatPhone.geFormatLandscape #mixerSheet #effectsSheet .fxLandscapeBody,
+html.geFormatTablet.geFormatLandscape #mixerSheet #effectsSheet .fxLandscapeBody{
+  overflow:auto!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
@@ -3692,7 +3969,7 @@ html.geFormatPhone #mixerSheet #effectsSheet .fxControlGrid .bigSlider:not([data
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v116</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v117</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
