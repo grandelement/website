@@ -1231,11 +1231,6 @@ async function adminOwnerUxSummary(env, url) {
     if (row.count >= 1) signals.push({ kind: "error", ...row, note: "The website reported a JavaScript error while owner UX mode was active." });
   }
 
-  const totalListenedSeconds = music.reduce((sum, row) => sum + Number(row.total_listened_seconds || 0), 0);
-  const identifiedFans = fans.filter((row) => row.identified).length;
-  const actionEvents = ["button_click","control_change","form_submit","internal_link","external_link"]
-    .reduce((sum, name) => sum + Number(eventCounts.get(name) || 0), 0);
-
   return {
     ok: true,
     days,
@@ -1632,6 +1627,11 @@ async function adminAnalytics(env, url) {
     average_listened_seconds: t.performances ? Number((t.total_listened_seconds / t.performances).toFixed(2)) : 0,
     average_completion_pct: t.completion_samples ? Number((t.completion_total / t.completion_samples).toFixed(2)) : null,
   })).sort((a, b) => b.total_listened_seconds - a.total_listened_seconds || b.performances - a.performances);
+
+  const totalListenedSeconds = music.reduce((sum, row) => sum + Number(row.total_listened_seconds || 0), 0);
+  const identifiedFans = fans.filter((row) => row.identified).length;
+  const actionEvents = ["button_click","control_change","form_submit","internal_link","external_link"]
+    .reduce((sum, name) => sum + Number(eventCounts.get(name) || 0), 0);
 
   const stationPerformanceEvents = items
     .filter((row) => row.event_type === "station_performance")
