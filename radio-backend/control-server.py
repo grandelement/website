@@ -2854,8 +2854,8 @@ class Handler(BaseHTTPRequestHandler):
                 frame = frames.get(board_id, {})
                 frame_time = float(frame.get("time", 0) or 0)
                 frame_age = max(0.0, now - frame_time) if frame_time else None
-                frame_live = bool(frame_time and frame_age is not None and frame_age < 1.2)
-                video_level = 100.0 if frame_live and frame_age < 0.5 else (65.0 if frame_live else 0.0)
+                frame_live = bool(frame_time and frame_age is not None and frame_age < 5.5)
+                video_level = 100.0 if frame_live and frame_age < 1.0 else (70.0 if frame_live and frame_age < 3.0 else (40.0 if frame_live else 0.0))
                 items.append({
                     "board_id": board_id,
                     "mic_peak": clamp_number(meter.get("mic_peak"), 0.0, 100.0, 0.0) if age is not None and age < 1.2 else 0.0,
@@ -3286,8 +3286,8 @@ class Handler(BaseHTTPRequestHandler):
                     frame = frames.get(meter_id, {})
                     frame_time = float(frame.get("time", 0) or 0)
                     frame_age = max(0.0, now - frame_time) if frame_time else None
-                    frame_live = bool(frame_time and frame_age is not None and frame_age < 1.2)
-                    video_level = 100.0 if frame_live and frame_age < 0.5 else (65.0 if frame_live else 0.0)
+                    frame_live = bool(frame_time and frame_age is not None and frame_age < 5.5)
+                    video_level = 100.0 if frame_live and frame_age < 1.0 else (70.0 if frame_live and frame_age < 3.0 else (40.0 if frame_live else 0.0))
                     items.append({
                         "board_id": meter_id,
                         "mic_peak": clamp_number(meter.get("mic_peak"), 0.0, 100.0, 0.0) if age is not None and age < 1.2 else 0.0,
