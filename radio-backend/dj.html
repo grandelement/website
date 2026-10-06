@@ -6491,10 +6491,11 @@ function renderBoardVideoWall(){
  wall.hidden=!ids.length;
  if(boardVideoExpandedId&&ids.indexOf(String(boardVideoExpandedId))<0)boardVideoExpandedId='';
  wall.classList.toggle('videoExpanded',!!boardVideoExpandedId);
- if(count)count.textContent=ids.length+' LIVE'+(ids.length===1?'':' CAMERAS');
+ if(count)count.textContent=ids.length+' CAMERA'+(ids.length===1?'':'S')+' SELECTED';
  grid.innerHTML=ids.map(function(id){
    const board=boardById(id),self=String(id)===String(GE_BOARD_ID),label=board?boardDisplayLabel(board):'KNOWN DEVICE',online=!!(board&&board.online),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),live=localLive||!!(board&&boardHasLiveFrame(board)),expanded=String(boardVideoExpandedId)===String(id);
-   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?(self?'LIVE':'LOADING VIDEO'):'WAITING FOR CAMERA'));
+   const denied=String(board&&board.camera_permission||'').toLowerCase()==='denied';
+   const state=!board?'DEVICE NOT FOUND':(!online?'DEVICE OFFLINE':(live?(self?'LIVE':'LOADING VIDEO'):(denied?'CAMERA PERMISSION NEEDED':'STARTING CAMERA…')));
    const fxMode=self?videoFxMode:String(board&&board.video_fx_mode||'raw'),fxAmount=self?videoFxAmount:Number(board&&board.video_fx_amount==null?60:board.video_fx_amount);
    const media=self?'<video data-board-video-local="'+esc(id)+'" autoplay muted playsinline></video><canvas data-board-video-local-canvas="'+esc(id)+'" width="360" height="202"></canvas>':'<img data-board-video-img="'+esc(id)+'" alt="'+esc(label)+' camera monitor" hidden>';
    const fx=expanded?'<div class="videoFxBar" data-video-fx-board="'+esc(id)+'">'+['raw','hue','trail','space'].map(function(m){return '<button type="button" data-video-fx-mode="'+m+'" class="'+(fxMode===m?'on':'')+'">'+m.toUpperCase()+'</button>'}).join('')+'<label class="videoFxAmount">AMOUNT<input type="range" min="0" max="100" value="'+Math.round(fxAmount)+'" data-video-fx-amount></label></div>':'';
@@ -6527,8 +6528,8 @@ async function refreshBoardVideoFrame(boardId){
 }
 function refreshBoardVideoWall(){
  selectedBoardVideoIds().forEach(function(id){
-   const board=boardById(id),self=String(id)===String(GE_BOARD_ID),trackLive=self?!!(cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'):String(board&&board.video_track_state||'').toLowerCase()==='live';
-   if(board&&board.online&&!self&&!trackLive&&!boardHasLiveFrame(board)){
+   const board=boardById(id),self=String(id)===String(GE_BOARD_ID),denied=String(board&&board.camera_permission||'').toLowerCase()==='denied';
+   if(board&&board.online&&!self&&!denied&&!boardHasLiveFrame(board)){
      const now=Date.now();
      if(now-Number(boardVideoRetryAt[id]||0)>1800){boardVideoRetryAt[id]=now;sendBoardCommand(id,'camera_ready',true).catch(function(){})}
    }
