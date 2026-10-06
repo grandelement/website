@@ -943,6 +943,81 @@ body.view-player.hud-hidden.sun-faded #geFloatingSun{opacity:0;pointer-events:no
 body.view-ship #geFloatingSun{display:none!important;pointer-events:none!important}
 body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;pointer-events:none!important}
 </style>
+
+<style id="ge-radio-smooth-heartbeat-v2">
+/* Smooth startup heartbeat: keep the button stable and animate only a composited glow layer. */
+#liveBtn.radio-start-cue,
+#shipStage [data-proxy="liveBtn"].radio-start-cue{
+  position:relative!important;
+  overflow:visible!important;
+  animation:none!important;
+  opacity:1!important;
+  filter:none!important;
+  background:rgba(150,18,40,.88)!important;
+  border-color:rgba(255,104,130,.86)!important;
+  outline:1px solid rgba(255,100,128,.48)!important;
+  box-shadow:inset 0 0 10px rgba(255,80,106,.10)!important;
+}
+#liveBtn.radio-start-cue::after,
+#shipStage [data-proxy="liveBtn"].radio-start-cue::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:.06;
+  transform:scale(.995);
+  will-change:opacity,transform;
+  box-shadow:
+    0 0 12px rgba(255,172,188,.46),
+    0 0 28px rgba(255,74,106,.36),
+    0 0 54px rgba(255,38,78,.22);
+  animation:geRadioGlowBreath 8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes geRadioGlowBreath{
+  0%{opacity:.06;transform:scale(.995)}
+  42%{opacity:.86;transform:scale(1.008)}
+  48%{opacity:1;transform:scale(1.016)}
+  52%{opacity:.72;transform:scale(1.006)}
+  56%{opacity:1;transform:scale(1.018)}
+  61%{opacity:.88;transform:scale(1.010)}
+  100%{opacity:.06;transform:scale(.995)}
+}
+
+/* Ship play cue uses the same smooth envelope in cyan. */
+#shipPlay.radio-play-start-cue{
+  position:absolute!important;
+  overflow:visible!important;
+  animation:none!important;
+  opacity:1!important;
+  filter:none!important;
+  background:rgba(30,68,89,.84)!important;
+  border-color:rgba(151,220,240,.73)!important;
+  outline:1px solid rgba(130,228,255,.45)!important;
+  box-shadow:inset 0 0 9px rgba(94,221,255,.10)!important;
+}
+#shipPlay.radio-play-start-cue::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:.06;
+  transform:scale(.995);
+  will-change:opacity,transform;
+  box-shadow:
+    0 0 12px rgba(201,246,255,.44),
+    0 0 28px rgba(96,226,255,.34),
+    0 0 52px rgba(31,167,255,.20);
+  animation:geRadioGlowBreath 8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@media(prefers-reduced-motion:reduce){
+  #liveBtn.radio-start-cue::after,
+  #shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+  #shipPlay.radio-play-start-cue::after{animation:none!important;opacity:.62!important;transform:none!important}
+}
+</style>
+
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
