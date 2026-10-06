@@ -4103,6 +4103,132 @@ html.geFormatTablet.geFormatLandscape #mixerSheet .mixerScrollControl{
 #deviceChannelSheet .deviceVideoSourcePick button{min-height:42px;border:1px solid #3b4c59;background:#111820;color:#fff;border-radius:8px;padding:0 8px;font-weight:900}
 #deviceChannelSheet .deviceVideoSourcePick select{min-width:0;width:100%}
 
+
+
+/* V122 full-screen mixer workspace */
+/* MIXER is a primary workspace like EFFECTS, not a bottom-sheet popup.
+   In normal mode it owns the viewport from the top edge down to the fixed dock. */
+#mixerSheet{
+  position:fixed!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  bottom:var(--geDockHeight,112px)!important;
+  width:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  height:auto!important;
+  margin:0!important;
+  padding:max(5px,env(safe-area-inset-top)) 6px 4px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:#05090d!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+#mixerSheet.show{transform:translateY(0)!important}
+#mixerSheet .sheetIn{
+  width:100%!important;
+  max-width:none!important;
+  height:100%!important;
+  margin:0!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+#mixerSheet .mixerHeadActions{
+  display:flex!important;
+  gap:5px!important;
+  align-items:center!important;
+}
+#mixerSheet #mixerPopoutBtn{
+  border-color:#58a5ff!important;
+  background:#102a43!important;
+}
+
+/* More readable console geometry on desktop: narrow strips and long fader travel. */
+html.geFormatDesktop #mixerSheet .mixerGrid{
+  grid-template-columns:repeat(var(--mixer-cols,4),minmax(150px,210px))!important;
+  grid-auto-columns:minmax(150px,210px)!important;
+  justify-content:start!important;
+  align-items:stretch!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  height:100%!important;
+  padding:4px 4px 2px!important;
+}
+html.geFormatDesktop #mixerSheet .mixStrip{
+  width:auto!important;
+  min-width:150px!important;
+  max-width:210px!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:6px!important;
+}
+html.geFormatDesktop #mixerSheet .boardMixStrip .touchFader,
+html.geFormatDesktop #mixerSheet .master .touchFader{
+  flex:1 1 0!important;
+  min-height:260px!important;
+  height:auto!important;
+  margin:5px 0!important;
+}
+html.geFormatDesktop #mixerSheet .boardMixStrip .touchFaderThumb,
+html.geFormatDesktop #mixerSheet .master .touchFaderThumb{
+  left:8px!important;
+  right:8px!important;
+  height:58px!important;
+}
+html.geFormatDesktop #mixerSheet .boardMixStrip .touchFaderRail,
+html.geFormatDesktop #mixerSheet .boardMixStrip .touchFaderFill,
+html.geFormatDesktop #mixerSheet .master .touchFaderRail,
+html.geFormatDesktop #mixerSheet .master .touchFaderFill{
+  width:12px!important;
+}
+
+/* The bottom horizontal channel navigator should assist the mixer, not dominate it. */
+html.geFormatDesktop #mixerSheet .mixerScrollControl{
+  flex:0 0 24px!important;
+  min-height:24px!important;
+  height:24px!important;
+  grid-template-columns:38px minmax(0,1fr)!important;
+  padding:0 4px!important;
+  margin:1px 0 0!important;
+}
+html.geFormatDesktop #mixerSheet .mixerScrollControl input{
+  height:22px!important;
+}
+html.geFormatDesktop #mixerSheet .mixerScrollControl input[type=range]::-webkit-slider-runnable-track{
+  height:6px!important;
+}
+html.geFormatDesktop #mixerSheet .mixerScrollControl input[type=range]::-webkit-slider-thumb{
+  width:22px!important;height:22px!important;margin-top:-9px!important;
+}
+
+/* On phones/tablets it is still full-height above the dock, while responsive video placement
+   from V117/V119 continues to decide portrait vs landscape composition. */
+html.geFormatPhone #mixerSheet,
+html.geFormatTablet #mixerSheet{
+  top:0!important;
+  bottom:var(--geDockHeight,132px)!important;
+  border-radius:0!important;
+}
+
+/* Dedicated mixer window: consume the entire popup; no dock is needed there. */
+body.embedMixer #mixerSheet{
+  inset:0!important;
+  width:100%!important;
+  height:100dvh!important;
+  max-height:none!important;
+  padding:6px!important;
+  border:0!important;
+  border-radius:0!important;
+}
+body.embedMixer #mixerPopoutBtn{display:none!important}
+
+/* Popout is a desktop multi-monitor feature. */
+@media(max-width:700px),(pointer:coarse){
+  #mixerPopoutBtn{display:none!important}
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
  <div class="geConnectionRail">
@@ -4113,7 +4239,7 @@ html.geFormatTablet.geFormatLandscape #mixerSheet .mixerScrollControl{
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v121</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v122</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4153,7 +4279,7 @@ html.geFormatTablet.geFormatLandscape #mixerSheet .mixerScrollControl{
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
 <div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><div class="deviceVideoSourcePick" id="deviceVideoSourcePick" hidden><select id="deviceVideoDevice"><option value="">AUTO CAMERA</option></select><button type="button" id="deviceVideoRescan">RESCAN VIDEO</button></div><video id="deviceChannelLocalVideoPreview" autoplay muted playsinline hidden style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid #3e596b;border-radius:9px;background:#02070b"></video><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">CHANNELS</button><button id="mixerPopoutBtn" type="button">POPOUT</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
  <div class="arrangementPicker"><span>ARRANGEMENT</span><button type="button" data-ge-arrangement="1">1 · FULL</button><button type="button" data-ge-arrangement="2">2 · SIMPLE</button></div>
  <label><input type="checkbox" data-device-channel="computer" checked>COMPUTER</label>
  <label><input type="checkbox" data-device-channel="iphone" checked>iPHONE</label>
@@ -7856,6 +7982,13 @@ function handleGeAudioSourceClick(e){
 if($('geAudioPlaying'))$('geAudioPlaying').onclick=handleGeAudioSourceClick;
 if($('geAudioAvailable'))$('geAudioAvailable').onclick=handleGeAudioSourceClick;
 $('lineComputerAudio').onclick=function(){if(GE_BOARD_ROLE==='remote'){renderLineRoleUi();return}startComputerAudioCapture().catch(function(e){alert(e.message||e)})};
+if($('mixerPopoutBtn'))$('mixerPopoutBtn').onclick=function(){
+  const u=new URL(location.href);
+  u.searchParams.set('embed','mixer');
+  u.searchParams.delete('player');
+  const w=window.open(u.toString(),'ge-dj-mixer','popup=yes,width=1320,height=900,resizable=yes,scrollbars=no,toolbar=no,location=no,menubar=no,status=no');
+  if(!w)alert('Mixer popout was blocked by the browser. Allow popups for GE DJ and try again.')
+};
 $('mixerChannelsBtn').onclick=function(){
   const p=$('mixerChannelPicker'),open=!p.classList.contains('show');
   p.classList.toggle('show',open);this.classList.toggle('on',open);
