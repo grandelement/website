@@ -4527,7 +4527,7 @@ html.geFormatPhone #mixerSheet.fxFull .mixerVideoWall:not([hidden]){
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v126</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v127</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4579,7 +4579,7 @@ html.geFormatPhone #mixerSheet.fxFull .mixerVideoWall:not([hidden]){
   <div class="computerInputState" id="lineState3">NO SOURCE</div>
 </div>
 <div class="lineAudioDiag" id="lineAudioDiag">
-  <div class="lineAudioDiagHead"><b>AUDIO CHECK</b><div><button type="button" id="lineAudioRescan">RESCAN INPUTS</button><button type="button" id="lineAudioCopy">COPY</button></div></div>
+  <div class="lineAudioDiagHead"><b>AUDIO CHECK</b><div><button type="button" id="lineAudioRescan">SHOW LINE INPUTS</button><button type="button" id="lineAudioCopy">COPY</button></div></div>
   <div class="lineAudioDiagText" id="lineAudioDiagText">Checking what this browser can actually see…</div>
 </div>
 <div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that COMPUTER channel.</div>
@@ -4743,6 +4743,19 @@ html.geFormatPhone #mixerSheet.fxFull .mixerVideoWall:not([hidden]){
 </div></div>
 <div class="modal" id="picker"><div class="modalBox"><div class="modalHead"><div><b>REPLACE TRACK</b><div class="note" id="replaceWhich"></div></div><button id="closePicker">CLOSE</button></div><label class="upload">UPLOAD TEMP MP3<input id="upload" type="file" accept="audio/mpeg,.mp3"></label><input class="search" id="search" placeholder="Search song or album"><div class="library" id="library"></div></div></div>
 <script>
+/* V127 UI fault guard: radio transport remains independent; surface controller faults instead of silently dead buttons. */
+window.__GE_DJ_BOOT_OK=false;
+window.addEventListener('error',function(e){
+ try{
+  const pill=document.getElementById('statusPill');
+  if(pill){pill.textContent='UI ERROR';pill.title=String(e&&e.message||'Controller error')}
+  console.error('GE DJ UI ERROR',e&&e.error||e)
+ }catch(_e){}
+});
+window.addEventListener('unhandledrejection',function(e){
+ try{console.error('GE DJ PROMISE ERROR',e&&e.reason||e)}catch(_e){}
+});
+
 const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
 const GE_TIME_ZONE='America/Chicago',GE_KC_LAT=39.0997,GE_KC_LON=-94.5786;
 function geCentralParts(date){
@@ -6927,7 +6940,10 @@ function openComputerInputControlsV125(slot){
  $('mixerSheet').classList.remove('show');$('lineSheet').classList.add('show');setGeDisplayScope('line');syncDockViewState();renderLineRoleUi();
  if(GE_BOARD_ROLE!=='home')return;
  const controls=$('lineLocalControls');if(controls)controls.classList.add('showAdvanced');
- geUnlockAudioInputLabels().catch(function(){return false}).then(function(){return refreshDevices()}).then(function(){return scanGeAudioSources()}).then(function(){
+ refreshDevices().then(function(){return scanGeAudioSources()}).then(function(){
+   if($('lineProfileStatus')&&!(geAudioInputSources||[]).length){
+     $('lineProfileStatus').textContent='NO LINE / VIRTUAL INPUTS VISIBLE YET · TAP SHOW LINE INPUTS IF FIREFOX HAS NOT REVEALED DEVICE NAMES'
+   }
    const row=document.querySelector('[data-computer-input-row="'+Number(slot)+'"]');if(row)row.scrollIntoView({block:'center',behavior:'smooth'})
  }).catch(function(){renderGeAudioDiagnostics()})
 }
@@ -7142,7 +7158,30 @@ async function loadLineFile(file){
  lineSourceMode='file';lineAudio=new Audio();lineAudio.preload='auto';lineAudio.loop=true;lineAudio.src=URL.createObjectURL(file);lineMediaSource=ctx.createMediaElementSource(lineAudio);ensureComputerInputNodeV125(1);lineMediaSource.connect(computerInputSlots[1].gain);$('lineName').textContent=file.name+' · playing locally';await lineAudio.play();runChannelMeter('line');updateAirButtons()
 }
 function setMeterLevel(id,pct){const e=$(id);if(!e)return;e.style.setProperty('--meter-level',clamp(Number(pct)||0,0,100)+'%')}
-function runChannelMeter(kind){const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(kind==='line')lineInputPct=pct;else micInputPct=pct;setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);if(kind==='mic'){setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0);const selfStrip=Array.from(document.querySelectorAll('.boardMixStrip')).find(function(x){return String(x.dataset.boardMix||'')===String(GE_BOARD_ID)})||null;if(selfStrip){const selfMeter=selfStrip.querySelector('[data-board-audio-meter]');if(selfMeter)selfMeter.style.setProperty('--meter-level',pct+'%')}if($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&(geOpenDeviceKind===GE_DEVICE_KIND||String(geOpenBoardId)===String(GE_BOARD_ID)))setMeterLevel('deviceChannelMeter',pct)}if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
+let geChannelMeterRunning={mic:false,line:false};
+function runChannelMeter(kind){
+ const an=kind==='mic'?micAnalyser:lineAnalyser;if(!an||geChannelMeterRunning[kind])return;
+ geChannelMeterRunning[kind]=true;
+ const arr=new Uint8Array(an.fftSize);
+ const loop=function(){
+  const current=kind==='mic'?micAnalyser:lineAnalyser;
+  if(!current){geChannelMeterRunning[kind]=false;return}
+  current.getByteTimeDomainData(arr);let sum=0;
+  for(const v of arr){const x=(v-128)/128;sum+=x*x}
+  const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);
+  if(kind==='line')lineInputPct=pct;else micInputPct=pct;
+  setMeterLevel(kind+'Meter',pct);setMeterLevel('mix'+(kind==='mic'?'Mic':'Line')+'Meter',pct);
+  if(kind==='mic'){
+   setMeterLevel('dockMicMeter',pct);$('dockMicDb').textContent=db.toFixed(0);
+   const selfStrip=Array.from(document.querySelectorAll('.boardMixStrip')).find(function(x){return String(x.dataset.boardMix||'')===String(GE_BOARD_ID)})||null;
+   if(selfStrip){const selfMeter=selfStrip.querySelector('[data-board-audio-meter]');if(selfMeter)selfMeter.style.setProperty('--meter-level',pct+'%')}
+   if($('deviceChannelSheet')&&$('deviceChannelSheet').classList.contains('show')&&(geOpenDeviceKind===GE_DEVICE_KIND||String(geOpenBoardId)===String(GE_BOARD_ID)))setMeterLevel('deviceChannelMeter',pct)
+  }
+  if(fxTarget===kind){setMeterLevel('fxChannelMeter',pct);if($('fxMeterDb'))$('fxMeterDb').textContent=db.toFixed(0)+' dB'}
+  requestAnimationFrame(loop)
+ };
+ requestAnimationFrame(loop)
+}
 function runFxReturnMeter(kind){const an=kind==='mic'?micFxAnalyser:lineFxAnalyser;if(!an)return;const arr=new Uint8Array(an.fftSize);const loop=function(){an.getByteTimeDomainData(arr);let sum=0;for(const v of arr){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/arr.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);if(fxTarget===kind){setMeterLevel('fxReturnMeter',pct);setMeterLevel('mixFxReturnMeter',pct);if($('fxReturnDb'))$('fxReturnDb').textContent=db.toFixed(0)+' dB'}if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind){setMeterLevel('sendAuxMeter',pct)}requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 function runMasterMeter(){if(!contributionAnalyser)return;const a=new Uint8Array(contributionAnalyser.fftSize);const loop=function(){contributionAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const rms=Math.sqrt(sum/a.length),db=Math.max(-60,rms>0?20*Math.log10(rms):-60),pct=clamp((db+60)/60*100,0,100);djLevelDb=db;djLevelPct=pct;setMeterLevel('mixMasterDjMeter',pct);if($('mixMasterDjDb'))$('mixMasterDjDb').textContent=db.toFixed(0);setMeterLevel('mixMasterMeter',pct);if($('mixMasterDb'))$('mixMasterDb').textContent=db.toFixed(0);requestAnimationFrame(loop)};requestAnimationFrame(loop)}
 
@@ -7415,9 +7454,6 @@ function bindComputerInputsV125(){
  });
  renderComputerInputSlotsV125()
 }
-bindLocalMixer();
-bindComputerInputsV125();
-
 function toggleSendState(kind,which){const key=which==='delay'?'delayOn':'reverbOn';settings[kind][key]=!settings[kind][key];settings[kind].preset='CUSTOM';applyChannel(kind);syncSendToggles();if(!$('sendAuxStrip').classList.contains('auxHidden')&&sendMiniKind===kind&&sendMiniWhich===which)syncSendAux()}
 function syncSendAux(){const isDelay=sendMiniWhich==='delay',cfg=settings[sendMiniKind],levelKey=isDelay?'delay':'reverb',onKey=isDelay?'delayOn':'reverbOn';$('sendAuxTitle').textContent='SEND '+(isDelay?'A':'B');$('sendAuxMeta').textContent=(sendMiniKind==='mic'?'MIC':'COMPUTER')+' · '+(isDelay?'DELAY':'REVERB');$('sendAuxLevel').value=cfg[levelKey];$('sendAuxRead').textContent=Math.round(cfg[levelKey])+'%';$('sendAuxToggle').textContent=cfg[onKey]?'ON':'OFF';$('sendAuxToggle').classList.toggle('on',!!cfg[onKey])}
 function toggleSendAux(kind,which){const strip=$('sendAuxStrip'),same=!strip.classList.contains('auxHidden')&&sendMiniKind===kind&&sendMiniWhich===which;if(same){setAuxVisible('sendAuxStrip',false);return}sendMiniKind=kind;sendMiniWhich=which;const source=document.querySelector('[data-channel-strip="'+kind+'"]');if(source&&source.parentNode)source.insertAdjacentElement('afterend',strip);syncSendAux();setAuxVisible('sendAuxStrip',true)}
@@ -8653,7 +8689,14 @@ $('skipNow').onclick=skipCurrent;
 $('fadeOutNow').onclick=function(){runMusicAction('fade_out',this)};
 $('fadeInNow').onclick=function(){runMusicAction('fade_in',this)};
 $('stopMusicNow').onclick=function(){const stopped=!!(status&&status.mixer&&status.mixer.music_muted);runMusicAction(stopped?'play':'stop',this)};
-syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');loadMixerLayout();loadFxLayout();updateAirButtons();syncDjMixerControls();syncTouchFaders();
+syncTouchFaders=installTouchMixer('#mixerSheet','.mixerGrid');
+loadMixerLayout();
+bindLocalMixer();
+bindComputerInputsV125();
+loadFxLayout();
+updateAirButtons();
+syncDjMixerControls();
+syncTouchFaders();
 
 const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV3';
 let geDisplayZoomScope='home',geDisplayZoomPct=50;
@@ -8880,6 +8923,7 @@ document.addEventListener('pointerdown',function gePrimeDj(){
  requestBoardWakeLock();
  if((key||djTrustedId)&&!GE_IS_IPHONE5&&!geTrackLive(micStream))autoConnectDeviceMedia().catch(function(){})
 },{once:true,capture:true});
+window.__GE_DJ_BOOT_OK=true;
 if(djTrustedId&&djTrustedToken){
  verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
