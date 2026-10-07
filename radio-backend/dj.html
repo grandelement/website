@@ -4628,17 +4628,43 @@ html.geFormatDesktop #mixerSheet .mixerGrid>.mixStrip .touchFader{
 #fxCloseBtn{min-height:36px!important;height:36px!important;align-self:start!important}
 
 
+/* V133 device-aware readability: fixed profiles replace the old manual TEXT / BUTTONS scaler. */
+:root{--ge-font-title:20px;--ge-font-category:15px;--ge-font-control:15px;--ge-font-body:12px;--ge-control-h:44px;--ge-header-h:38px;--ge-touch-h:42px;--ge-edge-inset:8px}
+html.geLayoutIphone5{--ge-font-title:17px;--ge-font-category:12px;--ge-font-control:12px;--ge-font-body:10px;--ge-control-h:39px;--ge-header-h:32px;--ge-touch-h:36px;--ge-edge-inset:8px}
+html.geLayoutIphone{--ge-font-title:20px;--ge-font-category:15px;--ge-font-control:16px;--ge-font-body:13px;--ge-control-h:46px;--ge-header-h:40px;--ge-touch-h:42px;--ge-edge-inset:14px}
+html.geLayoutIpad{--ge-font-title:22px;--ge-font-category:16px;--ge-font-control:17px;--ge-font-body:13px;--ge-control-h:48px;--ge-header-h:42px;--ge-touch-h:44px;--ge-edge-inset:10px}
+html.geLayoutDesktop{--ge-font-title:22px;--ge-font-category:16px;--ge-font-control:16px;--ge-font-body:13px;--ge-control-h:46px;--ge-header-h:40px;--ge-touch-h:42px;--ge-edge-inset:8px}
+body button,body button *{font-size:var(--ge-button-fit,var(--ge-font-control))!important;line-height:1.02!important}
+body button{padding-left:.5em!important;padding-right:.5em!important;text-wrap:balance}
+.geDisplayZoomBar .geScaleControls{display:flex!important;grid-template-columns:none!important;gap:6px!important;justify-content:flex-end!important;flex-wrap:wrap!important}
+.geDisplayZoomBar .geScaleControls button{min-height:var(--ge-header-h)!important;height:var(--ge-header-h)!important;min-width:max-content!important}
+#mixerSheet .mixerScaleHost .geScaleControls{display:flex!important;grid-template-columns:none!important;gap:5px!important;justify-content:flex-start!important;flex-wrap:wrap!important}
+.geLayoutModal{z-index:110!important}.geLayoutModal .modalBox{width:min(620px,calc(100vw - 28px))!important}
+.geLayoutChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.geLayoutChoices button{min-height:76px;border:1px solid #3d5668;background:#101922;color:#fff;border-radius:12px;padding:8px!important}
+.geLayoutChoices button b{display:block}.geLayoutChoices button span{display:block;margin-top:5px;color:var(--muted);font-size:.72em!important}
+html.geLayoutIphone .dock,html.geLayoutIphone5 .dock{padding-left:max(var(--ge-edge-inset),env(safe-area-inset-left))!important;padding-right:max(var(--ge-edge-inset),env(safe-area-inset-right))!important}
+html.geLayoutIphone .sheetIn,html.geLayoutIphone5 .sheetIn,html.geLayoutIphone .modalBox,html.geLayoutIphone5 .modalBox{max-width:calc(100vw - (var(--ge-edge-inset) * 2))!important}
+html.geLayoutIphone #mixerSheet .mixerGrid,html.geLayoutIphone5 #mixerSheet .mixerGrid{padding-left:var(--ge-edge-inset)!important;padding-right:var(--ge-edge-inset)!important}
+html.geLayoutIphone button:not(.geChannelBubble):not(.studioNode),html.geLayoutIpad button:not(.geChannelBubble):not(.studioNode){min-height:var(--ge-touch-h)}
+html.geLayoutIphone5 button:not(.geChannelBubble):not(.studioNode){min-height:var(--ge-touch-h)}
+html.geLayoutDesktop .wrap,html.geLayoutDesktop .dockin,html.geLayoutDesktop .sheetIn{max-width:none!important;width:100%!important}
+html.geLayoutDesktop .wrap{padding-left:14px!important;padding-right:14px!important}
+html.geLayoutIpad .wrap,html.geLayoutIpad .dockin,html.geLayoutIpad .sheetIn{max-width:1180px!important}
+@media(max-width:380px){.geLayoutChoices{grid-template-columns:1fr}.geLayoutChoices button{min-height:56px}}
+
 </style></head><body>
-<div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="Display zoom">
+<div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
   <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
  </div>
- <div class="geScaleControls" id="geScaleControls"><b>TEXT / BUTTONS</b><button type="button" id="geZoomDown" aria-label="Decrease display text">↓</button><input id="geZoomRange" type="range" min="25" max="100" step="5" value="50" aria-label="GE DJ display scale"><button type="button" id="geZoomUp" aria-label="Increase display text">↑</button><output id="geZoomRead">50%</output><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="geAddChannel" class="geUtilityAction" aria-label="Add mixer track or channel">＋ ADD</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="geAddChannel" class="geUtilityAction" aria-label="Add mixer track or channel">＋ ADD</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
+<div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v132</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v133</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -5618,6 +5644,7 @@ async function verify(k){
  if(key)await rememberDjDevice();
  document.body.classList.add('geAuthenticated');
  $('lock').classList.add('hide');
+ maybeAskGeLayout();
  await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});
  render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});
  await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll();startGeUxSession()
@@ -8895,27 +8922,22 @@ updateAirButtons();
 syncDjMixerControls();
 syncTouchFaders();
 
-const GE_DISPLAY_ZOOM_KEY='geDjMasterScaleV3';
-let geDisplayZoomScope='home',geDisplayZoomPct=50;
-function geStoredZoom(){
- try{return clamp(Number(localStorage.getItem(GE_DISPLAY_ZOOM_KEY)||50),25,100)}catch(e){return 50}
-}
+const GE_LAYOUT_PROFILE_KEY='geDjLayoutProfileV1';
+let geDisplayZoomScope='home',geDisplayZoomPct=100,geLayoutProfile='';
+function geDetectedLayoutProfile(){return GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':(GE_IS_IPAD?'ipad':'desktop'))}
+function geStoredLayoutProfile(){try{const p=String(localStorage.getItem(GE_LAYOUT_PROFILE_KEY)||'');return ['iphone5','iphone','ipad','desktop'].includes(p)?p:''}catch(e){return ''}}
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
  if(bar&&channels&&channels.parentElement!==bar)bar.insertBefore(channels,bar.firstChild)
 }
 function placeGeDisplayBar(scope){
  const bar=$('geDisplayZoomBar');if(!bar)return;
- restoreGeChannelsToBar();
- bar.classList.remove('mixerScaleBar');
+ restoreGeChannelsToBar();bar.classList.remove('mixerScaleBar');
  let host=null,before=null;
  if(scope==='mixer'){
    const channelHost=$('mixerChannelHost'),scaleHost=$('mixerScaleHost'),channels=$('geChannelStatus');
-   if(channelHost&&channels)channelHost.appendChild(channels);
-   if(scaleHost)scaleHost.appendChild(bar);
-   bar.classList.add('inHeader','mixerScaleBar');
-   document.body.classList.remove('geHomeZoom');
-   return
+   if(channelHost&&channels)channelHost.appendChild(channels);if(scaleHost)scaleHost.appendChild(bar);
+   bar.classList.add('inHeader','mixerScaleBar');document.body.classList.remove('geHomeZoom');return
  }
  if(scope==='effects'){host=document.querySelector('#effectsSheet .fxDockHead');before=host&&host.querySelector('.fxLayoutBar')}
  else if(scope==='mic'){host=document.querySelector('#micSheet .sheetHead');before=host&&host.lastElementChild}
@@ -8925,36 +8947,49 @@ function placeGeDisplayBar(scope){
 }
 function syncGeDisplayBarSpace(){
  const bar=$('geDisplayZoomBar'),dock=document.querySelector('.dock');
- if(bar&&!bar.classList.contains('inHeader')){
-   const h=Math.ceil(bar.getBoundingClientRect().height+12);
-   document.documentElement.style.setProperty('--geDisplayTop',h+'px');
+ if(bar&&!bar.classList.contains('inHeader'))document.documentElement.style.setProperty('--geDisplayTop',Math.ceil(bar.getBoundingClientRect().height+12)+'px');
+ if(dock)document.documentElement.style.setProperty('--geDockHeight',Math.ceil(dock.getBoundingClientRect().height)+'px')
+}
+function geProfileClass(p){return p==='iphone5'?'geLayoutIphone5':(p==='iphone'?'geLayoutIphone':(p==='ipad'?'geLayoutIpad':'geLayoutDesktop'))}
+function geButtonFontLimits(){return geLayoutProfile==='iphone5'?{min:9,max:13}:geLayoutProfile==='iphone'?{min:12,max:18}:geLayoutProfile==='ipad'?{min:13,max:20}:{min:12,max:20}}
+function fitGeButtonLabel(btn){
+ if(!btn||!btn.isConnected||btn.offsetWidth<10||btn.offsetHeight<10)return;
+ const lim=geButtonFontLimits(),h=btn.clientHeight,w=btn.clientWidth;let px=Math.min(lim.max,Math.max(lim.min,h*.42));
+ btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');let guard=0;
+ while(px>lim.min&&guard++<24&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
+}
+let geButtonFitTimer=0;
+function fitGeButtonLabels(){clearTimeout(geButtonFitTimer);geButtonFitTimer=setTimeout(function(){document.querySelectorAll('button').forEach(fitGeButtonLabel)},0)}
+function installGeButtonFitter(){
+ fitGeButtonLabels();
+ if(window.ResizeObserver){
+   const ro=new ResizeObserver(function(entries){entries.forEach(function(x){if(x.target&&x.target.tagName==='BUTTON')fitGeButtonLabel(x.target)})});
+   document.querySelectorAll('button').forEach(function(b){ro.observe(b)});
+   if(window.MutationObserver)new MutationObserver(function(rows){rows.forEach(function(row){row.addedNodes&&row.addedNodes.forEach(function(n){if(!n||n.nodeType!==1)return;if(n.tagName==='BUTTON')ro.observe(n);if(n.querySelectorAll)n.querySelectorAll('button').forEach(function(b){ro.observe(b)})})});fitGeButtonLabels()}).observe(document.body,{childList:true,subtree:true})
  }
- if(dock){
-   const h=Math.ceil(dock.getBoundingClientRect().height);
-   document.documentElement.style.setProperty('--geDockHeight',h+'px');
- }
 }
-function applyGeDisplayZoom(value,persist){
- geDisplayZoomPct=clamp(Math.round(Number(value)||50),25,100);
- document.documentElement.style.setProperty('--ge-ui-scale',(geDisplayZoomPct/100).toFixed(2));
- $('geZoomRange').value=String(geDisplayZoomPct);$('geZoomRead').textContent=geDisplayZoomPct+'%';
- if(persist!==false)try{localStorage.setItem(GE_DISPLAY_ZOOM_KEY,String(geDisplayZoomPct))}catch(e){}
- requestAnimationFrame(function(){syncGeDisplayBarSpace();if(typeof syncTouchFaders==='function')syncTouchFaders()});
+function applyGeLayoutProfile(profile,persist){
+ profile=['iphone5','iphone','ipad','desktop'].includes(profile)?profile:geDetectedLayoutProfile();geLayoutProfile=profile;
+ ['geLayoutIphone5','geLayoutIphone','geLayoutIpad','geLayoutDesktop'].forEach(function(x){document.documentElement.classList.remove(x)});document.documentElement.classList.add(geProfileClass(profile));
+ document.documentElement.style.setProperty('--ge-ui-scale','1');
+ if(persist!==false)try{localStorage.setItem(GE_LAYOUT_PROFILE_KEY,profile)}catch(e){}
+ const d=$('geLayoutDetected');if(d)d.textContent='AUTO-DETECTED · '+geDetectedLayoutProfile().toUpperCase()+' · ACTIVE · '+profile.toUpperCase();
+ requestAnimationFrame(function(){syncGeDisplayBarSpace();fitGeButtonLabels();if(typeof syncTouchFaders==='function')syncTouchFaders()})
 }
-function geResetZoomMeasurements(){applyGeDisplayZoom(geDisplayZoomPct,false)}
-function setGeDisplayScope(scope){
- geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom(geDisplayZoomPct,false);
- if(geArrangeOn)setTimeout(refreshGeArrangeHandles,0)
-}
+function openGeLayoutChooser(){const m=$('geLayoutModal');if(!m)return;const d=$('geLayoutDetected');if(d)d.textContent='AUTO-DETECTED · '+geDetectedLayoutProfile().toUpperCase()+' · ACTIVE · '+geLayoutProfile.toUpperCase();m.classList.add('show');m.setAttribute('aria-hidden','false')}
+function closeGeLayoutChooser(){const m=$('geLayoutModal');if(m){m.classList.remove('show');m.setAttribute('aria-hidden','true')}}
+function maybeAskGeLayout(){if(!geStoredLayoutProfile())openGeLayoutChooser()}
+function applyGeDisplayZoom(){document.documentElement.style.setProperty('--ge-ui-scale','1');requestAnimationFrame(function(){syncGeDisplayBarSpace();fitGeButtonLabels()})}
+function geResetZoomMeasurements(){applyGeDisplayZoom()}
+function setGeDisplayScope(scope){geDisplayZoomScope=scope||'home';placeGeDisplayBar(geDisplayZoomScope);applyGeDisplayZoom();if(geArrangeOn)setTimeout(refreshGeArrangeHandles,0)}
 if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener)navigator.mediaDevices.addEventListener('devicechange',function(){refreshDevices().catch(function(){})});
 applyGeAutoTheme();
-(function initGeDisplayZoom(){
- geDisplayZoomPct=geStoredZoom();
- setGeDisplayScope('home');
- $('geZoomRange').oninput=function(){applyGeDisplayZoom(this.value,true)};
- $('geZoomDown').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct-5,true)};
- $('geZoomUp').onclick=function(){applyGeDisplayZoom(geDisplayZoomPct+5,true)};
- let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){applyGeDisplayZoom(geDisplayZoomPct,false)},180)});
+(function initGeDeviceLayout(){
+ applyGeLayoutProfile(geStoredLayoutProfile()||geDetectedLayoutProfile(),false);setGeDisplayScope('home');
+ if($('geLayoutBtn'))$('geLayoutBtn').onclick=openGeLayoutChooser;if($('geLayoutClose'))$('geLayoutClose').onclick=closeGeLayoutChooser;
+ document.querySelectorAll('[data-ge-layout]').forEach(function(b){b.onclick=function(){applyGeLayoutProfile(this.dataset.geLayout,true);closeGeLayoutChooser()}});
+ let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){syncGeFormatOrientation();applyGeDisplayZoom()},180)});
+ installGeButtonFitter()
 })();
 
 ;
