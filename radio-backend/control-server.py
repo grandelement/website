@@ -1677,6 +1677,7 @@ def update_dj_board_presence(board_id, role, label="", app_state="active", chann
 
 def list_dj_board_presence():
     now = time.time()
+    prune_dj_media_buffers(now)
     known = {str(x.get("id")): dict(x) for x in _known_dj_board_rows() if x.get("id")}
     with DJ_BOARD_LOCK:
         live = {str(x.get("id")): dict(x) for x in DJ_BOARD_PRESENCE.values() if x.get("id")}
@@ -2280,6 +2281,63 @@ def radio_meter_status():
     if RADIO_METER is None:
         return {"active": False, "db": -60.0, "pct": 0.0, "age": None}
     return RADIO_METER.status()
+
+def runtime_memory_status():
+    result = {
+        "process_rss_mb": None,
+        "cgroup_current_mb": None,
+        "cgroup_limit_mb": None,
+        "cgroup_pct": None,
+    }
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("VmRSS:"):
+                parts = line.split()
+                if len(parts) >= 2:
+                    result["process_rss_mb"] = round(float(parts[1]) / 1024.0, 1)
+                break
+    except Exception:
+        pass
+    try:
+        current_path = Path("/sys/fs/cgroup/memory.current")
+        max_path = Path("/sys/fs/cgroup/memory.max")
+        if current_path.exists():
+            current = int(current_path.read_text().strip())
+            result["cgroup_current_mb"] = round(current / 1048576.0, 1)
+        if max_path.exists():
+            raw = max_path.read_text().strip()
+            if raw and raw != "max":
+                limit = int(raw)
+                result["cgroup_limit_mb"] = round(limit / 1048576.0, 1)
+                if result["cgroup_current_mb"] is not None and limit > 0:
+                    result["cgroup_pct"] = round((current / limit) * 100.0, 1)
+    except Exception:
+        pass
+    return result
+
+def prune_dj_media_buffers(now=None):
+    now = float(now or time.time())
+    with DJ_AUDIO_MONITOR_LOCK:
+        for board_id, state in list(DJ_AUDIO_MONITOR.items()):
+            chunks = [
+                x for x in list((state or {}).get("chunks", []))
+                if now - float(x.get("time", 0) or 0) < 3.0
+            ][-14:]
+            if chunks:
+                state["chunks"] = chunks
+            else:
+                DJ_AUDIO_MONITOR.pop(board_id, None)
+    with DJ_VIDEO_FRAME_LOCK:
+        for board_id, frame in list(DJ_VIDEO_FRAMES.items()):
+            if now - float((frame or {}).get("time", 0) or 0) > 8.0:
+                DJ_VIDEO_FRAMES.pop(board_id, None)
+        if len(DJ_VIDEO_FRAMES) > 8:
+            oldest = sorted(
+                DJ_VIDEO_FRAMES.items(),
+                key=lambda item: float((item[1] or {}).get("time", 0) or 0)
+            )[:-8]
+            for board_id, _ in oldest:
+                DJ_VIDEO_FRAMES.pop(board_id, None)
 
 _PUBLIC_MASTER_HEALTH = {"checked": 0.0, "ok": False, "error": "not checked"}
 
@@ -3140,6 +3198,7 @@ class Handler(BaseHTTPRequestHandler):
                 "now_started_at": now_started_at,
                 "now_duration": now_duration,
                 "radio_meter": radio_meter_status(),
+                "runtime_memory": runtime_memory_status(),
                 "now": now,
                 "now_metadata_source": "icecast" if stream_now.get("title") else "liquidsoap-file",
                 "next": nxt,
@@ -3320,10 +3379,14 @@ class Handler(BaseHTTPRequestHandler):
                     seq = int(state.get("seq", 0) or 0) + 1
                     state["seq"] = seq
                     state["chunks"].append({"seq": seq, "rate": rate, "data": raw, "time": now})
-                    state["chunks"] = [x for x in state["chunks"] if now - float(x.get("time", 0) or 0) < 4][-24:]
-                    # Bound abandoned device buffers.
-                    if len(DJ_AUDIO_MONITOR) > 40:
-                        stale = sorted(DJ_AUDIO_MONITOR.items(), key=lambda item: float((item[1].get("chunks") or [{}])[-1].get("time", 0) if item[1].get("chunks") else 0))[:-40]
+                    state["chunks"] = [x for x in state["chunks"] if now - float(x.get("time", 0) or 0) < 3.0][-14:]
+                    for old_id, old_state in list(DJ_AUDIO_MONITOR.items()):
+                        old_chunks = list((old_state or {}).get("chunks", []))
+                        last_time = float(old_chunks[-1].get("time", 0) or 0) if old_chunks else 0.0
+                        if not last_time or now - last_time > 8.0:
+                            DJ_AUDIO_MONITOR.pop(old_id, None)
+                    if len(DJ_AUDIO_MONITOR) > 12:
+                        stale = sorted(DJ_AUDIO_MONITOR.items(), key=lambda item: float((item[1].get("chunks") or [{}])[-1].get("time", 0) if item[1].get("chunks") else 0))[:-12]
                         for old_id, _ in stale:
                             DJ_AUDIO_MONITOR.pop(old_id, None)
                 self.json_response({"ok": True, "seq": seq, "bytes": len(raw)})
@@ -3346,8 +3409,8 @@ class Handler(BaseHTTPRequestHandler):
                 raw = self.rfile.read(n)
                 with DJ_VIDEO_FRAME_LOCK:
                     DJ_VIDEO_FRAMES[board_id] = {"data": raw, "content_type": content_type, "time": time.time()}
-                    if len(DJ_VIDEO_FRAMES) > 20:
-                        oldest = sorted(DJ_VIDEO_FRAMES.items(), key=lambda item: float(item[1].get("time", 0) or 0))[:-20]
+                    if len(DJ_VIDEO_FRAMES) > 8:
+                        oldest = sorted(DJ_VIDEO_FRAMES.items(), key=lambda item: float(item[1].get("time", 0) or 0))[:-8]
                         for old_id, _ in oldest:
                             DJ_VIDEO_FRAMES.pop(old_id, None)
                 self.json_response({"ok": True, "bytes": len(raw)})
@@ -4302,7 +4365,9 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     BROADCAST = BroadcastEngine()
-    RADIO_METER = RadioMeter()
+    # Blitz memory protection: do not run a separate continuous FFmpeg decoder
+    # solely for the visual radio meter. The actual broadcast path is unchanged.
+    RADIO_METER = None
     if vault_configured():
         threading.Thread(target=restore_vault_settings_after_start, daemon=True, name="ge-vault-settings-restore").start()
     print("GE Radio: direct microphone bridge ready on /control/live.", flush=True)
