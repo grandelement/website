@@ -4653,6 +4653,69 @@ html.geLayoutDesktop .wrap{padding-left:14px!important;padding-right:14px!import
 html.geLayoutIpad .wrap,html.geLayoutIpad .dockin,html.geLayoutIpad .sheetIn{max-width:1180px!important}
 @media(max-width:380px){.geLayoutChoices{grid-template-columns:1fr}.geLayoutChoices button{min-height:56px}}
 
+/* V134 universal mixer control rules */
+body button{
+ white-space:normal!important;line-height:1.02!important;padding:.12em .34em!important;
+ overflow:hidden!important;text-overflow:clip!important;word-break:normal!important;overflow-wrap:normal!important;
+}
+.geChannelBubble{white-space:normal!important}
+.geChannelBubble.connected{box-shadow:inset 0 0 0 1px #55d8c1!important}
+.geChannelBubble.knownOffline{opacity:.66!important}
+#mixerSheet [data-channel-strip="mic"] .mixBtns button[data-fx],
+#mixerSheet [data-channel-strip="line"] .mixBtns button[data-fx]{display:block!important}
+
+/* Effects: every active audio drawbar stays in one horizontal row. */
+#mixerSheet #effectsSheet .fxControlGrid{
+ display:flex!important;flex-flow:row nowrap!important;align-items:stretch!important;
+ gap:4px!important;width:100%!important;min-height:0!important;height:min(42vh,310px)!important;
+ overflow-x:auto!important;overflow-y:hidden!important;padding:2px max(4px,var(--ge-edge-inset)) 5px!important;
+ scroll-snap-type:x proximity!important;overscroll-behavior-x:contain!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider{
+ display:flex!important;flex:1 1 0!important;width:auto!important;min-width:54px!important;
+ height:100%!important;min-height:0!important;margin:0!important;padding:3px!important;scroll-snap-align:start!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider.fxControlHidden{display:none!important}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider label{
+ min-height:34px!important;height:34px!important;font-size:11px!important;line-height:1!important;
+ display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider input.fxvf{
+ writing-mode:vertical-lr!important;direction:rtl!important;-webkit-appearance:slider-vertical!important;
+ width:100%!important;height:auto!important;min-height:120px!important;max-height:none!important;flex:1 1 auto!important;margin:0 auto!important;
+}
+#mixerSheet #effectsSheet [data-fx-control="always"]{border-color:#71df7b!important}
+#mixerSheet #effectsSheet [data-fx-control="always"] input{accent-color:#71df7b!important}
+#mixerSheet #effectsSheet [data-fx-control="eq"]{border-color:#4aa3ff!important}
+#mixerSheet #effectsSheet [data-fx-control="eq"] input{accent-color:#4aa3ff!important}
+#mixerSheet #effectsSheet [data-fx-control="filter"] input{accent-color:#40d9d0!important}
+#mixerSheet #effectsSheet [data-fx-control="phaser"] input{accent-color:#b477ff!important}
+#mixerSheet #effectsSheet [data-fx-control="delay"] input{accent-color:#ffb44a!important}
+#mixerSheet #effectsSheet [data-fx-control="reverb"] input{accent-color:#ff70b7!important}
+html.geFormatPhone #mixerSheet #effectsSheet .fxControlGrid .bigSlider,
+html.geLayoutIphone #mixerSheet #effectsSheet .fxControlGrid .bigSlider{flex:0 0 62px!important;min-width:62px!important}
+html.geLayoutIphone5 #mixerSheet #effectsSheet .fxControlGrid .bigSlider{flex:0 0 52px!important;min-width:52px!important}
+html.geLayoutIpad #mixerSheet #effectsSheet .fxControlGrid .bigSlider{min-width:70px!important}
+
+/* VIDEO effects are a separate top row and exist only when VIDEO is selected in the mixer. */
+#mixerSheet #effectsSheet .fxVideoControls{
+ order:-1;display:grid!important;grid-template-columns:auto minmax(0,1fr) minmax(110px,22%)!important;
+ gap:5px!important;align-items:center!important;width:100%!important;padding:4px!important;margin:0 0 4px!important;
+ border:1px solid #344d60!important;border-radius:7px!important;background:#08121a!important;
+}
+#mixerSheet #effectsSheet .fxVideoControls[hidden]{display:none!important}
+.fxVideoHead{display:flex;flex-direction:column;gap:1px;min-width:0}.fxVideoHead b{font-size:11px}.fxVideoHead span{font-size:9px;color:var(--muted)}
+.fxVideoButtons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;min-width:0}
+.fxVideoButtons button{min-height:34px!important;height:34px!important}
+.fxVideoButtons button.on{background:#17392f!important;border-color:#55d8c1!important}
+.fxVideoAmount{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px;align-items:center;font-size:9px;font-weight:900}
+.fxVideoAmount input{width:100%}
+@media(max-width:560px){
+ #mixerSheet #effectsSheet .fxVideoControls{grid-template-columns:1fr!important}
+ .fxVideoButtons button{min-height:32px!important;height:32px!important}
+ #mixerSheet #effectsSheet .fxControlGrid{height:220px!important}
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -4664,7 +4727,7 @@ html.geLayoutIpad .wrap,html.geLayoutIpad .dockin,html.geLayoutIpad .sheetIn{max
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v133</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v134</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -4723,6 +4786,17 @@ html.geLayoutIpad .wrap,html.geLayoutIpad .dockin,html.geLayoutIpad .sheetIn{max
 </div></div>
 
 <div class="fxLandscapeBody">
+<div class="fxVideoControls" id="fxVideoControls" hidden>
+  <div class="fxVideoHead"><b id="fxVideoTarget">VIDEO</b><span>VIDEO EFFECTS</span></div>
+  <div class="fxVideoButtons">
+    <button type="button" data-fx-video-mode="raw">RAW</button>
+    <button type="button" data-fx-video-mode="hue">HUE</button>
+    <button type="button" data-fx-video-mode="trail">TRAIL</button>
+    <button type="button" data-fx-video-mode="space">SPACE</button>
+    <button type="button" data-fx-video-mode="slides">SLIDES</button>
+  </div>
+  <label class="fxVideoAmount">AMOUNT <input id="fxVideoAmount" type="range" min="0" max="100" value="60"></label>
+</div>
 <div class="fxLeftRail">
 <div class="fxEffectButtons">
   <button data-fxtoggle="eq">EQ</button>
@@ -5034,7 +5108,7 @@ function diagEvent(name,detail){
  try{if(window.PerformanceObserver){const po=new PerformanceObserver(function(list){list.getEntries().forEach(function(e){diagLongTasks++;diagLongestTask=Math.max(diagLongestTask,Math.round(e.duration));if(e.duration>=100)diagEvent('LONG TASK',Math.round(e.duration)+'ms')})});po.observe({entryTypes:['longtask']})}}catch(e){}
 })();let contributionBus=null,contributionAnalyser=null,liveGain=null,pcmProcessor=null,pcmMute=null,liveSocket=null,liveActive=false,liveTransport='',livePcmMode='';
 let djRecordDest=null,djRecorder=null,djRecordStartedAt=0,djDbPromise=null,weakLinkTicks=0,weakFallbackBusy=false,djPersistAsked=false;
-let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraDeviceId='',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraRawCanvas=null,cameraFxTrailCanvas=null,cameraSpaceCanvas=null,cameraSlideCurrent=null,cameraSlidePrevious=null,cameraSlideBest=null,cameraSlideBestScore=-1,cameraSlideWindowStart=0,cameraSlideSampleAt=0,cameraSlideTransitionStart=0,cameraSlideLastUploadAt=0,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='',videoFxMode='raw',videoFxAmount=60;try{videoFxMode=String(localStorage.getItem('geVideoFxModeV1')||'raw');videoFxAmount=clamp(Number(localStorage.getItem('geVideoFxAmountV1')||60),0,100)}catch(e){}try{cameraDeviceId=String(localStorage.getItem('geDjCameraDeviceV1')||'')}catch(e){}const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardVideoRetryAt={},boardAutoVideoSeen={},boardVideoExpandedId='',boardMonitorSelected={},boardMonitorPrepared={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,computerInputSlots={1:{gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''},2:{stream:null,source:null,gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''},3:{stream:null,source:null,gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''}},linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
+let sampleSlots={};try{sampleSlots=JSON.parse(localStorage.getItem('geDjSampleSlotsV1')||'{}')||{}}catch(e){sampleSlots={}}let cameraStream=null,cameraPermission='unknown',cameraLastError='',cameraFacing='environment',cameraDeviceId='',cameraPreviewVideo=null,cameraPreviewCanvas=null,cameraRawCanvas=null,cameraFxTrailCanvas=null,cameraSpaceCanvas=null,cameraSlideCurrent=null,cameraSlidePrevious=null,cameraSlideBest=null,cameraSlideBestScore=-1,cameraSlideWindowStart=0,cameraSlideSampleAt=0,cameraSlideTransitionStart=0,cameraSlideLastUploadAt=0,cameraUploadTimer=0,cameraUploadBusy=false,deviceVideoFetchAt=0,deviceVideoObjectUrl='',videoFxMode='raw',videoFxAmount=60;try{videoFxMode=String(localStorage.getItem('geVideoFxModeV1')||'raw');videoFxAmount=clamp(Number(localStorage.getItem('geVideoFxAmountV1')||60),0,100)}catch(e){}try{cameraDeviceId=String(localStorage.getItem('geDjCameraDeviceV1')||'')}catch(e){}const MIXER_VIDEO_KEY='geDjMixerVideoV1',BOARD_VIDEO_KEY='geDjBoardVideoV2',BOARD_CONNECTION_KEY='geDjBoardConnectionV1';let mixerVideoSelected={iphone:false,ipad:false},mixerVideoUrls={},mixerVideoTimer=0,mixerVideoBusy={},boardVideoSelected={},boardConnectionEnabled={},boardVideoUrls={},boardVideoTimer=0,boardVideoBusy={},boardVideoRetryAt={},boardAutoVideoSeen={},boardVideoExpandedId='',boardMonitorSelected={},boardMonitorPrepared={},boardMonitorSeq={},boardMonitorNextTime={},boardMonitorGains={},boardMonitorPollTimer=0,boardMonitorFetchBusy={},boardMonitorUploadOn=false,boardMonitorProcessor=null,boardMonitorSilentGain=null,boardMonitorAccum=[],boardMonitorPostBusy=false;try{const mv=JSON.parse(localStorage.getItem(MIXER_VIDEO_KEY)||'{}');mixerVideoSelected.iphone=!!mv.iphone;mixerVideoSelected.ipad=!!mv.ipad}catch(e){}try{boardVideoSelected=JSON.parse(localStorage.getItem(BOARD_VIDEO_KEY)||'{}')||{}}catch(e){boardVideoSelected={}}try{boardConnectionEnabled=JSON.parse(localStorage.getItem(BOARD_CONNECTION_KEY)||'{}')||{}}catch(e){boardConnectionEnabled={}}let fxBalanceLocked=true;try{fxBalanceLocked=localStorage.getItem('geFxBalanceLockedV1')!=='0'}catch(e){}let micStream=null,micSource=null,micIsolationHP=null,micIsolationLP=null,micIsolationGain=null,micPreamp=null,micEqLow=null,micEqMid=null,micEqHigh=null,micFilter=null,micPhaser=null,micPhaserLfo=null,micPhaserDepth=null,micComp=null,micGain=null,micSum=null,micDelay=null,micDelayWet=null,micDelayFb=null,micReverb=null,micReverbWet=null,micAnalyser=null,micFxReturn=null,micFxAnalyser=null,micCueGain=null,micAirGain=null,micPan=null,micBalanceL=null,micBalanceR=null,micStereoMerge=null,micCuePan=null,micCueL=null,micCueR=null,micCueMerge=null;let lineStream=null,lineSource=null,lineAudio=null,lineMediaSource=null,computerInputSlots={1:{gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''},2:{stream:null,source:null,gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''},3:{stream:null,source:null,gain:null,analyser:null,meterRunning:false,level:100,muted:false,name:'',mode:''}},linePreamp=null,lineEqLow=null,lineEqMid=null,lineEqHigh=null,lineFilter=null,linePhaser=null,linePhaserLfo=null,linePhaserDepth=null,lineComp=null,lineGain=null,lineSum=null,lineDelay=null,lineDelayWet=null,lineDelayFb=null,lineReverb=null,lineReverbWet=null,lineAnalyser=null,lineFxReturn=null,lineFxAnalyser=null,lineCueGain=null,lineAirGain=null,linePan=null,lineCuePan=null;let micCueOn=false,micAirOn=false,lineCueOn=false,lineAirOn=false,fxTarget='mic';let customFxPresets=[],selectedFxPreset='',customFxSlots={1:null,2:null,3:null,4:null},fxPresetLibraryOpen=false;let publicRadioControl=true,radioCueLevel=100,sendMiniKind='mic',sendMiniWhich='delay';
 /* GE SAFE DEFAULT — V46 known-good MIC recovery baseline.
    Preserve this object when experimenting with later FX/UI revisions.
    Audio path baseline: processed mono MIC -> explicit L/R monitor duplication -> balance;
@@ -6607,13 +6681,14 @@ async function setLocalCameraFacingV106(facing){
 }
 async function autoConnectDeviceMedia(){
  requestBoardWakeLock();
- let micOk=false,camOk=false;
+ let micOk=false;
  try{micOk=await ensureMicOpen()}catch(e){geAudioDiag.lastError=String(e&&e.message||e)}
- try{camOk=await ensureCameraOpen()}catch(e){cameraLastError=String(e&&e.message||e)}
+ // V134: connection never turns VIDEO on. Enumerate cameras so the mixer can offer VIDEO,
+ // but camera capture starts only from that channel's VIDEO control.
  await geEnumerateAudioInputs().catch(function(){});
  await geBoardHeartbeat();
  renderChannelStatusBubbles();renderDeviceChannelSheet();
- return !!(micOk||camOk)
+ return !!micOk
 }
 function downsampleMonitorInput(input,sourceRate,targetRate){
  if(!input||!input.length)return new Float32Array(0);
@@ -7462,8 +7537,18 @@ async function loadFxPresets(){const r=await api('/control/effect-presets?surfac
 async function deleteFxPreset(id){const r=await api('/control/effect-presets/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',id:String(id||'')})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not delete FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;if(selectedFxPreset===String(id))selectedFxPreset='';syncFx()}
 async function saveFxPreset(){const name=$('fxPresetName').value.trim();if(!name)throw new Error('Type a preset name first.');const r=await api('/control/effect-presets/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({surface:'dj',name:name,settings:effectSnapshot(fxTarget)})}),d=await r.json().catch(function(){return {}});if(!r.ok||!d.ok)throw new Error(d.error||'Could not save FX preset');customFxPresets=Array.isArray(d.items)?d.items:customFxPresets;selectedFxPreset=String((d.preset&&d.preset.id)||'');fxPresetLibraryOpen=true;syncFx()}
 function markFxButtons(){document.querySelectorAll('[data-fx]').forEach(function(b){b.classList.toggle('on',$('effectsSheet').classList.contains('show')&&b.dataset.fx===fxTarget)})}
+function activeVideoFxBoardIdV134(){const ids=selectedBoardVideoIds();return boardVideoExpandedId&&ids.indexOf(String(boardVideoExpandedId))>=0?String(boardVideoExpandedId):(ids[0]||'')}
+function syncFxVideoControlsV134(){
+ const box=$('fxVideoControls');if(!box)return;
+ const id=activeVideoFxBoardIdV134(),board=id?boardById(id):null;
+ box.hidden=!id;if(!id)return;
+ const self=String(id)===String(GE_BOARD_ID),mode=self?videoFxMode:String(board&&board.video_fx_mode||'raw'),amount=self?videoFxAmount:Number(board&&board.video_fx_amount==null?60:board.video_fx_amount);
+ if($('fxVideoTarget'))$('fxVideoTarget').textContent=(board?boardDisplayLabel(board):'VIDEO')+' · VIDEO';
+ box.querySelectorAll('[data-fx-video-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.fxVideoMode===mode)});
+ if($('fxVideoAmount'))$('fxVideoAmount').value=String(Math.round(amount))
+}
 function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');markFxButtons();if($('mixerSheet').classList.contains('show'))setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders)}
-function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
+function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();syncFxVideoControlsV134();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
 function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=n;b.title=slot&&slot.name?String(slot.name):('Preset '+n)})}
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
@@ -7735,10 +7820,11 @@ function boardNeedsSetup(row){
 function renderKnownDeviceBubbles(){
  const host=$('geKnownDevices');if(!host)return;
  host.innerHTML=knownBoardViews().filter(function(v){return v.slotRank<4}).map(function(v){
-   const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,air=!!r.mic_air,needs=boardNeedsSetup(r);
-   const cls='geChannelBubble '+(online?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'')+(needs?'needsSetup ':'');
-   const title=v.label+' · '+(online?'ONLINE':'KNOWN · OFFLINE')+(self?' · THIS DEVICE':'')+(needs?' · TAP TO SET UP AUDIO + VIDEO':' · TAP FOR CONTROLS');
-   return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>'
+   const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,linked=online&&boardLogicalConnectedV134(r.id),air=!!r.mic_air;
+   const cls='geChannelBubble '+(linked?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'');
+   const state=!online?'OFFLINE':(linked?'CONNECTED':'DISCONNECTED');
+   const title=v.label+' · '+state+(self?' · THIS DEVICE':'')+' · TAP TO '+(linked?'DISCONNECT':'CONNECT / RECONNECT');
+   return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" aria-pressed="'+(linked?'true':'false')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>'
  }).join('')
 }
 function boardDisplayLabel(board){
@@ -8095,8 +8181,42 @@ function geDeviceSlotEnabled(kind){
  const box=document.querySelector('[data-device-channel="'+String(kind||'')+'"]');
  return box?!!box.checked:true
 }
+function saveBoardConnectionV134(){try{localStorage.setItem(BOARD_CONNECTION_KEY,JSON.stringify(boardConnectionEnabled))}catch(e){}}
+function boardLogicalConnectedV134(boardId){
+ boardId=String(boardId||'');return boardConnectionEnabled[boardId]!==false
+}
+async function setBoardLogicalConnectionV134(boardId,wanted){
+ boardId=String(boardId||'');const board=boardById(boardId);if(!board)return;
+ wanted=!!wanted;boardConnectionEnabled[boardId]=wanted;saveBoardConnectionV134();
+ if(!wanted){
+   delete boardVideoSelected[boardId];saveBoardVideoSelection();
+   delete boardMonitorSelected[boardId];delete boardMonitorSeq[boardId];delete boardMonitorNextTime[boardId];
+   if(boardMonitorGains[boardId]){try{boardMonitorGains[boardId].disconnect()}catch(e){}delete boardMonitorGains[boardId]}
+   await setPublicBoardVideoV134(boardId,false).catch(function(){});
+   if(boardId===String(GE_BOARD_ID)){
+     stopBoardMonitorUpload();
+     if(micAirOn)await stopMicOnAir({preserveMic:true});
+     await setLocalCameraCaptureV102(false).catch(function(){});
+     await setLocalMicCaptureV102(false).catch(function(){})
+   }else if(board.online){
+     await sendBoardCommand(boardId,'mic_air',false).catch(function(){});
+     await sendBoardCommand(boardId,'monitor_stream',false).catch(function(){});
+     await sendBoardCommand(boardId,'media_ready',false).catch(function(){})
+   }
+   stopBoardMonitorPollingIfIdle()
+ }else if(board.online){
+   if(boardId===String(GE_BOARD_ID))await autoConnectDeviceMedia();
+   else await sendBoardCommand(boardId,'media_ready',true).catch(function(){})
+ }
+ renderKnownDeviceBubbles();renderKnownDeviceMixer();renderBoardVideoWall();setTimeout(poll,160)
+}
+async function toggleKnownBoardConnectionV134(boardId){
+ const board=boardById(boardId);if(!board)return;
+ const wanted=!boardLogicalConnectedV134(boardId);
+ return setBoardLogicalConnectionV134(boardId,wanted)
+}
 function boardMixerRows(){
- return knownBoardViews().filter(function(v){return !!v.row.online&&v.slotRank<4&&geDeviceSlotEnabled(v.slotKind)})
+ return knownBoardViews().filter(function(v){return !!v.row.online&&v.slotRank<4&&boardLogicalConnectedV134(v.row.id)&&geDeviceSlotEnabled(v.slotKind)})
 }
 function boardFastMeter(boardId){
  const m=boardFastMeters[String(boardId||'')];return m&&Number(m.age||0)<1.2?m:null
@@ -8221,6 +8341,7 @@ function renderBoardVideoWall(){
    return '<div class="mixerVideoTile '+(expanded?'expanded ':'')+(self?(fxMode==='raw'?'rawVideo':'fxVideo'):'')+'" data-board-video-tile="'+esc(id)+'" title="Tap to '+(expanded?'shrink':'enlarge')+'">'+media+'<div class="mixerVideoOffline" data-board-video-offline="'+esc(id)+'" '+(live?'hidden':'')+'>'+esc(state)+'</div><div class="mixerVideoOverlay"><span>'+esc(label)+'</span><span data-board-video-state="'+esc(id)+'">'+esc(state)+'</span></div>'+fx+'</div>'
  }).join('');
  paintLocalVideoPreviewV111();bindLocalVideoElementsV112();
+ syncFxVideoControlsV134();
  if(ids.length)startBoardVideoMonitor();else stopBoardVideoMonitor()
 }
 async function refreshBoardVideoFrame(boardId){
@@ -8261,7 +8382,7 @@ async function toggleBoardVideoMonitorV114(boardId){
  const selecting=!boardVideoSelected[boardId];
  if(!selecting){
    delete boardVideoSelected[boardId];delete boardVideoRetryAt[boardId];
-   saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer();return
+   saveBoardVideoSelection();await setPublicBoardVideoV134(boardId,false).catch(function(e){diagEvent('PUBLIC VIDEO',String(e&&e.message||e))});renderBoardVideoWall();renderKnownDeviceMixer();return
  }
  boardVideoSelected[boardId]=true;saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer();
  const self=boardId===String(GE_BOARD_ID),localLive=!!(self&&cameraStream&&cameraStream.getVideoTracks&&cameraStream.getVideoTracks()[0]&&cameraStream.getVideoTracks()[0].readyState==='live'),remoteLive=!self&&String(board.video_track_state||'').toLowerCase()==='live';
@@ -8269,6 +8390,7 @@ async function toggleBoardVideoMonitorV114(boardId){
    if(self)await setLocalCameraCaptureV102(true);
    else{boardVideoRetryAt[boardId]=Date.now();await sendBoardCommand(boardId,'camera_ready',true)}
  }
+ await setPublicBoardVideoV134(boardId,true).catch(function(e){diagEvent('PUBLIC VIDEO',String(e&&e.message||e))});
  renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180)
 }
 function toggleBoardVideo(boardId){return toggleBoardVideoMonitorV114(boardId)}
@@ -8308,17 +8430,15 @@ function stopBoardMonitorPollingIfIdle(){
 }
 async function connectBoardDeviceV102(boardId){
  boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online)return;
- boardMonitorSelected[boardId]=true;boardMonitorSeq[boardId]=0;boardMonitorNextTime[boardId]=0;
- boardVideoSelected[boardId]=true;saveBoardVideoSelection();
  if(boardId===String(GE_BOARD_ID)){
   if(micAirOn)await stopMicOnAir({preserveMic:true});
   await autoConnectDeviceMedia()
  }else{
   await sendBoardCommand(boardId,'mic_air',false);
-  await sendBoardCommand(boardId,'media_ready',true);
-  await sendBoardCommand(boardId,'monitor_stream',true)
+  await sendBoardCommand(boardId,'monitor_stream',false);
+  await sendBoardCommand(boardId,'media_ready',true)
  }
- startBoardMonitorPolling();renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180)
+ renderKnownDeviceMixer();setTimeout(poll,180)
 }
 async function setBoardMicV102(boardId,wanted){
  boardId=String(boardId||'');const board=boardById(boardId);if(!board||!board.online)return;
@@ -8350,7 +8470,7 @@ async function setBoardVideoV102(boardId,wanted){
    await sendBoardCommand(boardId,'camera_ready',wanted)
  }
  if(active)boardVideoSelected[boardId]=true;else delete boardVideoSelected[boardId];
- saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180);
+ saveBoardVideoSelection();await setPublicBoardVideoV134(boardId,!!active).catch(function(e){diagEvent('PUBLIC VIDEO',String(e&&e.message||e))});renderBoardVideoWall();renderKnownDeviceMixer();setTimeout(poll,180);
  return active
 }
 async function flipBoardCameraV106(boardId){
@@ -8544,6 +8664,11 @@ async function sendBoardCommand(boardId,action,value){
  if(!r.ok||!d.ok)throw new Error(d.error||'Remote browser command failed');
  return d
 }
+async function setPublicBoardVideoV134(boardId,enabled){
+ const r=await api('/control/board/public-video',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:String(boardId||''),enabled:!!enabled})}),d=await r.json().catch(function(){return {}});
+ if(!r.ok||!d.ok)throw new Error(d.error||'Public video selection failed');
+ return d
+}
 
 async function createDevicePairCode(targetKind){
   const body=targetKind?JSON.stringify({target_kind:targetKind}):'{}';
@@ -8673,7 +8798,7 @@ document.addEventListener('visibilitychange',function(){
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
 $('geChannelStatus').onclick=function(e){
- const known=e.target.closest('[data-board-device]');if(known){toggleKnownBoard(known.dataset.boardDevice).catch(function(err){alert(err.message||err)});return}
+ const known=e.target.closest('[data-board-device]');if(known){toggleKnownBoardConnectionV134(known.dataset.boardDevice).catch(function(err){alert(err.message||err)});return}
  const b=e.target.closest('[data-channel-bubble]');if(!b)return;geOpenBoardId='';toggleChannelConnection(b.dataset.channelBubble)
 };
 document.querySelectorAll('[data-ge-arrangement]').forEach(function(b){b.onclick=function(){applyGeArrangement(this.dataset.geArrangement,true)}});
@@ -8765,7 +8890,7 @@ if($('deviceVideoRescan'))$('deviceVideoRescan').onclick=async function(){
  }catch(e){b.textContent='SCAN ERROR'}
  finally{setTimeout(function(){b.textContent=old;b.disabled=false},1200)}
 };
-if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){boardVideoExpandedId='';boardVideoSelected={};saveBoardVideoSelection();renderBoardVideoWall();renderKnownDeviceMixer()};
+if($('mixerVideoCloseAll'))$('mixerVideoCloseAll').onclick=function(){const ids=selectedBoardVideoIds();boardVideoExpandedId='';boardVideoSelected={};saveBoardVideoSelection();Promise.all(ids.map(function(id){return setPublicBoardVideoV134(id,false).catch(function(){})})).finally(function(){renderBoardVideoWall();renderKnownDeviceMixer()})};
 if($('mixerVideoGrid'))$('mixerVideoGrid').onclick=function(e){
  const tile=e.target&&e.target.closest&&e.target.closest('[data-board-video-tile]');if(!tile)return;const id=String(tile.dataset.boardVideoTile||'');
  const fxBtn=e.target.closest&&e.target.closest('[data-video-fx-mode]');if(fxBtn){e.stopPropagation();setBoardVideoFxV111(id,fxBtn.dataset.videoFxMode,null).catch(function(err){alert(err.message||err)});return}
@@ -8773,6 +8898,8 @@ if($('mixerVideoGrid'))$('mixerVideoGrid').onclick=function(e){
  boardVideoExpandedId=String(boardVideoExpandedId)===id?'':id;renderBoardVideoWall()
 };
 if($('mixerVideoGrid'))$('mixerVideoGrid').onchange=function(e){if(!(e.target&&e.target.matches&&e.target.matches('[data-video-fx-amount]')))return;const tile=e.target.closest('[data-board-video-tile]'),id=tile&&tile.dataset.boardVideoTile;if(!id)return;setBoardVideoFxV111(id,null,Number(e.target.value)).catch(function(err){console.warn(err)})};
+if($('fxVideoControls'))$('fxVideoControls').onclick=function(e){const b=e.target.closest('[data-fx-video-mode]');if(!b)return;const id=activeVideoFxBoardIdV134();if(!id)return;setBoardVideoFxV111(id,b.dataset.fxVideoMode,null).then(syncFxVideoControlsV134).catch(function(err){alert(err.message||err)})};
+if($('fxVideoAmount'))$('fxVideoAmount').oninput=function(){const id=activeVideoFxBoardIdV134();if(!id)return;setBoardVideoFxV111(id,null,Number(this.value)).then(syncFxVideoControlsV134).catch(function(err){console.warn(err)})};
 ['iphone','ipad'].forEach(function(kind){
  const ui=remoteChannelIds(kind);
  if(ui.level){
@@ -8951,12 +9078,23 @@ function syncGeDisplayBarSpace(){
  if(dock)document.documentElement.style.setProperty('--geDockHeight',Math.ceil(dock.getBoundingClientRect().height)+'px')
 }
 function geProfileClass(p){return p==='iphone5'?'geLayoutIphone5':(p==='iphone'?'geLayoutIphone':(p==='ipad'?'geLayoutIpad':'geLayoutDesktop'))}
-function geButtonFontLimits(){return geLayoutProfile==='iphone5'?{min:9,max:13}:geLayoutProfile==='iphone'?{min:12,max:18}:geLayoutProfile==='ipad'?{min:13,max:20}:{min:12,max:20}}
+function geButtonFontLimits(){return geLayoutProfile==='iphone5'?{min:9,max:15}:geLayoutProfile==='iphone'?{min:11,max:20}:geLayoutProfile==='ipad'?{min:12,max:22}:{min:12,max:22}}
+const GE_BUTTON_SHORT_V134={'FRONT CAMERA':'FRONT CAM','BACK CAMERA':'BACK CAM','FILES / RECORDINGS':'FILES','MORE INPUTS / SETUP':'MORE INPUTS','HIDE EXTRA INPUTS':'HIDE INPUTS','EXPORT ASCAP CSV':'ASCAP CSV','CONNECT DEVICE':'CONNECT','OPEN COMPUTER CONTROLS':'COMPUTER'};
 function fitGeButtonLabel(btn){
  if(!btn||!btn.isConnected||btn.offsetWidth<10||btn.offsetHeight<10)return;
- const lim=geButtonFontLimits(),h=btn.clientHeight,w=btn.clientWidth;let px=Math.min(lim.max,Math.max(lim.min,h*.42));
+ const lim=geButtonFontLimits(),h=btn.clientHeight,w=btn.clientWidth;
+ if(!btn.children.length){
+   const live=String(btn.textContent||'').trim(),oldShort=String(btn.dataset.geShortLabel||'');
+   if(!btn.dataset.geFullLabel||(!oldShort&&live!==btn.dataset.geFullLabel)||(oldShort&&live!==oldShort&&live!==btn.dataset.geFullLabel)){btn.dataset.geFullLabel=live;btn.dataset.geShortLabel=''}
+   if(btn.dataset.geFullLabel&&btn.textContent!==btn.dataset.geFullLabel){btn.textContent=btn.dataset.geFullLabel;btn.dataset.geShortLabel=''}
+ }
+ let px=Math.min(lim.max,Math.max(lim.min,h*.56));
  btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');let guard=0;
- while(px>lim.min&&guard++<24&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
+ while(px>lim.min&&guard++<32&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
+ if((btn.scrollWidth>w+1||btn.scrollHeight>h+1)&&!btn.children.length){
+   const full=String(btn.dataset.geFullLabel||btn.textContent||'').trim(),short=GE_BUTTON_SHORT_V134[full];
+   if(short){btn.textContent=short;btn.dataset.geShortLabel=short;px=Math.min(lim.max,Math.max(lim.min,h*.56));btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');guard=0;while(px>lim.min&&guard++<32&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}}
+ }
 }
 let geButtonFitTimer=0;
 function fitGeButtonLabels(){clearTimeout(geButtonFitTimer);geButtonFitTimer=setTimeout(function(){document.querySelectorAll('button').forEach(fitGeButtonLabel)},0)}
