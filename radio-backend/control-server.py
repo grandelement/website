@@ -1705,6 +1705,11 @@ def list_dj_board_presence():
         row["video_frame_live"] = bool(frame_time and frame_age is not None and frame_age < 2.5 and row["online"])
         rows.append(row)
     rows.sort(key=lambda x: (0 if x.get("online") else 1, -float(x.get("last_seen", 0) or 0)))
+    # VIDEO selection is session/broadcast state, not a permanent device property.
+    # If a device has actually fallen offline, require the mixer to select VIDEO again.
+    online_ids = {str(x.get("id", "") or "") for x in rows if x.get("online")}
+    with DJ_PUBLIC_VIDEO_LOCK:
+        DJ_PUBLIC_VIDEO_ENABLED.intersection_update(online_ids)
     return rows
 
 def _public_camera_id(board_id):
