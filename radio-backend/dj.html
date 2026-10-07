@@ -4630,8 +4630,8 @@ html.geFormatDesktop #mixerSheet .mixerGrid>.mixStrip .touchFader{
 
 /* V133 device-aware readability: fixed profiles replace the old manual TEXT / BUTTONS scaler. */
 :root{--ge-font-title:20px;--ge-font-category:15px;--ge-font-control:15px;--ge-font-body:12px;--ge-control-h:44px;--ge-header-h:38px;--ge-touch-h:42px;--ge-edge-inset:8px}
-html.geLayoutIphone5{--ge-font-title:17px;--ge-font-category:12px;--ge-font-control:12px;--ge-font-body:10px;--ge-control-h:39px;--ge-header-h:32px;--ge-touch-h:36px;--ge-edge-inset:8px}
-html.geLayoutIphone{--ge-font-title:20px;--ge-font-category:15px;--ge-font-control:16px;--ge-font-body:13px;--ge-control-h:46px;--ge-header-h:40px;--ge-touch-h:42px;--ge-edge-inset:14px}
+html.geLayoutIphone5{--ge-font-title:17px;--ge-font-category:12px;--ge-font-control:12px;--ge-font-body:10px;--ge-control-h:40px;--ge-header-h:34px;--ge-touch-h:40px;--ge-edge-inset:8px}
+html.geLayoutIphone{--ge-font-title:20px;--ge-font-category:15px;--ge-font-control:17px;--ge-font-body:13px;--ge-control-h:46px;--ge-header-h:40px;--ge-touch-h:44px;--ge-edge-inset:14px}
 html.geLayoutIpad{--ge-font-title:22px;--ge-font-category:16px;--ge-font-control:17px;--ge-font-body:13px;--ge-control-h:48px;--ge-header-h:42px;--ge-touch-h:44px;--ge-edge-inset:10px}
 html.geLayoutDesktop{--ge-font-title:22px;--ge-font-category:16px;--ge-font-control:16px;--ge-font-body:13px;--ge-control-h:46px;--ge-header-h:40px;--ge-touch-h:42px;--ge-edge-inset:8px}
 body button,body button *{font-size:var(--ge-button-fit,var(--ge-font-control))!important;line-height:1.02!important}
@@ -4716,6 +4716,30 @@ html.geLayoutIpad #mixerSheet #effectsSheet .fxControlGrid .bigSlider{min-width:
  #mixerSheet #effectsSheet .fxControlGrid{height:220px!important}
 }
 
+/* V135 GE button readability standard.
+   Whole words only. Two lines maximum. No browser hyphenation or arbitrary word breaking. */
+body button,
+body button *,
+.geChannelBubble,
+.geChannelBubble span{
+  word-break:keep-all!important;
+  overflow-wrap:normal!important;
+  hyphens:none!important;
+  -webkit-hyphens:none!important;
+}
+body button{
+  white-space:normal!important;
+  text-wrap:wrap!important;
+  line-height:1.05!important;
+  text-align:center!important;
+}
+.geChannelBubble span{white-space:nowrap!important}
+
+/* Touch controls follow the Apple-size baseline while preserving the existing visual layout. */
+html.geLayoutIphone button:not(.geChannelBubble):not(.studioNode),
+html.geLayoutIpad button:not(.geChannelBubble):not(.studioNode){min-height:44px}
+html.geLayoutIphone5 button:not(.geChannelBubble):not(.studioNode){min-height:40px}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -4727,7 +4751,7 @@ html.geLayoutIpad #mixerSheet #effectsSheet .fxControlGrid .bigSlider{min-width:
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v134</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v135</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -9079,8 +9103,34 @@ function syncGeDisplayBarSpace(){
  if(dock)document.documentElement.style.setProperty('--geDockHeight',Math.ceil(dock.getBoundingClientRect().height)+'px')
 }
 function geProfileClass(p){return p==='iphone5'?'geLayoutIphone5':(p==='iphone'?'geLayoutIphone':(p==='ipad'?'geLayoutIpad':'geLayoutDesktop'))}
-function geButtonFontLimits(){return geLayoutProfile==='iphone5'?{min:9,max:15}:geLayoutProfile==='iphone'?{min:11,max:20}:geLayoutProfile==='ipad'?{min:12,max:22}:{min:12,max:22}}
-const GE_BUTTON_SHORT_V134={'FRONT CAMERA':'FRONT CAM','BACK CAMERA':'BACK CAM','FILES / RECORDINGS':'FILES','MORE INPUTS / SETUP':'MORE INPUTS','HIDE EXTRA INPUTS':'HIDE INPUTS','EXPORT ASCAP CSV':'ASCAP CSV','CONNECT DEVICE':'CONNECT','OPEN COMPUTER CONTROLS':'COMPUTER'};
+/* V135 button typography rule:
+   - never split or hyphenate a word
+   - use at most two text lines
+   - begin near the device's normal readable type size
+   - shrink before abbreviating
+   - abbreviations always replace whole words, never chopped fragments */
+function geButtonFontLimits(){return geLayoutProfile==='iphone5'?{min:10,max:15,target:13}:geLayoutProfile==='iphone'?{min:11,max:18,target:17}:geLayoutProfile==='ipad'?{min:12,max:20,target:17}:{min:12,max:20,target:16}}
+const GE_BUTTON_SHORT_V134={
+ 'FRONT CAMERA':'FRONT CAM','BACK CAMERA':'BACK CAM','FILES / RECORDINGS':'FILES',
+ 'MORE INPUTS / SETUP':'MORE INPUTS','HIDE EXTRA INPUTS':'HIDE INPUTS',
+ 'EXPORT ASCAP CSV':'ASCAP CSV','CONNECT DEVICE':'CONNECT',
+ 'OPEN COMPUTER CONTROLS':'COMPUTER','ENTER DJ BOOTH':'ENTER DJ',
+ 'CAPTURE WINDOW / TAB AUDIO':'CAPTURE AUDIO','SELECT COMPUTER AUDIO INPUT…':'SELECT AUDIO INPUT…',
+ 'MANAGE SAVED PRESETS':'SAVED PRESETS','USE ON RADIO':'USE RADIO',
+ 'DISCONNECT DEVICE':'DISCONNECT','CONNECT / RECONNECT':'RECONNECT'
+};
+function geButtonLineCountV135(btn){
+ if(!btn||btn.children.length||!btn.firstChild)return 1;
+ try{
+   const r=document.createRange();r.selectNodeContents(btn);
+   const rects=Array.from(r.getClientRects()).filter(function(x){return x.width>.5&&x.height>.5});
+   if(!rects.length)return 1;
+   const tops=[];
+   rects.forEach(function(x){const t=Math.round(x.top*2)/2;if(!tops.some(function(y){return Math.abs(y-t)<1}))tops.push(t)});
+   return Math.max(1,tops.length)
+ }catch(e){return 1}
+}
+function geButtonFitsV135(btn,w,h){return btn.scrollWidth<=w+1&&btn.scrollHeight<=h+1&&geButtonLineCountV135(btn)<=2}
 function fitGeButtonLabel(btn){
  if(!btn||!btn.isConnected||btn.offsetWidth<10||btn.offsetHeight<10)return;
  const lim=geButtonFontLimits(),h=btn.clientHeight,w=btn.clientWidth;
@@ -9089,12 +9139,17 @@ function fitGeButtonLabel(btn){
    if(!btn.dataset.geFullLabel||(!oldShort&&live!==btn.dataset.geFullLabel)||(oldShort&&live!==oldShort&&live!==btn.dataset.geFullLabel)){btn.dataset.geFullLabel=live;btn.dataset.geShortLabel=''}
    if(btn.dataset.geFullLabel&&btn.textContent!==btn.dataset.geFullLabel){btn.textContent=btn.dataset.geFullLabel;btn.dataset.geShortLabel=''}
  }
- let px=Math.min(lim.max,Math.max(lim.min,h*.56));
+ let px=Math.min(lim.max,Math.max(lim.min,Math.min(lim.target,h*.52)));
  btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');let guard=0;
- while(px>lim.min&&guard++<32&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
- if((btn.scrollWidth>w+1||btn.scrollHeight>h+1)&&!btn.children.length){
+ while(px>lim.min&&guard++<40&&!geButtonFitsV135(btn,w,h)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
+ if(!geButtonFitsV135(btn,w,h)&&!btn.children.length){
    const full=String(btn.dataset.geFullLabel||btn.textContent||'').trim(),short=GE_BUTTON_SHORT_V134[full];
-   if(short){btn.textContent=short;btn.dataset.geShortLabel=short;px=Math.min(lim.max,Math.max(lim.min,h*.56));btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');guard=0;while(px>lim.min&&guard++<32&&(btn.scrollWidth>w+1||btn.scrollHeight>h+1)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}}
+   if(short){
+     btn.textContent=short;btn.dataset.geShortLabel=short;
+     px=Math.min(lim.max,Math.max(lim.min,Math.min(lim.target,h*.52)));
+     btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px');guard=0;
+     while(px>lim.min&&guard++<40&&!geButtonFitsV135(btn,w,h)){px=Math.max(lim.min,px-.5);btn.style.setProperty('--ge-button-fit',px.toFixed(1)+'px')}
+   }
  }
 }
 let geButtonFitTimer=0;
