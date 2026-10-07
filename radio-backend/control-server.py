@@ -1572,6 +1572,9 @@ DJ_BOARD_PRESENCE = {}
 DJ_BOARD_COMMANDS = {}
 DJ_VIDEO_FRAME_LOCK = threading.Lock()
 DJ_VIDEO_FRAMES = {}
+# V134: public video is opt-in from the mixer. A live camera frame by itself is never public.
+DJ_PUBLIC_VIDEO_LOCK = threading.Lock()
+DJ_PUBLIC_VIDEO_ENABLED = set()
 DJ_AUDIO_MONITOR_LOCK = threading.Lock()
 DJ_AUDIO_MONITOR = {}
 DJ_BOARD_METER_LOCK = threading.Lock()
@@ -1733,6 +1736,21 @@ def _public_camera_rank(row):
         return 3
     return 9
 
+def set_public_live_video_enabled(board_id, enabled):
+    board_id = str(board_id or "").strip()
+    if not board_id:
+        raise ValueError("Missing target board.")
+    known = {str(row.get("id", "") or "") for row in list_dj_board_presence()}
+    if board_id not in known:
+        raise ValueError("Target DJ board is not known.")
+    with DJ_PUBLIC_VIDEO_LOCK:
+        if bool(enabled):
+            DJ_PUBLIC_VIDEO_ENABLED.add(board_id)
+        else:
+            DJ_PUBLIC_VIDEO_ENABLED.discard(board_id)
+        selected = sorted(DJ_PUBLIC_VIDEO_ENABLED)
+    return {"board_id": board_id, "enabled": bool(enabled), "selected": selected}
+
 def public_live_video_cameras():
     try:
         live_active = bool(broadcast_engine().status().get("active", False))
@@ -1740,9 +1758,11 @@ def public_live_video_cameras():
         live_active = False
     if not live_active:
         return []
+    with DJ_PUBLIC_VIDEO_LOCK:
+        selected = set(DJ_PUBLIC_VIDEO_ENABLED)
     rows = [
         row for row in list_dj_board_presence()
-        if row.get("online") and row.get("video_frame_live")
+        if str(row.get("id", "") or "") in selected and row.get("online") and row.get("video_frame_live")
     ]
     rows.sort(key=lambda row: (_public_camera_rank(row), -float(row.get("last_seen", 0) or 0)))
     return [{
@@ -1756,9 +1776,11 @@ def public_live_video_board(camera_id):
     camera_id = str(camera_id or "").strip()
     if not camera_id:
         return None
+    with DJ_PUBLIC_VIDEO_LOCK:
+        selected = set(DJ_PUBLIC_VIDEO_ENABLED)
     for row in list_dj_board_presence():
         board_id = str(row.get("id", "") or "")
-        if row.get("online") and row.get("video_frame_live") and hmac.compare_digest(_public_camera_id(board_id), camera_id):
+        if board_id in selected and row.get("online") and row.get("video_frame_live") and hmac.compare_digest(_public_camera_id(board_id), camera_id):
             return board_id
     return None
 
@@ -3936,6 +3958,16 @@ class Handler(BaseHTTPRequestHandler):
                 body = self.read_body_json()
                 command = queue_dj_board_command(body.get("board_id"), body.get("action"), body.get("value"))
                 self.json_response({"ok": True, "command": command})
+            except Exception as exc:
+                self.json_response({"ok": False, "error": str(exc)}, 400)
+            return
+
+        if self.path == "/control/board/public-video":
+            if not self.require_auth(): return
+            try:
+                body = self.read_body_json()
+                state = set_public_live_video_enabled(body.get("board_id"), body.get("enabled"))
+                self.json_response({"ok": True, **state})
             except Exception as exc:
                 self.json_response({"ok": False, "error": str(exc)}, 400)
             return
