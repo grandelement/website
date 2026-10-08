@@ -6121,6 +6121,43 @@ html.geLayoutIpad #mixerPopoutBtn{
   display:none!important;
 }
 
+
+/* V153: iPhone EFFECTS is exclusive, compact and independent of MIXER.
+   Deliberately placed last to override historical responsive rules. */
+body.geEffectsOnly #mixerSheet>.sheetIn>.mixerHeader,
+body.geEffectsOnly #mixerSheet>.sheetIn>.mixerChannelPicker,
+body.geEffectsOnly #mixerSheet>.sheetIn>.mixerRightRail,
+body.geEffectsOnly #mixerSheet>.sheetIn>.mixerVideoWall,
+body.geEffectsOnly #mixerSheet>.sheetIn>.mixerGrid,
+body.geEffectsOnly #mixerSheet .mixerScrollControl,
+body.geEffectsOnly #effectsSheet .fxLayoutBar,
+body.geEffectsOnly #effectsSheet .fxVideoControls,
+body.geEffectsOnly #effectsSheet .fxVideoDeviceRow,
+body.geEffectsOnly #effectsSheet .fxVideoPopup{display:none!important}
+body.geEffectsOnly #mixerSheet>.sheetIn{display:block!important;grid-template-columns:none!important;grid-template-rows:none!important}
+body.geEffectsOnly #effectsSheet.show{display:flex!important;flex-direction:column!important;overflow:hidden!important}
+body.geEffectsOnly #effectsSheet .fxDockHead{flex:0 0 auto!important;min-height:0!important;padding:2px 4px!important}
+body.geEffectsOnly #effectsSheet .fxLandscapeBody{display:flex!important;flex-direction:column!important;min-height:0!important;flex:1 1 auto!important;gap:4px!important;overflow:hidden!important}
+body.geEffectsOnly #effectsSheet .fxLeftRail{order:1!important;display:flex!important;flex-direction:column!important;flex:0 0 auto!important;width:100%!important;margin:0!important;padding:0!important}
+body.geEffectsOnly #effectsSheet .fxDelayDetail{order:0!important;margin:0!important}
+body.geEffectsOnly #effectsSheet .fxEffectButtons{order:1!important;display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:2px!important}
+body.geEffectsOnly #effectsSheet .fxEffectButtons button{min-width:0!important;min-height:30px!important;height:30px!important;padding:1px!important;font-size:clamp(7px,2vw,10px)!important}
+body.geEffectsOnly #effectsSheet .fxCenterRack{order:2!important;display:flex!important;flex-direction:column!important;flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
+body.geEffectsOnly #effectsSheet .fxCompactMeters{order:0!important;flex:0 0 auto!important}
+body.geEffectsOnly #effectsSheet .fxControlGrid{order:1!important;flex:1 1 auto!important;display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr))!important;grid-template-rows:minmax(0,1fr)!important;grid-auto-flow:column!important;gap:2px!important;min-width:0!important;width:100%!important;overflow:hidden!important}
+body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider:not(.fxSecondaryControl){display:flex!important;flex-direction:column!important;min-width:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:2px 0!important;overflow:hidden!important}
+body.geEffectsOnly #effectsSheet .fxControlGrid>.fxSecondaryControl{display:none!important}
+body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider label{display:block!important;min-height:30px!important;font-size:7px!important;text-align:center!important;white-space:normal!important;overflow-wrap:normal!important}
+body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider input.fxvf{display:block!important;min-width:0!important;max-width:100%!important;margin:auto!important}
+body.geEffectsOnly #effectsSheet .fxRightRail{order:3!important;flex:0 0 auto!important;display:grid!important;grid-template-columns:minmax(0,1fr) repeat(4,minmax(26px,42px))!important;width:100%!important;min-width:0!important;gap:3px!important;margin:0!important;padding:0!important}
+body.geEffectsOnly #effectsSheet .fxPresetSelectWrap{grid-column:1!important;min-width:0!important}
+body.geEffectsOnly #effectsSheet .fxCustomSlots{display:contents!important}
+body.geEffectsOnly #effectsSheet .fxPresetManager{display:none!important}
+@media(max-width:560px){
+ body.geEffectsOnly #effectsSheet .fxDockHead .fxTitleBlock{display:none!important}
+ body.geEffectsOnly #effectsSheet .fxDockHead #fxCloseBtn{display:none!important}
+ body.geEffectsOnly #effectsSheet .fxControlGrid{grid-template-columns:repeat(9,minmax(0,1fr))!important}
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -9157,7 +9194,7 @@ $('masterMixLevel').oninput=function(){$('masterMixRead').textContent=Math.round
 $('masterMixLevel').onchange=function(){setMixer({music_under_voice:Number(this.value)/100}).catch(function(e){alert(e.message)})};
 if($('publicRadioArm'))$('publicRadioArm').onclick=function(){publicRadioControl=true;syncPublicRadioArm()};
 $('publicRadioMute').onclick=function(){const muted=!(status&&status.mixer&&status.mixer.music_muted);setMixer({music_muted:muted}).catch(function(e){alert(e.message)})};
-$('mixFxOpen').onclick=function(){openFx(fxTarget,null,true)};
+$('mixFxOpen').onclick=function(){openFx(fxTarget,null,false)};
 syncSendToggles();syncPublicRadioArm();
 $('radioAudio').addEventListener('play',function(){radioMonitorOn=true;radioPlaybackState='PLAYING';updateRadioButton();pollRadioMeter()});
 $('radioAudio').addEventListener('pause',function(){if(radioMonitorOn){radioMonitorOn=false;radioPlaybackState='PAUSED'}applyRealRadioMeter(null);updateRadioButton()});
@@ -9180,7 +9217,7 @@ $('lineAudioCopy').onclick=function(){
  const txt=geAudioDiagReport(null);
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){$('lineAudioCopy').textContent='COPIED';setTimeout(function(){$('lineAudioCopy').textContent='COPY'},900)});
  else alert(txt)
-};$('lineAir').onclick=function(){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();if(!h||!h.line_connected){renderLineRoleUi();return}pushSharedDjControls({line_air:!h.line_air},true);this.disabled=true;setTimeout(function(){poll();renderLineRoleUi()},250)}else toggleLineOnAir().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('mixMicStage').onclick=function(){cycleLocalTrackStageV129('mic').catch(function(e){alert(e.message||e)})};$('mixLineStage').onclick=function(){cycleLocalTrackStageV129('line').catch(function(e){alert(e.message||e)})};$('micFxOpen').onclick=function(){openFx('mic',null,false)};$('lineFxOpen').onclick=function(){openFx('line',null,false)};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if(geEffectsWorkspaceSelectedV151&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx,null,true)}});
+};$('lineAir').onclick=function(){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();if(!h||!h.line_connected){renderLineRoleUi();return}pushSharedDjControls({line_air:!h.line_air},true);this.disabled=true;setTimeout(function(){poll();renderLineRoleUi()},250)}else toggleLineOnAir().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('mixMicStage').onclick=function(){cycleLocalTrackStageV129('mic').catch(function(e){alert(e.message||e)})};$('mixLineStage').onclick=function(){cycleLocalTrackStageV129('line').catch(function(e){alert(e.message||e)})};$('micFxOpen').onclick=function(){openFx('mic',null,false)};$('lineFxOpen').onclick=function(){openFx('line',null,false)};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if(geEffectsWorkspaceSelectedV151&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx,null,false)}});
 const MIXER_LAYOUT_KEY='geDjMixerLayoutV2';
 let mixerLayout={zoom:20,locked:false};
 function mixerVisibleCount(){return Array.from(document.querySelectorAll('#mixerSheet .mixerGrid>.mixStrip')).filter(function(x){return !x.classList.contains('channelHidden')&&!x.classList.contains('auxHidden')&&!x.classList.contains('legacyRemoteStrip')}).length||1}
