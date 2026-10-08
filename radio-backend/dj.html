@@ -4799,6 +4799,35 @@ html.geDayMode #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-contr
   box-shadow:4px 0 7px rgba(0,0,0,.16)!important;
 }
 
+/* V137 bottom dock: all six controls remain on-screen in one row.
+   Every dock label is one complete word on one line; font size gives way before the word does. */
+.dockin{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:4px!important;
+  overflow:hidden!important;
+}
+.dockin>button{
+  min-width:0!important;
+  width:100%!important;
+  padding-left:1px!important;
+  padding-right:1px!important;
+  white-space:nowrap!important;
+  text-wrap:nowrap!important;
+  word-break:keep-all!important;
+  overflow-wrap:normal!important;
+  hyphens:none!important;
+  -webkit-hyphens:none!important;
+  line-height:1!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+}
+html.geLayoutIphone .dockin>button{font-size:var(--ge-button-fit,13px)!important}
+html.geLayoutIphone5 .dockin>button{font-size:var(--ge-button-fit,11px)!important}
+@media(max-width:380px){
+  .dockin{gap:3px!important}
+  .dockin>button{padding-left:0!important;padding-right:0!important}
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -4810,7 +4839,7 @@ html.geDayMode #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-contr
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v136</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v137</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -9189,7 +9218,8 @@ function geButtonLineCountV135(btn){
    return Math.max(1,tops.length)
  }catch(e){return 1}
 }
-function geButtonFitsV135(btn,w,h){return btn.scrollWidth<=w+1&&btn.scrollHeight<=h+1&&geButtonLineCountV135(btn)<=2}
+function geButtonMaxLinesV137(btn){return btn&&btn.closest&&btn.closest('.dockin')?1:2}
+function geButtonFitsV135(btn,w,h){return btn.scrollWidth<=w+1&&btn.scrollHeight<=h+1&&geButtonLineCountV135(btn)<=geButtonMaxLinesV137(btn)}
 function fitGeButtonLabel(btn){
  if(!btn||!btn.isConnected||btn.offsetWidth<10||btn.offsetHeight<10)return;
  const lim=geButtonFontLimits(),h=btn.clientHeight,w=btn.clientWidth;
