@@ -5775,18 +5775,106 @@ html.geFormatDesktop #mixerSheet:not(.fxFull) .mixerRightRail .mixerVideoWall{
   z-index:8!important;
 }
 
+/* V148 COMPUTER layout contract.
+   Always: HOST/HOME/CLOUD left -> devices -> +ADD on the same top line. */
+html.geFormatDesktop body.geAuthenticated #geDisplayZoomBar{
+  display:block!important;
+}
+html.geFormatDesktop #geDisplayZoomBar .geConnectionRail{
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+  width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+html.geFormatDesktop #geDisplayZoomBar .geHostGroup{
+  display:flex!important;
+  flex:0 0 auto!important;
+  order:0!important;
+  position:static!important;
+}
+html.geFormatDesktop #geDisplayZoomBar .geChannelStatus{
+  display:flex!important;
+  flex:1 1 auto!important;
+  order:1!important;
+  min-width:0!important;
+  width:auto!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  gap:5px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  white-space:nowrap!important;
+  scrollbar-width:none!important;
+}
+html.geFormatDesktop #geDisplayZoomBar .geChannelStatus::-webkit-scrollbar{display:none!important}
+html.geFormatDesktop #geDisplayZoomBar .geTopAddChannel{
+  display:block!important;
+  flex:0 0 auto!important;
+  order:2!important;
+  min-width:72px!important;
+  height:var(--ge-header-h)!important;
+  padding:0 9px!important;
+}
+html.geFormatDesktop #geDisplayZoomBar .geScaleControls{
+  display:none!important;
+}
+
+/* On phones/tablets preserve the simpler device-only top rail; ADD is a computer control. */
+html.geLayoutIphone #geDisplayZoomBar .geTopAddChannel,
+html.geLayoutIphone5 #geDisplayZoomBar .geTopAddChannel,
+html.geLayoutIpad #geDisplayZoomBar .geTopAddChannel{
+  display:none!important;
+}
+
+/* When the bar is inside Mixer, keep the entire HOST + devices + ADD group together. */
+html.geFormatDesktop #mixerSheet:not(.fxFull) .mixerChannelHost #geDisplayZoomBar{
+  display:block!important;
+  position:relative!important;
+  inset:auto!important;
+  width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+  background:transparent!important;
+  border:0!important;
+}
+html.geFormatDesktop #mixerSheet:not(.fxFull) .mixerChannelHost #geDisplayZoomBar .geConnectionRail{
+  width:100%!important;
+}
+
+/* Desktop HOME order: top connection rail -> song -> Coming Up -> fixed bottom dock. */
+html.geFormatDesktop body.geHomeZoom .wrap>.top,
+html.geFormatDesktop body.geHomeZoom .radioHealth{
+  display:none!important;
+}
+html.geFormatDesktop body.geHomeZoom .wrap{
+  padding-top:var(--geDisplayTop,50px)!important;
+}
+html.geFormatDesktop body.geHomeZoom .nowCard{
+  margin-top:4px!important;
+}
+html.geFormatDesktop body.geHomeZoom .wrap>.card:last-of-type{
+  margin-bottom:calc(var(--geDockHeight,74px) + 6px)!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
   <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
+  <button type="button" id="geAddChannel" class="geUtilityAction geTopAddChannel" aria-label="Add mixer track or channel">＋ ADD</button>
  </div>
- <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="geAddChannel" class="geUtilityAction" aria-label="Add mixer track or channel">＋ ADD</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
+ <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v147</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v148</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -8488,8 +8576,9 @@ function updateAirButtons(){
  if($('mixMicAir')){$('mixMicAir').disabled=micStarting;$('mixMicAir').classList.toggle('air',micOn);$('mixMicAir').textContent=micStarting?'CONNECTING':(micOn?'MIC ON AIR':'MIC OFF AIR')}
  if($('lineAir')){$('lineAir').disabled=lineStarting;$('lineAir').classList.toggle('on',lineOn);$('lineAir').classList.toggle('air',lineOn);$('lineAir').textContent=lineStarting?'CONNECTING…':(lineOn?'COMPUTER ON AIR':'COMPUTER OFF AIR')}
  if($('mixLineAir')){$('mixLineAir').disabled=lineStarting;$('mixLineAir').classList.toggle('air',lineOn);$('mixLineAir').textContent=lineStarting?'CONNECTING':(lineOn?'COMPUTER ON AIR':'COMPUTER OFF AIR')}
- $('dockMic').disabled=micStarting;$('dockMic').classList.toggle('onair',micOn);
- $('dockMic').textContent=micStarting?'MIC CONNECTING':(micOn?'MIC ON AIR':'MIC');
+ const dockLive=!!(micOn||lineOn||remoteLiveBoardsV148().length);
+ $('dockMic').disabled=micStarting||lineStarting;$('dockMic').classList.toggle('onair',dockLive);
+ $('dockMic').textContent=(micStarting||lineStarting)?'CONNECTING':(dockLive?'LIVE ON AIR':'MIC');
  $('dockCue').classList.toggle('on',micCueOn);$('dockCue').textContent=micCueOn?'LOCAL MONITOR':'MONITOR';
  const micStage=micOn?'on':(micCueOn?'cue':'off'),lineStage=lineOn?'on':(lineCueOn?'cue':'off');
  [['mixMicStage',micStage,document.querySelector('[data-channel-strip="mic"]')],['mixLineStage',lineStage,document.querySelector('[data-channel-strip="line"]')]].forEach(function(x){
@@ -10062,9 +10151,58 @@ function returnToMixer(){
   if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.remove('on');
   closeFx();$('mixerSheet').classList.add('show');setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders);
 }
+function remoteLiveBoardsV148(){
+ return (Array.isArray(status&&status.dj_boards)?status.dj_boards:[]).filter(function(b){
+   return b&&b.online&&b.mic_air&&String(b.id||'')!==String(GE_BOARD_ID)
+ })
+}
+function anyMixerInputLiveV148(){return !!(micAirOn||lineAirOn||remoteLiveBoardsV148().length)}
+async function stopAllMixerInputsV148(){
+ if(micAirOn)await stopMicOnAir({preserveMic:true});
+ if(lineAirOn)await stopLineOnAir();
+ const remotes=remoteLiveBoardsV148();
+ for(const b of remotes){await setBoardStageV129(String(b.id||''),'off').catch(function(){})}
+ setTimeout(poll,120);updateAirButtons()
+}
+async function startSelectedMixerInputV148(){
+ // Explicit CUE selections win: they are the user's clearest mixer selection.
+ let started=false;
+ if(micCueOn){
+   micCueOn=false;if(micCueGain&&ctx)micCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   await startMicOnAir();started=true
+ }
+ if(lineCueOn){
+   lineCueOn=false;if(lineCueGain&&ctx)lineCueGain.gain.setTargetAtTime(0,ctx.currentTime,.02);
+   await startLineOnAir();started=true
+ }
+ const selectedBoards=Object.keys(boardMonitorSelected).filter(function(id){
+   const b=boardById(id);return !!boardMonitorSelected[id]&&!!b&&!!b.online
+ });
+ for(const id of selectedBoards){await setBoardStageV129(id,'on');started=true}
+ if(started){updateAirButtons();return true}
+
+ // If a COMPUTER input is already open in the mixer, use it.
+ if(hasAnyComputerSourceV125()){await startLineOnAir();updateAirButtons();return true}
+
+ // If this browser's mic was already opened/selected, use it.
+ if(geTrackLive(micStream)){await startMicOnAir();updateAirButtons();return true}
+
+ // If exactly one connected remote device mic is ready, use that mixer input.
+ const readyBoards=boardMixerRows().map(function(v){return v&&v.row}).filter(function(b){
+   return b&&b.online&&b.mic_connected&&String(b.id||'')!==String(GE_BOARD_ID)
+ });
+ if(readyBoards.length===1){await setBoardStageV129(String(readyBoards[0].id||''),'on');updateAirButtons();return true}
+
+ // Nothing selected: on iPhone/iPad/phone this intentionally opens the local mic and goes live.
+ await startMicOnAir();updateAirButtons();return true
+}
+async function toggleDockLiveInputV148(){
+ if(anyMixerInputLiveV148())return stopAllMixerInputsV148();
+ return startSelectedMixerInputV148()
+}
 $('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};
 $('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};
-$('dockMic').onclick=function(){toggleMicOnAir().catch(function(e){alert(e.message||e)})};
+$('dockMic').onclick=function(){toggleDockLiveInputV148().catch(function(e){alert(e.message||e)})};
 $('dockMixer').onclick=function(){if($('mixerSheet').classList.contains('show')&&!$('effectsSheet').classList.contains('show'))returnHome();else returnToMixer()};
 $('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))returnHome();else openFx('mic')};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';geOpenBoardId='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
@@ -10160,16 +10298,18 @@ let geDisplayZoomScope='home',geDisplayZoomPct=100,geLayoutProfile='';
 function geDetectedLayoutProfile(){return GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':(GE_IS_IPAD?'ipad':'desktop'))}
 function geStoredLayoutProfile(){try{const p=String(localStorage.getItem(GE_LAYOUT_PROFILE_KEY)||'');return ['iphone5','iphone','ipad','desktop'].includes(p)?p:''}catch(e){return ''}}
 function restoreGeChannelsToBar(){
- const bar=$('geDisplayZoomBar'),channels=$('geChannelStatus');
- if(bar&&channels&&channels.parentElement!==bar)bar.insertBefore(channels,bar.firstChild)
+ const bar=$('geDisplayZoomBar'),rail=bar&&bar.querySelector('.geConnectionRail'),channels=$('geChannelStatus'),host=rail&&rail.querySelector('.geHostGroup'),add=$('geAddChannel');
+ if(rail&&channels&&channels.parentElement!==rail)rail.insertBefore(channels,add||null);
+ if(rail&&host&&rail.firstElementChild!==host)rail.insertBefore(host,rail.firstElementChild);
+ if(rail&&add&&add.parentElement!==rail)rail.appendChild(add)
 }
 function placeGeDisplayBar(scope){
  const bar=$('geDisplayZoomBar');if(!bar)return;
  restoreGeChannelsToBar();bar.classList.remove('mixerScaleBar');
  let host=null,before=null;
  if(scope==='mixer'){
-   const channelHost=$('mixerChannelHost'),scaleHost=$('mixerScaleHost'),channels=$('geChannelStatus');
-   if(channelHost&&channels)channelHost.appendChild(channels);if(scaleHost)scaleHost.appendChild(bar);
+   const channelHost=$('mixerChannelHost');
+   if(channelHost&&bar.parentElement!==channelHost)channelHost.appendChild(bar);
    bar.classList.add('inHeader','mixerScaleBar');document.body.classList.remove('geHomeZoom');return
  }
  if(scope==='effects'){host=document.querySelector('#effectsSheet .fxDockHead');before=host&&host.querySelector('.fxLayoutBar')}
