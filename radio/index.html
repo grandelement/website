@@ -2338,8 +2338,16 @@ const liveState={
   startupCueDismissed:false,
   needsFreshEdge:false,
   autoplayBlocked:false,
-  internalReset:false
+  internalReset:false,
+  userPauseUntil:0,
+  backgroundWasPlaying:false,
+  backgroundReconnectNeeded:false
 };
+function requestUserPause(){
+  liveState.userPauseUntil=Date.now()+2500;
+  try{audio.pause();}catch(_e){}
+}
+function recentUserPause(){return Date.now()<liveState.userPauseUntil;}
 function setLiveStatus(text,show=true){
   const el=$('liveStatus');if(!el)return;
   if(liveState.statusTimer){clearTimeout(liveState.statusTimer);liveState.statusTimer=0;}
@@ -2402,7 +2410,7 @@ function setLiveMediaSession(){
     });
     const safe=(action,handler)=>{try{navigator.mediaSession.setActionHandler(action,handler);}catch(_e){}};
     safe('play',()=>{void resumeRadio();});
-    safe('pause',()=>audio.pause());
+    safe('pause',()=>requestUserPause());
     safe('previoustrack',null);
     safe('nexttrack',null);
   }catch(_e){}
@@ -2612,6 +2620,10 @@ async function resumePlayerAfterLive(){
 }
 function reconnectLiveStream(){
   if(!state.live||navigator.onLine===false)return;
+  if(document.hidden){
+    liveState.backgroundReconnectNeeded=true;
+    return;
+  }
   clearLiveReconnect();
   liveState.reconnectTimer=setTimeout(async()=>{
     if(!state.live)return;
@@ -2629,6 +2641,29 @@ function reconnectLiveStream(){
     }
   },1800);
 }
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    liveState.backgroundWasPlaying=!!(state.live&&!audio.paused);
+    if(liveState.backgroundWasPlaying){
+      try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
+      setLiveMediaSession();
+    }
+    return;
+  }
+
+  const shouldRestore=
+    state.live &&
+    liveState.backgroundWasPlaying &&
+    !recentUserPause() &&
+    (audio.paused||liveState.backgroundReconnectNeeded);
+
+  liveState.backgroundWasPlaying=false;
+  if(shouldRestore){
+    liveState.backgroundReconnectNeeded=false;
+    void resumeLiveAtEdge();
+  }
+});
+
 window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAtEdge:resumeLiveAtEdge,shareURL:liveShareURL};
 
 // LIVE song metadata is independent of the optional Gate.
@@ -2764,7 +2799,7 @@ function updateMediaSession(url){
     safe('previoustrack',()=>previousTrack(true));
     safe('nexttrack',()=>nextTrack(true));
     safe('play',()=>resumeAudio());
-    safe('pause',()=>audio.pause());
+    safe('pause',()=>requestUserPause());
   }catch(_e){}
 }
 function updateCurrentRow(){
@@ -2981,7 +3016,7 @@ function syncMainTransport(){
     playerSeek.value=playerSeek.disabled?'0':String(Math.max(0,Math.min(1000,t/d*1000)));
   }
 }
-playBtn?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
+playBtn?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else requestUserPause();});
 playerSeek?.addEventListener('input',()=>{const d=Number(audio.duration);if(Number.isFinite(d)&&d>0&&!state.live)audio.currentTime=d*(Number(playerSeek.value)||0)/1000;});
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
@@ -3085,6 +3120,26 @@ audio.addEventListener('play',()=>{
   try{ navigator.mediaSession.playbackState='playing'; }catch(_e){}
 });
 audio.addEventListener('pause',()=>{
+  const backgroundInterruption=
+    state.live &&
+    document.hidden &&
+    liveState.backgroundWasPlaying &&
+    liveState.hasPlayed &&
+    !liveState.internalReset &&
+    !recentUserPause();
+
+  if(backgroundInterruption){
+    liveState.backgroundReconnectNeeded=true;
+    liveState.needsFreshEdge=false;
+    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
+    try{navigator.mediaSession.playbackState='playing';}catch(_e){}
+    Promise.resolve().then(()=>audio.play()).then(()=>{
+      liveState.backgroundReconnectNeeded=false;
+      liveState.needsFreshEdge=false;
+    }).catch(()=>{});
+    return;
+  }
+
   if(state.live && liveState.hasPlayed && !liveState.internalReset){
     liveState.needsFreshEdge=true;
   }
@@ -3096,6 +3151,10 @@ audio.addEventListener('pause',()=>{
 audio.addEventListener('error',()=>{
   if(state.livePreparing){return;}
   if(state.live){
+    if(document.hidden){
+      liveState.backgroundReconnectNeeded=true;
+      return;
+    }
     setStatus('RADIO stream connection interrupted. Reconnecting…');
     setLiveStatus('RADIO • reconnecting to the station host…',true);
     reconnectLiveStream();
@@ -3110,7 +3169,20 @@ audio.addEventListener('canplay',()=>{
     audio.play().catch(()=>{});
   }
 });
-window.addEventListener('offline',()=>{if(state.live||state.livePreparing)exitLiveMode('RADIO ended because the Internet connection is offline.');});
+window.addEventListener('offline',()=>{
+  if(!(state.live||state.livePreparing))return;
+  if(document.hidden){
+    liveState.backgroundReconnectNeeded=true;
+    return;
+  }
+  exitLiveMode('RADIO ended because the Internet connection is offline.');
+});
+window.addEventListener('online',()=>{
+  if(state.live && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
+    liveState.backgroundReconnectNeeded=false;
+    void resumeLiveAtEdge();
+  }
+});
 
 ['touchstart','pointerdown','mousedown','keydown'].forEach(eventName=>{
   window.addEventListener(eventName,()=>{
@@ -4295,7 +4367,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
   function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
-  shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else audio.pause();});
+  shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else requestUserPause();});
   autoPilotBtn?.addEventListener('click',()=>{autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);if(autopilot)document.body.classList.remove('hud-hidden');});
 
   function seekFromClientX(clientX){const duration=Number(audio.duration);if(!Number.isFinite(duration)||duration<=0||!shipProgressHit)return;const rect=shipProgressHit.getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));audio.currentTime=ratio*duration;syncTransport();}
