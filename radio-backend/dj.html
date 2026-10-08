@@ -5910,6 +5910,149 @@ html.geFormatDesktop body.geHomeZoom .radioHealth{display:none!important}
 html.geFormatDesktop body.geHomeZoom .nowCard{order:1!important}
 html.geFormatDesktop body.geHomeZoom .wrap>.card:last-of-type{order:2!important}
 
+/* V151 independent MIXER / EFFECTS workspaces. */
+
+/* POPOUT exists only on the COMPUTER layout. */
+html:not(.geLayoutDesktop) #mixerPopoutBtn{display:none!important}
+html.geLayoutDesktop #mixerPopoutBtn{display:block!important}
+
+/* EFFECTS-only: the effect rack owns the complete workspace; no mixer geometry is visible. */
+body.geEffectsOnly #mixerSheet{
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  bottom:var(--geDockHeight,74px)!important;
+  width:100%!important;
+  height:auto!important;
+}
+body.geEffectsOnly #mixerSheet>.sheetIn{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+body.geEffectsOnly #mixerSheet .mixerHeader,
+body.geEffectsOnly #mixerSheet .mixerChannelPicker,
+body.geEffectsOnly #mixerSheet .mixerGrid,
+body.geEffectsOnly #mixerSheet .mixerRightRail,
+body.geEffectsOnly #mixerSheet #mixerVideoWall,
+body.geEffectsOnly #mixerSheet .mixerScrollControl{
+  display:none!important;
+}
+body.geEffectsOnly #effectsSheet.show{
+  display:flex!important;
+  flex-direction:column!important;
+  position:relative!important;
+  inset:auto!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  overflow:hidden!important;
+  background:#05090d!important;
+}
+
+/* MIXER + EFFECTS selected together: both are visible, not a popup. */
+html.geFormatDesktop body.geMixerFxTogether #mixerSheet>.sheetIn{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 190px minmax(500px,42vw)!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  gap:6px!important;
+  height:100%!important;
+  overflow:hidden!important;
+}
+html.geFormatDesktop body.geMixerFxTogether #mixerSheet .mixerHeader{
+  display:block!important;
+  grid-column:1/3!important;
+  grid-row:1!important;
+}
+html.geFormatDesktop body.geMixerFxTogether #mixerSheet .mixerGrid{
+  display:flex!important;
+  grid-column:1!important;
+  grid-row:2!important;
+  min-width:0!important;
+  height:100%!important;
+  max-height:none!important;
+}
+html.geFormatDesktop body.geMixerFxTogether #mixerSheet .mixerRightRail{
+  display:flex!important;
+  grid-column:2!important;
+  grid-row:2!important;
+  position:relative!important;
+  width:190px!important;
+  min-width:190px!important;
+  height:100%!important;
+  max-height:none!important;
+}
+html.geFormatDesktop body.geMixerFxTogether #mixerSheet #mixerVideoWall{display:none!important}
+html.geFormatDesktop body.geMixerFxTogether #effectsSheet.show{
+  display:flex!important;
+  flex-direction:column!important;
+  grid-column:3!important;
+  grid-row:1/3!important;
+  position:relative!important;
+  inset:auto!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:4px!important;
+  overflow:hidden!important;
+  border-left:1px solid #34404a!important;
+  background:#05090d!important;
+}
+
+/* Phone/tablet combined state stacks the two real workspaces instead of opening Effects as a popup. */
+@media(max-width:899px){
+ body.geMixerFxTogether #mixerSheet>.sheetIn{
+   display:grid!important;
+   grid-template-columns:1fr!important;
+   grid-template-rows:auto minmax(150px,40%) minmax(0,1fr)!important;
+   gap:4px!important;
+   height:100%!important;
+   overflow:hidden!important;
+ }
+ body.geMixerFxTogether #mixerSheet .mixerHeader{
+   display:block!important;
+   grid-column:1!important;
+   grid-row:1!important;
+ }
+ body.geMixerFxTogether #mixerSheet .mixerGrid{
+   display:grid!important;
+   grid-column:1!important;
+   grid-row:2!important;
+   height:100%!important;
+   min-height:0!important;
+   max-height:none!important;
+   overflow-x:auto!important;
+   overflow-y:hidden!important;
+ }
+ body.geMixerFxTogether #mixerSheet .mixerRightRail,
+ body.geMixerFxTogether #mixerSheet #mixerVideoWall{display:none!important}
+ body.geMixerFxTogether #effectsSheet.show{
+   display:flex!important;
+   flex-direction:column!important;
+   grid-column:1!important;
+   grid-row:3!important;
+   position:relative!important;
+   inset:auto!important;
+   width:100%!important;
+   height:100%!important;
+   min-height:0!important;
+   margin:0!important;
+   overflow:hidden!important;
+   border-top:1px solid #34404a!important;
+   background:#05090d!important;
+ }
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -5922,7 +6065,7 @@ html.geFormatDesktop body.geHomeZoom .wrap>.card:last-of-type{order:2!important}
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v150</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v151</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -8756,8 +8899,35 @@ function syncFxVideoControlsV134(){
  box.querySelectorAll('[data-fx-video-mode]').forEach(function(b){b.classList.toggle('on',b.dataset.fxVideoMode===mode)});
  if($('fxVideoAmount'))$('fxVideoAmount').value=String(Math.round(amount))
 }
-function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');document.body.classList.remove('geEffectsOnly');fxVideoPopupBoardId='';renderFxVideoPopupV142();markFxButtons();if($('mixerSheet').classList.contains('show'))setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders)}
-function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');document.body.classList.add('geEffectsOnly');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();syncFxVideoControlsV134();renderFxVideoDeviceRowV142();renderFxVideoPopupV142();markFxButtons();requestAnimationFrame(function(){const grid=$('effectsSheet')&&$('effectsSheet').querySelector('.fxControlGrid');if(grid&&!focus)grid.scrollLeft=0;syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
+var geMixerWorkspaceSelectedV151=false,geEffectsWorkspaceSelectedV151=false;
+function applyWorkspaceV151(){
+ const mixer=$('mixerSheet'),fx=$('effectsSheet');if(!mixer||!fx)return;
+ const any=!!(geMixerWorkspaceSelectedV151||geEffectsWorkspaceSelectedV151),fxOnly=!!(geEffectsWorkspaceSelectedV151&&!geMixerWorkspaceSelectedV151),both=!!(geEffectsWorkspaceSelectedV151&&geMixerWorkspaceSelectedV151);
+ mixer.classList.toggle('show',any);
+ fx.classList.toggle('show',!!geEffectsWorkspaceSelectedV151);
+ mixer.classList.toggle('fxFull',fxOnly);
+ document.body.classList.toggle('geEffectsOnly',fxOnly);
+ document.body.classList.toggle('geMixerFxTogether',both);
+ if(!geEffectsWorkspaceSelectedV151){fxVideoPopupBoardId='';renderFxVideoPopupV142()}
+ if(fxOnly)setGeDisplayScope('effects');
+ else if(geMixerWorkspaceSelectedV151)setGeDisplayScope('mixer');
+ else setGeDisplayScope('home');
+ syncDockViewState();
+ if(geEffectsWorkspaceSelectedV151){syncFx();syncFxVideoControlsV134();renderFxVideoDeviceRowV142();renderFxVideoPopupV142();markFxButtons()}
+ requestAnimationFrame(function(){try{syncTouchFaders()}catch(e){}})
+}
+function closeFx(){
+ geEffectsWorkspaceSelectedV151=false;
+ applyWorkspaceV151()
+}
+function openFx(kind,focus,keepMixer){
+ fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');
+ if(keepMixer===true)geMixerWorkspaceSelectedV151=true;
+ else if(keepMixer===false)geMixerWorkspaceSelectedV151=false;
+ else geMixerWorkspaceSelectedV151=!!($('mixerSheet').classList.contains('show')&&!document.body.classList.contains('geEffectsOnly'));
+ geEffectsWorkspaceSelectedV151=true;$('mixFxTargetRead').textContent=fxTarget.toUpperCase();applyWorkspaceV151();
+ requestAnimationFrame(function(){const grid=$('effectsSheet')&&$('effectsSheet').querySelector('.fxControlGrid');if(grid&&!focus)grid.scrollLeft=0;if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})
+}
 function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=n;b.title=slot&&slot.name?String(slot.name):('Preset '+n)})}
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
@@ -8907,7 +9077,7 @@ function toggleSendAux(kind,which){const strip=$('sendAuxStrip'),same=!strip.cla
 $('sendAuxClose').onclick=function(){setAuxVisible('sendAuxStrip',false)};
 $('sendAuxToggle').onclick=function(){toggleSendState(sendMiniKind,sendMiniWhich)};
 $('sendAuxLevel').oninput=function(){const key=sendMiniWhich==='delay'?'delay':'reverb';settings[sendMiniKind][key]=Number(this.value);$('sendAuxRead').textContent=Math.round(this.value)+'%';settings[sendMiniKind].preset='CUSTOM';applyChannel(sendMiniKind)};
-$('sendAuxFx').onclick=function(){openFx(sendMiniKind,sendMiniWhich)};
+$('sendAuxFx').onclick=function(){openFx(sendMiniKind,sendMiniWhich,true)};
 
 function syncPublicRadioArm(){if($('publicRadioArm')){$('publicRadioArm').classList.toggle('on',publicRadioControl);$('publicRadioArm').textContent='CONTROL ON'}if($('radioControlNote'))$('radioControlNote').textContent='PUBLIC RADIO'}
 $('masterMixControl').onclick=function(){toggleAux('mixAuxMix','masterMixControl')};
@@ -8919,7 +9089,7 @@ $('masterMixLevel').oninput=function(){$('masterMixRead').textContent=Math.round
 $('masterMixLevel').onchange=function(){setMixer({music_under_voice:Number(this.value)/100}).catch(function(e){alert(e.message)})};
 if($('publicRadioArm'))$('publicRadioArm').onclick=function(){publicRadioControl=true;syncPublicRadioArm()};
 $('publicRadioMute').onclick=function(){const muted=!(status&&status.mixer&&status.mixer.music_muted);setMixer({music_muted:muted}).catch(function(e){alert(e.message)})};
-$('mixFxOpen').onclick=function(){openFx(fxTarget)};
+$('mixFxOpen').onclick=function(){openFx(fxTarget,null,true)};
 syncSendToggles();syncPublicRadioArm();
 $('radioAudio').addEventListener('play',function(){radioMonitorOn=true;radioPlaybackState='PLAYING';updateRadioButton();pollRadioMeter()});
 $('radioAudio').addEventListener('pause',function(){if(radioMonitorOn){radioMonitorOn=false;radioPlaybackState='PAUSED'}applyRealRadioMeter(null);updateRadioButton()});
@@ -8942,7 +9112,7 @@ $('lineAudioCopy').onclick=function(){
  const txt=geAudioDiagReport(null);
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(function(){$('lineAudioCopy').textContent='COPIED';setTimeout(function(){$('lineAudioCopy').textContent='COPY'},900)});
  else alert(txt)
-};$('lineAir').onclick=function(){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();if(!h||!h.line_connected){renderLineRoleUi();return}pushSharedDjControls({line_air:!h.line_air},true);this.disabled=true;setTimeout(function(){poll();renderLineRoleUi()},250)}else toggleLineOnAir().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('mixMicStage').onclick=function(){cycleLocalTrackStageV129('mic').catch(function(e){alert(e.message||e)})};$('mixLineStage').onclick=function(){cycleLocalTrackStageV129('line').catch(function(e){alert(e.message||e)})};$('micFxOpen').onclick=function(){openFx('mic')};$('lineFxOpen').onclick=function(){openFx('line')};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if($('effectsSheet').classList.contains('show')&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx)}});
+};$('lineAir').onclick=function(){if(GE_BOARD_ROLE==='remote'){const h=homeBoardState();if(!h||!h.line_connected){renderLineRoleUi();return}pushSharedDjControls({line_air:!h.line_air},true);this.disabled=true;setTimeout(function(){poll();renderLineRoleUi()},250)}else toggleLineOnAir().catch(function(e){alert(e.message||e)})};$('lineDevice').onchange=function(){const selected=this.options[this.selectedIndex]&&this.options[this.selectedIndex].textContent||'INPUT';$('lineProfileStatus').textContent='SWITCHING · '+selected;selectAndOpenLineInput().catch(function(e){$('lineProfileStatus').textContent='INPUT ERROR · '+(e.message||e);alert(e.message||e)})};$('lineProfileAdd').onclick=function(){addCurrentLineDevice().catch(function(e){$('lineProfileStatus').textContent=e.message||e;alert(e.message||e)})};$('lineSavedInputs').onclick=function(e){const use=e.target.closest('[data-line-saved]'),remove=e.target.closest('[data-line-remove]');if(use)switchSavedLineDevice(use.dataset.lineSaved).catch(function(err){alert(err.message||err)});else if(remove)removeSavedLineDevice(remove.dataset.lineRemove).catch(function(err){alert(err.message||err)})};$('lineFile').onchange=function(e){const f=e.target.files&&e.target.files[0];e.target.value='';loadLineFile(f).catch(function(err){alert(err.message||err)})};$('micCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};$('lineCue').onclick=function(){toggleCue('line').catch(function(e){alert(e.message||e)})};$('mixMicCue').onclick=$('micCue').onclick;$('mixMicAir').onclick=$('micAir').onclick;$('mixLineCue').onclick=$('lineCue').onclick;$('mixLineAir').onclick=$('lineAir').onclick;$('mixMicStage').onclick=function(){cycleLocalTrackStageV129('mic').catch(function(e){alert(e.message||e)})};$('mixLineStage').onclick=function(){cycleLocalTrackStageV129('line').catch(function(e){alert(e.message||e)})};$('micFxOpen').onclick=function(){openFx('mic',null,false)};$('lineFxOpen').onclick=function(){openFx('line',null,false)};document.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){if(geEffectsWorkspaceSelectedV151&&fxTarget===b.dataset.fx)closeFx();else openFx(b.dataset.fx,null,true)}});
 const MIXER_LAYOUT_KEY='geDjMixerLayoutV2';
 let mixerLayout={zoom:20,locked:false};
 function mixerVisibleCount(){return Array.from(document.querySelectorAll('#mixerSheet .mixerGrid>.mixStrip')).filter(function(x){return !x.classList.contains('channelHidden')&&!x.classList.contains('auxHidden')&&!x.classList.contains('legacyRemoteStrip')}).length||1}
@@ -10083,6 +10253,7 @@ if($('geAudioPlaying'))$('geAudioPlaying').onclick=handleGeAudioSourceClick;
 if($('geAudioAvailable'))$('geAudioAvailable').onclick=handleGeAudioSourceClick;
 $('lineComputerAudio').onclick=function(){if(GE_BOARD_ROLE==='remote'){renderLineRoleUi();return}startComputerAudioCapture().catch(function(e){alert(e.message||e)})};
 if($('mixerPopoutBtn'))$('mixerPopoutBtn').onclick=function(){
+  if(geLayoutProfile!=='desktop')return;
   const u=new URL(location.href);
   u.searchParams.set('embed','mixer');
   u.searchParams.delete('player');
@@ -10216,7 +10387,7 @@ function returnToMixer(){
   if($('picker'))$('picker').classList.remove('show');
   if($('mixerChannelPicker'))$('mixerChannelPicker').classList.remove('show');
   if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.remove('on');
-  closeFx();$('mixerSheet').classList.add('show');setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders);
+  geMixerWorkspaceSelectedV151=true;geEffectsWorkspaceSelectedV151=false;applyWorkspaceV151();
 }
 function remoteLiveBoardsV148(){
  return (Array.isArray(status&&status.dj_boards)?status.dj_boards:[]).filter(function(b){
@@ -10270,8 +10441,17 @@ async function toggleDockLiveInputV148(){
 $('dockRadio').onclick=function(){toggleRadio().catch(function(e){alert(e.message||e)})};
 $('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.message||e)})};
 $('dockMic').onclick=function(){toggleDockLiveInputV148().catch(function(e){alert(e.message||e)})};
-$('dockMixer').onclick=function(){if($('mixerSheet').classList.contains('show')&&!$('effectsSheet').classList.contains('show'))returnHome();else returnToMixer()};
-$('dockFx').onclick=function(){if($('effectsSheet').classList.contains('show'))returnHome();else openFx('mic')};
+$('dockMixer').onclick=function(){
+ geMixerWorkspaceSelectedV151=!geMixerWorkspaceSelectedV151;
+ if(!geMixerWorkspaceSelectedV151&&!geEffectsWorkspaceSelectedV151)returnHome();
+ applyWorkspaceV151()
+};
+$('dockFx').onclick=function(){
+ geEffectsWorkspaceSelectedV151=!geEffectsWorkspaceSelectedV151;
+ if(!geEffectsWorkspaceSelectedV151&&!geMixerWorkspaceSelectedV151)returnHome();
+ if(geEffectsWorkspaceSelectedV151){fxTarget=fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS'}
+ applyWorkspaceV151()
+};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}if($('dockStudio'))$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';geOpenBoardId='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
@@ -10561,9 +10741,8 @@ $('geArrange').onclick=toggleGeArrange;
 setTimeout(applySavedGeArrange,0);
 
 function syncDockViewState(){
- const mixOpen=$('mixerSheet')&&$('mixerSheet').classList.contains('show'),fxOpen=$('effectsSheet')&&$('effectsSheet').classList.contains('show');
- if($('dockMixer'))$('dockMixer').classList.toggle('activeView',mixOpen&&!fxOpen);
- if($('dockFx'))$('dockFx').classList.toggle('activeView',fxOpen)
+ if($('dockMixer'))$('dockMixer').classList.toggle('activeView',!!geMixerWorkspaceSelectedV151);
+ if($('dockFx'))$('dockFx').classList.toggle('activeView',!!geEffectsWorkspaceSelectedV151)
 }
 function closeGeTopSurfaceV129(){
  const modal=document.querySelector('.modal.show');
@@ -10582,7 +10761,7 @@ function returnHome(){
  if($('picker'))$('picker').classList.remove('show');
  if($('mixerChannelPicker'))$('mixerChannelPicker').classList.remove('show');
  if($('mixerChannelsBtn'))$('mixerChannelsBtn').classList.remove('on');
- closeFx();$('mixerSheet').classList.remove('show');setGeDisplayScope('home');syncDockViewState()
+ geMixerWorkspaceSelectedV151=false;geEffectsWorkspaceSelectedV151=false;applyWorkspaceV151()
 }
 function geActiveFocusRoot(){
  return document.querySelector('#effectsSheet.show')||document.querySelector('#mixerSheet.show')||document.querySelector('#lineSheet.show')||document.querySelector('#micSheet.show')||document.querySelector('.wrap')
