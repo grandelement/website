@@ -2661,6 +2661,8 @@ document.addEventListener('visibilitychange',()=>{
   if(shouldRestore){
     liveState.backgroundReconnectNeeded=false;
     void resumeLiveAtEdge();
+  }else{
+    liveState.backgroundReconnectNeeded=false;
   }
 });
 
@@ -3129,14 +3131,10 @@ audio.addEventListener('pause',()=>{
     !recentUserPause();
 
   if(backgroundInterruption){
+    // Do not fight iOS while the page is hidden. The native <audio> element owns
+    // background playback. Just remember that Safari interrupted it; repair on return.
     liveState.backgroundReconnectNeeded=true;
     liveState.needsFreshEdge=false;
-    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
-    try{navigator.mediaSession.playbackState='playing';}catch(_e){}
-    Promise.resolve().then(()=>audio.play()).then(()=>{
-      liveState.backgroundReconnectNeeded=false;
-      liveState.needsFreshEdge=false;
-    }).catch(()=>{});
     return;
   }
 
@@ -3178,6 +3176,7 @@ window.addEventListener('offline',()=>{
   exitLiveMode('RADIO ended because the Internet connection is offline.');
 });
 window.addEventListener('online',()=>{
+  if(document.hidden)return;
   if(state.live && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
     liveState.backgroundReconnectNeeded=false;
     void resumeLiveAtEdge();
