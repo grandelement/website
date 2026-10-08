@@ -922,6 +922,66 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 }
 </style>
 
+<style id="ge-on-air-intro-test-v1">
+#geOnAirIntro{
+  position:fixed;inset:0;z-index:1000100;display:none;align-items:center;justify-content:center;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  background:rgba(0,0,0,.89);color:#fff;overflow:auto;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)
+}
+#geOnAirIntro.open{display:flex}
+#geOnAirIntroPanel{
+  position:relative;width:min(470px,94vw);padding:30px 18px 20px;text-align:center;
+  border:1px solid rgba(133,217,255,.38);border-radius:24px;
+  background:linear-gradient(180deg,rgba(2,13,27,.97),rgba(0,5,13,.95));
+  box-shadow:0 20px 60px rgba(0,0,0,.62),0 0 38px rgba(37,166,255,.13)
+}
+#geOnAirIntroClose{
+  position:absolute;right:9px;top:9px;width:42px;height:42px;border:0;border-radius:50%;
+  background:rgba(255,255,255,.06);color:#fff;font:700 24px/1 system-ui;z-index:2
+}
+.geOnAirScreen{display:none}
+.geOnAirScreen.active{display:block;animation:geOnAirFade .5s ease both}
+@keyframes geOnAirFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.geOnAirEyebrow{font:800 11px/1.2 system-ui;letter-spacing:.20em;color:#a9ddf7;text-transform:uppercase;margin-bottom:10px}
+.geOnAirTitle{font:900 clamp(24px,7vw,34px)/1.04 system-ui;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 0 24px rgba(118,219,255,.20)}
+.geOnAirText{max-width:370px;margin:12px auto 20px;color:#d9eaf3;font:600 14px/1.48 system-ui}
+.geOnAirChoices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.geOnAirChoice{
+  min-height:94px;padding:13px 10px;border:1px solid rgba(111,203,245,.50);border-radius:22px;
+  background:rgba(7,31,49,.72);color:#fff;font:900 16px/1.08 system-ui;letter-spacing:.06em;
+  text-transform:uppercase;position:relative
+}
+.geOnAirChoice small{display:block;margin-top:7px;color:#bcd6e3;font:650 10px/1.28 system-ui;letter-spacing:.01em;text-transform:none}
+#geOnAirIAm{
+  border-color:rgba(255,255,255,.76);background:rgba(255,255,255,.065);
+  animation:geIAmBreath 4s ease-in-out infinite
+}
+@keyframes geIAmBreath{
+  0%,100%{box-shadow:0 0 5px rgba(255,255,255,.10),0 0 13px rgba(255,255,255,.04);transform:scale(.995)}
+  50%{box-shadow:0 0 17px rgba(255,255,255,.88),0 0 40px rgba(255,255,255,.34);transform:scale(1.015)}
+}
+.geOnAirSection{margin:18px 0 0;text-align:left}
+.geOnAirSectionTitle{margin:0 0 8px;color:#a9ddf7;font:850 10px/1.2 system-ui;letter-spacing:.15em;text-transform:uppercase}
+.geOnAirBubbles{display:flex;flex-wrap:wrap;gap:8px}
+.geOnAirBubble,.geOnAirAction,.geOnAirBack{
+  border:1px solid rgba(116,199,236,.43);background:rgba(255,255,255,.045);color:#edfaff;
+  font:800 12px/1.15 system-ui
+}
+.geOnAirBubble{min-height:42px;padding:9px 13px;border-radius:999px}
+.geOnAirBubble.selected{border-color:rgba(188,237,255,.95);background:rgba(42,137,180,.28);box-shadow:0 0 13px rgba(86,204,255,.18)}
+.geOnAirAction{width:100%;min-height:48px;margin-top:15px;border-radius:14px;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.geOnAirBack{margin-top:15px;min-height:40px;padding:8px 17px;border-radius:999px}
+.geOnAirInputStatus{margin-top:8px;color:#bcd6e3;font:600 11px/1.35 system-ui}
+.geOnAirNote{margin-top:16px;padding:11px;border-radius:13px;background:rgba(66,171,215,.08);color:#cfe7f2;font:600 11px/1.4 system-ui}
+@media(max-width:390px){
+  #geOnAirIntroPanel{padding:28px 14px 17px}
+  .geOnAirChoices{gap:8px}
+  .geOnAirChoice{min-height:88px;font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){#geOnAirIAm{animation:none;box-shadow:0 0 16px rgba(255,255,255,.45)}}
+</style>
+
 
 <style id="ge-floating-sun-safe-v2">
 /* Safe isolated visual-mode Sun. Normal logo stays a normal homepage link. */
@@ -1040,6 +1100,69 @@ body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;point
       <button id="geGateAccessSend" type="button">Send Email</button>
     </div>
   </section>
+</div>
+
+<div id="geOnAirIntro" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Go On The Air test intro">
+  <div id="geOnAirIntroPanel">
+    <button id="geOnAirIntroClose" type="button" aria-label="Close">×</button>
+
+    <section class="geOnAirScreen active" data-on-air-screen="intro">
+      <div class="geOnAirEyebrow">Go On The Air</div>
+      <div class="geOnAirTitle">Choose Your Experience</div>
+      <div class="geOnAirText">Play with Grand Element yourself, or send your voice to the Grand Element radio.</div>
+      <div class="geOnAirChoices">
+        <button id="geOnAirIAm" class="geOnAirChoice" type="button">I AM<small>Play · shape · record</small></button>
+        <button id="geOnAirEveryone" class="geOnAirChoice" type="button">Everyone<small>Send a radio message</small></button>
+      </div>
+    </section>
+
+    <section class="geOnAirScreen" data-on-air-screen="iam">
+      <div class="geOnAirEyebrow">I AM</div>
+      <div class="geOnAirTitle">You Are The Grand Element</div>
+      <div class="geOnAirText">Play along with the music. Hear yourself. Shape your sound. Record the Grand Element music and your performance together.</div>
+
+      <div class="geOnAirSection">
+        <div class="geOnAirSectionTitle">Listening With</div>
+        <div class="geOnAirBubbles" data-on-air-group="listen">
+          <button class="geOnAirBubble selected" type="button" data-value="headphones">Headphones</button>
+          <button class="geOnAirBubble" type="button" data-value="line-in">Direct Line In</button>
+        </div>
+      </div>
+
+      <div class="geOnAirSection">
+        <div class="geOnAirSectionTitle">Play With</div>
+        <div class="geOnAirBubbles" data-on-air-group="source">
+          <button class="geOnAirBubble selected" type="button" data-value="player">Player</button>
+          <button class="geOnAirBubble" type="button" data-value="radio">Radio</button>
+        </div>
+      </div>
+
+      <div class="geOnAirSection">
+        <div class="geOnAirSectionTitle">Your Input</div>
+        <div id="geOnAirInputs" class="geOnAirBubbles"><button id="geOnAirFindInputs" class="geOnAirBubble" type="button">Find Microphones / Inputs</button></div>
+        <div id="geOnAirInputStatus" class="geOnAirInputStatus">Choose the microphone or instrument input you want to use.</div>
+      </div>
+
+      <button id="geOnAirEnterIAm" class="geOnAirAction" type="button">Enter I AM</button>
+      <div class="geOnAirNote">TEST INTRO: the full monitor, EQ, effects and mixed recording engine will connect to this setup after the entrance is approved.</div>
+      <button class="geOnAirBack" type="button" data-on-air-back>Back</button>
+    </section>
+
+    <section class="geOnAirScreen" data-on-air-screen="everyone">
+      <div class="geOnAirEyebrow">Everyone</div>
+      <div class="geOnAirTitle">Send To The Air</div>
+      <div class="geOnAirText">Record a short message, shout-out or sound for Grand Element Radio. It will be reviewed before it is added to the broadcast.</div>
+      <div class="geOnAirNote">The fan audio inbox, transcription and DJ fan folder will connect here.</div>
+      <button class="geOnAirBack" type="button" data-on-air-back>Back</button>
+    </section>
+
+    <section class="geOnAirScreen" data-on-air-screen="studio">
+      <div class="geOnAirEyebrow">I AM</div>
+      <div class="geOnAirTitle">Studio Entry Ready</div>
+      <div class="geOnAirText">This is where the live monitor, EQ, effects, Grand Element source and mixed recording controls will open.</div>
+      <button class="geOnAirBack" type="button" data-on-air-back="iam">Back To Setup</button>
+    </section>
+  </div>
 </div>
 
 <img id="bgImage" alt="" aria-hidden="true">
@@ -1281,6 +1404,7 @@ body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;point
     </div>
     <div class="sunlab-actions">
       <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
+      <button id="introTestBtn" type="button" class="sunlab-mini">Test Intro</button>
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
   </section>
@@ -1294,7 +1418,7 @@ body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;point
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.01-frequency-scan-game-1',
+  APP_VERSION: '2026.10.08-on-air-intro-test-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -1415,6 +1539,7 @@ const sunLabClose = $('sunLabClose');
 const sunLabHide = $('sunLabHide');
 const sunLabReset = $('sunLabReset');
 const gateTestBtn = $('gateTestBtn');
+const introTestBtn = $('introTestBtn');
 
 // Load the identity artwork before optional controllers initialize.
 // Versioned URL prevents an old/broken cached image from masking the real logo.
@@ -6326,6 +6451,88 @@ Vector ${vector}. ${pair[1]}.`;
     }
   };
 })();
+
+// TEST INTRO: visual/setup prototype for the future public Go On The Air entry.
+// I AM is the private play-along studio: music + user input + monitor/EQ/effects + mixed recording.
+(function setupOnAirIntroTest(){
+  const overlay=$('geOnAirIntro');
+  if(!overlay)return;
+  const screens=Array.from(overlay.querySelectorAll('[data-on-air-screen]'));
+  const inputWrap=$('geOnAirInputs');
+  const inputStatus=$('geOnAirInputStatus');
+  let selectedInputId='';
+
+  function show(name){
+    screens.forEach(screen=>screen.classList.toggle('active',screen.dataset.onAirScreen===name));
+  }
+  function open(){
+    show('intro');
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+  }
+  function close(){
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden','true');
+  }
+  function selectBubble(button){
+    const group=button.closest('[data-on-air-group]');
+    if(!group)return;
+    group.querySelectorAll('.geOnAirBubble').forEach(b=>b.classList.toggle('selected',b===button));
+  }
+  async function findInputs(){
+    if(!navigator.mediaDevices?.getUserMedia||!navigator.mediaDevices?.enumerateDevices){
+      if(inputStatus)inputStatus.textContent='Audio input selection is not available in this browser.';
+      return;
+    }
+    if(inputStatus)inputStatus.textContent='Checking audio inputs…';
+    let permissionStream=null;
+    try{
+      permissionStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const devices=(await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==='audioinput');
+      if(inputWrap){
+        inputWrap.innerHTML='';
+        if(!devices.length){
+          inputWrap.innerHTML='<button class="geOnAirBubble" type="button">No audio inputs found</button>';
+        }else{
+          devices.forEach((device,index)=>{
+            const b=document.createElement('button');
+            b.type='button';b.className='geOnAirBubble'+(index===0?' selected':'');
+            b.textContent=device.label||('Audio Input '+(index+1));
+            b.dataset.deviceId=device.deviceId||'';
+            b.addEventListener('click',()=>{
+              inputWrap.querySelectorAll('.geOnAirBubble').forEach(x=>x.classList.toggle('selected',x===b));
+              selectedInputId=b.dataset.deviceId||'';
+              if(inputStatus)inputStatus.textContent='Input selected: '+b.textContent;
+            });
+            inputWrap.appendChild(b);
+            if(index===0)selectedInputId=b.dataset.deviceId||'';
+          });
+        }
+      }
+      if(inputStatus)inputStatus.textContent=devices.length?'Choose your input above.':'No audio input was found.';
+    }catch(error){
+      if(inputStatus)inputStatus.textContent='Microphone permission is required to find your audio inputs.';
+    }finally{
+      try{permissionStream?.getTracks().forEach(track=>track.stop());}catch(_e){}
+    }
+  }
+
+  $('geOnAirIntroClose')?.addEventListener('click',close);
+  $('geOnAirIAm')?.addEventListener('click',()=>show('iam'));
+  $('geOnAirEveryone')?.addEventListener('click',()=>show('everyone'));
+  $('geOnAirFindInputs')?.addEventListener('click',findInputs);
+  $('geOnAirEnterIAm')?.addEventListener('click',()=>show('studio'));
+  overlay.querySelectorAll('[data-on-air-group] .geOnAirBubble').forEach(button=>button.addEventListener('click',()=>selectBubble(button)));
+  overlay.querySelectorAll('[data-on-air-back]').forEach(button=>button.addEventListener('click',()=>show(button.dataset.onAirBack||'intro')));
+  overlay.addEventListener('click',event=>{if(event.target===overlay)close();});
+  window.GEOnAirIntroTest={open,close,show,getSelectedInput:()=>selectedInputId};
+})();
+
+introTestBtn?.addEventListener('click',()=>{
+  sunLabPanel?.classList.remove('show');
+  if(sunLabPanel)sunLabPanel.hidden=true;
+  window.GEOnAirIntroTest?.open?.();
+});
 
 // Sun Lab manual Gate preview. Resets authorization/timing and replays the whole sequence.
 gateTestBtn?.addEventListener('click',()=>{
