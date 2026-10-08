@@ -4740,6 +4740,65 @@ html.geLayoutIphone button:not(.geChannelBubble):not(.studioNode),
 html.geLayoutIpad button:not(.geChannelBubble):not(.studioNode){min-height:44px}
 html.geLayoutIphone5 button:not(.geChannelBubble):not(.studioNode){min-height:40px}
 
+/* V136 Effects layout correction.
+   Audio controls own the rack. Video preview never occupies EFFECTS.
+   INPUT GAIN stays at the far left and the three EQ bands remain adjacent on one row. */
+#mixerSheet.fxFull #mixerVideoWall{
+  display:none!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid{
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:stretch!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  gap:4px!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:first-child{
+  order:-20!important;
+  flex:0 0 68px!important;
+  min-width:68px!important;
+  position:sticky!important;
+  left:0!important;
+  z-index:5!important;
+  background:#081018!important;
+  box-shadow:4px 0 7px rgba(0,0,0,.45)!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:nth-child(2){
+  order:-19!important;
+  flex:0 0 68px!important;
+  min-width:68px!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="eq"]{
+  order:-18!important;
+  flex:0 0 58px!important;
+  min-width:58px!important;
+}
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="filter"],
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="phaser"],
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="delay"],
+#mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="reverb"]{
+  order:0!important;
+}
+html.geLayoutIphone5 #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:first-child,
+html.geLayoutIphone5 #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:nth-child(2){
+  flex-basis:54px!important;min-width:54px!important
+}
+html.geLayoutIphone5 #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="eq"]{
+  flex-basis:44px!important;min-width:44px!important
+}
+html.geLayoutIphone #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:first-child,
+html.geLayoutIphone #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:nth-child(2){
+  flex-basis:64px!important;min-width:64px!important
+}
+html.geLayoutIphone #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="eq"]{
+  flex-basis:54px!important;min-width:54px!important
+}
+html.geDayMode #mixerSheet #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"]:first-child{
+  background:#eef3f6!important;
+  box-shadow:4px 0 7px rgba(0,0,0,.16)!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -4751,7 +4810,7 @@ html.geLayoutIphone5 button:not(.geChannelBubble):not(.studioNode){min-height:40
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v135</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v136</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -7572,7 +7631,7 @@ function syncFxVideoControlsV134(){
  if($('fxVideoAmount'))$('fxVideoAmount').value=String(Math.round(amount))
 }
 function closeFx(){if(!$('effectsSheet'))return;$('effectsSheet').classList.remove('show');$('mixerSheet').classList.remove('fxFull');markFxButtons();if($('mixerSheet').classList.contains('show'))setGeDisplayScope('mixer');syncDockViewState();requestAnimationFrame(syncTouchFaders)}
-function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();syncFxVideoControlsV134();markFxButtons();requestAnimationFrame(function(){syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
+function openFx(kind,focus){fxTarget=kind||fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS';$('effectsSheet').classList.toggle('fx-mic-target',fxTarget==='mic');syncMicIsolationUI();$('micSheet').classList.remove('show');$('lineSheet').classList.remove('show');$('mixerSheet').classList.add('show');$('effectsSheet').classList.add('show');$('mixerSheet').classList.add('fxFull');$('mixFxTargetRead').textContent=fxTarget.toUpperCase();setGeDisplayScope('effects');syncDockViewState();syncFx();syncFxVideoControlsV134();markFxButtons();requestAnimationFrame(function(){const grid=$('effectsSheet')&&$('effectsSheet').querySelector('.fxControlGrid');if(grid&&!focus)grid.scrollLeft=0;syncTouchFaders();if(focus){const el=$(focus==='delay'?'fxDelay':'fxReverb');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}})}
 function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(function(b){const n=String(b.dataset.fxslot),slot=customFxSlots[n];b.classList.toggle('saved',!!slot);b.textContent=n;b.title=slot&&slot.name?String(slot.name):('Preset '+n)})}
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
