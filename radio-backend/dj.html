@@ -4968,6 +4968,193 @@ html.geLayoutIphone5 .dockin>button .dockLabel{font-size:10px!important}
   overflow:hidden!important;
 }
 
+/* V140 restore the v124 single-row FX fader geometry.
+   ALL active audio controls share one full-width row. No wrap, no sideways scroll,
+   no giant cards. Each fader is a thin vertical line inside an equal-width column. */
+#mixerSheet.fxFull #effectsSheet .fxLandscapeBody{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  gap:4px!important;
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxLeftRail{
+  grid-row:1!important;
+  min-width:0!important;
+  width:100%!important;
+  padding:0!important;
+  margin:0!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxEffectButtons{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:3px!important;
+  margin:0!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxEffectButtons button{
+  min-width:0!important;
+  min-height:32px!important;
+  height:32px!important;
+  padding:1px 2px!important;
+  font-size:clamp(8px,2.2vw,11px)!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxRightRail{
+  grid-row:2!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) repeat(4,minmax(36px,54px))!important;
+  gap:3px!important;
+  align-items:center!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxPresetSelectWrap select{
+  min-height:30px!important;
+  height:30px!important;
+  font-size:10px!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxCustomSlots{
+  display:contents!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxCustomSlots button{
+  min-height:30px!important;
+  height:30px!important;
+  padding:0!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxPresetManager{display:none!important}
+
+#mixerSheet.fxFull #effectsSheet .fxCenterRack{
+  grid-row:3!important;
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  height:100%!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxCompactMeters,
+#mixerSheet.fxFull #effectsSheet .fxIsoLevel{
+  flex:0 0 auto!important;
+  margin:1px 0 3px!important;
+}
+
+/* THE FADER ROW */
+#mixerSheet.fxFull #effectsSheet .fxControlGrid{
+  flex:1 1 auto!important;
+  display:grid!important;
+  grid-template-columns:repeat(var(--fx-active-count),minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  grid-auto-flow:column!important;
+  gap:2px!important;
+  width:100%!important;
+  min-width:0!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider{
+  order:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:stretch!important;
+  min-width:0!important;
+  width:auto!important;
+  max-width:none!important;
+  height:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:2px 1px!important;
+  border-width:1px!important;
+  position:relative!important;
+  left:auto!important;
+  z-index:auto!important;
+  box-shadow:none!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider.fxControlHidden{
+  display:none!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider label{
+  flex:0 0 30px!important;
+  min-height:30px!important;
+  height:30px!important;
+  width:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:center!important;
+  gap:1px!important;
+  padding:0!important;
+  font-size:clamp(7px,1.85vw,10px)!important;
+  line-height:1!important;
+  text-align:center!important;
+  overflow:hidden!important;
+}
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider label span{
+  font-size:inherit!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+}
+/* Every active effect uses the same thin VERTICAL fader. */
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider input.fxvf,
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider[data-fx-control="eq"] input.fxvf,
+#mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"] input.fxvf{
+  writing-mode:vertical-lr!important;
+  direction:rtl!important;
+  -webkit-appearance:slider-vertical!important;
+  appearance:auto!important;
+  flex:1 1 auto!important;
+  width:24px!important;
+  min-width:24px!important;
+  max-width:24px!important;
+  height:auto!important;
+  min-height:90px!important;
+  max-height:none!important;
+  margin:0 auto!important;
+  padding:0!important;
+}
+/* EQ stays color-coded but has exactly the same footprint as every other fader. */
+#mixerSheet.fxFull #effectsSheet [data-fx-control="always"]{border-color:#71df7b!important}
+#mixerSheet.fxFull #effectsSheet [data-fx-control="eq"]{border-color:#4aa3ff!important}
+#mixerSheet.fxFull #effectsSheet [data-fx-control="filter"]{border-color:#40d9d0!important}
+#mixerSheet.fxFull #effectsSheet [data-fx-control="phaser"]{border-color:#b477ff!important}
+#mixerSheet.fxFull #effectsSheet [data-fx-control="delay"]{border-color:#ffb44a!important}
+#mixerSheet.fxFull #effectsSheet [data-fx-control="reverb"]{border-color:#ff70b7!important}
+
+/* Cancel every older phone/tablet rule that tried to make EQ horizontal,
+   enlarge GAIN/COMP, or create multiple rows. */
+html.geFormatPhone #mixerSheet.fxFull #effectsSheet .fxControlGrid,
+html.geFormatTablet #mixerSheet.fxFull #effectsSheet .fxControlGrid{
+  display:grid!important;
+  grid-template-columns:repeat(var(--fx-active-count),minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  grid-auto-flow:column!important;
+  gap:2px!important;
+  overflow:hidden!important;
+}
+html.geFormatPhone #mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider,
+html.geFormatTablet #mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider,
+html.geFormatPhone #mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider[data-fx-control="always"],
+html.geFormatPhone #mixerSheet.fxFull #effectsSheet .fxControlGrid .bigSlider[data-fx-control="eq"]{
+  grid-column:auto!important;
+  flex:none!important;
+  width:auto!important;
+  min-width:0!important;
+  height:100%!important;
+  min-height:0!important;
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -4979,7 +5166,7 @@ html.geLayoutIphone5 .dockin>button .dockLabel{font-size:10px!important}
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v139</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v140</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
