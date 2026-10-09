@@ -11672,14 +11672,16 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function showAlbumChooser(){
     closeOverlay(musicPanel);closeOverlay(displayPanel);clearTimeout(checkFadeTimer);checkCard?.classList.remove('geAutoFade');
     checkTitle.textContent='CHOOSE THE MUSIC';
-    checkText.textContent='Pick an album, choose shuffle, or keep what is already playing.';
+    checkText.textContent='Choose an experience.';
     const buttons=albumChoices().map(a=>`<button type="button" data-auto-album="${String(a).replace(/"/g,'&quot;')}">${a}</button>`).join('');
-    checkExtra.innerHTML=`<div class="autoChoiceGrid"><button type="button" class="wide" data-auto-mode="shuffle">SHUFFLE</button><button type="button" class="wide" data-auto-mode="keep">KEEP PLAYING</button>${buttons}</div>`;
+    checkExtra.innerHTML=`<div class="autoChoiceGrid"><button type="button" class="wide" data-auto-mode="keep">☾ DREAM</button><button type="button" class="wide" data-auto-mode="albums">◉ PICK AN ALBUM</button><div class="geDreamAlbums" hidden>${buttons}</div><button type="button" class="wide" data-auto-mode="shuffle">⇄ SHUFFLE</button><button type="button" class="wide" data-auto-mode="meditate">≈ MEDITATE</button></div>`;
     setActionButtons('CANCEL');
     check.dataset.mode='choose';check.classList.add('show');
     checkExtra.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.autoMode==='albums'){const box=checkExtra.querySelector('.geDreamAlbums');if(box)box.hidden=!box.hidden;return;}
+      if(b.dataset.autoMode==='meditate'){window.GE_DREAM?.start();autopilotChoice={mode:'keep',album:null};ensureMusic();showAutopilotReady();return;}
       if(b.dataset.autoMode==='shuffle'){autopilotChoice={mode:'shuffle',album:null};try{window.GE_MUSIC_CONTROLLER?.setShuffle?.(true);}catch(_e){};ensureMusic();showAutopilotReady();return;}
-      if(b.dataset.autoMode==='keep'){autopilotChoice={mode:'keep',album:null};ensureMusic();showAutopilotReady();return;}
+      if(b.dataset.autoMode==='keep'){window.GE_DREAM?.start();autopilotChoice={mode:'keep',album:null};ensureMusic();showAutopilotReady();return;}
       const album=b.dataset.autoAlbum||'';autopilotChoice={mode:'album',album};
       try{
         const selected=window.GE_MUSIC_ALBUM_CONFIG?.getSelected?.()||[];
@@ -12647,5 +12649,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 })();
 </script>
 
+<style id="ge-dream-menu-style">.geDreamAlbums{display:grid;grid-template-columns:1fr 1fr;gap:8px;grid-column:1/-1}.geDreamAlbums[hidden]{display:none!important}.geDreamAlbums button{min-width:0}.autoChoiceGrid button{transition:opacity 1.5s ease,transform 1.5s ease}#autopilotCheck{transition:opacity 1.5s ease,visibility 1.5s ease}</style>
+<script defer src="./ge-dream.js"></script>
 </body>
 </html>
