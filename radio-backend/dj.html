@@ -6385,6 +6385,59 @@ html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap select{
  min-width:0!important;width:100%!important;min-height:50px!important;
  height:50px!important;font-size:clamp(10px,3vw,14px)!important;
 }
+
+/* V159: iPhone mixer header, channel bounds, and independent video workspace. */
+html.geFormatPhone #mixerSheet .mixerTopRow{
+ display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+ align-items:center!important;gap:5px!important;
+}
+html.geFormatPhone #mixerSheet .mixerChannelHost{
+ min-width:0!important;overflow:hidden!important;max-height:90px!important;
+}
+html.geFormatPhone #mixerSheet .mixerHeadActions{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ justify-content:flex-end!important;flex-wrap:nowrap!important;gap:4px!important;
+ min-width:0!important;
+}
+html.geFormatPhone #mixerSheet #mixerChannelsLabel,
+html.geFormatPhone #mixerSheet #mixerChannelsBtn{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ white-space:nowrap!important;padding:6px 8px!important;
+ font-size:clamp(10px,2.7vw,14px)!important;min-height:48px!important;
+ width:auto!important;max-width:none!important;position:static!important;
+}
+html.geFormatPhone #mixerSheet #mixerChannelsLabel{opacity:1!important;color:#fff!important;background:#12382f!important}
+html.geFormatPhone #mixerSheet .mixerHeadActions #mixerCloseBtn,
+html.geFormatPhone #mixerSheet .mixerHeadActions #mixerPopoutBtn{display:none!important}
+html.geFormatPhone #mixerSheet .mixerGrid{
+ min-height:0!important;max-height:100%!important;overflow:hidden!important;
+}
+html.geFormatPhone #mixerSheet .mixerGrid .mixStrip,
+html.geFormatPhone #mixerSheet .mixerGrid [data-channel-strip],
+html.geFormatPhone #mixerSheet .mixerGrid [data-remote-kind]{
+ min-height:0!important;max-height:100%!important;overflow:hidden!important;
+}
+html.geFormatPhone #mixerSheet .mixerChannelPicker{
+ position:absolute!important;bottom:0!important;left:0!important;right:0!important;
+ max-height:45%!important;overflow:auto!important;z-index:20!important;
+}
+.dockin:has(#dockVideo){grid-template-columns:repeat(6,minmax(0,1fr))!important}
+.dockin:has(#dockVideo)>button{min-width:0!important;padding-inline:1px!important}
+.dockin:has(#dockVideo) .dockLabel{font-size:clamp(9px,2.6vw,15px)!important}
+.geVideoWorkspace[hidden]{display:none!important}
+.geVideoWorkspace{
+ position:fixed;inset:env(safe-area-inset-top) 0 116px;z-index:75;
+ background:#050a10;color:#e9f3fa;padding:12px;overflow:auto;
+ display:flex;flex-direction:column;gap:12px;
+}
+.geVideoHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.geVideoHead strong{font-size:24px}.geVideoHead span,.geVideoNote{color:#9baebb;font-size:12px}
+.geVideoSources{display:flex;flex-wrap:wrap;gap:8px}
+.geVideoSources button,.geVideoControls button{border:1px solid #3b6676;border-radius:8px;background:#11232c;color:white;padding:12px;font-weight:bold}
+.geVideoPreview{flex:1;min-height:180px;border:1px solid #355364;border-radius:12px;background:#09121c;display:grid;place-items:center;text-align:center;padding:16px}
+.geVideoControls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.geVideoControls button:disabled{opacity:.35}
+body.geVideoOnly #mixerSheet,body.geVideoOnly #effectsSheet{display:none!important}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -6426,8 +6479,8 @@ html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap select{
   <div class="card"><div class="sectionHead"><div class="label">COMING UP</div><div class="sectionActions"><div class="cross crossInline"><span class="label">CROSSFADE</span><input id="crossfade" type="range" min="0" max="30" step="0.5" value="5"><b class="crossVal" id="crossVal">5.0s</b><button class="perm" id="saveCross">SAVE</button><span class="saveStatus" id="crossStatus"></span></div><button class="miniAction" id="reshuffleQueue">RESHUFFLE</button><button class="miniAction" id="djFilesOpen">DJ FILES</button><button class="miniAction" id="analyticsOpen">FANS</button><button class="miniAction" id="playlistOpen">PLAYLISTS</button></div></div><div class="queue" id="queue"></div></div>
 </div>
 <audio id="radioAudio" preload="none" playsinline crossorigin="anonymous"></audio>
-<div class="dock"><div class="dockin"><button id="dockRadio"><span class="dockLabel">RADIO</span></button><button class="cue" id="dockCue"><span class="dockLabel">MONITOR</span></button><button class="mic" id="dockMic"><span class="dockLabel">MIC</span></button><button id="dockMixer"><span class="dockLabel">MIXER</span></button><button id="dockFx"><span class="dockLabel">EFFECTS</span></button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
-<div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
+<div class="dock"><div class="dockin"><button id="dockRadio"><span class="dockLabel">RADIO</span></button><button class="cue" id="dockCue"><span class="dockLabel">MONITOR</span></button><button class="mic" id="dockMic"><span class="dockLabel">MIC</span></button><button id="dockMixer"><span class="dockLabel">MIXER</span></button><button id="dockFx"><span class="dockLabel">EFFECTS</span></button><button id="dockVideo" type="button"><span class="dockLabel">VIDEO</span></button></div><div class="dockMeters"><div class="dockMeterRow"><b>RADIO</b><div class="hmeter"><div class="hmeterFill" id="dockRadioMeter"></div></div><span id="dockRadioDb">OFF</span></div><div class="dockMeterRow"><b>MIC</b><div class="hmeter"><div class="hmeterFill" id="dockMicMeter"></div></div><span id="dockMicDb">-60</span></div></div></div>
+<section class="geVideoWorkspace" id="geVideoWorkspace" hidden><header class="geVideoHead"><strong>VIDEO</strong><span>Preview before going live</span></header><div class="geVideoSources" id="geVideoSources">No active video sources</div><div class="geVideoPreview" id="geVideoPreview"><span>Select a connected video source to preview</span></div><div class="geVideoControls"><button id="geVideoPreviewBtn" type="button" disabled>PREVIEW</button><button id="geVideoTransitionBtn" type="button" disabled>TAKE LIVE</button><button id="geVideoStopBtn" type="button" disabled>STOP VIDEO</button></div><p class="geVideoNote" id="geVideoNote">Video is off. Selecting a device never starts a broadcast.</p></section><div class="sheet" id="micSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">CHANNEL 1</div><div class="sheetTitle">MICROPHONE</div></div><button data-close="micSheet">CLOSE</button></div><div class="note">RADIO automatically uses the best monitor stream for this browser. MIC LINK sends the processed microphone to the server without touching the music path.</div><div class="livePathStatus" id="micPathStatus">MIC CHECKING · DJ LINK OFF</div><div class="hmeter" data-threshold-meter><div class="hmeterFill" id="micMeter"></div><div class="threshold" id="micThreshold"></div></div><div class="sourceSelect"><select id="micDevice"><option value="">Default microphone</option></select><button id="micOpen">OPEN MIC</button></div><button class="cueBtn" id="micCue">MONITOR OFF</button><button class="airBtn" id="micAir">MIC LINK OFF</button><button class="sourceBtn" id="micFxOpen">MIC EFFECTS</button></div></div>
 <div class="sheet" id="lineSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">COMPUTER AUDIO</div><div class="sheetTitle">COMPUTER</div></div><button data-close="lineSheet">CLOSE</button></div><div class="lineModeBanner" id="lineModeBanner">HOME SOURCE</div><div class="hmeter" data-line-threshold><div class="hmeterFill" id="lineMeter"></div><div class="threshold" id="lineThreshold"></div></div><div class="lineLocalControls" id="lineLocalControls"><div class="arr2LineSourceBrowser" id="arr2LineSourceBrowser"><div class="arr2SourceHead"><div><div class="lineSectionTitle">AUDIO SOURCES</div><div class="note" id="geAudioHelperState">SCAN FOR AUDIO</div></div><button type="button" id="geAudioScan">SCAN</button></div><div class="arr2CurrentSource"><span>CONNECTED SOURCE</span><strong id="arr2CurrentLineSource">NONE</strong></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">PLAYING NOW</div><div class="geAudioSourceList" id="geAudioPlaying"><div class="note">Nothing detected yet.</div></div></div><div class="arr2AudioGroup"><div class="arr2AudioGroupTitle">AVAILABLE AUDIO</div><div class="geAudioSourceList" id="geAudioAvailable"><div class="note">Tap SCAN.</div></div></div><button type="button" class="arr2MoreInputs" id="arr2MoreInputs">MORE INPUTS / SETUP</button></div><div class="arr1LineSetup" id="arr1LineSetup"><div class="lineSectionTitle">COMPUTER · CHOOSE SOURCE</div><div class="sourceSelect"><select id="lineDevice"><option value="">SELECT LINE / VIRTUAL INPUT…</option></select><button id="lineOpen">CONNECT</button></div><div class="lineSourceButtons"><button class="sourceBtn computerAudioBtn" id="lineComputerAudio" type="button">FIREFOX / WINDOW AUDIO</button><label class="sourceBtn">AUDIO FILE<input id="lineFile" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none"></label></div><div class="lineActiveDevice" id="lineActiveDevice">NO SOURCE CONNECTED</div>
 <div class="lineAudioDiag" id="lineAudioDiag">
   <div class="lineAudioDiagHead"><b>AUDIO CHECK</b><div><button type="button" id="lineAudioRescan">SHOW LINE INPUTS</button><button type="button" id="lineAudioCopy">COPY</button></div></div>
@@ -6437,7 +6490,7 @@ html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap select{
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
 <div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><div class="deviceVideoSourcePick" id="deviceVideoSourcePick" hidden><select id="deviceVideoDevice"><option value="">AUTO CAMERA</option></select><button type="button" id="deviceVideoRescan">RESCAN VIDEO</button></div><video id="deviceChannelLocalVideoPreview" autoplay muted playsinline hidden style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid #3e596b;border-radius:9px;background:#02070b"></video><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
-<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsBtn">＋ ADD CHANNEL</button><button id="mixerPopoutBtn" type="button">POPOUT</button><button id="mixerCloseBtn" type="button">CLOSE</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
+<div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsLabel" type="button" disabled>CHANNELS</button><button id="mixerChannelsBtn" type="button">＋ ADD</button><button id="mixerPopoutBtn" type="button">POPOUT</button><button id="mixerCloseBtn" type="button">CLOSE</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
  <div class="mixerAddTitle">ADD CHANNEL</div>
  <div class="mixerAddChoices">   <button type="button" data-add-mixer-channel="aux">AUX</button>
   <button type="button" data-add-mixer-channel="computer">COMPUTER</button>
@@ -9240,6 +9293,9 @@ function gePlacePhoneUndo(){
  else if(undo.parentElement!==bar){const actions=bar.querySelector('.geUtilityActions')||bar;actions.appendChild(undo)}
 }
 function applyWorkspaceV151(){
+ if(document.body.classList.contains('geVideoOnly'))document.body.classList.remove('geVideoOnly');
+ const videoWorkspace=$('geVideoWorkspace');if(videoWorkspace)videoWorkspace.hidden=true;
+ if($('dockVideo'))$('dockVideo').classList.remove('activeView');
  if((document.documentElement.classList.contains('geFormatPhone')||document.documentElement.classList.contains('geFormatTablet'))&&geEffectsWorkspaceSelectedV151)geMixerWorkspaceSelectedV151=false;
  const mixer=$('mixerSheet'),fx=$('effectsSheet');if(!mixer||!fx)return;
  const any=!!(geMixerWorkspaceSelectedV151||geEffectsWorkspaceSelectedV151),fxOnly=!!(geEffectsWorkspaceSelectedV151&&!geMixerWorkspaceSelectedV151),both=!!(geEffectsWorkspaceSelectedV151&&geMixerWorkspaceSelectedV151);
@@ -10815,6 +10871,34 @@ $('dockFx').onclick=function(){
  if(geEffectsWorkspaceSelectedV151){fxTarget=fxTarget||'mic';$('fxTitle').textContent=(fxTarget==='mic'?'MIC':'COMPUTER')+' EFFECTS'}
  applyWorkspaceV151()
 };
+function geOpenVideoWorkspace(){
+ geMixerWorkspaceSelectedV151=false;geEffectsWorkspaceSelectedV151=false;applyWorkspaceV151();
+ document.body.classList.add('geVideoOnly');const v=$('geVideoWorkspace');if(v)v.hidden=false;
+ if($('dockVideo'))$('dockVideo').classList.add('activeView');
+ geRenderVideoSources();
+}
+function geRenderVideoSources(){
+ const root=$('geVideoSources');if(!root)return;
+ const ids=typeof selectedBoardVideoIds==='function'?selectedBoardVideoIds():[];
+ root.innerHTML=ids.length?ids.map(function(id){
+ const b=boardById(id),name=b?boardDisplayLabel(b):'DEVICE';
+ return '<button type="button" data-ge-video-select="'+esc(id)+'">'+esc(name)+'</button>'
+ }).join(''):'<p>No active video sources. Connect a video device to see it here.</p>';
+}
+if($('dockVideo'))$('dockVideo').onclick=geOpenVideoWorkspace;
+if($('geVideoSources'))$('geVideoSources').onclick=function(e){
+ const btn=e.target.closest('[data-ge-video-select]');if(!btn)return;
+ const id=btn.getAttribute('data-ge-video-select');
+ const preview=$('geVideoPreview'),note=$('geVideoNote');
+ const board=boardById(id);
+ if(preview)preview.textContent=(board?boardDisplayLabel(board):'DEVICE')+' selected · preview available when the device sends video';
+ if(note)note.textContent='Video remains OFF. Source selected; no broadcast started.';
+ if($('geVideoPreviewBtn'))$('geVideoPreviewBtn').disabled=false;
+ if($('geVideoTransitionBtn'))$('geVideoTransitionBtn').disabled=true;
+};
+if($('geVideoPreviewBtn'))$('geVideoPreviewBtn').onclick=function(){
+ $('geVideoNote').textContent='Preview selected. Live transitions are disabled until a verified preview stream is available.';
+};
 function openStudio(){if(window.parent!==window){window.parent.postMessage({type:'ge-cloud-dj-close'},'https://grandelement.com');window.parent.postMessage({type:'ge-cloud-dj-close'},'https://www.grandelement.com');return}const w=window.open('https://grandelement.com/studio/','ge-studio');if(!w)return;let n=0;const t=setInterval(function(){try{w.postMessage({type:'ge-dj-auth',key:key},'https://grandelement.com');w.postMessage({type:'ge-dj-auth',key:key},'https://www.grandelement.com')}catch(e){}if(++n>15)clearInterval(t)},300)}if($('dockStudio'))$('dockStudio').onclick=openStudio;$('studioOpenBtn').onclick=openStudio;$('studioStopBtn').onclick=function(){api('/control/broadcast/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:'studio',force:true})}).then(poll).catch(function(e){alert(e.message||e)})};document.querySelectorAll('[data-close]').forEach(function(b){b.onclick=function(){const target=$(b.dataset.close);if(target)target.classList.remove('show');if(b.dataset.close==='mixerSheet'){$('mixerChannelPicker').classList.remove('show');$('mixerChannelsBtn').classList.remove('on');closeFx()}if(b.dataset.close==='micSheet'||b.dataset.close==='lineSheet')setGeDisplayScope('home');if(b.dataset.close==='deviceChannelSheet'){geOpenDeviceKind='';geOpenBoardId='';renderChannelStatusBubbles()}syncDockViewState()}});window.addEventListener('message',async function(e){if(['https://grandelement.com','https://www.grandelement.com'].indexOf(e.origin)<0)return;if(e.data&&e.data.type==='ge-studio-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
 
 
@@ -11119,6 +11203,7 @@ function closeGeTopSurfaceV129(){
  return false
 }
 function returnHome(){
+ document.body.classList.remove('geVideoOnly');if($('geVideoWorkspace'))$('geVideoWorkspace').hidden=true;if($('dockVideo'))$('dockVideo').classList.remove('activeView');
  ['micSheet','lineSheet'].forEach(function(id){if($(id))$(id).classList.remove('show')});
  document.querySelectorAll('.modal.show').forEach(function(el){el.classList.remove('show')});
  if($('picker'))$('picker').classList.remove('show');
