@@ -6305,6 +6305,86 @@ html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap{
 body.geEffectsOnly .geRemoveMixerChannel,body.geEffectsOnly #mixerChannelsBtn,
 body.geEffectsOnly #mixerChannelPicker{display:none!important}
 #mixerSheet #sendAuxStrip.geAuxRequested{display:flex!important}
+
+/* V158: iPhone-only Effects sizing and full-travel touch faders. */
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDockHead{
+ display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+ justify-content:space-between!important;gap:4px!important;min-height:65px!important;
+ max-height:76px!important;padding:2px 5px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDockHead>.geDisplayZoomBar{
+ display:flex!important;flex:1 1 auto!important;width:auto!important;min-width:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDockHead>#geUndo{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ position:static!important;transform:none!important;flex:0 0 80px!important;
+ width:80px!important;height:56px!important;min-height:56px!important;
+ margin-left:auto!important;font-size:14px!important;z-index:15!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxEffectButtons{
+ display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+ grid-template-rows:58px!important;gap:2px!important;min-height:58px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxEffectButtons button{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ height:58px!important;min-height:58px!important;max-height:58px!important;
+ padding:1px!important;margin:0!important;min-width:0!important;
+ font-size:clamp(8px,2.05vw,12px)!important;line-height:1.05!important;
+ letter-spacing:0!important;white-space:normal!important;overflow-wrap:anywhere!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDelayDetail{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:4px!important;width:100%!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDelayDetail .fxDelayDetailCell:first-child{display:none!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDelayDetail .fxDelayDetailCell{
+ display:flex!important;flex-direction:column!important;min-width:0!important;
+ width:100%!important;padding:3px 5px!important;gap:2px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDelayDetail input[type=range]{
+ width:100%!important;max-width:none!important;min-width:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider{
+ position:relative!important;display:flex!important;flex-direction:column!important;
+ align-items:stretch!important;justify-content:stretch!important;
+ height:100%!important;min-height:0!important;overflow:hidden!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider label{
+ position:absolute!important;top:50%!important;left:50%!important;z-index:1!important;
+ transform:translate(-50%,-50%) rotate(-90deg)!important;
+ display:flex!important;flex-direction:row!important;justify-content:center!important;
+ align-items:center!important;gap:5px!important;pointer-events:none!important;
+ width:max-content!important;max-width:75vh!important;height:24px!important;
+ color:#d8e5f1!important;font-size:clamp(13px,3.5vw,18px)!important;
+ font-weight:900!important;white-space:nowrap!important;opacity:.8!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxControlGrid>.bigSlider label span{
+ font-size:inherit!important;color:inherit!important;white-space:nowrap!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider input.fxvf{
+ writing-mode:vertical-lr!important;direction:rtl!important;
+ -webkit-appearance:slider-vertical!important;appearance:slider-vertical!important;
+ position:relative!important;display:block!important;flex:1 1 auto!important;
+ width:100%!important;max-width:100%!important;min-width:0!important;
+ height:100%!important;min-height:0!important;max-height:none!important;
+ inline-size:100%!important;block-size:100%!important;
+ margin:0 auto!important;padding:4px 0!important;touch-action:none!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxRightRail{
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+ gap:4px!important;width:100%!important;min-width:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap{grid-column:1!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxCustomSlots{display:contents!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxCustomSlots button{
+ min-width:0!important;width:100%!important;min-height:50px!important;
+ height:50px!important;font-size:clamp(17px,5vw,24px)!important;
+ font-weight:900!important;padding:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap select{
+ min-width:0!important;width:100%!important;min-height:50px!important;
+ height:50px!important;font-size:clamp(10px,3vw,14px)!important;
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -9152,6 +9232,13 @@ function syncFxVideoControlsV134(){
  if($('fxVideoAmount'))$('fxVideoAmount').value=String(Math.round(amount))
 }
 var geMixerWorkspaceSelectedV151=false,geEffectsWorkspaceSelectedV151=false;
+function gePlacePhoneUndo(){
+ const undo=$('geUndo'),bar=$('geDisplayZoomBar'),head=document.querySelector('#effectsSheet .fxDockHead');
+ if(!undo||!bar||!head)return;
+ const phone=document.documentElement.classList.contains('geFormatPhone');
+ if(phone&&geEffectsWorkspaceSelectedV151){if(undo.parentElement!==head)head.appendChild(undo)}
+ else if(undo.parentElement!==bar){const actions=bar.querySelector('.geUtilityActions')||bar;actions.appendChild(undo)}
+}
 function applyWorkspaceV151(){
  if((document.documentElement.classList.contains('geFormatPhone')||document.documentElement.classList.contains('geFormatTablet'))&&geEffectsWorkspaceSelectedV151)geMixerWorkspaceSelectedV151=false;
  const mixer=$('mixerSheet'),fx=$('effectsSheet');if(!mixer||!fx)return;
@@ -9165,6 +9252,7 @@ function applyWorkspaceV151(){
  if(fxOnly){setGeDisplayScope('effects');const head=fx.querySelector('.fxDockHead'),undo=$('geUndo');if(head&&undo&&undo.parentElement!==head)head.appendChild(undo);}
  else if(geMixerWorkspaceSelectedV151)setGeDisplayScope('mixer');
  else setGeDisplayScope('home');
+ gePlacePhoneUndo();
  syncDockViewState();
  if(geEffectsWorkspaceSelectedV151){syncFx();syncFxVideoControlsV134();renderFxVideoDeviceRowV142();renderFxVideoPopupV142();markFxButtons()}
  requestAnimationFrame(function(){try{syncTouchFaders()}catch(e){}})
