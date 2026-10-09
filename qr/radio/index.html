@@ -6,277 +6,314 @@
 <meta name="robots" content="noindex">
 <title>Grand Element Radio</title>
 
-<link rel="preload" as="image" href="/ge-images/images/favicon-square.jpg">
-<link rel="preload" as="image" href="/ge-images/images/stars%20backgrounds/4.jpg">
+<link rel="preload" as="image" href="../../ge-images/images/favicon-square.jpg">
+<link rel="preload" as="image" href="../../ge-images/images/ge-radio-logo.png">
+<link rel="preload" as="image" href="../../ge-images/images/stars%20backgrounds/4.jpg">
 
 <style>
 *{box-sizing:border-box}
 html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#000;
+  margin:0;width:100%;height:100%;overflow:hidden;background:#000;
+  -webkit-tap-highlight-color:transparent
 }
 #site{
-  position:fixed;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:0;
-  background:#000;
-  z-index:0;
+  position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:0;
+  opacity:0;transform:scale(1.015);filter:blur(7px) brightness(.78);
+  transition:opacity 1.8s ease,transform 2.4s cubic-bezier(.2,.72,.18,1),filter 2.1s ease
 }
+#site.reveal{opacity:1;transform:scale(1);filter:none}
+
 #gate{
-  position:fixed;
-  inset:0;
-  z-index:10;
-  overflow:hidden;
-  background:transparent;
-  opacity:1;
-  transition:opacity .82s ease;
-  touch-action:manipulation;
+  position:fixed;inset:0;z-index:10;overflow:hidden;background:#000;
+  opacity:1;transition:opacity 1.8s ease;touch-action:manipulation;isolation:isolate
 }
-#stars{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  background:#000 url("/ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
-  opacity:1;
-  will-change:opacity,filter;
+#gate.done{opacity:0;pointer-events:none}
+
+#space{
+  position:absolute;inset:-7%;z-index:0;
+  background:#000 url("../../ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
+  transform:scale(1.06);will-change:transform,filter,opacity
 }
-#stars::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:radial-gradient(circle at 50% 50%,
-    rgba(15,120,255,.03) 0%,
-    rgba(0,0,0,.05) 52%,
-    rgba(0,0,0,.26) 100%);
-  pointer-events:none;
+#spaceShade{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(circle at 53% 50%,rgba(31,136,255,.09),transparent 34%),
+    radial-gradient(circle at 50% 50%,transparent 0 50%,rgba(0,0,0,.34) 100%);
 }
-#portalBlur{
-  position:absolute;
-  inset:-30px;
-  z-index:1;
-  opacity:0;
-  background:rgba(0,22,48,.22);
-  backdrop-filter:blur(24px) brightness(.88);
-  -webkit-backdrop-filter:blur(24px) brightness(.88);
-  will-change:opacity;
-  pointer-events:none;
+#streaks{
+  position:absolute;inset:-20%;z-index:2;opacity:0;pointer-events:none;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(198,241,255,0) 0deg,
+      rgba(198,241,255,.18) .18deg,
+      rgba(198,241,255,0) .42deg,
+      rgba(198,241,255,0) 5.5deg);
+  mix-blend-mode:screen;filter:blur(.5px);
+  transform:scale(.72);transform-origin:50% 50%;will-change:transform,opacity
+}
+
+#sunWrap,#moonWrap{
+  position:absolute;left:50%;top:50%;aspect-ratio:1;border-radius:50%;
+  transform-origin:50% 50%;will-change:transform,opacity,filter
 }
 #sunWrap{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:min(50vmin,430px);
-  aspect-ratio:1;
-  transform:translate(-50%,-50%) scale(.76);
-  transform-origin:50% 50%;
-  opacity:0;
-  will-change:transform,opacity,filter;
-  z-index:2;
+  z-index:5;width:min(74vmin,650px);
+  transform:translate3d(60vw,-5vh,0) scale(.40);opacity:0
 }
 #sun{
-  display:block;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  border-radius:50%;
+  width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
   box-shadow:
-    0 0 26px rgba(0,210,255,.56),
-    0 0 74px rgba(0,110,255,.32);
-  user-select:none;
-  -webkit-user-drag:none;
+    0 0 28px rgba(66,218,255,.82),
+    0 0 90px rgba(0,137,255,.55),
+    0 0 170px rgba(0,92,255,.28);
+  user-select:none;-webkit-user-drag:none
 }
-#gate.holding #stars{
-  opacity:0 !important;
+#sunFlare{
+  position:absolute;inset:-18%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(98,224,255,.20),rgba(0,135,255,.06) 48%,transparent 72%);
+  mix-blend-mode:screen
 }
-#gate.holding #portalBlur{
-  opacity:1 !important;
+
+#moonWrap{
+  z-index:4;width:min(29vmin,255px);
+  transform:translate3d(16vw,2vh,0) scale(.18);opacity:0;filter:brightness(.50)
 }
-#gate.done{
-  opacity:0;
-  pointer-events:none;
+#moon{
+  width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
+  box-shadow:
+    0 0 18px rgba(80,210,255,.22),
+    0 0 55px rgba(20,121,255,.12);
+  user-select:none;-webkit-user-drag:none
 }
-@media (prefers-reduced-motion:reduce){
-  #sunWrap{
-    opacity:1 !important;
-    transform:translate(-50%,-50%) scale(.86) !important;
-    filter:none !important;
-  }
+#moonHalo{
+  position:absolute;inset:-9%;border-radius:50%;pointer-events:none;opacity:.45;
+  border:1px solid rgba(147,231,255,.22);
+  box-shadow:0 0 24px rgba(76,198,255,.16)
+}
+
+#vignette{
+  position:absolute;inset:0;z-index:8;pointer-events:none;
+  background:radial-gradient(circle at center,transparent 0 52%,rgba(0,0,0,.28) 78%,rgba(0,0,0,.72) 100%);
+  opacity:.75;will-change:opacity
+}
+#whiteout{
+  position:absolute;inset:0;z-index:9;pointer-events:none;background:#dff8ff;opacity:0;
+  mix-blend-mode:screen;will-change:opacity
+}
+#soundHint{
+  position:absolute;z-index:12;left:50%;bottom:max(22px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);padding:8px 13px;border-radius:999px;
+  color:#dff8ff;background:rgba(3,17,30,.62);border:1px solid rgba(142,225,255,.30);
+  font:800 10px/1 system-ui;letter-spacing:.08em;opacity:0;pointer-events:none;
+  transition:opacity .45s ease;white-space:nowrap
+}
+#soundHint.show{opacity:.82}
+
+@media(prefers-reduced-motion:reduce){
+  #streaks{display:none}
+  #sunWrap{opacity:.7!important;transform:translate3d(-50vw,0,0) scale(1.4)!important}
+  #moonWrap{opacity:1!important;transform:translate3d(0,0,0) scale(1)!important;filter:none!important}
 }
 </style>
 </head>
 
 <body>
-<iframe id="site" src="/radio/" title="Grand Element Radio"></iframe>
+<iframe id="site" src="../../radio/?qr=1" title="Grand Element Radio" allow="autoplay"></iframe>
 
 <div id="gate" aria-label="Entering Grand Element Radio" role="button" tabindex="0">
-  <div id="stars"></div>
-  <div id="portalBlur"></div>
-  <div id="sunWrap">
-    <img id="sun" src="/ge-images/images/favicon-square.jpg" alt="Grand Element">
+  <div id="space"></div>
+  <div id="spaceShade"></div>
+  <div id="streaks"></div>
+
+  <div id="moonWrap" aria-hidden="true">
+    <div id="moonHalo"></div>
+    <img id="moon" src="../../ge-images/images/ge-radio-logo.png" alt="">
   </div>
+
+  <div id="sunWrap" aria-hidden="true">
+    <div id="sunFlare"></div>
+    <img id="sun" src="../../ge-images/images/favicon-square.jpg" alt="">
+  </div>
+
+  <div id="vignette"></div>
+  <div id="whiteout"></div>
+  <div id="soundHint">TAP ANYWHERE FOR SOUND</div>
 </div>
 
 <script src="../../ge-vault-client.js"></script>
 <script>
 (function(){
-  const gate = document.getElementById('gate');
-  const stars = document.getElementById('stars');
-  const portalBlur = document.getElementById('portalBlur');
-  const sunWrap = document.getElementById('sunWrap');
-  const site = document.getElementById('site');
+  const gate=document.getElementById('gate');
+  const site=document.getElementById('site');
+  const space=document.getElementById('space');
+  const streaks=document.getElementById('streaks');
+  const sunWrap=document.getElementById('sunWrap');
+  const moonWrap=document.getElementById('moonWrap');
+  const vignette=document.getElementById('vignette');
+  const whiteout=document.getElementById('whiteout');
+  const soundHint=document.getElementById('soundHint');
 
-  let leaving = false;
-  let rafId = 0;
-  let startTime = 0;
-  let animationFinished = false;
-  let siteReady = false;
+  let raf=0,start=0,finished=false,siteReady=false,revealed=false,audioStarted=false;
+  let lastSoundAttempt=0;
 
-  const STARS_ONLY = 3500;
-  const FADE_IN = 1700;
-  const ZOOM_START = STARS_ONLY + FADE_IN;
-  const ZOOM_TIME = 6000;
-  const TOTAL = ZOOM_START + ZOOM_TIME;
+  // CAMERA STORY
+  // 0–2.2s   : travel through the field
+  // 1.2–6.2s : Blue Sun crosses close in foreground
+  // 4.1–7.2s : Radio moon is revealed from behind the Sun
+  // 7.0–12.0s: lock on moon and accelerate straight into it
+  // 10.8–12.6s: moon dissolves into the already-loaded Radio
+  const TOTAL=12600;
 
-  const START_SCALE = 0.76;
-  const END_SCALE = 8.5;
-  const SCALE_RATIO = END_SCALE / START_SCALE;
+  function clamp01(v){return Math.max(0,Math.min(1,v))}
+  function smooth(t){t=clamp01(t);return t*t*(3-2*t)}
+  function easeIn(t){t=clamp01(t);return t*t*t}
+  function easeOut(t){t=clamp01(t);return 1-Math.pow(1-t,3)}
+  function mix(a,b,t){return a+(b-a)*t}
 
-  function clamp01(v){
-    return Math.max(0, Math.min(1, v));
+  function radioAudio(){
+    try{return site.contentWindow && site.contentWindow.document.getElementById('player')}catch(e){return null}
+  }
+  function tryStartRadioAudio(){
+    const now=Date.now();
+    if(audioStarted || now-lastSoundAttempt<500)return;
+    lastSoundAttempt=now;
+    const player=radioAudio();
+    if(!player)return;
+    try{
+      player.muted=false;
+      player.defaultMuted=false;
+      const result=player.play();
+      if(result&&typeof result.then==='function'){
+        result.then(()=>{audioStarted=true;soundHint.classList.remove('show')})
+          .catch(()=>{if(!finished)soundHint.classList.add('show')});
+      }else{
+        audioStarted=!player.paused;
+        if(audioStarted)soundHint.classList.remove('show');
+      }
+    }catch(e){
+      if(!finished)soundHint.classList.add('show');
+    }
   }
 
-  function smoothstep(t){
-    t = clamp01(t);
-    return t * t * (3 - 2 * t);
+  function revealRadio(){
+    if(revealed || !finished || !siteReady)return;
+    revealed=true;
+    site.classList.add('reveal');
+    gate.classList.add('done');
+    tryStartRadioAudio();
+
+    setTimeout(()=>{
+      try{history.replaceState({qrRadioArrival:true},'', '../../radio/')}catch(e){}
+      try{site.contentWindow.focus()}catch(e){}
+    },1500);
   }
 
-  function revealSite(){
-    if(leaving || !animationFinished || !siteReady) return;
-
-    leaving = true;
-    gate.classList.add('holding');
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => gate.classList.add('done'));
-    });
-
-    // The radio is already loaded behind the gate.
-    // Change only the address-bar URL so there is no second radio reload.
-    setTimeout(() => {
-      try { history.replaceState({qrRadioGate:true}, '', '/radio/'); } catch(e) {}
-      try { site.contentWindow.focus(); } catch(e) {}
-    }, 900);
-  }
-
-  function finishAnimation(){
-    if(animationFinished) return;
-    animationFinished = true;
-
-    gate.classList.add('holding');
-    stars.style.opacity = '0';
-    portalBlur.style.opacity = '1';
-    sunWrap.style.opacity = '0';
-
-    revealSite();
+  function finish(){
+    if(finished)return;
+    finished=true;
+    cancelAnimationFrame(raf);
+    site.classList.add('reveal');
+    revealRadio();
+    // If Safari blocked autoplay, the normal Radio play control remains available.
+    setTimeout(tryStartRadioAudio,80);
   }
 
   function draw(now){
-    if(!startTime) startTime = now;
-    const elapsed = now - startTime;
+    if(!start)start=now;
+    const t=now-start;
 
-    let opacity = 0;
-    let scale = START_SCALE;
-    let brightness = 1;
-    let saturation = 1;
-    let blur = 0;
-    let starsOpacity = 1;
-    let portalOpacity = 0;
+    // Forward motion in the star field.
+    const cruise=clamp01(t/7000);
+    const finalRush=clamp01((t-7200)/4300);
+    space.style.transform='scale('+(1.06+cruise*.075+easeIn(finalRush)*.26).toFixed(4)+') translate3d(0,'+(cruise*-1.4).toFixed(2)+'%,0)';
+    space.style.filter='brightness('+(1+finalRush*.23).toFixed(3)+')';
+    streaks.style.opacity=String((smooth((t-300)/1500)*.24 + smooth((t-7600)/1900)*.50).toFixed(3));
+    streaks.style.transform='scale('+(0.72+easeIn(finalRush)*1.75).toFixed(3)+')';
 
-    if(elapsed >= STARS_ONLY){
-      opacity = smoothstep((elapsed - STARS_ONLY) / FADE_IN);
-    }
+    // Huge Blue Sun approaches from the right, crosses in front of the moon,
+    // then sweeps beyond the left side as the camera flies past it.
+    const sunIn=smooth((t-650)/1900);
+    const sunPass=clamp01((t-2200)/4300);
+    const sunX=mix(64,-84,easeIn(sunPass));
+    const sunY=mix(-5,7,smooth(sunPass));
+    const sunScale=mix(.38,2.65,easeOut(clamp01((t-700)/3800)));
+    const sunFade=1-smooth((t-5550)/1200);
+    sunWrap.style.opacity=String((sunIn*sunFade).toFixed(3));
+    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(2)+'vw),calc(-50% + '+sunY.toFixed(2)+'vh),0) scale('+sunScale.toFixed(4)+')';
+    sunWrap.style.filter='brightness('+(1+smooth((t-3200)/2200)*.38).toFixed(3)+')';
 
-    if(elapsed >= ZOOM_START){
-      const p = clamp01((elapsed - ZOOM_START) / ZOOM_TIME);
-      const accelerated = Math.pow(p, 3.0);
+    // The Radio moon is literally behind the Sun first. It peeks out from the
+    // far edge as the Sun moves away, then drifts into the center of the view.
+    const moonReveal=smooth((t-3900)/2200);
+    const moonCenter=smooth((t-5200)/2200);
+    const moonRush=clamp01((t-7150)/4450);
+    const moonX=mix(20,0,moonCenter);
+    const moonY=mix(3,0,moonCenter);
+    const moonBaseScale=mix(.16,1.0,easeOut(moonCenter));
+    const moonZoom=moonBaseScale*Math.pow(10.8,easeIn(moonRush));
+    const moonFade=1-smooth((t-11100)/1250);
+    const moonBrightness=mix(.48,1.10,moonReveal)+smooth((t-9800)/1700)*.52;
+    const moonBlur=smooth((t-10900)/1250)*4.5;
+    moonWrap.style.opacity=String((moonReveal*moonFade).toFixed(3));
+    moonWrap.style.transform='translate3d(calc(-50% + '+moonX.toFixed(2)+'vw),calc(-50% + '+moonY.toFixed(2)+'vh),0) scale('+moonZoom.toFixed(5)+')';
+    moonWrap.style.filter='brightness('+moonBrightness.toFixed(3)+') saturate('+(1+moonRush*.18).toFixed(3)+') blur('+moonBlur.toFixed(2)+'px)';
 
-      scale = START_SCALE * Math.pow(SCALE_RATIO, accelerated);
-      brightness = 1 + 0.72 * Math.pow(p, 2.6);
-      saturation = 1 + 0.08 * smoothstep(p);
+    // Transition from the moon surface into the real Radio.
+    const radioBlend=smooth((t-10650)/1750);
+    site.style.opacity=String(radioBlend.toFixed(3));
+    site.style.transform='scale('+(1.015-.015*radioBlend).toFixed(4)+')';
+    site.style.filter='blur('+(7*(1-radioBlend)).toFixed(2)+'px) brightness('+(0.78+.22*radioBlend).toFixed(3)+')';
+    whiteout.style.opacity=String((Math.sin(Math.PI*clamp01((t-10800)/1500))*.20).toFixed(3));
+    vignette.style.opacity=String((.75-.55*radioBlend).toFixed(3));
+    gate.style.opacity=String((1-smooth((t-11600)/1000)).toFixed(3));
 
-      if(p > 0.86){
-        const q = smoothstep((p - 0.86) / 0.14);
-        starsOpacity = 1 - q;
-        portalOpacity = q;
-      }
+    // Give autoplay a few chances only near arrival. No second Radio load.
+    if(t>10200)tryStartRadioAudio();
 
-      if(p > 0.90){
-        const q = smoothstep((p - 0.90) / 0.10);
-        opacity *= (1 - q);
-        blur = 2.2 * q;
-      }
-    }
-
-    sunWrap.style.opacity = opacity.toFixed(4);
-    sunWrap.style.transform =
-      'translate(-50%,-50%) scale(' + scale.toFixed(5) + ')';
-    sunWrap.style.filter =
-      'brightness(' + brightness.toFixed(3) + ') saturate(' +
-      saturation.toFixed(3) + ') blur(' + blur.toFixed(2) + 'px)';
-
-    stars.style.opacity = starsOpacity.toFixed(4);
-    portalBlur.style.opacity = portalOpacity.toFixed(4);
-
-    if(elapsed < TOTAL){
-      rafId = requestAnimationFrame(draw);
+    if(t<TOTAL){
+      raf=requestAnimationFrame(draw);
     }else{
-      finishAnimation();
+      finish();
     }
   }
 
-  function skip(){
-    if(leaving) return;
-    if(rafId) cancelAnimationFrame(rafId);
-    animationFinished = true;
-    siteReady = true;
-    gate.classList.add('holding');
-    revealSite();
-  }
+  site.addEventListener('load',()=>{
+    siteReady=true;
+    if(finished)revealRadio();
+    // Let the Radio initialize while hidden. We attempt sound near arrival.
+  },{once:true});
 
-  site.addEventListener('load', () => {
-    siteReady = true;
-    revealSite();
-  }, {once:true});
-
-  gate.addEventListener('click', skip);
-  gate.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter' || e.key === ' '){
+  // A user tap does NOT skip the movie. It only gives Safari/iPhone the user
+  // gesture it may require for audible autoplay, so the visual sequence stays intact.
+  gate.addEventListener('pointerdown',()=>{
+    tryStartRadioAudio();
+    soundHint.classList.remove('show');
+  },{passive:true});
+  gate.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){
       e.preventDefault();
-      skip();
+      tryStartRadioAudio();
     }
   });
 
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    gate.classList.add('holding');
-    animationFinished = true;
-    setTimeout(() => {
-      siteReady = true;
-      revealSite();
-    }, 900);
+    setTimeout(()=>{
+      finished=true;
+      siteReady=true;
+      site.classList.add('reveal');
+      gate.classList.add('done');
+      tryStartRadioAudio();
+    },900);
   }else{
-    rafId = requestAnimationFrame(draw);
+    raf=requestAnimationFrame(draw);
   }
 
-  setTimeout(() => {
-    if(!animationFinished) finishAnimation();
-    if(!siteReady) siteReady = true;
-    revealSite();
-  }, TOTAL + 5000);
+  // Never trap the listener if the embedded Radio takes longer than expected.
+  setTimeout(()=>{
+    if(!finished)finish();
+    if(!siteReady)siteReady=true;
+    revealRadio();
+  },TOTAL+5000);
 })();
 </script>
 </body>
