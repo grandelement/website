@@ -257,11 +257,36 @@ def load_rights_catalog():
         print(f"GE Radio: ASCAP catalog warning: {exc}", flush=True)
         return {}
 
+def clear_stale_git_lock():
+    """Remove an abandoned shallow-fetch lock only when no Git process owns the repo."""
+    lock = META_REPO / ".git" / "shallow.lock"
+    try:
+        if not lock.exists() or time.time() - lock.stat().st_mtime < 120:
+            return False
+        # A live Git operation may be writing this lock. Do not interfere with it.
+        for proc in Path("/proc").iterdir():
+            if not proc.name.isdigit() or int(proc.name) == os.getpid():
+                continue
+            try:
+                cmd = (proc / "cmdline").read_bytes().replace(b"\\x00", b" ").decode("utf-8", "replace")
+                if "git" in cmd and (str(META_REPO) in cmd or "fetch" in cmd):
+                    return False
+            except (OSError, PermissionError):
+                # If process visibility is restricted, do not assume the lock is stale.
+                return False
+        lock.unlink()
+        print("GE Radio: removed abandoned shallow.lock before metadata refresh.", flush=True)
+        return True
+    except OSError as exc:
+        print(f"GE Radio: could not clear stale Git lock: {exc}", flush=True)
+        return False
+
 def fetch_library():
     # Important: this intentionally uses normal Git, NOT api.github.com.
     # Blitz uses shared outbound IPs and anonymous GitHub REST API requests can
     # hit a shared 60/hour limit. A shallow blobless fetch avoids that dependency.
     ensure_meta_repo()
+    clear_stale_git_lock()
     git_run([
         "-c", "protocol.version=2",
         "fetch", "-q", "--force", "--depth=1", "--filter=blob:none",
@@ -473,6 +498,7 @@ def main():
     RUNTIME.mkdir(parents=True, exist_ok=True)
     cached = None
     last_repo_check = 0.0
+    next_retry_at = 0.0
     last_signature = None
     last_now_seen = 0
 
@@ -482,11 +508,13 @@ def main():
             last_now_seen = remember_now(last_now_seen)
             now = time.time()
 
-            if cached is None or now - last_repo_check >= CHECK_SECONDS:
+            if now >= next_retry_at and (cached is None or now - last_repo_check >= CHECK_SECONDS):
                 try:
                     cached = fetch_library()
                     last_repo_check = now
+                    next_retry_at = 0.0
                 except Exception as exc:
+                    next_retry_at = now + 60
                     if cached is None:
                         raise
                     print(
