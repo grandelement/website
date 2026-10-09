@@ -1418,7 +1418,7 @@ body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;point
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.08-on-air-intro-test-1',
+  APP_VERSION: '2026.10.08-offline-plan-resume-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -1445,6 +1445,7 @@ const CONFIG = Object.freeze({
   OFFLINE_KEY: 'GE_OFFLINE_ACTIVE_V4',
   OFFLINE_PLAYABLE_KEY: 'GE_OFFLINE_PLAYABLE_V6',
   OFFLINE_STATIONS_KEY: 'GE_OFFLINE_STATIONS_V6',
+  OFFLINE_PLAN_VERSION: 1,
   HUD_KEY: 'GE_HUD_AUTOHIDE_V2',
   HUD_IDLE_MS: 15000,
   GITHUB_TREE_API: 'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
@@ -3683,6 +3684,8 @@ async function registerServiceWorker(){
   const text=$('offlineText');
   let abortController=null;
   let currentAudit=null;
+  let activePlan=null;
+  const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
 
   const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire'];
   const LEGACY_DOWNLOAD_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II'];
@@ -3735,6 +3738,84 @@ async function registerServiceWorker(){
 
   function remainingBytes(audit){
     return (audit?.missing||[]).reduce((sum,item)=>sum+(Number(item.size)||0),0);
+  }
+
+  function cleanPlanAssets(items){
+    if(!Array.isArray(items)) return [];
+    const allowedTypes=new Set(['shell','song','station','background']);
+    const seen=new Set();
+    return items.map(item=>{
+      if(!item||!allowedTypes.has(item.type)) return null;
+      let url='';
+      try{
+        const parsed=new URL(String(item.url||''),location.href);
+        if(parsed.origin!==location.origin) return null;
+        url=parsed.href;
+      }catch(_e){ return null; }
+      if(seen.has(url)) return null;
+      seen.add(url);
+      return {url,type:item.type,size:Math.max(0,Number(item.size)||0)};
+    }).filter(Boolean);
+  }
+
+  async function saveOfflinePlan(assets,{autoResume=true}={}){
+    const clean=cleanPlanAssets(assets);
+    const plan={
+      version:CONFIG.OFFLINE_PLAN_VERSION,
+      createdAt:new Date().toISOString(),
+      autoResume:!!autoResume,
+      assets:clean
+    };
+    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+    const response=new Response(JSON.stringify(plan),{
+      status:200,
+      headers:{'Content-Type':'application/json','Cache-Control':'no-store'}
+    });
+    await cache.put(OFFLINE_PLAN_URL,response);
+    activePlan=plan;
+    return plan;
+  }
+
+  async function loadOfflinePlan(){
+    try{
+      const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+      const response=await cache.match(OFFLINE_PLAN_URL,{ignoreSearch:false});
+      if(!response) return null;
+      const raw=await response.json();
+      const assets=cleanPlanAssets(raw?.assets);
+      if(!assets.length) return null;
+      activePlan={
+        version:Number(raw?.version)||1,
+        createdAt:String(raw?.createdAt||''),
+        autoResume:raw?.autoResume!==false,
+        assets
+      };
+      return activePlan;
+    }catch(_e){ return null; }
+  }
+
+  async function setOfflinePlanAutoResume(on){
+    if(!activePlan) activePlan=await loadOfflinePlan();
+    if(!activePlan) return;
+    await saveOfflinePlan(activePlan.assets,{autoResume:!!on});
+  }
+
+  async function clearOfflinePlan(){
+    activePlan=null;
+    try{
+      const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+      await cache.delete(OFFLINE_PLAN_URL,{ignoreSearch:false});
+    }catch(_e){}
+  }
+
+  async function scanApprovedPlan(){
+    const plan=await loadOfflinePlan();
+    if(!plan) return null;
+    const audit=await auditAssets(plan.assets,{copyExisting:true});
+    setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+    currentAudit=audit;
+    reflectButton(audit);
+    return {plan,assets:plan.assets,audit};
   }
 
   async function scanExistingAssets(){
@@ -3797,7 +3878,7 @@ async function registerServiceWorker(){
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
     if(!enabled){ button.textContent=audit?.cachedSongs>0?'Finish Offline':'Go Offline'; return; }
-    if(audit?.complete){ button.textContent='Offline Ready'; return; }
+    if(audit?.requiredReady || audit?.complete){ button.textContent='Offline Ready'; return; }
     if(audit?.shellReady&&audit?.cachedSongs>0){ button.textContent='Resume Offline'; return; }
     button.textContent='Resume Offline';
   }
@@ -3958,14 +4039,16 @@ async function registerServiceWorker(){
 
     const missingSongs=missing.filter(item=>item.type==='song').length;
     const missingOptional=missing.filter(item=>item.type==='background').length;
+    const missingStations=missing.filter(item=>item.type==='station').length;
     const missingShell=missing.filter(item=>item.type==='shell').length;
     const shellReady=missingShell===0;
     const musicComplete=totalSongs>0 && missingSongs===0;
+    const requiredReady=shellReady && musicComplete && missingStations===0;
     const complete=missing.length===0;
 
     currentAudit={
-      missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,missingShell,shellReady,
-      musicComplete,complete,existingBytes,totalBytes
+      missing,total:assets.length,cachedSongs,totalSongs,missingSongs,missingOptional,missingStations,missingShell,shellReady,
+      musicComplete,requiredReady,complete,existingBytes,totalBytes
     };
     reflectButton(currentAudit);
     return currentAudit;
@@ -4038,6 +4121,7 @@ async function registerServiceWorker(){
 
     if(!audit.missing.length){
       setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+      if(activePlan) await setOfflinePlanAutoResume(false);
       reflectButton(audit);
       if(!quiet){
         renderProgress({
@@ -4116,6 +4200,10 @@ async function registerServiceWorker(){
     setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
     reflectButton(audit);
 
+    if(activePlan){
+      if(audit.complete || (quotaStoppedOptional && audit.requiredReady)) await setOfflinePlanAutoResume(false);
+    }
+
     if(!quiet){
       const elapsed=Math.max(.25,(performance.now()-started)/1000);
       const speed=downloadedBytes/elapsed;
@@ -4163,7 +4251,8 @@ async function registerServiceWorker(){
     offlineAvailability.stations.clear();
     saveOfflineAvailability();
     localStorage.removeItem(CONFIG.OFFLINE_KEY);
-    currentAudit={missing:[],cachedSongs:0,totalSongs:0,musicComplete:false,complete:false};
+    await clearOfflinePlan();
+    currentAudit={missing:[],cachedSongs:0,totalSongs:0,musicComplete:false,requiredReady:false,complete:false};
     button.classList.remove('active','downloading');
     button.textContent='Go Offline';
     bar.style.width='0';
@@ -4173,12 +4262,14 @@ async function registerServiceWorker(){
   button.addEventListener('click',async()=>{
     if(button.classList.contains('downloading')){
       abortController?.abort();
+      await setOfflinePlanAutoResume(false);
       return;
     }
 
-    const prepared=await scanExistingAssets();
+    const planned=await scanApprovedPlan();
+    const prepared=planned || await scanExistingAssets();
 
-    if(prepared.audit.complete){
+    if(prepared.audit.requiredReady || prepared.audit.complete){
       const keepFiles=confirm('Turn Offline off and KEEP the downloaded songs on this device?\n\nOK = Keep files\nCancel = More options');
       if(keepFiles){
         setEnabled(false);
@@ -4198,6 +4289,8 @@ async function registerServiceWorker(){
       return;
     }
 
+    await saveOfflinePlan(prepared.assets,{autoResume:true});
+
     await cacheMissingAssets({
       quiet:false,
       reason:isEnabled()?'resume':'manual',
@@ -4216,14 +4309,31 @@ async function registerServiceWorker(){
   window.addEventListener('online',()=>rebuildQueue(state.currentURL));
 
   (async()=>{
-    try{ await scanExistingAssets(); }catch(_e){}
+    try{
+      const planned=await scanApprovedPlan();
+      if(planned){
+        // Resume only the exact download set the listener previously approved.
+        // This prevents new website files from turning a completed offline install
+        // into a fresh prompt every time the Home Screen app opens.
+        if(planned.plan.autoResume && planned.audit.missing.length){
+          void cacheMissingAssets({
+            quiet:true,
+            reason:'approved-plan-resume',
+            prepared:{assets:planned.assets,audit:planned.audit}
+          });
+        }
+        return;
+      }
+      await scanExistingAssets();
+    }catch(_e){}
   })();
 
   window.GEOffline={
     isActive:isEnabled,
     scan:scanExistingAssets,
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
-    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true})
+    audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true}),
+    approvedPlan:()=>activePlan
   };
 })();
 
