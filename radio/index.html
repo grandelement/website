@@ -1964,7 +1964,7 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-orbit-continuous-record-2',
+  APP_VERSION: '2026.10.09-iam-music-routing-preflight-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -7138,7 +7138,7 @@ Vector ${vector}. ${pair[1]}.`;
   if(!launch||!studio||!recordBtn||!playBtn)return;
 
   let open=false,connection='headphones',listeningMode='speaker',sourceMode='player',selectedDeviceId='',effect='clean',monitorOn=false;
-  let ctx=null,micStream=null,studioAudio=null,musicGain=null,micGainNode=null,micCompressor=null,monitorGain=null,delayNode=null,wetGain=null,feedbackGain=null;
+  let ctx=null,micStream=null,studioAudio=null,musicGain=null,musicKeepAliveGain=null,micGainNode=null,micCompressor=null,monitorGain=null,delayNode=null,wetGain=null,feedbackGain=null;
   let musicMeterAnalyser=null,musicMeterData=null,micMeterAnalyser=null,micMeterData=null;
   let previewCtx=null,previewStream=null,previewGain=null,previewCompressor=null,previewAnalyser=null,previewData=null,previewMonitorGain=null,meterRAF=0;
   let recorder=null,chunks=[],takeBlob=null,takeFileName='',recordStartedAt=0,timerId=0;
@@ -7343,7 +7343,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'No microphone input found. Connect a microphone or select the iPhone microphone.';
     if(name==='NotReadableError'||name==='TrackStartError')return 'Microphone is busy or unavailable. Close another recording app and retry.';
     if(name==='NotSupportedError')return 'This browser cannot record the mixed audio format.';
-    return 'Recording failed: '+String(error?.message||name||'unknown audio error').slice(0,125);
+    return String(error?.message||'Recording failed: '+(name||'unknown audio error')).slice(0,210);
   }
   function stopReviewDuck(){
     if(reviewDucking){audio.muted=reviewMutedBefore;reviewDucking=false;}
@@ -7392,7 +7392,7 @@ Vector ${vector}. ${pair[1]}.`;
     try{micStream?.getTracks().forEach(t=>t.stop());}catch(_e){}
     micStream=null;
     try{await ctx?.close();}catch(_e){}
-    ctx=null;studioAudio=null;musicGain=null;micGainNode=null;micCompressor=null;monitorGain=null;delayNode=null;wetGain=null;feedbackGain=null;
+    ctx=null;studioAudio=null;musicGain=null;musicKeepAliveGain=null;micGainNode=null;micCompressor=null;monitorGain=null;delayNode=null;wetGain=null;feedbackGain=null;
     musicMeterAnalyser=null;musicMeterData=null;micMeterAnalyser=null;micMeterData=null;
   }
   async function autoArchiveTake(blob,fileName){
@@ -7492,12 +7492,19 @@ Vector ${vector}. ${pair[1]}.`;
             try{studioAudio.currentTime=Math.max(0,Math.min(audio.currentTime,(studioAudio.duration||audio.duration||0)-.05));}catch(_e){}
           }
         }
-        // Audio here goes to the recording bus only, NEVER to the speakers.
-        // The regular music player continues independently, without pausing.
-        await studioAudio.play();
+        // Do not call studioAudio.play() here: Safari may start a disconnected
+        // MediaElementAudioSourceNode silently and keep it silent after routing.
       }
       tap.connect(musicGain);
       musicGain.connect(mix);musicGain.connect(musicMeterAnalyser);
+      // iOS WebKit can prune a music source that has no audible destination,
+      // even when it has a MediaStreamDestination for the recorder. Connect an
+      // effectively silent output sink to keep audio rendering active while the
+      // user's already-playing music remains the only audible player.
+      musicKeepAliveGain=ctx.createGain();
+      musicKeepAliveGain.gain.value=.000001;
+      musicGain.connect(musicKeepAliveGain);
+      musicKeepAliveGain.connect(ctx.destination);
 
       const micNode=ctx.createMediaStreamSource(micStream);
       micNode.connect(micGainNode);micGainNode.connect(micCompressor);
@@ -7508,7 +7515,34 @@ Vector ${vector}. ${pair[1]}.`;
       dry.connect(monitorGain);wetGain.connect(monitorGain);
       monitorGain.connect(ctx.destination);
       applyMonitor();applyEffect();updateLevels();
-
+      if(studioAudio){
+        // All recording and keepalive paths are connected BEFORE playback starts.
+        await studioAudio.play();
+      }
+      // A successful play() or MediaRecorder.start() does NOT prove that the
+      // music track has audio. On iPhone, verify real music samples arrive.
+      // This check does not touch the native player; it keeps playing.
+      const musicCheckData=new Uint8Array(musicMeterAnalyser.fftSize);
+      const musicReady=await (async()=>{
+        const deadline=Date.now()+(state.live?6500:3500);
+        while(Date.now()<deadline){
+          if(ctx.state==='suspended')try{await ctx.resume();}catch(_e){}
+          musicMeterAnalyser.getByteTimeDomainData(musicCheckData);
+          let peak=0;
+          for(let i=0;i<musicCheckData.length;i++){
+            const deviation=Math.abs(musicCheckData[i]-128);
+            if(deviation>peak)peak=deviation;
+          }
+          if(peak>=2)return true;
+          await new Promise(resolve=>setTimeout(resolve,160));
+        }
+        return false;
+      })();
+      if(!musicReady){
+        const sourceLabel=state.live?'LIVE RADIO':'PLAYER';
+        throw new Error(sourceLabel+' audio can be heard, but Safari is not delivering it to the recording mixer. No take started. Try a different song, reload Radio, or test another browser/device.');
+      }
+      musicSamplesSeen=true;
       const mime=preferredMime();
       recorder=mime?new MediaRecorder(mix.stream,{mimeType:mime}):new MediaRecorder(mix.stream);
       chunks=[];
