@@ -1344,7 +1344,7 @@ body.iam-studio-open #iamStudio{overflow:hidden!important}
   body.view-player.portrait-player.iam-studio-open #offlinePanel{display:none!important}
 
   body.view-player.portrait-player.iam-studio-open #iamStudio{
-    display:block!important;position:fixed!important;z-index:120!important;
+    display:block!important;position:fixed!important;z-index:140!important;
     left:3vw!important;right:3vw!important;top:calc(env(safe-area-inset-top) + 154px)!important;
     bottom:max(8px,env(safe-area-inset-bottom))!important;width:auto!important;height:auto!important;
     padding:0!important;margin:0!important;border:0!important;background:transparent!important;
@@ -1389,11 +1389,15 @@ body.iam-studio-open #iamStudio{overflow:hidden!important}
     background:rgba(8,31,49,.90)!important;border:2px solid rgba(222,249,255,.94)!important;
     box-shadow:0 0 17px rgba(180,240,255,.38),0 0 38px rgba(60,190,255,.20)!important
   }
+  body.iam-studio-open #iamRecordBtn.record-ready{
+    background:rgba(175,18,46,.94)!important;border-color:#ff9bae!important;
+    box-shadow:0 0 18px rgba(255,92,118,.58),0 0 42px rgba(255,58,95,.28)!important
+  }
   body.iam-studio-open #iamRecordBtn.recording{
-    background:rgba(154,16,42,.92)!important;border-color:#ff91a5!important
+    background:rgba(154,16,42,.96)!important;border-color:#ffd0d9!important
   }
   body.iam-studio-open #iamRecordBtn.take-ready{
-    background:rgba(11,79,65,.90)!important;border-color:rgba(139,255,211,.90)!important
+    background:rgba(11,79,65,.92)!important;border-color:rgba(139,255,211,.90)!important
   }
 
   body.iam-studio-open #iamStatus{
@@ -1843,7 +1847,7 @@ body.iam-studio-open #iamStudio{overflow:hidden!important}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-center-sun-one-button-1',
+  APP_VERSION: '2026.10.09-iam-center-record-fix-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -7046,6 +7050,7 @@ Vector ${vector}. ${pair[1]}.`;
     setTimeout(()=>node.remove(),380);
   }
   function setMainButtonMode(mode){
+    recordBtn.classList.toggle('record-ready',mode==='record');
     recordBtn.classList.toggle('recording',mode==='recording');
     recordBtn.classList.toggle('take-ready',mode==='play'||mode==='playing');
     if(mode==='recording'||mode==='playing'){
@@ -7149,17 +7154,29 @@ Vector ${vector}. ${pair[1]}.`;
     try{await previewCtx?.close();}catch(_e){}
     previewCtx=null;previewGain=null;previewCompressor=null;previewAnalyser=null;previewData=null;
   }
+  async function getIAmMicStream(){
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error('getUserMedia unavailable');
+    const preferred={
+      echoCancellation:true,
+      noiseSuppression:true,
+      autoGainControl:true
+    };
+    if(selectedDeviceId)preferred.deviceId={exact:selectedDeviceId};
+    try{
+      return await navigator.mediaDevices.getUserMedia({audio:preferred});
+    }catch(firstError){
+      // iPhone/Safari can reject an otherwise valid request when one optional
+      // processing constraint or a stale device id is unsupported. Retry with
+      // the browser's simplest microphone request before declaring failure.
+      try{return await navigator.mediaDevices.getUserMedia({audio:true});}
+      catch(_e){throw firstError;}
+    }
+  }
   async function startMicPreview(){
     if(recording||previewStream||!navigator.mediaDevices?.getUserMedia)return;
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
     try{
-      const audioConstraints={
-        echoCancellation:true,
-        noiseSuppression:true,
-        autoGainControl:true
-      };
-      if(selectedDeviceId)audioConstraints.deviceId={exact:selectedDeviceId};
-      previewStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});
+      previewStream=await getIAmMicStream();
       previewCtx=new AC();await previewCtx.resume();
       const src=previewCtx.createMediaStreamSource(previewStream);
       previewGain=previewCtx.createGain();
@@ -7170,7 +7187,7 @@ Vector ${vector}. ${pair[1]}.`;
       updateLevels();
       status.textContent='Ready. Set YOU GAIN so your meter is strong without staying at the far right.';
     }catch(_e){
-      status.textContent='Tap Record when ready. Microphone permission will be requested.';
+      status.textContent='Microphone is not connected yet. Tap the red center button to try again.';
     }
   }
   function applyEffect(){
@@ -7255,9 +7272,7 @@ Vector ${vector}. ${pair[1]}.`;
     takeBlob=null;playingTake=false;
     await stopMicPreview();
     try{
-      const audioConstraints={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
-      if(selectedDeviceId)audioConstraints.deviceId={exact:selectedDeviceId};
-      micStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});
+      micStream=await getIAmMicStream();
       ctx=new AC();
       await ctx.resume();
 
