@@ -261,14 +261,14 @@ def clear_stale_git_lock():
     """Remove an abandoned shallow-fetch lock only when no Git process owns the repo."""
     lock = META_REPO / ".git" / "shallow.lock"
     try:
-        if not lock.exists() or time.time() - lock.stat().st_mtime < 120:
+        if not lock.exists() or time.time() - lock.stat().st_mtime < 10:
             return False
         # A live Git operation may be writing this lock. Do not interfere with it.
         for proc in Path("/proc").iterdir():
             if not proc.name.isdigit() or int(proc.name) == os.getpid():
                 continue
             try:
-                cmd = (proc / "cmdline").read_bytes().replace(b"\\x00", b" ").decode("utf-8", "replace")
+                cmd = (proc / "cmdline").read_bytes().replace(bytes([0]), b" ").decode("utf-8", "replace")
                 if "git" in cmd and (str(META_REPO) in cmd or "fetch" in cmd):
                     return False
             except (OSError, PermissionError):
@@ -524,6 +524,10 @@ def main():
                     )
                     last_repo_check = now
 
+            if cached is None:
+                time.sleep(2)
+                continue
+
             commit_sha, songs, clips = cached
             save_library(commit_sha, songs, clips)
             custom_paths = active_custom_paths(settings)
@@ -540,8 +544,8 @@ def main():
 
         except Exception as exc:
             print(f"GE Radio: library metadata warning: {exc}", flush=True)
-            if not PLAYLIST.exists():
-                time.sleep(10)
+            if cached is None:
+                time.sleep(2)
                 continue
 
         time.sleep(2)
