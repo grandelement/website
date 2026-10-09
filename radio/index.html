@@ -1964,7 +1964,7 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-orbit-continuous-record-1',
+  APP_VERSION: '2026.10.09-iam-orbit-continuous-record-2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -7142,7 +7142,7 @@ Vector ${vector}. ${pair[1]}.`;
   let musicMeterAnalyser=null,musicMeterData=null,micMeterAnalyser=null,micMeterData=null;
   let previewCtx=null,previewStream=null,previewGain=null,previewCompressor=null,previewAnalyser=null,previewData=null,previewMonitorGain=null,meterRAF=0;
   let recorder=null,chunks=[],takeBlob=null,takeFileName='',recordStartedAt=0,timerId=0;
-  let recording=false,playingTake=false,reviewMutedBefore=false,reviewDucking=false,studioSourceURL='',captureUsingMirror=false;
+  let recording=false,playingTake=false,reviewMutedBefore=false,reviewDucking=false,studioSourceURL='',captureUsingMirror=false,musicSamplesSeen=false;
   let sunFlight=null;
 
   const micIcon="<svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"17\" y=\"7\" width=\"14\" height=\"24\" rx=\"7\"></rect><path d=\"M11 23c0 8 5 14 13 14s13-6 13-14\"></path><path d=\"M24 37v7M17 44h14\"></path></svg>";
@@ -7255,6 +7255,7 @@ Vector ${vector}. ${pair[1]}.`;
     }
     if(micMeterAnalyser&&micMeterData)mic=timeLevel(micMeterAnalyser,micMeterData);
     else if(previewAnalyser&&previewData)mic=timeLevel(previewAnalyser,previewData);
+    if(recording&&music>.035)musicSamplesSeen=true;
     setMeter(musicMeter,music);setMeter(micMeter,mic);
     if(open)meterRAF=requestAnimationFrame(meterFrame);else meterRAF=0;
   }
@@ -7437,7 +7438,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(audio.paused){status.textContent='Start the music or RADIO above, then tap Record. I AM will not stop the player.';return;}
 
     recordBtn.disabled=true;playBtn.disabled=true;saveBtn.hidden=true;
-    takeBlob=null;playingTake=false;document.body.classList.remove('iam-has-take');
+    takeBlob=null;playingTake=false;musicSamplesSeen=false;document.body.classList.remove('iam-has-take');
     stopReviewDuck();
     status.textContent='Connecting microphone and current music…';
     try{
@@ -7540,6 +7541,9 @@ Vector ${vector}. ${pair[1]}.`;
       recordBtn.disabled=false;setMainButtonMode('recording');
       timer.textContent='00:00';timerId=setInterval(updateTimer,250);
       status.textContent='Recording MUSIC + YOU. Tap the center button to stop.';
+      setTimeout(()=>{
+        if(recording&&!musicSamplesSeen)status.textContent='MUSIC meter is silent. Check the source/CORS before relying on this take; YOU may still record.';
+      },4000);
       if(captureUsingMirror)audio.addEventListener('timeupdate',followCurrentMusic);
     }catch(error){
       recording=false;recordBtn.disabled=false;playBtn.disabled=true;
@@ -7598,6 +7602,7 @@ Vector ${vector}. ${pair[1]}.`;
     launch.setAttribute('aria-expanded','false');launch.textContent='I AM';open=false;
     removeSunFlight();setMainButtonMode('record');
     stopReviewDuck();stopMeters();await stopMicPreview();
+    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
     // I AM never pauses the music, so nothing needs to be resumed.
   }
   function openStudio(){
@@ -7611,6 +7616,7 @@ Vector ${vector}. ${pair[1]}.`;
     setMainButtonMode(takeBlob?'play':'record');
     recordBtn.disabled=true;
     status.textContent='Connecting microphone…';
+    try{if('audioSession' in navigator)navigator.audioSession.type='play-and-record';}catch(_e){}
     setListeningMode('speaker');startMeters();
     void startMicPreview();
     setTimeout(()=>{
@@ -7655,7 +7661,7 @@ Vector ${vector}. ${pair[1]}.`;
   editBtn?.addEventListener('click',()=>{
     document.body.classList.add('iam-edit-open');
     soundPanel.classList.add('show');soundBtn.setAttribute('aria-expanded','true');
-    status.textContent='EDIT mode. The two-track waveform editor is the next layer.';
+    status.textContent='This take is a mixed audio file. Separate MUSIC and YOU waveform editing is the next development layer.';
   });
   musicLevel.addEventListener('input',updateLevels);micLevel.addEventListener('input',updateLevels);inputGain?.addEventListener('input',updateLevels);
   studio.querySelectorAll('[data-iam-effect]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -7851,7 +7857,7 @@ gateTestBtn?.addEventListener('click',()=>{
   const normal=()=>{
     try{a.defaultPlaybackRate=1;}catch(_e){}
     try{if(a.playbackRate!==1)a.playbackRate=1;}catch(_e){}
-    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
+    try{if('audioSession' in navigator)navigator.audioSession.type=document.body.classList.contains('iam-studio-open')?'play-and-record':'playback';}catch(_e){}
   };
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)normal();});
   window.addEventListener('pageshow',normal);
