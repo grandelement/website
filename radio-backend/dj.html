@@ -6404,6 +6404,43 @@ html.geFormatPhone body .geVideoWorkspace>.geVideoEmptyState:not([hidden]){
 html.geFormatPhone body .geVideoWorkspace #geVideoLiveHost:has(#mixerVideoWall[hidden]){
  display:none!important;
 }
+
+/* V164: original radio long-form reading order and full-height Effects workspace. */
+html.geFormatPhone body .wrap>.nowCard{order:1!important}
+html.geFormatPhone body .wrap>.card:has(> .sectionHead #reshuffleQueue){order:2!important}
+html.geFormatPhone body .wrap{display:flex!important;flex-direction:column!important}
+html.geFormatPhone body .wrap>.top{order:0!important}
+html.geFormatPhone body .wrap>.radioHealth{order:3!important}
+html.geFormatPhone body.geEffectsOnly:not(.geWorkspaceSplitTwo):not(.geWorkspaceSplitThree) #mixerSheet.fxFull{
+ top:90px!important;bottom:116px!important;height:auto!important;
+ max-height:none!important;overflow:hidden!important;
+}
+html.geFormatPhone body.geEffectsOnly:not(.geWorkspaceSplitTwo):not(.geWorkspaceSplitThree) #mixerSheet.fxFull>.sheetIn{
+ height:100%!important;max-height:100%!important;min-height:0!important;
+ padding-top:0!important;margin-top:0!important;
+}
+html.geFormatPhone body.geEffectsOnly:not(.geWorkspaceSplitTwo):not(.geWorkspaceSplitThree) #mixerSheet.fxFull #effectsSheet.show{
+ top:0!important;margin-top:0!important;padding-top:0!important;
+ height:100%!important;min-height:0!important;max-height:100%!important;
+ flex:1 1 auto!important;
+}
+html.geFormatPhone body #effectsSheet .fxPresetSelectWrap{position:relative!important}
+html.geFormatPhone body #effectsSheet #fxPresetSelect{display:none!important}
+html.geFormatPhone body #effectsSheet #geFxPresetButton{
+ width:100%!important;height:40px!important;min-height:40px!important;
+ border:1px solid #3d5668!important;border-radius:8px!important;
+ background:#09131b!important;color:#fff!important;font-size:15px!important;font-weight:900!important;
+}
+html.geFormatPhone body #effectsSheet .geFxPresetChoices:not([hidden]){
+ display:grid!important;position:absolute!important;bottom:calc(100% + 4px)!important;
+ left:0!important;right:0!important;max-height:45dvh!important;overflow-y:auto!important;
+ z-index:200!important;background:#0c1720!important;border:1px solid #456274!important;
+ border-radius:8px!important;padding:5px!important;gap:4px!important;
+}
+html.geFormatPhone body #effectsSheet .geFxPresetChoices button{
+ min-height:40px!important;color:white!important;background:#162b37!important;
+ border:1px solid #39566a!important;border-radius:6px!important;font-size:13px!important;
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -6531,7 +6568,7 @@ html.geFormatPhone body .geVideoWorkspace #geVideoLiveHost:has(#mixerVideoWall[h
 <div class="bigSlider" data-fx-control="reverb"><label><span>B · REVERB</span><span id="fxReverbVal"></span></label><input class="fxvf" orient="vertical" id="fxReverb" type="range" min="0" max="100" value="15"></div>
 </div></div>
 <div class="fxRightRail">
-<div class="fxPresetSelectWrap"><select id="fxPresetSelect" aria-label="Effect preset"><option value="">PRESETS ▾</option></select></div>
+<div class="fxPresetSelectWrap"><button id="geFxPresetButton" type="button" aria-expanded="false">PRESETS</button><div id="geFxPresetChoices" class="geFxPresetChoices" hidden></div><select id="fxPresetSelect" aria-label="Effect preset" hidden><option value="">PRESETS ▾</option></select></div>
 <div class="fxVideoDeviceRow" id="fxVideoDeviceRow" hidden></div>
 <div class="fxCustomSlots"><button data-fxslot="1">1</button><button data-fxslot="2">2</button><button data-fxslot="3">3</button><button data-fxslot="4">4</button></div>
 <details class="fxPresetManager" id="fxPresetManager"><summary>MANAGE SAVED PRESETS</summary><div class="fxPresetTop"><input id="fxPresetName" type="text" maxlength="80" placeholder="Preset name"><button id="fxSavePreset">SAVE</button><button id="fxLoadPresets">REFRESH</button></div><div class="fxPresets fxPresetLibrary show" id="fxPresets"></div></details>
@@ -9372,6 +9409,17 @@ if($('fxReturnLevel'))$('fxReturnLevel').oninput=function(){settings[fxTarget].f
 $('fxSavePreset').onclick=function(){saveFxPreset().catch(function(e){alert(e.message||e)})};
 $('fxLoadPresets').onclick=function(){loadFxPresets().catch(function(e){alert(e.message||e)})};
 $('fxPresetSelect').onchange=function(){applyFxPresetChoice(this.value)};
+if($('geFxPresetButton'))$('geFxPresetButton').onclick=function(){
+ const menu=$('geFxPresetChoices'),sel=$('fxPresetSelect');if(!menu||!sel)return;
+ const opening=menu.hidden;
+ if(opening){menu.innerHTML=Array.from(sel.options).filter(function(o){return !!o.value}).map(function(o){return '<button type="button" data-ge-preset-choice="'+esc(o.value)+'">'+esc(o.textContent)+'</button>'}).join('')||'<span>No presets available</span>';}
+ menu.hidden=!opening;this.setAttribute('aria-expanded',String(opening));
+};
+if($('geFxPresetChoices'))$('geFxPresetChoices').onclick=function(e){
+ const btn=e.target.closest('[data-ge-preset-choice]');if(!btn)return;
+ applyFxPresetChoice(btn.getAttribute('data-ge-preset-choice'));
+ this.hidden=true;$('geFxPresetButton').setAttribute('aria-expanded','false');
+};
 if($('fxBackBtn'))$('fxBackBtn').onclick=closeFx;
 if($('micIsolationToggle'))$('micIsolationToggle').onclick=function(){
   if(settings.mic.isolationOn){settings.mic.isolationOn=false;isoModePickerOpen=false;void applyMicIsolation();return}
