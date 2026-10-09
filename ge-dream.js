@@ -1,14 +1,61 @@
 /* GE DREAM: lightweight procedural visual layer; no external dependencies. */
 (()=>{'use strict';
-let canvas,ctx,on=false,raf=0,last=0,phase=0,seed=0,particles=[],pointer={x:.5,y:.5},nextChange=0,mode=0;
+let canvas,ctx,on=false,raf=0,last=0,phase=0,seed=0,particles=[],pointer={x:.5,y:.5},nextChange=0,mode=0,kaleidoSince=0,kaleidoFrom=0,kaleidoTo=1;
 const TAU=Math.PI*2,rand=(a,b)=>a+Math.random()*(b-a);
 const effects=['vortex','nebula','plasma','ripple','aurora','spiral','breathing','comet','kaleidoscope','halo','fractals','magnetism','rain','waves','smoke','prism','stardust','lattice','pulsar','orbit','liquid','lightning','tunnel','shimmer','flame','crystal','echo','bloom','filament','gravity'];
+
+const kaleidoDesigns=[
+ {folds:6,petals:5,twist:.3,rings:4,hue:205,kind:0},
+ {folds:8,petals:9,twist:1.3,rings:6,hue:290,kind:1},
+ {folds:12,petals:4,twist:2.4,rings:5,hue:175,kind:2},
+ {folds:5,petals:11,twist:3.6,rings:7,hue:320,kind:3},
+ {folds:10,petals:7,twist:4.5,rings:3,hue:35,kind:0},
+ {folds:16,petals:12,twist:5.4,rings:8,hue:250,kind:2},
+ {folds:7,petals:6,twist:2.7,rings:5,hue:140,kind:1},
+ {folds:9,petals:14,twist:1.8,rings:6,hue:10,kind:3},
+ {folds:14,petals:8,twist:3.2,rings:4,hue:195,kind:0},
+ {folds:11,petals:3,twist:5.8,rings:7,hue:275,kind:2},
+ {folds:18,petals:10,twist:4.2,rings:5,hue:65,kind:1},
+ {folds:4,petals:13,twist:2.1,rings:8,hue:225,kind:3}
+];
+const lerp=(a,b,v)=>a+(b-a)*v;
+function kaleidoShape(d,cx,cy,R,alpha){
+ const count=d.folds,seg=TAU/count;
+ ctx.save();ctx.translate(cx,cy);ctx.rotate(phase*.035);
+ ctx.globalCompositeOperation='screen';
+ for(let n=0;n<count;n++){
+  ctx.save();ctx.rotate(n*seg);if(n%2)ctx.scale(1,-1);
+  for(let j=0;j<d.rings;j++){
+   const rr=R*(j+1)/(d.rings+1),wave=phase*(.22+(j%3)*.07)+d.twist;
+   const spread=seg*(.14+.15*Math.sin(wave+j));
+   const x=rr*Math.cos(spread),y=rr*Math.sin(spread);
+   const hue=(d.hue+j*34+phase*7+n*2)%360;
+   ctx.beginPath();ctx.strokeStyle='hsla('+hue+',100%,65%,'+(alpha*.6)+')';ctx.lineWidth=1.2;
+   const size=R*(.035+.025*Math.sin(wave*1.2+j));
+   if(d.kind===0){ctx.ellipse(x,y,size*1.8,size*.65,wave,0,TAU);}
+   else if(d.kind===1){for(let k=0;k<=d.petals;k++){const a=k*TAU/d.petals+wave*.2;const rad=size*(k%2?.55:1.8);const px=x+Math.cos(a)*rad,py=y+Math.sin(a)*rad;k?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();}
+   else if(d.kind===2){ctx.moveTo(x-size,y);ctx.quadraticCurveTo(x,y-size*2,x+size,y);ctx.quadraticCurveTo(x,y+size*2,x-size,y);}
+   else {for(let k=0;k<=d.petals;k++){const a=k*TAU/d.petals+wave*.15;const rad=size*(1+.6*Math.sin(k*2+wave));const px=x+Math.cos(a)*rad,py=y+Math.sin(a)*rad;k?ctx.lineTo(px,py):ctx.moveTo(px,py);}}
+   ctx.stroke();
+  }
+  ctx.restore();
+ }
+ ctx.restore();
+}
+function drawKaleidoscope(t,cx,cy,R){
+ if(!kaleidoSince)kaleidoSince=t;
+ if(t-kaleidoSince>8500){kaleidoFrom=kaleidoTo;kaleidoTo=(kaleidoTo+1+Math.floor(rand(0,kaleidoDesigns.length-1)))%kaleidoDesigns.length;kaleidoSince=t;}
+ const mix=Math.min(1,(t-kaleidoSince)/2800),smooth=mix*mix*(3-2*mix);
+ kaleidoShape(kaleidoDesigns[kaleidoFrom],cx,cy,R,(1-smooth)*.8);
+ kaleidoShape(kaleidoDesigns[kaleidoTo],cx,cy,R,smooth*.8);
+}
 function setup(){if(canvas)return;canvas=document.createElement('canvas');canvas.id='geDreamCanvas';canvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9;opacity:0;transition:opacity 2s ease';document.body.appendChild(canvas);ctx=canvas.getContext('2d',{alpha:true});resize();addEventListener('resize',resize,{passive:true});addEventListener('pointermove',e=>{pointer.x=e.clientX/innerWidth;pointer.y=e.clientY/innerHeight},{passive:true});}
 function resize(){if(!canvas)return;let d=Math.min(devicePixelRatio||1,1.5),w=innerWidth,h=innerHeight;canvas.width=Math.round(w*d);canvas.height=Math.round(h*d);ctx.setTransform(d,0,0,d,0,0);}
 function reset(){particles=Array.from({length:Math.min(100,Math.max(32,Math.floor(innerWidth/10)))},()=>({x:Math.random(),y:Math.random(),v:rand(.15,1.3),a:rand(0,TAU),s:rand(1,3)}));}
 function draw(t){if(!on)return;raf=requestAnimationFrame(draw);if(t-last<32)return;let dt=Math.min(.07,(t-last)/1000||.03);last=t;phase+=dt;let w=innerWidth,h=innerHeight;ctx.clearRect(0,0,w,h);
 if(t>nextChange){mode=(mode+1+Math.floor(rand(0,effects.length-1)))%effects.length;seed=rand(0,TAU);nextChange=t+rand(12000,42000);}
 let cx=w*(.5+(pointer.x-.5)*.06),cy=h*(.5+(pointer.y-.5)*.06),R=Math.min(w,h)*.42;
+if(mode%6===4)drawKaleidoscope(t,cx,cy,R);
 ctx.globalCompositeOperation='screen';
 let density=Math.min(100,particles.length);
 for(let i=0;i<density;i++){let p=particles[i],q=i/density,angle=p.a+phase*(.035+p.v*.06)*(mode%2?1:-1),rad=R*(.12+.83*p.x),x,y;
@@ -24,7 +71,7 @@ if(i%3===0){ctx.beginPath();ctx.strokeStyle='hsla('+hue+',95%,60%,'+(alpha*.55)+
 }
 ctx.globalCompositeOperation='source-over';
 }
-function start(){setup();if(on)return;on=true;reset();nextChange=0;last=0;canvas.style.opacity='1';document.body.classList.add('ge-dream-active');raf=requestAnimationFrame(draw);}
+function start(){setup();if(on)return;on=true;reset();kaleidoSince=0;nextChange=0;last=0;canvas.style.opacity='1';document.body.classList.add('ge-dream-active');raf=requestAnimationFrame(draw);}
 function stop(){on=false;cancelAnimationFrame(raf);if(canvas){canvas.style.opacity='0';setTimeout(()=>{if(!on&&ctx)ctx.clearRect(0,0,innerWidth,innerHeight)},2100)}document.body.classList.remove('ge-dream-active');}
 window.GE_DREAM={start,stop,toggle:()=>on?stop():start(),get active(){return on},effects};
 })();
