@@ -6193,6 +6193,51 @@ html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxRightR
 html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid{
  flex:1 1 auto!important;min-height:0!important;
 }
+
+/* V155: phone MIXER and EFFECTS are separate workspaces. Red markup layout. */
+html.geFormatPhone body.geEffectsOnly #mixerSheet>.sheetIn>.mixerHeader,
+html.geFormatPhone body.geEffectsOnly #mixerSheet>.sheetIn>.mixerGrid,
+html.geFormatPhone body.geEffectsOnly #mixerSheet>.sheetIn>.mixerRightRail,
+html.geFormatPhone body.geEffectsOnly #mixerSheet>.sheetIn>.mixerChannelPicker,
+html.geFormatPhone body.geEffectsOnly #mixerSheet>.sheetIn>.mixerVideoWall{display:none!important}
+body.geEffectsOnly #fxCloseBtn,
+body.geEffectsOnly #mixerCloseBtn{display:none!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDockHead{order:0!important;flex:0 0 auto!important;min-height:38px!important;max-height:76px!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxLandscapeBody{
+ display:flex!important;flex-direction:column!important;justify-content:flex-start!important;
+ height:100%!important;min-height:0!important;gap:3px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxLeftRail{
+ order:0!important;display:flex!important;flex-direction:column!important;
+ flex:0 0 auto!important;grid-row:auto!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxDelayDetail{order:-1!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxEffectButtons{order:1!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxCenterRack{
+ order:1!important;grid-row:auto!important;display:flex!important;flex-direction:column!important;
+ flex:1 1 auto!important;min-height:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxRightRail{
+ order:2!important;grid-row:auto!important;display:grid!important;
+ grid-template-columns:minmax(0,1fr) repeat(4,32px)!important;
+ flex:0 0 auto!important;min-height:42px!important;max-height:48px!important;
+ align-items:center!important;gap:3px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap{grid-column:1!important;min-width:0!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxPresetSelectWrap select{height:42px!important;min-height:42px!important}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxCustomSlots{
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ gap:2px!important;min-width:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxCustomSlots button{
+ min-width:0!important;width:100%!important;height:42px!important;min-height:42px!important;
+ padding:0!important;font-size:10px!important;
+}
+html.geFormatPhone body.geEffectsOnly #effectsSheet .fxControlGrid{
+ display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr))!important;
+ grid-auto-flow:column!important;grid-template-rows:minmax(0,1fr)!important;
+ flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -9041,6 +9086,7 @@ function syncFxVideoControlsV134(){
 }
 var geMixerWorkspaceSelectedV151=false,geEffectsWorkspaceSelectedV151=false;
 function applyWorkspaceV151(){
+ if((document.documentElement.classList.contains('geFormatPhone')||document.documentElement.classList.contains('geFormatTablet'))&&geEffectsWorkspaceSelectedV151)geMixerWorkspaceSelectedV151=false;
  const mixer=$('mixerSheet'),fx=$('effectsSheet');if(!mixer||!fx)return;
  const any=!!(geMixerWorkspaceSelectedV151||geEffectsWorkspaceSelectedV151),fxOnly=!!(geEffectsWorkspaceSelectedV151&&!geMixerWorkspaceSelectedV151),both=!!(geEffectsWorkspaceSelectedV151&&geMixerWorkspaceSelectedV151);
  mixer.classList.toggle('show',any);
@@ -10583,6 +10629,7 @@ $('dockCue').onclick=function(){toggleCue('mic').catch(function(e){alert(e.messa
 $('dockMic').onclick=function(){toggleDockLiveInputV148().catch(function(e){alert(e.message||e)})};
 $('dockMixer').onclick=function(){
  geMixerWorkspaceSelectedV151=!geMixerWorkspaceSelectedV151;
+ if(geMixerWorkspaceSelectedV151&&(document.documentElement.classList.contains('geFormatPhone')||document.documentElement.classList.contains('geFormatTablet')))geEffectsWorkspaceSelectedV151=false;
  if(!geMixerWorkspaceSelectedV151&&!geEffectsWorkspaceSelectedV151)returnHome();
  applyWorkspaceV151()
 };
