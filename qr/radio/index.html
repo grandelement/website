@@ -18,10 +18,11 @@ html,body{
 }
 #site{
   position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:0;
-  opacity:0;transform:scale(1.015);filter:blur(7px) brightness(.78);
-  transition:opacity 1.8s ease,transform 2.4s cubic-bezier(.2,.72,.18,1),filter 2.1s ease
+  opacity:0;transform:translate3d(0,0,0) scale(1.012);
+  transition:opacity 2.8s ease,transform 3.2s cubic-bezier(.2,.72,.18,1);
+  will-change:opacity,transform;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
-#site.reveal{opacity:1;transform:scale(1);filter:none}
+#site.reveal{opacity:1;transform:translate3d(0,0,0) scale(1)}
 
 #gate{
   position:fixed;inset:0;z-index:10;overflow:hidden;background:#000;
@@ -32,7 +33,7 @@ html,body{
 #space{
   position:absolute;inset:-7%;z-index:0;
   background:#000 url("../../ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
-  transform:scale(1.06);will-change:transform,filter,opacity
+  transform:translate3d(0,0,0) scale(1.06);will-change:transform,opacity;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 #spaceShade{
   position:absolute;inset:0;z-index:1;pointer-events:none;
@@ -48,8 +49,9 @@ html,body{
       rgba(198,241,255,.18) .18deg,
       rgba(198,241,255,0) .42deg,
       rgba(198,241,255,0) 5.5deg);
-  mix-blend-mode:screen;filter:blur(.5px);
-  transform:scale(.72);transform-origin:50% 50%;will-change:transform,opacity
+  opacity:0;
+  transform:translate3d(0,0,0) scale(.72);transform-origin:50% 50%;will-change:transform,opacity;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 
 #sunWrap,#moonWrap{
@@ -76,7 +78,7 @@ html,body{
 
 #moonWrap{
   z-index:4;width:min(29vmin,255px);
-  transform:translate3d(-50%,-50%,0) scale(.18);opacity:0;filter:brightness(.50);
+  transform:translate3d(-50%,-50%,0) scale(.18);opacity:0;
   backface-visibility:hidden;-webkit-backface-visibility:hidden;transform-style:preserve-3d
 }
 #moon{
@@ -113,7 +115,7 @@ html,body{
 @media(prefers-reduced-motion:reduce){
   #streaks{display:none}
   #sunWrap{opacity:.7!important;transform:translate3d(-50vw,0,0) scale(1.4)!important}
-  #moonWrap{opacity:1!important;transform:translate3d(0,0,0) scale(1)!important;filter:none!important}
+  #moonWrap{opacity:1!important;transform:translate3d(0,0,0) scale(1)!important}
 }
 </style>
 </head>
@@ -158,17 +160,29 @@ html,body{
   let lastSoundAttempt=0;
 
   // CAMERA STORY
-  // WEBSITE-QR MATCHED OPENING
-  // 0–3.5s    : stars only
-  // 3.5–5.2s  : centered Blue Sun fades in exactly like the Website QR
-  // 5.2–10.4s : approach nearly head-on, then skim around the Sun's right edge
-  // 8.4–11.2s : Radio moon is gradually uncovered behind the passing limb
-  // 10.6–16.0s: smooth lock-on and approach into the Radio moon
-  // 14.6–16.4s: moon dissolves into the already-loaded Radio
+  // WEBSITE-QR MATCHED OPENING, then a much slower cinematic fly-by.
+  // 0–3.5s     : stars only
+  // 3.5–5.2s   : centered Blue Sun fades in exactly like the Website QR
+  // 5.2–14.2s  : long near-head-on approach, then skim around the Sun's right edge
+  // 11.2–15.4s : Radio moon is gradually uncovered behind the passing limb
+  // 12.6–16.1s : moon settles smoothly toward center
+  // 15.8–24.8s : long, smooth moon approach with many small scale changes
+  // 23.1–28.0s : dissolve into the already-loaded Radio
   const STARS_ONLY=3500;
   const SUN_FADE_IN=1700;
   const SUN_APPROACH_START=STARS_ONLY+SUN_FADE_IN;
-  const TOTAL=16400;
+  const SUN_APPROACH_MS=9000;
+  const MOON_REVEAL_START=11200;
+  const MOON_REVEAL_MS=4200;
+  const MOON_CENTER_START=12600;
+  const MOON_CENTER_MS=3500;
+  const MOON_RUSH_START=15800;
+  const MOON_RUSH_MS=9000;
+  const RADIO_BLEND_START=23100;
+  const RADIO_BLEND_MS=3900;
+  const GATE_FADE_START=25800;
+  const GATE_FADE_MS=2200;
+  const TOTAL=28000;
 
   function clamp01(v){return Math.max(0,Math.min(1,v))}
   function smooth(t){t=clamp01(t);return t*t*(3-2*t)}
@@ -230,12 +244,13 @@ html,body{
     const t=now-start;
 
     // Star field stays calm during the same opening used by the Website QR.
-    const approach=clamp01((t-SUN_APPROACH_START)/5200);
-    const moonRush=clamp01((t-10600)/5400);
-    space.style.transform='scale('+(1.06+smooth(approach)*.055+smoother(moonRush)*.20)+') translate3d(0,'+(-smooth(approach)*.8)+'%,0)';
-    space.style.filter='brightness('+(1+smoother(moonRush)*.18)+')';
-    streaks.style.opacity=String((smooth(approach)*.13+smoother(moonRush)*.44).toFixed(4));
-    streaks.style.transform='scale('+(0.72+smoother(moonRush)*1.35).toFixed(5)+')';
+    const approach=clamp01((t-SUN_APPROACH_START)/SUN_APPROACH_MS);
+    const moonRush=clamp01((t-MOON_RUSH_START)/MOON_RUSH_MS);
+    const approachEase=smoother(approach);
+    const moonRushEase=smoother(moonRush);
+    space.style.transform='translate3d(0,'+(-approachEase*.75).toFixed(3)+'%,0) scale('+(1.06+approachEase*.05+moonRushEase*.16).toFixed(5)+')';
+    streaks.style.opacity=String((approachEase*.10+moonRushEase*.34).toFixed(4));
+    streaks.style.transform='translate3d(0,0,0) scale('+(0.72+moonRushEase*1.15).toFixed(5)+')';
 
     // EXACT WEBSITE-QR OPENING: centered, invisible Sun; 3.5 seconds of stars;
     // then the Sun fades in over 1.7 seconds before any fly-by steering begins.
@@ -249,7 +264,7 @@ html,body{
     }
 
     if(t>=SUN_APPROACH_START){
-      const p=clamp01((t-SUN_APPROACH_START)/5200);
+      const p=clamp01((t-SUN_APPROACH_START)/SUN_APPROACH_MS);
       // Use the same exponential-feeling zoom logic as the Website QR, but stop
       // before entering the Sun. We aim at the MIDDLE of its right-hand limb.
       const accelerated=Math.pow(p,2.72);
@@ -268,42 +283,38 @@ html,body{
     }
 
     sunWrap.style.opacity=String(clamp01(sunOpacity).toFixed(4));
-    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(3)+'vw),calc(-50% + '+sunY.toFixed(3)+'vh),0) scale('+sunScale.toFixed(6)+')';
-    sunWrap.style.filter='brightness('+(1+smooth(approach)*.34).toFixed(4)+') saturate('+(1+smooth(approach)*.08).toFixed(4)+')';
+    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(3)+'vw),calc(-50% + '+sunY.toFixed(3)+'vh),0) scale3d('+sunScale.toFixed(6)+','+sunScale.toFixed(6)+',1)';
 
     // Moon remains concealed behind the passing Sun and is revealed by the Sun's
     // retreating right-hand edge. Then it eases into center before the approach.
-    const moonReveal=smooth((t-8350)/2800);
-    const moonCenter=smoother((t-9100)/2200);
+    const moonReveal=smooth((t-MOON_REVEAL_START)/MOON_REVEAL_MS);
+    const moonCenter=smoother((t-MOON_CENTER_START)/MOON_CENTER_MS);
     const moonX=mix(17,0,moonCenter);
     const moonY=mix(2.5,0,moonCenter);
     const moonBaseScale=mix(.15,.92,smoother(moonCenter));
 
     // Smooth logarithmic zoom. The prior cubic curve waited too long and then
     // made large scale jumps near the end, which looked choppy on iPhone.
-    const zoomEase=smoother(moonRush);
+    const zoomEase=moonRushEase;
     const moonEndScale=8.7;
     const safeBase=Math.max(.001,moonBaseScale);
     const moonZoom=Math.exp(Math.log(safeBase)+(Math.log(moonEndScale)-Math.log(safeBase))*zoomEase);
-    const moonFade=1-smooth((t-14900)/1250);
-    const moonBrightness=mix(.50,1.08,moonReveal)+smooth((t-13900)/1800)*.38;
-    const moonBlur=smooth((t-15000)/1100)*3.0;
+    const moonFade=1-smooth((t-(RADIO_BLEND_START+800))/(RADIO_BLEND_MS-500));
 
     moonWrap.style.opacity=String((moonReveal*moonFade).toFixed(4));
     moonWrap.style.transform='translate3d(calc(-50% + '+moonX.toFixed(3)+'vw),calc(-50% + '+moonY.toFixed(3)+'vh),0) scale3d('+moonZoom.toFixed(6)+','+moonZoom.toFixed(6)+',1)';
-    moonWrap.style.filter='brightness('+moonBrightness.toFixed(4)+') saturate('+(1+zoomEase*.14).toFixed(4)+') blur('+moonBlur.toFixed(3)+'px)';
 
     // Dissolve the moon into the Radio while the iframe has already been loading underneath.
-    const radioBlend=smoother((t-14500)/1750);
+    // Opacity + transform only: avoids full-screen blur/filter repainting on iPhone.
+    const radioBlend=smoother((t-RADIO_BLEND_START)/RADIO_BLEND_MS);
     site.style.opacity=String(radioBlend.toFixed(4));
-    site.style.transform='scale('+(1.012-.012*radioBlend).toFixed(5)+')';
-    site.style.filter='blur('+(5.5*(1-radioBlend)).toFixed(3)+'px) brightness('+(0.82+.18*radioBlend).toFixed(4)+')';
-    whiteout.style.opacity=String((Math.sin(Math.PI*clamp01((t-14900)/1300))*.14).toFixed(4));
+    site.style.transform='translate3d(0,0,0) scale('+(1.012-.012*radioBlend).toFixed(5)+')';
+    whiteout.style.opacity=String((Math.sin(Math.PI*clamp01((t-(RADIO_BLEND_START+900))/2100))*.10).toFixed(4));
     vignette.style.opacity=String((.75-.55*radioBlend).toFixed(4));
-    gate.style.opacity=String((1-smoother((t-15400)/1000)).toFixed(4));
+    gate.style.opacity=String((1-smoother((t-GATE_FADE_START)/GATE_FADE_MS)).toFixed(4));
 
     // Give autoplay a few chances only near arrival. No second Radio load.
-    if(t>14200)tryStartRadioAudio();
+    if(t>RADIO_BLEND_START-1200)tryStartRadioAudio();
 
     if(t<TOTAL){
       raf=requestAnimationFrame(draw);
