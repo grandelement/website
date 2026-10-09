@@ -8451,7 +8451,7 @@ const GE_GAME = (()=>{
   }
   function applyDefaultSpecificGamePreferences(key){
     const cfg=window.GE_EASY_SETTINGS||{};
-    state.players=1;state.computerOpponent=false;state.computerDifficulty='normal';
+    state.players=2;state.computerOpponent=true;state.computerDifficulty='adaptive';
     state.ballSpeed=Number(cfg.BALL_SPEED_DEFAULT)||1;state.planetWeight=Number(cfg.PLANET_WEIGHT_DEFAULT)||1;state.rollLength=Number(cfg.PLANET_ROLL_LENGTH_DEFAULT)||1;state.wallBounce=Number(cfg.WALL_BOUNCE_DEFAULT)||.98;state.planetBounce=Number(cfg.PLANET_BOUNCE_DEFAULT)||.98;state.rubberPower='free';
     if(key==='points'){
       state.turnsPerPlayer=Math.max(1,Math.min(6,Number(cfg.TURNS_PER_SOUL)||3));state.maxScore=369;state.shotStyle='throw';state.ballAccess='free';state.planetSize=Number(cfg.PLANET_SIZE_DEFAULT)||1;state.pointMarks=cfg.POINT_MARKS_ON!==false;state.pointsScoreBubbles=true;state.sunPoint=true;state.sunPointValue=3;state.wallPoints=true;state.planetPoints=true;state.planetPointValue=2;state.pinballSun=true;state.magnetSun=false;
@@ -8466,7 +8466,7 @@ const GE_GAME = (()=>{
   function applySpecificGamePreferences(key){
     const p=gePersistentGamePrefs.games?.[key];
     if(!p){applyDefaultSpecificGamePreferences(key);return false;}
-    if(Number.isFinite(Number(p.players)))state.players=Math.max(0,Math.min(6,Number(p.players)|0));state.computerOpponent=!!p.computerOpponent;if(state.computerOpponent)state.players=2;state.computerDifficulty=['easy','normal','hard','master'].includes(p.computerDifficulty)?p.computerDifficulty:'normal';
+    if(Number.isFinite(Number(p.players)))state.players=Math.max(0,Math.min(6,Number(p.players)|0));state.computerOpponent=!!p.computerOpponent;if(state.computerOpponent)state.players=2;state.computerDifficulty=['easy','normal','hard','master','adaptive'].includes(p.computerDifficulty)?p.computerDifficulty:'normal';
     if(Number.isFinite(Number(p.ballSpeed)))state.ballSpeed=Number(p.ballSpeed);if(Number.isFinite(Number(p.planetWeight)))state.planetWeight=Math.max(.4,Math.min(1.8,Number(p.planetWeight)));if(Number.isFinite(Number(p.rollLength)))state.rollLength=Math.max(.6,Math.min(1.6,Number(p.rollLength)));if(Number.isFinite(Number(p.wallBounce)))state.wallBounce=Math.max(.7,Math.min(1.08,Number(p.wallBounce)));if(Number.isFinite(Number(p.planetBounce)))state.planetBounce=Math.max(.7,Math.min(1.08,Number(p.planetBounce)));if(['free','controlled','high','extreme','unlimited'].includes(p.rubberPower))state.rubberPower=p.rubberPower;
     if(key==='points'){
       state.turnsPerPlayer=Math.max(1,Math.min(6,Number(p.turnsPerPlayer)||3));state.maxScore=Math.max(10,Math.min(999,Number(p.maxScore)||369));state.shotStyle=['throw','rubber'].includes(p.shotStyle)?p.shotStyle:'throw';state.ballAccess=['free','assigned','duel'].includes(p.ballAccess)?p.ballAccess:'free';state.planetSize=Math.max(.75,Math.min(1.5,Number(p.planetSize)||1));state.pointMarks=p.pointMarks!==false;state.pointsScoreBubbles=p.pointsScoreBubbles!==false;state.sunPoint=p.sunPoint!==false;state.sunPointValue=Math.max(1,Math.min(9,Number(p.sunPointValue)||3));state.wallPoints=p.wallPoints!==false;state.planetPoints=p.planetPoints!==false;state.planetPointValue=Math.max(1,Math.min(9,Number(p.planetPointValue)||2));state.pinballSun=p.pinballSun!==false;state.magnetSun=!!p.magnetSun;
@@ -9359,7 +9359,7 @@ const GE_GAME = (()=>{
     state.gameType=['blueSunPool','ninePlanet','marbles'].includes(saved.gameType)?saved.gameType:'score';
     if(Number.isFinite(saved.players)) state.players=Math.max(0,Math.min(6,saved.players|0));
     state.computerOpponent=!!saved.computerOpponent&&state.players===2;
-    state.computerDifficulty=['easy','normal','hard','master'].includes(saved.computerDifficulty)?saved.computerDifficulty:'normal';
+    state.computerDifficulty=['easy','normal','hard','master','adaptive'].includes(saved.computerDifficulty)?saved.computerDifficulty:'normal';
     state.throwCounts=Array.isArray(saved.throwCounts)?saved.throwCounts.slice(0,Math.max(1,state.players||1)):Array(Math.max(1,state.players||1)).fill(0);
     while(state.throwCounts.length<Math.max(1,state.players||1))state.throwCounts.push(0);
     state.scores=Array.isArray(saved.scores)?saved.scores.slice(0,Math.max(1,state.players||1)):[0];
@@ -10418,7 +10418,17 @@ const GE_GAME = (()=>{
     const t=Math.min(tx>0?tx:Infinity,ty>0?ty:Infinity);return Number.isFinite(t)?{x:x+vx*t,y:y+vy*t,t}:{x:x+vx*300,y:y+vy*300,t:300};
   }
   function aiDifficultyProfile(){
-    const key=['easy','normal','hard','master'].includes(state.computerDifficulty)?state.computerDifficulty:'normal';
+    // Adaptive BODY: compare human and BODY scores, with a small persistent skill estimate.
+    // Do not deliberately miss to force a win/loss; adjust shot planning accuracy instead.
+    let adaptiveKey=state.computerDifficulty;
+    if(adaptiveKey==='adaptive'){
+      const human=Number(state.scores?.[0])||0,body=Number(state.scores?.[1])||0;
+      const shots=Math.max(1,Number(state.throwCounts?.[0])||0);
+      const scoreRate=human/shots;
+      const gap=human-body;
+      adaptiveKey=scoreRate>=8||gap>35?'hard':scoreRate>=3||gap>12?'normal':'easy';
+    }
+    const key=['easy','normal','hard','master'].includes(adaptiveKey)?adaptiveKey:'normal';
     return ({
       easy:{label:'BABY',aimError:.085,speedJitter:.20,scoreBanks:1,poolBanks:0,thinkMin:980,thinkMax:1500,mistake:.24,pointsSpeed:950,comboSearch:false,comboWeight:.12,bankWeight:.28,directBias:520},
       normal:{label:'ADOLESCENT',aimError:.038,speedJitter:.12,scoreBanks:2,poolBanks:1,thinkMin:810,thinkMax:1260,mistake:.10,pointsSpeed:1650,comboSearch:true,comboWeight:.48,bankWeight:.62,directBias:180},
