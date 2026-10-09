@@ -1232,6 +1232,50 @@ body.iam-studio-open #offlinePanel{display:none!important}
 .iamPreset.selected{border-color:#c9f3ff;background:rgba(31,108,143,.42)}
 .iamSlider{display:grid;grid-template-columns:58px 1fr 34px;gap:6px;align-items:center;margin:5px 0;color:#cce6f2;font:750 9px/1 system-ui}
 .iamSlider input{width:100%}
+.iamMeters{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:2px 0 6px
+}
+.iamMeter{
+  display:grid;grid-template-columns:52px minmax(0,1fr);gap:6px;align-items:center;
+  min-height:28px;padding:4px 7px;border:1px solid rgba(102,196,237,.30);border-radius:999px;
+  background:rgba(3,20,33,.72)
+}
+.iamMeter>span{
+  font:950 12px/.95 system-ui;letter-spacing:.04em;text-align:center;color:#eefaff
+}
+.iamMeterTrack{
+  position:relative;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.10)
+}
+.iamMeterTrack::after{
+  content:"";position:absolute;right:14%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.50)
+}
+.iamMeterFill{
+  display:block;width:100%;height:100%;border-radius:inherit;transform:scaleX(.02);transform-origin:left center;
+  background:linear-gradient(90deg,#2ccfa0 0 68%,#eac34d 82%,#ff647c 100%);
+  transition:transform .055s linear;will-change:transform
+}
+.iamGainRow{
+  display:grid;grid-template-columns:70px minmax(0,1fr) 42px;gap:7px;align-items:center;
+  width:100%;min-height:32px;margin:0 0 5px;padding:4px 7px;border:1px solid rgba(102,196,237,.26);
+  border-radius:999px;background:rgba(4,20,32,.62);color:#eefaff
+}
+.iamGainRow span{
+  font:950 12px/.95 system-ui;letter-spacing:.025em;text-align:center
+}
+.iamGainRow input{width:100%;min-width:0}
+.iamGainRow output{font:900 10px/1 system-ui;text-align:right;color:#cceafa}
+body.iam-studio-open #iamStudio{overflow:hidden!important}
+@media(orientation:portrait) and (max-width:700px){
+  .iamIconChoices{gap:5px!important;margin:2px 0 5px!important}
+  .iamIconChoice{min-height:52px!important;padding:3px!important}
+  .iamIconChoice svg{width:27px!important;height:27px!important}
+  .iamSourceRow{margin-bottom:4px!important}
+  #iamNowPlaying{min-height:22px!important;margin:0 auto 4px!important;padding:3px 7px!important}
+  .iamMeter{min-height:25px!important;padding:3px 6px!important}
+  .iamGainRow{min-height:28px!important;margin-bottom:3px!important;padding:3px 6px!important}
+  #iamStatus{margin:2px auto 3px!important;min-height:1.4em!important}
+  .iamMiniActions{margin-top:2px!important}
+}
 #iamTakeAudio{display:none}
 #iamSaveBtn[hidden]{display:none!important}
 
@@ -1531,6 +1575,12 @@ body.iam-studio-open #offlinePanel{display:none!important}
 
     <div id="iamNowPlaying">Player · current song</div>
 
+    <div class="iamMeters" aria-label="Live music and microphone levels">
+      <div class="iamMeter"><span>MUSIC</span><div class="iamMeterTrack"><i id="iamMusicMeter" class="iamMeterFill"></i></div></div>
+      <div class="iamMeter"><span>YOU</span><div class="iamMeterTrack"><i id="iamMicMeter" class="iamMeterFill"></i></div></div>
+    </div>
+    <label class="iamGainRow"><span>YOU GAIN</span><input id="iamInputGain" type="range" min="25" max="250" value="100" step="1" aria-label="Your microphone gain"><output id="iamInputGainRead">100%</output></label>
+
     <div id="iamTimer">00:00</div>
     <div class="iamTransport">
       <button id="iamRecordBtn" class="iamBigButton" type="button" aria-label="Record"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="17" y="7" width="14" height="24" rx="7"></rect><path d="M11 23c0 8 5 14 13 14s13-6 13-14"></path><path d="M24 37v7M17 44h14"></path></svg></button>
@@ -1656,7 +1706,7 @@ body.iam-studio-open #offlinePanel{display:none!important}
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-studio-repair-1',
+  APP_VERSION: '2026.10.09-iam-live-meters-gain-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -6824,11 +6874,14 @@ Vector ${vector}. ${pair[1]}.`;
   const nowPlaying=$('iamNowPlaying'),recordBtn=$('iamRecordBtn'),playBtn=$('iamPlayBtn'),takeAudio=$('iamTakeAudio');
   const timer=$('iamTimer'),status=$('iamStatus'),soundBtn=$('iamSoundBtn'),soundPanel=$('iamSoundPanel');
   const monitorBtn=$('iamMonitorBtn'),saveBtn=$('iamSaveBtn'),musicLevel=$('iamMusicLevel'),micLevel=$('iamMicLevel');
-  const musicRead=$('iamMusicRead'),micRead=$('iamMicRead');
+  const musicRead=$('iamMusicRead'),micRead=$('iamMicRead'),inputGain=$('iamInputGain'),inputGainRead=$('iamInputGainRead');
+  const musicMeter=$('iamMusicMeter'),micMeter=$('iamMicMeter');
   if(!launch||!studio||!recordBtn||!playBtn)return;
 
   let open=false,connection='headphones',sourceMode='player',selectedDeviceId='',effect='clean',monitorOn=false;
-  let ctx=null,micStream=null,studioAudio=null,musicGain=null,micGainNode=null,monitorGain=null,delayNode=null,wetGain=null,feedbackGain=null;
+  let ctx=null,micStream=null,studioAudio=null,musicGain=null,micGainNode=null,micCompressor=null,monitorGain=null,delayNode=null,wetGain=null,feedbackGain=null;
+  let musicMeterAnalyser=null,musicMeterData=null,micMeterAnalyser=null,micMeterData=null;
+  let previewCtx=null,previewStream=null,previewGain=null,previewCompressor=null,previewAnalyser=null,previewData=null,meterRAF=0;
   let recorder=null,chunks=[],takeBlob=null,takeFileName='',recordStartedAt=0,timerId=0;
   let mainWasPlaying=false,mainStartTime=0,studioStartTime=0,recording=false,playingTake=false;
 
@@ -6866,13 +6919,87 @@ Vector ${vector}. ${pair[1]}.`;
     const url=currentPlayerURL();
     nowPlaying.textContent=url?'PLAYER · '+displayTitle(url,false):'PLAYER · choose a song above';
   }
+  function inputGainAmount(){return Math.max(.25,Math.min(2.5,(Number(inputGain?.value)||100)/100));}
   function updateLevels(){
     const mg=Math.max(0,Math.min(1.5,(Number(musicLevel?.value)||100)/100));
-    const vg=Math.max(0,Math.min(1.5,(Number(micLevel?.value)||100)/100));
+    const mix=Math.max(0,Math.min(1.5,(Number(micLevel?.value)||100)/100));
+    const gain=inputGainAmount();
     if(musicRead)musicRead.textContent=Math.round(mg*100)+'%';
-    if(micRead)micRead.textContent=Math.round(vg*100)+'%';
+    if(micRead)micRead.textContent=Math.round(mix*100)+'%';
+    if(inputGainRead)inputGainRead.textContent=Math.round(gain*100)+'%';
     if(musicGain&&ctx)musicGain.gain.setTargetAtTime(mg,ctx.currentTime,.02);
-    if(micGainNode&&ctx)micGainNode.gain.setTargetAtTime(vg,ctx.currentTime,.02);
+    if(micGainNode&&ctx)micGainNode.gain.setTargetAtTime(Math.min(3,gain*mix),ctx.currentTime,.02);
+    if(previewGain&&previewCtx)previewGain.gain.setTargetAtTime(gain,previewCtx.currentTime,.02);
+  }
+  function setMeter(el,level){
+    if(!el)return;
+    const safe=Math.max(.015,Math.min(1,Number(level)||0));
+    el.style.transform='scaleX('+safe.toFixed(4)+')';
+  }
+  function frequencyLevel(data){
+    if(!data||!data.length)return 0;
+    let sum=0,peak=0;
+    for(let i=0;i<data.length;i++){const v=data[i]/255;sum+=v*v;if(v>peak)peak=v;}
+    return Math.min(1,Math.sqrt(sum/data.length)*1.45+peak*.20);
+  }
+  function timeLevel(analyser,data){
+    if(!analyser||!data)return 0;
+    try{
+      analyser.getByteTimeDomainData(data);
+      let sum=0,peak=0;
+      for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;const a=Math.abs(v);sum+=v*v;if(a>peak)peak=a;}
+      return Math.min(1,Math.sqrt(sum/data.length)*3.0+peak*.16);
+    }catch(_e){return 0;}
+  }
+  function meterFrame(){
+    let music=0,mic=0;
+    if(musicMeterAnalyser&&musicMeterData){
+      try{musicMeterAnalyser.getByteFrequencyData(musicMeterData);music=frequencyLevel(musicMeterData);}catch(_e){}
+    }else{
+      try{music=frequencyLevel(window.GEGetLiveSpectrum?.());}catch(_e){}
+    }
+    if(micMeterAnalyser&&micMeterData)mic=timeLevel(micMeterAnalyser,micMeterData);
+    else if(previewAnalyser&&previewData)mic=timeLevel(previewAnalyser,previewData);
+    setMeter(musicMeter,music);setMeter(micMeter,mic);
+    if(open)meterRAF=requestAnimationFrame(meterFrame);else meterRAF=0;
+  }
+  function startMeters(){
+    if(meterRAF)return;
+    meterRAF=requestAnimationFrame(meterFrame);
+  }
+  function stopMeters(){
+    if(meterRAF)cancelAnimationFrame(meterRAF);meterRAF=0;
+    setMeter(musicMeter,0);setMeter(micMeter,0);
+  }
+  async function stopMicPreview(){
+    try{previewStream?.getTracks().forEach(t=>t.stop());}catch(_e){}
+    previewStream=null;
+    try{await previewCtx?.close();}catch(_e){}
+    previewCtx=null;previewGain=null;previewCompressor=null;previewAnalyser=null;previewData=null;
+  }
+  async function startMicPreview(){
+    if(recording||previewStream||!navigator.mediaDevices?.getUserMedia)return;
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    try{
+      const audioConstraints={
+        echoCancellation:true,
+        noiseSuppression:true,
+        autoGainControl:true
+      };
+      if(selectedDeviceId)audioConstraints.deviceId={exact:selectedDeviceId};
+      previewStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});
+      previewCtx=new AC();await previewCtx.resume();
+      const src=previewCtx.createMediaStreamSource(previewStream);
+      previewGain=previewCtx.createGain();
+      previewCompressor=previewCtx.createDynamicsCompressor();
+      previewCompressor.threshold.value=-24;previewCompressor.knee.value=24;previewCompressor.ratio.value=4;previewCompressor.attack.value=.006;previewCompressor.release.value=.18;
+      previewAnalyser=previewCtx.createAnalyser();previewAnalyser.fftSize=256;previewAnalyser.smoothingTimeConstant=.45;previewData=new Uint8Array(previewAnalyser.fftSize);
+      src.connect(previewGain);previewGain.connect(previewCompressor);previewCompressor.connect(previewAnalyser);
+      updateLevels();
+      status.textContent='Ready. Set YOU GAIN so your meter is strong without staying at the far right.';
+    }catch(_e){
+      status.textContent='Tap Record when ready. Microphone permission will be requested.';
+    }
   }
   function applyEffect(){
     if(!ctx||!delayNode||!wetGain||!feedbackGain)return;
@@ -6903,6 +7030,7 @@ Vector ${vector}. ${pair[1]}.`;
         b.addEventListener('click',()=>{
           selectedDeviceId=device.deviceId||'';
           inputChoices.querySelectorAll('.iamInputBubble').forEach(x=>x.classList.toggle('selected',x===b));
+          if(open&&!recording){void stopMicPreview().then(()=>startMicPreview());}
         });
         inputChoices.appendChild(b);
         if(!selectedDeviceId&&index===0)selectedDeviceId=device.deviceId||'';
@@ -6928,7 +7056,8 @@ Vector ${vector}. ${pair[1]}.`;
     try{micStream?.getTracks().forEach(t=>t.stop());}catch(_e){}
     micStream=null;
     try{await ctx?.close();}catch(_e){}
-    ctx=null;studioAudio=null;musicGain=null;micGainNode=null;monitorGain=null;delayNode=null;wetGain=null;feedbackGain=null;
+    ctx=null;studioAudio=null;musicGain=null;micGainNode=null;micCompressor=null;monitorGain=null;delayNode=null;wetGain=null;feedbackGain=null;
+    musicMeterAnalyser=null;musicMeterData=null;micMeterAnalyser=null;micMeterData=null;
   }
   async function autoArchiveTake(blob,fileName){
     if(!blob||!('caches' in window))return;
@@ -6952,15 +7081,21 @@ Vector ${vector}. ${pair[1]}.`;
     status.textContent='Connecting your sound…';
     recordBtn.disabled=true;playBtn.disabled=true;saveBtn.hidden=true;
     takeBlob=null;playingTake=false;
+    await stopMicPreview();
     try{
-      const constraints={audio:selectedDeviceId?{deviceId:{exact:selectedDeviceId}}:true};
-      micStream=await navigator.mediaDevices.getUserMedia(constraints);
+      const audioConstraints={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+      if(selectedDeviceId)audioConstraints.deviceId={exact:selectedDeviceId};
+      micStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});
       ctx=new AC();
       await ctx.resume();
 
       const mix=ctx.createMediaStreamDestination();
       musicGain=ctx.createGain();
       micGainNode=ctx.createGain();
+      micCompressor=ctx.createDynamicsCompressor();
+      micCompressor.threshold.value=-24;micCompressor.knee.value=24;micCompressor.ratio.value=4;micCompressor.attack.value=.006;micCompressor.release.value=.18;
+      musicMeterAnalyser=ctx.createAnalyser();musicMeterAnalyser.fftSize=256;musicMeterAnalyser.smoothingTimeConstant=.42;musicMeterData=new Uint8Array(musicMeterAnalyser.frequencyBinCount);
+      micMeterAnalyser=ctx.createAnalyser();micMeterAnalyser.fftSize=256;micMeterAnalyser.smoothingTimeConstant=.45;micMeterData=new Uint8Array(micMeterAnalyser.fftSize);
       const dry=ctx.createGain();
       delayNode=ctx.createDelay(1.5);
       wetGain=ctx.createGain();
@@ -6978,12 +7113,15 @@ Vector ${vector}. ${pair[1]}.`;
       musicNode.connect(musicGain);
       musicGain.connect(ctx.destination);
       musicGain.connect(mix);
+      musicGain.connect(musicMeterAnalyser);
 
       const micNode=ctx.createMediaStreamSource(micStream);
       micNode.connect(micGainNode);
-      micGainNode.connect(dry);
+      micGainNode.connect(micCompressor);
+      micCompressor.connect(dry);
+      micCompressor.connect(micMeterAnalyser);
       dry.connect(mix);
-      micGainNode.connect(delayNode);
+      micCompressor.connect(delayNode);
       delayNode.connect(wetGain);
       wetGain.connect(mix);
       delayNode.connect(feedbackGain);
@@ -7026,6 +7164,7 @@ Vector ${vector}. ${pair[1]}.`;
         status.textContent='Take saved here. Tap Play to hear yourself with Grand Element.';
         await autoArchiveTake(takeBlob,takeFileName);
         await cleanupCapture();
+        if(open)void startMicPreview();
       };
 
       recorder.start(250);
@@ -7093,6 +7232,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(playingTake){takeAudio.pause();playingTake=false;playBtn.innerHTML=playIcon;}
     document.body.classList.remove('iam-studio-open');
     launch.setAttribute('aria-expanded','false');launch.textContent='I AM';open=false;
+    stopMeters();await stopMicPreview();
     if(mainWasPlaying){
       try{await audio.play();}catch(_e){}
     }
@@ -7101,7 +7241,9 @@ Vector ${vector}. ${pair[1]}.`;
     open=true;document.body.classList.add('iam-studio-open');
     launch.setAttribute('aria-expanded','true');launch.textContent='CLOSE I AM';
     updateNowPlaying();
-    status.textContent='Tap the microphone. Your voice or instrument is recorded with the music, but is not sent back through the phone speaker.';
+    status.textContent='Connecting your microphone…';
+    startMeters();
+    void startMicPreview();
   }
 
   launch.addEventListener('click',()=>{if(open)void closeStudio();else openStudio();});
@@ -7120,7 +7262,7 @@ Vector ${vector}. ${pair[1]}.`;
     monitorOn=!monitorOn;monitorBtn.setAttribute('aria-pressed',monitorOn?'true':'false');monitorBtn.textContent='HEAR ME: '+(monitorOn?'ON':'OFF');applyMonitor();
   });
   saveBtn.addEventListener('click',()=>void saveTake());
-  musicLevel.addEventListener('input',updateLevels);micLevel.addEventListener('input',updateLevels);
+  musicLevel.addEventListener('input',updateLevels);micLevel.addEventListener('input',updateLevels);inputGain?.addEventListener('input',updateLevels);
   studio.querySelectorAll('[data-iam-effect]').forEach(btn=>btn.addEventListener('click',()=>{
     effect=btn.dataset.iamEffect||'clean';
     studio.querySelectorAll('[data-iam-effect]').forEach(x=>x.classList.toggle('selected',x===btn));
