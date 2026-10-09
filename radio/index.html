@@ -1400,6 +1400,20 @@ body.iam-studio-open #iamStudio{overflow:hidden!important}
     position:absolute;left:7%;right:7%;bottom:52px;margin:0!important;min-height:18px!important;
     font-size:11px!important;line-height:1.2!important
   }
+  body.iam-edit-open #iamSoundPanel{
+    display:block!important;position:fixed!important;z-index:170!important;
+    left:4vw!important;right:4vw!important;top:calc(env(safe-area-inset-top) + 170px)!important;
+    bottom:max(12px,env(safe-area-inset-bottom))!important;margin:0!important;padding:12px!important;
+    overflow:auto!important;background:rgba(2,12,23,.96)!important;border:1px solid rgba(94,205,255,.42)!important;
+    border-radius:18px!important
+  }
+  body.iam-edit-open .iamTransport,
+  body.iam-edit-open .iamMeters,
+  body.iam-edit-open .iamGainRow,
+  body.iam-edit-open #iamTimer,
+  body.iam-edit-open #iamStatus,
+  body.iam-edit-open #iamTakeActions{display:none!important}
+
   #iamTakeActions{
     display:none;position:absolute;left:0;right:0;bottom:6px;
     grid-template-columns:1fr 1fr;gap:12px;padding:0 12px
@@ -7387,7 +7401,7 @@ Vector ${vector}. ${pair[1]}.`;
   async function closeStudio(){
     if(recording)await stopRecording();
     if(playingTake){takeAudio.pause();playingTake=false;playBtn.innerHTML=playIcon;}
-    document.body.classList.remove('iam-studio-open','iam-has-take');
+    document.body.classList.remove('iam-studio-open','iam-has-take','iam-edit-open');
     launch.setAttribute('aria-expanded','false');launch.textContent='I AM';open=false;
     removeSunFlight();setMainButtonMode('record');
     stopMeters();await stopMicPreview();
@@ -7443,8 +7457,9 @@ Vector ${vector}. ${pair[1]}.`;
     setMainButtonMode('record');status.textContent='Ready. Tap the center button to record again.';
   });
   editBtn?.addEventListener('click',()=>{
+    document.body.classList.add('iam-edit-open');
     soundPanel.classList.add('show');soundBtn.setAttribute('aria-expanded','true');
-    status.textContent='EDIT opens the deeper studio controls. The two-track waveform editor is the next layer.';
+    status.textContent='EDIT mode. The two-track waveform editor is the next layer.';
   });
   musicLevel.addEventListener('input',updateLevels);micLevel.addEventListener('input',updateLevels);inputGain?.addEventListener('input',updateLevels);
   studio.querySelectorAll('[data-iam-effect]').forEach(btn=>btn.addEventListener('click',()=>{
