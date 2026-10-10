@@ -1841,7 +1841,7 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_BROADCAST_RESPOND_MS: 6500,
   SHIP_BROADCAST_MAX_RESPONDERS: 1,
   SHIP_RAY_WIDTH: 8,
-  SHIP_MULTI_RAY_MAX: 5,
+  SHIP_MULTI_RAY_MAX: 10, // accept each independent finger, up to common touchscreen hardware limits
   SHIP_MULTI_RAY_SOUL_CAP: 24,
   SHIP_MULTI_RAY_SPAWN_BASE_MS: 1350,
   SHIP_MULTI_RAY_SPAWN_PER_RAY_MS: 170,
@@ -6893,7 +6893,7 @@ function activeShipPointer(s){
   return null;
 }
 function addMultiRayPointer(session,id,x,y){
-  if(!session||session.pointers.size>=(window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_MAX??5))return false;
+  if(!session||session.pointers.size>=Math.max(2,Math.min(10,Number(window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_MAX)||10))||session.pointers.has(id))return false;
   const s=session.ship,d=Math.hypot(x-s.x,y-s.y),fallback=s.angle+(session.pointers.size%2?Math.PI/2:-Math.PI/2);
   const a=d<Math.max(12,shipVisualRadius(s)*.35)?fallback:Math.atan2(y-s.y,x-s.x);
   session.pointers.set(id,{x,y});
@@ -6956,9 +6956,19 @@ canvas.addEventListener('pointerdown',e=>{
     if(addMultiRayPointer(shipMultiRaySession,e.pointerId,e.clientX,e.clientY)){
       try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
     }
-    // Five is the deliberate visual/memory ceiling. Extra touches are ignored rather
-    // than falling through into steering or another ship gesture.
+    // Hardware touch limits vary. Each recognized finger controls its own ray;
+    // additional fingers beyond the configured cap must not hijack steering.
     e.preventDefault();e.stopImmediatePropagation();return;
+  }
+  // A second finger anywhere on the open universe joins the ray gesture started
+  // on the Body, not just a second finger landing inside the tiny Body target.
+  // Background pointer events come through #fx; album planets keep their own touches.
+  const heldShip=shipRayHold?.ship||shipCenterPress?.ship||shipSteer?.ship;
+  if(heldShip){
+    const first=activeShipPointer(heldShip);
+    if(first&&first.id!==e.pointerId&&beginMultiRay(heldShip,first,e)){
+      e.preventDefault();e.stopImmediatePropagation();return;
+    }
   }
   const hit=nearestShipHit(e.clientX,e.clientY);
   if(hit){
@@ -7595,6 +7605,9 @@ buildPlanetPhysics();
 (function installShotController(){
   const host=document.getElementById('planets'),aim=document.getElementById('gameAimGuide');if(!host||!aim)return;
   const ag=aim.getContext('2d');let dpr=1,w=0,h=0,drag=null,hist=[],seq=0,activeShot=null,aimPoint=null;
+   // Free exploration permits independent hands/fingers; Game Mode deliberately
+   // retains one score-controlled shot at a time.
+   const freeDrags=new Map();
   function fit(){dpr=Math.min(innerWidth<700?1.4:1.75,devicePixelRatio||1);w=innerWidth;h=innerHeight;aim.width=Math.round(w*dpr);aim.height=Math.round(h*dpr);aim.style.width=w+'px';aim.style.height=h+'px';ag.setTransform(dpr,0,0,dpr,0,0);}
   addEventListener('resize',fit,{passive:true});fit();
   function isGame(){return document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;}
@@ -7712,6 +7725,14 @@ buildPlanetPhysics();
   host.addEventListener('pointerdown',e=>{
     if(document.body.classList.contains('ge-body-race-active')){if(e.cancelable)e.preventDefault();e.stopPropagation();return;}
     const el=e.target.closest('.planet');if(!el)return;const p=(window.planetNodes||[]).find(q=>q.el===el);if(!p)return;
+    if(!document.body.classList.contains('game-mode-active')){
+      if(p.dragging||[...freeDrags.values()].some(d=>d.p===p))return; // one finger per planet
+      const now=performance.now();
+      freeDrags.set(e.pointerId,{p,id:e.pointerId,downX:e.clientX,downY:e.clientY,moved:false,hist:[{x:e.clientX,y:e.clientY,t:now}]});
+      p.dragging=true;p._dragStarted=false;
+      try{host.setPointerCapture(e.pointerId);}catch(_e){}
+      e.preventDefault();return;
+    }
     if(isGame()){
       const gs=gameState(),poolState=window.GE_BLUE_SUN_POOL?.state;
       if(activeShot||!tableStill()){window.GE_GAME?.notify?.('PLANETS STILL MOVING');e.preventDefault();return;}
@@ -7736,6 +7757,21 @@ buildPlanetPhysics();
     e.preventDefault();
   },{passive:false});
   host.addEventListener('pointermove',e=>{
+    const free=freeDrags.get(e.pointerId);
+    if(free){
+      const p=free.p,now=performance.now();
+      const moved=Math.hypot(e.clientX-free.downX,e.clientY-free.downY);
+      if(!free.moved){
+        if(moved<9)return;
+        free.moved=true;p._dragStarted=true;
+        p.el.classList.remove('touchZoom');
+        p.el.classList.add('draggingPlanet','gameDragSmall');
+      }
+      p.x=e.clientX;p.y=e.clientY;syncPlanet(p);
+      free.hist.push({x:e.clientX,y:e.clientY,t:now});
+      while(free.hist.length&&now-free.hist[0].t>170)free.hist.shift();
+      if(e.cancelable)e.preventDefault();return;
+    }
     if(!drag||drag.id!==e.pointerId)return;const p=drag.p,now=performance.now();
     if(drag.mode==='cueMove'&&isGame()){const b=getPlanetPlayBounds();p.x=Math.max(b.left+p.r,Math.min(b.right-p.r,e.clientX));p.y=Math.max(b.top+p.r,Math.min(b.bottom-p.r,e.clientY));p.vx=0;p.vy=0;syncPlanet(p);drag.moved=true;e.preventDefault();return;}
     if(drag.mode==='rubber'&&isGame()){drag.moved=Math.hypot(e.clientX-drag.downX,e.clientY-drag.downY)>2;aimPoint={x:e.clientX,y:e.clientY};traceGuide({x:drag.anchorX,y:drag.anchorY},aimPoint,p.r);e.preventDefault();return;}
@@ -7743,6 +7779,29 @@ buildPlanetPhysics();
     p.x=e.clientX;p.y=e.clientY;syncPlanet(p);hist.push({x:e.clientX,y:e.clientY,t:now});while(hist.length&&now-hist[0].t>170)hist.shift();e.preventDefault();
   },{passive:false});
   function endPointer(e){
+    const free=freeDrags.get(e.pointerId);
+    if(free){
+      freeDrags.delete(e.pointerId);
+      const p=free.p;
+      p.dragging=false;p._dragStarted=false;
+      p.el.classList.remove('draggingPlanet','touchZoom','gameDragSmall');
+      if(e.type==='pointercancel'){
+        p.vx=0;p.vy=0;
+      }else if(free.moved){
+        const now=performance.now(),last=free.hist[free.hist.length-1]||{x:p.x,y:p.y,t:now};
+        let ref=free.hist[0]||last;
+        for(let i=free.hist.length-1;i>=0;i--){if(now-free.hist[i].t>=60){ref=free.hist[i];break;}}
+        const dt=Math.max(16,last.t-ref.t),power=window.GE_EASY_SETTINGS?.PLANET_THROW_POWER??925;
+        p.vx=(last.x-ref.x)/dt*power;p.vy=(last.y-ref.y)/dt*power;
+        const launchSpeed=Math.hypot(p.vx,p.vy);
+        // Each planet carries its own history, so releasing one finger never ends
+        // or changes another planet's active drag.
+        window.dispatchEvent(new CustomEvent('ge-free-planet-thrown',{detail:{planet:p,speed:launchSpeed,dragged:true}}));
+        p.el.classList.add('justDragged');setTimeout(()=>p.el.classList.remove('justDragged'),1200);
+      }
+      try{host.releasePointerCapture(e.pointerId);}catch(_e){}
+      return;
+    }
     if(!drag||drag.id!==e.pointerId)return;const d=drag,p=d.p;drag=null;p.dragging=false;p.el.classList.remove('draggingPlanet','touchZoom','gameDragSmall');let launched=false;
     if(d.mode==='cueMove'&&isGame()){p.vx=0;p.vy=0;syncPlanet(p);try{host.releasePointerCapture(e.pointerId);}catch(_e){}return;}
     if(d.mode==='rubber'&&isGame()){
@@ -7764,7 +7823,15 @@ buildPlanetPhysics();
   }
   host.addEventListener('pointerup',endPointer,{passive:true});host.addEventListener('pointercancel',e=>{clearAim();endPointer(e);},{passive:true});
   function monitor(){endShotIfStopped();if(activeShot)requestAnimationFrame(monitor);else setTimeout(monitor,90);}setTimeout(monitor,90);
-  window.GE_SHOT_CONTROL={activeShotId:()=>activeShot?.id||0,activeShot:()=>activeShot,applyBallAccessVisuals,beginAutoShot:(p)=>{if(activeShot)return;const s=gameState();seq+=1;activeShot={id:seq,planet:p,player:Number.isInteger(s?.activePlayer)?s.activePlayer:0,round:s?.round||1,started:performance.now(),style:'auto-'+(p._autoStyle||'random')};p._launchSpeed=speed(p);window.GE_GAME_POINT_MARKS?.clear?.();window.GE_GAME_TRAILS?.shotStart?.(activeShot);if(s?.players>0||s?.gameType==='blueSunPool'||s?.gameType==='ninePlanet'||s?.gameType==='marbles')window.GE_GAME?.registerThrow?.(p,seq);},cancel:()=>{drag=null;activeShot=null;clearAim();}};
+  window.GE_SHOT_CONTROL={activeShotId:()=>activeShot?.id||0,activeShot:()=>activeShot,applyBallAccessVisuals,beginAutoShot:(p)=>{if(activeShot)return;const s=gameState();seq+=1;activeShot={id:seq,planet:p,player:Number.isInteger(s?.activePlayer)?s.activePlayer:0,round:s?.round||1,started:performance.now(),style:'auto-'+(p._autoStyle||'random')};p._launchSpeed=speed(p);window.GE_GAME_POINT_MARKS?.clear?.();window.GE_GAME_TRAILS?.shotStart?.(activeShot);if(s?.players>0||s?.gameType==='blueSunPool'||s?.gameType==='ninePlanet'||s?.gameType==='marbles')window.GE_GAME?.registerThrow?.(p,seq);},cancel:()=>{
+    for(const d of freeDrags.values()){
+      d.p.dragging=false;d.p._dragStarted=false;d.p.el?.classList.remove('draggingPlanet','touchZoom','gameDragSmall');
+      try{host.releasePointerCapture(d.id);}catch(_e){}
+    }
+    freeDrags.clear();
+    if(drag?.p){drag.p.dragging=false;drag.p._dragStarted=false;}
+    drag=null;activeShot=null;clearAim();
+  }};
 })();
 
 /* The black Game Mode rail is a real physical boundary, not an overlay planets can hide behind. */
