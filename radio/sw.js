@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.09-iam-radio-mic-private-transport-5';
+const VERSION='2026.10.09-iam-studio-mic-cache-6';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -197,6 +197,18 @@ async function mediaResponse(request){
 }
 
 async function staticResponse(request){
+  // Always fetch the studio engine freshly, even when a versioned URL was
+  // previously cached with ignoreSearch:true.
+  if(new URL(request.url).pathname.endsWith('/iam-private-studio.js')){
+    try{
+      const fresh=await fetch(request,{cache:'no-store'});
+      if(fresh.ok){
+        const cache=await caches.open(SHELL_CACHE);
+        cache.put(request,fresh.clone()).catch(()=>{});
+        return fresh;
+      }
+    }catch(_e){}
+  }
   const cached=await cachedResponse(request);
   if(cached){
     fetch(request,{cache:'no-store'}).then(async response=>{
