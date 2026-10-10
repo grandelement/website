@@ -647,13 +647,16 @@ async function previewWaves(){
   }
  }catch(_e){}finally{try{await temp.close()}catch(_e){}}
 }
-function setHeadphones(on){
+function setHeadphones(on,keepManualChoice=false){
  headphones=!!on;
+ // Headphone mode starts with live monitoring ON; the HEAR ME button can
+ // still disable it. Speaker mode never loops the mic back into speakers.
+ if(!keepManualChoice)monitoring=!!on;
+ if(!on)monitoring=false;
  get("iamListenHeadphones")?.classList.toggle("selected",on);
  get("iamListenSpeaker")?.classList.toggle("selected",!on);
  get("iamListenHeadphones")?.setAttribute("aria-pressed",on?"true":"false");
  get("iamListenSpeaker")?.setAttribute("aria-pressed",on?"false":"true");
- if(!on)monitoring=false;
  E.monitor.disabled=!on;
  E.monitor.textContent="HEAR ME: "+(monitoring?"ON":"OFF");
  E.monitor.setAttribute("aria-pressed",monitoring?"true":"false");
@@ -813,11 +816,17 @@ E.sound?.addEventListener("click",()=>{
 get("iamSoundClose")?.addEventListener("click",()=>{
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
 });
-get("iamListenHeadphones")?.addEventListener("click",()=>setHeadphones(true));
-get("iamListenSpeaker")?.addEventListener("click",()=>setHeadphones(false));
+get("iamListenHeadphones")?.addEventListener("click",()=>{
+ setHeadphones(true);
+ say("HEADPHONES: Microphone monitoring ON. Use HEAR ME to turn it off.");
+});
+get("iamListenSpeaker")?.addEventListener("click",()=>{
+ setHeadphones(false);
+ say("SPEAKER: Music plays out loud; sing normally. Your mic records, but is not fed back through the speaker.");
+});
 E.monitor?.addEventListener("click",()=>{
  if(!headphones){say("Select HEADPHONES before enabling vocal monitoring.");return}
- monitoring=!monitoring;setHeadphones(true);
+ monitoring=!monitoring;setHeadphones(true,true);
 });
 E.take.addEventListener("ended",()=>{reviewing=false;mode("play");if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06)});
 // All visible controls operate the PRIVATE song, not the muted original Radio.
