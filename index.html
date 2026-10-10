@@ -3985,6 +3985,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       </section>
 
       <section class="geGameDetailScreen" id="geGameDetailScreen" hidden>
+        <div id="gePerGameEffectsSlot" class="gePerGameEffectsSlot"></div>
         <div class="geDetailNav"><button class="geBackButton" id="geGameDetailBack" type="button">‹ ALL GAMES</button><span class="geDetailKind" id="geGameDetailKind">PLANET GAME</span></div>
         <h2 id="geGameDetailTitle">Throw</h2>
         <div class="geTopStartWrap"><button class="gameButton geStartGamePrimary" id="gameStartNewBtn" type="button">START GAME</button></div>
@@ -12661,5 +12662,27 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 
 <style id="ge-dream-menu-style">.geDreamAlbums{display:grid;grid-template-columns:1fr 1fr;gap:8px;grid-column:1/-1}.geDreamAlbums[hidden]{display:none!important}.geDreamAlbums button{min-width:0}.autoChoiceGrid button{transition:opacity 1.5s ease,transform 1.5s ease}#autopilotCheck{transition:opacity 1.5s ease,visibility 1.5s ease}</style>
 <script defer src="./ge-dream.js"></script>
+<style id="ge-per-game-effects-css">
+.gePerGameEffectsSlot{margin:12px 0;order:10}
+.gePerGameEffectsSlot .geGameEffectsDisclosure{display:block!important;width:100%}
+.gePerGameEffectsSlot .geGameEffectsDisclosure>summary{min-height:42px}
+</style>
+<script>
+(function(){
+  function placeGameEffects(){
+    const effects=document.getElementById('geGameEffectsDisclosure');
+    const slot=document.getElementById('gePerGameEffectsSlot');
+    const hub=document.getElementById('geGameHubHome');
+    const reset=document.getElementById('geResetDisclosure');
+    if(!effects||!slot||!hub)return;
+    // Reset remains available on the hub, while tracer controls live in each game's detail.
+    if(reset&&effects.contains(reset)){effects.parentNode.insertBefore(reset,effects);}
+    slot.appendChild(effects);
+    effects.open=false;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',placeGameEffects,{once:true});
+  else placeGameEffects();
+})();
+</script>
 </body>
 </html>
