@@ -101,8 +101,8 @@ function createMusicGraph(){
  musicGain=ctx.createGain();musicOutput=ctx.createGain();
  musicMeter=ctx.createAnalyser();musicMeter.fftSize=512;musicData=new Uint8Array(musicMeter.fftSize);
  musicDest=ctx.createMediaStreamDestination();voiceDest=ctx.createMediaStreamDestination();mixDest=ctx.createMediaStreamDestination();
- musicInput.connect(musicGain);musicGain.connect(musicMeter);
- musicGain.connect(musicDest);musicGain.connect(mixDest);
+ musicInput.connect(musicDest);musicInput.connect(musicGain);musicGain.connect(musicMeter);
+ musicGain.connect(mixDest);
  musicGain.connect(musicOutput);musicOutput.connect(ctx.destination);
  musicOutput.gain.value=0;
  outputSettings();
@@ -374,3 +374,137 @@ async function listenTake(){
   say("EDIT preview. Move compression, effects or volumes while the raw tracks play.");
  }catch(err){say("Raw-stem playback failed: "+errorString(err));stopReview()}
 }
+async function previewWaves(){
+ const targets=[["music",take.music],["voice",take.voice]];
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC||!take.music||!take.voice)return;
+ const temp=new AC();
+ try{
+  for(const [kind,blob] of targets){
+   const canvas=get("iamWave"+kind),pen=canvas?.getContext("2d");if(!pen)continue;
+   const buf=await temp.decodeAudioData(await blob.arrayBuffer());
+   const samples=buf.getChannelData(0),w=canvas.width,h=canvas.height;
+   pen.clearRect(0,0,w,h);
+   pen.fillStyle=kind==="music"?"#62caff":"#81f5bd";
+   const stride=Math.max(1,Math.floor(samples.length/w));
+   for(let x=0;x<w;x++){
+    let high=0;
+    for(let i=x*stride;i<Math.min(samples.length,(x+1)*stride);i+=Math.max(1,Math.floor(stride/18)))
+     high=Math.max(high,Math.abs(samples[i]));
+    let amp=Math.max(1,high*h*.92);
+    pen.fillRect(x,(h-amp)/2,1,amp);
+   }
+  }
+ }catch(_e){}finally{try{await temp.close()}catch(_e){}}
+}
+function setHeadphones(on){
+ headphones=!!on;
+ get("iamListenHeadphones")?.classList.toggle("selected",on);
+ get("iamListenSpeaker")?.classList.toggle("selected",!on);
+ get("iamListenHeadphones")?.setAttribute("aria-pressed",on?"true":"false");
+ get("iamListenSpeaker")?.setAttribute("aria-pressed",on?"false":"true");
+ if(!on)monitoring=false;
+ E.monitor.disabled=!on;
+ E.monitor.textContent="HEAR ME: "+(monitoring?"ON":"OFF");
+ E.monitor.setAttribute("aria-pressed",monitoring?"true":"false");
+ outputSettings();
+}
+function editTake(){
+ if(!take.mix){say("Record or restore a take first.");return}
+ editing=true;document.body.classList.add("iam-edit-open");
+ E.panel.classList.add("show");E.sound.setAttribute("aria-expanded","true");
+ get("iamStemActions").hidden=false;
+ void previewWaves();
+ say("Dry YOU and clean MUSIC preserved. Edit compression or effects and play again.");
+}
+function againTake(){
+ stopReview();take={music:null,voice:null,mix:null};takeMeta=null;
+ document.body.classList.remove("iam-has-take","iam-edit-open");editing=false;
+ E.timer.textContent="00:00";mode("record");
+ say("Ready for a new take. Previous saved recordings remain available on this device.");
+}
+async function leave(){
+ if(!open)return;
+ if(recording)await stopTake();
+ stopReview();
+ open=false;sessionToken++;
+ document.body.classList.remove("iam-studio-open","iam-has-take","iam-edit-open");
+ E.launch.setAttribute("aria-expanded","false");
+ removeSun();window.GEHUD?.resumeFromIAm?.();
+ // A local file returns at the studio's position; the live stream returns
+ // to its still-running original broadcast without seeking or rebuilding it.
+ if(sourceMode==="player"&&privateAudio&&!audio.paused&&Number.isFinite(privateAudio.currentTime)){
+  try{if(audio.currentSrc===sourceURL||audio.src===sourceURL)audio.currentTime=privateAudio.currentTime}catch(_e){}
+ }
+ await disposeAudio();audio.muted=oldMuted;
+ try{if("audioSession" in navigator)navigator.audioSession.type="playback"}catch(_e){}
+ mode("record");say("Private I AM session closed.");
+}
+async function enter(){
+ if(open)return;
+ oldMuted=audio.muted;window.GEHUD?.suspendForIAm?.();
+ makeSun();open=true;sessionToken++;
+ document.body.classList.add("iam-studio-open");
+ E.launch.setAttribute("aria-expanded","true");
+ setHeadphones(false);E.record.disabled=true;mode(take.mix?"play":"record");
+ if(take.mix)document.body.classList.add("iam-has-take");
+ raf=requestAnimationFrame(meterLoop);
+ await preparePrivate();
+}
+function choosePrivateSong(direction){
+ if(!open||!privateAudio||recording){say("Stop recording before changing songs.");return}
+ const list=allowedCatalog();if(!list.length){say("No catalog tracks available.");return}
+ const current=decodeURIComponent(sourceURL.split("/").pop());
+ let index=list.findIndex(t=>decodeURIComponent(t.split("/").pop())===current);
+ index=(index+(direction==="next"?1:-1)+list.length)%list.length;
+ const url=list[index];sourceURL=url;sourceMode="player";verified=false;
+ stopReview();if(take.mix)againTake();
+ privateAudio.src=url;privateAudio.load();
+ privateAudio.play().then(()=>{verified=true;E.record.disabled=false;say("Private song: "+displayTitle(url,false));}).catch(err=>say("Song change: "+errorString(err)));
+ get("iamSourceIndicator").textContent="PRIVATE SONG · SELECTED";
+}
+E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
+E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
+E.again?.addEventListener("click",againTake);
+E.edit?.addEventListener("click",editTake);
+E.back?.addEventListener("click",()=>{editing=false;document.body.classList.remove("iam-edit-open");stopReview()});
+E.save?.addEventListener("click",()=>exportAudio("mix"));
+get("iamSaveBtn")?.addEventListener("click",()=>exportAudio("mix"));
+get("iamExportMusic")?.addEventListener("click",()=>exportAudio("music"));
+get("iamExportVoice")?.addEventListener("click",()=>exportAudio("voice"));
+get("iamExportMix")?.addEventListener("click",()=>exportAudio("mix"));
+get("iamRestoreTake")?.addEventListener("click",()=>void restoreLatest());
+[E.music,E.voice,E.gain,E.compression].forEach(e=>e?.addEventListener("input",outputSettings));
+document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.addEventListener("click",()=>{
+ fxMode=b.dataset.iamEffect||"clean";
+ document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(x=>x.classList.toggle("selected",x===b));
+ effectSettings();
+}));
+E.sound?.addEventListener("click",()=>{
+ const showing=!E.panel.classList.contains("show");E.panel.classList.toggle("show",showing);
+ E.sound.setAttribute("aria-expanded",showing?"true":"false");
+});
+get("iamListenHeadphones")?.addEventListener("click",()=>setHeadphones(true));
+get("iamListenSpeaker")?.addEventListener("click",()=>setHeadphones(false));
+E.monitor?.addEventListener("click",()=>{
+ if(!headphones){say("Select HEADPHONES before enabling vocal monitoring.");return}
+ monitoring=!monitoring;setHeadphones(true);
+});
+E.take.addEventListener("ended",()=>{reviewing=false;mode("play");if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06)});
+for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"],["playBtn","play"]]){
+ get(id)?.addEventListener("click",event=>{
+  if(!open)return;
+  event.stopImmediatePropagation();event.preventDefault();
+  if(kind==="live"){void leave().then(()=>{if(!state.live)window.GELive?.enter?.()});return}
+  if(kind==="prev"||kind==="next"){choosePrivateSong(kind);return}
+  if(recording){say("Stop recording before pausing the music.");return}
+  if(privateAudio){
+   if(privateAudio.paused)privateAudio.play().catch(err=>say(errorString(err)));
+   else privateAudio.pause();
+  }
+ },true);
+}
+window.GEIAmStudio={open:enter,close:leave,version:2,getSession:()=>takeMeta};
+outputSettings();
+};
+})();
