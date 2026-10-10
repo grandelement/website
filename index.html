@@ -7859,40 +7859,19 @@ function planetStep(frameNow){
   }
   const moving=planetNodes.some(p=>!p.poolPocketed&&(p.dragging||Math.hypot(p.vx||0,p.vy||0)>.5));
   const shotActive=!!window.GE_SHOT_CONTROL?.activeShot?.();
-  const moonNode=document.querySelector('.moon');
-  const moonRect=moonNode?.getBoundingClientRect();
-  // When everything is still, sample moon proximity at 20fps instead of burning a permanent 60fps loop.
-  // If the orbiting moon approaches a planet, immediately return to full-rate physics so it can push it.
+  // The Moon is a foreground radio control, not a planet collider.
+  // When album planets are stopped, an orbiting Moon must never wake or shove them.
   if(!moving&&!shotActive){
-    let moonNear=false;
-    if(moonRect){
-      const imx=moonRect.left+moonRect.width/2,imy=moonRect.top+moonRect.height/2,imr=moonRect.width/2;
-      moonNear=planetNodes.some(p=>Math.hypot(p.x-imx,p.y-imy)<=p.r+imr+10);
-    }
-    if(!moonNear){
-      // Do not let the 20 fps idle sampler create a large first physics step.
-      gePlanetPhysicsLast=performance.now();
-      setTimeout(()=>requestAnimationFrame(planetStep),50);return;
-    }
+    gePlanetPhysicsLast=performance.now();
+    setTimeout(()=>requestAnimationFrame(planetStep),50);return;
   }
   const bounds=getPlanetPlayBounds();
-  const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
+  // The Blue Sun is foreground-only in free exploration. Game Mode still owns
+  // its Sun contact/pocket rules, including Blue Sun Pool and Nine Ball.
+  const sunRect=document.body.classList.contains('game-mode-active')
+    ? document.getElementById('sunWrap')?.getBoundingClientRect()
+    : null;
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
-  const mx=moonRect?moonRect.left+moonRect.width/2:0, my=moonRect?moonRect.top+moonRect.height/2:0, mr=moonRect?moonRect.width/2:0;
-  // Track the orbiting moon's real screen velocity before using it for planet contact.
-  // v10.8 restored moon-push but referenced mvx/mvy before defining them, which could
-  // terminate the entire planet physics RAF as soon as the moon existed.
-  let mvx=0,mvy=0;
-  const moonNow=performance.now();
-  if(moonRect){
-    if(geMoonPhysics.t){
-      const dt=Math.max(.016,Math.min(.25,(moonNow-geMoonPhysics.t)/1000));
-      mvx=(mx-geMoonPhysics.x)/dt; mvy=(my-geMoonPhysics.y)/dt;
-      const ms=Math.hypot(mvx,mvy),cap=900;
-      if(ms>cap){const k=cap/ms;mvx*=k;mvy*=k;}
-    }
-    geMoonPhysics={x:mx,y:my,t:moonNow};
-  }else geMoonPhysics.t=0;
   for(const p of planetNodes){
     if(p.poolPocketed||p.dragging) continue;
     p._framePrevX=p.x;p._framePrevY=p.y;
@@ -7939,16 +7918,13 @@ function planetStep(frameNow){
     }
 
     if(sr){
-      if(document.body.classList.contains('game-mode-active')){
-        const hitSun=collideStaticCircle(p,sx,sy,sr,(window.GE_EASY_SETTINGS?.WALL_BOUNCE_DEFAULT??.98));
-        if(hitSun && window.GE_GAME && typeof window.GE_GAME.sunCollision==='function'){
-          window.GE_GAME.sunCollision(p);
-        }
-      }else{
-        collideElastic(p,{x:sx,y:sy,r:sr},0.98);
+      // Preserve intentional game Sun collisions/scoring; do not reintroduce
+      // foreground Sun or Moon collisions with free-roaming album planets.
+      const hitSun=collideStaticCircle(p,sx,sy,sr,(window.GE_EASY_SETTINGS?.WALL_BOUNCE_DEFAULT??.98));
+      if(hitSun && window.GE_GAME && typeof window.GE_GAME.sunCollision==='function'){
+        window.GE_GAME.sunCollision(p);
       }
     }
-    if(mr) collideMovingCircle(p,mx,my,mr,mvx,mvy,(window.GE_EASY_SETTINGS?.WALL_BOUNCE_DEFAULT??.98));
 
     p.el.style.left=(p.x-p.r)+'px'; p.el.style.top=(p.y-p.r)+'px';
   }
