@@ -561,92 +561,139 @@ function recordMime(){
  return m.find(type=>MediaRecorder.isTypeSupported?.(type))||"";
 }
 function recorder(dest,key){
- const mime=recordMime(),r=mime?new MediaRecorder(dest.stream,{mimeType:mime}):new MediaRecorder(dest.stream);
- chunks[key]=[];r.ondataavailable=e=>{if(e.data?.size)chunks[key].push(e.data)};
+ const mime=recordMime();
+ const r=mime?new MediaRecorder(dest.stream,{mimeType:mime}):new MediaRecorder(dest.stream);
+ chunks[key]=[];
+ r.ondataavailable=e=>{
+  if(e.data?.size>0)chunks[key].push(e.data);
+ };
  return r;
 }
 function prepareRecorders(){
  if(recorderReady||recorderPrewarming||recording||!verified||!micConnected||!micDetected||!micStream?.active)return;
- if(!window.MediaRecorder){say("Recording unavailable in this browser.");return}
+ if(!window.MediaRecorder){say("This browser cannot record studio audio.");return}
  recorderPrewarming=true;
  try{
-  recMusic=recorder(musicDest,"music");
-  recVoice=recorder(voiceDest,"voice");
+  // Mixed recording is FIRST and REQUIRED. Safari may not sustain all three
+  // encoders; failure of an optional stem must never sacrifice the mix.
   recMix=recorder(mixDest,"mix");
+  recMusic=null;recVoice=null;
+  try{recMusic=recorder(musicDest,"music")}catch(_e){}
+  try{recVoice=recorder(voiceDest,"voice")}catch(_e){}
   recorderReady=true;
-  say("Music and microphone verified. Tap Record when ready.");
- }catch(err){recorderReady=false;say("Cannot prepare recorders: "+errorString(err))}
- finally{recorderPrewarming=false}
+  say("Recording ready. MUSIC + YOU mixed audio will be captured first.");
+ }catch(err){
+  recMix=null;recorderReady=false;say("Cannot prepare mixed recording: "+errorString(err));
+ }finally{recorderPrewarming=false}
 }
 function assemble(key,r){
- const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
+ const parts=chunks[key]||[];
+ if(!parts.length)return null;
+ const blob=new Blob(parts,{type:r?.mimeType||recordMime()||"audio/mp4"});
+ return blob.size>0?blob:null;
 }
 function beginTake(){
  if(privateAudio?.paused){say("Press PLAY on your I AM song before recording.");return}
  if(!open||loading||recording||micTestRunning||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
-  say(micError||"Speak until YOU shows SIGNAL before pressing Record.");return;
+  say(micError||"Speak until YOU shows a real mic signal before pressing Record.");return;
  }
- if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
+ if(!window.MediaRecorder){say("Recording is unsupported in this browser.");return}
  stopReview();
  try{
   if(!recorderReady)prepareRecorders();
-  if(!recorderReady)throw new Error("The recording encoders are not ready");
+  if(!recMix||!recorderReady)throw Error("The mixed recording encoder is not ready");
   const clock=ctx.currentTime,offsets={},pressedAt=performance.now();
   recordArming=true;
-  // Minimize work on the Record tap and avoid three repeated timeslice events.
-  recMusic.start();offsets.music=ctx.currentTime-clock;
-  recVoice.start();offsets.voice=ctx.currentTime-clock;
+  // Start the playable mixed take BEFORE optional separate stems on iPhone.
   recMix.start();offsets.mix=ctx.currentTime-clock;
+  for(const [r,key] of [[recMusic,"music"],[recVoice,"voice"]]){
+   if(!r)continue;
+   try{r.start();offsets[key]=ctx.currentTime-clock}
+   catch(_e){
+    if(key==="music")recMusic=null;else recVoice=null;
+   }
+  }
   recorderReady=false;recordArming=false;
-  takeMeta={version:2,id:new Date().toISOString(),source:sourceURL,mode:sourceMode,
+  takeMeta={version:3,id:new Date().toISOString(),source:sourceURL,mode:sourceMode,
    sourcePosition:privateAudio.currentTime,clockStart:clock,offsets,
    encoderStartMilliseconds:Math.round(performance.now()-pressedAt),
    music:value(E.music),voice:value(E.voice),gain:value(E.gain),compression:value(E.compression),
    effect:fxMode,approximate:sourceMode==="radio"};
   startedAt=pressedAt/1000;recording=true;
+  document.body.classList.remove("iam-take-error");
   mode("recording");
-  const latency=takeMeta.encoderStartMilliseconds||0;
-  say("RECORDING · "+(latency>300?"Recorder started in "+latency+" ms. ":"")+"MUSIC + dry YOU + mix.");
+  say("RECORDING · MIX first"+(recMusic&&recVoice?" · dry YOU + MUSIC stems":" · separate stems may be unavailable")+".");
  }catch(err){
   recordArming=false;recorderReady=false;
-  for(const r of [recMusic,recVoice,recMix])try{if(r?.state==="recording")r.stop()}catch(_e){}
-  say("Recording failed: "+errorString(err));mode("record");
+  for(const r of [recMix,recMusic,recVoice])try{if(r?.state==="recording")r.stop()}catch(_e){}
+  say("Recording could not start: "+errorString(err));
+  mode("record");updateRecordReady();
  }
 }
 function stopOne(r,key){
  return new Promise(resolve=>{
-  if(!r){resolve();return}
-  if(r.state==="inactive"){take[key]=assemble(key,r);resolve();return}
-  const done=()=>{take[key]=assemble(key,r);resolve()};
-  r.addEventListener("stop",done,{once:true});
-  try{r.requestData()}catch(_e){}
-  try{r.stop()}catch(_e){done()}
-  setTimeout(resolve,2200);
+  if(!r){take[key]=null;resolve({key,ok:false,why:"recorder unavailable"});return}
+  let completed=false;
+  const finish=why=>{
+   if(completed)return;
+   completed=true;clearTimeout(watchdog);
+   // Some WebKit versions deliver the final data event in the next task
+   // after 'stop'. Give it an additional tick before assembling the blob.
+   setTimeout(()=>{
+    take[key]=assemble(key,r);
+    resolve({key,ok:!!take[key],bytes:take[key]?.size||0,why});
+   },80);
+  };
+  const watchdog=setTimeout(()=>finish("recorder timeout"),9500);
+  r.addEventListener("stop",()=>finish("stopped"),{once:true});
+  r.addEventListener("error",e=>finish("error: "+errorString(e?.error||e)),{once:true});
+  if(r.state==="inactive"){finish("already inactive");return}
+  // Calling requestData() immediately before stop() can yield empty/invalid
+  // fragments on Safari. stop() already flushes the final chunk.
+  try{r.stop()}catch(err){finish(errorString(err))}
  });
+}
+function showTakeReady(duration){
+ const old=E.take.src||"";
+ const next=URL.createObjectURL(take.mix);
+ E.take.pause();E.take.removeAttribute("src");
+ E.take.src=next;E.take.preload="metadata";E.take.controls=true;
+ E.take.muted=false;E.take.volume=1;
+ try{E.take.load()}catch(_e){}
+ if(old.startsWith("blob:"))URL.revokeObjectURL(old);
+ document.body.classList.remove("iam-take-error");
+ document.body.classList.add("iam-has-take");
+ E.timer.textContent=fmt(duration);mode("play");
+ const hasStems=!!(take.voice&&take.music);
+ say("TAKE READY ("+Math.round(take.mix.size/1024)+" KB) · Tap LISTEN AGAIN or the audio player. "+(hasStems?"EDIT and TRY AGAIN are ready.":"TRY AGAIN is ready; separate stems are incomplete."));
+ if(hasStems){
+  void saveTake().then(()=>{if(open&&take.mix&&!reviewing&&!editing)say(savedWarning||"Take saved. Tap LISTEN AGAIN, TRY AGAIN, or EDIT.")});
+ }
 }
 async function stopTake(){
  if(!recording)return;
  recording=false;E.record.disabled=true;recorderReady=false;
- // Freeze the music at Stop so it doesn't play over the recorded preview.
  try{privateAudio?.pause()}catch(_e){}
  studioMusicStopped=true;syncPrivateTransport();
  const duration=performance.now()/1000-startedAt;
- say("Finalizing your raw tracks and mixed preview…");
- await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice"),stopOne(recMix,"mix")]);
+ say("STOPPED · Finalizing the audio file. Please wait…");
+ // Prioritize an independently playable mix; optional stems can finish later.
+ const mixResult=await stopOne(recMix,"mix");
  if(takeMeta)takeMeta.duration=duration;
- if(take.mix){
-  const hasStems=!!(take.voice&&take.music);
-  const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
-  if(old.startsWith("blob:"))URL.revokeObjectURL(old);
-  document.body.classList.add("iam-has-take");mode("play");
+ if(take.mix)showTakeReady(duration);
+ else{
+  say("Mixed recording failed ("+mixResult.why+"). Checking raw tracks…");
+ }
+ const [musicResult,voiceResult]=await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice")]);
+ if(!take.mix){
+  // The interface still offers a reset even if iOS failed to produce a blob.
+  document.body.classList.remove("iam-has-take");
+  document.body.classList.add("iam-take-error");
+  mode("record");
   E.timer.textContent=fmt(duration);
-  say(hasStems?"TAKE READY · LISTEN AGAIN, TRY AGAIN, or EDIT.":"TAKE READY · LISTEN AGAIN and TRY AGAIN available. Missing one raw stem.");
-  // Save when possible but never delay the listening buttons.
-  if(hasStems)void saveTake().then(()=>{if(open&&take.mix)say(savedWarning||"Take saved · LISTEN AGAIN, TRY AGAIN, or EDIT.")});
-  else say("Take ready for playback. Export the original mix if a raw stem is missing.");
-
- }else{
-  mode("record");say("One or more tracks were empty. Check your signal. Existing recorded data remains available.");
+  say("NO PLAYABLE MIX FROM SAFARI · MUSIC "+(musicResult.bytes||0)+" B, YOU "+(voiceResult.bytes||0)+" B, MIX "+(mixResult.bytes||0)+" B. Tap TRY AGAIN.");
+ }else if(!(take.music&&take.voice)&&open&&!reviewing){
+  say("Take playable ("+Math.round(take.mix.size/1024)+" KB). Some separate stems are unavailable · LISTEN AGAIN and TRY AGAIN work.");
  }
  updateRecordReady();
 }
@@ -856,7 +903,7 @@ function againTake(){
   try{privateAudio.pause();privateAudio.currentTime=cue}catch(_e){}
  }
  take={music:null,voice:null,mix:null};takeMeta=null;
- document.body.classList.remove("iam-has-take","iam-edit-open");editing=false;
+ document.body.classList.remove("iam-has-take","iam-edit-open","iam-take-error");editing=false;
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
  get("iamStemActions").hidden=true;
  E.timer.textContent="00:00";mode("record");
