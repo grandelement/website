@@ -4,7 +4,7 @@
 (function(){
 "use strict";
 window.GEIAmPrivateStudioBoot=function(api){
-const {audio,state,CONFIG,displayTitle,allowedCatalog}=api;
+const {audio,state,CONFIG,displayTitle,allowedCatalog,pauseRadio,resumeRadio}=api;
 const get=id=>document.getElementById(id);
 const E={launch:get("iamLaunchBtn"),record:get("iamRecordBtn"),timer:get("iamTimer"),status:get("iamStatus"),
   take:get("iamTakeAudio"),meters:[get("iamMusicMeter"),get("iamMicMeter")],label:get("iamMusicSignalLabel"),
@@ -835,8 +835,8 @@ async function toggleStudioMusic(forceStop=false){
  if(forceStop||!active.paused){
   studioMusicStopped=true;
   try{privateAudio?.pause()}catch(_e){}
-  try{audio?.pause()}catch(_e){}
-  say("MUSIC STOPPED. Your microphone can stay connected. Tap PLAY or START to resume.");
+  try{if(state.live&&pauseRadio)pauseRadio();else audio?.pause()}catch(_e){}
+  say("MUSIC STOPPED. YOU can remain connected. Tap PLAY or START to resume.");
  }else{
   studioMusicStopped=false;
   try{
@@ -846,11 +846,12 @@ async function toggleStudioMusic(forceStop=false){
     audio.muted=true;
     await privateAudio.play();
    }else{
-    // Safari could not capture a second stream: control the ORIGINAL Radio.
+    // Safari could not capture the stream. Control the audible original.
     audio.muted=false;
-    await audio.play();
+    if(state.live&&resumeRadio)await resumeRadio();
+    else await audio.play();
    }
-   say("Music playing. "+(musicHandoffDone?"Private song is active.":"Original Radio is active."));
+   say("Music playing. "+(musicHandoffDone?"Private song active.":"Original Radio active."));
   }catch(err){studioMusicStopped=true;say("Music could not resume: "+errorString(err))}
  }
  syncPrivateTransport();
@@ -886,7 +887,7 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
   }
  },true);
 }
-window.GEIAmStudio={open:enter,close:leave,version:2,getSession:()=>takeMeta};
+window.GEIAmStudio={open:enter,close:leave,version:4,getSession:()=>takeMeta,isMusicStopped:()=>open&&studioMusicStopped};
 outputSettings();
 };
 })();
