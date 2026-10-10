@@ -11033,11 +11033,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   // Golf sizing is independent from the other planet games and saved locally.
   const golfSizeKey='GE_GOLF_SIZE_V1';
-  let golfSizes={ball:24,cup:58};
-  try{const saved=JSON.parse(localStorage.getItem(golfSizeKey)||'{}');golfSizes.ball=clamp(Number(saved.ball)||24,12,36);golfSizes.cup=clamp(Number(saved.cup)||58,40,90);}catch(_e){}
+  let golfSizes={ball:24,cup:58,power:2.5};
+  try{const saved=JSON.parse(localStorage.getItem(golfSizeKey)||'{}');golfSizes.ball=clamp(Number(saved.ball)||24,12,36);golfSizes.cup=clamp(Number(saved.cup)||58,40,90);golfSizes.power=clamp(Number(saved.power)||2.5,0.5,6);}catch(_e){}
   function applyGolfSizes(){
     golfSizes.ball=clamp(golfSizes.ball,12,36);
-    golfSizes.cup=clamp(Math.max(golfSizes.cup,golfSizes.ball+12),40,90);
+    golfSizes.cup=clamp(Math.max(golfSizes.cup,golfSizes.ball+12),40,90);golfSizes.power=clamp(golfSizes.power,0.5,6);
     if(obj){obj.r=golfSizes.ball/2;obj.style.width=golfSizes.ball+'px';obj.style.height=golfSizes.ball+'px';}
     const cup=board.querySelector('.geGolfCup');
     if(cup){cup.style.width=golfSizes.cup+'px';cup.style.height=golfSizes.cup+'px';}
@@ -11047,19 +11047,22 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   golfSizesButton.type='button';golfSizesButton.className='geCourseBtn';golfSizesButton.textContent='SIZES';
   const golfSizePanel=document.createElement('div');golfSizePanel.id='geGolfSizePanel';
   golfSizePanel.style.cssText='position:absolute;z-index:50;top:70px;left:12px;right:12px;max-width:340px;margin:auto;background:#031427;border:1px solid #6ed6ff;border-radius:14px;padding:14px;color:white;display:none;box-shadow:0 0 24px #135a88';
-  golfSizePanel.innerHTML='<strong>GOLF SIZES</strong><label style="display:block;margin:12px 0">BALL <output id="geGolfBallValue"></output><input id="geGolfBallSize" type="range" min="12" max="36" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">HOLE <output id="geGolfCupValue"></output><input id="geGolfCupSize" type="range" min="40" max="90" step="2" style="width:100%"></label><button type="button" id="geGolfSizeDone" class="geCourseBtn">DONE</button>';
+  golfSizePanel.innerHTML='<strong>GOLF SIZES</strong><label style="display:block;margin:12px 0">BALL <output id="geGolfBallValue"></output><input id="geGolfBallSize" type="range" min="12" max="36" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">HOLE <output id="geGolfCupValue"></output><input id="geGolfCupSize" type="range" min="40" max="90" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">SHOT POWER <output id="geGolfPowerValue"></output><input id="geGolfShotPower" type="range" min="0.5" max="6" step="0.25" style="width:100%"></label><button type="button" id="geGolfSizeDone" class="geCourseBtn">DONE</button>';
   mode.appendChild(golfSizePanel);
   const topRight=mode.querySelector('.geCourseTopRight');if(topRight)topRight.prepend(golfSizesButton);
   function syncGolfSizeUI(){
     golfSizePanel.querySelector('#geGolfBallSize').value=golfSizes.ball;
     golfSizePanel.querySelector('#geGolfCupSize').value=golfSizes.cup;
+    golfSizePanel.querySelector('#geGolfShotPower').value=golfSizes.power;
     golfSizePanel.querySelector('#geGolfBallValue').textContent=golfSizes.ball+' px';
     golfSizePanel.querySelector('#geGolfCupValue').textContent=golfSizes.cup+' px';
+    golfSizePanel.querySelector('#geGolfPowerValue').textContent=golfSizes.power.toFixed(2)+'×';
   }
   golfSizesButton.addEventListener('click',()=>{syncGolfSizeUI();golfSizePanel.style.display=golfSizePanel.style.display==='none'?'block':'none';});
   golfSizePanel.querySelector('#geGolfSizeDone').addEventListener('click',()=>golfSizePanel.style.display='none');
   golfSizePanel.querySelector('#geGolfBallSize').addEventListener('input',e=>{golfSizes.ball=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   golfSizePanel.querySelector('#geGolfCupSize').addEventListener('input',e=>{golfSizes.cup=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
+  golfSizePanel.querySelector('#geGolfShotPower').addEventListener('input',e=>{golfSizes.power=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   function renderGolf(){
     const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);obstacles=s.walls;courseRails=s.rails||[];
     mode.classList.toggle('geGolfShapedCourse',!!s.poly);
@@ -11564,7 +11567,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
   board.addEventListener('pointerdown',e=>{if(!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(Math.hypot(x-obj.x,y-obj.y)>55)return;drag={x,y};board.setPointerCapture?.(e.pointerId);if(courseType==='golf'){const line=document.getElementById('geBankGuide');if(line)line.hidden=false}});
-  board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(900,Math.hypot(dx,dy)*5);bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
+  board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(2400,Math.hypot(dx,dy)*5*golfSizes.power);bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
   board.addEventListener('pointerup',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=Math.min(900,Math.hypot(dx,dy)*5);const m=Math.hypot(dx,dy)||1;vx=dx/m*p;vy=dy/m*p;strokes++;help.textContent='HOLE '+level+' · '+strokes+' STROKE'+(strokes===1?'':'S');const line=document.getElementById('geBankGuide');if(line)line.hidden=true}drag=null});
   next.addEventListener('click',()=>{level++;if(level>33)level=1;renderGolf()});
   const toggleSharedGameMusic=()=>document.getElementById('gameMusicToggle')?.click();
