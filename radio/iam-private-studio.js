@@ -177,8 +177,10 @@ async function stationSong(){
   const body=await response.json(),now=body.now||{};
   const norm=s=>String(s||"").toLowerCase().replace(/\.[^/.]+$/,"").replace(/[^a-z0-9]/g,"");
   const base=norm(decodeURIComponent(String(now.path||"").split("/").pop()));
-  const songs=allowedCatalog();
-  const found=songs.find(s=>base&&norm(decodeURIComponent(s.split("/").pop()))===base)
+  // Match against the entire music library, not only the albums currently
+  // enabled in the main Player filters. Radio may be playing other GE tracks.
+  const songs=Array.isArray(state.catalog)&&state.catalog.length?state.catalog:allowedCatalog();
+  const found=songs.find(s=>base&&norm(decodeURIComponent(s.split("/").pop().split("?")[0]))===base)
     ||songs.find(s=>norm(now.title).length>6&&norm(s).includes(norm(now.title)));
   if(body.live_active||!found)return null;
   const seconds=Number(body.now_started_at)||0;
