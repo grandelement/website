@@ -134,6 +134,7 @@ function syncPrivateTransport(){
 function updateRecordReady(){
  // Permission is not the same thing as receiving voice samples.
  if(!recording&&!recordArming){
+  if(micTestRunning){E.record.disabled=true;return}
   if(take.mix){E.record.disabled=false;return}
   E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading);
   if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
@@ -437,6 +438,79 @@ async function disposeAudio(){
  musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
  voiceInput=null;voiceOutput=null;compressor=null;monitorGain=null;verified=false;
 }
+
+function stopMicTest(){
+ if(micTestTimer){clearTimeout(micTestTimer);micTestTimer=0}
+ if(!micTestRunning)return;
+ micTestRunning=false;
+ try{if(micTestRecorder?.state==="recording")micTestRecorder.stop()}catch(err){
+  say("Mic test could not stop: "+errorString(err));
+ }
+}
+function startMicTest(){
+ if(!open||recording||recordArming){
+  say("Stop the current recording before testing the mic.");return;
+ }
+ if(!micStream?.active||!micConnected){
+  say("Mic is not connected. Tap YOU to reconnect, then try TEST MIC.");return;
+ }
+ if(!window.MediaRecorder){say("This browser cannot record a microphone test.");return}
+ stopReview();
+ if(micTestAudio){micTestAudio.pause();micTestAudio=null}
+ if(micTestBlob?.url){URL.revokeObjectURL(micTestBlob.url)}
+ micTestBlob=null;micTestChunks=[];
+ get("iamMicTestPlayBtn").hidden=true;
+ // Isolate the mic: no music bleed. Don't silently restart Radio afterward.
+ studioMusicStopped=true;
+ try{privateAudio?.pause()}catch(_e){}
+ try{if(state.live&&pauseRadio)pauseRadio();else audio.pause()}catch(_e){}
+ syncPrivateTransport();
+ try{
+  const mime=recordMime();
+  const rec=mime?new MediaRecorder(micStream,{mimeType:mime}):new MediaRecorder(micStream);
+  micTestRecorder=rec;micTestRunning=true;
+  rec.ondataavailable=e=>{if(e.data?.size)micTestChunks.push(e.data)};
+  rec.onerror=e=>{say("Mic test error: "+errorString(e.error||e));stopMicTest()};
+  rec.onstop=()=>{
+   micTestRunning=false;micTestRecorder=null;
+   const startButton=get("iamMicTestBtn");if(startButton)startButton.textContent="TEST MIC";
+   const blob=new Blob(micTestChunks,{type:rec.mimeType||"audio/mp4"});
+   if(!open)return;
+   if(!blob.size){say("TEST MIC returned no audio. Check iPhone mic permission.");return}
+   const url=URL.createObjectURL(blob);
+   micTestBlob={blob,url};
+   get("iamMicTestPlayBtn").hidden=false;
+   updateRecordReady();
+   say("Microphone-only test is ready. Tap PLAY MIC to listen. Music stays paused.");
+  };
+  rec.start();
+  get("iamMicTestBtn").textContent="STOP TEST";
+  updateRecordReady();
+  say("TEST MIC: Sing or speak for 3 seconds. No music will play during the test.");
+  micTestTimer=setTimeout(stopMicTest,3200);
+ }catch(err){
+  micTestRunning=false;
+  get("iamMicTestBtn").textContent="TEST MIC";
+  updateRecordReady();
+  say("Mic test could not begin: "+errorString(err));
+ }
+}
+function playMicTest(){
+ if(!open||micTestRunning||!micTestBlob)return;
+ try{
+  if(!micTestAudio){
+   micTestAudio=new Audio();
+   micTestAudio.playsInline=true;micTestAudio.src=micTestBlob.url;
+  }
+  micTestAudio.currentTime=0;micTestAudio.volume=1;
+  // The direct HTMLAudioElement test bypasses the I AM WebAudio monitor.
+  // If this speaks clearly but HEAR ME does not, the monitor route is faulty.
+  void micTestAudio.play().then(()=>{
+   say("Playing raw microphone test. If this is clear, the microphone works and live monitoring is the problem.");
+  }).catch(err=>say("Microphone test playback failed: "+errorString(err)));
+ }catch(err){say("Microphone test playback failed: "+errorString(err))}
+}
+
 function recordMime(){
  const m=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
  return m.find(type=>MediaRecorder.isTypeSupported?.(type))||"";
@@ -463,7 +537,7 @@ function assemble(key,r){
  const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
 }
 function beginTake(){
- if(!open||loading||recording||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
+ if(!open||loading||recording||micTestRunning||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
   say(micError||"Speak until YOU shows SIGNAL before pressing Record.");return;
  }
  if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
@@ -730,6 +804,12 @@ function againTake(){
 async function leave(){
  if(!open)return;
  if(recording)await stopTake();
+ stopMicTest();
+ if(micTestAudio){try{micTestAudio.pause()}catch(_e){}micTestAudio=null}
+ if(micTestBlob?.url){try{URL.revokeObjectURL(micTestBlob.url)}catch(_e){}}
+ micTestBlob=null;
+ get("iamMicTestPlayBtn").hidden=true;
+ get("iamMicTestBtn").textContent="TEST MIC";
  stopReview();
  open=false;sessionToken++;
  document.body.classList.remove("iam-studio-open","iam-has-take","iam-edit-open");
@@ -841,6 +921,10 @@ function showSongPicker(){
  }
  picker.hidden=false;
 }
+get("iamMicTestBtn")?.addEventListener("click",()=>{
+ if(micTestRunning)stopMicTest();else startMicTest();
+});
+get("iamMicTestPlayBtn")?.addEventListener("click",playMicTest);
 get("iamMicRetryBtn")?.addEventListener("click",()=>{
  if(!open)return;
  const working=micConnected&&micStream?.active&&lastMicSignalAt>=micAttachedAt;
