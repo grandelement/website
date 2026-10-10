@@ -49,6 +49,9 @@ function outputSettings(){
  get("iamMicRead").textContent=value(E.voice)+"%";
  get("iamInputGainRead").textContent=value(E.gain)+"%";
  get("iamCompressionRead").textContent=value(E.compression)===0?"OFF":value(E.compression)+"%";
+ const privateLevel=get("iamPrivateMusicVolume");
+ if(privateLevel&&Number(privateLevel.value)!==value(E.music))privateLevel.value=String(value(E.music));
+ if(get("iamPrivateMusicRead"))get("iamPrivateMusicRead").textContent=value(E.music)+"%";
  const compression=clamp(value(E.compression)/100,0,1),music=clamp(value(E.music)/100,0,1.5),
    voice=clamp(value(E.voice)/100,0,1.5);
  if(ctx){
@@ -88,8 +91,23 @@ function meter(analyser,data){
  for(let i=0;i<data.length;i++){const z=(data[i]-128)/128;n+=z*z;p=Math.max(p,Math.abs(z))}
  return Math.min(1,Math.sqrt(n/data.length)*3+p*.16);
 }
+let lastTransportUpdate=0;
+function syncPrivateTransport(){
+ if(!open)return;
+ const element=privateAudio,play=get("iamPrivatePlay"),seek=get("iamPrivateMusicSeek"),time=get("iamPrivateMusicTime");
+ if(play)play.textContent=element&&!element.paused?"PAUSE":"PLAY";
+ const duration=Number(element?.duration)||0,finite=Number.isFinite(duration)&&duration>0;
+ if(seek){seek.disabled=!finite||recording||!element;
+  if(finite&&document.activeElement!==seek){
+   seek.value=String(Math.round(clamp((Number(element.currentTime)||0)/duration,0,1)*1000));
+  }
+ }
+ if(time)time.textContent=finite?fmt(element.currentTime)+"/"+fmt(duration):"LIVE";
+}
 function meterLoop(){
  if(!open){raf=0;return}
+ const tick=performance.now();
+ if(tick-lastTransportUpdate>260){lastTransportUpdate=tick;syncPrivateTransport();}
  const m=meter(musicMeter,musicData),v=meter(voiceMeter,voiceData);
  // Do not enable Record until the music capture source is actually verified.
  if(v>.035)lastMicSignalAt=performance.now();
@@ -307,6 +325,7 @@ async function preflight(timeout=4500){
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
+  syncPrivateTransport();
   const connected=await activateMic();
   E.record.disabled=!(verified&&connected);
   if(connected&&!selection.precise)say("Private audio ready. Radio position is approximate; MUSIC and YOU connected.");
@@ -658,6 +677,7 @@ async function selectPrivateSong(url){
   get("titleBtn").textContent=label;get("iamNowPlaying").textContent=label;
   say("Private song ready: "+label+(micConnected?"":" · Tap YOU to enable mic."));
   get("iamSourceIndicator").textContent="PRIVATE SONG · VERIFIED";
+  syncPrivateTransport();
  }catch(err){
   verified=false;E.record.disabled=true;musicSignalError=errorString(err);
   say("Cannot record this song: "+musicSignalError);
@@ -735,6 +755,35 @@ E.monitor?.addEventListener("click",()=>{
  monitoring=!monitoring;setHeadphones(true);
 });
 E.take.addEventListener("ended",()=>{reviewing=false;mode("play");if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06)});
+// All visible controls operate the PRIVATE song, not the muted original Radio.
+get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
+ E.music.value=String(event.target.value);
+ outputSettings();
+});
+get("iamPrivatePrev")?.addEventListener("click",()=>choosePrivateSong("prev"));
+get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
+get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
+get("iamPrivatePlay")?.addEventListener("click",async()=>{
+ if(!open||!privateAudio)return;
+ if(recording){say("Stop recording before pausing the private song.");return}
+ if(!musicHandoffDone){say(musicSignalError||"Private song is not connected. Try NEXT or SONGS.");return}
+ try{
+  if(privateAudio.paused){if(ctx?.state==="suspended")await ctx.resume();await privateAudio.play()}
+  else privateAudio.pause();
+  syncPrivateTransport();
+ }catch(err){say("Private music play/pause: "+errorString(err))}
+});
+get("iamPrivateRadio")?.addEventListener("click",()=>{
+ if(recording){say("Stop recording before returning to Radio.");return}
+ void leave().then(()=>{if(!state.live)window.GELive?.enter?.()});
+});
+get("iamPrivateMusicSeek")?.addEventListener("input",event=>{
+ if(!open||!privateAudio||recording)return;
+ const duration=Number(privateAudio.duration);
+ if(!(Number.isFinite(duration)&&duration>0))return;
+ try{privateAudio.currentTime=clamp(Number(event.target.value)/1000,0,1)*duration}catch(err){say("Cannot seek: "+errorString(err))}
+ syncPrivateTransport();
+});
 get("titleBtn")?.addEventListener("click",event=>{
  if(!open)return;
  event.stopImmediatePropagation();event.preventDefault();showSongPicker();
