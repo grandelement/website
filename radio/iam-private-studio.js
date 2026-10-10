@@ -104,7 +104,7 @@ function syncPrivateTransport(){
  const element=musicHandoffDone?privateAudio:audio;
  const play=get("iamPrivatePlay"),seek=get("iamPrivateMusicSeek"),time=get("iamPrivateMusicTime");
  const toggle=get("iamStopMusic");
- if(toggle)toggle.textContent=studioMusicStopped?"START MUSIC":"STOP MUSIC";
+ if(toggle)toggle.textContent=studioMusicStopped?"START":"STOP";
  if(play)play.textContent=element&&!element.paused?"PAUSE":"PLAY";
  const duration=Number(element?.duration)||0,finite=Number.isFinite(duration)&&duration>0;
  if(seek){seek.disabled=!finite||recording||!element;
@@ -351,6 +351,7 @@ async function preflight(timeout=4500){
   musicSignalError="";musicHandoffDone=true;
   audio.muted=true;
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
+  if(studioMusicStopped){privateAudio.pause();audio.pause();}
   get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"PRIVATE · LIVE RADIO HANDOFF APPROXIMATE";
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
@@ -365,7 +366,10 @@ async function preflight(timeout=4500){
   say("I AM handoff failed: "+String(err?.message||err));
   audio.muted=oldMuted;
   verified=false;await disposeAudio();
- }finally{loading=false}
+ }finally{
+  loading=false;
+  if(open)updateRecordReady();
+ }
 }
 async function disposeAudio(){
  ++micRequestToken;micPromise=null;micConnected=false;micDetected=false;
@@ -428,8 +432,10 @@ function beginTake(){
    encoderStartMilliseconds:Math.round(performance.now()-pressedAt),
    music:value(E.music),voice:value(E.voice),gain:value(E.gain),compression:value(E.compression),
    effect:fxMode,approximate:sourceMode==="radio"};
-  startedAt=performance.now()/1000;recording=true;
-  mode("recording");say("RECORDING · Clean MUSIC, dry YOU and mix are all being saved.");
+  startedAt=pressedAt/1000;recording=true;
+  mode("recording");
+  const latency=takeMeta.encoderStartMilliseconds||0;
+  say("RECORDING · "+(latency>300?"Recorder started in "+latency+" ms. ":"")+"MUSIC + dry YOU + mix.");
  }catch(err){
   recordArming=false;recorderReady=false;
   for(const r of [recMusic,recVoice,recMix])try{if(r?.state==="recording")r.stop()}catch(_e){}
@@ -727,6 +733,7 @@ async function selectPrivateSong(url){
    audio.muted=true;
    musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
    musicHandoffDone=true;
+   if(studioMusicStopped){privateAudio.pause();audio.pause();}
   }
   verified=true;updateRecordReady();
   const label=displayTitle(url,false)||"Private Song";
@@ -819,16 +826,35 @@ get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
 get("iamPrivatePrev")?.addEventListener("click",()=>choosePrivateSong("prev"));
 get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
 get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
-get("iamPrivatePlay")?.addEventListener("click",async()=>{
- if(!open||!privateAudio)return;
- if(recording){say("Stop recording before pausing the private song.");return}
- if(!musicHandoffDone){say(musicSignalError||"Private song is not connected. Try NEXT or SONGS.");return}
- try{
-  if(privateAudio.paused){if(ctx?.state==="suspended")await ctx.resume();await privateAudio.play()}
-  else privateAudio.pause();
-  syncPrivateTransport();
- }catch(err){say("Private music play/pause: "+errorString(err))}
-});
+async function toggleStudioMusic(forceStop=false){
+ if(!open||recordArming)return;
+ const active=musicHandoffDone?privateAudio:audio;
+ if(!active){say("No music source connected.");return}
+ if(forceStop||!active.paused){
+  studioMusicStopped=true;
+  try{privateAudio?.pause()}catch(_e){}
+  try{audio?.pause()}catch(_e){}
+  say("MUSIC STOPPED. Your microphone can stay connected. Tap PLAY or START to resume.");
+ }else{
+  studioMusicStopped=false;
+  try{
+   if(ctx?.state==="suspended")await ctx.resume();
+   if(musicHandoffDone){
+    // The normal radio is kept muted while the private song is playing.
+    audio.muted=true;
+    await privateAudio.play();
+   }else{
+    // Safari could not capture a second stream: control the ORIGINAL Radio.
+    audio.muted=false;
+    await audio.play();
+   }
+   say("Music playing. "+(musicHandoffDone?"Private song is active.":"Original Radio is active."));
+  }catch(err){studioMusicStopped=true;say("Music could not resume: "+errorString(err))}
+ }
+ syncPrivateTransport();
+}
+get("iamPrivatePlay")?.addEventListener("click",()=>void toggleStudioMusic());
+get("iamStopMusic")?.addEventListener("click",()=>void toggleStudioMusic(true));
 get("iamPrivateRadio")?.addEventListener("click",()=>{
  if(recording){say("Stop recording before returning to Radio.");return}
  void leave().then(()=>{if(!state.live)window.GELive?.enter?.()});
