@@ -27,7 +27,8 @@ let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning=
 let cachedSong=null,cachedSongTime=0;
 let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
 let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
-let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1;
+let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1,oldMediaAutoplay=false;
+let radioSuspended=false,radioStoppedAt=0,matchRetryId=0,matchAttemptCount=0,matchInProgress=false;
 let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false;
 let micDetected=false,micSilenceWarned=false,recordArming=false;
 let micFloatData=null,micLastDB=-90,micStrongFrames=0;
@@ -67,11 +68,7 @@ function outputSettings(){
   // Boost monitoring only, with original dry recording unchanged.
   monitorGain?.gain.setTargetAtTime(headphones&&monitoring?1.35:0,ctx.currentTime,.015);
  }
- // While a LIVE radio stream cannot feed the studio recording mixer,
- // keep MUSIC VOL useful for the native listener, where platform supported.
- if(open&&!musicHandoffDone&&audio&&!audio.muted){
-  try{audio.volume=clamp(oldMediaVolume*music,0,1)}catch(_e){}
- }
+ // Studio volume changes affect only the private recording player.
  if(reviewCtx&&reviewNodes){
   reviewNodes.music.gain.setTargetAtTime(music,reviewCtx.currentTime,.01);
   reviewNodes.voice.gain.setTargetAtTime(voice*value(E.gain)/100,reviewCtx.currentTime,.01);
@@ -118,7 +115,7 @@ function micLevel(){
 let lastTransportUpdate=0;
 function syncPrivateTransport(){
  if(!open)return;
- const element=musicHandoffDone?privateAudio:audio;
+ const element=privateAudio;
  const play=get("iamPrivatePlay"),seek=get("iamPrivateMusicSeek"),time=get("iamPrivateMusicTime");
  const toggle=get("iamStopMusic");
  if(toggle)toggle.textContent=studioMusicStopped?"START":"STOP";
@@ -213,10 +210,18 @@ async function stationSong(){
   return {url:found,title:String(now.title||""),seconds};
  }catch(_e){return null}
 }
+function suspendOriginalRadio(){
+ if(!open)return;
+ radioSuspended=true;
+ try{audio.autoplay=false;audio.muted=true;audio.defaultMuted=true}catch(_e){}
+ try{if((state.live||state.livePreparing)&&pauseRadio)pauseRadio();else audio.pause()}catch(_e){}
+ try{audio.pause()}catch(_e){}
+}
 function sourceSelection(){
- sourceMode=state.live?"radio":"player";
  const url=audio.currentSrc||audio.src||"";
- if(!state.live)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
+ const isRadio=!!(state.live||state.livePreparing||url.includes("/stream.mp3")||state.currentURL===CONFIG.LIVE_STREAM_URL);
+ sourceMode=isRadio?"radio":"player";
+ if(!isRadio)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
  const match=(Date.now()-cachedSongTime<20000)?cachedSong:null;
  if(match){
   const offset=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
@@ -233,19 +238,29 @@ async function refreshStationSong(){
 setInterval(()=>{void refreshStationSong()},12000);
 setTimeout(()=>{void refreshStationSong()},1400);
 async function refreshMatchForStudio(){
- const song=await stationSong();
- if(!open||!state.live||musicHandoffDone)return;
+ if(!open||musicHandoffDone||matchInProgress||sourceURL)return;
+ const token=sessionToken;matchInProgress=true;matchAttemptCount++;
+ let song=null;
+ try{song=await stationSong()}catch(_e){}
+ matchInProgress=false;
+ if(!open||token!==sessionToken||musicHandoffDone||sourceURL)return;
  cachedSong=song;cachedSongTime=Date.now();
- const button=get("iamMatchRadioSong");
- if(button){button.hidden=false;button.disabled=!song}
  if(song){
-  const position=song.seconds?clamp(Date.now()/1000-song.seconds-2,0,999999):0;
-  get("iamSourceIndicator").textContent="RADIO SONG FOUND · TAP MATCH TO LOAD";
-  get("iamNowPlaying").textContent=song.title+" · "+(position?fmt(position):"start position unknown");
-  say("Radio song identified: "+song.title+". Tap MATCH RADIO SONG to transfer into I AM.");
+  const position=song.seconds?clamp(radioStoppedAt/1000-song.seconds-2,0,999999):0;
+  get("iamSourceIndicator").textContent="RADIO SONG FOUND · LOADING PLAYER";
+  get("iamNowPlaying").textContent=song.title+" · "+(position?fmt(position):"starting at beginning");
+  say("Loading the Radio song into your private recording player…");
+  void selectPrivateSong(song.url,position,true);
+  return;
+ }
+ if(matchAttemptCount<12){
+  get("iamSourceIndicator").textContent="FINDING RADIO SONG";
+  say("Radio is stopped. Finding its catalog song.");
+  matchRetryId=setTimeout(()=>{matchRetryId=0;void refreshMatchForStudio()},1200);
  }else{
-  get("iamSourceIndicator").textContent="RADIO SONG NOT IN PLAYER CATALOG";
-  say("This Radio segment could not be matched to a Player song. Tap SONGS to choose manually. Radio stays on.");
+  get("iamSourceIndicator").textContent="RADIO SONG NOT FOUND";
+  get("iamNowPlaying").textContent="Choose a Player song";
+  say("Radio is stopped. No matching song found. Tap SONGS to choose one.");
  }
 }
 async function preflight(timeout=4500){
@@ -356,7 +371,7 @@ async function preflight(timeout=4500){
  async function preparePrivate(){
  if(loading||!open)return;
  loading=true;const token=++sessionToken;
- say("Preparing private music. Your Radio stays audible until the handoff.");
+ say("Radio stopped. Preparing the private recording player.");
  try{
   const selection=sourceSelection();
   if(token!==sessionToken||!open)return;
@@ -368,10 +383,9 @@ async function preflight(timeout=4500){
   void activateMic();
   const wake=ctx.resume().then(()=>null,e=>e);
   if(selection.kind==="radio-unmatched"){
-   get("iamSourceIndicator").textContent="RADIO SONG · MATCH REQUIRED";
-   get("iamNowPlaying").textContent="Radio plays until a matching song is selected.";
-   get("iamMatchRadioSong").hidden=false;
-   say("Finding the Radio track. Tap MATCH RADIO SONG or SONGS to load it.");
+   get("iamSourceIndicator").textContent="FINDING RADIO SONG";
+   get("iamNowPlaying").textContent="Loading dedicated I AM player…";
+   say("Radio stopped. Finding the song for your recording session.");
    void refreshMatchForStudio();
    await wake;
    return;
@@ -812,6 +826,8 @@ async function leave(){
  get("iamMicTestBtn").textContent="TEST MIC";
  stopReview();
  open=false;sessionToken++;
+ if(matchRetryId){clearTimeout(matchRetryId);matchRetryId=0}
+ matchInProgress=false;matchAttemptCount=0;radioSuspended=false;
  document.body.classList.remove("iam-studio-open","iam-has-take","iam-edit-open");
  E.launch.setAttribute("aria-expanded","false");
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
@@ -823,7 +839,8 @@ async function leave(){
   try{if(audio.currentSrc===sourceURL||audio.src===sourceURL)audio.currentTime=privateAudio.currentTime}catch(_e){}
  }
  await disposeAudio();audio.muted=oldMuted;
- try{audio.volume=oldMediaVolume}catch(_e){}
+ try{audio.defaultMuted=oldMuted;audio.autoplay=oldMediaAutoplay;audio.volume=oldMediaVolume}catch(_e){}
+ // The normal Radio stays paused until PLAY is pressed outside I AM.
  const title=state.live?(window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE):displayTitle(state.currentURL,!state.shuffle);
  get("titleBtn").textContent=title||"Grand Element Radio";
  hideSongPicker();
@@ -833,7 +850,10 @@ async function leave(){
 }
 async function enter(){
  if(open)return;
- oldMuted=audio.muted;oldMediaVolume=Number(audio.volume)||1;
+ oldMuted=audio.muted;oldMediaVolume=Number.isFinite(Number(audio.volume))?Number(audio.volume):1;
+ oldMediaAutoplay=audio.autoplay;
+ radioStoppedAt=Date.now();matchAttemptCount=0;matchInProgress=false;
+ if(matchRetryId){clearTimeout(matchRetryId);matchRetryId=0}
  studioMusicStopped=false;micDetected=false;micSilenceWarned=false;recordArming=false;
  // WebKit needs the simultaneous playback/capture session selected before
  // asking for its microphone. This can change speaker routing on iPhones.
@@ -841,6 +861,7 @@ async function enter(){
  window.GEHUD?.suspendForIAm?.();
  makeSun();open=true;sessionToken++;
  document.body.classList.add("iam-studio-open");
+ suspendOriginalRadio();
  E.launch.setAttribute("aria-expanded","true");
  setHeadphones(false);E.record.disabled=true;mode(take.mix?"play":"record");
  const matcher=get("iamMatchRadioSong");if(matcher){matcher.hidden=true;matcher.disabled=true}
@@ -940,6 +961,8 @@ get("iamMicRetryBtn")?.addEventListener("click",()=>{
  void pending.then(()=>{if(open&&ctx)void activateMic()});
  say("Reconnecting microphone. Speak to check the YOU meter.");
 });
+audio.addEventListener("play",()=>{if(open&&radioSuspended)suspendOriginalRadio()});
+audio.addEventListener("volumechange",()=>{if(open&&radioSuspended&&!audio.muted){try{audio.muted=true}catch(_e){}}});
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 get("iamExitBtn")?.addEventListener("click",()=>void leave());
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
