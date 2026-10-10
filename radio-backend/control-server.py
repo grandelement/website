@@ -3053,7 +3053,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/control/dj-build":
             if not self.require_auth(): return
             raw_dj = DJ_HTML.read_bytes()
-            match = re.search(rb'GE DJ <span[^>]*>v(\\d+)</span>', raw_dj)
+            match = re.search(rb'GE DJ <span[^>]*>v(\d+)</span>', raw_dj)
             self.json_response({"ok": True, "version": match.group(1).decode("ascii") if match else "unknown", "build": hashlib.sha256(raw_dj).hexdigest()[:8]})
             return
 
