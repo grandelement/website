@@ -238,12 +238,8 @@ function sourceSelection(){
   const offset=match.seconds?clamp(radioStoppedAt/1000-match.seconds-2,0,999999):0;
   return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
  }
- // When Radio metadata isn't ready, immediately prime a REAL catalog file
- // inside the original I AM button gesture. Safari may block delayed play().
- // This is a clearly labelled fallback, not a claim to be the same Radio song.
- const list=allowedCatalog();
- const fallback=list[0]||(Array.isArray(state.catalog)?state.catalog[0]:"");
- if(fallback)return {url:fallback,position:0,precise:false,kind:"catalog-fallback"};
+ // Do not substitute the catalog's first song when the Radio metadata is missing.
+ // Wait for the real Radio song or let the listener explicitly choose SONGS.
  return {url:"",position:0,precise:false,kind:"radio-unmatched"};
 }
 async function refreshStationSong(){
@@ -269,22 +265,16 @@ async function refreshMatchForStudio(){
   void selectPrivateSong(song.url,position,true);
   return;
  }
- // If the stream metadata is late, prefer a usable recording player over
- // forcing the visitor to hit NEXT. Retry briefly as the manifest loads.
- const list=allowedCatalog();
- const fallback=list[0]||(Array.isArray(state.catalog)?state.catalog[0]:"");
- if(fallback&&matchAttemptCount>=2){
-  get("iamSourceIndicator").textContent="RADIO NOT MATCHED · LOADING FIRST AVAILABLE SONG";
-  say("Radio is stopped. Loading a catalog song for I AM.");
-  void selectPrivateSong(fallback,0,false);
- }else if(matchAttemptCount<8){
+ // Try to match the live Radio track without playing an unrelated first song.
+ if(matchAttemptCount<6){
   get("iamSourceIndicator").textContent="FINDING RADIO SONG";
-  say("Radio is stopped. Loading the recording-song library.");
+  get("iamNowPlaying").textContent="Finding the Radio song…";
+  say("Checking the current Radio song. You can tap SONGS to choose instead.");
   matchRetryId=setTimeout(()=>{matchRetryId=0;void refreshMatchForStudio()},950);
  }else{
-  get("iamSourceIndicator").textContent="NO SONG LOADED";
+  get("iamSourceIndicator").textContent="RADIO SONG NOT AVAILABLE";
   get("iamNowPlaying").textContent="Tap SONGS to choose music";
-  say("Radio is stopped. No catalog song loaded yet. Tap SONGS to choose a track.");
+  say("The current Radio song cannot be matched. Tap SONGS to select a track.");
  }
 }
 async function preflight(timeout=4500){
