@@ -45,7 +45,7 @@ function mode(x){
   E.listen.textContent=reviewing?"STOP PLAYBACK":"LISTEN AGAIN";
  }
  if(E.again)E.again.disabled=!!recording;
- if(E.edit)E.edit.disabled=!(take.mix&&!recording);
+ if(E.edit)E.edit.disabled=!(take.mix&&take.voice&&take.music&&!recording);
 }
 function errorString(e){return String(e?.message||e?.name||e||"unknown error").slice(0,185)}
 function makeSun(){
@@ -234,7 +234,12 @@ function sourceSelection(){
   const offset=match.seconds?clamp(radioStoppedAt/1000-match.seconds-2,0,999999):0;
   return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
  }
- // A live stream is not a recordable studio track. Require a matching song.
+ // When Radio metadata isn't ready, immediately prime a REAL catalog file
+ // inside the original I AM button gesture. Safari may block delayed play().
+ // This is a clearly labelled fallback, not a claim to be the same Radio song.
+ const list=allowedCatalog();
+ const fallback=list[0]||(Array.isArray(state.catalog)?state.catalog[0]:"");
+ if(fallback)return {url:fallback,position:0,precise:false,kind:"catalog-fallback"};
  return {url:"",position:0,precise:false,kind:"radio-unmatched"};
 }
 async function refreshStationSong(){
@@ -260,14 +265,22 @@ async function refreshMatchForStudio(){
   void selectPrivateSong(song.url,position,true);
   return;
  }
- if(matchAttemptCount<12){
+ // If the stream metadata is late, prefer a usable recording player over
+ // forcing the visitor to hit NEXT. Retry briefly as the manifest loads.
+ const list=allowedCatalog();
+ const fallback=list[0]||(Array.isArray(state.catalog)?state.catalog[0]:"");
+ if(fallback&&matchAttemptCount>=2){
+  get("iamSourceIndicator").textContent="RADIO NOT MATCHED · LOADING FIRST AVAILABLE SONG";
+  say("Radio is stopped. Loading a catalog song for I AM.");
+  void selectPrivateSong(fallback,0,false);
+ }else if(matchAttemptCount<8){
   get("iamSourceIndicator").textContent="FINDING RADIO SONG";
-  say("Radio is stopped. Finding its catalog song.");
-  matchRetryId=setTimeout(()=>{matchRetryId=0;void refreshMatchForStudio()},1200);
+  say("Radio is stopped. Loading the recording-song library.");
+  matchRetryId=setTimeout(()=>{matchRetryId=0;void refreshMatchForStudio()},950);
  }else{
-  get("iamSourceIndicator").textContent="RADIO SONG NOT FOUND";
-  get("iamNowPlaying").textContent="Choose a Player song";
-  say("Radio is stopped. No matching song found. Tap SONGS to choose one.");
+  get("iamSourceIndicator").textContent="NO SONG LOADED";
+  get("iamNowPlaying").textContent="Tap SONGS to choose music";
+  say("Radio is stopped. No catalog song loaded yet. Tap SONGS to choose a track.");
  }
 }
 async function preflight(timeout=4500){
@@ -434,7 +447,8 @@ async function preflight(timeout=4500){
   audio.muted=true;
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
   if(studioMusicStopped){privateAudio.pause();audio.pause();}
-  get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"RADIO → PLAYER · ESTIMATED POSITION";
+  get("iamSourceIndicator").textContent=selection.kind==="catalog-fallback"?"PRIVATE SONG · CATALOG FALLBACK (RADIO NOT MATCHED)":
+   selection.precise?"PRIVATE · SAME SONG / POSITION":"RADIO SONG → PLAYER · ESTIMATED POSITION";
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
@@ -616,14 +630,16 @@ async function stopTake(){
  say("Finalizing your raw tracks and mixed preview…");
  await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice"),stopOne(recMix,"mix")]);
  if(takeMeta)takeMeta.duration=duration;
- if(take.mix&&take.voice&&take.music){
+ if(take.mix){
+  const hasStems=!!(take.voice&&take.music);
   const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
   if(old.startsWith("blob:"))URL.revokeObjectURL(old);
   document.body.classList.add("iam-has-take");mode("play");
   E.timer.textContent=fmt(duration);
-  say("TAKE READY · LISTEN AGAIN, TRY AGAIN, or EDIT.");
-  // Don't hold the controls while saving to slower mobile storage.
-  void saveTake().then(()=>{if(open&&take.mix)say(savedWarning||"Take saved. LISTEN AGAIN, TRY AGAIN, or EDIT.")});
+  say(hasStems?"TAKE READY · LISTEN AGAIN, TRY AGAIN, or EDIT.":"TAKE READY · LISTEN AGAIN and TRY AGAIN available. Missing one raw stem.");
+  // Save when possible but never delay the listening buttons.
+  if(hasStems)void saveTake().then(()=>{if(open&&take.mix)say(savedWarning||"Take saved · LISTEN AGAIN, TRY AGAIN, or EDIT.")});
+  else say("Take ready for playback. Export the original mix if a raw stem is missing.");
 
  }else{
   mode("record");say("One or more tracks were empty. Check your signal. Existing recorded data remains available.");
@@ -822,7 +838,7 @@ function setHeadphones(on,keepManualChoice=false){
  outputSettings();
 }
 function editTake(){
- if(!take.mix){say("Record or restore a take first.");return}
+ if(!take.mix||!take.music||!take.voice){say("Editing requires both original MUSIC and dry YOU recordings.");return}
  editing=true;document.body.classList.add("iam-edit-open");
  E.panel.classList.add("show");E.sound.setAttribute("aria-expanded","true");
  get("iamStemActions").hidden=false;
