@@ -25,6 +25,7 @@ let sourceURL="",sun=null,oldMuted=false,sessionToken=0,raf=0,startedAt=0,takeMe
 let recMusic=null,recVoice=null,recMix=null,chunks={music:[],voice:[],mix:[]},take={music:null,voice:null,mix:null};
 let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning="";
 let cachedSong=null,cachedSongTime=0;
+let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -92,6 +93,16 @@ function meterLoop(){
  E.meters[0].style.transform="scaleX("+Math.max(.015,m).toFixed(3)+")";
  E.meters[1].style.transform="scaleX("+Math.max(.015,v).toFixed(3)+")";
  E.label.textContent=m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
+ const micButton=get("iamMicRetryBtn");
+ if(micButton){
+  const tracks=micStream?.getAudioTracks?.()||[];
+  const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
+  const muted=micConnected&&tracks.some(t=>t.muted);
+  micButton.textContent=live?(v>.045?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  micButton.classList.toggle("mic-needs-help",!live);
+  micButton.setAttribute("aria-label",live?"Microphone ready. Tap to check input":(micError||"Enable microphone"));
+ }
+ if(micConnected&&micStream&&!micStream.active){micConnected=false;micError="Microphone disconnected. Tap YOU to reconnect.";}
  if(recording)E.timer.textContent=fmt(performance.now()/1000-startedAt);
  else if(reviewing&&reviewCtx)E.timer.textContent=fmt(reviewCtx.currentTime-reviewClock);
  raf=requestAnimationFrame(meterLoop);
@@ -153,36 +164,88 @@ async function preflight(timeout=4500){
  }
  return false;
 }
-async function activateMic(){
- if(!open||!ctx||micStream)return;
- try{
-  // Music performance profile: never enable call-style noise suppression,
-  // automatic gain control or echo cancellation unless the browser forces it.
-  const preferred={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
-  try{micStream=await navigator.mediaDevices.getUserMedia({audio:preferred})}
-  catch(_e){micStream=await navigator.mediaDevices.getUserMedia({audio:true})}
-  const node=ctx.createMediaStreamSource(micStream);
-  voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
-  voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
-  compressor.threshold.value=-27;compressor.knee.value=12;compressor.ratio.value=4;
-  compressor.attack.value=.005;compressor.release.value=.16;
-  voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=512;voiceData=new Uint8Array(voiceMeter.fftSize);
-  // Dry raw stream does NOT pass through gain, compression, delay, or reverb.
-  node.connect(voiceDest);node.connect(voiceInput);
-  voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
-  voiceInput.connect(compressor);compressor.connect(compressedGain);
-  const blend=ctx.createGain();dryGain.connect(blend);compressedGain.connect(blend);
-  blend.connect(voiceOutput);
-  fxDelay=ctx.createDelay(1.5);fxWet=ctx.createGain();fxFeedback=ctx.createGain();
-  blend.connect(fxDelay);fxDelay.connect(fxWet);fxWet.connect(voiceOutput);
-  fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
-  voiceOutput.connect(mixDest);
-  monitorGain=ctx.createGain();voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
-  outputSettings();effectSettings();
-  say("Private studio ready. MUSIC and YOU share one audio clock.");
- }catch(err){say("Music ready. Microphone connection failed: "+String(err?.message||err?.name||err))}
-}
-async function preparePrivate(){
+// Request microphone immediately from the I AM or YOU button gesture,
+ // while the private song connects. Do not wait for buffering or metadata.
+ function primeMic(){
+  if(!open)return Promise.resolve(null);
+  const usable=micStream?.getAudioTracks?.().some(t=>t.readyState!=="ended");
+  if(usable)return Promise.resolve(micStream);
+  if(micPromise)return micPromise;
+  micError="";micConnected=false;micProcessingFallback=false;
+  const requestId=++micRequestToken;
+  micPromise=(async()=>{
+   let stream=null;
+   try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error("Safari microphone access unavailable. Open the HTTPS website directly in Safari.");
+    const musicProfile={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+    try{stream=await navigator.mediaDevices.getUserMedia({audio:musicProfile})}
+    catch(err){
+     // Only retry unsupported-constraint errors. Permission denial should
+     // remain a single, clear request rather than repeatedly prompting.
+     if(!["OverconstrainedError","TypeError","NotSupportedError"].includes(String(err?.name||"")))throw err;
+     micProcessingFallback=true;
+     stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }
+    if(!open||requestId!==micRequestToken){
+     stream.getTracks().forEach(t=>t.stop());return null;
+    }
+    if(!stream.active||!stream.getAudioTracks?.().length)throw new Error("No live microphone audio track");
+    micStream=stream;
+    const track=stream.getAudioTracks()[0];
+    track.addEventListener?.("ended",()=>{
+     if(!open)return;
+     micConnected=false;micError="Microphone disconnected. Tap YOU to reconnect.";
+     say(micError);
+    });
+    return stream;
+   }catch(err){
+    if(stream)try{stream.getTracks().forEach(t=>t.stop())}catch(_e){}
+    if(!open||requestId!==micRequestToken)return null;
+    const name=String(err?.name||"");
+    micError=(name==="NotAllowedError"||name==="PermissionDeniedError"||name==="SecurityError")
+      ?"Microphone permission denied. Allow the mic for this website in Safari, then tap YOU to retry."
+      :(name==="NotFoundError"?"No microphone detected. Connect or enable a microphone and tap YOU.":"Microphone error: "+errorString(err)+". Tap YOU to retry.");
+    say(micError);
+    return null;
+   }finally{
+    if(requestId===micRequestToken)micPromise=null;
+   }
+  })();
+  return micPromise;
+ }
+ async function activateMic(){
+  if(!open||!ctx)return false;
+  if(micConnected&&voiceMeter&&micStream?.active)return true;
+  const stream=await (micStream?.active?Promise.resolve(micStream):primeMic());
+  if(!stream||!open||!ctx)return false;
+  try{
+   const node=ctx.createMediaStreamSource(stream);
+   voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
+   voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
+   compressor.threshold.value=-27;compressor.knee.value=12;compressor.ratio.value=4;
+   compressor.attack.value=.005;compressor.release.value=.16;
+   voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=512;voiceData=new Uint8Array(voiceMeter.fftSize);
+   // Preserve a separate, unprocessed dry voice stem.
+   node.connect(voiceDest);node.connect(voiceInput);
+   voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
+   voiceInput.connect(compressor);compressor.connect(compressedGain);
+   const blend=ctx.createGain();dryGain.connect(blend);compressedGain.connect(blend);
+   blend.connect(voiceOutput);
+   fxDelay=ctx.createDelay(1.5);fxWet=ctx.createGain();fxFeedback=ctx.createGain();
+   blend.connect(fxDelay);fxDelay.connect(fxWet);fxWet.connect(voiceOutput);
+   fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
+   voiceOutput.connect(mixDest);
+   monitorGain=ctx.createGain();voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
+   outputSettings();effectSettings();micConnected=true;micError="";
+   E.record.disabled=!(verified&&micConnected);
+   say(micProcessingFallback?"Mic connected with basic Safari settings. YOU meter is ready.":"MUSIC and YOU connected. Speak to check the YOU meter before recording.");
+   return true;
+  }catch(err){
+   micConnected=false;micError="Could not connect mic to studio: "+errorString(err)+". Tap YOU to retry.";
+   say(micError);return false;
+  }
+ }
+ async function preparePrivate(){
  if(loading||!open)return;
  loading=true;const token=++sessionToken;
  say("Preparing private music. Your Radio stays audible until the handoff.");
@@ -220,9 +283,10 @@ async function preparePrivate(){
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
-  E.record.disabled=false;
-  await activateMic();
-  if(!selection.precise)say("Private audio ready. Radio position is approximate, not sample-locked.");
+  E.record.disabled=true;
+  const connected=await activateMic();
+  if(connected&&!selection.precise)say("Private audio ready. Radio position is approximate; MUSIC and YOU connected.");
+  if(!connected&&micError)say(micError);
  }catch(err){
   say("I AM handoff failed: "+String(err?.message||err));
   audio.muted=oldMuted;
@@ -230,6 +294,7 @@ async function preparePrivate(){
  }finally{loading=false}
 }
 async function disposeAudio(){
+ ++micRequestToken;micPromise=null;micConnected=false;
  try{privateAudio?.pause()}catch(_e){}
  if(micStream)micStream.getTracks().forEach(t=>t.stop());
  micStream=null;privateAudio=null;
@@ -251,8 +316,8 @@ function assemble(key,r){
  const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
 }
 function beginTake(){
- if(!open||loading||recording||!ctx||!verified||!micStream?.active){
-  say("Connect both MUSIC and YOU before recording.");return;
+ if(!open||loading||recording||!ctx||!verified||!micConnected||!micStream?.active){
+  say(micError||"Microphone is not connected. Tap YOU · ENABLE MIC, then check its meter.");return;
  }
  if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
  stopReview();
@@ -537,6 +602,9 @@ async function enter(){
  setHeadphones(false);E.record.disabled=true;mode(take.mix?"play":"record");
  if(take.mix)document.body.classList.add("iam-has-take");
  raf=requestAnimationFrame(meterLoop);
+ // Begin microphone permission now, synchronously with the I AM user gesture.
+ // Do not await here: music setup and microphone permission proceed in parallel.
+ void primeMic();
  await preparePrivate();
 }
 function hideSongPicker(){
@@ -580,6 +648,20 @@ function showSongPicker(){
  }
  picker.hidden=false;
 }
+get("iamMicRetryBtn")?.addEventListener("click",()=>{
+ if(!open)return;
+ if(micConnected&&micStream?.active){
+  say("YOU microphone connected. Speak to check the live meter.");return;
+ }
+ if(micStream&&!micStream.active){
+  try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
+  micStream=null;
+ }
+ // User interaction allows Safari to request permission again.
+ const pending=primeMic();
+ void pending.then(()=>{if(open&&ctx)void activateMic()});
+ say("Connecting YOU microphone…");
+});
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 get("iamExitBtn")?.addEventListener("click",()=>void leave());
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
