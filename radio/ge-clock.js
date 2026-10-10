@@ -66,7 +66,8 @@ function initAudio(){
  aGe.crossOrigin="anonymous";
  try{
   var AC=w.AudioContext||w.webkitAudioContext;
-  if(AC){
+  var oldIOS=/iPhone OS (?:9|10|11|12)[_\.]|CPU (?:iPhone )?OS (?:9|10|11|12)[_\.]/.test(navigator.userAgent||"");
+  if(AC&&!oldIOS){
    ctx=new AC();
    var nodeB=ctx.createMediaElementSource(aBlitz),nodeG=ctx.createMediaElementSource(aGe);
    gb=ctx.createGain();gg=ctx.createGain();
@@ -128,9 +129,13 @@ function nowRender(){
  var bReady=b<=0.005||(!aBlitz.paused&&aBlitz.readyState>=2);
  var gReady=g<=0.005||(!aGe.paused&&aGe.readyState>=2);
  if(canFade){
-  if(!bReady&&g>0)setGain(aGe,1,gg);
-  else if(!gReady&&b>0)setGain(aBlitz,1,gb);
-  else {setGain(aBlitz,b,gb);setGain(aGe,g,gg);}
+  if(!gReady && station.to==="ge"){
+   ensurePlaying(aBlitz);setGain(aBlitz,1,gb);setGain(aGe,0,gg);
+  }else if(!bReady && station.to==="blitz"){
+   if(gReady)ensurePlaying(aGe);setGain(aGe,1,gg);setGain(aBlitz,0,gb);
+  }else{
+   setGain(aBlitz,b,gb);setGain(aGe,g,gg);
+  }
  }else{
   // iPhone 5 fallback: Safari may enforce one audible audio element and ignore volume.
   // Keep an existing audible track until the new one has data, then switch.
