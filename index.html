@@ -2554,6 +2554,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   if(window.__GE_HARD_TOUCHLOCK__) return;
   window.__GE_HARD_TOUCHLOCK__=true;
   const SCROLLABLE='#about,.geGameControlCard,.gameOptionsPanel,.musicOptionsPanel,.miniPlayer,.albumScanCard';
+  const gameCardFor=t=>t?.closest?.('.geGameControlCard')||null;
   let box=null,lastY=0;
   const findBox=t=>t?.closest?.(SCROLLABLE)||null;
   const snapRoot=()=>{
@@ -2565,6 +2566,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
     if(!e.touches?.length)return;
     box=findBox(e.target);
     lastY=e.touches[0].clientY;
+    if(gameCardFor(e.target)){box=null;return;}
     // Cancel the browser's native pan at the START of every universe/background gesture.
     // Waiting until touchmove is too late on iOS: Safari may already have armed pull-to-refresh.
     const nativeControl=e.target?.closest?.('button,input,select,textarea,a,summary,label,.moon,.toggle,.sunAbout,.btn,[contenteditable=\"true\"]');
@@ -2572,6 +2574,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   },{passive:false,capture:true});
   document.addEventListener('touchmove',e=>{
     if(!e.touches?.length)return;
+    if(gameCardFor(e.target))return;
     const y=e.touches[0].clientY,dy=y-lastY; lastY=y;
     // Range controls keep their native thumb behavior, but touch-action:none prevents page pan.
     const range=e.target?.closest?.('input[type="range"]');
@@ -12708,6 +12711,22 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 .geGameNavHome{font-size:10px!important;white-space:normal!important;text-align:center!important}
 .geDetailNav{display:flex!important;justify-content:center!important}
 .geDetailNav .geDetailKind{grid-column:auto!important}
+</style>
+<style id="ge-ios-game-native-scroll-fix">
+/* Let iOS scroll the game options card naturally; keep the universe root locked. */
+#gameOptionsPanel .geGameControlCard{
+  overflow-y:auto!important;overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-y!important;
+  overscroll-behavior:contain!important;
+}
+#gameOptionsPanel .geGameControlCard :is(p,div,section,details,label,span,small,h2,h3){
+  touch-action:pan-y!important;
+}
+#gameOptionsPanel .geGameControlCard :is(button,input,select,textarea,summary){
+  touch-action:manipulation!important;
+}
+#gameOptionsPanel .geGameControlCard input[type="range"]{touch-action:none!important}
 </style>
 </body>
 </html>
