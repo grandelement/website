@@ -140,7 +140,7 @@ function updateRecordReady(){
  if(!recording&&!recordArming){
   if(micTestRunning){E.record.disabled=true;return}
   if(take.mix){E.record.disabled=false;return}
-  E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading);
+  E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading&&privateAudio&&!privateAudio.paused);
   if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
  }
 }
@@ -582,6 +582,7 @@ function assemble(key,r){
  const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
 }
 function beginTake(){
+ if(privateAudio?.paused){say("Press PLAY on your I AM song before recording.");return}
  if(!open||loading||recording||micTestRunning||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
   say(micError||"Speak until YOU shows SIGNAL before pressing Record.");return;
  }
@@ -1094,7 +1095,7 @@ async function toggleStudioMusic(forceStop=false){
    say("Private recording music is playing.");
   }catch(err){studioMusicStopped=true;say("Private song needs a tap or another selection: "+errorString(err))}
  }
- syncPrivateTransport();
+ syncPrivateTransport();updateRecordReady();
 }
 get("iamPrivatePlay")?.addEventListener("click",()=>void toggleStudioMusic());
 get("iamStopMusic")?.addEventListener("click",()=>void toggleStudioMusic(true));
