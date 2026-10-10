@@ -24,7 +24,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .aboutToolbar button,.aboutToolbar select,.aboutToolbar input[type=color]{height:36px;min-width:38px;padding:6px 9px;border-radius:9px}
 .aboutToolbar select{width:auto;background:#04111e;color:#fff;border:1px solid #28516d}.aboutToolbar input[type=color]{width:44px;padding:3px;background:#04111e;border:1px solid #28516d}
 .aboutLivePreview{min-height:260px;padding:28px 20px;display:grid;place-items:center;background:#000;overflow:auto}
-.aboutLiveText{width:min(90vw,820px);max-width:100%;margin:0 auto;text-align:center;color:#eaf2ff;font-size:18px;line-height:1.6;text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25);outline:none;white-space:normal}
+.aboutLiveText{width:min(90vw,820px);max-width:100%;margin:0 auto;text-align:center;color:#eaf2ff;font-size:18px;line-height:1.6;text-shadow:0 0 16px rgba(150,190,255,.45),0 0 30px rgba(60,120,200,.25);outline:none;white-space:pre-wrap}
+.aboutLiveText>div,.aboutLiveText>p{min-height:1em;white-space:pre-wrap}
+.aboutLiveText>div:empty,.aboutLiveText>p:empty{min-height:1.25em}
 .aboutLiveText:focus{box-shadow:0 0 0 1px rgba(120,220,255,.35) inset}
 .aboutLiveText ul,.aboutLiveText ol{display:inline-block;text-align:left;margin:0 auto;padding-left:1.5em}
 .aboutLiveText p{margin:.35em 0}.aboutLiveText div{margin:.18em 0}
@@ -477,14 +479,28 @@ function cleanAboutHtml(raw){
     });
   };
   walk(box);
-  return box.innerHTML.trim();
+  // Keep intentional leading/trailing blank lines; contenteditable represents them as BR/DIV.
+  return box.innerHTML;
 }
 function aboutPlainLinesFromHtml(raw){
   const doc=document.implementation.createHTMLDocument('');
   const box=doc.createElement('div');box.innerHTML=String(raw||'');
-  return [...box.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(Boolean).length
-    ? [...box.querySelectorAll('li')].map(x=>x.textContent.trim()).filter(Boolean)
-    : box.innerText.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  const lineText=node=>{
+    const copy=node.cloneNode(true);
+    copy.querySelectorAll?.('br').forEach(br=>br.replaceWith(doc.createTextNode('\n')));
+    const content=String(copy.textContent||'').replace(/\u00a0/g,' ');
+    // An empty editable line commonly serializes as <div><br></div>.
+    return content==='\n' ? [''] : content.split(/\r?\n/);
+  };
+  const lines=[];
+  for(const child of box.childNodes){
+    if(child.nodeType===3){if(child.textContent.trim())lines.push(...child.textContent.split(/\r?\n/));continue}
+    if(child.nodeType!==1)continue;
+    if(child.tagName==='UL'||child.tagName==='OL'){
+      for(const item of child.children)lines.push(...lineText(item));
+    }else lines.push(...lineText(child));
+  }
+  return lines;
 }
 function populate(){
   cfg.visual=cfg.visual||{};cfg.visual.welcome=Object.assign({x:50,y:50,panelOpacity:78,width:72,height:56,fontScale:100,textAlign:'center'},cfg.visual.welcome||{});cfg.visual.about=Object.assign({x:50,y:50,panelOpacity:96,width:86,height:78,fontScale:100,textAlign:'center'},cfg.visual.about||{});
@@ -574,12 +590,14 @@ function addGuides(doc){
 .ge-window-resize[data-dir="sw"]{left:-7px!important;bottom:-7px!important;cursor:nesw-resize!important}
 .ge-window-resize[data-dir="se"]{right:-7px!important;bottom:-7px!important;cursor:nwse-resize!important}`;doc.head.appendChild(s);const edge=doc.createElement('div');edge.className='ge-guide-edge';doc.body.appendChild(edge);
 }
-function attachWindowEditor(frameWin,el,visual,onChange){
+function attachWindowEditor(frameWin,el,visual,onChange,options={}){
+  const centered=options.centered===true;
   el.style.boxSizing='border-box';el.style.maxWidth='none';el.style.maxHeight='none';
   const moveHandle=el.ownerDocument.createElement('button');moveHandle.type='button';moveHandle.className='ge-window-move';moveHandle.textContent='MOVE';
   const dirs=['n','s','e','w','ne','nw','se','sw'];
   const handles=dirs.map(dir=>{const h=el.ownerDocument.createElement('div');h.className='ge-window-resize';h.dataset.dir=dir;el.appendChild(h);return h});
   el.appendChild(moveHandle);
+  if(centered)moveHandle.style.display='none';
 
   let mode='',dir='',startX=0,startY=0,startRect=null;
 
@@ -593,6 +611,20 @@ function attachWindowEditor(frameWin,el,visual,onChange){
     if(!mode||!startRect)return;
     const dx=e.clientX-startX,dy=e.clientY-startY;
     const minW=180,minH=120,maxW=frameWin.innerWidth*.98,maxH=frameWin.innerHeight*.96;
+    if(centered){
+      // About remains anchored at the center; resizing changes size, never its center.
+      if(mode==='resize'){
+        const width=Math.max(minW,Math.min(maxW,startRect.width+(dir.includes('e')?dx:0)-(dir.includes('w')?dx:0)));
+        const height=Math.max(minH,Math.min(maxH,startRect.height+(dir.includes('s')?dy:0)-(dir.includes('n')?dy:0)));
+        el.style.setProperty('width',width+'px','important');
+        el.style.setProperty('height',height+'px','important');
+        visual.width=+(width/frameWin.innerWidth*100).toFixed(2);
+        visual.height=+(height/frameWin.innerHeight*100).toFixed(2);
+        visual.x=50;visual.y=50;
+        onChange?.();
+      }
+      e.preventDefault();return;
+    }
 
     if(mode==='move'){
       const cx=Math.max(0,Math.min(frameWin.innerWidth,startRect.left+startRect.width/2+dx));
@@ -642,7 +674,7 @@ function attachWindowEditor(frameWin,el,visual,onChange){
   };
 
   const up=()=>{mode='';dir='';startRect=null};
-  moveHandle.addEventListener('pointerdown',e=>down(e,'move'));
+  if(!centered)moveHandle.addEventListener('pointerdown',e=>down(e,'move'));
   handles.forEach(h=>h.addEventListener('pointerdown',e=>down(e,'resize',h.dataset.dir)));
   frameWin.addEventListener('pointermove',move,{passive:false});
   frameWin.addEventListener('pointerup',up);
@@ -736,7 +768,7 @@ async function openEditor(target){
   localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
   $('editorBar').classList.remove('collapsed');$('editorHint').style.display='block';
   $('editorTitle').textContent=target==='planets'?'EDIT PLANETS':target==='about'?'EDIT ABOUT ON SCREEN':'EDIT WELCOME ON SCREEN';
-  $('editorHint').textContent=target==='planets'?'Drag planets directly. Use the PLANETS panel for visibility and arrangement.':"Edit the words directly. Use MOVE to place the window and the glowing corner to resize it.";
+  $('editorHint').textContent=target==='planets'?'Drag planets directly. Use the PLANETS panel for visibility and arrangement.':target==='about'?'About stays centered. Edit the text and use the glowing handles to resize it without moving it off-screen.':"Edit the words directly. Use MOVE to place the window and the glowing corner to resize it.";
   $('screenEditor').classList.add('show');
   if(target==='planets'){renderPlanetPicker();showPlanetPicker(true);$('screenTextTools').classList.add('hiddenTools')}else{showPlanetPicker(false);$('planetPickerTab').classList.remove('show');$('screenTextTools').classList.remove('hiddenTools')}
   const frame=$('editorFrame');frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
@@ -763,12 +795,19 @@ async function openEditor(target){
       const wrap=d.getElementById('about'),el=wrap?.querySelector('.aboutText'),v=cfg.visual.about;
       if(wrap&&el){
         wrap.classList.add('show');wrap.style.display='flex';wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.style.overflow='hidden';el.classList.add('ge-editing-item');
-        el.style.position='fixed';el.style.left=v.x+'vw';el.style.top=v.y+'vh';el.style.transform='translate(-50%,-50%)';el.style.width=Math.max(30,Math.min(96,Number(v.width)||86))+'vw';el.style.height=Math.max(20,Math.min(92,Number(v.height)||78))+'vh';el.style.maxWidth='none';el.style.maxHeight='none';el.style.overflow='auto';el.style.opacity=String((Number(v.panelOpacity)||96)/100);
+        v.x=50;v.y=50;
+        el.style.setProperty('position','fixed','important');
+        el.style.setProperty('left','50%','important');
+        el.style.setProperty('top','50%','important');
+        el.style.setProperty('transform','translate(-50%,-50%)','important');
+        el.style.setProperty('width','min('+Math.max(30,Math.min(96,Number(v.width)||86))+'vw,100%)','important');
+        el.style.setProperty('height','min('+Math.max(20,Math.min(90,Number(v.height)||78))+'dvh,100%)','important');
+        el.style.overflow='auto';el.style.opacity=String((Number(v.panelOpacity)||96)/100);
         let intro=el.querySelector('.aboutIntro');
         if(!intro){intro=d.createElement('div');intro.className='aboutIntro';el.prepend(intro)}
         if(cfg.about?.html)intro.innerHTML=cleanAboutHtml(cfg.about.html);else intro.innerHTML=introArrayToHtml(cfg.about?.intro||[]);
         watchEditable(intro);editorActiveText=intro;
-        cleans.push(attachWindowEditor(w,el,v,()=>{dirty=true}));applyEditorTextScale();applyEditorAlignment();applyEditorOpacity();
+        cleans.push(attachWindowEditor(w,el,v,()=>{dirty=true},{centered:true}));applyEditorTextScale();applyEditorAlignment();applyEditorOpacity();
       }
     }
     if(target==='planets'){
