@@ -117,6 +117,7 @@ function syncPrivateTransport(){
 function updateRecordReady(){
  // Permission is not the same thing as receiving voice samples.
  if(!recording&&!recordArming){
+  if(take.mix){E.record.disabled=false;return}
   E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading);
   if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
  }
@@ -144,7 +145,7 @@ function meterLoop(){
   const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
   const muted=micConnected&&tracks.some(t=>t.muted);
   const silent=live&&micAttachedAt&&performance.now()-micAttachedAt>4500&&!micDetected;
-  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":silent?"YOU · NO INPUT":live?(v>.015?"YOU · SIGNAL":micDetected?"YOU · SIGNAL OK":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  micButton.textContent=live&&ctx?.state!=="running"?"YOU · AUDIO PAUSED":silent?"YOU · NO INPUT":live?(v>.015?"YOU · SIGNAL":micDetected?"YOU · SIGNAL OK":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
   if(silent&&!micSilenceWarned&&!recording){
    micSilenceWarned=true;
    say("Microphone permission is on, but no voice signal reached I AM. Check the iPhone microphone, then tap YOU to restart it.");
@@ -218,7 +219,7 @@ async function preflight(timeout=4500){
  // while the private song connects. Do not wait for buffering or metadata.
  function primeMic(){
   if(!open)return Promise.resolve(null);
-  const usable=micStream?.getAudioTracks?.().some(t=>t.readyState!=="ended");
+  const usable=micStream?.active&&micStream.getAudioTracks?.().some(t=>t.readyState==="live"&&t.enabled!==false);
   if(usable)return Promise.resolve(micStream);
   if(micPromise)return micPromise;
   micError="";micConnected=false;micProcessingFallback=false;
@@ -274,7 +275,7 @@ async function preflight(timeout=4500){
   try{
    // Safari may suspend the existing audio context when mic permissions or
    // the audio output route change.
-   if(ctx.state==="suspended")await ctx.resume();
+   if(ctx.state!=="running")await ctx.resume();
    try{micSourceNode?.disconnect()}catch(_e){}
    const node=ctx.createMediaStreamSource(stream);micSourceNode=node;
    voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
@@ -670,6 +671,7 @@ function againTake(){
  stopReview();take={music:null,voice:null,mix:null};takeMeta=null;
  document.body.classList.remove("iam-has-take","iam-edit-open");editing=false;
  E.timer.textContent="00:00";mode("record");
+ updateRecordReady();
  say("Ready for a new take. Previous saved recordings remain available on this device.");
 }
 async function leave(){
@@ -725,7 +727,7 @@ async function selectPrivateSong(url){
  privateAudio.src=url;privateAudio.load();
  say("Loading private song…");
  try{
-  if(ctx?.state==="suspended")await ctx.resume();
+  if(ctx?.state!=="running")await ctx.resume();
   await privateAudio.play();
   if(!(await preflight(4800)))throw new Error("The new song is silent in the recording mixer.");
   if(!open||request!==trackChangeToken)return;
@@ -776,7 +778,7 @@ get("iamMicRetryBtn")?.addEventListener("click",()=>{
  if(working&&ctx?.state==="running"){
   say("YOU microphone signal confirmed. Record when MUSIC is ready.");return;
  }
- try{void ctx?.resume?.()}catch(_e){}
+ try{if(ctx?.state!=="running")void ctx?.resume?.()}catch(_e){}
  try{micSourceNode?.disconnect()}catch(_e){}
  micSourceNode=null;micConnected=false;micDetected=false;micError="";
  if(micStream)try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
@@ -838,7 +840,7 @@ async function toggleStudioMusic(forceStop=false){
  }else{
   studioMusicStopped=false;
   try{
-   if(ctx?.state==="suspended")await ctx.resume();
+   if(ctx?.state!=="running")await ctx.resume();
    if(musicHandoffDone){
     // The normal radio is kept muted while the private song is playing.
     audio.muted=true;
