@@ -15,7 +15,7 @@ var button=d.getElementById("geClockPlay");
 var msg=d.getElementById("geClockStatus");
 var info=d.getElementById("geClockInfo");
 var info2=d.getElementById("geClockSecondary");
-var program=null,station=null,offset=0,playing=false,ready=false,loadedURL="";
+var program=null,station={from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0},offset=0,playing=false,ready=false,loadedURL="";
 var clockSample=false,ctx=null,gb=null,gg=null,softFade=false,lastRevision=-1,lastMode="";
 var currentTrackIndex=-1,pendingSeek=false,lastError="";
 var errors=0;
@@ -121,6 +121,11 @@ function nowRender(){
  if(!station||!playing)return;
  syncGe();
  var shape=switchShape(),b=shape.blitz,g=shape.ge;
+ if(softFade&&station.from!==station.to&&clock()<station.start_at_ms&&clock()>station.start_at_ms-12000){
+  // Prime the next channel at zero gain on browsers that allow background audio preparation.
+  if(station.to==="ge"&&aGe.readyState>=2){setGain(aGe,0,gg);ensurePlaying(aGe);}
+  if(station.to==="blitz"){setGain(aBlitz,0,gb);ensurePlaying(aBlitz);}
+ }
  var isOld=/iPhone OS (9|10)[_\.]|CPU (?:iPhone )?OS (9|10)[_\.]/.test(navigator.userAgent||"");
  var canFade=softFade||(!isOld&&typeof aBlitz.volume==="number");
  // Start target before turning off the previous station to prevent dead air.
@@ -152,7 +157,7 @@ function nowRender(){
 }
 function pollState(){
  request("/v1/state",function(err,result){
-  if(err){errors++;status(playing?"Last known station retained · reconnecting":"Station connection error: "+err.message);return;}
+  if(err){errors++;status(playing?"Last known source maintained · checking clock":"Clock unavailable · BLITZ fallback available");return;}
   errors=0;station=result.station;ready=true;
   var shape=switchShape();
   if(playing)status(shape.mode==="switching"?"Switching stations…":shape.mode==="ge"?"GE RADIO · ON":"BLITZ · ON");
