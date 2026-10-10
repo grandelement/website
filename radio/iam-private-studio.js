@@ -27,7 +27,7 @@ let recMusic=null,recVoice=null,recMix=null,chunks={music:[],voice:[],mix:[]},ta
 let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning="";
 let cachedSong=null,cachedSongTime=0;
 let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
-let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
+let micSourceNode=null,micMonoNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
 let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1,oldMediaAutoplay=false;
 let radioSuspended=false,radioStoppedAt=0,matchRetryId=0,matchAttemptCount=0,matchInProgress=false;
 let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false;
@@ -349,8 +349,15 @@ async function preflight(timeout=4500){
    voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=1024;
    voiceData=new Uint8Array(voiceMeter.fftSize);
    micFloatData=new Float32Array(voiceMeter.fftSize);
-   // Preserve a separate, unprocessed dry voice stem.
-   node.connect(voiceDest);node.connect(voiceInput);
+   // Some iPhone/headset inputs report stereo but only carry voice on LEFT.
+   // Explicit downmix converts it to one dry MONO vocal before recording,
+   // effects and monitoring; the output then upmixes to both headphones.
+   micMonoNode=ctx.createGain();
+   micMonoNode.channelCount=1;micMonoNode.channelCountMode="explicit";
+   micMonoNode.channelInterpretation="speakers";
+   node.connect(micMonoNode);
+   micMonoNode.connect(voiceDest);micMonoNode.connect(voiceInput);
+   voiceInput.channelCount=1;voiceInput.channelCountMode="explicit";
    voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
    voiceInput.connect(compressor);compressor.connect(compressedGain);
    const blend=ctx.createGain();dryGain.connect(blend);compressedGain.connect(blend);
@@ -359,7 +366,9 @@ async function preflight(timeout=4500){
    blend.connect(fxDelay);fxDelay.connect(fxWet);fxWet.connect(voiceOutput);
    fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
    voiceOutput.connect(mixDest);
-   monitorGain=ctx.createGain();voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
+   monitorGain=ctx.createGain();
+   monitorGain.channelCount=1;monitorGain.channelCountMode="explicit";
+   voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
    // Keep the muted microphone graph rendering on iPhone without audible bleed.
    const keepAlive=ctx.createGain();keepAlive.gain.value=.000001;
    voiceInput.connect(keepAlive);keepAlive.connect(ctx.destination);
@@ -449,6 +458,7 @@ async function disposeAudio(){
  micAttachedAt=0;lastMicSignalAt=0;
  musicSignalError="";musicHandoffDone=false;verified=false;
  try{micSourceNode?.disconnect()}catch(_e){}micSourceNode=null;
+ try{micMonoNode?.disconnect()}catch(_e){}micMonoNode=null;
  try{privateAudio?.pause()}catch(_e){}
  if(micStream)micStream.getTracks().forEach(t=>t.stop());
  micStream=null;privateAudio=null;
@@ -965,7 +975,8 @@ get("iamMicRetryBtn")?.addEventListener("click",()=>{
  }
  try{if(ctx?.state!=="running")void ctx?.resume?.()}catch(_e){}
  try{micSourceNode?.disconnect()}catch(_e){}
- micSourceNode=null;micConnected=false;micDetected=false;micError="";
+ try{micMonoNode?.disconnect()}catch(_e){}
+ micSourceNode=null;micMonoNode=null;micConnected=false;micDetected=false;micError="";
  if(micStream)try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
  micStream=null;
  const pending=primeMic();
