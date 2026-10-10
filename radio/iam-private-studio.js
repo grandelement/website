@@ -30,7 +30,7 @@ let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessi
 let micSourceNode=null,micMonoNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
 let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1,oldMediaAutoplay=false;
 let radioSuspended=false,radioStoppedAt=0,matchRetryId=0,matchAttemptCount=0,matchInProgress=false;
-let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false;
+let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false,recordFinishing=false;
 let micDetected=false,micSilenceWarned=false,recordArming=false;
 let micFloatData=null,micLastDB=-90,micStrongFrames=0;
 let micTestRecorder=null,micTestAudio=null,micTestBlob=null,micTestChunks=[],micTestRunning=false,micTestTimer=0;
@@ -136,15 +136,13 @@ function syncPrivateTransport(){
  if(time)time.textContent=finite?fmt(element.currentTime)+"/"+fmt(duration):"LIVE";
 }
 function updateRecordReady(){
- // Permission is not the same thing as receiving voice samples.
- if(!recording&&!recordArming){
-  if(micTestRunning){E.record.disabled=true;return}
-  // Preserve the actual Safari capture error until TRY AGAIN is pressed.
-  if(document.body.classList.contains("iam-take-error")){E.record.disabled=true;return}
-  if(take.mix){E.record.disabled=false;return}
-  E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading&&privateAudio&&!privateAudio.paused);
-  if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
- }
+ if(recording){E.record.disabled=false;return}
+ if(recordArming||recordFinishing||micTestRunning){E.record.disabled=true;return}
+ if(document.body.classList.contains("iam-take-error")){E.record.disabled=true;return}
+ if(take.mix){E.record.disabled=false;return}
+ // Being silent or having music paused must not silently disable the button.
+ E.record.disabled=!(open&&verified&&micConnected&&micStream?.active&&!loading);
+ if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)prepareRecorders();
 }
 function meterLoop(){
  if(!open){raf=0;return}
@@ -594,18 +592,24 @@ function assemble(key,r){
  const blob=new Blob(parts,{type:r?.mimeType||recordMime()||"audio/mp4"});
  return blob.size>0?blob:null;
 }
-function beginTake(){
- if(privateAudio?.paused){say("Press PLAY on your I AM song before recording.");return}
- if(!open||loading||recording||micTestRunning||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
-  say(micError||"Speak until YOU shows a real mic signal before pressing Record.");return;
+async function beginTake(){
+ if(recording||recordArming||recordFinishing)return;
+ if(!open||loading||micTestRunning||!ctx||!verified||!micConnected||!micStream?.active){
+  say(micError||"I AM music or microphone isn't ready yet. Tap YOU if your mic is disconnected.");return;
  }
  if(!window.MediaRecorder){say("Recording is unsupported in this browser.");return}
- stopReview();
+ recordArming=true;updateRecordReady();stopReview();
  try{
+  if(ctx.state!=="running")await ctx.resume();
+  if(privateAudio?.paused){
+   say("Starting song before Record…");
+   await privateAudio.play();
+  }
+  if(!micDetected)throw Error("Speak into YOU to verify an input level, then press Record.");
+
   if(!recorderReady)prepareRecorders();
   if(!recMix||!recorderReady)throw Error("The mixed recording encoder is not ready");
   const clock=ctx.currentTime,offsets={},pressedAt=performance.now();
-  recordArming=true;
   // Start the playable mixed take BEFORE optional separate stems on iPhone.
   recMix.start();offsets.mix=ctx.currentTime-clock;
   for(const [r,key] of [[recMusic,"music"],[recVoice,"voice"]]){
@@ -708,7 +712,8 @@ function showTakeReady(duration){
  }
 }
 async function stopTake(){
- if(!recording)return;
+ if(!recording||recordFinishing)return;
+ recordFinishing=true;
  recording=false;E.record.disabled=true;recorderReady=false;
  try{privateAudio?.pause()}catch(_e){}
  studioMusicStopped=true;syncPrivateTransport();
@@ -745,7 +750,7 @@ async function stopTake(){
  }else if(take.mix&&open&&!reviewing){
   say("Take playable ("+Math.round(take.mix.size/1024)+" KB). Separate stems missing · LISTEN AGAIN and TRY AGAIN work.");
  }
- updateRecordReady();
+ recordFinishing=false;updateRecordReady();
 }
 async function saveTake(){
  savedWarning="";
@@ -959,6 +964,7 @@ function againTake(){
  document.body.classList.remove("iam-has-take","iam-edit-open","iam-take-error");editing=false;
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
  get("iamStemActions").hidden=true;
+ recordFinishing=false;recordArming=false;
  E.timer.textContent="00:00";mode("record");
  updateRecordReady();syncPrivateTransport();
  say("Ready to try again from the same song position. Press PLAY, then Record.");
