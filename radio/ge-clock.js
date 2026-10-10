@@ -18,7 +18,24 @@ var info2=d.getElementById("geClockSecondary");
 var program=null,station={from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0},offset=0,playing=false,ready=false,loadedURL="";
 var clockSample=false,ctx=null,gb=null,gg=null,softFade=false,lastRevision=-1,lastMode="";
 var currentTrackIndex=-1,pendingSeek=false,lastError="";
-var errors=0;
+var errors=0,legacyLastTrack="",legacyListenStart=0,legacyLastReport=0,legacySid="session-ge-"+Date.now();
+function fallbackVault(type,meta){
+ if(w.GEVault)return; // New Safari uses the existing full Vault client.
+ var anon="";
+ try{
+  anon=localStorage.getItem("GE_VAULT_ANON_V1");
+  if(!anon){anon="visitor-ge-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+    localStorage.setItem("GE_VAULT_ANON_V1",anon);}
+ }catch(_){anon="visitor-ge-anon";}
+ var payload={anon_id:anon,session_id:legacySid,surface:"radio",event_type:type,
+   page_url:location.origin+location.pathname,page_path:location.pathname,
+   track_title:meta&&meta.track_title||"",track_id:meta&&meta.track_id||"",
+   album:meta&&meta.album||"",metadata:meta||{}};
+ try{
+  var x=new XMLHttpRequest();x.open("POST","https://vault.grandelement.com/v1/public/event",true);
+  x.setRequestHeader("Content-Type","application/json");x.send(JSON.stringify(payload));
+ }catch(_){}
+}
 function status(s){if(msg)msg.textContent=s;}
 function pad(n){return n<10?"0"+n:String(n);}
 function clock(){return Date.now()+offset;}
@@ -91,6 +108,10 @@ function syncGe(){
    title:t.track.title,album:t.track.album,track_id:t.track.path,
    source:"ge-radio-clock",station_id:t.track.kind==="station_id"
   });}catch(_){}
+  legacyLastTrack=t.track.path||url;
+  legacyListenStart=Date.now();
+  fallbackVault("track_start",{track_title:t.track.title,track_id:legacyLastTrack,
+    album:t.track.album,source:"ge-radio-clock",station_id:t.track.kind==="station_id"});
  }
  if(aGe.readyState>=1){
   var wanted=Math.max(0,Math.min(Number(t.track.duration_ms)/1000-.35,t.seconds));
@@ -184,6 +205,7 @@ function begin(){
  status("Tuning shared stations…");
  nowRender();
  try{w.GEVault&&w.GEVault.radio&&w.GEVault.radio("radio_clock_join",{source:"ge-radio-clock"});}catch(_){}
+ fallbackVault("radio_open",{source:"ge-radio-clock"});
 }
 if(button)button.onclick=begin;
 aGe.addEventListener("loadedmetadata",function(){pendingSeek=true;syncGe();});
@@ -194,5 +216,16 @@ pollState();pollProgram();
 w.setInterval(pollState,7500);
 w.setInterval(function(){if(playing)nowRender();},500);
 w.setInterval(function(){if(playing&&program)syncGe();},4500);
+w.setInterval(function(){
+ if(!playing||!program||!legacyLastTrack||aGe.paused||!w.GEVault===false)return;
+ // Only old Safari needs the fallback. Never send duplicate events on modern devices.
+ if(w.GEVault)return;
+ var now=Date.now();if(now-legacyLastReport<30000)return;legacyLastReport=now;
+ var t=geAt(clock());if(!t)return;
+ fallbackVault("track_progress",{track_title:t.track.title,track_id:t.track.path,
+   album:t.track.album,source:"ge-radio-clock",
+   listened_seconds:Math.max(0,Math.round((now-legacyListenStart)/1000)),
+   position_seconds:Number(aGe.currentTime)||0});
+},10000);
 d.addEventListener("visibilitychange",function(){if(!d.hidden){pollState();if(playing)nowRender();}});
 })(window,document);
