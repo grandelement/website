@@ -139,6 +139,8 @@ function updateRecordReady(){
  // Permission is not the same thing as receiving voice samples.
  if(!recording&&!recordArming){
   if(micTestRunning){E.record.disabled=true;return}
+  // Preserve the actual Safari capture error until TRY AGAIN is pressed.
+  if(document.body.classList.contains("iam-take-error")){E.record.disabled=true;return}
   if(take.mix){E.record.disabled=false;return}
   E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading&&privateAudio&&!privateAudio.paused);
   if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
