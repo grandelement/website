@@ -232,7 +232,7 @@ const clone=v=>JSON.parse(JSON.stringify(v));
 async function digest(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function token(){try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_e){return ''}}
 function setToken(v){try{v?sessionStorage.setItem(TOKEN_KEY,v):sessionStorage.removeItem(TOKEN_KEY)}catch(_e){}}
-async function api(path,opt={}){const headers={'Content-Type':'application/json',...(opt.headers||{})};if(token())headers.Authorization='Bearer '+token();return fetch(API+path,{cache:'no-store',...opt,headers})}
+async function api(path,opt={}){const headers={'Content-Type':'application/json',...(opt.headers||{})};if(token())headers.Authorization='Bearer '+token();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),8000);try{return await fetch(API+path,{cache:'no-store',...opt,headers,signal:controller.signal})}finally{clearTimeout(timeout)}}
 async function enterBackroom(){
   const pass=String($('gatePassword').value||'');
   $('gateMessage').textContent='Checking…';
@@ -255,7 +255,18 @@ async function enterBackroom(){
   await bootBackroom();
 }
 function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
-$('gateEnter').onclick=enterBackroom;$('gatePassword').addEventListener('keydown',e=>{if(e.key==='Enter')enterBackroom()});$('lockBackroom').onclick=lock;
+async function safeEnterBackroom(){
+  const button=$('gateEnter'),message=$('gateMessage');
+  if(button.disabled)return;
+  button.disabled=true;
+  message.textContent='Checking access…';
+  try{await enterBackroom();}
+  catch(err){
+    console.error('Back Room entry error:',err);
+    message.textContent='Back Room could not open. Please retry. If this continues, the site needs repair.';
+  }finally{button.disabled=false;}
+}
+$('gateEnter').onclick=safeEnterBackroom;$('gatePassword').addEventListener('keydown',e=>{if(e.key==='Enter')safeEnterBackroom()});$('lockBackroom').onclick=lock;
 
 function applyText(v){const n=Math.max(90,Math.min(160,Number(v)||115));document.documentElement.style.setProperty('--scale',n/100);$('backroomTextSize').value=n;$('backroomTextSizeValue').textContent=n+'%';localStorage.setItem(TEXT_KEY,String(n))}
 $('backroomTextSize').addEventListener('input',()=>applyText($('backroomTextSize').value));
