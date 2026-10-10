@@ -24,6 +24,7 @@ let fxDelay=null,fxWet=null,fxFeedback=null,musicDest=null,voiceDest=null,mixDes
 let sourceURL="",sun=null,oldMuted=false,sessionToken=0,raf=0,startedAt=0,takeMeta=null,fxMode="clean";
 let recMusic=null,recVoice=null,recMix=null,chunks={music:[],voice:[],mix:[]},take={music:null,voice:null,mix:null};
 let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning="";
+let cachedSong=null,cachedSongTime=0;
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -124,17 +125,25 @@ async function stationSong(){
   return {url:found,title:String(now.title||""),seconds};
  }catch(_e){return null}
 }
-async function sourceSelection(){
+function sourceSelection(){
  sourceMode=state.live?"radio":"player";
  const url=audio.currentSrc||audio.src||"";
  if(!state.live)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
- const match=await stationSong();
+ const match=(Date.now()-cachedSongTime<17000)?cachedSong:null;
  if(match){
-  const offset=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
+  const offset=clamp(Date.now()/1000-match.seconds-2,0,999999);
   return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
  }
+ // No metadata wait inside a user gesture: prefer an immediate stream handoff.
  return {url:CONFIG.LIVE_STREAM_URL,position:0,precise:false,kind:"live-radio"};
 }
+async function refreshStationSong(){
+ if(!state.live||open)return;
+ const song=await stationSong();
+ cachedSong=song;cachedSongTime=Date.now();
+}
+setInterval(()=>{void refreshStationSong()},12000);
+setTimeout(()=>{void refreshStationSong()},1400);
 async function preflight(timeout=4500){
  const samples=new Uint8Array(musicMeter.fftSize),end=performance.now()+timeout;
  while(open&&performance.now()<end){
@@ -178,13 +187,17 @@ async function preparePrivate(){
  loading=true;const token=++sessionToken;
  say("Preparing private music. Your Radio stays audible until the handoff.");
  try{
-  const selection=await sourceSelection();
+  const selection=sourceSelection();
   if(token!==sessionToken||!open)return;
   if(!selection.url)throw Error("Start a song before opening I AM.");
   sourceURL=selection.url;privateAudio=new Audio();
   privateAudio.crossOrigin="anonymous";privateAudio.playsInline=true;privateAudio.preload="auto";
   privateAudio.src=selection.url;privateAudio.load();
   createMusicGraph();
+  // Prime both calls within the original user tap. iPhone Safari can reject
+  // audio started only after waiting for loadedmetadata / asynchronous fetch.
+  const wake=ctx.resume().then(()=>null,e=>e);
+  const playback=privateAudio.play().then(()=>null,e=>e);
   if(selection.kind!=="live-radio"){
    await new Promise(r=>{
     if(privateAudio.readyState>=1)return r();
@@ -195,8 +208,9 @@ async function preparePrivate(){
    try{privateAudio.currentTime=pos}catch(_e){}
   }
   if(!open||token!==sessionToken)return;
-  await ctx.resume();
-  await privateAudio.play();
+  const wakeError=await wake,playError=await playback;
+  if(wakeError)throw wakeError;
+  if(playError)throw playError;
   if(!(await preflight()))throw Error("Private audio signal is silent. The original Radio is still available.");
   // Only after verified audio: transition into independent private playback.
   oldMuted=audio.muted;
