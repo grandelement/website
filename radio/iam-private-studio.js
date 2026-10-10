@@ -1051,27 +1051,18 @@ function resetEditorForNewTake(){
  refreshEditorControls();
 }
 async function previewWaves(){
- const targets=[["music",take.music],["voice",take.voice]];
- const AC=window.AudioContext||window.webkitAudioContext;
- if(!AC||!take.music||!take.voice)return;
- const temp=new AC();
+ if(!take.music||!take.voice)return;
+ const token=++editLoadToken,AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC)return;
+ const decode=new AC();
+ get("iamSelectionTime").textContent="Building MUSIC and YOU waveforms…";
  try{
-  for(const [kind,blob] of targets){
-   const canvas=get("iamWave"+kind),pen=canvas?.getContext("2d");if(!pen)continue;
-   const buf=await temp.decodeAudioData(await blob.arrayBuffer());
-   const samples=buf.getChannelData(0),w=canvas.width,h=canvas.height;
-   pen.clearRect(0,0,w,h);
-   pen.fillStyle=kind==="music"?"#62caff":"#81f5bd";
-   const stride=Math.max(1,Math.floor(samples.length/w));
-   for(let x=0;x<w;x++){
-    let high=0;
-    for(let i=x*stride;i<Math.min(samples.length,(x+1)*stride);i+=Math.max(1,Math.floor(stride/18)))
-     high=Math.max(high,Math.abs(samples[i]));
-    let amp=Math.max(1,high*h*.92);
-    pen.fillRect(x,(h-amp)/2,1,amp);
-   }
-  }
- }catch(_e){}finally{try{await temp.close()}catch(_e){}}
+  const [a,b]=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
+  const [music,voice]=await Promise.all([decode.decodeAudioData(a),decode.decodeAudioData(b)]);
+  if(!open||token!==editLoadToken)return;
+  editWaveBuffers={music,voice};drawEditorWaveforms();
+ }catch(err){say("Cannot decode waveforms: "+errorString(err))}
+ finally{try{await decode.close()}catch(_e){}}
 }
 function setHeadphones(on,keepManualChoice=false){
  headphones=!!on;
@@ -1095,8 +1086,11 @@ function editTake(){
  editing=true;document.body.classList.add("iam-edit-open");
  E.panel.classList.add("show");E.sound.setAttribute("aria-expanded","true");
  get("iamStemActions").hidden=false;
+ editSelection=null;editUndo=[];editZoom=1;editPan=0;
+ editVocalShift=Number.isFinite(Number(takeMeta?.vocalShiftMs))?clamp(takeMeta.vocalShiftMs,-250,250):-20;
+ refreshEditorControls();
  void previewWaves();
- say("Dry YOU and clean MUSIC preserved. Edit compression or effects and play again.");
+ say("Select part of YOU, zoom, crop or erase it. Adjust VOCAL TIMING and tap PLAY EDIT.");
 }
 function againTake(){
  const cue=Number(takeMeta?.sourcePosition);
@@ -1105,6 +1099,7 @@ function againTake(){
   try{privateAudio.pause();privateAudio.currentTime=cue}catch(_e){}
  }
  take={music:null,voice:null,mix:null};takeMeta=null;
+ resetEditorForNewTake();
  document.body.classList.remove("iam-has-take","iam-edit-open","iam-take-error");editing=false;
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
  get("iamStemActions").hidden=true;
@@ -1265,6 +1260,54 @@ audio.addEventListener("volumechange",()=>{if(open&&radioSuspended&&!audio.muted
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 get("iamExitBtn")?.addEventListener("click",()=>void leave());
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
+
+const voiceCanvas=get("iamWavevoice");
+voiceCanvas?.addEventListener("pointerdown",e=>{
+ if(!editing||!editWaveBuffers?.voice)return;
+ editDragging=true;changeVoiceSelection(e,true);
+ try{voiceCanvas.setPointerCapture(e.pointerId)}catch(_e){}
+ e.preventDefault();
+});
+voiceCanvas?.addEventListener("pointermove",e=>{
+ if(!editDragging)return;
+ changeVoiceSelection(e);e.preventDefault();
+});
+const finishVoiceDrag=e=>{
+ if(!editDragging)return;
+ changeVoiceSelection(e);editDragging=false;editDragStart=null;
+ try{voiceCanvas.releasePointerCapture(e.pointerId)}catch(_e){}
+};
+voiceCanvas?.addEventListener("pointerup",finishVoiceDrag);
+voiceCanvas?.addEventListener("pointercancel",finishVoiceDrag);
+get("iamWaveZoom")?.addEventListener("input",e=>{
+ editZoom=clamp(Number(e.target.value),1,16);drawEditorWaveforms();
+});
+get("iamZoomOut")?.addEventListener("click",()=>{
+ editZoom=Math.max(1,editZoom-1);drawEditorWaveforms();
+});
+get("iamZoomIn")?.addEventListener("click",()=>{
+ editZoom=Math.min(16,editZoom+1);drawEditorWaveforms();
+});
+get("iamWavePan")?.addEventListener("input",e=>{
+ editPan=clamp(Number(e.target.value)/1000,0,1);drawEditorWaveforms();
+});
+get("iamVocalShift")?.addEventListener("input",e=>{
+ editVocalShift=clamp(Number(e.target.value),-250,250);
+ if(takeMeta)takeMeta.vocalShiftMs=editVocalShift;
+ onEditorChange();
+});
+get("iamSilenceRange")?.addEventListener("click",()=>setVocalSelectionAction("silence"));
+get("iamCropVocal")?.addEventListener("click",()=>setVocalSelectionAction("keep"));
+get("iamUndoVocal")?.addEventListener("click",()=>{
+ const old=editUndo.pop();if(!old)return;
+ editMute=old.mute;editKeep=old.keep;onEditorChange();
+ say("Last voice edit undone.");
+});
+get("iamResetVocal")?.addEventListener("click",()=>{
+ pushEditUndo();editMute=[];editKeep=null;onEditorChange();
+ say("All vocal sections restored. Original raw tracks remain untouched.");
+});
+
 E.listen?.addEventListener("click",()=>void listenTake());
 E.again?.addEventListener("click",againTake);
 E.edit?.addEventListener("click",editTake);
