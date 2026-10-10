@@ -26,6 +26,8 @@ let recMusic=null,recVoice=null,recMix=null,chunks={music:[],voice:[],mix:[]},ta
 let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning="";
 let cachedSong=null,cachedSongTime=0;
 let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
+let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
+let musicHandoffDone=false,musicSignalError="";
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -89,16 +91,18 @@ function meter(analyser,data){
 function meterLoop(){
  if(!open){raf=0;return}
  const m=meter(musicMeter,musicData),v=meter(voiceMeter,voiceData);
- if(m>.03)verified=true;
+ // Do not enable Record until the music capture source is actually verified.
+ if(v>.035)lastMicSignalAt=performance.now();
  E.meters[0].style.transform="scaleX("+Math.max(.015,m).toFixed(3)+")";
  E.meters[1].style.transform="scaleX("+Math.max(.015,v).toFixed(3)+")";
- E.label.textContent=m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
+ E.label.textContent=musicSignalError?"MUSIC · NO CAPTURE":m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
  const micButton=get("iamMicRetryBtn");
  if(micButton){
   const tracks=micStream?.getAudioTracks?.()||[];
   const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
   const muted=micConnected&&tracks.some(t=>t.muted);
-  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":live?(v>.045?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  const silent=live&&micAttachedAt&&performance.now()-micAttachedAt>6500&&lastMicSignalAt<micAttachedAt;
+  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":silent?"YOU · NO INPUT":live?(v>.04?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
   micButton.classList.toggle("mic-needs-help",!live);
   micButton.setAttribute("aria-label",live?"Microphone ready. Tap to check input":(micError||"Enable microphone"));
  }
@@ -225,7 +229,8 @@ async function preflight(timeout=4500){
    // Safari may suspend the existing audio context when mic permissions or
    // the audio output route change.
    if(ctx.state==="suspended")await ctx.resume();
-   const node=ctx.createMediaStreamSource(stream);
+   try{micSourceNode?.disconnect()}catch(_e){}
+   const node=ctx.createMediaStreamSource(stream);micSourceNode=node;
    voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
    voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
    compressor.threshold.value=-27;compressor.knee.value=12;compressor.ratio.value=4;
@@ -242,7 +247,11 @@ async function preflight(timeout=4500){
    fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
    voiceOutput.connect(mixDest);
    monitorGain=ctx.createGain();voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
+   // Keep the muted microphone graph rendering on iPhone without audible bleed.
+   const keepAlive=ctx.createGain();keepAlive.gain.value=.000001;
+   voiceInput.connect(keepAlive);keepAlive.connect(ctx.destination);
    outputSettings();effectSettings();micConnected=true;micError="";
+   micAttachedAt=performance.now();lastMicSignalAt=0;
    E.record.disabled=!(verified&&micConnected);
    say(micProcessingFallback?"Mic connected with basic Safari settings. YOU meter is ready.":"MUSIC and YOU connected. Speak to check the YOU meter before recording.");
    return true;
@@ -262,7 +271,9 @@ async function preflight(timeout=4500){
   sourceURL=selection.url;privateAudio=new Audio();
   privateAudio.crossOrigin="anonymous";privateAudio.playsInline=true;privateAudio.preload="auto";
   privateAudio.src=selection.url;privateAudio.load();
-  createMusicGraph();
+  createMusicGraph();musicSignalError="";musicHandoffDone=false;
+  // Connect the microphone during music buffering, not after a radio preflight.
+  void activateMic();
   // Prime both calls within the original user tap. iPhone Safari can reject
   // audio started only after waiting for loadedmetadata / asynchronous fetch.
   const wake=ctx.resume().then(()=>null,e=>e);
@@ -280,17 +291,24 @@ async function preflight(timeout=4500){
   const wakeError=await wake,playError=await playback;
   if(wakeError)throw wakeError;
   if(playError)throw playError;
-  if(!(await preflight()))throw Error("Private audio signal is silent. The original Radio is still available.");
-  // Only after verified audio: transition into independent private playback.
-  oldMuted=audio.muted;
+  const hasMusic=await preflight(selection.kind==="live-radio"?5000:3800);
+  if(!open||token!==sessionToken)return;
+  if(!hasMusic){
+   verified=false;E.record.disabled=true;
+   musicSignalError=selection.kind==="live-radio"?"Live Radio is audible but Safari is not delivering its audio to I AM. Tap NEXT or CHOOSE SONG.":"The selected song is not reaching I AM.";
+   get("iamSourceIndicator").textContent="MUSIC NOT CAPTURING · ORIGINAL RADIO UNCHANGED";
+   say(musicSignalError+(micConnected?" YOU is connected.":" Tap YOU to enable microphone."));
+   return; // Preserve microphone permission and the music graph for recovery.
+  }
+  musicSignalError="";musicHandoffDone=true;
   audio.muted=true;
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
   get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"PRIVATE · LIVE RADIO HANDOFF APPROXIMATE";
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
-  E.record.disabled=true;
   const connected=await activateMic();
+  E.record.disabled=!(verified&&connected);
   if(connected&&!selection.precise)say("Private audio ready. Radio position is approximate; MUSIC and YOU connected.");
   if(!connected&&micError)say(micError);
  }catch(err){
@@ -300,7 +318,9 @@ async function preflight(timeout=4500){
  }finally{loading=false}
 }
 async function disposeAudio(){
- ++micRequestToken;micPromise=null;micConnected=false;
+ ++micRequestToken;micPromise=null;micConnected=false;micAttachedAt=0;lastMicSignalAt=0;
+ musicSignalError="";musicHandoffDone=false;verified=false;
+ try{micSourceNode?.disconnect()}catch(_e){}micSourceNode=null;
  try{privateAudio?.pause()}catch(_e){}
  if(micStream)micStream.getTracks().forEach(t=>t.stop());
  micStream=null;privateAudio=null;
