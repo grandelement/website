@@ -27,7 +27,7 @@ let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning=
 let cachedSong=null,cachedSongTime=0;
 let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
 let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
-let musicHandoffDone=false,musicSignalError="";
+let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1;
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -61,6 +61,11 @@ function outputSettings(){
   dryGain?.gain.setTargetAtTime(1-compression,ctx.currentTime,.015);
   compressedGain?.gain.setTargetAtTime(compression,ctx.currentTime,.015);
   monitorGain?.gain.setTargetAtTime(headphones&&monitoring?.75:0,ctx.currentTime,.015);
+ }
+ // While a LIVE radio stream cannot feed the studio recording mixer,
+ // keep MUSIC VOL useful for the native listener, where platform supported.
+ if(open&&!musicHandoffDone&&audio&&!audio.muted){
+  try{audio.volume=clamp(oldMediaVolume*music,0,1)}catch(_e){}
  }
  if(reviewCtx&&reviewNodes){
   reviewNodes.music.gain.setTargetAtTime(music,reviewCtx.currentTime,.01);
@@ -632,6 +637,7 @@ async function leave(){
   try{if(audio.currentSrc===sourceURL||audio.src===sourceURL)audio.currentTime=privateAudio.currentTime}catch(_e){}
  }
  await disposeAudio();audio.muted=oldMuted;
+ try{audio.volume=oldMediaVolume}catch(_e){}
  const title=state.live?(window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE):displayTitle(state.currentURL,!state.shuffle);
  get("titleBtn").textContent=title||"Grand Element Radio";
  hideSongPicker();
@@ -640,7 +646,8 @@ async function leave(){
 }
 async function enter(){
  if(open)return;
- oldMuted=audio.muted;window.GEHUD?.suspendForIAm?.();
+ oldMuted=audio.muted;oldMediaVolume=Number(audio.volume)||1;
+ window.GEHUD?.suspendForIAm?.();
  makeSun();open=true;sessionToken++;
  document.body.classList.add("iam-studio-open");
  E.launch.setAttribute("aria-expanded","true");
