@@ -7010,8 +7010,10 @@ function endShipPointer(e){
 }
 canvas.addEventListener('pointerup',endShipPointer,{passive:true});canvas.addEventListener('pointercancel',endShipPointer,{passive:true});
 
-/* Drag & throw for comets */
-let drag={obj:null,kind:null,hist:[]};
+/* Independent multitouch drag & throw for free-universe Souls / comets.
+   Each pointer owns one comet with its own history; releasing one cannot
+   cancel another finger. Ship controls keep their separate ray pointer map. */
+const cometDrags=new Map();
 function nearestPick(x,y){
   let best=null,bestD=1e9,kind=null;
   for(const c of comets){
@@ -7020,52 +7022,58 @@ function nearestPick(x,y){
   }
   return {obj:best,kind};
 }
-canvas.addEventListener('pointerdown', (e)=>{
-  const {obj,kind}=nearestPick(e.clientX,e.clientY); if(!obj) return;
-  drag={obj,kind,hist:[{x:e.clientX,y:e.clientY,t:performance.now()}]};
+canvas.addEventListener('pointerdown',e=>{
+  if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active'))return;
+  const {obj,kind}=nearestPick(e.clientX,e.clientY);
+  if(!obj||obj.dragging||[...cometDrags.values()].some(d=>d.obj===obj))return;
+  cometDrags.set(e.pointerId,{obj,kind,hist:[{x:e.clientX,y:e.clientY,t:performance.now()}]});
   obj.dragging=true;obj.vx=0;obj.vy=0;obj.x=e.clientX;obj.y=e.clientY;
-  e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+  try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
   e.preventDefault();
 },{passive:false});
-canvas.addEventListener('pointermove', (e)=>{
-  if(!drag.obj) return; const x=e.clientX,y=e.clientY,now=performance.now();
-  drag.obj.x=x; drag.obj.y=y; drag.hist.push({x,y,t:now}); while(drag.hist.length && now-drag.hist[0].t>160) drag.hist.shift();
-  if(drag.kind==='comet'&&drag.obj.trail&&now-(drag.obj._trailLast||0)>=60){drag.obj._trailLast=now;drag.obj.trail.push([x,y,now]);if(drag.obj.trail.length>(drag.obj.trailMax||COMET.trail))drag.obj.trail.shift();}
-  if (drag.kind==='comet') {
-    const r = drag.obj.r || 0;
-    const tiny = r <= 3;
-    const big  = r >= 10;
-    const physicalPlane = drag.obj.depth==='plane';
-
-    for (const c of comets) {
-      if(c!==drag.obj) collideElastic(drag.obj, c, 0.95);
-    }
-
-    // Planets: compatible dragged Souls transfer momentum into the real album planet.
-    if (window.planetNodes && !tiny && physicalPlane) {
-      for (const p of planetNodes){
+canvas.addEventListener('pointermove',e=>{
+  const drag=cometDrags.get(e.pointerId);if(!drag)return;
+  const x=e.clientX,y=e.clientY,now=performance.now();
+  drag.obj.x=x;drag.obj.y=y;drag.hist.push({x,y,t:now});
+  while(drag.hist.length&&now-drag.hist[0].t>160)drag.hist.shift();
+  if(drag.kind==='comet'&&drag.obj.trail&&now-(drag.obj._trailLast||0)>=60){
+    drag.obj._trailLast=now;drag.obj.trail.push([x,y,now]);
+    if(drag.obj.trail.length>(drag.obj.trailMax||COMET.trail))drag.obj.trail.shift();
+  }
+  if(drag.kind==='comet'){
+    const r=drag.obj.r||0,tiny=r<=3,big=r>=10,physicalPlane=drag.obj.depth==='plane';
+    for(const c of comets)if(c!==drag.obj&&!c.dragging)collideElastic(drag.obj,c,0.95);
+    if(window.planetNodes&&!tiny&&physicalPlane){
+      for(const p of planetNodes){
         if(!p||p.dragging||p.poolPocketed)continue;
         collideElastic(drag.obj,p,0.95);
       }
     }
-
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     const moonRect=document.querySelector('.moon')?.getBoundingClientRect();
-
-    // Sun and moon: only big foreground comets collide while dragging
-    if(big && physicalPlane && sunRect){ collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95); }
-    if(big && physicalPlane && moonRect){ collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95); }
-
+    // Preserve the former large-foreground Soul interaction with Sun/Moon.
+    if(big&&physicalPlane&&sunRect)collideElastic(drag.obj,{x:sunRect.left+sunRect.width/2,y:sunRect.top+sunRect.height/2,r:sunRect.width/2},0.95);
+    if(big&&physicalPlane&&moonRect)collideElastic(drag.obj,{x:moonRect.left+moonRect.width/2,y:moonRect.top+moonRect.height/2,r:moonRect.width/2},0.95);
   }
-},{passive:true});
-canvas.addEventListener('pointerup', (e)=>{
-  if(!drag.obj) return; const now=performance.now();
-  const last=drag.hist[drag.hist.length-1]||{x:drag.obj.x,y:drag.obj.y,t:now}; let ref=drag.hist[0]||last;
-  for(let i=drag.hist.length-1;i>=0;i--) if(now-drag.hist[i].t>=60){ ref=drag.hist[i]; break; }
-  const dt=Math.max(16,last.t-ref.t); drag.obj.vx=(last.x-ref.x)/dt*1000; drag.obj.vy=(last.y-ref.y)/dt*1000;
-  drag.obj.dragging=false; drag={obj:null,kind:null,hist:[]}; e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId);
-});
-
+  if(e.cancelable)e.preventDefault();
+},{passive:false});
+function finishCometPointer(e){
+  const drag=cometDrags.get(e.pointerId);if(!drag)return;
+  cometDrags.delete(e.pointerId);
+  const obj=drag.obj,now=performance.now();
+  if(e.type==='pointercancel'){obj.vx=0;obj.vy=0;}
+  else{
+    const last=drag.hist[drag.hist.length-1]||{x:obj.x,y:obj.y,t:now};
+    let ref=drag.hist[0]||last;
+    for(let i=drag.hist.length-1;i>=0;i--)if(now-drag.hist[i].t>=60){ref=drag.hist[i];break;}
+    const dt=Math.max(16,last.t-ref.t);
+    obj.vx=(last.x-ref.x)/dt*1000;obj.vy=(last.y-ref.y)/dt*1000;
+  }
+  obj.dragging=false;
+  try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
+}
+canvas.addEventListener('pointerup',finishCometPointer,{passive:true});
+canvas.addEventListener('pointercancel',finishCometPointer,{passive:true});
 
 /* Body / soul proximity field. This is intentionally subtle and local. */
 function bodySoulField(dt){
