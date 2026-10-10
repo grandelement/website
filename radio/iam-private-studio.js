@@ -915,7 +915,7 @@ async function selectPrivateSong(url,position=0,radioMatched=false){
   syncPrivateTransport();
  }catch(err){
   verified=false;E.record.disabled=true;musicSignalError=errorString(err);
-  say("Cannot record this song: "+musicSignalError);
+  say("Private song not started: "+musicSignalError+". Tap PLAY to retry, or choose SONGS.");
  }
 }
 function choosePrivateSong(direction){
@@ -1017,11 +1017,11 @@ get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
 get("iamPlayerSource")?.addEventListener("click",showSongPicker);
 async function toggleStudioMusic(forceStop=false){
  if(!open||recordArming)return;
- if(!privateAudio||!sourceURL||!musicHandoffDone){
-  say("I AM is loading its song. Tap SONGS to choose music if needed.");
+ if(!privateAudio||!sourceURL){
+  say("No song loaded yet. I AM is searching; tap SONGS if needed.");
   return;
  }
- if(forceStop||!privateAudio.paused){
+ if(forceStop||(musicHandoffDone&&!privateAudio.paused)){
   studioMusicStopped=true;
   try{privateAudio.pause()}catch(_e){}
   say("Private music paused. Your microphone stays connected.");
@@ -1030,8 +1030,16 @@ async function toggleStudioMusic(forceStop=false){
   try{
    if(ctx?.state!=="running")await ctx.resume();
    await privateAudio.play();
+   if(!musicHandoffDone){
+    if(!(await preflight(4000)))throw Error("Song cannot be captured yet. Try SONGS.");
+    audio.muted=true;
+    musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
+    musicHandoffDone=true;verified=true;musicSignalError="";
+    updateRecordReady();
+    get("iamSourceIndicator").textContent="PRIVATE PLAYER · READY";
+   }
    say("Private recording music is playing.");
-  }catch(err){studioMusicStopped=true;say("Private song cannot resume: "+errorString(err))}
+  }catch(err){studioMusicStopped=true;say("Private song needs a tap or another selection: "+errorString(err))}
  }
  syncPrivateTransport();
 }
