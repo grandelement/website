@@ -837,7 +837,7 @@ async function exportEdited(){
 }
 function exportAudio(key){
  const blob=take[key];if(!blob){say("Record a take before exporting this track.");return}
- const ext=blob.type.includes("mp4")?"m4a":"webm",url=URL.createObjectURL(blob);
+ const ext=blob.type.includes("wav")?"wav":blob.type.includes("mp4")?"m4a":"webm",url=URL.createObjectURL(blob);
  const a=document.createElement("a");a.href=url;
  a.download="Grand-Element-I-AM-"+key+"-"+Date.now()+"."+ext;
  document.body.appendChild(a);a.click();a.remove();
