@@ -23,7 +23,8 @@ Development branch: `ge-radio-station-2`. Existing Blitz Station 1 and GitHub `m
 7. Start from the `radio-next` directory: `docker compose up -d --build`.
 8. Wait for Docker health checks and verify `/healthz`, `/control/healthz`, `/stream.mp3`, `/dj/`, and `/dj-build.json`.
 9. Test music continuity overnight, login, independent playlists, DJ FX and remote mic before inviting listeners.
-10. Only after testing, configure **GitHub push-triggered UI-only deployment** with a scoped deploy key or CI secret and keep station engine deployments explicitly separate.
+10. After the VPS is live, configure the included `.github/workflows/ge-radio-two-dj.yml` workflow. Set repository secrets `GE2_DEPLOY_HOST`, `GE2_DEPLOY_USER`, `GE2_DEPLOY_SSH_KEY`, and `GE2_DEPLOY_KNOWN_HOSTS`. Provision an unprivileged, UI-only server account with write access only to `/opt/ge-radio-two/radio-next/site`. Verify the SSH server host key out of band before pinning it; do not disable host-key checking.
+11. Push a harmless UI-only commit and verify `dj-build.json` changes without any engine restart. DJ interface pushes to this branch will then sync automatically using GitHub Actions. **Engine code updates are not included in that workflow** and must be rolled out separately after safety tests.
 
 ## Separation and safety requirements
 
