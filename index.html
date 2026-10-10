@@ -3861,8 +3861,8 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
   <div class="gamePrompt" id="gamePrompt" role="dialog" aria-modal="true" aria-labelledby="gamePromptTitle">
     <div class="gameCard">
       <h2 id="gamePromptTitle">Start Grand Element Game?</h2>
-      <p>You threw an album planet. Keep exploring, or open Game Mode.</p>
-      <p class="small">Game Mode is an added layer. Choosing Continue Exploring leaves the website exactly as it is.</p>
+      <p id="geGameInviteMessage">Choose a game, or keep exploring.</p>
+      
       <div class="gameRemember">
         <input type="checkbox" id="gameRememberChoice">
         <label for="gameRememberChoice">Don’t ask me again</label>
@@ -9749,13 +9749,28 @@ const GE_GAME = (()=>{
     if(remember) remember.checked=false;
   }
 
+  // Back Room config may supply gameInvite: {enabled, title, message, delayMs, fadeMs}.
+  // Defaults keep the invitation brief and wait for the thrown planet to begin moving.
+  let geInviteTimer=0;
   function promptFromPlanetDrag(){
-    if(state.active) return;
+    if(state.active || geInviteTimer || prompt.classList.contains('show')) return;
+    const config=window.GE_SITE_CONFIG?.gameInvite||{};
+    if(config.enabled===false)return;
     let saved='';
     try{ saved=localStorage.getItem(STORAGE_PROMPT)||localStorage.getItem('GE_GAME_PROMPT_CHOICE_V1')||''; }catch(e){}
-    if(saved==='start'){ openNewGameSetup(); return; }
-    if(saved==='explore') return;
-    prompt.classList.add('show');
+    if(saved==='start'){openNewGameSetup();return;}
+    if(saved==='explore')return;
+    const title=document.getElementById('gamePromptTitle');
+    if(title)title.textContent=String(config.title||'Want to play a game?').slice(0,100);
+    const message=document.getElementById('geGameInviteMessage');
+    if(message)message.textContent=String(config.message||'Choose a game, or keep exploring.').slice(0,240);
+    const delay=Math.max(150,Math.min(8000,Number(config.delayMs) || 850));
+    const fade=Math.max(150,Math.min(3000,Number(config.fadeMs) || 650));
+    prompt.style.setProperty('--ge-invite-fade',fade+'ms');
+    geInviteTimer=setTimeout(()=>{
+      geInviteTimer=0;
+      if(!state.active&&!document.querySelector('.gameOptionsPanel.show'))prompt.classList.add('show');
+    },delay);
   }
 
   accept.addEventListener('click',()=>{
@@ -12731,6 +12746,10 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 <style id="ge-navigation-state-visibility">
 #gameOptionsPanel .geGameControlCard.geViewHub #geGameHomeTopBtn{visibility:hidden!important;pointer-events:none!important}
 #gameOptionsPanel .geGameControlCard.geViewDetail #geGameHomeTopBtn{visibility:visible!important;pointer-events:auto!important}
+</style>
+<style id="ge-invite-soft-fade">
+#gamePrompt{display:grid!important;visibility:hidden;opacity:0;pointer-events:none;transition:opacity var(--ge-invite-fade,650ms) ease,visibility 0s linear var(--ge-invite-fade,650ms)}
+#gamePrompt.show{visibility:visible;opacity:1;pointer-events:auto;transition:opacity var(--ge-invite-fade,650ms) ease}
 </style>
 </body>
 </html>
