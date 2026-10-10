@@ -1749,6 +1749,56 @@ html body.iam-studio-open .iamSourceRow{
  display:none!important;visibility:hidden!important;pointer-events:none!important
 }
 </style>
+
+<style id="ge-iam-post-take-actions-v9">
+/* Show the actual post-recording workflow, not the disabled legacy play icon. */
+body.iam-studio-open #iamPlayBtn{display:none!important}
+body.iam-studio-open #iamTakeActions{
+ display:none!important;visibility:hidden!important;pointer-events:none!important
+}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions{
+ display:grid!important;visibility:visible!important;pointer-events:auto!important;
+ position:fixed!important;z-index:210!important;
+ left:3vw!important;right:3vw!important;bottom:max(16px,env(safe-area-inset-bottom))!important;
+ width:94vw!important;margin:0!important;padding:8px!important;
+ box-sizing:border-box!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:7px!important;border:1px solid rgba(148,220,255,.62)!important;
+ border-radius:14px!important;background:rgba(2,18,32,.97)!important;
+ box-shadow:0 8px 25px rgba(0,0,0,.55)!important
+}
+body.iam-studio-open.iam-has-take #iamTakeActions button{
+ display:block!important;min-width:0!important;min-height:46px!important;
+ padding:6px 3px!important;border:1px solid rgba(153,219,255,.65)!important;
+ border-radius:10px!important;background:rgba(19,70,96,.88)!important;
+ color:white!important;font:850 11px/1.15 system-ui!important;touch-action:manipulation!important
+}
+body.iam-studio-open.iam-has-take #iamListenBtn{
+ background:rgba(10,102,75,.9)!important;border-color:rgba(151,255,206,.8)!important
+}
+body.iam-studio-open #iamTakeActions button:disabled{opacity:.42!important}
+body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{
+ bottom:max(98px,calc(env(safe-area-inset-bottom) + 80px))!important;
+ top:auto!important;position:fixed!important;z-index:180!important;
+ pointer-events:auto!important
+}
+body.iam-edit-open #iamEditPreview{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ border-radius:999px!important;border:1px solid rgba(141,242,198,.75)!important;
+ background:rgba(11,100,69,.88)!important;color:#fff!important;
+ padding:10px 13px!important;min-height:36px!important;font:800 12px/1 system-ui!important
+}
+#iamEditPreview{display:none}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions{
+  width:min(590px,94vw)!important;left:50%!important;right:auto!important;
+  transform:translateX(-50%)!important;bottom:5px!important;padding:4px!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) #iamTakeActions button{
+  min-height:34px!important;font-size:10px!important
+ }
+ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{display:none!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -2045,8 +2095,9 @@ html body.iam-studio-open .iamSourceRow{
       <button id="iamRecordBtn" class="iamBigButton" type="button" aria-label="Record"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="17" y="7" width="14" height="24" rx="7"></rect><path d="M11 23c0 8 5 14 13 14s13-6 13-14"></path><path d="M24 37v7M17 44h14"></path></svg></button>
       <button id="iamPlayBtn" class="iamBigButton" type="button" aria-label="Play recording" disabled><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M17 11l22 13-22 13z"></path></svg></button>
     </div>
-    <div id="iamTakeActions">
-      <button id="iamAgainBtn" type="button">DO AGAIN</button>
+    <div id="iamTakeActions" aria-label="Recording actions">
+      <button id="iamListenBtn" type="button" disabled>LISTEN AGAIN</button>
+      <button id="iamAgainBtn" type="button">TRY AGAIN</button>
       <button id="iamEditBtn" type="button">EDIT</button>
     </div>
     <audio id="iamTakeAudio" playsinline></audio>
@@ -2063,7 +2114,7 @@ html body.iam-studio-open .iamSourceRow{
     <div id="iamSoundPanel">
       <div class="iamSoundHead"><strong>I AM STUDIO SOUND</strong><button id="iamSoundClose" type="button">CLOSE SOUND</button></div>
       <div id="iamSourceIndicator">PRIVATE · PREPARING</div>
-      <div class="iamEditToolbar"><button id="iamEditBack" type="button">BACK</button><button id="iamEditSave" type="button">SAVE MIX</button></div>
+      <div class="iamEditToolbar"><button id="iamEditBack" type="button">BACK</button><button id="iamEditPreview" type="button">PLAY EDIT</button><button id="iamEditSave" type="button">SAVE MIX</button></div>
       <div class="iamPresetRow">
         <button class="iamPreset selected" type="button" data-iam-effect="clean">Clean</button>
         <button class="iamPreset" type="button" data-iam-effect="space">Space</button>
