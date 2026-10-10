@@ -219,12 +219,12 @@ function suspendOriginalRadio(){
 }
 function sourceSelection(){
  const url=audio.currentSrc||audio.src||"";
- const isRadio=!!(state.live||state.livePreparing||url.includes("/stream.mp3")||state.currentURL===CONFIG.LIVE_STREAM_URL);
+ const isRadio=!!(state.live||state.livePreparing||!url||url.includes("/stream.mp3")||state.currentURL===CONFIG.LIVE_STREAM_URL);
  sourceMode=isRadio?"radio":"player";
  if(!isRadio)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
  const match=(Date.now()-cachedSongTime<20000)?cachedSong:null;
  if(match){
-  const offset=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
+  const offset=match.seconds?clamp(radioStoppedAt/1000-match.seconds-2,0,999999):0;
   return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
  }
  // A live stream is not a recordable studio track. Require a matching song.
@@ -1015,48 +1015,28 @@ get("iamPrivatePrev")?.addEventListener("click",()=>choosePrivateSong("prev"));
 get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
 get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
 get("iamPlayerSource")?.addEventListener("click",showSongPicker);
-get("iamRadioSource")?.addEventListener("click",()=>{if(open&&!recording)void refreshMatchForStudio()});
-get("iamMatchRadioSong")?.addEventListener("click",()=>{
- if(!open||recording)return;
- const match=cachedSong&&(Date.now()-cachedSongTime<20000)?cachedSong:null;
- if(!match){void refreshMatchForStudio();return}
- const elapsed=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
- void selectPrivateSong(match.url,elapsed,true);
-});
 async function toggleStudioMusic(forceStop=false){
  if(!open||recordArming)return;
- const active=musicHandoffDone?privateAudio:audio;
- if(!active){say("No music source connected.");return}
- if(forceStop||!active.paused){
+ if(!privateAudio||!sourceURL||!musicHandoffDone){
+  say("I AM is loading its song. Tap SONGS to choose music if needed.");
+  return;
+ }
+ if(forceStop||!privateAudio.paused){
   studioMusicStopped=true;
-  try{privateAudio?.pause()}catch(_e){}
-  try{if(state.live&&pauseRadio)pauseRadio();else audio?.pause()}catch(_e){}
-  say("MUSIC STOPPED. YOU can remain connected. Tap PLAY or START to resume.");
+  try{privateAudio.pause()}catch(_e){}
+  say("Private music paused. Your microphone stays connected.");
  }else{
   studioMusicStopped=false;
   try{
    if(ctx?.state!=="running")await ctx.resume();
-   if(musicHandoffDone){
-    // The normal radio is kept muted while the private song is playing.
-    audio.muted=true;
-    await privateAudio.play();
-   }else{
-    // Safari could not capture the stream. Control the audible original.
-    audio.muted=false;
-    if(state.live&&resumeRadio)await resumeRadio();
-    else await audio.play();
-   }
-   say("Music playing. "+(musicHandoffDone?"Private song active.":"Original Radio active."));
-  }catch(err){studioMusicStopped=true;say("Music could not resume: "+errorString(err))}
+   await privateAudio.play();
+   say("Private recording music is playing.");
+  }catch(err){studioMusicStopped=true;say("Private song cannot resume: "+errorString(err))}
  }
  syncPrivateTransport();
 }
 get("iamPrivatePlay")?.addEventListener("click",()=>void toggleStudioMusic());
 get("iamStopMusic")?.addEventListener("click",()=>void toggleStudioMusic(true));
-get("iamPrivateRadio")?.addEventListener("click",()=>{
- if(recording){say("Stop recording before returning to Radio.");return}
- void leave().then(()=>{if(!state.live)window.GELive?.enter?.()});
-});
 get("iamPrivateMusicSeek")?.addEventListener("input",event=>{
  if(!open||!privateAudio||recording)return;
  const duration=Number(privateAudio.duration);
@@ -1082,7 +1062,7 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
   }
  },true);
 }
-window.GEIAmStudio={open:enter,close:leave,version:4,getSession:()=>takeMeta,isMusicStopped:()=>open&&studioMusicStopped};
+window.GEIAmStudio={open:enter,close:leave,version:4,getSession:()=>takeMeta,isMusicStopped:()=>open,isRadioSuspended:()=>open&&radioSuspended};
 outputSettings();
 };
 })();
