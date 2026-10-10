@@ -1001,6 +1001,10 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 body.view-player.hud-hidden #geFloatingSun{display:block;opacity:1;pointer-events:auto}
 body.view-player.hud-hidden.sun-faded #geFloatingSun{opacity:0;pointer-events:none}
 body.view-ship #geFloatingSun{display:none!important;pointer-events:none!important}
+/* I AM owns the only visible Sun while its private stage is open.
+   This overrides the high-z-index, six-second HUD floating Sun on all devices. */
+body.iam-studio-open #geFloatingSun{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+body.iam-studio-open header .logo-wrap{visibility:hidden!important;pointer-events:none!important}
 body.hud-hidden #radioCopyright,body.hud-hidden footer{opacity:0!important;pointer-events:none!important}
 </style>
 
@@ -1964,7 +1968,7 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-preview-meter-before-record-1',
+  APP_VERSION: '2026.10.09-iam-single-sun-no-hud-timer-1',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -4038,10 +4042,11 @@ window.addEventListener('online',()=>{
   }
   function scheduleSunFade(delay){
     clearSunFade();
+    if(document.body.classList.contains('iam-studio-open'))return;
     document.body.classList.remove('sun-faded');
     sunFadeTimer=setTimeout(()=>{
       sunFadeTimer=0;
-      if(document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
+      if(!document.body.classList.contains('iam-studio-open')&&document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
         document.body.classList.add('sun-faded');
       }
     },Math.max(0,Number(delay)||0));
@@ -4057,6 +4062,7 @@ window.addEventListener('online',()=>{
     lastActivity=Date.now();
   }
   function hideNow(){
+    if(document.body.classList.contains('iam-studio-open'))return;
     if(trackList.classList.contains('open'))return;
     if(document.body.classList.contains('hud-hidden'))return;
     if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
@@ -4065,10 +4071,21 @@ window.addEventListener('online',()=>{
     if(document.body.classList.contains('view-player'))scheduleSunFade(SUN_GRACE_MS);
   }
   function sunActivity(){
+    if(document.body.classList.contains('iam-studio-open'))return;
     lastActivity=Date.now();
     if(document.body.classList.contains('view-player')&&document.body.classList.contains('hud-hidden')){
       scheduleSunFade(CONFIG.HUD_IDLE_MS);
     }
+  }
+  function suspendForIAm(){
+    // Cancel an in-flight six-second Sun fade and clear any previously active
+    // HUD Sun. Do not create or position another Sun during the I AM session.
+    show();
+    clearSunFade();
+  }
+  function resumeFromIAm(){
+    // Return to the normal Radio HUD timing after the I AM Sun is removed.
+    show();
   }
   function flash(button){if(!button)return;button.classList.add('flash-green');setTimeout(()=>button.classList.remove('flash-green'),340);}
   function setAuto(on){autoEnabled=!!on;localStorage.setItem(CONFIG.HUD_KEY,autoEnabled?'1':'0');syncChecks();show();}
@@ -4090,11 +4107,12 @@ window.addEventListener('online',()=>{
   $('hudTap')?.addEventListener('touchend',event=>{event.preventDefault();show();},{passive:false});
 
   setInterval(()=>{
+    if(document.body.classList.contains('iam-studio-open'))return;
     const shouldAutoHide=document.body.classList.contains('view-ship')?shipAutoEnabled:autoEnabled;
     if(shouldAutoHide&&Date.now()-lastActivity>=CONFIG.HUD_IDLE_MS)hideNow();
   },1000);
   syncChecks();
-  window.GEHUD={show,hide:hideNow,sunActivity,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
+  window.GEHUD={show,hide:hideNow,sunActivity,suspendForIAm,resumeFromIAm,getAuto:()=>autoEnabled,getShipAuto:()=>shipAutoEnabled,setAuto,setShipAuto,flash};
 })();;
 
 
@@ -7149,9 +7167,9 @@ Vector ${vector}. ${pair[1]}.`;
   const micIcon="<svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"17\" y=\"7\" width=\"14\" height=\"24\" rx=\"7\"></rect><path d=\"M11 23c0 8 5 14 13 14s13-6 13-14\"></path><path d=\"M24 37v7M17 44h14\"></path></svg>";
   const stopIcon='<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="13" y="13" width="22" height="22" rx="3"></rect></svg>';
   const playIcon="<svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M17 11l22 13-22 13z\"></path></svg>";
-  function createSunFlight(){
+  function createSunFlight(originRect=null){
     const source=$('geLogo');if(!source)return;
-    const rect=source.getBoundingClientRect();
+    const rect=originRect||source.getBoundingClientRect();
     sunFlight?.remove();
     sunFlight=document.createElement('img');
     sunFlight.className='iamSunFlight';
@@ -7704,6 +7722,7 @@ Vector ${vector}. ${pair[1]}.`;
     document.body.classList.remove('iam-studio-open','iam-has-take','iam-edit-open');
     launch.setAttribute('aria-expanded','false');launch.textContent='I AM';open=false;
     removeSunFlight();setMainButtonMode('record');
+    window.GEHUD?.resumeFromIAm?.();
     stopReviewDuck();stopMeters();await stopMicPreview();await stopMusicPreview();
     try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
     // I AM never pauses the music, so nothing needs to be resumed.
@@ -7711,10 +7730,13 @@ Vector ${vector}. ${pair[1]}.`;
   function openStudio(){
     open=true;
     sourceMode=state.live?'radio':'player';
+    // Capture the original logo position BEFORE the studio collapses its header.
+    const sunOrigin=$('geLogo')?.getBoundingClientRect();
+    window.GEHUD?.suspendForIAm?.();
     document.body.classList.add('iam-studio-open');
     document.body.classList.toggle('iam-has-take',!!takeBlob);
     launch.setAttribute('aria-expanded','true');
-    createSunFlight();
+    createSunFlight(sunOrigin);
     updateNowPlaying();
     setMainButtonMode(takeBlob?'play':'record');
     recordBtn.disabled=true;
