@@ -18,22 +18,22 @@ html,body{
 }
 #site{
   position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:0;
-  opacity:1;transform:translate3d(0,0,0) scale(1);
-  transition:none;
-  will-change:opacity,transform;backface-visibility:hidden;-webkit-backface-visibility:hidden
+  opacity:1;transform:translate3d(0,0,0);
+  transition:none;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 #site.reveal{opacity:1;transform:translate3d(0,0,0) scale(1)}
 
 #gate{
   position:fixed;inset:0;z-index:10;overflow:hidden;background:#000;
-  opacity:1;transition:none;touch-action:manipulation;isolation:isolate
+  opacity:1;transition:none;touch-action:manipulation;isolation:isolate;
+  transform:translateZ(0);will-change:opacity;contain:layout style paint
 }
 #gate.done{opacity:0;pointer-events:none}
 
 #space{
   position:absolute;inset:-7%;z-index:0;
   background:#000 url("../../ge-images/images/stars%20backgrounds/4.jpg") center/cover no-repeat;
-  transform:translate3d(0,0,0) scale(1.06);will-change:transform,opacity;backface-visibility:hidden;-webkit-backface-visibility:hidden
+  transform:translate3d(0,0,0) scale(1.06);will-change:opacity;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 #spaceShade{
   position:absolute;inset:0;z-index:1;pointer-events:none;
@@ -57,7 +57,7 @@ html,body{
 
 #sunWrap,#moonWrap{
   position:absolute;left:50%;top:50%;aspect-ratio:1;border-radius:50%;
-  transform-origin:50% 50%;will-change:transform,opacity,filter
+  transform-origin:50% 50%;will-change:transform,opacity;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 #sunWrap{
   z-index:5;width:min(50vmin,430px);
@@ -66,12 +66,12 @@ html,body{
 #sun{
   width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
   box-shadow:
-    0 0 28px rgba(66,218,255,.82),
-    0 0 90px rgba(0,137,255,.55),
-    0 0 170px rgba(0,92,255,.28);
+    0 0 22px rgba(66,218,255,.72),
+    0 0 52px rgba(0,137,255,.38);
   user-select:none;-webkit-user-drag:none
 }
 #sunFlare{
+  display:none; /* Avoid expensive large-area screen blending on iPhones. */
   position:absolute;inset:-18%;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(98,224,255,.20),rgba(0,135,255,.06) 48%,transparent 72%);
   mix-blend-mode:screen
@@ -85,8 +85,8 @@ html,body{
 #moon{
   width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;
   box-shadow:
-    0 0 18px rgba(80,210,255,.22),
-    0 0 55px rgba(20,121,255,.12);
+    0 0 12px rgba(80,210,255,.18),
+    0 0 28px rgba(20,121,255,.10);
   user-select:none;-webkit-user-drag:none
 }
 #moonHalo{
@@ -122,7 +122,7 @@ html,body{
 </head>
 
 <body>
-<iframe id="site" src="../../radio/?qr=1" title="Grand Element Radio" allow="autoplay"></iframe>
+<iframe id="site" src="about:blank" title="Grand Element Radio" allow="autoplay"></iframe>
 
 <div id="gate" aria-label="Entering Grand Element Radio" role="button" tabindex="0">
   <div id="space"></div>
@@ -154,43 +154,57 @@ html,body{
   const space=document.getElementById('space');
   const sunWrap=document.getElementById('sunWrap');
   const moonWrap=document.getElementById('moonWrap');
-  const vignette=document.getElementById('vignette');
 
-  // Match the established Website QR timing exactly through the flyby target.
-  const STARS_ONLY=3500;
-  const FADE_IN=1700;
+  // Preserve the approved half-screen, right-limb near-miss trajectory.
+  // Bring the Sun into view sooner, then fly toward and INTO the Radio moon.
+  const STARS_ONLY=1800;
+  const FADE_IN=1100;
   const ZOOM_START=STARS_ONLY+FADE_IN;
   const ZOOM_TIME=6000;
   const FLYBY_START=ZOOM_START+ZOOM_TIME;
   const FLYBY_TIME=3900;
-  const TRANSITION_START=FLYBY_START+FLYBY_TIME+200;
-  const TRANSITION_TIME=1500;
+  const MOON_APPROACH_START=FLYBY_START+FLYBY_TIME;
+  const MOON_APPROACH_TIME=3600;
+  const FADE_START=MOON_APPROACH_START+MOON_APPROACH_TIME;
+  const FADE_TIME=1350;
   const START_SCALE=.76;
-  // Enough to fill the LEFT half while keeping iPhone GPU texture sizes reasonable.
   const END_SCALE=5.4;
   const clamp=v=>Math.max(0,Math.min(1,v));
   const smooth=v=>{v=clamp(v);return v*v*(3-2*v)};
   const mix=(a,b,t)=>a+(b-a)*t;
-  let startAt=0,frame=0,finished=false,siteReady=false,blendAt=-1;
-  let audioRequested=false;
+
+  let startAt=0,frame=0,finished=false;
+  let radioLoading=false,siteReady=false,fadeAt=-1,audioRequested=false;
+  let sunHidden=false,lastFrameAt=0,fpsFrames=0;
+  const showFps=new URLSearchParams(location.search).get('fps')==='1';
+  let fpsMeter=null;
+  if(showFps){
+    fpsMeter=document.createElement('div');
+    fpsMeter.style.cssText='position:fixed;right:10px;top:10px;z-index:99;background:rgba(0,0,0,.8);color:#9eefff;border-radius:6px;padding:5px 8px;font:700 13px monospace;pointer-events:none';
+    fpsMeter.textContent='FPS measuring…';
+    document.body.appendChild(fpsMeter);
+  }
+
+  // The original Radio iframe does not compete with the flyby animation.
+  // Start its one-time load only when the moon approach begins.
+  function loadRadio(){
+    if(radioLoading)return;
+    radioLoading=true;
+    site.src='../../radio/?qr=1';
+  }
 
   function beginRadioAudio(){
     if(audioRequested||!finished)return;
-    let child,player;
     try{
-      child=site.contentWindow;
-      if(!child||!child.GEQRIntroAudioReady)return;
-      if(child.GEIAmStudio?.isRadioSuspended?.())return;
-      player=child.document.getElementById('player');
-      if(!player||!player.currentSrc&&!player.src)return;
-    }catch(_e){return;}
-    audioRequested=true;
-    // Only this ONE player is permitted to start. No audio begins during the movie.
-    try{
+      const child=site.contentWindow;
+      if(!child||!child.GEQRIntroAudioReady||child.GEIAmStudio?.isRadioSuspended?.())return;
+      const player=child.document.getElementById('player');
+      if(!player||(!player.src&&!player.currentSrc))return;
+      audioRequested=true;
       player.muted=false;
       player.defaultMuted=false;
-      const started=player.play();
-      if(started&&typeof started.catch==='function')started.catch(()=>{});
+      const play=player.play();
+      if(play&&typeof play.catch==='function')play.catch(()=>{});
     }catch(_e){}
   }
 
@@ -201,69 +215,91 @@ html,body{
     gate.style.opacity='0';
     gate.classList.add('done');
     beginRadioAudio();
-    // Do not reload the already-initialized Radio iframe.
+    // Retry only against the same player in case its asynchronous startup
+    // completed just after the frame that finished the crossfade.
+    if(!audioRequested)setTimeout(beginRadioAudio,700);
     setTimeout(()=>{
       try{history.replaceState({qrRadioArrival:true},'','../../radio/')}catch(_e){}
       try{site.contentWindow.focus()}catch(_e){}
     },450);
+    if(fpsMeter)fpsMeter.textContent+=' · DONE';
   }
 
   function draw(now){
     if(!startAt)startAt=now;
-    // Wall-clock timing prevents low-frame-rate iPhones from turning 3.5s into 15s.
+    // Time is measured against the actual clock, never a frame-count clock.
     const t=Math.max(0,now-startAt);
     const zoom=clamp((t-ZOOM_START)/ZOOM_TIME);
     const flyby=smooth((t-FLYBY_START)/FLYBY_TIME);
+    const moonApproach=clamp((t-MOON_APPROACH_START)/MOON_APPROACH_TIME);
+    const width=Math.max(1,window.innerWidth),height=Math.max(1,window.innerHeight);
+    const sunBase=Math.min(Math.min(width,height)*.5,430);
     const sunScale=START_SCALE*Math.pow(END_SCALE/START_SCALE,Math.pow(zoom,3));
-    const width=Math.max(1,window.innerWidth);
-    const baseWidth=Math.min(Math.min(window.innerWidth,window.innerHeight)*.5,430);
-    const radius=(baseWidth*sunScale)/(2*width);
+    const radius=sunBase*sunScale/(2*width);
 
-    // AIM: fly straight toward the boundary between blue surface and space.
-    // At 11.2 seconds the RIGHT EDGE is exactly at screen center:
-    // left half blue, right half stars. Do not steer beyond it during zoom.
+    // Website QR zoom, but aim at the Sun's RIGHT edge. At the closest
+    // approach the Sun covers exactly the left half of the screen.
     const aim=smooth((zoom-.12)/.88);
     const approachRightEdge=mix(.5+radius,.5,aim);
-    // AFTER reaching that half-screen composition, slide the Sun left.
-    // This physically reveals the moon behind it; neither object teleports.
     const rightEdge=mix(approachRightEdge,-.18,flyby);
-    const center=rightEdge-radius;
-    const sunX=(center-.5)*100;
+    const sunCenter=(rightEdge-radius)*width;
+    if(!sunHidden){
+      const opacity=smooth((t-STARS_ONLY)/FADE_IN);
+      sunWrap.style.opacity=opacity.toFixed(4);
+      sunWrap.style.transform='translate3d('+(sunCenter-width/2).toFixed(2)+'px,-50%,0) translate3d(-50%,0,0) scale3d('+sunScale.toFixed(5)+','+sunScale.toFixed(5)+',1)';
+    }
+    if(t>=MOON_APPROACH_START&&!sunHidden){
+      // The Sun has completely left the screen. Drop its compositing layer.
+      sunHidden=true;
+      sunWrap.style.display='none';
+    }
 
-    const appear=smooth((t-STARS_ONLY)/FADE_IN);
-    sunWrap.style.opacity=appear.toFixed(4);
-    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(3)+'vw),-50%,0) scale3d('+sunScale.toFixed(5)+','+sunScale.toFixed(5)+',1)';
+    // The moon is behind the blue planet all along. When the limb moves left,
+    // we uncover it in place; THEN fly closer without changing the starfield.
+    const moonBase=Math.min(Math.min(width,height)*.29,255);
+    const moonGoal=Math.max(1.1,Math.max(width,height)*1.12/moonBase);
+    const moonArrival=mix(.58,1.10,flyby);
+    const moonScale=moonArrival*Math.pow(moonGoal/1.10,smooth(moonApproach));
+    const moonShift=mix(-10,-1,flyby)*(1-smooth(moonApproach));
+    moonWrap.style.opacity=smooth((t-STARS_ONLY)/FADE_IN).toFixed(4);
+    moonWrap.style.transform='translate3d(calc(-50% + '+moonShift.toFixed(3)+'vw),-50%,0) scale3d('+moonScale.toFixed(5)+','+moonScale.toFixed(5)+',1)';
 
-    // Moon begins fully OCCLUDED by the blue Sun, slightly left of center.
-    // As the camera skims past, gentle parallax centers and exposes the moon.
-    // No sudden independent moon fade or massive zoom of the RADIO lettering.
-    const moonX=mix(-10,-1,smooth(flyby));
-    const moonScale=mix(.58,1.10,flyby);
-    moonWrap.style.opacity=appear.toFixed(4);
-    moonWrap.style.transform='translate3d(calc(-50% + '+moonX.toFixed(3)+'vw),-50%,0) scale3d('+moonScale.toFixed(5)+','+moonScale.toFixed(5)+',1)';
+    if(t>=MOON_APPROACH_START)loadRadio();
+    // During the moon close-up, fade away outer space so the RADIO page
+    // can blend directly in once it is ready. No starfield scene reset.
+    space.style.opacity=(1-smooth((moonApproach-.54)/.43)).toFixed(4);
 
-    // Keep stars in one continuous scene. No second star field or white flash.
-    space.style.transform='translate3d(0,0,0) scale('+(1.06+.025*smooth(zoom)+.01*flyby).toFixed(5)+')';
-    vignette.style.opacity=(.72-.18*flyby).toFixed(4);
+    // Don't expose a blank iframe during a slow connection.
+    // Hold the last moon frame until Radio actually loads.
+    if(t>=FADE_START&&siteReady&&fadeAt<0)fadeAt=now;
+    const fade=fadeAt<0?0:smooth((now-fadeAt)/FADE_TIME);
+    gate.style.opacity=(1-fade).toFixed(4);
 
-    // The Radio iframe is already visibly painted underneath the opaque gate.
-    // Only dissolve the gate when the iframe has actually finished loading.
-    if(t>=TRANSITION_START && siteReady && blendAt<0)blendAt=t;
-    const blend=blendAt<0?0:smooth((t-blendAt)/TRANSITION_TIME);
-    gate.style.opacity=(1-blend).toFixed(4);
-    if(blend>=1)finish();
+    if(fpsMeter){
+      fpsFrames++;
+      if(!lastFrameAt)lastFrameAt=now;
+      if(now-lastFrameAt>=700){
+        const fps=(fpsFrames*1000/(now-lastFrameAt)).toFixed(0);
+        fpsMeter.textContent='QR FPS '+fps;
+        fpsFrames=0;lastFrameAt=now;
+      }
+    }
+    if(fade>=1)finish();
     else frame=requestAnimationFrame(draw);
   }
 
   site.addEventListener('load',()=>{
+    if(!radioLoading)return; // Ignore initial about:blank navigation.
+    try{
+      const href=site.contentWindow.location.href;
+      if(!href.includes('/radio/')||!href.includes('qr=1'))return;
+    }catch(_e){return;}
     siteReady=true;
-    if(finished)beginRadioAudio();
-  },{once:true});
+  });
 
-  // Tapping the introduction must never start music early or duplicate the player.
-  // On Safari, the regular Play control remains available if autoplay is denied.
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    startAt=performance.now()-TRANSITION_START;
+    // Skip animation, but still wait for the actual Radio document to load.
+    startAt=performance.now()-FADE_START;
   }
   frame=requestAnimationFrame(draw);
 })();
