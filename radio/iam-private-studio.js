@@ -513,6 +513,8 @@ async function leave(){
  open=false;sessionToken++;
  document.body.classList.remove("iam-studio-open","iam-has-take","iam-edit-open");
  E.launch.setAttribute("aria-expanded","false");
+ E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
+ editing=false;
  removeSun();window.GEHUD?.resumeFromIAm?.();
  // A local file returns at the studio's position; the live stream returns
  // to its still-running original broadcast without seeking or rebuilding it.
@@ -579,6 +581,7 @@ function showSongPicker(){
  picker.hidden=false;
 }
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
+get("iamExitBtn")?.addEventListener("click",()=>void leave());
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
 E.again?.addEventListener("click",againTake);
 E.edit?.addEventListener("click",editTake);
