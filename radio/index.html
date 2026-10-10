@@ -1665,7 +1665,7 @@ body.iam-studio-open #iamPrivateTransport{
  pointer-events:auto!important
 }
 body.iam-studio-open #iamPrivateTransport .iamPrivateTransportButtons{
- display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:4px!important
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px!important
 }
 body.iam-studio-open #iamPrivateTransport button{
  display:block!important;min-width:0!important;min-height:34px!important;height:34px!important;
@@ -1999,11 +1999,6 @@ body.iam-studio-open .iamMiniActions{gap:5px!important}
 
     <div id="iamInputChoices" aria-label="Audio inputs"></div>
 
-    <div class="iamSourceRow" aria-label="Music source">
-      <button id="iamPlayerSource" class="iamSource selected" type="button" aria-pressed="true">SONGS</button>
-      <button id="iamRadioSource" class="iamSource" type="button" aria-pressed="false">MATCH RADIO</button>
-    </div>
-
     <div id="iamNowPlaying">Player · current song</div>
 
     <button id="iamExitBtn" type="button" aria-label="Close I AM">CLOSE</button>
@@ -2013,10 +2008,8 @@ body.iam-studio-open .iamMiniActions{gap:5px!important}
         <button id="iamPrivatePlay" type="button" aria-label="Pause or play private music">PAUSE</button>
         <button id="iamPrivateNext" type="button" aria-label="Next private song">NEXT</button>
         <button id="iamPrivateChoose" type="button" aria-label="Choose a private song">SONGS</button>
-        <button id="iamPrivateRadio" type="button" aria-label="Leave studio and rejoin live Radio">RADIO</button>
         <button id="iamStopMusic" type="button" aria-label="Stop audible Radio or private studio music">STOP</button>
       </div>
-      <button id="iamMatchRadioSong" type="button" hidden aria-label="Match the current Radio song to the Player catalog">MATCH RADIO SONG</button>
       <div class="iamPrivateMusicVolume"><label for="iamPrivateMusicVolume">MUSIC VOL</label>
         <input id="iamPrivateMusicVolume" type="range" min="0" max="150" value="100" step="1" aria-label="Private song volume">
         <output id="iamPrivateMusicRead">100%</output>
@@ -3311,6 +3304,7 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 async function resumeRadio(){
+  if(window.GEIAmStudio?.isRadioSuspended?.())return;
   if(!state.live||state.livePreparing)return;
   state.userStarted=true;
   liveState.autoplayBlocked=false;
@@ -3338,6 +3332,7 @@ async function resumeRadio(){
   await resumeLiveAtEdge();
 }
 async function resumeLiveAtEdge(){
+  if(window.GEIAmStudio?.isRadioSuspended?.())return;
   if(!state.live||state.livePreparing)return;
   if(navigator.onLine===false){
     setStatus('RADIO requires an Internet connection.');
@@ -3377,6 +3372,7 @@ async function resumeLiveAtEdge(){
   }
 }
 async function enterLiveMode(){
+  if(window.GEIAmStudio?.isRadioSuspended?.())return;
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
     setStatus('RADIO requires an Internet connection.');
@@ -3704,6 +3700,7 @@ function updateCurrentRow(){
 function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.onSongStart(); }
 
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
+  if(window.GEIAmStudio?.isRadioSuspended?.())return;
   if(!url) return;
   const token=++state.playToken;
   window.GEGate?.syncListening?.();
@@ -4004,6 +4001,10 @@ audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{pass
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('ended',()=>{if(state.live){reconnectLiveStream();return;}advanceFromEnded();});
 audio.addEventListener('play',()=>{
+  if(window.GEIAmStudio?.isRadioSuspended?.()){
+    try{audio.muted=true;audio.pause()}catch(_e){}
+    return;
+  }
   if(state.live||state.livePreparing){
     liveState.hasPlayed=true;
     liveState.everPlayed=true;
