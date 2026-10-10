@@ -10010,7 +10010,32 @@ const GE_GAME = (()=>{
 
   /* Game invitation appears after a deliberate normal-site planet drag/release.
      Simple taps remain album interactions; sliding a finger across without grabbing does nothing. */
-  window.addEventListener('ge-free-planet-thrown',()=>{if(document.body.classList.contains('autopilot-active'))return;setTimeout(promptFromPlanetDrag,0);},{passive:true});
+  // Invite only after the actual thrown planet has come to rest.
+  // Read the same physics object used by the normal universe, not a fixed timer.
+  let geInviteStopWatcher=0;
+  window.addEventListener('ge-free-planet-thrown',event=>{
+    if(document.body.classList.contains('autopilot-active')||state.active)return;
+    if(geInviteStopWatcher)cancelAnimationFrame(geInviteStopWatcher);
+    if(geInviteTimer){clearTimeout(geInviteTimer);geInviteTimer=0;}
+    const planet=event.detail?.planet;
+    if(!planet)return;
+    let quietSince=0;
+    const started=performance.now();
+    function waitForStop(now){
+      if(state.active||document.body.classList.contains('autopilot-active')){geInviteStopWatcher=0;return;}
+      const speed=Math.hypot(Number(planet.vx)||0,Number(planet.vy)||0);
+      const stopped=!planet.dragging&&speed<0.8;
+      if(stopped){if(!quietSince)quietSince=now;}else quietSince=0;
+      if(quietSince&&now-quietSince>=500){
+        geInviteStopWatcher=0;
+        promptFromPlanetDrag();
+        return;
+      }
+      // No timeout that can force the invitation while the planet is still rolling.
+      geInviteStopWatcher=requestAnimationFrame(waitForStop);
+    }
+    geInviteStopWatcher=requestAnimationFrame(waitForStop);
+  },{passive:true});
 
 
   // v10.5.5 local gameplay statistics. Stored only on this browser/device.
