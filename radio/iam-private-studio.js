@@ -653,6 +653,41 @@ function stopOne(r,key){
   try{r.stop()}catch(err){finish(errorString(err))}
  });
 }
+async function recoverMixFromStems(){
+ if(!take.music||!take.voice)return null;
+ const AC=window.AudioContext||window.webkitAudioContext;
+ const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+ if(!AC||!Offline)return null;
+ let decoder=null;
+ try{
+  decoder=new AC();
+  const encoded=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
+  const [music,voice]=await Promise.all(encoded.map(buf=>decoder.decodeAudioData(buf)));
+  const length=Math.max(music.duration,voice.duration);
+  if(!(length>0&&length<=120))return null;
+  const rate=44100,off=new Offline(2,Math.ceil((length+.08)*rate),rate);
+  const sm=off.createBufferSource(),sv=off.createBufferSource(),gm=off.createGain(),gv=off.createGain();
+  sm.buffer=music;sv.buffer=voice;
+  gm.gain.value=clamp(value(E.music)/100,0,1.5);
+  gv.gain.value=clamp(value(E.voice)*value(E.gain)/10000,0,4);
+  sm.connect(gm);gm.connect(off.destination);sv.connect(gv);gv.connect(off.destination);
+  sm.start(.012);sv.start(.012);
+  const output=await off.startRendering(),frames=output.length,bytes=new ArrayBuffer(44+frames*4),v=new DataView(bytes);
+  const write=(offset,txt)=>{for(let i=0;i<txt.length;i++)v.setUint8(offset+i,txt.charCodeAt(i))};
+  write(0,"RIFF");v.setUint32(4,36+frames*4,true);write(8,"WAVE");write(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);
+  v.setUint32(24,rate,true);v.setUint32(28,rate*4,true);
+  v.setUint16(32,4,true);v.setUint16(34,16,true);write(36,"data");v.setUint32(40,frames*4,true);
+  const left=output.getChannelData(0),right=output.getChannelData(1);
+  for(let i=0;i<frames;i++){
+   const a=clamp(left[i],-1,1),b=clamp(right[i],-1,1);
+   v.setInt16(44+i*4,a<0?a*32768:a*32767,true);
+   v.setInt16(46+i*4,b<0?b*32768:b*32767,true);
+  }
+  return new Blob([bytes],{type:"audio/wav"});
+ }catch(err){savedWarning="Could not rebuild a playback file: "+errorString(err);return null}
+ finally{try{await decoder?.close()}catch(_e){}}
+}
 function showTakeReady(duration){
  const old=E.take.src||"";
  const next=URL.createObjectURL(take.mix);
@@ -685,6 +720,11 @@ async function stopTake(){
   say("Mixed recording failed ("+mixResult.why+"). Checking raw tracks…");
  }
  const [musicResult,voiceResult]=await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice")]);
+ if(!take.mix&&take.music&&take.voice){
+  say("Rebuilding a playable recording from the raw MUSIC and YOU tracks…");
+  take.mix=await recoverMixFromStems();
+  if(take.mix)showTakeReady(duration);
+ }
  if(!take.mix){
   // The interface still offers a reset even if iOS failed to produce a blob.
   document.body.classList.remove("iam-has-take");
@@ -1102,10 +1142,26 @@ E.monitor?.addEventListener("click",()=>{
  if(!headphones){say("Select HEADPHONES before enabling vocal monitoring.");return}
  monitoring=!monitoring;setHeadphones(true,true);
 });
+E.take.addEventListener("play",()=>{
+ if(!take.mix||!open)return;
+ reviewing=true;mode("playing");
+ if(ctx){
+  musicOutput?.gain.setTargetAtTime(0,ctx.currentTime,.05);
+  monitorGain?.gain.setTargetAtTime(0,ctx.currentTime,.05);
+ }
+});
+E.take.addEventListener("pause",()=>{
+ if(!reviewing||!take.mix)return;
+ reviewing=false;mode("play");outputSettings();
+});
 E.take.addEventListener("ended",()=>{
- reviewing=false;mode("play");
- if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06);
+ reviewing=false;mode("play");outputSettings();
  say("Review finished · LISTEN AGAIN, TRY AGAIN, or EDIT.");
+});
+E.take.addEventListener("error",()=>{
+ if(!open||!take.mix)return;
+ const code=E.take.error?.code||"unknown";
+ say("Safari could not play this take (decoder error "+code+"). The recording file can still be exported from EDIT. Tap TRY AGAIN for a new take.");
 });
 // All visible controls operate the PRIVATE song, not the muted original Radio.
 get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
