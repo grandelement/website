@@ -252,12 +252,12 @@ html,body{
     const sunDiameter=Math.min(window.innerWidth,window.innerHeight)*.5*sunScale;
     const radiusFraction=sunDiameter/(2*screenWidth);
     const tracking=smoother(approach/.36);
-    // Spend several seconds sliding the right limb across the moon instead
-    // of clearing its entire disk in a single second.
+    // Continuous, single eased edge path: no late acceleration / last
+    // second teleport. The right limb takes several seconds to pass
+    // across the already-present moon and finally move beyond frame left.
     const approachEdge=mix(.5+radiusFraction,.68,tracking);
-    const uncover=smoother((approach-.56)/.31);
-    const exit=smoother((approach-.87)/.13);
-    const rightEdge=mix(mix(approachEdge,.38,uncover),-.14,exit);
+    const flyBy=smoother((approach-.53)/.47);
+    const rightEdge=mix(approachEdge,-.14,flyBy);
     const centerX=rightEdge-radiusFraction;
     const sunX=(centerX-.5)*100;
     const sunY=mix(0,1.3,smoother(approach));
