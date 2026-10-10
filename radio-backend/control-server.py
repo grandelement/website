@@ -3048,6 +3048,15 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        # DJ build identity is derived from the deployed HTML bytes, not a hardcoded badge.
+        # Private endpoint: DJ authentication required, Cache-Control no-store via json_response.
+        if parsed.path == "/control/dj-build":
+            if not self.require_auth(): return
+            raw_dj = DJ_HTML.read_bytes()
+            match = re.search(rb'GE DJ <span[^>]*>v(\\d+)</span>', raw_dj)
+            self.json_response({"ok": True, "version": match.group(1).decode("ascii") if match else "unknown", "build": hashlib.sha256(raw_dj).hexdigest()[:8]})
+            return
+
         if self.path == "/dj/" or self.path == "/dj/index.html":
             if not self.require_auth():
                 return
