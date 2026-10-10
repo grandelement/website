@@ -374,6 +374,7 @@ async function preflight(timeout=4500){
    return; // Preserve microphone permission and the music graph for recovery.
   }
   musicSignalError="";musicHandoffDone=true;
+  const matcher=get("iamMatchRadioSong");if(matcher)matcher.hidden=true;
   audio.muted=true;
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
   if(studioMusicStopped){privateAudio.pause();audio.pause();}
@@ -721,6 +722,7 @@ async function leave(){
  const title=state.live?(window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE):displayTitle(state.currentURL,!state.shuffle);
  get("titleBtn").textContent=title||"Grand Element Radio";
  hideSongPicker();
+ const matcher=get("iamMatchRadioSong");if(matcher)matcher.hidden=true;
  try{if("audioSession" in navigator)navigator.audioSession.type="playback"}catch(_e){}
  mode("record");say("Private I AM session closed.");
 }
@@ -736,6 +738,7 @@ async function enter(){
  document.body.classList.add("iam-studio-open");
  E.launch.setAttribute("aria-expanded","true");
  setHeadphones(false);E.record.disabled=true;mode(take.mix?"play":"record");
+ const matcher=get("iamMatchRadioSong");if(matcher){matcher.hidden=true;matcher.disabled=true}
  if(take.mix)document.body.classList.add("iam-has-take");
  raf=requestAnimationFrame(meterLoop);
  // Begin microphone permission now, synchronously with the I AM user gesture.
@@ -858,6 +861,10 @@ get("iamListenHeadphones")?.addEventListener("click",()=>{
  setHeadphones(true);
  say("HEADPHONES: Microphone monitoring ON. Use HEAR ME to turn it off.");
 });
+get("iamHeadphones")?.addEventListener("click",()=>{
+ setHeadphones(true);
+ say("HEADPHONES: Microphone monitoring ON. Use HEAR ME to turn it off.");
+});
 get("iamListenSpeaker")?.addEventListener("click",()=>{
  setHeadphones(false);
  say("SPEAKER: Music plays out loud; sing normally. Your mic records, but is not fed back through the speaker.");
@@ -875,6 +882,8 @@ get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
 get("iamPrivatePrev")?.addEventListener("click",()=>choosePrivateSong("prev"));
 get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
 get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
+get("iamPlayerSource")?.addEventListener("click",showSongPicker);
+get("iamRadioSource")?.addEventListener("click",()=>{if(open&&!recording)void refreshMatchForStudio()});
 get("iamMatchRadioSong")?.addEventListener("click",()=>{
  if(!open||recording)return;
  const match=cachedSong&&(Date.now()-cachedSongTime<20000)?cachedSong:null;
