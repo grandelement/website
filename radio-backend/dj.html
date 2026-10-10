@@ -6759,11 +6759,42 @@ html.geDayMode.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet
 html.geDayMode.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider .geFxVisualThumb{background:rgba(255,255,255,.25)!important;border:2px solid #35546a!important}
 html.geDayMode.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxEffectButtons button{color:#102938!important;background:#e0edf4!important;border-width:2px!important}
 
+
+/* STATION 2: permanent DJ-booth station tabs, no extra page-height row. */
+#geDisplayZoomBar .geStationTabs{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 auto!important;gap:3px!important;margin:0 5px!important;
+  height:34px!important;min-width:0!important
+}
+#geDisplayZoomBar .geStationTabs a{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  min-width:51px!important;min-height:32px!important;height:32px!important;
+  padding:2px 6px!important;border:1px solid #5d798b!important;border-radius:8px!important;
+  color:#d8e6f2!important;background:#17212c!important;text-decoration:none!important;
+  font-weight:950!important;font-size:10px!important;white-space:nowrap!important;line-height:1!important
+}
+#geDisplayZoomBar .geStationTabs a.current{
+  background:#17493f!important;color:#d4fff5!important;border-color:#55d8c1!important
+}
+html.geDayMode #geDisplayZoomBar .geStationTabs a{
+  background:#f4f9fc!important;color:#143147!important;border-color:#92adbd!important
+}
+html.geDayMode #geDisplayZoomBar .geStationTabs a.current{
+  background:#d7f4e8!important;color:#135240!important;border-color:#35aa8e!important
+}
+html.geFormatPhone #geDisplayZoomBar .geStationTabs{
+  height:30px!important;gap:2px!important;margin:0 4px!important
+}
+html.geFormatPhone #geDisplayZoomBar .geStationTabs a{
+  height:29px!important;min-height:29px!important;
+  min-width:45px!important;padding:1px 4px!important;font-size:9px!important
+}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
   <div class="geHostGroup" aria-label="GE host connection"><b>HOST</b><div class="studioConnections"><button class="studioNode offline" id="studioHome" type="button" disabled><i class="lamp"></i><span>HOME</span></button><button class="studioNode offline" id="studioRemote" type="button" disabled><i class="lamp"></i><span>CLOUD</span></button><span id="studioExtra"></span></div></div>
-  <div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
+  <nav class="geStationTabs" id="geStationTabs" aria-label="Select radio station"><a href="https://radio.grandelement.blitz.cloud/dj/" title="Open the independent Blitz Radio DJ booth">BLITZ</a><a class="current" aria-current="page" href="/dj/" title="Current station: GE Radio 2">GE RADIO 2</a></nav><div class="geChannelStatus" id="geChannelStatus" aria-label="GE device connections"><span id="geKnownDevices" class="geKnownDevices" aria-label="Known devices"></span></div>
   <button type="button" id="geAddChannel" class="geUtilityAction geTopAddChannel" aria-label="Add mixer track or channel">＋ ADD</button>
  </div>
  <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
@@ -7010,7 +7041,7 @@ window.addEventListener('unhandledrejection',function(e){
  try{console.error('GE DJ PROMISE ERROR',e&&e.reason||e)}catch(_e){}
 });
 
-const API='https://radio.grandelement.blitz.cloud';const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
+const API=window.location.origin;const $=function(id){return document.getElementById(id)};const clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
 const GE_TIME_ZONE='America/Chicago',GE_KC_LAT=39.0997,GE_KC_LON=-94.5786;
 function geCentralParts(date){
  const parts=new Intl.DateTimeFormat('en-US',{timeZone:GE_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date||new Date()),o={};
@@ -8041,7 +8072,7 @@ function gePlacePhoneRadioHealth(){
  else if(!phone&&health.parentNode!==home){home.insertBefore(health,home.querySelector('.nowCard'));requestAnimationFrame(syncGeDisplayBarSpace)}
 }
 async function geVerifyRunningDjBuild(){
- try{const r=await api('/control/dj-build');if(!r.ok)return;const d=await r.json(),badge=$('geDjBuildLabel');
+ try{const r=await fetch('/dj-build.json',{cache:'no-store'});if(!r.ok)return;const d=await r.json(),badge=$('geDjBuildLabel');
  if(badge&&d&&d.version&&d.build)badge.textContent='v'+d.version+' · '+d.build;
  }catch(e){console.warn('DJ build identity unavailable:',e)}
 }
@@ -11688,6 +11719,13 @@ document.addEventListener('pointerdown',function gePrimeDj(){
  requestBoardWakeLock();
  if((key||djTrustedId)&&!GE_IS_IPHONE5&&!geTrackLive(micStream))autoConnectDeviceMedia().catch(function(){})
 },{once:true,capture:true});
+document.querySelectorAll('#geStationTabs a').forEach(function(link){
+ link.addEventListener('click',function(e){
+  if((typeof micAirOn!=='undefined'&&micAirOn)||(typeof lineAirOn!=='undefined'&&lineAirOn)||(typeof liveActive!=='undefined'&&liveActive)){
+   if(!confirm('Audio is LIVE from this DJ booth. Switching stations ends this device connection. Continue?'))e.preventDefault();
+  }
+ })
+});
 window.__GE_DJ_BOOT_OK=true;
 if(djTrustedId&&djTrustedToken){
  verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
