@@ -95,3 +95,128 @@ function meterLoop(){
  else if(reviewing&&reviewCtx)E.timer.textContent=fmt(reviewCtx.currentTime-reviewClock);
  raf=requestAnimationFrame(meterLoop);
 }
+function createMusicGraph(){
+ const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error("Web Audio unavailable");
+ ctx=new AC();musicInput=ctx.createMediaElementSource(privateAudio);
+ musicGain=ctx.createGain();musicOutput=ctx.createGain();
+ musicMeter=ctx.createAnalyser();musicMeter.fftSize=512;musicData=new Uint8Array(musicMeter.fftSize);
+ musicDest=ctx.createMediaStreamDestination();voiceDest=ctx.createMediaStreamDestination();mixDest=ctx.createMediaStreamDestination();
+ musicInput.connect(musicGain);musicGain.connect(musicMeter);
+ musicGain.connect(musicDest);musicGain.connect(mixDest);
+ musicGain.connect(musicOutput);musicOutput.connect(ctx.destination);
+ musicOutput.gain.value=0;
+ outputSettings();
+}
+async function stationSong(){
+ try{
+  const url=new URL("/control/public-now",CONFIG.LIVE_STREAM_URL);
+  const response=await fetch(url.href,{cache:"no-store"});if(!response.ok)return null;
+  const body=await response.json(),now=body.now||{};
+  const norm=s=>String(s||"").toLowerCase().replace(/\.[^/.]+$/,"").replace(/[^a-z0-9]/g,"");
+  const base=norm(decodeURIComponent(String(now.path||"").split("/").pop()));
+  const songs=allowedCatalog();
+  const found=songs.find(s=>base&&norm(decodeURIComponent(s.split("/").pop()))===base)
+    ||songs.find(s=>norm(now.title).length>6&&norm(s).includes(norm(now.title)));
+  if(!found)return null;
+  return {url:found,title:String(now.title||""),seconds:Number(body.now_started_at)||0};
+ }catch(_e){return null}
+}
+async function sourceSelection(){
+ sourceMode=state.live?"radio":"player";
+ const url=audio.currentSrc||audio.src||"";
+ if(!state.live)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
+ const match=await stationSong();
+ if(match){
+  const offset=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
+  return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
+ }
+ return {url:CONFIG.LIVE_STREAM_URL,position:0,precise:false,kind:"live-radio"};
+}
+async function preflight(timeout=4500){
+ const samples=new Uint8Array(musicMeter.fftSize),end=performance.now()+timeout;
+ while(open&&performance.now()<end){
+  musicMeter.getByteTimeDomainData(samples);
+  if(samples.some(n=>Math.abs(n-128)>=2))return true;
+  await new Promise(r=>setTimeout(r,110));
+ }
+ return false;
+}
+async function activateMic(){
+ if(!open||!ctx||micStream)return;
+ try{
+  // Music performance profile: never enable call-style noise suppression,
+  // automatic gain control or echo cancellation unless the browser forces it.
+  const preferred={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+  try{micStream=await navigator.mediaDevices.getUserMedia({audio:preferred})}
+  catch(_e){micStream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  const node=ctx.createMediaStreamSource(micStream);
+  voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
+  voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
+  compressor.threshold.value=-27;compressor.knee.value=12;compressor.ratio.value=4;
+  compressor.attack.value=.005;compressor.release.value=.16;
+  voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=512;voiceData=new Uint8Array(voiceMeter.fftSize);
+  // Dry raw stream does NOT pass through gain, compression, delay, or reverb.
+  node.connect(voiceDest);node.connect(voiceInput);
+  voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
+  voiceInput.connect(compressor);compressor.connect(compressedGain);
+  const blend=ctx.createGain();dryGain.connect(blend);compressedGain.connect(blend);
+  blend.connect(voiceOutput);
+  fxDelay=ctx.createDelay(1.5);fxWet=ctx.createGain();fxFeedback=ctx.createGain();
+  blend.connect(fxDelay);fxDelay.connect(fxWet);fxWet.connect(voiceOutput);
+  fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
+  voiceOutput.connect(mixDest);
+  monitorGain=ctx.createGain();voiceOutput.connect(monitorGain);monitorGain.connect(ctx.destination);
+  outputSettings();effectSettings();
+  say("Private studio ready. MUSIC and YOU share one audio clock.");
+ }catch(err){say("Music ready. Microphone connection failed: "+String(err?.message||err?.name||err))}
+}
+async function preparePrivate(){
+ if(loading||!open)return;
+ loading=true;const token=++sessionToken;
+ say("Preparing private music. Your Radio stays audible until the handoff.");
+ try{
+  const selection=await sourceSelection();
+  if(token!==sessionToken||!open)return;
+  if(!selection.url)throw Error("Start a song before opening I AM.");
+  sourceURL=selection.url;privateAudio=new Audio();
+  privateAudio.crossOrigin="anonymous";privateAudio.playsInline=true;privateAudio.preload="auto";
+  privateAudio.src=selection.url;privateAudio.load();
+  createMusicGraph();
+  if(selection.kind!=="live-radio"){
+   await new Promise(r=>{
+    if(privateAudio.readyState>=1)return r();
+    const done=()=>r();privateAudio.addEventListener("loadedmetadata",done,{once:true});setTimeout(done,1800);
+   });
+   let pos=selection.precise?(Number(audio.currentTime)||selection.position):selection.position;
+   if(Number.isFinite(privateAudio.duration)&&privateAudio.duration>0)pos=clamp(pos,0,privateAudio.duration-.04);
+   try{privateAudio.currentTime=pos}catch(_e){}
+  }
+  if(!open||token!==sessionToken)return;
+  await ctx.resume();
+  await privateAudio.play();
+  if(!(await preflight()))throw Error("Private audio signal is silent. The original Radio is still available.");
+  // Only after verified audio: transition into independent private playback.
+  oldMuted=audio.muted;
+  audio.muted=true;
+  musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
+  get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"PRIVATE · LIVE RADIO HANDOFF APPROXIMATE";
+  get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
+  verified=true;
+  E.record.disabled=false;
+  await activateMic();
+  if(!selection.precise)say("Private audio ready. Radio position is approximate, not sample-locked.");
+ }catch(err){
+  say("I AM handoff failed: "+String(err?.message||err));
+  audio.muted=oldMuted;
+  verified=false;await disposeAudio();
+ }finally{loading=false}
+}
+async function disposeAudio(){
+ try{privateAudio?.pause()}catch(_e){}
+ if(micStream)micStream.getTracks().forEach(t=>t.stop());
+ micStream=null;privateAudio=null;
+ try{await ctx?.close()}catch(_e){}
+ ctx=null;musicInput=null;musicGain=null;musicOutput=null;musicMeter=null;voiceMeter=null;
+ musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
+ voiceInput=null;voiceOutput=null;compressor=null;monitorGain=null;verified=false;
+}
