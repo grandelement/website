@@ -108,10 +108,7 @@ function syncGe(){
    title:t.track.title,album:t.track.album,track_id:t.track.path,
    source:"ge-radio-clock",station_id:t.track.kind==="station_id"
   });}catch(_){}
-  legacyLastTrack=t.track.path||url;
-  legacyListenStart=Date.now();
-  fallbackVault("track_start",{track_title:t.track.title,track_id:legacyLastTrack,
-    album:t.track.album,source:"ge-radio-clock",station_id:t.track.kind==="station_id"});
+
  }
  if(aGe.readyState>=1){
   var wanted=Math.max(0,Math.min(Number(t.track.duration_ms)/1000-.35,t.seconds));
@@ -171,6 +168,13 @@ function nowRender(){
  }
  if(shape.mode==="ge"&&gReady){if(!aBlitz.paused)stopUnneeded(aBlitz);}
  if(shape.mode==="blitz"&&bReady){if(!aGe.paused)stopUnneeded(aGe);}
+ if(g>0.05&&!aGe.paused&&!w.GEVault&&legacyLastTrack!==loadedURL){
+  legacyLastTrack=loadedURL;legacyListenStart=Date.now();legacyLastReport=0;
+  var nowTrack=geAt(clock());
+  if(nowTrack)fallbackVault("track_start",{track_title:nowTrack.track.title,
+    track_id:nowTrack.track.path,album:nowTrack.track.album,
+    source:"ge-radio-clock",station_id:nowTrack.track.kind==="station_id"});
+ }
  if(info2){
   var active=shape.mode==="switching"?"CROSSFADE ACTIVE":shape.mode==="ge"?"GE RADIO CLOCK":"BLITZ LIVE STREAM";
   info2.textContent=active+" · UTC synchronized · "+(softFade?"SMOOTH AUDIO":"DEVICE FADE IF SUPPORTED");
@@ -217,7 +221,7 @@ w.setInterval(pollState,7500);
 w.setInterval(function(){if(playing)nowRender();},500);
 w.setInterval(function(){if(playing&&program)syncGe();},4500);
 w.setInterval(function(){
- if(!playing||!program||!legacyLastTrack||aGe.paused||!w.GEVault===false)return;
+ if(!playing||!program||!legacyLastTrack||aGe.paused||w.GEVault)return;
  // Only old Safari needs the fallback. Never send duplicate events on modern devices.
  if(w.GEVault)return;
  var now=Date.now();if(now-legacyLastReport<30000)return;legacyLastReport=now;
