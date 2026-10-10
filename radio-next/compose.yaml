@@ -1,0 +1,58 @@
+name: ge-radio-two
+
+services:
+  station:
+    build:
+      context: ..
+      dockerfile: Dockerfile.radio
+    image: ge-radio-two:local
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      GE_DATA_DIR: "/app/data"
+      DJ_PASSWORD: "${GE2_DJ_PASSWORD:?Set GE2_DJ_PASSWORD in radio-next/.env}"
+      # Keep analytics disabled until Station 2 is given a separate station identity.
+      GE_VAULT_ADMIN_TOKEN: ""
+    volumes:
+      - station_data:/app/data
+    expose:
+      - "8080"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/control/healthz', timeout=5).read(); urllib.request.urlopen('http://127.0.0.1:8080/stream.mp3', timeout=5).read(128)"
+      interval: 60s
+      timeout: 12s
+      start_period: 180s
+      retries: 3
+    networks:
+      - private
+
+  edge:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      GE2_DOMAIN: "${GE2_DOMAIN:?Set GE2_DOMAIN in radio-next/.env}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv/ge-radio-ui:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      station:
+        condition: service_healthy
+    networks:
+      - private
+
+networks:
+  private: {}
+
+volumes:
+  station_data: {}
+  caddy_data: {}
+  caddy_config: {}
