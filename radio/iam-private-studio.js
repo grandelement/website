@@ -180,10 +180,12 @@ async function stationSong(){
   const songs=allowedCatalog();
   const found=songs.find(s=>base&&norm(decodeURIComponent(s.split("/").pop()))===base)
     ||songs.find(s=>norm(now.title).length>6&&norm(s).includes(norm(now.title)));
-  // Never jump to the beginning of a radio song without timing information.
-  if(!found||!Number(body.now_started_at))return null;
-  const seconds=Number(body.now_started_at),age=Date.now()/1000-seconds;
-  if(!(age>=0&&age<3600))return null;
+  if(body.live_active||!found)return null;
+  const seconds=Number(body.now_started_at)||0;
+  if(seconds){
+   const age=Date.now()/1000-seconds;
+   if(!(age>=0&&age<3600))return null;
+  }
   return {url:found,title:String(now.title||""),seconds};
  }catch(_e){return null}
 }
@@ -191,13 +193,13 @@ function sourceSelection(){
  sourceMode=state.live?"radio":"player";
  const url=audio.currentSrc||audio.src||"";
  if(!state.live)return {url,position:Number(audio.currentTime)||0,precise:true,kind:"player"};
- const match=(Date.now()-cachedSongTime<17000)?cachedSong:null;
+ const match=(Date.now()-cachedSongTime<20000)?cachedSong:null;
  if(match){
-  const offset=clamp(Date.now()/1000-match.seconds-2,0,999999);
+  const offset=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
   return {url:match.url,position:offset,precise:false,kind:"radio-song",title:match.title};
  }
- // No metadata wait inside a user gesture: prefer an immediate stream handoff.
- return {url:CONFIG.LIVE_STREAM_URL,position:0,precise:false,kind:"live-radio"};
+ // A live stream is not a recordable studio track. Require a matching song.
+ return {url:"",position:0,precise:false,kind:"radio-unmatched"};
 }
 async function refreshStationSong(){
  if(!state.live||open)return;
@@ -316,16 +318,22 @@ async function preflight(timeout=4500){
  try{
   const selection=sourceSelection();
   if(token!==sessionToken||!open)return;
-  if(!selection.url)throw Error("Start a song before opening I AM.");
-  sourceURL=selection.url;privateAudio=new Audio();
+  sourceURL=selection.url||"";privateAudio=new Audio();
   privateAudio.crossOrigin="anonymous";privateAudio.playsInline=true;privateAudio.preload="auto";
-  privateAudio.src=selection.url;privateAudio.load();
+  if(selection.url){privateAudio.src=selection.url;privateAudio.load();}
   createMusicGraph();musicSignalError="";musicHandoffDone=false;
-  // Connect the microphone during music buffering, not after a radio preflight.
+  // Mic is connected independently of song metadata / Radio buffering.
   void activateMic();
-  // Prime both calls within the original user tap. iPhone Safari can reject
-  // audio started only after waiting for loadedmetadata / asynchronous fetch.
   const wake=ctx.resume().then(()=>null,e=>e);
+  if(selection.kind==="radio-unmatched"){
+   get("iamSourceIndicator").textContent="RADIO SONG · MATCH REQUIRED";
+   get("iamNowPlaying").textContent="Radio plays until a matching song is selected.";
+   get("iamMatchRadioSong").hidden=false;
+   say("Finding the Radio track. Tap MATCH RADIO SONG or SONGS to load it.");
+   void refreshMatchForStudio();
+   await wake;
+   return;
+  }
   const playback=privateAudio.play().then(()=>null,e=>e);
   if(selection.kind!=="live-radio"){
    await new Promise(r=>{
@@ -340,11 +348,11 @@ async function preflight(timeout=4500){
   const wakeError=await wake,playError=await playback;
   if(wakeError)throw wakeError;
   if(playError)throw playError;
-  const hasMusic=await preflight(selection.kind==="live-radio"?5000:3800);
+  const hasMusic=await preflight(3800);
   if(!open||token!==sessionToken)return;
   if(!hasMusic){
    verified=false;updateRecordReady();
-   musicSignalError=selection.kind==="live-radio"?"Live Radio is audible but Safari is not delivering its audio to I AM. Tap NEXT or CHOOSE SONG.":"The selected song is not reaching I AM.";
+   musicSignalError="Catalog song audio could not be captured. Try NEXT or SONGS.";
    get("iamSourceIndicator").textContent="MUSIC NOT CAPTURING · ORIGINAL RADIO UNCHANGED";
    say(musicSignalError+(micConnected?" YOU is connected.":" Tap YOU to enable microphone."));
    return; // Preserve microphone permission and the music graph for recovery.
@@ -353,7 +361,7 @@ async function preflight(timeout=4500){
   audio.muted=true;
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
   if(studioMusicStopped){privateAudio.pause();audio.pause();}
-  get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"PRIVATE · LIVE RADIO HANDOFF APPROXIMATE";
+  get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"RADIO → PLAYER · ESTIMATED POSITION";
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
   get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
