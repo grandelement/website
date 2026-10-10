@@ -30,6 +30,8 @@ let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
 let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1;
 let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false;
 let micDetected=false,micSilenceWarned=false,recordArming=false;
+let micFloatData=null,micLastDB=-90,micStrongFrames=0;
+let micTestRecorder=null,micTestAudio=null,micTestBlob=null,micTestChunks=[],micTestRunning=false,micTestTimer=0;
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -62,7 +64,8 @@ function outputSettings(){
   voiceOutput?.gain.setTargetAtTime(voice,ctx.currentTime,.015);
   dryGain?.gain.setTargetAtTime(1-compression,ctx.currentTime,.015);
   compressedGain?.gain.setTargetAtTime(compression,ctx.currentTime,.015);
-  monitorGain?.gain.setTargetAtTime(headphones&&monitoring?.75:0,ctx.currentTime,.015);
+  // Boost monitoring only, with original dry recording unchanged.
+  monitorGain?.gain.setTargetAtTime(headphones&&monitoring?1.35:0,ctx.currentTime,.015);
  }
  // While a LIVE radio stream cannot feed the studio recording mixer,
  // keep MUSIC VOL useful for the native listener, where platform supported.
@@ -98,6 +101,20 @@ function meter(analyser,data){
  for(let i=0;i<data.length;i++){const z=(data[i]-128)/128;n+=z*z;p=Math.max(p,Math.abs(z))}
  return Math.min(1,Math.sqrt(n/data.length)*3+p*.16);
 }
+function micLevel(){
+ if(!voiceMeter)return {db:-90,level:0,active:false};
+ let sum=0,peak=0,n=0;
+ if(typeof voiceMeter.getFloatTimeDomainData==="function"&&micFloatData){
+  voiceMeter.getFloatTimeDomainData(micFloatData);n=micFloatData.length;
+  for(let i=0;i<n;i++){const v=micFloatData[i];sum+=v*v;peak=Math.max(peak,Math.abs(v))}
+ }else if(voiceData){
+  voiceMeter.getByteTimeDomainData(voiceData);n=voiceData.length;
+  for(let i=0;i<n;i++){const v=(voiceData[i]-128)/128;sum+=v*v;peak=Math.max(peak,Math.abs(v))}
+ }
+ const rms=n?Math.sqrt(sum/n):0;
+ const db=rms>0?clamp(20*Math.log10(rms),-90,0):-90;
+ return {db,level:clamp((db+65)/55,0,1),active:rms>=.007,peak};
+}
 let lastTransportUpdate=0;
 function syncPrivateTransport(){
  if(!open)return;
@@ -126,18 +143,19 @@ function meterLoop(){
  if(!open){raf=0;return}
  const tick=performance.now();
  if(tick-lastTransportUpdate>260){lastTransportUpdate=tick;syncPrivateTransport();}
- const m=meter(musicMeter,musicData),v=meter(voiceMeter,voiceData);
- // Do not enable Record until the music capture source is actually verified.
- if(v>.015){
-  lastMicSignalAt=performance.now();
-  if(micConnected&&!micDetected){
+ const m=meter(musicMeter,musicData),reading=micLevel();
+ const v=reading.level,db=reading.db;
+ micLastDB=db;
+ if(reading.active){
+  lastMicSignalAt=performance.now();micStrongFrames=Math.min(10,micStrongFrames+1);
+  if(micConnected&&!micDetected&&micStrongFrames>=3){
    micDetected=true;micSilenceWarned=false;
    updateRecordReady();
-   say("YOU microphone signal confirmed. Ready to record when MUSIC is connected.");
+   say("YOU microphone level confirmed ("+Math.round(db)+" dB). Ready when MUSIC is connected.");
   }
- }
+ }else micStrongFrames=0;
  E.meters[0].style.transform="scaleX("+Math.max(.015,m).toFixed(3)+")";
- E.meters[1].style.transform="scaleX("+Math.max(.015,v).toFixed(3)+")";
+ E.meters[1].style.transform="scaleX("+Math.max(.006,v).toFixed(3)+")";
  E.label.textContent=musicSignalError?"MUSIC · NO CAPTURE":m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
  const micButton=get("iamMicRetryBtn");
  if(micButton){
@@ -145,7 +163,10 @@ function meterLoop(){
   const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
   const muted=micConnected&&tracks.some(t=>t.muted);
   const silent=live&&micAttachedAt&&performance.now()-micAttachedAt>4500&&!micDetected;
-  micButton.textContent=live&&ctx?.state!=="running"?"YOU · AUDIO PAUSED":silent?"YOU · NO INPUT":live?(v>.015?"YOU · SIGNAL":micDetected?"YOU · SIGNAL OK":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  const dbText=db<=-85?"SILENT":Math.round(db)+"dB";
+  micButton.textContent=live&&ctx?.state!=="running"?"YOU · AUDIO PAUSED":
+   muted?"YOU · MUTED":live?(reading.active?"YOU · "+dbText:db>-72?"YOU · LOW "+dbText:"YOU · SILENT"):
+   micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
   if(silent&&!micSilenceWarned&&!recording){
    micSilenceWarned=true;
    say("Microphone permission is on, but no voice signal reached I AM. Check the iPhone microphone, then tap YOU to restart it.");
@@ -302,7 +323,9 @@ async function preflight(timeout=4500){
    voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
    compressor.threshold.value=-27;compressor.knee.value=12;compressor.ratio.value=4;
    compressor.attack.value=.005;compressor.release.value=.16;
-   voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=512;voiceData=new Uint8Array(voiceMeter.fftSize);
+   voiceMeter=ctx.createAnalyser();voiceMeter.fftSize=1024;
+   voiceData=new Uint8Array(voiceMeter.fftSize);
+   micFloatData=new Float32Array(voiceMeter.fftSize);
    // Preserve a separate, unprocessed dry voice stem.
    node.connect(voiceDest);node.connect(voiceInput);
    voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
@@ -318,7 +341,7 @@ async function preflight(timeout=4500){
    const keepAlive=ctx.createGain();keepAlive.gain.value=.000001;
    voiceInput.connect(keepAlive);keepAlive.connect(ctx.destination);
    outputSettings();effectSettings();micConnected=true;micError="";
-   micAttachedAt=performance.now();lastMicSignalAt=0;micDetected=false;micSilenceWarned=false;
+   micAttachedAt=performance.now();lastMicSignalAt=0;micDetected=false;micSilenceWarned=false;micStrongFrames=0;
    updateRecordReady();
    const track=stream.getAudioTracks?.()[0];
    const name=track?.label||"iPhone microphone";
@@ -410,7 +433,7 @@ async function disposeAudio(){
  recorderReady=false;recorderPrewarming=false;
  recMusic=null;recVoice=null;recMix=null;
  try{await ctx?.close()}catch(_e){}
- ctx=null;musicInput=null;musicGain=null;musicOutput=null;musicMeter=null;voiceMeter=null;
+ ctx=null;musicInput=null;musicGain=null;musicOutput=null;musicMeter=null;voiceMeter=null;micFloatData=null;micStrongFrames=0;
  musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
  voiceInput=null;voiceOutput=null;compressor=null;monitorGain=null;verified=false;
 }
