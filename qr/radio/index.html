@@ -18,15 +18,15 @@ html,body{
 }
 #site{
   position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:0;
-  opacity:.002;transform:translate3d(0,0,0) scale(1.012);
-  transition:opacity 2.8s ease,transform 3.2s cubic-bezier(.2,.72,.18,1);
+  opacity:1;transform:translate3d(0,0,0) scale(1);
+  transition:none;
   will-change:opacity,transform;backface-visibility:hidden;-webkit-backface-visibility:hidden
 }
 #site.reveal{opacity:1;transform:translate3d(0,0,0) scale(1)}
 
 #gate{
   position:fixed;inset:0;z-index:10;overflow:hidden;background:#000;
-  opacity:1;transition:opacity 1.8s ease;touch-action:manipulation;isolation:isolate
+  opacity:1;transition:none;touch-action:manipulation;isolation:isolate
 }
 #gate.done{opacity:0;pointer-events:none}
 
@@ -42,6 +42,7 @@ html,body{
     radial-gradient(circle at 50% 50%,transparent 0 50%,rgba(0,0,0,.34) 100%);
 }
 #streaks{
+  display:none;
   position:absolute;inset:-20%;z-index:2;opacity:0;pointer-events:none;
   background:
     repeating-conic-gradient(from 0deg at 50% 50%,
@@ -144,205 +145,127 @@ html,body{
 </div>
 
 <script src="../../ge-vault-client.js"></script>
+
 <script>
 (function(){
+  'use strict';
   const gate=document.getElementById('gate');
   const site=document.getElementById('site');
   const space=document.getElementById('space');
-  const streaks=document.getElementById('streaks');
   const sunWrap=document.getElementById('sunWrap');
   const moonWrap=document.getElementById('moonWrap');
   const vignette=document.getElementById('vignette');
-  const whiteout=document.getElementById('whiteout');
-  const soundHint=document.getElementById('soundHint');
 
-  let raf=0,start=0,finished=false,siteReady=false,revealed=false,audioStarted=false;
-  let lastSoundAttempt=0;
-
-  // ONE CONTINUOUS CAMERA PASS.
-  // The moon is present behind the Blue Sun from the first visible frame.
-  // Blue Sun stays opaque and physically uncovers the moon when its
-  // retreating right limb sweeps from center toward the LEFT edge.
-  // No moon fade-in, disappearing Sun, or independent lateral moon jump.
+  // Match the established Website QR timing exactly through the flyby target.
   const STARS_ONLY=3500;
-  const SUN_FADE_IN=1700;
-  const SUN_APPROACH_START=STARS_ONLY+SUN_FADE_IN;
-  const SUN_APPROACH_MS=11200;
-  const MOON_RUSH_START=SUN_APPROACH_START+SUN_APPROACH_MS;
-  const MOON_RUSH_MS=9300;
-  const RADIO_BLEND_START=26200;
-  const RADIO_BLEND_MS=4300;
-  const GATE_FADE_START=27700;
-  const GATE_FADE_MS=3400;
-  const TOTAL=31400;
-  let virtualTime=0,lastFrameStamp=0;
+  const FADE_IN=1700;
+  const ZOOM_START=STARS_ONLY+FADE_IN;
+  const ZOOM_TIME=6000;
+  const FLYBY_START=ZOOM_START+ZOOM_TIME;
+  const FLYBY_TIME=3900;
+  const TRANSITION_START=FLYBY_START+FLYBY_TIME+200;
+  const TRANSITION_TIME=1500;
+  const START_SCALE=.76;
+  // Enough to fill the LEFT half while keeping iPhone GPU texture sizes reasonable.
+  const END_SCALE=5.4;
+  const clamp=v=>Math.max(0,Math.min(1,v));
+  const smooth=v=>{v=clamp(v);return v*v*(3-2*v)};
+  const mix=(a,b,t)=>a+(b-a)*t;
+  let startAt=0,frame=0,finished=false,siteReady=false,blendAt=-1;
+  let audioRequested=false;
 
-  function clamp01(v){return Math.max(0,Math.min(1,v))}
-  function smooth(t){t=clamp01(t);return t*t*(3-2*t)}
-  function smoother(t){t=clamp01(t);return t*t*t*(t*(t*6-15)+10)}
-  function easeIn(t){t=clamp01(t);return t*t*t}
-  function easeOut(t){t=clamp01(t);return 1-Math.pow(1-t,3)}
-  function mix(a,b,t){return a+(b-a)*t}
-
-  function radioAudio(){
-    try{return site.contentWindow && site.contentWindow.document.getElementById('player')}catch(e){return null}
-  }
-  function tryStartRadioAudio(){
-    const now=Date.now();
-    if(audioStarted || now-lastSoundAttempt<500)return;
-    lastSoundAttempt=now;
-    const player=radioAudio();
-    if(!player)return;
+  function beginRadioAudio(){
+    if(audioRequested||!finished)return;
+    let child,player;
+    try{
+      child=site.contentWindow;
+      if(!child||!child.GEQRIntroAudioReady)return;
+      if(child.GEIAmStudio?.isRadioSuspended?.())return;
+      player=child.document.getElementById('player');
+      if(!player||!player.currentSrc&&!player.src)return;
+    }catch(_e){return;}
+    audioRequested=true;
+    // Only this ONE player is permitted to start. No audio begins during the movie.
     try{
       player.muted=false;
       player.defaultMuted=false;
-      const result=player.play();
-      if(result&&typeof result.then==='function'){
-        result.then(()=>{audioStarted=true;soundHint.classList.remove('show')})
-          .catch(()=>{if(!finished)soundHint.classList.add('show')});
-      }else{
-        audioStarted=!player.paused;
-        if(audioStarted)soundHint.classList.remove('show');
-      }
-    }catch(e){
-      if(!finished)soundHint.classList.add('show');
-    }
-  }
-
-  function revealRadio(){
-    if(revealed || !finished || !siteReady)return;
-    revealed=true;
-    site.classList.add('reveal');
-    gate.classList.add('done');
-    tryStartRadioAudio();
-
-    setTimeout(()=>{
-      try{history.replaceState({qrRadioArrival:true},'', '../../radio/')}catch(e){}
-      try{site.contentWindow.focus()}catch(e){}
-    },1500);
+      const started=player.play();
+      if(started&&typeof started.catch==='function')started.catch(()=>{});
+    }catch(_e){}
   }
 
   function finish(){
     if(finished)return;
     finished=true;
-    cancelAnimationFrame(raf);
-    site.classList.add('reveal');
-    revealRadio();
-    // If Safari blocked autoplay, the normal Radio play control remains available.
-    setTimeout(tryStartRadioAudio,80);
+    cancelAnimationFrame(frame);
+    gate.style.opacity='0';
+    gate.classList.add('done');
+    beginRadioAudio();
+    // Do not reload the already-initialized Radio iframe.
+    setTimeout(()=>{
+      try{history.replaceState({qrRadioArrival:true},'','../../radio/')}catch(_e){}
+      try{site.contentWindow.focus()}catch(_e){}
+    },450);
   }
 
   function draw(now){
-    // A throttled WebKit frame must never teleport the camera. A small
-    // maximum timeline step makes the approach continuous even after a stall.
-    if(!lastFrameStamp)lastFrameStamp=now;
-    const step=Math.max(0,Math.min(now-lastFrameStamp,80));
-    lastFrameStamp=now;
-    virtualTime+=step;
-    const t=virtualTime;
+    if(!startAt)startAt=now;
+    // Wall-clock timing prevents low-frame-rate iPhones from turning 3.5s into 15s.
+    const t=Math.max(0,now-startAt);
+    const zoom=clamp((t-ZOOM_START)/ZOOM_TIME);
+    const flyby=smooth((t-FLYBY_START)/FLYBY_TIME);
+    const sunScale=START_SCALE*Math.pow(END_SCALE/START_SCALE,Math.pow(zoom,3));
+    const width=Math.max(1,window.innerWidth);
+    const baseWidth=Math.min(Math.min(window.innerWidth,window.innerHeight)*.5,430);
+    const radius=(baseWidth*sunScale)/(2*width);
 
-    const approach=clamp01((t-SUN_APPROACH_START)/SUN_APPROACH_MS);
-    const rush=clamp01((t-MOON_RUSH_START)/MOON_RUSH_MS);
-    const sunGrowth=Math.pow(approach,1.62);
-    const sunScale=.76*Math.pow(5.4/.76,sunGrowth);
+    // AIM: fly straight toward the boundary between blue surface and space.
+    // At 11.2 seconds the RIGHT EDGE is exactly at screen center:
+    // left half blue, right half stars. Do not steer beyond it during zoom.
+    const aim=smooth((zoom-.12)/.88);
+    const approachRightEdge=mix(.5+radius,.5,aim);
+    // AFTER reaching that half-screen composition, slide the Sun left.
+    // This physically reveals the moon behind it; neither object teleports.
+    const rightEdge=mix(approachRightEdge,-.18,flyby);
+    const center=rightEdge-radius;
+    const sunX=(center-.5)*100;
 
-    // Camera aims along the RIGHT LIMB of the growing planet. Keeping this
-    // edge in view prevents the planet from sliding out too early.
-    const screenWidth=Math.max(1,window.innerWidth);
-    const sunDiameter=Math.min(window.innerWidth,window.innerHeight)*.5*sunScale;
-    const radiusFraction=sunDiameter/(2*screenWidth);
-    const tracking=smoother(approach/.36);
-    // Continuous, single eased edge path: no late acceleration / last
-    // second teleport. The right limb takes several seconds to pass
-    // across the already-present moon and finally move beyond frame left.
-    const approachEdge=mix(.5+radiusFraction,.68,tracking);
-    const flyBy=smoother((approach-.53)/.47);
-    const rightEdge=mix(approachEdge,-.14,flyBy);
-    const centerX=rightEdge-radiusFraction;
-    const sunX=(centerX-.5)*100;
-    const sunY=mix(0,1.3,smoother(approach));
+    const appear=smooth((t-STARS_ONLY)/FADE_IN);
+    sunWrap.style.opacity=appear.toFixed(4);
+    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(3)+'vw),-50%,0) scale3d('+sunScale.toFixed(5)+','+sunScale.toFixed(5)+',1)';
 
-    // Only the first appearance fades. During the flyby the Sun remains
-    // fully opaque; its physical right edge, not opacity, reveals the moon.
-    const appear=smooth((t-STARS_ONLY)/SUN_FADE_IN);
-    sunWrap.style.opacity=String(appear.toFixed(4));
-    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(4)+'vw),calc(-50% + '+sunY.toFixed(4)+'vh),0) scale3d('+sunScale.toFixed(6)+','+sunScale.toFixed(6)+',1)';
+    // Moon begins fully OCCLUDED by the blue Sun, slightly left of center.
+    // As the camera skims past, gentle parallax centers and exposes the moon.
+    // No sudden independent moon fade or massive zoom of the RADIO lettering.
+    const moonX=mix(-10,-1,smooth(flyby));
+    const moonScale=mix(.58,1.10,flyby);
+    moonWrap.style.opacity=appear.toFixed(4);
+    moonWrap.style.transform='translate3d(calc(-50% + '+moonX.toFixed(3)+'vw),-50%,0) scale3d('+moonScale.toFixed(5)+','+moonScale.toFixed(5)+',1)';
 
-    // Moon remains at the SAME place in the star field throughout the pass.
-    // Its image is behind the opaque planet (z-index 4 vs 5); no pop-in.
-    // It starts small and gently grows ONLY after its edge is uncovered.
-    const moonIntro=smoother((approach-.25)/.66);
-    const initialMoonScale=mix(.43,.98,moonIntro);
-    const moonFinalScale=4.9;
-    const moonScale=initialMoonScale*Math.pow(moonFinalScale/.98,smoother(rush));
-    moonWrap.style.opacity=String(appear.toFixed(4));
-    moonWrap.style.transform='translate3d(-50%,-50%,0) scale3d('+moonScale.toFixed(6)+','+moonScale.toFixed(6)+',1)';
+    // Keep stars in one continuous scene. No second star field or white flash.
+    space.style.transform='translate3d(0,0,0) scale('+(1.06+.025*smooth(zoom)+.01*flyby).toFixed(5)+')';
+    vignette.style.opacity=(.72-.18*flyby).toFixed(4);
 
-    // Stars stay anchored: no reset, horizontal jump or separate scene swap.
-    const spaceZoom=1.06+.035*smoother(approach)+.06*smoother(rush);
-    space.style.transform='translate3d(0,0,0) scale('+spaceZoom.toFixed(5)+')';
-    streaks.style.opacity=String((.08*smoother(approach)+.24*smoother(rush)).toFixed(4));
-    streaks.style.transform='translate3d(0,0,0) scale('+(0.72+.75*smoother(rush)).toFixed(5)+')';
-
-    // Do not dissolve away the moon while the underlying Radio is missing.
-    // The scene crossfades as a whole rather than fading the moon first,
-    // which was leaving a blank star field before Radio became visible.
-    const radioBlend=siteReady?smoother((t-RADIO_BLEND_START)/RADIO_BLEND_MS):0;
-    // Keep the iframe slightly paintable while hidden: zero-opacity
-    // WebKit iframes can defer the Radio's own startup animation until
-    // the very frame we reveal it, producing a last-second blank jump.
-    site.style.opacity=String((.002+.998*radioBlend).toFixed(4));
-    site.style.transform='translate3d(0,0,0) scale('+(1.012-.012*radioBlend).toFixed(5)+')';
-    vignette.style.opacity=String((.75-.53*radioBlend).toFixed(4));
-    whiteout.style.opacity='0';
-    gate.style.opacity=String((1-smoother((t-GATE_FADE_START)/GATE_FADE_MS)*radioBlend).toFixed(4));
-
-    if(t>RADIO_BLEND_START-1200)tryStartRadioAudio();
-
-    if(t<TOTAL){
-      raf=requestAnimationFrame(draw);
-    }else{
-      finish();
-    }
+    // The Radio iframe is already visibly painted underneath the opaque gate.
+    // Only dissolve the gate when the iframe has actually finished loading.
+    if(t>=TRANSITION_START && siteReady && blendAt<0)blendAt=t;
+    const blend=blendAt<0?0:smooth((t-blendAt)/TRANSITION_TIME);
+    gate.style.opacity=(1-blend).toFixed(4);
+    if(blend>=1)finish();
+    else frame=requestAnimationFrame(draw);
   }
 
   site.addEventListener('load',()=>{
     siteReady=true;
-    if(finished)revealRadio();
-    // Let the Radio initialize while hidden. We attempt sound near arrival.
+    if(finished)beginRadioAudio();
   },{once:true});
 
-  // A user tap does NOT skip the movie. It only gives Safari/iPhone the user
-  // gesture it may require for audible autoplay, so the visual sequence stays intact.
-  gate.addEventListener('pointerdown',()=>{
-    tryStartRadioAudio();
-    soundHint.classList.remove('show');
-  },{passive:true});
-  gate.addEventListener('keydown',e=>{
-    if(e.key==='Enter'||e.key===' '){
-      e.preventDefault();
-      tryStartRadioAudio();
-    }
-  });
-
+  // Tapping the introduction must never start music early or duplicate the player.
+  // On Safari, the regular Play control remains available if autoplay is denied.
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    setTimeout(()=>{
-      finished=true;
-      siteReady=true;
-      site.classList.add('reveal');
-      gate.classList.add('done');
-      tryStartRadioAudio();
-    },900);
-  }else{
-    raf=requestAnimationFrame(draw);
+    startAt=performance.now()-TRANSITION_START;
   }
-
-  // Never trap the listener if the embedded Radio takes longer than expected.
-  setTimeout(()=>{
-    if(!finished)finish();
-    if(!siteReady)siteReady=true;
-    revealRadio();
-  },TOTAL+5000);
+  frame=requestAnimationFrame(draw);
 })();
 </script>
 </body>
