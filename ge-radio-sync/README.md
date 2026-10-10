@@ -2,6 +2,14 @@
 
 **Status: software staged, NOT LIVE.** Branch: \`ge-radio-station-2\`. Nothing has changed in the running Blitz station or production GE website yet.
 
+## Nonnegotiable hosting requirements (10 October 2026)
+
+All prospective GE Studios broadcasting hosts must be **$0**, require **no credit card**, and **must not insert third-party advertisements into audio or the listener experience**. Do not use a host that permits advertising in its terms unless written no-ad clarification is obtained. Prefer a real 24/7 AutoDJ + live microphone/encoder station to synchronized browser-only music. Keep Blitz as primary while examining alternatives.
+
+**Candidate needing verification:** Pandafica AZURAFREE, https://pandafica.com/ — advertised $0/month, 300 MB storage, up to 64 kbps, AutoDJ, unlimited bandwidth and HTTPS; manual activation. The public page **does not confirm** no ad insertion, no-card eligibility, and whether live WebDJ is actually available on the free tier. Verify all three in writing before switching. Its 64 kbps/300 MB cap may be inadequate for GE albums.
+
+**Exclude without explicit reconsideration:** FreeSHOUTcast terms explicitly allow commercials and ads; Listen2MyRadio free streams are ad-supported and require their own ad page; GoCast full-time AutoDJ is beta Pro and scheduled to become paid; AzuraCast open-source software is free but doesn't provide its own always-on hardware.
+
 ## How the two independent stations work
 
 - **BLITZ** remains the genuine, continuously mixed Icecast stream at \`https://radio.grandelement.blitz.cloud/stream.mp3\`, supporting existing DJ microphone/audio.
