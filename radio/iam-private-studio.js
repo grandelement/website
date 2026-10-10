@@ -991,6 +991,7 @@ function refreshEditorControls(){
 }
 function drawEditorWaveforms(){
  const {visible,start}=editorView();
+ const times=syncedStarts(0),vocalOffset=times.voice-times.music;
  for(const key of ["music","voice"]){
   const canvas=get("iamWave"+key),buffer=editWaveBuffers?.[key],pen=canvas?.getContext?.("2d");
   if(!canvas||!pen)continue;
@@ -1001,8 +1002,9 @@ function drawEditorWaveforms(){
   if(buffer){
    const samples=buffer.getChannelData(0),rate=buffer.sampleRate;
    for(let x=0;x<w;x++){
-    const first=Math.max(0,Math.floor((start+x/w*visible)*rate));
-    const last=Math.min(samples.length,Math.floor((start+(x+1)/w*visible)*rate));
+    const shift=key==="voice"?vocalOffset:0;
+    const first=Math.max(0,Math.floor((start+x/w*visible-shift)*rate));
+    const last=Math.min(samples.length,Math.floor((start+(x+1)/w*visible-shift)*rate));
     let peak=0;
     const step=Math.max(1,Math.floor((last-first)/20));
     for(let i=first;i<last;i+=step)peak=Math.max(peak,Math.abs(samples[i]||0));
@@ -1012,17 +1014,17 @@ function drawEditorWaveforms(){
   }
   if(key==="voice"){
    for(const [a,b] of editingRanges(Number(buffer?.duration)||editDuration())){
-    const x1=(a-start)/visible*w,x2=(b-start)/visible*w;
+    const x1=(a+vocalOffset-start)/visible*w,x2=(b+vocalOffset-start)/visible*w;
     pen.fillStyle="rgba(248,80,80,.32)";
     pen.fillRect(x1,0,Math.max(0,x2-x1),h);
    }
    if(editSelection){
     const [a,b]=editSelection;
     pen.fillStyle="rgba(255,211,84,.24)";
-    pen.fillRect((a-start)/visible*w,0,(b-a)/visible*w,h);
+    pen.fillRect((a+vocalOffset-start)/visible*w,0,(b-a)/visible*w,h);
     pen.strokeStyle="#ffd15e";pen.lineWidth=2;
     for(const t of [a,b]){
-     const x=(t-start)/visible*w;if(x>=0&&x<=w){pen.beginPath();pen.moveTo(x,0);pen.lineTo(x,h);pen.stroke()}
+     const x=(t+vocalOffset-start)/visible*w;if(x>=0&&x<=w){pen.beginPath();pen.moveTo(x,0);pen.lineTo(x,h);pen.stroke()}
     }
    }
   }
@@ -1051,7 +1053,9 @@ function persistEditor(){
 function changeVoiceSelection(e,started=false){
  const canvas=get("iamWavevoice");if(!canvas)return;
  const rect=canvas.getBoundingClientRect(),pos=clamp((e.clientX-rect.left)/Math.max(1,rect.width),0,1);
- const {start,visible}=editorView(),time=clamp(start+visible*pos,0,Number(editWaveBuffers?.voice?.duration)||editDuration());
+ const {start,visible}=editorView(),times=syncedStarts(0);
+ const relative=times.voice-times.music;
+ const time=clamp(start+visible*pos-relative,0,Number(editWaveBuffers?.voice?.duration)||editDuration());
  if(started)editDragStart=time;
  if(editDragStart==null)return;
  editSelection=[Math.min(editDragStart,time),Math.max(editDragStart,time)];
