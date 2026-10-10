@@ -5038,7 +5038,9 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   let shuffleHistory=[], shuffleHistoryPos=-1, recentTracks=[];
   // Desired playback is separate from the browser's instantaneous paused state.
   // This lets us recover after iOS temporarily suspends a page without overriding a user's deliberate Pause.
-  let wantedPlayback=true;
+  // The Back Room can request a silent website launch without disabling manual music controls.
+  const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled!==false;
+  let wantedPlayback=startupMusicEnabled;
   try{player.defaultPlaybackRate=1;player.playbackRate=1;}catch(_e){}
   player.addEventListener('ratechange',()=>{try{if(Math.abs(player.playbackRate-1)>.001)player.playbackRate=1;}catch(_e){}});
   const RADIO_ALBUM_ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
@@ -5095,8 +5097,10 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     };
     if(player.readyState>=1){try{seekTo()}catch(_){}}
     else player.addEventListener('loadedmetadata',()=>{try{seekTo()}catch(_){}},{once:true});
-    wantedPlayback=s.playing!==false;
+    // A saved Radio/website session must not override the visitor's silent-start setting.
+    wantedPlayback=startupMusicEnabled && s.playing!==false;
     if(wantedPlayback){try{await player.play();}catch(_){}}
+    else{player.pause();setPlayUI(false);}
     return true;
   }
 
@@ -5527,7 +5531,9 @@ fetchAllMp3s().then(async list=>{
       const first=window.GE_SITE_CONFIG?.music?.firstTrack||{};
       let preferred=-1;
       if(first&&PLAYLIST.length){
-        preferred=PLAYLIST.findIndex(it=>{
+        // Prefer the exact Back Room selection before falling back to album/track matching.
+        if(first.path)preferred=PLAYLIST.findIndex(it=>it.path===first.path);
+        if(preferred<0)preferred=PLAYLIST.findIndex(it=>{
           const albumOK=!first.album||normAlbumName(it.album)===normAlbumName(first.album);
           const numberOK=!Number(first.trackNum)||Number(it.trackNum)===Number(first.trackNum);
           const titleOK=!first.titleContains||String(it.track||'').toLowerCase().includes(String(first.titleContains).toLowerCase());
@@ -5537,7 +5543,14 @@ fetchAllMp3s().then(async list=>{
       pIndex=preferred>=0?preferred:(SHUFFLE?chooseShuffleIndex():0);
       if(SHUFFLE) rememberShuffle(PLAYLIST[pIndex]);
       reflectMusicMode();
-      await startWebsiteAudioOnce();
+      if(startupMusicEnabled)await startWebsiteAudioOnce();
+      else {
+        // Keep the selected opening song queued; no automatic play or gesture retry.
+        const it=PLAYLIST[pIndex];
+        wantedPlayback=false;
+        player.pause();player.removeAttribute('src');player.load();
+        setTitle(it);setPlayUI(false);
+      }
     }
 }).catch(err=>{
     console.error('Playlist load failed', err);
