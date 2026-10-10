@@ -3589,7 +3589,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
 
-        <audio id="gePlayer" preload="auto" playsinline webkit-playsinline autoplay crossorigin="anonymous"></audio>
+        <audio id="gePlayer" preload="none" playsinline webkit-playsinline crossorigin="anonymous"></audio>
       </div>
     </div>
 
@@ -5040,6 +5040,9 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   // This lets us recover after iOS temporarily suspends a page without overriding a user's deliberate Pause.
   // The Back Room can request a silent website launch without disabling manual music controls.
   const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled!==false;
+  // Playback is started only through the GE audio controller. A native autoplay
+  // attribute could start restored audio before the silent-start setting is checked.
+  player.autoplay=false;
   let wantedPlayback=startupMusicEnabled;
   try{player.defaultPlaybackRate=1;player.playbackRate=1;}catch(_e){}
   player.addEventListener('ratechange',()=>{try{if(Math.abs(player.playbackRate-1)>.001)player.playbackRate=1;}catch(_e){}});
