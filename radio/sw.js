@@ -1,13 +1,14 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.09.30-loudness-lookahead-1';
+const VERSION='2026.10.09-iam-private-engine-1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
 const SHELL=[
   './',
   './index.html',
+  './iam-private-studio.js',
   './manifest.webmanifest',
   './favicon.ico',
   './icons/favicon-16.png',
