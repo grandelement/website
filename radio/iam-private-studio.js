@@ -340,6 +340,70 @@ async function restoreLatest(){
   say("Latest saved private recording restored.");
  }catch(err){say("Could not restore take: "+errorString(err))}
 }
+async function exportEdited(){
+ if(!take.music||!take.voice){say("Save a raw MUSIC and YOU take before creating an edited mix.");return}
+ const elButton=get("iamExportEdited");
+ if(elButton)elButton.disabled=true;
+ say("Rendering an edited mix from the original clean tracks…");
+ let decodeCtx=null;
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;
+  const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  if(!AC||!Offline)throw Error("Offline audio rendering unavailable in this browser");
+  decodeCtx=new AC();
+  const [musicBytes,voiceBytes]=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
+  const [musicBuffer,voiceBuffer]=await Promise.all([decodeCtx.decodeAudioData(musicBytes),decodeCtx.decodeAudioData(voiceBytes)]);
+  const duration=Math.max(musicBuffer.duration,voiceBuffer.duration)+1.2;
+  if(duration>180)throw Error("Edited WAV export currently supports recordings up to 3 minutes on phones. Original stems can still be saved.");
+  const rate=44100,len=Math.ceil(duration*rate);
+  const off=new Offline(2,len,rate);
+  const song=off.createBufferSource(),voice=off.createBufferSource();
+  song.buffer=musicBuffer;voice.buffer=voiceBuffer;
+  const mGain=off.createGain(),vGain=off.createGain();
+  mGain.gain.value=clamp(value(E.music)/100,0,1.5);
+  vGain.gain.value=clamp(value(E.voice)/100*value(E.gain)/100,0,3);
+  const raw=off.createGain(),compressed=off.createGain(),compNode=off.createDynamicsCompressor();
+  const compression=clamp(value(E.compression)/100,0,1);
+  raw.gain.value=1-compression;compressed.gain.value=compression;
+  compNode.threshold.value=-27;compNode.knee.value=12;compNode.ratio.value=4;
+  compNode.attack.value=.005;compNode.release.value=.16;
+  const voiceOut=off.createGain(),delayNode=off.createDelay(1.5),wet=off.createGain(),feedback=off.createGain();
+  let delayTime=.01,wetAmount=0,fb=0;
+  if(fxMode==="space"){delayTime=.17;wetAmount=.2;fb=.17}
+  if(fxMode==="echo"){delayTime=.34;wetAmount=.36;fb=.28}
+  delayNode.delayTime.value=delayTime;wet.gain.value=wetAmount;feedback.gain.value=fb;
+  song.connect(mGain);mGain.connect(off.destination);
+  voice.connect(vGain);vGain.connect(raw);vGain.connect(compNode);compNode.connect(compressed);
+  raw.connect(voiceOut);compressed.connect(voiceOut);
+  raw.connect(delayNode);compressed.connect(delayNode);
+  delayNode.connect(wet);wet.connect(voiceOut);delayNode.connect(feedback);feedback.connect(delayNode);
+  voiceOut.connect(off.destination);
+  const base=.012,offsets=takeMeta?.offsets||{},musicOffset=Math.max(0,Number(offsets.music)||0),voiceOffset=Math.max(0,Number(offsets.voice)||0);
+  song.start(base+musicOffset);voice.start(base+voiceOffset);
+  const result=await off.startRendering();
+  const frames=result.length;
+  const bytes=new ArrayBuffer(44+frames*4),view=new DataView(bytes);
+  const writeText=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i))};
+  writeText(0,"RIFF");view.setUint32(4,36+frames*4,true);writeText(8,"WAVE");writeText(12,"fmt ");
+  view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,2,true);
+  view.setUint32(24,rate,true);view.setUint32(28,rate*4,true);
+  view.setUint16(32,4,true);view.setUint16(34,16,true);
+  writeText(36,"data");view.setUint32(40,frames*4,true);
+  const l=result.getChannelData(0),r=result.getChannelData(1);
+  for(let i=0;i<frames;i++){
+   const a=clamp(l[i],-1,1),b=clamp(r[i],-1,1);
+   view.setInt16(44+i*4,a<0?a*32768:a*32767,true);
+   view.setInt16(46+i*4,b<0?b*32768:b*32767,true);
+  }
+  const wav=new Blob([bytes],{type:"audio/wav"});
+  const url=URL.createObjectURL(wav),link=document.createElement("a");
+  link.href=url;link.download="Grand-Element-I-AM-EDITED-"+Date.now()+".wav";
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),6000);
+  say("Edited WAV exported. Original dry YOU, music, and first mix are unchanged.");
+ }catch(err){say("Edited mix: "+errorString(err))}
+ finally{try{await decodeCtx?.close()}catch(_e){};if(elButton)elButton.disabled=false;}
+}
 function exportAudio(key){
  const blob=take[key];if(!blob){say("Record a take before exporting this track.");return}
  const ext=blob.type.includes("mp4")?"m4a":"webm",url=URL.createObjectURL(blob);
@@ -524,6 +588,7 @@ get("iamSaveBtn")?.addEventListener("click",()=>exportAudio("mix"));
 get("iamExportMusic")?.addEventListener("click",()=>exportAudio("music"));
 get("iamExportVoice")?.addEventListener("click",()=>exportAudio("voice"));
 get("iamExportMix")?.addEventListener("click",()=>exportAudio("mix"));
+get("iamExportEdited")?.addEventListener("click",()=>void exportEdited());
 get("iamRestoreTake")?.addEventListener("click",()=>void restoreLatest());
 [E.music,E.voice,E.gain,E.compression].forEach(e=>e?.addEventListener("input",outputSettings));
 document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.addEventListener("click",()=>{
