@@ -375,6 +375,8 @@ async function disposeAudio(){
  try{privateAudio?.pause()}catch(_e){}
  if(micStream)micStream.getTracks().forEach(t=>t.stop());
  micStream=null;privateAudio=null;
+ recorderReady=false;recorderPrewarming=false;
+ recMusic=null;recVoice=null;recMix=null;
  try{await ctx?.close()}catch(_e){}
  ctx=null;musicInput=null;musicGain=null;musicOutput=null;musicMeter=null;voiceMeter=null;
  musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
@@ -389,31 +391,47 @@ function recorder(dest,key){
  chunks[key]=[];r.ondataavailable=e=>{if(e.data?.size)chunks[key].push(e.data)};
  return r;
 }
-function assemble(key,r){
- const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
-}
-function beginTake(){
- if(!open||loading||recording||!ctx||!verified||!micConnected||!micStream?.active){
-  say(micError||"Microphone is not connected. Tap YOU · ENABLE MIC, then check its meter.");return;
- }
- if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
- stopReview();
+function prepareRecorders(){
+ if(recorderReady||recorderPrewarming||recording||!verified||!micConnected||!micDetected||!micStream?.active)return;
+ if(!window.MediaRecorder){say("Recording unavailable in this browser.");return}
+ recorderPrewarming=true;
  try{
   recMusic=recorder(musicDest,"music");
   recVoice=recorder(voiceDest,"voice");
   recMix=recorder(mixDest,"mix");
-  const clock=ctx.currentTime,offsets={};
-  // All buses are driven by the SAME AudioContext clock, with measured offsets.
-  recMusic.start(200);offsets.music=ctx.currentTime-clock;
-  recVoice.start(200);offsets.voice=ctx.currentTime-clock;
-  recMix.start(200);offsets.mix=ctx.currentTime-clock;
+  recorderReady=true;
+  say("Music and microphone verified. Tap Record when ready.");
+ }catch(err){recorderReady=false;say("Cannot prepare recorders: "+errorString(err))}
+ finally{recorderPrewarming=false}
+}
+function assemble(key,r){
+ const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
+}
+function beginTake(){
+ if(!open||loading||recording||!ctx||!verified||!micConnected||!micStream?.active||!micDetected){
+  say(micError||"Speak until YOU shows SIGNAL before pressing Record.");return;
+ }
+ if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
+ stopReview();
+ try{
+  if(!recorderReady)prepareRecorders();
+  if(!recorderReady)throw new Error("The recording encoders are not ready");
+  const clock=ctx.currentTime,offsets={},pressedAt=performance.now();
+  recordArming=true;
+  // Minimize work on the Record tap and avoid three repeated timeslice events.
+  recMusic.start();offsets.music=ctx.currentTime-clock;
+  recVoice.start();offsets.voice=ctx.currentTime-clock;
+  recMix.start();offsets.mix=ctx.currentTime-clock;
+  recorderReady=false;recordArming=false;
   takeMeta={version:2,id:new Date().toISOString(),source:sourceURL,mode:sourceMode,
    sourcePosition:privateAudio.currentTime,clockStart:clock,offsets,
+   encoderStartMilliseconds:Math.round(performance.now()-pressedAt),
    music:value(E.music),voice:value(E.voice),gain:value(E.gain),compression:value(E.compression),
    effect:fxMode,approximate:sourceMode==="radio"};
   startedAt=performance.now()/1000;recording=true;
   mode("recording");say("RECORDING · Clean MUSIC, dry YOU and mix are all being saved.");
  }catch(err){
+  recordArming=false;recorderReady=false;
   for(const r of [recMusic,recVoice,recMix])try{if(r?.state==="recording")r.stop()}catch(_e){}
   say("Recording failed: "+errorString(err));mode("record");
  }
@@ -431,7 +449,7 @@ function stopOne(r,key){
 }
 async function stopTake(){
  if(!recording)return;
- recording=false;E.record.disabled=true;
+ recording=false;E.record.disabled=true;recorderReady=false;
  const duration=performance.now()/1000-startedAt;
  say("Finalizing your raw tracks and mixed preview…");
  await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice"),stopOne(recMix,"mix")]);
@@ -446,7 +464,7 @@ async function stopTake(){
  }else{
   mode("record");say("One or more tracks were empty. Check your signal. Existing recorded data remains available.");
  }
- E.record.disabled=false;
+ updateRecordReady();
 }
 async function saveTake(){
  savedWarning="";
