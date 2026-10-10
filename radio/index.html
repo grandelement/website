@@ -1560,6 +1560,48 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
   body.iam-edit-open #iamSoundPanel{z-index:180!important}
 }
 </style>
+
+<style id="ge-iam-private-studio-v2-styles">
+body.iam-studio-open #iamExitBtn{
+ display:block!important;position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;
+ right:12px!important;z-index:180!important;padding:9px 15px!important;
+ min-height:37px!important;border-radius:999px!important;border:1px solid rgba(181,229,255,.65)!important;
+ background:rgba(3,20,35,.95)!important;color:#f3faff!important;font:800 12px/1 system-ui!important
+}
+#iamExitBtn{display:none}
+body.iam-studio-open #iamSoundBtn{display:inline-flex!important;align-items:center!important;justify-content:center!important;pointer-events:auto!important;
+ min-height:39px!important;padding:5px 13px!important;background:rgba(7,33,52,.94)!important;border:1px solid rgba(161,231,255,.6)!important}
+body.iam-studio-open .iamMiniActions{gap:12px!important}
+body.iam-studio-open #iamSoundPanel{display:none!important}
+body.iam-studio-open #iamSoundPanel.show,body.iam-edit-open #iamSoundPanel{
+ display:block!important;position:fixed!important;z-index:175!important;
+ top:max(192px,calc(env(safe-area-inset-top) + 142px))!important;
+ bottom:max(8px,env(safe-area-inset-bottom))!important;
+ left:4vw!important;right:4vw!important;margin:0!important;padding:14px!important;
+ border:1px solid rgba(122,213,255,.55)!important;border-radius:16px!important;
+ overflow:auto!important;background:rgba(2,14,26,.985)!important;
+ box-shadow:0 20px 55px rgba(0,0,0,.66)!important;pointer-events:auto!important
+}
+body.iam-studio-open #iamSoundPanel .iamSlider{display:grid!important;grid-template-columns:94px 1fr 49px;gap:7px;align-items:center;min-height:42px;margin:7px 0}
+body.iam-studio-open #iamSoundPanel .iamSlider span{font:800 12px/1.2 system-ui}
+body.iam-studio-open #iamSoundPanel .iamSlider input{width:100%;min-width:0}
+body.iam-studio-open #iamSoundPanel .iamSlider output{font:800 11px/1.2 system-ui;text-align:right}
+#iamSourceIndicator{font:800 11px/1.3 system-ui;color:#bcecff;text-align:center;margin:5px auto 15px}
+.iamStemTitle,.iamWaveTitle{font:800 10px/1.4 system-ui;letter-spacing:.08em;color:#bceaff;margin:14px 0 5px}
+.iamStemButtons{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.iamStemButtons button,#iamRestoreTake{
+ min-height:36px;border-radius:12px;border:1px solid rgba(111,203,255,.45);
+ background:rgba(13,65,91,.55);color:#effaff;font:800 10px/1.2 system-ui
+}
+#iamRestoreTake{display:block;width:100%;margin-top:15px}
+#iamStemActions[hidden]{display:none!important}
+#iamStemActions canvas{display:block;width:100%;max-width:100%;height:52px;border-radius:8px;
+ background:rgba(18,50,68,.7)}
+@media(orientation:landscape) and (max-height:620px){
+ body.iam-studio-open #iamExitBtn{right:8px!important;top:7px!important}
+ body.iam-studio-open #iamSoundPanel.show{top:62px!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -1830,6 +1872,7 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
 
     <div id="iamNowPlaying">Player · current song</div>
 
+    <button id="iamExitBtn" type="button" aria-label="Close I AM">CLOSE</button>
     <div class="iamMeters" aria-label="Live music and microphone levels">
       <div class="iamMeter"><span id="iamMusicSignalLabel">MUSIC · CHECKING</span><div class="iamMeterTrack"><i id="iamMusicMeter" class="iamMeterFill"></i></div></div>
       <div class="iamMeter"><span>YOU</span><div class="iamMeterTrack"><i id="iamMicMeter" class="iamMeterFill"></i></div></div>
@@ -1857,6 +1900,7 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
     </div>
 
     <div id="iamSoundPanel">
+      <div id="iamSourceIndicator">PRIVATE · PREPARING</div>
       <div class="iamEditToolbar"><button id="iamEditBack" type="button">BACK</button><button id="iamEditSave" type="button">SAVE MIX</button></div>
       <div class="iamPresetRow">
         <button class="iamPreset selected" type="button" data-iam-effect="clean">Clean</button>
@@ -1865,6 +1909,14 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
       </div>
       <label class="iamSlider"><span>Music</span><input id="iamMusicLevel" type="range" min="0" max="150" value="100"><output id="iamMusicRead">100%</output></label>
       <label class="iamSlider"><span>You</span><input id="iamMicLevel" type="range" min="0" max="150" value="100"><output id="iamMicRead">100%</output></label>
+      <label class="iamSlider"><span>Compression</span><input id="iamCompression" type="range" min="0" max="100" value="0" step="1" aria-label="Vocal compression from off to maximum"><output id="iamCompressionRead">OFF</output></label>
+      <div id="iamStemActions" hidden>
+        <div class="iamStemTitle">ORIGINAL RAW RECORDINGS</div>
+        <div class="iamStemButtons"><button type="button" id="iamExportVoice">SAVE RAW YOU</button><button type="button" id="iamExportMusic">SAVE CLEAN MUSIC</button><button type="button" id="iamExportMix">SAVE MIX</button></div>
+        <div class="iamWaveTitle">MUSIC WAVEFORM</div><canvas id="iamWavemusic" width="340" height="52" aria-label="Music waveform"></canvas>
+        <div class="iamWaveTitle">YOU WAVEFORM</div><canvas id="iamWavevoice" width="340" height="52" aria-label="Voice waveform"></canvas>
+      </div>
+      <button id="iamRestoreTake" type="button">RESTORE LAST PRIVATE TAKE</button>
     </div>
   </section>
 
@@ -1964,11 +2016,12 @@ body.iam-edit-open #iamEditBack,body.iam-edit-open #iamEditSave{display:inline-b
 <div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
 
 <script src="../ge-vault-client.js"></script>
+<script src="./iam-private-studio.js?v=20261009-2"></script>
 <script>
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-single-sun-no-hud-timer-1',
+  APP_VERSION: '2026.10.09-iam-private-two-stem-v2',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -7141,667 +7194,8 @@ Vector ${vector}. ${pair[1]}.`;
   };
 })();
 
-// I AM — child-simple play-along studio.
-// Uses a separate studio audio element so the normal Radio player keeps its native playback architecture.
-// Mic audio is captured into the take but NOT sent to the speaker unless HEAR ME is explicitly enabled.
-(function setupIAmStudio(){
-  const launch=$('iamLaunchBtn'),studio=$('iamStudio'),headphones=$('iamHeadphones'),lineIn=$('iamLineIn');
-  const playerSource=$('iamPlayerSource'),radioSource=$('iamRadioSource'),inputChoices=$('iamInputChoices');
-  const nowPlaying=$('iamNowPlaying'),recordBtn=$('iamRecordBtn'),playBtn=$('iamPlayBtn'),takeAudio=$('iamTakeAudio');
-  const timer=$('iamTimer'),status=$('iamStatus'),soundBtn=$('iamSoundBtn'),soundPanel=$('iamSoundPanel');
-  const monitorBtn=$('iamMonitorBtn'),saveBtn=$('iamSaveBtn'),musicLevel=$('iamMusicLevel'),micLevel=$('iamMicLevel');
-  const musicRead=$('iamMusicRead'),micRead=$('iamMicRead'),inputGain=$('iamInputGain'),inputGainRead=$('iamInputGainRead');
-  const musicMeter=$('iamMusicMeter'),musicSignalLabel=$('iamMusicSignalLabel'),micMeter=$('iamMicMeter'),againBtn=$('iamAgainBtn'),editBtn=$('iamEditBtn');
-  const listenHeadphones=$('iamListenHeadphones'),listenSpeaker=$('iamListenSpeaker'),editBack=$('iamEditBack'),editSave=$('iamEditSave');
-  if(!launch||!studio||!recordBtn||!playBtn)return;
-
-  let open=false,connection='headphones',listeningMode='speaker',sourceMode='player',selectedDeviceId='',effect='clean',monitorOn=false;
-  let ctx=null,micStream=null,studioAudio=null,musicGain=null,musicKeepAliveGain=null,micGainNode=null,micCompressor=null,monitorGain=null,delayNode=null,wetGain=null,feedbackGain=null;
-  let musicMeterAnalyser=null,musicMeterData=null,micMeterAnalyser=null,micMeterData=null;
-  let previewCtx=null,previewStream=null,previewGain=null,previewCompressor=null,previewAnalyser=null,previewData=null,previewMonitorGain=null,meterRAF=0;
-  let previewMusicCtx=null,previewMusicAudio=null,previewMusicGain=null,previewMusicAnalyser=null,previewMusicData=null,previewMusicKeepAlive=null,previewMusicURL='',previewMusicReady=false,previewMusicStartedAt=0,previewMusicPending=false;
-  let recorder=null,chunks=[],takeBlob=null,takeFileName='',recordStartedAt=0,timerId=0;
-  let recording=false,playingTake=false,reviewMutedBefore=false,reviewDucking=false,studioSourceURL='',captureUsingMirror=false,musicSamplesSeen=false;
-  let sunFlight=null;
-
-  const micIcon="<svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"17\" y=\"7\" width=\"14\" height=\"24\" rx=\"7\"></rect><path d=\"M11 23c0 8 5 14 13 14s13-6 13-14\"></path><path d=\"M24 37v7M17 44h14\"></path></svg>";
-  const stopIcon='<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="13" y="13" width="22" height="22" rx="3"></rect></svg>';
-  const playIcon="<svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M17 11l22 13-22 13z\"></path></svg>";
-  function createSunFlight(originRect=null){
-    const source=$('geLogo');if(!source)return;
-    const rect=originRect||source.getBoundingClientRect();
-    sunFlight?.remove();
-    sunFlight=document.createElement('img');
-    sunFlight.className='iamSunFlight';
-    sunFlight.src=source.currentSrc||source.src||absolute(CONFIG.LOGO_SRC);
-    sunFlight.alt='';
-    Object.assign(sunFlight.style,{
-      left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',transform:'none',opacity:'1'
-    });
-    document.body.appendChild(sunFlight);
-    requestAnimationFrame(()=>requestAnimationFrame(()=>sunFlight?.classList.add('centered')));
-  }
-  function removeSunFlight(){
-    if(!sunFlight)return;
-    const node=sunFlight;sunFlight=null;node.style.opacity='0';
-    setTimeout(()=>node.remove(),380);
-  }
-  function setMainButtonMode(mode){
-    recordBtn.classList.toggle('record-ready',mode==='record');
-    recordBtn.classList.toggle('recording',mode==='recording');
-    recordBtn.classList.toggle('take-ready',mode==='play'||mode==='playing');
-    if(mode==='recording'||mode==='playing'){
-      recordBtn.innerHTML=stopIcon;
-      recordBtn.setAttribute('aria-label','Stop');
-    }else if(mode==='play'){
-      recordBtn.innerHTML=playIcon;
-      recordBtn.setAttribute('aria-label','Play recording');
-    }else{
-      recordBtn.innerHTML=micIcon;
-      recordBtn.setAttribute('aria-label','Record');
-    }
-  }
-
-
-  function fmtTime(seconds){
-    const s=Math.max(0,Math.floor(Number(seconds)||0));
-    return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-  }
-  function updateTimer(){
-    timer.textContent=fmtTime(recording?(performance.now()-recordStartedAt)/1000:(takeAudio?.currentTime||0));
-  }
-  function setConnection(next){
-    connection=next;
-    headphones.classList.toggle('selected',next==='headphones');headphones.setAttribute('aria-pressed',next==='headphones'?'true':'false');
-    lineIn.classList.toggle('selected',next==='line');lineIn.setAttribute('aria-pressed',next==='line'?'true':'false');
-    if(next==='line') void discoverInputs(); else inputChoices?.classList.remove('show');
-  }
-  function setSource(next){
-    sourceMode=next;
-    playerSource.classList.toggle('selected',next==='player');playerSource.setAttribute('aria-pressed',next==='player'?'true':'false');
-    radioSource.classList.toggle('selected',next==='radio');radioSource.setAttribute('aria-pressed',next==='radio'?'true':'false');
-    updateNowPlaying();
-  }
-  function currentPlayerURL(){
-    if(state.currentURL && !state.live && !isStationID(state.currentURL)) return state.currentURL;
-    if(liveState.returnURL && !isStationID(liveState.returnURL)) return liveState.returnURL;
-    return allowedCatalog()[0]||'';
-  }
-  function updateNowPlaying(){
-    if(!nowPlaying)return;
-    if(sourceMode==='radio'){nowPlaying.textContent='RADIO · Grand Element live stream';return;}
-    const url=currentPlayerURL();
-    nowPlaying.textContent=url?'PLAYER · '+displayTitle(url,false):'PLAYER · choose a song above';
-  }
-  function inputGainAmount(){return Math.max(.25,Math.min(2.5,(Number(inputGain?.value)||100)/100));}
-  function updateLevels(){
-    const mg=Math.max(0,Math.min(1.5,(Number(musicLevel?.value)||100)/100));
-    const mix=Math.max(0,Math.min(1.5,(Number(micLevel?.value)||100)/100));
-    const gain=inputGainAmount();
-    if(musicRead)musicRead.textContent=Math.round(mg*100)+'%';
-    if(micRead)micRead.textContent=Math.round(mix*100)+'%';
-    if(inputGainRead)inputGainRead.textContent=Math.round(gain*100)+'%';
-    if(musicGain&&ctx)musicGain.gain.setTargetAtTime(mg,ctx.currentTime,.02);
-    if(micGainNode&&ctx)micGainNode.gain.setTargetAtTime(Math.min(3,gain*mix),ctx.currentTime,.02);
-    if(previewGain&&previewCtx)previewGain.gain.setTargetAtTime(gain,previewCtx.currentTime,.02);
-  }
-  function setMeter(el,level){
-    if(!el)return;
-    const safe=Math.max(.015,Math.min(1,Number(level)||0));
-    el.style.transform='scaleX('+safe.toFixed(4)+')';
-  }
-  function frequencyLevel(data){
-    if(!data||!data.length)return 0;
-    let sum=0,peak=0;
-    for(let i=0;i<data.length;i++){const v=data[i]/255;sum+=v*v;if(v>peak)peak=v;}
-    return Math.min(1,Math.sqrt(sum/data.length)*1.45+peak*.20);
-  }
-  function timeLevel(analyser,data){
-    if(!analyser||!data)return 0;
-    try{
-      analyser.getByteTimeDomainData(data);
-      let sum=0,peak=0;
-      for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;const a=Math.abs(v);sum+=v*v;if(a>peak)peak=a;}
-      return Math.min(1,Math.sqrt(sum/data.length)*3.0+peak*.16);
-    }catch(_e){return 0;}
-  }
-  function meterFrame(){
-    let music=0,mic=0;
-    const musicAnalyser=musicMeterAnalyser||previewMusicAnalyser;
-    const musicData=musicMeterData||previewMusicData;
-    if(musicAnalyser&&musicData){
-      try{musicAnalyser.getByteFrequencyData(musicData);music=frequencyLevel(musicData);}catch(_e){}
-    }
-    if(micMeterAnalyser&&micMeterData)mic=timeLevel(micMeterAnalyser,micMeterData);
-    else if(previewAnalyser&&previewData)mic=timeLevel(previewAnalyser,previewData);
-    if(music>.035){
-      if(!recording)previewMusicReady=true;
-      else musicSamplesSeen=true;
-    }
-    if(musicSignalLabel){
-      const waiting=open&&!recording&&previewMusicStartedAt&&performance.now()-previewMusicStartedAt<5000;
-      musicSignalLabel.textContent=music>.035?'MUSIC · LIVE':(!audio.paused&&waiting?'MUSIC · CHECKING':(!audio.paused?'MUSIC · NO SIGNAL':'MUSIC · PAUSED'));
-    }
-    setMeter(musicMeter,music);setMeter(micMeter,mic);
-    if(open)meterRAF=requestAnimationFrame(meterFrame);else meterRAF=0;
-  }
-  function startMeters(){
-    if(meterRAF)return;
-    meterRAF=requestAnimationFrame(meterFrame);
-  }
-  function stopMeters(){
-    if(meterRAF)cancelAnimationFrame(meterRAF);meterRAF=0;
-    setMeter(musicMeter,0);setMeter(micMeter,0);
-    if(musicSignalLabel)musicSignalLabel.textContent='MUSIC';
-  }
-  // MUSIC is analyzed before recording. The regular radio player remains
-  // native/unchanged; a separately routed copy only feeds the analyser and
-  // the later recording bus. The meter never uses fake or random motion.
-  async function startMusicPreview(){
-    if(!open||recording||previewMusicCtx||previewMusicPending)return;
-    if(audio.paused){if(musicSignalLabel)musicSignalLabel.textContent='MUSIC · PAUSED';return;}
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC){if(musicSignalLabel)musicSignalLabel.textContent='MUSIC · UNAVAILABLE';return;}
-    previewMusicPending=true;previewMusicReady=false;previewMusicStartedAt=performance.now();
-    if(musicSignalLabel)musicSignalLabel.textContent='MUSIC · CHECKING';
-    try{
-      const context=new AC();
-      previewMusicCtx=context;
-      const analyser=context.createAnalyser();
-      analyser.fftSize=256;analyser.smoothingTimeConstant=.42;
-      previewMusicAnalyser=analyser;previewMusicData=new Uint8Array(analyser.frequencyBinCount);
-      const gain=context.createGain();previewMusicGain=gain;
-      gain.connect(analyser);
-      const keepAlive=context.createGain();keepAlive.gain.value=.000001;
-      previewMusicKeepAlive=keepAlive;gain.connect(keepAlive);keepAlive.connect(context.destination);
-      let source=null;
-      try{
-        const capture=audio.captureStream?.()||audio.mozCaptureStream?.();
-        if(capture?.getAudioTracks()?.length)source=context.createMediaStreamSource(capture);
-      }catch(_e){}
-      if(!source){
-        const url=audio.currentSrc||audio.src||'';
-        if(!url)throw new Error('No playing music source');
-        previewMusicURL=url;
-        const mirror=new Audio();
-        mirror.crossOrigin='anonymous';mirror.preload='auto';mirror.playsInline=true;
-        previewMusicAudio=mirror;
-        source=context.createMediaElementSource(mirror);
-        source.connect(gain);
-        mirror.src=url;mirror.load();
-        if(!state.live&&Number.isFinite(audio.currentTime)&&audio.currentTime>0){
-          const align=()=>{
-            const duration=Number(mirror.duration)||Number(audio.duration)||0;
-            if(duration>0)try{mirror.currentTime=Math.max(0,Math.min(audio.currentTime,duration-.05));}catch(_e){}
-          };
-          if(mirror.readyState>=1)align();
-          else mirror.addEventListener('loadedmetadata',align,{once:true});
-        }
-        // Begin the inaudible mirror during the I AM gesture, after all
-        // recording/meter routing is attached.
-        const playPromise=mirror.play();
-        await context.resume();
-        await playPromise;
-      }else{
-        source.connect(gain);
-        await context.resume();
-      }
-      if(!open||recording)await stopMusicPreview();
-    }catch(error){
-      if(open)status.textContent='MUSIC meter could not connect: '+String(error?.message||error?.name||'audio source problem').slice(0,110);
-      await stopMusicPreview();
-      if(musicSignalLabel)musicSignalLabel.textContent='MUSIC · NO SIGNAL';
-    }finally{previewMusicPending=false;}
-  }
-  async function stopMusicPreview(){
-    const mirror=previewMusicAudio,context=previewMusicCtx;
-    previewMusicCtx=null;previewMusicAudio=null;previewMusicGain=null;previewMusicAnalyser=null;
-    previewMusicData=null;previewMusicKeepAlive=null;previewMusicURL='';previewMusicReady=false;
-    try{mirror?.pause();}catch(_e){}
-    try{await context?.close();}catch(_e){}
-  }
-  function followPreviewMusic(){
-    if(!open||recording)return;
-    if(audio.paused){try{previewMusicAudio?.pause();}catch(_e){};return;}
-    if(!previewMusicCtx){void startMusicPreview();return;}
-    const mirror=previewMusicAudio;
-    if(!mirror)return;
-    const url=audio.currentSrc||audio.src||'';
-    if(url&&url!==previewMusicURL){
-      previewMusicURL=url;previewMusicReady=false;previewMusicStartedAt=performance.now();
-      mirror.src=url;mirror.load();
-      const align=()=>{
-        if(!state.live&&Number.isFinite(audio.currentTime)&&audio.currentTime>0){
-          const duration=Number(mirror.duration)||Number(audio.duration)||0;
-          if(duration>0)try{mirror.currentTime=Math.max(0,Math.min(audio.currentTime,duration-.05));}catch(_e){}
-        }
-        mirror.play().catch(error=>{status.textContent='MUSIC meter: '+String(error?.message||error?.name||'play error');});
-      };
-      if(mirror.readyState>=1)align();else mirror.addEventListener('loadedmetadata',align,{once:true});
-    }else if(mirror.paused){mirror.play().catch(()=>{});}
-    else if(!state.live&&Number.isFinite(audio.currentTime)&&Number.isFinite(mirror.currentTime)
-          &&Math.abs(audio.currentTime-mirror.currentTime)>.85){
-      try{mirror.currentTime=audio.currentTime;}catch(_e){}
-    }
-  }
-  async function stopMicPreview(){
-    try{previewStream?.getTracks().forEach(t=>t.stop());}catch(_e){}
-    previewStream=null;
-    try{await previewCtx?.close();}catch(_e){}
-    previewCtx=null;previewGain=null;previewCompressor=null;previewAnalyser=null;previewData=null;previewMonitorGain=null;
-  }
-  async function getIAmMicStream(){
-    if(!navigator.mediaDevices?.getUserMedia)throw new Error('getUserMedia unavailable');
-    const preferred={
-      echoCancellation:true,
-      noiseSuppression:true,
-      autoGainControl:true
-    };
-    if(selectedDeviceId)preferred.deviceId={exact:selectedDeviceId};
-    try{
-      return await navigator.mediaDevices.getUserMedia({audio:preferred});
-    }catch(firstError){
-      // iPhone/Safari can reject an otherwise valid request when one optional
-      // processing constraint or a stale device id is unsupported. Retry with
-      // the browser's simplest microphone request before declaring failure.
-      try{return await navigator.mediaDevices.getUserMedia({audio:true});}
-      catch(_e){throw firstError;}
-    }
-  }
-  async function startMicPreview(){
-    if(recording||previewStream||!navigator.mediaDevices?.getUserMedia)return;
-    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-    try{
-      previewStream=await getIAmMicStream();
-      previewCtx=new AC();await previewCtx.resume();
-      const src=previewCtx.createMediaStreamSource(previewStream);
-      previewGain=previewCtx.createGain();
-      previewCompressor=previewCtx.createDynamicsCompressor();
-      previewCompressor.threshold.value=-24;previewCompressor.knee.value=24;previewCompressor.ratio.value=4;previewCompressor.attack.value=.006;previewCompressor.release.value=.18;
-      previewAnalyser=previewCtx.createAnalyser();previewAnalyser.fftSize=256;previewAnalyser.smoothingTimeConstant=.45;previewData=new Uint8Array(previewAnalyser.fftSize);
-      src.connect(previewGain);previewGain.connect(previewCompressor);previewCompressor.connect(previewAnalyser);
-      previewMonitorGain=previewCtx.createGain();previewMonitorGain.gain.value=0;
-      previewCompressor.connect(previewMonitorGain);previewMonitorGain.connect(previewCtx.destination);
-      updateLevels();applyMonitor();
-      status.textContent='Ready. Set YOU GAIN so your meter is strong without staying at the far right.';
-    }catch(error){
-      status.textContent=describeCaptureError(error);
-    }
-  }
-  function applyEffect(){
-    if(!ctx||!delayNode||!wetGain||!feedbackGain)return;
-    let delay=.01,wet=0,feedback=0;
-    if(effect==='space'){delay=.17;wet=.24;feedback=.20;}
-    if(effect==='echo'){delay=.34;wet=.38;feedback=.33;}
-    delayNode.delayTime.setTargetAtTime(delay,ctx.currentTime,.02);
-    wetGain.gain.setTargetAtTime(wet,ctx.currentTime,.02);
-    feedbackGain.gain.setTargetAtTime(feedback,ctx.currentTime,.02);
-  }
-  function applyMonitor(){
-    const enabled=monitorOn&&listeningMode==='headphones';
-    if(monitorGain&&ctx)monitorGain.gain.setTargetAtTime(enabled?.72:0,ctx.currentTime,.02);
-    if(previewMonitorGain&&previewCtx)previewMonitorGain.gain.setTargetAtTime(enabled?.72:0,previewCtx.currentTime,.02);
-  }
-  function setListeningMode(mode){
-    listeningMode=mode==='headphones'?'headphones':'speaker';
-    if(listeningMode==='speaker')monitorOn=false;
-    listenHeadphones?.classList.toggle('selected',listeningMode==='headphones');
-    listenSpeaker?.classList.toggle('selected',listeningMode==='speaker');
-    listenHeadphones?.setAttribute('aria-pressed',listeningMode==='headphones'?'true':'false');
-    listenSpeaker?.setAttribute('aria-pressed',listeningMode==='speaker'?'true':'false');
-    monitorBtn.disabled=listeningMode!=='headphones';
-    monitorBtn.setAttribute('aria-pressed',monitorOn?'true':'false');
-    monitorBtn.textContent='HEAR ME: '+(monitorOn?'ON':'OFF');
-    applyMonitor();
-  }
-  function describeCaptureError(error){
-    const name=String(error?.name||'');
-    if(name==='NotAllowedError'||name==='PermissionDeniedError'||name==='SecurityError')return 'Microphone blocked. Allow this website to use your microphone in Safari settings, then retry.';
-    if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'No microphone input found. Connect a microphone or select the iPhone microphone.';
-    if(name==='NotReadableError'||name==='TrackStartError')return 'Microphone is busy or unavailable. Close another recording app and retry.';
-    if(name==='NotSupportedError')return 'This browser cannot record the mixed audio format.';
-    return String(error?.message||'Recording failed: '+(name||'unknown audio error')).slice(0,210);
-  }
-  function stopReviewDuck(){
-    if(reviewDucking){audio.muted=reviewMutedBefore;reviewDucking=false;}
-  }
-  async function discoverInputs(){
-    if(!inputChoices||!navigator.mediaDevices?.getUserMedia||!navigator.mediaDevices?.enumerateDevices)return;
-    inputChoices.classList.add('show');
-    inputChoices.innerHTML='<button class="iamInputBubble" type="button">Finding input…</button>';
-    let temp=null;
-    try{
-      temp=await navigator.mediaDevices.getUserMedia({audio:true});
-      const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
-      inputChoices.innerHTML='';
-      devices.forEach((device,index)=>{
-        const b=document.createElement('button');
-        b.type='button';b.className='iamInputBubble'+((device.deviceId===selectedDeviceId||(!selectedDeviceId&&index===0))?' selected':'');
-        b.textContent=device.label||('Input '+(index+1));
-        b.addEventListener('click',()=>{
-          selectedDeviceId=device.deviceId||'';
-          inputChoices.querySelectorAll('.iamInputBubble').forEach(x=>x.classList.toggle('selected',x===b));
-          if(open&&!recording){void stopMicPreview().then(()=>startMicPreview());}
-        });
-        inputChoices.appendChild(b);
-        if(!selectedDeviceId&&index===0)selectedDeviceId=device.deviceId||'';
-      });
-      if(!devices.length)inputChoices.innerHTML='<button class="iamInputBubble" type="button">No input found</button>';
-    }catch(_e){
-      inputChoices.innerHTML='<button class="iamInputBubble" type="button">Microphone permission needed</button>';
-    }finally{
-      try{temp?.getTracks().forEach(t=>t.stop());}catch(_e){}
-    }
-  }
-  function preferredMime(){
-    if(!window.MediaRecorder)return '';
-    const list=['audio/mp4','audio/webm;codecs=opus','audio/webm'];
-    return list.find(type=>MediaRecorder.isTypeSupported?.(type))||'';
-  }
-  function fileExtension(type){
-    return String(type||'').includes('mp4')?'m4a':'webm';
-  }
-  async function cleanupCapture(){
-    clearInterval(timerId);timerId=0;
-    audio.removeEventListener('timeupdate',followCurrentMusic);
-    captureUsingMirror=false;studioSourceURL='';
-    try{studioAudio?.pause();}catch(_e){}
-    try{micStream?.getTracks().forEach(t=>t.stop());}catch(_e){}
-    micStream=null;
-    try{await ctx?.close();}catch(_e){}
-    ctx=null;studioAudio=null;musicGain=null;musicKeepAliveGain=null;micGainNode=null;micCompressor=null;monitorGain=null;delayNode=null;wetGain=null;feedbackGain=null;
-    musicMeterAnalyser=null;musicMeterData=null;micMeterAnalyser=null;micMeterData=null;
-  }
-  async function autoArchiveTake(blob,fileName){
-    if(!blob||!('caches' in window))return;
-    try{
-      const cache=await caches.open('ge-iam-takes-v1');
-      const key=absolute('./__iam-takes/'+Date.now()+'-'+encodeURIComponent(fileName));
-      await cache.put(key,new Response(blob,{headers:{'Content-Type':blob.type||'application/octet-stream','X-GE-IAM-Name':fileName}}));
-    }catch(_e){}
-  }
-
-  // Capture the currently playing source; the public player is never paused or replaced.
-  // captureStream is the direct tap on browsers that expose it. Safari/iPhone gets a
-  // silent-to-speakers mirrored audio element, aligned to the current track position.
-  // The mirrored live-radio buffer can differ slightly from the audible radio latency.
-  function followCurrentMusic(){
-    if(!recording||!captureUsingMirror||!studioAudio)return;
-    const wanted=audio.currentSrc||audio.src||'';
-    if(!wanted)return;
-    if(wanted!==studioSourceURL){
-      studioSourceURL=wanted;
-      studioAudio.src=wanted;studioAudio.load();
-      const align=()=>{
-        if(!state.live&&Number.isFinite(audio.duration)&&audio.duration>0){
-          try{studioAudio.currentTime=Math.max(0,Math.min(audio.currentTime||0,(studioAudio.duration||audio.duration)-.05));}catch(_e){}
-        }
-        studioAudio.play().catch(error=>{status.textContent=describeCaptureError(error);});
-      };
-      if(studioAudio.readyState>=1)align();
-      else studioAudio.addEventListener('loadedmetadata',align,{once:true});
-    }else if(!state.live&&Number.isFinite(audio.currentTime)&&Number.isFinite(studioAudio.currentTime)
-      &&Math.abs(audio.currentTime-studioAudio.currentTime)>.65){
-      try{studioAudio.currentTime=audio.currentTime;}catch(_e){}
-    }
-  }
-  async function startRecording(){
-    if(recording)return;
-    if(!window.MediaRecorder||!navigator.mediaDevices?.getUserMedia){
-      status.textContent='Recording is unavailable in this browser.';return;
-    }
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC){status.textContent='Web Audio is unavailable in this browser.';return;}
-    if(audio.paused){status.textContent='Start the music or RADIO above, then tap Record. I AM will not stop the player.';return;}
-    if(!previewMusicCtx||!previewMusicGain||!previewMusicReady){
-      status.textContent='MUSIC has no signal yet. Wait for the MUSIC meter to move before recording.';
-      void startMusicPreview();return;
-    }
-
-    recordBtn.disabled=true;playBtn.disabled=true;saveBtn.hidden=true;
-    takeBlob=null;playingTake=false;musicSamplesSeen=false;document.body.classList.remove('iam-has-take');
-    stopReviewDuck();
-    status.textContent='Connecting microphone and current music…';
-    try{
-      // Reuse the already-authorized preview stream; iPhone can refuse an
-      // unnecessary second microphone request while the first is still open.
-      if(previewStream?.active){
-        micStream=previewStream;previewStream=null;
-        try{await previewCtx?.close();}catch(_e){}
-        previewCtx=null;previewGain=null;previewCompressor=null;previewAnalyser=null;
-        previewData=null;previewMonitorGain=null;
-      }else{
-        await stopMicPreview();
-        micStream=await getIAmMicStream();
-      }
-      // Reuse the VERIFIED MUSIC meter graph. Do not recreate or restart
-      // another music stream when the listener presses Record.
-      ctx=previewMusicCtx;studioAudio=previewMusicAudio;
-      musicGain=previewMusicGain;musicKeepAliveGain=previewMusicKeepAlive;
-      musicMeterAnalyser=previewMusicAnalyser;musicMeterData=previewMusicData;
-      captureUsingMirror=!!studioAudio;studioSourceURL=previewMusicURL;
-      previewMusicCtx=null;previewMusicAudio=null;previewMusicGain=null;
-      previewMusicKeepAlive=null;previewMusicAnalyser=null;previewMusicData=null;
-      previewMusicURL='';previewMusicReady=false;
-      await ctx.resume();
-      const mix=ctx.createMediaStreamDestination();
-      micGainNode=ctx.createGain();
-      micCompressor=ctx.createDynamicsCompressor();
-      micCompressor.threshold.value=-24;micCompressor.knee.value=24;
-      micCompressor.ratio.value=4;micCompressor.attack.value=.006;micCompressor.release.value=.18;
-      micMeterAnalyser=ctx.createAnalyser();micMeterAnalyser.fftSize=256;micMeterAnalyser.smoothingTimeConstant=.45;
-      micMeterData=new Uint8Array(micMeterAnalyser.fftSize);
-      const dry=ctx.createGain();delayNode=ctx.createDelay(1.5);
-      wetGain=ctx.createGain();feedbackGain=ctx.createGain();monitorGain=ctx.createGain();
-
-      // The identical music path now feeds both the live MUSIC meter and mix.
-      musicGain.connect(mix);
-
-      const micNode=ctx.createMediaStreamSource(micStream);
-      micNode.connect(micGainNode);micGainNode.connect(micCompressor);
-      micCompressor.connect(dry);micCompressor.connect(micMeterAnalyser);
-      dry.connect(mix);micCompressor.connect(delayNode);
-      delayNode.connect(wetGain);wetGain.connect(mix);
-      delayNode.connect(feedbackGain);feedbackGain.connect(delayNode);
-      dry.connect(monitorGain);wetGain.connect(monitorGain);
-      monitorGain.connect(ctx.destination);
-      applyMonitor();applyEffect();updateLevels();
-      // A successful play() or MediaRecorder.start() does NOT prove that the
-      // music track has audio. On iPhone, verify real music samples arrive.
-      // This check does not touch the native player; it keeps playing.
-      const musicCheckData=new Uint8Array(musicMeterAnalyser.fftSize);
-      const musicReady=await (async()=>{
-        const deadline=Date.now()+(state.live?6500:3500);
-        while(Date.now()<deadline){
-          if(ctx.state==='suspended')try{await ctx.resume();}catch(_e){}
-          musicMeterAnalyser.getByteTimeDomainData(musicCheckData);
-          let peak=0;
-          for(let i=0;i<musicCheckData.length;i++){
-            const deviation=Math.abs(musicCheckData[i]-128);
-            if(deviation>peak)peak=deviation;
-          }
-          if(peak>=2)return true;
-          await new Promise(resolve=>setTimeout(resolve,160));
-        }
-        return false;
-      })();
-      if(!musicReady){
-        const sourceLabel=state.live?'LIVE RADIO':'PLAYER';
-        throw new Error(sourceLabel+' audio can be heard, but Safari is not delivering it to the recording mixer. No take started. Try a different song, reload Radio, or test another browser/device.');
-      }
-      musicSamplesSeen=true;
-      const mime=preferredMime();
-      recorder=mime?new MediaRecorder(mix.stream,{mimeType:mime}):new MediaRecorder(mix.stream);
-      chunks=[];
-      recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
-      recorder.onerror=e=>{
-        status.textContent='Recording error: '+String(e?.error?.message||e?.error?.name||'audio connection lost');
-      };
-      recorder.onstop=async()=>{
-        const type=recorder?.mimeType||mime||'audio/webm';
-        if(!chunks.length){
-          status.textContent='No audio was saved. Try again and check microphone permission.';
-          recordBtn.disabled=false;await cleanupCapture();return;
-        }
-        takeBlob=new Blob(chunks,{type});
-        const ext=fileExtension(type);
-        takeFileName='Grand-Element-I-AM-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+ext;
-        const old=takeAudio.src;
-        takeAudio.src=URL.createObjectURL(takeBlob);
-        if(old?.startsWith('blob:'))try{URL.revokeObjectURL(old);}catch(_e){}
-        playBtn.disabled=false;playBtn.classList.add('ready');saveBtn.hidden=false;
-        document.body.classList.add('iam-has-take');
-        setMainButtonMode('play');recordBtn.disabled=false;
-        status.textContent='Take saved. Tap the center button to listen. The main music is still running.';
-        await cleanupCapture();
-        if(open){void startMusicPreview();void startMicPreview();}
-        void autoArchiveTake(takeBlob,takeFileName);
-      };
-      // Start only AFTER the music path is connected and audible player remains running.
-      recorder.start(250);recordStartedAt=performance.now();recording=true;
-      recordBtn.disabled=false;setMainButtonMode('recording');
-      timer.textContent='00:00';timerId=setInterval(updateTimer,250);
-      status.textContent='Recording MUSIC + YOU. Tap the center button to stop.';
-      setTimeout(()=>{
-        if(recording&&!musicSamplesSeen)status.textContent='MUSIC meter is silent. Check the source/CORS before relying on this take; YOU may still record.';
-      },4000);
-      if(captureUsingMirror)audio.addEventListener('timeupdate',followCurrentMusic);
-    }catch(error){
-      recording=false;recordBtn.disabled=false;playBtn.disabled=true;
-      setMainButtonMode('record');status.textContent=describeCaptureError(error);
-      await cleanupCapture();
-      if(open){void startMusicPreview();void startMicPreview();}
-    }
-  }
-  async function stopRecording(){
-    if(!recording)return;
-    recording=false;clearInterval(timerId);timerId=0;
-    recordBtn.disabled=true;
-    audio.removeEventListener('timeupdate',followCurrentMusic);
-    // Absolutely no pause/seek of the source player here.
-    try{
-      if(recorder&&recorder.state!=='inactive')recorder.stop();
-      else{recordBtn.disabled=false;await cleanupCapture();}
-    }catch(error){
-      recordBtn.disabled=false;status.textContent=describeCaptureError(error);
-      await cleanupCapture();
-    }
-  }
-  function toggleTakePlayback(){
-    if(!takeBlob||!takeAudio.src)return;
-    if(playingTake){
-      takeAudio.pause();playingTake=false;stopReviewDuck();
-      playBtn.innerHTML=playIcon;playBtn.setAttribute('aria-label','Play recording');
-      setMainButtonMode('play');return;
-    }
-    takeAudio.currentTime=0;
-    // Music carries on under review; mute its speaker output only during take
-    // review so the recorded song is not doubled over its live counterpart.
-    reviewMutedBefore=audio.muted;reviewDucking=true;audio.muted=true;
-    takeAudio.play().then(()=>{
-      playingTake=true;playBtn.innerHTML=stopIcon;
-      playBtn.setAttribute('aria-label','Stop playback');setMainButtonMode('playing');
-    }).catch(error=>{stopReviewDuck();status.textContent=describeCaptureError(error);});
-  }
-  async function saveTake(){
-    if(!takeBlob)return;
-    const file=new File([takeBlob],takeFileName||'Grand-Element-I-AM.m4a',{type:takeBlob.type||'audio/mp4'});
-    try{
-      if(navigator.canShare?.({files:[file]})){
-        await navigator.share({files:[file],title:'Grand Element I AM'});
-        return;
-      }
-    }catch(_e){}
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(takeBlob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>{try{URL.revokeObjectURL(a.href);}catch(_e){}},2000);
-  }
-  async function closeStudio(){
-    if(recording)await stopRecording();
-    if(playingTake){takeAudio.pause();playingTake=false;playBtn.innerHTML=playIcon;}
-    document.body.classList.remove('iam-studio-open','iam-has-take','iam-edit-open');
-    launch.setAttribute('aria-expanded','false');launch.textContent='I AM';open=false;
-    removeSunFlight();setMainButtonMode('record');
-    window.GEHUD?.resumeFromIAm?.();
-    stopReviewDuck();stopMeters();await stopMicPreview();await stopMusicPreview();
-    try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
-    // I AM never pauses the music, so nothing needs to be resumed.
-  }
-  function openStudio(){
-    open=true;
-    sourceMode=state.live?'radio':'player';
-    // Capture the original logo position BEFORE the studio collapses its header.
-    const sunOrigin=$('geLogo')?.getBoundingClientRect();
-    window.GEHUD?.suspendForIAm?.();
-    document.body.classList.add('iam-studio-open');
-    document.body.classList.toggle('iam-has-take',!!takeBlob);
-    launch.setAttribute('aria-expanded','true');
-    createSunFlight(sunOrigin);
-    updateNowPlaying();
-    setMainButtonMode(takeBlob?'play':'record');
-    recordBtn.disabled=true;
-    status.textContent='Connecting microphone…';
-    try{if('audioSession' in navigator)navigator.audioSession.type='play-and-record';}catch(_e){}
-    setListeningMode('speaker');startMeters();
-    void startMusicPreview();
-    void startMicPreview();
-    setTimeout(()=>{
-      if(!open)return;
-      recordBtn.disabled=false;
-      if(status.textContent==='Connecting microphone…')status.textContent='Tap Record. Music above will keep playing.';
-    },2000);
-  }
-
-  launch.addEventListener('click',()=>{if(open)void closeStudio();else openStudio();});
-  headphones.addEventListener('click',()=>setConnection('headphones'));
-  lineIn.addEventListener('click',()=>setConnection('line'));
-  playerSource.addEventListener('click',()=>setSource('player'));
-  radioSource.addEventListener('click',()=>setSource('radio'));
-  recordBtn.addEventListener('click',()=>{
-    if(recording){void stopRecording();return;}
-    if(playingTake){toggleTakePlayback();return;}
-    if(takeBlob){toggleTakePlayback();return;}
-    void startRecording();
-  });
-  playBtn.addEventListener('click',toggleTakePlayback);
-  takeAudio.addEventListener('timeupdate',()=>{if(playingTake)updateTimer();});
-  takeAudio.addEventListener('ended',()=>{playingTake=false;stopReviewDuck();playBtn.innerHTML=playIcon;playBtn.setAttribute('aria-label','Play recording');setMainButtonMode('play');timer.textContent=fmtTime(takeAudio.duration||0);});
-  soundBtn.addEventListener('click',()=>{
-    const show=!soundPanel.classList.contains('show');soundPanel.classList.toggle('show',show);soundBtn.setAttribute('aria-expanded',show?'true':'false');
-  });
-  monitorBtn.addEventListener('click',()=>{
-    if(listeningMode!=='headphones'){status.textContent='Select HEADPHONES first. Speaker monitoring stays off to prevent feedback.';return;}
-    monitorOn=!monitorOn;monitorBtn.setAttribute('aria-pressed',monitorOn?'true':'false');monitorBtn.textContent='HEAR ME: '+(monitorOn?'ON':'OFF');applyMonitor();
-  });
-  listenHeadphones?.addEventListener('click',()=>setListeningMode('headphones'));
-  listenSpeaker?.addEventListener('click',()=>setListeningMode('speaker'));
-  editBack?.addEventListener('click',()=>document.body.classList.remove('iam-edit-open'));
-  editSave?.addEventListener('click',()=>void saveTake());
-  saveBtn.addEventListener('click',()=>void saveTake());
-  againBtn?.addEventListener('click',()=>{
-    if(playingTake)toggleTakePlayback();stopReviewDuck();
-    takeBlob=null;takeFileName='';document.body.classList.remove('iam-has-take');
-    playBtn.disabled=true;playBtn.classList.remove('ready');saveBtn.hidden=true;timer.textContent='00:00';
-    setMainButtonMode('record');status.textContent='Ready. Tap the center button to record again.';
-  });
-  editBtn?.addEventListener('click',()=>{
-    document.body.classList.add('iam-edit-open');
-    soundPanel.classList.add('show');soundBtn.setAttribute('aria-expanded','true');
-    status.textContent='This take is a mixed audio file. Separate MUSIC and YOU waveform editing is the next development layer.';
-  });
-  musicLevel.addEventListener('input',updateLevels);micLevel.addEventListener('input',updateLevels);inputGain?.addEventListener('input',updateLevels);
-  studio.querySelectorAll('[data-iam-effect]').forEach(btn=>btn.addEventListener('click',()=>{
-    effect=btn.dataset.iamEffect||'clean';
-    studio.querySelectorAll('[data-iam-effect]').forEach(x=>x.classList.toggle('selected',x===btn));
-    applyEffect();
-  }));
-  titleBtn?.addEventListener('click',()=>setTimeout(updateNowPlaying,0));
-  audio.addEventListener('timeupdate',followPreviewMusic);
-  audio.addEventListener('play',followPreviewMusic);
-  audio.addEventListener('pause',followPreviewMusic);
-  audio.addEventListener('loadedmetadata',followPreviewMusic);
-  window.GEIAmStudio={open:openStudio,close:closeStudio};
-})();
+// I AM private engine v2. Separate file is loaded before this main script.
+window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog});
 
 // TEST INTRO: visual/setup prototype for the future public Go On The Air entry.
 // I AM is the private play-along studio: music + user input + monitor/EQ/effects + mixed recording.
