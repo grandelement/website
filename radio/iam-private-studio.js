@@ -636,19 +636,32 @@ async function enter(){
 function hideSongPicker(){
  const picker=get("iamPrivatePicker");if(picker)picker.hidden=true;
 }
-function selectPrivateSong(url){
+async function selectPrivateSong(url){
  if(!open||!privateAudio||recording){say("Stop the take before changing songs.");return}
  stopReview();if(take.mix)againTake();hideSongPicker();
- sourceURL=url;sourceMode="player";verified=false;E.record.disabled=true;
+ const request=++trackChangeToken;
+ sourceURL=url;sourceMode="player";verified=false;musicSignalError="";E.record.disabled=true;
  privateAudio.src=url;privateAudio.load();
- privateAudio.play().then(()=>{
-  verified=true;E.record.disabled=false;
+ say("Loading private song…");
+ try{
+  if(ctx?.state==="suspended")await ctx.resume();
+  await privateAudio.play();
+  if(!(await preflight(4800)))throw new Error("The new song is silent in the recording mixer.");
+  if(!open||request!==trackChangeToken)return;
+  if(!musicHandoffDone){
+   audio.muted=true;
+   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
+   musicHandoffDone=true;
+  }
+  verified=true;E.record.disabled=!(micConnected&&micStream?.active);
   const label=displayTitle(url,false)||"Private Song";
-  get("titleBtn").textContent=label;
-  get("iamNowPlaying").textContent=label;
-  say("Private song: "+label);
- }).catch(err=>say("Song change: "+errorString(err)));
- get("iamSourceIndicator").textContent="PRIVATE SONG · SELECTED";
+  get("titleBtn").textContent=label;get("iamNowPlaying").textContent=label;
+  say("Private song ready: "+label+(micConnected?"":" · Tap YOU to enable mic."));
+  get("iamSourceIndicator").textContent="PRIVATE SONG · VERIFIED";
+ }catch(err){
+  verified=false;E.record.disabled=true;musicSignalError=errorString(err);
+  say("Cannot record this song: "+musicSignalError);
+ }
 }
 function choosePrivateSong(direction){
  if(!open||!privateAudio||recording){say("Stop recording before changing songs.");return}
@@ -676,19 +689,18 @@ function showSongPicker(){
 }
 get("iamMicRetryBtn")?.addEventListener("click",()=>{
  if(!open)return;
- if(micConnected&&micStream?.active){
-  say("YOU microphone connected. Speak to check the live meter.");return;
+ const working=micConnected&&micStream?.active&&lastMicSignalAt>=micAttachedAt;
+ if(working&&ctx?.state==="running"){
+  say("YOU microphone signal confirmed. Record when MUSIC is ready.");return;
  }
- if(micStream&&!micStream.active){
-  try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
-  micStream=null;
- }
- // Re-engage Web Audio on this tap if Safari suspended it.
  try{void ctx?.resume?.()}catch(_e){}
- // User interaction allows Safari to request permission again.
+ try{micSourceNode?.disconnect()}catch(_e){}
+ micSourceNode=null;micConnected=false;micError="";
+ if(micStream)try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
+ micStream=null;
  const pending=primeMic();
  void pending.then(()=>{if(open&&ctx)void activateMic()});
- say("Connecting YOU microphone…");
+ say("Reconnecting microphone. Speak to check the YOU meter.");
 });
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 get("iamExitBtn")?.addEventListener("click",()=>void leave());
