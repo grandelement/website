@@ -626,6 +626,9 @@ function stopOne(r,key){
 async function stopTake(){
  if(!recording)return;
  recording=false;E.record.disabled=true;recorderReady=false;
+ // Freeze the music at Stop so it doesn't play over the recorded preview.
+ try{privateAudio?.pause()}catch(_e){}
+ studioMusicStopped=true;syncPrivateTransport();
  const duration=performance.now()/1000-startedAt;
  say("Finalizing your raw tracks and mixed preview…");
  await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice"),stopOne(recMix,"mix")]);
@@ -846,11 +849,18 @@ function editTake(){
  say("Dry YOU and clean MUSIC preserved. Edit compression or effects and play again.");
 }
 function againTake(){
- stopReview();take={music:null,voice:null,mix:null};takeMeta=null;
+ const cue=Number(takeMeta?.sourcePosition);
+ stopReview();
+ if(privateAudio&&Number.isFinite(cue)&&cue>=0){
+  try{privateAudio.pause();privateAudio.currentTime=cue}catch(_e){}
+ }
+ take={music:null,voice:null,mix:null};takeMeta=null;
  document.body.classList.remove("iam-has-take","iam-edit-open");editing=false;
+ E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
+ get("iamStemActions").hidden=true;
  E.timer.textContent="00:00";mode("record");
- updateRecordReady();
- say("Ready for a new take. Previous saved recordings remain available on this device.");
+ updateRecordReady();syncPrivateTransport();
+ say("Ready to try again from the same song position. Press PLAY, then Record.");
 }
 async function leave(){
  if(!open)return;
@@ -1113,7 +1123,11 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
   }
  },true);
 }
-window.GEIAmStudio={open:enter,close:leave,version:4,getSession:()=>takeMeta,isMusicStopped:()=>open,isRadioSuspended:()=>open&&radioSuspended};
+window.GEIAmStudio={
+ open:enter,close:leave,version:5,getSession:()=>takeMeta,
+ isMusicStopped:()=>open,isRadioSuspended:()=>open&&radioSuspended,
+ onCatalogReady:()=>{if(open&&!musicHandoffDone&&!sourceURL)void refreshMatchForStudio()}
+};
 outputSettings();
 };
 })();
