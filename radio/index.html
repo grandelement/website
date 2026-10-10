@@ -2251,7 +2251,7 @@ body.iam-studio-open #titleBtn{display:none!important}
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <audio id="player" preload="auto" playsinline autoplay crossorigin="anonymous"></audio>
+  <audio id="player" preload="auto" playsinline crossorigin="anonymous"></audio>
   <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
 
   <div id="musicGroup">
@@ -3677,7 +3677,7 @@ async function resumeLiveAtEdge(){
     reconnectLiveStream();
   }
 }
-async function enterLiveMode(){
+async function enterLiveMode({deferPlay=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
@@ -3713,7 +3713,7 @@ async function enterLiveMode(){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  audio.autoplay=true;
+  audio.autoplay=!deferPlay;
   audio.preload='auto';
   audio.crossOrigin='anonymous';
   audio.muted=false;
@@ -3721,6 +3721,20 @@ async function enterLiveMode(){
   audio.volume=desiredPlaybackVolume(state.currentURL);
   audio.src=freshLiveStreamURL();
   audio.load();
+
+  // QR arrival: prepare a SINGLE Radio audio element without playing it
+  // behind the 3.5s stars / 1.7s fade / 6s flyby introduction.
+  if(deferPlay){
+    state.livePreparing=false;
+    state.live=true;
+    liveState.autoplayBlocked=false;
+    syncModeButtons();
+    setLiveStatus('RADIO • ready',true);
+    setStatus('Grand Element Radio ready.');
+    window.GEQRIntroAudioReady=true;
+    updateRadioStartupCue();
+    return;
+  }
 
   try{
     await audio.play();
@@ -7749,7 +7763,11 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
 (function setupQRIntroTests(){
   const overlay=$('qrIntroTest'),frame=$('qrIntroFrame'),close=$('qrIntroClose');
   if(!overlay||!frame)return;
+  let resumeOuterPlayer=false;
   function open(path){
+    // Sun Lab testing embeds a second Radio; pause the original station first.
+    resumeOuterPlayer=!audio.paused&&!window.GEIAmStudio?.isRadioSuspended?.();
+    if(resumeOuterPlayer)requestUserPause();
     sunLabPanel?.classList.remove('show');
     if(sunLabPanel)sunLabPanel.hidden=true;
     const target=new URL(path,location.href);
@@ -7761,6 +7779,10 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
   function shut(){
     overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');
     frame.src='about:blank';
+    const resume=resumeOuterPlayer;
+    resumeOuterPlayer=false;
+    // Give the test iframe time to stop before resuming the original Radio.
+    if(resume)setTimeout(()=>{if(!window.GEIAmStudio?.isRadioSuspended?.())resumeAudio()},300);
   }
   qrWebsiteTestBtn?.addEventListener('click',()=>open('../qr/'));
   qrRadioTestBtn?.addEventListener('click',()=>open('../qr/radio/'));
@@ -7836,12 +7858,16 @@ gateTestBtn?.addEventListener('click',()=>{
     state.currentURL='';
   }
 
-  await enterLiveMode();
+  const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
+  await enterLiveMode({deferPlay:qrArrival});
+  if(qrArrival)window.GEQRIntroAudioReady=true;
 
   // If the LIVE host is unavailable, leave the normal player ready rather than
   // trapping the page without audio.
   if(!state.live && !state.livePreparing && start){
-    await playURL(start,{record:false,backgroundChange:false});
+    // Never start a fallback catalog song under the QR movie.
+    if(qrArrival)setStatus('Radio is ready. Tap Play after the introduction.');
+    else await playURL(start,{record:false,backgroundChange:false});
   }else if(!state.live && !state.livePreparing && !start){
     titleBtn.textContent='No music files found';
     setStatus('RADIO could not connect and no playable library track was found.');
