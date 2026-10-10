@@ -6560,6 +6560,78 @@ html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxContro
  border:2px solid rgba(205,235,255,.62)!important;
  box-shadow:0 0 3px rgba(0,0,0,.35)!important;
 }
+
+/* V168 Effects rack: PRESETS immediately above DELAY. The left-rail wrapper contributes
+   its child rows directly, avoiding extra HTML moves and preserving existing event handlers. */
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxLandscapeBody{
+ display:flex!important;flex-direction:column!important;gap:4px!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxLeftRail{
+ display:contents!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxRightRail{
+ order:1!important;flex:0 0 109px!important;
+ height:109px!important;min-height:109px!important;max-height:109px!important;
+ width:100%!important;align-self:stretch!important;
+ grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ grid-template-rows:40px 64px!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxDelayDetail{
+ order:2!important;flex:0 0 auto!important;width:100%!important;margin:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxEffectButtons{
+ order:3!important;flex:0 0 auto!important;width:100%!important;margin:0!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxCenterRack{
+ order:4!important;flex:1 1 auto!important;min-height:0!important;
+}
+/* Nine independent live faders: opaque native painting is hidden, not its input events.
+   The text remains behind a translucent, outlined moving thumb. */
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider{
+ position:relative!important;isolation:isolate!important;overflow:hidden!important;
+ --ge-fx-pos:.5;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider .geFxVisualTrack{
+ display:block!important;position:absolute!important;z-index:1!important;
+ top:5px!important;bottom:5px!important;left:4px!important;right:4px!important;
+ border:1px solid rgba(176,214,236,.28)!important;border-radius:20px!important;
+ background:rgba(18,40,56,.13)!important;pointer-events:none!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider .geFxVisualThumb{
+ position:absolute!important;z-index:3!important;left:50%!important;
+ top:calc(19px + (100% - 38px) * var(--ge-fx-pos,.5))!important;
+ transform:translate(-50%,-50%)!important;
+ width:clamp(28px,8.5vw,38px)!important;height:clamp(28px,8.5vw,38px)!important;
+ border-radius:50%!important;
+ background:rgba(222,238,248,.10)!important;
+ border:2px solid rgba(226,242,255,.78)!important;
+ box-shadow:0 0 0 1px rgba(0,0,0,.24)!important;
+ pointer-events:none!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider label{
+ z-index:2!important;color:#effaff!important;text-shadow:0 1px 3px rgba(0,0,0,.5)!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider label,
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider label span{
+ font-size:clamp(23px,6.8vw,32px)!important;line-height:1.03!important;
+ font-weight:950!important;opacity:1!important;white-space:nowrap!important;
+}
+/* Real iOS touch slider remains on top and interactive, but no opaque browser track or dot. */
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider input.fxvf{
+ position:absolute!important;z-index:4!important;inset:2px 0!important;
+ display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;
+ height:calc(100% - 4px)!important;min-height:0!important;max-height:100%!important;
+ margin:0!important;padding:0!important;opacity:0!important;
+ pointer-events:auto!important;touch-action:none!important;
+ writing-mode:vertical-lr!important;direction:rtl!important;
+}
+html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxControlGrid>.bigSlider input.fxvf:focus-visible{
+ opacity:.18!important;outline:2px solid #55d8c1!important;
+}
+html:not(.geFormatPhone) #effectsSheet .geFxVisualTrack,
+html.geFormatPhone body:not(.geEffectsOnly) #effectsSheet .geFxVisualTrack{
+ display:none!important;
+}
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -6572,7 +6644,7 @@ html.geFormatPhone body.geEffectsOnly #mixerSheet.fxFull #effectsSheet .fxContro
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v167</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)">v168</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -7921,7 +7993,7 @@ async function toggleRadio(){
  const a=$('radioAudio');if(!a)return;
  radioToggleBusy=true;
  try{
-   if(!radioMonitorOn){
+   if(!radioMonitorOn||radioPlaybackState==='STALLED'||radioPlaybackState==='BUFFERING'||radioPlaybackState==='ERROR'){
      radioReconnectCount++;
      await startFreshRadioMonitor()
    }else{
@@ -9446,6 +9518,31 @@ function syncCustomFxSlots(){document.querySelectorAll('[data-fxslot]').forEach(
 function saveCustomFxSlot(n){n=String(n);const name=$('fxPresetName').value.trim()||('C'+n);customFxSlots[n]={name:name,settings:effectSnapshot(fxTarget),updatedAt:Date.now()};try{localStorage.setItem('geDjFxSlotsV1',JSON.stringify(customFxSlots))}catch(e){}scheduleDjPermanentSave();syncCustomFxSlots();const b=document.querySelector('[data-fxslot="'+n+'"]');if(b){b.classList.add('justSaved');setTimeout(function(){b.classList.remove('justSaved')},700)}}
 function loadCustomFxSlot(n){const slot=customFxSlots[String(n)];if(!slot||!slot.settings)return;Object.assign(settings[fxTarget],slot.settings);if(typeof slot.settings.filterOn!=='boolean')settings[fxTarget].filterOn=Math.abs(Number(settings[fxTarget].frequency||0))>=2;settings[fxTarget].preset='CUSTOM';selectedFxPreset='';applyChannel(fxTarget);syncFx()}
 function syncFxBalanceLock(){const b=$('fxBalanceLock'),r=$('fxBalance');if(r)r.disabled=!!fxBalanceLocked;if(b){b.textContent=fxBalanceLocked?'LOCKED':'UNLOCKED';b.classList.toggle('unlocked',!fxBalanceLocked)}}
+/* V168: Draw one transparent fader presentation above each working native input.
+   Actual input range values and event handlers remain the audio control source of truth. */
+function geRefreshFxVisuals(){
+ const grid=$('effectsSheet')&&$('effectsSheet').querySelector('.fxControlGrid');
+ if(!grid)return;
+ grid.querySelectorAll('.bigSlider:not(.fxSecondaryControl)').forEach(function(card){
+   const input=card.querySelector('input.fxvf');if(!input)return;
+   let visual=card.querySelector('.geFxVisualTrack');
+   if(!visual){
+     visual=document.createElement('div');visual.className='geFxVisualTrack';visual.setAttribute('aria-hidden','true');
+     const knob=document.createElement('div');knob.className='geFxVisualThumb';visual.appendChild(knob);
+     card.insertBefore(visual,input);
+     const label=card.querySelector('label span');if(label)input.setAttribute('aria-label',label.textContent.trim());
+   }
+   const min=Number(input.min||0),max=Number(input.max||100),value=Number(input.value||0);
+   const t=max>min?Math.min(1,Math.max(0,(value-min)/(max-min))):0.5;
+   card.style.setProperty('--ge-fx-pos',String(1-t));
+ });
+}
+document.addEventListener('input',function(e){
+ if(e.target&&e.target.matches&&e.target.matches('#effectsSheet .fxControlGrid input.fxvf'))geRefreshFxVisuals();
+},true);
+document.addEventListener('change',function(e){
+ if(e.target&&e.target.matches&&e.target.matches('#effectsSheet .fxControlGrid input.fxvf'))geRefreshFxVisuals();
+},true);
 function syncFx(){syncFxBalanceLock();const c=settings[fxTarget];if(c.compStrength==null)c.compStrength=c.compOn?60:0;if(c.eqOn==null)c.eqOn=false;if(c.eqLow==null)c.eqLow=0;if(c.eqMid==null)c.eqMid=0;if(c.eqHigh==null)c.eqHigh=0;$('fxPreamp').value=Number(c.preamp||0);$('fxCompStrength').value=Number(c.compStrength||0);$('fxCompStrengthVal').textContent=Math.round(Number(c.compStrength||0))+'%';$('fxEqLow').value=Number(c.eqLow||0);$('fxEqMid').value=Number(c.eqMid||0);$('fxEqHigh').value=Number(c.eqHigh||0);$('fxEqLowVal').textContent=(Number(c.eqLow||0)>0?'+':'')+Math.round(Number(c.eqLow||0))+' dB';$('fxEqMidVal').textContent=(Number(c.eqMid||0)>0?'+':'')+Math.round(Number(c.eqMid||0))+' dB';$('fxEqHighVal').textContent=(Number(c.eqHigh||0)>0?'+':'')+Math.round(Number(c.eqHigh||0))+' dB';$('fxPreampVal').textContent=(Number(c.preamp||0)>=0?'+':'')+Math.round(Number(c.preamp||0))+' dB';$('fxFrequency').value=c.frequency;$('fxPhaser').value=c.phaser;$('fxDelay').value=c.delay;$('fxDelayTime').value=c.delayTime;$('fxFeedback').value=c.feedback;$('fxReverb').value=c.reverb;if($('fxThreshold'))$('fxThreshold').value=c.threshold;if($('fxRatio'))$('fxRatio').value=c.ratio;$('fxBalance').value=Number(c.pan||0);$('fxBalanceVal').textContent=panLabel(c.pan);if($('fxReturnLevel'))$('fxReturnLevel').value=Number(c.fxLevel==null?100:c.fxLevel);if($('fxReturnLevelRead'))$('fxReturnLevelRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxLevel').value=Number(c.fxLevel==null?100:c.fxLevel);$('mixFxRead').textContent=Math.round(Number(c.fxLevel==null?100:c.fxLevel))+'%';$('mixFxTargetRead').textContent=fxTarget.toUpperCase();$('fxFrequencyVal').textContent=Math.round(c.frequency);$('fxPhaserVal').textContent=Math.round(c.phaser)+'%';$('fxDelayVal').textContent=Math.round(c.delay)+'%';$('fxDelayTimeVal').textContent=Math.round(c.delayTime)+'ms';$('fxFeedbackVal').textContent=Math.round(c.feedback)+'%';$('fxReverbVal').textContent=Math.round(c.reverb)+'%';if($('fxDelayMixMirror'))$('fxDelayMixMirror').textContent=Math.round(c.delay)+'%';if($('fxDelayTimeMini'))$('fxDelayTimeMini').value=Number(c.delayTime||320);if($('fxDelayTimeMiniVal'))$('fxDelayTimeMiniVal').textContent=Math.round(c.delayTime)+'ms';if($('fxFeedbackMini'))$('fxFeedbackMini').value=Number(c.feedback||0);if($('fxFeedbackMiniVal'))$('fxFeedbackMiniVal').textContent=Math.round(c.feedback)+'%';if($('fxThresholdVal'))$('fxThresholdVal').textContent=Math.round(c.threshold)+' dB';if($('fxRatioVal'))$('fxRatioVal').textContent=Math.round(c.ratio)+':1';if($('fxMeterLabel'))$('fxMeterLabel').textContent=fxTarget.toUpperCase()+' INPUT';const tp=clamp((Number(c.threshold)+60)/60*100,0,100);if($('fxThresholdMarker')){$('fxThresholdMarker').style.left=tp+'%';$('fxThresholdMarker').classList.toggle('compOff',!c.compOn)}if($('fxCompLineText'))$('fxCompLineText').textContent='COMP '+Math.round(c.threshold)+' dB · '+Math.round(c.ratio)+':1 · '+(c.compOn?'ON':'OFF');const saved=customFxPresets.map(function(p){const id=String(p.id||''),name=String(p.name||'SAVED');return '<span class="fxPresetItem" data-preset-item="'+esc(id)+'"><button data-saved-preset="'+esc(id)+'" class="'+(selectedFxPreset===id?'on':'')+'">'+esc(name)+'</button><button class="fxPresetDelete" data-delete-saved="'+esc(id)+'" aria-label="Delete '+esc(name)+'">×</button></span>'}).join('');$('fxPresets').innerHTML=saved||'<div class="note">No saved presets.</div>';$('fxPresets').classList.add('show');syncFxPresetSelect();document.querySelectorAll('[data-fxtoggle]').forEach(function(b){const k=b.dataset.fxtoggle+'On';b.classList.toggle('on',!!c[k]);b.textContent=b.dataset.fxtoggle.toUpperCase()+(c[k]?' ON':' OFF')});document.querySelectorAll('#effectsSheet [data-fx-control]').forEach(function(el){
  const k=el.dataset.fxControl,on=k==='always'||!!c[k+'On'];
  const secondary=el.classList.contains('fxSecondaryControl');
@@ -9454,7 +9551,7 @@ function syncFx(){syncFxBalanceLock();const c=settings[fxTarget];if(c.compStreng
 });
  const fxGrid=$('effectsSheet')&&$('effectsSheet').querySelector('.fxControlGrid');
  if(fxGrid)fxGrid.style.setProperty('--fx-active-count','9');
- syncSendToggles();syncCustomFxSlots();syncMicIsolationUI();applyFxZoom(fxLayout.zoom,false)}
+ syncSendToggles();syncCustomFxSlots();syncMicIsolationUI();applyFxZoom(fxLayout.zoom,false);geRefreshFxVisuals()}
 $('effectsSheet').addEventListener('pointerdown',function(){if(ctx&&ctx.state==='suspended')ctx.resume().catch(function(){})},{passive:true});
 if($('fxDelayTimeMini'))$('fxDelayTimeMini').oninput=function(){settings[fxTarget].delayTime=Number(this.value);settings[fxTarget].preset='CUSTOM';$('fxDelayTime').value=this.value;if($('fxDelayTimeVal'))$('fxDelayTimeVal').textContent=Math.round(Number(this.value))+'ms';if($('fxDelayTimeMiniVal'))$('fxDelayTimeMiniVal').textContent=Math.round(Number(this.value))+'ms';applyChannel(fxTarget)};
 if($('fxFeedbackMini'))$('fxFeedbackMini').oninput=function(){settings[fxTarget].feedback=Number(this.value);settings[fxTarget].preset='CUSTOM';$('fxFeedback').value=this.value;if($('fxFeedbackVal'))$('fxFeedbackVal').textContent=Math.round(Number(this.value))+'%';if($('fxFeedbackMiniVal'))$('fxFeedbackMiniVal').textContent=Math.round(Number(this.value))+'%';applyChannel(fxTarget)};
@@ -9623,7 +9720,7 @@ $('radioAudio').addEventListener('stalled',function(){radioPlaybackState='STALLE
 $('radioAudio').addEventListener('ended',function(){radioMonitorOn=false;radioPlaybackState='ENDED';applyRealRadioMeter(null);updateRadioButton()});
 $('radioAudio').addEventListener('error',function(){radioMonitorOn=false;radioPlaybackState='ERROR';applyRealRadioMeter(null);updateRadioButton()});
 ['play','pause','waiting','stalled','ended','error'].forEach(function(ev){$('radioAudio').addEventListener(ev,function(){radioEvents[ev]=(radioEvents[ev]||0)+1;if(ev==='waiting')diagPlayerLastWaiting=performance.now();if(ev==='stalled')diagPlayerLastStalled=performance.now();diagEvent('PLAYER '+ev.toUpperCase(),'ahead '+bufferAheadSeconds($('radioAudio')).toFixed(2)+'s');updateRadioDiagnostics()})});
-$('radioAudio').addEventListener('playing',function(){diagPlayerLastPlaying=performance.now();diagEvent('PLAYER PLAYING','ahead '+bufferAheadSeconds($('radioAudio')).toFixed(2)+'s')});
+$('radioAudio').addEventListener('playing',function(){radioPlaybackState='PLAYING';diagPlayerLastPlaying=performance.now();diagEvent('PLAYER PLAYING','ahead '+bufferAheadSeconds($('radioAudio')).toFixed(2)+'s');updateRadioDiagnostics()});
 $('radioAudio').addEventListener('timeupdate',function(){diagPlayerLastTimeupdate=performance.now()});
 $('radioAudio').addEventListener('progress',function(){diagPlayerLastProgress=performance.now()});
 window.addEventListener('online',updateRadioDiagnostics);window.addEventListener('offline',updateRadioDiagnostics);document.addEventListener('visibilitychange',updateRadioDiagnostics);
