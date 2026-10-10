@@ -732,13 +732,24 @@ async function stopTake(){
   mode("record");
   E.timer.textContent=fmt(duration);
   say("NO PLAYABLE MIX FROM SAFARI · MUSIC "+(musicResult.bytes||0)+" B, YOU "+(voiceResult.bytes||0)+" B, MIX "+(mixResult.bytes||0)+" B. Tap TRY AGAIN.");
- }else if(!(take.music&&take.voice)&&open&&!reviewing){
-  say("Take playable ("+Math.round(take.mix.size/1024)+" KB). Some separate stems are unavailable · LISTEN AGAIN and TRY AGAIN work.");
+ }else if(take.mix&&take.music&&take.voice){
+  // Mixed playback was already released; optional stems have now finished.
+  // Make EDIT available only after both originals are present.
+  if(!reviewing){
+   mode("play");
+   say("TAKE READY · LISTEN AGAIN, TRY AGAIN, and EDIT are available.");
+  }
+  if(mixResult.ok)void saveTake();
+ }else if(take.mix&&open&&!reviewing){
+  say("Take playable ("+Math.round(take.mix.size/1024)+" KB). Separate stems missing · LISTEN AGAIN and TRY AGAIN work.");
  }
  updateRecordReady();
 }
 async function saveTake(){
  savedWarning="";
+ // Keep the finalized take stable if TRY AGAIN starts while storage is writing.
+ const snapshot={id:takeMeta?.id,meta:takeMeta,music:take.music,voice:take.voice,mix:take.mix};
+ if(!snapshot.id||!snapshot.mix)return;
  try{
   const db=await new Promise((resolve,reject)=>{
    const req=indexedDB.open("ge-iam-sessions-v2",1);
@@ -747,7 +758,7 @@ async function saveTake(){
   });
   await new Promise((resolve,reject)=>{
    const tx=db.transaction("takes","readwrite");
-   tx.objectStore("takes").put({id:takeMeta.id,meta:takeMeta,music:take.music,voice:take.voice,mix:take.mix});
+   tx.objectStore("takes").put(snapshot);
    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
   });
   db.close();
