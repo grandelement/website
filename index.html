@@ -3918,7 +3918,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
     <div class="gameCard geGameControlCard">
       <div class="geOptionsStickyTop">
         <div class="geOptionsUtilityBar" aria-label="Game navigation">
-          <button class="gameButton geGameNavHome" id="geGameHomeTopBtn" type="button">‹ HOME</button>
+          <button class="gameButton geGameNavHome" id="geGameHomeTopBtn" type="button">‹ BACK TO GAMES</button>
           <button class="gameButton geGameNavScores" id="gameScoresBtn" type="button">HIGH SCORES</button>
           <button class="gameButton geGameNavClose" id="gameOptionsClose" type="button" aria-label="Close game options">×</button>
         </div>
@@ -3986,7 +3986,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 
       <section class="geGameDetailScreen" id="geGameDetailScreen" hidden>
         
-        <div class="geDetailNav"><button class="geBackButton" id="geGameDetailBack" type="button">‹ ALL GAMES</button><span class="geDetailKind" id="geGameDetailKind">PLANET GAME</span></div>
+        <div class="geDetailNav"><span class="geDetailKind" id="geGameDetailKind">PLANET GAME</span></div>
         <h2 id="geGameDetailTitle">Throw</h2>
         <div class="geTopStartWrap"><button class="gameButton geStartGamePrimary" id="gameStartNewBtn" type="button">START GAME</button></div>
         <button class="gameButton geTracerOptionsShortcut" id="geTracerOptionsShortcut" type="button" aria-expanded="false">✦ TRACER OPTIONS ＋</button>
@@ -9769,7 +9769,7 @@ const GE_GAME = (()=>{
 
   optionsBtn.addEventListener('click',()=>{resetGamePromptDefault();const dock=document.getElementById('gameMusicDock');dock?.classList.remove('open');document.getElementById('gameMusicToggle')?.setAttribute('aria-expanded','false');openGameDetail(detailKindFromState());optionsPanel.classList.add('show');});
   optionsClose?.addEventListener('click',()=>optionsPanel.classList.remove('show'));
-  document.getElementById('geGameHomeTopBtn')?.addEventListener('click',confirmExitGame,{capture:true});
+  document.getElementById('geGameHomeTopBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showGameHub();});
   exitBtn.addEventListener('click',confirmExitGame,{capture:true});
   exitTopBtn?.addEventListener('click',confirmExitGame,{capture:true});
   optBanks.addEventListener('change',()=>{state.showBanks=optBanks.checked;saveGameStateSoon();});
@@ -12703,5 +12703,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   else placeGameEffects();
 })();
 </script>
+<style id="ge-navigation-cleanup">
+.geOptionsUtilityBar{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 42px!important}
+.geGameNavHome{font-size:10px!important;white-space:normal!important;text-align:center!important}
+.geDetailNav{display:flex!important;justify-content:center!important}
+.geDetailNav .geDetailKind{grid-column:auto!important}
+</style>
 </body>
 </html>
