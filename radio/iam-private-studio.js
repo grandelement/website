@@ -10,7 +10,8 @@ const E={launch:get("iamLaunchBtn"),record:get("iamRecordBtn"),timer:get("iamTim
   take:get("iamTakeAudio"),meters:[get("iamMusicMeter"),get("iamMicMeter")],label:get("iamMusicSignalLabel"),
   music:get("iamMusicLevel"),voice:get("iamMicLevel"),gain:get("iamInputGain"),compression:get("iamCompression"),
   monitor:get("iamMonitorBtn"),sound:get("iamSoundBtn"),panel:get("iamSoundPanel"),
-  edit:get("iamEditBtn"),again:get("iamAgainBtn"),back:get("iamEditBack"),save:get("iamEditSave")};
+  edit:get("iamEditBtn"),again:get("iamAgainBtn"),listen:get("iamListenBtn"),
+  back:get("iamEditBack"),save:get("iamEditSave")};
 if(!E.launch||!E.record)return;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),value=x=>Number(x?.value||0);
 const fmt=n=>{n=Math.max(0,Math.floor(n||0));return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0")};
@@ -39,6 +40,12 @@ function mode(x){
  E.record.classList.toggle("take-ready",x==="play"||x==="playing");
  E.record.innerHTML=x==="recording"||x==="playing"?stopIcon:x==="play"?playIcon:micIcon;
  E.record.setAttribute("aria-label",x==="recording"?"Stop recording":x==="playing"?"Stop review":x==="play"?"Listen to take":"Record");
+ if(E.listen){
+  E.listen.disabled=!(take.mix&&!recording&&!micTestRunning);
+  E.listen.textContent=reviewing?"STOP PLAYBACK":"LISTEN AGAIN";
+ }
+ if(E.again)E.again.disabled=!!recording;
+ if(E.edit)E.edit.disabled=!(take.mix&&!recording);
 }
 function errorString(e){return String(e?.message||e?.name||e||"unknown error").slice(0,185)}
 function makeSun(){
@@ -604,8 +611,10 @@ async function stopTake(){
   if(old.startsWith("blob:"))URL.revokeObjectURL(old);
   document.body.classList.add("iam-has-take");mode("play");
   E.timer.textContent=fmt(duration);
-  await saveTake();
-  say(savedWarning||"Take ready. MIX + original dry YOU + MUSIC saved. Tap center to listen.");
+  say("TAKE READY · LISTEN AGAIN, TRY AGAIN, or EDIT.");
+  // Don't hold the controls while saving to slower mobile storage.
+  void saveTake().then(()=>{if(open&&take.mix)say(savedWarning||"Take saved. LISTEN AGAIN, TRY AGAIN, or EDIT.")});
+
  }else{
   mode("record");say("One or more tracks were empty. Check your signal. Existing recorded data remains available.");
  }
@@ -732,7 +741,7 @@ async function listenTake(){
   try{
    E.take.currentTime=0;await E.take.play();
    reviewing=true;mode("playing");
-   say("Listening to your mix. Tap center again to return to the private song.");
+   say("Playing your recording. Tap STOP PLAYBACK to stop.");
   }catch(err){say("Review unavailable: "+errorString(err));stopReview()}
   return;
  }
@@ -793,6 +802,8 @@ function setHeadphones(on,keepManualChoice=false){
  if(!on)monitoring=false;
  get("iamListenHeadphones")?.classList.toggle("selected",on);
  get("iamListenSpeaker")?.classList.toggle("selected",!on);
+ get("iamHeadphones")?.classList.toggle("selected",on);
+ get("iamHeadphones")?.setAttribute("aria-pressed",on?"true":"false");
  get("iamListenHeadphones")?.setAttribute("aria-pressed",on?"true":"false");
  get("iamListenSpeaker")?.setAttribute("aria-pressed",on?"false":"true");
  E.monitor.disabled=!on;
@@ -966,8 +977,10 @@ audio.addEventListener("volumechange",()=>{if(open&&radioSuspended&&!audio.muted
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 get("iamExitBtn")?.addEventListener("click",()=>void leave());
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
+E.listen?.addEventListener("click",()=>void listenTake());
 E.again?.addEventListener("click",againTake);
 E.edit?.addEventListener("click",editTake);
+get("iamEditPreview")?.addEventListener("click",()=>void listenTake());
 E.back?.addEventListener("click",()=>{editing=false;document.body.classList.remove("iam-edit-open");stopReview()});
 E.save?.addEventListener("click",()=>exportAudio("mix"));
 get("iamSaveBtn")?.addEventListener("click",()=>exportAudio("mix"));
@@ -989,14 +1002,13 @@ E.sound?.addEventListener("click",()=>{
 get("iamSoundClose")?.addEventListener("click",()=>{
  E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
 });
-get("iamListenHeadphones")?.addEventListener("click",()=>{
+function enableHeadphoneMonitoring(){
  setHeadphones(true);
- say("HEADPHONES: Microphone monitoring ON. Use HEAR ME to turn it off.");
-});
-get("iamHeadphones")?.addEventListener("click",()=>{
- setHeadphones(true);
- say("HEADPHONES: Microphone monitoring ON. Use HEAR ME to turn it off.");
-});
+ try{if(ctx?.state!=="running")void ctx?.resume?.()}catch(_e){}
+ say("HEADPHONES · HEAR ME ON automatically. Tap HEAR ME to turn it OFF.");
+}
+get("iamListenHeadphones")?.addEventListener("click",enableHeadphoneMonitoring);
+get("iamHeadphones")?.addEventListener("click",enableHeadphoneMonitoring);
 get("iamListenSpeaker")?.addEventListener("click",()=>{
  setHeadphones(false);
  say("SPEAKER: Music plays out loud; sing normally. Your mic records, but is not fed back through the speaker.");
@@ -1005,7 +1017,11 @@ E.monitor?.addEventListener("click",()=>{
  if(!headphones){say("Select HEADPHONES before enabling vocal monitoring.");return}
  monitoring=!monitoring;setHeadphones(true,true);
 });
-E.take.addEventListener("ended",()=>{reviewing=false;mode("play");if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06)});
+E.take.addEventListener("ended",()=>{
+ reviewing=false;mode("play");
+ if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06);
+ say("Review finished · LISTEN AGAIN, TRY AGAIN, or EDIT.");
+});
 // All visible controls operate the PRIVATE song, not the muted original Radio.
 get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
  E.music.value=String(event.target.value);
