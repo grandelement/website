@@ -28,6 +28,8 @@ let cachedSong=null,cachedSongTime=0;
 let micPromise=null,micRequestToken=0,micConnected=false,micError="",micProcessingFallback=false;
 let micSourceNode=null,micAttachedAt=0,lastMicSignalAt=0,trackChangeToken=0;
 let musicHandoffDone=false,musicSignalError="",oldMediaVolume=1;
+let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false;
+let micDetected=false,micSilenceWarned=false,recordArming=false;
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -99,7 +101,10 @@ function meter(analyser,data){
 let lastTransportUpdate=0;
 function syncPrivateTransport(){
  if(!open)return;
- const element=privateAudio,play=get("iamPrivatePlay"),seek=get("iamPrivateMusicSeek"),time=get("iamPrivateMusicTime");
+ const element=musicHandoffDone?privateAudio:audio;
+ const play=get("iamPrivatePlay"),seek=get("iamPrivateMusicSeek"),time=get("iamPrivateMusicTime");
+ const toggle=get("iamStopMusic");
+ if(toggle)toggle.textContent=studioMusicStopped?"START MUSIC":"STOP MUSIC";
  if(play)play.textContent=element&&!element.paused?"PAUSE":"PLAY";
  const duration=Number(element?.duration)||0,finite=Number.isFinite(duration)&&duration>0;
  if(seek){seek.disabled=!finite||recording||!element;
@@ -109,13 +114,27 @@ function syncPrivateTransport(){
  }
  if(time)time.textContent=finite?fmt(element.currentTime)+"/"+fmt(duration):"LIVE";
 }
+function updateRecordReady(){
+ // Permission is not the same thing as receiving voice samples.
+ if(!recording&&!recordArming){
+  E.record.disabled=!(verified&&micConnected&&micStream?.active&&micDetected&&!loading);
+  if(verified&&micConnected&&micDetected&&!loading&&!recorderReady)void prepareRecorders();
+ }
+}
 function meterLoop(){
  if(!open){raf=0;return}
  const tick=performance.now();
  if(tick-lastTransportUpdate>260){lastTransportUpdate=tick;syncPrivateTransport();}
  const m=meter(musicMeter,musicData),v=meter(voiceMeter,voiceData);
  // Do not enable Record until the music capture source is actually verified.
- if(v>.035)lastMicSignalAt=performance.now();
+ if(v>.015){
+  lastMicSignalAt=performance.now();
+  if(micConnected&&!micDetected){
+   micDetected=true;micSilenceWarned=false;
+   updateRecordReady();
+   say("YOU microphone signal confirmed. Ready to record when MUSIC is connected.");
+  }
+ }
  E.meters[0].style.transform="scaleX("+Math.max(.015,m).toFixed(3)+")";
  E.meters[1].style.transform="scaleX("+Math.max(.015,v).toFixed(3)+")";
  E.label.textContent=musicSignalError?"MUSIC · NO CAPTURE":m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
@@ -124,8 +143,12 @@ function meterLoop(){
   const tracks=micStream?.getAudioTracks?.()||[];
   const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
   const muted=micConnected&&tracks.some(t=>t.muted);
-  const silent=live&&micAttachedAt&&performance.now()-micAttachedAt>6500&&lastMicSignalAt<micAttachedAt;
-  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":silent?"YOU · NO INPUT":live?(v>.04?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  const silent=live&&micAttachedAt&&performance.now()-micAttachedAt>4500&&!micDetected;
+  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":silent?"YOU · NO INPUT":live?(v>.015?"YOU · SIGNAL":micDetected?"YOU · SIGNAL OK":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  if(silent&&!micSilenceWarned&&!recording){
+   micSilenceWarned=true;
+   say("Microphone permission is on, but no voice signal reached I AM. Check the iPhone microphone, then tap YOU to restart it.");
+  }
   micButton.classList.toggle("mic-needs-help",!live);
   micButton.setAttribute("aria-label",live?"Microphone ready. Tap to check input":(micError||"Enable microphone"));
  }
@@ -274,9 +297,11 @@ async function preflight(timeout=4500){
    const keepAlive=ctx.createGain();keepAlive.gain.value=.000001;
    voiceInput.connect(keepAlive);keepAlive.connect(ctx.destination);
    outputSettings();effectSettings();micConnected=true;micError="";
-   micAttachedAt=performance.now();lastMicSignalAt=0;
-   E.record.disabled=!(verified&&micConnected);
-   say(micProcessingFallback?"Mic connected with basic Safari settings. YOU meter is ready.":"MUSIC and YOU connected. Speak to check the YOU meter before recording.");
+   micAttachedAt=performance.now();lastMicSignalAt=0;micDetected=false;micSilenceWarned=false;
+   updateRecordReady();
+   const track=stream.getAudioTracks?.()[0];
+   const name=track?.label||"iPhone microphone";
+   say("Mic connected: "+name+". Speak until the YOU meter shows SIGNAL. Recording will enable after a real signal.");
    return true;
   }catch(err){
    micConnected=false;micError="Could not connect mic to studio: "+errorString(err)+". Tap YOU to retry.";
@@ -317,7 +342,7 @@ async function preflight(timeout=4500){
   const hasMusic=await preflight(selection.kind==="live-radio"?5000:3800);
   if(!open||token!==sessionToken)return;
   if(!hasMusic){
-   verified=false;E.record.disabled=true;
+   verified=false;updateRecordReady();
    musicSignalError=selection.kind==="live-radio"?"Live Radio is audible but Safari is not delivering its audio to I AM. Tap NEXT or CHOOSE SONG.":"The selected song is not reaching I AM.";
    get("iamSourceIndicator").textContent="MUSIC NOT CAPTURING · ORIGINAL RADIO UNCHANGED";
    say(musicSignalError+(micConnected?" YOU is connected.":" Tap YOU to enable microphone."));
@@ -332,8 +357,9 @@ async function preflight(timeout=4500){
   verified=true;
   syncPrivateTransport();
   const connected=await activateMic();
-  E.record.disabled=!(verified&&connected);
-  if(connected&&!selection.precise)say("Private audio ready. Radio position is approximate; MUSIC and YOU connected.");
+  updateRecordReady();
+  if(connected&&micDetected&&!selection.precise)say("Private music and YOU microphone signal ready.");
+  else if(connected)say("Private music ready. Speak to confirm YOUR mic signal before recording.");
   if(!connected&&micError)say(micError);
  }catch(err){
   say("I AM handoff failed: "+String(err?.message||err));
@@ -342,7 +368,8 @@ async function preflight(timeout=4500){
  }finally{loading=false}
 }
 async function disposeAudio(){
- ++micRequestToken;micPromise=null;micConnected=false;micAttachedAt=0;lastMicSignalAt=0;
+ ++micRequestToken;micPromise=null;micConnected=false;micDetected=false;
+ micAttachedAt=0;lastMicSignalAt=0;
  musicSignalError="";musicHandoffDone=false;verified=false;
  try{micSourceNode?.disconnect()}catch(_e){}micSourceNode=null;
  try{privateAudio?.pause()}catch(_e){}
@@ -647,6 +674,10 @@ async function leave(){
 async function enter(){
  if(open)return;
  oldMuted=audio.muted;oldMediaVolume=Number(audio.volume)||1;
+ studioMusicStopped=false;micDetected=false;micSilenceWarned=false;recordArming=false;
+ // WebKit needs the simultaneous playback/capture session selected before
+ // asking for its microphone. This can change speaker routing on iPhones.
+ try{if("audioSession" in navigator)navigator.audioSession.type="play-and-record"}catch(_e){}
  window.GEHUD?.suspendForIAm?.();
  makeSun();open=true;sessionToken++;
  document.body.classList.add("iam-studio-open");
@@ -679,7 +710,7 @@ async function selectPrivateSong(url){
    musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
    musicHandoffDone=true;
   }
-  verified=true;E.record.disabled=!(micConnected&&micStream?.active);
+  verified=true;updateRecordReady();
   const label=displayTitle(url,false)||"Private Song";
   get("titleBtn").textContent=label;get("iamNowPlaying").textContent=label;
   say("Private song ready: "+label+(micConnected?"":" · Tap YOU to enable mic."));
@@ -722,7 +753,7 @@ get("iamMicRetryBtn")?.addEventListener("click",()=>{
  }
  try{void ctx?.resume?.()}catch(_e){}
  try{micSourceNode?.disconnect()}catch(_e){}
- micSourceNode=null;micConnected=false;micError="";
+ micSourceNode=null;micConnected=false;micDetected=false;micError="";
  if(micStream)try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
  micStream=null;
  const pending=primeMic();
