@@ -787,6 +787,8 @@ async function restoreLatest(){
   db.close();
   if(!obj){say("No saved private take on this device.");return}
   take={music:obj.music,voice:obj.voice,mix:obj.mix};takeMeta=obj.meta;
+  resetEditorForNewTake();
+  if(Number.isFinite(Number(takeMeta?.vocalShiftMs)))editVocalShift=clamp(takeMeta.vocalShiftMs,-250,250);
   const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
   if(old.startsWith("blob:"))URL.revokeObjectURL(old);
   mode("play");document.body.classList.add("iam-has-take");
@@ -806,13 +808,13 @@ async function exportEdited(){
   decodeCtx=new AC();
   const [musicBytes,voiceBytes]=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
   const [musicBuffer,voiceBuffer]=await Promise.all([decodeCtx.decodeAudioData(musicBytes),decodeCtx.decodeAudioData(voiceBytes)]);
-  const duration=Math.max(musicBuffer.duration,voiceBuffer.duration)+1.2;
+  const starts=syncedStarts(.012),duration=Math.max(starts.music+musicBuffer.duration,starts.voice+voiceBuffer.duration)+.15;
   if(duration>180)throw Error("Edited WAV export currently supports recordings up to 3 minutes on phones. Original stems can still be saved.");
   const rate=44100,len=Math.ceil(duration*rate);
   const off=new Offline(2,len,rate);
   const song=off.createBufferSource(),voice=off.createBufferSource();
   song.buffer=musicBuffer;voice.buffer=voiceBuffer;
-  const mGain=off.createGain(),vGain=off.createGain();
+  const mGain=off.createGain(),vGain=off.createGain(),vMask=off.createGain();
   mGain.gain.value=clamp(value(E.music)/100,0,1.5);
   vGain.gain.value=clamp(value(E.voice)/100*value(E.gain)/100,0,3);
   const raw=off.createGain(),compressed=off.createGain(),compNode=off.createDynamicsCompressor();
@@ -826,13 +828,14 @@ async function exportEdited(){
   if(fxMode==="echo"){delayTime=.34;wetAmount=.36;fb=.28}
   delayNode.delayTime.value=delayTime;wet.gain.value=wetAmount;feedback.gain.value=fb;
   song.connect(mGain);mGain.connect(off.destination);
-  voice.connect(vGain);vGain.connect(raw);vGain.connect(compNode);compNode.connect(compressed);
+  voice.connect(vMask);vMask.connect(vGain);
+  vGain.connect(raw);vGain.connect(compNode);compNode.connect(compressed);
   raw.connect(voiceOut);compressed.connect(voiceOut);
   raw.connect(delayNode);compressed.connect(delayNode);
   delayNode.connect(wet);wet.connect(voiceOut);delayNode.connect(feedback);feedback.connect(delayNode);
   voiceOut.connect(off.destination);
-  const base=.012,offsets=takeMeta?.offsets||{},musicOffset=Math.max(0,Number(offsets.music)||0),voiceOffset=Math.max(0,Number(offsets.voice)||0);
-  song.start(base+musicOffset);voice.start(base+voiceOffset);
+  applyVocalEnvelope(vMask,starts.voice,voiceBuffer.duration);
+  song.start(starts.music);voice.start(starts.voice);
   const result=await off.startRendering();
   const frames=result.length;
   const bytes=new ArrayBuffer(44+frames*4),view=new DataView(bytes);
@@ -889,7 +892,7 @@ async function listenTake(){
   reviewCtx=new AC();await reviewCtx.resume();
   const buffers=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
   const [musicBuffer,voiceBuffer]=await Promise.all(buffers.map(x=>reviewCtx.decodeAudioData(x)));
-  const rm=reviewCtx.createGain(),rv=reviewCtx.createGain();
+  const rm=reviewCtx.createGain(),rv=reviewCtx.createGain(),vMask=reviewCtx.createGain();
   const dry=reviewCtx.createGain(),wet=reviewCtx.createGain(),comp=reviewCtx.createDynamicsCompressor();
   comp.threshold.value=-27;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=.005;comp.release.value=.16;
   const delay=reviewCtx.createDelay(1.5),fxWet=reviewCtx.createGain(),feedback=reviewCtx.createGain();
@@ -901,13 +904,14 @@ async function listenTake(){
   reviewNodes={music:rm,voice:rv,dry,wet,delay,fxWet,feedback};
   outputSettings();effectSettings();
   const mb=reviewCtx.createBufferSource(),vb=reviewCtx.createBufferSource();
-  mb.buffer=musicBuffer;vb.buffer=voiceBuffer;mb.connect(rm);vb.connect(rv);
-  const start=reviewCtx.currentTime+.06;
-  mb.start(start,0);vb.start(start,0);
-  reviewSources=[mb,vb];reviewClock=start;
+  mb.buffer=musicBuffer;vb.buffer=voiceBuffer;mb.connect(rm);vb.connect(vMask);vMask.connect(rv);
+  const starts=syncedStarts(reviewCtx.currentTime+.06);
+  applyVocalEnvelope(vMask,starts.voice,voiceBuffer.duration);
+  mb.start(starts.music,0);vb.start(starts.voice,0);
+  reviewSources=[mb,vb];reviewClock=Math.min(starts.music,starts.voice);
   mb.onended=()=>{if(reviewing)stopReview()};
   reviewing=true;mode("playing");
-  say("EDIT preview. Move compression, effects or volumes while the raw tracks play.");
+  say("EDIT preview with voice "+(editVocalShift>0?"+":"")+editVocalShift+" ms and selected vocal edits. Tap PLAY EDIT again to stop.");
  }catch(err){say("Raw-stem playback failed: "+errorString(err));stopReview()}
 }
 
