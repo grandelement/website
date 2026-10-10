@@ -1838,6 +1838,69 @@ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{
  }
 }
 </style>
+
+<style id="ge-iam-timeline-editor-v11">
+body.iam-edit-open #iamSoundPanel{
+ position:fixed!important;z-index:230!important;
+ top:max(70px,calc(env(safe-area-inset-top) + 47px))!important;
+ bottom:max(8px,env(safe-area-inset-bottom))!important;
+ left:3vw!important;right:3vw!important;
+ width:94vw!important;box-sizing:border-box!important;
+ padding:12px 12px 32px!important;overflow-y:auto!important;
+ overflow-x:hidden!important;overscroll-behavior:contain!important;
+ -webkit-overflow-scrolling:touch!important;pointer-events:auto!important;
+ background:rgba(1,15,29,.98)!important;
+}
+body.iam-edit-open #iamSoundPanel *{box-sizing:border-box}
+body.iam-edit-open .iamEditToolbar{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:6px!important;position:sticky!important;top:0!important;z-index:3!important;
+ padding:8px 0!important;background:#071725!important
+}
+body.iam-edit-open .iamEditToolbar button{
+ min-width:0!important;max-width:100%!important;min-height:38px!important;
+ padding:6px 4px!important;font:800 11px/1.15 system-ui!important
+}
+body.iam-edit-open #iamStemActions{display:block!important;min-width:0!important}
+body.iam-edit-open #iamTimelineEditor{
+ display:flex!important;flex-direction:column!important;gap:9px!important;
+ margin:10px 0!important;padding:10px 7px!important;border-radius:13px!important;
+ border:1px solid rgba(95,187,232,.48)!important;background:rgba(5,29,46,.88)!important
+}
+.iamEditorSectionLabel,.iamEditInstruction{
+ font:600 11px/1.4 system-ui;color:#b8d5e8
+}
+.iamEditorTimelineRow{display:flex;flex-direction:column;gap:4px;width:100%}
+.iamEditorTimelineRow>span{font:800 11px/1.2 system-ui;letter-spacing:.06em;color:#d0f1ff}
+.iamEditorTimelineRow canvas{
+ display:block;width:100%!important;height:92px!important;border-radius:7px;
+ border:1px solid rgba(108,197,231,.4);background:#03111e
+}
+#iamWavevoice{touch-action:none;cursor:crosshair}
+#iamSelectionTime{font:700 11px/1.3 system-ui;color:#b4f9d7;min-height:17px}
+.iamEditorControls{
+ display:grid;grid-template-columns:72px 60px minmax(0,1fr) 72px;
+ gap:5px;align-items:center;width:100%
+}
+.iamEditorControls label,.iamEditorSync,.iamEditorPan{font:700 11px/1.35 system-ui}
+.iamEditorControls button,.iamEditTools button{
+ min-width:0;min-height:38px;padding:5px;border-radius:9px;
+ border:1px solid rgba(151,216,246,.55);background:rgba(12,56,78,.94);
+ color:#eefaff;font:800 10px/1.2 system-ui;touch-action:manipulation
+}
+.iamEditorControls input,.iamEditorPan input,.iamEditorSync input{min-width:0;width:100%}
+.iamEditorPan,.iamEditorSync{display:flex;flex-direction:column;gap:5px}
+.iamEditorSync output{color:#cbfadc}
+.iamEditTools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.iamEditTools button{min-height:44px}
+.iamEditTools button:disabled{opacity:.45}
+@media(max-width:360px){
+ .iamEditorControls{grid-template-columns:54px 52px minmax(0,1fr) 54px;gap:3px}
+ .iamEditorControls button{font-size:9px}
+ body.iam-edit-open #iamSoundPanel{padding:8px 7px 24px!important}
+}
+body.iam-studio-open:not(.iam-edit-open) #iamTimelineEditor{display:none!important}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -2165,8 +2228,30 @@ body.iam-studio-open.iam-has-take:not(.iam-edit-open) .iamMiniActions{
       <div id="iamStemActions" hidden>
         <div class="iamStemTitle">ORIGINAL RAW RECORDINGS</div>
         <div class="iamStemButtons"><button type="button" id="iamExportVoice">SAVE RAW YOU</button><button type="button" id="iamExportMusic">SAVE CLEAN MUSIC</button><button type="button" id="iamExportMix">SAVE ORIGINAL MIX</button><button type="button" id="iamExportEdited">SAVE EDITED WAV</button></div>
-        <div class="iamWaveTitle">MUSIC WAVEFORM</div><canvas id="iamWavemusic" width="340" height="52" aria-label="Music waveform"></canvas>
-        <div class="iamWaveTitle">YOU WAVEFORM</div><canvas id="iamWavevoice" width="340" height="52" aria-label="Voice waveform"></canvas>
+        <div id="iamTimelineEditor" aria-label="Non-destructive music and vocal editor">
+          <div class="iamEditorSectionLabel">TWO TRACK EDITOR · Select an area of YOU by dragging across its waveform.</div>
+          <div class="iamEditorTimelineRow"><span>MUSIC</span><canvas id="iamWavemusic" width="780" height="100" aria-label="Music track waveform; reference only"></canvas></div>
+          <div class="iamEditorTimelineRow"><span>YOU</span><canvas id="iamWavevoice" width="780" height="100" aria-label="Select part of your voice track by dragging" tabindex="0"></canvas></div>
+          <div id="iamSelectionTime" role="status">Drag across YOU to select the section to edit.</div>
+          <div class="iamEditorControls">
+            <button id="iamZoomOut" type="button" aria-label="Zoom out timeline">− ZOOM</button>
+            <label for="iamWaveZoom">ZOOM <output id="iamWaveZoomRead">1×</output></label>
+            <input id="iamWaveZoom" type="range" min="1" max="16" value="1" step="1" aria-label="Waveform zoom level">
+            <button id="iamZoomIn" type="button" aria-label="Zoom in timeline">+ ZOOM</button>
+          </div>
+          <label class="iamEditorPan" for="iamWavePan">TIMELINE POSITION <input id="iamWavePan" type="range" min="0" max="1000" value="0" step="1" aria-label="Scroll the zoomed timeline"></label>
+          <label class="iamEditorSync" for="iamVocalShift">VOCAL TIMING <output id="iamVocalShiftRead">0 ms</output>
+            <input id="iamVocalShift" type="range" min="-250" max="250" value="-20" step="5" aria-label="Move vocal earlier or later in milliseconds">
+          </label>
+          <div class="iamEditInstruction">Earlier (−) moves the voice closer to the music's beat. Fine-adjust the timing while previewing.</div>
+          <div class="iamEditTools">
+            <button id="iamSilenceRange" type="button">ERASE SELECTED VOICE</button>
+            <button id="iamCropVocal" type="button">KEEP ONLY SELECTED VOICE</button>
+            <button id="iamUndoVocal" type="button">UNDO</button>
+            <button id="iamResetVocal" type="button">RESET VOICE</button>
+          </div>
+          <div class="iamEditInstruction">Edits only change the voice in PLAY EDIT and SAVE EDITED WAV. MUSIC and original recordings remain untouched.</div>
+        </div>
       </div>
       <button id="iamRestoreTake" type="button">RESTORE LAST PRIVATE TAKE</button>
     </div>
