@@ -6,12 +6,35 @@ Development branch: `ge-radio-station-2`. Existing Blitz Station 1 and GitHub `m
 
 The owner has **no money available**. Never recommend or authorize paid DigitalOcean, VPS subscriptions, paid backups, paid egress, trials that turn into paid services, upgrades, or auto-pay. No cloud provisioning is permitted until a specifically Always Free resource is confirmed available, a no-charge account is established, and all resource quotas/billing protections are checked. Station 1 remains the live fallback.
 
-**Preferred free candidate (not guaranteed):** Oracle Cloud Infrastructure *Always Free* Ampere A1, currently allowing an aggregate of 2 OCPU and 12 GiB RAM monthly plus 10 TB/month outbound data on eligible resources. Oracle typically requires a payment card for identity verification, free capacity is often unavailable, and Oracle can reclaim idle free instances. Always Free is not a contractual uptime guarantee. Never upgrade the account or create paid resources. Official documentation: https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm and https://docs.oracle.com/iaas/Content/FreeTier/freetier.htm .
+**Previously investigated but blocked by credit card verification:** Oracle Cloud Infrastructure *Always Free* Ampere A1, currently allowing an aggregate of 2 OCPU and 12 GiB RAM monthly plus 10 TB/month outbound data on eligible resources. Oracle typically requires a payment card for identity verification, free capacity is often unavailable, and Oracle can reclaim idle free instances. Always Free is not a contractual uptime guarantee. Never upgrade the account or create paid resources. Official documentation: https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm and https://docs.oracle.com/iaas/Content/FreeTier/freetier.htm .
 
 The Debian Bookworm ARM64 packages exist for Liquidsoap and Icecast; actual backend operation, streaming throughput, and storage still require testing on a provisioned free instance.
 
 **Free UI-only deployment:** Cloudflare Pages Free can host GE DJ static pages and update on GitHub push (current allowance 500 builds/month). It cannot run Icecast/Liquidsoap or a continuous audio process. For the existing Blitz backend, browser authentication and API origin permissions must be tested before routing DJ commands from another hostname. Avoid exposing secrets in static files.
 
+
+## Free hosting due diligence — October 2026
+
+The user has already investigated and rejected Oracle Cloud for the *no-credit-card* requirement. **Do not direct them back to Oracle registration** unless they explicitly ask to revisit it.
+
+### Leading test candidate: FreeSHOUTcast (https://freeshoutcast.com/)
+
+Advertised permanent free tier: SHOUTcast station, 96 kbps maximum, 100 simultaneous listeners, AutoDJ with 1 GB of uploaded music, playlists, online radio player, and no credit card. The AutoDJ runs independently of the user's phone/computer. This is the best currently located no-card proof-of-concept candidate for a second independent 24/7 *scheduled* broadcast.
+
+**Essential limits:** FreeSHOUTcast's Terms (https://freeshoutcast.com/tos) allow inserting commercials and ads, changing free limits, converting the service to paid, and stopping/terminating free servers without notice. Third-party free server hosts do not run our custom Python/Liquidsoap/FFmpeg DJ backend or expose the same control endpoints. No guaranteed SLA, no guarantee of ad-free programming or zero manual intervention. Do not call this a proven equivalent to GE Radio's custom continuous engine.
+
+Technical next step: confirm signup and account eligibility, actual AutoDJ activation, HTTPS stream URL, live-encoder credentials (not committed), upload limits, the full station queue, on/off-air status, stream quality, and 24-hour continuity. Preserve Blitz unchanged. Before adding GE DJ radio-source controls to the new booth, verify provider-safe supported APIs; otherwise keep station selection limited to playback and native host console links.
+
+### Other verified nonmatches
+
+- **Caster.fm Free** (https://www.caster.fm/): no card, 96 kbps and 400 listeners, but no AutoDJ on free; requires broadcaster's local machine to stay connected. Not autonomous 24/7.
+- **GoCast Free** (https://gocast.fm/): no card, unlimited live broadcast hours, but station becomes silent when the browser closes. 24/7 AutoDJ only in free-while-beta Pro, slated as a paid subscription later.
+- **Zeno.fm** (https://new.zeno.fm/pricing/): free broadcasting discontinued in January 2025.
+- **Cloudflare Pages**: free DJ presentation layer only, not an always-on Python/Liquidsoap/FFmpeg station backend.
+
+### Free-first alternate architecture, not yet implemented
+
+We may investigate a **clock-synchronized, on-demand web radio** from pre-recorded tracks served through a free static host. Listeners can hear what is scheduled at the same time without running an always-on VM; this is not a continuously transmitted Icecast/SHOUTcast stream and does not automatically replace custom live DJ control. Validate bandwidth, music-file hosting terms, licensing, metadata and synchronization before any implementation.
 
 ## Architecture
 
