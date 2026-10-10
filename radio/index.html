@@ -1652,6 +1652,61 @@ body.iam-studio-open #iamMicRetryBtn.mic-needs-help{
 }
 body.iam-studio-open .iamMeters{pointer-events:auto!important}
 </style>
+
+<style id="ge-iam-private-transport-v3">
+#iamPrivateTransport{display:none}
+body.iam-studio-open #iamPrivateTransport{
+ display:flex!important;flex-direction:column!important;gap:5px!important;
+ position:fixed!important;z-index:166!important;
+ top:max(112px,calc(env(safe-area-inset-top) + 88px))!important;
+ left:3vw!important;width:94vw!important;margin:0!important;padding:6px 8px!important;
+ box-sizing:border-box!important;border-radius:13px!important;
+ background:rgba(2,18,31,.95)!important;border:1px solid rgba(111,206,248,.42)!important;
+ pointer-events:auto!important
+}
+body.iam-studio-open #iamPrivateTransport .iamPrivateTransportButtons{
+ display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:5px!important
+}
+body.iam-studio-open #iamPrivateTransport button{
+ display:block!important;min-width:0!important;min-height:34px!important;height:34px!important;
+ border:1px solid rgba(134,218,255,.45)!important;
+ background:rgba(14,55,80,.9)!important;color:#effaff!important;
+ border-radius:10px!important;padding:4px 2px!important;
+ font:850 10px/1.1 system-ui!important;touch-action:manipulation!important
+}
+body.iam-studio-open #iamPrivateRadio{
+ color:#ffd7dd!important;border-color:rgba(255,110,132,.45)!important
+}
+body.iam-studio-open #iamPrivateTransport .iamPrivateMusicVolume{
+ display:grid!important;grid-template-columns:72px minmax(0,1fr) 39px;align-items:center;gap:8px;
+ color:#daf3ff;font:850 10px/1 system-ui
+}
+body.iam-studio-open #iamPrivateMusicVolume{width:100%;min-width:0;touch-action:pan-x}
+body.iam-studio-open #iamPrivateMusicRead{text-align:right;font-size:10px}
+body.iam-studio-open #iamPrivateSeekLine,body.iam-studio-open .iamPrivateSeekLine{
+ display:flex!important;align-items:center!important;gap:8px!important
+}
+body.iam-studio-open #iamPrivateMusicSeek{width:100%;min-width:0}
+body.iam-studio-open #iamPrivateMusicTime{
+ width:42px;flex:0 0 42px;font:800 10px/1 system-ui;color:#c0e8fa;text-align:right
+}
+body.iam-studio-open #musicGroup,body.iam-studio-open #playerSeekWrap{display:none!important}
+body.iam-studio-open .iamMeters{
+ top:max(230px,calc(52% - 165px))!important
+}
+@media(max-height:710px){
+ body.iam-studio-open #iamPrivateTransport{
+  top:max(72px,calc(env(safe-area-inset-top) + 50px))!important;
+  padding:4px 6px!important;gap:3px!important
+ }
+ body.iam-studio-open #iamPrivateTransport button{min-height:30px!important;height:30px!important}
+ body.iam-studio-open .iamMeters{top:max(175px,calc(52% - 165px))!important}
+}
+@media(orientation:landscape) and (max-height:530px){
+ body.iam-studio-open #iamPrivateTransport{width:min(570px,86vw)!important;left:50%!important;transform:translateX(-50%)!important;top:8px!important}
+ body.iam-studio-open .iamMeters{top:155px!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -1923,6 +1978,23 @@ body.iam-studio-open .iamMeters{pointer-events:auto!important}
     <div id="iamNowPlaying">Player · current song</div>
 
     <button id="iamExitBtn" type="button" aria-label="Close I AM">CLOSE</button>
+    <div id="iamPrivateTransport" aria-label="I AM private music controls">
+      <div class="iamPrivateTransportButtons">
+        <button id="iamPrivatePrev" type="button" aria-label="Previous private song">PREV</button>
+        <button id="iamPrivatePlay" type="button" aria-label="Pause or play private music">PAUSE</button>
+        <button id="iamPrivateNext" type="button" aria-label="Next private song">NEXT</button>
+        <button id="iamPrivateChoose" type="button" aria-label="Choose a private song">SONGS</button>
+        <button id="iamPrivateRadio" type="button" aria-label="Leave studio and rejoin live Radio">RADIO</button>
+      </div>
+      <div class="iamPrivateMusicVolume"><label for="iamPrivateMusicVolume">MUSIC VOL</label>
+        <input id="iamPrivateMusicVolume" type="range" min="0" max="150" value="100" step="1" aria-label="Private song volume">
+        <output id="iamPrivateMusicRead">100%</output>
+      </div>
+      <div class="iamPrivateSeekLine">
+        <input id="iamPrivateMusicSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Private song playback position" disabled>
+        <output id="iamPrivateMusicTime">LIVE</output>
+      </div>
+    </div>
     <div class="iamMeters" aria-label="Live music and microphone levels">
       <div class="iamMeter"><span id="iamMusicSignalLabel">MUSIC · CHECKING</span><div class="iamMeterTrack"><i id="iamMusicMeter" class="iamMeterFill"></i></div></div>
       <div class="iamMeter"><button id="iamMicRetryBtn" class="iamMeterMicControl mic-needs-help" type="button" aria-label="Enable or retry microphone">YOU · ENABLE MIC</button><div class="iamMeterTrack"><i id="iamMicMeter" class="iamMeterFill"></i></div></div>
@@ -2073,12 +2145,12 @@ body.iam-studio-open .iamMeters{pointer-events:auto!important}
 <div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
 
 <script src="../ge-vault-client.js"></script>
-<script src="./iam-private-studio.js?v=20261009-6"></script>
+<script src="./iam-private-studio.js?v=20261009-7"></script>
 <script>
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-mic-permission-on-tap-v2',
+  APP_VERSION: '2026.10.09-iam-studio-controls-v3',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
