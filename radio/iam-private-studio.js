@@ -98,7 +98,7 @@ function meterLoop(){
   const tracks=micStream?.getAudioTracks?.()||[];
   const live=micConnected&&tracks.some(t=>t.readyState!=="ended"&&t.enabled!==false&&!t.muted);
   const muted=micConnected&&tracks.some(t=>t.muted);
-  micButton.textContent=live?(v>.045?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
+  micButton.textContent=live&&ctx?.state==="suspended"?"YOU · TAP TO RESUME":live?(v>.045?"YOU · SIGNAL":"YOU · READY"):muted?"YOU · MUTED":micError?"YOU · RETRY MIC":micPromise?"YOU · CONNECTING":"YOU · ENABLE MIC";
   micButton.classList.toggle("mic-needs-help",!live);
   micButton.setAttribute("aria-label",live?"Microphone ready. Tap to check input":(micError||"Enable microphone"));
  }
@@ -216,9 +216,15 @@ async function preflight(timeout=4500){
  async function activateMic(){
   if(!open||!ctx)return false;
   if(micConnected&&voiceMeter&&micStream?.active)return true;
+  // A rejected permission request is not repeated automatically after song
+  // buffering; only another explicit tap on YOU retries it.
+  if(micError&&!micStream?.active)return false;
   const stream=await (micStream?.active?Promise.resolve(micStream):primeMic());
   if(!stream||!open||!ctx)return false;
   try{
+   // Safari may suspend the existing audio context when mic permissions or
+   // the audio output route change.
+   if(ctx.state==="suspended")await ctx.resume();
    const node=ctx.createMediaStreamSource(stream);
    voiceInput=ctx.createGain();dryGain=ctx.createGain();compressedGain=ctx.createGain();
    voiceOutput=ctx.createGain();compressor=ctx.createDynamicsCompressor();
@@ -657,6 +663,8 @@ get("iamMicRetryBtn")?.addEventListener("click",()=>{
   try{micStream.getTracks().forEach(t=>t.stop())}catch(_e){}
   micStream=null;
  }
+ // Re-engage Web Audio on this tap if Safari suspended it.
+ try{void ctx?.resume?.()}catch(_e){}
  // User interaction allows Safari to request permission again.
  const pending=primeMic();
  void pending.then(()=>{if(open&&ctx)void activateMic()});
