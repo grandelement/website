@@ -23,7 +23,7 @@ export class RadioTimeline {
       if(previous===body.to)return Response.json({ok:true,unchanged:true,server_now_ms:now,station:old});
       // Allow enough advance notice for clients polling every 3 seconds and opening the next stream.
       // The audience may hear the transition late if the device is asleep or buffering.
-      const lead_ms=12000,duration_ms=Math.round(fade*1000);
+      const lead_ms=20000,duration_ms=Math.round(fade*1000);
       const next={
         from:previous,to:body.to,start_at_ms:now+lead_ms,
         duration_ms:duration_ms,revision:(old.revision||0)+1,updated_at_ms:now
