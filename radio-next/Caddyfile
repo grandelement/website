@@ -1,0 +1,61 @@
+# A dedicated HTTPS gateway for Station 2. DNS must point GE2_DOMAIN to this server.
+# No public Icecast, harbor, Python, or FFmpeg ports.
+{$GE2_DOMAIN} {
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+
+    @djEntry path /dj /dj/ /dj/index.html /dj.html
+    handle @djEntry {
+        root * /srv/ge-radio-ui
+        rewrite * /dj-entry.html
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    @djModern path /dj-modern /dj-modern/ /dj-modern/index.html
+    handle @djModern {
+        root * /srv/ge-radio-ui
+        rewrite * /dj.html
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    @djLite path /dj-lite /dj-lite/ /dj-lite.html
+    handle @djLite {
+        root * /srv/ge-radio-ui
+        rewrite * /dj-lite.html
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    @djLegacy path /iphone5 /iphone5/
+    handle @djLegacy {
+        root * /srv/ge-radio-ui
+        rewrite * /dj-lite.html
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    @djLive path /live-dj /live-dj/ /live-dj.html
+    handle @djLive {
+        root * /srv/ge-radio-ui
+        rewrite * /live-dj.html
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    @djBuild path /dj-build.json
+    handle @djBuild {
+        root * /srv/ge-radio-ui
+        header Cache-Control "no-store"
+        file_server
+    }
+
+    handle {
+        reverse_proxy station:8080 {
+            flush_interval -1
+        }
+    }
+}
