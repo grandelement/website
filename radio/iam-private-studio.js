@@ -218,6 +218,7 @@ async function preparePrivate(){
   musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.05);
   get("iamSourceIndicator").textContent=selection.precise?"PRIVATE · SAME SONG / POSITION":"PRIVATE · LIVE RADIO HANDOFF APPROXIMATE";
   get("iamNowPlaying").textContent=selection.title||displayTitle(selection.url,false)||"Private Radio";
+  get("titleBtn").textContent=selection.title||displayTitle(selection.url,false)||"PRIVATE RADIO";
   verified=true;
   E.record.disabled=false;
   await activateMic();
@@ -281,7 +282,8 @@ function stopOne(r,key){
   if(r.state==="inactive"){take[key]=assemble(key,r);resolve();return}
   const done=()=>{take[key]=assemble(key,r);resolve()};
   r.addEventListener("stop",done,{once:true});
-  try{r.requestData();r.stop()}catch(_e){done()}
+  try{r.requestData()}catch(_e){}
+  try{r.stop()}catch(_e){done()}
   setTimeout(resolve,2200);
  });
 }
@@ -454,6 +456,9 @@ async function leave(){
   try{if(audio.currentSrc===sourceURL||audio.src===sourceURL)audio.currentTime=privateAudio.currentTime}catch(_e){}
  }
  await disposeAudio();audio.muted=oldMuted;
+ const title=state.live?(window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE):displayTitle(state.currentURL,!state.shuffle);
+ get("titleBtn").textContent=title||"Grand Element Radio";
+ hideSongPicker();
  try{if("audioSession" in navigator)navigator.audioSession.type="playback"}catch(_e){}
  mode("record");say("Private I AM session closed.");
 }
@@ -468,17 +473,46 @@ async function enter(){
  raf=requestAnimationFrame(meterLoop);
  await preparePrivate();
 }
+function hideSongPicker(){
+ const picker=get("iamPrivatePicker");if(picker)picker.hidden=true;
+}
+function selectPrivateSong(url){
+ if(!open||!privateAudio||recording){say("Stop the take before changing songs.");return}
+ stopReview();if(take.mix)againTake();hideSongPicker();
+ sourceURL=url;sourceMode="player";verified=false;E.record.disabled=true;
+ privateAudio.src=url;privateAudio.load();
+ privateAudio.play().then(()=>{
+  verified=true;E.record.disabled=false;
+  const label=displayTitle(url,false)||"Private Song";
+  get("titleBtn").textContent=label;
+  get("iamNowPlaying").textContent=label;
+  say("Private song: "+label);
+ }).catch(err=>say("Song change: "+errorString(err)));
+ get("iamSourceIndicator").textContent="PRIVATE SONG · SELECTED";
+}
 function choosePrivateSong(direction){
  if(!open||!privateAudio||recording){say("Stop recording before changing songs.");return}
  const list=allowedCatalog();if(!list.length){say("No catalog tracks available.");return}
  const current=decodeURIComponent(sourceURL.split("/").pop());
  let index=list.findIndex(t=>decodeURIComponent(t.split("/").pop())===current);
  index=(index+(direction==="next"?1:-1)+list.length)%list.length;
- const url=list[index];sourceURL=url;sourceMode="player";verified=false;
- stopReview();if(take.mix)againTake();
- privateAudio.src=url;privateAudio.load();
- privateAudio.play().then(()=>{verified=true;E.record.disabled=false;say("Private song: "+displayTitle(url,false));}).catch(err=>say("Song change: "+errorString(err)));
- get("iamSourceIndicator").textContent="PRIVATE SONG · SELECTED";
+ selectPrivateSong(list[index]);
+}
+function showSongPicker(){
+ if(!open)return;
+ if(recording){say("Stop recording before choosing another song.");return}
+ const list=allowedCatalog(),picker=get("iamPrivatePicker"),holder=get("iamPrivatePickerList");
+ if(!picker||!holder)return;
+ holder.replaceChildren();
+ for(const url of list){
+  const button=document.createElement("button");
+  button.type="button";button.className="iamPrivateTrackChoice";
+  button.textContent=displayTitle(url,false)||decodeURIComponent(url.split("/").pop());
+  if(sourceURL===url)button.classList.add("current");
+  button.addEventListener("click",()=>selectPrivateSong(url));
+  holder.appendChild(button);
+ }
+ picker.hidden=false;
 }
 E.launch.addEventListener("click",()=>{if(open)void leave();else void enter()});
 E.record.addEventListener("click",()=>{if(recording)void stopTake();else if(take.mix)void listenTake();else beginTake()});
@@ -511,6 +545,11 @@ E.monitor?.addEventListener("click",()=>{
  monitoring=!monitoring;setHeadphones(true);
 });
 E.take.addEventListener("ended",()=>{reviewing=false;mode("play");if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.06)});
+get("titleBtn")?.addEventListener("click",event=>{
+ if(!open)return;
+ event.stopImmediatePropagation();event.preventDefault();showSongPicker();
+},true);
+get("iamPrivatePickerClose")?.addEventListener("click",hideSongPicker);
 for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"],["playBtn","play"]]){
  get(id)?.addEventListener("click",event=>{
   if(!open)return;
