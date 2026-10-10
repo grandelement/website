@@ -789,6 +789,8 @@ async function restoreLatest(){
   take={music:obj.music,voice:obj.voice,mix:obj.mix};takeMeta=obj.meta;
   resetEditorForNewTake();
   if(Number.isFinite(Number(takeMeta?.vocalShiftMs)))editVocalShift=clamp(takeMeta.vocalShiftMs,-250,250);
+  editMute=Array.isArray(takeMeta?.editor?.muted)?takeMeta.editor.muted.map(p=>p.slice(0,2)):[];
+  editKeep=Array.isArray(takeMeta?.editor?.keep)?takeMeta.editor.keep.slice(0,2):null;
   const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
   if(old.startsWith("blob:"))URL.revokeObjectURL(old);
   mode("play");document.body.classList.add("iam-has-take");
@@ -1029,7 +1031,15 @@ function pushEditUndo(){
 }
 function onEditorChange(){
  if(reviewing)stopReview();
+ if(takeMeta){
+  takeMeta.vocalShiftMs=editVocalShift;
+  takeMeta.editor={muted:editMute.map(x=>x.slice()),keep:editKeep?.slice()||null};
+ }
  drawEditorWaveforms();
+}
+function persistEditor(){
+ onEditorChange();
+ if(take?.mix&&takeMeta?.id)void saveTake();
 }
 function changeVoiceSelection(e,started=false){
  const canvas=get("iamWavevoice");if(!canvas)return;
@@ -1045,7 +1055,7 @@ function setVocalSelectionAction(kind){
  pushEditUndo();
  if(kind==="silence")editMute.push(editSelection.slice());
  if(kind==="keep")editKeep=editSelection.slice();
- onEditorChange();
+ persistEditor();
  say(kind==="silence"?"Selected vocals erased non-destructively. PLAY EDIT to check.":"Only selected vocal section kept; MUSIC remains unchanged. PLAY EDIT to check.");
 }
 function resetEditorForNewTake(){
@@ -1092,6 +1102,8 @@ function editTake(){
  get("iamStemActions").hidden=false;
  editSelection=null;editUndo=[];editZoom=1;editPan=0;
  editVocalShift=Number.isFinite(Number(takeMeta?.vocalShiftMs))?clamp(takeMeta.vocalShiftMs,-250,250):-20;
+ editMute=Array.isArray(takeMeta?.editor?.muted)?takeMeta.editor.muted.map(p=>p.slice(0,2)):[];
+ editKeep=Array.isArray(takeMeta?.editor?.keep)?takeMeta.editor.keep.slice(0,2):null;
  refreshEditorControls();
  void previewWaves();
  say("Select part of YOU, zoom, crop or erase it. Adjust VOCAL TIMING and tap PLAY EDIT.");
@@ -1297,18 +1309,18 @@ get("iamWavePan")?.addEventListener("input",e=>{
 });
 get("iamVocalShift")?.addEventListener("input",e=>{
  editVocalShift=clamp(Number(e.target.value),-250,250);
- if(takeMeta)takeMeta.vocalShiftMs=editVocalShift;
  onEditorChange();
 });
+get("iamVocalShift")?.addEventListener("change",persistEditor);
 get("iamSilenceRange")?.addEventListener("click",()=>setVocalSelectionAction("silence"));
 get("iamCropVocal")?.addEventListener("click",()=>setVocalSelectionAction("keep"));
 get("iamUndoVocal")?.addEventListener("click",()=>{
  const old=editUndo.pop();if(!old)return;
- editMute=old.mute;editKeep=old.keep;onEditorChange();
+ editMute=old.mute;editKeep=old.keep;persistEditor();
  say("Last voice edit undone.");
 });
 get("iamResetVocal")?.addEventListener("click",()=>{
- pushEditUndo();editMute=[];editKeep=null;onEditorChange();
+ pushEditUndo();editMute=[];editKeep=null;persistEditor();
  say("All vocal sections restored. Original raw tracks remain untouched.");
 });
 
