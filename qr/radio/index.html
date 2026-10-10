@@ -159,30 +159,23 @@ html,body{
   let raf=0,start=0,finished=false,siteReady=false,revealed=false,audioStarted=false;
   let lastSoundAttempt=0;
 
-  // CAMERA STORY
-  // WEBSITE-QR MATCHED OPENING, then a much slower cinematic fly-by.
-  // 0–3.5s     : stars only
-  // 3.5–5.2s   : centered Blue Sun fades in exactly like the Website QR
-  // 5.2–14.2s  : long near-head-on approach, then skim around the Sun's right edge
-  // 11.2–15.4s : Radio moon is gradually uncovered behind the passing limb
-  // 12.6–16.1s : moon settles smoothly toward center
-  // 15.8–24.8s : long, smooth moon approach with many small scale changes
-  // 23.1–28.0s : dissolve into the already-loaded Radio
+  // ONE CONTINUOUS CAMERA PASS.
+  // The moon is present behind the Blue Sun from the first visible frame.
+  // Blue Sun stays opaque and physically uncovers the moon when its
+  // retreating right limb sweeps from center toward the LEFT edge.
+  // No moon fade-in, disappearing Sun, or independent lateral moon jump.
   const STARS_ONLY=3500;
   const SUN_FADE_IN=1700;
   const SUN_APPROACH_START=STARS_ONLY+SUN_FADE_IN;
-  const SUN_APPROACH_MS=9000;
-  const MOON_REVEAL_START=11200;
-  const MOON_REVEAL_MS=4200;
-  const MOON_CENTER_START=12600;
-  const MOON_CENTER_MS=3500;
-  const MOON_RUSH_START=15800;
-  const MOON_RUSH_MS=9000;
-  const RADIO_BLEND_START=23100;
-  const RADIO_BLEND_MS=3900;
-  const GATE_FADE_START=25800;
-  const GATE_FADE_MS=2200;
-  const TOTAL=28000;
+  const SUN_APPROACH_MS=11200;
+  const MOON_RUSH_START=SUN_APPROACH_START+SUN_APPROACH_MS;
+  const MOON_RUSH_MS=9300;
+  const RADIO_BLEND_START=26200;
+  const RADIO_BLEND_MS=4300;
+  const GATE_FADE_START=27700;
+  const GATE_FADE_MS=3400;
+  const TOTAL=31400;
+  let virtualTime=0,lastFrameStamp=0;
 
   function clamp01(v){return Math.max(0,Math.min(1,v))}
   function smooth(t){t=clamp01(t);return t*t*(3-2*t)}
@@ -240,80 +233,63 @@ html,body{
   }
 
   function draw(now){
-    if(!start)start=now;
-    const t=now-start;
+    // A throttled WebKit frame must never teleport the camera. A small
+    // maximum timeline step makes the approach continuous even after a stall.
+    if(!lastFrameStamp)lastFrameStamp=now;
+    const step=Math.max(0,Math.min(now-lastFrameStamp,80));
+    lastFrameStamp=now;
+    virtualTime+=step;
+    const t=virtualTime;
 
-    // Star field stays calm during the same opening used by the Website QR.
     const approach=clamp01((t-SUN_APPROACH_START)/SUN_APPROACH_MS);
-    const moonRush=clamp01((t-MOON_RUSH_START)/MOON_RUSH_MS);
-    const approachEase=smoother(approach);
-    const moonRushEase=smoother(moonRush);
-    space.style.transform='translate3d(0,'+(-approachEase*.75).toFixed(3)+'%,0) scale('+(1.06+approachEase*.05+moonRushEase*.16).toFixed(5)+')';
-    streaks.style.opacity=String((approachEase*.10+moonRushEase*.34).toFixed(4));
-    streaks.style.transform='translate3d(0,0,0) scale('+(0.72+moonRushEase*1.15).toFixed(5)+')';
+    const rush=clamp01((t-MOON_RUSH_START)/MOON_RUSH_MS);
+    const sunGrowth=Math.pow(approach,1.62);
+    const sunScale=.76*Math.pow(5.4/.76,sunGrowth);
 
-    // EXACT WEBSITE-QR OPENING: centered, invisible Sun; 3.5 seconds of stars;
-    // then the Sun fades in over 1.7 seconds before any fly-by steering begins.
-    let sunOpacity=0;
-    let sunScale=.76;
-    let sunX=0;
-    let sunY=0;
+    // Camera aims along the RIGHT LIMB of the growing planet. Keeping this
+    // edge in view prevents the planet from sliding out too early.
+    const screenWidth=Math.max(1,window.innerWidth);
+    const sunDiameter=Math.min(window.innerWidth,window.innerHeight)*.5*sunScale;
+    const radiusFraction=sunDiameter/(2*screenWidth);
+    const tracking=smoother(approach/.36);
+    const reveal=smoother((approach-.57)/.40);
+    const rightEdge=mix(mix(.5+radiusFraction,.68,tracking),-.14,reveal);
+    const centerX=rightEdge-radiusFraction;
+    const sunX=(centerX-.5)*100;
+    const sunY=mix(0,1.3,smoother(approach));
 
-    if(t>=STARS_ONLY){
-      sunOpacity=smooth((t-STARS_ONLY)/SUN_FADE_IN);
-    }
+    // Only the first appearance fades. During the flyby the Sun remains
+    // fully opaque; its physical right edge, not opacity, reveals the moon.
+    const appear=smooth((t-STARS_ONLY)/SUN_FADE_IN);
+    sunWrap.style.opacity=String(appear.toFixed(4));
+    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(4)+'vw),calc(-50% + '+sunY.toFixed(4)+'vh),0) scale3d('+sunScale.toFixed(6)+','+sunScale.toFixed(6)+',1)';
 
-    if(t>=SUN_APPROACH_START){
-      const p=clamp01((t-SUN_APPROACH_START)/SUN_APPROACH_MS);
-      // Use the same exponential-feeling zoom logic as the Website QR, but stop
-      // before entering the Sun. We aim at the MIDDLE of its right-hand limb.
-      const accelerated=Math.pow(p,2.72);
-      const scaleRatio=5.8/.76;
-      sunScale=.76*Math.pow(scaleRatio,accelerated);
+    // Moon remains at the SAME place in the star field throughout the pass.
+    // Its image is behind the opaque planet (z-index 4 vs 5); no pop-in.
+    // It starts small and gently grows ONLY after its edge is uncovered.
+    const moonIntro=smoother((approach-.54)/.46);
+    const initialMoonScale=mix(.25,.75,moonIntro);
+    const moonFinalScale=4.9;
+    const moonScale=initialMoonScale*Math.pow(moonFinalScale/.75,smoother(rush));
+    moonWrap.style.opacity=String(appear.toFixed(4));
+    moonWrap.style.transform='translate3d(-50%,-50%,0) scale3d('+moonScale.toFixed(6)+','+moonScale.toFixed(6)+',1)';
 
-      // For the first part we appear to be flying almost directly at the center.
-      // As the Sun becomes huge, its center slides left so the right edge becomes
-      // our near-miss flight path. That produces a genuine around-the-limb pass.
-      const steer=smoother((p-.22)/.78);
-      sunX=mix(0,-118,steer);
-      sunY=mix(0,3.5,smooth(steer));
+    // Stars stay anchored: no reset, horizontal jump or separate scene swap.
+    const spaceZoom=1.06+.035*smoother(approach)+.06*smoother(rush);
+    space.style.transform='translate3d(0,0,0) scale('+spaceZoom.toFixed(5)+')';
+    streaks.style.opacity=String((.08*smoother(approach)+.24*smoother(rush)).toFixed(4));
+    streaks.style.transform='translate3d(0,0,0) scale('+(0.72+.75*smoother(rush)).toFixed(5)+')';
 
-      // Do not fade it early. Let its enormous curved edge physically clear the frame.
-      sunOpacity*=1-smooth((p-.84)/.16);
-    }
-
-    sunWrap.style.opacity=String(clamp01(sunOpacity).toFixed(4));
-    sunWrap.style.transform='translate3d(calc(-50% + '+sunX.toFixed(3)+'vw),calc(-50% + '+sunY.toFixed(3)+'vh),0) scale3d('+sunScale.toFixed(6)+','+sunScale.toFixed(6)+',1)';
-
-    // Moon remains concealed behind the passing Sun and is revealed by the Sun's
-    // retreating right-hand edge. Then it eases into center before the approach.
-    const moonReveal=smooth((t-MOON_REVEAL_START)/MOON_REVEAL_MS);
-    const moonCenter=smoother((t-MOON_CENTER_START)/MOON_CENTER_MS);
-    const moonX=mix(17,0,moonCenter);
-    const moonY=mix(2.5,0,moonCenter);
-    const moonBaseScale=mix(.15,.92,smoother(moonCenter));
-
-    // Smooth logarithmic zoom. The prior cubic curve waited too long and then
-    // made large scale jumps near the end, which looked choppy on iPhone.
-    const zoomEase=moonRushEase;
-    const moonEndScale=8.7;
-    const safeBase=Math.max(.001,moonBaseScale);
-    const moonZoom=Math.exp(Math.log(safeBase)+(Math.log(moonEndScale)-Math.log(safeBase))*zoomEase);
-    const moonFade=1-smooth((t-(RADIO_BLEND_START+800))/(RADIO_BLEND_MS-500));
-
-    moonWrap.style.opacity=String((moonReveal*moonFade).toFixed(4));
-    moonWrap.style.transform='translate3d(calc(-50% + '+moonX.toFixed(3)+'vw),calc(-50% + '+moonY.toFixed(3)+'vh),0) scale3d('+moonZoom.toFixed(6)+','+moonZoom.toFixed(6)+',1)';
-
-    // Dissolve the moon into the Radio while the iframe has already been loading underneath.
-    // Opacity + transform only: avoids full-screen blur/filter repainting on iPhone.
-    const radioBlend=smoother((t-RADIO_BLEND_START)/RADIO_BLEND_MS);
+    // Do not dissolve away the moon while the underlying Radio is missing.
+    // The scene crossfades as a whole rather than fading the moon first,
+    // which was leaving a blank star field before Radio became visible.
+    const radioBlend=siteReady?smoother((t-RADIO_BLEND_START)/RADIO_BLEND_MS):0;
     site.style.opacity=String(radioBlend.toFixed(4));
     site.style.transform='translate3d(0,0,0) scale('+(1.012-.012*radioBlend).toFixed(5)+')';
-    whiteout.style.opacity=String((Math.sin(Math.PI*clamp01((t-(RADIO_BLEND_START+900))/2100))*.10).toFixed(4));
-    vignette.style.opacity=String((.75-.55*radioBlend).toFixed(4));
-    gate.style.opacity=String((1-smoother((t-GATE_FADE_START)/GATE_FADE_MS)).toFixed(4));
+    vignette.style.opacity=String((.75-.53*radioBlend).toFixed(4));
+    whiteout.style.opacity='0';
+    gate.style.opacity=String((1-smoother((t-GATE_FADE_START)/GATE_FADE_MS)*radioBlend).toFixed(4));
 
-    // Give autoplay a few chances only near arrival. No second Radio load.
     if(t>RADIO_BLEND_START-1200)tryStartRadioAudio();
 
     if(t<TOTAL){
