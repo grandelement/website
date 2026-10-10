@@ -3032,6 +3032,10 @@ class Handler(BaseHTTPRequestHandler):
             self.json_response({
                 "ok": True,
                 "now": now,
+                # Approximate beginning of the current automation song for I AM
+                # private-session handoff. Never present a DJ-live source as a
+                # sample-accurate song file timestamp.
+                "now_started_at": (NOW.stat().st_mtime if NOW.exists() and not live_state.get("active", False) else 0.0),
                 "next": nxt,
                 "coming": coming,
                 "live_active": bool(live_state.get("active", False)),
