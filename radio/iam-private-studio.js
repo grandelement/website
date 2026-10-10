@@ -34,6 +34,10 @@ let studioMusicStopped=false,recorderReady=false,recorderPrewarming=false,record
 let micDetected=false,micSilenceWarned=false,recordArming=false;
 let micFloatData=null,micLastDB=-90,micStrongFrames=0;
 let micTestRecorder=null,micTestAudio=null,micTestBlob=null,micTestChunks=[],micTestRunning=false,micTestTimer=0;
+let editZoom=1,editPan=0,editSelection=null,editDragStart=null,editDragging=false;
+let editMute=[],editKeep=null,editUndo=[],editWaveBuffers=null,editVocalShift=-20;
+let editLoadToken=0;
+
 function say(s){E.status.textContent=s}
 function mode(x){
  E.record.classList.toggle("record-ready",x==="record");E.record.classList.toggle("recording",x==="recording");
@@ -905,6 +909,146 @@ async function listenTake(){
   reviewing=true;mode("playing");
   say("EDIT preview. Move compression, effects or volumes while the raw tracks play.");
  }catch(err){say("Raw-stem playback failed: "+errorString(err));stopReview()}
+}
+
+function editFormat(t){return Math.max(0,t).toFixed(2)+" s"}
+function editDuration(){
+ return Math.max(Number(editWaveBuffers?.music?.duration)||0,Number(editWaveBuffers?.voice?.duration)||0,Number(takeMeta?.duration)||0,1);
+}
+function editorView(){
+ const total=editDuration(),visible=total/clamp(editZoom,1,16);
+ return {total,visible,start:clamp(editPan,0,1)*Math.max(0,total-visible)};
+}
+function currentVoiceShift(){
+ return clamp(Number(editVocalShift)||0,-250,250);
+}
+function syncedStarts(base=0){
+ // Preserve sample-relative start offsets of the ORIGINAL recording.
+ // Negative shift means the vocal should be heard earlier.
+ const offsets=takeMeta?.offsets||{};
+ const delta=(Number(offsets.voice)||0)-(Number(offsets.music)||0)+currentVoiceShift()/1000;
+ return {music:base+Math.max(0,-delta),voice:base+Math.max(0,delta)};
+}
+function editingRanges(duration){
+ const d=Math.max(0,Number(duration)||0),intervals=editMute
+  .map(x=>[clamp(x[0],0,d),clamp(x[1],0,d)]);
+ if(editKeep){
+  intervals.push([0,clamp(editKeep[0],0,d)],[clamp(editKeep[1],0,d),d]);
+ }
+ const result=[];
+ for(const [a,b] of intervals.filter(x=>x[1]>x[0]).sort((a,b)=>a[0]-b[0])){
+  const last=result[result.length-1];
+  if(last&&a<=last[1])last[1]=Math.max(last[1],b);
+  else result.push([a,b]);
+ }
+ return result;
+}
+function applyVocalEnvelope(gainNode,start,duration){
+ const gain=gainNode.gain;
+ gain.setValueAtTime(1,start);
+ for(const [a,b] of editingRanges(duration)){
+  // Smooth 3-ms boundaries prevent audible clicks without shifting the beat.
+  const attack=Math.min(.003,(b-a)/4);
+  const enter=start+a,leave=start+b;
+  gain.setValueAtTime(1,Math.max(start,enter-attack));
+  gain.linearRampToValueAtTime(0,enter+attack);
+  gain.setValueAtTime(0,Math.max(enter+attack,leave-attack));
+  gain.linearRampToValueAtTime(1,leave+attack);
+ }
+}
+function refreshEditorControls(){
+ const zoom=get("iamWaveZoom"),pan=get("iamWavePan"),shift=get("iamVocalShift");
+ if(zoom)zoom.value=String(editZoom);
+ if(pan)pan.value=String(Math.round(editPan*1000));
+ if(shift)shift.value=String(editVocalShift);
+ if(get("iamWaveZoomRead"))get("iamWaveZoomRead").textContent=editZoom+"×";
+ if(get("iamVocalShiftRead"))get("iamVocalShiftRead").textContent=(editVocalShift>0?"+":"")+editVocalShift+" ms";
+ const selection=get("iamSelectionTime");
+ if(selection){
+  const v=editorView();
+  selection.textContent=editSelection?
+   "YOU SELECTED: "+editFormat(editSelection[0])+" – "+editFormat(editSelection[1])+
+   " · showing "+editFormat(v.start)+" – "+editFormat(v.start+v.visible):
+   "Drag across YOU to select vocals · showing "+editFormat(v.start)+" – "+editFormat(v.start+v.visible);
+ }
+ for(const id of ["iamSilenceRange","iamCropVocal"]){
+  const el=get(id);if(el)el.disabled=!editSelection||editSelection[1]-editSelection[0]<.015;
+ }
+ const undo=get("iamUndoVocal");if(undo)undo.disabled=!editUndo.length;
+}
+function drawEditorWaveforms(){
+ const {visible,start}=editorView();
+ for(const key of ["music","voice"]){
+  const canvas=get("iamWave"+key),buffer=editWaveBuffers?.[key],pen=canvas?.getContext?.("2d");
+  if(!canvas||!pen)continue;
+  const w=canvas.width,h=canvas.height;
+  pen.clearRect(0,0,w,h);
+  pen.fillStyle="#03111d";pen.fillRect(0,0,w,h);
+  pen.fillStyle=key==="music"?"#65cfff":"#89f8bd";
+  if(buffer){
+   const samples=buffer.getChannelData(0),rate=buffer.sampleRate;
+   for(let x=0;x<w;x++){
+    const first=Math.max(0,Math.floor((start+x/w*visible)*rate));
+    const last=Math.min(samples.length,Math.floor((start+(x+1)/w*visible)*rate));
+    let peak=0;
+    const step=Math.max(1,Math.floor((last-first)/20));
+    for(let i=first;i<last;i+=step)peak=Math.max(peak,Math.abs(samples[i]||0));
+    const amp=Math.max(1,Math.min(h*.48,peak*h*.42));
+    pen.fillRect(x,h/2-amp,1,amp*2);
+   }
+  }
+  if(key==="voice"){
+   for(const [a,b] of editingRanges(Number(buffer?.duration)||editDuration())){
+    const x1=(a-start)/visible*w,x2=(b-start)/visible*w;
+    pen.fillStyle="rgba(248,80,80,.32)";
+    pen.fillRect(x1,0,Math.max(0,x2-x1),h);
+   }
+   if(editSelection){
+    const [a,b]=editSelection;
+    pen.fillStyle="rgba(255,211,84,.24)";
+    pen.fillRect((a-start)/visible*w,0,(b-a)/visible*w,h);
+    pen.strokeStyle="#ffd15e";pen.lineWidth=2;
+    for(const t of [a,b]){
+     const x=(t-start)/visible*w;if(x>=0&&x<=w){pen.beginPath();pen.moveTo(x,0);pen.lineTo(x,h);pen.stroke()}
+    }
+   }
+  }
+  pen.fillStyle="rgba(203,228,250,.8)";pen.font="10px system-ui";
+  pen.fillText(editFormat(start),5,h-5);
+  pen.fillText(editFormat(start+visible),Math.max(5,w-75),h-5);
+ }
+ refreshEditorControls();
+}
+function pushEditUndo(){
+ editUndo.push({mute:editMute.map(pair=>pair.slice()),keep:editKeep?.slice()||null});
+ if(editUndo.length>40)editUndo.shift();
+}
+function onEditorChange(){
+ if(reviewing)stopReview();
+ drawEditorWaveforms();
+}
+function changeVoiceSelection(e,started=false){
+ const canvas=get("iamWavevoice");if(!canvas)return;
+ const rect=canvas.getBoundingClientRect(),pos=clamp((e.clientX-rect.left)/Math.max(1,rect.width),0,1);
+ const {start,visible}=editorView(),time=clamp(start+visible*pos,0,Number(editWaveBuffers?.voice?.duration)||editDuration());
+ if(started)editDragStart=time;
+ if(editDragStart==null)return;
+ editSelection=[Math.min(editDragStart,time),Math.max(editDragStart,time)];
+ drawEditorWaveforms();
+}
+function setVocalSelectionAction(kind){
+ if(!editSelection||editSelection[1]-editSelection[0]<.015){say("Drag across YOU to select a time range first.");return}
+ pushEditUndo();
+ if(kind==="silence")editMute.push(editSelection.slice());
+ if(kind==="keep")editKeep=editSelection.slice();
+ onEditorChange();
+ say(kind==="silence"?"Selected vocals erased non-destructively. PLAY EDIT to check.":"Only selected vocal section kept; MUSIC remains unchanged. PLAY EDIT to check.");
+}
+function resetEditorForNewTake(){
+ editWaveBuffers=null;editZoom=1;editPan=0;editSelection=null;editDragStart=null;
+ editMute=[];editKeep=null;editUndo=[];editVocalShift=-20;
+ editLoadToken++;
+ refreshEditorControls();
 }
 async function previewWaves(){
  const targets=[["music",take.music],["voice",take.voice]];
