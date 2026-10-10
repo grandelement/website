@@ -193,6 +193,22 @@ function pollState(){
   }
  });
 }
+function pollBlitzNow(){
+ if(!playing)return;
+ var x=new XMLHttpRequest();
+ x.open("GET","https://radio.grandelement.blitz.cloud/control/public-now",true);
+ x.onreadystatechange=function(){if(x.readyState!==4||x.status!==200)return;
+  try{
+   var data=JSON.parse(x.responseText),n=data.now||{};
+   if(!n.title)return;
+   if(w.GEVault&&w.GEVault.setTrackMetadata)w.GEVault.setTrackMetadata(aBlitz,{
+    title:n.title,album:n.album||"",artist:"Grand Element",
+    track_id:n.path||n.track_id||n.title,source:"blitz-live",live:true
+   });
+  }catch(_){}
+ };
+ x.send(null);
+}
 function pollProgram(){
  request("/v1/program",function(err,result){
   if(err){status("GE RADIO playlist not ready: "+err.message);return;}
@@ -203,6 +219,7 @@ function begin(){
  if(playing){playing=false;stopUnneeded(aBlitz);stopUnneeded(aGe);button.textContent="PLAY";status("Paused");return;}
  playing=true;button.textContent="PAUSE";
  if(!ready)pollState();
+ pollBlitzNow();
  if(!program)pollProgram();
  if(!aBlitz.src)initAudio();
  if(ctx&&ctx.resume)ctx.resume();
@@ -218,6 +235,7 @@ aGe.addEventListener("error",function(){status("GE RADIO track failed to load ·
 aBlitz.addEventListener("error",function(){status("Blitz stream unavailable · retrying");});
 pollState();pollProgram();
 w.setInterval(pollState,7500);
+w.setInterval(pollBlitzNow,15000);
 w.setInterval(function(){if(playing)nowRender();},500);
 w.setInterval(function(){if(playing&&program)syncGe();},4500);
 w.setInterval(function(){
