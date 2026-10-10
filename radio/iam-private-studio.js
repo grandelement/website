@@ -117,8 +117,11 @@ async function stationSong(){
   const songs=allowedCatalog();
   const found=songs.find(s=>base&&norm(decodeURIComponent(s.split("/").pop()))===base)
     ||songs.find(s=>norm(now.title).length>6&&norm(s).includes(norm(now.title)));
-  if(!found)return null;
-  return {url:found,title:String(now.title||""),seconds:Number(body.now_started_at)||0};
+  // Never jump to the beginning of a radio song without timing information.
+  if(!found||!Number(body.now_started_at))return null;
+  const seconds=Number(body.now_started_at),age=Date.now()/1000-seconds;
+  if(!(age>=0&&age<3600))return null;
+  return {url:found,title:String(now.title||""),seconds};
  }catch(_e){return null}
 }
 async function sourceSelection(){
@@ -483,6 +486,9 @@ document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.addEventL
 E.sound?.addEventListener("click",()=>{
  const showing=!E.panel.classList.contains("show");E.panel.classList.toggle("show",showing);
  E.sound.setAttribute("aria-expanded",showing?"true":"false");
+});
+get("iamSoundClose")?.addEventListener("click",()=>{
+ E.panel.classList.remove("show");E.sound?.setAttribute("aria-expanded","false");
 });
 get("iamListenHeadphones")?.addEventListener("click",()=>setHeadphones(true));
 get("iamListenSpeaker")?.addEventListener("click",()=>setHeadphones(false));
