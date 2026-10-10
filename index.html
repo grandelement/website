@@ -11063,7 +11063,16 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   golfSizePanel.querySelector('#geGolfBallSize').addEventListener('input',e=>{golfSizes.ball=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   golfSizePanel.querySelector('#geGolfCupSize').addEventListener('input',e=>{golfSizes.cup=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   golfSizePanel.querySelector('#geGolfShotPower').addEventListener('input',e=>{golfSizes.power=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
+  function applyGolfTeleportBackground(){
+    // Reuse the exact image collection used by Blue Sun teleportation.
+    if(typeof BG_LIST==='undefined'||!BG_LIST.length)return;
+    const image=BG_LIST[(level-1)%BG_LIST.length];
+    board.style.backgroundImage='linear-gradient(rgba(0,7,20,.32),rgba(0,7,20,.48)),url("'+image+'")';
+    board.style.backgroundSize='cover,cover';
+    board.style.backgroundPosition='center,center';
+  }
   function renderGolf(){
+    applyGolfTeleportBackground();
     const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);obstacles=s.walls;courseRails=s.rails||[];
     mode.classList.toggle('geGolfShapedCourse',!!s.poly);
     let shape='';
@@ -12804,6 +12813,10 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 #gameOptionsPanel .geGameControlCard.geViewHub #geGameHomeTopBtn{display:none!important}
 #gameOptionsPanel .geGameControlCard.geViewDetail #geGameHomeTopBtn{display:inline-flex!important}
 #gameOptionsPanel #gameExitBtn{font-size:10px!important;min-width:0!important}
+</style>
+<style id="ge-golf-teleport-backgrounds">
+#geCourseMode .geCourseBoard{background-color:#010713!important}
+#geCourseMode.geGolfShapedCourse .geGolfFloor{fill:rgba(3,20,36,.46)!important}
 </style>
 </body>
 </html>
