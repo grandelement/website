@@ -220,3 +220,157 @@ async function disposeAudio(){
  musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
  voiceInput=null;voiceOutput=null;compressor=null;monitorGain=null;verified=false;
 }
+function recordMime(){
+ const m=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
+ return m.find(type=>MediaRecorder.isTypeSupported?.(type))||"";
+}
+function recorder(dest,key){
+ const mime=recordMime(),r=mime?new MediaRecorder(dest.stream,{mimeType:mime}):new MediaRecorder(dest.stream);
+ chunks[key]=[];r.ondataavailable=e=>{if(e.data?.size)chunks[key].push(e.data)};
+ return r;
+}
+function assemble(key,r){
+ const parts=chunks[key];return parts?.length?new Blob(parts,{type:r.mimeType||recordMime()||"audio/mp4"}):null;
+}
+function beginTake(){
+ if(!open||loading||recording||!ctx||!verified||!micStream?.active){
+  say("Connect both MUSIC and YOU before recording.");return;
+ }
+ if(!window.MediaRecorder){say("MediaRecorder is unavailable in this browser.");return}
+ stopReview();
+ try{
+  recMusic=recorder(musicDest,"music");
+  recVoice=recorder(voiceDest,"voice");
+  recMix=recorder(mixDest,"mix");
+  const clock=ctx.currentTime,offsets={};
+  // All buses are driven by the SAME AudioContext clock, with measured offsets.
+  recMusic.start(200);offsets.music=ctx.currentTime-clock;
+  recVoice.start(200);offsets.voice=ctx.currentTime-clock;
+  recMix.start(200);offsets.mix=ctx.currentTime-clock;
+  takeMeta={version:2,id:new Date().toISOString(),source:sourceURL,mode:sourceMode,
+   sourcePosition:privateAudio.currentTime,clockStart:clock,offsets,
+   music:value(E.music),voice:value(E.voice),gain:value(E.gain),compression:value(E.compression),
+   effect:fxMode,approximate:sourceMode==="radio"};
+  startedAt=performance.now()/1000;recording=true;
+  mode("recording");say("RECORDING · Clean MUSIC, dry YOU and mix are all being saved.");
+ }catch(err){
+  for(const r of [recMusic,recVoice,recMix])try{if(r?.state==="recording")r.stop()}catch(_e){}
+  say("Recording failed: "+errorString(err));mode("record");
+ }
+}
+function stopOne(r,key){
+ return new Promise(resolve=>{
+  if(!r){resolve();return}
+  if(r.state==="inactive"){take[key]=assemble(key,r);resolve();return}
+  const done=()=>{take[key]=assemble(key,r);resolve()};
+  r.addEventListener("stop",done,{once:true});
+  try{r.requestData();r.stop()}catch(_e){done()}
+  setTimeout(resolve,2200);
+ });
+}
+async function stopTake(){
+ if(!recording)return;
+ recording=false;E.record.disabled=true;
+ const duration=performance.now()/1000-startedAt;
+ say("Finalizing your raw tracks and mixed preview…");
+ await Promise.all([stopOne(recMusic,"music"),stopOne(recVoice,"voice"),stopOne(recMix,"mix")]);
+ if(takeMeta)takeMeta.duration=duration;
+ if(take.mix&&take.voice&&take.music){
+  const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
+  if(old.startsWith("blob:"))URL.revokeObjectURL(old);
+  document.body.classList.add("iam-has-take");mode("play");
+  E.timer.textContent=fmt(duration);
+  await saveTake();
+  say(savedWarning||"Take ready. MIX + original dry YOU + MUSIC saved. Tap center to listen.");
+ }else{
+  mode("record");say("One or more tracks were empty. Check your signal. Existing recorded data remains available.");
+ }
+ E.record.disabled=false;
+}
+async function saveTake(){
+ savedWarning="";
+ try{
+  const db=await new Promise((resolve,reject)=>{
+   const req=indexedDB.open("ge-iam-sessions-v2",1);
+   req.onupgradeneeded=()=>req.result.createObjectStore("takes",{keyPath:"id"});
+   req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+  await new Promise((resolve,reject)=>{
+   const tx=db.transaction("takes","readwrite");
+   tx.objectStore("takes").put({id:takeMeta.id,meta:takeMeta,music:take.music,voice:take.voice,mix:take.mix});
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+  db.close();
+ }catch(err){savedWarning="Take still in memory; permanent save failed. Export all stems now. "+errorString(err)}
+}
+async function restoreLatest(){
+ try{
+  const db=await new Promise((resolve,reject)=>{
+   const q=indexedDB.open("ge-iam-sessions-v2",1);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);
+  });
+  const obj=await new Promise((resolve,reject)=>{
+   const req=db.transaction("takes").objectStore("takes").openCursor(null,"prev");
+   req.onsuccess=()=>resolve(req.result?.value||null);req.onerror=()=>reject(req.error);
+  });
+  db.close();
+  if(!obj){say("No saved private take on this device.");return}
+  take={music:obj.music,voice:obj.voice,mix:obj.mix};takeMeta=obj.meta;
+  const old=E.take.src;E.take.src=URL.createObjectURL(take.mix);
+  if(old.startsWith("blob:"))URL.revokeObjectURL(old);
+  mode("play");document.body.classList.add("iam-has-take");
+  say("Latest saved private recording restored.");
+ }catch(err){say("Could not restore take: "+errorString(err))}
+}
+function exportAudio(key){
+ const blob=take[key];if(!blob){say("Record a take before exporting this track.");return}
+ const ext=blob.type.includes("mp4")?"m4a":"webm",url=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=url;
+ a.download="Grand-Element-I-AM-"+key+"-"+Date.now()+"."+ext;
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+function stopReview(){
+ if(reviewSources.length){for(const s of reviewSources)try{s.stop()}catch(_e){};reviewSources=[]}
+ try{reviewCtx?.close()}catch(_e){}
+ reviewCtx=null;reviewNodes=null;E.take.pause();reviewing=false;
+ if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(1,ctx.currentTime,.065);
+ if(take.mix)mode("play");
+}
+async function listenTake(){
+ if(!take.mix)return;
+ if(reviewing){stopReview();return}
+ if(musicOutput&&ctx)musicOutput.gain.setTargetAtTime(0,ctx.currentTime,.055);
+ if(!editing){
+  try{
+   E.take.currentTime=0;await E.take.play();
+   reviewing=true;mode("playing");
+   say("Listening to your mix. Tap center again to return to the private song.");
+  }catch(err){say("Review unavailable: "+errorString(err));stopReview()}
+  return;
+ }
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;
+  reviewCtx=new AC();await reviewCtx.resume();
+  const buffers=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
+  const [musicBuffer,voiceBuffer]=await Promise.all(buffers.map(x=>reviewCtx.decodeAudioData(x)));
+  const rm=reviewCtx.createGain(),rv=reviewCtx.createGain();
+  const dry=reviewCtx.createGain(),wet=reviewCtx.createGain(),comp=reviewCtx.createDynamicsCompressor();
+  comp.threshold.value=-27;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=.005;comp.release.value=.16;
+  const delay=reviewCtx.createDelay(1.5),fxWet=reviewCtx.createGain(),feedback=reviewCtx.createGain();
+  rm.connect(reviewCtx.destination);
+  rv.connect(dry);rv.connect(comp);comp.connect(wet);
+  dry.connect(reviewCtx.destination);wet.connect(reviewCtx.destination);
+  dry.connect(delay);wet.connect(delay);delay.connect(fxWet);fxWet.connect(reviewCtx.destination);
+  delay.connect(feedback);feedback.connect(delay);
+  reviewNodes={music:rm,voice:rv,dry,wet,delay,fxWet,feedback};
+  outputSettings();effectSettings();
+  const mb=reviewCtx.createBufferSource(),vb=reviewCtx.createBufferSource();
+  mb.buffer=musicBuffer;vb.buffer=voiceBuffer;mb.connect(rm);vb.connect(rv);
+  const start=reviewCtx.currentTime+.06;
+  mb.start(start,0);vb.start(start,0);
+  reviewSources=[mb,vb];reviewClock=start;
+  mb.onended=()=>{if(reviewing)stopReview()};
+  reviewing=true;mode("playing");
+  say("EDIT preview. Move compression, effects or volumes while the raw tracks play.");
+ }catch(err){say("Raw-stem playback failed: "+errorString(err));stopReview()}
+}
