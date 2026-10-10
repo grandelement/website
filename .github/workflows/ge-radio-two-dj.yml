@@ -1,0 +1,59 @@
+name: GE Radio 2 — DJ UI only
+
+on:
+  push:
+    branches:
+      - ge-radio-station-2
+    paths:
+      - "radio-backend/dj.html"
+      - "radio-backend/dj-entry.html"
+      - "radio-backend/dj-lite.html"
+      - "radio-backend/live-dj.html"
+      - "radio-next/sync-ui.sh"
+      - ".github/workflows/ge-radio-two-dj.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ge-radio-two-dj
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dj-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate DJ release files and deployed-content fingerprint
+        run: sh radio-next/sync-ui.sh
+      - name: Install scoped SSH deploy identity and pinned server fingerprint
+        env:
+          GE2_DEPLOY_SSH_KEY: ${{ secrets.GE2_DEPLOY_SSH_KEY }}
+          GE2_DEPLOY_KNOWN_HOSTS: ${{ secrets.GE2_DEPLOY_KNOWN_HOSTS }}
+          GE2_DEPLOY_USER: ${{ secrets.GE2_DEPLOY_USER }}
+          GE2_DEPLOY_HOST: ${{ secrets.GE2_DEPLOY_HOST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for var in GE2_DEPLOY_SSH_KEY GE2_DEPLOY_KNOWN_HOSTS GE2_DEPLOY_USER GE2_DEPLOY_HOST; do
+            if [[ -z "${!var:-}" ]]; then echo "Missing required deployment secret: $var"; exit 1; fi
+          done
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$GE2_DEPLOY_SSH_KEY" > "$HOME/.ssh/ge2_dj"
+          printf '%s\n' "$GE2_DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/ge2_dj" "$HOME/.ssh/known_hosts"
+          {
+            echo "GE2_DEPLOY_USER=$GE2_DEPLOY_USER"
+            echo "GE2_DEPLOY_HOST=$GE2_DEPLOY_HOST"
+          } >> "$GITHUB_ENV"
+      - name: Publish DJ static assets without restarting the station
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync --archive --checksum --delete \
+            -e "ssh -i $HOME/.ssh/ge2_dj -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            radio-next/site/ \
+            "$GE2_DEPLOY_USER@$GE2_DEPLOY_HOST:/opt/ge-radio-two/radio-next/site/"
