@@ -2150,12 +2150,12 @@ body.iam-studio-open .iamMeters{
 <div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
 
 <script src="../ge-vault-client.js"></script>
-<script src="./iam-private-studio.js?v=20261009-9"></script>
+<script src="./iam-private-studio.js?v=20261009-10"></script>
 <script>
 'use strict';
 
 const CONFIG = Object.freeze({
-  APP_VERSION: '2026.10.09-iam-mic-input-gate-stop-music-v4',
+  APP_VERSION: '2026.10.09-iam-real-mic-radio-stop-v4',
   LOGO_SRC: '../ge-images/images/ge-logo-2.jpg?v=20260914-debug11',
   HOME_URL: 'https://grandelement.github.io/website/',
   CONTACT_EMAIL: 'info@grandelement.com',
@@ -3483,6 +3483,7 @@ async function resumePlayerAfterLive(){
   });
 }
 function reconnectLiveStream(){
+  if(window.GEIAmStudio?.isMusicStopped?.())return;
   if(!state.live||navigator.onLine===false)return;
   if(document.hidden){
     liveState.backgroundReconnectNeeded=true;
@@ -3517,6 +3518,7 @@ document.addEventListener('visibilitychange',()=>{
 
   const shouldRestore=
     state.live &&
+    !window.GEIAmStudio?.isMusicStopped?.() &&
     liveState.backgroundWasPlaying &&
     !recentUserPause() &&
     (audio.paused||liveState.backgroundReconnectNeeded);
@@ -4041,7 +4043,7 @@ window.addEventListener('offline',()=>{
 });
 window.addEventListener('online',()=>{
   if(document.hidden)return;
-  if(state.live && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
+  if(state.live && !window.GEIAmStudio?.isMusicStopped?.() && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
     liveState.backgroundReconnectNeeded=false;
     void resumeLiveAtEdge();
   }
@@ -7329,7 +7331,7 @@ Vector ${vector}. ${pair[1]}.`;
 })();
 
 // I AM private engine v2. Separate file is loaded before this main script.
-window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog});
+window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,pauseRadio:requestUserPause,resumeRadio});
 
 // TEST INTRO: visual/setup prototype for the future public Go On The Air entry.
 // I AM is the private play-along studio: music + user input + monitor/EQ/effects + mixed recording.
