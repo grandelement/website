@@ -718,6 +718,7 @@ function showTakeReady(duration){
 async function stopTake(){
  if(!recording||recordFinishing)return;
  recordFinishing=true;
+ try{
  recording=false;E.record.disabled=true;recorderReady=false;
  try{privateAudio?.pause()}catch(_e){}
  studioMusicStopped=true;syncPrivateTransport();
@@ -754,7 +755,13 @@ async function stopTake(){
  }else if(take.mix&&open&&!reviewing){
   say("Take playable ("+Math.round(take.mix.size/1024)+" KB). Separate stems missing · LISTEN AGAIN and TRY AGAIN work.");
  }
- recordFinishing=false;updateRecordReady();
+ }catch(err){
+  document.body.classList.add("iam-take-error");
+  mode("record");
+  say("Safari stopped finalizing this take: "+errorString(err)+". Tap TRY AGAIN. Any previously saved take remains available.");
+ }finally{
+  recordFinishing=false;updateRecordReady();
+ }
 }
 async function saveTake(){
  savedWarning="";
