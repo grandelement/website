@@ -208,6 +208,22 @@ async function refreshStationSong(){
 }
 setInterval(()=>{void refreshStationSong()},12000);
 setTimeout(()=>{void refreshStationSong()},1400);
+async function refreshMatchForStudio(){
+ const song=await stationSong();
+ if(!open||!state.live||musicHandoffDone)return;
+ cachedSong=song;cachedSongTime=Date.now();
+ const button=get("iamMatchRadioSong");
+ if(button){button.hidden=false;button.disabled=!song}
+ if(song){
+  const position=song.seconds?clamp(Date.now()/1000-song.seconds-2,0,999999):0;
+  get("iamSourceIndicator").textContent="RADIO SONG FOUND · TAP MATCH TO LOAD";
+  get("iamNowPlaying").textContent=song.title+" · "+(position?fmt(position):"start position unknown");
+  say("Radio song identified: "+song.title+". Tap MATCH RADIO SONG to transfer into I AM.");
+ }else{
+  get("iamSourceIndicator").textContent="RADIO SONG NOT IN PLAYER CATALOG";
+  say("This Radio segment could not be matched to a Player song. Tap SONGS to choose manually. Radio stays on.");
+ }
+}
 async function preflight(timeout=4500){
  const samples=new Uint8Array(musicMeter.fftSize),end=performance.now()+timeout;
  while(open&&performance.now()<end){
@@ -730,16 +746,30 @@ async function enter(){
 function hideSongPicker(){
  const picker=get("iamPrivatePicker");if(picker)picker.hidden=true;
 }
-async function selectPrivateSong(url){
+async function selectPrivateSong(url,position=0,radioMatched=false){
  if(!open||!privateAudio||recording){say("Stop the take before changing songs.");return}
  stopReview();if(take.mix)againTake();hideSongPicker();
  const request=++trackChangeToken;
- sourceURL=url;sourceMode="player";verified=false;musicSignalError="";E.record.disabled=true;
+ sourceURL=url;sourceMode=radioMatched?"radio":"player";
+ verified=false;musicSignalError="";E.record.disabled=true;
+ const matchButton=get("iamMatchRadioSong");
+ if(matchButton)matchButton.hidden=true;
  privateAudio.src=url;privateAudio.load();
+ if(position>0){
+  const seekToMatch=()=>{
+   if(request!==trackChangeToken||!open)return;
+   const duration=Number(privateAudio.duration);
+   const target=Number.isFinite(duration)&&duration>0?clamp(position,0,Math.max(0,duration-.08)):position;
+   try{privateAudio.currentTime=target}catch(_e){}
+  };
+  if(privateAudio.readyState>=1)seekToMatch();
+  else privateAudio.addEventListener("loadedmetadata",seekToMatch,{once:true});
+ }
  say("Loading private song…");
  try{
-  if(ctx?.state!=="running")await ctx.resume();
-  await privateAudio.play();
+  const wake=ctx.state==="running"?Promise.resolve():ctx.resume();
+  const playback=privateAudio.play();
+  await Promise.all([wake,playback]);
   if(!(await preflight(4800)))throw new Error("The new song is silent in the recording mixer.");
   if(!open||request!==trackChangeToken)return;
   if(!musicHandoffDone){
@@ -752,7 +782,7 @@ async function selectPrivateSong(url){
   const label=displayTitle(url,false)||"Private Song";
   get("titleBtn").textContent=label;get("iamNowPlaying").textContent=label;
   say("Private song ready: "+label+(micConnected?"":" · Tap YOU to enable mic."));
-  get("iamSourceIndicator").textContent="PRIVATE SONG · VERIFIED";
+  get("iamSourceIndicator").textContent=radioMatched?"RADIO SONG → PRIVATE PLAYER · APPROXIMATE":"PRIVATE SONG · VERIFIED";
   syncPrivateTransport();
  }catch(err){
   verified=false;E.record.disabled=true;musicSignalError=errorString(err);
@@ -845,6 +875,13 @@ get("iamPrivateMusicVolume")?.addEventListener("input",event=>{
 get("iamPrivatePrev")?.addEventListener("click",()=>choosePrivateSong("prev"));
 get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
 get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
+get("iamMatchRadioSong")?.addEventListener("click",()=>{
+ if(!open||recording)return;
+ const match=cachedSong&&(Date.now()-cachedSongTime<20000)?cachedSong:null;
+ if(!match){void refreshMatchForStudio();return}
+ const elapsed=match.seconds?clamp(Date.now()/1000-match.seconds-2,0,999999):0;
+ void selectPrivateSong(match.url,elapsed,true);
+});
 async function toggleStudioMusic(forceStop=false){
  if(!open||recordArming)return;
  const active=musicHandoffDone?privateAudio:audio;
