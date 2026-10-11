@@ -3627,13 +3627,18 @@ function setLiveStatus(text,show=true){
   el.textContent=text||'';
   el.classList.toggle('show',!!show&&!!text);
 }
-let radioWatchTimer=0,radioWatchId=0,radioTimedOut=false;
+let radioWatchTimer=0,radioSlowTimer=0,radioWatchId=0,radioTimedOut=false,radioReconnectFailures=0;
 function clearRadioWatch(){
   if(radioWatchTimer){clearTimeout(radioWatchTimer);radioWatchTimer=0;}
+  if(radioSlowTimer){clearTimeout(radioSlowTimer);radioSlowTimer=0;}
 }
 function watchRadioConnection(){
   clearRadioWatch();radioTimedOut=false;
   const token=++radioWatchId;
+  radioSlowTimer=setTimeout(()=>{
+    if(token!==radioWatchId||(!state.live&&!state.livePreparing)||audio.readyState>=3)return;
+    setLiveStatus('RADIO • still connecting to the station…');
+  },6500);
   radioWatchTimer=setTimeout(()=>{
     if(token!==radioWatchId||(!state.live&&!state.livePreparing))return;
     if(!audio.paused&&audio.readyState>=3)return;
@@ -3643,7 +3648,7 @@ function watchRadioConnection(){
     setLiveStatus('RADIO • no response. Tap RADIO to retry or SHUFFLE for music.');
     setStatus('RADIO connection timed out. Retry or play a library song.');
     updateRadioStartupCue();
-  },11000);
+  },17000);
 }
 function radioPlayFailure(error){
   const why=String(error?.name||'')+' '+String(error?.message||'');
@@ -3723,7 +3728,7 @@ async function resumeRadio(){
   if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
   state.userStarted=true;
   liveState.autoplayBlocked=false;
-  if(radioTimedOut){void resumeLiveAtEdge();return;}
+  if(radioTimedOut){radioReconnectFailures=0;void resumeLiveAtEdge();return;}
 
   // If RADIO has never actually produced audio on this page, the stream is already
   // prepared at the live edge. Play that prepared source directly so one tap works.
@@ -3763,6 +3768,7 @@ async function resumeLiveAtEdge(){
   setLiveMediaSession();
   setLiveStatus('RADIO • joining the current broadcast…',true);
   setStatus('Returning to the current Grand Element Radio broadcast…');
+  radioReconnectFailures=0;
   watchRadioConnection();
   try{
     // Pausing a real radio must not create a personal time-shift buffer.
@@ -3877,6 +3883,7 @@ async function enterLiveMode({deferPlay=false}={}){
 }
 function exitLiveMode(message='RADIO ended.'){
   if(!state.live&&!state.livePreparing)return;
+  radioReconnectFailures=0;
   clearRadioWatch();
   clearLiveReconnect();
   state.live=false;
@@ -3940,14 +3947,22 @@ async function resumePlayerAfterLive(){
 }
 function reconnectLiveStream(){
   if(window.GEIAmStudio?.isMusicStopped?.())return;
-  if(!state.live||navigator.onLine===false)return;
+  if(!state.live||navigator.onLine===false||radioTimedOut)return;
+  if(radioReconnectFailures>=2){
+    clearLiveReconnect();clearRadioWatch();radioTimedOut=true;
+    try{audio.pause();}catch(_e){}
+    setLiveStatus('RADIO • station unreachable. Tap RADIO to retry or SHUFFLE for music.');
+    return;
+  }
   if(document.hidden){
     liveState.backgroundReconnectNeeded=true;
     return;
   }
   clearLiveReconnect();
+  radioReconnectFailures++;
+  setLiveStatus('RADIO • retrying connection ('+radioReconnectFailures+'/2)…');
   liveState.reconnectTimer=setTimeout(async()=>{
-    if(window.GEIAmStudio?.isRadioSuspended?.())return;
+    if(window.GEIAmStudio?.isRadioSuspended?.()||radioTimedOut)return;
     if(!state.live)return;
     try{
       audio.pause();
@@ -4454,7 +4469,7 @@ audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passi
 audio.addEventListener('ended',()=>{if(state.live){reconnectLiveStream();return;}advanceFromEnded();});
 audio.addEventListener('playing',()=>{
   if(state.live||state.livePreparing){
-    clearRadioWatch();radioTimedOut=false;
+    clearRadioWatch();radioTimedOut=false;radioReconnectFailures=0;
     liveState.hasPlayed=true;liveState.everPlayed=true;
     if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
     setLiveStatus('RADIO • playing live');
