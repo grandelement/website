@@ -3556,6 +3556,35 @@ function setLiveStatus(text,show=true){
   el.textContent=text||'';
   el.classList.toggle('show',!!show&&!!text);
 }
+let radioWatchTimer=0,radioWatchId=0,radioTimedOut=false;
+function clearRadioWatch(){
+  if(radioWatchTimer){clearTimeout(radioWatchTimer);radioWatchTimer=0;}
+}
+function watchRadioConnection(){
+  clearRadioWatch();radioTimedOut=false;
+  const token=++radioWatchId;
+  radioWatchTimer=setTimeout(()=>{
+    if(token!==radioWatchId||(!state.live&&!state.livePreparing))return;
+    if(!audio.paused&&audio.readyState>=3)return;
+    radioTimedOut=true;state.livePreparing=false;state.live=true;
+    try{audio.pause();audio.autoplay=false;}catch(_e){}
+    syncModeButtons();
+    setLiveStatus('RADIO • no audio after 11 seconds. Tap RADIO to retry.');
+    setStatus('RADIO connection timed out. Try RADIO again or play a song.');
+    updateRadioStartupCue();
+  },11000);
+}
+function radioPlayFailure(error){
+  const why=String(error?.name||'')+' '+String(error?.message||'');
+  if(/NotAllowedError|gesture|permission/i.test(why)){
+    clearRadioWatch();
+    setLiveStatus('RADIO • iPhone: tap PLAY for sound.');
+  }else{
+    clearRadioWatch();radioTimedOut=true;
+    setLiveStatus('RADIO • connection failed. Tap RADIO to retry.');
+  }
+  updateRadioStartupCue();
+}
 function updateRadioStartupCue(){
   const cue=(
     !liveState.everPlayed &&
@@ -3619,9 +3648,11 @@ function clearLiveReconnect(){
 }
 async function resumeRadio(){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
-  if(!state.live||state.livePreparing)return;
+  if(!state.live&&!state.livePreparing)return;
+  if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
   state.userStarted=true;
   liveState.autoplayBlocked=false;
+  if(radioTimedOut){void resumeLiveAtEdge();return;}
 
   // If RADIO has never actually produced audio on this page, the stream is already
   // prepared at the live edge. Play that prepared source directly so one tap works.
@@ -3630,14 +3661,14 @@ async function resumeRadio(){
       audio.muted=false;
       audio.defaultMuted=false;
       audio.volume=desiredPlaybackVolume(state.currentURL);
+      setLiveStatus('RADIO • connecting to station…');
+      watchRadioConnection();
       await audio.play();
-      setLiveStatus('RADIO • connected to the current broadcast',true);void window.GELiveMetadata?.poll?.();
+      setLiveStatus('RADIO • buffering live audio…');
       setStatus('Grand Element Radio');
       return;
-    }catch(_e){
-      setLiveStatus('RADIO • ready',true);
-      setStatus('Grand Element Radio ready.');
-      updateRadioStartupCue();
+    }catch(error){
+      radioPlayFailure(error);
       return;
     }
   }
@@ -3661,6 +3692,7 @@ async function resumeLiveAtEdge(){
   setLiveMediaSession();
   setLiveStatus('RADIO • joining the current broadcast…',true);
   setStatus('Returning to the current Grand Element Radio broadcast…');
+  watchRadioConnection();
   try{
     // Pausing a real radio must not create a personal time-shift buffer.
     // Throw away the paused connection completely and make a fresh request.
@@ -3678,11 +3710,11 @@ async function resumeLiveAtEdge(){
     audio.src=freshLiveStreamURL();
     audio.load();
     await audio.play();
-    setLiveStatus('RADIO • reconnected to the current broadcast',true);void window.GELiveMetadata?.poll?.();
+    setLiveStatus('RADIO • buffering live audio…');
     setStatus('Grand Element Radio');
-  }catch(_e){
-    setLiveStatus('RADIO • reconnecting to the current broadcast…',true);
-    reconnectLiveStream();
+  }catch(error){
+    radioPlayFailure(error);
+    if(!/NotAllowedError/i.test(String(error?.name||'')))reconnectLiveStream();
   }
 }
 async function enterLiveMode({deferPlay=false}={}){
@@ -3706,6 +3738,7 @@ async function enterLiveMode({deferPlay=false}={}){
   syncModeButtons();
   setLiveStatus('RADIO • connecting to the Grand Element station…',true);
   setStatus('Connecting to Grand Element Radio…');
+  if(!deferPlay)watchRadioConnection();
 
   liveState.returnURL=!isStationID(state.currentURL)?state.currentURL:'';
   liveState.returnTime=Number(audio.currentTime)||0;
@@ -3737,7 +3770,8 @@ async function enterLiveMode({deferPlay=false}={}){
     state.live=true;
     liveState.autoplayBlocked=false;
     syncModeButtons();
-    setLiveStatus('RADIO • ready',true);
+    clearRadioWatch();
+    setLiveStatus('RADIO • ready. Tap PLAY after QR intro.');
     setStatus('Grand Element Radio ready.');
     window.GEQRIntroAudioReady=true;
     updateRadioStartupCue();
@@ -3746,14 +3780,13 @@ async function enterLiveMode({deferPlay=false}={}){
 
   try{
     await audio.play();
-    // LIVE previously skipped the analyser initialization used by normal track clicks.
-    // Re-run after the LIVE stream is actually playing; the MediaElementSource stays single and persistent.
-    await window.GEResumeLiveEQ?.();
+    // Audio must not wait for the optional visualizer to initialize.
+    void window.GEResumeLiveEQ?.();
     state.livePreparing=false;
     state.live=true;
     syncModeButtons();
     window.GELiveVideo?.start?.();
-    setLiveStatus('RADIO • connected to the Grand Element station',true);void window.GELiveMetadata?.poll?.();
+    setLiveStatus('RADIO • buffering live audio…');
     setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
@@ -3767,13 +3800,13 @@ async function enterLiveMode({deferPlay=false}={}){
     liveState.hasPlayed=false;
     liveState.needsFreshEdge=false;
     syncModeButtons();
-    setLiveStatus('RADIO • ready',true);
-    setStatus('Grand Element Radio ready.');
-    updateRadioStartupCue();
+    radioPlayFailure(error);
+    setStatus('RADIO needs a tap or a working station connection.');
   }
 }
 function exitLiveMode(message='RADIO ended.'){
   if(!state.live&&!state.livePreparing)return;
+  clearRadioWatch();
   clearLiveReconnect();
   state.live=false;
   state.livePreparing=false;
@@ -4238,7 +4271,13 @@ function syncMainTransport(){
     playerSeek.value=playerSeek.disabled?'0':String(Math.max(0,Math.min(1000,t/d*1000)));
   }
 }
-playBtn?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else requestUserPause();});
+playBtn?.addEventListener('click',()=>{
+  state.userStarted=true;
+  if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
+    void resumeRadio();return;
+  }
+  if(audio.paused)resumeAudio();else requestUserPause();
+});
 playerSeek?.addEventListener('input',()=>{const d=Number(audio.duration);if(Number.isFinite(d)&&d>0&&!state.live)audio.currentTime=d*(Number(playerSeek.value)||0)/1000;});
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
@@ -4246,12 +4285,12 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   void window.GEResumeLiveEQ?.();
 
-  if(state.live && !state.livePreparing && audio.paused){
-    void resumeRadio();
+  if(state.livePreparing||(state.live&&(audio.paused||radioTimedOut||audio.readyState<3))){
+    // Tapping RADIO while silent always attempts to reconnect.
+    if(radioTimedOut)void resumeLiveAtEdge();
+    else void resumeRadio();
     return;
   }
-
-  if(state.livePreparing)return;
 
   if(state.live){
     liveState.startupCueDismissed=true;
@@ -4329,6 +4368,22 @@ $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} })
 audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('ended',()=>{if(state.live){reconnectLiveStream();return;}advanceFromEnded();});
+audio.addEventListener('playing',()=>{
+  if(state.live||state.livePreparing){
+    clearRadioWatch();radioTimedOut=false;
+    liveState.hasPlayed=true;liveState.everPlayed=true;
+    if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
+    setLiveStatus('RADIO • playing live');
+    setStatus('Grand Element Radio is playing.');
+    updateRadioStartupCue();
+  }
+});
+audio.addEventListener('waiting',()=>{
+  if(state.live&&!audio.paused){setLiveStatus('RADIO • buffering audio…');watchRadioConnection();}
+});
+audio.addEventListener('stalled',()=>{
+  if(state.live&&!audio.paused){setLiveStatus('RADIO • stream stalled. Reconnecting…');watchRadioConnection();}
+});
 audio.addEventListener('play',()=>{
   if(window.GEIAmStudio?.isRadioSuspended?.()){
     try{audio.muted=true;audio.pause()}catch(_e){}
@@ -4365,6 +4420,7 @@ audio.addEventListener('pause',()=>{
   if(state.live && liveState.hasPlayed && !liveState.internalReset){
     liveState.needsFreshEdge=true;
   }
+  if(state.live&&recentUserPause())setLiveStatus('RADIO • paused. Tap PLAY to resume.');
   if(!audio.ended) setStatus(state.live?'RADIO paused':'Paused');
   try{ navigator.mediaSession.playbackState='paused'; }catch(_e){}
   try{if(typeof GE_IOS_AUDIO!=='undefined'&&GE_IOS_AUDIO)eqTapAudio?.pause();}catch(_e){}
@@ -4373,6 +4429,7 @@ audio.addEventListener('pause',()=>{
 audio.addEventListener('error',()=>{
   if(state.livePreparing){return;}
   if(state.live){
+    setLiveStatus('RADIO • stream interrupted. Checking station…');
     if(document.hidden){
       liveState.backgroundReconnectNeeded=true;
       return;
