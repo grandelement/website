@@ -1845,12 +1845,13 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_MULTI_RAY_SOUL_CAP: 24,
   SHIP_MULTI_RAY_SPAWN_BASE_MS: 1350,
   SHIP_MULTI_RAY_SPAWN_PER_RAY_MS: 170,
-  SHIP_MULTI_RAY_ANGLE_LAG: 0.22,
+  SHIP_MULTI_RAY_ANGLE_LAG: 1, // keep ray direction locked to the latest finger position
   SHIP_RAY_TIP_DISTANCE: 0.82,       // rear-of-ship activation point; ray itself still originates at ship center
   SHIP_RAY_TIP_RADIUS: 11,          // compact rear thumb target so it cannot swallow center/quantum gestures
   SHIP_CONTROL_RADIUS: 220,
-  SHIP_CONTROL_DEADZONE: 18,
-  SHIP_CONTROL_MAX_SPEED: 330,
+  SHIP_CONTROL_DEADZONE: 8,
+  SHIP_CONTROL_MAX_SPEED: 950,
+  SHIP_CONTROL_FOLLOW_RESPONSE: 12, // proportional pursuit; fast fingers no longer wait for slow fixed-speed motion
   // GE Body engines: the three ends of the E are thrusters. The middle engine becomes
   // the turbo and grows disproportionately once the Body is being pushed hard.
   SHIP_THRUSTERS_ENABLED: true,
@@ -6440,7 +6441,7 @@ class Ship{
       else rays.push(this.manualRay);
     }
     if(this.manualRays?.size){
-      const lag=Math.max(.04,Math.min(.6,window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_ANGLE_LAG??.22));
+      const lag=Math.max(.04,Math.min(1,Number(window.GE_EASY_SETTINGS?.SHIP_MULTI_RAY_ANGLE_LAG)??1));
       for(const ray of this.manualRays.values()){
         if(Number.isFinite(ray.targetAngle)){
           let d=ray.targetAngle-ray.angle;
@@ -6558,13 +6559,27 @@ class Ship{
       return;
     }
 
-    if(!this.guided && !this.controlActive){
+    if(this.controlActive){
+      // Recompute pursuit EVERY FRAME, even when the finger holds still.
+      // Previously we only updated velocity on pointermove, then the ship
+      // continued along an outdated direction at a hard 320 px/s cap.
+      const dx=this.controlX-this.x,dy=this.controlY-this.y,d=Math.hypot(dx,dy);
+      const dead=Math.max(0,Number(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE)||8);
+      const response=Math.max(4,Math.min(28,Number(window.GE_EASY_SETTINGS?.SHIP_CONTROL_FOLLOW_RESPONSE)||12));
+      const max=Math.max(320,Number(window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED)||950);
+      const available=Math.max(0,d-dead);
+      const move=Math.min(available,Math.min(max,available*response)*Math.max(.001,dt));
+      if(d>0&&move>0){this.vx=dx/d*(move/Math.max(.001,dt));this.vy=dy/d*(move/Math.max(.001,dt));}
+      else{this.vx=0;this.vy=0;}
+      this.controlThrottle=Math.max(0,Math.min(1,Math.hypot(this.vx,this.vy)/max));
+    }else if(!this.guided){
       this.curveP+=dt/this.curveT;
       this.vx+=Math.sin(this.curveP)*18*dt+this.ax*dt*.2;
       this.vy+=Math.cos(this.curveP)*18*dt+this.ay*dt*.2;
     }
 
-    const v=Math.hypot(this.vx,this.vy),vmin=50,vmax=320;
+    const v=Math.hypot(this.vx,this.vy),vmin=50;
+    const vmax=this.controlActive?Math.max(320,Number(window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED)||950):320;
     if(v<vmin && !this.guided && !this.controlActive){
       const a=Math.atan2(this.vy,this.vx);this.vx=Math.cos(a||0)*vmin;this.vy=Math.sin(a||0)*vmin;
     }
@@ -6625,16 +6640,19 @@ class Ship{
       if(!ray)return;
       const len=this.rayLength(),phase=performance.now()/150+slot*.83;
       const remaining=ray.held?1:Math.max(0,(ray.until-performance.now())/(window.GE_EASY_SETTINGS?.SHIP_RAY_DURATION_MS??2400));
+      // Fixed segment budget per ray: the old 4/5px steps drew thousands of
+      // blurred segments per frame with several fingers on an iPhone.
+      const rayStep=Math.max(8,len/(MOBILE?90:130));
       g.save();g.rotate(ray.angle-ang);g.globalCompositeOperation='lighter';g.lineCap='round';
       // Broad frequency field.
-      g.strokeStyle='rgba(72,178,255,.34)';g.shadowColor='rgba(88,198,255,.92)';g.shadowBlur=18;g.globalAlpha=.24+.34*remaining;g.lineWidth=7;
-      g.beginPath();for(let x=8;x<=len;x+=5){const u=x/len,e=.28+.72*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*8+phase)*10*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      g.strokeStyle='rgba(72,178,255,.34)';g.shadowColor='rgba(88,198,255,.92)';g.shadowBlur=MOBILE?9:18;g.globalAlpha=.24+.34*remaining;g.lineWidth=7;
+      g.beginPath();for(let x=8;x<=len;x+=rayStep){const u=x/len,e=.28+.72*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*8+phase)*10*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
       // Second overtone.
       g.strokeStyle='rgba(125,221,255,.76)';g.shadowBlur=10;g.globalAlpha=.50+.30*remaining;g.lineWidth=2.3;
-      g.beginPath();for(let x=8;x<=len;x+=4){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*13-phase*.72)*6.3*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      g.beginPath();for(let x=8;x<=len;x+=rayStep){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*13-phase*.72)*6.3*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
       // Bright center frequency.
       g.strokeStyle='rgba(239,253,255,.98)';g.shadowColor='rgba(177,236,255,.98)';g.shadowBlur=6;g.globalAlpha=.86+.12*remaining;g.lineWidth=1.05;
-      g.beginPath();for(let x=8;x<=len;x+=4){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*19+phase*1.18)*2.2*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
+      g.beginPath();for(let x=8;x<=len;x+=rayStep){const u=x/len,e=.30+.70*Math.sin(Math.PI*Math.min(1,u)),yy=Math.sin(u*Math.PI*19+phase*1.18)*2.2*e;if(x===8)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke();
       g.restore();
     };
     if(this.manualRay&&performance.now()<this.manualRay.until)drawLoveWave(this.manualRay,0);
@@ -6944,7 +6962,17 @@ function endMultiRay(e){
   }
   return true;
 }
-function steerShip(s,x,y,fromCenter=false){const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1,dead=fromCenter?8:(window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??18),R=window.GE_EASY_SETTINGS?.SHIP_CONTROL_RADIUS??220,max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??330;s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;if(d<=dead){s.vx=0;s.vy=0;s.controlThrottle=0;return}const normalized=Math.max(0,Math.min(1,(d-dead)/(R-dead)));s.controlThrottle=normalized;const speed=(fromCenter?18:0)+normalized*(fromCenter?Math.min(max,210):max);s.vx=dx/d*speed;s.vy=dy/d*speed}
+function steerShip(s,x,y,fromCenter=false){
+  const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy)||1;
+  const dead=window.GE_EASY_SETTINGS?.SHIP_CONTROL_DEADZONE??8;
+  const max=window.GE_EASY_SETTINGS?.SHIP_CONTROL_MAX_SPEED??950;
+  const response=window.GE_EASY_SETTINGS?.SHIP_CONTROL_FOLLOW_RESPONSE??12;
+  s.paused=false;s.guided=true;s.controlActive=true;s.controlX=x;s.controlY=y;
+  if(d<=dead){s.vx=0;s.vy=0;s.controlThrottle=0;return}
+  const speed=Math.min(max,Math.max(0,d-dead)*response);
+  s.controlThrottle=Math.max(0,Math.min(1,speed/max));
+  s.vx=dx/d*speed;s.vy=dy/d*speed;
+}
 canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
   if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
