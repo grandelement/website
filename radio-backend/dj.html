@@ -6772,6 +6772,7 @@ html.geDayMode .geClockRail button{background:#e6f0f5!important;color:#194052!im
 html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;color:#15513c!important}
 
 
+.geFanRecap{padding:8px 10px;margin:6px 0 9px;border-left:3px solid #55d8c1;background:rgba(25,80,92,.22);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
 /* Admin-only fan event walkthrough; no extra activity collection. */
 .geFanWalk{border:1px solid #365064;border-radius:9px;padding:8px;background:#06131c}
 .geFanWalkBar{display:flex;gap:6px;align-items:center;margin:8px 0}
@@ -7648,7 +7649,18 @@ function geFanInsights(events,profile,summary){
     '<div class="fanProfileCell"><span>CONTACT ELIGIBILITY</span><b>'+esc(identified&&consent?'CONTACT DETAILS + CONSENT':identified?'NO MARKETING CONSENT':'ANONYMOUS')+'</b></div>'
   ].join('');
   const topMarkup=top.length?top.map(function(x){return '<span class="analyticsChip">'+esc(x[0])+' · '+x[1]+' starts</span>'}).join(''):'<span class="note">No song-start events in the loaded history.</span>';
+  const first=events.length?events.reduce(function(v,e){const t=Number(e.occurred_at)||0;return t&&(v===0||t<v)?t:v},0):0;
+  const last=events.length?events.reduce(function(v,e){return Math.max(v,Number(e.occurred_at)||0)},0):0;
+  const recap=[
+    first?'First recorded activity '+analyticsFmtTime(first)+'.':'No dated visit events found.',
+    last?'Most recent recorded activity '+analyticsFmtTime(last)+'.':'',
+    visitCount?visitCount+' total sessions in the Vault summary.':'',
+    starts.length?starts.length+' song starts in the loaded events.':'',
+    top.length?'Most frequently started in these events: '+top[0][0]+'.':'',
+    identified&&consent?'A contact address and contact consent are recorded.':'No verified marketing contact permission is established.'
+  ].filter(Boolean).join(' ');
   return '<div class="analyticsSection"><h3>FAN ACTIVITY INSIGHTS · OBSERVED EVENTS ONLY</h3>'+
+    '<div class="geFanRecap">'+esc(recap)+'</div>'+
     '<div class="fanProfileGrid">'+markers+'</div>'+
     '<div class="note">Activity counts here reflect the events loaded for the selected date range. They are not an identity match or a psychological profile. Email and mailing address must come from the fan voluntarily.</div>'+
     '<h4 style="margin:7px 0 5px">RECORDED SONG STARTS</h4><div class="analyticsChips">'+topMarkup+'</div></div>';
