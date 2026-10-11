@@ -6771,6 +6771,20 @@ html.geFormatPhone .geClockRail #geStationStatus{font-size:7px!important;max-wid
 html.geDayMode .geClockRail button{background:#e6f0f5!important;color:#194052!important}
 html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;color:#15513c!important}
 
+
+/* Admin-only fan event walkthrough; no extra activity collection. */
+.geFanWalk{border:1px solid #365064;border-radius:9px;padding:8px;background:#06131c}
+.geFanWalkBar{display:flex;gap:6px;align-items:center;margin:8px 0}
+.geFanWalkBar select{background:#102434;color:#e3f2fa;border:1px solid #416078;min-width:0;flex:1;min-height:33px;border-radius:6px;font-size:10px}
+.geFanWalkBar b{white-space:nowrap;font-size:10px}
+.geFanWalkPanel{background:#0a1d2a;border:1px solid #29475b;border-radius:8px;padding:9px;min-height:112px;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.geFanWalkPanel .geFanWalkEvent{font-weight:850;font-size:13px;margin:8px 0}
+.geFanWalkActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.geFanWalkActions button{background:#122e3c;color:#dcf3ff;border:1px solid #3e6375;padding:8px;border-radius:6px;font-size:10px;font-weight:900}
+.geFanWalkActions button:disabled{opacity:.35}
+html.geDayMode .geFanWalk{background:#eef7fc;color:#183044}
+html.geDayMode .geFanWalkPanel{background:#fff;color:#183044}
+
 </style></head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -7589,7 +7603,116 @@ async function saveFanIdentity(anon){
  if(!rr.ok||!d.ok){if(statusEl)statusEl.textContent='SAVE ERROR · '+(d.error||'Could not save profile');return}
  if(statusEl)statusEl.textContent='SAVED';await loadAnalytics();await loadFanDetail(anon)
 }
+
+/* Fan Vault Investigations v1: REVIEW RECORDED EVENTS, NOT KEYSTROKES OR SCREEN REPLAY.
+ * Uses existing authenticated Vault fan-detail response only. Does not collect extra PII.
+ */
+let geFanWalkTimer=null;
+function geFanStopWalk(){
+  if(geFanWalkTimer){clearInterval(geFanWalkTimer);geFanWalkTimer=null;}
+  const b=$('geFanWalkPlay');if(b)b.textContent='PLAY EVENTS'
+}
+function geFanSafeCSV(data){return String(data==null?'':data).replace(/^[=+\-@\t\r]/,'async function loadFanDetail(anon){').replace(/"/g,'""')}
+function geFanDownloadCSV(anon,events){
+  const head=['TIME_UTC','SESSION','SURFACE','EVENT','DETAIL','TRACK','ALBUM','CITY','REGION','COUNTRY'];
+  const rows=[head.map(csvCell).join(',')];
+  events.forEach(function(e){
+    const t=Number(e.occurred_at||0),utc=t>0?new Date(t*1000).toISOString():'';
+    const vals=[utc,e.session_id||'',e.surface||'',e.event_type||'',
+      fanEventDescription(e),e.track_title||'',e.album||'',e.city||'',e.region||'',e.country||''];
+    rows.push(vals.map(function(x){return csvCell(geFanSafeCSV(x))}).join(','));
+  });
+  const blob=new Blob([rows.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='GE-Fan-Activity-'+String(anon||'anonymous').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,50)+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url)},1000)
+}
+function geFanInsights(events,profile,summary){
+  const starts=events.filter(function(e){return e.event_type==='track_start'});
+  const counts=new Map();
+  starts.forEach(function(e){const name=String(e.track_title||'').trim();if(name)counts.set(name,(counts.get(name)||0)+1)});
+  const top=[...counts].sort(function(a,b){return b[1]-a[1]}).slice(0,5);
+  const sessions=new Set(events.map(function(e){return String(e.session_id||'')}).filter(Boolean));
+  const listenSeconds=Number(summary.listened_seconds||0);
+  const visitCount=Number(summary.sessions||0);
+  const identified=!!profile.email||!!profile.phone;
+  const consent=!!profile.consent_contact;
+  const bucket=visitCount>=2?'RETURNING FAN':visitCount===1?'FIRST RECORDED SESSION':'SESSION COUNT UNCONFIRMED';
+  const attentive=starts.length>=3||listenSeconds>=600;
+  const markers=[
+    '<div class="fanProfileCell"><span>ENGAGEMENT (RECORDED)</span><b>'+esc(attentive?'MUSIC ACTIVITY':'EARLY ACTIVITY')+'</b></div>',
+    '<div class="fanProfileCell"><span>VISIT PATTERN</span><b>'+esc(bucket)+'</b></div>',
+    '<div class="fanProfileCell"><span>LOADED SESSIONS</span><b>'+sessions.size+'</b></div>',
+    '<div class="fanProfileCell"><span>LOADED SONG STARTS</span><b>'+starts.length+'</b></div>',
+    '<div class="fanProfileCell"><span>CONTACT ELIGIBILITY</span><b>'+esc(identified&&consent?'CONTACT DETAILS + CONSENT':identified?'NO MARKETING CONSENT':'ANONYMOUS')+'</b></div>'
+  ].join('');
+  const topMarkup=top.length?top.map(function(x){return '<span class="analyticsChip">'+esc(x[0])+' · '+x[1]+' starts</span>'}).join(''):'<span class="note">No song-start events in the loaded history.</span>';
+  return '<div class="analyticsSection"><h3>FAN ACTIVITY INSIGHTS · OBSERVED EVENTS ONLY</h3>'+
+    '<div class="fanProfileGrid">'+markers+'</div>'+
+    '<div class="note">Activity counts here reflect the events loaded for the selected date range. They are not an identity match or a psychological profile. Email and mailing address must come from the fan voluntarily.</div>'+
+    '<h4 style="margin:7px 0 5px">RECORDED SONG STARTS</h4><div class="analyticsChips">'+topMarkup+'</div></div>';
+}
+function geFanStartWalk(events,anon){
+  geFanStopWalk();
+  const source=events.slice().sort(function(a,b){return Number(a.occurred_at||0)-Number(b.occurred_at||0)});
+  let i=0,play=false;
+  const sessions=[];
+  const seen=new Set();
+  source.forEach(function(e){
+    const s=String(e.session_id||'').trim();
+    if(s&&!seen.has(s)){seen.add(s);sessions.push(s)}
+  });
+  const selector=$('geFanWalkSession'),counter=$('geFanWalkCounter'),content=$('geFanWalkItem'),prev=$('geFanWalkPrev'),
+        next=$('geFanWalkNext'),playBtn=$('geFanWalkPlay'),status=$('geFanWalkStatus');
+  if(!selector||!counter||!content)return;
+  selector.innerHTML='<option value="">ALL LOADED SESSIONS</option>'+sessions.map(function(id,n){return '<option value="'+esc(id)+'">SESSION '+(n+1)+' · '+esc(id.slice(0,10))+'</option>'}).join('');
+  let active=source.slice();
+  function render(){
+    const e=active[i];
+    counter.textContent=e?(i+1)+' / '+active.length:'0 / 0';
+    if(prev)prev.disabled=!e||i===0;
+    if(next)next.disabled=!e||i>=active.length-1;
+    if(!e){content.textContent='No events in this session.';return}
+    const parts=[
+      '<b>'+esc(analyticsFmtTime(e.occurred_at)||'Unknown time')+'</b>',
+      '<span class="analyticsChip">'+esc(String(e.event_type||'event').replace(/_/g,' ').toUpperCase())+'</span>',
+      '<div class="geFanWalkEvent">'+esc(fanEventDescription(e))+'</div>',
+      '<div class="note">PAGE · '+esc(e.page_path||e.page_url||'Unavailable')+'</div>',
+      '<div class="note">SESSION · '+esc(e.session_id||'Unavailable')+'</div>'
+    ];
+    content.innerHTML=parts.join('');
+  }
+  if(prev)prev.onclick=function(){geFanStopWalk();i=Math.max(0,i-1);render()};
+  if(next)next.onclick=function(){geFanStopWalk();i=Math.min(active.length-1,i+1);render()};
+  selector.onchange=function(){
+    geFanStopWalk();i=0;active=source.filter(function(e){return !selector.value||e.session_id===selector.value});render()
+  };
+  if(playBtn)playBtn.onclick=function(){
+    if(geFanWalkTimer){geFanStopWalk();return}
+    if(!active.length)return;
+    if(i>=active.length-1)i=0;
+    playBtn.textContent='PAUSE';
+    geFanWalkTimer=setInterval(function(){
+      if(i>=active.length-1){geFanStopWalk();return}
+      i++;render();
+    },1250);render();
+  };
+  if(status)status.textContent='Recorded event walkthrough, not a video or keystroke replay. Only tracked actions appear.';
+  const exportBtn=$('geFanWalkExport');
+  if(exportBtn)exportBtn.onclick=function(){geFanDownloadCSV(anon,active)};
+  const copyBtn=$('geFanWalkCopy');
+  if(copyBtn)copyBtn.onclick=function(){
+    const summary=active.map(function(e){return (e.occurred_at?new Date(Number(e.occurred_at)*1000).toISOString():'')+' · '+(e.event_type||'')+' · '+fanEventDescription(e)}).join('\n');
+    const report='GE FAN VAULT ACTIVITY\nFan ID: '+anon+'\nRecorded events: '+active.length+'\n\n'+summary;
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(report).then(function(){status.textContent='Activity summary copied.'}).catch(function(){status.textContent='Could not copy to clipboard.'});
+    else{status.textContent='Clipboard not supported. Use EXPORT CSV.'}
+  };
+  render();
+}
+
 async function loadFanDetail(anon){
+ geFanStopWalk();
  if(!anon)return;analyticsCurrentFan=anon;
  const box=$('analyticsFanDetail');box.classList.add('show');box.innerHTML='<div class="analyticsStatus">LOADING FAN HISTORY…</div>';
  Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.toggle('selected',r.dataset.anon===anon)});
@@ -7619,13 +7742,15 @@ async function loadFanDetail(anon){
    '<div class="fanProfileCell"><span>CONSENT</span><b>'+esc(consent)+'</b></div>'+
    (deviceText?'<div class="fanProfileCell"><span>DEVICE</span><b>'+esc(deviceText)+'</b></div>':'')+
    (ua?'<div class="fanProfileCell"><span>BROWSER</span><b>'+esc(ua)+'</b></div>':'')+
-  '</div>'+summaryHtml+
+  '</div>'+summaryHtml+geFanInsights(events,profile,summary)+
+  '<div class="analyticsSection geFanWalk"><h3>REVIEW RECORDED FAN VISIT · EVENT-BY-EVENT</h3><div class="note" id="geFanWalkStatus">Reconstructs tracked actions, never keystrokes or screen recordings.</div><div class="geFanWalkBar"><select id="geFanWalkSession" aria-label="Choose recorded visit session"></select><b id="geFanWalkCounter">0 / 0</b></div><div class="geFanWalkPanel" id="geFanWalkItem"></div><div class="geFanWalkActions"><button type="button" id="geFanWalkPrev">PREVIOUS</button><button type="button" id="geFanWalkPlay">PLAY EVENTS</button><button type="button" id="geFanWalkNext">NEXT</button><button type="button" id="geFanWalkExport">EXPORT CSV</button><button type="button" id="geFanWalkCopy">COPY LOG</button></div></div>'+
   '<div class="fanIdentity"><input id="fanIdentityName" maxlength="200" placeholder="Identify / nickname this fan" value="'+esc(nickname)+'"><textarea id="fanIdentityNotes" maxlength="2000" placeholder="Private notes">'+esc(profile.notes||'')+'</textarea><button id="fanIdentitySave">SAVE PROFILE</button></div>'+
   '<div class="analyticsStatus" id="fanIdentityStatus"></div>'+
   '<div class="analyticsTableWrap fanTimeline"><table class="analyticsTable"><thead><tr><th>TIME</th><th>EVENT</th><th>DETAIL</th><th>LOCATION</th></tr></thead><tbody>'+
   events.map(function(e){const dt=e.occurred_at?analyticsFmtTime(e.occurred_at):'',l=[e.city,e.region,e.country].filter(Boolean).join(', ');return '<tr><td>'+esc(dt)+'</td><td>'+esc(e.event_type||'')+'</td><td>'+esc(fanEventDescription(e))+'</td><td>'+esc(l)+'</td></tr>'}).join('')+
   '</tbody></table></div>';
-  $('fanDetailClose').onclick=function(){box.classList.remove('show');analyticsCurrentFan='';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};
+  geFanStartWalk(events,anon);
+  $('fanDetailClose').onclick=function(){geFanStopWalk();box.classList.remove('show');analyticsCurrentFan='';Array.from(document.querySelectorAll('#analyticsFans .fanRow')).forEach(function(r){r.classList.remove('selected')})};
   $('fanIdentitySave').onclick=function(){saveFanIdentity(anon).catch(function(e){$('fanIdentityStatus').textContent='SAVE ERROR · '+(e.message||e)})};
   $('fanIdentityName').addEventListener('keydown',function(e){if(e.key==='Enter')$('fanIdentitySave').click()})
  }catch(e){box.innerHTML='<div class="analyticsStatus">FAN DETAIL ERROR · '+esc(e.message||e)+'</div>'}
