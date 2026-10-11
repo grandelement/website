@@ -3215,8 +3215,8 @@ body:not(.game-mode-active) .moon::after{inset:-14%!important;background:radial-
 body:not(.game-mode-active) .moon img{box-shadow:0 0 9px 3px rgba(242,252,255,.72),0 0 20px 7px rgba(105,211,255,.48),0 0 40px 12px rgba(65,165,255,.28)!important;filter:brightness(calc(1.05 + var(--moon-level) * .45)) saturate(calc(1 + var(--moon-level) * .28))!important}
 body:not(.game-mode-active) .moon.radio-live-reactive::before{transform:scale(calc(.94 + var(--moon-level) * .42))!important;opacity:calc(.30 + var(--moon-level) * .70)!important}
 body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(calc(.94 + var(--moon-level) * .26))!important;opacity:calc(.20 + var(--moon-level) * .65)!important}
-@keyframes geMoonOfflinePulseStrong{0%,100%{transform:scale(.94);opacity:.24}50%{transform:scale(1.18);opacity:.62}}
-@keyframes geMoonOfflineHaloStrong{0%,100%{transform:scale(.96);opacity:.14}50%{transform:scale(1.11);opacity:.42}}
+@keyframes geMoonOfflinePulseStrong{0%,100%{transform:scale(.94);opacity:.24}50%{transform:scale(1.09);opacity:.62}}
+@keyframes geMoonOfflineHaloStrong{0%,100%{transform:scale(.96);opacity:.14}50%{transform:scale(1.06);opacity:.42}}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulseStrong 2.03s ease-in-out infinite!important}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHaloStrong 2.03s ease-in-out infinite!important}
 </style><style id="ge-about-mobile-format-v1">
@@ -3417,18 +3417,18 @@ body.ge-body-race-active .geCourseMode{display:none!important}
   50%{box-shadow:0 0 24px rgba(90,210,255,.72),0 0 42px rgba(60,150,255,.24),inset 0 0 14px rgba(115,220,255,.14)}
 }
 
-/* Radio moon: about half the old halo brightness and a slightly tighter footprint. */
+/* Radio Moon: compact blue-white pulse with the outer haze kept near its rim. */
 body:not(.game-mode-active) .moon::before{
-  inset:-18%!important;
+  inset:-12%!important;
   background:radial-gradient(circle,rgba(255,255,255,.48) 0 8%,rgba(211,244,255,.29) 25%,rgba(89,194,255,.13) 51%,rgba(67,166,255,0) 76%)!important;
-  box-shadow:0 0 11px rgba(232,250,255,.39),0 0 24px rgba(96,205,255,.27),0 0 45px rgba(58,155,255,.18)!important
+  box-shadow:0 0 9px rgba(232,250,255,.39),0 0 18px rgba(96,205,255,.27),0 0 30px rgba(58,155,255,.18)!important
 }
 body:not(.game-mode-active) .moon::after{
-  inset:-11%!important;
+  inset:-7%!important;
   background:radial-gradient(circle,rgba(255,255,255,0) 38%,rgba(202,240,255,.23) 53%,rgba(99,202,255,.11) 65%,rgba(65,165,255,0) 79%)!important
 }
 body:not(.game-mode-active) .moon img{
-  box-shadow:0 0 6px 2px rgba(242,252,255,.42),0 0 13px 4px rgba(105,211,255,.25),0 0 25px 8px rgba(65,165,255,.14)!important;
+  box-shadow:0 0 6px 2px rgba(242,252,255,.42),0 0 11px 3px rgba(105,211,255,.25),0 0 18px 6px rgba(65,165,255,.14)!important;
   filter:brightness(calc(1.025 + var(--moon-level) * .24)) saturate(calc(1 + var(--moon-level) * .18))!important
 }
 body:not(.game-mode-active) .moon.radio-live-reactive::before{transform:scale(var(--moon-scale))!important;opacity:var(--moon-opacity)!important}
@@ -4897,7 +4897,9 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
 /* ========= RADIO MOON ========= */
 const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
-const ORBIT_SEC = 60, PHASE0 = -Math.PI/2;
+// The Moon is the Blue Sun's living twelve-hour clock hand.
+// Clockwise angles are based on the visitor's browser-local time.
+const PHASE0 = -Math.PI/2, CLOCK_HOURS = 12;
 const OSC_PX = 30, OSC_SEC = 90;
 let orbitBaseR=160;
 function refreshOrbitGeometry(){
@@ -4915,8 +4917,10 @@ function tickOrbit(){
   if(document.body.classList.contains('game-mode-active')){
     setTimeout(()=>requestAnimationFrame(tickOrbit),250); return;
   }
-  const t=Date.now()/1000;
-  const angle=PHASE0+(t%ORBIT_SEC)/ORBIT_SEC*Math.PI*2;
+  const clock=new Date();
+  const localMs=((clock.getHours()%CLOCK_HOURS)*3600+clock.getMinutes()*60+clock.getSeconds())*1000+clock.getMilliseconds();
+  const angle=PHASE0+(localMs/(CLOCK_HOURS*3600000))*Math.PI*2;
+  const t=clock.getTime()/1000;
   const r=orbitBaseR+OSC_PX*Math.sin((t/OSC_SEC)*Math.PI*2);
   orbit.style.transform=`rotate(${angle}rad)`;
   moon.style.transform=`translate(${r}px,-50%) rotate(${-angle}rad)`;
