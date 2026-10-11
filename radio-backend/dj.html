@@ -7612,7 +7612,7 @@ function geFanStopWalk(){
   if(geFanWalkTimer){clearInterval(geFanWalkTimer);geFanWalkTimer=null;}
   const b=$('geFanWalkPlay');if(b)b.textContent='PLAY EVENTS'
 }
-function geFanSafeCSV(data){return String(data==null?'':data).replace(/^[=+\-@\t\r]/,'async function loadFanDetail(anon){').replace(/"/g,'""')}
+function geFanSafeCSV(data){return String(data==null?'':data).replace(/^[=+\-@\t\r]/,function(x){return "'"+x})}
 function geFanDownloadCSV(anon,events){
   const head=['TIME_UTC','SESSION','SURFACE','EVENT','DETAIL','TRACK','ALBUM','CITY','REGION','COUNTRY'];
   const rows=[head.map(csvCell).join(',')];
@@ -11451,7 +11451,7 @@ $('samplePad').onclick=function(e){const b=e.target.closest('[data-sample-slot]'
 function syncGeModalFocusV111(){const open=!!document.querySelector('.modal.show');document.body.classList.toggle('geModalFocus',open)}
 document.querySelectorAll('.modal').forEach(function(m){new MutationObserver(syncGeModalFocusV111).observe(m,{attributes:true,attributeFilter:['class']})});
 $('analyticsOpen').onclick=function(){$('analyticsModal').classList.add('show');syncGeModalFocusV111();applyAnalyticsScale(0);updateAscapDue();loadAnalytics()};
-$('analyticsClose').onclick=function(){$('analyticsModal').classList.remove('show')};
+$('analyticsClose').onclick=function(){geFanStopWalk();$('analyticsModal').classList.remove('show')};
 $('analyticsRefresh').onclick=function(){loadAnalytics()};
 $('analyticsRange').onchange=function(){const custom=this.value==='custom';$('analyticsCustom').classList.toggle('show',custom);if(custom)setDefaultCustomRange();else loadAnalytics()};
 $('analyticsCustomApply').onclick=function(){loadAnalytics()};
