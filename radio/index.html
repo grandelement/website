@@ -3640,8 +3640,8 @@ function watchRadioConnection(){
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     try{audio.pause();audio.autoplay=false;}catch(_e){}
     syncModeButtons();
-    setLiveStatus('RADIO • no audio after 11 seconds. Tap RADIO to retry.');
-    setStatus('RADIO connection timed out. Try RADIO again or play a song.');
+    setLiveStatus('RADIO • no response. Tap RADIO to retry or SHUFFLE for music.');
+    setStatus('RADIO connection timed out. Retry or play a library song.');
     updateRadioStartupCue();
   },11000);
 }
@@ -3652,7 +3652,7 @@ function radioPlayFailure(error){
     setLiveStatus('RADIO • iPhone: tap PLAY for sound.');
   }else{
     clearRadioWatch();radioTimedOut=true;
-    setLiveStatus('RADIO • connection failed. Tap RADIO to retry.');
+    setLiveStatus('RADIO • unavailable. Tap RADIO to retry or SHUFFLE for music.');
   }
   updateRadioStartupCue();
 }
@@ -4390,6 +4390,17 @@ $('shuffleBtn').addEventListener('click',()=>{
   titleBtn.textContent=anchor?displayTitle(anchor,!state.shuffle):'Choose a track';
   fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
   window.GELoudness?.scanNextFive?.();
+  // If the station is silent, SHUFFLE becomes the reliable iPhone fallback.
+  // The song starts directly in this button's user-gesture handler.
+  if(audio.paused){
+    const next=state.shuffle?pickWeightedShuffle():allowedCatalog()[0];
+    if(next){
+      setLiveStatus('PLAYER • starting an album song while Radio is unavailable.');
+      void playURL(next,{record:state.shuffle,backgroundChange:true,userAction:true});
+    }else{
+      setLiveStatus('PLAYER • no downloaded or online songs available. Check connection.');
+    }
+  }
 });
 $('legacyBtn').addEventListener('click',()=>{
   if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Library mode changed.');
