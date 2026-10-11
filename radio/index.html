@@ -7388,7 +7388,22 @@ Vector ${vector}. ${pair[1]}.`;
     // No action selected: simply close the arrival experience.
     if(!wantsPrivate&&!wantsPost){clearTimeout(arrivalRevealTimer);arrivalRevealTimer=0;arrivalContact?.classList.remove('open');arrivalContactShown=false;arrivalDismissed=true;document.body.classList.remove('arrival-mode');return;}
 
-    const payload={type:'inner-horizon-reflection',text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',lat:arrivalLocation?.checked?arrivalGeo.lat:null,lon:arrivalLocation?.checked?arrivalGeo.lon:null};
+    // Preserve a first-party correlation key for private conversations. The backend
+    // must use it only as a proposed link, validate the submitted fields, and never
+    // infer identity or marketing consent solely from an IP or anonymous browser ID.
+    const fanVaultAnonId=String(window.GEVault?.anonId||'').slice(0,160);
+    const fanVaultSessionId=String(window.GEVault?.sessionId||'').slice(0,160);
+    const messageId=window.crypto?.randomUUID?.()||('ge-msg-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+    const payload={type:'inner-horizon-reflection',message_id:messageId,
+      anon_id:fanVaultAnonId,session_id:fanVaultSessionId,
+      source_surface:'radio',source_page:location.pathname,
+      text:textValue,email:wantsResponse?email:'',responseRequested:wantsResponse,
+      marketingConsent:false, // A request for one reply is not a newsletter opt-in.
+      track:(titleBtn?.textContent||'').trim(),created:new Date().toISOString(),
+      to:CONFIG.CONTACT_EMAIL,shareLocation:!!arrivalLocation?.checked,
+      locationLabel:arrivalLocation?.checked?(arrivalLocationText?.value||'').trim():'',
+      lat:arrivalLocation?.checked?arrivalGeo.lat:null,
+      lon:arrivalLocation?.checked?arrivalGeo.lon:null};
     try{localStorage.setItem('GE_LAST_INNER_HORIZON_DRAFT_V1',JSON.stringify(payload));}catch(_e){}
 
     let privateResult={ok:true};
@@ -7399,6 +7414,9 @@ Vector ${vector}. ${pair[1]}.`;
       else if(!privateResult.ok){if(arrivalStatus)arrivalStatus.textContent='Saved on this device, but the private message could not be sent.';}
       else {
         privateMessageSent=true;
+        // No need to preserve sent private text in browser storage indefinitely.
+        try{localStorage.removeItem('GE_LAST_INNER_HORIZON_DRAFT_V1');}catch(_e){}
+        try{window.GEVault?.track?.('radio','private_message_sent',{message_id:messageId,reply_requested:wantsResponse,has_contact_email:!!email});}catch(_e){}
         if(arrivalPrivateSendBtn){
           arrivalPrivateSendBtn.disabled=true;
           arrivalPrivateSendBtn.textContent='Sent';
