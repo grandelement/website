@@ -3740,7 +3740,7 @@ async function resumeRadio(){
       setLiveStatus('RADIO • connecting to station…');
       watchRadioConnection();
       await audio.play();
-      setLiveStatus('RADIO • buffering live audio…');
+      setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
       setStatus('Grand Element Radio');
       return;
     }catch(error){
@@ -3787,7 +3787,7 @@ async function resumeLiveAtEdge(){
     audio.src=freshLiveStreamURL();
     audio.load();
     await audio.play();
-    setLiveStatus('RADIO • buffering live audio…');
+    setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
     setStatus('Grand Element Radio');
   }catch(error){
     radioPlayFailure(error);
@@ -3863,7 +3863,7 @@ async function enterLiveMode({deferPlay=false}={}){
     state.live=true;
     syncModeButtons();
     window.GELiveVideo?.start?.();
-    setLiveStatus('RADIO • buffering live audio…');
+    setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
     setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
