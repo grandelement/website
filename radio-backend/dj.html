@@ -6773,6 +6773,14 @@ html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;colo
 
 
 .geFanRecap{padding:8px 10px;margin:6px 0 9px;border-left:3px solid #55d8c1;background:rgba(25,80,92,.22);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.geFanCorrespondence,.geFanCalendar{border:1px solid #355265;border-radius:9px;padding:10px;margin-top:10px}
+.geFanMessage{border:1px solid #34566a;border-radius:8px;background:rgba(12,43,58,.55);padding:10px;margin-top:8px}
+.geFanMessageHead{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:7px;font-size:11px}
+.geFanMessageHead span{color:#9cb5c1;font-size:9px}
+.geFanMessageText{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.5;margin:8px 0}
+.geFanAppointment{padding:9px;border:1px solid #34566a;border-radius:8px;margin-top:7px;font-size:11px}
+html.geDayMode .geFanMessage{background:#f6fcff;color:#142f40}
+
 /* Admin-only fan event walkthrough; no extra activity collection. */
 .geFanWalk{border:1px solid #365064;border-radius:9px;padding:8px;background:#06131c}
 .geFanWalkBar{display:flex;gap:6px;align-items:center;margin:8px 0}
@@ -7629,6 +7637,50 @@ function geFanDownloadCSV(anon,events){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(function(){URL.revokeObjectURL(url)},1000)
 }
+/* Fan correspondence is displayed only if the authenticated Vault API already links it.
+   The website alone MUST NOT guess fan identity based on matching IP/ASN.
+   Sending a private message does not imply consent to promotional email.
+ */
+function geFanMessageArchive(data,anon){
+ const messages=Array.isArray(data&&data.messages)?data.messages:
+                Array.isArray(data&&data.private_messages)?data.private_messages:null;
+ const count=messages?messages.length:0;
+ const verifiedContact=!!(data&&data.profile&&data.profile.consent_contact);
+ const info='<div class="note">Correspondence stays private to the owner. Only messages confirmed to belong to this fan belong here. Shared IP addresses are not proof of identity. Reply requests are not promotional subscriptions.</div>';
+ if(messages===null){
+  return '<div class="analyticsSection geFanCorrespondence"><h3>PRIVATE CORRESPONDENCE · FAN FOLDER</h3>'+
+   info+'<div class="analyticsStatus">Message archive not connected to the Fan Vault API yet. Existing messages may only be in the GE private-message inbox. No historical message content was invented or imported.</div></div>';
+ }
+ const rows=messages.slice().sort(function(a,b){return Number(a.occurred_at||a.received_at||0)-Number(b.occurred_at||b.received_at||0)});
+ const records=rows.slice(-100).map(function(m){
+  let time=Number(m.occurred_at||m.received_at||0),at=time?analyticsFmtTime(time):String(m.created||m.created_at||'');
+  const requested=!!(m.responseRequested||m.response_requested);
+  const status=requested?'REPLY REQUESTED':'RECEIVED';
+  const subject=String(m.subject||m.type||'Fan message').slice(0,200);
+  const message=String(m.text||m.message||'').slice(0,10000);
+  return '<article class="geFanMessage"><div class="geFanMessageHead"><b>'+esc(subject)+'</b><span>'+esc(at)+' · '+status+'</span></div>'+
+    '<div class="geFanMessageText">'+esc(message)+'</div>'+
+    '<div class="note">CONTACT · '+esc(String(m.email||'Not supplied'))+'</div></article>';
+ }).join('');
+ return '<div class="analyticsSection geFanCorrespondence"><h3>PRIVATE CORRESPONDENCE · '+count+' LINKED MESSAGES</h3>'+info+
+ (records||'<div class="analyticsStatus">No linked messages in this API response.</div>')+
+ '<div class="note">Contact permission must be established separately before sending promotions.</div></div>';
+}
+function geFanAppointmentSummary(data){
+ const requests=Array.isArray(data&&data.appointment_requests)?data.appointment_requests:null;
+ const card=requests?requests.slice(-20).map(function(r){
+  const when=String(r.requested_at||r.date||r.start||'Date not yet agreed');
+  const what=String(r.subject||r.purpose||'Meeting request');
+  const current=String(r.status||'pending');
+  return '<div class="geFanAppointment"><b>'+esc(what)+'</b><div>'+esc(when)+' · '+esc(current)+'</div></div>';
+ }).join(''):'';
+ return '<div class="analyticsSection geFanCalendar"><h3>DATES & GOOGLE CALENDAR</h3>'+
+  '<div class="note">Fan requests are proposals, not confirmed events. GE Studios privately checks its calendar availability; no calendar details are sent to fans. An event must be approved before it is created.</div>'+
+  (requests?(card||'<div class="analyticsStatus">No meeting requests in this record.</div>'):
+    '<div class="analyticsStatus">Calendar booking is not yet connected to this Vault profile.</div>')+
+ '</div>';
+}
+
 function geFanInsights(events,profile,summary){
   const starts=events.filter(function(e){return e.event_type==='track_start'});
   const counts=new Map();
@@ -7754,7 +7806,7 @@ async function loadFanDetail(anon){
    '<div class="fanProfileCell"><span>CONSENT</span><b>'+esc(consent)+'</b></div>'+
    (deviceText?'<div class="fanProfileCell"><span>DEVICE</span><b>'+esc(deviceText)+'</b></div>':'')+
    (ua?'<div class="fanProfileCell"><span>BROWSER</span><b>'+esc(ua)+'</b></div>':'')+
-  '</div>'+summaryHtml+geFanInsights(events,profile,summary)+
+  '</div>'+summaryHtml+geFanInsights(events,profile,summary)+geFanMessageArchive(d,anon)+geFanAppointmentSummary(d)+
   '<div class="analyticsSection geFanWalk"><h3>REVIEW RECORDED FAN VISIT · EVENT-BY-EVENT</h3><div class="note" id="geFanWalkStatus">Reconstructs tracked actions, never keystrokes or screen recordings.</div><div class="geFanWalkBar"><select id="geFanWalkSession" aria-label="Choose recorded visit session"></select><b id="geFanWalkCounter">0 / 0</b></div><div class="geFanWalkPanel" id="geFanWalkItem"></div><div class="geFanWalkActions"><button type="button" id="geFanWalkPrev">PREVIOUS</button><button type="button" id="geFanWalkPlay">PLAY EVENTS</button><button type="button" id="geFanWalkNext">NEXT</button><button type="button" id="geFanWalkExport">EXPORT CSV</button><button type="button" id="geFanWalkCopy">COPY LOG</button></div></div>'+
   '<div class="fanIdentity"><input id="fanIdentityName" maxlength="200" placeholder="Identify / nickname this fan" value="'+esc(nickname)+'"><textarea id="fanIdentityNotes" maxlength="2000" placeholder="Private notes">'+esc(profile.notes||'')+'</textarea><button id="fanIdentitySave">SAVE PROFILE</button></div>'+
   '<div class="analyticsStatus" id="fanIdentityStatus"></div>'+
