@@ -103,13 +103,14 @@ html,body{
   mix-blend-mode:screen;will-change:opacity
 }
 #soundHint{
-  position:absolute;z-index:12;left:50%;bottom:max(22px,env(safe-area-inset-bottom));
-  transform:translateX(-50%);padding:8px 13px;border-radius:999px;
-  color:#dff8ff;background:rgba(3,17,30,.62);border:1px solid rgba(142,225,255,.30);
-  font:800 10px/1 system-ui;letter-spacing:.08em;opacity:0;pointer-events:none;
-  transition:opacity .45s ease;white-space:nowrap
+  position:fixed;z-index:100;left:50%;bottom:max(24px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);max-width:calc(100vw - 24px);
+  width:max-content;padding:11px 16px;border-radius:999px;
+  color:#dff8ff;background:rgba(3,17,30,.94);border:1px solid rgba(142,225,255,.65);
+  font:800 12px/1.3 system-ui;letter-spacing:.05em;opacity:0;pointer-events:none;
+  transition:opacity .3s ease;text-align:center;
 }
-#soundHint.show{opacity:.82}
+#soundHint.show{opacity:1;pointer-events:auto}
 
 @media(prefers-reduced-motion:reduce){
   #streaks{display:none}
@@ -139,8 +140,8 @@ html,body{
 
   <div id="vignette"></div>
   <div id="whiteout"></div>
-  <div id="soundHint">TAP ANYWHERE FOR SOUND</div>
 </div>
+<button id="soundHint" type="button" hidden>TAP TO PLAY RADIO</button>
 
 <script src="../../ge-vault-client.js"></script>
 
@@ -149,6 +150,27 @@ html,body{
 'use strict';
 const gate=document.getElementById('gate'),site=document.getElementById('site');
 const sunWrap=document.getElementById('sunWrap'),moonWrap=document.getElementById('moonWrap'),space=document.getElementById('space');
+const soundHint=document.getElementById('soundHint');
+let hintPurpose='play';
+function showHint(label,purpose='play'){
+  hintPurpose=purpose;soundHint.textContent=label;
+  soundHint.hidden=false;soundHint.classList.add('show');
+}
+function hideHint(){soundHint.classList.remove('show');soundHint.hidden=true;}
+soundHint.addEventListener('click',()=>{
+  if(hintPurpose==='open'){location.assign('../../radio/');return;}
+  try{
+    const w=site.contentWindow;
+    const p=w.document.getElementById('player');
+    if(!p)throw new Error('Radio not ready');
+    p.muted=false;p.defaultMuted=false;
+    const result=p.play();
+    if(result&&result.then){
+      result.then(()=>{audioRequested=true;hideHint();})
+        .catch(()=>showHint('OPEN RADIO DIRECTLY','open'));
+    }else{audioRequested=true;hideHint();}
+  }catch(_e){showHint('OPEN RADIO DIRECTLY','open');}
+});
 const STARS_ONLY=1800,FADE_IN=1100,ZOOM_START=2900,ZOOM_TIME=7000;
 const CORNER_HOLD=850,FLYBY_START=ZOOM_START+ZOOM_TIME+CORNER_HOLD,FLYBY_TIME=7200;
 const MOON_APPROACH_START=FLYBY_START+FLYBY_TIME,MOON_APPROACH_TIME=4600;
@@ -186,8 +208,16 @@ function startAudio(){
     if(!w||!w.GEQRIntroAudioReady||w.GEIAmStudio?.isRadioSuspended?.())return;
     const player=w.document.getElementById('player');
     if(!player||(!player.src&&!player.currentSrc))return;
-    audioRequested=true;player.muted=false;player.defaultMuted=false;
-    const p=player.play();if(p&&typeof p.catch==='function')p.catch(()=>{});
+    player.muted=false;player.defaultMuted=false;
+    const p=player.play();
+    if(p&&typeof p.then==='function'){
+      p.then(()=>{audioRequested=true;hideHint();})
+        .catch(error=>{
+          showHint(/NotAllowedError/i.test(String(error?.name||''))?
+            'TAP TO PLAY RADIO':'OPEN RADIO DIRECTLY',
+            /NotAllowedError/i.test(String(error?.name||''))?'play':'open');
+        });
+    }else{audioRequested=true;hideHint();}
   }catch(_e){}
 }
 function finish(){
@@ -223,6 +253,7 @@ site.addEventListener('load',()=>{
     if(!url.includes('/radio/')||!url.includes('qr=1'))return;
   }catch(_e){return;}
   siteReady=true;
+  hideHint();
   if(moonFinished)fadeToRadio();
 });
 function frames(duration,step,at){
@@ -272,9 +303,10 @@ function animateScene(){
   },MOON_APPROACH_START+140);
   moonMotion.onfinish=()=>{
     moonFinished=true;
-    // Begin the expensive Radio iframe load AFTER the smooth moon zoom.
-    // Hold the final moon frame until Radio actually paints, then dissolve.
+    // Radio begins loading only after the full moon zoom. If it is slow,
+    // give visitors a working, direct way into Radio instead of a frozen moon.
     loadRadio();
+    if(!siteReady)showHint('OPENING RADIO · TAP TO OPEN DIRECTLY','open');
     if(siteReady)fadeToRadio();
   };
 }
