@@ -216,7 +216,8 @@ let inputStream=null,inputSource=null,inputFilter=null,inputComp=null,inputGain=
 let radioNode=null,radioAnalyser=null,radioMonitorGain=null,radioRAF=0,radioMonitorOn=false;
 let inputSettings={level:100,filter:0,delay:18,delayTime:320,feedback:18,reverb:12,threshold:-12,ratio:5};try{Object.assign(inputSettings,JSON.parse(localStorage.getItem('geStudioInputV2')||'{}'))}catch(e){}
 function saveInput(){try{localStorage.setItem('geStudioInputV2',JSON.stringify(inputSettings))}catch(e){}}
-function headers(extra={}){return Object.assign({},extra,{'X-GE-DJ-Key':key})}function api(path,opt={}){opt.headers=headers(opt.headers||{});opt.cache='no-store';opt.mode='cors';return fetch(API+path,opt)}
+const GE_DJ_CONTROL_BRIDGE='https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy';
+function headers(extra={}){return Object.assign({},extra,{'X-GE-DJ-Key':key})}function api(path,opt={}){opt.headers=headers(opt.headers||{});opt.cache='no-store';opt.mode='cors';return fetch(GE_DJ_CONTROL_BRIDGE+path,opt)}
 async function verify(k){key=String(k||'');const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');status=await r.json();sessionStorage.setItem('geDjPassword',key);try{localStorage.setItem('geDjPassword',key)}catch(e){};$('lock').classList.add('hide');$('radioStatus').textContent='RADIO CONNECTED';warmStudioSources().catch(function(e){console.warn('Studio source warm-up:',e)});startPoll()}
 $('enter').onclick=async()=>{try{$('loginStatus').textContent='CONNECTING…';await ensureAudio();await verify($('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}};$('password').addEventListener('keydown',e=>{if(e.key==='Enter')$('enter').click()});
 window.addEventListener('message',async e=>{if(e.origin!==API)return;if(e.data?.type==='ge-dj-auth'&&e.data.key){try{await verify(String(e.data.key))}catch(err){}}});
