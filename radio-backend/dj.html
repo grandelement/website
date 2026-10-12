@@ -11710,4 +11710,102 @@ if(djTrustedId&&djTrustedToken){
  if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script><script src="https://grandelement.com/radio/ge-switch.js?v=1"></script>
+
+<style>
+/* GE iMAC STUDIO MIXER v173 — UI for existing LINE bus only. */
+#mixImacStudio{border-color:#42718d}
+#mixImacStudio .mixBtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+#mixImacStudio .mixBtns button{min-width:0}
+#mixImacStudio .imacStudioNote{font-size:8px;color:#a0bdce;line-height:1.2;white-space:normal}
+#mixImacStudio .imacLive{background:#61202b;border-color:#f97086;color:#fff}
+</style>
+<script>
+(function(){
+  var $im=function(id){return document.getElementById(id)};
+  function macLocal(){return typeof GE_PHYSICAL_KIND!=='undefined'&&GE_PHYSICAL_KIND==='mac'&&GE_BOARD_ROLE==='home'}
+  function macHost(){
+    var rows=(typeof status!=='undefined'&&status&&status.dj_boards)||[];
+    return rows.filter(function(x){return x&&x.online&&x.role==='home'&&/imac|mac/i.test(String(x.label||'')+' '+String(x.device_name||'')+' '+String(x.device_kind||''))})
+      .sort(function(a,b){return Number(b.last_seen||0)-Number(a.last_seen||0)})[0]||null
+  }
+  function homeHosts(){
+    return ((typeof status!=='undefined'&&status&&status.dj_boards)||[]).filter(function(x){return x&&x.online&&x.role==='home'})
+  }
+  function update(){
+    var strip=$im('mixImacStudio');if(!strip)return;
+    var host=macHost(),local=macLocal(),check=$im('geAddImac');
+    var wanted=local||!!host||!!(check&&check.checked);
+    var hidden=strip.classList.contains('channelHidden');
+    strip.classList.toggle('channelHidden',!wanted);
+    var connected=local?hasAnyComputerSourceV125():!!(host&&host.line_connected);
+    var air=local?!!lineAirOn:!!(host&&host.line_air);
+    var inputName=local?String(localLineSourceName()||''):String(host&&host.line_source||'');
+    var peak=local?Number(lineInputPct||0):Number(host&&host.line_peak||0);
+    var allHosts=homeHosts(),multiple=allHosts.length>1;
+    var shared=(typeof status!=='undefined'&&status&&status.dj_controls)||{};
+    var level=Math.max(0,Math.min(150,Number(shared.line_level==null?settings.line.level:shared.line_level)||0));
+    if($im('imacStudioSource'))$im('imacStudioSource').textContent=connected?(inputName||'STUDIO AUDIO CONNECTED'):'FOCUSRITE / ABLETON · SELECT INPUT';
+    if($im('imacStudioNote'))$im('imacStudioNote').textContent=
+      !host&&!local?'iMAC OFFLINE · OPEN DJ ON iMAC':!connected?'iMAC CONNECTED · SELECT ABLETON LOOPBACK':multiple&&!local?'MULTIPLE HOME SOURCES · ACTIVATE ON iMAC':air?'iMAC LIVE · RADIO 1':'iMAC READY · OFF AIR';
+    var btn=$im('imacStudioAir');if(btn){btn.disabled=!connected||(multiple&&!local);btn.textContent=air?'TAKE OFF AIR':'PUT ON AIR';btn.classList.toggle('imacLive',air)}
+    var monitor=$im('imacStudioMonitor');if(monitor){monitor.hidden=!local;monitor.disabled=!connected;monitor.textContent=typeof lineCueOn!=='undefined'&&lineCueOn?'STOP MONITOR':'MONITOR'}
+    var dot=$im('imacStudioDot');if(dot){dot.classList.toggle('connected',connected);dot.classList.toggle('air',air)}
+    var slide=$im('imacStudioLevel');if(slide&&document.activeElement!==slide)slide.value=String(level);
+    if($im('imacStudioRead'))$im('imacStudioRead').textContent=Math.round(level)+'%';
+    if(typeof setMeterLevel==='function')setMeterLevel('imacStudioMeter',connected?peak:0);
+    if(check){var choose=document.querySelector('[data-add-mixer-channel="imac"]');if(choose){choose.classList.toggle('added',!!check.checked);choose.setAttribute('aria-pressed',check.checked?'true':'false')}}
+    if(hidden===wanted&&typeof refreshMixerLayout==='function')refreshMixerLayout()
+  }
+  function init(){
+    var grid=document.querySelector('#mixerSheet .mixerGrid');
+    var picker=$im('mixerChannelPicker');
+    var master=grid&&grid.querySelector('[data-channel-strip="master"]');
+    if(!grid||!picker||!master)return;
+    if(!$im('geAddImac')){
+      var pref=document.createElement('input');pref.id='geAddImac';pref.type='checkbox';pref.hidden=true;pref.setAttribute('data-device-channel','imac');
+      try{var saved=JSON.parse(localStorage.getItem('geDjVisibleChannelsV4')||'{}');pref.checked=!!saved.imac}catch(e){}
+      picker.appendChild(pref);
+    }
+    if(!picker.querySelector('[data-add-mixer-channel="imac"]')){
+      var add=document.createElement('button');add.type='button';add.textContent='iMAC STUDIO';add.setAttribute('data-add-mixer-channel','imac');
+      var choices=picker.querySelector('.mixerAddChoices');if(choices)choices.appendChild(add)
+    }
+    if(!$im('mixImacStudio')){
+      var strip=document.createElement('div');
+      strip.className='mixStrip channelHidden';strip.id='mixImacStudio';strip.setAttribute('data-channel-strip','imac');
+      strip.innerHTML='<h3><i class="stripStatusDot" id="imacStudioDot"></i>iMAC STUDIO</h3>'
+       +'<button type="button" class="mixSourceLabel" id="imacStudioSource">FOCUSRITE / ABLETON</button>'
+       +'<div class="hmeter"><div class="hmeterFill" id="imacStudioMeter"></div></div>'
+       +'<input class="vf" id="imacStudioLevel" type="range" min="0" max="150" value="100">'
+       +'<div class="mixRead" id="imacStudioRead">100%</div>'
+       +'<div class="mixBtns"><button type="button" id="imacStudioInputs">INPUTS</button><button type="button" id="imacStudioMonitor">MONITOR</button></div>'
+       +'<button type="button" class="trackStageBtn" id="imacStudioAir" disabled>OFF AIR</button>'
+       +'<small class="imacStudioNote" id="imacStudioNote">OPEN DJ ON iMAC</small>';
+      grid.insertBefore(strip,master)
+    }
+    function inputs(){if(typeof openComputerInputControlsV125==='function')openComputerInputControlsV125(1)}
+    $im('imacStudioSource').onclick=inputs;$im('imacStudioInputs').onclick=inputs;
+    $im('imacStudioAir').onclick=function(){
+      if(macLocal()){toggleLineOnAir().then(update).catch(function(e){alert(e.message||e)});return}
+      var h=macHost();if(!h||!h.line_connected||homeHosts().length!==1)return;
+      pushSharedDjControls({line_air:!h.line_air},true);
+      if($im('imacStudioNote'))$im('imacStudioNote').textContent='REQUESTING iMAC ON AIR…';
+      setTimeout(update,1100)
+    };
+    $im('imacStudioMonitor').onclick=function(){
+      if(!macLocal())return;
+      toggleCue('line').then(update).catch(function(e){alert(e.message||e)})
+    };
+    $im('imacStudioLevel').oninput=function(){$im('imacStudioRead').textContent=Math.round(Number(this.value))+'%'};
+    $im('imacStudioLevel').onchange=function(){
+      var n=Math.max(0,Math.min(150,Number(this.value)||0));
+      if(macLocal()){settings.line.level=n;applyChannel('line');saveSettings()}
+      pushSharedDjControls({line_level:n},true);update()
+    };
+    update();setInterval(update,1200)
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init()
+})();
+</script>
 </body></html>
