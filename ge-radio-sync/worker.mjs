@@ -72,7 +72,7 @@ function cors(req){
   const o=req.headers.get("Origin");
   return {"Access-Control-Allow-Origin":GOOD_ORIGINS.has(o)?o:"https://grandelement.com",
     "Vary":"Origin","Access-Control-Allow-Methods":"GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":"Authorization, Content-Type, X-GE-DJ-Device-ID, X-GE-DJ-Device-Token",
+    "Access-Control-Allow-Headers":"Authorization, Content-Type, X-GE-DJ-Key, X-GE-DJ-Device-ID, X-GE-DJ-Device-Token",
     "Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
 }
 function json(data,status=200,req){
@@ -119,6 +119,47 @@ async function authorizedDj(request,env){
     return true;
   }catch(_){return false;}
 }
+// Same-origin-compatible bridge for the website DJ on grandelement.com.
+// BLITZ v167 intentionally emits no CORS headers on private /control routes.
+// The Worker forwards only authenticated DJ control requests to a FIXED host.
+// It never embeds, stores, or logs the short DJ password or device credentials.
+async function relayBlitzControl(request){
+  const origin=request.headers.get("Origin");
+  if(origin&&!GOOD_ORIGINS.has(origin))return json({ok:false,error:"Unapproved GE DJ origin."},403,request);
+  const input=new URL(request.url);
+  const path=input.pathname.slice("/v1/dj-proxy".length);
+  if(!path.startsWith("/control/")||path.includes("..")||path.includes("\\\\"))
+    return json({ok:false,error:"Invalid DJ control path."},404,request);
+  if(request.method!=="GET"&&request.method!=="POST")
+    return json({ok:false,error:"Unsupported DJ control method."},405,request);
+  const allowed=["X-GE-DJ-Key","X-GE-DJ-Device-ID","X-GE-DJ-Device-Token"];
+  const auth=new Headers();
+  for(const name of allowed){
+    const value=request.headers.get(name);
+    if(value&&value.length<=1024)auth.set(name,value);
+  }
+  if(!auth.has("X-GE-DJ-Key")||auth.get("X-GE-DJ-Key")===""){
+    if(!auth.has("X-GE-DJ-Device-ID")||!auth.has("X-GE-DJ-Device-Token"))
+      return json({ok:false,error:"Sign in to the GE DJ Booth."},401,request);
+  }
+  if(request.headers.has("Content-Type"))auth.set("Content-Type",request.headers.get("Content-Type"));
+  auth.set("Accept",request.headers.get("Accept")||"application/json");
+  const upstreamUrl="https://radio.grandelement.blitz.cloud"+path+input.search;
+  try{
+    const result=await fetch(upstreamUrl,{
+      method:request.method,headers:auth,
+      body:request.method==="POST"?request.body:undefined,
+      redirect:"manual",cache:"no-store"
+    });
+    if(result.status>=300&&result.status<400)
+      return json({ok:false,error:"Unexpected BLITZ redirect."},502,request);
+    const h={"Content-Type":result.headers.get("Content-Type")||"application/octet-stream",...cors(request)};
+    // Keep the upstream status (including 401) without exposing any server secrets.
+    return new Response(result.body,{status:result.status,headers:h});
+  }catch(_){
+    return json({ok:false,error:"BLITZ server connection unavailable. Try the original BLITZ DJ while it reconnects."},502,request);
+  }
+}
 function validateBangersProgram(raw){
   if(!raw||raw.format!=="ge-radio-clock-v1"||String(raw.playlist_name||"").trim().toLowerCase()!=="bangers")throw new Error("The shared playlist must be Bangers.");
   if(!Array.isArray(raw.tracks)||raw.tracks.length<3||raw.tracks.length>600)throw new Error("Bangers must have 3 to 600 playable tracks.");
@@ -157,6 +198,7 @@ export default {
  async fetch(request,env){
   const path=new URL(request.url).pathname,now=Date.now();
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request)});
+  if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request);
   if(path==="/v1/program"&&request.method==="GET"){
     try{const p=await program(env);return json({ok:true,server_now_ms:now,program:p},200,request);}
     catch(e){return json({ok:false,error:String(e.message||e)},503,request);}
