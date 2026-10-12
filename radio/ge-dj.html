@@ -6812,9 +6812,9 @@ html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;colo
  <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
 <div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
-<div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button></div></div></div>
+<div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button><button type="button" data-ge-layout="imac"><b>iMAC STUDIO</b><span>ABLETON · FOCUSRITE · SONG DRAFTS</span></button></div></div></div>
 <div class="wrap">
-  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)" id="geDjBuildLabel">GE WEB · v171</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
+  <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)" id="geDjBuildLabel">GE WEB · v174</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
   <div class="card radioHealth statsCollapsed" id="radioHealth">
     <div class="radioHealthHead"><div class="radioHealthText"><div class="label">RADIO STATUS</div><div class="radioHealthState" id="diagSummary">CHECKING RADIO…</div></div><div class="radioHeaderMeter"><div class="radioHeaderMeterLine"><b>RADIO</b><span id="topRadioDb">-60</span></div><div class="hmeter"><div class="hmeterFill" id="topRadioMeter"></div></div></div><button id="statsToggle" type="button" aria-expanded="false">STATS</button></div>
     <div class="radioStatsDrawer" id="radioStatsDrawer" aria-hidden="true">
@@ -11416,8 +11416,8 @@ syncTouchFaders();
 
 const GE_LAYOUT_PROFILE_KEY='geDjLayoutProfileV1';
 let geDisplayZoomScope='home',geDisplayZoomPct=100,geLayoutProfile='';
-function geDetectedLayoutProfile(){return GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':(GE_IS_IPAD?'ipad':'desktop'))}
-function geStoredLayoutProfile(){try{const p=String(localStorage.getItem(GE_LAYOUT_PROFILE_KEY)||'');return ['iphone5','iphone','ipad','desktop'].includes(p)?p:''}catch(e){return ''}}
+function geDetectedLayoutProfile(){return GE_IS_IPHONE5?'iphone5':(GE_IS_IPHONE?'iphone':(GE_IS_IPAD?'ipad':(GE_PHYSICAL_KIND==='mac'?'imac':'desktop')))}
+function geStoredLayoutProfile(){try{const p=String(localStorage.getItem(GE_LAYOUT_PROFILE_KEY)||'');return ['iphone5','iphone','ipad','desktop','imac'].includes(p)?p:''}catch(e){return ''}}
 function restoreGeChannelsToBar(){
  const bar=$('geDisplayZoomBar'),rail=bar&&bar.querySelector('.geConnectionRail'),channels=$('geChannelStatus'),host=rail&&rail.querySelector('.geHostGroup'),add=$('geAddChannel');
  if(rail&&channels&&channels.parentElement!==rail)rail.insertBefore(channels,add||null);
@@ -11506,7 +11506,7 @@ function installGeButtonFitter(){
  }
 }
 function applyGeLayoutProfile(profile,persist){
- profile=['iphone5','iphone','ipad','desktop'].includes(profile)?profile:geDetectedLayoutProfile();geLayoutProfile=profile;
+ profile=['iphone5','iphone','ipad','desktop','imac'].includes(profile)?profile:geDetectedLayoutProfile();geLayoutProfile=profile;
  ['geLayoutIphone5','geLayoutIphone','geLayoutIpad','geLayoutDesktop'].forEach(function(x){document.documentElement.classList.remove(x)});document.documentElement.classList.add(geProfileClass(profile));
  document.documentElement.style.setProperty('--ge-ui-scale','1');
  if(persist!==false)try{localStorage.setItem(GE_LAYOUT_PROFILE_KEY,profile)}catch(e){}
@@ -11524,7 +11524,7 @@ applyGeAutoTheme();
 (function initGeDeviceLayout(){
  applyGeLayoutProfile(geStoredLayoutProfile()||geDetectedLayoutProfile(),false);setGeDisplayScope('home');
  if($('geLayoutBtn'))$('geLayoutBtn').onclick=openGeLayoutChooser;if($('geLayoutClose'))$('geLayoutClose').onclick=closeGeLayoutChooser;
- document.querySelectorAll('[data-ge-layout]').forEach(function(b){b.onclick=function(){applyGeLayoutProfile(this.dataset.geLayout,true);closeGeLayoutChooser()}});
+ document.querySelectorAll('[data-ge-layout]').forEach(function(b){b.onclick=function(){var chosen=this.dataset.geLayout;applyGeLayoutProfile(chosen,true);closeGeLayoutChooser();if(chosen==='imac'&&window.GEImacStudio&&window.GEImacStudio.openSetup)window.GEImacStudio.openSetup()}});
  let resizeTimer=0;window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){syncGeFormatOrientation();applyGeDisplayZoom()},180)});
  installGeButtonFitter()
 })();
@@ -11747,5 +11747,5 @@ if(djTrustedId&&djTrustedToken){
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
  if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
-</script><script src="https://grandelement.com/radio/ge-switch.js?v=4"></script><script src="https://grandelement.com/radio/ge-bangers-sync.js?v=4"></script>
+</script><script src="https://grandelement.com/radio/ge-switch.js?v=4"></script><script src="https://grandelement.com/radio/ge-bangers-sync.js?v=4"></script><script src="https://grandelement.com/radio/ge-imac-studio.js?v=1"></script>
 </body></html>
