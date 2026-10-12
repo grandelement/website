@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>GE DJ · iMac Classic</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#060b12;color:#eff7fc;font:16px/1.4 Arial,Helvetica,sans-serif;padding:16px}
+main{max-width:920px;margin:0 auto}.panel{border:1px solid #456078;border-radius:10px;background:#0c1723;margin:12px 0;padding:16px}
+h1{margin:0;font-size:28px;letter-spacing:2px}h2{font-size:19px;margin:0 0 12px;color:#a4d5ea}p{font-size:13px;color:#aabeca;margin:8px 0}small{color:#aabeca}
+input,select{font-size:16px;border:1px solid #68809b;background:#060f1a;color:white;border-radius:6px;padding:10px;max-width:100%;width:100%;margin:5px 0 8px}
+button,a.link{font-size:15px;display:inline-block;min-height:45px;background:#143249;border:1px solid #467e9d;color:white;border-radius:7px;padding:12px 15px;margin:4px 4px 4px 0;cursor:pointer;text-decoration:none;font-weight:bold}
+button.green{background:#15483d;border-color:#53ccb4}button.orange{background:#4b3013;border-color:#d3a452}button.red{background:#552028;border-color:#d46b7b}
+button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pre-line;overflow-wrap:anywhere;color:#b4d3e7}
+.controls{margin-top:8px}.small{font-size:13px}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
+#radio{display:none}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
+#now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
+#inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}#inputBar{height:100%;width:0;background:#63d4bd}
+@media(max-width:650px){.columns,.col{display:block;width:100%}body{padding:7px}.panel{padding:12px}}
+</style>
+</head>
+<body>
+<main>
+<div class="panel">
+ <h1>GE DJ · iMAC</h1>
+ <p>Classic Safari control desk for the older iMac · Ableton / Focusrite studio</p>
+ <p id="connection" role="status">Not connected</p>
+</div>
+<div class="panel" id="login">
+ <h2>DJ SIGN IN</h2>
+ <p>Use your existing DJ code. It is not saved in this page; this iMac can instead remember an authorized device token.</p>
+ <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
+ <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
+ <p id="error"></p>
+</div>
+<div id="radio">
+ <div class="panel">
+  <h2>RADIO 1 · BLITZ</h2>
+  <div id="now">Connecting…</div><div class="tag" id="playlist">PLAYLIST</div>
+  <p id="statusLine"></p>
+  <div class="controls">
+   <button type="button" id="fadeOut" class="orange">FADE OUT</button>
+   <button type="button" id="fadeIn" class="green">FADE IN</button>
+   <button type="button" id="skip">SKIP</button>
+   <button type="button" id="stop" class="red">STOP / PLAY</button>
+   <button type="button" id="refresh">REFRESH</button>
+  </div>
+  <h2>COMING UP</h2><ol id="queue"></ol>
+ </div>
+ <div class="panel">
+  <h2>iMAC · ABLETON STUDIO</h2>
+  <p>2007 iMac · Ableton Live · Focusrite Saffire Pro 40 · Axiom Pro MIDI</p>
+  <button id="selectInput" type="button">CHECK FOCUSRITE AUDIO INPUT</button>
+  <select id="inputs"><option value="">Select detected audio input</option></select>
+  <div id="inputMeter"><div id="inputBar"></div></div>
+  <p id="inputStatus">A Focusrite recording input or loopback is required to bring Ableton audio into the browser. MIDI stays inside Ableton.</p>
+  <p><strong>Input meter is local only.</strong> This classic control page does not broadcast live Ableton audio; radio contribution requires the separate compatible live-input connection.</p>
+ </div>
+ <div class="panel">
+  <h2>SONG DRAFTS · FILE TRANSFERS</h2>
+  <a class="link" target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/1bwIYEj_WoUd0QWS-IGxrBw2uUnWWJKKe">UPLOAD DRAFT / NEW SONGS</a>
+  <a class="link" target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/1RP9PLXSUoI9rSr7lYMKwg2d1fFtNN1Ml">OPEN 00 MUSIC · FINAL FILES</a>
+  <p>These open your existing private Google Drive folders. Choose New → File upload or drag the file into the folder. Clicking the link does not upload a file.</p>
+ </div>
+</div>
+<div class="panel">
+ <a class="link" href="https://radio.grandelement.blitz.cloud/dj/">ORIGINAL BLITZ DJ</a>
+ <a class="link" href="https://grandelement.com/radio/ge-dj.html?full=1">FULL WEBSITE DJ (NEWER SAFARI)</a>
+ <p class="small">This page does not switch Radio 2 or modify your saved Bangers playlist. Use the iPhone DJ for Radio 2 synchronization until the iMac audio contribution path is tested.</p>
+</div>
+</main>
+<script>
+(function(){
+"use strict";
+var API="https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy";
+var TRUST_ID="geDjTrustedIdV1",TRUST_TOKEN="geDjTrustedTokenV1";
+var key="",deviceId="",deviceToken="",state=null,connected=false,pollTimer=null,stream=null,meterTimer=null,audioCtx=null;
+function el(id){return document.getElementById(id)}
+function text(id,s){var x=el(id);if(x)x.textContent=String(s||"")}
+function getSaved(){try{deviceId=localStorage.getItem(TRUST_ID)||"";deviceToken=localStorage.getItem(TRUST_TOKEN)||""}catch(e){}}
+function saveDevice(id,token){deviceId=id;deviceToken=token;try{localStorage.setItem(TRUST_ID,id);localStorage.setItem(TRUST_TOKEN,token)}catch(e){}}
+function forget(){deviceId="";deviceToken="";key="";try{localStorage.removeItem(TRUST_ID);localStorage.removeItem(TRUST_TOKEN)}catch(e){}}
+function request(method,path,body,callback){
+ var xhr=new XMLHttpRequest();xhr.open(method,API+path,true);xhr.timeout=18000;
+ xhr.setRequestHeader("Accept","application/json");
+ if(key)xhr.setRequestHeader("X-GE-DJ-Key",key);
+ if(deviceId&&deviceToken){xhr.setRequestHeader("X-GE-DJ-Device-ID",deviceId);xhr.setRequestHeader("X-GE-DJ-Device-Token",deviceToken)}
+ if(body!==null)xhr.setRequestHeader("Content-Type","application/json");
+ xhr.onreadystatechange=function(){
+  if(xhr.readyState!==4)return;
+  var obj={};try{obj=JSON.parse(xhr.responseText||"{}")}catch(e){}
+  if(xhr.status<200||xhr.status>=300){callback(new Error((obj&&obj.error)||("DJ API HTTP "+xhr.status)));return}
+  callback(null,obj)
+ };
+ xhr.ontimeout=function(){callback(new Error("BLITZ connection timed out via Cloudflare DJ relay"))};
+ xhr.onerror=function(){callback(new Error("GE DJ relay unavailable or blocked in Safari"))};
+ xhr.send(body===null?null:JSON.stringify(body))
+}
+function show(){
+ if(!state)return;
+ text("now",String(state.now&&state.now.title||"Waiting for music")+" · "+String(state.now&&state.now.album||""));
+ text("playlist","PLAYLIST · "+String(state.active_playlist_name||"Radio"));
+ text("statusLine","BLITZ Radio 1 · "+String(state.broadcast&&state.broadcast.active?"LIVE INPUT ACTIVE":"AUTOMATED MUSIC")+" · "+String(state.now_duration||"")+" s track");
+ var q=[state.next].concat(state.coming||[]),ol=el("queue");ol.innerHTML="";
+ for(var i=0;i<q.length;i++)if(q[i]&&q[i].title){var li=document.createElement("li");li.textContent=String(q[i].title)+(q[i].album?" · "+q[i].album:"");ol.appendChild(li)}
+ text("stop",state.mixer&&state.mixer.music_muted?"PLAY":"STOP")
+}
+function refresh(){
+ if(!connected)return;
+ request("GET","/control/status",null,function(err,data){
+  if(err){text("connection","RADIO CONNECTION ERROR · "+err.message);return}
+  state=data;show();text("connection","CONNECTED · BLITZ Radio 1");
+ })
+}
+function onConnected(data){
+ connected=true;state=data;show();el("login").style.display="none";el("radio").style.display="block";
+ text("connection","CONNECTED · iMAC DJ");
+ if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
+ // Upgrade the normal DJ login to a 180-day trusted device session where supported.
+ if(key&&!deviceToken){request("POST","/control/auth/trust-device",{name:"iMac classic · Safari",device_scope:"imac-safari",days:180},function(err,obj){
+  if(!err&&obj&&obj.device&&obj.device.id&&obj.device_token)saveDevice(String(obj.device.id),String(obj.device_token));
+  key="";
+ })}
+ else key=""
+}
+function signIn(password){
+ key=password;
+ text("error","CONNECTING…");
+ request("GET","/control/status",null,function(err,obj){
+  if(err){text("error",err.message);if(deviceToken)forget();key="";return}
+  text("error","");onConnected(obj)
+ })
+}
+el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input){text("error","Enter the DJ code.");return}signIn(input)};
+el("password").onkeydown=function(e){e=e||window.event;if((e.keyCode||e.which)===13)el("enter").click()};
+var buttons={fadeOut:"fade_out",fadeIn:"fade_in"};
+for(var id in buttons)if(buttons.hasOwnProperty(id)){(function(buttonId,action){
+ el(buttonId).onclick=function(){text("connection","RADIO · "+action.toUpperCase());
+ request("POST","/control/music-action",{action:action},function(err){if(err)text("connection",err.message);refresh()})}
+})(id,buttons[id])}
+el("stop").onclick=function(){request("POST","/control/music-action",{action:(state&&state.mixer&&state.mixer.music_muted)?"play":"stop"},function(err){if(err)text("connection",err.message);refresh()})};
+el("skip").onclick=function(){request("POST","/control/skip",null,function(err){if(err)text("connection",err.message);refresh()})};
+el("refresh").onclick=refresh;
+el("selectInput").onclick=function(){
+ var md=navigator.mediaDevices;
+ if(!md||!md.getUserMedia){text("inputStatus","This Safari version does not support the required microphone API. Use a newer browser or capture from Ableton outside Safari.");return}
+ md.getUserMedia({audio:true}).then(function(g){
+  if(stream)stream.getTracks().forEach(function(t){t.stop()});stream=g;
+  text("inputStatus","Recording input detected locally. This does not broadcast to the radio.");
+  if(md.enumerateDevices)md.enumerateDevices().then(function(list){
+   var s=el("inputs");s.innerHTML="";for(var i=0;i<list.length;i++)if(list[i].kind==="audioinput"){
+    var option=document.createElement("option");option.value=list[i].deviceId;option.textContent=list[i].label||"Audio input "+(i+1);s.appendChild(option)
+   }
+  });
+  if(!audioCtx){var AC=window.AudioContext||window.webkitAudioContext;if(AC){audioCtx=new AC();var node=audioCtx.createMediaStreamSource(g),analyser=audioCtx.createAnalyser();analyser.fftSize=256;node.connect(analyser);var values=new Uint8Array(analyser.frequencyBinCount);function meter(){analyser.getByteFrequencyData(values);var sum=0;for(var j=0;j<values.length;j++)sum+=values[j];el("inputBar").style.width=Math.min(100,Math.round((sum/values.length)*.7))+"%";meterTimer=setTimeout(meter,120)}meter()}}
+ }).catch(function(e){text("inputStatus","Input permission/device error: "+(e.message||e))})
+};
+el("inputs").onchange=function(){text("inputStatus","Selected recording input. Click CHECK FOCUSRITE AUDIO INPUT to renew permission; this page is monitor-only.")};
+getSaved();if(deviceId&&deviceToken)signIn("");
+})();
+</script>
+</body></html>
