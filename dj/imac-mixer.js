@@ -151,17 +151,26 @@ function startAir(){
  if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nBangers will crossfade into the iMac Focusrite input. The live audio is heard by listeners. Keep local radio monitoring off or use headphones."))return;
  busy=true;updateLiveButton();showLive("LIVE · Preparing audio connection…");
  var launched=false;
- requestJSON("POST","/control/broadcast/session",{owner:OWNER}).then(function(x){
+ // Never take over an iPhone or another Studio contribution without its consent.
+ requestJSON("GET","/control/status",null).then(function(status){
+  var current=status&&status.broadcast||{};
+  if(current.active&&current.owner!==OWNER)throw new Error("Another DJ input is already live ("+String(current.owner||"other device")+"). Take it off air first.");
+  return requestJSON("POST","/control/broadcast/session",{owner:OWNER});
+ }).then(function(x){
   if(!x.token)throw new Error("BLITZ did not issue a live session.");
   return requestJSON("POST","/control/broadcast/start",{owner:OWNER,mode:"performance",transport:"websocket"}).then(function(){launched=true;return websocketOpen(x.token)})
  }).then(function(){
-  air=true;busy=false;updateLiveButton();
+  air=true;updateLiveButton();
+  // Mute only the local monitor. This does not stop listener audio on Radio 1.
+  var monitor=el("imacRadioAudio");if(monitor&&(!monitor.paused))monitor.pause();
   showLive("LIVE · Audio connected · Crossfading from Bangers…");
   return new Promise(function(resolve){setTimeout(resolve,550)})
  }).then(function(){
   return requestJSON("POST","/control/drop/start",{mode:"stop"})
  }).then(function(){
-  dropStarted=true;showLive("LIVE · FOCUSRITE ON AIR · Bangers faded out");
+  dropStarted=true;busy=false;updateLiveButton();
+  showLive("LIVE · FOCUSRITE ON AIR · Bangers faded out");
+  if(!ws||ws.readyState!==1)stopAir(true);
  }).catch(function(e){
   showLive("LIVE FAILED · "+String(e&&e.message||e));
   if(launched){air=true;busy=false;stopAir(true)}
@@ -202,7 +211,12 @@ function init(){
  if(el("stopInput"))el("stopInput").onclick=function(){if(air){showLive("Take LIVE off air first.");return}stopLocal();updateLiveButton();out("inputStatus","Recording input disconnected")};
  requestDevices();updateLiveButton();
  radioPoll=setInterval(radioMeter,1200);
- w.addEventListener("beforeunload",function(){if(air)stopAir(true)});
+ w.addEventListener("beforeunload",function(e){
+  if(!air)return;
+  // A navigation may cancel network commands and leave the radio muted.
+  // Require the DJ to finish the explicit RETURN TO BANGERS handoff first.
+  e.preventDefault();e.returnValue="The iMac is LIVE. Return to Bangers before leaving this page.";
+ });
 }
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
 })(window,document);
