@@ -1,5 +1,6 @@
 /* DJ-only remote control: buttons change the listener-wide GE Radio clock state.
- * A separate admin token stays in memory only; never persisted into website assets.
+ * Authorized controls reuse the DJ trusted-device token from the signed-in browser.
+ * The short DJ login code and Cloudflare owner secret are not embedded in these assets.
  */
 (function(w,d){
 "use strict";
