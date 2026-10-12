@@ -1,3 +1,7 @@
+/* GE RADIO 2 — Bangers shared playlist release, October 11 2026.
+ * Deployment source: GitHub main via configured Cloudflare Worker build.
+ * No BLITZ backend build required. Owner-authorized program only.
+ */
 /* GE Studios — Shared Radio Clock + listener-wide station transition coordinator.
  * No server continuously plays audio. All scheduled playback is derived from UTC.
  * Cloudflare Workers Free + SQLite-backed Durable Object; no passwords in browser source.
