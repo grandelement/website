@@ -150,7 +150,7 @@ function init(){
  // Scheduled fast refresh after normal DJ interactions, without intercepting or replacing the BLITZ handlers.
  d.addEventListener("click",function(e){
   var b=e.target&&e.target.closest&&e.target.closest("button");
-  if(b&&/^(playlistSave|playlistUse|reshuffleQueue|skipNow|playlistDelete|usePlaylist|savePlaylist)$/.test(b.id||""))schedule()
+  if(b&&(/^(playlistSave|playlistUse|playlistDelete|playlistDeleteSelected|reshuffleQueue|skipNow|skipTrack|usePlaylist|savePlaylist)$/.test(b.id||"")||!!b.closest("#queue")))schedule()
  },false);
 }
 w.GEBangersSync={publishNow:publishNow,schedule:schedule,state:function(){return {lastSuccess:lastSuccess,lastError:lastError}}};
