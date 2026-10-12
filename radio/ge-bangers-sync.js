@@ -105,14 +105,16 @@ async function publishNow(opts){
  busy=true;
  try{
   var owner=w.GERadioOwner;
-  var secret=owner&&(opts.interactive?owner.authorize():owner.getKey());
-  if(!secret)throw new Error("Owner key required. Tap SYNC BANGERS or RADIO 2 to authorize this DJ session.");
+  if(!owner||!owner.ensure||!owner.getHeaders)throw new Error("Updated DJ session not available. Refresh GE DJ.");
+  await owner.ensure();
+  var auth=owner.getHeaders();
+  if(!auth)throw new Error("Sign in to GE DJ first. No separate Radio 2 code is needed.");
   say("BANGERS · READING RADIO 1",false);
   var snapshot=await build();
   if(!opts.force&&snapshot.signature===lastSignature){say("BANGERS · SYNCED "+new Date(lastSuccess).toLocaleTimeString(),false);return {ok:true,unchanged:true}}
   say("BANGERS · SENDING TO RADIO 2",false);
   var response=await fetch(WORKER+"/v1/admin/program",{
-   method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+secret},
+   method:"POST",headers:Object.assign({"Content-Type":"application/json"},auth),
    body:JSON.stringify({program:snapshot.program}),cache:"no-store"
   });
   var data=await json(response);
@@ -128,7 +130,7 @@ function schedule(){
  clearTimeout(timer);
  timer=setTimeout(function(){
   var owner=w.GERadioOwner;
-  if(!owner||!owner.getKey()||d.hidden||busy)return;
+  if(!owner||!owner.getHeaders||!owner.getHeaders()||d.hidden||busy)return;
   publishNow().catch(function(){})
  },2000)
 }
@@ -145,7 +147,7 @@ function init(){
  line.style.cssText="font-size:9px;color:#9bc7db;white-space:normal;max-width:320px";
  banner.appendChild(line);
  // Changes to the saved playlist or active queue are reflected within ~25 s while the booth remains open.
- w.setInterval(function(){if(!d.hidden&&w.GERadioOwner&&w.GERadioOwner.getKey())schedule()},25000);
+ w.setInterval(function(){if(!d.hidden&&w.GERadioOwner&&w.GERadioOwner.getHeaders&&w.GERadioOwner.getHeaders())schedule()},25000);
  d.addEventListener("visibilitychange",function(){if(!d.hidden)schedule()});
  // Scheduled fast refresh after normal DJ interactions, without intercepting or replacing the BLITZ handlers.
  d.addEventListener("click",function(e){
