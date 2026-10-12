@@ -129,7 +129,9 @@ function connectInput(){
 function updateLiveButton(){
  var b=el("liveToggle");if(!b)return;
  b.textContent=busy?"WORKING…":air?"RETURN TO BANGERS":"LIVE";
- b.className=air?"red":"green";b.disabled=busy||(!air&&!localOn);
+ b.className=air?"red":"green";
+ var owner=w.GEImacClassic;
+ b.disabled=busy||(!air&&(!localOn||!owner||!owner.loggedIn||!owner.loggedIn()));
  out("liveState",air?"ON AIR · FOCUSRITE":"OFF AIR · BANGERS");
 }
 function showLive(s){out("liveStatus",s);updateLiveButton()}
@@ -245,5 +247,6 @@ function init(){
   e.preventDefault();e.returnValue="The iMac is LIVE. Return to Bangers before leaving this page.";
  });
 }
+w.GEImacMixer={update:updateLiveButton,scan:requestDevices,stop:stopAir};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
 })(window,document);
