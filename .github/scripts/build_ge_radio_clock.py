@@ -6,6 +6,8 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 MUSIC=ROOT/"ge-music"/"music"
 CLIPS=ROOT/"ge-music"/"clips"
 OUT=ROOT/"radio"/"sync-playlist.json"
+CATALOG_OUT=ROOT/"radio"/"track-durations.json"
+AUDIO_EXTS={".mp3",".m4a",".aac",".wav",".ogg",".oga",".flac"}
 CORE=("Intergy","Love","Soul","Spirit","Fire")
 EPOCH=int(datetime.datetime(2026,1,1,tzinfo=datetime.timezone.utc).timestamp()*1000)
 def duration_ms(file):
@@ -28,6 +30,22 @@ def main():
  for i,path in enumerate(files):
   tracks.append(meta(path))
   if (i+1)%5==0 and ids:tracks.append(meta(ids[((i+1)//5-1)%len(ids)],"station_id"))
+ # Independent measured track catalog covers every GE album, including
+ # Trio, Sessions I/II, Live and any Bangers selections outside the core rotation.
+ # This is metadata only; no duplicate recordings are committed.
+ catalog=[]
+ for path in sorted(MUSIC.rglob("*"),key=lambda p:p.relative_to(ROOT).as_posix().casefold()):
+  if not path.is_file() or path.suffix.lower() not in AUDIO_EXTS:continue
+  try:
+   catalog.append(meta(path))
+  except Exception as exc:
+   print("GE RADIO track metadata unavailable: %s (%s)"%(path,exc))
+ for path in ids:
+  try:catalog.append(meta(path,"station_id"))
+  except Exception as exc:print("GE RADIO station clip metadata unavailable: %s (%s)"%(path,exc))
+ if len(catalog)<len(files):raise RuntimeError("Measured album catalog incomplete; refusing to publish it")
+ CATALOG_OUT.write_text(json.dumps({"format":"ge-radio-track-durations-v1","tracks":catalog},indent=2,ensure_ascii=False)+"\\n",encoding="utf-8")
+ print("GE RADIO full album track duration catalog: %s audio files"%(len(catalog)))
  total=sum(x["duration_ms"] for x in tracks)
  out={"format":"ge-radio-clock-v1","epoch_utc_ms":EPOCH,"cycle_duration_ms":total,"tracks":tracks}
  out["playlist_hash"]=hashlib.sha256(json.dumps(tracks,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:16]
