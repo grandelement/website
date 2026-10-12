@@ -15,6 +15,21 @@ export class RadioTimeline {
       const state=saved||{from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0,updated_at_ms:0};
       return Response.json({ok:true,server_now_ms:now,station:state});
     }
+
+    // Authorized DJ device hashes survive a temporary BLITZ outage.
+    // This internal DO cache cannot be reached from the public Worker routes.
+    if(url.pathname.endsWith("/trusted-check") && request.method==="POST"){
+      const payload=await request.json().catch(()=>null);
+      if(!payload||!/^[a-f0-9]{64}$/.test(String(payload.hash||"")))return Response.json({ok:false},{status:400});
+      const until=Number(await this.ctx.storage.get("dj-trust:"+payload.hash)||0);
+      return Response.json({ok:until>now});
+    }
+    if(url.pathname.endsWith("/trusted-grant") && request.method==="POST"){
+      const payload=await request.json().catch(()=>null);
+      if(!payload||!/^[a-f0-9]{64}$/.test(String(payload.hash||"")))return Response.json({ok:false},{status:400});
+      await this.ctx.storage.put("dj-trust:"+payload.hash,now+12*60*60*1000);
+      return Response.json({ok:true});
+    }
     if(url.pathname.endsWith("/program") && request.method==="GET"){
       const saved=await this.ctx.storage.get("bangers_program");
       return Response.json({ok:true,program:saved||null});
@@ -57,7 +72,7 @@ function cors(req){
   const o=req.headers.get("Origin");
   return {"Access-Control-Allow-Origin":GOOD_ORIGINS.has(o)?o:"https://grandelement.com",
     "Vary":"Origin","Access-Control-Allow-Methods":"GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":"Authorization, Content-Type",
+    "Access-Control-Allow-Headers":"Authorization, Content-Type, X-GE-DJ-Device-ID, X-GE-DJ-Device-Token",
     "Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
 }
 function json(data,status=200,req){
@@ -69,6 +84,40 @@ function equalToken(a,b){
   let mismatch=a.length^b.length;
   for(let i=0;i<Math.max(a.length,b.length);i++)mismatch|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);
   return mismatch===0;
+}
+// Only an already trusted BLITZ DJ device can pair with the Cloudflare controller.
+// The short DJ login code itself never goes to Cloudflare.
+// Successful pairing is cached for 12 hours, so a temporary BLITZ outage
+// does not prevent a previously paired device from switching to Radio 2.
+async function authorizedDj(request,env){
+  const bearer=request.headers.get("Authorization")||"";
+  if(env.GE_RADIO_SWITCH_TOKEN&&equalToken(bearer,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))return true;
+  const id=request.headers.get("X-GE-DJ-Device-ID")||"";
+  const token=request.headers.get("X-GE-DJ-Device-Token")||"";
+  if(!id||!token||id.length>128||token.length>512)return false;
+  const bytes=new TextEncoder().encode(id+"\u0000"+token);
+  const digest=await crypto.subtle.digest("SHA-256",bytes);
+  const hash=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,"0")).join("");
+  const obj=env.RADIO_TIMELINE.get(env.RADIO_TIMELINE.idFromName("grand-element-on-air"));
+  try{
+    const cached=await obj.fetch("https://internal/trusted-check",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({hash})
+    });
+    if(cached.ok&&(await cached.json()).ok)return true;
+  }catch(_){}
+  // Check the v167 server, not a client-reported login flag.
+  try{
+    const result=await fetch("https://radio.grandelement.blitz.cloud/control/status",{
+      method:"GET",redirect:"error",cache:"no-store",
+      headers:{"X-GE-DJ-Device-ID":id,"X-GE-DJ-Device-Token":token}
+    });
+    if(!result.ok)return false;
+    if(result.body)await result.body.cancel().catch(()=>{});
+    await obj.fetch("https://internal/trusted-grant",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({hash})
+    });
+    return true;
+  }catch(_){return false;}
 }
 function validateBangersProgram(raw){
   if(!raw||raw.format!=="ge-radio-clock-v1"||String(raw.playlist_name||"").trim().toLowerCase()!=="bangers")throw new Error("The shared playlist must be Bangers.");
@@ -119,9 +168,8 @@ export default {
     return json({...d,server_now_ms:Date.now()},200,request);
   }
   if(path==="/v1/admin/program"&&request.method==="POST"){
-    const auth=request.headers.get("Authorization")||"";
-    if(!env.GE_RADIO_SWITCH_TOKEN||!equalToken(auth,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))
-      return json({ok:false,error:"GE Radio owner authorization required."},401,request);
+    if(!(await authorizedDj(request,env)))
+      return json({ok:false,error:"Trusted DJ session required. Open and sign in to the website DJ Booth first."},401,request);
     let body;
     try{body=await request.json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
     let checked;
@@ -133,9 +181,8 @@ export default {
     return json(await result.json(),result.status,request);
   }
   if(path==="/v1/admin/switch"&&request.method==="POST"){
-    const auth=request.headers.get("Authorization")||"";
-    if(!env.GE_RADIO_SWITCH_TOKEN||!equalToken(auth,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))
-      return json({ok:false,error:"Separate GE Radio switch authorization required."},401,request);
+    if(!(await authorizedDj(request,env)))
+      return json({ok:false,error:"Trusted DJ session required. Open and sign in to the website DJ Booth first."},401,request);
     let body;
     try{body=await request.clone().json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
     if(body.to==="ge"){
