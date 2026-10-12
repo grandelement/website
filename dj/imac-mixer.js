@@ -8,7 +8,8 @@
 "use strict";
 var API="https://radio.grandelement.blitz.cloud";
 var OWNER="imac-live",a=null,stream=null,source=null,processor=null,silent=null,ctx=null,analyser=null,ws=null;
-var localOn=false,busy=false,air=false,dropStarted=false,lastSignal=0,meterTimer=0,radioPoll=0,liveGain=1,raf=0,bufferedDropping=0;
+var localOn=false,busy=false,air=false,dropStarted=false,lastSignal=0,meterTimer=0,radioPoll=0,liveGain=1,raf=0,bufferedDropping=0,latestPeak=0,boardId="";
+try{boardId=w.localStorage.getItem("geImacClassicBoardId")||"";if(!boardId){boardId="imac-classic-"+Date.now();w.localStorage.setItem("geImacClassicBoardId",boardId)}}catch(e){boardId="imac-classic"}
 function el(s){return d.getElementById(s)}
 function out(s,v){if(el(s))el(s).textContent=String(v)}
 function klass(s,flag){if(el(s))el(s).disabled=!!flag}
@@ -72,7 +73,8 @@ function onSamples(event){
  var ldb=dB(rmsL),rdb=dB(rmsR),pct=function(db){return Math.max(0,Math.min(100,Math.round((db+60)/60*100)))};
  if(el("leftMeter"))el("leftMeter").style.width=pct(ldb)+"%";
  if(el("rightMeter"))el("rightMeter").style.width=pct(rdb)+"%";
- if(el("inputBar"))el("inputBar").style.width=Math.max(pct(ldb),pct(rdb))+"%";
+ latestPeak=Math.max(pct(ldb),pct(rdb));
+ if(el("inputBar"))el("inputBar").style.width=latestPeak+"%";
  out("leftDb",ldb.toFixed(1)+" dB");out("rightDb",rdb.toFixed(1)+" dB");
  // Do not monitor the input in computer speakers: silent output keeps Safari's
  // legacy ScriptProcessor active without feeding the sound back to Focusrite.
@@ -191,6 +193,30 @@ function stopAir(fast){
   updateLiveButton();
  })
 }
+function heartbeat(){
+ if(!w.GEImacClassic||!w.GEImacClassic.loggedIn||!w.GEImacClassic.loggedIn())return;
+ var input=el("inputs"),names=[];
+ if(input)for(var i=1;i<input.options.length&&names.length<12;i++)names.push(input.options[i].textContent);
+ var track=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];
+ api("POST","/control/board/heartbeat",{
+  board_id:boardId,role:"home",label:"iMAC · ABLETON",
+  app_state:air?"live":"ready",
+  channel_state:{
+   device_kind:"mac",device_name:"iMac Ableton Focusrite",
+   line_connected:localOn,line_air:air,line_source:track&&track.label||"",
+   line_peak:latestPeak,audio_inputs:names,audio_permission:localOn?"granted":"unknown",
+   line_track_state:track&&track.readyState||"none",
+   audio_capture_supported:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),
+   secure_context:location.protocol==="https:",user_agent:navigator.userAgent||""
+  }
+ },function(err,data){
+  if(err)return;
+  if(data&&data.boards&&el("deviceRoster")){
+   var online=data.boards.filter(function(x){return x&&x.online}).map(function(x){return String(x.label||x.device_name||x.role)+" · "+(x.line_air||x.mic_air?"ON AIR":x.line_connected||x.mic_connected?"INPUT READY":"CONNECTED")});
+   out("deviceRoster",online.length?online.join(" | "):"No linked GE DJ devices detected yet.");
+  }
+ })
+}
 function radioMeter(){
  if(!w.GEImacClassic||!w.GEImacClassic.loggedIn||!w.GEImacClassic.loggedIn())return;
  api("GET","/control/radio-meter",null,function(err,data){
@@ -211,6 +237,7 @@ function init(){
  if(el("stopInput"))el("stopInput").onclick=function(){if(air){showLive("Take LIVE off air first.");return}stopLocal();updateLiveButton();out("inputStatus","Recording input disconnected")};
  requestDevices();updateLiveButton();
  radioPoll=setInterval(radioMeter,1200);
+ setInterval(heartbeat,5000);
  w.addEventListener("beforeunload",function(e){
   if(!air)return;
   // A navigation may cancel network commands and leave the radio muted.
