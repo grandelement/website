@@ -26,7 +26,7 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 #liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
 #devicesFound,#liveState{font-size:13px;color:#a6d7ee}
 #uploadResults{white-space:pre-line;overflow-wrap:anywhere;color:#adddd9}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
-#radio{display:none}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
+#radio{display:block}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
 #now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
 #inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}
 #imacRadioAudio{display:block;width:100%;max-width:800px;min-height:42px;margin:10px 0}
@@ -79,11 +79,11 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   <div id="now">Connecting…</div><div class="tag" id="playlist">PLAYLIST</div>
   <p id="statusLine"></p>
   <div class="controls" id="radioControls">
-   <button type="button" id="fadeOut" class="orange">FADE OUT</button>
-   <button type="button" id="fadeIn" class="green">FADE IN</button>
-   <button type="button" id="skip">SKIP</button>
-   <button type="button" id="stop" class="red">STOP / PLAY</button>
-   <button type="button" id="refresh">REFRESH</button>
+   <button type="button" id="fadeOut" disabled class="orange">FADE OUT</button>
+   <button type="button" id="fadeIn" disabled class="green">FADE IN</button>
+   <button type="button" id="skip" disabled>SKIP</button>
+   <button type="button" id="stop" disabled class="red">STOP / PLAY</button>
+   <button type="button" id="refresh" disabled>REFRESH</button>
    <button type="button" id="liveToggle" disabled>LIVE</button>
   </div>
   <p id="liveStatus">LIVE OFF · Bangers is playing. Connect the Focusrite input to enable LIVE.</p>
@@ -210,6 +210,8 @@ function refresh(){
 }
 function onConnected(data){
  connected=true;state=data;show();el("login").style.display="none";el("radio").style.display="block";
+ ["fadeOut","fadeIn","skip","stop","refresh"].forEach(function(id){el(id).disabled=false});
+ if(w.GEImacClassic&&w.GEImacClassic.updateMixer)w.GEImacClassic.updateMixer();
  text("connection","CONNECTED · iMAC DJ");
  if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
  // Upgrade the normal DJ login to a 180-day trusted device session where supported.
@@ -256,7 +258,8 @@ w.GEImacClassic={
  api:request,
  loggedIn:function(){return connected},
  getAuth:function(){return {key:key,id:deviceId,token:deviceToken}},
- refresh:refresh
+ refresh:refresh,
+ updateMixer:function(){if(w.GEImacMixer&&w.GEImacMixer.update)w.GEImacMixer.update()}
 };
 getSaved();if(deviceId&&deviceToken)signIn("");
 })();
