@@ -9,6 +9,7 @@
 var API="https://radio.grandelement.blitz.cloud";
 var OWNER="imac-live",a=null,stream=null,source=null,processor=null,silent=null,ctx=null,analyser=null,ws=null;
 var localOn=false,busy=false,air=false,dropStarted=false,lastSignal=0,meterTimer=0,radioPoll=0,liveGain=1,raf=0,bufferedDropping=0,latestPeak=0,boardId="";
+var actualInputName="",selectedInputName="",pcmFrames=0,connectedAt=0,diagnosticTimer=0;
 try{boardId=w.localStorage.getItem("geImacClassicBoardId")||"";if(!boardId){boardId="imac-classic-"+Date.now();w.localStorage.setItem("geImacClassicBoardId",boardId)}}catch(e){boardId="imac-classic"}
 function el(s){return d.getElementById(s)}
 function out(s,v){if(el(s))el(s).textContent=String(v)}
@@ -26,7 +27,7 @@ function requestDevices(){
  navigator.mediaDevices.enumerateDevices().then(function(devices){
   var sel=el("inputs"),saved=sel.value,first="",count=0;
   sel.innerHTML="";
-  var empty=d.createElement("option");empty.value="";empty.textContent="SELECT RECORDING INPUT";sel.appendChild(empty);
+  var empty=d.createElement("option");empty.value="";empty.textContent="SYSTEM DEFAULT · macOS Sound Input";sel.appendChild(empty);
   for(var i=0;i<devices.length;i++){
    var x=devices[i];if(x.kind!=="audioinput")continue;
    var opt=d.createElement("option");opt.value=x.deviceId;
@@ -36,8 +37,8 @@ function requestDevices(){
    if(!first)first=x.deviceId;
   }
   if(saved){sel.value=saved;if(sel.value!==saved)sel.value="";}
-  if(!sel.value&&first)sel.value=first;
-  out("devicesFound","RECORDING INPUTS FOUND · "+(sel.options.length-1));
+  if(!sel.value&&first&&(!saved))sel.value=first;
+  out("devicesFound","RECORDING INPUTS FOUND · "+(sel.options.length-1)+" · SELECTED: "+(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||"System Default"));
  }).catch(function(e){out("inputStatus","Device listing failed: "+String(e&&e.message||e))})
 }
 function getAudio(constraints){
@@ -50,7 +51,8 @@ function getAudio(constraints){
  });
 }
 function stopLocal(){
- localOn=false;
+ clearTimeout(diagnosticTimer);diagnosticTimer=0;
+ localOn=false;pcmFrames=0;connectedAt=0;actualInputName="";
  if(processor){try{processor.disconnect();processor.onaudioprocess=null}catch(e){}}
  if(source){try{source.disconnect()}catch(e){}}
  if(silent){try{silent.disconnect()}catch(e){}}
@@ -62,6 +64,7 @@ function stopLocal(){
  var l=el("leftMeter"),r=el("rightMeter");if(l)l.style.width="0%";if(r)r.style.width="0%";
 }
 function onSamples(event){
+ pcmFrames++;
  var ib=event.inputBuffer,ob=event.outputBuffer;
  var left=ib.getChannelData(0),right=ib.numberOfChannels>1?ib.getChannelData(1):left;
  var i,l=0,r=0;
@@ -69,6 +72,11 @@ function onSamples(event){
  var n=Math.max(1,Math.ceil(left.length/4));
  var rmsL=Math.sqrt(l/n),rmsR=Math.sqrt(r/n),rms=Math.max(rmsL,rmsR);
  if(rms>0.0017)lastSignal=Date.now();
+ if(pcmFrames===1){out("meterStatus","METER PROCESSING ACTIVE · Waiting for Ableton signal");updateLiveButton();}
+ if(pcmFrames%20===0){
+  out("meterStatus",rms>0.0017?"AUDIO SIGNAL DETECTED · "+(actualInputName||"Recording input"):"METER ACTIVE · SILENCE · Check Saffire MixControl routing");
+  updateLiveButton();
+ }
  var dB=function(s){return Math.max(-60,Math.min(0,s>0?20*Math.log(s)/Math.LN10:-60))};
  var ldb=dB(rmsL),rdb=dB(rmsR),pct=function(db){return Math.max(0,Math.min(100,Math.round((db+60)/60*100)))};
  if(el("leftMeter"))el("leftMeter").style.width=pct(ldb)+"%";
@@ -100,38 +108,81 @@ function onSamples(event){
  }
  try{ws.send(payload)}catch(e){out("liveStatus","Audio send failed · "+(e.message||e));setTimeout(stopAir,0)}
 }
+function choiceName(){
+ var sel=el("inputs"),opt=sel&&sel.options&&sel.options[sel.selectedIndex];
+ return opt&&opt.textContent||"System Default";
+}
+function simplifyName(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function deviceMatches(track,expectedId,expectedName){
+ if(!expectedId)return {ok:true}; // The macOS System Default is intentional.
+ var actualId="",actualName=String(track&&track.label||"");
+ try{var settings=track&&track.getSettings?track.getSettings():{};actualId=String(settings.deviceId||"")}catch(_){}
+ if(actualId&&actualId!==expectedId)return {ok:false,why:"The browser returned a different device ID."};
+ var actual=simplifyName(actualName),expected=simplifyName(expectedName);
+ // Safari 10/11 sometimes ignores deviceId requests and returns the first mic.
+ if(actual&&expected&&expected.indexOf("recordinginput")!==0&&
+    actual.indexOf(expected)<0&&expected.indexOf(actual)<0)
+  return {ok:false,why:"The browser substituted a different microphone."};
+ if(!actualId&&!actual)return {ok:false,why:"Safari could not identify the selected recording input."};
+ return {ok:true};
+}
 function connectInput(){
  if(busy||air){out("inputStatus","Take LIVE off air before changing the input.");return}
- busy=true;klass("selectInput",true);out("inputStatus","Requesting recording-input permission…");
- var choice=el("inputs").value;
+ busy=true;klass("selectInput",true);
+ var choice=el("inputs").value,expected=choiceName();
+ selectedInputName=expected;
+ out("inputStatus","OPENING · "+expected+" · Verifying the actual audio device…");
+ out("meterStatus","DEVICE CHECK IN PROGRESS · LIVE unavailable");
+ // Use 'exact', never the previous 'ideal' deviceId that silently selected Built-in Mic.
+ // Older Safari may ignore even 'exact'; verify the returned track below.
  var constraints={audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}};
- if(choice)constraints.audio.deviceId={ideal:choice};
+ if(choice)constraints.audio.deviceId={exact:choice};
  getAudio(constraints).then(function(g){
   stopLocal();
+  var track=g.getAudioTracks&&g.getAudioTracks()[0];
+  var checked=deviceMatches(track,choice,expected);
+  actualInputName=String(track&&track.label||"Unidentified input");
+  if(!checked.ok){
+   try{g.getTracks().forEach(function(t){t.stop()})}catch(_){}
+   out("inputStatus","WRONG DEVICE · Selected "+expected+" but Safari opened "+actualInputName+". "+checked.why+" Select Saffire under macOS System Preferences > Sound > Input, then choose SYSTEM DEFAULT in this page and reconnect.");
+   out("meterStatus","INPUT REJECTED · No broadcast enabled");
+   return;
+  }
   stream=g;
   var Audio=w.AudioContext||w.webkitAudioContext;
-  if(!Audio)throw new Error("Safari Web Audio not available.");
+  if(!Audio)throw new Error("Safari Web Audio is unavailable.");
   ctx=new Audio();
   source=ctx.createMediaStreamSource(g);
   analyser=ctx.createAnalyser();analyser.fftSize=512;
   processor=ctx.createScriptProcessor?ctx.createScriptProcessor(4096,2,2):null;
-  if(!processor)throw new Error("This Safari cannot capture stereo PCM in the DJ page.");
+  if(!processor)throw new Error("This Safari cannot capture audio samples in the DJ page.");
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(analyser);analyser.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
   processor.onaudioprocess=onSamples;
-  localOn=true;requestDevices();
-  var track=g.getAudioTracks()[0];
-  out("inputStatus","INPUT CONNECTED · "+(track&&track.label||"Recording input")+" · "+Math.round(ctx.sampleRate)+" Hz. Play Ableton and watch L/R.");
-  out("devicesFound","READY · Input connected. LIVE will crossfade to this input.");
- }).catch(function(e){stopLocal();out("inputStatus","INPUT FAILED · "+String(e&&e.message||e))})
- .then(function(){busy=false;klass("selectInput",false);updateLiveButton()});
+  localOn=true;pcmFrames=0;connectedAt=Date.now();lastSignal=0;
+  out("inputStatus","INPUT VERIFIED · "+actualInputName+" · "+Math.round(ctx.sampleRate)+" Hz. Play Ableton to test L/R.");
+  out("meterStatus","WAITING FOR METER CALLBACKS · Play Ableton now");
+  out("devicesFound","CONNECTED DEVICE · "+actualInputName);
+  if(ctx.resume&&ctx.state==="suspended")ctx.resume().catch(function(e){out("meterStatus","AUDIO CONTEXT PAUSED · "+String(e&&e.message||e))});
+  diagnosticTimer=setTimeout(function(){
+   if(!localOn)return;
+   if(!pcmFrames){out("meterStatus","NO METER FRAMES · Safari is not processing this input. LIVE disabled. Check Sound Input and reload page.");}
+   else if(Date.now()-lastSignal>3500)out("meterStatus","METER RUNNING · NO ABLETON SOUND · Check Saffire MixControl's recording input routing");
+   updateLiveButton();
+  },3700);
+ }).catch(function(e){
+  stopLocal();out("inputStatus","INPUT FAILED · "+String(e&&e.message||e));
+  out("meterStatus","CONNECT FAILED · Check macOS Sound Input and browser permission");
+ }).then(function(){
+  busy=false;klass("selectInput",false);updateLiveButton();
+ });
 }
 function updateLiveButton(){
  var b=el("liveToggle");if(!b)return;
  b.textContent=busy?"WORKING…":air?"RETURN TO BANGERS":"LIVE";
  b.className=air?"red":"green";
  var owner=w.GEImacClassic;
- b.disabled=busy||(!air&&(!localOn||!owner||!owner.loggedIn||!owner.loggedIn()));
+ b.disabled=busy||(!air&&(!localOn||pcmFrames<2||!owner||!owner.loggedIn||!owner.loggedIn()));
  out("liveState",air?"ON AIR · FOCUSRITE":"OFF AIR · BANGERS");
 }
 function showLive(s){out("liveStatus",s);updateLiveButton()}
@@ -150,7 +201,7 @@ function websocketOpen(token){
 }
 function startAir(){
  if(busy||air)return;
- if(!localOn){showLive("SELECT FOCUSRITE INPUT FIRST");return}
+ if(!localOn||pcmFrames<2){showLive("FOCUSRITE INPUT NOT VERIFIED · Check the audio meter");return}
  if(Date.now()-lastSignal>6500){showLive("NO INPUT AUDIO DETECTED · Play Ableton before going LIVE");return}
  if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nBangers will crossfade into the iMac Focusrite input. The live audio is heard by listeners. Keep local radio monitoring off or use headphones."))return;
  busy=true;updateLiveButton();showLive("LIVE · Preparing audio connection…");
@@ -232,7 +283,12 @@ function radioMeter(){
 function init(){
  if(!el("liveToggle"))return;
  el("selectInput").onclick=connectInput;
- el("inputs").onchange=function(){if(localOn)stopLocal();updateLiveButton();out("inputStatus","Recording input selected. Click CONNECT INPUT to activate it.")};
+ el("inputs").onchange=function(){
+ if(localOn)stopLocal();
+ updateLiveButton();
+ out("inputStatus","SELECTED · "+choiceName()+" · Click CONNECT FOCUSRITE INPUT.");
+ out("meterStatus","NOT CONNECTED · LIVE disabled");
+};
  el("refreshInputs").onclick=requestDevices;
  el("liveToggle").onclick=function(){if(air)stopAir();else startAir()};
  el("liveGain").oninput=function(){liveGain=Math.max(0,Math.min(1.5,Number(this.value)/100));out("liveGainRead",String(this.value)+"%")};
