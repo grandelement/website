@@ -133,14 +133,17 @@ function schedule(){
  },2000)
 }
 function init(){
- var rail=el("geClockRail");if(!rail)return;
+ var rail=el("geClockRail"),header=d.querySelector(".wrap .top");if(!rail||!header)return;
+ var banner=d.createElement("div");banner.id="geBangersSyncBar";
+ banner.style.cssText="display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:4px 8px;margin:0 0 6px;background:#0b1a25;border:1px solid #29475b;border-radius:7px";
+ header.parentNode.insertBefore(banner,header.nextSibling);
  var btn=d.createElement("button");btn.type="button";btn.id="geBangersSyncNow";btn.textContent="SYNC BANGERS";
  btn.style.cssText="min-height:30px;padding:0 8px;font-size:9px;font-weight:900;border:1px solid #3a647e;border-radius:6px;color:#fff;background:#102532";
  btn.onclick=function(){publishNow({interactive:true,force:true}).catch(function(e){w.alert(e.message||e)})};
- rail.appendChild(btn);
+ banner.appendChild(btn);
  var line=d.createElement("span");line.id="geBangersSyncStatus";line.textContent="BANGERS · NOT YET SYNCED";
  line.style.cssText="font-size:9px;color:#9bc7db;white-space:normal;max-width:320px";
- rail.appendChild(line);
+ banner.appendChild(line);
  // Changes to the saved playlist or active queue are reflected within ~25 s while the booth remains open.
  w.setInterval(function(){if(!d.hidden&&w.GERadioOwner&&w.GERadioOwner.getKey())schedule()},25000);
  d.addEventListener("visibilitychange",function(){if(!d.hidden)schedule()});
