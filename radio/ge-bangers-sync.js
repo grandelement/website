@@ -17,20 +17,28 @@ function say(message,failed){
 }
 function pathsEqual(a,b){return String(a||"")===String(b||"");}
 function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function message(e){return String(e&&e.message||e||"Unknown error");}
+function stage(label,e){return new Error(label+" · "+message(e));}
+async function probe(label,request){
+ try{return await request()}catch(e){throw stage(label,e)}
+}
 async function json(response){
  var data=await response.json().catch(function(){return {}});
  if(!response.ok||!data||data.ok===false)throw new Error((data&&data.error)||("HTTP "+response.status));
  return data;
 }
+async function jsonFromUrl(url){
+ return json(await fetch(url,{cache:"no-store"}));
+}
 async function measuredTracks(){
  if(metaCache&&Date.now()-metaAt<3600000)return metaCache;
  var p=null,firstError="";
  try{
-  p=await json(await fetch(STATIC,{cache:"no-store"}));
+  p=await probe("WEBSITE SONG CATALOG",function(){return jsonFromUrl(STATIC)});
   if(p.format!=="ge-radio-track-durations-v1"||!Array.isArray(p.tracks))throw new Error("Track catalog format invalid.");
  }catch(e){
   firstError=String(e&&e.message||e);
-  p=await json(await fetch(LEGACY_STATIC,{cache:"no-store"}));
+  p=await probe("WEBSITE BACKUP CATALOG",function(){return jsonFromUrl(LEGACY_STATIC)});
   if(p.format!=="ge-radio-clock-v1"||!Array.isArray(p.tracks))throw new Error("Measured GE music catalog unavailable: "+firstError);
  }
  var m={byPath:{},byTitle:{},clips:[]};
@@ -45,7 +53,10 @@ async function measuredTracks(){
 }
 async function getBlitz(path){
  if(typeof api!=="function")throw new Error("Open the website GE DJ Booth to synchronize Bangers.");
- return json(await api(path))
+ return probe("BLITZ DJ "+path,function(){return jsonFromDj(path)})
+}
+async function jsonFromDj(path){
+ return json(await api(path));
 }
 function fromQueue(q,meta,library){
  var path=String(q&&q.path||"");
@@ -120,11 +131,13 @@ async function publishNow(opts){
   var snapshot=await build();
   if(!opts.force&&snapshot.signature===lastSignature){say("BANGERS · SYNCED "+new Date(lastSuccess).toLocaleTimeString(),false);return {ok:true,unchanged:true}}
   say("BANGERS · SENDING TO RADIO 2",false);
-  var response=await fetch(WORKER+"/v1/admin/program",{
-   method:"POST",headers:Object.assign({"Content-Type":"application/json"},auth),
-   body:JSON.stringify({program:snapshot.program}),cache:"no-store"
+  var data=await probe("CLOUDFLARE RADIO 2 PUBLISH",async function(){
+   var response=await fetch(WORKER+"/v1/admin/program",{
+    method:"POST",headers:Object.assign({"Content-Type":"application/json"},auth),
+    body:JSON.stringify({program:snapshot.program}),cache:"no-store"
+   });
+   return json(response);
   });
-  var data=await json(response);
   lastSignature=snapshot.signature;lastSent=Date.now();lastSuccess=lastSent;lastError="";
   say("BANGERS · SYNCED TO RADIO 2 · "+snapshot.count+" TRACKS",false);
   return data
@@ -141,6 +154,25 @@ function schedule(){
   publishNow().catch(function(){})
  },2000)
 }
+async function diagnose(){
+ var btn=el("geRadioCheckLinks"),out=el("geRadioLinkHealth");
+ if(btn)btn.disabled=true;
+ if(out)out.textContent="Checking BLITZ, Cloudflare Radio 2 and music catalog…";
+ var tests=[
+  ["BLITZ DJ",function(){return jsonFromDj("/control/status")}],
+  ["CLOUDFLARE RADIO 2",function(){return jsonFromUrl(WORKER+"/v1/state")}],
+  ["BANGERS SONG CATALOG",function(){return jsonFromUrl(STATIC)}],
+  ["BACKUP MUSIC CATALOG",function(){return jsonFromUrl(LEGACY_STATIC)}]
+ ];
+ var results=await Promise.all(tests.map(async function(t){
+  try{var obj=await t[1]();
+   return t[0]+" · OK"+(Array.isArray(obj.tracks)?" · "+obj.tracks.length+" tracks":"");
+  }catch(e){return t[0]+" · FAILED · "+message(e)}
+ }));
+ if(out)out.textContent=results.join("\n");
+ if(btn)btn.disabled=false;
+ return results;
+}
 function init(){
  var rail=el("geClockRail"),header=d.querySelector(".wrap .top");if(!rail||!header)return;
  var banner=d.createElement("div");banner.id="geBangersSyncBar";
@@ -150,9 +182,15 @@ function init(){
  btn.style.cssText="min-height:30px;padding:0 8px;font-size:9px;font-weight:900;border:1px solid #3a647e;border-radius:6px;color:#fff;background:#102532";
  btn.onclick=function(){publishNow({interactive:true,force:true}).catch(function(e){w.alert(e.message||e)})};
  banner.appendChild(btn);
+ var checker=d.createElement("button");checker.type="button";checker.id="geRadioCheckLinks";checker.textContent="CHECK CONNECTIONS";
+ checker.style.cssText="min-height:30px;padding:0 8px;font-size:9px;font-weight:800;border:1px solid #3a647e;border-radius:6px;color:#dff5ff;background:#102532";
+ checker.onclick=function(){diagnose().catch(function(e){say("CONNECTION CHECK ERROR · "+message(e),true)})};
+ banner.appendChild(checker);
  var line=d.createElement("span");line.id="geBangersSyncStatus";line.textContent="BANGERS · NOT YET SYNCED";
  line.style.cssText="font-size:9px;color:#9bc7db;white-space:normal;max-width:320px";
  banner.appendChild(line);
+ var health=d.createElement("div");health.id="geRadioLinkHealth";health.style.cssText="flex-basis:100%;font-size:10px;line-height:1.4;white-space:pre-line;color:#a6cedd";
+ banner.appendChild(health);
  // Changes to the saved playlist or active queue are reflected within ~25 s while the booth remains open.
  w.setInterval(function(){if(!d.hidden&&w.GERadioOwner&&w.GERadioOwner.getHeaders&&w.GERadioOwner.getHeaders())schedule()},25000);
  d.addEventListener("visibilitychange",function(){if(!d.hidden)schedule()});
@@ -162,6 +200,6 @@ function init(){
   if(b&&(/^(playlistSave|playlistUse|playlistDelete|playlistDeleteSelected|reshuffleQueue|skipNow|skipTrack|usePlaylist|savePlaylist)$/.test(b.id||"")||!!b.closest("#queue")))schedule()
  },false);
 }
-w.GEBangersSync={publishNow:publishNow,schedule:schedule,state:function(){return {lastSuccess:lastSuccess,lastError:lastError}}};
+w.GEBangersSync={publishNow:publishNow,schedule:schedule,diagnose:diagnose,state:function(){return {lastSuccess:lastSuccess,lastError:lastError}}};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
 })(window,document);
