@@ -6,6 +6,11 @@
 var API="https://ge-radio-sync.grandelement.workers.dev";
 var blitz=d.getElementById("geStationBlitz"),ge=d.getElementById("geStationGE"),
     read=d.getElementById("geStationStatus"),switchBusy=false,key="";
+w.GERadioOwner={
+ getKey:function(){return key;},
+ authorize:function(){if(!key)key=w.prompt("GE Radio owner key (kept only in memory for this session)","")||"";return key;},
+ clear:function(){key="";}
+};
 if(!blitz||!ge)return;
 function status(t){if(read)read.textContent=t;}
 function http(method,url,body,cb){
@@ -46,22 +51,24 @@ function choose(to){
  var source=to==="ge"?"GE RADIO":"BLITZ";
  var ask="Switch EVERY connected GE Clock listener to "+source+"?\n\nThe selected "+secs+"-second crossfade will begin after devices are given time to prepare.\n\nExisting BLITZ broadcasting is NOT shut down.";
  if(!w.confirm(ask))return;
- if(!key){
-  key=w.prompt("Enter the separate GE Radio switch key. It is not saved to the website.","")||"";
-  if(!key){status("CANCELLED · Nothing switched");return;}
+ if(!w.GERadioOwner.authorize()){status("CANCELLED · Nothing switched");return;}
+ switchBusy=true;
+ function commitSwitch(){
+  status("SENDING CONFIRMED SWITCH…");
+  http("POST","/v1/admin/switch",{to:to,crossfade_seconds:secs},function(err,result){
+   switchBusy=false;
+   if(err){if(/authorization|token|401/i.test(err.message))w.GERadioOwner.clear();status("NOT SWITCHED · "+err.message);return;}
+   show(result.station);
+   status(result.unchanged?"ALREADY ON "+source:"SWITCH SCHEDULED · "+source+" · "+secs+"s");
+  });
  }
- switchBusy=true;status("SENDING CONFIRMED SWITCH…");
- http("POST","/v1/admin/switch",{to:to,crossfade_seconds:secs},function(err,d){
-  switchBusy=false;
-  if(err){
-    if(/authorization|token|401/i.test(err.message))key="";
-    status("NOT SWITCHED · "+err.message);
-    return;
-  }
-  show(d.station);
-  if(d.unchanged)status("ALREADY ON "+source);
-  else status("SWITCH SCHEDULED · "+source+" · "+secs+"s");
- });
+ if(to==="ge"){
+  if(!w.GEBangersSync||!w.GEBangersSync.publishNow){switchBusy=false;status("NOT SWITCHED · Bangers sync unavailable");return;}
+  status("VERIFYING BANGERS ON RADIO 2…");
+  w.GEBangersSync.publishNow({force:true}).then(commitSwitch).catch(function(e){
+   switchBusy=false;status("NOT SWITCHED · "+String(e&&e.message||e))
+  });
+ }else commitSwitch();
 }
 blitz.onclick=function(){choose("blitz");};
 ge.onclick=function(){choose("ge");};
