@@ -71,7 +71,9 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  <p>Use your existing DJ code. It is not saved in this page; this iMac can instead remember an authorized device token.</p>
  <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
  <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
- <p id="error"></p>
+  <p id="error" role="status"></p>
+  <p><a class="link" target="_blank" rel="noopener" href="https://radio.grandelement.blitz.cloud/control/status">TEST DIRECT BLITZ STATUS</a></p>
+  <p>A login-required response means BLITZ's DJ control server is responding. A 503 here means BLITZ itself needs a configuration or service check.</p>
 </div>
 <div id="radio">
  <div class="panel">
@@ -188,7 +190,15 @@ function request(method,path,body,callback){
  xhr.onreadystatechange=function(){
   if(xhr.readyState!==4)return;
   var obj={};try{obj=JSON.parse(xhr.responseText||"{}")}catch(e){}
-  if(xhr.status<200||xhr.status>=300){callback(new Error((obj&&obj.error)||("DJ API HTTP "+xhr.status)));return}
+  if(xhr.status<200||xhr.status>=300){
+   var raw=String(xhr.responseText||""),reason=(obj&&obj.error)||"";
+   if(!reason&&xhr.status===503&&raw.indexOf("Set DJ_PASSWORD")>=0)
+    reason="BLITZ says DJ_PASSWORD is not configured. Check its existing environment settings; do not rebuild BLITZ.";
+   if(!reason&&xhr.status===503)
+    reason="DJ API HTTP 503 · BLITZ control service or Cloudflare relay unavailable. Tap TEST DIRECT BLITZ STATUS to isolate it.";
+   if(!reason)reason="DJ API HTTP "+xhr.status;
+   callback(new Error(reason));return
+  }
   callback(null,obj)
  };
  xhr.ontimeout=function(){callback(new Error("BLITZ connection timed out via Cloudflare DJ relay"))};
