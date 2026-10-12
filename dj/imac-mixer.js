@@ -37,7 +37,7 @@ function requestDevices(){
    if(!first)first=x.deviceId;
   }
   if(saved){sel.value=saved;if(sel.value!==saved)sel.value="";}
-  if(!sel.value&&first&&(!saved))sel.value=first;
+  // Never silently select the first microphone; the DJ must choose Saffire or System Default.
   out("devicesFound","RECORDING INPUTS FOUND · "+(sel.options.length-1)+" · SELECTED: "+(sel.options[sel.selectedIndex]&&sel.options[sel.selectedIndex].textContent||"System Default"));
  }).catch(function(e){out("inputStatus","Device listing failed: "+String(e&&e.message||e))})
 }
@@ -163,7 +163,10 @@ function connectInput(){
   out("inputStatus","INPUT VERIFIED · "+actualInputName+" · "+Math.round(ctx.sampleRate)+" Hz. Play Ableton to test L/R.");
   out("meterStatus","WAITING FOR METER CALLBACKS · Play Ableton now");
   out("devicesFound","CONNECTED DEVICE · "+actualInputName);
-  if(ctx.resume&&ctx.state==="suspended")ctx.resume().catch(function(e){out("meterStatus","AUDIO CONTEXT PAUSED · "+String(e&&e.message||e))});
+  if(ctx.resume&&ctx.state==="suspended"){
+   var resumed=ctx.resume();
+   if(resumed&&typeof resumed.catch==="function")resumed.catch(function(e){out("meterStatus","AUDIO CONTEXT PAUSED · "+String(e&&e.message||e))});
+  }
   diagnosticTimer=setTimeout(function(){
    if(!localOn)return;
    if(!pcmFrames){out("meterStatus","NO METER FRAMES · Safari is not processing this input. LIVE disabled. Check Sound Input and reload page.");}
