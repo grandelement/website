@@ -9,7 +9,7 @@
 var API="https://radio.grandelement.blitz.cloud";
 var OWNER="imac-live",a=null,stream=null,source=null,processor=null,silent=null,ctx=null,analyser=null,ws=null;
 var localOn=false,busy=false,air=false,dropStarted=false,lastSignal=0,meterTimer=0,radioPoll=0,liveGain=1,raf=0,bufferedDropping=0,latestPeak=0,boardId="";
-var actualInputName="",selectedInputName="",pcmFrames=0,connectedAt=0,diagnosticTimer=0;
+var actualInputName="",selectedInputName="",pcmFrames=0,connectedAt=0,diagnosticTimer=0,meterProbe=0,probeSeen=false,lastPcmFrames=0;
 try{boardId=w.localStorage.getItem("geImacClassicBoardId")||"";if(!boardId){boardId="imac-classic-"+Date.now();w.localStorage.setItem("geImacClassicBoardId",boardId)}}catch(e){boardId="imac-classic"}
 function el(s){return d.getElementById(s)}
 function out(s,v){if(el(s))el(s).textContent=String(v)}
@@ -52,6 +52,7 @@ function getAudio(constraints){
 }
 function stopLocal(){
  clearTimeout(diagnosticTimer);diagnosticTimer=0;
+ clearInterval(meterProbe);meterProbe=0;probeSeen=false;lastPcmFrames=0;
  localOn=false;pcmFrames=0;connectedAt=0;actualInputName="";
  if(processor){try{processor.disconnect();processor.onaudioprocess=null}catch(e){}}
  if(source){try{source.disconnect()}catch(e){}}
@@ -156,21 +157,61 @@ function connectInput(){
   analyser=ctx.createAnalyser();analyser.fftSize=512;
   processor=ctx.createScriptProcessor?ctx.createScriptProcessor(4096,2,2):null;
   if(!processor)throw new Error("This Safari cannot capture audio samples in the DJ page.");
-  silent=ctx.createGain();silent.gain.value=0;
-  source.connect(analyser);analyser.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
+  // Safari can stop processing a ScriptProcessor that feeds a zero-gain node.
+  // Connect the processor directly to the output instead. onSamples explicitly
+  // fills every output buffer with zero, so the input is NEVER audible locally.
+  silent=null;
+  source.connect(analyser);analyser.connect(processor);
   processor.onaudioprocess=onSamples;
+  processor.connect(ctx.destination);
   localOn=true;pcmFrames=0;connectedAt=Date.now();lastSignal=0;
   out("inputStatus","INPUT VERIFIED · "+actualInputName+" · "+Math.round(ctx.sampleRate)+" Hz. Play Ableton to test L/R.");
   out("meterStatus","WAITING FOR METER CALLBACKS · Play Ableton now");
   out("devicesFound","CONNECTED DEVICE · "+actualInputName);
+  // Independent AnalyserNode probe remains useful if old Safari does not
+  // invoke the ScriptProcessor callback. Probe is receive-only, never LIVE.
+  var data=new Uint8Array(analyser.fftSize);
+  meterProbe=setInterval(function(){
+   if(!localOn||!analyser||!ctx)return;
+   try{
+    analyser.getByteTimeDomainData(data);
+    var energy=0;
+    for(var k=0;k<data.length;k++){var val=(data[k]-128)/128;energy+=val*val}
+    var rms=Math.sqrt(energy/Math.max(1,data.length));
+    var db=Math.max(-60,Math.min(0,rms>0?20*Math.log(rms)/Math.LN10:-60));
+    var percent=Math.max(0,Math.min(100,Math.round((db+60)/60*100)));
+    if(rms>0.0017){probeSeen=true;lastSignal=Date.now()}
+    // If ScriptProcessor is not firing, show the directly received level so
+    // the user can distinguish a Safari processing bug from silent routing.
+    if(pcmFrames===0){
+     if(el("leftMeter"))el("leftMeter").style.width=percent+"%";
+     if(el("rightMeter"))el("rightMeter").style.width=percent+"%";
+     out("leftDb",db.toFixed(1)+" dB");
+     out("rightDb",db.toFixed(1)+" dB");
+    }
+    if(pcmFrames===0){
+     out("meterStatus",rms>0.0017?"SIGNAL RECEIVED · Safari audio processor not running · LIVE disabled":
+      "NO INPUT SIGNAL · Safari frames 0 · Check Saffire channels / loopback routing");
+    }else if(pcmFrames!==lastPcmFrames){
+     lastPcmFrames=pcmFrames;
+     if(pcmFrames%20<3||Date.now()-lastSignal>2500){
+      out("meterStatus",rms>0.0017?"SIGNAL PRESENT · "+pcmFrames+" processed frames":
+       "PROCESSOR ACTIVE · "+pcmFrames+" frames · INPUT SILENT · Check Saffire channels");
+     }
+    }
+    updateLiveButton();
+   }catch(e){out("meterStatus","OLD SAFARI METER ERROR · "+String(e&&e.message||e))}
+  },450);
   if(ctx.resume&&ctx.state==="suspended"){
    var resumed=ctx.resume();
    if(resumed&&typeof resumed.catch==="function")resumed.catch(function(e){out("meterStatus","AUDIO CONTEXT PAUSED · "+String(e&&e.message||e))});
   }
   diagnosticTimer=setTimeout(function(){
    if(!localOn)return;
-   if(!pcmFrames){out("meterStatus","NO METER FRAMES · Safari is not processing this input. LIVE disabled. Check Sound Input and reload page.");}
-   else if(Date.now()-lastSignal>3500)out("meterStatus","METER RUNNING · NO ABLETON SOUND · Check Saffire MixControl's recording input routing");
+   if(!pcmFrames){out("meterStatus",probeSeen?
+    "SAFFIRE SIGNAL DETECTED · Safari LIVE processor not running · LIVE disabled":
+    "NO AUDIO FRAMES · Saffire device recognized but no browser capture signal");}
+   else if(Date.now()-lastSignal>3500)out("meterStatus","PROCESSING "+pcmFrames+" FRAMES · SILENCE · Saffire playback may be routed to LOOPBACK 19/20, not Safari 1/2");
    updateLiveButton();
   },3700);
  }).catch(function(e){
