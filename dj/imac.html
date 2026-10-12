@@ -13,7 +13,19 @@ input,select{font-size:16px;border:1px solid #68809b;background:#060f1a;color:wh
 button,a.link{font-size:15px;display:inline-block;min-height:45px;background:#143249;border:1px solid #467e9d;color:white;border-radius:7px;padding:12px 15px;margin:4px 4px 4px 0;cursor:pointer;text-decoration:none;font-weight:bold}
 button.green{background:#15483d;border-color:#53ccb4}button.orange{background:#4b3013;border-color:#d3a452}button.red{background:#552028;border-color:#d46b7b}
 button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pre-line;overflow-wrap:anywhere;color:#b4d3e7}
-.controls{margin-top:8px}.small{font-size:13px}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
+.controls{margin-top:8px}.small{font-size:13px}
+#radioControls{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+#radioControls button{flex:1 1 130px;min-height:57px;margin:0}
+#radioControls #liveToggle{flex:2 1 195px;border:2px solid #8be8d2;letter-spacing:1px}
+.geMeters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.geMeterBox{border:1px solid #35536a;border-radius:8px;padding:8px;background:#07101c}
+.geMeterBox b{font-size:12px}.geMeterTrack{height:15px;border:1px solid #4e6d82;background:#050a0f;border-radius:5px;overflow:hidden;margin:6px 0}
+.geMeterFill{height:100%;width:0;background:#58d6b4;transition:width .12s}
+#radioMeterBar{background:#63a5f8}
+.geMeterRead{font-size:12px;color:#b8ccda}
+#liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
+#devicesFound,#liveState{font-size:13px;color:#a6d7ee}
+#uploadResults{white-space:pre-line;overflow-wrap:anywhere;color:#adddd9}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
 #radio{display:none}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
 #now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
 #inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}
@@ -66,23 +78,40 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   <h2>RADIO 1 · BLITZ</h2>
   <div id="now">Connecting…</div><div class="tag" id="playlist">PLAYLIST</div>
   <p id="statusLine"></p>
-  <div class="controls">
+  <div class="controls" id="radioControls">
    <button type="button" id="fadeOut" class="orange">FADE OUT</button>
    <button type="button" id="fadeIn" class="green">FADE IN</button>
    <button type="button" id="skip">SKIP</button>
    <button type="button" id="stop" class="red">STOP / PLAY</button>
    <button type="button" id="refresh">REFRESH</button>
+   <button type="button" id="liveToggle" disabled>LIVE</button>
+  </div>
+  <p id="liveStatus">LIVE OFF · Bangers is playing. Connect the Focusrite input to enable LIVE.</p>
+  <div class="geMeterBox"><b>RADIO MASTER OUTPUT</b>
+   <div class="geMeterTrack"><div id="radioMeterBar" class="geMeterFill"></div></div>
+   <span class="geMeterRead" id="radioDb">-60 dB</span>
   </div>
   <h2>COMING UP</h2><ol id="queue"></ol>
  </div>
  <div class="panel">
   <h2>iMAC · ABLETON STUDIO</h2>
   <p>2007 iMac · Ableton Live · Focusrite Saffire Pro 40 · Axiom Pro MIDI</p>
-  <button id="selectInput" type="button">CHECK FOCUSRITE AUDIO INPUT</button>
-  <select id="inputs"><option value="">Select detected audio input</option></select>
-  <div id="inputMeter"><div id="inputBar"></div></div>
-  <p id="inputStatus">A Focusrite recording input or loopback is required to bring Ableton audio into the browser. MIDI stays inside Ableton.</p>
-  <p><strong>Input meter is local only.</strong> This classic control page does not broadcast live Ableton audio; radio contribution requires the separate compatible live-input connection.</p>
+  <p id="devicesFound">SCAN DEVICES · Not yet checked</p>
+  <div class="controls"><button id="refreshInputs" type="button">SCAN DEVICES</button>
+   <button id="selectInput" type="button" class="green">CONNECT FOCUSRITE INPUT</button>
+   <button id="stopInput" type="button">DISCONNECT INPUT</button></div>
+  <select id="inputs"><option value="">SELECT RECORDING INPUT</option></select>
+  <div class="geMeters">
+   <div class="geMeterBox"><b>FOCUSRITE LEFT</b><div class="geMeterTrack"><div class="geMeterFill" id="leftMeter"></div></div><span id="leftDb" class="geMeterRead">-60 dB</span></div>
+   <div class="geMeterBox"><b>FOCUSRITE RIGHT</b><div class="geMeterTrack"><div class="geMeterFill" id="rightMeter"></div></div><span id="rightDb" class="geMeterRead">-60 dB</span></div>
+  </div>
+  <div id="inputMeter" style="display:none"><div id="inputBar"></div></div>
+  <label for="liveGain">LIVE INPUT LEVEL</label>
+  <input type="range" id="liveGain" min="0" max="150" value="100">
+  <b id="liveGainRead">100%</b>
+  <p id="liveState">OFF AIR · BANGERS</p>
+  <p id="inputStatus">Select the actual recording input carrying Ableton's Master audio. Check the moving L/R meters before pressing LIVE. The input is not automatically taken on air.</p>
+  <p><strong>Universal iMac mixer:</strong> Device selection, Left/Right input meters, live gain and radio output. Ableton Master must return through a capture input or an installed loopback. Keep the radio speaker monitor off during LIVE to prevent feedback.</p>
  </div>
  <div class="panel">
   <h2>SONG DRAFTS · FILE TRANSFERS</h2>
@@ -206,22 +235,14 @@ for(var id in buttons)if(buttons.hasOwnProperty(id)){(function(buttonId,action){
 el("stop").onclick=function(){request("POST","/control/music-action",{action:(state&&state.mixer&&state.mixer.music_muted)?"play":"stop"},function(err){if(err)text("connection",err.message);refresh()})};
 el("skip").onclick=function(){request("POST","/control/skip",null,function(err){if(err)text("connection",err.message);refresh()})};
 el("refresh").onclick=refresh;
-el("selectInput").onclick=function(){
- var md=navigator.mediaDevices;
- if(!md||!md.getUserMedia){text("inputStatus","This Safari version does not support the required microphone API. Use a newer browser or capture from Ableton outside Safari.");return}
- md.getUserMedia({audio:true}).then(function(g){
-  if(stream)stream.getTracks().forEach(function(t){t.stop()});stream=g;
-  text("inputStatus","Recording input detected locally. This does not broadcast to the radio.");
-  if(md.enumerateDevices)md.enumerateDevices().then(function(list){
-   var s=el("inputs");s.innerHTML="";for(var i=0;i<list.length;i++)if(list[i].kind==="audioinput"){
-    var option=document.createElement("option");option.value=list[i].deviceId;option.textContent=list[i].label||"Audio input "+(i+1);s.appendChild(option)
-   }
-  });
-  if(!audioCtx){var AC=window.AudioContext||window.webkitAudioContext;if(AC){audioCtx=new AC();var node=audioCtx.createMediaStreamSource(g),analyser=audioCtx.createAnalyser();analyser.fftSize=256;node.connect(analyser);var values=new Uint8Array(analyser.frequencyBinCount);function meter(){analyser.getByteFrequencyData(values);var sum=0;for(var j=0;j<values.length;j++)sum+=values[j];el("inputBar").style.width=Math.min(100,Math.round((sum/values.length)*.7))+"%";meterTimer=setTimeout(meter,120)}meter()}}
- }).catch(function(e){text("inputStatus","Input permission/device error: "+(e.message||e))})
+w.GEImacClassic={
+ api:request,
+ loggedIn:function(){return connected},
+ getAuth:function(){return {key:key,id:deviceId,token:deviceToken}},
+ refresh:refresh
 };
-el("inputs").onchange=function(){text("inputStatus","Selected recording input. Click CHECK FOCUSRITE AUDIO INPUT to renew permission; this page is monitor-only.")};
 getSaved();if(deviceId&&deviceToken)signIn("");
 })();
 </script>
+<script src="https://grandelement.com/dj/imac-mixer.js?v=1"></script>
 </body></html>
