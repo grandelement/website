@@ -7774,6 +7774,16 @@ Vector ${vector}. ${pair[1]}.`;
     clearTimers();
     try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
     gs.active=false;gs.expired=false;gs.reason='unlocked';save(true);
+    // Temporary legacy-Gate event for owner analytics and later email alerts.
+    // Do not send location, VPN, IP, password, payment claims, or identity.
+    // This is client-reported and is NOT verified purchase/entitlement proof.
+    try{
+      void window.GEVault?.radio?.('gate_entry',{
+        gate:'inner_frequency',result:'unlocked',
+        access_method:'legacy_gate',verification:'client_only',
+        notification_type:'gate_entry'
+      });
+    }catch(_e){}
     window.GEAudioGain?.setImmediate?.(1);
     try{audio.volume=restoreVolume;}catch(_e){}
 
