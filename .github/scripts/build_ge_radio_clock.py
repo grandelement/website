@@ -19,7 +19,7 @@ def duration_ms(file):
 def meta(path,kind="song"):
  rel=path.relative_to(ROOT).as_posix()
  parent=path.parent.name
- album=next((x for x in CORE if parent.endswith(" - "+x)),parent)
+ album=parent.rsplit(" - ",1)[-1]
  title=path.stem.split("_",1)[-1].replace("_"," ").strip()
  return dict(url="/"+quote(rel,safe="/"),path=rel,title=title,album=album,duration_ms=duration_ms(path),kind=kind)
 def main():
