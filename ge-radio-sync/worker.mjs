@@ -64,16 +64,27 @@ export class RadioTimeline {
       }else if(action==="skip"){
         ge.position_ms=prefix((here.slot+1)%n);ge.anchor_at_ms=now;
       }else if(action==="reshuffle"){
-        const current=ge.order[here.slot];
-        const remaining=ge.order.filter(v=>v!==current);
-        for(let i=remaining.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[remaining[i],remaining[j]]=[remaining[j],remaining[i]];}
-        ge.order=[current,...remaining];ge.position_ms=here.offset;ge.anchor_at_ms=now;
+        // Keep the song currently playing and all station IDs at their same slots.
+        // Station IDs remain spaced among songs rather than clumping together.
+        const slots=[],songs=[],kinds=body.meta.kinds||[];
+        for(let i=0;i<n;i++)if(i!==here.slot&&kinds[ge.order[i]]!=="station_id"){
+          slots.push(i);songs.push(ge.order[i]);
+        }
+        for(let i=songs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[songs[i],songs[j]]=[songs[j],songs[i]];}
+        for(let i=0;i<slots.length;i++)ge.order[slots[i]]=songs[i];
+        ge.position_ms=prefix(here.slot)+here.offset;ge.anchor_at_ms=now;
       }else if(action==="move"){
         const from=body.from_pos,to=body.to_pos;
         if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=n||to>=n)
           return Response.json({ok:false,error:"Invalid playlist positions."},{status:400});
-        const current=ge.order[here.slot];
-        const [picked]=ge.order.splice(from,1);ge.order.splice(to,0,picked);
+        const kinds=body.meta.kinds||[];
+        if(kinds[ge.order[from]]==="station_id"||kinds[ge.order[to]]==="station_id")
+          return Response.json({ok:false,error:"Station identification slots remain fixed."},{status:400});
+        const current=ge.order[here.slot],slots=[];
+        for(let i=0;i<n;i++)if(kinds[ge.order[i]]!=="station_id")slots.push(i);
+        const songs=slots.map(slot=>ge.order[slot]);
+        const [picked]=songs.splice(slots.indexOf(from),1);songs.splice(slots.indexOf(to),0,picked);
+        for(let i=0;i<slots.length;i++)ge.order[slots[i]]=songs[i];
         ge.position_ms=prefix(ge.order.indexOf(current))+here.offset;ge.anchor_at_ms=now;
       }else return Response.json({ok:false,error:"Unknown DJ action."},{status:400});
       ge.revision=(ge.revision||0)+1;ge.updated_at_ms=now;
@@ -134,7 +145,7 @@ export default {
     try{
       const p=await program(env);
       const ds=p.tracks.map(t=>Number(t.duration_ms));
-      const meta={durations:ds,hash:p.playlist_hash,epoch:Number(p.epoch_utc_ms)};
+      const meta={durations:ds,kinds:p.tracks.map(t=>t.kind||"song"),hash:p.playlist_hash,epoch:Number(p.epoch_utc_ms)};
       const id=env.RADIO_TIMELINE.idFromName("grand-element-on-air");
       const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/ge-dj",{
         method:"POST",headers:{"Content-Type":"application/json"},
