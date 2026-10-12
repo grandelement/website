@@ -44,7 +44,7 @@ def main():
   try:catalog.append(meta(path,"station_id"))
   except Exception as exc:print("GE RADIO station clip metadata unavailable: %s (%s)"%(path,exc))
  if len(catalog)<len(files):raise RuntimeError("Measured album catalog incomplete; refusing to publish it")
- CATALOG_OUT.write_text(json.dumps({"format":"ge-radio-track-durations-v1","tracks":catalog},indent=2,ensure_ascii=False)+"\\n",encoding="utf-8")
+ CATALOG_OUT.write_text(json.dumps({"format":"ge-radio-track-durations-v1","tracks":catalog},indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
  print("GE RADIO full album track duration catalog: %s audio files"%(len(catalog)))
  total=sum(x["duration_ms"] for x in tracks)
  out={"format":"ge-radio-clock-v1","epoch_utc_ms":EPOCH,"cycle_duration_ms":total,"tracks":tracks}
