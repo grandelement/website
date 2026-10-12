@@ -16,7 +16,12 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 .controls{margin-top:8px}.small{font-size:13px}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
 #radio{display:none}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
 #now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
-#inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}#inputBar{height:100%;width:0;background:#63d4bd}
+#inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}
+#imacRadioAudio{display:block;width:100%;max-width:800px;min-height:42px;margin:10px 0}
+#listenerState{font-weight:bold;color:#77d9c3}
+#listenVolume{width:min(320px,100%);vertical-align:middle}
+#listenVolumeRead{display:inline-block;min-width:42px;text-align:right}
+#listenerPanel .notice{color:#bed4e1}#inputBar{height:100%;width:0;background:#63d4bd}
 @media(max-width:650px){.columns,.col{display:block;width:100%}body{padding:7px}.panel{padding:12px}}
 </style>
 </head>
@@ -26,6 +31,28 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  <h1>GE DJ · iMAC</h1>
  <p>Classic Safari control desk for the older iMac · Ableton / Focusrite studio</p>
  <p id="connection" role="status">Not connected</p>
+</div>
+<div class="panel" id="listenerPanel">
+ <h2>RADIO LISTENING · iMAC</h2>
+ <p class="notice">This is the public Grand Element broadcast from BLITZ, not the local Ableton microphone feed. Use headphones before putting the iMac on air to prevent feedback.</p>
+ <audio id="imacRadioAudio" controls preload="none">
+  <source src="https://radio.grandelement.blitz.cloud/stream.mp3" type="audio/mpeg">
+  Your browser does not support embedded audio. Use the direct stream link below.
+ </audio>
+ <div class="controls">
+  <button id="imacListen" type="button" class="green">LISTEN · RADIO 1</button>
+  <button id="imacPause" type="button">STOP LISTENING</button>
+  <button id="imacReconnect" type="button">RECONNECT AUDIO</button>
+ </div>
+ <div>
+  <label for="listenVolume">VOLUME</label>
+  <input id="listenVolume" type="range" min="0" max="100" value="65">
+  <span id="listenVolumeRead">65%</span>
+ </div>
+ <p id="listenerState" role="status">READY · Press LISTEN to hear the live radio.</p>
+ <a class="link" target="_blank" rel="noopener" href="https://radio.grandelement.blitz.cloud/stream.mp3">OPEN RADIO STREAM DIRECTLY</a>
+ <a class="link" href="https://grandelement.com/radio/ge-clock.html">RADIO 1 / RADIO 2 LISTENER</a>
+ <p class="notice">Radio 2 is accessed through the GE Clock listener; it cannot be heard until Bangers has successfully synchronized. The main listening controls above always monitor BLITZ Radio 1.</p>
 </div>
 <div class="panel" id="login">
  <h2>DJ SIGN IN</h2>
@@ -78,6 +105,33 @@ var TRUST_ID="geDjTrustedIdV1",TRUST_TOKEN="geDjTrustedTokenV1";
 var key="",deviceId="",deviceToken="",state=null,connected=false,pollTimer=null,stream=null,meterTimer=null,audioCtx=null;
 function el(id){return document.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s||"")}
+var radioStreamUrl="https://radio.grandelement.blitz.cloud/stream.mp3";
+var listener=el("imacRadioAudio"),userWantsRadio=false,radioReconnectTimer=0,radioRetries=0;
+function stateRadio(message){text("listenerState",message)}
+function radioStopped(){clearTimeout(radioReconnectTimer);radioReconnectTimer=0}
+function radioStart(reconnect){
+ userWantsRadio=true;radioStopped();
+ if(reconnect||!listener.currentSrc){
+  try{listener.pause()}catch(e){}
+  listener.src=radioStreamUrl+(reconnect?"?reconnect="+String(new Date().getTime()):"");
+  try{listener.load()}catch(e){}
+ }
+ stateRadio("RADIO 1 · Connecting to live BLITZ stream…");
+ try{
+  var attempt=listener.play();
+  if(attempt&&typeof attempt.then==="function")attempt.then(function(){
+   radioRetries=0;stateRadio("RADIO 1 · LIVE · Listening");
+  },function(e){stateRadio("AUDIO COULD NOT START · "+String(e&&e.message||e)+" · Try the native Play control.")})
+ }catch(e){stateRadio("AUDIO COULD NOT START · "+String(e&&e.message||e)+" · Try the native Play control.")}
+}
+function reconnectRadio(){
+ if(!userWantsRadio)return;
+ if(radioRetries>=4){stateRadio("RADIO 1 · Connection failed. Try OPEN RADIO STREAM DIRECTLY.");return}
+ radioRetries++;
+ radioStopped();
+ radioReconnectTimer=setTimeout(function(){radioStart(true)},3000*radioRetries);
+ stateRadio("RADIO 1 · Stream interrupted · Retry "+radioRetries+"/4");
+}
 function getSaved(){try{deviceId=localStorage.getItem(TRUST_ID)||"";deviceToken=localStorage.getItem(TRUST_TOKEN)||""}catch(e){}}
 function saveDevice(id,token){deviceId=id;deviceToken=token;try{localStorage.setItem(TRUST_ID,id);localStorage.setItem(TRUST_TOKEN,token)}catch(e){}}
 function forget(){deviceId="";deviceToken="";key="";try{localStorage.removeItem(TRUST_ID);localStorage.removeItem(TRUST_TOKEN)}catch(e){}}
@@ -132,6 +186,16 @@ function signIn(password){
   text("error","");onConnected(obj)
  })
 }
+listener.volume=.65;
+el("imacListen").onclick=function(){radioRetries=0;radioStart(false)};
+el("imacPause").onclick=function(){userWantsRadio=false;radioStopped();listener.pause();stateRadio("RADIO 1 · Listening stopped")};
+el("imacReconnect").onclick=function(){radioRetries=0;radioStart(true)};
+el("listenVolume").oninput=function(){listener.volume=Number(this.value)/100;text("listenVolumeRead",String(this.value)+"%")};
+listener.onplay=function(){userWantsRadio=true;radioRetries=0;stateRadio("RADIO 1 · LIVE · Listening")};
+listener.onpause=function(){if(!userWantsRadio)stateRadio("RADIO 1 · Paused")};
+listener.onwaiting=function(){if(userWantsRadio)stateRadio("RADIO 1 · Buffering live audio…")};
+listener.onerror=function(){if(userWantsRadio)reconnectRadio()};
+listener.onstalled=function(){if(userWantsRadio&&!radioReconnectTimer)reconnectRadio()};
 el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input){text("error","Enter the DJ code.");return}signIn(input)};
 el("password").onkeydown=function(e){e=e||window.event;if((e.keyCode||e.which)===13)el("enter").click()};
 var buttons={fadeOut:"fade_out",fadeIn:"fade_in"};
