@@ -15,7 +15,7 @@ var button=d.getElementById("geClockPlay");
 var msg=d.getElementById("geClockStatus");
 var info=d.getElementById("geClockInfo");
 var info2=d.getElementById("geClockSecondary");
-var program=null,station={from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0},offset=0,playing=false,ready=false,loadedURL="";
+var program=null,station={from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0},geDJ=null,offset=0,playing=false,ready=false,loadedURL="";
 var clockSample=false,ctx=null,gb=null,gg=null,softFade=false,lastRevision=-1,lastMode="";
 var currentTrackIndex=-1,pendingSeek=false,lastError="";
 var errors=0,legacyLastTrack="",legacyListenStart=0,legacyLastReport=0,legacySid="session-ge-"+Date.now();
@@ -55,18 +55,27 @@ function request(path,cb){
  xhr.send(null);
 }
 function label(t){return t?(t.title||"Station Identification")+" · "+(t.album||"Grand Element"):"Waiting for music";}
+function liveDJ(){
+ return geDJ&&program&&geDJ.playlist_hash===program.playlist_hash&&
+        geDJ.order&&geDJ.order.length===program.tracks.length?geDJ:null;
+}
+function geRunning(){var dj=liveDJ();return !dj||dj.running!==false;}
 function geAt(ms){
  if(!program||!program.tracks||!program.tracks.length)return null;
- var t=program.tracks,total=Number(program.cycle_duration_ms);
+ var t=program.tracks,dj=liveDJ(),order=dj?dj.order:null,total=Number(program.cycle_duration_ms);
  if(!(total>0))return null;
- var pos=(ms-Number(program.epoch_utc_ms))%total;
- if(pos<0)pos+=total;
+ var pos=dj?Number(dj.position_ms)+(dj.running?ms-Number(dj.anchor_at_ms):0):
+             ms-Number(program.epoch_utc_ms);
+ pos=pos%total;if(pos<0)pos+=total;
  for(var i=0;i<t.length;i++){
-  var length=Number(t[i].duration_ms);
-  if(pos<length-1)return {index:i,track:t[i],seconds:Math.max(0,pos/1000),remaining:(length-pos)/1000};
+  var index=order?order[i]:i,track=t[index];
+  if(!track)return null;
+  var length=Number(track.duration_ms);
+  if(pos<length-1)return {index:index,slot:i,track:track,seconds:Math.max(0,pos/1000),remaining:(length-pos)/1000};
   pos-=length;
  }
- return {index:0,track:t[0],seconds:0,remaining:Number(t[0].duration_ms)/1000};
+ var first=order?order[0]:0;
+ return {index:first,slot:0,track:t[first],seconds:0,remaining:Number(t[first].duration_ms)/1000};
 }
 function musicURL(t){
  var s=String(t.url||"");
@@ -97,7 +106,7 @@ function initAudio(){
  setGain(aBlitz,0,gb);setGain(aGe,0,gg);
 }
 function syncGe(){
- var t=geAt(clock());if(!t||!playing)return;
+ var t=geAt(clock());if(!t||!playing||!geRunning())return;
  var url=musicURL(t.track);
  if(url!==loadedURL){
   loadedURL=url;currentTrackIndex=t.index;pendingSeek=true;
@@ -139,6 +148,15 @@ function nowRender(){
  if(!station||!playing)return;
  syncGe();
  var shape=switchShape(),b=shape.blitz,g=shape.ge;
+ if(!geRunning()&&shape.mode==="ge"){
+  setGain(aGe,0,gg);setGain(aBlitz,0,gb);
+  stopUnneeded(aGe);stopUnneeded(aBlitz);
+  if(info2)info2.textContent="GE RADIO · DJ STOPPED · UTC synchronized";
+  return;
+ }
+ if(!geRunning()&&station.to==="ge"&&shape.mode==="switching"){
+  b=1;g=0; // Never switch listeners into an intentionally stopped GE playlist.
+ }
  if(softFade&&station.from!==station.to&&clock()<station.start_at_ms&&clock()>station.start_at_ms-12000){
   // Prime the next channel at zero gain on browsers that allow background audio preparation.
   if(station.to==="ge"&&aGe.readyState>=2){setGain(aGe,0,gg);ensurePlaying(aGe);}
@@ -183,9 +201,9 @@ function nowRender(){
 function pollState(){
  request("/v1/state",function(err,result){
   if(err){errors++;status(playing?"Last known source maintained · checking clock":"Clock unavailable · BLITZ fallback available");return;}
-  errors=0;station=result.station;ready=true;
+  errors=0;station=result.station;geDJ=result.ge_dj||null;ready=true;
   var shape=switchShape();
-  if(playing)status(shape.mode==="switching"?"Switching stations…":shape.mode==="ge"?"GE RADIO · ON":"BLITZ · ON");
+  if(playing)status(shape.mode==="switching"?"Switching stations…":shape.mode==="ge"?(geRunning()?"GE RADIO · ON":"GE RADIO · DJ STOPPED"):"BLITZ · ON");
   else status("Ready · tap PLAY · "+(shape.mode==="ge"?"GE RADIO":"BLITZ"));
   if(station&&station.revision!==lastRevision){
    lastRevision=station.revision;
