@@ -89,12 +89,19 @@ function render(){
  var h="";
  for(var i=0;i<order.length;i++){
   var slot=(here.slot+i)%order.length,t=songs[order[slot]];
-  var curr=i===0,prev=(slot+order.length-1)%order.length,next=(slot+1)%order.length;
+  var curr=i===0,prev=slot,next=slot,kind=t.kind||"song";
+  if(kind!=="station_id"){
+   for(var step=1;step<order.length;step++){var p=(slot-step+order.length)%order.length;
+    if(songs[order[p]].kind!=="station_id"){prev=p;break;}}
+   for(var step2=1;step2<order.length;step2++){var q=(slot+step2)%order.length;
+    if(songs[order[q]].kind!=="station_id"){next=q;break;}}
+  }
+  var locked=kind==="station_id"?' disabled title="Station IDs stay spaced between songs"':'';
   h+='<div class="geDJRow'+(curr?' geDJCurrent':'')+'">'
    +'<span class="geDJNum">'+(curr?"NOW":String(i+1))+'</span>'
    +'<span><b>'+esc(t.title||"Untitled")+'</b><small>'+esc(t.album||"Grand Element")+'</small></span>'
-   +'<button type="button" data-from="'+slot+'" data-to="'+prev+'" aria-label="Move up">↑</button>'
-   +'<button type="button" data-from="'+slot+'" data-to="'+next+'" aria-label="Move down">↓</button></div>';
+   +'<button type="button"'+locked+' data-from="'+slot+'" data-to="'+prev+'" aria-label="Move up">↑</button>'
+   +'<button type="button"'+locked+' data-from="'+slot+'" data-to="'+next+'" aria-label="Move down">↓</button></div>';
  }
  el("geDJQueue").innerHTML=h;
 }
