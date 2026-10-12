@@ -6,7 +6,8 @@
 (function(w,d){
 "use strict";
 var WORKER="https://ge-radio-sync.grandelement.workers.dev";
-var STATIC="https://grandelement.com/radio/sync-playlist.json";
+var STATIC="https://grandelement.com/radio/track-durations.json";
+var LEGACY_STATIC="https://grandelement.com/radio/sync-playlist.json";
 var busy=false,lastSignature="",lastSent=0,lastSuccess=0,lastError="",timer=0;
 var lastKeys="",metaCache=null,metaAt=0,lastNowKey="",lastNowEpoch=0;
 var el=function(id){return d.getElementById(id)};
@@ -23,9 +24,15 @@ async function json(response){
 }
 async function measuredTracks(){
  if(metaCache&&Date.now()-metaAt<3600000)return metaCache;
- var r=await fetch(STATIC,{cache:"no-store"});
- var p=await json(r);
- if(p.format!=="ge-radio-clock-v1"||!Array.isArray(p.tracks))throw new Error("Measured music catalog is missing.");
+ var p=null,firstError="";
+ try{
+  p=await json(await fetch(STATIC,{cache:"no-store"}));
+  if(p.format!=="ge-radio-track-durations-v1"||!Array.isArray(p.tracks))throw new Error("Track catalog format invalid.");
+ }catch(e){
+  firstError=String(e&&e.message||e);
+  p=await json(await fetch(LEGACY_STATIC,{cache:"no-store"}));
+  if(p.format!=="ge-radio-clock-v1"||!Array.isArray(p.tracks))throw new Error("Measured GE music catalog unavailable: "+firstError);
+ }
  var m={byPath:{},byTitle:{},clips:[]};
  p.tracks.forEach(function(t){
   if(!t.path||!t.url||!(Number(t.duration_ms)>1000))return;
