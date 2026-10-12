@@ -8,7 +8,7 @@
 var WORKER="https://ge-radio-sync.grandelement.workers.dev";
 var STATIC="https://grandelement.com/radio/sync-playlist.json";
 var busy=false,lastSignature="",lastSent=0,lastSuccess=0,lastError="",timer=0;
-var lastKeys="",metaCache=null,metaAt=0;
+var lastKeys="",metaCache=null,metaAt=0,lastNowKey="",lastNowEpoch=0;
 var el=function(id){return d.getElementById(id)};
 function say(message,failed){
  var node=el("geBangersSyncStatus");
@@ -84,11 +84,13 @@ async function build(){
  base.forEach(add);
  if(out.length<3)throw new Error("Bangers backup has no playable schedule.");
  // Anchor the clock to the actual BLITZ NOW track only if its observed start is credible.
- var now=Date.now(),epoch=now;
+ var now=Date.now(),slotKey=String(state.now&&state.now.slot||"")+"|"+String(current&&current.path||"");
+ var epoch=(slotKey===lastNowKey&&lastNowEpoch>0)?lastNowEpoch:now;
  if(current&&out[0]&&pathsEqual(current.path,out[0].path)&&Number(state.now_started_at)>0){
   var begun=Math.round(Number(state.now_started_at)*1000),elapsed=now-begun;
   if(elapsed>=0&&elapsed<Math.max(1000,Number(current.duration_ms)-1000))epoch=begun
  }
+ lastNowKey=slotKey;lastNowEpoch=epoch;
  var total=out.reduce(function(sum,x){return sum+Number(x.duration_ms)},0);
  var program={format:"ge-radio-clock-v1",playlist_name:"Bangers",playlist_id:String(bangers.id),
   epoch_utc_ms:epoch,cycle_duration_ms:total,tracks:out,
