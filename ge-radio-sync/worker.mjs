@@ -92,6 +92,16 @@ function equalToken(a,b){
 async function authorizedDj(request,env){
   const bearer=request.headers.get("Authorization")||"";
   if(env.GE_RADIO_SWITCH_TOKEN&&equalToken(bearer,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))return true;
+  const shortCode=request.headers.get("X-GE-DJ-Key")||"";
+  if(shortCode&&shortCode.length<=256){
+    try{
+      const check=await fetch("https://radio.grandelement.blitz.cloud/control/status",{
+        method:"GET",headers:{"X-GE-DJ-Key":shortCode},cache:"no-store",redirect:"error"
+      });
+      if(check.body)await check.body.cancel().catch(()=>{});
+      if(check.ok)return true;
+    }catch(_){}
+  }
   const id=request.headers.get("X-GE-DJ-Device-ID")||"";
   const token=request.headers.get("X-GE-DJ-Device-Token")||"";
   if(!id||!token||id.length>128||token.length>512)return false;
@@ -160,6 +170,76 @@ async function relayBlitzControl(request){
     return json({ok:false,error:"BLITZ server connection unavailable. Try the original BLITZ DJ while it reconnects."},502,request);
   }
 }
+// Private GE iMac audio uploads. Only an authenticated DJ can read or write.
+// Storage is a private R2 bucket; nothing is added to the public GE music site,
+// to the radio playlist, or to any public bucket on upload.
+const GE_UPLOAD_MAX_BYTES=60*1024*1024;
+const GE_ALLOWED_EXT=/\.(mp3|m4a|aac|wav|aif|aiff|flac|ogg|oga)$/i;
+function cleanedMusicName(value){
+  return String(value||"").replace(/[\\/\x00-\x1f\x7f]/g,"_").replace(/^[. ]+|[. ]+$/g,"").slice(0,160);
+}
+async function gePrivateUploads(request,env){
+ const origin=request.headers.get("Origin");
+ if(origin&&!GOOD_ORIGINS.has(origin))return json({ok:false,error:"Unapproved uploader origin."},403,request);
+ if(!(await authorizedDj(request,env)))return json({ok:false,error:"DJ authorization required for private uploads."},401,request);
+ if(!env.GE_AUDIO_UPLOADS)return json({ok:false,error:"Private GE audio storage is not configured yet. Create Cloudflare R2 bucket ge-audio-uploads and bind it to this Worker as GE_AUDIO_UPLOADS."},503,request);
+ const input=new URL(request.url),method=request.method;
+ const bucket=env.GE_AUDIO_UPLOADS;
+ if(input.pathname==="/v1/dj-uploads"&&method==="GET"){
+  const prefix=input.searchParams.get("kind")==="final"?"final/":"draft/";
+  try{
+   const result=await bucket.list({prefix:prefix,limit:100});
+   const files=(result.objects||[]).map(x=>({
+    key:x.key,name:(x.customMetadata&&x.customMetadata.originalName)||x.key.split("/").pop(),
+    bytes:x.size,uploaded:x.uploaded&&x.uploaded.toISOString?x.uploaded.toISOString():"",kind:prefix.slice(0,-1)
+   })).sort((a,b)=>b.key.localeCompare(a.key));
+   return json({ok:true,files:files,has_more:!!result.truncated},200,request);
+  }catch(e){return json({ok:false,error:"Private audio storage could not list files."},503,request)}
+ }
+ if(input.pathname==="/v1/dj-uploads"&&method==="POST"){
+  const kind=input.searchParams.get("kind");
+  const name=cleanedMusicName(input.searchParams.get("name"));
+  if(!["draft","final"].includes(kind)||!GE_ALLOWED_EXT.test(name))
+   return json({ok:false,error:"Choose Draft or Final and an MP3, WAV, M4A, AAC, AIFF, OGG, or FLAC audio file."},400,request);
+  const declared=Number(request.headers.get("Content-Length"));
+  if(declared&&(!Number.isFinite(declared)||declared>GE_UPLOAD_MAX_BYTES))
+   return json({ok:false,error:"Audio upload must be 60 MB or less."},413,request);
+  if(!request.body)return json({ok:false,error:"No audio file was received."},400,request);
+  const key=kind+"/"+Date.now()+"-"+crypto.randomUUID()+"-"+name;
+  let total=0;
+  const capped=request.body.pipeThrough(new TransformStream({
+   transform(chunk,controller){
+    total+=chunk.byteLength;
+    if(total>GE_UPLOAD_MAX_BYTES)throw new Error("Audio file exceeds the 60 MB upload limit.");
+    controller.enqueue(chunk);
+   }
+  }));
+  try{
+   const contentType=String(request.headers.get("Content-Type")||"application/octet-stream").slice(0,120);
+   const obj=await bucket.put(key,capped,{
+    httpMetadata:{contentType:contentType},customMetadata:{originalName:name,kind:kind}
+   });
+   return json({ok:true,key:key,name:name,bytes:obj.size,kind:kind,private:true,published_to_radio:false},201,request);
+  }catch(e){
+   await bucket.delete(key).catch(()=>{});
+   return json({ok:false,error:total>GE_UPLOAD_MAX_BYTES?"Audio file exceeds the 60 MB upload limit.":"Private audio upload could not complete. Check R2 storage and the browser connection."},total>GE_UPLOAD_MAX_BYTES?413:503,request);
+  }
+ }
+ if(input.pathname==="/v1/dj-uploads/file"&&method==="GET"){
+  const key=String(input.searchParams.get("key")||"");
+  if(!/^(draft|final)\/[0-9]{13}-[0-9a-f-]{36}-[^/]+$/.test(key)||key.includes(".."))
+   return json({ok:false,error:"Invalid private file name."},400,request);
+  const obj=await bucket.get(key);
+  if(!obj)return json({ok:false,error:"File not found."},404,request);
+  const name=(obj.customMetadata&&obj.customMetadata.originalName)||key.split("/").pop();
+  const safeName=name.replace(/[^a-zA-Z0-9_. -]/g,"_");
+  const headers={"Content-Type":(obj.httpMetadata&&obj.httpMetadata.contentType)||"application/octet-stream",
+   "Content-Disposition":"attachment; filename=\""+safeName+"\"",
+   "Cache-Control":"private, no-store",...cors(request)};
+  return new Response(obj.body,{headers});
+ }
+ return json({ok:false,error:"Unsupported private-upload operation."},405,request);
+}
 function validateBangersProgram(raw){
   if(!raw||raw.format!=="ge-radio-clock-v1"||String(raw.playlist_name||"").trim().toLowerCase()!=="bangers")throw new Error("The shared playlist must be Bangers.");
   if(!Array.isArray(raw.tracks)||raw.tracks.length<3||raw.tracks.length>600)throw new Error("Bangers must have 3 to 600 playable tracks.");
@@ -199,6 +279,7 @@ export default {
   const path=new URL(request.url).pathname,now=Date.now();
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request)});
   if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request);
+  if(path==="/v1/dj-uploads"||path==="/v1/dj-uploads/file")return gePrivateUploads(request,env);
   if(path==="/v1/program"&&request.method==="GET"){
     try{const p=await program(env);return json({ok:true,server_now_ms:now,program:p},200,request);}
     catch(e){return json({ok:false,error:String(e.message||e)},503,request);}
