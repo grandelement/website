@@ -1,18 +1,48 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>GE DJ</title>
-  <meta http-equiv="refresh" content="0;url=https://grandelement.com/radio/ge-dj.html">
-  <script>
-    window.location.replace("https://grandelement.com/radio/ge-dj.html");
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>GE DJ · Launch</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#050b12;color:#e7f6ff;font:16px/1.45 -apple-system,BlinkMacSystemFont,Arial,sans-serif;display:flex;align-items:center;justify-content:center;padding:22px}
+main{width:min(480px,100%);border:1px solid #34536b;border-radius:16px;background:#0b1725;padding:22px}
+h1{margin:0;font-size:27px;letter-spacing:2px}h2{font-size:13px;color:#9fbfd3;letter-spacing:1px;margin:4px 0 22px}
+a{display:block;text-decoration:none;text-align:center;border:1px solid #4a92b6;border-radius:11px;background:#123951;color:#fff;font-weight:800;padding:15px 10px;margin:12px 0;min-height:55px}
+a.backup{background:#151e2c;border-color:#597085}p{color:#a8c1d0;font-size:13px;margin:14px 0 0}
+small{color:#8aa4b2}button{margin-top:18px;background:transparent;color:#a6d2e9;border:1px solid #597085;border-radius:8px;padding:8px 12px;font-size:13px}
+#diag{overflow-wrap:anywhere}
+</style>
 </head>
 <body>
-  <p>Opening GE DJ…</p>
-  <p><a href="https://grandelement.com/radio/ge-dj.html">Open GE DJ</a></p>
-  <p>Original streaming console: <a href="https://radio.grandelement.blitz.cloud/dj/">BLITZ v167 DJ</a></p>
+<main>
+<h1>GE DJ</h1><h2>GRAND ELEMENT · RADIO CONTROL</h2>
+<a href="https://grandelement.com/radio/ge-dj.html">OPEN UPDATED DJ BOOTH</a>
+<p>Use the website DJ for Bangers, Radio 1 / Radio 2, and iMac Studio layout. Open directly in Safari if an in-app browser cannot load it.</p>
+<a class="backup" href="https://radio.grandelement.blitz.cloud/dj/">OPEN BLITZ v167 · FALLBACK</a>
+<p>The fallback stays on BLITZ v167 and cannot show the newest website-only controls. Opening either booth does not rebuild or stop the stream.</p>
+<button type="button" id="test">TEST DJ PAGE CONNECTION</button>
+<p id="diag" role="status" aria-live="polite"><small>This launcher does not redirect automatically, so errors can be isolated.</small></p>
+</main>
+<script>
+(function(){
+var btn=document.getElementById('test'),diag=document.getElementById('diag');
+btn.onclick=function(){
+ btn.disabled=true;diag.textContent='Checking the website DJ page…';
+ var x=new XMLHttpRequest();
+ x.open('GET','https://grandelement.com/radio/ge-dj.html?dj_probe='+Date.now(),true);
+ x.timeout=15000;
+ x.onreadystatechange=function(){if(x.readyState!==4)return;btn.disabled=false;
+  if(x.status===200&&x.responseText.indexOf('id="lock"')>=0)diag.textContent='Website DJ page received successfully. Tap OPEN UPDATED DJ BOOTH.';
+  else diag.textContent='Website DJ request failed: HTTP '+x.status+'. Try BLITZ fallback or send this error.';
+ };
+ x.onerror=function(){btn.disabled=false;diag.textContent='Network request failed. Check Safari connection or try BLITZ fallback.'};
+ x.ontimeout=function(){btn.disabled=false;diag.textContent='Website DJ timed out (15 seconds). Try BLITZ fallback.'};
+ x.send();
+};
+})();
+</script>
 </body>
 </html>
