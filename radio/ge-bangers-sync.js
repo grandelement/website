@@ -66,6 +66,50 @@ function fromQueue(q,meta,library){
  var item=(library||[]).find(function(i){return i.kind==="song"&&norm(i.album)===norm(q.album)&&norm(i.title)===norm(q.title)});
  return item&&meta.byPath[item.path]||null
 }
+function musicUrl(path){
+ var s=String(path||"");
+ if(s.indexOf("ge-music/music/")!==0||s.indexOf("..")>=0)throw new Error("Invalid backup song path.");
+ return "/"+s.split("/").map(function(part){return encodeURIComponent(part)}).join("/");
+}
+function audioDurationMs(url){
+ return new Promise(function(resolve,reject){
+  var sound=d.createElement("audio"),done=false,timer=0;
+  sound.preload="metadata";
+  function finish(error,val){
+   if(done)return;done=true;clearTimeout(timer);
+   sound.onloadedmetadata=null;sound.ondurationchange=null;sound.onerror=null;
+   sound.removeAttribute("src");try{sound.load()}catch(_){}
+   if(error)reject(error);else resolve(val);
+  }
+  function check(){
+   var duration=Number(sound.duration);
+   if(isFinite(duration)&&duration>1&&duration<14400)finish(null,Math.round(duration*1000));
+  }
+  timer=setTimeout(function(){finish(new Error("Audio metadata timed out: "+url))},17000);
+  sound.onloadedmetadata=check;sound.ondurationchange=check;
+  sound.onerror=function(){finish(new Error("Backup song is unavailable: "+url))};
+  sound.src=url;try{sound.load()}catch(e){finish(e)}
+ });
+}
+async function measureMissing(meta,library,paths){
+ var errors=[],work=paths.slice(),index=0;
+ async function worker(){
+  while(index<work.length){
+   var path=String(work[index++]||"");
+   var song=(library||[]).find(function(x){return x&&x.kind==="song"&&x.path===path});
+   if(!song){errors.push("Unknown song in saved playlist: "+path);continue}
+   try{
+    var url=musicUrl(path);
+    var duration=await audioDurationMs(url);
+    var item={path:path,url:url,title:String(song.title||song.picker_title||""),album:String(song.album||""),duration_ms:duration,kind:"song"};
+    meta.byPath[path]=item;
+    meta.byTitle[norm(item.album)+"|"+norm(item.title)]=item;
+   }catch(e){errors.push(message(e))}
+  }
+ }
+ await Promise.all([worker(),worker(),worker()]);
+ if(errors.length)throw new Error("Could not measure "+errors.length+" Bangers song(s). "+errors[0]);
+}
 async function build(){
  var results=await Promise.all([getBlitz("/control/status"),getBlitz("/control/playlists"),getBlitz("/control/library"),measuredTracks()]);
  var state=results[0],p=results[1],library=results[2].items||[],meta=results[3];
@@ -73,13 +117,18 @@ async function build(){
  if(!bangers)throw new Error("Bangers was not found on BLITZ. Save it in PLAYLISTS first.");
  if(!state.custom_mix_enabled||String(state.custom_mix_id||"")!==String(bangers.id||""))
   throw new Error("Activate Bangers in the BLITZ DJ Booth first. Radio 1 is not currently using it.");
- var base=[],missing=[];
+ var missing=(bangers.paths||[]).filter(function(path){var x=meta.byPath[String(path||"")];return !x||x.kind!=="song"});
+ if(missing.length){
+  say("BANGERS · MEASURING "+missing.length+" EXTRA SONG(S)",false);
+  await probe("BANGERS AUDIO DURATION",function(){return measureMissing(meta,library,missing)});
+ }
+ var base=[],missingAfter=[];
  (bangers.paths||[]).forEach(function(path){
   var track=meta.byPath[String(path||"")];
   if(track&&track.kind==="song")base.push(track);
-  else missing.push(path);
+  else missingAfter.push(path);
  });
- if(missing.length)throw new Error(missing.length+" Bangers track(s) lack measured backup audio. Nothing changed on Radio 2.");
+ if(missingAfter.length)throw new Error(missingAfter.length+" Bangers track(s) lack backup audio. Nothing changed on Radio 2.");
  if(base.length<3)throw new Error("Bangers needs at least 3 measured songs.");
  var valid=new Set(base.map(function(x){return x.path}));
  var clips=meta.clips.slice(),clipNumber=0,songs=0,out=[],used={};
