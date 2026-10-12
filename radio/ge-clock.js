@@ -212,7 +212,12 @@ function pollBlitzNow(){
 function pollProgram(){
  request("/v1/program",function(err,result){
   if(err){status("GE RADIO playlist not ready: "+err.message);return;}
-  program=result.program;syncGe();
+  var incoming=result.program;
+  if(!incoming||!incoming.tracks||!incoming.tracks.length)return;
+  var oldRevision=program&&program.revision,oldHash=program&&program.playlist_hash;
+  var changed=!program||oldRevision!==incoming.revision||oldHash!==incoming.playlist_hash||Number(program.epoch_utc_ms)!==Number(incoming.epoch_utc_ms);
+  program=incoming;
+  if(changed)syncGe();
  });
 }
 function begin(){
@@ -235,6 +240,7 @@ aGe.addEventListener("error",function(){status("GE RADIO track failed to load ·
 aBlitz.addEventListener("error",function(){status("Blitz stream unavailable · retrying");});
 pollState();pollProgram();
 w.setInterval(pollState,7500);
+w.setInterval(pollProgram,30000);
 w.setInterval(pollBlitzNow,15000);
 w.setInterval(function(){if(playing)nowRender();},500);
 w.setInterval(function(){if(playing&&program)syncGe();},4500);
@@ -249,5 +255,5 @@ w.setInterval(function(){
    listened_seconds:Math.max(0,Math.round((now-legacyListenStart)/1000)),
    position_seconds:Number(aGe.currentTime)||0});
 },10000);
-d.addEventListener("visibilitychange",function(){if(!d.hidden){pollState();if(playing)nowRender();}});
+d.addEventListener("visibilitychange",function(){if(!d.hidden){pollState();pollProgram();if(playing)nowRender();}});
 })(window,document);
