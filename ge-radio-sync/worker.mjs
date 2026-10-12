@@ -9,7 +9,8 @@ export class RadioTimeline {
     if(url.pathname.endsWith("/state")){
       const saved=await this.ctx.storage.get("on_air");
       const state=saved||{from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0,updated_at_ms:0};
-      return Response.json({ok:true,server_now_ms:now,station:state});
+      const ge_dj=await this.ctx.storage.get("ge_dj")||null;
+      return Response.json({ok:true,server_now_ms:now,station:state,ge_dj});
     }
     if(url.pathname.endsWith("/switch")){
       const body=await request.json().catch(()=>null);
@@ -30,6 +31,54 @@ export class RadioTimeline {
       };
       await this.ctx.storage.put("on_air",next);
       return Response.json({ok:true,server_now_ms:now,station:next});
+    }
+    if(url.pathname.endsWith("/ge-dj")){
+      const body=await request.json().catch(()=>null);
+      if(!body||!body.meta||!Array.isArray(body.meta.durations)||!body.meta.hash)
+        return Response.json({ok:false,error:"Playlist information missing."},{status:400});
+      const ds=body.meta.durations.map(Number),n=ds.length;
+      if(n<3||n>400||ds.some(v=>!Number.isFinite(v)||v<1000))
+        return Response.json({ok:false,error:"Invalid playlist durations."},{status:400});
+      const total=ds.reduce((a,b)=>a+b,0),hash=body.meta.hash,epoch=Number(body.meta.epoch);
+      const initial=()=>({running:true,anchor_at_ms:epoch,position_ms:0,
+        order:ds.map((_,i)=>i),revision:0,updated_at_ms:0,playlist_hash:hash});
+      let ge=await this.ctx.storage.get("ge_dj");
+      if(!ge||ge.playlist_hash!==hash||!Array.isArray(ge.order)||ge.order.length!==n)ge=initial();
+      if(body.expected_revision!==undefined&&Number(body.expected_revision)!==ge.revision)
+        return Response.json({ok:false,error:"Playlist changed in another DJ session. Refresh and retry.",ge_dj:ge},{status:409});
+      const action=body.action;
+      const norm=v=>((v%total)+total)%total;
+      let pos=norm(Number(ge.position_ms)+(ge.running?now-Number(ge.anchor_at_ms):0));
+      function at(p){
+        for(let i=0;i<n;i++){const len=ds[ge.order[i]];
+          if(p<len)return {slot:i,offset:p};
+          p-=len;
+        }return {slot:0,offset:0};
+      }
+      function prefix(slot){let p=0;for(let i=0;i<slot;i++)p+=ds[ge.order[i]];return p;}
+      const here=at(pos);
+      if(action==="play"){
+        ge.running=true;ge.position_ms=pos;ge.anchor_at_ms=now;
+      }else if(action==="stop"){
+        ge.running=false;ge.position_ms=pos;ge.anchor_at_ms=now;
+      }else if(action==="skip"){
+        ge.position_ms=prefix((here.slot+1)%n);ge.anchor_at_ms=now;
+      }else if(action==="reshuffle"){
+        const current=ge.order[here.slot];
+        const remaining=ge.order.filter(v=>v!==current);
+        for(let i=remaining.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[remaining[i],remaining[j]]=[remaining[j],remaining[i]];}
+        ge.order=[current,...remaining];ge.position_ms=here.offset;ge.anchor_at_ms=now;
+      }else if(action==="move"){
+        const from=body.from_pos,to=body.to_pos;
+        if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=n||to>=n)
+          return Response.json({ok:false,error:"Invalid playlist positions."},{status:400});
+        const current=ge.order[here.slot];
+        const [picked]=ge.order.splice(from,1);ge.order.splice(to,0,picked);
+        ge.position_ms=prefix(ge.order.indexOf(current))+here.offset;ge.anchor_at_ms=now;
+      }else return Response.json({ok:false,error:"Unknown DJ action."},{status:400});
+      ge.revision=(ge.revision||0)+1;ge.updated_at_ms=now;
+      await this.ctx.storage.put("ge_dj",ge);
+      return Response.json({ok:true,server_now_ms:now,ge_dj:ge});
     }
     return new Response("Not found",{status:404});
   }
@@ -76,6 +125,23 @@ export default {
     const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/state");
     const d=await result.json();
     return json({...d,server_now_ms:Date.now()},200,request);
+  }
+  if(path==="/v1/admin/ge"&&request.method==="POST"){
+    const auth=request.headers.get("Authorization")||"";
+    if(!env.GE_RADIO_SWITCH_TOKEN||!equalToken(auth,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))
+      return json({ok:false,error:"GE RADIO DJ authorization required."},401,request);
+    let body;try{body=await request.json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
+    try{
+      const p=await program(env);
+      const ds=p.tracks.map(t=>Number(t.duration_ms));
+      const meta={durations:ds,hash:p.playlist_hash,epoch:Number(p.epoch_utc_ms)};
+      const id=env.RADIO_TIMELINE.idFromName("grand-element-on-air");
+      const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/ge-dj",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({...body,meta})
+      });
+      return json(await result.json(),result.status,request);
+    }catch(e){return json({ok:false,error:String(e.message||e)},503,request);}
   }
   if(path==="/v1/admin/switch"&&request.method==="POST"){
     const auth=request.headers.get("Authorization")||"";
