@@ -37,6 +37,17 @@ function refresh(){
   show(d.station);
  });
 }
+function postAdmin(path,body,cb){
+ if(!key){
+  key=w.prompt("Enter your private GE RADIO DJ key (used for station and playlist controls).","")||"";
+  if(!key){status("CANCELLED · No DJ key entered");cb(new Error("Cancelled"));return;}
+ }
+ http("POST",path,body,function(err,result){
+  if(err&&/authorization|token|401/i.test(err.message))key="";
+  cb(err,result);
+ });
+}
+w.GERadioDJAuth={post:postAdmin};
 function choose(to){
  if(switchBusy)return;
  var fadeNode=d.getElementById("crossfade");
@@ -46,12 +57,8 @@ function choose(to){
  var source=to==="ge"?"GE RADIO":"BLITZ";
  var ask="Switch EVERY connected GE Clock listener to "+source+"?\n\nThe selected "+secs+"-second crossfade will begin after devices are given time to prepare.\n\nExisting BLITZ broadcasting is NOT shut down.";
  if(!w.confirm(ask))return;
- if(!key){
-  key=w.prompt("Enter the separate GE Radio switch key. It is not saved to the website.","")||"";
-  if(!key){status("CANCELLED · Nothing switched");return;}
- }
  switchBusy=true;status("SENDING CONFIRMED SWITCH…");
- http("POST","/v1/admin/switch",{to:to,crossfade_seconds:secs},function(err,d){
+ postAdmin("/v1/admin/switch",{to:to,crossfade_seconds:secs},function(err,d){
   switchBusy=false;
   if(err){
     if(/authorization|token|401/i.test(err.message))key="";
