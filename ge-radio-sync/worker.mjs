@@ -11,6 +11,18 @@ export class RadioTimeline {
       const state=saved||{from:"blitz",to:"blitz",start_at_ms:0,duration_ms:0,revision:0,updated_at_ms:0};
       return Response.json({ok:true,server_now_ms:now,station:state});
     }
+    if(url.pathname.endsWith("/program") && request.method==="GET"){
+      const saved=await this.ctx.storage.get("bangers_program");
+      return Response.json({ok:true,program:saved||null});
+    }
+    if(url.pathname.endsWith("/publish") && request.method==="POST"){
+      const body=await request.json().catch(()=>null);
+      if(!body||!body.program)return Response.json({ok:false,error:"Program required."},{status:400});
+      const old=await this.ctx.storage.get("bangers_program");
+      const next={...body.program,revision:Number(old?.revision||0)+1,published_at_ms:now};
+      await this.ctx.storage.put("bangers_program",next);
+      return Response.json({ok:true,revision:next.revision,published_at_ms:now});
+    }
     if(url.pathname.endsWith("/switch")){
       const body=await request.json().catch(()=>null);
       if(!body||!["blitz","ge"].includes(body.to))return Response.json({ok:false,error:"Select BLITZ or GE RADIO."},{status:400});
@@ -54,7 +66,32 @@ function equalToken(a,b){
   for(let i=0;i<Math.max(a.length,b.length);i++)mismatch|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);
   return mismatch===0;
 }
+function validateBangersProgram(raw){
+  if(!raw||raw.format!=="ge-radio-clock-v1"||String(raw.playlist_name||"").trim().toLowerCase()!=="bangers")throw new Error("The shared playlist must be Bangers.");
+  if(!Array.isArray(raw.tracks)||raw.tracks.length<3||raw.tracks.length>600)throw new Error("Bangers must have 3 to 600 playable tracks.");
+  const tracks=raw.tracks.map(x=>{
+    const path=String(x.path||"");
+    const url=String(x.url||"");
+    const dur=Number(x.duration_ms);
+    if(!path.startsWith("ge-music/")||path.includes("..")||!/^\/(ge-music)\//.test(url)||url.includes("..")||!Number.isFinite(dur)||dur<1000||dur>14400000)
+      throw new Error("Invalid or unavailable Bangers track.");
+    return {path,url,title:String(x.title||"").slice(0,160),album:String(x.album||"").slice(0,120),duration_ms:Math.round(dur),kind:x.kind==="station_id"?"station_id":"song"};
+  });
+  const epoch=Number(raw.epoch_utc_ms);
+  if(!Number.isFinite(epoch)||Math.abs(epoch-Date.now())>86400000)throw new Error("Invalid Bangers station clock.");
+  const total=tracks.reduce((s,t)=>s+t.duration_ms,0);
+  return {format:"ge-radio-clock-v1",playlist_name:"Bangers",playlist_id:String(raw.playlist_id||"").slice(0,60),epoch_utc_ms:Math.round(epoch),cycle_duration_ms:total,tracks,playlist_hash:String(raw.playlist_hash||"").slice(0,64)};
+}
+async function savedBangers(env){
+ const id=env.RADIO_TIMELINE.idFromName("grand-element-on-air");
+ const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/program");
+ if(!result.ok)throw new Error("Radio 2 playlist storage unavailable.");
+ const d=await result.json();
+ return d.program||null;
+}
 async function program(env){
+  const published=await savedBangers(env);
+  if(published)return published;
   const url=env.PROGRAM_URL||"https://grandelement.com/radio/sync-playlist.json";
   const result=await fetch(url,{cf:{cacheTtl:300},headers:{"Accept":"application/json"}});
   if(!result.ok)throw new Error("Published GE RADIO playlist is unavailable ("+result.status+").");
@@ -77,13 +114,30 @@ export default {
     const d=await result.json();
     return json({...d,server_now_ms:Date.now()},200,request);
   }
+  if(path==="/v1/admin/program"&&request.method==="POST"){
+    const auth=request.headers.get("Authorization")||"";
+    if(!env.GE_RADIO_SWITCH_TOKEN||!equalToken(auth,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))
+      return json({ok:false,error:"GE Radio owner authorization required."},401,request);
+    let body;
+    try{body=await request.json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
+    let checked;
+    try{checked=validateBangersProgram(body.program);}catch(e){return json({ok:false,error:String(e.message||e)},400,request);}
+    const id=env.RADIO_TIMELINE.idFromName("grand-element-on-air");
+    const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/publish",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({program:checked})
+    });
+    return json(await result.json(),result.status,request);
+  }
   if(path==="/v1/admin/switch"&&request.method==="POST"){
     const auth=request.headers.get("Authorization")||"";
     if(!env.GE_RADIO_SWITCH_TOKEN||!equalToken(auth,"Bearer "+env.GE_RADIO_SWITCH_TOKEN))
       return json({ok:false,error:"Separate GE Radio switch authorization required."},401,request);
     let body;
     try{body=await request.clone().json();}catch(_){return json({ok:false,error:"Invalid JSON."},400,request);}
-    if(body.to==="ge"){try{await program(env);}catch(e){return json({ok:false,error:String(e.message||e)},503,request);}}
+    if(body.to==="ge"){
+      try{const p=await savedBangers(env);if(!p||p.playlist_name!=="Bangers")throw new Error("Publish Bangers to Radio 2 before switching.");
+      }catch(e){return json({ok:false,error:String(e.message||e)},503,request);}
+    }
     const id=env.RADIO_TIMELINE.idFromName("grand-element-on-air");
     const result=await env.RADIO_TIMELINE.get(id).fetch("https://internal/switch",{
       method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
