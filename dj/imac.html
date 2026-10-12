@@ -211,8 +211,13 @@ function onConnected(data){
  if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
  // Upgrade the normal DJ login to a 180-day trusted device session where supported.
  if(key&&!deviceToken){request("POST","/control/auth/trust-device",{name:"iMac classic · Safari",device_scope:"imac-safari",days:180},function(err,obj){
-  if(!err&&obj&&obj.device&&obj.device.id&&obj.device_token)saveDevice(String(obj.device.id),String(obj.device_token));
-  key="";
+  if(!err&&obj&&obj.device&&obj.device.id&&obj.device_token){
+   saveDevice(String(obj.device.id),String(obj.device_token));
+   key="";
+  }else{
+   text("connection","CONNECTED · DJ session active · This browser could not remember the device");
+   // Keep the DJ code in session memory until the tab closes. Do not store it.
+  }
  })}
  else key=""
 }
