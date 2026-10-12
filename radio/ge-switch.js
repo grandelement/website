@@ -4,12 +4,29 @@
 (function(w,d){
 "use strict";
 var API="https://ge-radio-sync.grandelement.workers.dev";
+function djAuthHeaders(){
+ try{
+  var id=w.localStorage.getItem("geDjTrustedIdV1")||"";
+  var token=w.localStorage.getItem("geDjTrustedTokenV1")||"";
+  if(id&&token)return {"X-GE-DJ-Device-ID":id,"X-GE-DJ-Device-Token":token};
+ }catch(_){}
+ return null;
+}
 var blitz=d.getElementById("geStationBlitz"),ge=d.getElementById("geStationGE"),
-    read=d.getElementById("geStationStatus"),switchBusy=false,key="";
+    read=d.getElementById("geStationStatus"),switchBusy=false;
 w.GERadioOwner={
- getKey:function(){return key;},
- authorize:function(){if(!key)key=w.prompt("GE Radio owner key (kept only in memory for this session)","")||"";return key;},
- clear:function(){key="";}
+ getHeaders:djAuthHeaders,
+ getKey:function(){return djAuthHeaders()?"trusted-dj-device":"";},
+ authorize:function(){return !!djAuthHeaders();},
+ ensure:async function(){
+  var found=djAuthHeaders();if(found)return found;
+  // DJ v167 can issue a high-entropy trusted-device token after normal login.
+  if(typeof rememberDjDevice==="function")await rememberDjDevice();
+  found=djAuthHeaders();
+  if(!found)throw new Error("Sign in to the website GE DJ Booth first. No separate Radio 2 code is needed.");
+  return found;
+ },
+ clear:function(){}
 };
 if(!blitz||!ge)return;
 function status(t){if(read)read.textContent=t;}
@@ -17,7 +34,12 @@ function http(method,url,body,cb){
  var x=new XMLHttpRequest();
  x.open(method,API+url,true);
  x.setRequestHeader("Accept","application/json");
- if(method==="POST"){x.setRequestHeader("Content-Type","application/json");x.setRequestHeader("Authorization","Bearer "+key);}
+ if(method==="POST"){
+  var auth=djAuthHeaders();
+  if(!auth){cb(new Error("Sign in to GE DJ first."));return;}
+  x.setRequestHeader("Content-Type","application/json");
+  Object.keys(auth).forEach(function(k){x.setRequestHeader(k,auth[k]);});
+ }
  x.onreadystatechange=function(){if(x.readyState!==4)return;
   try{var data=JSON.parse(x.responseText);
       if(!data.ok)throw new Error(data.error||"Radio switch failed");
@@ -51,24 +73,27 @@ function choose(to){
  var source=to==="ge"?"GE RADIO":"BLITZ";
  var ask="Switch EVERY connected GE Clock listener to "+source+"?\n\nThe selected "+secs+"-second crossfade will begin after devices are given time to prepare.\n\nExisting BLITZ broadcasting is NOT shut down.";
  if(!w.confirm(ask))return;
- if(!w.GERadioOwner.authorize()){status("CANCELLED · Nothing switched");return;}
  switchBusy=true;
  function commitSwitch(){
   status("SENDING CONFIRMED SWITCH…");
   http("POST","/v1/admin/switch",{to:to,crossfade_seconds:secs},function(err,result){
    switchBusy=false;
-   if(err){if(/authorization|token|401/i.test(err.message))w.GERadioOwner.clear();status("NOT SWITCHED · "+err.message);return;}
+   if(err){status("NOT SWITCHED · "+err.message);return;}
    show(result.station);
    status(result.unchanged?"ALREADY ON "+source:"SWITCH SCHEDULED · "+source+" · "+secs+"s");
   });
  }
- if(to==="ge"){
-  if(!w.GEBangersSync||!w.GEBangersSync.publishNow){switchBusy=false;status("NOT SWITCHED · Bangers sync unavailable");return;}
-  status("VERIFYING BANGERS ON RADIO 2…");
-  w.GEBangersSync.publishNow({force:true}).then(commitSwitch).catch(function(e){
-   switchBusy=false;status("NOT SWITCHED · "+String(e&&e.message||e))
-  });
- }else commitSwitch();
+ w.GERadioOwner.ensure().then(function(){
+  if(to==="ge"){
+   if(!w.GEBangersSync||!w.GEBangersSync.publishNow){
+    switchBusy=false;status("NOT SWITCHED · Bangers sync unavailable");return;
+   }
+   status("VERIFYING BANGERS ON RADIO 2…");
+   w.GEBangersSync.publishNow({force:true}).then(commitSwitch).catch(function(e){
+    switchBusy=false;status("NOT SWITCHED · "+String(e&&e.message||e));
+   });
+  }else commitSwitch();
+ }).catch(function(e){switchBusy=false;status("NOT SWITCHED · "+String(e&&e.message||e));});
 }
 blitz.onclick=function(){choose("blitz");};
 ge.onclick=function(){choose("ge");};
