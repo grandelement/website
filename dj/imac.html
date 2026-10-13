@@ -12,7 +12,17 @@ h1{margin:0;font-size:28px;letter-spacing:2px}h2{font-size:19px;margin:0 0 12px;
 input,select{font-size:16px;border:1px solid #68809b;background:#060f1a;color:white;border-radius:6px;padding:10px;max-width:100%;width:100%;margin:5px 0 8px}
 button,a.link{font-size:15px;display:inline-block;min-height:45px;background:#143249;border:1px solid #467e9d;color:white;border-radius:7px;padding:12px 15px;margin:4px 4px 4px 0;cursor:pointer;text-decoration:none;font-weight:bold}
 button.green{background:#15483d;border-color:#53ccb4}button.orange{background:#4b3013;border-color:#d3a452}button.red{background:#552028;border-color:#d46b7b}
-button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pre-line;overflow-wrap:anywhere;color:#b4d3e7}
+button:disabled{opacity:.48;cursor:not-allowed}
+.geMusicFileRow{display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #33516c;padding:11px 4px}
+.geMusicFileName{min-width:0;flex:1 1 auto;overflow-wrap:break-word;word-wrap:break-word}
+.geMusicFileName strong{display:block;font-size:14px;color:#ebf7ff;font-weight:bold}
+.geMusicMeta{display:block;font-size:12px;color:#99b5ca;margin-top:3px}
+.geDeleteMusic{flex:0 0 auto;font-size:12px;min-height:38px;padding:8px 10px;background:#49302c;border:1px solid #b87b73}
+#musicLibrary{max-height:420px;overflow:auto}
+#musicLibraryPanel{background:#07111c;border:1px solid #41627c;border-radius:8px;padding:12px;margin-top:12px}
+#uploadIssues{white-space:pre-wrap;color:#f1b1a9;overflow-wrap:break-word}
+#mp3Status{color:#9cdecc;font-weight:bold}
+#error,#connection{white-space:pre-line;overflow-wrap:anywhere;color:#b4d3e7}
 .controls{margin-top:8px}.small{font-size:13px}
 #radioControls{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
 #radioControls button{flex:1 1 130px;min-height:57px;margin:0}
@@ -123,12 +133,12 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
    <p id="deviceRoster">LOCAL STUDIO READY · Connect BLITZ Radio 1 to appear on the remote mixer.</p>
   </div>
   <div class="controls"><button id="refreshInputs" type="button">SCAN DEVICES</button>
-   <button id="selectInput" type="button" class="green">CONNECT FOCUSRITE INPUT</button>
+   <button id="selectInput" type="button" class="green">CONNECT AUDIO INPUT</button>
    <button id="stopInput" type="button">DISCONNECT INPUT</button></div>
   <select id="inputs"><option value="">SELECT RECORDING INPUT</option></select>
   <div class="geMeters">
-   <div class="geMeterBox"><b>FOCUSRITE LEFT</b><div class="geMeterTrack"><div class="geMeterFill" id="leftMeter"></div></div><span id="leftDb" class="geMeterRead">-60 dB</span></div>
-   <div class="geMeterBox"><b>FOCUSRITE RIGHT</b><div class="geMeterTrack"><div class="geMeterFill" id="rightMeter"></div></div><span id="rightDb" class="geMeterRead">-60 dB</span></div>
+   <div class="geMeterBox"><b>STUDIO LEFT</b><div class="geMeterTrack"><div class="geMeterFill" id="leftMeter"></div></div><span id="leftDb" class="geMeterRead">-60 dB</span></div>
+   <div class="geMeterBox"><b>STUDIO RIGHT</b><div class="geMeterTrack"><div class="geMeterFill" id="rightMeter"></div></div><span id="rightDb" class="geMeterRead">-60 dB</span></div>
   </div>
   <div id="inputMeter" style="display:none"><div id="inputBar"></div></div>
   <label for="liveGain">LIVE INPUT LEVEL</label>
@@ -145,7 +155,7 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  </div>
  <div class="panel">
   <h2>SONG DRAFTS · FILE TRANSFERS</h2>
-  <p>Upload music directly from this iMac. Files are private and are not automatically added to Bangers or broadcast.</p>
+  <p>Upload multiple songs from this iMac directly to your private Google Drive. Files remain separate from Bangers and the live broadcast.</p>
   <div class="controls">
    <button id="uploadDraft" type="button" class="green">UPLOAD DRAFT</button>
    <button id="uploadFinal" type="button" class="orange">UPLOAD FINAL</button>
@@ -156,14 +166,22 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
    <input type="checkbox" id="convertMp3" style="width:auto;max-width:none;vertical-align:middle;margin:0 8px 0 0;padding:0">
    Convert to MP3 before uploading (320 kbps)
   </label>
-  <p>Unchecked: upload the original file unchanged. Checked: convert locally and upload an MP3. The original stays on this iMac. MP3 conversion requires ffmpeg; if unavailable, upload the original instead.</p>
-  <p style="margin-top:12px"><strong>DIRECT FILE CHOOSERS</strong> · If Firefox does not open a file window from an Upload button, click Choose File below instead. Selecting a file starts that upload.</p>
+  <p id="mp3Status">Checking MP3 encoder on this iMac…</p>
+  <p>Unchecked: upload the original WAV, AIFF, MP3 or other supported file unchanged. Checked: convert locally to a 320 kbps MP3 (requires FFmpeg or, for WAV/AIFF, LAME). If no compatible encoder is installed, conversion is blocked rather than silently uploading the wrong format. The original remains on this iMac.</p>
+  <p style="margin-top:12px"><strong>SELECT SEVERAL TRACKS</strong> · Hold Command or Shift in the file picker to select multiple files. They upload one after another. If an Upload button does not open a file window, use the visible Choose File control below.</p>
   <label for="fileDraft" style="display:block;margin:8px 0 2px;color:#a4d5ea;font-weight:bold">DRAFT · CHOOSE FILE</label>
-  <input type="file" id="fileDraft" aria-label="Choose file to upload as draft" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
+  <input type="file" id="fileDraft" multiple aria-label="Choose one or more files to upload as draft" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
   <label for="fileFinal" style="display:block;margin:8px 0 2px;color:#a4d5ea;font-weight:bold">FINAL · CHOOSE FILE</label>
-  <input type="file" id="fileFinal" aria-label="Choose file to upload as final" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
+  <input type="file" id="fileFinal" multiple aria-label="Choose one or more files to upload as final" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
   <div class="geMeterTrack"><div id="uploadBar" class="geMeterFill"></div></div>
   <p id="uploadResults" role="status" style="white-space:pre-wrap">Google Drive uploader needs the local GE Upload Helper running on this iMac.</p>
+  <p id="uploadIssues" role="status"></p>
+  <div id="musicLibraryPanel">
+   <h2 id="libraryTitle">GOOGLE DRIVE · GE Studios / Drafts</h2>
+   <p id="libraryStatus" role="status">Loading your uploaded tracks…</p>
+   <p id="libraryHelp">My Drafts and My Finals show stored tracks. The newest helper also lets you move a selected Google Drive file to Trash.</p>
+   <div id="musicLibrary"></div>
+  </div>
   <p><b>Storage:</b> Google Drive → GE Studios → Drafts / Finals. Files up to 4 GB. Uploads do not change BANGERS or broadcast. No BLITZ login required.</p>
   <p><a class="link" href="/dj/install-ge-uploads.sh" download="install-ge-uploads.sh">DOWNLOAD ONE-TIME IMAC SETUP</a> · Run with <code>sh ~/Downloads/install-ge-uploads.sh</code> in Terminal. This starts the local Google Drive upload helper automatically at login. No Google password is stored on this website.</p>
  </div>
@@ -390,5 +408,5 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=5"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=5"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=7"></script>
 </body></html>
