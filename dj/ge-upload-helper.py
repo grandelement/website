@@ -92,19 +92,32 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
                    "--stats", "2s", "--stats-one-line", "-P"]
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
         logs = []
-        # Keep the last portion of output only; rclone shows progress at intervals.
+        pending = ""
+        # rclone -P uses carriage returns to redraw its progress line.
+        # readline() waits for a newline and leaves the DJ Booth at 0%.
+        # os.read() handles both carriage-return updates and ordinary lines.
         while True:
-            raw = p.stdout.readline()
+            raw = os.read(p.stdout.fileno(), 4096)
             if not raw:
-                if p.poll() is not None:
-                    break
-                time.sleep(0.15)
-                continue
-            line = as_text(raw)
-            logs.append(line)
-            if len(logs) > 30:
-                logs.pop(0)
-            match = re.search(r"([0-9]{1,3})\s*%", line)
+                break
+            pending += as_text(raw).replace("\r", "\n")
+            pieces = pending.split("\n")
+            pending = pieces.pop()
+            for line in pieces:
+                if not line.strip():
+                    continue
+                logs.append(line + "\n")
+                if len(logs) > 30:
+                    logs.pop(0)
+                match = re.search(r"([0-9]{1,3})\s*%", line)
+                if match:
+                    job_update(job_id, percent=min(99, int(match.group(1))))
+            if len(pending) > 4096:
+                logs.append(pending[-1500:])
+                pending = ""
+        if pending.strip():
+            logs.append(pending)
+            match = re.search(r"([0-9]{1,3})\s*%", pending)
             if match:
                 job_update(job_id, percent=min(99, int(match.group(1))))
         code = p.wait()
