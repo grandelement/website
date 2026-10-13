@@ -229,13 +229,68 @@ function connectInput(){
   busy=false;klass("selectInput",false);updateLiveButton();
  });
 }
+function localAudioReady(){
+ var track=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];
+ return !!(localOn&&ctx&&pcmFrames>=2&&track&&track.readyState==="live"&&Date.now()-lastSignal<5000);
+}
+function radioAuthorized(){
+ var owner=w.GEImacClassic;
+ return !!(owner&&owner.loggedIn&&owner.loggedIn());
+}
 function updateLiveButton(){
  var b=el("liveToggle");if(!b)return;
- b.textContent=busy?"WORKING…":air?"RETURN TO BANGERS":"LIVE";
+ var audioReady=localAudioReady(),radioReady=radioAuthorized(),socketReady=!!w.WebSocket;
+ b.textContent=busy?"WORKING…":air?"RETURN TO BANGERS":"GO LIVE ON BLITZ";
  b.className=air?"red":"green";
- var owner=w.GEImacClassic;
- b.disabled=busy||(!air&&(!localOn||pcmFrames<2||!owner||!owner.loggedIn||!owner.loggedIn()));
- out("liveState",air?"ON AIR · FOCUSRITE":"OFF AIR · BANGERS");
+ b.disabled=busy||(!air&&(!audioReady||!radioReady||!socketReady));
+ out("liveState",air?"ON AIR · BLITZ RADIO 1":"OFF AIR · BANGERS");
+ if(!air&&!busy){
+  out("liveReadiness",!localOn?"STUDIO INPUT DISCONNECTED · Connect Soundflower (2ch)":
+   !audioReady?"STUDIO INPUT CONNECTED · Play Ableton and watch both meters":
+   !socketReady?"THIS FIREFOX DOES NOT SUPPORT LIVE WEBSOCKETS":
+   !radioReady?"STUDIO AUDIO READY · Radio 1 disconnected. CONNECT TO BLITZ RADIO only when you want to broadcast.":
+   "LOCAL AUDIO + RADIO AUTH READY · TEST LIVE READINESS before pressing GO LIVE.");
+ }else if(air)out("liveReadiness","ON AIR · Local stereo audio routed toward BLITZ");
+}
+function testReadiness(){
+ var track=stream&&stream.getAudioTracks&&stream.getAudioTracks()[0];
+ var selected=actualInputName||selectedInputName||"none";
+ if(!localOn||!track||track.readyState!=="live"){
+  out("liveProbeResult","LOCAL TEST: NO AUDIO INPUT. Choose Soundflower (2ch) and click CONNECT AUDIO INPUT. No broadcast attempted.");
+  updateLiveButton();return;
+ }
+ if(!pcmFrames){
+  out("liveProbeResult","LOCAL TEST: DEVICE OPEN, BUT NO AUDIO PROCESSOR FRAMES. Firefox is not yet processing audio. No broadcast attempted.");
+  updateLiveButton();return;
+ }
+ if(!localAudioReady()){
+  out("liveProbeResult","LOCAL TEST: "+selected+" connected ("+Math.round(ctx&&ctx.sampleRate||0)+" Hz), but Ableton sound was not detected in the past 5 seconds. No broadcast attempted.");
+  updateLiveButton();return;
+ }
+ var localMessage="LOCAL AUDIO PASSED · "+selected+" · "+Math.round(ctx.sampleRate)+" Hz → 48,000 Hz stereo PCM";
+ if(!w.WebSocket){
+  out("liveProbeResult",localMessage+" · LIVE BLOCKED: browser WebSocket unavailable.");return;
+ }
+ if(!radioAuthorized()){
+  out("liveProbeResult",localMessage+" · BLITZ disconnected. Your local studio works. Connect to Radio 1 separately when ready; BANGERS is untouched.");return;
+ }
+ out("liveProbeResult",localMessage+" · Checking BLITZ read-only status; not going live…");
+ requestJSON("GET","/control/status",null).then(function(reply){
+  var live=reply.broadcast||{},sources=live.sources||[];
+  var another=false;
+  for(var k=0;k<sources.length;k++){
+   if(sources[k]&&sources[k].owner!==OWNER)another=true;
+  }
+  if(another){
+   out("liveProbeResult",localMessage+" · BLITZ ALREADY HAS ANOTHER LIVE SOURCE. Do not take it over.");
+  }else if(live.ready===false){
+   out("liveProbeResult",localMessage+" · BLITZ is authenticated but its live audio FIFO is not ready. No broadcast attempted.");
+  }else{
+   out("liveProbeResult",localMessage+" · BLITZ AUTHENTICATED · LIVE ENDPOINT REPORTED READY · Safe to attempt GO LIVE. This was a read-only test, not proof of streamed audio.");
+  }
+ }).catch(function(e){
+  out("liveProbeResult",localMessage+" · RADIO PREFLIGHT FAILED: "+String(e&&e.message||e)+". No broadcast attempted.");
+ });
 }
 function showLive(s){out("liveStatus",s);updateLiveButton()}
 function requestJSON(method,path,body){return new Promise(function(resolve,reject){api(method,path,body,function(err,obj){if(err||obj&&obj.ok===false)reject(err||new Error(obj.error||"Request failed"));else resolve(obj||{})})})}
@@ -251,52 +306,93 @@ function websocketOpen(token){
   };
  })
 }
+function waitForServerAudio(attempt){
+ if(!air||!ws||ws.readyState!==1)return Promise.reject(new Error("Live WebSocket closed before BLITZ confirmed audio."));
+ if(!localAudioReady())return Promise.reject(new Error("Ableton audio stopped during LIVE connection. BANGERS has not been faded."));
+ return requestJSON("GET","/control/status",null).then(function(reply){
+  var broadcast=reply&&reply.broadcast||{},sources=broadcast.sources||[];
+  for(var j=0;j<sources.length;j++){
+   var source=sources[j];
+   if(source&&source.owner===OWNER&&Number(source.bytes_received||0)>1024&&
+      source.last_chunk_age!=null&&Number(source.last_chunk_age)<4)
+    return true;
+  }
+  if(attempt>=5)throw new Error("BLITZ did not confirm incoming iMac PCM audio. Keeping BANGERS on the air.");
+  return new Promise(function(resolve){setTimeout(resolve,450)}).then(function(){return waitForServerAudio(attempt+1)});
+ });
+}
 function startAir(){
  if(busy||air)return;
- if(!localOn||pcmFrames<2){showLive("FOCUSRITE INPUT NOT VERIFIED · Check the audio meter");return}
- if(Date.now()-lastSignal>6500){showLive("NO INPUT AUDIO DETECTED · Play Ableton before going LIVE");return}
- if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nBangers will crossfade into the iMac Focusrite input. The live audio is heard by listeners. Keep local radio monitoring off or use headphones."))return;
- busy=true;updateLiveButton();showLive("LIVE · Preparing audio connection…");
+ if(!localAudioReady()){showLive("NOT READY · Play Ableton and confirm both local meters before LIVE.");return}
+ if(!radioAuthorized()){showLive("RADIO DISCONNECTED · Connect to BLITZ first. Local audio stays available.");return}
+ if(!w.WebSocket){showLive("LIVE UNAVAILABLE · This browser cannot open WebSocket audio.");return}
+ if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nThis sends your Soundflower stereo audio from Ableton to the public station, and fades BANGERS only AFTER BLITZ confirms receiving PCM.\n\nStop the local radio monitor to prevent feedback. Continue?"))return;
+ busy=true;updateLiveButton();showLive("LIVE PRE-FLIGHT · Checking Radio 1 and local audio…");
  var launched=false;
- // Never take over an iPhone or another Studio contribution without its consent.
  requestJSON("GET","/control/status",null).then(function(status){
-  var current=status&&status.broadcast||{};
-  if(current.active&&current.owner!==OWNER)throw new Error("Another DJ input is already live ("+String(current.owner||"other device")+"). Take it off air first.");
+  var current=status&&status.broadcast||{},sources=current.sources||[];
+  for(var i=0;i<sources.length;i++){
+   if(sources[i]&&sources[i].owner!==OWNER)throw new Error("Another studio or DJ is already LIVE. Disconnect it intentionally before broadcasting.");
+  }
+  if(current.active&&current.owner!==OWNER&&current.owner!=="multi")
+   throw new Error("Another source is currently LIVE: "+String(current.owner||"unknown"));
+  if(current.ready===false)throw new Error("BLITZ live mixer is not ready.");
+  if(!localAudioReady())throw new Error("Ableton signal was lost during preflight.");
   return requestJSON("POST","/control/broadcast/session",{owner:OWNER});
  }).then(function(x){
-  if(!x.token)throw new Error("BLITZ did not issue a live session.");
-  return requestJSON("POST","/control/broadcast/start",{owner:OWNER,mode:"performance",transport:"websocket"}).then(function(){launched=true;return websocketOpen(x.token)})
+  if(!x.token)throw new Error("BLITZ did not issue a live audio session.");
+  return requestJSON("POST","/control/broadcast/start",{owner:OWNER,mode:"performance",transport:"websocket"}).then(function(){
+   launched=true;return websocketOpen(x.token);
+  });
  }).then(function(){
-  air=true;updateLiveButton();
-  // Mute only the local monitor. This does not stop listener audio on Radio 1.
-  var monitor=el("imacRadioAudio");if(monitor&&(!monitor.paused))monitor.pause();
-  showLive("LIVE · Audio connected · Crossfading from Bangers…");
-  return new Promise(function(resolve){setTimeout(resolve,550)})
+  air=true;
+  var monitor=el("imacRadioAudio");
+  if(monitor&&(!monitor.paused))monitor.pause();
+  showLive("BLITZ LIVE SOCKET OPEN · Waiting for server confirmation of iMac audio…");
+  return waitForServerAudio(0);
  }).then(function(){
-  return requestJSON("POST","/control/drop/start",{mode:"stop"})
+  if(!air||!ws||ws.readyState!==1)throw new Error("Live WebSocket closed before the BANGERS handoff.");
+  showLive("BLITZ CONFIRMED AUDIO · Crossfading from BANGERS to Ableton…");
+  return requestJSON("POST","/control/drop/start",{mode:"stop"});
  }).then(function(){
   dropStarted=true;busy=false;updateLiveButton();
-  showLive("LIVE · FOCUSRITE ON AIR · Bangers faded out");
+  showLive("ON AIR · ABLETON → BLITZ RADIO 1 · BANGERS faded out. Press RETURN TO BANGERS to end LIVE.");
   if(!ws||ws.readyState!==1)stopAir(true);
  }).catch(function(e){
-  showLive("LIVE FAILED · "+String(e&&e.message||e));
-  if(launched){air=true;busy=false;stopAir(true)}
-  else {busy=false;air=false;updateLiveButton()}
- })
+  var message="LIVE NOT STARTED · "+String(e&&e.message||e);
+  if(launched){
+   air=true;busy=false;
+   stopAir(true,message);
+  }else{
+   air=false;dropStarted=false;busy=false;updateLiveButton();
+   out("liveStatus",message+" · BANGERS is unchanged.");
+  }
+ });
 }
-function stopAir(fast){
+function stopAir(fast,priorError){
  if(busy&&fast!==true)return;
  if(!air&&!dropStarted)return;
- busy=true;updateLiveButton();showLive("RETURNING TO BANGERS · Fading live out…");
+ busy=true;updateLiveButton();showLive("RETURNING TO BANGERS · Restoring station music…");
+ var dropError="";
  requestJSON("POST","/control/drop/stop",{fast:!!fast}).catch(function(e){
-  showLive("RETURN FADE ERROR · "+String(e&&e.message||e));
- }).then(function(){return requestJSON("POST","/control/broadcast/stop",{owner:OWNER,force:false})}).then(function(){
-  showLive("OFF AIR · BANGERS restored");
- }).catch(function(e){showLive("LIVE STOP ERROR · "+String(e&&e.message||e))})
- .then(function(){air=false;dropStarted=false;busy=false;
+  dropError="Station fade could not be confirmed: "+String(e&&e.message||e);
+ }).then(function(){
+  return requestJSON("POST","/control/broadcast/stop",{owner:OWNER,force:false});
+ }).then(function(){
+  air=false;dropStarted=false;busy=false;
   if(ws){ws.onclose=null;try{ws.close()}catch(e){}ws=null}
   updateLiveButton();
- })
+  out("liveStatus",(priorError?priorError+" · ":"")+
+   (dropError?"BLITZ SOURCE STOPPED BUT "+dropError+" · Verify BANGERS on the public stream.":
+   "OFF AIR · BANGERS restored by the BLITZ server."));
+ }).catch(function(e){
+  // The radio may still have a live source. Keep a reconnect/return path.
+  busy=false;
+  updateLiveButton();
+  out("liveStatus",(priorError?priorError+" · ":"")+
+   "RETURN TO BANGERS NOT CONFIRMED · "+String(e&&e.message||e)+
+   ". Check public radio and retry RETURN TO BANGERS. Do not close this tab.");
+ });
 }
 function heartbeat(){
  if(!w.GEImacClassic||!w.GEImacClassic.loggedIn||!w.GEImacClassic.loggedIn())return;
@@ -338,11 +434,12 @@ function init(){
  el("inputs").onchange=function(){
  if(localOn)stopLocal();
  updateLiveButton();
- out("inputStatus","SELECTED · "+choiceName()+" · Click CONNECT FOCUSRITE INPUT.");
+ out("inputStatus","SELECTED · "+choiceName()+" · Click CONNECT AUDIO INPUT.");
  out("meterStatus","NOT CONNECTED · LIVE disabled");
 };
  el("refreshInputs").onclick=requestDevices;
  el("liveToggle").onclick=function(){if(air)stopAir();else startAir()};
+ if(el("testLive"))el("testLive").onclick=testReadiness;
  el("liveGain").oninput=function(){liveGain=Math.max(0,Math.min(1.5,Number(this.value)/100));out("liveGainRead",String(this.value)+"%")};
  if(el("stopInput"))el("stopInput").onclick=function(){if(air){showLive("Take LIVE off air first.");return}stopLocal();updateLiveButton();out("inputStatus","Recording input disconnected")};
  requestDevices();updateLiveButton();
