@@ -326,7 +326,7 @@ function startAir(){
  if(!localAudioReady()){showLive("NOT READY · Play Ableton and confirm both local meters before LIVE.");return}
  if(!radioAuthorized()){showLive("RADIO DISCONNECTED · Connect to BLITZ first. Local audio stays available.");return}
  if(!w.WebSocket){showLive("LIVE UNAVAILABLE · This browser cannot open WebSocket audio.");return}
- if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nThis sends your Soundflower stereo audio from Ableton to the public station, and fades BANGERS only AFTER BLITZ confirms receiving PCM.\n\nStop the local radio monitor to prevent feedback. Continue?"))return;
+ if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nThis sends Soundflower stereo audio to BLITZ Radio 1. BLITZ may briefly lower BANGERS while opening the source; the final crossfade happens only after the server confirms incoming audio.\n\nStop the local radio monitor to prevent feedback. Continue?"))return;
  busy=true;updateLiveButton();showLive("LIVE PRE-FLIGHT · Checking Radio 1 and local audio…");
  var launched=false;
  requestJSON("GET","/control/status",null).then(function(status){
@@ -365,7 +365,7 @@ function startAir(){
    stopAir(true,message);
   }else{
    air=false;dropStarted=false;busy=false;updateLiveButton();
-   out("liveStatus",message+" · BANGERS is unchanged.");
+   out("liveStatus",message+" · No final BANGERS handoff was requested. Check Radio 1 if the server connection was interrupted.");
   }
  });
 }
