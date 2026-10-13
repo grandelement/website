@@ -31,6 +31,23 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .geMeterBox{border:1px solid #35536a;border-radius:8px;padding:8px;background:#07101c}
 .geMeterBox b{font-size:12px}.geMeterTrack{height:15px;border:1px solid #4e6d82;background:#050a0f;border-radius:5px;overflow:hidden;margin:6px 0}
 .geMeterFill{height:100%;width:0;background:#58d6b4;transition:width .12s}
+/* Visible motion means working, not a fabricated upload percentage. */
+#uploadBar.geUploadIndeterminate{
+ width:32%;height:100%;transition:none;
+ animation:geUploadSweep 1.55s ease-in-out infinite;
+ -webkit-animation:geUploadSweep 1.55s ease-in-out infinite;
+}
+@keyframes geUploadSweep{
+ 0%{margin-left:0}
+ 50%{margin-left:68%}
+ 100%{margin-left:0}
+}
+@-webkit-keyframes geUploadSweep{
+ 0%{margin-left:0}
+ 50%{margin-left:68%}
+ 100%{margin-left:0}
+}
+
 #radioMeterBar{background:#63a5f8}
 .geMeterRead{font-size:12px;color:#b8ccda}
 #liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
@@ -185,7 +202,8 @@ button:disabled{opacity:.48;cursor:not-allowed}
   <input type="file" id="fileDraft" multiple aria-label="Choose one or more files to upload as draft" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
   <label for="fileFinal" style="display:block;margin:8px 0 2px;color:#a4d5ea;font-weight:bold">FINAL · CHOOSE FILE</label>
   <input type="file" id="fileFinal" multiple aria-label="Choose one or more files to upload as final" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
-  <div class="geMeterTrack"><div id="uploadBar" class="geMeterFill"></div></div>
+  <div class="geMeterTrack" role="progressbar" aria-label="Google Drive file upload"><div id="uploadBar" class="geMeterFill"></div></div>
+  <p class="small">The bar moves during conversion and transfer even when an exact percentage is not available. 100% appears only after Google Drive confirms completion.</p>
   <p id="uploadResults" role="status" style="white-space:pre-wrap">Google Drive uploader needs the local GE Upload Helper running on this iMac.</p>
   <p id="uploadIssues" role="status"></p>
   <div id="musicLibraryPanel">
@@ -422,5 +440,5 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=6"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=8"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=9"></script>
 </body></html>
