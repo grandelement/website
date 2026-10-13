@@ -850,6 +850,20 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
   border-color:rgba(255,135,182,.9)!important;color:white!important}
 body.view-player.portrait-player #loveBtn{grid-row:3!important;grid-column:1/-1!important;
   min-height:30px!important;height:32px!important;margin:0 auto!important}
+/* Definitive transport positions across phone sizes and player orientations. */
+body.view-player #musicGroup #prevBtn{grid-row:1!important;grid-column:1 / span 2!important}
+body.view-player #musicGroup #playBtn{grid-row:1!important;grid-column:3 / span 2!important}
+body.view-player #musicGroup #nextBtn{grid-row:1!important;grid-column:5 / span 2!important}
+/* Place Background OFF between Previous and Next, including on desktop. */
+#bgGroup .bg-row{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#bgGroup .bg-row #bgPrev{grid-row:1;grid-column:1}
+#bgGroup .bg-row #bgOff{grid-row:1;grid-column:2}
+#bgGroup .bg-row #bgNext{grid-row:1;grid-column:3}
+/* Clear, persistent LOVE feedback on touch screens. */
+#musicGroup #loveBtn:disabled{opacity:1!important}
+#musicGroup #loveBtn[aria-pressed="true"]{background:rgba(154,19,71,.95)!important;
+  border-color:#ff9abc!important;color:#fff!important;box-shadow:0 0 14px rgba(255,72,137,.32)!important}
+#musicGroup #loveBtn.love-pending{border-style:dashed!important}
 /* Keep live-status bubble as a compact, centered text pill. */
 #liveStatus.show,body.view-player #liveStatus.show,
 body.view-player.portrait-player #liveStatus.show{
@@ -2405,8 +2419,8 @@ body.iam-studio-open #titleBtn{display:none!important}
   <section class="group" id="bgGroup">
     <span class="section-label">Backgrounds</span>
     <div class="bg-row">
-      <button class="tgl" id="bgOff" aria-pressed="false">Off</button>
       <button id="bgPrev">Prev</button>
+      <button class="tgl" id="bgOff" aria-pressed="false">Off</button>
       <button id="bgNext">Next</button>
       <button class="tgl" id="bgPer" aria-pressed="true">Per Song</button>
       <button class="tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
@@ -3491,30 +3505,78 @@ function currentLoveSong(){
   const item=parseTrack(state.currentURL),key=loveNormalize(item.song);
   return key?{key,title:item.song,album:item.album,source:'player'}:null;
 }
-function refreshLoveButton(){
-  const b=$('loveBtn');if(!b)return;
-  const song=currentLoveSong(),liked=!!song&&songLoves.has(song.key);
-  b.disabled=!song;b.setAttribute('aria-pressed',liked?'true':'false');
-  b.textContent=(liked?'♥':'♡')+' LOVE';
-  b.title=song?(liked?'Remove favorite: ':'Love this song: ')+song.title:'Waiting for Radio song title…';
-}
-function toggleLove(){
-  const song=currentLoveSong();
-  if(!song){setLiveStatus('LOVE • waiting for the current song title…');return;}
-  const isLiked=songLoves.has(song.key);
-  if(isLiked)songLoves.delete(song.key);else songLoves.add(song.key);
+let pendingLoveAt=0;
+const PENDING_LOVE_WINDOW_MS=120000;
+function recordSongLove(song,liked){
+  if(liked)songLoves.add(song.key);else songLoves.delete(song.key);
   try{localStorage.setItem(GE_LOVE_KEY,JSON.stringify([...songLoves].slice(-GE_LOVE_MAX)));}catch(_e){}
-  refreshLoveButton();
-  // The Vault already provides anonymous browser and session IDs. No raw IP,
-  // fingerprinting or cross-device identity claims are sent from this button.
-  try{void window.GEVault?.radio?.(isLiked?'track_unlove':'track_love',{
+  // The Vault provides anonymous browser and session IDs; neither location
+  // nor IP-based identification is collected by the LOVE control.
+  try{void window.GEVault?.radio?.(liked?'track_love':'track_unlove',{
     track_id:'song:'+song.key,track_title:song.title,album:song.album,
-    favorite:!isLiked,source_mode:song.source,
+    favorite:liked,source_mode:song.source,
     visitor_class:window.GEVault?.ownerUxEnabled?'owner_test_opt_in':'unverified_listener',
     preference_scope:'this_browser'
   })}catch(_e){}
-  setLiveStatus(isLiked?'LOVE • removed from favorites.':'LOVE • saved for this device.');
-  state.upNext=[]; // Reweight the next personal shuffle selection.
+  state.upNext=[];
+}
+function settlePendingLove(){
+  if(!pendingLoveAt)return false;
+  if(Date.now()-pendingLoveAt>PENDING_LOVE_WINDOW_MS){
+    pendingLoveAt=0;return false;
+  }
+  const song=currentLoveSong();
+  if(!song)return false;
+  pendingLoveAt=0;
+  if(!songLoves.has(song.key)){
+    recordSongLove(song,true);
+    setLiveStatus('LOVE • '+song.title+' saved to this device.');
+  }
+  return true;
+}
+function refreshLoveButton(){
+  const b=$('loveBtn');if(!b)return;
+  const song=currentLoveSong();
+  // Unknown current title never disables the control. A waiting selection
+  // is visibly filled, and only becomes a permanent favorite once the real
+  // song title is known. We never record an invented "unknown song".
+  const waiting=!!pendingLoveAt&&Date.now()-pendingLoveAt<=PENDING_LOVE_WINDOW_MS;
+  const liked=!!song&&songLoves.has(song.key);
+  b.disabled=false;b.setAttribute('aria-pressed',waiting||liked?'true':'false');
+  b.classList.toggle('love-pending',waiting);
+  b.textContent=waiting?'♥ LOVE · WAITING':liked?'♥ LOVED':'♡ LOVE';
+  b.title=waiting?'Selected — waiting for Radio song metadata, not yet saved':
+    song?(liked?'Remove favorite: ':'Love this song: ')+song.title:
+    'Tap to select LOVE. It will save after Radio identifies a song.';
+}
+function toggleLove(){
+  // Do not silently ignore a tap while the Radio host is waking or when
+  // iPhone Safari hasn't received the station's song metadata.
+  const song=currentLoveSong();
+  if(!song){
+    if(pendingLoveAt){
+      pendingLoveAt=0;
+      setLiveStatus('LOVE • waiting selection cancelled.');
+    }else{
+      pendingLoveAt=Date.now();
+      setLiveStatus('LOVE ♥ selected. Waiting for a song title before saving.');
+      setTimeout(()=>{
+        if(pendingLoveAt&&Date.now()-pendingLoveAt>=PENDING_LOVE_WINDOW_MS){
+          pendingLoveAt=0;refreshLoveButton();
+          setLiveStatus('LOVE • could not identify a song. Try again while music plays.');
+        }
+      },PENDING_LOVE_WINDOW_MS+100);
+      // Attempt to fetch actual title, without altering the live stream.
+      void window.GELiveMetadata?.poll?.();
+    }
+    refreshLoveButton();
+    return;
+  }
+  pendingLoveAt=0;
+  const liked=!songLoves.has(song.key);
+  recordSongLove(song,liked);
+  refreshLoveButton();
+  setLiveStatus(liked?'LOVE ♥ saved '+song.title+' for this device.':'LOVE • removed '+song.title+' from favorites.');
 }
 $('loveBtn')?.addEventListener('click',toggleLove);
 function pickWeightedShuffle(extraExclude=new Set()){
@@ -4076,6 +4138,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     if(!title||(state.live!==true&&state.livePreparing!==true))return;
     lastTitle=title;
     titleBtn.textContent=title;
+    settlePendingLove();
     refreshLoveButton();
     try{
       window.GEVault?.setTrackMetadata?.(audio,{
