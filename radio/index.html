@@ -860,10 +860,10 @@ body.view-player #musicGroup #nextBtn{grid-row:1!important;grid-column:5 / span 
 #bgGroup .bg-row #bgOff{grid-row:1;grid-column:2}
 #bgGroup .bg-row #bgNext{grid-row:1;grid-column:3}
 /* Clear, persistent LOVE feedback on touch screens. */
-#musicGroup #loveBtn:disabled{opacity:1!important}
+#musicGroup #loveBtn:disabled{opacity:.63!important}
 #musicGroup #loveBtn[aria-pressed="true"]{background:rgba(154,19,71,.95)!important;
   border-color:#ff9abc!important;color:#fff!important;box-shadow:0 0 14px rgba(255,72,137,.32)!important}
-#musicGroup #loveBtn.love-pending{border-style:dashed!important}
+#musicGroup #loveBtn.love-unavailable{opacity:.63!important;box-shadow:none!important;cursor:not-allowed!important}
 /* Keep live-status bubble as a compact, centered text pill. */
 #liveStatus.show,body.view-player #liveStatus.show,
 body.view-player.portrait-player #liveStatus.show{
@@ -3505,13 +3505,18 @@ function currentLoveSong(){
   const item=parseTrack(state.currentURL),key=loveNormalize(item.song);
   return key?{key,title:item.song,album:item.album,source:'player'}:null;
 }
-let pendingLoveAt=0;
-const PENDING_LOVE_WINDOW_MS=120000;
+// LOVE only becomes available after the media element has actually entered
+// the playing state AND the real song has been identified. A request to play,
+// a connected stream, or a previously known title alone is not sufficient.
+let loveAudioPlaying=false;
+function loveCanRate(){
+  return loveAudioPlaying&&!audio.paused&&!audio.ended&&
+    audio.readyState>=HTMLMediaElement.HAVE_FUTURE_DATA;
+}
 function recordSongLove(song,liked){
   if(liked)songLoves.add(song.key);else songLoves.delete(song.key);
   try{localStorage.setItem(GE_LOVE_KEY,JSON.stringify([...songLoves].slice(-GE_LOVE_MAX)));}catch(_e){}
-  // The Vault provides anonymous browser and session IDs; neither location
-  // nor IP-based identification is collected by the LOVE control.
+  // Vault events use anonymous browser IDs, not IP or inferred location.
   try{void window.GEVault?.radio?.(liked?'track_love':'track_unlove',{
     track_id:'song:'+song.key,track_title:song.title,album:song.album,
     favorite:liked,source_mode:song.source,
@@ -3520,65 +3525,39 @@ function recordSongLove(song,liked){
   })}catch(_e){}
   state.upNext=[];
 }
-function settlePendingLove(){
-  if(!pendingLoveAt)return false;
-  if(Date.now()-pendingLoveAt>PENDING_LOVE_WINDOW_MS){
-    pendingLoveAt=0;return false;
-  }
-  const song=currentLoveSong();
-  if(!song)return false;
-  pendingLoveAt=0;
-  if(!songLoves.has(song.key)){
-    recordSongLove(song,true);
-    setLiveStatus('LOVE • '+song.title+' saved to this device.');
-  }
-  return true;
-}
 function refreshLoveButton(){
   const b=$('loveBtn');if(!b)return;
-  const song=currentLoveSong();
-  // Unknown current title never disables the control. A waiting selection
-  // is visibly filled, and only becomes a permanent favorite once the real
-  // song title is known. We never record an invented "unknown song".
-  const waiting=!!pendingLoveAt&&Date.now()-pendingLoveAt<=PENDING_LOVE_WINDOW_MS;
+  const playing=loveCanRate();
+  const song=playing?currentLoveSong():null;
   const liked=!!song&&songLoves.has(song.key);
-  b.disabled=false;b.setAttribute('aria-pressed',waiting||liked?'true':'false');
-  b.classList.toggle('love-pending',waiting);
-  b.textContent=waiting?'♥ LOVE · WAITING':liked?'♥ LOVED':'♡ LOVE';
-  b.title=waiting?'Selected — waiting for Radio song metadata, not yet saved':
-    song?(liked?'Remove favorite: ':'Love this song: ')+song.title:
-    'Tap to select LOVE. It will save after Radio identifies a song.';
+  b.disabled=!song;
+  b.setAttribute('aria-pressed',liked?'true':'false');
+  b.classList.toggle('love-unavailable',!song);
+  b.textContent=!playing?'♡ LOVE · WAITING':!song?'♡ LOVE · NO TITLE':
+    liked?'♥ LOVED':'♡ LOVE';
+  b.title=!playing?'Wait until music is actually playing':
+    !song?'Radio is playing, but this song has not been identified yet':
+    (liked?'Remove favorite: ':'Love this song: ')+song.title;
 }
 function toggleLove(){
-  // Do not silently ignore a tap while the Radio host is waking or when
-  // iPhone Safari hasn't received the station's song metadata.
+  // Never queue an unverified future like or record a song before it plays.
+  if(!loveCanRate()){refreshLoveButton();return;}
   const song=currentLoveSong();
   if(!song){
-    if(pendingLoveAt){
-      pendingLoveAt=0;
-      setLiveStatus('LOVE • waiting selection cancelled.');
-    }else{
-      pendingLoveAt=Date.now();
-      setLiveStatus('LOVE ♥ selected. Waiting for a song title before saving.');
-      setTimeout(()=>{
-        if(pendingLoveAt&&Date.now()-pendingLoveAt>=PENDING_LOVE_WINDOW_MS){
-          pendingLoveAt=0;refreshLoveButton();
-          setLiveStatus('LOVE • could not identify a song. Try again while music plays.');
-        }
-      },PENDING_LOVE_WINDOW_MS+100);
-      // Attempt to fetch actual title, without altering the live stream.
-      void window.GELiveMetadata?.poll?.();
-    }
-    refreshLoveButton();
-    return;
+    setLiveStatus('LOVE • waiting for the playing song title.');
+    refreshLoveButton();return;
   }
-  pendingLoveAt=0;
   const liked=!songLoves.has(song.key);
   recordSongLove(song,liked);
   refreshLoveButton();
-  setLiveStatus(liked?'LOVE ♥ saved '+song.title+' for this device.':'LOVE • removed '+song.title+' from favorites.');
+  setLiveStatus(liked?'LOVE ♥ saved '+song.title+' for this device.':
+    'LOVE • removed '+song.title+' from favorites.');
 }
 $('loveBtn')?.addEventListener('click',toggleLove);
+audio.addEventListener('playing',()=>{loveAudioPlaying=true;refreshLoveButton();});
+for(const event of ['pause','waiting','stalled','ended','emptied']){
+  audio.addEventListener(event,()=>{loveAudioPlaying=false;refreshLoveButton();});
+}
 function pickWeightedShuffle(extraExclude=new Set()){
   const all=allowedCatalog();
   if(!all.length) return '';
@@ -4138,7 +4117,6 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     if(!title||(state.live!==true&&state.livePreparing!==true))return;
     lastTitle=title;
     titleBtn.textContent=title;
-    settlePendingLove();
     refreshLoveButton();
     try{
       window.GEVault?.setTrackMetadata?.(audio,{
@@ -4217,6 +4195,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   const token=++state.playToken;
   window.GEGate?.syncListening?.();
   const sunEQTrackChanged=state.currentURL!==url;
+  loveAudioPlaying=false;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
   titleBtn.textContent=displayTitle(url,!state.shuffle);
