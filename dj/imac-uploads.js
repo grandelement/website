@@ -7,7 +7,7 @@
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
 var busy=false, queue=[], complete=0, failures=0, total=0, current=null;
-var activeKind="draft",deleteAvailable=false,converterName="",libraryBusy=false,lastUploadKind="draft";
+var activeKind="draft",deleteAvailable=false,converterName="",converterAvailable=false,libraryBusy=false,lastUploadKind="draft";
 var pollTimer=0, queuePaused=false;
 function el(id){return d.getElementById(id)}
 function text(id,value){var x=el(id);if(x)x.textContent=String(value||"")}
@@ -47,13 +47,25 @@ function request(method,path,body,callback){
  return {xhr:xhr,send:function(){try{xhr.send(body||null)}catch(e){done(e)}}};
 }
 function refreshHealth(){
+ text("mp3Status","CHECKING LOCAL MP3 ENCODER…");
  var req=request("GET","/health",null,function(err,data){
-  if(err){text("mp3Status","IMAC HELPER OFFLINE · Run the helper in Terminal. Local conversion unavailable.");return;}
+  var toggle=el("convertMp3");
+  if(err){
+   converterAvailable=false;converterName="";
+   if(toggle){toggle.checked=false;toggle.disabled=true}
+   text("mp3Status","MP3 CONVERSION UNAVAILABLE · The local iMac helper is not responding. Original-file uploads require the helper to run.");
+   return;
+  }
   deleteAvailable=!!data.delete_available;
+  converterAvailable=!!data.mp3_available;
   converterName=data.mp3_converter||"not installed";
-  text("mp3Status",data.mp3_available?
-   "MP3 CONVERTER READY · "+converterName+" · Output 320 kbps.":
-   "MP3 CONVERTER NOT INSTALLED · Leave conversion unchecked. Original MP3/WAV/AIFF uploads still work.");
+  if(toggle){
+   toggle.disabled=!converterAvailable;
+   if(!converterAvailable)toggle.checked=false;
+  }
+  text("mp3Status",converterAvailable?
+   "MP3 CONVERTER READY · "+converterName+" · 320 kbps. Check the box to convert before uploading.":
+   "MP3 CONVERTER NOT INSTALLED ON THIS IMAC · Conversion is disabled until a compatible encoder is installed. Click INSTALL MP3 ENCODER below. Normal WAV/AIFF/MP3 uploads still work.");
   if(!deleteAvailable)text("libraryHelp","File listing works with the current helper. Move to Trash requires the updated helper.");
   else text("libraryHelp","Files stored privately in Google Drive. MOVE TO TRASH removes only the selected Drive copy; originals on this iMac remain unchanged.");
   list(activeKind,true);
@@ -69,11 +81,18 @@ function addFiles(kind,files){
  if(busy){status("Wait for current uploads to finish.");return}
  if(!files||!files.length)return;
  var convert=!!(el("convertMp3")&&el("convertMp3").checked);
+ if(convert&&!converterAvailable){
+  status("MP3 CONVERSION IS NOT INSTALLED · The file has NOT been uploaded. Click INSTALL MP3 ENCODER, then restart the updated iMac helper. Or uncheck conversion to upload the original.");
+  return;
+ }
  var fresh=[],invalid=[];
  for(var i=0;i<files.length;i++){
   var file=files[i];
   if(!file||!/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i.test(file.name||"")){
    invalid.push(file&&file.name||"unknown file");continue;
+  }
+  if(convert&&converterName.indexOf("LAME")!==-1&&!/\.(wav|aiff|aif|mp3)$/i.test(file.name||"")){
+   invalid.push(file.name+" (LAME converts WAV/AIFF; MP4/M4A needs FFmpeg)");continue;
   }
   if(file.size<1||file.size>4*1024*1024*1024){
    invalid.push(file.name+" (size out of range)");continue;
@@ -226,7 +245,17 @@ function init(){
  };
  el("listDrafts").onclick=function(){list("draft",false)};
  el("listFinals").onclick=function(){list("final",false)};
- if(el("convertMp3"))el("convertMp3").checked=false;
+ if(el("convertMp3")){
+  el("convertMp3").checked=false;
+  el("convertMp3").disabled=true;
+  el("convertMp3").onchange=function(){
+   if(this.checked&&!converterAvailable){
+    this.checked=false;
+    text("mp3Status","MP3 CONVERTER NOT INSTALLED · Download the compatible legacy encoder below before selecting conversion.");
+   }
+  };
+ }
+ if(el("refreshMp3"))el("refreshMp3").onclick=refreshHealth;
  text("uploadIssues","");
  status("GOOGLE DRIVE UPLOADS · Select several tracks with Command-click or Shift-click; they will upload one at a time.");
  refreshHealth();
