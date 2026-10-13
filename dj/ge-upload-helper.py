@@ -58,6 +58,7 @@ def find_lame():
     paths = (
         os.path.expanduser("~/Library/Application Support/GEStudios/bin/lame"),
         os.path.expanduser("~/Downloads/lame"),
+        os.path.expanduser("~/Downloads/lame-3.99"),
         os.path.expanduser("~/Downloads/lame-3.99.5-macosx-20120229/lame"),
         os.path.expanduser("~/Downloads/lame-3.100-macosx-20230418/lame"),
         "/usr/local/bin/lame",
