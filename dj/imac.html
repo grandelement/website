@@ -22,6 +22,16 @@ button:disabled{opacity:.48;cursor:not-allowed}
 #musicLibraryPanel{background:#07111c;border:1px solid #41627c;border-radius:8px;padding:12px;margin-top:12px}
 #uploadIssues{white-space:pre-wrap;color:#f1b1a9;overflow-wrap:break-word}
 #mp3Status{color:#9cdecc;font-weight:bold}
+#helperStatus{font-size:13px;color:#e8bd96;font-weight:bold;white-space:pre-wrap;overflow-wrap:break-word}
+.geUploadCard{background:#081321;border:1px solid #41627c;border-radius:9px;padding:14px;margin:12px 0}
+.geUploadCard h3{font-size:17px;color:#a6dbec;margin:0 0 8px}
+.geUploadCard input[type=file]{max-width:100%;margin:6px 0 5px;min-height:45px}
+.geUploadCard .geSelected{font-size:13px;color:#b1e3d8;overflow-wrap:break-word}
+.geUploadCard .geConvertLabel{display:block;margin:14px 0 8px;color:#f1f6f8}
+.geUploadCard .geConvertLabel input{width:auto;min-height:auto;vertical-align:middle;margin:0 8px 0 0}
+.geUploadCard .geUploadAction{width:100%;max-width:480px}
+#uploadIssues{padding:6px 0}
+
 #error,#connection{white-space:pre-line;overflow-wrap:anywhere;color:#b4d3e7}
 .controls{margin-top:8px}.small{font-size:13px}
 #radioControls{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
@@ -182,34 +192,40 @@ button:disabled{opacity:.48;cursor:not-allowed}
  <div class="panel">
   <h2>SONG DRAFTS · FILE TRANSFERS</h2>
   <p>Upload multiple songs from this iMac directly to your private Google Drive. Files remain separate from Bangers and the live broadcast.</p>
-  <div class="controls">
-   <button id="uploadDraft" type="button" class="green">UPLOAD DRAFT</button>
-   <button id="uploadFinal" type="button" class="orange">UPLOAD FINAL</button>
-   <button id="listDrafts" type="button">MY DRAFTS</button>
-   <button id="listFinals" type="button">MY FINALS</button>
+  <p><b>Use Browse to choose one or many tracks. Nothing uploads until you click the green or orange UPLOAD button.</b></p>
+  <p id="helperStatus" role="status">CHECKING LOCAL IMAC CONNECTION…</p>
+  <button id="retryHelper" type="button">RECHECK IMAC CONNECTION</button>
+  <div class="geUploadCard" id="draftUploadCard">
+   <h3>DRAFT · CHOOSE FILES</h3>
+   <label for="fileDraft">Browse for one or multiple drafts (Command-click or Shift-click)</label>
+   <input type="file" id="fileDraft" multiple aria-label="Choose one or multiple draft music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
+   <p class="geSelected" id="draftSelection">NO TRACKS SELECTED</p>
+   <label for="convertDraft" class="geConvertLabel"><input id="convertDraft" type="checkbox"> Convert DRAFT files to MP3 (320 kbps) before uploading</label>
+   <button type="button" id="uploadDraft" class="green geUploadAction" disabled>UPLOAD SELECTED DRAFTS</button>
   </div>
-  <label for="convertMp3" style="display:block;margin:10px 0 6px;color:#eff7fc;font-size:15px">
-   <input type="checkbox" id="convertMp3" style="width:auto;max-width:none;vertical-align:middle;margin:0 8px 0 0;padding:0">
-   Convert to MP3 before uploading (320 kbps)
-  </label>
+  <div class="geUploadCard" id="finalUploadCard">
+   <h3>FINAL · CHOOSE FILES</h3>
+   <label for="fileFinal">Browse for one or multiple finals (Command-click or Shift-click)</label>
+   <input type="file" id="fileFinal" multiple aria-label="Choose one or multiple final music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
+   <p class="geSelected" id="finalSelection">NO TRACKS SELECTED</p>
+   <label for="convertFinal" class="geConvertLabel"><input id="convertFinal" type="checkbox"> Convert FINAL files to MP3 (320 kbps) before uploading</label>
+   <button type="button" id="uploadFinal" class="orange geUploadAction" disabled>UPLOAD SELECTED FINALS</button>
+  </div>
+  <h3 style="margin-bottom:5px">UPLOAD PROGRESS</h3>
   <p id="mp3Status" role="status">Checking MP3 encoder on this iMac…</p>
-  <p><a class="link" href="https://www.rarewares.org/files/mp3/lame-3.99" target="_blank" rel="noopener">INSTALL MP3 ENCODER · LEGACY INTEL MAC</a>
-   <button type="button" id="refreshMp3">RECHECK MP3 ENCODER</button></p>
-  <p class="small">This downloads the standalone LAME 3.99 command-line encoder listed by RareWares for Intel 64-bit OS X Lion and later. It must be made executable and the updated iMac upload helper restarted before MP3 conversion becomes available.</p>
-  <p>Unchecked: upload the original WAV, AIFF, MP3 or other supported file unchanged. Checked: convert locally to a 320 kbps MP3 (requires FFmpeg or, for WAV/AIFF, LAME). If no compatible encoder is installed, conversion is blocked rather than silently uploading the wrong format. The original remains on this iMac.</p>
-  <p style="margin-top:12px"><strong>SELECT SEVERAL TRACKS</strong> · Hold Command or Shift in the file picker to select multiple files. They upload one after another. If an Upload button does not open a file window, use the visible Choose File control below.</p>
-  <label for="fileDraft" style="display:block;margin:8px 0 2px;color:#a4d5ea;font-weight:bold">DRAFT · CHOOSE FILE</label>
-  <input type="file" id="fileDraft" multiple aria-label="Choose one or more files to upload as draft" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
-  <label for="fileFinal" style="display:block;margin:8px 0 2px;color:#a4d5ea;font-weight:bold">FINAL · CHOOSE FILE</label>
-  <input type="file" id="fileFinal" multiple aria-label="Choose one or more files to upload as final" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
+  <p class="small">Conversion to MP3 needs the working LAME 3.99 helper for WAV/AIFF; MP4/M4A need FFmpeg. The original stays on this iMac. If conversion is unavailable, the selected files stay selected and no upload starts.</p>
+  <button type="button" id="refreshMp3">RECHECK MP3 ENCODER</button>
   <div class="geMeterTrack" role="progressbar" aria-label="Google Drive file upload"><div id="uploadBar" class="geMeterFill"></div></div>
   <p class="small">The bar moves during conversion and transfer even when an exact percentage is not available. 100% appears only after Google Drive confirms completion.</p>
   <p id="uploadResults" role="status" style="white-space:pre-wrap">Google Drive uploader needs the local GE Upload Helper running on this iMac.</p>
   <p id="uploadIssues" role="status"></p>
   <div id="musicLibraryPanel">
-   <h2 id="libraryTitle">GOOGLE DRIVE · GE Studios / Drafts</h2>
+   <h2>YOUR UPLOADED MUSIC</h2>
+   <div class="controls"><button type="button" id="listDrafts">MY DRAFTS</button>
+   <button type="button" id="listFinals">MY FINALS</button></div>
+   <h3 id="libraryTitle" style="font-size:15px">GOOGLE DRIVE · GE Studios / Drafts</h3>
    <p id="libraryStatus" role="status">Loading your uploaded tracks…</p>
-   <p id="libraryHelp">My Drafts and My Finals show stored tracks. The newest helper also lets you move a selected Google Drive file to Trash.</p>
+   <p id="libraryHelp">Each library lists your Google Drive tracks and offers MOVE TO TRASH when the updated helper is connected. Your local music is never deleted.</p>
    <div id="musicLibrary"></div>
   </div>
   <p><b>Storage:</b> Google Drive → GE Studios → Drafts / Finals. Files up to 4 GB. Uploads do not change BANGERS or broadcast. No BLITZ login required.</p>
@@ -440,5 +456,5 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=6"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=9"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=10"></script>
 </body></html>
