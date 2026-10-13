@@ -38,15 +38,17 @@ function sendRequest(method,path,body,callback){
 }
 function openChooser(kind){
  if(busy)return;
- status("CHECKING GE STUDIOS UPLOADER…");
- var xhr=sendRequest("GET","/health",null,function(err,data){
-  if(err){status(err.message);return}
-  if(!data.rclone_ready){status("Google Drive connection is missing on this iMac. Check rclone configuration.");return}
-  var fileInput=el(kind==="final"?"fileFinal":"fileDraft");
-  status("Choose "+kind.toUpperCase()+" file. Google Drive: GE Studios/"+(kind==="final"?"Finals":"Drafts")+".");
-  if(fileInput)fileInput.click();
- });
- xhr.send();
+ // Open the native file picker immediately within the physical button click.
+ // Firefox on El Capitan blocks a chooser invoked later from an XHR callback.
+ var fileInput=el(kind==="final"?"fileFinal":"fileDraft");
+ status("Choose your "+kind.toUpperCase()+" file. If the picker does not open, use CHOOSE FILE below.");
+ if(fileInput){
+  try{fileInput.click()}catch(e){
+   status("File picker was blocked by this browser. Use the visible CHOOSE FILE control below.");
+  }
+ }else{
+  status("File chooser is unavailable. Reload the page.");
+ }
 }
 function waitForJob(id){
  if(jobPoll)clearTimeout(jobPoll);
