@@ -26,7 +26,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .controls{margin-top:8px}.small{font-size:13px}
 #radioControls{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
 #radioControls button{flex:1 1 130px;min-height:57px;margin:0}
-#radioControls #liveToggle{flex:2 1 195px;border:2px solid #8be8d2;letter-spacing:1px}
+#geLiveCheck #liveToggle{border:2px solid #8be8d2;letter-spacing:1px;font-size:16px;min-height:56px}#geLiveCheck #testLive{min-height:50px}
 .geMeters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
 .geMeterBox{border:1px solid #35536a;border-radius:8px;padding:8px;background:#07101c}
 .geMeterBox b{font-size:12px}.geMeterTrack{height:15px;border:1px solid #4e6d82;background:#050a0f;border-radius:5px;overflow:hidden;margin:6px 0}
@@ -115,9 +115,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
    <button type="button" id="skip" disabled>SKIP</button>
    <button type="button" id="stop" disabled class="red">STOP / PLAY</button>
    <button type="button" id="refresh" disabled>REFRESH</button>
-   <button type="button" id="liveToggle" disabled>LIVE</button>
   </div>
-  <p id="liveStatus">LIVE OFF · Bangers is playing. Connect the Focusrite input to enable LIVE.</p>
   <div class="geMeterBox"><b>RADIO MASTER OUTPUT</b>
    <div class="geMeterTrack"><div id="radioMeterBar" class="geMeterFill"></div></div>
    <span class="geMeterRead" id="radioDb">-60 dB</span>
@@ -144,13 +142,23 @@ button:disabled{opacity:.48;cursor:not-allowed}
   <label for="liveGain">LIVE INPUT LEVEL</label>
   <input type="range" id="liveGain" min="0" max="150" value="100">
   <b id="liveGainRead">100%</b>
+  <div class="geMeterBox" id="geLiveCheck">
+   <b>GE STUDIO · LIVE CONTROL</b>
+   <p>Local stereo meters work without BLITZ. Going live is optional and requires separate Radio 1 authorization.</p>
+   <div class="controls">
+    <button id="testLive" type="button">TEST LIVE READINESS · NO BROADCAST</button>
+    <button id="liveToggle" type="button" class="green" disabled>GO LIVE ON BLITZ</button>
+   </div>
+   <p id="liveReadiness" role="status">LOCAL TEST NOT RUN · Select Soundflower (2ch), connect audio and play Ableton.</p>
+   <p id="liveStatus" role="status">RADIO DISCONNECTED · BANGERS NOT AFFECTED</p>
+  </div>
   <p id="liveState">OFF AIR · BANGERS</p>
   <p id="studioPresence">LOCAL STUDIO READY · Remote mixer registration available after optional radio connection</p>
   <p id="channelReadout">SAFFIRE CHANNELS · Not checked</p>
-  <p id="inputStatus">Select SAFFIRE, click CONNECT FOCUSRITE INPUT, then play Ableton. A device mismatch will disable LIVE rather than silently using the built-in microphone.</p>
+  <p id="inputStatus">Choose Soundflower (2ch) and click CONNECT AUDIO INPUT. Ableton outputs through the Multi-Output Device to both Saffire speakers and Soundflower. LIVE remains disabled until both audio and optional BLITZ authorization are ready.</p>
   <p id="meterStatus" role="status" style="color:#82ead0;font-weight:bold">METER IDLE · SELECT AN AUDIO INPUT</p>
-  <p style="color:#c9d9e8"><b>PRO 40 ROUTING CHECK:</b> Ableton Master normally reaches Saffire DAW 1/2. Saffire's built-in loopback receives it on inputs 19/20; older Safari may only capture the first input channels. If meters remain silent, check Saffire MixControl → Routing → Loop Back 1/2 and the available input channels. Do not press LIVE until meters receive sound.</p>
-  <p>On older Safari, if selecting Saffire still returns Built-in Microphone: go to <b>System Preferences → Sound → Input → Saffire</b>, then choose <b>SYSTEM DEFAULT</b> here and reconnect.</p>
+  <p style="color:#c9d9e8"><b>WORKING STUDIO ROUTING:</b> Ableton → macOS Multi-Output Device → Saffire speakers + Soundflower (2ch) → GE DJ Booth. Saffire remains clock master and Soundflower has drift correction. Do not change this routing for LIVE.</p>
+  <p>For safe monitoring, stop the radio player on the iMac before broadcasting to prevent an audio feedback loop. Test local LIVE readiness before connecting to BLITZ.</p>
   <p><strong>Universal iMac mixer:</strong> Device selection, Left/Right input meters, live gain and radio output. Ableton Master must return through a capture input or an installed loopback. Keep the radio speaker monitor off during LIVE to prevent feedback.</p>
  </div>
  <div class="panel">
@@ -409,6 +417,6 @@ text("trustedStatus",deviceToken?"SAVED BLITZ AUTHORIZATION AVAILABLE · Radio c
 text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLITZ if needed.":"RADIO NOT CONNECTED · Only enter a code when connecting to BLITZ.");
 })();
 </script>
-<script src="https://grandelement.com/dj/imac-mixer.js?v=5"></script>
+<script src="https://grandelement.com/dj/imac-mixer.js?v=6"></script>
 <script src="https://grandelement.com/dj/imac-uploads.js?v=7"></script>
 </body></html>
