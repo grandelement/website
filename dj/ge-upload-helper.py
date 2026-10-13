@@ -56,6 +56,7 @@ def find_lame():
     # Older standalone LAME binaries can run without replacing OS X libraries.
     # Only use a binary that the user has deliberately placed in one of these paths.
     paths = (
+        os.path.expanduser("~/Library/Application Support/GEStudios/bin/lame"),
         os.path.expanduser("~/Downloads/lame"),
         os.path.expanduser("~/Downloads/lame-3.99.5-macosx-20120229/lame"),
         os.path.expanduser("~/Downloads/lame-3.100-macosx-20230418/lame"),
@@ -202,7 +203,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.response(200, {"ok": True, "rclone_ready": os.path.isfile(RCLONE) and os.path.isfile(CONFIG),
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
-                                       "backend": "Google Drive via local rclone"})
+                                       "backend": "Google Drive via local rclone",
+                                       "helper_version": 2, "delete_available": True})
         if target.path == "/status":
             job_id = parse_qs(target.query).get("id", [""])[0]
             with GUARD:
@@ -222,16 +224,67 @@ class Handler(BaseHTTPRequestHandler):
                 if p.returncode:
                     return self.response(502, {"ok": False, "error": "Could not list Google Drive files: " + as_text(err)[-200:]})
                 items = json.loads(as_text(out))
-                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0)} for i in items]
+                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0), "modified": i.get("ModTime", "")} for i in items]
+                files.sort(key=lambda f: f.get("modified", ""), reverse=True)
                 return self.response(200, {"ok": True, "files": files[:100], "has_more": len(files) > 100})
             except Exception as ex:
                 return self.response(500, {"ok": False, "error": as_text(str(ex))[:200]})
         self.response(404, {"ok": False, "error": "Not found"})
 
+    def delete_file(self):
+        # Only an explicit browser-confirmed delete of an existing file inside
+        # GE Studios/Drafts or GE Studios/Finals is permitted.
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        if length < 2 or length > 2000:
+            return self.response(400, {"ok": False, "error": "Invalid deletion request"})
+        try:
+            body = json.loads(as_text(self.rfile.read(length)))
+        except Exception:
+            return self.response(400, {"ok": False, "error": "Invalid JSON"})
+        if not isinstance(body, dict):
+            return self.response(400, {"ok": False, "error": "Invalid request"})
+        kind = body.get("kind")
+        name = body.get("name")
+        if kind not in ("draft", "final") or not isinstance(name, (type(u""), type(""))):
+            return self.response(400, {"ok": False, "error": "Invalid filename or folder"})
+        if not name or len(name) > 180 or name in (".", "..") or any(c in name for c in ("/", "\\", "\r", "\n", "\x00")):
+            return self.response(400, {"ok": False, "error": "Unsafe filename"})
+        with GUARD:
+            if any(x.get("phase") not in ("complete", "error") for x in JOBS.values()):
+                return self.response(409, {"ok": False, "error": "Wait for the current upload to finish before deleting"})
+        folder = "Finals" if kind == "final" else "Drafts"
+        folder_path = REMOTE + "/" + folder
+        try:
+            # Require an exact file from a fresh, server-side directory listing.
+            listing = subprocess.Popen([RCLONE, "--config", CONFIG, "lsjson", "--files-only", folder_path],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = listing.communicate()
+            if listing.returncode != 0:
+                raise RuntimeError("Cannot verify file in Google Drive: " + as_text(err)[-250:])
+            items = json.loads(as_text(out))
+            if not any(x.get("Name") == name and not x.get("IsDir", False) for x in items):
+                return self.response(404, {"ok": False, "error": "File not found in GE Studios/" + folder + ". Refresh the list."})
+            # Drive default is trash; explicitly protect against any config that
+            # would permanently delete instead.
+            command = [RCLONE, "--config", CONFIG, "--drive-use-trash=true",
+                       "deletefile", folder_path + "/" + name]
+            task = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _out, err = task.communicate()
+            if task.returncode != 0:
+                raise RuntimeError("Could not move the file to Google Drive Trash: " + as_text(err)[-350:])
+            return self.response(200, {"ok": True, "name": name, "folder": folder, "trashed": True})
+        except Exception as ex:
+            return self.response(502, {"ok": False, "error": as_text(str(ex))[:600]})
+
     def do_POST(self):
         if not self.valid_host() or not self.authorized_origin() or self.headers.get("X-GE-Local", "") != "1":
             return self.response(403, {"ok": False, "error": "Unapproved upload"})
         parsed = urlparse(self.path)
+        if parsed.path == "/delete":
+            return self.delete_file()
         if parsed.path != "/upload":
             return self.response(404, {"ok": False, "error": "Not found"})
         if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
@@ -292,7 +345,7 @@ if __name__ == "__main__":
     print("GE STUDIOS UPLOAD HELPER READY on http://127.0.0.1:%d" % PORT)
     print("Open the GE DJ Booth in Firefox. Leave this Terminal window open.")
     print("Google Drive destination: GE Studios/Drafts or GE Studios/Finals.")
-    if not find_ffmpeg():
+    if not find_ffmpeg() and not find_lame():
         print("MP3 conversion unavailable until FFmpeg or LAME is installed; original uploads work now.")
     try:
         server.serve_forever()
