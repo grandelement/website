@@ -13,7 +13,26 @@ function el(id){return d.getElementById(id)}
 function text(id,value){var x=el(id);if(x)x.textContent=String(value||"")}
 function status(s){text("uploadResults",s)}
 function mb(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
-function progress(n){var x=el("uploadBar");if(x)x.style.width=Math.max(0,Math.min(100,n))+"%"}
+function progress(n){
+ var x=el("uploadBar");if(!x)return;
+ // rclone may not publish percentages while authenticating or finishing a Drive
+ // upload; LAME --quiet does not publish conversion percentages at all.
+ // Show a visibly animated INDETERMINATE bar instead of a false 0%.
+ if(n===null||typeof n!=="number"||!isFinite(n)){
+  x.className="geMeterFill geUploadIndeterminate";
+  x.style.width="32%";
+  x.style.marginLeft="";
+  x.setAttribute("aria-valuetext","Working; exact percentage unavailable");
+  x.removeAttribute("aria-valuenow");
+ }else{
+  x.className="geMeterFill";
+  x.style.marginLeft="0";
+  var pct=Math.max(0,Math.min(100,n));
+  x.style.width=pct+"%";
+  x.setAttribute("aria-valuenow",String(pct));
+  x.setAttribute("aria-valuetext",String(pct)+" percent");
+ }
+}
 function folder(kind){return kind==="final"?"Finals":"Drafts"}
 function setBusy(flag){
  busy=!!flag;
@@ -104,7 +123,7 @@ function addFiles(kind,files){
  queue=fresh;
  lastUploadKind=kind;
  total=fresh.length;complete=0;failures=0;queuePaused=false;
- setBusy(true);progress(0);
+ setBusy(true);progress(null);
  status("QUEUED "+total+" track"+(total===1?"":"s")+" for GE Studios/"+folder(kind)+".");
  next();
 }
@@ -118,6 +137,7 @@ function finishQueue(){
 }
 function failOne(message){
  failures++;complete++;
+ progress(0);
  text("uploadIssues",textValue("uploadIssues")+"\n"+(current?current.file.name+": ":"")+message);
  current=null;setTimeout(next,100);
 }
@@ -127,13 +147,15 @@ function next(){
  if(!queue.length){finishQueue();return}
  current=queue.shift();
  var item=current,file=item.file;
+ item.startedAt=Date.now();
  var idx=complete+1;
  var url="/upload?kind="+encodeURIComponent(item.kind)+"&name="+encodeURIComponent(file.name)+
          "&convert="+(item.convert?"1":"0");
  var req=request("POST",url,file,function(err,data){
   if(err){failOne("UPLOAD FAILED · "+err.message);return}
   if(!data.id){failOne("Uploader did not return a job ID");return}
-  status("TRACK "+idx+"/"+total+" · SENT TO IMAC · "+file.name+" · Sending to Google Drive…");
+  progress(null);
+  status("TRACK "+idx+"/"+total+" · LOCAL TRANSFER COMPLETE · "+file.name+" · Waiting for conversion / Google Drive transfer…");
   waitForJob(data.id,item,idx);
  });
  req.xhr.upload.onprogress=function(e){
@@ -144,14 +166,14 @@ function next(){
   }
  };
  status("TRACK "+idx+"/"+total+" · TRANSFERRING TO IMAC · "+file.name+" · "+mb(file.size));
- progress(0);req.send();
+ progress(null);req.send();
 }
 function waitForJob(id,item,idx){
  if(pollTimer)clearTimeout(pollTimer);
  pollTimer=setTimeout(function(){
   var req=request("GET","/status?id="+encodeURIComponent(id),null,function(err,data){
    if(err){
-    queuePaused=true;setBusy(false);
+    queuePaused=true;setBusy(false);progress(0);
     status("UPLOAD STATUS UNKNOWN for "+item.file.name+" · "+err.message+
      ". Check Google Drive before retrying; "+queue.length+" remaining track(s) were not started.");
     return;
@@ -163,10 +185,14 @@ function waitForJob(id,item,idx){
     current=null;setTimeout(next,100);return;
    }
    if(job.phase==="error"){failOne("GOOGLE DRIVE FAILED · "+String(job.detail||"Unknown error"));return}
-   progress(pct);
-   status("TRACK "+idx+"/"+total+" · "+
-    (job.phase==="converting"?"CONVERTING TO MP3":job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING")+
-    " · "+pct+"% · "+item.file.name+
+   var numericProgress=pct>0&&pct<=100;
+   progress(numericProgress?pct:null);
+   var elapsed=Math.max(0,Math.floor((Date.now()-item.startedAt)/1000));
+   var stage=job.phase==="converting"?"CONVERTING TO 320 kbps MP3":
+      job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING LOCAL FILE";
+   status("TRACK "+idx+"/"+total+" · "+stage+
+    " · "+(numericProgress?pct+"%":"WORKING · Exact % unavailable")+
+    " · "+elapsed+"s elapsed · "+item.file.name+
     (job.detail?" · "+job.detail:""));
    waitForJob(id,item,idx);
   });req.send();
