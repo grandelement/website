@@ -26,10 +26,16 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 #liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
 #devicesFound,#liveState{font-size:13px;color:#a6d7ee}
 #uploadResults{white-space:pre-line;overflow-wrap:anywhere;color:#adddd9}.columns{display:table;width:100%;table-layout:fixed}.col{display:table-cell;vertical-align:top;width:50%;padding:0 6px}
-#radio{display:block}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
+#radio{display:none}#queue{margin:4px 0 0;padding-left:24px;font-size:14px}#queue li{padding:3px}
 #now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
 #inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}
 #imacRadioAudio{display:block;width:100%;max-width:800px;min-height:42px;margin:10px 0}
+#login{position:fixed;z-index:2000;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;overflow:auto;background:rgba(3,8,15,.98);padding:18px}
+#login .geGateInner{background:#0c1723;border:2px solid #456078;border-radius:12px;max-width:470px;width:100%;padding:24px}
+#login .geRememberLabel{display:flex;align-items:center;gap:10px;font-size:15px;color:#eff7fc;margin:10px 0}
+#login .geRememberLabel input{width:auto;max-width:none;min-height:auto}
+#studioPresence,#trustedStatus{color:#89d5c6;font-weight:bold}
+#retryTrusted{display:none}
 #listenerState{font-weight:bold;color:#77d9c3}
 #listenVolume{width:min(320px,100%);vertical-align:middle}
 #listenVolumeRead{display:inline-block;min-width:42px;text-align:right}
@@ -43,6 +49,8 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  <h1>GE DJ · iMAC</h1>
  <p>Classic Safari control desk for the older iMac · Ableton / Focusrite studio</p>
  <p id="connection" role="status">Not connected</p>
+ <p id="trustedStatus">TRUSTED STUDIO DEVICE · Status not yet verified</p>
+ <button id="forgetDevice" type="button">SIGN OUT · FORGET THIS IMAC</button>
 </div>
 <div class="panel" id="listenerPanel">
  <h2>RADIO LISTENING · iMAC</h2>
@@ -66,14 +74,18 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  <a class="link" href="https://grandelement.com/radio/ge-clock.html">RADIO 1 / RADIO 2 LISTENER</a>
  <p class="notice">Radio 2 is accessed through the GE Clock listener; it cannot be heard until Bangers has successfully synchronized. The main listening controls above always monitor BLITZ Radio 1.</p>
 </div>
-<div class="panel" id="login">
- <h2>DJ SIGN IN</h2>
- <p>Use your existing DJ code. It is not saved in this page; this iMac can instead remember an authorized device token.</p>
- <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
- <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
+<div id="login">
+ <div class="geGateInner">
+  <h2>GE DJ · STUDIO SIGN IN</h2>
+  <p>Authenticate once on this iMac. A trusted-device session reconnects automatically on future visits and registers the studio with the shared mixer.</p>
+  <p id="gateStatus" role="status">CHECKING REMEMBERED IMAC…</p>
+  <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
+  <label class="geRememberLabel" for="rememberThisImac"><input id="rememberThisImac" type="checkbox" checked> REMEMBER THIS IMAC · UP TO 180 DAYS</label>
+  <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
+  <button type="button" id="retryTrusted">RETRY REMEMBERED DEVICE</button>
   <p id="error" role="status"></p>
-  <p><a class="link" target="_blank" rel="noopener" href="https://radio.grandelement.blitz.cloud/control/status">TEST DIRECT BLITZ STATUS</a></p>
-  <p>A login-required response means BLITZ's DJ control server is responding. A 503 here means BLITZ itself needs a configuration or service check.</p>
+  <p>Remembered-device login saves a revocable device token in this browser, never the DJ code. Your password is not stored.</p>
+ </div>
 </div>
 <div id="radio">
  <div class="panel">
@@ -115,6 +127,8 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   <input type="range" id="liveGain" min="0" max="150" value="100">
   <b id="liveGainRead">100%</b>
   <p id="liveState">OFF AIR · BANGERS</p>
+  <p id="studioPresence">STUDIO REGISTRY · Waiting for sign in</p>
+  <p id="channelReadout">SAFFIRE CHANNELS · Not checked</p>
   <p id="inputStatus">Select SAFFIRE, click CONNECT FOCUSRITE INPUT, then play Ableton. A device mismatch will disable LIVE rather than silently using the built-in microphone.</p>
   <p id="meterStatus" role="status" style="color:#82ead0;font-weight:bold">METER IDLE · SELECT AN AUDIO INPUT</p>
   <p style="color:#c9d9e8"><b>PRO 40 ROUTING CHECK:</b> Ableton Master normally reaches Saffire DAW 1/2. Saffire's built-in loopback receives it on inputs 19/20; older Safari may only capture the first input channels. If meters remain silent, check Saffire MixControl → Routing → Loop Back 1/2 and the available input channels. Do not press LIVE until meters receive sound.</p>
@@ -188,7 +202,17 @@ function reconnectRadio(){
  stateRadio("RADIO 1 · Stream interrupted · Retry "+radioRetries+"/4");
 }
 function getSaved(){try{deviceId=localStorage.getItem(TRUST_ID)||"";deviceToken=localStorage.getItem(TRUST_TOKEN)||""}catch(e){}}
-function saveDevice(id,token){deviceId=id;deviceToken=token;try{localStorage.setItem(TRUST_ID,id);localStorage.setItem(TRUST_TOKEN,token)}catch(e){}}
+function saveDevice(id,token){
+ deviceId=id;deviceToken=token;
+ try{
+  localStorage.setItem(TRUST_ID,id);
+  localStorage.setItem(TRUST_TOKEN,token);
+  if(localStorage.getItem(TRUST_TOKEN)!==token)throw new Error("Browser storage did not retain the token.");
+  text("trustedStatus","TRUSTED IMAC · Automatically reconnects for up to 180 days");
+ }catch(e){
+  text("trustedStatus","WARNING · Firefox blocked remembering this iMac. Check private browsing/storage settings.");
+ }
+}
 function forget(){deviceId="";deviceToken="";key="";try{localStorage.removeItem(TRUST_ID);localStorage.removeItem(TRUST_TOKEN)}catch(e){}}
 function request(method,path,body,callback){
  var xhr=new XMLHttpRequest();xhr.open(method,API+path,true);xhr.timeout=18000;
@@ -206,7 +230,8 @@ function request(method,path,body,callback){
    if(!reason&&xhr.status===503)
     reason="DJ API HTTP 503 · BLITZ control service or Cloudflare relay unavailable. Tap TEST DIRECT BLITZ STATUS to isolate it.";
    if(!reason)reason="DJ API HTTP "+xhr.status;
-   callback(new Error(reason));return
+   var failure=new Error(reason);failure.status=xhr.status;
+   callback(failure);return
   }
   callback(null,obj)
  };
@@ -232,28 +257,47 @@ function refresh(){
 }
 function onConnected(data){
  connected=true;state=data;show();el("login").style.display="none";el("radio").style.display="block";
+ text("gateStatus","");
+ if(deviceToken)text("trustedStatus","TRUSTED IMAC · Session active (up to 180 days)");
+ else text("trustedStatus","SESSION ACTIVE · Not saved as a trusted device");
+ if(w.GEImacMixer&&w.GEImacMixer.announce)w.GEImacMixer.announce();
  ["fadeOut","fadeIn","skip","stop","refresh"].forEach(function(id){el(id).disabled=false});
  if(w.GEImacClassic&&w.GEImacClassic.updateMixer)w.GEImacClassic.updateMixer();
  text("connection","CONNECTED · iMAC DJ");
  if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
  // Upgrade the normal DJ login to a 180-day trusted device session where supported.
- if(key&&!deviceToken){request("POST","/control/auth/trust-device",{name:"iMac classic · Safari",device_scope:"imac-safari",days:180},function(err,obj){
+ if(key&&!deviceToken&&el("rememberThisImac").checked){request("POST","/control/auth/trust-device",{name:"GE iMac Studio · Firefox",device_scope:"imac-studio",days:180},function(err,obj){
   if(!err&&obj&&obj.device&&obj.device.id&&obj.device_token){
    saveDevice(String(obj.device.id),String(obj.device_token));
    key="";
   }else{
-   text("connection","CONNECTED · DJ session active · This browser could not remember the device");
-   // Keep the DJ code in session memory until the tab closes. Do not store it.
+   text("trustedStatus","NOT REMEMBERED · "+String(err&&err.message||"Trusted-device registration unavailable")+". Sign-in will be required next visit.");
+   // Keep the DJ code in memory for this tab only. Never store it.
   }
  })}
+ else if(!deviceToken){text("trustedStatus","SESSION ONLY · Remember this iMac was not selected");}
  else key=""
 }
 function signIn(password){
- key=password;
- text("error","CONNECTING…");
+ key=password||"";
+ text("error","");
+ text("gateStatus",deviceToken&&!password?"RECONNECTING TRUSTED IMAC…":"VERIFYING DJ SIGN IN…");
+ if(el("retryTrusted"))el("retryTrusted").style.display="none";
  request("GET","/control/status",null,function(err,obj){
-  if(err){text("error",err.message);if(deviceToken)forget();key="";return}
-  text("error","");onConnected(obj)
+  if(err){
+   connected=false;
+   text("error",err.message);
+   if(deviceToken&&(err.status===401||err.status===403)){
+    forget();
+    text("gateStatus","REMEMBERED SESSION EXPIRED · Enter the DJ code once to renew.");
+   }else if(deviceToken){
+    text("gateStatus","CONNECTION UNAVAILABLE · Trusted device retained.");
+    el("retryTrusted").style.display="inline-block";
+   }else text("gateStatus","SIGN IN REQUIRED");
+   key="";
+   return;
+  }
+  text("error","");onConnected(obj);
  })
 }
 listener.volume=.65;
@@ -267,6 +311,25 @@ listener.onwaiting=function(){if(userWantsRadio)stateRadio("RADIO 1 · Buffering
 listener.onerror=function(){if(userWantsRadio)reconnectRadio()};
 listener.onstalled=function(){if(userWantsRadio&&!radioReconnectTimer)reconnectRadio()};
 el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input){text("error","Enter the DJ code.");return}signIn(input)};
+el("retryTrusted").onclick=function(){if(deviceToken)signIn("");else text("error","Enter the DJ code to remember this device again.")};
+el("forgetDevice").onclick=function(){
+ if(w.GEImacMixer&&w.GEImacMixer.isOnAir&&w.GEImacMixer.isOnAir()){
+  text("trustedStatus","RETURN TO BANGERS before signing out.");return;
+ }
+ if(!w.confirm("Sign out and forget this iMac? You will need the DJ code on the next visit."))return;
+ var oldId=deviceId;
+ if(oldId){
+  request("POST","/control/auth/trusted-devices/revoke",{id:oldId},function(){});
+ }
+ forget();connected=false;state=null;
+ if(pollTimer)clearInterval(pollTimer);
+ pollTimer=null;
+ el("radio").style.display="none";
+ el("login").style.display="flex";
+ el("retryTrusted").style.display="none";
+ text("gateStatus","SIGNED OUT · Enter the DJ code to reconnect.");
+ text("trustedStatus","NOT TRUSTED · Sign in again.");
+};
 el("password").onkeydown=function(e){e=e||window.event;if((e.keyCode||e.which)===13)el("enter").click()};
 var buttons={fadeOut:"fade_out",fadeIn:"fade_in"};
 for(var id in buttons)if(buttons.hasOwnProperty(id)){(function(buttonId,action){
@@ -283,7 +346,9 @@ w.GEImacClassic={
  refresh:refresh,
  updateMixer:function(){if(w.GEImacMixer&&w.GEImacMixer.update)w.GEImacMixer.update()}
 };
-getSaved();if(deviceId&&deviceToken)signIn("");
+getSaved();
+if(deviceId&&deviceToken){text("gateStatus","REMEMBERED IMAC FOUND · Reconnecting…");signIn("")}
+else text("gateStatus","SIGN IN REQUIRED · Remember this iMac to avoid entering the code each time.");
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=5"></script>
