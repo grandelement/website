@@ -73,7 +73,11 @@ function onSamples(event){
  var n=Math.max(1,Math.ceil(left.length/4));
  var rmsL=Math.sqrt(l/n),rmsR=Math.sqrt(r/n),rms=Math.max(rmsL,rmsR);
  if(rms>0.0017)lastSignal=Date.now();
- if(pcmFrames===1){out("meterStatus","METER PROCESSING ACTIVE · Waiting for Ableton signal");updateLiveButton();}
+ if(pcmFrames===1){
+  out("channelReadout","BROWSER CAPTURE · "+ib.numberOfChannels+" audio channel(s) · Saffire loopback on hardware inputs 19/20 may not be included");
+  out("meterStatus","METER PROCESSING ACTIVE · Waiting for Ableton signal");
+  updateLiveButton();
+ }
  if(pcmFrames%20===0){
   out("meterStatus",rms>0.0017?"AUDIO SIGNAL DETECTED · "+(actualInputName||"Recording input"):"METER ACTIVE · SILENCE · Check Saffire MixControl routing");
   updateLiveButton();
@@ -166,6 +170,10 @@ function connectInput(){
   processor.connect(ctx.destination);
   localOn=true;pcmFrames=0;connectedAt=Date.now();lastSignal=0;
   out("inputStatus","INPUT VERIFIED · "+actualInputName+" · "+Math.round(ctx.sampleRate)+" Hz. Play Ableton to test L/R.");
+  var trackSettings={};
+  try{trackSettings=track&&track.getSettings?track.getSettings():{}}catch(e){}
+  out("channelReadout","SELECTED CAPTURE · "+actualInputName+" · Reported channels: "+String(trackSettings.channelCount||"unknown")+" · Browser channels will appear when audio processing starts");
+  out("studioPresence","LOCAL IMAC STUDIO · AUDIO INPUT CONNECTED · Radio connection optional");
   out("meterStatus","WAITING FOR METER CALLBACKS · Play Ableton now");
   out("devicesFound","CONNECTED DEVICE · "+actualInputName);
   // Independent AnalyserNode probe remains useful if old Safari does not
@@ -347,6 +355,12 @@ function init(){
   e.preventDefault();e.returnValue="The iMac is LIVE. Return to Bangers before leaving this page.";
  });
 }
-w.GEImacMixer={update:updateLiveButton,scan:requestDevices,stop:stopAir};
+w.GEImacMixer={
+ update:updateLiveButton,
+ scan:requestDevices,
+ stop:stopAir,
+ announce:heartbeat,
+ isOnAir:function(){return !!air||!!dropStarted;}
+};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
 })(window,document);
