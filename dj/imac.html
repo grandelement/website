@@ -169,6 +169,7 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 <script>
 (function(){
 "use strict";
+var w=window;
 var API="https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy";
 var TRUST_ID="geDjTrustedIdV1",TRUST_TOKEN="geDjTrustedTokenV1";
 var key="",deviceId="",deviceToken="",state=null,connected=false,pollTimer=null,stream=null,meterTimer=null,audioCtx=null;
@@ -286,10 +287,11 @@ function signIn(password){
  request("GET","/control/status",null,function(err,obj){
   if(err){
    connected=false;
-   text("error",err.message);
+   text("error",err.status===401?"DJ AUTHORIZATION REQUIRED · Your remembered token or sign-in code was rejected.":err.message);
    if(deviceToken&&(err.status===401||err.status===403)){
     forget();
-    text("gateStatus","REMEMBERED SESSION EXPIRED · Enter the DJ code once to renew.");
+    text("gateStatus","REMEMBERED SESSION EXPIRED · Enter the usual GE DJ code once to renew it.");
+    text("trustedStatus","SAVED DEVICE REJECTED · Sign in once to register again.");
    }else if(deviceToken){
     text("gateStatus","CONNECTION UNAVAILABLE · Trusted device retained.");
     el("retryTrusted").style.display="inline-block";
