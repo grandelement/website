@@ -52,6 +52,25 @@ def find_ffmpeg():
             return filename
     return None
 
+def find_lame():
+    # Older standalone LAME binaries can run without replacing OS X libraries.
+    # Only use a binary that the user has deliberately placed in one of these paths.
+    paths = (
+        os.path.expanduser("~/Downloads/lame"),
+        os.path.expanduser("~/Downloads/lame-3.99.5-macosx-20120229/lame"),
+        os.path.expanduser("~/Downloads/lame-3.100-macosx-20230418/lame"),
+        "/usr/local/bin/lame",
+        "/opt/local/bin/lame",
+    )
+    for path in paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        path = os.path.join(directory, "lame")
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
 def safe_name(raw):
     name = as_text(unquote(raw or ""))
     name = name.replace("\\", "_").replace("/", "_")
@@ -68,17 +87,23 @@ def job_update(key, **changes):
 def process_job(job_id, source, workdir, original_name, kind, convert):
     try:
         ffmpeg = find_ffmpeg()
+        lame = find_lame()
         if convert and not original_name.lower().endswith(".mp3"):
-            if not ffmpeg:
-                raise RuntimeError("MP3 conversion needs ffmpeg on this iMac. Uncheck conversion to upload the original WAV or AIFF now.")
             target = os.path.join(workdir, "converted.mp3")
-            job_update(job_id, phase="converting", detail="Converting to 320 kbps MP3")
-            command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
-                       "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
-                       "libmp3lame", "-b:a", "320k", "-id3v2_version", "3", target]
+            job_update(job_id, phase="converting", percent=0, detail="Converting to 320 kbps MP3")
+            if ffmpeg:
+                # FFmpeg supports WAV, AIFF, MP4, M4A and the other allowed formats.
+                command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
+                           "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
+                           "libmp3lame", "-b:a", "320k", "-id3v2_version", "3", target]
+            elif lame and original_name.lower().endswith((".wav", ".aiff", ".aif")):
+                # This standalone encoder handles uncompressed WAV and AIFF.
+                command = [lame, "--quiet", "-h", "-b", "320", source, target]
+            else:
+                raise RuntimeError("To convert WAV/AIFF, install a compatible LAME encoder; other formats need FFmpeg. Uncheck Convert to MP3 to upload the original unchanged.")
             p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             output = p.communicate()[0]
-            if p.returncode != 0 or not os.path.isfile(target):
+            if p.returncode != 0 or not os.path.isfile(target) or os.path.getsize(target)==0:
                 raise RuntimeError("MP3 conversion failed: " + as_text(output or b"").strip()[-350:])
             source = target
             upload_name = os.path.splitext(original_name)[0] + ".mp3"
@@ -175,7 +200,8 @@ class Handler(BaseHTTPRequestHandler):
         target = urlparse(self.path)
         if target.path == "/health":
             return self.response(200, {"ok": True, "rclone_ready": os.path.isfile(RCLONE) and os.path.isfile(CONFIG),
-                                       "mp3_available": bool(find_ffmpeg()),
+                                       "mp3_available": bool(find_ffmpeg() or find_lame()),
+                                       "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone"})
         if target.path == "/status":
             job_id = parse_qs(target.query).get("id", [""])[0]
@@ -216,8 +242,9 @@ class Handler(BaseHTTPRequestHandler):
         convert = params.get("convert", ["0"])[0] == "1"
         if kind not in ("draft", "final") or not name or not re.search(r"\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$", name, re.I):
             return self.response(400, {"ok": False, "error": "Choose a WAV, AIFF, MP3, MP4, M4A, AAC, FLAC or OGG file"})
-        if convert and not find_ffmpeg() and not name.lower().endswith(".mp3"):
-            return self.response(400, {"ok": False, "error": "MP3 conversion needs ffmpeg installed. Uncheck the box to upload the original."})
+        if convert and not name.lower().endswith(".mp3"):
+            if not find_ffmpeg() and not (find_lame() and name.lower().endswith((".wav", ".aif", ".aiff"))):
+                return self.response(400, {"ok": False, "error": "MP3 conversion requires a compatible encoder: LAME for WAV/AIFF or FFmpeg for other formats. Uncheck conversion to upload unchanged."})
         try:
             count = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -266,7 +293,7 @@ if __name__ == "__main__":
     print("Open the GE DJ Booth in Firefox. Leave this Terminal window open.")
     print("Google Drive destination: GE Studios/Drafts or GE Studios/Finals.")
     if not find_ffmpeg():
-        print("MP3 conversion unavailable until ffmpeg is installed; original uploads work now.")
+        print("MP3 conversion unavailable until FFmpeg or LAME is installed; original uploads work now.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
