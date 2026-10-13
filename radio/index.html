@@ -3730,6 +3730,8 @@ function updateRadioStartupCue(){
 function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
 }
+let lastRadio1Progress=Date.now(),lastRadio1Time=NaN,observedRadio1Progress=false;
+function markRadio1Attempt(){lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;}
 function freshLiveStreamURL(){
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
   // A fresh query value prevents Safari/PWA buffering from resuming stale LIVE bytes.
@@ -3871,8 +3873,9 @@ async function switchToRadio2(reason='radio1_unavailable'){
   }catch(error){
     if(run!==radio2.run)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
-    setLiveStatus('RADIO 1 UNAVAILABLE · RADIO 2 NOT READY. Tap SHUFFLE for music.');
-    setStatus('The Bangers backup program could not be loaded. Check the station setup.');
+    const why=String(error?.message||'Connection failed').replace(/https?:\/\/[^/\s]+/g,'Radio 2').slice(0,100);
+    setLiveStatus('RADIO 2 NOT READY · '+why+' · tap SHUFFLE for music.');
+    setStatus('Radio 2 Bangers program unavailable: '+why);
   }finally{
     clearTimeout(timer);if(run===radio2.run)radio2.loading=false;
   }
@@ -3939,6 +3942,7 @@ async function resumeLiveAtEdge(){
   setLiveStatus('RADIO • joining the current broadcast…',true);
   setStatus('Returning to the current Grand Element Radio broadcast…');
   radioReconnectFailures=0;
+  markRadio1Attempt();
   watchRadioConnection();
   try{
     // Pausing a real radio must not create a personal time-shift buffer.
@@ -3977,7 +3981,7 @@ async function enterLiveMode({deferPlay=false}={}){
     setLiveStatus('RADIO HOST NOT CONNECTED • add the permanent station stream URL to CONFIG.LIVE_STREAM_URL',true);
     return;
   }
-  clearLiveReconnect();resetRadio2();
+  clearLiveReconnect();resetRadio2();markRadio1Attempt();
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
   liveState.autoplayBlocked=false;
@@ -4129,7 +4133,7 @@ function reconnectLiveStream(){
     return;
   }
   clearLiveReconnect();
-  radioReconnectFailures++;
+  radioReconnectFailures++;markRadio1Attempt();
   setLiveStatus('RADIO • retrying connection ('+radioReconnectFailures+'/2)…');
   liveState.reconnectTimer=setTimeout(async()=>{
     if(window.GEIAmStudio?.isRadioSuspended?.()||radioTimedOut)return;
@@ -4638,6 +4642,24 @@ $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} })
 
 audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
+audio.addEventListener('timeupdate',()=>{
+  if(!state.live||radio2.active||radio2.loading)return;
+  const t=Number(audio.currentTime);
+  if(!Number.isFinite(t))return;
+  if(!Number.isFinite(lastRadio1Time)||Math.abs(lastRadio1Time-t)>=.2){
+    observedRadio1Progress=true;lastRadio1Progress=Date.now();lastRadio1Time=t;
+  }
+});
+setInterval(()=>{
+  // ReadyState alone cannot prove a live MP3 stream is progressing. Only
+  // apply this watch after actual time progress was observed, and never
+  // while the iPhone is hidden, paused, or the user chose the I AM studio.
+  if(!state.live||radio2.active||radio2.loading||!observedRadio1Progress||
+    audio.paused||document.hidden||recentUserPause()||
+    window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(Date.now()-lastRadio1Progress>20000)
+    void switchToRadio2('radio1_stopped_advancing');
+},5000);
 audio.addEventListener('ended',()=>{
   if(radio2.active){radio2PlayCurrent();return;}
   if(state.live){reconnectLiveStream();return;}
