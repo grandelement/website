@@ -30,8 +30,8 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 #now{font-size:23px;font-weight:bold;margin:5px 0}.tag{color:#6ee0c4;font-weight:bold}
 #inputMeter{width:100%;height:15px;background:#07101a;border:1px solid #46647c;border-radius:4px;overflow:hidden}
 #imacRadioAudio{display:block;width:100%;max-width:800px;min-height:42px;margin:10px 0}
-#login{position:fixed;z-index:2000;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;overflow:auto;background:rgba(3,8,15,.98);padding:18px}
-#login .geGateInner{background:#0c1723;border:2px solid #456078;border-radius:12px;max-width:470px;width:100%;padding:24px}
+#login{display:block;margin-top:10px}
+#login .geGateInner{background:#0a141f;border:1px solid #456078;border-radius:12px;max-width:570px;width:100%;padding:16px}
 #login .geRememberLabel{display:flex;align-items:center;gap:10px;font-size:15px;color:#eff7fc;margin:10px 0}
 #login .geRememberLabel input{width:auto;max-width:none;min-height:auto}
 #studioPresence,#trustedStatus{color:#89d5c6;font-weight:bold}
@@ -48,9 +48,11 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
 <div class="panel">
  <h1>GE DJ · iMAC</h1>
  <p>Classic Safari control desk for the older iMac · Ableton / Focusrite studio</p>
- <p id="connection" role="status">Not connected</p>
- <p id="trustedStatus">TRUSTED STUDIO DEVICE · Status not yet verified</p>
- <button id="forgetDevice" type="button">SIGN OUT · FORGET THIS IMAC</button>
+ <p id="connection" role="status">GE STUDIO READY · BLITZ RADIO DISCONNECTED</p>
+ <p id="trustedStatus">Local mixer and Google Drive uploads work without radio sign-in.</p>
+ <button id="connectBlitz" type="button" class="green">CONNECT TO BLITZ RADIO</button>
+ <button id="disconnectBlitz" type="button" style="display:none">DISCONNECT BLITZ RADIO</button>
+ <p>BLITZ is optional. No radio code is required to use Ableton input meters, the local mixer, or song uploads.</p>
 </div>
 <div class="panel" id="listenerPanel">
  <h2>RADIO LISTENING · iMAC</h2>
@@ -74,17 +76,22 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
  <a class="link" href="https://grandelement.com/radio/ge-clock.html">RADIO 1 / RADIO 2 LISTENER</a>
  <p class="notice">Radio 2 is accessed through the GE Clock listener; it cannot be heard until Bangers has successfully synchronized. The main listening controls above always monitor BLITZ Radio 1.</p>
 </div>
-<div id="login">
+<div id="blitzPanel" class="panel" style="display:none">
+ <h2>RADIO 1 · OPTIONAL BLITZ CONNECTION</h2>
+ <p>This sign-in controls only Radio 1 and the remote device registry. Close it anytime; the GE studio and uploads remain available.</p>
+ <div id="login">
  <div class="geGateInner">
-  <h2>GE DJ · STUDIO SIGN IN</h2>
-  <p>Authenticate once on this iMac. A trusted-device session reconnects automatically on future visits and registers the studio with the shared mixer.</p>
-  <p id="gateStatus" role="status">CHECKING REMEMBERED IMAC…</p>
+  <h2>CONNECT TO RADIO 1</h2>
+  <p>Use the existing BLITZ DJ code only when connecting to the radio. Remember this iMac to reuse its radio authorization.</p>
+  <p id="gateStatus" role="status">RADIO NOT CONNECTED</p>
   <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
   <label class="geRememberLabel" for="rememberThisImac"><input id="rememberThisImac" type="checkbox" checked> REMEMBER THIS IMAC · UP TO 180 DAYS</label>
   <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
   <button type="button" id="retryTrusted">RETRY REMEMBERED DEVICE</button>
+  <button type="button" id="forgetDevice">FORGET SAVED RADIO AUTHORIZATION</button>
   <p id="error" role="status"></p>
   <p>Remembered-device login saves a revocable device token in this browser, never the DJ code. Your password is not stored.</p>
+ </div>
  </div>
 </div>
 <div id="radio">
@@ -107,12 +114,13 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   </div>
   <h2>COMING UP</h2><ol id="queue"></ol>
  </div>
+</div>
  <div class="panel">
   <h2>iMAC · ABLETON STUDIO</h2>
   <p>2007 iMac · Ableton Live · Focusrite Saffire Pro 40 · Axiom Pro MIDI</p>
   <p id="devicesFound">SCAN DEVICES · Not yet checked</p>
   <div class="geMeterBox"><b>GE UNIVERSAL DEVICE CONTROLLERS · iMAC / iPHONE</b>
-   <p id="deviceRoster">Sign in to show connected devices and their audio status.</p>
+   <p id="deviceRoster">LOCAL STUDIO READY · Connect BLITZ Radio 1 to appear on the remote mixer.</p>
   </div>
   <div class="controls"><button id="refreshInputs" type="button">SCAN DEVICES</button>
    <button id="selectInput" type="button" class="green">CONNECT FOCUSRITE INPUT</button>
@@ -127,7 +135,7 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   <input type="range" id="liveGain" min="0" max="150" value="100">
   <b id="liveGainRead">100%</b>
   <p id="liveState">OFF AIR · BANGERS</p>
-  <p id="studioPresence">STUDIO REGISTRY · Waiting for sign in</p>
+  <p id="studioPresence">LOCAL STUDIO READY · Remote mixer registration available after optional radio connection</p>
   <p id="channelReadout">SAFFIRE CHANNELS · Not checked</p>
   <p id="inputStatus">Select SAFFIRE, click CONNECT FOCUSRITE INPUT, then play Ableton. A device mismatch will disable LIVE rather than silently using the built-in microphone.</p>
   <p id="meterStatus" role="status" style="color:#82ead0;font-weight:bold">METER IDLE · SELECT AN AUDIO INPUT</p>
@@ -156,10 +164,9 @@ button:disabled{opacity:.48;cursor:not-allowed}#error,#connection{white-space:pr
   <input type="file" id="fileFinal" aria-label="Choose file to upload as final" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4" style="display:block;width:100%;max-width:100%;height:auto">
   <div class="geMeterTrack"><div id="uploadBar" class="geMeterFill"></div></div>
   <p id="uploadResults" role="status" style="white-space:pre-wrap">Google Drive uploader needs the local GE Upload Helper running on this iMac.</p>
-  <p><b>Storage:</b> Google Drive → GE Studios → Drafts / Finals. Files up to 4 GB. Uploads do not change BANGERS or broadcast.</p>
+  <p><b>Storage:</b> Google Drive → GE Studios → Drafts / Finals. Files up to 4 GB. Uploads do not change BANGERS or broadcast. No BLITZ login required.</p>
   <p><a class="link" href="/dj/install-ge-uploads.sh" download="install-ge-uploads.sh">DOWNLOAD ONE-TIME IMAC SETUP</a> · Run with <code>sh ~/Downloads/install-ge-uploads.sh</code> in Terminal. This starts the local Google Drive upload helper automatically at login. No Google password is stored on this website.</p>
  </div>
-</div>
 <div class="panel">
  <a class="link" href="https://radio.grandelement.blitz.cloud/dj/">ORIGINAL BLITZ DJ</a>
  <a class="link" href="https://grandelement.com/radio/ge-dj.html?full=1">FULL WEBSITE DJ (NEWER SAFARI)</a>
@@ -258,13 +265,16 @@ function refresh(){
 }
 function onConnected(data){
  connected=true;state=data;show();el("login").style.display="none";el("radio").style.display="block";
+ el("blitzPanel").style.display="none";
+ el("connectBlitz").style.display="none";
+ el("disconnectBlitz").style.display="inline-block";
  text("gateStatus","");
  if(deviceToken)text("trustedStatus","TRUSTED IMAC · Session active (up to 180 days)");
  else text("trustedStatus","SESSION ACTIVE · Not saved as a trusted device");
  if(w.GEImacMixer&&w.GEImacMixer.announce)w.GEImacMixer.announce();
  ["fadeOut","fadeIn","skip","stop","refresh"].forEach(function(id){el(id).disabled=false});
  if(w.GEImacClassic&&w.GEImacClassic.updateMixer)w.GEImacClassic.updateMixer();
- text("connection","CONNECTED · iMAC DJ");
+ text("connection","GE STUDIO READY · BLITZ RADIO CONNECTED");
  if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
  // Upgrade the normal DJ login to a 180-day trusted device session where supported.
  if(key&&!deviceToken&&el("rememberThisImac").checked){request("POST","/control/auth/trust-device",{name:"GE iMac Studio · Firefox",device_scope:"imac-studio",days:180},function(err,obj){
@@ -280,6 +290,8 @@ function onConnected(data){
  else key=""
 }
 function signIn(password){
+ // A manual code can recover from a rejected remembered token.
+ if(password&&deviceToken)forget();
  key=password||"";
  text("error","");
  text("gateStatus",deviceToken&&!password?"RECONNECTING TRUSTED IMAC…":"VERIFYING DJ SIGN IN…");
@@ -314,11 +326,34 @@ listener.onerror=function(){if(userWantsRadio)reconnectRadio()};
 listener.onstalled=function(){if(userWantsRadio&&!radioReconnectTimer)reconnectRadio()};
 el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input){text("error","Enter the DJ code.");return}signIn(input)};
 el("retryTrusted").onclick=function(){if(deviceToken)signIn("");else text("error","Enter the DJ code to remember this device again.")};
+el("connectBlitz").onclick=function(){
+ el("blitzPanel").style.display="block";
+ if(deviceId&&deviceToken){
+  text("gateStatus","VERIFYING SAVED RADIO DEVICE…");
+  signIn("");
+ }else text("gateStatus","RADIO SIGN IN OPTIONAL · Enter a code only to connect Radio 1.");
+};
+el("disconnectBlitz").onclick=function(){
+ if(w.GEImacMixer&&w.GEImacMixer.isOnAir&&w.GEImacMixer.isOnAir()){
+  text("connection","RETURN TO BANGERS BEFORE DISCONNECTING RADIO");
+  return;
+ }
+ connected=false;state=null;key="";
+ if(pollTimer)clearInterval(pollTimer);pollTimer=null;
+ el("radio").style.display="none";
+ el("blitzPanel").style.display="none";
+ el("login").style.display="block";
+ el("connectBlitz").style.display="inline-block";
+ el("disconnectBlitz").style.display="none";
+ text("connection","GE STUDIO READY · BLITZ RADIO DISCONNECTED");
+ text("trustedStatus",deviceToken?"SAVED RADIO AUTHORIZATION AVAILABLE · Reconnect when needed":"LOCAL STUDIO AND UPLOADS AVAILABLE WITHOUT RADIO");
+ if(w.GEImacMixer&&w.GEImacMixer.update)w.GEImacMixer.update();
+};
 el("forgetDevice").onclick=function(){
  if(w.GEImacMixer&&w.GEImacMixer.isOnAir&&w.GEImacMixer.isOnAir()){
   text("trustedStatus","RETURN TO BANGERS before signing out.");return;
  }
- if(!w.confirm("Sign out and forget this iMac? You will need the DJ code on the next visit."))return;
+ if(!w.confirm("Forget the saved BLITZ radio authorization on this browser? The GE studio and Google Drive uploads will stay available."))return;
  var oldId=deviceId;
  if(oldId){
   request("POST","/control/auth/trusted-devices/revoke",{id:oldId},function(){});
@@ -327,10 +362,10 @@ el("forgetDevice").onclick=function(){
  if(pollTimer)clearInterval(pollTimer);
  pollTimer=null;
  el("radio").style.display="none";
- el("login").style.display="flex";
+ el("login").style.display="block";
  el("retryTrusted").style.display="none";
- text("gateStatus","SIGNED OUT · Enter the DJ code to reconnect.");
- text("trustedStatus","NOT TRUSTED · Sign in again.");
+ text("gateStatus","RADIO AUTHORIZATION FORGOTTEN · Enter the code only if you want to connect BLITZ.");
+ text("trustedStatus","LOCAL STUDIO READY · RADIO NOT CONNECTED");
 };
 el("password").onkeydown=function(e){e=e||window.event;if((e.keyCode||e.which)===13)el("enter").click()};
 var buttons={fadeOut:"fade_out",fadeIn:"fade_in"};
@@ -349,8 +384,9 @@ w.GEImacClassic={
  updateMixer:function(){if(w.GEImacMixer&&w.GEImacMixer.update)w.GEImacMixer.update()}
 };
 getSaved();
-if(deviceId&&deviceToken){text("gateStatus","REMEMBERED IMAC FOUND · Reconnecting…");signIn("")}
-else text("gateStatus","SIGN IN REQUIRED · Remember this iMac to avoid entering the code each time.");
+text("connection","GE STUDIO READY · RADIO 1 OPTIONAL");
+text("trustedStatus",deviceToken?"SAVED BLITZ AUTHORIZATION AVAILABLE · Radio connection optional":"GE STUDIO LOCAL · NO RADIO SIGN-IN REQUIRED");
+text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLITZ if needed.":"RADIO NOT CONNECTED · Only enter a code when connecting to BLITZ.");
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=5"></script>
