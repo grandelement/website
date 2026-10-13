@@ -7,7 +7,7 @@
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
 var busy=false, queue=[], complete=0, failures=0, total=0, current=null;
-var activeKind="draft",deleteAvailable=false,converterName="",libraryBusy=false;
+var activeKind="draft",deleteAvailable=false,converterName="",libraryBusy=false,lastUploadKind="draft";
 var pollTimer=0, queuePaused=false;
 function el(id){return d.getElementById(id)}
 function text(id,value){var x=el(id);if(x)x.textContent=String(value||"")}
@@ -56,6 +56,7 @@ function refreshHealth(){
    "MP3 CONVERTER NOT INSTALLED · Leave conversion unchecked. Original MP3/WAV/AIFF uploads still work.");
   if(!deleteAvailable)text("libraryHelp","File listing works with the current helper. Move to Trash requires the updated helper.");
   else text("libraryHelp","Files stored privately in Google Drive. MOVE TO TRASH removes only the selected Drive copy; originals on this iMac remain unchanged.");
+  list(activeKind,true);
  });req.send();
 }
 function openChooser(kind){
@@ -71,7 +72,7 @@ function addFiles(kind,files){
  var fresh=[],invalid=[];
  for(var i=0;i<files.length;i++){
   var file=files[i];
-  if(!file||!/\\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i.test(file.name||"")){
+  if(!file||!/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i.test(file.name||"")){
    invalid.push(file&&file.name||"unknown file");continue;
   }
   if(file.size<1||file.size>4*1024*1024*1024){
@@ -82,6 +83,7 @@ function addFiles(kind,files){
  if(invalid.length)text("uploadIssues","SKIPPED unsupported files: "+invalid.join(", "));
  if(!fresh.length){status("No compatible music files selected.");return}
  queue=fresh;
+ lastUploadKind=kind;
  total=fresh.length;complete=0;failures=0;queuePaused=false;
  setBusy(true);progress(0);
  status("QUEUED "+total+" track"+(total===1?"":"s")+" for GE Studios/"+folder(kind)+".");
@@ -92,7 +94,7 @@ function finishQueue(){
  var successes=complete-failures;
  status("UPLOAD QUEUE FINISHED · "+successes+" successful · "+failures+" failed. Originals on your iMac were not changed. Not added to BANGERS.");
  if(!failures)progress(100);
- if(current)list(current.kind,true);
+ list(lastUploadKind,true);
  queue=[];current=null;
 }
 function failOne(message){
