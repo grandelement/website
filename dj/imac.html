@@ -179,6 +179,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
    <p id="liveReadiness" role="status">LOCAL TEST NOT RUN · Select Soundflower (2ch), connect audio and play Ableton.</p>
    <p id="liveProbeResult" role="status">Use TEST LIVE READINESS to check the sound path. This does not contact BLITZ unless you connected the radio.</p>
    <p id="liveStatus" role="status">RADIO DISCONNECTED · BANGERS NOT AFFECTED</p>
+   <p class="small" style="color:#e4c9a2">Use ONE GE DJ Booth tab for LIVE. Two tabs can share the same Radio 1 device and local helper, and may interfere with each other's LIVE controls. Never have two tabs broadcasting simultaneously.</p>
   </div>
   <p id="liveState">OFF AIR · BANGERS</p>
   <p id="studioPresence">LOCAL STUDIO READY · Remote mixer registration available after optional radio connection</p>
@@ -341,6 +342,8 @@ function onConnected(data){
  ["fadeOut","fadeIn","skip","stop","refresh"].forEach(function(id){el(id).disabled=false});
  if(w.GEImacClassic&&w.GEImacClassic.updateMixer)w.GEImacClassic.updateMixer();
  text("connection","GE STUDIO READY · BLITZ RADIO CONNECTED");
+ text("liveStatus","RADIO 1 AUTHENTICATED · OFF AIR · BANGERS CONTINUES");
+ text("gateStatus","RADIO CONNECTED");
  if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(refresh,6000);
  // Upgrade the normal DJ login to a 180-day trusted device session where supported.
  if(key&&!deviceToken&&el("rememberThisImac").checked){request("POST","/control/auth/trust-device",{name:"GE iMac Studio · Firefox",device_scope:"imac-studio",days:180},function(err,obj){
@@ -412,6 +415,7 @@ el("disconnectBlitz").onclick=function(){
  el("connectBlitz").style.display="inline-block";
  el("disconnectBlitz").style.display="none";
  text("connection","GE STUDIO READY · BLITZ RADIO DISCONNECTED");
+ text("liveStatus","RADIO DISCONNECTED · OFF AIR · BANGERS NOT AFFECTED");
  text("trustedStatus",deviceToken?"SAVED RADIO AUTHORIZATION AVAILABLE · Reconnect when needed":"LOCAL STUDIO AND UPLOADS AVAILABLE WITHOUT RADIO");
  if(w.GEImacMixer&&w.GEImacMixer.update)w.GEImacMixer.update();
 };
