@@ -5040,26 +5040,10 @@ function geSunClockTime(d){
 }
 const OSC_PX = 30, OSC_SEC = 90;
 let orbitBaseR=160;
-const geClockSun=document.getElementById('sunWrap');
-let geClockDragActive=false,geClockLastRelease=-Infinity,geClockLastTick=0;
-window.GE_SUN_CLOCK_DRAG={
-  start(){geClockDragActive=true;},
-  end(){geClockDragActive=false;geClockLastRelease=performance.now();}
-};
-function driftSunToClockHome(now){
-  const dt=Math.min(100,Math.max(0,now-(geClockLastTick||now)));geClockLastTick=now;
-  if(!geClockSun||geClockDragActive||now-geClockLastRelease<1600)return;
-  // Twelve o'clock is always the top of the visible screen, in either orientation.
-  // The center of the Sun returns gradually after users move it.
-  const rect=geClockSun.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-  const tx=innerWidth/2,ty=innerHeight/2;
-  if(Math.hypot(x-tx,y-ty)<.8)return;
-  const alpha=1-Math.exp(-dt/7500);
-  geClockSun.style.left=(Math.abs(x-tx)<.8?tx:x+(tx-x)*alpha)+'px';
-  geClockSun.style.top=(Math.abs(y-ty)<.8?ty:y+(ty-y)*alpha)+'px';
-  geClockSun.style.transform='translate(-50%,-50%)';
-}
-function refreshOrbitGeometry(){
+// The clock-home module below owns all return/edge-parking motion.
+ // Keep this compatibility hook for existing Sun drag gestures.
+ window.GE_SUN_CLOCK_DRAG={start(){},end(){}};
+ function refreshOrbitGeometry(){
   const css=getComputedStyle(document.documentElement);
   const sun=parseFloat(css.getPropertyValue('--sun-size'))||200;
   const moonSize=parseFloat(css.getPropertyValue('--moon-size'))||120;
@@ -5072,9 +5056,8 @@ addEventListener('resize',refreshOrbitGeometry,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(refreshOrbitGeometry,120),{passive:true});
 function tickOrbit(){
   if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active')){
-    geClockLastTick=0;setTimeout(()=>requestAnimationFrame(tickOrbit),250);return;
+    setTimeout(()=>requestAnimationFrame(tickOrbit),250);return;
   }
-  driftSunToClockHome(performance.now());
   const clock=new Date();
   const selectedTime=geSunClockTime(clock);
   const localMs=((selectedTime.hour%CLOCK_HOURS)*3600+selectedTime.minute*60+selectedTime.second)*1000+clock.getMilliseconds();
