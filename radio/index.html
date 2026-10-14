@@ -754,6 +754,39 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #sunLabGrid{min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;padding-right:2px!important}
 .sunlab-actions{margin-top:7px!important;flex:0 0 auto!important}
 #sunLabClose,#sunLabReset{min-height:38px!important;font-size:12px!important}
+/* Edit while seeing the live Sun. The scrollable slider area stays local to
+   the drawer; neither portrait nor landscape covers the visualization. */
+@media (orientation:portrait){
+  .sunlab-panel{
+    left:0!important;right:0!important;top:auto!important;bottom:0!important;
+    transform:none!important;width:100vw!important;
+    height:49dvh!important;max-height:49dvh!important;min-height:0!important;
+    border-radius:20px 20px 0 0!important;
+    padding:8px 12px max(9px,env(safe-area-inset-bottom))!important;
+  }
+  .sunlab-sub{display:none!important}
+  .sunlab-modebtn{min-height:30px!important}
+  .sunlab-title h3{font-size:15px!important}
+  .sunlab-actions{overflow-x:auto!important;flex-wrap:nowrap!important;
+    justify-content:flex-start!important;-webkit-overflow-scrolling:touch}
+  .sunlab-actions .sunlab-mini{flex:0 0 auto!important;min-height:31px!important}
+}
+@media (orientation:landscape){
+  .sunlab-panel{
+    left:auto!important;right:max(0px,env(safe-area-inset-right))!important;
+    top:0!important;bottom:0!important;transform:none!important;
+    width:min(43vw,510px)!important;height:100dvh!important;
+    max-height:100dvh!important;min-height:0!important;
+    border-radius:18px 0 0 18px!important;
+    padding:8px 12px 8px!important;
+  }
+  .sunlab-sub{display:none!important}
+  .sunlab-title{margin-bottom:3px!important}
+  .sunlab-modebtn{min-height:29px!important}
+  .sunlab-actions{overflow-x:auto!important;flex-wrap:nowrap!important;
+    justify-content:flex-start!important}
+  .sunlab-actions .sunlab-mini{flex:0 0 auto!important;min-height:29px!important}
+}
 
 /* Expanded Inner Horizon options must enlarge the usable panel, never escape it. */
 #shipArrivalContact{
@@ -2527,6 +2560,7 @@ body.iam-studio-open #titleBtn{display:none!important}
       <div class="sunlab-row"><label for="slOuterGlowHue">Outer Glow Color</label><output id="slOuterGlowHueVal"></output><input id="slOuterGlowHue" type="range" min="0" max="360" step="1" value="188"><small>Changes the color of the outer glow independently.</small></div>
     </div>
     <div class="sunlab-actions">
+      <button id="sunLabAllMusicTest" type="button" class="sunlab-mini" title="Test the 33-minute song preview player">ALL MUSIC · PREVIEW TEST</button>
       <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
       <button id="qrWebsiteTestBtn" type="button" class="sunlab-mini">Test Website QR Intro</button>
       <button id="qrRadioTestBtn" type="button" class="sunlab-mini">Test Radio QR Intro</button>
@@ -4400,11 +4434,13 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     void window.GEResumeLiveEQ?.();
   }
   try{
-    audio.crossOrigin='anonymous';
+    // A single native audio element serves songs and Radio. The optional
+    // WebAudio/Sun Lab diagnostic never takes ownership of the audible path.
+    audio.removeAttribute('crossorigin');
     audio.muted=false;
     audio.defaultMuted=false;
     audio.volume=desiredPlaybackVolume(url);
-    audio.autoplay=true;
+    audio.autoplay=false;
     if(forceReload || audio.src!==url){
       // Clearing first forces iOS/Safari and installed PWAs to discard any
       // already-buffered bytes from an older same-filename recording.
@@ -4435,6 +4471,12 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
 }
 function resumeAudio(){
   state.userStarted=true;
+  // Retry the SAME selected song if the media element lost its file;
+  // a connection failure must never consume or skip a track.
+  if(!state.live&&audio.error&&state.currentURL&&!isStationID(state.currentURL)){
+    void playURL(state.currentURL,{forceReload:true,userAction:true});
+    return;
+  }
   audio.muted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
   if(state.live){
@@ -4801,8 +4843,13 @@ audio.addEventListener('error',()=>{
     reconnectLiveStream();
     return;
   }
-  setStatus('That file could not play. Moving to the next track.');
-  setTimeout(()=>nextTrack(false),250);
+  // Never skip automatically on an error. Safari can report a transient media
+  // error while a source is replaced, especially when resuming from background.
+  // Only the real 'ended' event advances the listening queue.
+  if(state.currentURL){
+    setStatus('Song connection interrupted. Tap PLAY to retry this same song.');
+    setLiveStatus('PLAYER · this song could not load. Tap PLAY to retry.');
+  }
 });
 audio.addEventListener('canplay',()=>{
   if(audio.dataset.retry==='1'){
@@ -8353,6 +8400,11 @@ gateTestBtn?.addEventListener('click',()=>{
 
   try{window.GEShip?.syncAll();}catch(_e){}
 })();
+document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
+  // Reuse this tab so only one music player is alive at a time.
+  requestUserPause();
+  location.assign('./preview-lab.html');
+});
 </script>
 <script id="ge-background-audio-hardening">
 (()=>{
