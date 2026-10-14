@@ -28,7 +28,7 @@ small,.muted{color:#a5c5d9}
 @media(prefers-reduced-motion:reduce){#cometTrack.full{animation:none}}
 .meterFoot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#c3e3f9;flex-wrap:wrap}
 .warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}
-.grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(270px,1fr);gap:12px;margin-top:12px;align-items:start}
+.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;align-items:start}.albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}.albumTile{min-height:90px;flex-direction:column;text-align:left;align-items:flex-start;white-space:normal;background:linear-gradient(140deg,#153f65,#061826)!important}.albumTile strong{font-size:15px}.albumTile small{font-size:11px;color:#a8d0e9}#albumView[hidden],#albumWall[hidden],#ownerCode[hidden],#ownerLock[hidden],#ownerUnlock[hidden]{display:none!important}.albumHeader{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:3px 0 14px;flex-wrap:wrap}#ownerAccess{display:flex;align-items:center;flex-wrap:wrap;gap:7px}#ownerAccess input{flex:1 1 145px;width:auto;min-height:37px;padding:8px}#ownerStatus{font-size:12px;color:#99e8cf;font-weight:800}.demoBadge{border:1px solid #62d5ba}#catalogFlow{min-height:170px}
 @media(max-width:690px){.grid{grid-template-columns:1fr}}
 input[type=search]{width:100%;min-height:42px;background:#071b2e;color:white;border:1px solid #488ab0;border-radius:9px;font:inherit;padding:9px;margin:4px 0 8px}
 #songs{max-height:52dvh;overflow:auto}#queue{max-height:32dvh;min-height:52px;overflow:auto}
@@ -49,19 +49,18 @@ footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
 <header><div><h1>GRAND ELEMENT · PLAYER LAB</h1><small>33:33 PREVIEW · OWNER TEST · NO PAYMENT</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
 <main>
 <div class="card notice">Test the future personal Player: choose songs in order, sample any track for <strong>33 seconds starting 33 seconds in</strong>, or move to the next 33-second portion. The Soul Comet fills as your playlist approaches <strong>33:33</strong>. This uses current original files; the proposed 200–224 kbps preview encoding, paid access, and protected downloads are not yet live.</div>
-<div class="modes"><span>GUEST PREVIEW · 33:33</span><span class="dim">FAN · OPT-IN FUTURE</span><span class="dim">MEMBER · VERIFIED PURCHASE FUTURE</span></div>
+<div class="modes"><span id="modeBadge">GUEST PREVIEW · 33:33</span><span class="dim">FAN · OPT-IN FUTURE</span><span class="dim">MEMBER · VERIFIED PURCHASE FUTURE</span></div><div class="card" id="ownerAccess"><label for="ownerCode">OWNER DEMO CODE</label><input id="ownerCode" type="password" autocomplete="off" placeholder="Enter test code"><button id="ownerUnlock" type="button">UNLOCK DEMO</button><button id="ownerLock" type="button" hidden>EXIT OWNER DEMO</button><span id="ownerStatus">Demo access only. Not a purchase credential.</span></div>
 <div class="card" aria-label="Soul comet playlist duration"><div class="total"><div><b>SOUL COMET</b><br><small>Chosen playlist duration</small></div><strong id="total">00:00 / 33:33</strong></div>
 <div id="cometTrack"><div id="cometFill"></div><div id="comet"></div></div>
 <div class="meterFoot"><span id="count">0 selected</span><span id="left">33:33 remaining</span></div>
 <div id="warning" class="warning" role="status"></div></div>
-<div class="grid"><section class="card"><h2>ALL MUSIC</h2><p class="muted">Use <b>+ ADD</b> to build your playlist. The order you add songs is the order they play. Use <b>33s</b> to sample before choosing.</p><input type="search" id="search" placeholder="Search song or album" aria-label="Search songs"><div id="songs">Loading music catalog…</div></section>
-<section class="card"><h2>YOUR MUSIC PLAYER</h2><div id="queue"><p class="muted">Pick some songs to begin.</p></div>
-<div class="row"><button id="start" class="primary">START MUSIC PLAYER</button><button id="clear">CLEAR PLAYLIST</button></div>
+<div class="grid"><section class="card" id="catalogFlow"><h2>CHOOSE AN ALBUM</h2><p class="muted">Open an album to choose tracks; sample them for 33 seconds and add your choices. The Soul Comet stays at the top.</p><div id="albumWall" class="albumWall">Loading the catalog…</div><div id="albumView" hidden><div class="albumHeader"><button id="backAlbums" type="button">← ALL ALBUMS</button><strong id="albumTitle">ALBUM</strong></div><input type="search" id="search" placeholder="Filter tracks in this album" aria-label="Search album tracks"><div id="songs"></div></div></section><section class="card" id="personalPlayer"><h2>YOUR SELECTED PLAYLIST</h2><div id="queue"><p class="muted">Pick some songs to begin.</p></div>
+<div class="row"><button id="start" class="primary">SEND TO PLAYER · START MUSIC</button><button id="clear">CLEAR PLAYLIST</button><a href="../support/?section=music" class="button">SHOP / BUY MUSIC</a></div>
 <div class="player"><strong id="now">No song playing</strong><small id="detail">Native audio · background playback when iOS permits</small><div class="sampleBar"><div id="sampleBar"></div></div>
 <div class="row"><button id="play">PLAY / PAUSE</button><button id="next">NEXT SONG</button><button id="moreSample" hidden>NEXT 33s</button></div><div id="status" role="status">Ready to pick tracks.</div></div>
 <div id="gate" role="status"><b>THE INNER FREQUENCY</b><span id="gateStage"></span></div>
 <p class="muted">Listening used: <strong id="used">00:00</strong> / 33:33. Pauses do not consume time. This demo retains used time on this device between visits; identity and paid entitlements will need server verification.</p>
-<button id="reset">RESET TEST CLOCK (OWNER DEMO)</button>
+<button id="reset" hidden>RESET TEST CLOCK (OWNER DEMO)</button>
 <footer>Gate preview begins near the end of listening time, with the visual stages and fade scheduled to finish at 33:33. The real reverb Gate has not been attached to this tester. Promotions will require an explicit opt-in, not automatic classification from tapping buttons.</footer></section></div>
 <audio id="audio" preload="metadata" playsinline></audio>
 </main>
