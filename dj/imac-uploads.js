@@ -112,9 +112,9 @@ function fileChanged(kind,input){
  var files=input.files||[],result=[];
  for(var i=0;i<files.length;i++)result.push(files[i]);
  chosen[kind]=result;
- // Reset the browser chooser, not the File objects we saved. This lets users
- // select the same file again without Firefox suppressing onchange.
- try{input.value=""}catch(ignore){}
+ // Keep the chooser's visible selection synchronized with the pending batch.
+ // Clearing input.value made Firefox display "No files selected" while tracks
+ // remained queued in memory, an especially confusing experience on El Capitan.
  selectedLabel(kind);
  el(kind==="draft"?"uploadDraft":"uploadFinal").disabled=!result.length;
  issueLines=[];text("uploadIssues","");
