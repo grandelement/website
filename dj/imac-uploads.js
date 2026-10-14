@@ -5,14 +5,14 @@
 (function(w,d){
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
-var chosen={draft:[],final:[]}, activeKind="draft";
+var chosen={draft:[],final:[],session:[]}, activeKind="draft";
 var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
 var listGeneration=0, uploadPoll=0, issueLines=[];
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
 function el(id){return d.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s===undefined||s===null?"":s)}
-function nameOf(kind){return kind==="final"?"Finals":"Drafts"}
+function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":"Drafts"}
 function fmtSize(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
 function wait(fn,ms){return w.setTimeout(fn,ms)}
 function status(s){text("uploadResults",s)}
@@ -99,12 +99,13 @@ function selectedLabel(kind){
 }
 function setBusy(flag){
  busy=!!flag;
- ["fileDraft","fileFinal","convertDraft","convertFinal","uploadDraft","uploadFinal"].forEach(function(id){
+ ["fileDraft","fileFinal","fileSession","convertDraft","convertFinal","uploadDraft","uploadFinal","uploadSession"].forEach(function(id){
   if(el(id))el(id).disabled=busy;
  });
  if(!busy){
   el("uploadDraft").disabled=!chosen.draft.length;
   el("uploadFinal").disabled=!chosen.final.length;
+  if(el("uploadSession"))el("uploadSession").disabled=!chosen.session.length;
  }
 }
 function fileChanged(kind,input){
@@ -116,12 +117,12 @@ function fileChanged(kind,input){
  // Clearing input.value made Firefox display "No files selected" while tracks
  // remained queued in memory, an especially confusing experience on El Capitan.
  selectedLabel(kind);
- el(kind==="draft"?"uploadDraft":"uploadFinal").disabled=!result.length;
+ el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=!result.length;
  issueLines=[];text("uploadIssues","");
  progress(0);
  status(result.length?
-  nameOf(kind).toUpperCase()+" SELECTED · Now choose Convert to MP3 (optional), "+
-  "then press UPLOAD "+(kind==="draft"?"DRAFT":"FINAL")+". No transfer has started.":
+  nameOf(kind).toUpperCase()+" SELECTED · "+(kind==="session"?
+  "ZIP or session files will be uploaded unchanged. Press UPLOAD SESSIONS. Nothing has transferred.":"Choose Convert to MP3 (optional), then press UPLOAD "+(kind==="draft"?"DRAFT":"FINAL")+". Nothing has transferred."):
   "Choose a music file first. No upload started.");
 }
 function updateHealth(callback){
@@ -134,6 +135,11 @@ function updateHealth(callback){
   encoderAvailable=helperOnline&&!!data.mp3_available;
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
+  var sessionsReady=helperOnline&&!!data.session_uploads;
+  text("sessionHelperStatus",sessionsReady?
+   "SESSIONS READY · Archives and project files can upload to GE Studios/Sessions.":
+   helperOnline?"SESSIONS NEED UPDATED HELPER · Existing helper supports only Drafts and Finals.":
+   "SESSION DRIVE OFFLINE · Use RECONNECT DRIVE to check the uploader.");
   if(err){
    text("helperStatus",linkError(err));
    text("mp3Status","MP3 CONVERSION CANNOT BE VERIFIED · The local upload helper isn't responding. "+
@@ -187,7 +193,14 @@ function displayLibrary(kind){
    del.textContent=deleteAvailable?"MOVE TO TRASH":"DELETE NEEDS HELPER v2";
    del.disabled=!deleteAvailable||busy;
    del.onclick=function(){moveToTrash(kind,item,del)};
-   row.appendChild(del);area.appendChild(row);
+   row.appendChild(del);
+   if(item.id&&/^[A-Za-z0-9_-]{10,}$/.test(item.id)){
+    var open=d.createElement("button");open.type="button";
+    open.className="geDriveOpen";open.textContent="OPEN IN DRIVE";
+    open.onclick=function(){w.open("https://drive.google.com/file/d/"+item.id+"/view","_blank")};
+    row.appendChild(open);
+   }
+   area.appendChild(row);
   })(files[i]);
  });req.send();
 }
@@ -207,7 +220,7 @@ function checkSelected(kind,convert){
  var files=chosen[kind];
  for(var i=0;i<files.length;i++){
   var f=files[i],name=f.name||"";
-  if(!validExtensions.test(name))return "Unsupported audio format: "+name;
+  if(kind!=="session"&&!validExtensions.test(name))return "Unsupported audio format: "+name;
   if(!f.size||f.size>4*1024*1024*1024)return "File size invalid: "+name;
   if(convert&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
    return "LAME converts WAV/AIFF only. "+name+" requires FFmpeg or upload unchanged.";
@@ -217,7 +230,7 @@ function checkSelected(kind,convert){
 function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
- var convert=!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ var convert=kind==="session"?false:!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
   if(err||!data.rclone_ready){
@@ -245,6 +258,10 @@ function uploadChosen(kind){
 function removeChosen(kind,file){
  var saved=chosen[kind];
  for(var i=0;i<saved.length;i++){if(saved[i]===file){saved.splice(i,1);break}}
+ if(!saved.length){
+  var input=el(kind==="draft"?"fileDraft":kind==="final"?"fileFinal":"fileSession");
+  if(input)try{input.value=""}catch(ignore){}
+ }
  selectedLabel(kind);
 }
 function stopBatch(kind,message){
@@ -322,20 +339,48 @@ function pollJob(kind,convert,item,number,started,id){
   });req.send();
  },1700);
 }
+function installDrop(kind){
+ var zone=el("drop"+kind.charAt(0).toUpperCase()+kind.slice(1));
+ if(!zone||!zone.addEventListener)return;
+ zone.addEventListener("dragover",function(e){
+  e.preventDefault();zone.className="geDropZone geDragOver";
+ });
+ zone.addEventListener("dragleave",function(e){
+  e.preventDefault();zone.className="geDropZone";
+ });
+ zone.addEventListener("drop",function(e){
+  e.preventDefault();zone.className="geDropZone";
+  if(busy)return;
+  var list=e.dataTransfer&&e.dataTransfer.files||[],files=[];
+  for(var i=0;i<list.length;i++)files.push(list[i]);
+  if(!files.length){
+   status("THIS FIREFOX CANNOT DROP THAT FOLDER DIRECTLY · Select multiple individual files, or compress the whole Ableton project folder as a ZIP and drop the ZIP.");
+   return;
+  }
+  chosen[kind]=files;selectedLabel(kind);
+  el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=false;
+  issueLines=[];text("uploadIssues","");progress(0);
+  status(files.length+" "+nameOf(kind)+" files selected by drag-and-drop. No upload has started; press UPLOAD to confirm.");
+ });
+}
 function init(){
- if(!el("fileDraft")||!el("fileFinal"))return;
+ if(!el("fileDraft")||!el("fileFinal")||!el("fileSession"))return;
  el("fileDraft").onchange=function(){fileChanged("draft",this)};
  el("fileFinal").onchange=function(){fileChanged("final",this)};
+ el("fileSession").onchange=function(){fileChanged("session",this)};
  el("uploadDraft").onclick=function(){uploadChosen("draft")};
  el("uploadFinal").onclick=function(){uploadChosen("final")};
+ el("uploadSession").onclick=function(){uploadChosen("session")};
  el("listDrafts").onclick=function(){displayLibrary("draft")};
  el("listFinals").onclick=function(){displayLibrary("final")};
+ el("listSessions").onclick=function(){displayLibrary("session")};
+ installDrop("draft");installDrop("final");installDrop("session");
  el("refreshMp3").onclick=function(){updateHealth()};
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
  el("convertDraft").checked=false;el("convertFinal").checked=false;
- selectedLabel("draft");selectedLabel("final");
+ selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  setBusy(false);progress(0);
  status("READY · BROWSE → CHOOSE FORMAT → UPLOAD. Browsing never starts an upload.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
