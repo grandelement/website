@@ -3320,6 +3320,13 @@ body.ge-body-race-active .geCourseMode{display:none!important}
 @keyframes geGravityFinish{0%,100%{transform:translate(-50%,-50%) scale(.94)}50%{transform:translate(-50%,-50%) scale(1.06)}}
 .geGravityCheckpoint{position:absolute;width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;border:1px dashed rgba(175,237,255,.48);box-shadow:0 0 8px rgba(70,196,255,.25);opacity:.48}
 .geGravityCheckpoint.active{border-style:solid;border-color:#e5fbff;box-shadow:0 0 10px #dffaff,0 0 20px rgba(53,188,255,.75);opacity:.96}
+.geGravityCheckpoint.collected{background:#fff;border:2px solid #e9faff;box-shadow:0 0 12px #fff,0 0 24px #58bcff;opacity:1}
+.geGravityProgress{position:absolute;left:50%;top:max(63px,calc(env(safe-area-inset-top) + 53px));transform:translateX(-50%);display:flex;gap:12px;z-index:15;pointer-events:none}
+.geGravityProgressDot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:#031526;box-shadow:0 0 8px #48bcff}
+.geGravityProgressDot.collected{background:#fff;box-shadow:0 0 9px white,0 0 19px #49caff}
+.geGravityCelebration{position:absolute;inset:0;z-index:18;display:grid;place-items:center;pointer-events:none;opacity:0;font-weight:1000;font-size:clamp(22px,7vw,55px);text-shadow:0 0 25px white,0 0 48px #34c6ff}
+.geGravityCelebration.show{animation:geGravityWinFlash 1.2s ease-out}
+@keyframes geGravityWinFlash{0%{opacity:0;transform:scale(.65)}22%{opacity:1;transform:scale(1.12)}72%{opacity:1}100%{opacity:0;transform:scale(1.45)}}
 .geGravityControls{position:absolute;z-index:13;left:14px;right:14px;bottom:max(52px,calc(env(safe-area-inset-bottom) + 43px));display:grid;grid-template-columns:1fr 1.55fr 1fr;gap:7px;align-items:stretch}
 .geGravitySensitivity{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;border:1px solid rgba(136,215,255,.35);border-radius:999px;background:rgba(3,15,29,.90);padding:6px 9px;font-size:8px;font-weight:950;letter-spacing:.05em}
 .geGravitySensitivity input{width:100%;min-width:0}
@@ -12430,7 +12437,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     {n:'GRAND GRAVITY',p:[[.18,.88],[.60,.82],[.74,.71],[.59,.60],[.36,.65],[.28,.51],[.47,.42],[.70,.49],[.69,.34],[.48,.27],[.33,.35],[.38,.20],[.80,.14]]}
   ];
 
-  let active=false,level=1,raf=0,last=0,ball=null,route=[],corridor=96,holes=[],checkpoints=[],checkpointIndex=0;
+  let active=false,level=1,raf=0,last=0,ball=null,route=[],corridor=96,holes=[],checkpoints=[],checkpointIndex=0,gravityProgress=null,gravityCelebration=null,gravityRunToken=0;
   let vx=0,vy=0,tiltX=0,tiltY=0,baseBeta=0,baseGamma=0,haveOrientation=false,pendingCalibrate=false,controlMode='tilt',startedAt=0,finished=false,dropUntil=0;
   let touchControl=null;
 
@@ -12504,20 +12511,30 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     return d;
   }
   function placeHazards(){
-    holes=[];checkpoints=[];
-    const difficulty=(level-1)/32,holeCount=level<4?0:Math.min(5,1+Math.floor((level-4)/7));
-    const fractions=[.28,.44,.60,.74,.84];
-    for(let i=0;i<holeCount;i++){
-      const p=sampleRoute(fractions[i]),side=((level+i)%2)?1:-1,available=Math.max(10,corridor/2-31),off=Math.min(available,12+((level*11+i*17)%Math.max(13,available)));
-      holes.push({x:p.x+(-p.ty)*off*side,y:p.y+(p.tx)*off*side,r:16});
+    holes=[];checkpoints=[];checkpointIndex=0;
+    [.20,.49,.78].forEach((t,i)=>{const p=sampleRoute(t);checkpoints.push({x:p.x,y:p.y,index:i,collected:false})});
+    const count=level<3?0:Math.min(10,1+Math.floor((level-3)/3));
+    for(let i=0;i<count;i++){
+      const p=sampleRoute(.10+(i+1)*(.81/(count+1))),side=((level+i)%2)?1:-1,off=Math.max(18,corridor/2-20)+9;
+      const x=p.x-p.ty*side*off,y=p.y+p.tx*side*off;
+      if(checkpoints.some(c=>Math.hypot(c.x-x,c.y-y)<38)||Math.hypot(route[0].x-x,route[0].y-y)<45)continue;
+      holes.push({x,y,r:11+i%3});
     }
-    [0,.34,.67].forEach((t,i)=>{const p=sampleRoute(t);checkpoints.push({x:p.x,y:p.y,index:i})});
+  }
+  function syncGravityProgress(){
+    gravityProgress?.querySelectorAll('.geGravityProgressDot').forEach((d,i)=>d.classList.toggle('collected',!!checkpoints[i]?.collected));
+    board.querySelectorAll('.geGravityCheckpoint').forEach((d,i)=>d.classList.toggle('collected',!!checkpoints[i]?.collected));
+  }
+  function gravityReward(){
+    if(!gravityCelebration)return;
+    gravityCelebration.classList.remove('show');void gravityCelebration.offsetWidth;
+    gravityCelebration.textContent='✦ PERFECT 3 / 3 ✦';gravityCelebration.classList.add('show');
   }
   function render(){
     const r=board.getBoundingClientRect(),def=LEVELS[level-1]||LEVELS[0],difficulty=(level-1)/32;
     const mx=Math.max(38,r.width*.07),my=Math.max(34,r.height*.055);
     route=def.p.map(p=>({x:mx+p[0]*(r.width-mx*2),y:my+p[1]*(r.height-my*2)}));
-    corridor=Math.max(62,108-difficulty*38);
+    corridor=Math.max(70,132-difficulty*54);
     placeHazards();
     const d=pathD(),floorW=corridor,glowW=corridor+12;
     board.innerHTML='<svg class="geGravityCourse" viewBox="0 0 '+r.width+' '+r.height+'" preserveAspectRatio="none">'+
@@ -12528,20 +12545,27 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       holes.map(h=>'<div class="geGravityHole" style="left:'+h.x+'px;top:'+h.y+'px"></div>').join('')+
       '<div class="geGravityFinish" style="left:'+route[route.length-1].x+'px;top:'+route[route.length-1].y+'px"></div>'+
       '<div id="geGravityBall" class="geGravityBall" style="left:'+route[0].x+'px;top:'+route[0].y+'px"></div>';
-    ball=document.getElementById('geGravityBall');ball.x=route[0].x;ball.y=route[0].y;ball.r=16;vx=vy=0;checkpointIndex=0;dropUntil=0;finished=false;startedAt=0;
+    if(!gravityProgress){
+      gravityProgress=document.createElement('div');gravityProgress.className='geGravityProgress';
+      gravityProgress.setAttribute('aria-label','Three gravity gates');gravityProgress.innerHTML='<span class="geGravityProgressDot"></span>'.repeat(3);
+      mode.appendChild(gravityProgress);
+    }
+    if(!gravityCelebration){gravityCelebration=document.createElement('div');gravityCelebration.className='geGravityCelebration';mode.appendChild(gravityCelebration)}
+    gravityCelebration.classList.remove('show');syncGravityProgress();
+    ball=document.getElementById('geGravityBall');ball.x=route[0].x;ball.y=route[0].y;ball.r=16;vx=vy=0;checkpointIndex=0;dropUntil=0;finished=false;startedAt=0;gravityRunToken++;
     title.textContent='GRAVITY · '+level+' / 33 · '+def.n;timeEl.textContent='0.00';nextBtn.hidden=true;message.textContent=controlMode==='touch'?'TOUCH CONTROL · DRAG TO TILT':'TILT THE PHONE TO MOVE THE BLUE SUN';
   }
   function respawn(){
     const p=checkpoints[checkpointIndex]||checkpoints[0]||route[0];ball.x=p.x;ball.y=p.y;vx=vy=0;ball.style.left=ball.x+'px';ball.style.top=ball.y+'px';ball.style.transform='translate(-50%,-50%) scale(1)';ball.style.opacity='1';dropUntil=0;message.textContent='CHECKPOINT '+(checkpointIndex+1);
   }
   function fallHole(h){
-    if(dropUntil||finished)return;dropUntil=performance.now()+620;vx=vy=0;message.textContent='GRAVITY WELL · RESET';
+    if(dropUntil||finished)return;dropUntil=performance.now()+620;vx=vy=0;message.textContent=(h?.kind==='SIDE'?'SIDE CONTACT':'GRAVITY WELL')+' · START OVER';
     ball.style.transition='transform .55s ease-in,opacity .55s ease-in';ball.style.transform='translate(-50%,-50%) scale(.08)';ball.style.opacity='0';
-    setTimeout(()=>{if(!active)return;ball.style.transition='';respawn()},640);
+    const token=gravityRunToken;setTimeout(()=>{if(!active||gravityRunToken!==token)return;render();startCountdown()},640);
   }
   function finish(){
     if(finished)return;finished=true;vx=vy=0;
-    const sec=startedAt?(performance.now()-startedAt)/1000:0;timeEl.textContent=sec.toFixed(2);message.textContent='LEVEL COMPLETE · '+sec.toFixed(2)+'s';nextBtn.hidden=false;
+    const sec=startedAt?(performance.now()-startedAt)/1000:0,earned=checkpoints.filter(c=>c.collected).length;timeEl.textContent=sec.toFixed(2);message.textContent='LEVEL COMPLETE · '+earned+'/3 GATES · '+sec.toFixed(2)+'s';if(earned===3)gravityReward();nextBtn.hidden=false;
     try{const key='GE_GRAVITY_BEST_V1_'+level,old=Number(localStorage.getItem(key))||Infinity;if(sec&&sec<old)localStorage.setItem(key,String(sec))}catch(_e){}
   }
   function physics(now){
@@ -12557,15 +12581,21 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       for(let i=0;i<steps;i++){
         const nx=ball.x+vx*sd,ny=ball.y+vy*sd,info=nearestInfo(nx,ny);
         if(info&&info.d>half){
+          if(level>=16){fallHole({kind:'SIDE'});break;}
           const d=info.d||1,nxv=info.rx/d,nyv=info.ry/d,dot=vx*nxv+vy*nyv;
           vx=(vx-2*dot*nxv)*.68;vy=(vy-2*dot*nyv)*.68;
           ball.x=info.qx+nxv*half*.96;ball.y=info.qy+nyv*half*.96;
         }else{ball.x=nx;ball.y=ny}
       }
       ball.style.left=ball.x+'px';ball.style.top=ball.y+'px';
-      for(const h of holes){if(Math.hypot(ball.x-h.x,ball.y-h.y)<h.r+ball.r*.42){fallHole(h);break}}
-      for(let i=checkpoints.length-1;i>checkpointIndex;i--){const p=checkpoints[i];if(Math.hypot(ball.x-p.x,ball.y-p.y)<corridor*.42){checkpointIndex=i;board.querySelectorAll('.geGravityCheckpoint').forEach((el,j)=>el.classList.toggle('active',j===i));message.textContent='CHECKPOINT '+(i+1);break}}
-      const z=route[route.length-1];if(Math.hypot(ball.x-z.x,ball.y-z.y)<24)finish();
+      if(!dropUntil)for(const h of holes){if(Math.hypot(ball.x-h.x,ball.y-h.y)<h.r+ball.r*.42){fallHole(h);break}}
+      if(!dropUntil)for(const p of checkpoints){
+        if(!p.collected&&Math.hypot(ball.x-p.x,ball.y-p.y)<ball.r+14){
+          p.collected=true;checkpointIndex=Math.max(checkpointIndex,p.index);syncGravityProgress();
+          message.textContent='GATE '+checkpoints.filter(c=>c.collected).length+' / 3';
+        }
+      }
+      const z=route[route.length-1];if(!dropUntil&&Math.hypot(ball.x-z.x,ball.y-z.y)<24)finish();
       if(!finished)timeEl.textContent=((now-startedAt)/1000).toFixed(2);
     }
     raf=requestAnimationFrame(physics);
@@ -12574,7 +12604,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     active=true;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');mode.classList.add('show');mode.setAttribute('aria-hidden','false');controlMode='tilt';mode.classList.remove('touch-mode');render();startOverlay.hidden=false;countdown.textContent='';cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(physics);
   }
   function close(){
-    active=false;cancelAnimationFrame(raf);raf=0;window.removeEventListener('deviceorientation',onOrientation,true);touchControl=null;tiltX=tiltY=0;mode.classList.remove('show','touch-mode');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+    active=false;gravityRunToken++;cancelAnimationFrame(raf);raf=0;window.removeEventListener('deviceorientation',onOrientation,true);touchControl=null;tiltX=tiltY=0;mode.classList.remove('show','touch-mode');mode.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
   }
 
   enableBtn.addEventListener('click',enableTilt);
