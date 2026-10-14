@@ -4173,7 +4173,14 @@ function exitLiveMode(message='RADIO ended.'){
   if(message)setStatus(message);
 }
 
+function geOwnerDemoEnabled(){
+  try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes'}catch(_e){return false}
+}
+function geOpenMusicSelection(){
+  location.assign('./preview-lab.html');
+}
 async function resumePlayerAfterLive(){
+  if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
   let target=liveState.returnURL;
   if(!target || !allowedCatalog().includes(target)){
     target=state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0]||'');
@@ -4414,6 +4421,11 @@ function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.o
 
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()){
+    if(userAction)geOpenMusicSelection();
+    else setStatus('Personal Player: choose your 33:33 preview playlist.');
+    return;
+  }
   if(!url) return;
   const token=++state.playToken;
   window.GEGate?.syncListening?.();
@@ -4470,6 +4482,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   }
 }
 function resumeAudio(){
+  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
   state.userStarted=true;
   // Retry the SAME selected song if the media element lost its file;
   // a connection failure must never consume or skip a track.
@@ -4633,6 +4646,7 @@ function syncMainTransport(){
   }
 }
 playBtn?.addEventListener('click',()=>{
+  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
   state.userStarted=true;
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
     void resumeRadio();return;
