@@ -27,7 +27,7 @@ small,.muted{color:#a5c5d9}
 @keyframes pulse{50%{box-shadow:0 0 24px #37c8ff,inset 0 0 14px #169ada}}
 @media(prefers-reduced-motion:reduce){#cometTrack.full{animation:none}}
 .meterFoot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#c3e3f9;flex-wrap:wrap}
-.warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}.cometSticky{position:sticky;top:max(0px,env(safe-area-inset-top));z-index:15;box-shadow:0 7px 26px #010a18}.cometSticky .total{align-items:center}.cometSticky #cometTrack{margin:14px 5px 9px}
+.warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}.cometSticky{position:sticky;top:max(0px,env(safe-area-inset-top));z-index:15;box-shadow:0 7px 26px #010a18}.cometSticky[hidden]{display:none!important}.cometSticky .total{align-items:center}.cometSticky #cometTrack{margin:14px 5px 9px}
 .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;align-items:start}.albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}.albumTile{min-height:90px;flex-direction:column;text-align:left;align-items:flex-start;white-space:normal;background:linear-gradient(140deg,#153f65,#061826)!important}.albumTile strong{font-size:15px}.albumTile small{font-size:11px;color:#a8d0e9}#albumView[hidden],#albumWall[hidden],#ownerCode[hidden],#ownerLock[hidden],#ownerUnlock[hidden]{display:none!important}.albumHeader{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:3px 0 14px;flex-wrap:wrap}#ownerAccess{display:flex;align-items:center;flex-wrap:wrap;gap:7px}#ownerAccess input{flex:1 1 145px;width:auto;min-height:37px;padding:8px}#ownerStatus{font-size:12px;color:#99e8cf;font-weight:800}.demoBadge{border:1px solid #62d5ba}#catalogFlow{min-height:170px}
 @media(max-width:690px){.grid{grid-template-columns:1fr}}
 input[type=search]{width:100%;min-height:42px;background:#071b2e;color:white;border:1px solid #488ab0;border-radius:9px;font:inherit;padding:9px;margin:4px 0 8px}
@@ -50,7 +50,7 @@ footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
 <main>
 <div class="card notice">Test the future personal Player: choose songs in order, sample any track for <strong>33 seconds starting 33 seconds in</strong>, or move to the next 33-second portion. The Soul Comet fills as your playlist approaches <strong>33:33</strong>. This uses current original files; the proposed 200–224 kbps preview encoding, paid access, and protected downloads are not yet live.</div>
 <div class="modes"><span id="modeBadge">GUEST PREVIEW · 33:33</span><span class="dim">FAN · OPT-IN FUTURE</span><span class="dim">MEMBER · VERIFIED PURCHASE FUTURE</span></div><div class="card" id="ownerAccess"><label for="ownerCode">OWNER DEMO CODE</label><input id="ownerCode" type="password" autocomplete="off" placeholder="Enter test code"><button id="ownerUnlock" type="button">UNLOCK DEMO</button><button id="ownerLock" type="button" hidden>EXIT OWNER DEMO</button><span id="ownerStatus">Demo access only. Not a purchase credential.</span></div>
-<div class="card cometSticky" aria-label="Soul comet playlist duration"><div class="total"><div><b>SOUL COMET</b><br><small>Chosen playlist duration</small></div><strong id="total">00:00 / 33:33</strong></div>
+<div class="card cometSticky" id="previewCometMeter" aria-label="Soul comet free preview playlist duration"><div class="total"><div><b>PREVIEW · SOUL COMET</b><br><small>Time selected for the 33:33 free preview</small></div><strong id="total">00:00 / 33:33</strong></div>
 <div id="cometTrack"><div id="cometFill"></div><div id="comet"></div></div>
 <div class="meterFoot"><span id="count">0 selected</span><span id="left">33:33 remaining</span></div>
 <div id="warning" class="warning" role="status"></div></div>
@@ -91,8 +91,15 @@ $('ownerUnlock').addEventListener('click',function(){
 });
 $('ownerLock').addEventListener('click',function(){ownerDemo=false;try{localStorage.removeItem(OWNER_KEY)}catch(e){}syncOwner();say('Guest preview restored.')});
 $('ownerCode').addEventListener('keydown',function(e){if(e.key==='Enter')$('ownerUnlock').click()});
+var PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
+function persistPreviewQueue(){
+ try{sessionStorage.setItem(PREVIEW_QUEUE_KEY,JSON.stringify(queue.map(function(t){
+  return {url:t.url,path:t.path,title:t.title,album:t.album,duration_ms:t.duration_ms,kind:t.kind};
+ })))}catch(e){}
+}
 function selectedTime(){return queue.reduce(function(sum,t){return sum+t.duration_ms/1000},0)}
 function paintMeter(){
+ $('previewCometMeter').hidden=ownerDemo;
  var sec=selectedTime(),p=Math.min(100,100*sec/LIMIT);
  $('total').textContent=fmt(sec)+(ownerDemo?' / OWNER DEMO':' / 33:33');$('count').textContent=queue.length+' song'+(queue.length===1?'':'s')+' selected';
  $('left').textContent=sec>LIMIT?'EXCEEDS BY '+fmt(sec-LIMIT):fmt(LIMIT-sec)+' room';
@@ -125,6 +132,7 @@ function showSongs(){if(!selectedAlbum)return;
  row.appendChild(name);row.appendChild(acts);holder.appendChild(row)});
 }
 function showQueue(){
+ persistPreviewQueue();
  var holder=$('queue');holder.textContent='';
  if(!queue.length){holder.appendChild(makeNode('p','muted','Choose some songs to begin.'));return}
  queue.forEach(function(t,i){
@@ -225,7 +233,19 @@ fetch('./track-durations.json',{cache:'no-store'}).then(function(r){if(!r.ok)thr
  tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(function(t){return t.kind==='song'&&valid(t)});
  tracks.sort(function(a,b){return label(a).localeCompare(label(b))});
  tracks.forEach(function(t){var group=t.album||'Other';(albums[group]||(albums[group]=[])).push(t)});
- showAlbums();say(tracks.length+' available tracks loaded.');paintMeter();
+ try{
+   var fromStore=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
+   if(Array.isArray(fromStore)&&fromStore.length){
+     var byUrl={};tracks.forEach(function(t){byUrl[t.url]=t});
+     queue=fromStore.slice(0,120).map(function(item){return item&&byUrl[item.url]}).filter(Boolean);
+   }
+ }catch(e){}
+ showAlbums();showQueue();paintMeter();
+ say(queue.length?'Your '+queue.length+' selected songs are ready. Tap SEND TO PLAYER · START MUSIC.':
+   tracks.length+' tracks available for preview.');
+ if(location.hash==='#player'&&queue.length){
+   var target=$('personalPlayer');if(target&&target.scrollIntoView)target.scrollIntoView({block:'start',behavior:'smooth'});
+ }
 }).catch(function(e){$('songs').textContent='Unable to load song durations. Try reconnecting. '+e.message;});
 paintMeter();syncOwner();
 })();
