@@ -27,7 +27,7 @@ small,.muted{color:#a5c5d9}
 @keyframes pulse{50%{box-shadow:0 0 24px #37c8ff,inset 0 0 14px #169ada}}
 @media(prefers-reduced-motion:reduce){#cometTrack.full{animation:none}}
 .meterFoot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#c3e3f9;flex-wrap:wrap}
-.warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}
+.warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}.cometSticky{position:sticky;top:max(0px,env(safe-area-inset-top));z-index:15;box-shadow:0 7px 26px #010a18}.cometSticky .total{align-items:center}.cometSticky #cometTrack{margin:14px 5px 9px}
 .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;align-items:start}.albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}.albumTile{min-height:90px;flex-direction:column;text-align:left;align-items:flex-start;white-space:normal;background:linear-gradient(140deg,#153f65,#061826)!important}.albumTile strong{font-size:15px}.albumTile small{font-size:11px;color:#a8d0e9}#albumView[hidden],#albumWall[hidden],#ownerCode[hidden],#ownerLock[hidden],#ownerUnlock[hidden]{display:none!important}.albumHeader{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:3px 0 14px;flex-wrap:wrap}#ownerAccess{display:flex;align-items:center;flex-wrap:wrap;gap:7px}#ownerAccess input{flex:1 1 145px;width:auto;min-height:37px;padding:8px}#ownerStatus{font-size:12px;color:#99e8cf;font-weight:800}.demoBadge{border:1px solid #62d5ba}#catalogFlow{min-height:170px}
 @media(max-width:690px){.grid{grid-template-columns:1fr}}
 input[type=search]{width:100%;min-height:42px;background:#071b2e;color:white;border:1px solid #488ab0;border-radius:9px;font:inherit;padding:9px;margin:4px 0 8px}
@@ -50,7 +50,7 @@ footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
 <main>
 <div class="card notice">Test the future personal Player: choose songs in order, sample any track for <strong>33 seconds starting 33 seconds in</strong>, or move to the next 33-second portion. The Soul Comet fills as your playlist approaches <strong>33:33</strong>. This uses current original files; the proposed 200–224 kbps preview encoding, paid access, and protected downloads are not yet live.</div>
 <div class="modes"><span id="modeBadge">GUEST PREVIEW · 33:33</span><span class="dim">FAN · OPT-IN FUTURE</span><span class="dim">MEMBER · VERIFIED PURCHASE FUTURE</span></div><div class="card" id="ownerAccess"><label for="ownerCode">OWNER DEMO CODE</label><input id="ownerCode" type="password" autocomplete="off" placeholder="Enter test code"><button id="ownerUnlock" type="button">UNLOCK DEMO</button><button id="ownerLock" type="button" hidden>EXIT OWNER DEMO</button><span id="ownerStatus">Demo access only. Not a purchase credential.</span></div>
-<div class="card" aria-label="Soul comet playlist duration"><div class="total"><div><b>SOUL COMET</b><br><small>Chosen playlist duration</small></div><strong id="total">00:00 / 33:33</strong></div>
+<div class="card cometSticky" aria-label="Soul comet playlist duration"><div class="total"><div><b>SOUL COMET</b><br><small>Chosen playlist duration</small></div><strong id="total">00:00 / 33:33</strong></div>
 <div id="cometTrack"><div id="cometFill"></div><div id="comet"></div></div>
 <div class="meterFoot"><span id="count">0 selected</span><span id="left">33:33 remaining</span></div>
 <div id="warning" class="warning" role="status"></div></div>
@@ -98,7 +98,7 @@ function paintMeter(){
  $('left').textContent=sec>LIMIT?'EXCEEDS BY '+fmt(sec-LIMIT):fmt(LIMIT-sec)+' room';
  $('cometFill').style.width=p+'%';$('comet').style.left=p+'%';
  $('cometTrack').classList.toggle('full',sec>=LIMIT);
- $('warning').textContent=sec>LIMIT?'Your selected playlist exceeds 33:33 by '+fmt(sec-LIMIT)+'. Playback ends at the free allowance.':'';
+ $('warning').textContent=sec>LIMIT?(ownerDemo?'This exceeds the guest allowance by '+fmt(sec-LIMIT)+', but owner demo is unlimited.':'Your selected playlist exceeds 33:33 by '+fmt(sec-LIMIT)+'. Guest playback ends at the free allowance.'):'';
  $('used').textContent=fmt(used);
 }
 function valid(t){
@@ -131,6 +131,7 @@ function showQueue(){
   var row=makeNode('div','queued'),name=makeNode('div','songTitle',(i+1)+'. '+label(t)),acts=makeNode('div','acts');
   name.appendChild(makeNode('small','',fmt(t.duration_ms/1000)));
   acts.appendChild(button('↑',function(){if(i>0){var tmp=queue[i-1];queue[i-1]=queue[i];queue[i]=tmp;showQueue()}}));
+  acts.appendChild(button('↓',function(){if(i<queue.length-1){var tmp=queue[i+1];queue[i+1]=queue[i];queue[i]=tmp;showQueue()}}));
   acts.appendChild(button('×',function(){queue.splice(i,1);if(mode==='playlist'&&i<=idx)idx--;paintMeter();showQueue()}));
   row.appendChild(name);row.appendChild(acts);holder.appendChild(row);
  });
