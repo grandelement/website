@@ -3850,7 +3850,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <div class="details" style="display:block;text-align:center">
           <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the Blue Sun’s 12-hour orbit with a time zone</label>
           <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
-            <option value="auto">AUTOMATIC · IP LOCATION</option>
+            <option value="auto">AUTOMATIC · DEVICE TIME ZONE</option>
             <option value="local">DEVICE TIME ZONE · NO IP LOOKUP</option>
             <option value="America/New_York">NEW YORK · EASTERN</option>
             <option value="America/Chicago">CHICAGO · CENTRAL</option>
@@ -5004,7 +5004,7 @@ if(geClockZoneSelect){
     geClockZone=geClockZoneSelect.value;
     try{localStorage.setItem(GE_SUN_CLOCK_ZONE_KEY,geClockZone)}catch(_e){}
     tickOrbit.lastClockReadout=0;
-    if(geClockZone==='auto'&&!geClockIpZone)void geClockDetectFromIp();
+    // Automatic clock follows the device IANA time zone. IP lookups can mislocate visitors.
   });
 }
 async function geClockDetectFromIp(){
@@ -5030,10 +5030,10 @@ async function geClockDetectFromIp(){
     try{localStorage.setItem(GE_SUN_CLOCK_IP_CACHE,JSON.stringify({zone,at:Date.now()}))}catch(_e){}
   }catch(_e){geClockIpStatus='IP UNAVAILABLE · USING DEVICE';tickOrbit.lastClockReadout=0}
 }
-if(geClockZone==='auto')void geClockDetectFromIp();
+// No IP lookup in automatic clock mode: use the device time zone.
 const geClockFormatters=new Map();
 function geSunClockTime(d){
-  const zone=geClockZone==='auto'?(geClockIpZone||'local'):geClockZone;
+  const zone=geClockZone==='auto'?'local':geClockZone;
   if(zone==='local')return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds(),zone:'local'};
   try{
     if(!geClockFormatters.has(zone))geClockFormatters.set(zone,new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}));
@@ -5062,18 +5062,13 @@ function tickOrbit(){
   if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active')){
     setTimeout(()=>requestAnimationFrame(tickOrbit),250);return;
   }
-  const clock=new Date();
-  const selectedTime=geSunClockTime(clock);
+  // The Moon's motion is a self-contained CSS 60-second loop. Do not replace
+  // its animated transform here: failures in other JS must not freeze it.
   if(geClockReadout&&(!tickOrbit.lastClockReadout||Date.now()-tickOrbit.lastClockReadout>15000)){
     tickOrbit.lastClockReadout=Date.now();
-    geClockReadout.textContent='SUN CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'?(geClockIpZone?'IP · '+geClockIpZone.replaceAll('_',' '):geClockIpStatus):(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' ')))+' · MOON 60s';
+    const t=geSunClockTime(new Date());
+    geClockReadout.textContent='SUN CLOCK · '+String((t.hour%12)||12)+':'+String(t.minute).padStart(2,'0')+(t.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'||geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' '))+' · MOON 60s';
   }
-  const angle=PHASE0+((clock.getTime()%60000)/60000)*Math.PI*2; // 60-second Moon orbit
-  const t=clock.getTime()/1000;
-  const r=orbitBaseR+OSC_PX*Math.sin((t/OSC_SEC)*Math.PI*2);
-  orbit.style.transform=`rotate(${angle}rad)`;
-  moon.style.transform=`translate(${r}px,-50%) rotate(${-angle}rad)`;
-  orbit.style.zIndex=(angle%(Math.PI*2))>Math.PI?2:6;
   requestAnimationFrame(tickOrbit);
 }
 requestAnimationFrame(tickOrbit);
@@ -12972,6 +12967,25 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   try{document.getElementById('gePlayer')?.pause?.();}catch(_e){}
 })();
 </script>
+<style id="ge-moon-self-running-orbit-v1">
+/* Radio Moon: independently orbit the Sun EVERY 60 SECONDS, even if a
+   separate website/game animation loop stops. The opposing rotation holds
+   the Radio logo upright while travelling around the Sun. */
+@keyframes geRadioMoonTravel60 {
+  from {transform:rotate(0deg)}
+  to {transform:rotate(360deg)}
+}
+@keyframes geRadioMoonLogoUpright60 {
+  from {transform:translate(calc(var(--orbit-radius) - var(--moon-size) * .5), -50%) rotate(0deg)}
+  to {transform:translate(calc(var(--orbit-radius) - var(--moon-size) * .5), -50%) rotate(-360deg)}
+}
+body:not(.ge-body-race-active) #orbit {
+  animation:geRadioMoonTravel60 60s linear infinite;
+}
+body:not(.ge-body-race-active) #moon {
+  animation:geRadioMoonLogoUpright60 60s linear infinite;
+}
+</style>
 <script id="ge-blue-sun-clock-home-v2">
 (function(){
   'use strict';
@@ -13004,9 +13018,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function clockTarget(){
     const p=location(),now=new Date();
-    const t=typeof geSunClockTime==='function'
-      ?geSunClockTime(now)
-      :{hour:now.getHours(),minute:now.getMinutes(),second:now.getSeconds()};
+    // The independent Sun motor must continue even if the large legacy
+    // website script failed before its shared time-zone function initialized.
+    let t={hour:now.getHours(),minute:now.getMinutes(),second:now.getSeconds(),zone:'local'};
+    try{
+      if(typeof geSunClockTime==='function')t=geSunClockTime(now);
+    }catch(_e){/* Device-time fallback always keeps the clock running. */}
     const elapsed=((t.hour%12)*3600+t.minute*60+t.second)*1000+now.getMilliseconds();
     // 12 top, 3 right, 6 bottom, 9 left in EVERY screen orientation.
     const angle=-Math.PI/2+(elapsed/CLOCK_MS)*Math.PI*2;
