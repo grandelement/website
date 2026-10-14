@@ -158,6 +158,46 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
+def inspect_drive_quota():
+    # Read-only server-side remote test for the GE Studio Status panel.
+    # Never return OAuth configuration, account IDs or raw error logs to Firefox.
+    status = {"ok": True, "drive_checked": True, "drive_accessible": False}
+    if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
+        status["reason"] = "Local rclone or its Google Drive configuration is missing."
+        return status
+    try:
+        process = subprocess.Popen([RCLONE, "--config", CONFIG, "about", "GEStudios:"],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        received = {}
+        def drain():
+            stdout, stderr = process.communicate()
+            received["stdout"] = stdout
+            received["stderr"] = stderr
+        thread = threading.Thread(target=drain)
+        thread.daemon = True
+        thread.start()
+        thread.join(10)
+        if thread.is_alive():
+            try:
+                process.terminate()
+            except Exception:
+                pass
+            status["reason"] = "Google Drive did not respond within 10 seconds."
+            return status
+        if process.returncode != 0:
+            status["reason"] = "Google Drive rejected or failed the remote check. Authorization, connection or quota may need attention."
+            return status
+        output = as_text(received.get("stdout", ""))
+        for key in ("Total", "Used", "Free", "Trashed"):
+            match = re.search(r"(?mi)^" + key + r":\s*([0-9]+(?:\.[0-9]+)?\s*[KMGTPE]?i?B?)\s*$", output)
+            if match:
+                status[key.lower()] = match.group(1).strip()
+        status["drive_accessible"] = True
+        return status
+    except Exception:
+        status["reason"] = "Could not complete the Google Drive remote check."
+        return status
+
 class ThreadingServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -200,6 +240,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host() or not self.authorized_origin():
             return self.response(403, {"ok": False, "error": "Unapproved origin"})
         target = urlparse(self.path)
+        if target.path == "/check":
+            return self.response(200, inspect_drive_quota())
         if target.path == "/health":
             return self.response(200, {"ok": True, "rclone_ready": os.path.isfile(RCLONE) and os.path.isfile(CONFIG),
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
