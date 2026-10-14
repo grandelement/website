@@ -104,8 +104,8 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 </div>
 <p class="subtle" style="margin-top:28px">Prefer Bandcamp? <a href="https://grandelement.bandcamp.com/" target="_blank" rel="noopener noreferrer">Visit the Grand Element archive on Bandcamp</a>.</p>
 </section>
-<section id="section-radio" role="tabpanel" hidden><div class="sectionIntro"><div><h2>GE RADIO</h2><p>One-time access to Grand Element Radio.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div><h2 style="margin-top:40px;letter-spacing:.12em">GE RADIO</h2>
-<div class="product highlight" style="max-width:420px"><div class="details"><div class="eyebrow">One-time founder access</div><h3 class="name">Grand Element Radio</h3><p class="muted">The Grand Element listening experience. Proposed permanent access once the radio gate and account delivery are connected.</p><div class="price">$6.00</div><div class="actions"><button class="primary" id="addRadio" type="button">Add Radio to Cart</button><a class="outline" href="../radio/" style="text-align:center;text-decoration:none">Listen / Explore</a></div></div></div>
+<section id="section-radio" role="tabpanel" hidden><div class="sectionIntro"><div><h2>GE RADIO</h2><p>Grand Element Radio membership · $6 per month.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div><h2 style="margin-top:40px;letter-spacing:.12em">GE RADIO</h2>
+<div class="product highlight" style="max-width:420px"><div class="details"><div class="eyebrow">Monthly Radio Membership</div><h3 class="name">Grand Element Radio</h3><p class="muted">Grand Element Radio membership, $6 per month. Recurring billing and member access require verified checkout; cancellation and renewal controls will be available before subscriptions launch.</p><div class="price">$6.00 / month</div><div class="actions"><button class="primary" id="addRadio" type="button">Add Radio to Cart</button><a class="outline" href="../radio/" style="text-align:center;text-decoration:none">Listen / Explore</a></div></div></div>
 </section>
 <section id="section-merch" role="tabpanel" hidden>
 <div class="sectionIntro"><div><h2>GE MERCHANDISE</h2><p>Choose a product, size and quantity.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
@@ -173,7 +173,7 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <button class="primary full" id="payCrypto" type="button" disabled>PAY WITH BITCOIN OR LIGHTNING</button>
 <p class="tiny" id="cryptoCheckoutStatus" role="status">Secure checkout is being prepared. No funds can be accepted until the verified payment server is connected.</p>
 <div class="payopt"><strong>CREDIT / DEBIT · PAYPAL OR STRIPE</strong><div class="muted">Awaiting merchant onboarding and identity verification.</div><span class="pill">Not connected</span></div>
-<p class="tiny">Once connected, a server-side order will wait for verified settlement before delivering music, enabling radio access or sending a printer order.</p>
+<p class="tiny">Radio membership is $6 per month. Recurring payment consent, renewal dates, failed-payment handling, and cancellation will be implemented before activation. Once connected, the server verifies settlement before granting access, delivering music, or sending a printer order.</p>
 </div></div>
 <script>
 "use strict";
@@ -190,7 +190,10 @@ for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDeliver
     get("checkoutDeliveryStatus").textContent="Selected "+digitalFormat.options[digitalFormat.selectedIndex].text+" · "+digitalDelivery.options[digitalDelivery.selectedIndex].text+". Payment and delivery are not yet active.";
   });
 }
-try{const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100)}catch(_){}
+try{
+  const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");
+  if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&x.id!=="radio-forever"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100);
+}catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
 function closeAlbum(){const open=!get("albumDetail").hidden;get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u);if(open&&!get("section-music").hidden)get("musicIntro").scrollIntoView({block:"start",behavior:"smooth"})}
 function setSection(name){if(!["home","music","merch","radio","booking"].includes(name))name="home";if(name!=="music")closeAlbum();["music","merch","radio","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);if(name==="home")u.searchParams.delete("section");else u.searchParams.set("section",name);history.replaceState(null,"",u)}window.scrollTo({top:0,behavior:"smooth"})}
@@ -203,9 +206,10 @@ function removeAt(idx){state.cart.splice(idx,1);save()}
 function renderCart(){
 const body=get("cartBody");body.replaceChildren();
 if(!state.cart.length)body.append(el("p","muted","Your cart is empty. Browse the collection to add items."));
-state.cart.forEach((item,i)=>{const row=el("div","cartrow");const info=el("div");info.append(el("strong","",item.title),el("div","muted",item.fit?item.fit+" · "+item.size:""));const sub=el("div","muted",money(item.price)+" × "+item.qty);
+state.cart.forEach((item,i)=>{const row=el("div","cartrow");const info=el("div");info.append(el("strong","",item.title),el("div","muted",item.fit?item.fit+" · "+item.size:""));const sub=el("div","muted",money(item.price)+(item.subscription?"/month":"")+" × "+item.qty);
 const controls=el("div");const minus=el("button","outline","−");minus.type="button";minus.setAttribute("aria-label","Decrease "+item.title);minus.addEventListener("click",()=>{item.qty--;if(item.qty<=0)removeAt(i);else save()});const qty=el("span","",String(item.qty));qty.style.margin="0 8px";const plus=el("button","outline","+");plus.type="button";plus.setAttribute("aria-label","Increase "+item.title);plus.addEventListener("click",()=>{item.qty=Math.min(99,item.qty+1);save()});controls.append(minus,qty,plus);sub.append(controls);info.append(sub);row.append(info,el("strong","",money(item.price*item.qty)));body.append(row)});
-get("cartTotal").textContent=money(state.cart.reduce((sum,x)=>sum+x.qty*x.price,0));get("cartCount").textContent=String(state.cart.reduce((sum,x)=>sum+x.qty,0));get("showCheckout").disabled=!state.cart.length;
+const hasMonthly=state.cart.some(x=>x.subscription);
+get("cartTotal").textContent=money(state.cart.reduce((sum,x)=>sum+x.qty*x.price,0))+(hasMonthly?" · includes recurring membership preview":"");get("cartCount").textContent=String(state.cart.reduce((sum,x)=>sum+x.qty,0));get("showCheckout").disabled=!state.cart.length;
 }
 function openCart(){get("shade").classList.add("show");get("cartPanel").classList.add("open");get("cartPanel").setAttribute("aria-hidden","false");get("closeCart").focus()}
 function closeCart(){get("shade").classList.remove("show");get("cartPanel").classList.remove("open");get("cartPanel").setAttribute("aria-hidden","true")}
@@ -312,7 +316,7 @@ if(item.type==="shirt"){fit=selectField("Fit",["Unisex / Men's","Women's"]);size
 if(item.type==="hat")fit=selectField("Fit",["Adjustable · One Size"]);
 const qty=selectField("Quantity",Array.from({length:10},(_,i)=>String(i+1)));d.append(config);
 const btn=el("button","primary full","Add to Cart");btn.type="button";btn.addEventListener("click",()=>add({id:item.id,title:item.title,price:item.price,qty:Number(qty.value),fit:fit?fit.value:"",size:size?size.value:""}));d.append(btn);card.append(d);return card}
-get("addRadio").addEventListener("click",()=>add({id:"radio-forever",title:"GE Radio · One-Time Access (preview)",price:6,qty:1}));
+get("addRadio").addEventListener("click",()=>add({id:"radio-monthly",title:"GE Radio · $6/month Membership (checkout preview)",price:6,qty:1,subscription:true,billing_period:"month"}));
 get("bookingForm").addEventListener("submit",e=>{
 e.preventDefault();const date=get("eventDate").value;if(date<"2027-01-01"){alert("Booking inquiries start in 2027.");return}
 const rows=["GE Studios booking inquiry","Experience: "+get("eventType").value,"Date requested: "+date,"City: "+get("eventCity").value,"Venue: "+get("eventVenue").value,"Audience: "+get("eventGuests").value,"Contact: "+get("eventEmail").value,"Notes: "+get("eventNotes").value,"Please provide availability and a complete quote including performance, travel, and lodging as applicable.","This is an inquiry, not a confirmed booking."];
