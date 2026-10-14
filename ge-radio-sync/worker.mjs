@@ -236,6 +236,8 @@ async function gePrivateUploads(request,env){
   if(declared&&(!Number.isFinite(declared)||declared>GE_UPLOAD_MAX_BYTES))
    return json({ok:false,error:"Audio upload must be 60 MB or less."},413,request);
   if(!request.body)return json({ok:false,error:"No audio file was received."},400,request);
+  const album=String(input.searchParams.get("album")||"").trim().slice(0,100);
+  const trackTitle=String(input.searchParams.get("title")||"").trim().slice(0,120);
   const key=kind+"/"+Date.now()+"-"+crypto.randomUUID()+"-"+name;
   let total=0;
   const capped=request.body.pipeThrough(new TransformStream({
@@ -248,7 +250,7 @@ async function gePrivateUploads(request,env){
   try{
    const contentType=String(request.headers.get("Content-Type")||"application/octet-stream").slice(0,120);
    const obj=await bucket.put(key,capped,{
-    httpMetadata:{contentType:contentType},customMetadata:{originalName:name,kind:kind}
+    httpMetadata:{contentType:contentType},customMetadata:{originalName:name,kind:kind,album:album,trackTitle:trackTitle}
    });
    return json({ok:true,key:key,name:name,bytes:obj.size,kind:kind,private:true,published_to_radio:false},201,request);
   }catch(e){
