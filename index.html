@@ -11428,7 +11428,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const spanX=Math.max(1,w-sidePad*2),spanY=Math.max(1,bottom-top);
     const points=normalized.map(([x,y])=>({x:sidePad+x*spanX,y:top+y*spanY}));
     const markerTs=[.14,.31,.50,.69,.86],markers=markerTs.map(t=>sampleBodyRoute(points,t));
-    return{name:tpl.name,points,markers,markerRadius:Math.round(56-difficulty*20),complexity:points.length};
+    return{name:tpl.name,points,markers,markerRadius:Math.round(56-difficulty*20),sideRadius:Math.round(94-difficulty*30),complexity:points.length};
   }
   function saveBodyRacePlanets(){
     if(bodyRacePlanetSnapshot)return;
@@ -11530,13 +11530,17 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       c.x=clamp(p.x+nx*offset*side,20,innerWidth-20);c.y=clamp(p.y+ny*offset*side,112,innerHeight-135);
       c.geRaceHome={x:c.x,y:c.y};
       c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(9,c.r||8));c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;
-      c.geRaceBonus=true;c.geRaceCollected=false;c.bodyInteractive=true;c.trail=[];comets.push(c);out.push(c);
+      c.geRaceBonus=true;c.geRaceCollected=false;c.bodyInteractive=true;c.dragging=true;c.trail=[];comets.push(c);out.push(c);
     }
     return out;
   }
   function syncBodySoulMeter(){
     const dots=document.querySelectorAll('#geBodySoulMeter .geBodySoulDot'),count=Math.max(0,Math.min(3,bodyRace?.collected||0));
-    dots.forEach((d,i)=>d.classList.toggle('filled',i<count));
+    dots.forEach((d,i)=>{
+      const earned=i<count;d.classList.toggle('filled',earned);
+      d.style.backgroundColor=earned?'#ffffff':'rgba(5,22,38,.30)';
+      d.setAttribute('aria-label',earned?'Soul earned':'Soul uncollected');
+    });
   }
   function triggerBodyStar(){
     if(!bodyRace||bodyRace.starCelebrated)return;
@@ -11545,27 +11549,31 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     bodyRace.starFx={x:z.x,y:z.y,angle:ang,start:performance.now(),duration:1250,distance:110+Math.random()*90};
     bodyRaceMessage.textContent='3 SOULS · STAR';
   }
-  window.GE_BODY_RACE_SOUL_TOUCH=function(x,y){
-    if(!bodyRace||!bodyRace.startedAt||bodyRace.finished||bodyRace.failed||document.body.classList.contains('ge-body-race-countdown'))return false;
-    let best=null,bestD=Infinity;
-    for(const c of bodyRace.bonuses||[]){
-      if(!c||c.dead||c.geRaceCollected||c.state!=='fly')continue;
-      const d=Math.hypot(x-c.x,y-c.y),R=Math.max(24,(c.r||8)*3);
-      if(d<R&&d<bestD){best=c;bestD=d}
-    }
-    if(!best)return false;
-    const s=bodyRace.body;
-    best.geRaceCollected=true;bodyRace.collected=Math.min(3,(bodyRace.collected||0)+1);syncBodySoulMeter();
-    best.dragging=false;best.vx=0;best.vy=0;best.state='tethered';best.tetherAge=0;best.preferredHost=null;best.capturedBy=s;
-    best.captureEntrySpeed=18;best.captureEntryAngle=Math.atan2(s.y-best.y,s.x-best.x);
-    if(!s.targets.includes(best))s.targets.push(best);
-    if(!s.coreCandidate&&!s.coreSoul)s.coreCandidate=best;
-    const elapsed=bodyRace.startedAt?Math.max(0,performance.now()-bodyRace.startedAt):0;
-    window.GEVault?.track?.('body_soul_collect',{level,souls:bodyRace.collected,elapsed_ms:Math.round(elapsed),progress:bodyRace.progress});
+  function collectBodyRaceSoul(c){
+    if(!c||!bodyRace||c.geRaceCollected||bodyRace.finished||bodyRace.failed)return false;
+    const host=bodyRace.body;
+    c.geRaceCollected=true;c.dragging=false;
+    bodyRace.collected=Math.min(3,(bodyRace.collected||0)+1);syncBodySoulMeter();
+    c.vx=0;c.vy=0;c.state='tethered';c.tetherAge=0;c.preferredHost=null;c.capturedBy=host;
+    c.captureEntrySpeed=18;c.captureEntryAngle=Math.atan2(host.y-c.y,host.x-c.x);
+    if(!host.targets.includes(c))host.targets.push(c);
+    if(!host.coreCandidate&&!host.coreSoul)host.coreCandidate=c;
+    window.GEVault?.track?.('body_soul_collect',{level,souls:bodyRace.collected,elapsed_ms:Math.round(performance.now()-bodyRace.startedAt),progress:bodyRace.progress});
     bodyRaceMessage.textContent='SOUL '+bodyRace.collected+' / 3';
     if(bodyRace.collected>=3)triggerBodyStar();
     return true;
+  }
+  window.GE_BODY_RACE_SOUL_TOUCH=function(x,y){
+    if(!bodyRace||!bodyRace.startedAt||bodyRace.finished||bodyRace.failed||document.body.classList.contains('ge-body-race-countdown'))return false;
+    const c=(bodyRace.bonuses||[]).find(c=>c&&!c.dead&&!c.geRaceCollected&&Math.hypot(x-c.x,y-c.y)<Math.max(24,(c.r||8)*3));
+    return collectBodyRaceSoul(c);
   };
+  function collectBodyRaceFlyby(s){
+    if(!bodyRace||!s)return;
+    for(const c of bodyRace.bonuses||[]){
+      if(c&&!c.dead&&!c.geRaceCollected&&Math.hypot(s.x-c.x,s.y-c.y)<=Math.max(17,shipVisualRadius(s)*.55)+(c.r||8)+8)collectBodyRaceSoul(c);
+    }
+  }
   const BODY_SCORE_KEY='GE_BODY_RACE_SCORES_V2';
   function readBodyScores(){
     let all={};try{all=JSON.parse(localStorage.getItem(BODY_SCORE_KEY)||'{}')||{}}catch(_e){}
@@ -11611,7 +11619,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const pts=bodyRace.spec.points||[];if(pts.length<2)return;
     const now=performance.now();
     g.save();g.lineCap='round';g.lineJoin='round';g.globalCompositeOperation='lighter';
-    /* The route is intentionally thin: the planets and Blue Sun are the visible markers. */
+    // Soft outlined path tells players where leaving the route costs a Soul.
+    const radius=bodyRace.spec.sideRadius||90;
+    g.strokeStyle='rgba(70,185,255,.18)';g.lineWidth=radius*2+7;g.shadowBlur=0;
+    g.beginPath();g.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);g.stroke();
+    g.strokeStyle='rgba(3,45,90,.14)';g.lineWidth=radius*2;
+    g.beginPath();g.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);g.stroke();
     g.strokeStyle='rgba(160,227,255,.88)';g.lineWidth=1.25;g.setLineDash([2,9]);g.lineDashOffset=-(now/90)%11;
     g.shadowColor='rgba(55,184,255,.86)';g.shadowBlur=4;
     g.beginPath();g.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)g.lineTo(pts[i].x,pts[i].y);g.stroke();g.setLineDash([]);
@@ -11639,6 +11652,10 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 
   function bodyRaceHitHazard(s){
     const br=Math.max(4,shipVisualRadius(s)*.72);
+    let dist=Infinity;
+    const pts=bodyRace?.spec?.points||[];
+    for(let i=0;i<pts.length-1;i++)dist=Math.min(dist,pointSegInfo(s.x,s.y,{a:pts[i],b:pts[i+1]}).d);
+    if(dist>(bodyRace?.spec?.sideRadius||90))return{kind:'SIDE',x:s.x,y:s.y};
     for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.88)return{kind:'PLANET',x:p.x,y:p.y,el:p.el}}
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
     if(sunRect?.width){const x=sunRect.left+sunRect.width/2,y=sunRect.top+sunRect.height/2,r=Math.min(sunRect.width,sunRect.height)*.43;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'BLUE SUN',x,y,el:document.getElementById('sunWrap')}}
@@ -11651,7 +11668,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(lost){
       const host=lost.capturedBy;if(host?.targets)host.targets=host.targets.filter(x=>x!==lost);
       if(host?.coreSoul===lost)host.coreSoul=null;if(host?.coreCandidate===lost)host.coreCandidate=null;
-      lost.capturedBy=null;lost.preferredHost=null;lost.geRaceCollected=false;lost.dead=false;lost.state='fly';lost.vx=0;lost.vy=0;
+      lost.capturedBy=null;lost.preferredHost=null;lost.geRaceCollected=false;lost.dead=false;lost.state='fly';lost.dragging=true;lost.vx=0;lost.vy=0;
       const home=lost.geRaceHome||sampleBodyRoute(bodyRace.spec.points,.72);
       lost.x=home.x;lost.y=home.y;lost.trail=[];
     }
@@ -11688,7 +11705,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
         bodyRace.progress=Math.min(bodyRace.progress+1,markers.length);
         bodyRaceMessage.textContent='FOLLOW BETWEEN THE PLANETS';
       }
-      /* Soul score is awarded on touch; the tether/capture animation may finish later. */
+      collectBodyRaceFlyby(s);
       const hit=bodyRaceHitHazard(s);if(hit)resetBodyRaceAfterHit(hit);
       const finish=bodyRace.spec.points[bodyRace.spec.points.length-1];
       if(Math.hypot(s.x-finish.x,s.y-finish.y)<Math.max(38,shipVisualRadius(s))){
