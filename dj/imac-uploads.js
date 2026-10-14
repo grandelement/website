@@ -339,6 +339,19 @@ function init(){
  setBusy(false);progress(0);
  status("READY · BROWSE → CHOOSE FORMAT → UPLOAD. Browsing never starts an upload.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
+ // The old iMac can lose its manually started uploader while Firefox stays
+ // open. Automatically recheck every 20 seconds with no Terminal commands or
+ // extra clicking. Never run an automatic probe during an active upload.
+ if(w.setInterval)w.setInterval(function(){
+  if(busy||inCheck)return;
+  var wasOnline=helperOnline;
+  updateHealth(function(err){
+   if(!err&&helperOnline&&!wasOnline)displayLibrary(activeKind);
+   text("autoCheckStatus",helperOnline?
+    "AUTOMATIC CHECK · iMac uploader detected · Ready for selected music files.":
+    "AUTOMATIC CHECK · iMac uploader still unreachable. Use ONE-CLICK LOCAL HELPER TEST to tell whether it is running.");
+  });
+ },20000);
 }
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);
 else init();
