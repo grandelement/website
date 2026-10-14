@@ -3848,7 +3848,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <div class="aboutSection" id="geSunClockSection">
         <div class="toggleRow"><div class="pill"><b>BLUE SUN CLOCK · TIME ZONE</b></div></div>
         <div class="details" style="display:block;text-align:center">
-          <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the orbiting Radio Moon with a time zone</label>
+          <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the Blue Sun’s 12-hour orbit with a time zone</label>
           <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
             <option value="auto">AUTOMATIC · IP LOCATION</option>
             <option value="local">DEVICE TIME ZONE · NO IP LOOKUP</option>
@@ -4975,8 +4975,8 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
 /* ========= RADIO MOON ========= */
 const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
-// The Moon is the Blue Sun's living twelve-hour clock hand.
-// Clockwise angles are based on the visitor's browser-local time.
+// The Blue Sun follows the selected time zone's 12-hour clock around the
+// screen-fitted ellipse. The Radio Moon independently circles it every 60s.
 const PHASE0 = -Math.PI/2, CLOCK_HOURS = 12, GE_SUN_CLOCK_ZONE_KEY='GE_BLUE_SUN_CLOCK_ZONE_V1';
 const geClockZoneSelect=document.getElementById('geSunClockTimezone'),geClockReadout=document.getElementById('geSunClockReadout');
 const GE_SUN_CLOCK_IP_CACHE='GE_BLUE_SUN_IP_ZONE_V1';
@@ -5064,12 +5064,11 @@ function tickOrbit(){
   }
   const clock=new Date();
   const selectedTime=geSunClockTime(clock);
-  const localMs=((selectedTime.hour%CLOCK_HOURS)*3600+selectedTime.minute*60+selectedTime.second)*1000+clock.getMilliseconds();
   if(geClockReadout&&(!tickOrbit.lastClockReadout||Date.now()-tickOrbit.lastClockReadout>15000)){
     tickOrbit.lastClockReadout=Date.now();
-    geClockReadout.textContent='MOON CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'?(geClockIpZone?'IP · '+geClockIpZone.replaceAll('_',' '):geClockIpStatus):(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' ')));
+    geClockReadout.textContent='SUN CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'?(geClockIpZone?'IP · '+geClockIpZone.replaceAll('_',' '):geClockIpStatus):(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' ')))+' · MOON 60s';
   }
-  const angle=PHASE0+(localMs/(CLOCK_HOURS*3600000))*Math.PI*2;
+  const angle=PHASE0+((clock.getTime()%60000)/60000)*Math.PI*2; // 60-second Moon orbit
   const t=clock.getTime()/1000;
   const r=orbitBaseR+OSC_PX*Math.sin((t/OSC_SEC)*Math.PI*2);
   orbit.style.transform=`rotate(${angle}rad)`;
@@ -12973,15 +12972,17 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   try{document.getElementById('gePlayer')?.pause?.();}catch(_e){}
 })();
 </script>
-<script id="ge-blue-sun-clock-home-v1">
+<script id="ge-blue-sun-clock-home-v2">
 (function(){
   'use strict';
   const sun=document.getElementById('sunWrap');
   if(!sun)return;
-  const HOME_WAIT_MS=1400,HOME_EASE_MS=22000,EDGE_THRESHOLD=16;
+  const CLOCK_MS=12*60*60*1000,HOME_WAIT_MS=1400,HOME_EASE_MS=22000;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   let held=null,park=null,returnAfter=performance.now()+HOME_WAIT_MS;
-  let last=performance.now(),previousWidth=innerWidth,previousHeight=innerHeight;
-  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  let previousWidth=innerWidth,previousHeight=innerHeight;
+  let last=performance.now(),initialized=false;
+
   function blocked(){
     return document.body.classList.contains('game-mode-active')||
       document.body.classList.contains('ge-body-race-active')||
@@ -12990,33 +12991,53 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function location(){
     const r=sun.getBoundingClientRect();
-    return {x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height,rect:r};
+    return{x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height,rect:r};
   }
   function move(x,y){
     const p=location();
-    // Retain at least 25% of the Sun's disk on screen, even when parked.
-    sun.style.left=clamp(x,-p.w*.25,innerWidth+p.w*.25)+'px';
-    sun.style.top=clamp(y,-p.h*.25,innerHeight+p.h*.25)+'px';
+    // Intentional edge parking keeps at least one quarter of the disk visible.
+    const nx=clamp(x,-p.w*.25,innerWidth+p.w*.25);
+    const ny=clamp(y,-p.h*.25,innerHeight+p.h*.25);
+    if(Math.abs(p.x-nx)<.15&&Math.abs(p.y-ny)<.15)return;
+    sun.style.left=nx+'px';sun.style.top=ny+'px';
     sun.style.transform='translate(-50%,-50%)';
+  }
+  function clockTarget(){
+    const p=location(),now=new Date();
+    const t=typeof geSunClockTime==='function'
+      ?geSunClockTime(now)
+      :{hour:now.getHours(),minute:now.getMinutes(),second:now.getSeconds()};
+    const elapsed=((t.hour%12)*3600+t.minute*60+t.second)*1000+now.getMilliseconds();
+    // 12 top, 3 right, 6 bottom, 9 left in EVERY screen orientation.
+    const angle=-Math.PI/2+(elapsed/CLOCK_MS)*Math.PI*2;
+    // An inscribed oval, not a small central circle. Follow virtually the
+    // whole available viewport, leaving the moving Sun disk unobscured.
+    const margin=4;
+    const rx=Math.max(0,(innerWidth-p.w)/2-margin);
+    const ry=Math.max(0,(innerHeight-p.h)/2-margin);
+    return{x:innerWidth/2+rx*Math.cos(angle),
+      y:innerHeight/2+ry*Math.sin(angle),angle,rx,ry,zone:t.zone||'local'};
   }
   function chooseParking(){
     const p=location(),r=p.rect;
-    const possible=[
+    const candidates=[
       {edge:'left',distance:r.left,across:p.y/Math.max(innerHeight,1),visible:clamp(r.right/Math.max(p.w,1),.25,1)},
       {edge:'right',distance:innerWidth-r.right,across:p.y/Math.max(innerHeight,1),visible:clamp((innerWidth-r.left)/Math.max(p.w,1),.25,1)},
       {edge:'top',distance:r.top,across:p.x/Math.max(innerWidth,1),visible:clamp(r.bottom/Math.max(p.h,1),.25,1)},
       {edge:'bottom',distance:innerHeight-r.bottom,across:p.x/Math.max(innerWidth,1),visible:clamp((innerHeight-r.top)/Math.max(p.h,1),.25,1)}
     ];
-    possible.sort((a,b)=>a.distance-b.distance);
-    return possible[0].distance<=EDGE_THRESHOLD?possible[0]:null;
+    candidates.sort((a,b)=>a.distance-b.distance);
+    // Clock pauses ONLY after a deliberate drag leaves part of the Sun off-screen.
+    return candidates[0].distance<-.5?candidates[0]:null;
   }
   function maintainParking(){
     if(!park)return;
     const p=location(),v=clamp(park.visible,.25,1),a=clamp(park.across,0,1);
+    // Preserve edge parking across rotation without restarting the clock.
     if(park.edge==='left')move(p.w*(v-.5),a*innerHeight);
-    if(park.edge==='right')move(innerWidth-p.w*(v-.5),a*innerHeight);
-    if(park.edge==='top')move(a*innerWidth,p.h*(v-.5));
-    if(park.edge==='bottom')move(a*innerWidth,innerHeight-p.h*(v-.5));
+    else if(park.edge==='right')move(innerWidth-p.w*(v-.5),a*innerHeight);
+    else if(park.edge==='top')move(a*innerWidth,p.h*(v-.5));
+    else if(park.edge==='bottom')move(a*innerWidth,innerHeight-p.h*(v-.5));
   }
   sun.addEventListener('pointerdown',e=>{
     if(blocked()||e.target.closest('#aboutBtn,#btnMusic,#mini,#orbit,#moon,button,input,select,a,.btn,.toggle'))return;
@@ -13024,9 +13045,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   });
   function released(e){
     if(!held||e.pointerId!==held.id)return;
-    const dragged=Math.hypot(held.x-e.clientX,held.y-e.clientY)>9;
+    const wasDragged=Math.hypot(held.x-e.clientX,held.y-e.clientY)>9;
     held=null;
-    if(!dragged)return;
+    if(!wasDragged)return;
     park=chooseParking();
     returnAfter=performance.now()+HOME_WAIT_MS;
   }
@@ -13034,25 +13055,33 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   window.addEventListener('pointercancel',released);
   function tick(now){
     const dt=clamp(now-last,0,80);last=now;
-    // Screen-top is always the clock's 12 o'clock, in either orientation.
     if(innerWidth!==previousWidth||innerHeight!==previousHeight){
       previousWidth=innerWidth;previousHeight=innerHeight;
+      returnAfter=now+HOME_WAIT_MS;
       if(park)maintainParking();
-      else returnAfter=now+HOME_WAIT_MS;
     }
-    if(!blocked()&&!held&&!sun.classList.contains('dragging')&&!park&&now>returnAfter){
-      const p=location(),cx=innerWidth/2,cy=innerHeight/2;
-      const distance=Math.hypot(cx-p.x,cy-p.y);
-      if(distance>.5){
-        const a=1-Math.exp(-dt/HOME_EASE_MS);
-        move(p.x+(cx-p.x)*a,p.y+(cy-p.y)*a);
-      }else if(distance>.01)move(cx,cy);
+    if(!blocked()&&!held&&!sun.classList.contains('dragging')){
+      if(!initialized){
+        // Show the correct time immediately on first load.
+        const p=clockTarget();move(p.x,p.y);initialized=true;
+      }else if(park){
+        // Position is frozen while parked; target time still advances.
+      }else if(now>returnAfter){
+        const p=location(),target=clockTarget();
+        const distance=Math.hypot(p.x-target.x,p.y-target.y);
+        if(distance>.4){
+          // Very slow soft return to live clock position after an interior drag.
+          const a=1-Math.exp(-dt/HOME_EASE_MS);
+          move(p.x+(target.x-p.x)*a,p.y+(target.y-p.y)*a);
+        }else move(target.x,target.y);
+      }
     }
     requestAnimationFrame(tick);
   }
   window.GE_BLUE_SUN_CLOCK_HOME={
     isParked:()=>!!park,
     parkedEdge:()=>park?.edge||null,
+    clockPosition:()=>clockTarget(),
     returnHome:()=>{park=null;returnAfter=performance.now()+HOME_WAIT_MS;}
   };
   requestAnimationFrame(tick);
