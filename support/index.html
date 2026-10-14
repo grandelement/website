@@ -108,19 +108,19 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <button type="button" role="tab" data-section="booking" aria-selected="false">BOOKING</button>
 </div>
 <section id="section-music" role="tabpanel" hidden>
-<div class="payopt" id="myMusicAccess" style="margin-bottom:18px;padding:16px;border:1px solid #4b92b5;border-radius:14px;background:#071b2f">
-<h3 style="margin:0 0 5px">MY MUSIC · YOUR LIBRARY</h3>
-<p class="muted" style="margin:0 0 10px">Have a library access code? Enter it here to restore your music when purchase verification is connected. For now, the temporary owner demo code opens only the test library.</p>
-<div style="display:flex;flex-wrap:wrap;gap:8px"><input id="myMusicCode" type="password" autocomplete="off" placeholder="Music access code" aria-label="Music library access code" style="flex:1 1 150px;min-height:43px;background:#061627;color:#fff;border:1px solid #488aa9;border-radius:8px;padding:8px"><button type="button" id="myMusicUnlock" class="primary">OPEN MY MUSIC</button></div>
-<p id="myMusicStatus" class="tiny" role="status">Purchased-music codes are not yet active. No real payments or downloads are enabled.</p>
-<button id="gePreviewChoose" type="button" class="outline" style="display:inline-flex;margin-top:8px">PREVIEW MUSIC · 33:33</button>
-</div>
 <div id="gePreviewMeter" role="region" aria-label="Free preview Soul Comet track selection" hidden>
 <div class="gePreviewTop"><span>PREVIEW · SOUL COMET</span><strong id="gePreviewTotal">00:00 / 33:33</strong></div>
 <div class="gePreviewRail" id="gePreviewRail"><div class="gePreviewFill" id="gePreviewFill"></div><div class="gePreviewComet" id="gePreviewComet"></div></div>
 <div class="gePreviewInfo"><span id="gePreviewCount">0 songs selected</span><span id="gePreviewRoom">33:33 available</span></div>
 <div id="gePreviewWarning" role="status"></div>
 <div class="gePreviewActions"><button type="button" id="gePreviewSend" class="primary" disabled>SEND TO PLAYER</button><button type="button" id="gePreviewClear" class="outline">CLEAR</button><button type="button" id="gePreviewBuy" class="outline">SHOP INSTEAD</button></div>
+</div>
+<div class="payopt" id="myMusicAccess" style="margin-bottom:18px;padding:16px;border:1px solid #4b92b5;border-radius:14px;background:#071b2f">
+<h3 style="margin:0 0 5px">MY MUSIC · YOUR LIBRARY</h3>
+<p class="muted" style="margin:0 0 10px">Have a library access code? Enter it here to restore your music when purchase verification is connected. For now, the temporary owner demo code opens only the test library.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><input id="myMusicCode" type="password" autocomplete="off" placeholder="Music access code" aria-label="Music library access code" style="flex:1 1 150px;min-height:43px;background:#061627;color:#fff;border:1px solid #488aa9;border-radius:8px;padding:8px"><button type="button" id="myMusicUnlock" class="primary">OPEN MY MUSIC</button></div>
+<p id="myMusicStatus" class="tiny" role="status">Purchased-music codes are not yet active. No real payments or downloads are enabled.</p>
+<button id="gePreviewChoose" type="button" class="outline" style="display:inline-flex;margin-top:8px">PREVIEW MUSIC · 33:33</button>
 </div>
 <div class="sectionIntro" id="musicIntro"><div><h2>THE MUSIC</h2><p>Tap an album cover to choose songs.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
 <div class="note">Purchase checkout is not connected. For the free listening test, tap <strong>PREVIEW MUSIC · 33:33</strong> above. The Soul Comet counts the durations of songs you select, before playing them.</div>
@@ -224,7 +224,9 @@ const state={catalog:null,cart:[],bios:{},activeAlbum:null};
 const PREVIEW_LIMIT=2013,PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
 const normPreview=v=>String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
 const trackKey=(album,file)=>normPreview(album)+'|'+normPreview(file);
-let previewMode=new URL(location.href).searchParams.get('flow')==='player'||new URL(location.href).searchParams.get('flow')==='preview';
+const initialFlow=new URL(location.href).searchParams.get('flow')||'';
+let shopModeChosen=initialFlow==='shop';
+let previewMode=initialFlow==='player'||initialFlow==='preview'||(new URL(location.href).searchParams.get('section')==='music'&&!shopModeChosen);
 let previewQueue=[],previewDurations=new Map(),previewDurationsReady=false;
 try{
  const old=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
@@ -278,7 +280,7 @@ function updatePreviewAlbumControls(){
  }
 }
 function enterPreview(){
- previewMode=true;
+ previewMode=true;shopModeChosen=false;
  const url=new URL(location.href);url.searchParams.set('section','music');url.searchParams.set('flow','preview');
  history.replaceState(null,'',url);
  setSection('music');
@@ -288,7 +290,7 @@ function enterPreview(){
 }
 get('gePreviewChoose').addEventListener('click',enterPreview);
 get('gePreviewBuy').addEventListener('click',()=>{
- previewMode=false;const url=new URL(location.href);url.searchParams.delete('flow');history.replaceState(null,'',url);
+ previewMode=false;shopModeChosen=true;const url=new URL(location.href);url.searchParams.set('flow','shop');history.replaceState(null,'',url);
  updatePreviewMeter();if(state.activeAlbum){updatePreviewAlbumControls();syncAlbumSelected()}
 });
 get('gePreviewClear').addEventListener('click',()=>{
@@ -345,7 +347,7 @@ try{
 }catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
 function closeAlbum(){const open=!get("albumDetail").hidden;get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u);if(open&&!get("section-music").hidden)get("musicIntro").scrollIntoView({block:"start",behavior:"smooth"})}
-function setSection(name){if(!["home","music","merch","radio","booking"].includes(name))name="home";if(name!=="music")closeAlbum();["music","merch","radio","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);if(name==="home")u.searchParams.delete("section");else u.searchParams.set("section",name);history.replaceState(null,"",u)}window.scrollTo({top:0,behavior:"smooth"})}
+function setSection(name){if(!["home","music","merch","radio","booking"].includes(name))name="home";if(name==="music"&&!shopModeChosen&&!previewMode)previewMode=true;if(name!=="music")closeAlbum();["music","merch","radio","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);if(name==="home")u.searchParams.delete("section");else u.searchParams.set("section",name);history.replaceState(null,"",u)}if(name==="music")updatePreviewMeter();window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("[data-section]").forEach(b=>b.addEventListener("click",()=>setSection(b.dataset.section)));
 document.querySelectorAll("[data-close-section]").forEach(b=>b.addEventListener("click",()=>setSection("home")));
 get("albumBack").addEventListener("click",closeAlbum);
