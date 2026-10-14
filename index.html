@@ -3824,6 +3824,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         </div>
       </div>
       <div class="albumScanBio" id="albumScanBio"></div>
+      <div id="albumScanBonus" hidden style="padding:9px 11px;margin:8px 0 0;border:1px solid rgba(110,228,193,.48);border-radius:9px;color:#c9ffe5;font-size:12px;font-weight:850;line-height:1.35">Stay In Union · BONUS TRACK · INCLUDED WITH INTERGY ALBUM AT NO EXTRA CHARGE</div>
       <div class="albumScanActions albumScanActionsCentered">
         <a class="albumScanBtn albumScanBuy" id="albumScanBandcamp" href="./support/" rel="noopener">SUPPORT</a>
       </div>
@@ -4771,6 +4772,7 @@ addEventListener('orientationchange',()=>{
   const title=document.getElementById('albumScanTitle');
   const meta=document.getElementById('albumScanMeta');
   const bio=document.getElementById('albumScanBio');
+  const bonus=document.getElementById('albumScanBonus');
   const bandcamp=document.getElementById('albumScanBandcamp');
   const listen=document.getElementById('albumScanListen');
   const kicker=document.getElementById('albumScanKicker');
@@ -4822,7 +4824,9 @@ addEventListener('orientationchange',()=>{
     cover.src=alb.cover;cover.alt=alb.title;currentAlbumTitle=alb.title||'';title.textContent=alb.title;
     if(kicker) kicker.textContent='ENERGY AWAKENING';
     meta.textContent=String(n.tagline||n.energy||'Source').toUpperCase()+' · GRAND\u00A0ELEMENT · '+n.year;
-    bio.textContent='';bandcamp.href='./support/?album='+encodeURIComponent(alb.musicTitle||alb.title);bandcamp.target='_self';panel.classList.add('show');
+    bio.textContent='';
+    if(bonus)bonus.hidden=key!=='intergy';
+    bandcamp.href='./support/?album='+encodeURIComponent(alb.musicTitle||alb.title);bandcamp.target='_self';panel.classList.add('show');
     requestAnimationFrame(()=>placeAlbumSidecar(currentAnchor));
     const text=String(n.bio||'');const token=(window.GE_ALBUM_SCAN_TOKEN=(window.GE_ALBUM_SCAN_TOKEN||0)+1);let i=0;
     const type=()=>{if(token!==window.GE_ALBUM_SCAN_TOKEN||!panel.classList.contains('show'))return;bio.textContent=text.slice(0,i);if(i<text.length){i+=Math.max(1,Math.min(3,Math.ceil((text.length-i)/90)));setTimeout(type,18);}};type();
