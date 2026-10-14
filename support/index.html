@@ -143,9 +143,25 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>CHECKOUT</h2><button class="outline" type="button" id="closeCheckout">Close ×</button></div>
 <p class="note"><strong>Preview only.</strong> No live payment endpoint is connected. Please do not send Bitcoin to an address from a screenshot or to a BTCPay demo store.</p>
 <label for="checkoutEmail">Email for receipts and download access (future checkout)</label><input id="checkoutEmail" type="email" placeholder="name@example.com" autocomplete="email">
+<div class="payopt" style="margin-top:12px">
+<strong>DIGITAL DELIVERY · CHOOSE YOUR FORMAT</strong>
+<p class="muted">Pick one download format for your purchased music. The same purchased songs stay in your GE Player library independently of the download choice.</p>
+<label for="checkoutFormat">MUSIC FILE FORMAT</label>
+<select id="checkoutFormat" style="width:100%;min-height:43px;background:#091c30;color:#fff;border:1px solid #5192b2;border-radius:9px;padding:8px">
+<option value="flac">FLAC · lossless, recommended</option>
+<option value="wav">WAV · uncompressed lossless</option>
+<option value="aiff">AIFF · uncompressed lossless</option>
+<option value="mp3-320">MP3 320 kbps · smaller files</option></select>
+<label for="checkoutDelivery">DOWNLOAD PACKAGE</label>
+<select id="checkoutDelivery" style="width:100%;min-height:43px;background:#091c30;color:#fff;border:1px solid #5192b2;border-radius:9px;padding:8px">
+<option value="zip">ZIP archive · one package</option>
+<option value="individual">Individual tracks · separate downloads</option>
+</select>
+<p class="tiny" id="checkoutDeliveryStatus" role="status">Selection saved for this device. No download can be delivered until the payment processor, masters, and private storage are connected.</p>
+</div>
 <h3>Planned payment methods</h3>
 <div class="payopt"><strong>Bitcoin · GE Studios AQUA</strong><div class="muted">BTCPay production server, verified wallet connection and confirmed on-chain invoice required.</div><span class="pill">Not connected</span></div>
-<div class="payopt"><strong>Credit/debit · PayPal</strong><div class="muted">Requires a separately approved and verified business payment account; wallet options depend on the processor.</div><span class="pill">Not connected</span></div>
+<div class="payopt"><strong>Credit/debit · PayPal or Stripe Checkout</strong><div class="muted">Requires an approved merchant account and verified server-side payment confirmation before release of downloads.</div><span class="pill">Not connected</span></div>
 <div class="payopt"><strong>Lightning</strong><div class="muted">Requires a supported receiving setup and published network/swap costs; AQUA is not a direct Lightning receiving endpoint here.</div><span class="pill">Not connected</span></div>
 <button class="primary full" type="button" disabled aria-disabled="true">Payment Not Yet Available</button>
 <p class="tiny">Once connected, a server-side order will wait for verified settlement before delivering music, enabling radio access or sending a printer order.</p>
@@ -157,6 +173,14 @@ const money=n=>"$"+Number(n||0).toFixed(2);
 const el=(tag,cls,content)=>{const o=document.createElement(tag);if(cls)o.className=cls;if(content!==undefined)o.textContent=content;return o};
 const get=id=>document.getElementById(id);
 const state={catalog:null,cart:[],bios:{},activeAlbum:null};
+const digitalFormat=get("checkoutFormat"),digitalDelivery=get("checkoutDelivery");
+for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDelivery,"ge_support_delivery_v1"]]){
+  try{const saved=localStorage.getItem(key);if(saved&&[...field.options].some(x=>x.value===saved))field.value=saved}catch(_e){}
+  field.addEventListener("change",()=>{
+    try{localStorage.setItem(key,field.value)}catch(_e){}
+    get("checkoutDeliveryStatus").textContent="Selected "+digitalFormat.options[digitalFormat.selectedIndex].text+" · "+digitalDelivery.options[digitalDelivery.selectedIndex].text+". Payment and delivery are not yet active.";
+  });
+}
 try{const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100)}catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
 function closeAlbum(){const open=!get("albumDetail").hidden;get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u);if(open&&!get("section-music").hidden)get("musicIntro").scrollIntoView({block:"start",behavior:"smooth"})}
