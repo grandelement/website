@@ -28,6 +28,7 @@ function snapshot(){
   "",
   "STUDIO DRIVE",
   "Connection     "+read("helperStatus"),
+  "Drive online   "+read("driveQuotaStatus"),
   "Autostart      "+read("autoRepairState"),
   "MP3 converter  "+read("mp3Status"),
   "Drive listing  "+read("libraryStatus"),
@@ -54,9 +55,42 @@ function snapshot(){
  var pre=el("geStudioSnapshot");
  if(pre)pre.textContent=lines.join("\n");
 }
+var checkingDrive=false;
+function checkDriveRemote(){
+ if(checkingDrive)return;
+ checkingDrive=true;
+ var target=el("driveQuotaStatus");
+ if(target)target.textContent="Checking Google Drive remote access and available space…";
+ var xhr=new XMLHttpRequest(),finished=false;
+ function done(message){
+  if(finished)return;finished=true;checkingDrive=false;
+  if(target)target.textContent=message;
+  snapshot();
+ }
+ try{
+  xhr.open("GET","http://127.0.0.1:8765/check",true);
+  xhr.timeout=15000;
+  xhr.setRequestHeader("Accept","application/json");
+  xhr.onreadystatechange=function(){
+   if(xhr.readyState!==4)return;
+   if(xhr.status===0){done("OFFLINE · Local helper not responding (HTTP 0)");return}
+   if(xhr.status===404){done("NOT AVAILABLE · Updated local helper v3 required for full Drive check.");return}
+   if(xhr.status!==200){done("DRIVE CHECK FAILED · Local helper HTTP "+xhr.status);return}
+   var result={};try{result=JSON.parse(xhr.responseText||"{}")}catch(e){}
+   if(!result.drive_accessible){done("GOOGLE DRIVE NOT VERIFIED · "+(result.reason||"Remote check failed."));return}
+   done("GOOGLE DRIVE VERIFIED"+(result.free?" · FREE "+result.free:"")+
+    (result.total?" / TOTAL "+result.total:"")+
+    (result.used?" · USED "+result.used:""));
+  };
+  xhr.onerror=function(){done("LOCAL HELPER UNREACHABLE · Remote Drive quota not checked.")};
+  xhr.ontimeout=function(){done("GOOGLE DRIVE CHECK TIMED OUT · Please try reconnecting.")};
+  xhr.send(null);
+ }catch(e){done("BROWSER BLOCKED LOCAL HELPER CHECK · No credentials changed.")}
+}
 function run(){
  var drive=el("retryHelper"),radio=el("testLive");
  if(drive&&drive.onclick)drive.click();
+ checkDriveRemote();
  if(radio&&radio.onclick)radio.click();
  snapshot();
  w.setTimeout(snapshot,1600);
@@ -68,7 +102,8 @@ function init(){
  var drive=el("retryHelperDiagnostics");
  if(drive)drive.onclick=function(){var b=el("retryHelper");if(b)b.click();snapshot()};
  snapshot();
- if(w.setInterval)w.setInterval(snapshot,2500);
+ w.setTimeout(checkDriveRemote,1400);
+ if(w.setInterval){w.setInterval(snapshot,2500);w.setInterval(checkDriveRemote,300000)}
  var diag=el("geDiagnostics");
  if(diag&&diag.addEventListener)diag.addEventListener("toggle",function(){if(diag.open)snapshot()});
 }
