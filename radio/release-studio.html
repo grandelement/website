@@ -1,0 +1,140 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GE DJ · Release Studio</title>
+<style>
+*{box-sizing:border-box}body{background:linear-gradient(155deg,#091926,#030509);color:#e9faff;font:14px/1.5 Arial,Helvetica,sans-serif;margin:0;min-height:100vh}
+main{max-width:710px;margin:auto;padding:16px 14px 90px}
+h1{font-size:25px;letter-spacing:.08em;margin:6px 0}h2{font-size:17px;margin:4px 0 10px}
+.small{font-size:12px;color:#a8bfcf}.banner{background:#102c3f;border:1px solid #3f869b;padding:12px;border-radius:12px;margin:10px 0}
+section{background:#09141f;border:1px solid #335267;border-radius:14px;padding:14px;margin:12px 0}
+label{display:block;font-weight:bold;font-size:13px;margin:9px 0 4px}
+input,select{width:100%;min-height:41px;border-radius:9px;border:1px solid #456c81;background:#081e2d;color:#eafaff;padding:8px 10px;font:inherit}
+input[type=file]{padding:8px 5px;cursor:pointer}
+button,a.button{border:1px solid #68a8c2;border-radius:10px;background:#13364b;color:#f3fcff;min-height:43px;padding:8px 14px;font:800 13px Arial,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.primary{background:#165542;border-color:#86e4c9}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 5px}
+.info{font-size:12px;color:#c4dce9;min-height:22px;overflow-wrap:anywhere}
+progress{width:100%;height:18px;margin:12px 0}
+#coverPreview{width:130px;height:130px;object-fit:cover;border:1px solid #558aa6;border-radius:11px;display:none;margin-top:10px}
+pre{font:11px/1.6 monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#bceaf2;background:#030b14;border:1px solid #284a5a;border-radius:10px;padding:10px;max-height:275px;overflow:auto}
+.note{border-left:3px solid #81dfda;padding-left:9px;font-size:12px;color:#b7d8da}
+</style></head><body><main>
+<div class="row"><a href="./ge-dj.html" class="button">BACK TO DJ</a><a href="../dj/imac.html" class="button">iMAC DJ</a></div>
+<h1>GE DJ · RELEASE STUDIO</h1>
+<div class="banner"><strong>Private studio preparation</strong><br>
+Upload your audio and cover artwork into the DJ's private Cloudflare library before publishing to Grand Element. Draft and final recordings are <strong>NOT public</strong>, not yet on Radio 1/2, and not purchasable. Public release needs a separate approval/publishing step.</div>
+<section><h2>1 · OWNER ACCESS</h2>
+<label for="djPassword">DJ PASSCODE (if this device is not already trusted)</label>
+<input id="djPassword" type="password" autocomplete="off" placeholder="Enter DJ passcode">
+<p class="small">Your existing DJ device authorization may work automatically. Passcode is kept in this page only and is never added to a public file.</p></section>
+<section><h2>2 · DESCRIBE THE RECORDING</h2>
+<label for="album">ALBUM</label><input id="album" maxlength="100" placeholder="e.g. Intergy">
+<label for="song">TRACK TITLE</label><input id="song" maxlength="120" placeholder="e.g. Stay In Union">
+<div class="row">
+<div style="flex:1 1 120px"><label for="year">YEAR</label><input id="year" type="text" maxlength="4" inputmode="numeric" placeholder="2026"></div>
+<div style="flex:1 1 120px"><label for="number">TRACK NUMBER</label><input id="number" type="number" min="1" max="999" placeholder="1"></div>
+</div>
+<label for="stage">STAGE</label><select id="stage"><option value="draft">DRAFT · private review</option><option value="final">FINAL · private, awaiting publication</option></select>
+<label for="audio">AUDIO FILE (MP3, WAV, M4A, AIFF, FLAC, OGG · UP TO 60 MB)</label><input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.flac,.ogg,.oga,audio/*">
+<label for="art">ALBUM / SONG COVER (JPG, PNG, WEBP · UP TO 8 MB)</label><input id="art" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><img id="coverPreview" alt="Selected cover preview">
+<div class="row"><button class="primary" id="upload">SAVE PRIVATE AUDIO + ARTWORK</button><button id="clear">CLEAR SELECTION</button></div>
+<progress id="progress" max="100" value="0"></progress>
+<div id="status" class="info" role="status">Choose your final or draft audio and optional artwork.</div>
+</section>
+<section><h2>3 · RELEASE RECEIPT</h2>
+<pre id="receipt">No private files saved yet.</pre>
+<div class="row"><button id="download">SAVE RECEIPT FILE</button><button id="copy">COPY RECEIPT</button></div>
+<p class="note">This receipt records your album, song, file names and private storage keys. It cannot be used as a public playback URL. Publishing still requires attaching music to the public catalog, assigning release rights and artwork, and rebuilding the website and Radio schedules.</p>
+</section>
+</main>
+<script>
+(function(){
+'use strict';
+var BASE='https://ge-radio-sync.grandelement.workers.dev';
+var get=function(id){return document.getElementById(id)};
+var receipt=null;
+function say(s){get('status').textContent=s}
+function currentAuth(){
+ var h={},pw=get('djPassword').value;
+ if(pw)h['X-GE-DJ-Key']=pw;
+ try{
+  var id=localStorage.getItem('geDjTrustedIdV1')||'',token=localStorage.getItem('geDjTrustedTokenV1')||'';
+  if(id&&token){h['X-GE-DJ-Device-ID']=id;h['X-GE-DJ-Device-Token']=token}
+ }catch(e){}
+ return h;
+}
+function uploadFile(file,path,progressText,done){
+ var xhr=new XMLHttpRequest(),h=currentAuth();
+ xhr.open('POST',BASE+path,true);
+ for(var k in h){if(Object.prototype.hasOwnProperty.call(h,k))xhr.setRequestHeader(k,h[k])}
+ xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+ xhr.upload.onprogress=function(e){if(e.lengthComputable)get('progress').value=Math.round(e.loaded/e.total*100);say(progressText+' · '+Math.round(e.loaded/e.total*100)+'%')};
+ xhr.onload=function(){
+  var data={};try{data=JSON.parse(xhr.responseText)}catch(e){}
+  if(xhr.status<200||xhr.status>=300||!data.ok){done(new Error((data.error||'Studio upload failed')+' (HTTP '+xhr.status+')'));return}
+  done(null,data);
+ };
+ xhr.onerror=function(){done(new Error('Network error while uploading. Check the Cloudflare studio connection.'))};
+ xhr.ontimeout=function(){done(new Error('Upload timed out.'))};xhr.timeout=180000;
+ try{xhr.send(file)}catch(e){done(e)}
+}
+function meta(){return {album:get('album').value.trim(),track:get('song').value.trim(),
+ year:get('year').value.trim(),number:get('number').value.trim(),stage:get('stage').value}}
+function params(file,m,art){
+ return '?'+(art?'':'kind='+encodeURIComponent(m.stage)+'&')+'name='+encodeURIComponent(file.name)
+ +'&album='+encodeURIComponent(m.album)+'&title='+encodeURIComponent(m.track);
+}
+function disable(flag){get('upload').disabled=flag;get('clear').disabled=flag}
+get('art').addEventListener('change',function(){
+ var f=this.files&&this.files[0],p=get('coverPreview');
+ if(!f){p.style.display='none';return}
+ if(!/^image\/(jpeg|png|webp)$/.test(f.type)&&!/\.(jpg|jpeg|png|webp)$/i.test(f.name)){say('Artwork must be JPG, PNG or WEBP.');return}
+ if(typeof URL==='object'&&URL.createObjectURL){
+  if(p.getAttribute('data-url'))URL.revokeObjectURL(p.getAttribute('data-url'));
+  var url=URL.createObjectURL(f);p.src=url;p.setAttribute('data-url',url);p.style.display='block';
+ }
+});
+get('upload').addEventListener('click',function(){
+ var m=meta(),audio=get('audio').files&&get('audio').files[0],art=get('art').files&&get('art').files[0];
+ if(!m.album||!m.track){say('Enter an album name and a track title first.');return}
+ if(!audio&&!art){say('Choose an audio file or album artwork.');return}
+ if(audio&&(!/\.(mp3|m4a|aac|wav|aif|aiff|flac|ogg|oga)$/i.test(audio.name)||audio.size>60*1024*1024)){say('Choose supported audio under 60 MB.');return}
+ if(art&&(!/\.(jpg|jpeg|png|webp)$/i.test(art.name)||art.size>8*1024*1024)){say('Choose supported artwork under 8 MB.');return}
+ var auth=currentAuth();if(!Object.keys(auth).length){say('Sign in to DJ or enter your passcode before uploading.');return}
+ disable(true);get('progress').value=0;
+ receipt={format:'ge-private-release-receipt-v1',catalog_status:'NOT_PUBLISHED',created_at:new Date().toISOString(),
+ album:m.album,track_title:m.track,year:m.year,track_number:m.number,stage:m.stage,artwork:null,audio:null};
+ function finished(){get('receipt').textContent=JSON.stringify(receipt,null,2);disable(false);get('progress').value=100}
+ function artStep(){
+  if(!art){say('Private audio saved. Ready for public-release review.');finished();return}
+  say('Saving private artwork…');get('progress').value=0;
+  uploadFile(art,'/v1/dj-uploads/artwork'+params(art,m,true),'Private artwork upload',function(err,data){
+   if(err){say('Audio saved, but artwork failed: '+err.message);finished();return}
+   receipt.artwork={name:data.name,private_storage_key:data.key,bytes:data.bytes};
+   say('Private audio/artwork saved. NOT published to Radio.');finished();
+  });
+ }
+ if(audio){
+  say('Saving private audio…');
+  uploadFile(audio,'/v1/dj-uploads'+params(audio,m,false),'Private audio upload',function(err,data){
+   if(err){disable(false);say('Audio upload failed: '+err.message);return}
+   receipt.audio={name:data.name,private_storage_key:data.key,bytes:data.bytes};
+   artStep();
+  });
+ }else{artStep()}
+});
+get('clear').addEventListener('click',function(){get('audio').value='';get('art').value='';get('song').value='';get('coverPreview').style.display='none';get('progress').value=0;say('Ready for next recording.')});
+get('download').addEventListener('click',function(){
+ if(!receipt){say('Upload a file to create a private receipt.');return}
+ var blob=new Blob([JSON.stringify(receipt,null,2)],{type:'application/json'}),a=document.createElement('a');
+ var u=URL.createObjectURL(blob);a.href=u;a.download='GE-'+receipt.album.replace(/[^a-z0-9_-]/gi,'-')+'-release-receipt.json';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);
+});
+get('copy').addEventListener('click',function(){
+ if(!receipt){say('Nothing has been uploaded yet.');return}
+ var value=JSON.stringify(receipt,null,2);
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(value).then(function(){say('Receipt copied.')},function(){say('Download the receipt instead.')});
+ else{var t=document.createElement('textarea');t.value=value;document.body.appendChild(t);t.select();try{document.execCommand('copy');say('Receipt copied.')}catch(e){say('Download the receipt instead.')}t.remove()}
+});
+})();
+</script></body></html>
