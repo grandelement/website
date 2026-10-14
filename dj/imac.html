@@ -78,170 +78,212 @@ button:disabled{opacity:.48;cursor:not-allowed}
 #listenVolumeRead{display:inline-block;min-width:42px;text-align:right}
 #listenerPanel .notice{color:#bed4e1}#inputBar{height:100%;width:0;background:#63d4bd}
 @media(max-width:650px){.columns,.col{display:block;width:100%}body{padding:7px}.panel{padding:12px}}
+ 
+/* The GE Studio simplified two-section dashboard. */
+main{max-width:980px}
+.geStudioHeader{padding:12px 16px}
+.geStudioHeader h1{font-size:24px}
+.geMainActions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.geMainActions button,.geMainActions a{margin:0;min-height:50px}
+.geMainActions select{width:auto;min-width:195px;flex:1 1 230px;margin:0}
+.geFolderTabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.geFolderTabs button{flex:1 1 100px;margin:0;padding:9px}
+.geFolderTabs button.geSelectedTab{background:#154f45;border-color:#8ae2d5}
+.geStudioFiles{background:#07111c;border:1px solid #41627c;border-radius:8px;padding:12px;margin-top:12px;min-height:100px}
+.geStudioFiles #musicLibrary{max-height:320px;overflow:auto}
+.geDropZone{padding:12px;border:1px dashed #72b8d1;border-radius:8px}
+.geDropZone.geDragOver{border-color:#69ffcc;background:#173b43}
+.geDropZone label{display:block;color:#b9ddea;font-size:13px}
+.geNowPlaying{border:1px solid #33576a;border-radius:8px;padding:9px;margin:8px 0}
+.geNowPlaying b{display:block;font-size:15px}
+.geNowPlaying .tag{display:inline-block;margin:5px 0}
+.geListener{border:1px solid #33576a;border-radius:8px;padding:10px;margin:10px 0}
+.geListener audio{display:block;width:100%;margin:6px 0}
+.geListener button{padding:9px 12px;min-height:40px}
+.geHiddenSupport{display:none}
+.geAdvancedControls{margin-top:12px}
+.geAdvancedControls summary,#geDiagnostics summary{cursor:pointer;color:#a9e1eb;font-size:17px;font-weight:bold;min-height:30px}
+#geDiagnostics summary{font-size:18px}
+#geStudioSnapshot{white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;background:#05101b;border:1px solid #38516a;padding:12px;font:13px/1.45 monospace;color:#bfeadf}
+#studioDrive #helperStatus{font-size:13px;color:#eed3a4}
+#studioDrive #musicLibraryPanel{margin-top:10px}
+#studioRadio #liveToggle{border-color:#62e6b7;font-size:17px;min-width:190px}
+#studioRadio #liveToggle.red{background:#822532;border-color:#ef9b9b}
+#studioRadio .geMeters{margin:10px 0}
+#studioRadio #liveStatus{font-weight:bold}
+#studioRadio #connection{font-weight:bold}
+#sessionUploadCard .geSelected{color:#a6e1cd}
+@media(max-width:500px){body{padding:8px}.panel{padding:11px}.geMainActions button{flex:1 1 140px}#studioRadio #liveToggle{flex:1 1 170px}}
 </style>
 </head>
 <body>
 <main>
-<div class="panel">
- <h1>GE DJ · iMAC</h1>
- <p>Classic Safari control desk for the older iMac · Ableton / Focusrite studio</p>
- <p id="connection" role="status">GE STUDIO READY · BLITZ RADIO DISCONNECTED</p>
- <p id="trustedStatus">Local mixer and Google Drive uploads work without radio sign-in.</p>
- <button id="connectBlitz" type="button" class="green">CONNECT TO BLITZ RADIO</button>
- <button id="disconnectBlitz" type="button" style="display:none">DISCONNECT BLITZ RADIO</button>
- <p>BLITZ is optional. No radio code is required to use Ableton input meters, the local mixer, or song uploads.</p>
-</div>
-<div class="panel" id="listenerPanel">
- <h2>RADIO LISTENING · iMAC</h2>
- <p class="notice">This is the public Grand Element broadcast from BLITZ, not the local Ableton microphone feed. Use headphones before putting the iMac on air to prevent feedback.</p>
- <audio id="imacRadioAudio" controls preload="none">
-  <source src="https://radio.grandelement.blitz.cloud/stream.mp3" type="audio/mpeg">
-  Your browser does not support embedded audio. Use the direct stream link below.
- </audio>
- <div class="controls">
-  <button id="imacListen" type="button" class="green">LISTEN · RADIO 1</button>
-  <button id="imacPause" type="button">STOP LISTENING</button>
-  <button id="imacReconnect" type="button">RECONNECT AUDIO</button>
+ <div class="panel geStudioHeader">
+  <h1>GE STUDIOS · IMAC</h1>
+  <p>Ableton Live · Saffire Pro 40 · Soundflower 2ch</p>
  </div>
- <div>
-  <label for="listenVolume">VOLUME</label>
-  <input id="listenVolume" type="range" min="0" max="100" value="65">
-  <span id="listenVolumeRead">65%</span>
- </div>
- <p id="listenerState" role="status">READY · Press LISTEN to hear the live radio.</p>
- <a class="link" target="_blank" rel="noopener" href="https://radio.grandelement.blitz.cloud/stream.mp3">OPEN RADIO STREAM DIRECTLY</a>
- <a class="link" href="https://grandelement.com/radio/ge-clock.html">RADIO 1 / RADIO 2 LISTENER</a>
- <p class="notice">Radio 2 is accessed through the GE Clock listener; it cannot be heard until Bangers has successfully synchronized. The main listening controls above always monitor BLITZ Radio 1.</p>
-</div>
-<div id="blitzPanel" class="panel" style="display:none">
- <h2>RADIO 1 · OPTIONAL BLITZ CONNECTION</h2>
- <p>This sign-in controls only Radio 1 and the remote device registry. Close it anytime; the GE studio and uploads remain available.</p>
- <div id="login">
- <div class="geGateInner">
-  <h2>CONNECT TO RADIO 1</h2>
-  <p>Use the existing BLITZ DJ code only when connecting to the radio. Remember this iMac to reuse its radio authorization.</p>
-  <p id="gateStatus" role="status">RADIO NOT CONNECTED</p>
-  <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
-  <label class="geRememberLabel" for="rememberThisImac"><input id="rememberThisImac" type="checkbox" checked> REMEMBER THIS IMAC · UP TO 180 DAYS</label>
-  <button type="button" id="enter" class="green">ENTER DJ BOOTH</button>
-  <button type="button" id="retryTrusted">RETRY REMEMBERED DEVICE</button>
-  <button type="button" id="forgetDevice">FORGET SAVED RADIO AUTHORIZATION</button>
-  <p id="error" role="status"></p>
-  <p>Remembered-device login saves a revocable device token in this browser, never the DJ code. Your password is not stored.</p>
- </div>
- </div>
-</div>
-<div id="radio">
- <div class="panel">
-  <h2>RADIO 1 · BLITZ</h2>
-  <div id="now">Connecting…</div><div class="tag" id="playlist">PLAYLIST</div>
-  <p id="statusLine"></p>
-  <div class="controls" id="radioControls">
-   <button type="button" id="fadeOut" disabled class="orange">FADE OUT</button>
-   <button type="button" id="fadeIn" disabled class="green">FADE IN</button>
-   <button type="button" id="skip" disabled>SKIP</button>
-   <button type="button" id="stop" disabled class="red">STOP / PLAY</button>
-   <button type="button" id="refresh" disabled>REFRESH</button>
+
+ <section class="panel" id="studioDrive">
+  <h2>STUDIO DRIVE</h2>
+  <div class="geMainActions">
+   <button id="retryHelper" type="button" class="green">RECONNECT DRIVE</button>
+   <a class="link" href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noopener">OPEN GOOGLE DRIVE</a>
   </div>
-  <div class="geMeterBox"><b>RADIO MASTER OUTPUT</b>
-   <div class="geMeterTrack"><div id="radioMeterBar" class="geMeterFill"></div></div>
-   <span class="geMeterRead" id="radioDb">-60 dB</span>
-  </div>
-  <h2>COMING UP</h2><ol id="queue"></ol>
- </div>
-</div>
- <div class="panel">
-  <h2>iMAC · ABLETON STUDIO</h2>
-  <p>2007 iMac · Ableton Live · Focusrite Saffire Pro 40 · Axiom Pro MIDI</p>
-  <p id="devicesFound">SCAN DEVICES · Not yet checked</p>
-  <div class="geMeterBox"><b>GE UNIVERSAL DEVICE CONTROLLERS · iMAC / iPHONE</b>
-   <p id="deviceRoster">LOCAL STUDIO READY · Connect BLITZ Radio 1 to appear on the remote mixer.</p>
-  </div>
-  <div class="controls"><button id="refreshInputs" type="button">SCAN DEVICES</button>
-   <button id="selectInput" type="button" class="green">CONNECT AUDIO INPUT</button>
-   <button id="stopInput" type="button">DISCONNECT INPUT</button></div>
-  <select id="inputs"><option value="">SELECT RECORDING INPUT</option></select>
-  <div class="geMeters">
-   <div class="geMeterBox"><b>STUDIO LEFT</b><div class="geMeterTrack"><div class="geMeterFill" id="leftMeter"></div></div><span id="leftDb" class="geMeterRead">-60 dB</span></div>
-   <div class="geMeterBox"><b>STUDIO RIGHT</b><div class="geMeterTrack"><div class="geMeterFill" id="rightMeter"></div></div><span id="rightDb" class="geMeterRead">-60 dB</span></div>
-  </div>
-  <div id="inputMeter" style="display:none"><div id="inputBar"></div></div>
-  <label for="liveGain">LIVE INPUT LEVEL</label>
-  <input type="range" id="liveGain" min="0" max="150" value="100">
-  <b id="liveGainRead">100%</b>
-  <div class="geMeterBox" id="geLiveCheck">
-   <b>GE STUDIO · LIVE CONTROL</b>
-   <p>Local stereo meters work without BLITZ. Going live is optional and requires separate Radio 1 authorization.</p>
-   <div class="controls">
-    <button id="testLive" type="button">TEST LIVE READINESS · NO BROADCAST</button>
-    <button id="liveToggle" type="button" class="green" disabled>GO LIVE ON BLITZ</button>
+  <p id="helperStatus" role="status">Checking connection to Google Drive on this iMac…</p>
+  <p id="autoCheckStatus" class="small"></p>
+  <div id="musicLibraryPanel" class="geStudioFiles">
+   <div class="geFolderTabs">
+    <button type="button" id="listDrafts">DRAFTS</button>
+    <button type="button" id="listFinals">FINALS</button>
+    <button type="button" id="listSessions">SESSIONS</button>
    </div>
-   <p id="liveReadiness" role="status">LOCAL TEST NOT RUN · Select Soundflower (2ch), connect audio and play Ableton.</p>
-   <p id="liveProbeResult" role="status">Use TEST LIVE READINESS to check the sound path. This does not contact BLITZ unless you connected the radio.</p>
-   <p id="liveStatus" role="status">RADIO DISCONNECTED · BANGERS NOT AFFECTED</p>
-   <p class="small" style="color:#e4c9a2">Use ONE GE DJ Booth tab for LIVE. Two tabs can share the same Radio 1 device and local helper, and may interfere with each other's LIVE controls. Never have two tabs broadcasting simultaneously.</p>
-  </div>
-  <p id="liveState">OFF AIR · BANGERS</p>
-  <p id="studioPresence">LOCAL STUDIO READY · Remote mixer registration available after optional radio connection</p>
-  <p id="channelReadout">SAFFIRE CHANNELS · Not checked</p>
-  <p id="inputStatus">Choose Soundflower (2ch) and click CONNECT AUDIO INPUT. Ableton outputs through the Multi-Output Device to both Saffire speakers and Soundflower. LIVE remains disabled until both audio and optional BLITZ authorization are ready.</p>
-  <p id="meterStatus" role="status" style="color:#82ead0;font-weight:bold">METER IDLE · SELECT AN AUDIO INPUT</p>
-  <p style="color:#c9d9e8"><b>WORKING STUDIO ROUTING:</b> Ableton → macOS Multi-Output Device → Saffire speakers + Soundflower (2ch) → GE DJ Booth. Saffire remains clock master and Soundflower has drift correction. Do not change this routing for LIVE.</p>
-  <p>For safe monitoring, stop the radio player on the iMac before broadcasting to prevent an audio feedback loop. Test local LIVE readiness before connecting to BLITZ.</p>
-  <p><strong>Universal iMac mixer:</strong> Device selection, Left/Right input meters, live gain and radio output. Ableton Master must return through a capture input or an installed loopback. Keep the radio speaker monitor off during LIVE to prevent feedback.</p>
- </div>
- <div class="panel">
-  <h2>SONG DRAFTS · FILE TRANSFERS</h2>
-  <p>Upload multiple songs from this iMac directly to your private Google Drive. Files remain separate from Bangers and the live broadcast.</p>
-  <p><b>Use Browse to choose one or many tracks. Nothing uploads until you click the green or orange UPLOAD button.</b></p>
-  <p id="helperStatus" role="status">CHECKING LOCAL IMAC CONNECTION…</p>
-  <p class="small" id="autoCheckStatus">Automatic upload-helper check runs when the page opens and periodically while idle.</p>
-  <button id="retryHelper" type="button">RECHECK IMAC CONNECTION</button>
-  <a class="link" href="http://127.0.0.1:8765/health" target="_blank" rel="noopener">ONE-CLICK LOCAL HELPER TEST</a>
-  <p class="small">No Terminal commands needed for this test. A page saying <b>Unapproved origin</b> or <b>403</b> means the helper is running but direct browser access is restricted. A Firefox <b>Unable to connect</b> page means the helper is not responding. Return here afterward; the DJ Booth checks automatically.</p>
-  <div class="geUploadCard" id="draftUploadCard">
-   <h3>DRAFT · CHOOSE FILES</h3>
-   <label for="fileDraft">Browse for one or multiple drafts (Command-click or Shift-click)</label>
-   <input type="file" id="fileDraft" multiple aria-label="Choose one or multiple draft music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
-   <p class="geSelected" id="draftSelection">NO TRACKS SELECTED</p>
-   <label for="convertDraft" class="geConvertLabel"><input id="convertDraft" type="checkbox"> Convert DRAFT files to MP3 (320 kbps) before uploading</label>
-   <button type="button" id="uploadDraft" class="green geUploadAction" disabled>UPLOAD SELECTED DRAFTS</button>
-  </div>
-  <div class="geUploadCard" id="finalUploadCard">
-   <h3>FINAL · CHOOSE FILES</h3>
-   <label for="fileFinal">Browse for one or multiple finals (Command-click or Shift-click)</label>
-   <input type="file" id="fileFinal" multiple aria-label="Choose one or multiple final music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
-   <p class="geSelected" id="finalSelection">NO TRACKS SELECTED</p>
-   <label for="convertFinal" class="geConvertLabel"><input id="convertFinal" type="checkbox"> Convert FINAL files to MP3 (320 kbps) before uploading</label>
-   <button type="button" id="uploadFinal" class="orange geUploadAction" disabled>UPLOAD SELECTED FINALS</button>
-  </div>
-  <h3 style="margin-bottom:5px">UPLOAD PROGRESS</h3>
-  <p id="mp3Status" role="status">Checking MP3 encoder on this iMac…</p>
-  <p class="small">Conversion to MP3 needs the working LAME 3.99 helper for WAV/AIFF; MP4/M4A need FFmpeg. The original stays on this iMac. If conversion is unavailable, the selected files stay selected and no upload starts.</p>
-  <button type="button" id="refreshMp3">RECHECK MP3 ENCODER</button>
-  <div class="geMeterTrack" role="progressbar" aria-label="Google Drive file upload"><div id="uploadBar" class="geMeterFill"></div></div>
-  <p class="small">The bar moves during conversion and transfer even when an exact percentage is not available. 100% appears only after Google Drive confirms completion.</p>
-  <p id="uploadResults" role="status" style="white-space:pre-wrap">Google Drive uploader needs the local GE Upload Helper running on this iMac.</p>
-  <p id="uploadIssues" role="status"></p>
-  <div id="musicLibraryPanel">
-   <h2>YOUR UPLOADED MUSIC</h2>
-   <div class="controls"><button type="button" id="listDrafts">MY DRAFTS</button>
-   <button type="button" id="listFinals">MY FINALS</button></div>
-   <h3 id="libraryTitle" style="font-size:15px">GOOGLE DRIVE · GE Studios / Drafts</h3>
-   <p id="libraryStatus" role="status">Loading your uploaded tracks…</p>
-   <p id="libraryHelp">Each library lists your Google Drive tracks and offers MOVE TO TRASH when the updated helper is connected. Your local music is never deleted.</p>
+   <h3 id="libraryTitle">GOOGLE DRIVE · GE Studios / Drafts</h3>
+   <p id="libraryStatus" role="status">Loading uploaded files…</p>
    <div id="musicLibrary"></div>
+   <p id="libraryHelp" class="small">Open files from another computer using the same Google Drive account. Move to Trash affects only the Drive copy.</p>
   </div>
-  <p><b>Storage:</b> Google Drive → GE Studios → Drafts / Finals. Files up to 4 GB. Uploads do not change BANGERS or broadcast. No BLITZ login required.</p>
-  <p><a class="link" href="/dj/ge-upload-helper.py" download="ge-upload-helper-v2.py">DOWNLOAD UPDATED IMAC HELPER</a> · Required for MOVE TO TRASH and improved upload progress. Save as <code>ge-upload-helper-v2.py</code> in Downloads. Stop the old helper in Terminal with Control+C, then run <code>python ~/Downloads/ge-upload-helper-v2.py</code>. The GE DJ Booth itself stays open.</p>
-  <p><b>MP3 SETUP:</b> After downloading <code>lame-3.99</code> to Downloads, run <code>chmod +x ~/Downloads/lame-3.99</code> and verify with <code>~/Downloads/lame-3.99 --version</code>. Then restart the updated <code>ge-upload-helper-v2.py</code>. WAV/AIFF conversion uses LAME at 320 kbps; other formats require compatible FFmpeg. Originals remain unchanged.</p>
-  <p><a class="link" href="/dj/install-ge-uploads.sh" download="install-ge-uploads.sh">OPTIONAL AUTO-START SETUP</a> · Requires a working SSL certificate chain on this iMac. You can continue using the Terminal helper without it. No Google password is stored on this website.</p>
- </div>
-<div class="panel">
- <a class="link" href="https://radio.grandelement.blitz.cloud/dj/">ORIGINAL BLITZ DJ</a>
- <a class="link" href="https://grandelement.com/radio/ge-dj.html?full=1">FULL WEBSITE DJ (NEWER SAFARI)</a>
- <p class="small">This page does not switch Radio 2 or modify your saved Bangers playlist. Use the iPhone DJ for Radio 2 synchronization until the iMac audio contribution path is tested.</p>
-</div>
+  <h3 style="margin:12px 0 6px">ADD FILES</h3>
+  <p class="small">Choose a folder tab above, browse for multiple files or drag files into the box, select MP3 conversion if needed, then press UPLOAD. Browsing or dropping does not start an upload.</p>
+  <div class="geUploadCard" id="draftUploadCard">
+   <h3>UPLOAD TO DRAFTS</h3>
+   <div class="geDropZone" id="dropDraft">
+    <label for="fileDraft">Drag files here, or Browse to select one or many</label>
+    <input type="file" id="fileDraft" multiple aria-label="Choose multiple Draft music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
+   </div>
+   <p id="draftSelection" class="geSelected" role="status">NO FILES SELECTED</p>
+   <label for="convertDraft" class="geConvertLabel"><input id="convertDraft" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF only with LAME)</label>
+   <button id="uploadDraft" type="button" class="green geUploadAction" disabled>UPLOAD DRAFT FILES</button>
+  </div>
+  <div class="geUploadCard" id="finalUploadCard" style="display:none">
+   <h3>UPLOAD TO FINALS</h3>
+   <div class="geDropZone" id="dropFinal">
+    <label for="fileFinal">Drag files here, or Browse to select one or many</label>
+    <input type="file" id="fileFinal" multiple aria-label="Choose multiple Final music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
+   </div>
+   <p id="finalSelection" class="geSelected" role="status">NO FILES SELECTED</p>
+   <label for="convertFinal" class="geConvertLabel"><input id="convertFinal" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF only with LAME)</label>
+   <button id="uploadFinal" type="button" class="orange geUploadAction" disabled>UPLOAD FINAL FILES</button>
+  </div>
+  <div class="geUploadCard" id="sessionUploadCard" style="display:none">
+   <h3>UPLOAD AN ABLETON SESSION</h3>
+   <p class="small">For a whole session including samples: in Finder choose the Ableton project folder and select Compress to make one ZIP. Upload that ZIP here. A lone .als file may not include the samples. Multiple individual session files also work.</p>
+   <div class="geDropZone" id="dropSession">
+    <label for="fileSession">Drag a project ZIP or files here, or Browse to select multiple files</label>
+    <input type="file" id="fileSession" multiple aria-label="Choose multiple Ableton project or session files">
+   </div>
+   <p id="sessionSelection" class="geSelected" role="status">NO FILES SELECTED</p>
+   <p id="sessionHelperStatus" class="small">The local helper must support Sessions.</p>
+   <button id="uploadSession" type="button" class="orange geUploadAction" disabled>UPLOAD SESSION FILES</button>
+  </div>
+  <div class="geMeterTrack" role="progressbar" aria-label="Google Drive upload progress"><div id="uploadBar" class="geMeterFill"></div></div>
+  <p id="uploadResults" role="status">Ready to browse files.</p>
+  <p id="uploadIssues" role="status"></p>
+ </section>
+
+ <section class="panel" id="studioRadio">
+  <h2>STUDIO RADIO</h2>
+  <div class="geMainActions">
+   <button id="connectBlitz" type="button" class="green">CONNECT RADIO 1</button>
+   <button id="disconnectBlitz" type="button" style="display:none">DISCONNECT RADIO</button>
+   <button id="liveToggle" type="button" class="green" disabled>GO LIVE ON BLITZ</button>
+  </div>
+  <p id="connection" role="status">BLITZ Radio 1 is disconnected.</p>
+  <p id="liveState" role="status">OFF AIR · BANGERS</p>
+  <p id="liveReadiness" role="status">Connect Soundflower stereo, play Ableton and authorize Radio 1.</p>
+  <p id="liveStatus" role="status">OFF AIR · Studio feed is not being broadcast.</p>
+  <div id="blitzPanel" class="geGatePanel" style="display:none">
+   <div id="login" class="geGateInner">
+    <h3>RADIO 1 SIGN IN</h3>
+    <p id="gateStatus" role="status">Enter the existing BLITZ DJ code to connect Radio 1.</p>
+    <input id="password" type="password" autocomplete="current-password" placeholder="GE DJ code">
+    <label class="geRememberLabel" for="rememberThisImac"><input id="rememberThisImac" type="checkbox" checked> REMEMBER THIS IMAC</label>
+    <button id="enter" type="button" class="green">CONNECT</button>
+    <p id="error" role="status"></p>
+    <button id="retryTrusted" type="button" style="display:none">RETRY SAVED DEVICE</button>
+    <button id="forgetDevice" type="button">FORGET RADIO LOGIN</button>
+   </div>
+  </div>
+  <div id="radio" style="display:none" class="geNowPlaying">
+   <b id="now">Radio 1 connected</b>
+   <span class="tag" id="playlist">BANGERS</span>
+   <p id="statusLine">Automated music</p>
+   <details class="geAdvancedControls">
+    <summary>Radio playlist controls</summary>
+    <div class="controls" id="radioControls">
+     <button id="fadeOut" type="button" disabled class="orange">FADE OUT</button>
+     <button id="fadeIn" type="button" disabled class="green">FADE IN</button>
+     <button id="skip" type="button" disabled>SKIP</button>
+     <button id="stop" type="button" disabled class="red">STOP / PLAY</button>
+     <button id="refresh" type="button" disabled>REFRESH</button>
+    </div>
+    <div class="geMeterBox"><b>RADIO MASTER OUTPUT</b>
+     <div class="geMeterTrack"><div id="radioMeterBar" class="geMeterFill"></div></div>
+     <span id="radioDb">-60 dB</span>
+    </div>
+    <h3>COMING UP</h3><ol id="queue"></ol>
+   </details>
+  </div>
+  <div id="listenerPanel" class="geListener">
+   <b>LISTEN TO THE PUBLIC RADIO</b>
+   <audio id="imacRadioAudio" controls preload="none">
+    <source src="https://radio.grandelement.blitz.cloud/stream.mp3" type="audio/mpeg">
+    <a href="https://radio.grandelement.blitz.cloud/stream.mp3">Open radio stream</a>
+   </audio>
+   <button id="imacListen" type="button">PLAY RADIO</button>
+   <button id="imacPause" type="button">STOP RADIO</button>
+   <p id="listenerState" role="status">Radio 1 listener · Off</p>
+   <div class="geHiddenSupport">
+    <button id="imacReconnect" type="button">RECONNECT LISTENER</button>
+    <label for="listenVolume">MONITOR LEVEL</label>
+    <input id="listenVolume" type="range" min="0" max="100" value="65">
+    <span id="listenVolumeRead">65%</span>
+   </div>
+  </div>
+  <p class="small">During LIVE, monitor with headphones only or stop playback here to prevent feedback. Radio 1 is the verified live-studio destination. Radio 2 is still a backup music stream; live ingestion for Radio 2 has not been connected.</p>
+  <div class="geMeters">
+   <div class="geMeterBox"><b>LEFT · STUDIO</b><div class="geMeterTrack"><div id="leftMeter" class="geMeterFill"></div></div><span id="leftDb" class="geMeterRead">-60 dB</span></div>
+   <div class="geMeterBox"><b>RIGHT · STUDIO</b><div class="geMeterTrack"><div id="rightMeter" class="geMeterFill"></div></div><span id="rightDb" class="geMeterRead">-60 dB</span></div>
+  </div>
+  <div class="geMainActions">
+   <button id="selectInput" type="button" class="green">CONNECT STUDIO AUDIO</button>
+   <select id="inputs" aria-label="Stereo studio audio device"><option value="">SELECT STUDIO INPUT</option></select>
+  </div>
+  <p id="meterStatus" role="status">Waiting for studio stereo signal…</p>
+  <div class="geHiddenSupport">
+   <p id="devicesFound">Scanning inputs…</p>
+   <p id="inputStatus">Soundflower (2ch) should capture Ableton stereo audio.</p>
+   <div id="inputMeter" style="display:none"><div id="inputBar"></div></div>
+  </div>
+ </section>
+
+ <details class="panel" id="geDiagnostics">
+  <summary>STATUS · CONNECTIONS & TROUBLESHOOTING</summary>
+  <p>All diagnostic details are together here. Take one picture of the block below when something fails. Passwords, radio tokens and Google authorization are never displayed.</p>
+  <button id="runStudioChecks" type="button">RUN ALL CHECKS</button>
+  <pre id="geStudioSnapshot" role="status">Status report loading…</pre>
+  <div class="geMainActions">
+   <button id="retryHelperDiagnostics" type="button">RECHECK DRIVE</button>
+   <button id="testLive" type="button">TEST RADIO LIVE (NO BROADCAST)</button>
+   <button id="refreshInputs" type="button">SCAN AUDIO DEVICES</button>
+   <button id="stopInput" type="button">DISCONNECT STUDIO INPUT</button>
+  </div>
+  <p id="liveProbeResult">Local stereo check not yet run.</p>
+  <p id="mp3Status">Checking MP3 encoder…</p>
+  <p id="studioPresence">Studio not registered with Radio 1.</p>
+  <p id="deviceRoster">Looking for linked devices…</p>
+  <p id="channelReadout">Stereo channels not yet checked.</p>
+  <p id="trustedStatus">Radio authorization not connected.</p>
+  <p id="autoRepairState">Auto-restart not yet confirmed.</p>
+  <label for="liveGain">LIVE INPUT GAIN</label>
+  <input id="liveGain" type="range" min="0" max="150" value="100"><b id="liveGainRead">100%</b>
+  <button id="refreshMp3" type="button">RECHECK MP3 ENCODER</button>
+  <p class="small">DRIVE RECOVERY (ONE-TIME SETUP): The iMac helper can start automatically at login and recover after a crash through a macOS LaunchAgent. The website itself cannot install software after the helper has stopped; OS X requires you to authorize the one-time repair.</p>
+  <a class="link" href="/dj/ge-upload-helper.py" download="ge-upload-helper-v3.py">1 · DOWNLOAD LATEST HELPER</a>
+  <a class="link" href="/dj/ge-studio-repair.sh" download="ge-studio-repair.sh">2 · DOWNLOAD AUTO-RESTART REPAIR</a>
+  <p class="small">After downloading both files, run the repair script once on your iMac using <code>sh ~/Downloads/ge-studio-repair.sh</code> in Terminal. The repair will not interrupt an existing upload or change Ableton or BLITZ. A permanent browser-only reinstall is not permitted by macOS security.</p>
+  <a class="link" href="http://127.0.0.1:8765/health" target="_blank" rel="noopener">TEST LOCAL HELPER PAGE</a>
+  <a class="link" href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener">ORIGINAL BLITZ DJ</a>
+ </details>
 </main>
 <script>
 (function(){
@@ -463,5 +505,5 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=6"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=12"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=13"></script>
 </body></html>
