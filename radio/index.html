@@ -2285,7 +2285,9 @@ body.iam-studio-open #titleBtn{display:none!important}
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <audio id="player" preload="auto" playsinline crossorigin="anonymous"></audio>
+  <!-- The live Icecast MP3 must use native media playback like the working DJ listener.
+     No crossorigin attribute: no cross-origin readable audio data is requested. -->
+  <audio id="player" preload="none" playsinline></audio>
   <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
 
   <div id="musicGroup">
@@ -3805,7 +3807,7 @@ function radio2PlayCurrent(){
     });}catch(_e){}
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
-    audio.autoplay=true;audio.preload='auto';audio.crossOrigin='anonymous';
+    audio.autoplay=false;audio.preload='auto';audio.removeAttribute('crossorigin');
     audio.muted=false;audio.defaultMuted=false;
     audio.src=url;
     audio.load();
@@ -3952,8 +3954,10 @@ async function resumeLiveAtEdge(){
     audio.removeAttribute('src');
     audio.load();
     liveState.internalReset=false;
-    audio.crossOrigin='anonymous';
-    audio.autoplay=true;
+    // Mirror the working iPhone DJ's native MP3 playback: the external stream
+    // can be heard without asking the host for cross-origin audio read access.
+    audio.removeAttribute('crossorigin');
+    audio.autoplay=false;
     audio.preload='auto';
     audio.muted=false;
     audio.defaultMuted=false;
@@ -4005,9 +4009,11 @@ async function enterLiveMode({deferPlay=false}={}){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  audio.autoplay=!deferPlay;
+  // Prepare the live stream without requiring CORS or auto-start permissions.
+  // A real user tap can then play exactly as it does in the DJ listener.
+  audio.autoplay=false;
   audio.preload='auto';
-  audio.crossOrigin='anonymous';
+  audio.removeAttribute('crossorigin');
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
@@ -4142,6 +4148,7 @@ function reconnectLiveStream(){
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
+      audio.removeAttribute('crossorigin');
       audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
@@ -8202,8 +8209,8 @@ gateTestBtn?.addEventListener('click',()=>{
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
-    setLiveStatus('GRAND ELEMENT RADIO',true);
-    setStatus('Grand Element Radio');
+    // Preserve connection/progress/errors instead of hiding them with a generic label.
+    setStatus('Grand Element Radio · checking live station');
   }
 
   const discovered=await discoverOfflineMediaFromCaches();
