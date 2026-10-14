@@ -11,6 +11,47 @@ var OWNER="imac-live",a=null,stream=null,source=null,processor=null,silent=null,
 var localOn=false,busy=false,air=false,dropStarted=false,lastSignal=0,meterTimer=0,radioPoll=0,liveGain=1,raf=0,bufferedDropping=0,latestPeak=0,boardId="";
 var actualInputName="",selectedInputName="",pcmFrames=0,connectedAt=0,diagnosticTimer=0,meterProbe=0,probeSeen=false,lastPcmFrames=0;
 try{boardId=w.localStorage.getItem("geImacClassicBoardId")||"";if(!boardId){boardId="imac-classic-"+Date.now();w.localStorage.setItem("geImacClassicBoardId",boardId)}}catch(e){boardId="imac-classic"}
+
+// Prevent two copies of the same GE Studio page simultaneously starting a
+// public LIVE session under the shared "imac-live" server owner. The lock lives
+// only in this browser profile and expires if this tab crashes.
+var LIVE_LEASE_KEY="geStudioLiveTabLeaseV1";
+var thisLiveTab="studio-"+Date.now()+"-"+Math.floor(Math.random()*1000000);
+var liveLeaseHeld=false;
+function activeOtherLiveTab(){
+ try{
+  var raw=w.localStorage.getItem(LIVE_LEASE_KEY);
+  if(!raw)return false;
+  var lease=JSON.parse(raw);
+  return !!(lease&&lease.id&&lease.id!==thisLiveTab&&Number(lease.expires||0)>Date.now());
+ }catch(e){return false}
+}
+function claimLiveTab(){
+ if(activeOtherLiveTab())return false;
+ try{
+  w.localStorage.setItem(LIVE_LEASE_KEY,JSON.stringify({id:thisLiveTab,expires:Date.now()+25000}));
+  if(activeOtherLiveTab())return false;
+  liveLeaseHeld=true;
+ }catch(e){
+  // Private browsing may disable storage; server safeguards still apply,
+  // and the user is instructed to use only one Studio tab.
+  liveLeaseHeld=false;
+ }
+ return true;
+}
+function renewLiveTab(){
+ if(!liveLeaseHeld||!(busy||air||dropStarted))return;
+ try{w.localStorage.setItem(LIVE_LEASE_KEY,JSON.stringify({id:thisLiveTab,expires:Date.now()+25000}))}catch(e){}
+}
+function releaseLiveTab(){
+ if(!liveLeaseHeld)return;
+ try{
+  var raw=w.localStorage.getItem(LIVE_LEASE_KEY);
+  var lease=raw?JSON.parse(raw):null;
+  if(lease&&lease.id===thisLiveTab)w.localStorage.removeItem(LIVE_LEASE_KEY);
+ }catch(e){}
+ liveLeaseHeld=false;
+}
 function el(s){return d.getElementById(s)}
 function out(s,v){if(el(s))el(s).textContent=String(v)}
 function klass(s,flag){if(el(s))el(s).disabled=!!flag}
@@ -242,10 +283,11 @@ function updateLiveButton(){
  var audioReady=localAudioReady(),radioReady=radioAuthorized(),socketReady=!!w.WebSocket;
  b.textContent=busy?"WORKING…":air?"RETURN TO BANGERS":"GO LIVE ON BLITZ";
  b.className=air?"red":"green";
- b.disabled=busy||(!air&&(!audioReady||!radioReady||!socketReady));
+ b.disabled=busy||(!air&&(!audioReady||!radioReady||!socketReady||activeOtherLiveTab()));
  out("liveState",air?"ON AIR · BLITZ RADIO 1":"OFF AIR · BANGERS");
  if(!air&&!busy){
-  out("liveReadiness",!localOn?"STUDIO INPUT DISCONNECTED · Connect Soundflower (2ch)":
+  out("liveReadiness",activeOtherLiveTab()?"ANOTHER GE STUDIO TAB HAS LIVE CONTROL · Close its LIVE session first":
+   !localOn?"STUDIO INPUT DISCONNECTED · Connect Soundflower (2ch)":
    !audioReady?"STUDIO INPUT CONNECTED · Play Ableton and watch both meters":
    !socketReady?"THIS FIREFOX DOES NOT SUPPORT LIVE WEBSOCKETS":
    !radioReady?"STUDIO AUDIO READY · Radio 1 disconnected. CONNECT TO BLITZ RADIO only when you want to broadcast.":
@@ -326,7 +368,11 @@ function startAir(){
  if(!localAudioReady()){showLive("NOT READY · Play Ableton and confirm both local meters before LIVE.");return}
  if(!radioAuthorized()){showLive("RADIO DISCONNECTED · Connect to BLITZ first. Local audio stays available.");return}
  if(!w.WebSocket){showLive("LIVE UNAVAILABLE · This browser cannot open WebSocket audio.");return}
- if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nThis sends Soundflower stereo audio to BLITZ Radio 1. BLITZ may briefly lower BANGERS while opening the source; the final crossfade happens only after the server confirms incoming audio.\n\nStop the local radio monitor to prevent feedback. Continue?"))return;
+ if(!w.confirm("GO LIVE on BLITZ RADIO 1?\n\nThis sends Soundflower stereo audio to BLITZ Radio 1. BLITZ may briefly lower BANGERS while opening the source; the final crossfade happens only after the server confirms incoming audio.\n\nStop the local radio monitor to prevent feedback. Continue?"))return; 
+ if(!claimLiveTab()){
+  showLive("LIVE BLOCKED · Another GE DJ Booth tab is preparing or broadcasting LIVE. Return that tab to BANGERS before trying here.");
+  return;
+ }
  busy=true;updateLiveButton();showLive("LIVE PRE-FLIGHT · Checking Radio 1 and local audio…");
  var launched=false;
  requestJSON("GET","/control/status",null).then(function(status){
@@ -364,7 +410,7 @@ function startAir(){
    air=true;busy=false;
    stopAir(true,message);
   }else{
-   air=false;dropStarted=false;busy=false;updateLiveButton();
+   air=false;dropStarted=false;busy=false;releaseLiveTab();updateLiveButton();
    out("liveStatus",message+" · No final BANGERS handoff was requested. Check Radio 1 if the server connection was interrupted.");
   }
  });
@@ -379,7 +425,7 @@ function stopAir(fast,priorError){
  }).then(function(){
   return requestJSON("POST","/control/broadcast/stop",{owner:OWNER,force:false});
  }).then(function(){
-  air=false;dropStarted=false;busy=false;
+  air=false;dropStarted=false;busy=false;releaseLiveTab();
   if(ws){ws.onclose=null;try{ws.close()}catch(e){}ws=null}
   updateLiveButton();
   out("liveStatus",(priorError?priorError+" · ":"")+
@@ -395,6 +441,7 @@ function stopAir(fast,priorError){
  });
 }
 function heartbeat(){
+ renewLiveTab();
  if(!w.GEImacClassic||!w.GEImacClassic.loggedIn||!w.GEImacClassic.loggedIn())return;
  var input=el("inputs"),names=[];
  if(input)for(var i=1;i<input.options.length&&names.length<12;i++)names.push(input.options[i].textContent);
