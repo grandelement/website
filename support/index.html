@@ -86,7 +86,7 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <button type="button" role="tab" data-section="radio" aria-selected="false">RADIO</button>
 <button type="button" role="tab" data-section="booking" aria-selected="false">BOOKING</button>
 </div>
-<section id="section-music" role="tabpanel">
+<section id="section-music" role="tabpanel" hidden>
 <div class="sectionIntro" id="musicIntro"><div><h2>THE MUSIC</h2><p>Tap an album cover to choose songs.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
 <div class="note">Preview only. Songs shown are from the GE music directory; checkout and delivery are not yet connected.</div>
 <div class="gallery" id="musicGallery"></div>
@@ -155,7 +155,7 @@ const get=id=>document.getElementById(id);
 const state={catalog:null,cart:[],bios:{},activeAlbum:null};
 try{const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100)}catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
-function closeAlbum(){get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u)}
+function closeAlbum(){const open=!get("albumDetail").hidden;get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u);if(open&&!get("section-music").hidden)get("musicIntro").scrollIntoView({block:"start",behavior:"smooth"})}
 function setSection(name){if(!["home","music","merch","radio","booking"].includes(name))name="home";if(name!=="music")closeAlbum();["music","merch","radio","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);if(name==="home")u.searchParams.delete("section");else u.searchParams.set("section",name);history.replaceState(null,"",u)}window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("[data-section]").forEach(b=>b.addEventListener("click",()=>setSection(b.dataset.section)));
 document.querySelectorAll("[data-close-section]").forEach(b=>b.addEventListener("click",()=>setSection("home")));
