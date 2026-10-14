@@ -186,7 +186,7 @@ async function gePrivateUploads(request,env){
  const input=new URL(request.url),method=request.method;
  const bucket=env.GE_AUDIO_UPLOADS;
  if(input.pathname==="/v1/dj-uploads"&&method==="GET"){
-  const prefix=input.searchParams.get("kind")==="final"?"final/":"draft/";
+  const prefix=input.searchParams.get("kind")==="final"?"final/":input.searchParams.get("kind")==="artwork"?"artwork/":"draft/";
   try{
    const result=await bucket.list({prefix:prefix,limit:100});
    const files=(result.objects||[]).map(x=>({
@@ -195,6 +195,37 @@ async function gePrivateUploads(request,env){
    })).sort((a,b)=>b.key.localeCompare(a.key));
    return json({ok:true,files:files,has_more:!!result.truncated},200,request);
   }catch(e){return json({ok:false,error:"Private audio storage could not list files."},503,request)}
+ }
+ if(input.pathname==="/v1/dj-uploads/artwork"&&method==="POST"){
+  // Private album artwork only: DJ authentication, 8 MB cap, isolated key,
+  // and never an automatic public release or arbitrary upstream URL.
+  const max=8*1024*1024;
+  const name=cleanedMusicName(input.searchParams.get("name"));
+  const album=String(input.searchParams.get("album")||"").trim().slice(0,100);
+  const title=String(input.searchParams.get("title")||"").trim().slice(0,120);
+  if(!/\.(jpg|jpeg|png|webp)$/i.test(name))
+    return json({ok:false,error:"Choose JPG, PNG, or WEBP album artwork."},400,request);
+  const declared=Number(request.headers.get("Content-Length"));
+  if(declared&&(!Number.isFinite(declared)||declared>max))
+    return json({ok:false,error:"Artwork must be 8 MB or smaller."},413,request);
+  if(!request.body)return json({ok:false,error:"No artwork received."},400,request);
+  let bytes=0,key="";
+  const capped=request.body.pipeThrough(new TransformStream({
+    transform(chunk,controller){bytes+=chunk.byteLength;
+      if(bytes>max)throw new Error("Artwork exceeds 8 MB.");controller.enqueue(chunk);}
+  }));
+  try{
+    key="artwork/"+Date.now()+"-"+crypto.randomUUID()+"-"+name;
+    const type=/\.png$/i.test(name)?"image/png":/\.webp$/i.test(name)?"image/webp":"image/jpeg";
+    const obj=await bucket.put(key,capped,{
+      httpMetadata:{contentType:type},
+      customMetadata:{originalName:name,kind:"artwork",album:album,trackTitle:title}
+    });
+    return json({ok:true,key:key,name:name,bytes:obj.size,kind:"artwork",private:true,published_to_radio:false},201,request);
+  }catch(e){
+    if(key)await bucket.delete(key).catch(()=>{});
+    return json({ok:false,error:bytes>max?"Artwork exceeds 8 MB.":"Could not save the private artwork."},bytes>max?413:503,request);
+  }
  }
  if(input.pathname==="/v1/dj-uploads"&&method==="POST"){
   const kind=input.searchParams.get("kind");
@@ -227,7 +258,7 @@ async function gePrivateUploads(request,env){
  }
  if(input.pathname==="/v1/dj-uploads/file"&&method==="GET"){
   const key=String(input.searchParams.get("key")||"");
-  if(!/^(draft|final)\/[0-9]{13}-[0-9a-f-]{36}-[^/]+$/.test(key)||key.includes(".."))
+  if(!/^(draft|final|artwork)\/[0-9]{13}-[0-9a-f-]{36}-[^/]+$/.test(key)||key.includes(".."))
    return json({ok:false,error:"Invalid private file name."},400,request);
   const obj=await bucket.get(key);
   if(!obj)return json({ok:false,error:"File not found."},404,request);
@@ -279,7 +310,7 @@ export default {
   const path=new URL(request.url).pathname,now=Date.now();
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request)});
   if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request);
-  if(path==="/v1/dj-uploads"||path==="/v1/dj-uploads/file")return gePrivateUploads(request,env);
+  if(path==="/v1/dj-uploads"||path==="/v1/dj-uploads/file"||path==="/v1/dj-uploads/artwork")return gePrivateUploads(request,env);
   if(path==="/v1/program"&&request.method==="GET"){
     try{const p=await program(env);return json({ok:true,server_now_ms:now,program:p},200,request);}
     catch(e){return json({ok:false,error:String(e.message||e)},503,request);}
