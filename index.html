@@ -12973,6 +12973,91 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   try{document.getElementById('gePlayer')?.pause?.();}catch(_e){}
 })();
 </script>
+<script id="ge-blue-sun-clock-home-v1">
+(function(){
+  'use strict';
+  const sun=document.getElementById('sunWrap');
+  if(!sun)return;
+  const HOME_WAIT_MS=1400,HOME_EASE_MS=22000,EDGE_THRESHOLD=16;
+  let held=null,park=null,returnAfter=performance.now()+HOME_WAIT_MS;
+  let last=performance.now(),previousWidth=innerWidth,previousHeight=innerHeight;
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  function blocked(){
+    return document.body.classList.contains('game-mode-active')||
+      document.body.classList.contains('ge-body-race-active')||
+      document.getElementById('geCourseMode')?.classList.contains('show')||
+      document.getElementById('geGravityMode')?.classList.contains('show');
+  }
+  function location(){
+    const r=sun.getBoundingClientRect();
+    return {x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height,rect:r};
+  }
+  function move(x,y){
+    const p=location();
+    // Retain at least 25% of the Sun's disk on screen, even when parked.
+    sun.style.left=clamp(x,-p.w*.25,innerWidth+p.w*.25)+'px';
+    sun.style.top=clamp(y,-p.h*.25,innerHeight+p.h*.25)+'px';
+    sun.style.transform='translate(-50%,-50%)';
+  }
+  function chooseParking(){
+    const p=location(),r=p.rect;
+    const possible=[
+      {edge:'left',distance:r.left,across:p.y/Math.max(innerHeight,1),visible:clamp(r.right/Math.max(p.w,1),.25,1)},
+      {edge:'right',distance:innerWidth-r.right,across:p.y/Math.max(innerHeight,1),visible:clamp((innerWidth-r.left)/Math.max(p.w,1),.25,1)},
+      {edge:'top',distance:r.top,across:p.x/Math.max(innerWidth,1),visible:clamp(r.bottom/Math.max(p.h,1),.25,1)},
+      {edge:'bottom',distance:innerHeight-r.bottom,across:p.x/Math.max(innerWidth,1),visible:clamp((innerHeight-r.top)/Math.max(p.h,1),.25,1)}
+    ];
+    possible.sort((a,b)=>a.distance-b.distance);
+    return possible[0].distance<=EDGE_THRESHOLD?possible[0]:null;
+  }
+  function maintainParking(){
+    if(!park)return;
+    const p=location(),v=clamp(park.visible,.25,1),a=clamp(park.across,0,1);
+    if(park.edge==='left')move(p.w*(v-.5),a*innerHeight);
+    if(park.edge==='right')move(innerWidth-p.w*(v-.5),a*innerHeight);
+    if(park.edge==='top')move(a*innerWidth,p.h*(v-.5));
+    if(park.edge==='bottom')move(a*innerWidth,innerHeight-p.h*(v-.5));
+  }
+  sun.addEventListener('pointerdown',e=>{
+    if(blocked()||e.target.closest('#aboutBtn,#btnMusic,#mini,#orbit,#moon,button,input,select,a,.btn,.toggle'))return;
+    held={id:e.pointerId,x:e.clientX,y:e.clientY};
+  });
+  function released(e){
+    if(!held||e.pointerId!==held.id)return;
+    const dragged=Math.hypot(held.x-e.clientX,held.y-e.clientY)>9;
+    held=null;
+    if(!dragged)return;
+    park=chooseParking();
+    returnAfter=performance.now()+HOME_WAIT_MS;
+  }
+  window.addEventListener('pointerup',released);
+  window.addEventListener('pointercancel',released);
+  function tick(now){
+    const dt=clamp(now-last,0,80);last=now;
+    // Screen-top is always the clock's 12 o'clock, in either orientation.
+    if(innerWidth!==previousWidth||innerHeight!==previousHeight){
+      previousWidth=innerWidth;previousHeight=innerHeight;
+      if(park)maintainParking();
+      else returnAfter=now+HOME_WAIT_MS;
+    }
+    if(!blocked()&&!held&&!sun.classList.contains('dragging')&&!park&&now>returnAfter){
+      const p=location(),cx=innerWidth/2,cy=innerHeight/2;
+      const distance=Math.hypot(cx-p.x,cy-p.y);
+      if(distance>.5){
+        const a=1-Math.exp(-dt/HOME_EASE_MS);
+        move(p.x+(cx-p.x)*a,p.y+(cy-p.y)*a);
+      }else if(distance>.01)move(cx,cy);
+    }
+    requestAnimationFrame(tick);
+  }
+  window.GE_BLUE_SUN_CLOCK_HOME={
+    isParked:()=>!!park,
+    parkedEdge:()=>park?.edge||null,
+    returnHome:()=>{park=null;returnAfter=performance.now()+HOME_WAIT_MS;}
+  };
+  requestAnimationFrame(tick);
+})();
+</script>
 <script id="ge-ambient-galaxy-v5">
 (function installGEAmbientGalaxy(){
   'use strict';
@@ -13042,17 +13127,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const a=sunState.phase+((now-epoch)%SUN_PERIOD_MS)/SUN_PERIOD_MS*TAU;
     return{x:sunState.cx+sunState.rx*(Math.cos(a)+.13*Math.cos(3*a+.55)),y:sunState.cy+sunState.ry*(Math.sin(a)+.10*Math.sin(2*a-1.05))};
   }
+  // The independent Blue Sun clock-home controller owns the Sun's position.
+  // The album-planet system reads its live position for gravity, but must not
+  // move it away from a deliberate edge parking or its clock home.
   function moveSun(now){
-    if(!sun)return{x:innerWidth*.5,y:innerHeight*.5,r:50};
-    if(held.has(sun)||sun.classList.contains('dragging')){
-      const p=centerOf(sun);if(!sunState)seedSun(p);sunState.fromX=p.x;sunState.fromY=p.y;sunState.joinAt=now;return p;
-    }
-    if(!sunState)seedSun();
-    const target=sunOrbitPoint(now),r=centerOf(sun),e=edgeMargin();
-    let x=clamp(target.x,e+r.r,innerWidth-e-r.r),y=clamp(target.y,e+r.r,innerHeight-e-r.r);
-    if(now-sunState.joinAt<3200){const q=smooth((now-sunState.joinAt)/3200);x=sunState.fromX+(x-sunState.fromX)*q;y=sunState.fromY+(y-sunState.fromY)*q}
-    sun.style.left=x+'px';sun.style.top=y+'px';sun.style.transform='translate(-50%,-50%)';
-    return{x,y,r:r.r};
+    return sun?centerOf(sun):{x:innerWidth*.5,y:innerHeight*.5,r:50};
   }
 
   function fitEllipse(cx,cy,rx,ry,axis,r){
