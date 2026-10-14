@@ -2127,6 +2127,51 @@ body.iam-studio-open #titleBtn{display:none!important}
  }
 }
 </style>
+<style id="ge-radio-portrait-bottom-visibility-v1">
+/* The previous hard 100dvh + overflow:hidden contract clipped the second
+   utility row on Safari. Keep a compact first screen but always allow the
+   remaining controls to be reached if browser chrome reduces the viewport. */
+@media (orientation:portrait) and (max-width:700px){
+  html{
+    height:auto!important;min-height:100%!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.view-player.portrait-player{
+    height:auto!important;min-height:100svh!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) .wrap{
+    height:auto!important;min-height:100svh!important;max-height:none!important;
+    overflow:visible!important;justify-content:flex-start!important;
+    gap:clamp(3px,.5dvh,6px)!important;
+    padding-bottom:calc(22px + env(safe-area-inset-bottom))!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) header{
+    margin-bottom:-12px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+    flex:0 0 auto!important;min-height:70px!important;
+    margin:4px auto 2px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchBtn{
+    width:74px!important;height:74px!important;
+    min-width:74px!important;min-height:74px!important;
+    max-width:74px!important;max-height:74px!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bgGroup{
+    margin-top:0!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+    margin-bottom:0!important;
+    flex:0 0 auto!important;
+  }
+  body.view-player.portrait-player:not(.iam-studio-open) #bottomActions>*{
+    visibility:visible!important;
+  }
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -4695,7 +4740,10 @@ function syncMainTransport(){
   }
 }
 playBtn?.addEventListener('click',()=>{
-  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()){geOpenMyMusicStore();return;}
+  // Play is the personal music/store entry for all guests, even if the
+  // broadcast is buffering, unavailable, or currently playing. Radio has
+  // its own separate button and must not intercept the store navigation.
+  if(!geOwnerDemoEnabled()){geOpenMyMusicStore();return;}
   state.userStarted=true;
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
     void resumeRadio();return;
