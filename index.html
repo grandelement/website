@@ -2876,7 +2876,11 @@ body.ge-course-golf-active #gameMusicOptions{grid-column:4/7!important}
 #geCourseMode.geGolfShapedCourse .geCourseBoard{border-color:rgba(85,213,255,.16);box-shadow:inset 0 0 50px rgba(0,80,130,.10)}
 #geCourseMode.geGolfShapedCourse .geObstacle{display:none}
 .geBankGuide{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:visible}.geBankGuide polyline{fill:none;stroke:rgba(220,250,255,.95);stroke-width:2;stroke-dasharray:7 7;filter:drop-shadow(0 0 5px #6fd5ff)}
-.geBlueSunCup{background:radial-gradient(circle,#020713 0 25%,#096bb6 27%,#65d1ff 44%,rgba(55,180,255,.22) 64%,transparent 72%)!important;box-shadow:0 0 15px #72dcff,0 0 30px rgba(40,155,255,.8)!important}
+.geBlueSunCup{background:radial-gradient(circle,#020713 0 25%,#096bb6 27%,#65d1ff 44%,rgba(55,180,255,.22) 64%,transparent 72%)!important;box-shadow:0 0 15px #72dcff,0 0 30px rgba(40,155,255,.8)!important;isolation:isolate;--ge-golf-wave:0;--ge-golf-bass:0;--ge-golf-treble:0}
+.geBlueSunCup::before,.geBlueSunCup::after{content:'';position:absolute;border-radius:50%;pointer-events:none;box-sizing:border-box;transition:transform .105s linear,opacity .105s linear;}
+.geBlueSunCup::before{inset:-12%;border:2px solid rgba(180,243,255,.88);box-shadow:0 0 6px rgba(120,226,255,.58),0 0 13px rgba(33,164,255,.32);opacity:calc(.20 + var(--ge-golf-wave) * .70);transform:scale(calc(1 + var(--ge-golf-bass) * .38))}
+.geBlueSunCup::after{inset:-24%;border:1.5px dashed rgba(108,213,255,.85);box-shadow:0 0 8px rgba(49,171,255,.43);opacity:calc(.06 + var(--ge-golf-wave) * .68);transform:scale(calc(.93 + var(--ge-golf-treble) * .32)) rotate(calc(var(--ge-golf-treble) * 25deg))}
+@media(prefers-reduced-motion:reduce){.geBlueSunCup::before,.geBlueSunCup::after{transition:none;transform:none}}
 .geBodyObstacle{background:center/contain no-repeat url('ge-images/images/ge-logo-4-cutout.png')!important;border:0!important;box-shadow:none!important;filter:drop-shadow(0 0 10px #70d8ff)}
 </style>
 
@@ -11881,9 +11885,32 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     openBodyRace();
   }
   function hitObstacle(x,y,r){return obstacles.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h)}
+  let golfWaveTarget=null,golfWaveTick=0;
+  function animateGolfCup(now){
+    if(now-golfWaveTick<62)return;
+    golfWaveTick=now;
+    const cup=board.querySelector('.geBlueSunCup');if(!cup)return;
+    if(cup!==golfWaveTarget)golfWaveTarget=cup;
+    const audio=document.getElementById('gePlayer');
+    const playing=!!audio&&!audio.paused&&!audio.ended&&audio.readyState>1;
+    // The main iOS soundtrack is NOT routed through Web Audio: doing that
+    // previously interrupted playback. Use radio-meter energy when present,
+    // or musical-time ripples while the local website player is running.
+    const moon=document.getElementById('moon');
+    const radioEnergy=Math.max(0,Math.min(1,Number(moon?.style?.getPropertyValue('--moon-level'))||0));
+    const at=Number(audio?.currentTime)||0;
+    const beat=.5+.5*Math.sin(at*12.4),trem=.5+.5*Math.sin(at*22.7+1.4);
+    const energy=playing?Math.min(1,Math.max(radioEnergy,.30+beat*.36+trem*.12)):0;
+    const bass=playing?Math.min(1,.18+energy*.38+beat*.44):0;
+    const treble=playing?Math.min(1,energy*.44+trem*.56):0;
+    cup.style.setProperty('--ge-golf-wave',energy.toFixed(3));
+    cup.style.setProperty('--ge-golf-bass',bass.toFixed(3));
+    cup.style.setProperty('--ge-golf-treble',treble.toFixed(3));
+  }
   function tick(now){
     if(!mode.classList.contains('show'))return;
     const dt=Math.min(.035,(now-last)/1000);last=now;
+    if(courseType==='golf')animateGolfCup(now);
     if(courseType==='golf'&&obj&&Math.hypot(vx,vy)>.5){
       const b=board.getBoundingClientRect();
       if(courseRails.length){
