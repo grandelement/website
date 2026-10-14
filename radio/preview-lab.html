@@ -92,17 +92,22 @@ function valid(t){
 }
 function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
 function button(text,fn){var b=makeNode('button','',text);b.type='button';b.addEventListener('click',fn);return b}
-function showSongs(){
- var q=$('search').value.toLowerCase(),list=tracks.filter(function(t){return label(t).toLowerCase().indexOf(q)>=0}).slice(0,260);
- var holder=$('songs');holder.textContent='';
- if(!list.length)holder.textContent='No matching tracks found.';
- list.forEach(function(t){
-  var row=makeNode('div','song'),name=makeNode('div','songTitle',label(t)),acts=makeNode('div','acts');
-  name.appendChild(makeNode('small','',fmt(t.duration_ms/1000)));
-  acts.appendChild(button('33s',function(){sample(t,33)}));
-  acts.appendChild(button('+ ADD',function(){queue.push(t);paintMeter();showQueue()}));
-  row.appendChild(name);row.appendChild(acts);holder.appendChild(row);
- });
+var albums={},selectedAlbum='';
+function showAlbums(){var wall=$('albumWall');wall.textContent='';
+ Object.keys(albums).sort().forEach(function(name){var b=button('',function(){openAlbum(name)});
+ b.className='albumTile';b.appendChild(makeNode('strong','',name));b.appendChild(makeNode('small','',albums[name].length+' songs'));wall.appendChild(b)})
+}
+function openAlbum(name){if(!albums[name])return;selectedAlbum=name;$('albumWall').hidden=true;$('albumView').hidden=false;$('albumTitle').textContent=name;$('search').value='';showSongs()}
+function showAlbumsHome(){selectedAlbum='';$('albumView').hidden=true;$('albumWall').hidden=false}
+$('backAlbums').addEventListener('click',showAlbumsHome);
+function showSongs(){if(!selectedAlbum)return;
+ var q=$('search').value.toLowerCase(),list=albums[selectedAlbum].filter(function(t){return label(t).toLowerCase().indexOf(q)>=0});
+ var holder=$('songs');holder.textContent='';if(!list.length)holder.textContent='No tracks match.';
+ list.forEach(function(t){var row=makeNode('div','song'),name=makeNode('div','songTitle',t.title),acts=makeNode('div','acts');
+ name.appendChild(makeNode('small','',fmt(t.duration_ms/1000)));
+ acts.appendChild(button('33s',function(){sample(t,33)}));
+ acts.appendChild(button('+ ADD',function(){queue.push(t);paintMeter();showQueue()}));
+ row.appendChild(name);row.appendChild(acts);holder.appendChild(row)});
 }
 function showQueue(){
  var holder=$('queue');holder.textContent='';
@@ -203,7 +208,8 @@ fetch('./track-durations.json',{cache:'no-store'}).then(function(r){if(!r.ok)thr
 .then(function(data){
  tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(function(t){return t.kind==='song'&&valid(t)});
  tracks.sort(function(a,b){return label(a).localeCompare(label(b))});
- showSongs();say(tracks.length+' available tracks loaded.');paintMeter();
+ tracks.forEach(function(t){var group=t.album||'Other';(albums[group]||(albums[group]=[])).push(t)});
+ showAlbums();say(tracks.length+' available tracks loaded.');paintMeter();
 }).catch(function(e){$('songs').textContent='Unable to load song durations. Try reconnecting. '+e.message;});
 paintMeter();
 })();
