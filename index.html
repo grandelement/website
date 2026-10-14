@@ -2832,6 +2832,35 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 .gameOptionsPanel.detail-body .geBodySpecificOptions{display:grid!important}
 .gameOptionsPanel.detail-body .geDetailTopControls{display:none!important}
 </style>
+<style id="ge-special-game-music-layer-v1">
+/* Shared soundtrack controls belong above the full-screen Golf playing layer.
+   Do not create a second audio element or reset the current song. */
+body.ge-course-golf-active #gameMusicDock.open{
+  display:grid!important;
+  position:fixed!important;
+  z-index:22055!important;
+  left:max(8px,env(safe-area-inset-left))!important;
+  right:max(8px,env(safe-area-inset-right))!important;
+  top:calc(60px + env(safe-area-inset-top))!important;
+  bottom:auto!important;
+  width:auto!important;
+  max-height:min(72vh,450px)!important;
+  overflow-y:auto!important;
+  background:rgba(1,13,26,.97)!important;
+  border:1px solid rgba(145,225,255,.75)!important;
+  box-shadow:0 12px 42px rgba(0,0,0,.75),0 0 22px rgba(85,195,255,.35)!important;
+  pointer-events:auto!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:7px!important;
+}
+body.ge-course-golf-active #gameMusicDock.open .gameMusicLabel{grid-column:1/-1!important}
+body.ge-course-golf-active #gameMusicDock.open .gameSeekWrap{grid-column:1/-1!important;max-width:none!important;width:100%!important}
+body.ge-course-golf-active #gameMusicPrev{grid-column:1/3!important}
+body.ge-course-golf-active #gameMusicPlay{grid-column:3/5!important}
+body.ge-course-golf-active #gameMusicNext{grid-column:5/7!important}
+body.ge-course-golf-active #gameMusicMode{grid-column:1/4!important}
+body.ge-course-golf-active #gameMusicOptions{grid-column:4/7!important}
+</style>
 <style id="ge-golf-space-v2">
 #geCourseMode .geCourseBoard{background:radial-gradient(circle at 20% 20%,rgba(55,135,210,.18),transparent 28%),radial-gradient(circle at 75% 70%,rgba(30,85,180,.15),transparent 32%),#010713}
 .geForceRail{background:rgba(80,190,255,.09)!important;border:1px solid rgba(210,245,255,.96)!important;box-shadow:0 0 7px #9ee5ff,0 0 20px rgba(45,175,255,.8),inset 0 0 8px rgba(100,215,255,.55)!important;border-radius:999px!important}
@@ -5637,7 +5666,11 @@ fetchAllMp3s().then(async list=>{
     if(!dock)return;dock.classList.toggle('open',!!open);document.body.classList.toggle('ge-game-music-open',!!open);toggle?.setAttribute('aria-expanded',String(!!open));
     requestAnimationFrame(()=>{try{window.GE_GAME?.reflow?.();}catch(_e){}});
   }
-  toggle?.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();setDock(!dock?.classList.contains('open'));});
+  // Golf runs in its own full-screen layer, above the ordinary Game HUD.
+  // Let special games open the SAME existing music dock directly, without a
+  // synthetic click on the now-hidden Game HUD music button.
+  window.GE_GAME_MUSIC_DOCK={open:()=>setDock(true),close:()=>setDock(false),toggle:()=>setDock(!dock?.classList.contains('open')),isOpen:()=>!!dock?.classList.contains('open')};
+  toggle?.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();window.GE_GAME_MUSIC_DOCK.toggle();});
   document.getElementById('gameExitTopBtn')?.addEventListener('click',()=>setDock(false));
 
   const fmt=t=>{
@@ -11880,17 +11913,17 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }
     raf=requestAnimationFrame(tick)
   }
-  function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
+  function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}document.body.classList.add('ge-course-golf-active');window.GE_GAME_MUSIC_DOCK?.close?.();mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
   board.addEventListener('pointerdown',e=>{if(!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(Math.hypot(x-obj.x,y-obj.y)>55)return;drag={x,y};board.setPointerCapture?.(e.pointerId);if(courseType==='golf'){const line=document.getElementById('geBankGuide');if(line)line.hidden=false}});
   board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=golfShotSpeed(Math.hypot(dx,dy));bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
   board.addEventListener('pointerup',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,m=Math.hypot(dx,dy)||1,p=golfShotSpeed(m);vx=dx/m*p;vy=dy/m*p;strokes++;help.textContent='HOLE '+level+' · '+strokes+' STROKE'+(strokes===1?'':'S');const line=document.getElementById('geBankGuide');if(line)line.hidden=true}drag=null});
   next.addEventListener('click',()=>{level++;if(level>33)level=1;renderGolf()});
-  const toggleSharedGameMusic=()=>document.getElementById('gameMusicToggle')?.click();
+  const toggleSharedGameMusic=()=>{if(window.GE_GAME_MUSIC_DOCK)window.GE_GAME_MUSIC_DOCK.toggle();else document.getElementById('gameMusicToggle')?.click();};
   document.getElementById('geCourseMusic')?.addEventListener('click',toggleSharedGameMusic);
   document.getElementById('geBodyMusic')?.addEventListener('click',toggleSharedGameMusic);
   document.getElementById('geBodyHighScores')?.addEventListener('click',renderBodyHighScores);
   document.getElementById('geBodyScoresClose')?.addEventListener('click',()=>{const p=document.getElementById('geBodyScoresPanel');if(p)p.hidden=true;});
-  document.getElementById('geCourseExit').addEventListener('click',()=>{mode.classList.remove('show');mode.setAttribute('aria-hidden','true');cancelAnimationFrame(raf);document.getElementById('gameOptionsPanel')?.classList.add('show')});
+  document.getElementById('geCourseExit').addEventListener('click',()=>{window.GE_GAME_MUSIC_DOCK?.close?.();document.body.classList.remove('ge-course-golf-active');mode.classList.remove('show');mode.setAttribute('aria-hidden','true');cancelAnimationFrame(raf);document.getElementById('gameOptionsPanel')?.classList.add('show')});
   document.getElementById('geBodyRaceExit')?.addEventListener('click',closeBodyRace);
   document.getElementById('geBodyRaceReplay')?.addEventListener('click',()=>{if(!bodyRace)return;clearBodyRaceBonuses();renderBodyRace()});
   document.getElementById('geBodyRaceNext')?.addEventListener('click',()=>{if(!bodyRace)return;clearBodyRaceBonuses();level=level>=33?1:level+1;renderBodyRace()});
