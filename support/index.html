@@ -91,6 +91,13 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <button type="button" role="tab" data-section="booking" aria-selected="false">BOOKING</button>
 </div>
 <section id="section-music" role="tabpanel" hidden>
+<div class="payopt" id="myMusicAccess" style="margin-bottom:18px;padding:16px;border:1px solid #4b92b5;border-radius:14px;background:#071b2f">
+<h3 style="margin:0 0 5px">MY MUSIC · YOUR LIBRARY</h3>
+<p class="muted" style="margin:0 0 10px">Have a library access code? Enter it here to restore your music when purchase verification is connected. For now, the temporary owner demo code opens only the test library.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><input id="myMusicCode" type="password" autocomplete="off" placeholder="Music access code" aria-label="Music library access code" style="flex:1 1 150px;min-height:43px;background:#061627;color:#fff;border:1px solid #488aa9;border-radius:8px;padding:8px"><button type="button" id="myMusicUnlock" class="primary">OPEN MY MUSIC</button></div>
+<p id="myMusicStatus" class="tiny" role="status">Purchased-music codes are not yet active. No real payments or downloads are enabled.</p>
+<a href="../radio/preview-lab.html#choose" class="outline" style="display:inline-flex;margin-top:8px;text-decoration:none">BUILD FREE 33:33 PLAYLIST</a>
+</div>
 <div class="sectionIntro" id="musicIntro"><div><h2>THE MUSIC</h2><p>Tap an album cover to choose songs.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
 <div class="note">Preview only. Songs shown are from the GE music directory; checkout and delivery are not yet connected. <a href="../radio/preview-lab.html" style="color:#a9eaff;font-weight:800">BUILD YOUR FREE 33:33 PLAYLIST</a></div>
 <div class="gallery" id="musicGallery"></div>
@@ -174,6 +181,11 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <p class="tiny" id="cryptoCheckoutStatus" role="status">Secure checkout is being prepared. No funds can be accepted until the verified payment server is connected.</p>
 <div class="payopt"><strong>CREDIT / DEBIT · PAYPAL OR STRIPE</strong><div class="muted">Awaiting merchant onboarding and identity verification.</div><span class="pill">Not connected</span></div>
 <p class="tiny">Radio membership is $6 per month. Recurring payment consent, renewal dates, failed-payment handling, and cancellation will be implemented before activation. Once connected, the server verifies settlement before granting access, delivering music, or sending a printer order.</p>
+<div class="payopt" style="margin-top:13px">
+<strong>ALREADY OWN YOUR MUSIC?</strong>
+<p class="muted">Enter your library code above on the My Music page, or use the temporary owner demo code for testing.</p>
+<button id="checkoutMyMusic" class="outline" type="button">ENTER CODE · MY MUSIC</button>
+</div>
 </div></div>
 <script>
 "use strict";
@@ -182,6 +194,25 @@ const money=n=>"$"+Number(n||0).toFixed(2);
 const el=(tag,cls,content)=>{const o=document.createElement(tag);if(cls)o.className=cls;if(content!==undefined)o.textContent=content;return o};
 const get=id=>document.getElementById(id);
 const state={catalog:null,cart:[],bios:{},activeAlbum:null};
+function openOwnerMusic(code){
+  // UI demo ONLY. Never treat a browser code as a payment or catalog entitlement.
+  if(String(code||'').trim().toLowerCase()==='love'){
+    try{localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes')}catch(_e){}
+    location.assign('../radio/preview-lab.html#my-music');
+    return;
+  }
+  get('myMusicStatus').textContent='That is not a demo code. Purchased-library code verification is not connected yet.';
+}
+get('myMusicUnlock').addEventListener('click',()=>openOwnerMusic(get('myMusicCode').value));
+get('myMusicCode').addEventListener('keydown',event=>{
+  if(event.key==='Enter'){event.preventDefault();openOwnerMusic(get('myMusicCode').value)}
+});
+get('checkoutMyMusic').addEventListener('click',()=>{
+  get('checkoutLayer').classList.remove('open');
+  get('checkoutLayer').setAttribute('aria-hidden','true');
+  setSection('music');
+  get('myMusicCode').focus();
+});
 const digitalFormat=get("checkoutFormat"),digitalDelivery=get("checkoutDelivery");
 for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDelivery,"ge_support_delivery_v1"]]){
   try{const saved=localStorage.getItem(key);if(saved&&[...field.options].some(x=>x.value===saved))field.value=saved}catch(_e){}
