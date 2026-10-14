@@ -63,6 +63,23 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 .navHome{display:inline-block;white-space:nowrap}
 @media(max-width:700px){.hero{padding:28px 5px 20px}.hero h1{font-size:clamp(23px,6.2vw,39px);letter-spacing:.02em}.sectionNav{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:18px}.sectionNav button{padding:17px 3px;font-size:13px;letter-spacing:.03em}.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.product .details{gap:6px}.albumDetail{padding:12px}.albumDetailHeader{grid-template-columns:1fr;gap:13px}.albumDetailHeader img{max-width:260px;margin:auto}.albumDetailBar button{font-size:12px}header .navHome{display:inline-block!important;font-size:11px}.brand{font-size:clamp(11px,3.2vw,17px)}.brand span{font-size:8px}.sectionIntro h2{font-size:clamp(19px,4.7vw,28px)}}
 @media(prefers-reduced-motion:reduce){.shineHeading,.sectionNav button{animation:none}}
+/* Guest preview-only Soul Comet: persists visibly through album navigation. */
+#gePreviewMeter[hidden]{display:none!important}
+#gePreviewMeter{position:sticky;top:0;top:max(0px,env(safe-area-inset-top));z-index:33;background:rgba(4,19,36,.97);border:1px solid #4aacc8;border-radius:15px;padding:12px 14px;margin:8px 0 15px;box-shadow:0 6px 22px #0009;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#gePreviewMeter .gePreviewTop{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:850}
+#gePreviewMeter .gePreviewTop strong{font-size:clamp(17px,4vw,26px);font-variant-numeric:tabular-nums}
+#gePreviewMeter .gePreviewRail{height:20px;position:relative;margin:16px 9px 9px;border-radius:99px;border:1px solid #357e9e;background:#091d36}
+#gePreviewMeter .gePreviewFill{height:100%;width:0;background:linear-gradient(90deg,#174f8b,#278be0,#62e3ff);border-radius:99px;transition:width .32s}
+#gePreviewMeter .gePreviewComet{position:absolute;top:50%;left:0;width:26px;height:26px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#fff 8%,#acf7ff 27%,#239bec 55%,transparent 74%);box-shadow:0 0 14px 3px #288be7;transition:left .32s}
+#gePreviewMeter .gePreviewComet:before{content:"";position:absolute;right:17px;top:3px;width:68px;height:20px;background:linear-gradient(90deg,transparent,#2179bf88,#76e9ffcc);filter:blur(5px);border-radius:99px}
+#gePreviewMeter .gePreviewRail.full{animation:gePreviewPulse 1.8s ease-in-out infinite}
+@keyframes gePreviewPulse{50%{box-shadow:0 0 19px 3px #4dd2fb}}
+#gePreviewMeter .gePreviewInfo{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#b8e2f6;font-size:12px}
+#gePreviewMeter .gePreviewActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
+#gePreviewMeter .gePreviewActions button{min-height:36px;padding:7px 10px;font-size:12px}
+#gePreviewWarning{font-size:12px;color:#ffd6a4;min-height:16px;font-weight:800;margin:5px 0 0}
+@media(max-width:500px){#gePreviewMeter{padding:9px 10px;margin:4px 0 12px}#gePreviewMeter .gePreviewRail{margin:13px 9px 7px}#gePreviewMeter .gePreviewActions button{flex:1 1 30%}}
+@media(prefers-reduced-motion:reduce){#gePreviewMeter .gePreviewRail.full{animation:none}}
 </style>
 </head>
 <body>
@@ -96,10 +113,17 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 <p class="muted" style="margin:0 0 10px">Have a library access code? Enter it here to restore your music when purchase verification is connected. For now, the temporary owner demo code opens only the test library.</p>
 <div style="display:flex;flex-wrap:wrap;gap:8px"><input id="myMusicCode" type="password" autocomplete="off" placeholder="Music access code" aria-label="Music library access code" style="flex:1 1 150px;min-height:43px;background:#061627;color:#fff;border:1px solid #488aa9;border-radius:8px;padding:8px"><button type="button" id="myMusicUnlock" class="primary">OPEN MY MUSIC</button></div>
 <p id="myMusicStatus" class="tiny" role="status">Purchased-music codes are not yet active. No real payments or downloads are enabled.</p>
-<a href="../radio/preview-lab.html#choose" class="outline" style="display:inline-flex;margin-top:8px;text-decoration:none">BUILD FREE 33:33 PLAYLIST</a>
+<button id="gePreviewChoose" type="button" class="outline" style="display:inline-flex;margin-top:8px">PREVIEW MUSIC · 33:33</button>
+</div>
+<div id="gePreviewMeter" role="region" aria-label="Free preview Soul Comet track selection" hidden>
+<div class="gePreviewTop"><span>PREVIEW · SOUL COMET</span><strong id="gePreviewTotal">00:00 / 33:33</strong></div>
+<div class="gePreviewRail" id="gePreviewRail"><div class="gePreviewFill" id="gePreviewFill"></div><div class="gePreviewComet" id="gePreviewComet"></div></div>
+<div class="gePreviewInfo"><span id="gePreviewCount">0 songs selected</span><span id="gePreviewRoom">33:33 available</span></div>
+<div id="gePreviewWarning" role="status"></div>
+<div class="gePreviewActions"><button type="button" id="gePreviewSend" class="primary" disabled>SEND TO PLAYER</button><button type="button" id="gePreviewClear" class="outline">CLEAR</button><button type="button" id="gePreviewBuy" class="outline">SHOP INSTEAD</button></div>
 </div>
 <div class="sectionIntro" id="musicIntro"><div><h2>THE MUSIC</h2><p>Tap an album cover to choose songs.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
-<div class="note">Preview only. Songs shown are from the GE music directory; checkout and delivery are not yet connected. <a href="../radio/preview-lab.html" style="color:#a9eaff;font-weight:800">BUILD YOUR FREE 33:33 PLAYLIST</a></div>
+<div class="note">Purchase checkout is not connected. For the free listening test, tap <strong>PREVIEW MUSIC · 33:33</strong> above. The Soul Comet counts the durations of songs you select, before playing them.</div>
 <div class="gallery" id="musicGallery"></div>
 <div id="albumDetail" class="albumDetail" hidden>
  <div class="albumDetailBar"><button class="outline" id="albumBack" type="button">← ALL ALBUMS</button><button class="outline" id="albumClose" type="button">CLOSE ×</button></div>
@@ -194,6 +218,99 @@ const money=n=>"$"+Number(n||0).toFixed(2);
 const el=(tag,cls,content)=>{const o=document.createElement(tag);if(cls)o.className=cls;if(content!==undefined)o.textContent=content;return o};
 const get=id=>document.getElementById(id);
 const state={catalog:null,cart:[],bios:{},activeAlbum:null};
+
+/* PREVIEW is a distinct selection mode from shopping; no checkbox or preview
+   duration can authorize a purchase. All entitlements remain server-side work. */
+const PREVIEW_LIMIT=2013,PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
+const normPreview=v=>String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+const trackKey=(album,file)=>normPreview(album)+'|'+normPreview(file);
+let previewMode=new URL(location.href).searchParams.get('flow')==='player'||new URL(location.href).searchParams.get('flow')==='preview';
+let previewQueue=[],previewDurations=new Map(),previewDurationsReady=false;
+try{
+ const old=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
+ if(Array.isArray(old))previewQueue=old.filter(x=>x&&typeof x.url==='string'&&Number.isFinite(Number(x.duration_ms))&&Number(x.duration_ms)>0).slice(0,120);
+}catch(_e){}
+function formatPreviewTime(sec){
+ sec=Math.max(0,Math.floor(Number(sec)||0));
+ return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+}
+function durationFor(album,track){return previewDurations.get(trackKey(album.title,track.file))||null}
+function queueDurationMs(){return previewQueue.reduce((sum,x)=>sum+Number(x.duration_ms||0),0)}
+function persistPreview(){try{sessionStorage.setItem(PREVIEW_QUEUE_KEY,JSON.stringify(previewQueue))}catch(_e){}}
+function updatePreviewMeter(){
+ get('gePreviewMeter').hidden=!previewMode;
+ const seconds=queueDurationMs()/1000,percentage=Math.min(100,seconds/PREVIEW_LIMIT*100);
+ get('gePreviewTotal').textContent=formatPreviewTime(seconds)+' / 33:33';
+ get('gePreviewCount').textContent=previewQueue.length+' song'+(previewQueue.length===1?'':'s')+' selected';
+ get('gePreviewRoom').textContent=seconds>PREVIEW_LIMIT?'Over by '+formatPreviewTime(seconds-PREVIEW_LIMIT):formatPreviewTime(PREVIEW_LIMIT-seconds)+' remaining';
+ get('gePreviewFill').style.width=percentage+'%';
+ get('gePreviewComet').style.left=percentage+'%';
+ get('gePreviewRail').classList.toggle('full',seconds>=PREVIEW_LIMIT);
+ get('gePreviewWarning').textContent=!previewDurationsReady?'Loading verified track durations…':seconds>PREVIEW_LIMIT?
+ 'This selection exceeds the 33:33 free preview by '+formatPreviewTime(seconds-PREVIEW_LIMIT)+'. Listening still ends at 33:33.':'';
+ get('gePreviewSend').disabled=!previewDurationsReady||!previewQueue.length;
+ persistPreview();
+}
+function updatePreviewAlbumControls(){
+ if(!state.activeAlbum)return;
+ const album=state.activeAlbum;
+ if(previewMode){
+   get('albumBuyAll').textContent='SELECT WHOLE ALBUM FOR PREVIEW';
+   get('albumAddSelected').textContent='KEEP SONGS · BACK TO ALBUMS';
+   get('albumAddSelected').disabled=false;
+   get('albumDetailBio').textContent='Free 33:33 preview. Check the songs you want; the Soul Comet at the top updates instantly.';
+   get('albumTrackList').querySelectorAll('input[type="checkbox"]').forEach(box=>{
+     box.checked=previewQueue.some(x=>x.preview_key===trackKey(album.title,box.dataset.trackFile));
+     const track=album.tracks.find(t=>t.file===box.dataset.trackFile),d=track&&durationFor(album,track);
+     const price=box.closest('.trackrow')?.querySelector('strong');
+     if(price)price.textContent=d?formatPreviewTime(d.duration_ms/1000):'—';
+     box.disabled=!d;
+   });
+ }else{
+   const b=getBio(album);
+   get('albumDetailBio').textContent=b.bio||"Choose the recordings you'd like to own.";
+   get('albumBuyAll').textContent='ADD COMPLETE ALBUM · '+money(album.tracks.length)+(albumBonus(album).length?' · BONUS INCLUDED':'');
+   get('albumTrackList').querySelectorAll('input[type="checkbox"]').forEach(box=>{
+     box.disabled=false;
+     const price=box.closest('.trackrow')?.querySelector('strong');if(price)price.textContent=money(1.5);
+   });
+ }
+}
+function enterPreview(){
+ previewMode=true;
+ const url=new URL(location.href);url.searchParams.set('section','music');url.searchParams.set('flow','preview');
+ history.replaceState(null,'',url);
+ setSection('music');
+ updatePreviewMeter();
+ if(state.activeAlbum){updatePreviewAlbumControls();syncAlbumSelected()}
+ get('gePreviewMeter').scrollIntoView({block:'start',behavior:'smooth'});
+}
+get('gePreviewChoose').addEventListener('click',enterPreview);
+get('gePreviewBuy').addEventListener('click',()=>{
+ previewMode=false;const url=new URL(location.href);url.searchParams.delete('flow');history.replaceState(null,'',url);
+ updatePreviewMeter();if(state.activeAlbum){updatePreviewAlbumControls();syncAlbumSelected()}
+});
+get('gePreviewClear').addEventListener('click',()=>{
+ previewQueue=[];persistPreview();updatePreviewMeter();
+ if(state.activeAlbum){updatePreviewAlbumControls();syncAlbumSelected()}
+});
+get('gePreviewSend').addEventListener('click',()=>{
+ if(!previewQueue.length)return;
+ persistPreview();location.assign('../radio/preview-lab.html#player');
+});
+function updateAlbumPreviewQueue(){
+ const album=state.activeAlbum;if(!album||!previewDurationsReady)return;
+ const checked=new Set([...get('albumTrackList').querySelectorAll('input[type="checkbox"]:checked')].map(x=>trackKey(album.title,x.dataset.trackFile)));
+ const keys=new Set(album.tracks.map(t=>trackKey(album.title,t.file)));
+ previewQueue=previewQueue.filter(x=>!keys.has(x.preview_key)||checked.has(x.preview_key));
+ for(const t of album.tracks){
+   const k=trackKey(album.title,t.file),item=durationFor(album,t);
+   if(!checked.has(k)||!item||previewQueue.some(x=>x.preview_key===k))continue;
+   previewQueue.push({preview_key:k,url:item.url,path:item.path,title:item.title,album:item.album,duration_ms:item.duration_ms,kind:'song'});
+ }
+ updatePreviewMeter();
+}
+
 function openOwnerMusic(code){
   // UI demo ONLY. Never treat a browser code as a payment or catalog entitlement.
   if(String(code||'').trim().toLowerCase()==='love'){
@@ -315,12 +432,25 @@ albumBonus(album).forEach(track=>{
   list.append(row);
 });
 album.tracks.forEach(track=>{const row=el("div","trackrow");const label=el("label");const box=el("input");box.type="checkbox";box.dataset.trackFile=track.file;box.addEventListener("change",syncAlbumSelected);label.append(box,el("span","",String(track.number).padStart(2,"0")+" · "+track.title));row.append(label,el("strong","",money(1.5)));list.append(row)});
+updatePreviewAlbumControls();
 syncAlbumSelected();
 const u=new URL(location.href);u.searchParams.set("album",album.title.replace(/!$/,""));history.replaceState(null,"",u);
 d.scrollIntoView({block:"start",behavior:"smooth"});
 }
 function selectedTracks(){const album=state.activeAlbum;if(!album)return [];const checked=new Set([...get("albumTrackList").querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.dataset.trackFile));return album.tracks.filter(t=>checked.has(t.file))}
-function syncAlbumSelected(){const album=state.activeAlbum;if(!album)return;const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" paid tracks selected · "+money(count===album.tracks.length?count:count*1.5)+(albumBonus(album).length?" · bonus included with complete album":"");get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
+function syncAlbumSelected(){const album=state.activeAlbum;if(!album)return;
+if(previewMode){
+ updateAlbumPreviewQueue();
+ const selected=selectedTracks();
+ const seconds=selected.reduce((sum,t)=>sum+Number(durationFor(album,t)?.duration_ms||0)/1000,0);
+ get('albumSelectedCount').textContent=selected.length+' selected for preview · '+formatPreviewTime(seconds);
+ get('albumSelectAll').checked=selected.length===album.tracks.length;
+ get('albumSelectAll').indeterminate=selected.length>0&&selected.length<album.tracks.length;
+ get('albumAddSelected').disabled=false;
+ get('albumAddSelected').textContent='KEEP SONGS · BACK TO ALBUMS';
+ return;
+}
+const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" paid tracks selected · "+money(count===album.tracks.length?count:count*1.5)+(albumBonus(album).length?" · bonus included with complete album":"");get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
 function addFullAlbum(album){
   state.cart=state.cart.filter(x=>!x.id.startsWith(album.id+"-track-"));
   const bonuses=albumBonus(album).map(track=>track.title);
@@ -329,8 +459,14 @@ function addFullAlbum(album){
   add({id:album.id,title:album.title+" · Complete Album"+(bonuses.length?" + "+bonuses.join(", ")+" (Bonus Included)":""),price:album.tracks.length,bonusIncluded:bonuses,qty:1});
 }
 get("albumSelectAll").addEventListener("change",e=>{get("albumTrackList").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=e.target.checked);syncAlbumSelected()});
-get("albumBuyAll").addEventListener("click",()=>{if(state.activeAlbum)addFullAlbum(state.activeAlbum)});
-get("albumAddSelected").addEventListener("click",()=>{const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
+get("albumBuyAll").addEventListener("click",()=>{
+ if(!state.activeAlbum)return;
+ if(previewMode){get('albumTrackList').querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(x=>x.checked=true);syncAlbumSelected();return}
+ addFullAlbum(state.activeAlbum);
+});
+get("albumAddSelected").addEventListener("click",()=>{
+ if(previewMode){updateAlbumPreviewQueue();closeAlbum();get('gePreviewMeter').scrollIntoView({block:'start',behavior:'smooth'});return}
+ const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
 function makeMusic(album){
 const card=el("article","product");card.id=album.id;const coverBtn=el("button","albumCoverBtn");coverBtn.type="button";coverBtn.setAttribute("aria-label","View "+album.title+" album and tracks");const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";coverBtn.append(cover);coverBtn.addEventListener("click",()=>openAlbum(album));card.append(coverBtn);const d=el("div","details");
 const b=getBio(album);
@@ -356,14 +492,24 @@ location.href="mailto:info@grandelement.com?subject="+encodeURIComponent("Grand 
 renderCart();
 Promise.all([
 fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Catalog unavailable");return r.json()}),
-fetch("../config/site-live.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({}))
-]).then(([data,site])=>{
+fetch("../config/site-live.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})),
+fetch("../radio/track-durations.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Track timings unavailable");return r.json()}).catch(()=>({tracks:[]}))
+]).then(([data,site,durations])=>{
 state.catalog=data;state.bios=site.albums?.bios||{};
+(Array.isArray(durations.tracks)?durations.tracks:[]).filter(t=>t.kind==='song'&&t.path&&Number(t.duration_ms)>0).forEach(t=>{
+  const key=trackKey(t.album,String(t.path).split('/').pop());previewDurations.set(key,t);
+});
+previewDurationsReady=previewDurations.size>0;
+previewQueue=previewQueue.filter(t=>t.preview_key&&previewDurations.has(t.preview_key)).map(t=>{
+ const x=previewDurations.get(t.preview_key);return {...x,preview_key:t.preview_key}
+});
+updatePreviewMeter();
 const music=get("musicGallery"),merch=get("merchGallery");
 data.music.forEach(item=>music.append(makeMusic(item)));data.merch.forEach(item=>merch.append(makeMerch(item)));
 const u=new URL(location.href),requested=(u.searchParams.get("album")||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 if(requested){const album=data.music.find(x=>x.title.toLowerCase().replace(/[^a-z0-9]+/g,"")===requested);if(album){openAlbum(album);return}}
 setSection(u.searchParams.get("section")||"home");
+updatePreviewMeter();
 }).catch(err=>{get("musicGallery").append(el("p","note","Unable to load the music catalog. "+err.message));get("merchGallery").append(el("p","note","Unable to load merchandise. Refresh the page."))});
 })();
 </script>
