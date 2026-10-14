@@ -152,11 +152,15 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 const money=n=>"$"+Number(n||0).toFixed(2);
 const el=(tag,cls,content)=>{const o=document.createElement(tag);if(cls)o.className=cls;if(content!==undefined)o.textContent=content;return o};
 const get=id=>document.getElementById(id);
-const state={catalog:null,cart:[]};
+const state={catalog:null,cart:[],bios:{},activeAlbum:null};
 try{const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100)}catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
-function setSection(name){if(!["music","merch","booking"].includes(name))name="music";["music","merch","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);u.searchParams.set("section",name);history.replaceState(null,"",u)}window.scrollTo({top:0,behavior:"smooth"})}
+function closeAlbum(){get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u)}
+function setSection(name){if(!["home","music","merch","radio","booking"].includes(name))name="home";if(name!=="music")closeAlbum();["music","merch","radio","booking"].forEach(v=>{get("section-"+v).hidden=v!==name;document.querySelectorAll("[data-section="+v+"]").forEach(b=>{b.classList.toggle("active",v===name);if(b.getAttribute("role")==="tab")b.setAttribute("aria-selected",String(v===name))})});if(history.replaceState){const u=new URL(location.href);if(name==="home")u.searchParams.delete("section");else u.searchParams.set("section",name);history.replaceState(null,"",u)}window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("[data-section]").forEach(b=>b.addEventListener("click",()=>setSection(b.dataset.section)));
+document.querySelectorAll("[data-close-section]").forEach(b=>b.addEventListener("click",()=>setSection("home")));
+get("albumBack").addEventListener("click",closeAlbum);
+get("albumClose").addEventListener("click",closeAlbum);
 function add(item){const key=[item.id,item.fit||"",item.size||""].join("|");const old=state.cart.find(x=>x.key===key);if(old)old.qty=Math.min(99,old.qty+(item.qty||1));else state.cart.push(Object.assign({key,qty:1},item));save();openCart()}
 function removeAt(idx){state.cart.splice(idx,1);save()}
 function renderCart(){
@@ -171,16 +175,34 @@ function closeCart(){get("shade").classList.remove("show");get("cartPanel").clas
 get("openCart").addEventListener("click",openCart);get("closeCart").addEventListener("click",closeCart);get("shade").addEventListener("click",closeCart);
 get("showCheckout").addEventListener("click",()=>{closeCart();get("checkoutLayer").classList.add("open");get("checkoutLayer").setAttribute("aria-hidden","false");get("closeCheckout").focus()});
 function closeCheckout(){get("checkoutLayer").classList.remove("open");get("checkoutLayer").setAttribute("aria-hidden","true")};get("closeCheckout").addEventListener("click",closeCheckout);get("checkoutLayer").addEventListener("click",e=>{if(e.target===get("checkoutLayer"))closeCheckout()});addEventListener("keydown",e=>{if(e.key==="Escape"){closeCheckout();closeCart()}});
+function getBio(album){const key=album.title.toLowerCase().replace(/[^a-z0-9]/g,"");return state.bios[key]||{}}
+function openAlbum(album){state.activeAlbum=album;setSection("music");get("musicGallery").hidden=true;get("musicIntro").hidden=true;const d=get("albumDetail");d.hidden=false;
+get("albumDetailCover").src=album.cover;get("albumDetailCover").alt=album.title+" cover";
+get("albumDetailTitle").textContent=album.title;
+get("albumDetailYear").textContent=(album.year||"ARCHIVE")+" · GRAND ELEMENT";
+const b=getBio(album);get("albumDetailTagline").textContent=b.tagline||b.energy||"";
+get("albumDetailBio").textContent=b.bio||"Choose the recordings you'd like to own.";
+get("albumBuyAll").textContent="ADD COMPLETE ALBUM · "+money(album.tracks.length);
+get("albumSelectAll").checked=false;
+const list=get("albumTrackList");list.replaceChildren();
+album.tracks.forEach(track=>{const row=el("div","trackrow");const label=el("label");const box=el("input");box.type="checkbox";box.dataset.trackFile=track.file;box.addEventListener("change",syncAlbumSelected);label.append(box,el("span","",String(track.number).padStart(2,"0")+" · "+track.title));row.append(label,el("strong","",money(1.5)));list.append(row)});
+syncAlbumSelected();
+const u=new URL(location.href);u.searchParams.set("album",album.title.replace(/!$/,""));history.replaceState(null,"",u);
+d.scrollIntoView({block:"start",behavior:"smooth"});
+}
+function selectedTracks(){const album=state.activeAlbum;if(!album)return [];const checked=new Set([...get("albumTrackList").querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.dataset.trackFile));return album.tracks.filter(t=>checked.has(t.file))}
+function syncAlbumSelected(){const album=state.activeAlbum;if(!album)return;const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" selected · "+money(count===album.tracks.length?count:count*1.5);get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
+function addFullAlbum(album){state.cart=state.cart.filter(x=>!x.id.startsWith(album.id+"-track-"));const existing=state.cart.find(x=>x.id===album.id);if(existing){existing.qty=1;save();openCart();return}add({id:album.id,title:album.title+" · Complete Album",price:album.tracks.length,qty:1})}
+get("albumSelectAll").addEventListener("change",e=>{get("albumTrackList").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=e.target.checked);syncAlbumSelected()});
+get("albumBuyAll").addEventListener("click",()=>{if(state.activeAlbum)addFullAlbum(state.activeAlbum)});
+get("albumAddSelected").addEventListener("click",()=>{const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
 function makeMusic(album){
-const card=el("article","product");card.id=album.id;const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";card.append(cover);const d=el("div","details");
-d.append(el("div","eyebrow",String(album.year)+" · Grand Element"),el("h3","name",album.title),el("div","price",money(album.tracks.length)+" album"),el("div","muted",album.tracks.length+" listed tracks · $1.50 per individual track"));
-if(album.partial)d.append(el("div","tiny","Track list appears incomplete; final release audit required."));
-const acts=el("div","actions"),all=el("button","primary","Add Album"),choose=el("button","outline","Choose Tracks");
-all.type="button";all.addEventListener("click",()=>add({id:album.id,title:album.title+" · Full album (preview)",price:album.tracks.length,qty:1}));
-choose.type="button";choose.setAttribute("aria-expanded","false");acts.append(all,choose);d.append(acts);
-const list=el("div","tracklist");choose.addEventListener("click",()=>{list.classList.toggle("open");choose.setAttribute("aria-expanded",String(list.classList.contains("open")))});
-album.tracks.forEach(t=>{const row=el("div","trackrow");row.append(el("span","",String(t.number).padStart(2,"0")+" · "+t.title));const b=el("button","","+$1.50");b.type="button";b.setAttribute("aria-label","Add "+t.title);b.addEventListener("click",()=>add({id:album.id+"-track-"+t.number,title:album.title+" — "+t.title,price:1.5,qty:1}));row.append(b);list.append(row)});
-d.append(list);card.append(d);return card}
+const card=el("article","product");card.id=album.id;const coverBtn=el("button","albumCoverBtn");coverBtn.type="button";coverBtn.setAttribute("aria-label","View "+album.title+" album and tracks");const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";coverBtn.append(cover);coverBtn.addEventListener("click",()=>openAlbum(album));card.append(coverBtn);const d=el("div","details");
+const b=getBio(album);
+d.append(el("h3","name",album.title),el("p","albumTagline",b.tagline||b.energy||""));
+d.append(el("div","muted",album.tracks.length+" tracks · Complete album "+money(album.tracks.length)));
+const btn=el("button","primary full","VIEW TRACKS");btn.type="button";btn.addEventListener("click",()=>openAlbum(album));d.append(btn);card.append(d);return card}
+
 function makeMerch(item){
 const card=el("article","product"),img=el("img","thumb");img.src=item.image;img.alt=item.title+" storefront concept mockup";img.loading="lazy";card.append(img);const d=el("div","details");d.append(el("h3","name",item.title),el("p","muted",item.description),el("div","price",item.price===null?"Price pending":money(item.price)));
 if(item.price===null){d.append(el("div","tiny","Sticker production quote is required before checkout."));card.append(d);return card}
@@ -197,11 +219,16 @@ const rows=["GE Studios booking inquiry","Experience: "+get("eventType").value,"
 location.href="mailto:info@grandelement.com?subject="+encodeURIComponent("Grand Element booking inquiry · "+date)+"&body="+encodeURIComponent(rows.join("\n"));
 });
 renderCart();
-fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Catalog unavailable");return r.json()}).then(data=>{
-state.catalog=data;const music=get("musicGallery"),merch=get("merchGallery");data.music.forEach(item=>music.append(makeMusic(item)));data.merch.forEach(item=>merch.append(makeMerch(item)));
-const u=new URL(location.href),albumName=(u.searchParams.get("album")||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
-if(albumName){setSection("music");const selected=data.music.find(x=>x.title.toLowerCase().replace(/[^a-z0-9]+/g,"")===albumName);if(selected){document.getElementById(selected.id)?.scrollIntoView({behavior:"smooth",block:"center"});document.getElementById(selected.id)?.classList.add("highlight")}}
-else setSection(u.searchParams.get("section")||"music");
+Promise.all([
+fetch("./catalog.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Catalog unavailable");return r.json()}),
+fetch("../config/site-live.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({}))
+]).then(([data,site])=>{
+state.catalog=data;state.bios=site.albums?.bios||{};
+const music=get("musicGallery"),merch=get("merchGallery");
+data.music.forEach(item=>music.append(makeMusic(item)));data.merch.forEach(item=>merch.append(makeMerch(item)));
+const u=new URL(location.href),requested=(u.searchParams.get("album")||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+if(requested){const album=data.music.find(x=>x.title.toLowerCase().replace(/[^a-z0-9]+/g,"")===requested);if(album){openAlbum(album);return}}
+setSection(u.searchParams.get("section")||"home");
 }).catch(err=>{get("musicGallery").append(el("p","note","Unable to load the music catalog. "+err.message));get("merchGallery").append(el("p","note","Unable to load merchandise. Refresh the page."))});
 })();
 </script>
