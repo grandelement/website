@@ -2807,7 +2807,15 @@ body.nine-planet-active #gameHUD .poolTargetMini{display:none!important}
 .geCourseMode.show{display:block}.geCourseTop{position:absolute;z-index:8;left:12px;right:12px;top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}.geCourseTop>*{pointer-events:auto}
 .geCourseTitle{font-weight:950;letter-spacing:.09em;text-shadow:0 0 12px #5ebcff}.geCourseBtn{appearance:none;border:1px solid rgba(170,225,255,.55);background:rgba(7,22,42,.86);color:#fff;border-radius:999px;padding:9px 13px;font-weight:900}
 .geCourseBoard{position:absolute;inset:68px 22px 28px;border:2px solid rgba(130,210,255,.5);border-radius:24px;overflow:hidden;background:radial-gradient(circle at 50% 45%,rgba(25,80,120,.18),rgba(0,0,0,.75))}
-.geGolfBall,.geGolfCup{position:absolute;border-radius:50%;transform:translate(-50%,-50%)}.geGolfBall{width:34px;height:34px;background:radial-gradient(circle at 34% 28%,#fff 0 8%,#8ed8ff 24%,#2569ae 64%,#06162d 100%);box-shadow:0 0 16px #6ecbff;z-index:5}.geGolfCup{width:58px;height:58px;background:radial-gradient(circle,#02050a 0 34%,#1c78bc 36%,#8ee8ff 48%,rgba(20,145,225,.22) 68%,transparent 72%);box-shadow:0 0 24px #49bfff}
+.geGolfBall,.geGolfCup{position:absolute;border-radius:50%;transform:translate(-50%,-50%)}
+.geGolfCup::before,.geGolfCup::after{
+  content:"";position:absolute;inset:-6%;border:2px solid rgba(140,220,255,.8);
+  border-radius:50%;pointer-events:none;opacity:var(--golf-wave-opacity,.4);
+  transform:scale(var(--golf-wave-scale,1.04));
+  box-shadow:0 0 10px rgba(70,202,255,.55),inset 0 0 10px rgba(70,202,255,.24);
+}
+.geGolfCup::after{inset:-18%;border-width:1px;opacity:calc(var(--golf-wave-opacity,.4)*.6);transform:scale(var(--golf-wave-outer,1.13))}
+.geGolfBall{width:34px;height:34px;background:radial-gradient(circle at 34% 28%,#fff 0 8%,#8ed8ff 24%,#2569ae 64%,#06162d 100%);box-shadow:0 0 16px #6ecbff;z-index:5}.geGolfCup{width:58px;height:58px;background:radial-gradient(circle,#02050a 0 34%,#1c78bc 36%,#8ee8ff 48%,rgba(20,145,225,.22) 68%,transparent 72%);box-shadow:0 0 24px #49bfff}
 .geObstacle{position:absolute;background:linear-gradient(135deg,rgba(35,95,150,.96),rgba(4,18,38,.98));border:1px solid #78d2ff;box-shadow:0 0 12px rgba(80,190,255,.3);border-radius:8px}
 .geAimLine{position:absolute;height:2px;transform-origin:0 50%;background:repeating-linear-gradient(90deg,#dff8ff 0 8px,transparent 8px 14px);pointer-events:none;z-index:4}
 .geCourseHelp{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:7;background:rgba(2,12,25,.76);border:1px solid rgba(160,220,255,.32);border-radius:999px;padding:7px 12px;font-size:11px;font-weight:800;white-space:nowrap}
@@ -11350,6 +11358,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   // Golf sizing is independent from the other planet games and saved locally.
   const golfSizeKey='GE_GOLF_SIZE_V1';
   const GOLF_DEFAULT_POWER=2.5, GOLF_MAX_POWER=20, GOLF_MAX_SHOT_SPEED=6000;
+  const GOLF_THROW_KEY='GE_GOLF_SHOT_STYLE_V1';
+  let golfShotStyle='rubber';
+  try{golfShotStyle=localStorage.getItem(GOLF_THROW_KEY)==='throw'?'throw':'rubber'}catch(_e){}
   let golfSizes={ball:24,cup:58,power:GOLF_DEFAULT_POWER};
   try{const saved=JSON.parse(localStorage.getItem(golfSizeKey)||'{}');golfSizes.ball=clamp(Number(saved.ball)||24,12,36);golfSizes.cup=clamp(Number(saved.cup)||58,40,90);golfSizes.power=clamp(Number(saved.power)||GOLF_DEFAULT_POWER,0.5,GOLF_MAX_POWER);}catch(_e){}
   function applyGolfSizes(){
@@ -11364,13 +11375,14 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   golfSizesButton.type='button';golfSizesButton.className='geCourseBtn';golfSizesButton.textContent='OPTIONS';
   const golfSizePanel=document.createElement('div');golfSizePanel.id='geGolfSizePanel';
   golfSizePanel.style.cssText='position:absolute;z-index:50;top:70px;left:12px;right:12px;max-width:340px;margin:auto;background:#031427;border:1px solid #6ed6ff;border-radius:14px;padding:14px;color:white;display:none;box-shadow:0 0 24px #135a88';
-  golfSizePanel.innerHTML='<strong>GOLF OPTIONS</strong><label style="display:block;margin:12px 0">BALL <output id="geGolfBallValue"></output><input id="geGolfBallSize" type="range" min="12" max="36" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">HOLE <output id="geGolfCupValue"></output><input id="geGolfCupSize" type="range" min="40" max="90" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">SHOT POWER <output id="geGolfPowerValue"></output><input id="geGolfShotPower" type="range" min="0.5" max="20" step="0.25" style="width:100%"></label><button type="button" id="geGolfSizeDone" class="geCourseBtn">DONE</button>';
+  golfSizePanel.innerHTML='<strong>GOLF OPTIONS</strong><label style="display:block;margin:12px 0">SHOT STYLE <select id="geGolfShotStyle" style="display:block;width:100%;background:#041a31;color:#fff;border:1px solid #64c9ff;border-radius:9px;padding:8px;margin-top:6px"><option value="rubber">RUBBER BAND</option><option value="throw">THROW / FLICK</option></select></label><label style="display:block;margin:12px 0">BALL <output id="geGolfBallValue"></output><input id="geGolfBallSize" type="range" min="12" max="36" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">HOLE <output id="geGolfCupValue"></output><input id="geGolfCupSize" type="range" min="40" max="90" step="2" style="width:100%"></label><label style="display:block;margin:12px 0">SHOT POWER <output id="geGolfPowerValue"></output><input id="geGolfShotPower" type="range" min="0.5" max="20" step="0.25" style="width:100%"></label><button type="button" id="geGolfSizeDone" class="geCourseBtn">DONE</button>';
   mode.appendChild(golfSizePanel);
   const topRight=mode.querySelector('.geCourseTopRight');if(topRight)topRight.prepend(golfSizesButton);
   function syncGolfSizeUI(){
     golfSizePanel.querySelector('#geGolfBallSize').value=golfSizes.ball;
     golfSizePanel.querySelector('#geGolfCupSize').value=golfSizes.cup;
     golfSizePanel.querySelector('#geGolfShotPower').value=golfSizes.power;
+    golfSizePanel.querySelector('#geGolfShotStyle').value=golfShotStyle;
     golfSizePanel.querySelector('#geGolfBallValue').textContent=golfSizes.ball+' px';
     golfSizePanel.querySelector('#geGolfCupValue').textContent=golfSizes.cup+' px';
     golfSizePanel.querySelector('#geGolfPowerValue').textContent=golfSizes.power.toFixed(2)+'×';
@@ -11380,6 +11392,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   golfSizePanel.querySelector('#geGolfBallSize').addEventListener('input',e=>{golfSizes.ball=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   golfSizePanel.querySelector('#geGolfCupSize').addEventListener('input',e=>{golfSizes.cup=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
   golfSizePanel.querySelector('#geGolfShotPower').addEventListener('input',e=>{golfSizes.power=Number(e.target.value);applyGolfSizes();syncGolfSizeUI();});
+  golfSizePanel.querySelector('#geGolfShotStyle').addEventListener('change',e=>{
+    golfShotStyle=e.target.value==='throw'?'throw':'rubber';
+    try{localStorage.setItem(GOLF_THROW_KEY,golfShotStyle)}catch(_e){}
+    help.textContent=golfShotStyle==='throw'?'THROW · FLICK FORWARD TO LAUNCH':'RUBBER BAND · PULL BACK AND RELEASE';
+    if(drag){drag=null;const guide=document.getElementById('geBankGuide');if(guide)guide.hidden=true}
+  });
   function applyGolfTeleportBackground(){
     // Reuse the exact image collection used by Blue Sun teleportation.
     if(typeof BG_LIST==='undefined'||!BG_LIST.length)return;
@@ -11410,7 +11428,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       '<svg id="geBankGuide" class="geBankGuide" width="100%" height="100%" viewBox="0 0 '+r.width+' '+r.height+'" preserveAspectRatio="none" hidden><polyline id="geBankGuidePath" points="" /></svg>';
     obj=document.getElementById('geCourseObject');obj.x=s.sx;obj.y=s.sy;obj.r=golfSizes.ball/2;applyGolfSizes();vx=vy=0;strokes=0;
     title.textContent='GOLF · '+level+' / 33 · '+s.name;
-    help.textContent='RUBBER BAND · '+strokes+' STROKES · pull behind the planet and release';next.style.display='none';
+    help.textContent=(golfShotStyle==='throw'?'THROW · FLICK FORWARD':'RUBBER BAND · PULL BACK')+' · '+strokes+' STROKES';next.style.display='none';
   }
   // One launch calculation for the preview AND the actual shot. The original
   // slider changed only the preview; pointerup ignored power and capped shots
@@ -11941,9 +11959,54 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     raf=requestAnimationFrame(tick)
   }
   function open(type){courseType=type;level=1;document.getElementById('gameOptionsPanel')?.classList.remove('show');if(type==='body'){openBodyRace();return}document.body.classList.add('ge-course-golf-active');window.GE_GAME_MUSIC_DOCK?.close?.();mode.classList.add('show');mode.setAttribute('aria-hidden','false');renderGolf();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}
-  board.addEventListener('pointerdown',e=>{if(!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(Math.hypot(x-obj.x,y-obj.y)>55)return;drag={x,y};board.setPointerCapture?.(e.pointerId);if(courseType==='golf'){const line=document.getElementById('geBankGuide');if(line)line.hidden=false}});
-  board.addEventListener('pointermove',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,p=golfShotSpeed(Math.hypot(dx,dy));bankGuide(dx,dy,p)}else{const nx=clamp(x,22,b.width-22),ny=clamp(y,22,b.height-22);if(hitObstacle(nx,ny,obj.r)){help.textContent='CONTACT · RETURN TO START';renderBody()}else{obj.x=nx;obj.y=ny;obj.style.left=nx+'px';obj.style.top=ny+'px';if(nx>b.width*.88){help.textContent='COURSE '+level+' COMPLETE';next.style.display='block'}}}});
-  board.addEventListener('pointerup',e=>{if(!drag||!obj)return;const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(courseType==='golf'){const dx=obj.x-x,dy=obj.y-y,m=Math.hypot(dx,dy)||1,p=golfShotSpeed(m);vx=dx/m*p;vy=dy/m*p;strokes++;help.textContent='HOLE '+level+' · '+strokes+' STROKE'+(strokes===1?'':'S');const line=document.getElementById('geBankGuide');if(line)line.hidden=true}drag=null});
+  board.addEventListener('pointerdown',e=>{
+    if(!obj||drag)return;
+    const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+    if(Math.hypot(x-obj.x,y-obj.y)>Math.max(45,obj.r+24))return;
+    const t=performance.now();
+    drag={id:e.pointerId,x,y,hist:[{x,y,t}]};
+    try{board.setPointerCapture(e.pointerId)}catch(_e){}
+    const line=document.getElementById('geBankGuide');if(line)line.hidden=false;
+    e.preventDefault();
+  },{passive:false});
+  board.addEventListener('pointermove',e=>{
+    if(!drag||!obj||drag.id!==e.pointerId)return;
+    const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top,now=performance.now();
+    drag.hist.push({x,y,t:now});
+    while(drag.hist.length>20||drag.hist.length>2&&now-drag.hist[0].t>160)drag.hist.shift();
+    if(golfShotStyle==='throw'){
+      const dx=x-drag.x,dy=y-drag.y;
+      const mag=Math.hypot(dx,dy);
+      bankGuide(dx,dy,Math.min(GOLF_MAX_SHOT_SPEED,mag*5*golfSizes.power));
+    }else{
+      const dx=obj.x-x,dy=obj.y-y;bankGuide(dx,dy,golfShotSpeed(Math.hypot(dx,dy)));
+    }
+    e.preventDefault();
+  },{passive:false});
+  function endGolfPointer(e,cancelled=false){
+    if(!drag||!obj||drag.id!==e.pointerId)return;
+    const b=board.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+    if(!cancelled){
+      let dx,dy,p=0;
+      if(golfShotStyle==='throw'){
+        const now=performance.now(),last={x,y,t:now},history=drag.hist.concat([last]);
+        const ref=history.find(pt=>now-pt.t>=55)||history[0];
+        dx=last.x-ref.x;dy=last.y-ref.y;
+        const dt=Math.max(18,now-ref.t),travel=Math.hypot(dx,dy);
+        p=Math.min(GOLF_MAX_SHOT_SPEED,(travel/dt)*900*(golfSizes.power/GOLF_DEFAULT_POWER));
+        if(travel<5)p=0; // tapping or repositioning is not a shot
+      }else{
+        dx=obj.x-x;dy=obj.y-y;p=golfShotSpeed(Math.hypot(dx,dy));
+        if(Math.hypot(dx,dy)<6)p=0;
+      }
+      if(p>0){const m=Math.hypot(dx,dy)||1;vx=dx/m*p;vy=dy/m*p;strokes++;help.textContent='HOLE '+level+' · '+strokes+' STROKE'+(strokes===1?'':'S');}
+    }
+    const line=document.getElementById('geBankGuide');if(line)line.hidden=true;
+    try{board.releasePointerCapture(e.pointerId)}catch(_e){}
+    drag=null;
+  }
+  board.addEventListener('pointerup',e=>endGolfPointer(e),{passive:true});
+  board.addEventListener('pointercancel',e=>endGolfPointer(e,true),{passive:true});
   next.addEventListener('click',()=>{level++;if(level>33)level=1;renderGolf()});
   const toggleSharedGameMusic=()=>{if(window.GE_GAME_MUSIC_DOCK)window.GE_GAME_MUSIC_DOCK.toggle();else document.getElementById('gameMusicToggle')?.click();};
   document.getElementById('geCourseMusic')?.addEventListener('click',toggleSharedGameMusic);
