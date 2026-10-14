@@ -54,6 +54,10 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 .albumRows .trackrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:13px 8px}
 .albumRows .trackrow span{overflow-wrap:normal;word-break:normal}
 .albumRows .trackrow label{display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0}
+.albumRows .bonusTrackLabel{font-weight:850;color:#f0faff}
+.albumRows .bonusTrackNote{font-size:12px;color:#8fe7bf;margin-top:5px;line-height:1.4}
+.albumRows .bonusSeparateLink{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #438caa;color:#d5f5ff;border-radius:9px;padding:9px;font-weight:800;font-size:11px;text-align:center}
+.albumRows .bonusTrackRow{background:rgba(18,75,70,.30);border:1px solid rgba(120,226,183,.32);border-radius:12px;margin-bottom:7px;padding:13px 10px}
 .albumActions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .albumActions .tiny{margin:0}
 .navHome{display:inline-block;white-space:nowrap}
@@ -176,23 +180,44 @@ get("openCart").addEventListener("click",openCart);get("closeCart").addEventList
 get("showCheckout").addEventListener("click",()=>{closeCart();get("checkoutLayer").classList.add("open");get("checkoutLayer").setAttribute("aria-hidden","false");get("closeCheckout").focus()});
 function closeCheckout(){get("checkoutLayer").classList.remove("open");get("checkoutLayer").setAttribute("aria-hidden","true")};get("closeCheckout").addEventListener("click",closeCheckout);get("checkoutLayer").addEventListener("click",e=>{if(e.target===get("checkoutLayer"))closeCheckout()});addEventListener("keydown",e=>{if(e.key==="Escape"){closeCheckout();closeCart()}});
 function getBio(album){const key=album.title.toLowerCase().replace(/[^a-z0-9]/g,"");return state.bios[key]||{}}
+function albumBonus(album){return Array.isArray(album.bonus_tracks)?album.bonus_tracks.filter(x=>x&&x.included_with_album):[]}
+function albumSummary(album){const bonus=albumBonus(album).length;return (album.tracks.length+bonus)+" tracks"+(bonus?" · "+bonus+" bonus included":"")+" · Complete album "+money(album.tracks.length)}
 function openAlbum(album){state.activeAlbum=album;setSection("music");get("musicGallery").hidden=true;get("musicIntro").hidden=true;const d=get("albumDetail");d.hidden=false;
 get("albumDetailCover").src=album.cover;get("albumDetailCover").alt=album.title+" cover";
 get("albumDetailTitle").textContent=album.title;
 get("albumDetailYear").textContent=(album.year||"ARCHIVE")+" · GRAND ELEMENT";
 const b=getBio(album);get("albumDetailTagline").textContent=b.tagline||b.energy||"";
 get("albumDetailBio").textContent=b.bio||"Choose the recordings you'd like to own.";
-get("albumBuyAll").textContent="ADD COMPLETE ALBUM · "+money(album.tracks.length);
+get("albumBuyAll").textContent="ADD COMPLETE ALBUM · "+money(album.tracks.length)+(albumBonus(album).length?" · BONUS INCLUDED":"");
 get("albumSelectAll").checked=false;
 const list=get("albumTrackList");list.replaceChildren();
+albumBonus(album).forEach(track=>{
+  const row=el("div","trackrow bonusTrackRow"),info=el("div");
+  info.append(el("div","bonusTrackLabel",String(track.number).padStart(2,"0")+" · "+track.title));
+  info.append(el("div","bonusTrackNote",track.label||"BONUS TRACK · INCLUDED WITH ALBUM"));
+  row.append(info);
+  if(track.separate_purchase_url){
+    const link=el("a","bonusSeparateLink","BUY SEPARATELY");
+    link.href=track.separate_purchase_url;link.target="_blank";link.rel="noopener noreferrer";
+    link.title="Optional separate purchase on Bandcamp";
+    row.append(link);
+  }else row.append(el("strong","","INCLUDED"));
+  list.append(row);
+});
 album.tracks.forEach(track=>{const row=el("div","trackrow");const label=el("label");const box=el("input");box.type="checkbox";box.dataset.trackFile=track.file;box.addEventListener("change",syncAlbumSelected);label.append(box,el("span","",String(track.number).padStart(2,"0")+" · "+track.title));row.append(label,el("strong","",money(1.5)));list.append(row)});
 syncAlbumSelected();
 const u=new URL(location.href);u.searchParams.set("album",album.title.replace(/!$/,""));history.replaceState(null,"",u);
 d.scrollIntoView({block:"start",behavior:"smooth"});
 }
 function selectedTracks(){const album=state.activeAlbum;if(!album)return [];const checked=new Set([...get("albumTrackList").querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.dataset.trackFile));return album.tracks.filter(t=>checked.has(t.file))}
-function syncAlbumSelected(){const album=state.activeAlbum;if(!album)return;const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" selected · "+money(count===album.tracks.length?count:count*1.5);get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
-function addFullAlbum(album){state.cart=state.cart.filter(x=>!x.id.startsWith(album.id+"-track-"));const existing=state.cart.find(x=>x.id===album.id);if(existing){existing.qty=1;save();openCart();return}add({id:album.id,title:album.title+" · Complete Album",price:album.tracks.length,qty:1})}
+function syncAlbumSelected(){const album=state.activeAlbum;if(!album)return;const count=selectedTracks().length;get("albumSelectedCount").textContent=count+" of "+album.tracks.length+" paid tracks selected · "+money(count===album.tracks.length?count:count*1.5)+(albumBonus(album).length?" · bonus included with complete album":"");get("albumSelectAll").checked=count===album.tracks.length;get("albumSelectAll").indeterminate=count>0&&count<album.tracks.length;const btn=get("albumAddSelected");btn.disabled=count===0;btn.textContent=count===album.tracks.length?"ADD COMPLETE ALBUM · "+money(count):"ADD "+count+" TRACK"+(count===1?"":"S")+" · "+money(count*1.5)}
+function addFullAlbum(album){
+  state.cart=state.cart.filter(x=>!x.id.startsWith(album.id+"-track-"));
+  const bonuses=albumBonus(album).map(track=>track.title);
+  const existing=state.cart.find(x=>x.id===album.id);
+  if(existing){existing.qty=1;existing.bonusIncluded=bonuses;save();openCart();return}
+  add({id:album.id,title:album.title+" · Complete Album"+(bonuses.length?" + "+bonuses.join(", ")+" (Bonus Included)":""),price:album.tracks.length,bonusIncluded:bonuses,qty:1});
+}
 get("albumSelectAll").addEventListener("change",e=>{get("albumTrackList").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=e.target.checked);syncAlbumSelected()});
 get("albumBuyAll").addEventListener("click",()=>{if(state.activeAlbum)addFullAlbum(state.activeAlbum)});
 get("albumAddSelected").addEventListener("click",()=>{const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
@@ -200,7 +225,7 @@ function makeMusic(album){
 const card=el("article","product");card.id=album.id;const coverBtn=el("button","albumCoverBtn");coverBtn.type="button";coverBtn.setAttribute("aria-label","View "+album.title+" album and tracks");const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";coverBtn.append(cover);coverBtn.addEventListener("click",()=>openAlbum(album));card.append(coverBtn);const d=el("div","details");
 const b=getBio(album);
 d.append(el("h3","name",album.title),el("p","albumTagline",b.tagline||b.energy||""));
-d.append(el("div","muted",album.tracks.length+" tracks · Complete album "+money(album.tracks.length)));
+d.append(el("div","muted",albumSummary(album)));
 const btn=el("button","primary full","VIEW TRACKS");btn.type="button";btn.addEventListener("click",()=>openAlbum(album));d.append(btn);card.append(d);return card}
 
 function makeMerch(item){
