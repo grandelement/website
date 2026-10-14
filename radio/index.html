@@ -1753,6 +1753,31 @@ body.iam-studio-open .iamMeters{
  body.iam-studio-open .iamMeters{top:155px!important}
 }
 </style>
+<style id="ge-iam-headphone-latency-notice">
+#geHeadphoneNotice[hidden]{display:none!important}
+#geHeadphoneNotice{
+  position:fixed;inset:0;z-index:1000002;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background:rgba(0,5,12,.82);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+}
+#geHeadphoneNotice .ge-hn-dialog{
+  width:min(380px,100%);max-height:80dvh;overflow-y:auto;box-sizing:border-box;
+  border:1px solid rgba(106,209,255,.78);border-radius:18px;padding:23px 20px 18px;
+  background:#061723;box-shadow:0 16px 55px rgba(0,0,0,.6);
+  text-align:center;color:#ecfaff;font:400 15px/1.5 system-ui,-apple-system,sans-serif;
+}
+#geHeadphoneNotice h2{
+  margin:0 0 10px;color:white;font:850 18px/1.2 system-ui,-apple-system,sans-serif;
+  letter-spacing:.025em;
+}
+#geHeadphoneNotice p{margin:0 0 18px}
+#geHeadphoneNotice button{
+  display:flex;justify-content:center;width:100%;min-height:48px;
+  padding:10px;border:1px solid #77dbff;border-radius:11px;
+  background:rgba(21,89,123,.92);color:#fff;font:850 15px/1 system-ui,-apple-system,sans-serif;
+}
+</style>
 
 <style id="ge-iam-mic-level-and-test-v7">
 body.iam-studio-open #iamMicTestBtn,body.iam-studio-open #iamMicTestPlayBtn{
@@ -2512,6 +2537,13 @@ body.iam-studio-open #titleBtn{display:none!important}
   <footer>Much Love!!</footer>
 </main>
 <div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
+<div id="geHeadphoneNotice" role="dialog" aria-modal="true" aria-labelledby="geHeadphoneNoticeTitle" aria-describedby="geHeadphoneNoticeText" hidden>
+  <div class="ge-hn-dialog">
+    <h2 id="geHeadphoneNoticeTitle">WIRED HEADPHONES RECOMMENDED</h2>
+    <p id="geHeadphoneNoticeText">For the best timing when playing or recording with Grand Element, use wired headphones. Bluetooth headphones can introduce noticeable audio delay.</p>
+    <button id="geHeadphoneNoticeOK" type="button">GOT IT</button>
+  </div>
+</div>
 
 <script src="../ge-vault-client.js"></script>
 <script src="./iam-private-studio.js?v=20261010-18"></script>
@@ -8372,6 +8404,38 @@ gateTestBtn?.addEventListener('click',()=>{
   sun.addEventListener('wheel',function(e){
     scale=clamp(scale*(e.deltaY<0?1.08:.92),.35,3.2);moved=true;apply();activity();e.preventDefault();
   },{passive:false});
+})();
+</script>
+<script id="ge-headphone-notice-handler">
+(function(){
+  var popup=document.getElementById('geHeadphoneNotice');
+  var ok=document.getElementById('geHeadphoneNoticeOK');
+  var lastFocus=null;
+  if(!popup||!ok)return;
+  function show(){
+    lastFocus=document.activeElement;
+    popup.hidden=false;
+    ok.focus();
+  }
+  function dismiss(){
+    popup.hidden=true;
+    if(lastFocus&&typeof lastFocus.focus==='function'){
+      try{lastFocus.focus()}catch(_e){}
+    }
+  }
+  // Cover the I AM entrance, headphone icon and listening-output option.
+  document.addEventListener('click',function(event){
+    var button=event.target&&event.target.closest&&event.target.closest('button');
+    if(!button)return;
+    if(button.id==='iamHeadphones'||button.id==='iamListenHeadphones'||
+       (button.getAttribute('data-value')==='headphones'&&
+        button.closest('[data-on-air-group="listen"]')))show();
+  });
+  ok.addEventListener('click',dismiss);
+  popup.addEventListener('click',function(event){if(event.target===popup)dismiss();});
+  document.addEventListener('keydown',function(event){
+    if(!popup.hidden&&event.key==='Escape'){event.preventDefault();dismiss();}
+  });
 })();
 </script>
 </body>
