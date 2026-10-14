@@ -1,0 +1,31 @@
+name: GE Website Regression Checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "radio/**"
+      - "support/**"
+      - ".github/scripts/ge-site-qa.mjs"
+      - ".github/workflows/ge-site-qa.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check out Grand Element website
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compile JS and check music, Gate, Store, I AM regression contracts
+        run: node .github/scripts/ge-site-qa.mjs
