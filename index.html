@@ -3800,6 +3800,28 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       </div>
 
      
+      <div class="aboutSection" id="geSunClockSection">
+        <div class="toggleRow"><div class="pill"><b>BLUE SUN CLOCK · TIME ZONE</b></div></div>
+        <div class="details" style="display:block;text-align:center">
+          <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the orbiting Radio Moon with a time zone</label>
+          <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
+            <option value="local">MY DEVICE TIME ZONE (AUTO)</option>
+            <option value="America/New_York">NEW YORK · EASTERN</option>
+            <option value="America/Chicago">CHICAGO · CENTRAL</option>
+            <option value="America/Denver">DENVER · MOUNTAIN</option>
+            <option value="America/Phoenix">PHOENIX · ARIZONA</option>
+            <option value="America/Los_Angeles">LOS ANGELES · PACIFIC</option>
+            <option value="America/Anchorage">ANCHORAGE · ALASKA</option>
+            <option value="Pacific/Honolulu">HONOLULU · HAWAII</option>
+            <option value="UTC">UTC</option>
+            <option value="Europe/London">LONDON</option>
+            <option value="Europe/Paris">PARIS</option>
+            <option value="Asia/Tokyo">TOKYO</option>
+            <option value="Australia/Sydney">SYDNEY</option>
+          </select>
+          <div id="geSunClockReadout" style="font-size:11px;opacity:.8;margin-top:6px" aria-live="off"></div>
+        </div>
+      </div>
       <div class="aboutSection">
         <div class="toggleRow">
           <div class="pill"><b>BACKGROUND CONTROLS</b></div>
@@ -4906,7 +4928,25 @@ const orbit = document.getElementById('orbit');
 const moon  = document.getElementById('moon');
 // The Moon is the Blue Sun's living twelve-hour clock hand.
 // Clockwise angles are based on the visitor's browser-local time.
-const PHASE0 = -Math.PI/2, CLOCK_HOURS = 12;
+const PHASE0 = -Math.PI/2, CLOCK_HOURS = 12, GE_SUN_CLOCK_ZONE_KEY='GE_BLUE_SUN_CLOCK_ZONE_V1';
+const geClockZoneSelect=document.getElementById('geSunClockTimezone'),geClockReadout=document.getElementById('geSunClockReadout');
+let geClockZone='local';
+try{geClockZone=localStorage.getItem(GE_SUN_CLOCK_ZONE_KEY)||'local'}catch(_e){}
+if(geClockZoneSelect){
+  if([...geClockZoneSelect.options].some(o=>o.value===geClockZone))geClockZoneSelect.value=geClockZone;
+  else geClockZone='local';
+  geClockZoneSelect.addEventListener('change',()=>{geClockZone=geClockZoneSelect.value;try{localStorage.setItem(GE_SUN_CLOCK_ZONE_KEY,geClockZone)}catch(_e){}});
+}
+const geClockFormatters=new Map();
+function geSunClockTime(d){
+  if(geClockZone==='local')return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds()};
+  try{
+    if(!geClockFormatters.has(geClockZone))geClockFormatters.set(geClockZone,new Intl.DateTimeFormat('en-US',{timeZone:geClockZone,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}));
+    const parts=geClockFormatters.get(geClockZone).formatToParts(d);
+    const field=name=>Number(parts.find(p=>p.type===name)?.value)||0;
+    return{hour:field('hour'),minute:field('minute'),second:field('second')};
+  }catch(_e){return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds()}}
+}
 const OSC_PX = 30, OSC_SEC = 90;
 let orbitBaseR=160;
 function refreshOrbitGeometry(){
@@ -4925,7 +4965,12 @@ function tickOrbit(){
     setTimeout(()=>requestAnimationFrame(tickOrbit),250); return;
   }
   const clock=new Date();
-  const localMs=((clock.getHours()%CLOCK_HOURS)*3600+clock.getMinutes()*60+clock.getSeconds())*1000+clock.getMilliseconds();
+  const selectedTime=geSunClockTime(clock);
+  const localMs=((selectedTime.hour%CLOCK_HOURS)*3600+selectedTime.minute*60+selectedTime.second)*1000+clock.getMilliseconds();
+  if(geClockReadout&&(!tickOrbit.lastClockReadout||Date.now()-tickOrbit.lastClockReadout>15000)){
+    tickOrbit.lastClockReadout=Date.now();
+    geClockReadout.textContent='MOON CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' '));
+  }
   const angle=PHASE0+(localMs/(CLOCK_HOURS*3600000))*Math.PI*2;
   const t=clock.getTime()/1000;
   const r=orbitBaseR+OSC_PX*Math.sin((t/OSC_SEC)*Math.PI*2);
