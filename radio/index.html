@@ -2645,7 +2645,7 @@ const GATE_CONFIG = Object.freeze({
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
-const ALBUM_ORDER = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire']);
+const ALBUM_ORDER = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire','Singles']);
 
 const $ = id => document.getElementById(id);
 const audio = $('player');
@@ -2689,12 +2689,17 @@ function cleanAlbumName(name){ return String(name||'').replace(/^Grand Element\s
 function isStationID(url){ return /\/clips\/.*GE(?:%20| )Station(?:%20| )Identification/i.test(String(url||'')); }
 function albumNameFromURL(url){
   const decoded = decodeURI(String(url||''));
+  if(/\/Grand Element - Singles\//i.test(decoded)) return 'Singles';
   const folder = decoded.match(/Grand Element - \d{4} - ([^/]+)\//i);
   if(folder) return cleanAlbumName(folder[1]);
   return parseTrack(url).album;
 }
 function parseTrack(url){
   const base = stripExtension(fileName(url)).replace(/\+/g,' ');
+  if(/\/Grand Element - Singles\//i.test(decodeURI(String(url||'')))){
+    const single = base.match(/^Singles(?:[ _-]+(\d{1,3}))?[ _-]+(.+)$/i);
+    if(single) return {album:'Singles',track:single[1]?Number(single[1]):0,song:single[2].replace(/[_-]+/g,' ').trim()};
+  }
   const match = base.match(/^(.*?)[ _-]+(\d{1,3})[ _-]+(.+)$/);
   if(match){
     return {album:cleanAlbumName(match[1].replace(/[_-]+/g,' ').trim()),track:Number(match[2]),song:match[3].replace(/[_-]+/g,' ').trim()};
@@ -2713,13 +2718,24 @@ function orderedSort(a,b){
   return trackDifference || a.localeCompare(b);
 }
 function isCore(url){ return CORE_ALBUMS.some(name=>name.toLowerCase()===albumNameFromURL(url).toLowerCase()); }
-function isLegacy(url){ return LEGACY_ALBUMS.some(name=>name.toLowerCase()===albumNameFromURL(url).toLowerCase()); }
-function isFeaturedSingle(url){ const d=decodeURI(String(url||'')).toLowerCase(); return d.includes('singles_i=energy') || (d.includes('/grand element - singles/') && d.includes('i=energy')); }
-function isSingles(url){ if(isFeaturedSingle(url)) return false; return albumNameFromURL(url).toLowerCase()==='singles' || decodeURI(url).toLowerCase().includes('singles'); }
+function isSingleFile(url){ return /\/Grand Element - Singles\//i.test(decodeURI(String(url||''))); }
+function isFeaturedSingle(url){
+  if(!isSingleFile(url)) return false;
+  const name=fileName(url).toLowerCase();
+  return name==='singles_i=energy.mp3' || name==='singles_01_the journey.mp3';
+}
+function isLegacySingle(url){
+  if(!isSingleFile(url)) return false;
+  const name=fileName(url).toLowerCase();
+  return name==='singles_crystal ball.mp3' || name==='singles_meaning of love.mp3';
+}
+function isLegacy(url){ return LEGACY_ALBUMS.some(name=>name.toLowerCase()===albumNameFromURL(url).toLowerCase()) || isLegacySingle(url); }
+// Other Singles (including cover recordings) remain excluded until explicitly selected.
+function isSingles(url){ return isSingleFile(url) && !isFeaturedSingle(url) && !isLegacySingle(url); }
 function displayTitle(url,withNumber=false){
   if(isStationID(url)) return 'GE Station Identification';
   const item = parseTrack(url);
-  const number = withNumber && item.track ? ` • ${String(item.track).padStart(2,'0')}` : '';
+  const number = withNumber && item.track && item.album.toLowerCase()!=='singles' ? ` • ${String(item.track).padStart(2,'0')}` : '';
   return `${item.album}${number} • ${item.song}`;
 }
 function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
