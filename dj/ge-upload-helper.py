@@ -269,12 +269,18 @@ class Handler(BaseHTTPRequestHandler):
                 p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 out, err = p.communicate()
                 if p.returncode:
-                    return self.response(502, {"ok": False, "error": "Could not list Google Drive files: " + as_text(err)[-200:]})
+                    message = as_text(err).lower()
+                    if ("directory not found" in message or "folder not found" in message
+                            or "directory does not exist" in message):
+                        return self.response(200, {"ok": True, "files": [], "has_more": False,
+                                                   "folder_created": False})
+                    return self.response(502, {"ok": False, "error":
+                        "Google Drive could not list " + folder + ". Verify Drive authorization in STATUS."})
                 items = json.loads(as_text(out))
                 files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0),
                           "id": i.get("ID", ""), "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
                 files.sort(key=lambda f: f.get("modified", ""), reverse=True)
-                return self.response(200, {"ok": True, "files": files[:100], "has_more": len(files) > 100})
+                return self.response(200, {"ok": True, "files": files[:1500], "has_more": len(files) > 1500})
             except Exception as ex:
                 return self.response(500, {"ok": False, "error": as_text(str(ex))[:200]})
         self.response(404, {"ok": False, "error": "Not found"})
