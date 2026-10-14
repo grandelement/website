@@ -13,6 +13,13 @@ const E={launch:get("iamLaunchBtn"),record:get("iamRecordBtn"),timer:get("iamTim
   edit:get("iamEditBtn"),again:get("iamAgainBtn"),listen:get("iamListenBtn"),
   back:get("iamEditBack"),save:get("iamEditSave")};
 if(!E.launch||!E.record)return;
+// I AM has its own media element and can independently load Radio catalog
+// files. Deny its music-loading paths to guests until verified purchases exist.
+// This local owner-demo check is not secure DRM or paid authorization.
+function canAccessIAmCatalog(){
+ try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes'}catch(_e){return false}
+}
+function routeToMyMusic(){location.assign('../support/?section=music&flow=iam')}
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),value=x=>Number(x?.value||0);
 const fmt=n=>{n=Math.max(0,Math.floor(n||0));return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0")};
 const micIcon='<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="17" y="7" width="14" height="24" rx="7"></rect><path d="M11 23c0 8 5 14 13 14s13-6 13-14"></path><path d="M24 37v7M17 44h14"></path></svg>';
@@ -392,6 +399,7 @@ async function preflight(timeout=4500){
   }
  }
  async function preparePrivate(){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(loading||!open)return;
  loading=true;const token=++sessionToken;
  say("Radio stopped. Preparing the private recording player.");
@@ -1159,6 +1167,7 @@ async function leave(){
  mode("record");say("Private I AM session closed.");
 }
 async function enter(){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(open)return;
  oldMuted=audio.muted;oldMediaVolume=Number.isFinite(Number(audio.volume))?Number(audio.volume):1;
  oldMediaAutoplay=audio.autoplay;
@@ -1186,6 +1195,7 @@ function hideSongPicker(){
  const picker=get("iamPrivatePicker");if(picker)picker.hidden=true;
 }
 async function selectPrivateSong(url,position=0,radioMatched=false){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(!open||!privateAudio||recording){say("Stop the take before changing songs.");return}
  stopReview();if(take.mix)againTake();hideSongPicker();
  const request=++trackChangeToken;
@@ -1229,6 +1239,7 @@ async function selectPrivateSong(url,position=0,radioMatched=false){
  }
 }
 function choosePrivateSong(direction){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(!open||!privateAudio||recording){say("Stop recording before changing songs.");return}
  const list=allowedCatalog();if(!list.length){say("No catalog tracks available.");return}
  const current=decodeURIComponent(sourceURL.split("/").pop());
@@ -1237,6 +1248,7 @@ function choosePrivateSong(direction){
  selectPrivateSong(list[index]);
 }
 function showSongPicker(){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(!open)return;
  if(recording){say("Stop recording before choosing another song.");return}
  const list=allowedCatalog(),picker=get("iamPrivatePicker"),holder=get("iamPrivatePickerList");
@@ -1396,6 +1408,7 @@ get("iamPrivateNext")?.addEventListener("click",()=>choosePrivateSong("next"));
 get("iamPrivateChoose")?.addEventListener("click",showSongPicker);
 get("iamPlayerSource")?.addEventListener("click",showSongPicker);
 async function toggleStudioMusic(forceStop=false){
+ if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(!open||recordArming)return;
  if(!privateAudio||!sourceURL){
   say("No song loaded yet. I AM is searching; tap SONGS if needed.");
@@ -1451,9 +1464,9 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
  },true);
 }
 window.GEIAmStudio={
- open:enter,close:leave,version:5,getSession:()=>takeMeta,
+ open:enter,close:leave,version:6,getSession:()=>takeMeta,
  isMusicStopped:()=>open,isRadioSuspended:()=>open&&radioSuspended,
- onCatalogReady:()=>{if(open&&!musicHandoffDone&&!sourceURL)void refreshMatchForStudio()}
+ onCatalogReady:()=>{if(canAccessIAmCatalog()&&open&&!musicHandoffDone&&!sourceURL)void refreshMatchForStudio()}
 };
 outputSettings();
 };
