@@ -9439,7 +9439,12 @@ const GE_GAME = (()=>{
   }
   function marbleOut(p){
     if(!isMarbles()||!p||p.poolPocketed||!p.el?.classList?.contains('marbleTarget'))return false;p.poolPocketed=true;p.el.classList.add('poolPocketed');p.el.style.display='none';p.vx=0;p.vy=0;const owner=Number(p.el.dataset.marbleOwner)||0,shot=marbleGame.shot;
-    if(shot){if(owner===shot.player){shot.ownOut++;state.scores[shot.player]=(state.scores[shot.player]||0)+1;showPointBurst(1,'score');}else shot.otherOut++;}
+    if(shot){
+      // GE ring-taw: every target marble knocked OFF SCREEN by the active
+      // shooter scores for that player, regardless of the marble's album/owner.
+      shot.ownOut++;if(owner!==shot.player)shot.otherOut++;
+      state.scores[shot.player]=(state.scores[shot.player]||0)+1;showPointBurst(1,'score');
+    }
     updateHUD(false);return true;
   }
   function marbleRegisterThrow(p,shotId=0){if(!state.active||!state.running||!isMarbles()||!p?.el?.classList?.contains('marbleShooter')||state.pendingShot)return false;const shooter=state.activePlayer;if(!Array.isArray(state.throwCounts)||state.throwCounts.length<Math.max(1,state.players||1))state.throwCounts=Array(Math.max(1,state.players||1)).fill(0);state.throwCounts[shooter]=(state.throwCounts[shooter]||0)+1;marbleGame.shot={player:shooter,ownOut:0,otherOut:0,shooterOut:false};state.pendingShot={id:shotId,player:shooter,planet:p,round:state.round,scoreBefore:state.scores[shooter]||0};flash(`${displayRoleLabel(shooter)} · MARBLE SHOT ${state.throwCounts[shooter]}`);updateHUD(false);return true;}
@@ -9455,9 +9460,9 @@ const GE_GAME = (()=>{
       return;
     }
     const slots=Math.max(1,state.players||1);
-    // Ring Taw rule adapted to GE ownership: scoring one or more of YOUR planets and keeping
-    // the taw/shooter inside the ring earns another shot from where it stopped. A miss or
-    // shooter-out ends the turn. Target planets that leave AFTER the shooter exits still count.
+    // Ring-taw house rule: every knocked-out target marble belongs to the
+    // shooter for scoring. Knocking out one or more while the shooter stays
+    // in bounds earns another turn. Combos score each marble individually.
     const continueTurn=shot.ownOut>0&&!shot.shooterOut;
     if(continueTurn){
       state.activePlayer=shot.player;
@@ -10730,15 +10735,40 @@ const GE_GAME = (()=>{
     return best;
   }
   function aiBestMarblePlan(shooter,targets){
-    if(!shooter||!targets.length)return null;const b=getPlanetPlayBounds();let best=null;
+    if(!shooter||!targets.length)return null;
+    const b=getPlanetPlayBounds(),skill=aiDifficultyProfile(),combo=skill.comboSearch;
+    let best=null;
     for(const target of targets){
-      const exits=[{x:b.left-target.r-6,y:target.y},{x:b.right+target.r+6,y:target.y},{x:target.x,y:b.top-target.r-6},{x:target.x,y:b.bottom+target.r+6}];
-      for(const exit of exits){
-        const dx=exit.x-target.x,dy=exit.y-target.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,gap=(shooter.r||10)+(target.r||10)+1,gx=target.x-ux*gap,gy=target.y-uy*gap;
+      const edges=[
+        {x:b.left-target.r-6,y:target.y},{x:b.right+target.r+6,y:target.y},
+        {x:target.x,y:b.top-target.r-6},{x:target.x,y:b.bottom+target.r+6}
+      ];
+      for(const exit of edges){
+        const dx=exit.x-target.x,dy=exit.y-target.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
+        const gap=(shooter.r||10)+(target.r||10)+1,gx=target.x-ux*gap,gy=target.y-uy*gap;
         if(gx<b.left+shooter.r||gx>b.right-shooter.r||gy<b.top+shooter.r||gy>b.bottom-shooter.r)continue;
         if(!aiPathClear(shooter.x,shooter.y,gx,gy,shooter,target,(shooter.r||10)*.12))continue;
-        const cueDist=Math.hypot(gx-shooter.x,gy-shooter.y),score=9000-d*3-cueDist*.55;
-        if(!best||score>best.score)best={gx,gy,target,score,exitDistance:d,cueDistance:cueDist};
+        // Score the other targets close to the exit trajectory. A chain/cannon
+        // into multiple marbles is worth more than a convenient single knock-out.
+        let candidates=0,deepClusters=0;
+        for(const q of targets){
+          if(q===target||q.poolPocketed)continue;
+          const rx=q.x-target.x,ry=q.y-target.y,t=rx*ux+ry*uy;
+          if(t<0||t>d+Math.max(30,(q.r||10)*3))continue;
+          const perpendicular=Math.abs(rx*uy-ry*ux);
+          if(perpendicular<=target.r+(q.r||10)+5){
+            candidates+=1;
+            if(Math.hypot(q.x-target.x,q.y-target.y)<Math.max(80,(q.r+target.r)*5))deepClusters+=1;
+          }
+        }
+        const cueDist=Math.hypot(gx-shooter.x,gy-shooter.y);
+        const shooterClearance=Math.min(gx-b.left,b.right-gx,gy-b.top,b.bottom-gy);
+        // Favor targets near a boundary, clean cue approach, clusters that
+        // can chain, and sufficient launch force to reach the exit.
+        const score=10000-d*3.4-cueDist*.38+
+          (combo?candidates*1900*(skill.comboWeight||.5)+deepClusters*380:0)+
+          Math.max(0,Math.min(36,shooterClearance))*2;
+        if(!best||score>best.score)best={gx,gy,target,score,exitDistance:d,cueDistance:cueDist,comboCount:candidates};
       }
     }
     return best;
@@ -10757,9 +10787,9 @@ const GE_GAME = (()=>{
       if((!demo&&!cpuTurn)||!state.active||!state.running||now<state.autoNext||!planetNodes.length)return;if(window.GE_SHOT_CONTROL?.activeShot?.())return;
       const stillLimit=window.GE_EASY_SETTINGS?.PLANET_INPUT_UNLOCK_SPEED??12;if(planetNodes.some(p=>p.dragging||Math.hypot(p.vx||0,p.vy||0)>stillLimit))return;
       const shooter=window.GE_MARBLES?.shooter?.(),live=planetNodes.filter(p=>p.el?.classList?.contains('marbleTarget')&&!p.poolPocketed);if(!shooter||!live.length)return;
-      const own=live.filter(p=>Number(p.el.dataset.marbleOwner)===state.activePlayer),targets=own.length?own:live,plan=aiBestMarblePlan(shooter,targets);state.autoNext=now+rand(skill.thinkMin,skill.thinkMax);
+      const targets=live,plan=aiBestMarblePlan(shooter,targets);state.autoNext=now+rand(skill.thinkMin,skill.thinkMax);
       const marbleSpeed=(window.GE_EASY_SETTINGS?.MARBLE_THROW_SPEED_MULTIPLIER??1.35);
-      if(plan){const speed=Math.min(1600,Math.max(820,(520+plan.cueDistance*.55+plan.exitDistance*.85)*marbleSpeed));aiLaunch(shooter,plan.gx,plan.gy,speed,'marbles-smart');}
+      if(plan){const speed=Math.min(2200,Math.max(820,(530+plan.cueDistance*.6+plan.exitDistance*.92+plan.comboCount*115)*marbleSpeed));aiLaunch(shooter,plan.gx,plan.gy,speed,plan.comboCount?'marbles-combo':'marbles-smart');}
       else{const target=choice(targets),d=Math.hypot(target.x-shooter.x,target.y-shooter.y);aiLaunch(shooter,target.x,target.y,Math.min(1450,(620+d*.45)*marbleSpeed),'marbles-recovery');}
       return;
     }
