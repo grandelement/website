@@ -29,6 +29,44 @@ let open=false,loading=false,recording=false,reviewing=false,editing=false,headp
 let ctx=null,privateAudio=null,musicInput=null,musicGain=null,musicOutput=null,musicMeter=null,voiceMeter=null,musicData=null,voiceData=null;
 let dryInput=null,dryGain=null,compressedGain=null,compressor=null,voiceInput=null,voiceOutput=null,monitorGain=null;
 let fxDelay=null,fxWet=null,fxFeedback=null,musicDest=null,voiceDest=null,mixDest=null,micStream=null;
+let fxEqBass=null,fxEqMid=null,fxEqHigh=null,fxLowCut=null,fxPhaseWet=null,fxRoomWet=null;
+const fxControls=['iamFxBass','iamFxMid','iamFxHigh','iamFxFilter','iamFxPhaser','iamFxDelay','iamFxTime','iamFxFeedback','iamFxReverb','iamFxMonitor'];
+function knob(id,fallback=0){const e=get(id);return e?Number(e.value):fallback}
+function readFx(){
+ fxControls.forEach(id=>{const e=get(id),o=get(id+'Read');if(!e||!o)return;const v=Number(e.value);
+ o.textContent=id==='iamFxFilter'?v+' Hz':id==='iamFxTime'?v+' ms':
+ ['iamFxBass','iamFxMid','iamFxHigh'].includes(id)?(v>0?'+':'')+v+' dB':
+ v===0&&['iamFxPhaser','iamFxDelay','iamFxReverb'].includes(id)?'OFF':v+'%';});
+}
+function studioPreset(mode){
+ const p=mode==='space'?{iamFxDelay:12,iamFxTime:220,iamFxFeedback:17,iamFxReverb:42}:
+ mode==='echo'?{iamFxDelay:44,iamFxTime:340,iamFxFeedback:35,iamFxReverb:10}:
+ {iamFxDelay:0,iamFxTime:340,iamFxFeedback:28,iamFxReverb:0};
+ fxControls.forEach(id=>{if(id==='iamFxMonitor')return;const e=get(id);if(e)
+ e.value=String(id==='iamFxFilter'?35:(p[id]??0));});
+ readFx();
+}
+function roomImpulse(context){
+ const frames=Math.round(context.sampleRate*1.45),buf=context.createBuffer(2,frames,context.sampleRate);
+ for(let ch=0;ch<2;ch++){let seed=ch?7919:4217;const v=buf.getChannelData(ch);
+ for(let i=0;i<frames;i++){seed=(seed*16807)%2147483647;v[i]=(seed/1073741823-1)*Math.pow(1-i/frames,2.8)*.56;}}
+ return buf;
+}
+function voiceEffectChain(context,input,output){
+ const bass=context.createBiquadFilter(),mid=context.createBiquadFilter(),high=context.createBiquadFilter(),filter=context.createBiquadFilter();
+ bass.type='lowshelf';bass.frequency.value=180;mid.type='peaking';mid.frequency.value=1300;mid.Q.value=.85;
+ high.type='highshelf';high.frequency.value=4200;filter.type='highpass';filter.frequency.value=35;
+ input.connect(bass);bass.connect(mid);mid.connect(high);high.connect(filter);filter.connect(output);
+ const delay=context.createDelay(1.5),wet=context.createGain(),feedback=context.createGain();
+ filter.connect(delay);delay.connect(wet);wet.connect(output);delay.connect(feedback);feedback.connect(delay);
+ const phase1=context.createBiquadFilter(),phase2=context.createBiquadFilter(),phaseWet=context.createGain();
+ phase1.type='allpass';phase2.type='allpass';phase1.frequency.value=680;phase2.frequency.value=1550;
+ filter.connect(phase1);phase1.connect(phase2);phase2.connect(phaseWet);phaseWet.connect(output);
+ const room=context.createConvolver(),roomWet=context.createGain();
+ try{room.buffer=roomImpulse(context);filter.connect(room);room.connect(roomWet);roomWet.connect(output)}
+ catch(_e){roomWet.gain.value=0}
+ return {bass,mid,high,filter,delay,wet,feedback,phaseWet,roomWet};
+}
 let sourceURL="",sun=null,oldMuted=false,sessionToken=0,raf=0,startedAt=0,takeMeta=null,fxMode="clean";
 let recMusic=null,recVoice=null,recMix=null,chunks={music:[],voice:[],mix:[]},take={music:null,voice:null,mix:null};
 let reviewCtx=null,reviewSources=[],reviewNodes=null,reviewClock=0,savedWarning="";
@@ -84,7 +122,7 @@ function outputSettings(){
   dryGain?.gain.setTargetAtTime(1-compression,ctx.currentTime,.015);
   compressedGain?.gain.setTargetAtTime(compression,ctx.currentTime,.015);
   // Boost monitoring only, with original dry recording unchanged.
-  monitorGain?.gain.setTargetAtTime(headphones&&monitoring?1.35:0,ctx.currentTime,.015);
+  monitorGain?.gain.setTargetAtTime(headphones&&monitoring?clamp(knob('iamFxMonitor',65)/100*1.5,0,1.5):0,ctx.currentTime,.015);
  }
  // Studio volume changes affect only the private recording player.
  if(reviewCtx&&reviewNodes){
@@ -95,19 +133,27 @@ function outputSettings(){
  }
 }
 function effectSettings(){
- let time=.01,wet=0,feedback=0;
- if(fxMode==="space"){time=.17;wet=.2;feedback=.17}
- if(fxMode==="echo"){time=.34;wet=.36;feedback=.28}
- if(ctx&&fxDelay){
-  fxDelay.delayTime.setTargetAtTime(time,ctx.currentTime,.02);
-  fxWet.gain.setTargetAtTime(wet,ctx.currentTime,.02);
-  fxFeedback.gain.setTargetAtTime(feedback,ctx.currentTime,.02);
+ readFx();
+ const delayTime=clamp(knob('iamFxTime',340)/1000,.07,.7);
+ const wet=clamp(knob('iamFxDelay')/100*.52,0,.52);
+ const feedback=clamp(knob('iamFxFeedback',28)/100,0,.65);
+ const reverb=clamp(knob('iamFxReverb')/100*.48,0,.48);
+ const phaser=clamp(knob('iamFxPhaser')/100*.33,0,.33);
+ function apply(context,n){
+  if(!context||!n)return;const t=context.currentTime;
+  if(n.bass)n.bass.gain.setTargetAtTime(knob('iamFxBass'),t,.02);
+  if(n.mid)n.mid.gain.setTargetAtTime(knob('iamFxMid'),t,.02);
+  if(n.high)n.high.gain.setTargetAtTime(knob('iamFxHigh'),t,.02);
+  if(n.filter)n.filter.frequency.setTargetAtTime(knob('iamFxFilter',35),t,.02);
+  if(n.delay)n.delay.delayTime.setTargetAtTime(delayTime,t,.02);
+  if(n.wet)n.wet.gain.setTargetAtTime(wet,t,.02);
+  if(n.feedback)n.feedback.gain.setTargetAtTime(feedback,t,.02);
+  if(n.phaseWet)n.phaseWet.gain.setTargetAtTime(phaser,t,.02);
+  if(n.roomWet)n.roomWet.gain.setTargetAtTime(reverb,t,.02);
  }
- if(reviewCtx&&reviewNodes){
-  reviewNodes.delay.delayTime.setTargetAtTime(time,reviewCtx.currentTime,.02);
-  reviewNodes.fxWet.gain.setTargetAtTime(wet,reviewCtx.currentTime,.02);
-  reviewNodes.feedback.gain.setTargetAtTime(feedback,reviewCtx.currentTime,.02);
- }
+ apply(ctx,{bass:fxEqBass,mid:fxEqMid,high:fxEqHigh,filter:fxLowCut,
+  delay:fxDelay,wet:fxWet,feedback:fxFeedback,phaseWet:fxPhaseWet,roomWet:fxRoomWet});
+ if(reviewNodes)apply(reviewCtx,reviewNodes);
 }
 function meter(analyser,data){
  if(!analyser||!data)return 0;
@@ -377,10 +423,9 @@ async function preflight(timeout=4500){
    voiceInput.connect(voiceMeter);voiceInput.connect(dryGain);
    voiceInput.connect(compressor);compressor.connect(compressedGain);
    const blend=ctx.createGain();dryGain.connect(blend);compressedGain.connect(blend);
-   blend.connect(voiceOutput);
-   fxDelay=ctx.createDelay(1.5);fxWet=ctx.createGain();fxFeedback=ctx.createGain();
-   blend.connect(fxDelay);fxDelay.connect(fxWet);fxWet.connect(voiceOutput);
-   fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
+   const fx=voiceEffectChain(ctx,blend,voiceOutput);
+   fxEqBass=fx.bass;fxEqMid=fx.mid;fxEqHigh=fx.high;fxLowCut=fx.filter;
+   fxDelay=fx.delay;fxWet=fx.wet;fxFeedback=fx.feedback;fxPhaseWet=fx.phaseWet;fxRoomWet=fx.roomWet;
    voiceOutput.connect(mixDest);
    monitorGain=ctx.createGain();
    monitorGain.channelCount=1;monitorGain.channelCountMode="explicit";
