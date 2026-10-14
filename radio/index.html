@@ -7957,6 +7957,40 @@ Vector ${vector}. ${pair[1]}.`;
     scheduleStages();
   }
 
+  // A fan can skip the slow Blue Sun entrance by tapping the Gate's scene.
+  // This does not bypass the question or extend the listening entitlement.
+  // It simply starts the existing center/question + grace/fade clock now.
+  function skipGateSunEntrance(){
+    if(!gs.active||gs.expired||authorized()||Date.now()>=Number(gs.centerAt||0))return;
+    const now=Date.now();
+    const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||33)*1000;
+    const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||66)*1000;
+    gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
+    gs.fadeAt=now+grace;gs.expireAt=gs.fadeAt+fade;
+    save(true);
+    clearTimers();
+    if(sun){
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      sun.style.opacity='1';
+    }
+    scheduleStages();
+    setStatus('The Gate question is ready.');
+  }
+  gate?.addEventListener('pointerdown',event=>{
+    if(event.target?.closest?.('button,input,#geGatePanel'))return;
+    skipGateSunEntrance();
+  });
+  // Older touch browsers sometimes have no Pointer Events.
+  if(!window.PointerEvent)gate?.addEventListener('touchstart',event=>{
+    if(event.target?.closest?.('button,input,#geGatePanel'))return;
+    skipGateSunEntrance();
+  },{passive:true});
+  gate?.addEventListener('click',event=>{
+    if(event.target?.closest?.('button,input,#geGatePanel'))return;
+    skipGateSunEntrance();
+  });
+
   function noteRealSongPlay(url){
     if(authorized()||gs.active||gs.expired||isStationID(url))return;
     gs.playCount=Math.max(0,Number(gs.playCount)||0)+1;
