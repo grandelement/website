@@ -135,6 +135,10 @@ function updateHealth(callback){
   encoderAvailable=helperOnline&&!!data.mp3_available;
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
+  var autostart=helperOnline&&!!data.auto_start_configured;
+  text("autoRepairState",helperOnline?
+   (autostart?"Mac auto-start configuration found. Restart watchdog state not directly verified.":"LOCAL HELPER RUNNING · No automatic startup configuration detected. One-time setup available below."):
+   "IMAC HELPER OFFLINE · Browser cannot restart a stopped local program. Install the one-time macOS auto-restart service below.");
   var sessionsReady=helperOnline&&!!data.session_uploads;
   text("sessionHelperStatus",sessionsReady?
    "SESSIONS READY · Archives and project files can upload to GE Studios/Sessions.":
@@ -159,8 +163,17 @@ function updateHealth(callback){
  });req.send();
 }
 function clear(node){while(node&&node.firstChild)node.removeChild(node.firstChild)}
+function selectFolder(kind){
+ var lookup={draft:"draftUploadCard",final:"finalUploadCard",session:"sessionUploadCard"};
+ for(var k in lookup)if(lookup.hasOwnProperty(k)){
+  var card=el(lookup[k]);if(card)card.style.display=k===kind?"block":"none";
+  var tab=el(k==="draft"?"listDrafts":k==="final"?"listFinals":"listSessions");
+  if(tab)tab.className=k===kind?"geSelectedTab":"";
+ }
+}
 function displayLibrary(kind){
  activeKind=kind;
+ selectFolder(kind);
  var token=++listGeneration,area=el("musicLibrary");
  text("libraryTitle","GOOGLE DRIVE · GE Studios / "+nameOf(kind));
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
@@ -381,6 +394,7 @@ function init(){
  };
  el("convertDraft").checked=false;el("convertFinal").checked=false;
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
+ selectFolder("draft");
  setBusy(false);progress(0);
  status("READY · BROWSE → CHOOSE FORMAT → UPLOAD. Browsing never starts an upload.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
