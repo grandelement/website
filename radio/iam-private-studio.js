@@ -678,7 +678,7 @@ async function beginTake(){
    sourcePosition:privateAudio.currentTime,clockStart:clock,offsets,
    encoderStartMilliseconds:Math.round(performance.now()-pressedAt),
    music:value(E.music),voice:value(E.voice),gain:value(E.gain),compression:value(E.compression),
-   effect:fxMode,approximate:sourceMode==="radio"};
+   effect:fxMode,effectSettings:Object.fromEntries(fxControls.map(id=>[id,knob(id)])),approximate:sourceMode==="radio"};
   startedAt=pressedAt/1000;recording=true;
   document.body.classList.remove("iam-take-error");
   mode("recording");
@@ -867,7 +867,7 @@ async function exportEdited(){
   decodeCtx=new AC();
   const [musicBytes,voiceBytes]=await Promise.all([take.music.arrayBuffer(),take.voice.arrayBuffer()]);
   const [musicBuffer,voiceBuffer]=await Promise.all([decodeCtx.decodeAudioData(musicBytes),decodeCtx.decodeAudioData(voiceBytes)]);
-  const starts=syncedStarts(.012),duration=Math.max(starts.music+musicBuffer.duration,starts.voice+voiceBuffer.duration)+.15;
+  const starts=syncedStarts(.012),duration=Math.max(starts.music+musicBuffer.duration,starts.voice+voiceBuffer.duration)+1.7;
   if(duration>180)throw Error("Edited WAV export currently supports recordings up to 3 minutes on phones. Original stems can still be saved.");
   const rate=44100,len=Math.ceil(duration*rate);
   const off=new Offline(2,len,rate);
@@ -881,17 +881,20 @@ async function exportEdited(){
   raw.gain.value=1-compression;compressed.gain.value=compression;
   compNode.threshold.value=-27;compNode.knee.value=12;compNode.ratio.value=4;
   compNode.attack.value=.005;compNode.release.value=.16;
-  const voiceOut=off.createGain(),delayNode=off.createDelay(1.5),wet=off.createGain(),feedback=off.createGain();
-  let delayTime=.01,wetAmount=0,fb=0;
-  if(fxMode==="space"){delayTime=.17;wetAmount=.2;fb=.17}
-  if(fxMode==="echo"){delayTime=.34;wetAmount=.36;fb=.28}
-  delayNode.delayTime.value=delayTime;wet.gain.value=wetAmount;feedback.gain.value=fb;
+  const voiceOut=off.createGain(),vocalBlend=off.createGain();
   song.connect(mGain);mGain.connect(off.destination);
   voice.connect(vMask);vMask.connect(vGain);
   vGain.connect(raw);vGain.connect(compNode);compNode.connect(compressed);
-  raw.connect(voiceOut);compressed.connect(voiceOut);
-  raw.connect(delayNode);compressed.connect(delayNode);
-  delayNode.connect(wet);wet.connect(voiceOut);delayNode.connect(feedback);feedback.connect(delayNode);
+  raw.connect(vocalBlend);compressed.connect(vocalBlend);
+  const fx=voiceEffectChain(off,vocalBlend,voiceOut);
+  // Edited WAV uses the same settings as live monitor and recorded MIX.
+  fx.bass.gain.value=knob('iamFxBass');fx.mid.gain.value=knob('iamFxMid');
+  fx.high.gain.value=knob('iamFxHigh');fx.filter.frequency.value=knob('iamFxFilter',35);
+  fx.delay.delayTime.value=clamp(knob('iamFxTime',340)/1000,.07,.7);
+  fx.wet.gain.value=clamp(knob('iamFxDelay')/100*.52,0,.52);
+  fx.feedback.gain.value=clamp(knob('iamFxFeedback',28)/100,0,.65);
+  fx.phaseWet.gain.value=clamp(knob('iamFxPhaser')/100*.33,0,.33);
+  fx.roomWet.gain.value=clamp(knob('iamFxReverb')/100*.48,0,.48);
   voiceOut.connect(off.destination);
   applyVocalEnvelope(vMask,starts.voice,voiceBuffer.duration);
   song.start(starts.music);voice.start(starts.voice);
@@ -954,13 +957,12 @@ async function listenTake(){
   const rm=reviewCtx.createGain(),rv=reviewCtx.createGain(),vMask=reviewCtx.createGain();
   const dry=reviewCtx.createGain(),wet=reviewCtx.createGain(),comp=reviewCtx.createDynamicsCompressor();
   comp.threshold.value=-27;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=.005;comp.release.value=.16;
-  const delay=reviewCtx.createDelay(1.5),fxWet=reviewCtx.createGain(),feedback=reviewCtx.createGain();
+  const blend=reviewCtx.createGain();
   rm.connect(reviewCtx.destination);
   rv.connect(dry);rv.connect(comp);comp.connect(wet);
-  dry.connect(reviewCtx.destination);wet.connect(reviewCtx.destination);
-  dry.connect(delay);wet.connect(delay);delay.connect(fxWet);fxWet.connect(reviewCtx.destination);
-  delay.connect(feedback);feedback.connect(delay);
-  reviewNodes={music:rm,voice:rv,dry,wet,delay,fxWet,feedback};
+  dry.connect(blend);wet.connect(blend);
+  const fx=voiceEffectChain(reviewCtx,blend,reviewCtx.destination);
+  reviewNodes={music:rm,voice:rv,dry,wet,...fx,fxWet:fx.wet};
   outputSettings();effectSettings();
   const mb=reviewCtx.createBufferSource(),vb=reviewCtx.createBufferSource();
   mb.buffer=musicBuffer;vb.buffer=voiceBuffer;mb.connect(rm);vb.connect(vMask);vMask.connect(rv);
