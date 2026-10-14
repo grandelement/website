@@ -3846,7 +3846,8 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <div class="details" style="display:block;text-align:center">
           <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the orbiting Radio Moon with a time zone</label>
           <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
-            <option value="local">MY DEVICE TIME ZONE (AUTO)</option>
+            <option value="auto">AUTOMATIC · IP LOCATION</option>
+            <option value="local">DEVICE TIME ZONE · NO IP LOOKUP</option>
             <option value="America/New_York">NEW YORK · EASTERN</option>
             <option value="America/Chicago">CHICAGO · CENTRAL</option>
             <option value="America/Denver">DENVER · MOUNTAIN</option>
@@ -4971,22 +4972,68 @@ const moon  = document.getElementById('moon');
 // Clockwise angles are based on the visitor's browser-local time.
 const PHASE0 = -Math.PI/2, CLOCK_HOURS = 12, GE_SUN_CLOCK_ZONE_KEY='GE_BLUE_SUN_CLOCK_ZONE_V1';
 const geClockZoneSelect=document.getElementById('geSunClockTimezone'),geClockReadout=document.getElementById('geSunClockReadout');
-let geClockZone='local';
-try{geClockZone=localStorage.getItem(GE_SUN_CLOCK_ZONE_KEY)||'local'}catch(_e){}
+const GE_SUN_CLOCK_IP_CACHE='GE_BLUE_SUN_IP_ZONE_V1';
+let geClockZone='auto',geClockIpZone='',geClockIpStatus='Checking IP time zone…';
+try{geClockZone=localStorage.getItem(GE_SUN_CLOCK_ZONE_KEY)||'auto'}catch(_e){}
+const possibleZones=typeof Intl.supportedValuesOf==='function'?Intl.supportedValuesOf('timeZone'):[];
 if(geClockZoneSelect){
+  // Full IANA time-zone collection, including daylight saving and half-hour zones.
+  const known=new Set([...geClockZoneSelect.options].map(o=>o.value));
+  const group=document.createElement('optgroup');group.label='ALL WORLD TIME ZONES';
+  for(const z of possibleZones){
+    if(known.has(z))continue;
+    const opt=document.createElement('option');opt.value=z;opt.textContent=z.replaceAll('_',' ').replaceAll('/',' · ');
+    group.appendChild(opt);
+  }
+  geClockZoneSelect.appendChild(group);
   if([...geClockZoneSelect.options].some(o=>o.value===geClockZone))geClockZoneSelect.value=geClockZone;
-  else geClockZone='local';
-  geClockZoneSelect.addEventListener('change',()=>{geClockZone=geClockZoneSelect.value;try{localStorage.setItem(GE_SUN_CLOCK_ZONE_KEY,geClockZone)}catch(_e){}});
+  else if(geClockZone!=='auto'&&geClockZone!=='local'){
+    // Preserve time zones not reported by this browser but supported by Intl.
+    try{new Intl.DateTimeFormat('en-US',{timeZone:geClockZone});
+      const custom=document.createElement('option');custom.value=geClockZone;custom.textContent=geClockZone;geClockZoneSelect.appendChild(custom);geClockZoneSelect.value=geClockZone;
+    }catch(_e){geClockZone='auto';geClockZoneSelect.value='auto'}
+  }
+  geClockZoneSelect.addEventListener('change',()=>{
+    geClockZone=geClockZoneSelect.value;
+    try{localStorage.setItem(GE_SUN_CLOCK_ZONE_KEY,geClockZone)}catch(_e){}
+    tickOrbit.lastClockReadout=0;
+    if(geClockZone==='auto'&&!geClockIpZone)void geClockDetectFromIp();
+  });
 }
+async function geClockDetectFromIp(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(GE_SUN_CLOCK_IP_CACHE)||'null');
+    if(cached?.zone&&Date.now()-cached.at<86400000){
+      new Intl.DateTimeFormat('en-US',{timeZone:cached.zone});
+      geClockIpZone=cached.zone;geClockIpStatus='IP LOCATION';tickOrbit.lastClockReadout=0;return;
+    }
+  }catch(_e){}
+  try{
+    // Only automatic mode contacts IP geolocation. The response is not
+    // retained; only the detected IANA time-zone identifier is cached.
+    if(geClockZone!=='auto')return;
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),4500);
+    let reply;
+    try{reply=await fetch('https://ipwho.is/',{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timeout)}
+    if(!reply.ok)throw Error('Geolocation unavailable');
+    const data=await reply.json(),zone=data?.timezone?.id;
+    if(!data?.success||!zone)throw Error('IP time zone unavailable');
+    new Intl.DateTimeFormat('en-US',{timeZone:zone});
+    geClockIpZone=zone;geClockIpStatus='IP LOCATION';tickOrbit.lastClockReadout=0;
+    try{localStorage.setItem(GE_SUN_CLOCK_IP_CACHE,JSON.stringify({zone,at:Date.now()}))}catch(_e){}
+  }catch(_e){geClockIpStatus='IP UNAVAILABLE · USING DEVICE';tickOrbit.lastClockReadout=0}
+}
+if(geClockZone==='auto')void geClockDetectFromIp();
 const geClockFormatters=new Map();
 function geSunClockTime(d){
-  if(geClockZone==='local')return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds()};
+  const zone=geClockZone==='auto'?(geClockIpZone||'local'):geClockZone;
+  if(zone==='local')return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds(),zone:'local'};
   try{
-    if(!geClockFormatters.has(geClockZone))geClockFormatters.set(geClockZone,new Intl.DateTimeFormat('en-US',{timeZone:geClockZone,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}));
-    const parts=geClockFormatters.get(geClockZone).formatToParts(d);
+    if(!geClockFormatters.has(zone))geClockFormatters.set(zone,new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}));
+    const parts=geClockFormatters.get(zone).formatToParts(d);
     const field=name=>Number(parts.find(p=>p.type===name)?.value)||0;
-    return{hour:field('hour'),minute:field('minute'),second:field('second')};
-  }catch(_e){return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds()}}
+    return{hour:field('hour'),minute:field('minute'),second:field('second'),zone};
+  }catch(_e){return{hour:d.getHours(),minute:d.getMinutes(),second:d.getSeconds(),zone:'local'}}
 }
 const OSC_PX = 30, OSC_SEC = 90;
 let orbitBaseR=160;
@@ -5030,7 +5077,7 @@ function tickOrbit(){
   const localMs=((selectedTime.hour%CLOCK_HOURS)*3600+selectedTime.minute*60+selectedTime.second)*1000+clock.getMilliseconds();
   if(geClockReadout&&(!tickOrbit.lastClockReadout||Date.now()-tickOrbit.lastClockReadout>15000)){
     tickOrbit.lastClockReadout=Date.now();
-    geClockReadout.textContent='MOON CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' '));
+    geClockReadout.textContent='MOON CLOCK · '+String((selectedTime.hour%12)||12)+':'+String(selectedTime.minute).padStart(2,'0')+(selectedTime.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'?(geClockIpZone?'IP · '+geClockIpZone.replaceAll('_',' '):geClockIpStatus):(geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' ')));
   }
   const angle=PHASE0+(localMs/(CLOCK_HOURS*3600000))*Math.PI*2;
   const t=clock.getTime()/1000;
