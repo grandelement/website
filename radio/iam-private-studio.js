@@ -153,7 +153,7 @@ function effectSettings(){
  }
  apply(ctx,{bass:fxEqBass,mid:fxEqMid,high:fxEqHigh,filter:fxLowCut,
   delay:fxDelay,wet:fxWet,feedback:fxFeedback,phaseWet:fxPhaseWet,roomWet:fxRoomWet});
- if(reviewNodes)apply(reviewCtx,reviewNodes);
+ if(reviewNodes)apply(reviewCtx,{...reviewNodes,wet:reviewNodes.fxWet});
 }
 function meter(analyser,data){
  if(!analyser||!data)return 0;
@@ -218,6 +218,9 @@ function meterLoop(){
  }else micStrongFrames=0;
  E.meters[0].style.transform="scaleX("+Math.max(.015,m).toFixed(3)+")";
  E.meters[1].style.transform="scaleX("+Math.max(.006,v).toFixed(3)+")";
+ const fxM=get('iamFxMusicMeter'),fxV=get('iamFxMicMeter');
+ if(fxM)fxM.style.width=(Math.min(100,Math.max(0,m)*100)).toFixed(1)+'%';
+ if(fxV)fxV.style.width=(Math.min(100,Math.max(0,v)*100)).toFixed(1)+'%';
  E.label.textContent=musicSignalError?"MUSIC · NO CAPTURE":m>.03?"MUSIC · LIVE":loading?"MUSIC · CONNECTING":"MUSIC · NO SIGNAL";
  const micButton=get("iamMicRetryBtn");
  if(micButton){
@@ -530,6 +533,8 @@ async function disposeAudio(){
  try{await ctx?.close()}catch(_e){}
  ctx=null;musicInput=null;musicGain=null;musicOutput=null;musicMeter=null;voiceMeter=null;micFloatData=null;micStrongFrames=0;
  musicData=null;voiceData=null;musicDest=null;voiceDest=null;mixDest=null;
+ fxEqBass=null;fxEqMid=null;fxEqHigh=null;fxLowCut=null;fxPhaseWet=null;fxRoomWet=null;
+ fxDelay=null;fxWet=null;fxFeedback=null;
  voiceInput=null;voiceOutput=null;compressor=null;monitorGain=null;verified=false;
 }
 
@@ -1147,7 +1152,8 @@ function setHeadphones(on,keepManualChoice=false){
  get("iamListenHeadphones")?.setAttribute("aria-pressed",on?"true":"false");
  get("iamListenSpeaker")?.setAttribute("aria-pressed",on?"false":"true");
  E.monitor.disabled=!on;
- E.monitor.textContent="HEAR ME: "+(monitoring?"ON":"OFF");
+ E.monitor.textContent="MIC MONITOR: "+(monitoring?"ON":"OFF");
+ E.monitor.title='Hear your own microphone in wired headphones. Change loudness with MONITOR VOL in SOUND.';
  E.monitor.setAttribute("aria-pressed",monitoring?"true":"false");
  outputSettings();
 }
@@ -1398,10 +1404,28 @@ get("iamExportEdited")?.addEventListener("click",()=>void exportEdited());
 get("iamRestoreTake")?.addEventListener("click",()=>void restoreLatest());
 [E.music,E.voice,E.gain,E.compression].forEach(e=>e?.addEventListener("input",outputSettings));
 document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.addEventListener("click",()=>{
- fxMode=b.dataset.iamEffect||"clean";
+ fxMode=b.dataset.iamEffect||"clean";studioPreset(fxMode);
  document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(x=>x.classList.toggle("selected",x===b));
  effectSettings();
 }));
+fxControls.forEach(id=>{
+ const slider=get(id);if(!slider)return;
+ slider.addEventListener('input',()=>{
+  fxMode='custom';
+  document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.classList.remove('selected'));
+  effectSettings();if(id==='iamFxMonitor')outputSettings();
+  try{const values={};fxControls.forEach(key=>{values[key]=String(get(key)?.value||'0')});
+   localStorage.setItem('ge_iam_fx_controls_v1',JSON.stringify(values))}catch(_e){}
+ });
+});
+try{const values=JSON.parse(localStorage.getItem('ge_iam_fx_controls_v1')||'null');
+ if(values&&typeof values==='object'){
+  fxControls.forEach(id=>{const input=get(id),v=Number(values[id]);
+   if(input&&Number.isFinite(v)&&v>=Number(input.min)&&v<=Number(input.max))input.value=String(v)});
+  fxMode='custom';document.querySelectorAll("#iamStudio [data-iam-effect]").forEach(b=>b.classList.remove('selected'));
+ }
+}catch(_e){}
+readFx();
 E.sound?.addEventListener("click",()=>{
  const showing=!E.panel.classList.contains("show");E.panel.classList.toggle("show",showing);
  E.sound.setAttribute("aria-expanded",showing?"true":"false");
@@ -1412,7 +1436,7 @@ get("iamSoundClose")?.addEventListener("click",()=>{
 function enableHeadphoneMonitoring(){
  setHeadphones(true);
  try{if(ctx?.state!=="running")void ctx?.resume?.()}catch(_e){}
- say("HEADPHONES · HEAR ME ON automatically. Tap HEAR ME to turn it OFF.");
+ say("HEADPHONES · MIC MONITOR ON. Hear your own mic through headphones. MONITOR VOL is under SOUND.");
 }
 get("iamListenHeadphones")?.addEventListener("click",enableHeadphoneMonitoring);
 get("iamHeadphones")?.addEventListener("click",enableHeadphoneMonitoring);
@@ -1421,7 +1445,7 @@ get("iamListenSpeaker")?.addEventListener("click",()=>{
  say("SPEAKER: Music plays out loud; sing normally. Your mic records, but is not fed back through the speaker.");
 });
 E.monitor?.addEventListener("click",()=>{
- if(!headphones){say("Select HEADPHONES before enabling vocal monitoring.");return}
+ if(!headphones){say("Select HEADPHONES before MIC MONITOR to prevent feedback.");return}
  monitoring=!monitoring;setHeadphones(true,true);
 });
 E.take.addEventListener("play",()=>{
