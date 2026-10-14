@@ -2642,10 +2642,10 @@ const GATE_CONFIG = Object.freeze({
 
   // MASTER SEQUENCE SPEED
   sequenceSpeed: 1.5,
-  // GATE TRIGGERS
-  triggerTrack: 6,
-  triggerAtSeconds: 71,
-  hardLimitSeconds: 1800,
+  // Gate visual approach starts early enough for the FINAL 66s fade to end
+  // at exactly 33 minutes, 33 seconds of actual listening (2013 seconds).
+  // No track-count trigger; station and player use the same clock.
+  hardLimitSeconds: 2013,
   // LIVE METADATA
   liveMetadataURL: 'https://radio.grandelement.blitz.cloud/control/public-now',
   liveMetadataPollSeconds: 10,
@@ -2669,7 +2669,7 @@ const GATE_CONFIG = Object.freeze({
   // ACCESS
   password: 'love',
   authKey: 'GE_GATE_LOVE_V1',
-  stateKey: 'GE_GATE_STATE_V4',
+  stateKey: 'GE_GATE_STATE_V5_3333',
   removeOfflineOnTimeout: true,
   testDeletesOffline: false,
   helpEmail: 'access@grandelement.com',
@@ -7811,7 +7811,7 @@ Vector ${vector}. ${pair[1]}.`;
 
   const emptyState=()=>({
     playCount:0,musicSeconds:0,sixthStartSeconds:null,
-    active:false,manualTest:false,triggeredAt:0,wavesAt:0,sunAt:0,centerAt:0,fadeAt:0,expireAt:0,
+    active:false,manualTest:false,triggeredAt:0,wavesAt:0,sunAt:0,centerAt:0,fadeAt:0,expireAt:0,pausedAt:0,
     baseVolume:1,expired:false,offlinePurged:false,hintIndex:0,reason:'',lastLiveTitle:''
   });
 
@@ -7852,6 +7852,24 @@ Vector ${vector}. ${pair[1]}.`;
     if(fadeRAF){cancelAnimationFrame(fadeRAF);fadeRAF=0;}
   }
   function isExpiredLocked(){return !authorized()&&!!gs.expired;}
+  // Hold the visual/fade timeline whenever actual audio stops. A phone call,
+  // buffering pause, or background interruption must not consume listening time.
+  function holdGateTimeline(){
+    if(!gs.active||gs.expired||authorized()||gs.pausedAt)return;
+    gs.pausedAt=Date.now();
+    clearTimers();save(true);
+  }
+  function resumeGateTimeline(){
+    if(!gs.active||gs.expired||authorized()||audio.paused)return;
+    if(gs.pausedAt){
+      const stopped=Math.max(0,Date.now()-Number(gs.pausedAt));
+      for(const key of ['wavesAt','sunAt','centerAt','fadeAt','expireAt']){
+        if(gs[key])gs[key]=Number(gs[key])+stopped;
+      }
+      gs.pausedAt=0;save(true);
+    }
+    scheduleStages();
+  }
 
   function updateHintUI(){
     const shown=Math.max(0,Math.min(hints.length,Number(gs.hintIndex)||0));
@@ -7938,7 +7956,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function expireGate(){
-    if(authorized())return;
+    if(authorized()||gs.pausedAt)return;
     clearTimers();
     gs.active=true;gs.expired=true;
     if(!gs.expireAt)gs.expireAt=Date.now();
@@ -7987,6 +8005,7 @@ Vector ${vector}. ${pair[1]}.`;
   function scheduleStages(){
     clearTimers();
     if(authorized()||!gs.active)return;
+    if(audio.paused||gs.pausedAt){holdGateTimeline();return;}
     const now=Date.now();
     if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
     applyVisualStage(now);
@@ -8005,12 +8024,20 @@ Vector ${vector}. ${pair[1]}.`;
     }
     if(!gs.active&&!gs.expired)return;
     if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
-    scheduleStages();
+    if(audio.paused&&!gs.expired){holdGateTimeline();applyVisualStage(gs.pausedAt||Date.now());return;}
+    resumeGateTimeline();
   }
 
   function trigger(reason){
     if(authorized()||gs.active||gs.expired)return;
-    const now=Date.now();
+    // Offset scheduler latency so its end time corresponds to 2013s listened.
+    const approachSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+    const scheduledStart=Number(GATE_CONFIG.hardLimitSeconds)-
+      approachSeconds-Number(GATE_CONFIG.graceSeconds)-Number(GATE_CONFIG.fadeSeconds);
+    const overshootMs=reason==='listening-3333'
+      ?Math.max(0,(Number(gs.musicSeconds)-scheduledStart)*1000):0;
+    const now=Date.now()-overshootMs;
     const blur=Math.max(0,gateSeconds(GATE_CONFIG.blurLeadSeconds)||0)*1000;
     const waves=Math.max(0,gateSeconds(GATE_CONFIG.waveLeadSeconds)||0)*1000;
     const entrance=Math.max(1,gateSeconds(GATE_CONFIG.entranceSeconds)||50)*1000;
@@ -8018,7 +8045,7 @@ Vector ${vector}. ${pair[1]}.`;
     const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||33)*1000;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||66)*1000;
 
-    gs.active=true;gs.expired=false;gs.offlinePurged=false;
+    gs.active=true;gs.expired=false;gs.offlinePurged=false;gs.pausedAt=0;
     gs.manualTest=reason==='manual-test';gs.reason=reason||'gate';gs.triggeredAt=now;
     gs.wavesAt=now+blur;gs.sunAt=gs.wavesAt+waves;gs.centerAt=gs.sunAt+entrance;
     gs.fadeAt=gs.centerAt+grace;gs.expireAt=gs.fadeAt+fade;
@@ -8051,7 +8078,10 @@ Vector ${vector}. ${pair[1]}.`;
     const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||33)*1000;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||66)*1000;
     gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
-    gs.fadeAt=now+grace;gs.expireAt=gs.fadeAt+fade;
+    // Skipping the entrance NEVER shortens the listening allowance:
+    // the question remains until the already-scheduled 32:27 fade,
+    // and expiry stays exactly at 33:33 listened.
+    if(gs.pausedAt)gs.pausedAt=now;
     save(true);
     clearTimers();
     if(sun){
@@ -8084,16 +8114,17 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function countableNow(){
     if(audio.paused||audio.ended||authorized()||gs.active||gs.expired)return false;
-    if(state.live)return !liveStationID;
+    // All audible Radio material counts, including station IDs.
+    if(state.live)return true;
     return !!state.currentURL&&!isStationID(state.currentURL);
   }
   function evaluateTriggers(){
     if(authorized()||gs.active||gs.expired)return;
-    if(gs.sixthStartSeconds!==null&&gs.playCount>=GATE_CONFIG.triggerTrack){
-      const afterSixth=Math.max(0,gs.musicSeconds-Number(gs.sixthStartSeconds||0));
-      if(afterSixth>=GATE_CONFIG.triggerAtSeconds){save(true);trigger('sixth-song');return;}
-    }
-    if(gs.musicSeconds>=GATE_CONFIG.hardLimitSeconds){save(true);trigger('hard-limit');}
+    const visualSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+    const lead=visualSeconds+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
+    const startAt=Math.max(0,Number(GATE_CONFIG.hardLimitSeconds)-lead);
+    if(gs.musicSeconds>=startAt){save(true);trigger('listening-3333');}
   }
   function syncListening(){
     const now=Date.now(),delta=Math.max(0,(now-lastTickAt)/1000);lastTickAt=now;
@@ -8103,6 +8134,8 @@ Vector ${vector}. ${pair[1]}.`;
   function tick(){
     syncListening();
     if(!authorized()&&gs.active&&!gs.expired){
+      if(audio.paused){holdGateTimeline();return;}
+      if(gs.pausedAt){resumeGateTimeline();}
       const now=Date.now();
       if(now>=Number(gs.expireAt||0)){expireGate();return;}
       if(now>=Number(gs.fadeAt||0))applyManagedVolume();
@@ -8155,7 +8188,7 @@ Vector ${vector}. ${pair[1]}.`;
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
     try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
-    gs.active=false;gs.expired=false;gs.reason='unlocked';save(true);
+    gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
     // Temporary legacy-Gate event for owner analytics and later email alerts.
     // Do not send location, VPN, IP, password, payment claims, or identity.
     // This is client-reported and is NOT verified purchase/entitlement proof.
@@ -8216,9 +8249,9 @@ Vector ${vector}. ${pair[1]}.`;
   });
   if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
 
-  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();applyManagedVolume();void window.GEResumeLiveEQ?.();});
-  audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
-  audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();save(true);});
+  audio.addEventListener('play',()=>{syncListening();wasCountable=countableNow();lastTickAt=Date.now();resumeGateTimeline();applyManagedVolume();void window.GEResumeLiveEQ?.();});
+  audio.addEventListener('pause',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();holdGateTimeline();save(true);});
+  audio.addEventListener('ended',()=>{syncListening();wasCountable=false;lastTickAt=Date.now();holdGateTimeline();save(true);});
   setInterval(tick,500);
   setInterval(()=>{void pollLiveMetadata();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
   window.addEventListener('pagehide',()=>{syncListening();save(true);});
