@@ -208,6 +208,7 @@ function createMusicGraph(){
  outputSettings();
 }
 async function stationSong(){
+ if(!canAccessIAmCatalog())return null;
  try{
   const url=new URL("/control/public-now",CONFIG.LIVE_STREAM_URL);
   const response=await fetch(url.href,{cache:"no-store"});if(!response.ok)return null;
@@ -236,6 +237,7 @@ function suspendOriginalRadio(){
  try{audio.pause()}catch(_e){}
 }
 function sourceSelection(){
+ if(!canAccessIAmCatalog())return {url:'',position:0,precise:false,kind:'restricted'};
  const url=audio.currentSrc||audio.src||"";
  const isRadio=!!(state.live||state.livePreparing||!url||url.includes("/stream.mp3")||state.currentURL===CONFIG.LIVE_STREAM_URL);
  sourceMode=isRadio?"radio":"player";
@@ -1439,6 +1441,7 @@ async function toggleStudioMusic(forceStop=false){
 get("iamPrivatePlay")?.addEventListener("click",()=>void toggleStudioMusic());
 get("iamStopMusic")?.addEventListener("click",()=>void toggleStudioMusic(true));
 get("iamPrivateMusicSeek")?.addEventListener("input",event=>{
+ if(!canAccessIAmCatalog())return;
  if(!open||!privateAudio||recording)return;
  const duration=Number(privateAudio.duration);
  if(!(Number.isFinite(duration)&&duration>0))return;
@@ -1455,6 +1458,7 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
   if(!open)return;
   event.stopImmediatePropagation();event.preventDefault();
   if(kind==="live"){void leave().then(()=>{if(!state.live)window.GELive?.enter?.()});return}
+  if(!canAccessIAmCatalog()){routeToMyMusic();return}
   if(kind==="prev"||kind==="next"){choosePrivateSong(kind);return}
   if(recording){say("Stop recording before pausing the music.");return}
   if(privateAudio){
@@ -1463,8 +1467,17 @@ for(const [id,kind] of [["prevBtn","prev"],["nextBtn","next"],["liveBtn","live"]
   }
  },true);
 }
+window.addEventListener('storage',event=>{
+ if(event.key==='GE_PLAYER_OWNER_DEMO_V1'&&!canAccessIAmCatalog()&&open)void leave();
+});
+setInterval(()=>{
+ if(open&&!canAccessIAmCatalog()){
+  try{privateAudio?.pause()}catch(_e){}
+  void leave();
+ }
+},2500);
 window.GEIAmStudio={
- open:enter,close:leave,version:6,getSession:()=>takeMeta,
+ open:enter,close:leave,version:7,getSession:()=>takeMeta,
  isMusicStopped:()=>open,isRadioSuspended:()=>open&&radioSuspended,
  onCatalogReady:()=>{if(canAccessIAmCatalog()&&open&&!musicHandoffDone&&!sourceURL)void refreshMatchForStudio()}
 };
