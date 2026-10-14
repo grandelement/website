@@ -148,7 +148,7 @@ Preserve together:
   .phrase.pinned{ color:#fff; text-decoration:underline; }
 
   /* Sun + Moon */
-  .sunWrap{ position:absolute; left:18vw; top:54vh; transform:translate(-50%,-50%);
+  .sunWrap{ position:absolute; left:50vw; top:50vh; transform:translate(-50%,-50%);
             width:var(--sun-size); height:var(--sun-size); pointer-events:auto; z-index:5; cursor:grab; }
   .sunWrap.dragging{ cursor:grabbing; }
 
@@ -4990,6 +4990,25 @@ function geSunClockTime(d){
 }
 const OSC_PX = 30, OSC_SEC = 90;
 let orbitBaseR=160;
+const geClockSun=document.getElementById('sunWrap');
+let geClockDragActive=false,geClockLastRelease=-Infinity,geClockLastTick=0;
+window.GE_SUN_CLOCK_DRAG={
+  start(){geClockDragActive=true;},
+  end(){geClockDragActive=false;geClockLastRelease=performance.now();}
+};
+function driftSunToClockHome(now){
+  const dt=Math.min(100,Math.max(0,now-(geClockLastTick||now)));geClockLastTick=now;
+  if(!geClockSun||geClockDragActive||now-geClockLastRelease<1600)return;
+  // Twelve o'clock is always the top of the visible screen, in either orientation.
+  // The center of the Sun returns gradually after users move it.
+  const rect=geClockSun.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+  const tx=innerWidth/2,ty=innerHeight/2;
+  if(Math.hypot(x-tx,y-ty)<.8)return;
+  const alpha=1-Math.exp(-dt/7500);
+  geClockSun.style.left=(Math.abs(x-tx)<.8?tx:x+(tx-x)*alpha)+'px';
+  geClockSun.style.top=(Math.abs(y-ty)<.8?ty:y+(ty-y)*alpha)+'px';
+  geClockSun.style.transform='translate(-50%,-50%)';
+}
 function refreshOrbitGeometry(){
   const css=getComputedStyle(document.documentElement);
   const sun=parseFloat(css.getPropertyValue('--sun-size'))||200;
@@ -5002,9 +5021,10 @@ refreshOrbitGeometry();
 addEventListener('resize',refreshOrbitGeometry,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(refreshOrbitGeometry,120),{passive:true});
 function tickOrbit(){
-  if(document.body.classList.contains('game-mode-active')){
-    setTimeout(()=>requestAnimationFrame(tickOrbit),250); return;
+  if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active')){
+    geClockLastTick=0;setTimeout(()=>requestAnimationFrame(tickOrbit),250);return;
   }
+  driftSunToClockHome(performance.now());
   const clock=new Date();
   const selectedTime=geSunClockTime(clock);
   const localMs=((selectedTime.hour%CLOCK_HOURS)*3600+selectedTime.minute*60+selectedTime.second)*1000+clock.getMilliseconds();
@@ -7458,6 +7478,7 @@ requestAnimationFrame(loop);
     // Never let the draggable Sun steal their pointer gesture on iPhone.
     if(e.target.closest('#aboutBtn,#btnMusic,#mini,#orbit,#moon,button,input,select,a,.btn,.toggle')) return;
     dragging=true; dragPointerId=e.pointerId; moved=false; wrap.classList.add('dragging');
+    window.GE_SUN_CLOCK_DRAG?.start?.();
     const rect=wrap.getBoundingClientRect();
     dx=e.clientX-rect.left; dy=e.clientY-rect.top;
     try{wrap.setPointerCapture(e.pointerId);}catch(_e){}
@@ -7498,12 +7519,14 @@ requestAnimationFrame(loop);
     if(e.cancelable)e.preventDefault();
     try{wrap.releasePointerCapture(dragPointerId);}catch(_e){}
     dragging=false; dragPointerId=null; wrap.classList.remove('dragging');
+    window.GE_SUN_CLOCK_DRAG?.end?.();
   }, {passive:false});
   addEventListener('pointercancel', (e)=>{
     if(!dragging || (dragPointerId!==null && e.pointerId!==dragPointerId)) return;
     if(e.cancelable)e.preventDefault();
     try{wrap.releasePointerCapture(dragPointerId);}catch(_e){}
     dragging=false; dragPointerId=null; wrap.classList.remove('dragging');
+    window.GE_SUN_CLOCK_DRAG?.end?.();
   }, {passive:false});
 
 // Teleport only when clicking the *center sun body* (not ABOUT / Music / player panel)
