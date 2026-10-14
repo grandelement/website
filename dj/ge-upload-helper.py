@@ -112,7 +112,7 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
         else:
             upload_name = original_name
         suffix = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
-        folder = "Finals" if kind == "final" else "Drafts"
+        folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
         destination = REMOTE + "/" + folder + "/" + suffix + "-" + upload_name
         job_update(job_id, phase="uploading", detail="Sending to Google Drive", percent=0)
         command = [RCLONE, "--config", CONFIG, "copyto", source, destination,
@@ -205,7 +205,11 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 2, "delete_available": True})
+                                       "helper_version": 3, "delete_available": True,
+                                       "session_uploads": True,
+                                       "auto_start_configured": os.path.isfile(os.path.expanduser("~/Library/LaunchAgents/com.grandelement.geuploads.plist")),
+                                       "auto_repair_available": False,
+                                       "drive_folders": ["Drafts", "Finals", "Sessions"]})
         if target.path == "/status":
             job_id = parse_qs(target.query).get("id", [""])[0]
             with GUARD:
@@ -215,9 +219,9 @@ class Handler(BaseHTTPRequestHandler):
             if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
                 return self.response(503, {"ok": False, "error": "rclone configuration missing"})
             kind = parse_qs(target.query).get("kind", [""])[0]
-            if kind not in ("draft", "final"):
+            if kind not in ("draft", "final", "session"):
                 return self.response(400, {"ok": False, "error": "Invalid folder"})
-            folder = "Finals" if kind == "final" else "Drafts"
+            folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
             command = [RCLONE, "--config", CONFIG, "lsjson", "--files-only", REMOTE + "/" + folder]
             try:
                 p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -225,7 +229,8 @@ class Handler(BaseHTTPRequestHandler):
                 if p.returncode:
                     return self.response(502, {"ok": False, "error": "Could not list Google Drive files: " + as_text(err)[-200:]})
                 items = json.loads(as_text(out))
-                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0), "modified": i.get("ModTime", "")} for i in items]
+                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0),
+                          "id": i.get("ID", ""), "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
                 files.sort(key=lambda f: f.get("modified", ""), reverse=True)
                 return self.response(200, {"ok": True, "files": files[:100], "has_more": len(files) > 100})
             except Exception as ex:
@@ -249,14 +254,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.response(400, {"ok": False, "error": "Invalid request"})
         kind = body.get("kind")
         name = body.get("name")
-        if kind not in ("draft", "final") or not isinstance(name, (type(u""), type(""))):
+        if kind not in ("draft", "final", "session") or not isinstance(name, (type(u""), type(""))):
             return self.response(400, {"ok": False, "error": "Invalid filename or folder"})
         if not name or len(name) > 180 or name in (".", "..") or any(c in name for c in ("/", "\\", "\r", "\n", "\x00")):
             return self.response(400, {"ok": False, "error": "Unsafe filename"})
         with GUARD:
             if any(x.get("phase") not in ("complete", "error") for x in JOBS.values()):
                 return self.response(409, {"ok": False, "error": "Wait for the current upload to finish before deleting"})
-        folder = "Finals" if kind == "final" else "Drafts"
+        folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
         folder_path = REMOTE + "/" + folder
         try:
             # Require an exact file from a fresh, server-side directory listing.
@@ -294,8 +299,12 @@ class Handler(BaseHTTPRequestHandler):
         kind = params.get("kind", [""])[0]
         name = safe_name(params.get("name", [""])[0])
         convert = params.get("convert", ["0"])[0] == "1"
-        if kind not in ("draft", "final") or not name or not re.search(r"\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$", name, re.I):
-            return self.response(400, {"ok": False, "error": "Choose a WAV, AIFF, MP3, MP4, M4A, AAC, FLAC or OGG file"})
+        if kind not in ("draft", "final", "session") or not name:
+            return self.response(400, {"ok": False, "error": "Choose a valid file for Drafts, Finals or Sessions"})
+        if kind != "session" and not re.search(r"\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$", name, re.I):
+            return self.response(400, {"ok": False, "error": "Drafts and Finals accept music files; use Sessions for a ZIP or complete project archive"})
+        if kind == "session" and convert:
+            return self.response(400, {"ok": False, "error": "Whole session archives must remain unchanged. MP3 conversion applies to individual audio files only."})
         if convert and not name.lower().endswith(".mp3"):
             if not find_ffmpeg() and not (find_lame() and name.lower().endswith((".wav", ".aif", ".aiff"))):
                 return self.response(400, {"ok": False, "error": "MP3 conversion requires a compatible encoder: LAME for WAV/AIFF or FFmpeg for other formats. Uncheck conversion to upload unchanged."})
