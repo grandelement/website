@@ -267,11 +267,12 @@ function updatePreviewAlbumControls(){
      box.disabled=!d;
    });
  }else{
+   // Preview checks do not silently become paid-cart selections.
    const b=getBio(album);
    get('albumDetailBio').textContent=b.bio||"Choose the recordings you'd like to own.";
    get('albumBuyAll').textContent='ADD COMPLETE ALBUM · '+money(album.tracks.length)+(albumBonus(album).length?' · BONUS INCLUDED':'');
    get('albumTrackList').querySelectorAll('input[type="checkbox"]').forEach(box=>{
-     box.disabled=false;
+     box.checked=false;box.disabled=false;
      const price=box.closest('.trackrow')?.querySelector('strong');if(price)price.textContent=money(1.5);
    });
  }
@@ -510,6 +511,10 @@ const u=new URL(location.href),requested=(u.searchParams.get("album")||"").toLow
 if(requested){const album=data.music.find(x=>x.title.toLowerCase().replace(/[^a-z0-9]+/g,"")===requested);if(album){openAlbum(album);return}}
 setSection(u.searchParams.get("section")||"home");
 updatePreviewMeter();
+if(previewMode){
+  // Arriving from the RADIO Play button opens this exact preview section.
+  setTimeout(()=>get('gePreviewMeter').scrollIntoView({block:'start',behavior:'smooth'}),150);
+}
 }).catch(err=>{get("musicGallery").append(el("p","note","Unable to load the music catalog. "+err.message));get("merchGallery").append(el("p","note","Unable to load merchandise. Refresh the page."))});
 })();
 </script>
