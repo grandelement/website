@@ -1828,9 +1828,9 @@ window.GE_EASY_SETTINGS = Object.assign({
   SHIP_APPEAR_MAX_SEC: 180,
   MINI_SHIP_APPEAR_MIN_SEC: 90,
   MINI_SHIP_APPEAR_MAX_SEC: 240,
-  AUTOPILOT_SPIRIT_VISIT_MS: 30000,
-  AUTOPILOT_SPIRIT_RETURN_MIN_SEC: 58,
-  AUTOPILOT_SPIRIT_RETURN_MAX_SEC: 64,
+  AUTOPILOT_SPIRIT_VISIT_MS: 8500, // brief normal-site appearance
+  AUTOPILOT_SPIRIT_NON_GAME_CADENCE_MS: 30000, // approximately twice per minute
+  AUTOPILOT_SPIRIT_GAME_CADENCE_MS: 71000, // every 1 minute 11 seconds in games
 
   SHIP_CENTER_RADIUS_FACTOR: 0.68,
   SHIP_RAY_INNER_FACTOR: 0.82,
@@ -2715,6 +2715,9 @@ body.autopilot-active #autopilotTrails{opacity:1}
 #autopilotSpirit{position:fixed;left:-90px;top:45%;width:32px;height:32px;border:0;padding:0;border-radius:50%;background:transparent;z-index:34;display:none;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 15px rgba(225,246,255,.95));}
 #autopilotSpirit::before{content:"";position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.88) 0 8%,rgba(220,244,255,.42) 30%,rgba(175,226,255,.14) 58%,rgba(255,255,255,0) 76%);filter:blur(3px);box-shadow:0 0 16px rgba(226,247,255,.85),0 0 34px rgba(118,202,255,.44);animation:geAutoSpiritPulse 2.7s ease-in-out infinite}
 #autopilotSpirit::after{content:"";position:absolute;inset:2px;border-radius:48% 52% 46% 54%;border:1px solid rgba(232,249,255,.25);filter:blur(2px);animation:geAutoSpiritDrift 4.8s linear infinite}
+.geAutoGameSpirit{position:fixed;left:-64px;top:50%;width:32px;height:32px;border-radius:50%;z-index:23050;pointer-events:none!important;user-select:none;filter:drop-shadow(0 0 14px rgba(135,216,255,.9))}
+.geAutoGameSpirit::before{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,rgba(217,247,255,.88) 25%,rgba(112,202,255,.48) 52%,transparent 79%);box-shadow:0 0 10px #eafaff,0 0 23px rgba(90,195,255,.84)}
+.geAutoGameSpirit::after{content:"";position:absolute;inset:-7px;border:1px solid rgba(210,245,255,.24);border-radius:50%;box-shadow:0 0 20px rgba(110,210,255,.38)}
 #autopilotSpirit{transition:transform .42s ease,filter .42s ease,opacity .8s ease}
 #autopilotSpirit .autoSpiritLabel{position:absolute;left:50%;top:38px;transform:translateX(-50%);white-space:nowrap;color:#f2fbff;font:900 9px/1.2 system-ui,sans-serif;letter-spacing:.18em;text-shadow:0 0 8px #8ed8ff;opacity:0;transition:opacity .28s ease}
 #autopilotSpirit.selected{transform:scale(1.85);filter:drop-shadow(0 0 22px rgba(225,246,255,1))}
@@ -12173,11 +12176,49 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   addEventListener('resize',fit,{passive:true});fit();
 
-  function gameActive(){return document.body.classList.contains('game-mode-active')||!!window.GE_GAME?.state?.active;}
+  function gameActive(){
+    return document.body.classList.contains('game-mode-active')
+      ||document.body.classList.contains('ge-body-race-active')
+      ||!!document.querySelector('#geCourseMode.show,#geGravityMode.show,#geFlightMode.show');
+  }
+  const normalCadence=()=>Math.max(10000,Number(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_NON_GAME_CADENCE_MS)||30000);
+  const gameCadence=()=>Math.max(15000,Number(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_GAME_CADENCE_MS)||71000);
   let spiritVisitTimer=0,spiritSelectTimer=0,spiritArmed=false;
+  let lastVisitGame=gameActive(),nextVisitAt=performance.now()+900,gameFlyby=null;
   function scheduleSpirit(delay=0){
-    clearTimeout(spiritTimer);
-    spiritTimer=setTimeout(()=>{if(!active&&!gameActive())showSpirit();},delay);
+    nextVisitAt=performance.now()+Math.max(0,delay);
+  }
+  function showGameSpirit(){
+    if(active||!gameActive()||document.hidden||gameFlyby)return;
+    const el=document.createElement('div');el.className='geAutoGameSpirit';el.setAttribute('aria-hidden','true');
+    el.style.top=(innerHeight*(.34+Math.random()*.28))+'px';
+    document.body.appendChild(el);gameFlyby=el;
+    const distance=innerWidth+140,goRight=Math.random()>.5;
+    if(!goRight){el.style.left=(innerWidth+60)+'px';}
+    const from=0,to=goRight?distance:-distance;
+    const clear=()=>{el.remove();if(gameFlyby===el)gameFlyby=null;};
+    if(typeof el.animate==='function'){
+      const motion=el.animate([{transform:'translateX('+from+'px)'},{transform:'translateX('+to+'px)'}],{duration:6200,easing:'ease-in-out',fill:'forwards'});
+      motion.finished.then(clear,clear);
+    }else{
+      el.style.transition='transform 6.2s ease-in-out';
+      requestAnimationFrame(()=>{el.style.transform='translateX('+to+'px)'});
+      setTimeout(clear,6500);
+    }
+  }
+  function visitCadence(){
+    if(active||document.hidden)return;
+    const now=performance.now(),game=gameActive();
+    if(game!==lastVisitGame){
+      lastVisitGame=game;
+      if(game)hideSpirit();
+      nextVisitAt=now+(game?gameCadence():normalCadence());
+      return;
+    }
+    if(now<nextVisitAt)return;
+    nextVisitAt=now+(game?gameCadence():normalCadence());
+    if(game)showGameSpirit();
+    else if(spirit.style.display==='none')showSpirit();
   }
   function positionSpirit(){
     spirit.style.left=(spiritPos.x-16)+'px';
@@ -12210,7 +12251,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       spirit.classList.remove('leaving');
       spirit.style.transition='';
       spirit.style.opacity='1';
-      scheduleSpirit(rand((window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MIN_SEC??58)*1000,(window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_RETURN_MAX_SEC??64)*1000));
+      // The central cadence scheduler schedules each new visit.
     },4700);
   }
   function showSpirit(){
@@ -12224,7 +12265,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     spiritPos.vy=(spiritPos.vy<0?-1:1)*6.5;
     positionSpirit();
     if(!spiritRAF){spirit._lastTs=0;spiritRAF=requestAnimationFrame(bounceSpiritLoop);}
-    spiritVisitTimer=setTimeout(leaveSpirit,window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_VISIT_MS??30000);
+    spiritVisitTimer=setTimeout(leaveSpirit,window.GE_EASY_SETTINGS?.AUTOPILOT_SPIRIT_VISIT_MS??8500);
   }
   function hideSpirit(){
     spirit.style.display='none';
@@ -12567,6 +12608,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 
   window.GE_AUTOPILOT={start:startAutopilot,stop:stopAutopilot,check:()=>showCheck('water'),isActive:()=>active,setCalm,effects:()=>({...effects}),setEffect:(name,value)=>{if(name in effects){effects[name]=!!value;saveEffects();syncEffectButtons();if(name==='mix')syncMixTimer();}}};
   scheduleSpirit(900);
+  setInterval(visitCadence,350);
 })();
 </script>\n
 
