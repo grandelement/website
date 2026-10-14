@@ -61,6 +61,11 @@ function voiceEffectChain(context,input,output){
  filter.connect(delay);delay.connect(wet);wet.connect(output);delay.connect(feedback);feedback.connect(delay);
  const phase1=context.createBiquadFilter(),phase2=context.createBiquadFilter(),phaseWet=context.createGain();
  phase1.type='allpass';phase2.type='allpass';phase1.frequency.value=680;phase2.frequency.value=1550;
+ // Slow frequency sweep supplies true movement rather than a static EQ color.
+ const sweep=context.createOscillator(),sweepDepth=context.createGain();
+ sweep.type='sine';sweep.frequency.value=.52;sweepDepth.gain.value=190;
+ sweep.connect(sweepDepth);sweepDepth.connect(phase1.frequency);sweepDepth.connect(phase2.frequency);
+ sweep.start();
  filter.connect(phase1);phase1.connect(phase2);phase2.connect(phaseWet);phaseWet.connect(output);
  const room=context.createConvolver(),roomWet=context.createGain();
  try{room.buffer=roomImpulse(context);filter.connect(room);room.connect(roomWet);roomWet.connect(output)}
