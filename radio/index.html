@@ -908,6 +908,13 @@ body.view-player #musicGroup #nextBtn{grid-row:1!important;grid-column:5 / span 
   letter-spacing:.055em;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap
 }
 #radioPreviewClock[data-stage="final"]{border-color:rgba(255,194,109,.75);color:#ffe5b1}
+#geGateNextPreview[hidden]{display:none!important}
+#geGateNextPreview{
+  display:flex!important;width:100%;min-height:44px;margin:12px auto 0;
+  align-items:center;justify-content:center;white-space:normal!important;
+  border:1px solid rgba(101,230,190,.88);border-radius:12px;
+  background:#114c41;color:#effff8;font:850 12px/1.25 system-ui,-apple-system,sans-serif;
+}
 #liveStatus.show,body.view-player #liveStatus.show,
 body.view-player.portrait-player #liveStatus.show{
   display:table!important;width:max-content!important;
@@ -2198,6 +2205,7 @@ body.iam-studio-open #titleBtn{display:none!important}
     <button id="geGateHint" type="button">Hint</button>
     <div id="geGateHintText"></div>
     <div id="geGateHelp"><button id="geGateEmail" type="button">Get Access</button></div>
+    <button id="geGateNextPreview" type="button" hidden>TRY YOUR 33:33 MUSIC PREVIEW</button>
     <div id="geGateAccessForm" role="dialog" aria-modal="true" aria-label="Get access code" aria-hidden="true">
       <button id="geGateAccessClose" type="button" aria-label="Close access dialog">×</button>
       <div id="geGateAccessText">Send us an email and we will send the access code back to the email account you use to contact us.</div>
@@ -4743,7 +4751,8 @@ $('prevBtn').addEventListener('click',()=>previousTrack(true));
 $('nextBtn').addEventListener('click',()=>nextTrack(true));
 const playBtn=$('playBtn'),playerSeek=$('playerSeek');
 function syncMainTransport(){
-  if(playBtn)playBtn.textContent=audio.paused?'Play':'Pause';
+  // Guest PLAY always leads to the commerce/My Music flow, even while Radio plays.
+  if(playBtn)playBtn.textContent=geOwnerDemoEnabled()?(audio.paused?'Play':'Pause'):'Play';
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
@@ -7972,7 +7981,7 @@ Vector ${vector}. ${pair[1]}.`;
     clearTimers();save(true);
   }
   function resumeGateTimeline(){
-    if(!gs.active||gs.expired||authorized()||audio.paused||!gateAudioFlowing)return;
+    if(!gs.active||gs.expired||authorized()||audio.paused||!gateAudioFlowing||!state.live)return;
     if(gs.pausedAt){
       const stopped=Math.max(0,Date.now()-Number(gs.pausedAt));
       for(const key of ['wavesAt','sunAt','centerAt','fadeAt','expireAt']){
@@ -7992,7 +8001,8 @@ Vector ${vector}. ${pair[1]}.`;
   function showPanel(expired=false){
     gate.classList.add('centered');
     stopGateRipples();
-    if(status)status.textContent=expired?'Enter the word to continue.':'Enter the word to continue.';
+    if(status)status.textContent=expired?'Radio preview complete. Enter the code or listen to your free music preview.':'Enter the word to continue.';
+    const nextPreview=$('geGateNextPreview');if(nextPreview)nextPreview.hidden=!expired;
     updateHintUI();
   }
 
@@ -8117,7 +8127,7 @@ Vector ${vector}. ${pair[1]}.`;
   function scheduleStages(){
     clearTimers();
     if(authorized()||!gs.active)return;
-    if(audio.paused||!gateAudioFlowing||gs.pausedAt){holdGateTimeline();return;}
+    if(audio.paused||!gateAudioFlowing||!state.live||gs.pausedAt){holdGateTimeline();return;}
     const now=Date.now();
     if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
     applyVisualStage(now);
@@ -8134,7 +8144,8 @@ Vector ${vector}. ${pair[1]}.`;
       clearTimers();gate?.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');
       gate?.setAttribute('aria-hidden','true');return;
     }
-    if(!gs.active&&!gs.expired)return;
+    if(gs.expired){expireGate();renderRadioClock();return;}
+    if(!gs.active)return;
     if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
     if(audio.paused&&!gs.expired){holdGateTimeline();applyVisualStage(gs.pausedAt||Date.now());return;}
     resumeGateTimeline();
@@ -8226,9 +8237,9 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function countableNow(){
     if(audio.paused||audio.ended||!gateAudioFlowing||authorized()||gs.active||gs.expired)return false;
-    // All audible Radio material counts, including station IDs.
-    if(state.live)return true;
-    return !!state.currentURL&&!isStationID(state.currentURL);
+    // Only live Radio 1 / Radio 2 consumes this Radio allowance.
+    // The separate 33:33 music selection has its own independent clock.
+    return !!state.live;
   }
   function evaluateTriggers(){
     if(authorized()||gs.active||gs.expired)return;
@@ -8247,7 +8258,7 @@ Vector ${vector}. ${pair[1]}.`;
   function tick(){
     syncListening();
     if(!authorized()&&gs.active&&!gs.expired){
-      if(audio.paused||!gateAudioFlowing){holdGateTimeline();renderRadioClock();return;}
+      if(audio.paused||!gateAudioFlowing||!state.live){holdGateTimeline();renderRadioClock();return;}
       if(gs.pausedAt){resumeGateTimeline();}
       const now=Date.now();
       if(now>=Number(gs.expireAt||0)){expireGate();return;}
@@ -8315,6 +8326,7 @@ Vector ${vector}. ${pair[1]}.`;
     window.GEAudioGain?.setImmediate?.(1);
     try{audio.volume=restoreVolume;}catch(_e){}
 
+    $('geGateNextPreview').hidden=true;
     gate.classList.remove('wrong','centered');gate.classList.add('open');
     gate.style.setProperty('--ge-gate-unlock',`${gateSeconds(GATE_CONFIG.unlockSeconds)}s`);
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';sun.style.opacity='1';void sun.offsetWidth;}
@@ -8329,6 +8341,10 @@ Vector ${vector}. ${pair[1]}.`;
 
   hintBtn?.addEventListener('click',()=>{gs.hintIndex=Math.min(hints.length,(Number(gs.hintIndex)||0)+1);save(true);updateHintUI();});
   enter?.addEventListener('click',unlock);
+  $('geGateNextPreview')?.addEventListener('click',()=>{
+    try{audio.pause();}catch(_e){}
+    location.assign('./preview-lab.html#choose');
+  });
   word?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();unlock();}});
 
   const accessForm=$('geGateAccessForm');
