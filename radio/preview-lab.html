@@ -70,16 +70,31 @@ footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
 var LIMIT=2013, SAMPLE=33, GATE_LEAD=(6+10+70)/1.5+33+66, KEY='GE_PLAYER_3333_TEST_V1';
 var audio=document.getElementById('audio'),$=function(id){return document.getElementById(id)};
 var tracks=[],queue=[],idx=-1,mode='idle',used=0,lastMedia=0,current=null,sampleStart=33,sampleStop=66,loadingId=0;
+var ownerDemo=false,OWNER_KEY='GE_PLAYER_OWNER_DEMO_V1';try{ownerDemo=localStorage.getItem(OWNER_KEY)==='yes'}catch(e){}
 try{var saved=JSON.parse(localStorage.getItem(KEY)||'{}');used=Math.max(0,Math.min(LIMIT,Number(saved.used)||0));}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({used:used}))}catch(e){}}
 function fmt(t){t=Math.floor(Math.max(0,Number(t)||0));return ('0'+Math.floor(t/60)).slice(-2)+':'+('0'+(t%60)).slice(-2)}
 function say(t){$('status').textContent=t}
 function makeNode(tag,klass,txt){var el=document.createElement(tag);if(klass)el.className=klass;if(txt!=null)el.textContent=txt;return el}
-function remaining(){return Math.max(0,LIMIT-used)}
+function remaining(){return ownerDemo?Infinity:Math.max(0,LIMIT-used)}
+function syncOwner(){
+ $('ownerStatus').textContent=ownerDemo?'OWNER DEMO · UNLIMITED MUSIC TEST':'Local demo only; not a purchase credential.';
+ $('modeBadge').textContent=ownerDemo?'OWNER · LOCAL TEST (NOT A PAID ACCOUNT)':'GUEST PREVIEW · 33:33';
+ $('ownerUnlock').hidden=ownerDemo;$('ownerCode').hidden=ownerDemo;$('ownerLock').hidden=!ownerDemo;
+ $('reset').hidden=!ownerDemo;updateGate();paintMeter();
+}
+$('ownerUnlock').addEventListener('click',function(){
+ if($('ownerCode').value.trim().toLowerCase()==='love'){
+ ownerDemo=true;try{localStorage.setItem(OWNER_KEY,'yes')}catch(e){}
+ $('ownerCode').value='';syncOwner();say('Owner test enabled. This code cannot authorize purchases or private files.');
+ }else say('Code not recognized. Guest preview is still available.');
+});
+$('ownerLock').addEventListener('click',function(){ownerDemo=false;try{localStorage.removeItem(OWNER_KEY)}catch(e){}syncOwner();say('Guest preview restored.')});
+$('ownerCode').addEventListener('keydown',function(e){if(e.key==='Enter')$('ownerUnlock').click()});
 function selectedTime(){return queue.reduce(function(sum,t){return sum+t.duration_ms/1000},0)}
 function paintMeter(){
  var sec=selectedTime(),p=Math.min(100,100*sec/LIMIT);
- $('total').textContent=fmt(sec)+' / 33:33';$('count').textContent=queue.length+' song'+(queue.length===1?'':'s')+' selected';
+ $('total').textContent=fmt(sec)+(ownerDemo?' / OWNER DEMO':' / 33:33');$('count').textContent=queue.length+' song'+(queue.length===1?'':'s')+' selected';
  $('left').textContent=sec>LIMIT?'EXCEEDS BY '+fmt(sec-LIMIT):fmt(LIMIT-sec)+' room';
  $('cometFill').style.width=p+'%';$('comet').style.left=p+'%';
  $('cometTrack').classList.toggle('full',sec>=LIMIT);
@@ -135,7 +150,7 @@ function seekWhenReady(t,seconds,id){
 }
 function begin(t,seek,kind){
  if(!valid(t)){say('Song is unavailable.');return}
- if(used>=LIMIT&&kind==='playlist'){say('33:33 has been used. Reset this owner test clock to run it again.');return}
+ if(!ownerDemo&&used>=LIMIT&&kind==='playlist'){say('33:33 guest preview used. Visit the store to buy music.');return}
  current=t;mode=kind;lastMedia=0;
  var id=++loadingId;
  audio.pause();audio.removeAttribute('crossorigin');audio.autoplay=false;audio.src=new URL(t.url,location.origin).href;audio.load();
@@ -159,7 +174,7 @@ function triggerGate(){
 }
 function updateGate(){
  var left=remaining(),el=$('gateStage');
- if(mode!=='playlist'||used<LIMIT-GATE_LEAD){$('gate').classList.remove('visible');return}
+ if(ownerDemo||mode!=='playlist'||used<LIMIT-GATE_LEAD){$('gate').classList.remove('visible');return}
  triggerGate();
  var progressed=GATE_LEAD-left;
  if(progressed<(6+10+70)/1.5){el.textContent='Blue Sun approaches the center. Tap to skip the fly-in on the real Gate.'}
@@ -169,8 +184,8 @@ function updateGate(){
 audio.addEventListener('timeupdate',function(){
  var pos=Number(audio.currentTime)||0;
  if(mode==='playlist'&&!audio.paused){
-  if(lastMedia>0&&pos>lastMedia){used=Math.min(LIMIT,used+(pos-lastMedia));save()}
-  if(used>=LIMIT){audio.pause();mode='idle';say('33:33 free preview completed. Gate complete.');$('gate').classList.add('visible');$('gateStage').textContent='33:33 reached · demo ended.'}
+  if(!ownerDemo&&lastMedia>0&&pos>lastMedia){used=Math.min(LIMIT,used+(pos-lastMedia));save()}
+  if(!ownerDemo&&used>=LIMIT){audio.pause();mode='idle';say('33:33 guest preview complete. Visit the store to buy music.');$('gate').classList.add('visible');$('gateStage').textContent='33:33 reached · demo ended.'}
   updateGate();paintMeter();
  }
  if(mode==='sample'){
@@ -186,7 +201,7 @@ audio.addEventListener('ended',function(){if(mode==='playlist')nextSong();else i
 $('search').addEventListener('input',showSongs);
 $('start').addEventListener('click',function(){
  if(!queue.length){say('Choose at least one song.');return}
- idx=0;begin(queue[0],0,'playlist');
+ idx=0;begin(queue[0],0,'playlist');var player=$('personalPlayer');if(player&&player.scrollIntoView)player.scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('clear').addEventListener('click',function(){if(mode==='playlist'){audio.pause();mode='idle'}queue=[];idx=-1;showQueue();paintMeter()});
 $('play').addEventListener('click',function(){
@@ -211,6 +226,6 @@ fetch('./track-durations.json',{cache:'no-store'}).then(function(r){if(!r.ok)thr
  tracks.forEach(function(t){var group=t.album||'Other';(albums[group]||(albums[group]=[])).push(t)});
  showAlbums();say(tracks.length+' available tracks loaded.');paintMeter();
 }).catch(function(e){$('songs').textContent='Unable to load song durations. Try reconnecting. '+e.message;});
-paintMeter();
+paintMeter();syncOwner();
 })();
 </script></body></html>
