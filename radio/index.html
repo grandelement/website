@@ -2250,6 +2250,27 @@ body.view-ship .sunlab-panel.show{position:fixed!important;left:50%!important;ri
 body.view-ship .sunlab-panel.show #sunLabGrid{min-height:0!important;overflow-y:auto!important}
 body.view-ship .sunlab-panel.show .sunlab-actions{overflow-x:auto!important;white-space:nowrap!important}
 </style>
+<style id="ge-radio-startup-one-pulse-20261015">
+body:not(.iam-studio-open) #musicGroup #shuffleBtn{grid-row:2!important;grid-column:1 / span 2!important}
+body:not(.iam-studio-open) #musicGroup #liveBtn{grid-row:2!important;grid-column:3 / span 2!important}
+body:not(.iam-studio-open) #musicGroup #shareBtn{grid-row:2!important;grid-column:5 / span 2!important}
+#liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+#shipPlay.radio-play-start-cue::after{animation:geRadioSingleArrivalPulse 6.7s ease-in-out infinite!important}
+@keyframes geRadioSingleArrivalPulse{
+  0%{opacity:.035;transform:scale(.996)}
+  18%{opacity:.10;transform:scale(.997)}
+  44%{opacity:.38;transform:scale(1.001)}
+  68%{opacity:.76;transform:scale(1.008)}
+  78%{opacity:.90;transform:scale(1.012)}
+  80%{opacity:1;transform:scale(1.025)}
+  83%{opacity:.70;transform:scale(1.009)}
+  100%{opacity:.035;transform:scale(.996)}
+}
+@media(prefers-reduced-motion:reduce){
+ #liveBtn.radio-start-cue::after,#shipStage [data-proxy="liveBtn"].radio-start-cue::after,
+ #shipPlay.radio-play-start-cue::after{animation:none!important;opacity:.48!important;transform:none!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -2503,8 +2524,8 @@ body.view-ship .sunlab-panel.show .sunlab-actions{overflow-x:auto!important;whit
     <button id="prevBtn">Prev</button>
     <button id="playBtn">Play</button>
     <button id="nextBtn">Next</button>
-    <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
+    <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <button id="shareBtn">Share</button>
     <button id="loveBtn" type="button" aria-pressed="false" title="Save this song as a favorite on this device and register it in GE Vault">♡ LOVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
@@ -3721,7 +3742,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
-  if(liveButton) liveButton.textContent=state.livePreparing?'CONNECTING…':'RADIO';
+  if(liveButton) liveButton.textContent='RADIO';
   updateRadioStartupCue?.();
 }
 function rememberRecent(url){
@@ -3962,11 +3983,10 @@ function radioPlayFailure(error){
 }
 function updateRadioStartupCue(){
   const cue=(
-    !liveState.everPlayed &&
-    !liveState.startupCueDismissed &&
-    state.live &&
-    !state.livePreparing &&
-    audio.paused
+    (state.live||state.livePreparing) &&
+    !observedRadio1Progress &&
+    !(radio2.active&&observedRadio2Progress) &&
+    !document.hidden
   );
   const radioButtons=[
     $('liveBtn'),
@@ -3992,7 +4012,11 @@ function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
 }
 let lastRadio1Progress=Date.now(),lastRadio1Time=NaN,observedRadio1Progress=false;
-function markRadio1Attempt(){lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;}
+let lastRadio2Time=NaN,observedRadio2Progress=false;
+function markRadio1Attempt(){
+  lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;
+  updateRadioStartupCue();
+}
 function freshLiveStreamURL(){
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
   // A fresh query value prevents Safari/PWA buffering from resuming stale LIVE bytes.
@@ -4055,6 +4079,7 @@ function radio2PlayCurrent(){
   const url=new URL(slot.track.url,location.origin).href;
   const changed=url!==radio2.url||radio2.index!==slot.index||audio.src!==url;
   if(changed){
+    lastRadio2Time=NaN;observedRadio2Progress=false;updateRadioStartupCue();
     radio2.index=slot.index;radio2.url=url;
     radio2.title=String(slot.track.title||'').trim();
     state.currentURL=url;
@@ -4144,6 +4169,7 @@ async function switchToRadio2(reason='radio1_unavailable'){
 function resetRadio2(){
   radio2.run++;radio2.active=false;radio2.loading=false;
   radio2.program=null;radio2.index=-1;radio2.url='';radio2.title='';
+  observedRadio2Progress=false;lastRadio2Time=NaN;updateRadioStartupCue();
 }
 setInterval(()=>{
   if(radio2.active&&state.live&&!audio.paused&&!document.hidden)radio2PlayCurrent();
@@ -4987,19 +5013,31 @@ $('homeLink').addEventListener('click',()=>{ try{ audio.pause(); }catch(_e){} })
 
 audio.addEventListener('pointerdown',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
 audio.addEventListener('touchstart',()=>{void window.GEResumeLiveEQ?.();},{passive:true});
+// One native player; only advancing time (not play/playing) verifies playback.
 audio.addEventListener('timeupdate',()=>{
-  if(!state.live||radio2.active||radio2.loading)return;
+  if(!state.live||audio.paused||radio2.loading)return;
   const t=Number(audio.currentTime);
   if(!Number.isFinite(t))return;
-  if(!Number.isFinite(lastRadio1Time)||Math.abs(lastRadio1Time-t)>=.2){
-    const first= !observedRadio1Progress;
-    observedRadio1Progress=true;lastRadio1Progress=Date.now();lastRadio1Time=t;
-    if(first&&!audio.paused){
+  if(radio2.active){
+    if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15&&!observedRadio2Progress){
+      observedRadio2Progress=true;
+      setLiveStatus('RADIO 2 · Bangers audio advancing');
+      setStatus('Grand Element Radio 2 · stream active');
+      updateRadioStartupCue();
+    }
+    lastRadio2Time=t;return;
+  }
+  if(Number.isFinite(lastRadio1Time)&&t>lastRadio1Time+.15){
+    const first=!observedRadio1Progress;
+    observedRadio1Progress=true;lastRadio1Progress=Date.now();
+    if(first){
       clearRadioWatch();
       setLiveStatus('RADIO 1 · audio stream advancing');
       setStatus('Grand Element Radio · stream active');
+      updateRadioStartupCue();
     }
   }
+  lastRadio1Time=t;
 });
 setInterval(()=>{
   // ReadyState alone cannot prove a live MP3 stream is progressing. Only
