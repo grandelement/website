@@ -2657,6 +2657,7 @@ body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!i
       <button class="sunlab-modebtn" type="button" data-sun-mode="waterfall">Waterfall</button>
     </div>
     <div id="sunLabModeHint" class="sunlab-modehint">Tap an effect to edit it.</div>
+    <div id="sunEQSourceStatus" role="status" style="font-size:12px;color:#9de5fe;padding:0 4px 4px;text-align:center">MUSIC EQ · PAUSED</div>
     <div id="sunLabGrid" class="sunlab-grid no-mode">
       <div id="spectrumMeter" class="spectrum-meter" hidden aria-label="Live spectrum band meter">
         <div class="spectrum-meter-title">LIVE SPECTRUM METER</div>
@@ -6948,87 +6949,136 @@ Vector ${vector}. ${pair[1]}.`;
   let sunEQCascadeTick=0;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
-  // Background-safe analyser architecture.
-  // On iPhone/iPad the audible player stays a native HTMLAudioElement so lock-screen
-  // playback is not routed through a Web Audio context that iOS may suspend.
-  // A second silent analyser element is used only while the page is visible.
-  async function ensureLiveEQ(){
-    // Baseline stability mode: the radio uses ONE native audio element only.
-    // No Web Audio source, no silent duplicate iPhone stream, no analyser audio path.
-    return false;
+  // Non-invasive live analyser + Gate wet-effects bus.
+  // The ORIGINAL Radio <audio> stays on the native iOS media path.
+  // A separate, never-audible tap feeds the frequency analyser; it is
+  // deliberately NOT considered active unless nonzero music bins arrive.
+  // A cross-origin stream must opt into CORS for Web Audio analysis. If
+  // denied or iOS blocks the tap, native Radio and its volume fade survive.
+  let eqTapFailure='',eqLastSignalAt=0,eqLastStatusAt=0;
+  let fxWet=null,fxFilter=null,fxAllpass=null,fxDelay=null,fxFeedback=null,
+      fxReverb=null,fxReverbGain=null,fxModulator=null,fxModGain=null;
+  function eqMessage(message){
+    const out=$('sunEQSourceStatus');
+    if(out&&out.textContent!==message)out.textContent=message;
+  }
+  function createGateFxGraph(ctx){
+    // Input and output are isolated from the native audible <audio>.
+    const dryInput=eqAnalyser;
+    fxFilter=ctx.createBiquadFilter();fxFilter.type='lowpass';fxFilter.frequency.value=18000;
+    fxAllpass=ctx.createBiquadFilter();fxAllpass.type='allpass';fxAllpass.frequency.value=460;
+    fxAllpass.Q.value=.65;
+    fxDelay=ctx.createDelay(1.6);fxDelay.delayTime.value=.29;
+    fxFeedback=ctx.createGain();fxFeedback.gain.value=.30;
+    fxReverb=ctx.createConvolver();
+    // Short diffuse impulse: avoid loading extra server files or huge buffers.
+    const rate=ctx.sampleRate,duration=1.45,length=Math.max(1,Math.round(rate*duration));
+    const impulse=ctx.createBuffer(2,length,rate);
+    for(let ch=0;ch<2;ch++){
+      const samples=impulse.getChannelData(ch);
+      for(let i=0;i<length;i++){
+        const t=i/length;
+        samples[i]=(Math.random()*2-1)*Math.pow(1-t,2.9)*.26;
+      }
+    }
+    fxReverb.buffer=impulse;
+    fxWet=ctx.createGain();fxWet.gain.value=0;
+    fxReverbGain=ctx.createGain();fxReverbGain.gain.value=.60;
+    const delayGain=ctx.createGain();delayGain.gain.value=.38;
+    // Filter -> phaser allpass -> reverb and recurring delay echo.
+    dryInput.connect(fxFilter);fxFilter.connect(fxAllpass);
+    fxAllpass.connect(fxReverb);fxReverb.connect(fxReverbGain);fxReverbGain.connect(fxWet);
+    fxAllpass.connect(fxDelay);fxDelay.connect(delayGain);delayGain.connect(fxWet);
+    fxDelay.connect(fxFeedback);fxFeedback.connect(fxDelay);
+    fxWet.connect(ctx.destination);
+    fxModulator=ctx.createOscillator();fxModulator.type='sine';fxModulator.frequency.value=.24;
+    fxModGain=ctx.createGain();fxModGain.gain.value=330;
+    fxModulator.connect(fxModGain);fxModGain.connect(fxAllpass.frequency);fxModulator.start();
+  }
+  function gateFxProgress(progress){
+    if(!eqAudioCtx||!fxWet||!fxFilter)return;
+    // If no verified audio bins exist, never play false 'reverb' effects.
+    const usable=eqAudioCtx.state==='running'&&eqLastSignalAt &&
+      performance.now()-eqLastSignalAt<3500;
+    const p=Math.max(0,Math.min(1,Number(progress)||0));
+    const now=eqAudioCtx.currentTime;
     try{
-      const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+      const wet=usable&&p>0?Math.max(0,.12+.46*Math.sin(Math.PI*Math.pow(p,.68)))*Math.pow(1-p,.42):0;
+      fxWet.gain.setTargetAtTime(wet,now,.10);
+      fxFilter.frequency.setTargetAtTime(usable?Math.max(260,15000*Math.pow(1-p,3.3)):18000,now,.16);
+      fxDelay.delayTime.setTargetAtTime(.22+p*.27,now,.2);
+      if(fxFeedback)fxFeedback.gain.setTargetAtTime(.22+.32*p,now,.15);
+      if(fxModulator)fxModulator.frequency.setTargetAtTime(.2+1.3*p,now,.2);
+    }catch(_e){}
+  }
+  window.GEGateFX={setFadeProgress:gateFxProgress,start:()=>void ensureLiveEQ(),reset:()=>gateFxProgress(0),getStatus:()=>({
+    signal:performance.now()-eqLastSignalAt<3500&&eqLastSignalAt>0,
+    context:eqAudioCtx?.state||'off',error:eqTapFailure
+  })};
+  async function ensureLiveEQ(){
+    if(document.hidden || audio.paused || !audio.currentSrc)return false;
+    const source=audio.currentSrc||audio.src||'';
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC){eqMessage('MUSIC EQ · Web Audio unavailable');return false;}
       if(!eqAudioCtx){
         eqAudioCtx=new AC();
         eqAnalyser=eqAudioCtx.createAnalyser();
-        eqAnalyser.fftSize=256;
-        eqAnalyser.smoothingTimeConstant=.10;
+        eqAnalyser.fftSize=512;
+        eqAnalyser.smoothingTimeConstant=.18;
         eqData=new Uint8Array(eqAnalyser.frequencyBinCount);
-      }
-      if(eqAudioCtx.state==='suspended'){
-        try{await eqAudioCtx.resume();}catch(_e){return false;}
-      }
-      if(eqAudioCtx.state!=='running')return false;
-
-      if(GE_IOS_AUDIO&&!eqTapAudio){
         eqTapAudio=new Audio();
-        eqTapAudio.preload='auto';
+        eqTapAudio.preload='none';
         eqTapAudio.crossOrigin='anonymous';
         eqTapAudio.playsInline=true;
         eqTapAudio.setAttribute('playsinline','');
-        eqTapAudio.setAttribute('webkit-playsinline','');
-      }
-
-      const analysisElement=GE_IOS_AUDIO?eqTapAudio:audio;
-      if(!eqSource){
-        eqSource=eqAudioCtx.createMediaElementSource(analysisElement);
+        eqTapAudio.volume=1;
+        eqSource=eqAudioCtx.createMediaElementSource(eqTapAudio);
         eqSource.connect(eqAnalyser);
-        if(!GE_IOS_AUDIO){
-          eqGain=eqAudioCtx.createGain();
-          eqGain.gain.value=1;
-          eqAnalyser.connect(eqGain);
-          eqGain.connect(eqAudioCtx.destination);
-        }
+        // The analyser tap is SILENT until a Gate fade explicitly raises wet FX.
+        const silent=eqAudioCtx.createGain();silent.gain.value=0;
+        eqAnalyser.connect(silent);silent.connect(eqAudioCtx.destination);
+        createGateFxGraph(eqAudioCtx);
       }
-
-      if(GE_IOS_AUDIO){
-        const wanted=audio.currentSrc||audio.src||'';
-        if(wanted&&eqTapAudio.src!==wanted){
-          try{eqTapAudio.pause();}catch(_e){}
-          eqTapAudio.src=wanted;
-          eqTapAudio.load();
-        }
-        if(wanted&&!document.hidden&&!audio.paused){
-          try{
-            if(Number.isFinite(audio.duration)&&audio.duration>0&&Number.isFinite(audio.currentTime)){
-              const sync=()=>{try{if(Math.abs((eqTapAudio.currentTime||0)-audio.currentTime)>.45)eqTapAudio.currentTime=audio.currentTime;}catch(_e){}};
-              if(eqTapAudio.readyState>=1)sync();else eqTapAudio.addEventListener('loadedmetadata',sync,{once:true});
-            }
-            await eqTapAudio.play();
-          }catch(_e){}
-        }
-        window.GEAudioGain={setImmediate(){return false;}};
-        return true;
+      if(eqAudioCtx.state==='suspended')await eqAudioCtx.resume();
+      if(eqAudioCtx.state!=='running')return false;
+      const already=eqTapAudio.src===source&&!eqTapAudio.paused;
+      if(!already){
+        try{eqTapAudio.pause()}catch(_e){}
+        if(eqTapAudio.src!==source){eqTapAudio.src=source;eqTapAudio.load();}
+        const playPromise=eqTapAudio.play();
+        if(playPromise)await playPromise;
       }
-
-      window.GEAudioGain={setImmediate(value){if(!eqGain||!eqAudioCtx)return false;const safe=Math.max(0,Math.min(1,Number(value)));try{eqGain.gain.cancelScheduledValues(eqAudioCtx.currentTime);eqGain.gain.setValueAtTime(safe,eqAudioCtx.currentTime);return true;}catch(_e){return false;}}};
+      if(Number.isFinite(audio.duration)&&audio.duration>0&&Number.isFinite(audio.currentTime)){
+        const align=()=>{try{
+          if(Math.abs((eqTapAudio.currentTime||0)-audio.currentTime)>.75)eqTapAudio.currentTime=audio.currentTime;
+        }catch(_e){}};
+        if(eqTapAudio.readyState>=1)align();
+        else eqTapAudio.addEventListener('loadedmetadata',align,{once:true});
+      }
+      eqTapFailure='';
+      eqMessage('MUSIC EQ · waiting for live frequencies…');
       return true;
-    }catch(err){
-      console.warn('Live EQ unavailable; audio remains on the native media-element path.',err);
+    }catch(error){
+      eqTapFailure=String(error?.name||error||'Audio analysis unavailable');
+      eqMessage('MUSIC EQ · native Radio OK · analyser unavailable');
+      // Native playback MUST remain untouched.
       return false;
     }
   }
-
   function manageBackgroundAnalyser(){
-    if(!GE_IOS_AUDIO)return;
-    if(document.hidden){
-      try{eqTapAudio?.pause();}catch(_e){}
-      try{if(eqAudioCtx?.state==='running')void eqAudioCtx.suspend();}catch(_e){}
-    }else if(!audio.paused){
+    if(document.hidden||audio.paused){
+      try{eqTapAudio?.pause()}catch(_e){}
+      gateFxProgress(0);
+      try{if(eqAudioCtx?.state==='running')void eqAudioCtx.suspend()}catch(_e){}
+    }else{
       void ensureLiveEQ();
     }
   }
   document.addEventListener('visibilitychange',manageBackgroundAnalyser);
+  audio.addEventListener('pause',manageBackgroundAnalyser);
+  audio.addEventListener('ended',manageBackgroundAnalyser);
+  audio.addEventListener('playing',()=>{void ensureLiveEQ()});
   // Kept for the existing song-change hook. Rings keep fixed frequency order by design.
   function randomizeSunEQMap(){
     for(let i=0;i<sunEQLevels.length;i++)sunEQLevels[i]=.03;
@@ -7593,8 +7643,19 @@ Vector ${vector}. ${pair[1]}.`;
     ensureEQ(eqLeft,5);ensureEQ(eqRight,10);const t=audio.currentTime||performance.now()/1000;
     [eqLeft,eqRight].forEach((container,side)=>{if(!container)return;[...container.children].forEach((bar,i)=>{const a=(Math.sin(t*(3.1+side*.35)+i*.91)+1)/2,b=(Math.sin(performance.now()/1000*1.7+i*1.33)+1)/2,h=14+a*50+b*25;bar.style.height=`${clamp(h,12,96)}%`;bar.style.opacity=String(.30+a*.58);});});
     let live=false;
-    if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'){
-      try{eqAnalyser.getByteFrequencyData(eqData);live=true;}catch(_e){}
+    if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'&&!eqTapAudio?.paused){
+      try{
+        eqAnalyser.getByteFrequencyData(eqData);
+        const energy=eqData.reduce((total,bin)=>total+bin,0);
+        live=energy>eqData.length*.5;
+        if(live)eqLastSignalAt=performance.now();
+      }catch(_e){}
+    }
+    if(performance.now()-eqLastStatusAt>1200){
+      eqLastStatusAt=performance.now();
+      if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
+      else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE · VISUAL TEST ONLY');
+      else eqMessage('MUSIC EQ · PAUSED');
     }
     updateSunEQ(live);
     if(!eqOverlayOpen||!eqOverlayBars)return;
