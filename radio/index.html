@@ -4545,17 +4545,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   function applyTitle(title){
     title=String(title||'').trim();
     if(!title||(state.live!==true&&state.livePreparing!==true)||radio2.active)return;
-    const changed=lastTitle!==title;
     lastTitle=title;
-    if(changed){
-      const tagged=title.replace(/^LIVE\s*[•-]\s*/i,'').split(/\s*•\s*/);
-      const album=tagged.length>1?tagged[0]:'';
-      if(album){
-        try{window.dispatchEvent(new CustomEvent('ge-current-song',{
-          detail:{album,title:tagged.slice(1).join(' • '),key:'live:'+title}
-        }));}catch(_e){}
-      }
-    }
     titleBtn.textContent=title;
     refreshLoveButton();
     try{
@@ -4646,12 +4636,6 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   loveAudioPlaying=false;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
-  if(sunEQTrackChanged&&!isStationID(url)){
-    const albumTrack=parseTrack(url);
-    try{window.dispatchEvent(new CustomEvent('ge-current-song',{
-      detail:{album:albumTrack.album,title:albumTrack.song,key:'song:'+url}
-    }));}catch(_e){}
-  }
   titleBtn.textContent=displayTitle(url,!state.shuffle);
   refreshLoveButton();
   updateCurrentRow();
@@ -6533,6 +6517,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     const picture=document.createElement('img');
     picture.alt='';picture.loading='lazy';picture.src=album.cover;
     const name=document.createElement('span');name.className='ship-album-label';name.textContent=album.name;
+    if(album.name==='Singles')picture.style.filter='grayscale(1) contrast(1.15)';
     el.append(picture,name);albumPlanetLayer.append(el);
     albumFlight.entries.push({world:depth,side,album:album.name,el});
     // Keep the most recent 24 planets. Leave the Blue Sun completely separate.
@@ -8334,10 +8319,7 @@ Vector ${vector}. ${pair[1]}.`;
   });
   syncArrivalOptions();autoGrowArrival();
   if(analysisText)analysisText.textContent='Passive scan active.';
-  updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode,
-    getThrottle:()=>approach.throttle,
-    getApproachDistance:()=>approach.distance
-  };
+  updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
 
 /* INNER GATE CONTROLLER
@@ -9191,7 +9173,6 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
-<script src="./ship-album-flybys.js?v=20261015-1" defer></script>
 <script id="ge-headphone-notice-handler">
 (function(){
   var popup=document.getElementById('geHeadphoneNotice');
