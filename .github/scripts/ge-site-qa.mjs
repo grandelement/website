@@ -114,6 +114,39 @@ const retryPath=radio.slice(radio.indexOf('async function fetchWithRetry('),radi
 test(!retryPath.includes('purgeStaleSongVersions('),
   'A failed song replacement cannot purge the previous cached version');
 
+// Owner demo ACCESS controls and quiet public Gate must remain separated
+// from real server-verified membership and must never clear cached media.
+allIn(radio,[
+  "id=\"accessLaunchBtn\"",
+  "id=\"geGateEnter\" type=\"button\">ACCESS",
+  "ge-gate-contact",
+  "function geRadioLocalTestAccess(){",
+  "window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI",
+  "if(show&&!geRadioLocalTestAccess())return",
+  "if(!geRadioLocalTestAccess())return; // Future production",
+  "body:not(.ge-offline-entitled) #sunLabBtn",
+  "body:not(.ge-offline-entitled) #offlineBtn",
+  "#radioPreviewClock{display:none!important}",
+  "removeOfflineOnTimeout: false",
+  "window.GEGateFX={setFadeProgress:gateFxProgress",
+  "function ensureLiveEQ(){",
+  "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
+  "if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return"
+], 'LOVE developer-only Radio UI and quiet native-safe Gate');
+test(!radio.includes("if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}") ||
+ radio.includes("location.assign('../support/?section=radio&flow=shop');"),
+ 'An incorrect Gate code routes to membership instead of granting access');
+const eqPath=radio.slice(radio.indexOf('async function ensureLiveEQ(){'),radio.indexOf('  // Kept for the existing song-change hook.'));
+test(eqPath.includes("if(!eqTapIsNeeded()") && !eqPath.includes("    return false;\n    try{"),
+  'Analyser no longer disabled and does not create second stream for ordinary guests');
+test(radio.includes("if(/iPad|iPhone|iPod/i.test(navigator.userAgent||''))"),
+  'Native iPhone media path preserved');
+const preview=read('radio/preview-lab.html');
+test(preview.includes('#previewCometMeter,#gate{display:none!important}') &&
+  preview.includes("button('33s',function(){sample(t,33)}"),
+  'Personal preview hides duplicate 33:33 Gate but retains track samples');
+test(!radio.includes("const hints=["),
+  'No Gate riddle/questions');
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
