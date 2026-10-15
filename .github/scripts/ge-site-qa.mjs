@@ -162,6 +162,16 @@ allIn(radio,[
   "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
   "if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return"
 ], 'LOVE developer-only Radio UI and quiet native-safe Gate');
+
+const gateFxSource=radio.slice(radio.indexOf('function createGateFxGraph(ctx){'),radio.indexOf('window.GEGateFX={'));
+test(!/fxDelay|fxFeedback|delayGain|createDelay\\(|delayTime/.test(gateFxSource) &&
+  gateFxSource.includes('fxReverb=ctx.createConvolver()') &&
+  gateFxSource.includes("fxAllpass.type='allpass'") &&
+  gateFxSource.includes("fxFilter.type='lowpass'") &&
+  gateFxSource.includes('fxWet.gain.setTargetAtTime(wet,now,.10)') &&
+  radio.includes('window.GEGateFX?.setFadeProgress?.(progress)'),
+  'Gate echo removed; reverb/phaser/filter and timed fade remain');
+
 test(!radio.includes("if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}") ||
  radio.includes("location.assign('../support/?section=radio&flow=shop');"),
  'An incorrect Gate code routes to membership instead of granting access');
