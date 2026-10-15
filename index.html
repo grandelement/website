@@ -8204,7 +8204,7 @@ function planetStep(frameNow){
   // While a game is running, catch up in stable <=60 Hz collision steps.
   // Cap a long tab-resume hitch so it cannot fling planets through the table.
   const elapsedUnits=Math.max(0,Math.min(gameActive?9:3,Number.isFinite(rawUnits)?rawUnits:1));
-  const physicsSubsteps=gameActive?Math.max(1,Math.ceil(elapsedUnits)):1;
+  const physicsSubsteps=gameActive?Math.max(1,Math.ceil(elapsedUnits-.03)):1; // tolerate timer jitter around exact 60Hz steps
   const frameScale=elapsedUnits/physicsSubsteps;
   const bodyCourseActive=document.body.classList.contains('ge-body-race-active');
   if(bodyCourseActive){
@@ -8222,7 +8222,8 @@ function planetStep(frameNow){
   // When album planets are stopped, an orbiting Moon must never wake or shove them.
   if(!moving&&!shotActive){
     gePlanetPhysicsLast=performance.now();
-    setTimeout(()=>requestAnimationFrame(planetStep),50);return;
+    // Check for the next shot promptly in Points; normal universe may sleep.
+    setTimeout(()=>requestAnimationFrame(planetStep),gameActive?16:50);return;
   }
   const bounds=getPlanetPlayBounds();
   // The Blue Sun is foreground-only in free exploration. Game Mode still owns
