@@ -7980,10 +7980,14 @@ buildPlanetPhysics();
   }
   function beginGameShot(p,vx,vy,style){
     const s=gameState(),rawSpeed=Math.hypot(vx,vy),min=window.GE_EASY_SETTINGS?.SHOT_MIN_LAUNCH_SPEED??78;if(!s||rawSpeed<min)return false;
-    // 100% power + 100% weight is the exact normal-site/free-mode throw baseline.
+    // A desktop Points playfield spans far more physical pixels than a phone.
+    // Give desktop POINTS (only) more responsive launches; preserve mobile,
+    // the chosen 50-150% power setting, game physics, and other game modes.
     const power=Math.max(.50,Math.min(1.50,Number(s.ballSpeed)||1));
     const weight=Math.max(.40,Math.min(1.80,Number(s.planetWeight)||1));
-    const physicalSpeed=power*(window.GE_EASY_SETTINGS?.BALL_SPEED_BASE_MULTIPLIER??1)/Math.sqrt(weight);
+    const desktopPoints=s.gameType==='score'&&matchMedia('(min-width:901px) and (pointer:fine)').matches;
+    const physicalSpeed=power*(desktopPoints?1.55:1)*
+      (window.GE_EASY_SETTINGS?.BALL_SPEED_BASE_MULTIPLIER??1)/Math.sqrt(weight);
     vx*=physicalSpeed;vy*=physicalSpeed;
     const sp=Math.hypot(vx,vy),unlimited=style==='rubber'&&s.rubberPower==='unlimited',max=(unlimited?Math.max(5000,sp):(window.GE_EASY_SETTINGS?.SHOT_MAX_LAUNCH_SPEED??3000)*Math.max(1,physicalSpeed)),scale=sp>max?max/sp:1;vx*=scale;vy*=scale;
     seq+=1;activeShot={id:seq,planet:p,player:s.activePlayer||0,round:s.round||1,started:performance.now(),style};p._launchSpeed=Math.hypot(vx,vy);p.vx=vx;p.vy=vy;
@@ -8191,13 +8195,17 @@ function collideElasticBilliards(a,b,rest=.985){
 let gePlanetPhysicsLast=performance.now();
 function planetStep(frameNow){
   const now=Number.isFinite(frameNow)?frameNow:performance.now();
-  // Physics must run in real time, not "one 60 Hz step per rendered frame".
-  // Game effects can lower iPad Safari's FPS; using elapsed time keeps Points
-  // moving at the exact same physical speed as normal-site planets.
-  let frameScale=(now-gePlanetPhysicsLast)/(1000/60);
+  // Use elapsed time rather than one physics tick per browser frame.
+  // The old 3x frame-time cap slowed Points whenever FPS fell below 20;
+  // applying a large jump at once also made ball collisions glitch.
+  const rawUnits=(now-gePlanetPhysicsLast)/(1000/60);
   gePlanetPhysicsLast=now;
-  frameScale=Math.max(.35,Math.min(3,Number.isFinite(frameScale)?frameScale:1));
   const gameActive=document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;
+  // While a game is running, catch up in stable <=60 Hz collision steps.
+  // Cap a long tab-resume hitch so it cannot fling planets through the table.
+  const elapsedUnits=Math.max(0,Math.min(gameActive?9:3,Number.isFinite(rawUnits)?rawUnits:1));
+  const physicsSubsteps=gameActive?Math.max(1,Math.ceil(elapsedUnits)):1;
+  const frameScale=elapsedUnits/physicsSubsteps;
   const bodyCourseActive=document.body.classList.contains('ge-body-race-active');
   if(bodyCourseActive){
     for(const p of planetNodes){
@@ -8223,6 +8231,9 @@ function planetStep(frameNow){
     ? document.getElementById('sunWrap')?.getBoundingClientRect()
     : null;
   const sx=sunRect?sunRect.left+sunRect.width/2:0, sy=sunRect?sunRect.top+sunRect.height/2:0, sr=sunRect?sunRect.width/2:0;
+  // Resolve each short motion interval against rails, the Sun and other
+  // planets before advancing again. Draw DOM planets once per rendered frame.
+  for(let sim=0;sim<physicsSubsteps;sim++){
   for(const p of planetNodes){
     if(p.poolPocketed||p.dragging) continue;
     p._framePrevX=p.x;p._framePrevY=p.y;
@@ -8277,7 +8288,6 @@ function planetStep(frameNow){
       }
     }
 
-    p.el.style.left=(p.x-p.r)+'px'; p.el.style.top=(p.y-p.r)+'px';
   }
   for(let i=0;i<planetNodes.length;i++){
     for(let j=i+1;j<planetNodes.length;j++){
@@ -8294,6 +8304,11 @@ function planetStep(frameNow){
   }
 
   try{window.GE_BLUE_SUN_POOL?.physicsTick?.(planetNodes);}catch(_e){}
+  } // physics substeps
+  for(const p of planetNodes){
+    if(p.poolPocketed||p.dragging||!p.el)continue;
+    p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';
+  }
   requestAnimationFrame(planetStep);
 }
 requestAnimationFrame(planetStep);
@@ -12254,14 +12269,17 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const distance=innerWidth+140,goRight=Math.random()>.5;
     if(!goRight){el.style.left=(innerWidth+60)+'px';}
     const from=0,to=goRight?distance:-distance;
+    // Screen-width-independent gentle movement (~100px/sec) instead of
+    // racing across a wide desktop in the old fixed 6.2 seconds.
+    const durationMs=Math.max(12000,Math.round(distance/100*1000));
     const clear=()=>{el.remove();if(gameFlyby===el)gameFlyby=null;};
     if(typeof el.animate==='function'){
-      const motion=el.animate([{transform:'translateX('+from+'px)'},{transform:'translateX('+to+'px)'}],{duration:6200,easing:'ease-in-out',fill:'forwards'});
+      const motion=el.animate([{transform:'translateX('+from+'px)'},{transform:'translateX('+to+'px)'}],{duration:durationMs,easing:'ease-in-out',fill:'forwards'});
       motion.finished.then(clear,clear);
     }else{
-      el.style.transition='transform 6.2s ease-in-out';
+      el.style.transition='transform '+(durationMs/1000)+'s ease-in-out';
       requestAnimationFrame(()=>{el.style.transform='translateX('+to+'px)'});
-      setTimeout(clear,6500);
+      setTimeout(clear,durationMs+300);
     }
   }
   function visitCadence(){
