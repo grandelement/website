@@ -6832,6 +6832,44 @@ $('reloadBtn').addEventListener('click',async()=>{
       diameter:Math.max(sunRect.width,sunRect.height)
     };
   }
+  // Fictional ship telemetry inspired by real atomic/molecular terminology.
+  // Not a scientific sensor, not a measured property of the listener's audio.
+  const MOLECULAR_SCAN_TOPICS=[
+    ['ELECTRON CLOUD','Orbital probability regions are resolving'],
+    ['VALENCE SHELL','Outer-electron interactions mapped'],
+    ['PHOTON FLUX','Radiative energy packets crossing the field'],
+    ['ATOMIC TRANSITION','Quantized energy-level jumps predicted'],
+    ['ABSORPTION BAND','Selective photon absorption signature'],
+    ['EMISSION LINE','Radiative electron relaxation signature'],
+    ['IONIZATION FRONT','Electron-binding threshold approaching'],
+    ['CHARGE DISTRIBUTION','Electrostatic field gradients separating'],
+    ['ELECTRON DENSITY','Spatial charge probability contours tracked'],
+    ['MOLECULAR VIBRATION','Bond-stretch and bending modes indicated'],
+    ['MOLECULAR ROTATION','Rotational energy states forming'],
+    ['COVALENT LATTICE','Shared electron-pair bonding pattern'],
+    ['HYDROGEN BOND','Intermolecular attraction network'],
+    ['ELECTROSTATIC FIELD','Charge-driven force potential traced'],
+    ['MAGNETIC MOMENT','Spin-related field response'],
+    ['ORBITAL HYBRIDIZATION','Bond-direction probability map'],
+    ['QUANTUM INTERFERENCE','Phase-sensitive probability pattern'],
+    ['ENERGY GAP','Allowed-state spacing mapped'],
+    ['PHOTOEXCITATION','Absorbed photon lifts energy state'],
+    ['ELECTRON AFFINITY','Additional-electron capture potential'],
+    ['PLASMA REGION','Ion and free-electron mixture ahead'],
+    ['RESONANT FREQUENCY','Driven-oscillation response highlighted'],
+    ['BOND DISSOCIATION','Molecular separation threshold projected'],
+    ['SPECTRAL FINGERPRINT','Characteristic absorption and emission'],
+    ['MOLECULAR DIPOLE','Uneven electrical polarity detected'],
+    ['THERMAL MOTION','Random particle kinetic agitation'],
+    ['SPIN STATE','Angular-momentum configuration indicated'],
+    ['EXCITED STATE','Elevated energy configuration ahead']
+  ];
+  function molecularScanNote(){
+    const i=Math.floor(performance.now()/12000+
+      Math.abs(frequencyCursor.x*11+frequencyCursor.y*19+approach.distance*17))%MOLECULAR_SCAN_TOPICS.length;
+    const entry=MOLECULAR_SCAN_TOPICS[i];
+    return 'SIMULATED · '+entry[0]+'\\n'+entry[1];
+  }
   function frequencyFieldReading(distanceToSun,sunRadius){
     const x=frequencyCursor.x,y=frequencyCursor.y;
     const seed=Math.abs(Math.sin(x*19.73+y*31.17+approach.distance*7.91));
@@ -6964,7 +7002,7 @@ Electron drift ${(seed*2-1).toFixed(2)} ψ · ${stageNotes[depthStage]}`;
     if(readingStage!==frequencyCursor.lastReadingStage || now-frequencyCursor.lastReadAt>12000){
       frequencyCursor.lastReadingStage=readingStage;
       frequencyCursor.lastReadAt=now;
-      typeAnalysis(frequencyFieldReading(distance,sunRadius));
+      typeAnalysis(frequencyFieldReading(distance,sunRadius)+'\n'+molecularScanNote());
     }
     return targetLocked;
   }
