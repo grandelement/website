@@ -4180,10 +4180,22 @@ setInterval(()=>{
 // Single Radio start/retry coordinator shared by boot, RADIO button, and
 // Media Session play. Repeated taps reuse the same pending request; one iPhone
 // audio element remains the sole playback device.
-let radioStartInFlight=null;
-function requestRadioStart({deferPlay=false}={}){
+let radioStartInFlight=null,radioTapUnlockInFlight=null;
+function requestRadioStart({deferPlay=false,userGesture=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
   if(radioStartInFlight){
+    // Safari can leave automatic play pending until a real gesture.
+    // Let ONE trusted tap call play() on the EXISTING audio element;
+    // no pause/load/src changes and no second connection/reconnect worker.
+    if(userGesture&&audio.paused&&(state.live||state.livePreparing)&&
+       !radio2.loading&&!radioTapUnlockInFlight){
+      try{
+        const unlocking=Promise.resolve(audio.play());
+        radioTapUnlockInFlight=unlocking;
+        void unlocking.catch(error=>radioPlayFailure(error))
+          .finally(()=>{if(radioTapUnlockInFlight===unlocking)radioTapUnlockInFlight=null;});
+      }catch(error){radioPlayFailure(error);}
+    }
     setLiveStatus('RADIO · connecting… please wait');
     return radioStartInFlight;
   }
@@ -4192,7 +4204,7 @@ function requestRadioStart({deferPlay=false}={}){
     setLiveStatus(radio2.active?'RADIO 2 · Bangers audio advancing':'RADIO 1 · audio stream advancing');
     return Promise.resolve();
   }
-  const operation=(async()=>{
+  const work=(async()=>{
     if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay});
     if(deferPlay)return;
     if(radio2.loading){setLiveStatus('RADIO 2 · preparing backup…');return;}
@@ -4202,9 +4214,15 @@ function requestRadioStart({deferPlay=false}={}){
       return resumeLiveAtEdge();
     return resumeRadio();
   })();
+  // A browser media promise can remain pending after a stream failure. Free
+  // the coordinator after the watchdog period; Radio2 failover remains active.
+  let timeout=0;
+  const limit=new Promise(resolve=>{timeout=setTimeout(resolve,12500);});
+  const operation=Promise.race([work,limit]).catch(error=>{
+    setLiveStatus('RADIO · unable to start. Tap RADIO to retry.');
+    console.warn('GE Radio start error:',error);
+  }).finally(()=>{clearTimeout(timeout);if(radioStartInFlight===operation)radioStartInFlight=null;});
   radioStartInFlight=operation;
-  void operation.then(()=>{if(radioStartInFlight===operation)radioStartInFlight=null;},
-    ()=>{if(radioStartInFlight===operation)radioStartInFlight=null;});
   return operation;
 }
 
@@ -4943,7 +4961,7 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   // The Radio button is never an OFF toggle. Multiple taps cannot interrupt
   // an already playing stream or start concurrent live-edge reconnections.
-  void requestRadioStart();
+  void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
   if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
