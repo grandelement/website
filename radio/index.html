@@ -4545,7 +4545,17 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   function applyTitle(title){
     title=String(title||'').trim();
     if(!title||(state.live!==true&&state.livePreparing!==true)||radio2.active)return;
+    const changed=lastTitle!==title;
     lastTitle=title;
+    if(changed){
+      const tagged=title.replace(/^LIVE\s*[•-]\s*/i,'').split(/\s*•\s*/);
+      const album=tagged.length>1?tagged[0]:'';
+      if(album){
+        try{window.dispatchEvent(new CustomEvent('ge-current-song',{
+          detail:{album,title:tagged.slice(1).join(' • '),key:'live:'+title}
+        }));}catch(_e){}
+      }
+    }
     titleBtn.textContent=title;
     refreshLoveButton();
     try{
@@ -4636,6 +4646,12 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   loveAudioPlaying=false;
   state.currentURL=url;
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
+  if(sunEQTrackChanged&&!isStationID(url)){
+    const albumTrack=parseTrack(url);
+    try{window.dispatchEvent(new CustomEvent('ge-current-song',{
+      detail:{album:albumTrack.album,title:albumTrack.song,key:'song:'+url}
+    }));}catch(_e){}
+  }
   titleBtn.textContent=displayTitle(url,!state.shuffle);
   refreshLoveButton();
   updateCurrentRow();
@@ -8280,7 +8296,10 @@ Vector ${vector}. ${pair[1]}.`;
   });
   syncArrivalOptions();autoGrowArrival();
   if(analysisText)analysisText.textContent='Passive scan active.';
-  updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
+  updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode,
+    getThrottle:()=>approach.throttle,
+    getApproachDistance:()=>approach.distance
+  };
 })();
 
 /* INNER GATE CONTROLLER
@@ -9126,6 +9145,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   },{passive:false});
 })();
 </script>
+<script src="./ship-album-flybys.js?v=20261015-1" defer></script>
 <script id="ge-headphone-notice-handler">
 (function(){
   var popup=document.getElementById('geHeadphoneNotice');
