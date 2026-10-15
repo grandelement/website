@@ -183,7 +183,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <h2>WEBSITE STARTUP MUSIC</h2>
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
-  <label><span>First song (used when music starts)</span><select id="firstTrackSelect"><option>Loading music…</option></select></label>
+  <label><span>Optional first song (only for automatic startup)</span><select id="firstTrackSelect"><option>Loading music…</option></select></label>
   <p>Visitors can always start music manually with PLAY.</p>
 </section>
 </main>
@@ -550,7 +550,7 @@ function collect(){
   cfg.games={points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked};
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
-  const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}
+  const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
   return cfg;
 }
 document.querySelectorAll('#aboutToolbar [data-cmd]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -582,9 +582,9 @@ $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
 async function loadMusic(){
-  try{const r=await fetch('../radio/manifest.json?'+Date.now(),{cache:'no-store'}),d=await r.json(),files=(d.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg)$/i.test(x));const sel=$('firstTrackSelect');sel.innerHTML='';
+  try{const r=await fetch('../radio/manifest.json?'+Date.now(),{cache:'no-store'}),d=await r.json(),files=(d.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg)$/i.test(x));const sel=$('firstTrackSelect');sel.innerHTML='<option value="">LET VISITOR CHOOSE MUSIC</option>';
     for(const p of files){const raw=decodeURIComponent(p.split('/').pop()||'').replace(/\.[^.]+$/,'');const m=raw.match(/^(.*?)[ _-]+(\d+)[ _-]+(.+)$/);const o=document.createElement('option');o.value=p;o.textContent=raw.replace(/_/g,' ');o.dataset.album=(p.match(/Grand Element - \d{4} - ([^/]+)/)||[])[1]||'';o.dataset.track=m?m[2]:'';o.dataset.title=m?m[3].replace(/_/g,' '):raw;sel.appendChild(o)}
-    const target=cfg.music?.firstTrack?.path||'';if(target&&[...sel.options].some(o=>o.value===target))sel.value=target;else{const f11=[...sel.options].find(o=>/Fire_11_The Source/i.test(o.value));if(f11)sel.value=f11.value}
+    const target=cfg.music?.firstTrack?.path||'';sel.value=target&&[...sel.options].some(o=>o.value===target)?target:'';
   }catch(_e){$('firstTrackSelect').innerHTML='<option>Music list unavailable</option>'}
 }
 

@@ -36,6 +36,24 @@ for (const path of ['radio/iam-private-studio.js','radio/ge-clock.js','radio/sw.
 
 const radio=load('radio/index.html');
 const home=load('index.html');
+const backroom=load('backroom/index.html');
+const liveSiteConfig=JSON.parse(load('config/site-live.json'));
+const testSiteConfig=JSON.parse(load('config/site-test.json'));
+const savedBackroomPresets=JSON.parse(load('config/backroom-presets.json'));
+for(const [label,cfg] of [['live',liveSiteConfig],['test',testSiteConfig],
+  ...savedBackroomPresets.presets.map((p,i)=>['preset '+i,p.config])]){
+  test(cfg.music?.startupEnabled===false&&!cfg.music?.firstTrack,
+    label+' starts silent without a default The Source song');
+}
+test(home.includes("const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled===true;") &&
+     home.includes('id="geChooseMusic"') &&
+     home.includes("radio/preview-lab.html") &&
+     home.includes("(!startupMusicEnabled&&s.userSelected!==true)") &&
+     home.includes("nowPlaying.textContent='CHOOSE MUSIC'"),
+     'homepage starts without a forced first track and exposes music selection');
+test(backroom.includes('<option value="">LET VISITOR CHOOSE MUSIC</option>') &&
+     !backroom.includes('find(o=>/Fire_11_The Source'),
+     'Back Room can publish no opening song without reselecting The Source');
 const iam=load('radio/iam-private-studio.js');
 const lab=load('radio/preview-lab.html');
 const store=load('support/index.html');

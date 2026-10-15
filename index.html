@@ -3640,6 +3640,9 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
           <div class="toggle active" id="tgShuffle">Shuffle</div>
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
+        <div class="row" style="justify-content:center">
+          <button class="btn" id="geChooseMusic" type="button" style="width:auto;min-width:150px;padding:6px 12px">CHOOSE MUSIC</button>
+        </div>
 
         <audio id="gePlayer" preload="none" playsinline webkit-playsinline crossorigin="anonymous"></audio>
       </div>
@@ -5167,6 +5170,10 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     mini.style.display=opening?'flex':'none';
     if(opening){requestAnimationFrame(()=>requestAnimationFrame(clampMiniPlayer));}
   });
+  document.getElementById('geChooseMusic')?.addEventListener('click',e=>{
+    e.stopPropagation();
+    location.assign(new URL('radio/preview-lab.html',location.href).href);
+  });
 
   ['pointerdown','pointermove','touchstart'].forEach(ev=>{
     mini.addEventListener(ev, e=>{ e.stopPropagation(); }, {passive:false});
@@ -5188,7 +5195,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   // Desired playback is separate from the browser's instantaneous paused state.
   // This lets us recover after iOS temporarily suspends a page without overriding a user's deliberate Pause.
   // The Back Room can request a silent website launch without disabling manual music controls.
-  const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled!==false;
+  const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled===true;
   // Playback is started only through the GE audio controller. A native autoplay
   // attribute could start restored audio before the silent-start setting is checked.
   player.autoplay=false;
@@ -5199,6 +5206,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
 
   const SHARED_STATE=window.GE_SHARED_MUSIC_STATE;
   let sharedSaveTimer=0, restoredSharedState=null;
+  function markUserMusicChoice(){SHARED_STATE?.write?.({userSelected:true});}
   function saveSharedMusicState(force=false){
     if(!SHARED_STATE)return;
     if(sharedSaveTimer&&!force)return;
@@ -5231,7 +5239,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   }
   async function restoreSharedMusicState(){
     const s=SHARED_STATE?.read?.();
-    if(!s)return false;
+    if(!s || (!startupMusicEnabled&&s.userSelected!==true))return false;
     const idx=findSharedTrackIndex(s);
     if(idx<0)return false;
     restoredSharedState=s;
@@ -5503,7 +5511,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     if(!found && n<=matches.length) found=matches[n-1];
     if(!found) return false;
 
-    pIndex=found.idx;
+    markUserMusicChoice();pIndex=found.idx;
     startCurrent();
     return true;
   }
@@ -5528,6 +5536,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
       const keep=PLAYLIST[pIndex]?.url||'';
       refreshPlaylist(keep);
       if(!PLAYLIST.length){player.pause();player.removeAttribute('src');setTitle(null);return;}
+      if(!wantedPlayback){if(!player.src)nowPlaying.textContent='CHOOSE MUSIC';return;}
       if(keep && PLAYLIST[pIndex]?.url===keep){setTitle(PLAYLIST[pIndex]);return;}
       startCurrent();
     },
@@ -5540,7 +5549,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
       if(!geHasOwnerMusicDemo()){geOpenMusicPreview();return false;}
       const key=normAlbumName(albumTitle);if(!key||!PLAYLIST.length)return false;
       const matches=PLAYLIST.map((it,idx)=>({it,idx})).filter(x=>normAlbumName(x.it.album)===key).sort((a,b)=>(a.it.trackNum||9999)-(b.it.trackNum||9999));
-      if(!matches.length)return false;setShuffleMode(false);pIndex=matches[0].idx;startCurrent();return true;
+      if(!matches.length)return false;markUserMusicChoice();setShuffleMode(false);pIndex=matches[0].idx;startCurrent();return true;
     },
     getCurrent:()=>PLAYLIST[pIndex]||null,
     ensurePlaying:async()=>{
@@ -5561,7 +5570,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     if(!geHasOwnerMusicDemo()){geOpenMusicPreview();return;}
     if(!PLAYLIST.length) return;
     if(player.paused){
-      wantedPlayback=true;allowPlanetPulse = true;
+      markUserMusicChoice();wantedPlayback=true;allowPlanetPulse = true;
       if(!player.src) await startCurrent();
       else {try{ await player.play(); }catch(err){ console.warn('Manual play failed:', err); }}
     }else{
@@ -5710,11 +5719,10 @@ fetchAllMp3s().then(async list=>{
       reflectMusicMode();
       if(startupMusicEnabled)await startWebsiteAudioOnce();
       else {
-        // Keep the selected opening song queued; no automatic play or gesture retry.
-        const it=PLAYLIST[pIndex];
+        // Never preselect a song for a new visitor. Let them choose music first.
         wantedPlayback=false;
         player.pause();player.removeAttribute('src');player.load();
-        setTitle(it);setPlayUI(false);
+        nowPlaying.textContent='CHOOSE MUSIC';setPlayUI(false);
       }
     }
 }).catch(err=>{
