@@ -141,7 +141,7 @@ test(eqPath.includes("if(!eqTapIsNeeded()") && !eqPath.includes("    return fals
   'Analyser no longer disabled and does not create second stream for ordinary guests');
 test(radio.includes("if(/iPad|iPhone|iPod/i.test(navigator.userAgent||''))"),
   'Native iPhone media path preserved');
-const preview=read('radio/preview-lab.html');
+const preview=load('radio/preview-lab.html');
 test(preview.includes('#previewCometMeter,#gate{display:none!important}') &&
   preview.includes("button('33s',function(){sample(t,33)}"),
   'Personal preview hides duplicate 33:33 Gate but retains track samples');
