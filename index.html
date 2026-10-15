@@ -3607,15 +3607,70 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 </style>
 <style id="ge-home-radio-ui-v1">
 /* Homepage has one station stream. Visitors cannot manually skip its songs. */
+/* The GRAND ELEMENT RADIO link replaces the original mini-player Play position.
+   Bright iridescent call-to-action without adding text to the Blue Sun. */
 #mini #geHomeRadioLink{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:auto;min-width:160px;max-width:100%;min-height:30px;
-  padding:4px 9px;font-size:12px;font-weight:900;letter-spacing:.09em;
-  color:#c8eeff;text-decoration:none;text-align:center;
-  text-shadow:0 0 8px #139bff,0 0 16px #0b64bd;
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  box-sizing:border-box;width:min(100%,240px);min-width:0;max-width:100%;
+  min-height:44px;padding:9px 15px;
+  flex:0 1 auto;overflow:hidden;isolation:isolate;
+  font-size:14px;font-weight:900;letter-spacing:.085em;line-height:1.25;
+  color:#f0fdff;text-decoration:none;text-align:center;
+  white-space:normal;border-radius:14px;
+  border:1px solid rgba(198,242,255,.76);
+  background:linear-gradient(120deg,
+    rgba(42,115,243,.43) 0%,
+    rgba(56,208,246,.35) 24%,
+    rgba(146,104,251,.38) 49%,
+    rgba(73,150,255,.38) 73%,
+    rgba(169,234,255,.30) 100%);
+  box-shadow:0 0 12px rgba(65,157,255,.44),
+    0 0 24px rgba(104,208,255,.27),
+    0 0 32px rgba(173,115,255,.19),
+    inset 0 0 13px rgba(226,250,255,.12);
+  text-shadow:0 1px 3px rgba(0,22,54,.90),
+    0 0 9px rgba(182,239,255,.94),
+    0 0 18px rgba(93,156,255,.68);
   pointer-events:auto;cursor:pointer;
+  transition:transform .2s ease,box-shadow .25s ease,border-color .25s ease;
+  animation:geHomeRadioIridescentGlow 4s ease-in-out infinite;
 }
-#mini #geHomeRadioLink:focus-visible{outline:2px solid #b8f1ff;outline-offset:3px;border-radius:4px}
+#mini #geHomeRadioLink::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(110deg,
+    transparent 15%,rgba(255,255,255,0) 29%,
+    rgba(226,255,255,.12) 40%,rgba(255,255,255,.40) 50%,
+    rgba(207,172,255,.20) 58%,rgba(255,255,255,0) 72%,transparent 85%);
+  transform:translateX(-145%);
+  animation:geHomeRadioIridescentSweep 5s ease-in-out infinite;
+}
+#mini #geHomeRadioLink:hover{
+  transform:translateY(-1px) scale(1.025);
+  border-color:rgba(232,252,255,.96);
+  box-shadow:0 0 15px rgba(88,181,255,.59),
+    0 0 28px rgba(125,235,255,.38),
+    0 0 40px rgba(192,141,255,.27),
+    inset 0 0 14px rgba(247,253,255,.16);
+}
+#mini #geHomeRadioLink:focus-visible{
+  outline:2px solid rgba(218,252,255,1);outline-offset:3px;
+}
+@keyframes geHomeRadioIridescentSweep{
+  0%,8%{transform:translateX(-145%);opacity:0}
+  20%{opacity:.90}
+  48%{transform:translateX(145%);opacity:.65}
+  49%,100%{transform:translateX(145%);opacity:0}
+}
+@keyframes geHomeRadioIridescentGlow{
+  0%,100%{filter:brightness(1)}
+  50%{filter:brightness(1.18)}
+}
+@media (prefers-reduced-motion:reduce){
+  #mini #geHomeRadioLink,#mini #geHomeRadioLink::before{animation:none!important}
+}
+@media (max-width:390px){
+  #mini #geHomeRadioLink{font-size:12px;letter-spacing:.06em;min-height:42px;padding:8px 10px}
+}
 #mini #prev,#mini #next,#mini #musicOptionsBtn,#mini #tgShuffle,#mini #tgAlbum,
 #mini #seek,#mini #timeCur,#mini #timeMax,
 #gameMusicNext,#gameMusicPrev,#gameMusicMode,#gameMusicOptions,#gameSeek,
