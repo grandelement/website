@@ -4884,10 +4884,17 @@ $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
   void window.GEResumeLiveEQ?.();
 
-  if(state.livePreparing||(state.live&&(audio.paused||radioTimedOut||audio.readyState<3))){
-    // Tapping RADIO while silent always attempts to reconnect.
-    if(radioTimedOut)void resumeLiveAtEdge();
-    else void resumeRadio();
+  if(state.livePreparing||(state.live&&(audio.paused||radioTimedOut||audio.readyState<3||
+      (!radio2.active&&!observedRadio1Progress)))){
+    // A selected live Radio with no verified stream progress must reconnect,
+    // never toggle OFF merely because Safari fired an optimistic play event.
+    if(state.live&&!radio2.active&&!observedRadio1Progress&&!audio.paused){
+      void resumeLiveAtEdge();
+    }else if(radioTimedOut){
+      void resumeLiveAtEdge();
+    }else{
+      void resumeRadio();
+    }
     return;
   }
 
