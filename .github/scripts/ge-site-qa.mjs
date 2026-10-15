@@ -179,9 +179,27 @@ test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      'Radio 1 falls back when readyState is positive but audio does not advance');
 const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
                              radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
-test(radioButton.includes("(!radio2.active&&!observedRadio1Progress)") &&
-     radioButton.includes("void resumeLiveAtEdge();"),
-     'Tapping RADIO retries an apparently-playing-but-silent iPhone stream rather than turning it off');
+test(radioButton.includes("void requestRadioStart();") &&
+     !radioButton.includes("exitLiveMode(") &&
+     !radioButton.includes("resumeLiveAtEdge()") &&
+     radio.includes("let radioStartInFlight=null;") &&
+     radio.includes("if(radioStartInFlight){"),
+     'RADIO button is a non-destructive, single-flight start/retry control');
+const startCue=radio.slice(radio.indexOf('function updateRadioStartupCue(){'),
+                           radio.indexOf('function liveStreamConfigured(){'));
+test(startCue.includes('observedRadio2Progress:observedRadio1Progress') &&
+     startCue.includes("button.classList.toggle('radio-start-cue',cue)"),
+     'Startup pulse stays until actual forward audio progress');
+test(radio.includes('geRadioSingleArrivalPulse 6.7s') &&
+     radio.includes('grid-column:3 / span 2!important') &&
+     radio.indexOf('id="shuffleBtn" aria-pressed="true">Shuffle</button>')<
+       radio.indexOf('id="liveBtn" aria-pressed="true">RADIO</button>'),
+     'RADIO is centered and uses one slow glow-and-flash cycle');
+const recovery=radio.slice(radio.indexOf('function watchRadioConnection(){'),
+                            radio.indexOf('function radioPlayFailure('));
+test(recovery.includes('if(radioWatchTimer&&!radioTimedOut)return;'),
+     'Repeated waiting events do not reset Radio failover deadline');
+
 const playingEvent=radio.slice(radio.indexOf("audio.addEventListener('playing',()=>{\n  if(state.live||state.livePreparing){"),
                                 radio.indexOf("audio.addEventListener('waiting',()=>{"));
 test(playingEvent.includes('checking stream audio') &&
