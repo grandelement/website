@@ -2234,6 +2234,21 @@ body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!i
  body.view-player.portrait-player header .tag{bottom:6dvh!important;line-height:1.25!important;max-width:92vw;text-align:center;white-space:normal!important}
  body.view-player.portrait-player #titleBtn{white-space:nowrap;text-overflow:ellipsis;max-width:92vw;overflow:hidden}
 }
+
+/* The original Blue Sun remains central and is never replaced by album planets. */
+#shipEQOverlay{left:38%!important;top:13%!important;width:24%!important;height:38%!important;min-width:0!important;max-height:none!important;border-radius:50%!important;padding:2%!important;background:radial-gradient(circle,rgba(0,20,40,.83) 0%,rgba(1,16,35,.68) 62%,rgba(0,4,15,.10) 73%)!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;gap:1px!important}
+#shipEQOverlayTitle{height:auto!important;font-size:clamp(8px,.7vw,13px)!important;text-align:center!important}
+#shipEQOrb{width:min(100%,32dvh)!important;height:76%!important;aspect-ratio:1;overflow:visible;filter:drop-shadow(0 0 9px rgba(57,200,255,.32))}
+.ship-eq-ring-base{stroke:rgba(92,206,255,.72);stroke-width:1.5;fill:none}
+.ship-eq-ring-inner{stroke:rgba(49,136,209,.5);stroke-width:1;fill:rgba(0,24,55,.18);stroke-dasharray:4 7}
+#shipEQOrbStatus{font-size:clamp(8px,.64vw,12px);font-weight:750;letter-spacing:.04em;color:#b7e8ff;text-align:center}
+body.view-ship.ge-offline-entitled #shipSunLabBtn,
+body.view-ship.ge-offline-entitled #shipGateTestBtn{display:inline-flex!important;align-items:center;justify-content:center}
+body:not(.ge-offline-entitled) #shipSunLabBtn,
+body:not(.ge-offline-entitled) #shipGateTestBtn{display:none!important}
+body.view-ship .sunlab-panel.show{position:fixed!important;left:50%!important;right:auto!important;top:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:min(94vw,900px)!important;height:50dvh!important;max-height:50dvh!important;min-height:0!important;border-radius:18px 18px 0 0!important;z-index:15000!important;padding:8px 13px max(8px,env(safe-area-inset-bottom))!important}
+body.view-ship .sunlab-panel.show #sunLabGrid{min-height:0!important;overflow-y:auto!important}
+body.view-ship .sunlab-panel.show .sunlab-actions{overflow-x:auto!important;white-space:nowrap!important}
 </style>
 </head>
 <body>
@@ -2373,8 +2388,13 @@ body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!i
         <div id="shipAnalysisText">Passive scan active.</div>
       </div>
       <div id="shipEQOverlay" aria-hidden="true">
-        <div id="shipEQOverlayTitle">Live Spectrum</div>
-        <div id="shipEQOverlayBars"></div>
+        <div id="shipEQOverlayTitle">MUSIC FREQUENCY RING</div>
+        <svg id="shipEQOrb" viewBox="0 0 240 240" role="img" aria-label="Radio spectrum ring">
+          <circle class="ship-eq-ring-base" cx="120" cy="120" r="70"></circle>
+          <circle class="ship-eq-ring-inner" cx="120" cy="120" r="38"></circle>
+          <g id="shipEQOrbLines"></g>
+        </svg>
+        <div id="shipEQOrbStatus">SIGNAL UNAVAILABLE</div>
       </div>
     </div>
     <div id="shipRadarScope" role="button" tabindex="0" aria-label="Start frequency scan"><div id="shipRadarSweep"></div><div id="shipRadarBlips"></div><div id="shipRadarTarget"></div></div>
@@ -2425,6 +2445,8 @@ body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!i
 
   <div id="shipBottomActions">
     <a href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store">SUPPORT</a>
+    <button id="shipSunLabBtn" type="button" hidden>SUN LAB</button>
+    <button id="shipGateTestBtn" type="button" hidden>TEST GATE</button>
     <button data-proxy="offlineBtn" hidden>Go Offline</button>
     <button data-proxy="reloadBtn" hidden>Reload Library</button>
   </div>
@@ -6575,8 +6597,10 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(timeNow)timeNow.textContent=formatTime(current);if(timeLeft)timeLeft.textContent=valid?`-${formatTime(duration-current)}`:'-0:00';
     if(shipPlay){shipPlay.textContent=audio.paused?'▶':'Ⅱ';shipPlay.setAttribute('aria-label',audio.paused?'Play':'Pause');}
   }
-  function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();}
+  function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();if(document.body.classList.contains('view-ship'))void window.GEResumeLiveEQ?.();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
+  $('shipSunLabBtn')?.addEventListener('click',()=>{if(geRadioLocalTestAccess())$('sunLabBtn')?.click();});
+  $('shipGateTestBtn')?.addEventListener('click',()=>{if(geRadioLocalTestAccess())$('gateTestBtn')?.click();});
   shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused)resumeAudio();else requestUserPause();});
   autoPilotBtn?.addEventListener('click',()=>{autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);if(autopilot)document.body.classList.remove('hud-hidden');});
 
@@ -7140,7 +7164,10 @@ Vector ${vector}. ${pair[1]}.`;
     signal:performance.now()-eqLastSignalAt<3500&&eqLastSignalAt>0,
     context:eqAudioCtx?.state||'off',error:eqTapFailure
   })};
-  function eqTapIsNeeded(){return fxTapWanted || !!sunLabPanel?.classList.contains('show');}
+  function eqTapIsNeeded(){
+    return fxTapWanted || !!sunLabPanel?.classList.contains('show') ||
+      (document.body.classList.contains('view-ship')&&geRadioLocalTestAccess());
+  }
   function stopEQTapIfUnused(){
     if(eqTapIsNeeded())return;
     try{eqTapAudio?.pause()}catch(_e){}
@@ -7223,11 +7250,28 @@ Vector ${vector}. ${pair[1]}.`;
   window.GEResumeLiveEQ=ensureLiveEQ;
   window.GEGetLiveSpectrum=()=>{if(!eqAnalyser||!eqData)return null;try{eqAnalyser.getByteFrequencyData(eqData);return eqData;}catch(_e){return null;}};
   window.GERandomizeSunEQMap=randomizeSunEQMap;
+  const eqRingLines=$('shipEQOrbLines'),eqRingStatus=$('shipEQOrbStatus');
+  if(eqRingLines&&!eqRingLines.childElementCount){
+    const ns='http://www.w3.org/2000/svg';
+    for(let i=0;i<64;i++){
+      const line=document.createElementNS(ns,'line');
+      const a=i/64*2*Math.PI-Math.PI/2,rad=77;
+      line.setAttribute('x1',(120+Math.cos(a)*rad).toFixed(2));
+      line.setAttribute('y1',(120+Math.sin(a)*rad).toFixed(2));
+      line.setAttribute('x2',(120+Math.cos(a)*(rad+3)).toFixed(2));
+      line.setAttribute('y2',(120+Math.sin(a)*(rad+3)).toFixed(2));
+      line.setAttribute('stroke','rgba(104,218,255,.62)');
+      line.setAttribute('stroke-width','2.2');
+      line.setAttribute('stroke-linecap','round');
+      eqRingLines.appendChild(line);
+    }
+  }
   function setEQOverlay(open){
     eqOverlayOpen=!!open;
     eqOverlay?.classList.toggle('open',eqOverlayOpen);
     eqOverlay?.setAttribute('aria-hidden',eqOverlayOpen?'false':'true');
-    if(eqOverlayOpen){ensureLiveEQ();ensureEQ(eqOverlayBars,24,'ship-eq-hud-bar');}
+    eqRight?.setAttribute('aria-pressed',eqOverlayOpen?'true':'false');
+    if(eqOverlayOpen)void ensureLiveEQ();
   }
 
 
@@ -7762,8 +7806,7 @@ Vector ${vector}. ${pair[1]}.`;
     });
   }
   function updateEQ(){
-    ensureEQ(eqLeft,5);ensureEQ(eqRight,10);const t=audio.currentTime||performance.now()/1000;
-    [eqLeft,eqRight].forEach((container,side)=>{if(!container)return;[...container.children].forEach((bar,i)=>{const a=(Math.sin(t*(3.1+side*.35)+i*.91)+1)/2,b=(Math.sin(performance.now()/1000*1.7+i*1.33)+1)/2,h=14+a*50+b*25;bar.style.height=`${clamp(h,12,96)}%`;bar.style.opacity=String(.30+a*.58);});});
+    ensureEQ(eqLeft,5);ensureEQ(eqRight,10);
     let live=false;
     if(eqSource&&eqAnalyser&&eqData&&eqAudioCtx?.state==='running'&&!eqTapAudio?.paused){
       try{
@@ -7776,19 +7819,41 @@ Vector ${vector}. ${pair[1]}.`;
     if(performance.now()-eqLastStatusAt>1200){
       eqLastStatusAt=performance.now();
       if(live)eqMessage('MUSIC EQ · LIVE AUDIO SIGNAL');
-      else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE · VISUAL TEST ONLY');
+      else if(!audio.paused)eqMessage('MUSIC EQ · AUDIO SIGNAL UNAVAILABLE');
       else eqMessage('MUSIC EQ · PAUSED');
     }
+    function bandLevel(i,count){
+      if(!live||!eqData?.length)return 0;
+      // Log-scaled bands show actual low/mid/high FFT amplitudes, never sine waves.
+      const n=eqData.length;
+      const lo=Math.floor(Math.pow(i/count,1.65)*(n-1));
+      const hi=Math.max(lo+1,Math.min(n,Math.ceil(Math.pow((i+1)/count,1.65)*n)));
+      let sum=0,peak=0;
+      for(let k=lo;k<hi;k++){const v=eqData[k]/255;sum+=v;peak=Math.max(peak,v);}
+      return clamp((sum/(hi-lo))*.7+peak*.3,0,1);
+    }
+    for(const container of [eqLeft,eqRight]){
+      if(!container)continue;
+      const bars=[...container.children];
+      bars.forEach((bar,i)=>{
+        const level=bandLevel(i,bars.length);
+        bar.style.height=(8+Math.pow(level,.72)*90).toFixed(1)+'%';
+        bar.style.opacity=live?String(clamp(.38+level*.62,.38,1)):'.23';
+      });
+    }
+    if(eqRingLines){
+      const strokes=[...eqRingLines.children];
+      strokes.forEach((line,i)=>{
+        const angle=i/strokes.length*Math.PI*2-Math.PI/2;
+        const level=bandLevel(i,strokes.length);
+        const rad=77,length=live?4+Math.pow(level,.76)*42:4;
+        line.setAttribute('x2',(120+Math.cos(angle)*(rad+length)).toFixed(2));
+        line.setAttribute('y2',(120+Math.sin(angle)*(rad+length)).toFixed(2));
+        line.setAttribute('stroke',live?'rgba(119,235,255,.96)':'rgba(105,169,190,.48)');
+      });
+    }
+    if(eqRingStatus)eqRingStatus.textContent=live?'LIVE MUSIC FREQUENCIES':'SIGNAL UNAVAILABLE';
     updateSunEQ(live);
-    if(!eqOverlayOpen||!eqOverlayBars)return;
-    ensureEQ(eqOverlayBars,24,'ship-eq-hud-bar');
-    const bars=[...eqOverlayBars.children];
-    bars.forEach((bar,i)=>{
-      let level;
-      if(live){const bin=Math.min(eqData.length-1,Math.floor((i/bars.length)*eqData.length));level=eqData[bin]/255;}
-      else level=.16+.72*((Math.sin(t*3.2+i*.72)+1)/2)*((Math.sin(performance.now()/620+i*.37)+1)/2);
-      bar.style.height=`${clamp(8+level*90,8,98).toFixed(1)}%`;bar.style.opacity=String(clamp(.32+level*.68,.32,1));
-    });
   }
   shipRadarScope?.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();triggerAnalysis({reset:true});});
   window.addEventListener('resize',()=>{if(targetingActive)requestAnimationFrame(()=>syncFrequencyScanner(.016));});
