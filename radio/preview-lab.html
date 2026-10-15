@@ -1,266 +1,354 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#041323">
-<title>Grand Element · 33:33 Player Lab</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#041323">
+<title>Grand Element · Choose Music</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(ellipse at 45% 0,#143658,#06172a 55%,#01040a);color:#eafaff;font:14px/1.4 system-ui,-apple-system,Arial,sans-serif;min-height:100dvh}
+body{margin:0;min-height:100dvh;background:radial-gradient(ellipse at 45% 0,#143658,#06172a 55%,#01040a);color:#eafaff;font:14px/1.45 system-ui,-apple-system,Arial,sans-serif}
 button,a.button{display:inline-flex;justify-content:center;align-items:center;min-height:40px;padding:9px 12px;border:1px solid #4d94bb;border-radius:10px;background:#0b2841;color:white;font:800 13px system-ui,Arial;text-decoration:none;cursor:pointer}
-button:disabled{opacity:.48;cursor:not-allowed}.primary{border-color:#6af2cd;background:#105342}
+button:disabled{opacity:.45;cursor:not-allowed}
 :focus-visible{outline:2px solid #b1f6ff;outline-offset:2px}
-header,main{max-width:1100px;margin:auto;padding:14px}
-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-h1{font-size:clamp(18px,4.6vw,30px);letter-spacing:.05em;margin:0}
-h2{font-size:17px;margin:0 0 8px}
-small,.muted{color:#a5c5d9}
-.card{padding:13px;border:1px solid #326486;border-radius:15px;background:rgba(2,15,31,.9)}
-.notice{margin-bottom:12px;line-height:1.5}
-.modes{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
-.modes span{border-radius:999px;border:1px solid #467fa6;padding:6px 9px;font-size:11px;font-weight:800}
-.modes span.dim{opacity:.56}
-.total{display:flex;justify-content:space-between;align-items:end;gap:10px}
-.total strong{font-size:clamp(20px,5vw,29px);font-variant-numeric:tabular-nums}
-#cometTrack{position:relative;height:23px;border-radius:100px;background:#0a263d;border:1px solid #408eab;margin:28px 5px 12px}
-#cometFill{height:100%;width:0;border-radius:100px;background:linear-gradient(90deg,#11336d,#1162c8,#38d7f4);transition:width .38s}
-#comet{position:absolute;left:0;top:50%;width:27px;height:27px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#fff 0 12%,#acf5ff 25%,#168ef9 55%,transparent 72%);box-shadow:0 0 18px 6px #148ad4,0 0 35px #026fff;transition:left .38s}
-#comet:before{content:"";position:absolute;right:17px;top:3px;width:90px;height:22px;background:linear-gradient(90deg,transparent,#0a5fc777,#41e6ff99);filter:blur(6px);border-radius:100%}
-#cometTrack.full{animation:pulse 1.9s ease-in-out infinite}
-@keyframes pulse{50%{box-shadow:0 0 24px #37c8ff,inset 0 0 14px #169ada}}
-@media(prefers-reduced-motion:reduce){#cometTrack.full{animation:none}}
-.meterFoot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#c3e3f9;flex-wrap:wrap}
-.warning{color:#ffd69a;font-weight:800;font-size:12px;min-height:19px;margin:6px 0}.cometSticky{position:sticky;top:max(0px,env(safe-area-inset-top));z-index:15;box-shadow:0 7px 26px #010a18}.cometSticky[hidden]{display:none!important}.cometSticky .total{align-items:center}.cometSticky #cometTrack{margin:14px 5px 9px}
-.grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;align-items:start}.albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}.albumTile{min-height:90px;flex-direction:column;text-align:left;align-items:flex-start;white-space:normal;background:linear-gradient(140deg,#153f65,#061826)!important}.albumTile strong{font-size:15px}.albumTile small{font-size:11px;color:#a8d0e9}#albumView[hidden],#albumWall[hidden],#ownerCode[hidden],#ownerLock[hidden],#ownerUnlock[hidden]{display:none!important}.albumHeader{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:3px 0 14px;flex-wrap:wrap}#ownerAccess{display:flex;align-items:center;flex-wrap:wrap;gap:7px}#ownerAccess input{flex:1 1 145px;width:auto;min-height:37px;padding:8px}#ownerStatus{font-size:12px;color:#99e8cf;font-weight:800}.demoBadge{border:1px solid #62d5ba}#catalogFlow{min-height:170px}
-@media(max-width:690px){.grid{grid-template-columns:1fr}}
-input[type=search]{width:100%;min-height:42px;background:#071b2e;color:white;border:1px solid #488ab0;border-radius:9px;font:inherit;padding:9px;margin:4px 0 8px}
-#songs{max-height:52dvh;overflow:auto}#queue{max-height:32dvh;min-height:52px;overflow:auto}
-.song,.queued{display:flex;justify-content:space-between;align-items:center;gap:7px;border-bottom:1px solid #203e56;padding:8px 1px}
-.songTitle{overflow-wrap:anywhere;font-size:13px;font-weight:760}
-.songTitle small{display:block;font-weight:450;margin-top:2px}
-.acts{display:flex;gap:5px;flex:0 0 auto}
-.acts button{min-width:37px;min-height:39px;padding:8px;font-size:12px}
-.row{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
-.player{margin-top:12px;border:1px solid #3d829c;border-radius:12px;padding:12px;background:#061e31}
-.player strong{display:block;margin-bottom:5px}#status{min-height:22px;color:#b6d8f8;margin-top:8px}
-.sampleBar{height:6px;background:#164462;border-radius:99px;overflow:hidden;margin:8px 0}
-.sampleBar div{height:100%;background:#76e6ff;width:0}
-#gate{display:none;margin-top:12px;padding:10px;border-radius:12px;border:1px solid #62c6e9;background:#102a3e}
-#gate.visible{display:none!important}#gate b{display:block;color:#aee6ff}
-/* Radio counts listening privately; this separate song-preview lab no longer
-   shows another 33:33 indicator or Gate overlay. 33-second samples remain. */
-#previewCometMeter,#gate{display:none!important}
-footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
-</style></head><body>
-<header><div><h1>GRAND ELEMENT · PLAYER LAB</h1><small>SONG PREVIEW · OWNER TEST · NO PAYMENT</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
+header,main{max-width:940px;margin:auto;padding:15px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{font-size:clamp(20px,5vw,29px);letter-spacing:.05em;margin:0}
+h2{font-size:17px;margin:0 0 10px}
+small,.muted{color:#adccdf}
+.card{border:1px solid #316386;border-radius:15px;padding:14px;background:rgba(2,15,31,.9)}
+.notice{margin-bottom:12px;line-height:1.6}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:12px;align-items:start}
+.albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px}
+.albumTile{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;text-align:left;min-height:86px;background:linear-gradient(140deg,#15436b,#061826);padding:12px}
+.albumTile strong{font-size:15px}
+.albumTile small{font-size:11px;color:#b1d0e8}
+#albumView[hidden],#albumWall[hidden]{display:none!important}
+.albumHeader{display:flex;gap:9px;align-items:center;margin-bottom:12px}
+input[type=search],input[type=text]{width:100%;min-height:43px;border:1px solid #488ab0;border-radius:9px;background:#071b2e;color:white;font:inherit;padding:9px}
+input[type=search]{margin:4px 0 8px}
+#songs{max-height:57dvh;overflow:auto}
+.song{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 3px;border-bottom:1px solid #1e3b50}
+.song.active{background:rgba(52,149,205,.18)}
+.songTitle{font-size:13px;font-weight:740;overflow-wrap:anywhere}
+.songTitle small{display:block;font-weight:450;color:#a6c8d9}
+.song button{flex:0 0 auto;min-width:70px}
+#playerPanel{position:sticky;top:10px}
+#now{font-size:15px;overflow-wrap:anywhere}
+#detail{display:block;margin:9px 0 5px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#play{background:#126b61;border-color:#56e3ce}
+#status{min-height:35px;color:#b9ddf6}
+#guestHint{margin-top:14px;font-size:12px;color:#abcddd}
+#ownerControl{margin-top:15px;border-top:1px solid #25465c;padding-top:12px;font-size:12px}
+#ownerControl>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#ownerControl input{flex:1 1 100px;min-width:0}
+#ownerStatus{color:#86d0b0;font-size:12px}
+footer{font-size:12px;color:#a7c2d5;margin:16px 0}
+@media(max-width:680px){.layout{grid-template-columns:1fr}#playerPanel{position:static}#songs{max-height:55dvh}}
+/* Radio's Blue Sun entrance, water rings, blurred approach and access panel. */
+
+
+/* INNER HORIZON 08: one explicit action path and true circular Souls. */
+#arrivalPrivate,#arrivalPost{display:none!important}
+button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
+.soul-reflection-dot.draft{width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;aspect-ratio:1/1!important;border-radius:50%!important;padding:0!important;box-sizing:border-box!important}
+#reflectionControls{width:min(94%,760px)!important;display:grid!important;grid-template-columns:1fr 1fr 1fr 1fr!important;gap:8px!important}
+#arrivalPostBtn:disabled{opacity:.38!important;pointer-events:none!important}
+#geGate{position:fixed;inset:0;z-index:1000000;display:none;overflow:hidden;background:transparent;color:#effbff;isolation:isolate;touch-action:none}
+#geGate.open{display:block}
+#geGateBackdrop{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:transparent;
+  -webkit-backdrop-filter:blur(0px) saturate(1);
+  backdrop-filter:blur(0px) saturate(1);
+}
+#geGateBackdrop::after{
+  content:'';position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;
+}
+/* Focus goes softer early, but the black dimmer takes the entire approach to build. */
+#geGate.blurring #geGateBackdrop{
+  animation:geGateBlurBuild var(--ge-gate-blur-build,16s) ease-in-out forwards;
+}
+#geGate.blurring #geGateBackdrop::after{
+  animation:geGateDimBuild var(--ge-gate-dim-build,86s) linear forwards;
+}
+@keyframes geGateBlurBuild{
+  0%{-webkit-backdrop-filter:blur(.2px) saturate(1);backdrop-filter:blur(.2px) saturate(1)}
+  16%{-webkit-backdrop-filter:blur(2.2px) saturate(1.02);backdrop-filter:blur(2.2px) saturate(1.02)}
+  28%{-webkit-backdrop-filter:blur(1.2px) saturate(1.01);backdrop-filter:blur(1.2px) saturate(1.01)}
+  45%{-webkit-backdrop-filter:blur(5px) saturate(1.04);backdrop-filter:blur(5px) saturate(1.04)}
+  58%{-webkit-backdrop-filter:blur(3.2px) saturate(1.03);backdrop-filter:blur(3.2px) saturate(1.03)}
+  76%{-webkit-backdrop-filter:blur(9px) saturate(1.06);backdrop-filter:blur(9px) saturate(1.06)}
+  88%{-webkit-backdrop-filter:blur(7px) saturate(1.05);backdrop-filter:blur(7px) saturate(1.05)}
+  100%{-webkit-backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07);backdrop-filter:blur(var(--ge-gate-blur,12px)) saturate(1.07)}
+}
+@keyframes geGateDimBuild{
+  0%{opacity:0}
+  28%{opacity:.035}
+  48%{opacity:.10}
+  68%{opacity:.22}
+  84%{opacity:.42}
+  100%{opacity:var(--ge-gate-dim,.75)}
+}
+#geGateWaves{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity var(--ge-gate-wave-rise,10s) ease-in;overflow:hidden;transform:translateZ(0);will-change:opacity}
+#geGate.waves #geGateWaves{opacity:1}
+#geGate.centered #geGateWaves{opacity:0}
+#geGateWaves::before{content:"";position:absolute;inset:0;pointer-events:none;-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01);animation:geWaterLens 4.8s ease-in-out infinite;will-change:backdrop-filter}
+.geGateFreqRing{position:absolute;left:50%;top:50%;width:11vmin;height:11vmin;margin:-5.5vmin 0 0 -5.5vmin;border-radius:50%;pointer-events:none;border:1.25px solid rgba(128,226,255,.34);box-shadow:0 0 18px rgba(50,185,255,.16),inset 0 0 10px rgba(165,240,255,.08);opacity:0;transform:translate3d(0,0,0) scale(.28);animation:geWaterFrequency var(--water-cycle,8.4s) linear infinite;animation-delay:var(--water-delay,0s);will-change:transform,opacity}
+@keyframes geWaterFrequency{0%{transform:translate3d(0,0,0) scale(.28);opacity:0}8%{opacity:.22}34%{opacity:.42}70%{opacity:.20}100%{transform:translate3d(0,0,0) scale(12.5);opacity:0}}
+@keyframes geWaterLens{0%,100%{-webkit-backdrop-filter:blur(.4px) saturate(1.01);backdrop-filter:blur(.4px) saturate(1.01)}35%{-webkit-backdrop-filter:blur(2.1px) saturate(1.025);backdrop-filter:blur(2.1px) saturate(1.025)}62%{-webkit-backdrop-filter:blur(4.4px) saturate(1.045);backdrop-filter:blur(4.4px) saturate(1.045)}82%{-webkit-backdrop-filter:blur(1.4px) saturate(1.02);backdrop-filter:blur(1.4px) saturate(1.02)}}
+#geGateSunWrap{position:absolute;left:50%;top:50%;height:100svh;width:100svh;max-width:none;max-height:none;transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+#geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 6svh rgba(35,175,255,.72),0 0 15svh rgba(0,128,255,.54),0 0 28svh rgba(0,96,255,.34),0 0 40svh rgba(0,75,255,.16);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
+#geGatePanel{position:absolute;z-index:5;left:50%;top:62%;bottom:auto;transform:translate(-50%,18px);width:min(440px,88vw);max-width:88vw;padding:16px;border-radius:20px;border:1px solid rgba(94,205,255,.42);background:rgba(1,12,25,.78);box-shadow:0 14px 38px rgba(0,0,0,.48),0 0 24px rgba(34,161,255,.14);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center}
+#geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#geGateTitle{font-size:clamp(19px,4.4vw,25px);font-weight:850;letter-spacing:.035em;margin:0 0 7px;color:#fff}
+#geGateStatus{min-height:1.15em;margin:0 0 12px;font-size:clamp(13px,3.1vw,15px);color:#d9efff}
+#geGateEntry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
+#geGateWord{width:100%;min-width:0;min-height:46px;border:1px solid rgba(91,202,255,.56);border-radius:12px;background:rgba(0,5,13,.78);color:#f4fbff;padding:9px 11px;text-align:center;font:700 17px/1.2 system-ui;outline:none;letter-spacing:.12em}
+#geGateWord:focus{border-color:rgba(114,229,255,.95);box-shadow:0 0 16px rgba(62,190,255,.24)}
+#geGateEnter,#geGateHint,#geGateEmail,#geGateAccessSend{border:1px solid rgba(72,195,255,.60);border-radius:12px;background:rgba(7,45,75,.82);color:#f4fbff;font-weight:800}
+#geGateEnter{min-height:46px;padding:8px 16px}
+#geGateHint{margin:10px auto 0;min-height:38px;padding:7px 15px;font-size:14px}
+#geGateHintText{min-height:1.4em;margin:9px 0 0;font-size:clamp(17px,4.25vw,22px);font-weight:750;line-height:1.25;color:#e8f9ff;text-shadow:0 2px 8px #000}
+#geGateHelp{display:block;margin-top:12px;color:#d9f4ff}
+#geGateHelp.show{display:block}
+#geGateEmail{min-height:40px;padding:8px 16px}
+#geGate.wrong #geGateWord{animation:geGateNudge .34s ease}@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,24px)!important}
+#geGate.unlocking #geGateWaves{opacity:0!important}
+#geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
+#geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
+#geGateAccessForm{display:none;margin-top:12px;padding:14px 12px;border:1px solid rgba(94,205,255,.30);border-radius:14px;background:rgba(0,8,18,.62);text-align:center}
+#geGateAccessForm.show{display:block}
+#geGateAccessText{margin:0 0 12px;color:#f2fbff;font:650 14px/1.45 system-ui}
+/* Player Gate uses the verified listening-position timeline, not wall-clock animation. */
+#geGate.blurring #geGateBackdrop{animation:none!important;-webkit-backdrop-filter:blur(var(--preview-blur,0px));backdrop-filter:blur(var(--preview-blur,0px))}
+#geGate.blurring #geGateBackdrop::after{animation:none!important;opacity:var(--preview-dim,0)}
+#geGateSun{transition:none!important}
+#geGatePanel a.button{margin-top:4px}
+</style>
+</head>
+<body>
+<header><div><h1>GRAND ELEMENT · MUSIC PLAYER</h1><small>CHOOSE MUSIC · 33:33 GUEST LISTENING</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
 <main>
-<div class="card notice">Choose music and hear <strong>33-second samples</strong> starting 33 seconds into a song, or move to its next 33-second portion. The Radio Gate operates separately with a quiet listening clock. Purchased music and protected downloads are not active yet.</div>
-<div class="modes"><span id="modeBadge">GUEST · MUSIC PREVIEW</span><span class="dim">FAN · OPT-IN FUTURE</span><span class="dim">MEMBER · VERIFIED PURCHASE FUTURE</span></div><div class="card" id="ownerAccess"><label for="ownerCode">OWNER DEMO CODE</label><input id="ownerCode" type="password" autocomplete="off" placeholder="Enter test code"><button id="ownerUnlock" type="button">UNLOCK DEMO</button><button id="ownerLock" type="button" hidden>EXIT OWNER DEMO</button><span id="ownerStatus">Demo access only. Not a purchase credential.</span></div>
-<div class="card cometSticky" id="previewCometMeter" aria-label="Soul comet free preview playlist duration"><div class="total"><div><b>PREVIEW · SOUL COMET</b><br><small>Time selected for the 33:33 free preview</small></div><strong id="total">00:00 / 33:33</strong></div>
-<div id="cometTrack"><div id="cometFill"></div><div id="comet"></div></div>
-<div class="meterFoot"><span id="count">0 selected</span><span id="left">33:33 remaining</span></div>
-<div id="warning" class="warning" role="status"></div></div>
-<div class="grid"><section class="card" id="catalogFlow"><h2>CHOOSE AN ALBUM</h2><p class="muted">Choose tracks or listen to individual 33-second samples. The Radio Gate runs separately.</p><div id="albumWall" class="albumWall">Loading the catalog…</div><div id="albumView" hidden><div class="albumHeader"><button id="backAlbums" type="button">← ALL ALBUMS</button><strong id="albumTitle">ALBUM</strong></div><input type="search" id="search" placeholder="Filter tracks in this album" aria-label="Search album tracks"><div class="row"><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div><div id="songs"></div></div></section><section class="card" id="personalPlayer"><h2>YOUR SELECTED PLAYLIST</h2><div id="queue"><p class="muted">Pick some songs to begin.</p></div>
-<div class="row"><button id="start" class="primary">SEND TO PLAYER · START MUSIC</button><button id="clear">CLEAR PLAYLIST</button><a href="../support/?section=music" class="button">SHOP / BUY MUSIC</a></div>
-<div class="player"><strong id="now">No song playing</strong><small id="detail">Native audio · background playback when iOS permits</small><div class="sampleBar"><div id="sampleBar"></div></div>
-<div class="row"><button id="play">PLAY / PAUSE</button><button id="next">NEXT SONG</button><button id="moreSample" hidden>NEXT 33s</button></div><div id="status" role="status">Ready to pick tracks.</div></div>
-<div id="gate" role="status"><b>THE INNER FREQUENCY</b><span id="gateStage"></span></div>
-<p class="muted">Song selection remains a local preview only. Full-track guest listening is limited in this test; purchases require verified checkout.</p><span id="used" hidden>00:00</span>
-<button id="reset" hidden>RESET TEST CLOCK (OWNER DEMO)</button>
-<footer>The separate Radio has its own Inner Frequency Gate. This music-preview lab does not show a duplicate Gate. Purchases and membership must be verified by the payment service.</footer></section></div>
-<audio id="audio" preload="metadata" playsinline></audio>
+<section class="card notice">Choose an album and tap <strong>PLAY</strong> on any song. You can listen to the songs you choose for <strong>33 minutes and 33 seconds</strong> total. The Inner Frequency Gate begins before the limit so its full approach and final fade finish exactly at 33:33. Radio has its own separate 33:33 allowance.</section>
+<div class="layout">
+<section class="card">
+<h2>CHOOSE AN ALBUM</h2>
+<div id="albumWall" class="albumWall">Loading albums…</div>
+<div id="albumView" hidden>
+  <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
+  <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
+  <div id="songs"></div>
+</div>
+</section>
+<section class="card" id="playerPanel">
+  <h2>NOW PLAYING</h2>
+  <strong id="now">Choose a song</strong>
+  <small id="detail">One native audio player · full songs until the free listening limit</small>
+  <div class="controls"><button id="play" type="button">PLAY / PAUSE</button><button id="next" type="button">NEXT SONG</button></div>
+  <div id="status" role="status">Choose an album and press PLAY beside a song.</div>
+  <div id="guestHint">Your free listening time advances only while the music itself advances. Pausing and buffering do not consume it.</div>
+  <p><a href="../support/?section=music" class="button">EXPLORE MUSIC</a></p>
+  <div id="ownerControl"><strong>OWNER TEST</strong><div><input id="ownerCode" type="text" autocomplete="off" placeholder="Owner test code" aria-label="Owner test code"><button id="ownerUnlock" type="button">UNLOCK TEST</button><button id="ownerLock" type="button" hidden>EXIT TEST</button></div><small id="ownerStatus">Local demo only. Does not verify a purchase.</small></div>
+</section>
+</div>
+<footer>Playlist-duration totaling, Soul Comet, 33-second samples and the advance merchandise preview queue are temporarily disabled, not deleted. Payment and private downloads are not active yet.</footer>
+<audio id="audio" preload="none" playsinline webkit-playsinline></audio>
 </main>
+<div id="geGate" role="dialog" aria-label="The Inner Frequency music preview gate" aria-hidden="true">
+  <div id="geGateBackdrop"></div><div id="geGateWaves" aria-hidden="true"></div>
+  <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt="" src="../ge-images/images/ge-logo-2.jpg"></div>
+  <section id="geGatePanel" aria-live="polite">
+    <div id="geGateTitle">The Inner Frequency</div>
+    <div id="geGateStatus">Your free music preview is ending. Enter an access code or explore music.</div>
+    <div id="geGateEntry"><input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Access code" placeholder="CODE"><button id="geGateEnter" type="button">ACCESS</button></div>
+    <div id="geGateHelp"><a class="button" href="../support/?section=music">EXPLORE MUSIC</a></div>
+  </section>
+</div>
 <script>
-(function(){
-'use strict';
-var LIMIT=2013, SAMPLE=33, GATE_LEAD=(6+10+70)/1.5+33+66, KEY='GE_PLAYER_3333_TEST_V1';
-var audio=document.getElementById('audio'),$=function(id){return document.getElementById(id)};
-var tracks=[],queue=[],idx=-1,mode='idle',used=0,lastMedia=0,current=null,sampleStart=33,sampleStop=66,loadingId=0;
-var ownerDemo=false,OWNER_KEY='GE_PLAYER_OWNER_DEMO_V1';try{ownerDemo=localStorage.getItem(OWNER_KEY)==='yes'}catch(e){}
-try{var saved=JSON.parse(localStorage.getItem(KEY)||'{}');used=Math.max(0,Math.min(LIMIT,Number(saved.used)||0));}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({used:used}))}catch(e){}}
-function fmt(t){t=Math.floor(Math.max(0,Number(t)||0));return ('0'+Math.floor(t/60)).slice(-2)+':'+('0'+(t%60)).slice(-2)}
-function say(t){$('status').textContent=t}
-function makeNode(tag,klass,txt){var el=document.createElement(tag);if(klass)el.className=klass;if(txt!=null)el.textContent=txt;return el}
-function remaining(){return ownerDemo?Infinity:Math.max(0,LIMIT-used)}
-function syncOwner(){
- $('ownerStatus').textContent=ownerDemo?'OWNER DEMO · UNLIMITED MUSIC TEST':'Local demo only; not a purchase credential.';
- $('modeBadge').textContent=ownerDemo?'OWNER · LOCAL TEST (NOT A PAID ACCOUNT)':'GUEST · MUSIC PREVIEW';
- $('ownerUnlock').hidden=ownerDemo;$('ownerCode').hidden=ownerDemo;$('ownerLock').hidden=!ownerDemo;
- $('reset').hidden=!ownerDemo;updateGate();paintMeter();
+/* Former 33-second samples, merchandise queue and Soul Comet are preserved
+   in preview-merch-legacy.html. Their feature flag is OFF in this player. */
+const LEGACY_MERCH_PREVIEW_BUILDER_ENABLED=false;
+const AUDIO_LIMIT_SECONDS=2013;
+const STORE_KEY='GE_PLAYER_LISTENING_V2_3333', OWNER_KEY='GE_PLAYER_OWNER_DEMO_V1';
+const $=id=>document.getElementById(id);
+const audio=$('audio');
+let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
+let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
+let data={used:0,expired:false},saveAt=0,baseVolume=1;
+try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;}}catch(_e){}
+const APPROACH_SECONDS=(6+10+70)/1.5,GRACE_SECONDS=33,FADE_SECONDS=66;
+const GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS;
+const WAVE_AT=GATE_AT+6/1.5,SUN_AT=WAVE_AT+10/1.5,CENTER_AT=SUN_AT+70/1.5;
+const FADE_AT=AUDIO_LIMIT_SECONDS-FADE_SECONDS;
+const gate=$('geGate'),sun=$('geGateSun');let gateShown=false;
+function isAuthorized(){try{return localStorage.getItem(OWNER_KEY)==='yes'||localStorage.getItem('GE_GATE_LOVE_V1')==='1'}catch(_e){return false}}
+function fmt(t){t=Math.max(0,Math.floor(Number(t)||0));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
+function say(message){$('status').textContent=message}
+function save(force=false){
+ const now=performance.now();if(!force&&now-saveAt<1700)return;saveAt=now;
+ try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired}))}catch(_e){}
 }
-$('ownerUnlock').addEventListener('click',function(){
- if($('ownerCode').value.trim().toLowerCase()==='love'){
- ownerDemo=true;try{localStorage.setItem(OWNER_KEY,'yes')}catch(e){}
- $('ownerCode').value='';syncOwner();say('Owner test enabled. This code cannot authorize purchases or private files.');
- }else say('Code not recognized. Guest preview is still available.');
-});
-$('ownerLock').addEventListener('click',function(){ownerDemo=false;try{localStorage.removeItem(OWNER_KEY)}catch(e){}syncOwner();say('Guest preview restored.')});
-$('ownerCode').addEventListener('keydown',function(e){if(e.key==='Enter')$('ownerUnlock').click()});
-var PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
-function persistPreviewQueue(){
- try{sessionStorage.setItem(PREVIEW_QUEUE_KEY,JSON.stringify(queue.map(function(t){
-  return {url:t.url,path:t.path,title:t.title,album:t.album,duration_ms:t.duration_ms,kind:t.kind};
- })))}catch(e){}
-}
-function selectedTime(){return queue.reduce(function(sum,t){return sum+t.duration_ms/1000},0)}
-function paintMeter(){
- $('previewCometMeter').hidden=ownerDemo;
- var sec=selectedTime(),p=Math.min(100,100*sec/LIMIT);
- $('total').textContent=fmt(sec)+(ownerDemo?' / OWNER DEMO':' / 33:33');$('count').textContent=queue.length+' song'+(queue.length===1?'':'s')+' selected';
- $('left').textContent=sec>LIMIT?'EXCEEDS BY '+fmt(sec-LIMIT):fmt(LIMIT-sec)+' room';
- $('cometFill').style.width=p+'%';$('comet').style.left=p+'%';
- $('cometTrack').classList.toggle('full',sec>=LIMIT);
- $('warning').textContent=sec>LIMIT?(ownerDemo?'This exceeds the guest allowance by '+fmt(sec-LIMIT)+', but owner demo is unlimited.':'Your selected playlist exceeds 33:33 by '+fmt(sec-LIMIT)+'. Guest playback ends at the free allowance.'):'';
- $('used').textContent=fmt(used);
-}
-function valid(t){
- if(!t||Number(t.duration_ms)<1000)return false;
- try{var url=new URL(t.url,location.href);return url.origin===location.origin&&url.pathname.indexOf('/ge-music/')===0&&/\.(mp3|m4a|wav|ogg)$/i.test(url.pathname)}catch(e){return false}
-}
+function valid(t){if(!t||t.kind!=='song'||Number(t.duration_ms)<1000)return false;
+ try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
-function button(text,fn){var b=makeNode('button','',text);b.type='button';b.addEventListener('click',fn);return b}
-var albums={},selectedAlbum='';
-function showAlbums(){var wall=$('albumWall');wall.textContent='';
- Object.keys(albums).sort().forEach(function(name){var b=button('',function(){openAlbum(name)});
- b.className='albumTile';b.appendChild(makeNode('strong','',name));b.appendChild(makeNode('small','',albums[name].length+' songs'));wall.appendChild(b)})
+function element(tag,text,klass=''){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(klass)e.className=klass;return e}
+function ensureRings(){const waves=$('geGateWaves');if(waves.childElementCount)return;
+ for(let i=0;i<10;i++){const ring=element('span',null,'geGateFreqRing');ring.style.setProperty('--water-cycle','7.2s');ring.style.setProperty('--water-delay',(-7.2*i/10)+'s');waves.appendChild(ring)}}
+function renderGate(){
+ if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;}return;}
+ const used=data.used;
+ if(used<GATE_AT&&!data.expired)return;
+ if(!gateShown){gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');gateShown=true;ensureRings();}
+ const elapsed=Math.max(0,used-GATE_AT);
+ gate.style.setProperty('--preview-blur',(12*Math.min(1,elapsed/(16/1.5))).toFixed(2)+'px');
+ gate.style.setProperty('--preview-dim',(.75*Math.min(1,elapsed/APPROACH_SECONDS)).toFixed(3));
+ gate.classList.toggle('waves',used>=WAVE_AT&&used<CENTER_AT);
+ gate.classList.toggle('sun-moving',used>=SUN_AT);
+ gate.classList.toggle('centered',used>=CENTER_AT||data.expired);
+ const progress=Math.max(0,Math.min(1,(used-SUN_AT)/(70/1.5)));
+ sun.style.transform='translate3d('+((innerWidth*.5+innerHeight*.62)*(1-progress)).toFixed(1)+'px,0,0) scale('+(0.84+0.16*progress).toFixed(3)+')';
+ $('geGateStatus').textContent=data.expired?'33:33 listening complete. Enter an access code or explore music.':
+   used>=FADE_AT?'Preview ending. The final 66 seconds fade to silence.':
+   'Enter an access code or explore music.';
 }
-function openAlbum(name){if(!albums[name])return;selectedAlbum=name;$('albumWall').hidden=true;$('albumView').hidden=false;$('albumTitle').textContent=name;$('search').value='';showSongs()}
-function showAlbumsHome(){selectedAlbum='';$('albumView').hidden=true;$('albumWall').hidden=false}
-$('backAlbums').addEventListener('click',showAlbumsHome);
-$('addAlbumSongs').addEventListener('click',function(){
- if(!selectedAlbum||!albums[selectedAlbum])return;
- var already=new Set(queue.map(function(t){return t.url}));
- albums[selectedAlbum].forEach(function(t){if(!already.has(t.url)){queue.push(t);already.add(t.url)}});
- paintMeter();showQueue();say('Added album songs to your playlist.');
-});
-$('addAllSongs').addEventListener('click',function(){
- var already=new Set(queue.map(function(t){return t.url}));
- tracks.forEach(function(t){if(!already.has(t.url)){queue.push(t);already.add(t.url)}});
- paintMeter();showQueue();say('Added all available catalog songs. The guest playback allowance remains 33:33.');
-});
-function showSongs(){if(!selectedAlbum)return;
- var q=$('search').value.toLowerCase(),list=albums[selectedAlbum].filter(function(t){return label(t).toLowerCase().indexOf(q)>=0});
- var holder=$('songs');holder.textContent='';if(!list.length)holder.textContent='No tracks match.';
- list.forEach(function(t){var row=makeNode('div','song'),name=makeNode('div','songTitle',t.title),acts=makeNode('div','acts');
- name.appendChild(makeNode('small','',fmt(t.duration_ms/1000)));
- acts.appendChild(button('33s',function(){sample(t,33)}));
- acts.appendChild(button('+ ADD',function(){queue.push(t);paintMeter();showQueue()}));
- row.appendChild(name);row.appendChild(acts);holder.appendChild(row)});
+function renderVolume(){
+ if(isAuthorized()||data.used<FADE_AT)return;
+ const p=Math.max(0,Math.min(1,(data.used-FADE_AT)/FADE_SECONDS));
+ audio.volume=Math.max(0,Math.min(1,baseVolume*(1-p)));
 }
-function showQueue(){
- persistPreviewQueue();
- var holder=$('queue');holder.textContent='';
- if(!queue.length){holder.appendChild(makeNode('p','muted','Choose some songs to begin.'));return}
- queue.forEach(function(t,i){
-  var row=makeNode('div','queued'),name=makeNode('div','songTitle',(i+1)+'. '+label(t)),acts=makeNode('div','acts');
-  name.appendChild(makeNode('small','',fmt(t.duration_ms/1000)));
-  acts.appendChild(button('↑',function(){if(i>0){var tmp=queue[i-1];queue[i-1]=queue[i];queue[i]=tmp;showQueue()}}));
-  acts.appendChild(button('↓',function(){if(i<queue.length-1){var tmp=queue[i+1];queue[i+1]=queue[i];queue[i]=tmp;showQueue()}}));
-  acts.appendChild(button('×',function(){queue.splice(i,1);if(mode==='playlist'&&i<=idx)idx--;paintMeter();showQueue()}));
-  row.appendChild(name);row.appendChild(acts);holder.appendChild(row);
- });
+function expireGate(){
+ if(isAuthorized()||data.expired)return;
+ data.used=AUDIO_LIMIT_SECONDS;data.expired=true;save(true);
+ renderGate();audio.volume=0;audio.pause();
+ say('33:33 listening complete. The Inner Frequency Gate is ready.');
 }
-function mediaInfo(t){if(!('mediaSession'in navigator))return;try{
- navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:'Grand Element',album:t.album||'Grand Element'});
- navigator.mediaSession.setActionHandler('play',function(){audio.play().catch(function(){say('Tap PLAY to resume.')})});
- navigator.mediaSession.setActionHandler('pause',function(){audio.pause()});
- navigator.mediaSession.setActionHandler('nexttrack',function(){if(mode==='playlist')nextSong()});
-}catch(e){}}
-function seekWhenReady(t,seconds,id){
- function jump(){if(id!==loadingId)return;try{
-  var end=Number.isFinite(audio.duration)?audio.duration:Number(t.duration_ms)/1000;
-  audio.currentTime=Math.max(0,Math.min(seconds,Math.max(0,end-.4)));
- }catch(e){}}
- if(audio.readyState>=1)jump();else audio.addEventListener('loadedmetadata',jump,{once:true});
-}
-function begin(t,seek,kind){
- if(!valid(t)){say('Song is unavailable.');return}
- if(!ownerDemo&&used>=LIMIT&&kind==='playlist'){say('33:33 guest preview used. Visit the store to buy music.');return}
- current=t;mode=kind;lastMedia=0;
- var id=++loadingId;
- audio.pause();audio.removeAttribute('crossorigin');audio.autoplay=false;audio.src=new URL(t.url,location.origin).href;audio.load();
- $('now').textContent=label(t);$('detail').textContent=kind==='sample'?'33-second song preview':'Playlist · background-compatible native audio';
- $('moreSample').hidden=kind!=='sample';sampleStart=seek;sampleStop=Math.min(t.duration_ms/1000,seek+SAMPLE);
- $('sampleBar').style.width='0';seekWhenReady(t,seek,id);mediaInfo(t);
- say(kind==='sample'?'Sampling '+fmt(seek)+' to '+fmt(sampleStop):'Connecting to music…');
- var promise=audio.play();if(promise&&promise.catch)promise.catch(function(){say('iPhone: tap PLAY to start this song.')});
-}
-function sample(t,position){
- if(mode==='playlist'&&!audio.paused)audio.pause();
- var length=t.duration_ms/1000,start=Math.min(Math.max(0,position),Math.max(0,length-1));
- begin(t,start,'sample');
-}
-function nextSong(){
- idx++;if(idx>=queue.length){audio.pause();mode='idle';say('Selected playlist finished.');return}
- begin(queue[idx],0,'playlist');
-}
-function triggerGate(){
- $('gate').classList.add('visible');
-}
-function updateGate(){
- var left=remaining(),el=$('gateStage');
- if(ownerDemo||mode!=='playlist'||used<LIMIT-GATE_LEAD){$('gate').classList.remove('visible');return}
- triggerGate();
- var progressed=GATE_LEAD-left;
- if(progressed<(6+10+70)/1.5){el.textContent='Blue Sun approaches the center. Tap to skip the fly-in on the real Gate.'}
- else if(progressed<(6+10+70)/1.5+33){el.textContent='Question stage · 33-second grace period.'}
- else{el.textContent='Final reverb/fade stage · finishing at 33:33.'}
-}
-audio.addEventListener('timeupdate',function(){
- var pos=Number(audio.currentTime)||0;
- if(mode==='playlist'&&!audio.paused){
-  if(!ownerDemo&&lastMedia>0&&pos>lastMedia){used=Math.min(LIMIT,used+(pos-lastMedia));save()}
-  if(!ownerDemo&&used>=LIMIT){audio.pause();mode='idle';say('33:33 guest preview complete. Visit the store to buy music.');$('gate').classList.add('visible');$('gateStage').textContent='33:33 reached · demo ended.'}
-  updateGate();paintMeter();
- }
- if(mode==='sample'){
-  $('sampleBar').style.width=Math.min(100,Math.max(0,100*(pos-sampleStart)/SAMPLE))+'%';
-  if(pos>=sampleStop-.12){audio.pause();say('33-second sample complete. NEXT 33s plays the next section.')}
- }
- lastMedia=pos;
-});
-audio.addEventListener('playing',function(){say(mode==='sample'?'Playing 33-second preview':'Playing selected music in order.')});
-audio.addEventListener('waiting',function(){say('Buffering audio… free time is not being counted.')});
-audio.addEventListener('error',function(){say('Song failed to load. No auto-skip: tap PLAY to try again.')});
-audio.addEventListener('ended',function(){if(mode==='playlist')nextSong();else if(mode==='sample')say('Sample complete.')});
-$('search').addEventListener('input',showSongs);
-$('start').addEventListener('click',function(){
- if(!queue.length){say('Choose at least one song.');return}
- idx=0;begin(queue[0],0,'playlist');var player=$('personalPlayer');if(player&&player.scrollIntoView)player.scrollIntoView({behavior:'smooth',block:'start'});
-});
-$('clear').addEventListener('click',function(){if(mode==='playlist'){audio.pause();mode='idle'}queue=[];idx=-1;showQueue();paintMeter()});
-$('play').addEventListener('click',function(){
- if(!current){say('Choose a song or start your playlist.');return}
- if(audio.paused){var p=audio.play();if(p&&p.catch)p.catch(function(){say('Playback is unavailable. Select the song again.')})}
- else audio.pause();
-});
-$('next').addEventListener('click',function(){if(mode==='playlist')nextSong();else say('START MUSIC PLAYER to advance the selected queue.')});
-$('moreSample').addEventListener('click',function(){
- if(!current||mode!=='sample')return;
- var length=current.duration_ms/1000,next=sampleStart+SAMPLE;
- if(next>=length-.3)next=0;
- sample(current,next);
-});
-$('reset').addEventListener('click',function(){audio.pause();mode='idle';used=0;save();paintMeter();$('gate').classList.remove('visible');say('Owner test clock reset. Live paid accounts will not have this control.')});
-document.addEventListener('visibilitychange',function(){save()});
-window.addEventListener('pagehide',save);
-fetch('./track-durations.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('Catalog response '+r.status);return r.json()})
-.then(function(data){
- tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(function(t){return t.kind==='song'&&valid(t)});
- tracks.sort(function(a,b){return label(a).localeCompare(label(b))});
- tracks.forEach(function(t){var group=t.album||'Other';(albums[group]||(albums[group]=[])).push(t)});
- try{
-   var fromStore=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
-   if(Array.isArray(fromStore)&&fromStore.length){
-     var byUrl={};tracks.forEach(function(t){byUrl[t.url]=t});
-     queue=fromStore.map(function(item){return item&&byUrl[item.url]}).filter(Boolean);
+function isLocked(){return !isAuthorized()&&data.expired;}
+function isCounting(){return !isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
+function syncListening(){
+ const wall=performance.now(),media=Number(audio.currentTime);
+ if(isCounting()&&Number.isFinite(media)&&Number.isFinite(lastMedia)){
+   const actual=media-lastMedia,wallSeconds=Math.max(0,(wall-lastWall)/1000);
+   if(actual>0&&actual<=wallSeconds+.5){
+     data.used=Math.min(AUDIO_LIMIT_SECONDS,data.used+actual);
+     save();
+     if(data.used>=AUDIO_LIMIT_SECONDS)expireGate();
    }
- }catch(e){}
- showAlbums();showQueue();paintMeter();
- say(queue.length?'Your '+queue.length+' selected songs are ready. Tap SEND TO PLAYER · START MUSIC.':
-   tracks.length+' tracks available for preview.');
- if(location.hash==='#player'&&queue.length){
-   var target=$('personalPlayer');if(target&&target.scrollIntoView)target.scrollIntoView({block:'start',behavior:'smooth'});
  }
-}).catch(function(e){$('songs').textContent='Unable to load song durations. Try reconnecting. '+e.message;});
-paintMeter();syncOwner();
-})();
-</script></body></html>
+ lastMedia=Number.isFinite(media)?media:NaN;lastWall=wall;
+ if(!data.expired&&!isAuthorized())renderVolume();
+ renderGate();
+}
+function resetMediaSample(){lastMedia=NaN;lastWall=performance.now();}
+function stopCounting(){syncListening();playingProgress=false;resetMediaSample();}
+audio.addEventListener('playing',()=>{awaitingData=false;playingProgress=true;resetMediaSample();say('Playing '+label(currentTrack));});
+audio.addEventListener('timeupdate',syncListening);
+for(const name of ['waiting','stalled','seeking','pause','ended','emptied','error']){
+ audio.addEventListener(name,()=>{stopCounting();if(name==='waiting'||name==='stalled')awaitingData=true;});
+}
+audio.addEventListener('canplay',()=>{if(!audio.paused)awaitingData=false});
+audio.addEventListener('ratechange',()=>{if(audio.playbackRate!==1)audio.playbackRate=1});
+document.addEventListener('visibilitychange',()=>{syncListening();save(true)});
+addEventListener('pagehide',()=>{syncListening();save(true)});
+setInterval(syncListening,250);
+function mediaSession(t){if(!('mediaSession' in navigator))return;try{
+ navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:'Grand Element',album:t.album||'Grand Element'});
+ navigator.mediaSession.setActionHandler('play',()=>{void resume()});
+ navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
+ navigator.mediaSession.setActionHandler('nexttrack',nextTrack);
+}catch(_e){}}
+function showSongs(){
+ const holder=$('songs');holder.replaceChildren();
+ const q=$('search').value.toLowerCase(),tracks=albums.get(selectedAlbum)||[];
+ for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
+  const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
+  title.appendChild(element('small',fmt(t.duration_ms/1000)));
+  const b=element('button','PLAY');b.type='button';b.addEventListener('click',()=>chooseTrack(t));
+  if(currentTrack?.url===t.url)row.classList.add('active');
+  row.append(title,b);holder.appendChild(row);
+ }
+ if(!holder.childElementCount)holder.textContent='No matching songs.';
+}
+function openAlbum(name){
+ if(!albums.has(name))return;selectedAlbum=name;
+ $('albumWall').hidden=true;$('albumView').hidden=false;$('albumTitle').textContent=name;$('search').value='';showSongs();
+}
+function showAlbums(){
+ const wall=$('albumWall');wall.replaceChildren();
+ for(const [name,list] of [...albums.entries()].sort(([a],[b])=>a.localeCompare(b))){
+  const b=element('button',null,'albumTile');b.type='button';
+  b.append(element('strong',name),element('small',list.length+' songs'));
+  b.addEventListener('click',()=>openAlbum(name));wall.appendChild(b);
+ }
+}
+async function startTrack(t){
+ if(!valid(t)){say('This song is unavailable.');return;}
+ if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
+ stopCounting();
+ currentTrack=t;audio.pause();audio.removeAttribute('crossorigin');audio.autoplay=false;
+ audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.load();audio.muted=false;
+ renderVolume();resetMediaSample();
+ $('now').textContent=label(t);$('detail').textContent='Full song · continuous 33:33 guest allowance';
+ mediaSession(t);showSongs();say('Connecting…');
+ try{await audio.play()}catch(_e){say('Tap PLAY / PAUSE to start this song on your device.')}
+}
+function chooseTrack(t){
+ const tracks=albums.get(selectedAlbum)||[];
+ albumTracks=tracks.slice();trackIndex=albumTracks.findIndex(x=>x.url===t.url);
+ void startTrack(t);
+}
+function nextTrack(){
+ if(isLocked()){renderGate();return;}
+ if(!albumTracks.length||trackIndex<0){say('Choose a song first.');return;}
+ if(trackIndex+1>=albumTracks.length){audio.pause();say('End of album. Choose another song or album.');return;}
+ trackIndex++;void startTrack(albumTracks[trackIndex]);
+}
+async function resume(){
+ if(isLocked()){renderGate();return;}
+ if(!currentTrack){say('Choose an album and press PLAY beside a song.');return;}
+ try{if(audio.paused)await audio.play()}catch(_e){say('Tap PLAY to resume on this device.')}
+}
+audio.addEventListener('ended',()=>{if(!data.expired)nextTrack()});
+$('play').addEventListener('click',()=>{if(audio.paused)void resume();else audio.pause()});
+$('next').addEventListener('click',nextTrack);
+$('search').addEventListener('input',showSongs);
+$('backAlbums').addEventListener('click',()=>{$('albumView').hidden=true;$('albumWall').hidden=false;});
+function ownerUI(){
+ const authorized=isAuthorized();
+ $('ownerUnlock').hidden=authorized;$('ownerCode').hidden=authorized;$('ownerLock').hidden=!authorized;
+ $('ownerStatus').textContent=authorized?'Owner test enabled · no purchase verified.':'Local demo only. Does not verify a purchase.';
+ renderGate();
+}
+$('ownerUnlock').addEventListener('click',()=>{
+ if($('ownerCode').value.trim().toLowerCase()!=='love'){say('Code not recognized.');return;}
+ try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
+ $('ownerCode').value='';ownerUI();audio.volume=baseVolume;
+ say('Owner demo enabled. You can listen without the guest limit.');
+});
+$('ownerLock').addEventListener('click',()=>{
+ try{localStorage.removeItem(OWNER_KEY);localStorage.removeItem('GE_GATE_LOVE_V1')}catch(_e){}
+ ownerUI();renderVolume();
+});
+$('geGateEnter').addEventListener('click',()=>{
+ const code=$('geGateWord').value.trim().toLowerCase();
+ if(code!=='love'){location.assign('../support/?section=music');return;}
+ try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
+ $('geGateWord').value='';ownerUI();audio.volume=baseVolume;
+ gate.classList.add('unlocking');
+ setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
+ if(currentTrack&&audio.paused)void resume();
+});
+$('geGateWord').addEventListener('keydown',e=>{if(e.key==='Enter')$('geGateEnter').click()});
+fetch('./track-durations.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Catalog '+r.status);return r.json()}).then(data=>{
+ const tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
+ for(const t of tracks){const list=albums.get(t.album||'Other')||[];list.push(t);albums.set(t.album||'Other',list);}
+ for(const list of albums.values())list.sort((a,b)=>{const an=Number((a.title||'').match(/^\d+/)?.[0])||999,bn=Number((b.title||'').match(/^\d+/)?.[0])||999;return an-bn||label(a).localeCompare(label(b))});
+ showAlbums();say(tracks.length+' songs available. Choose an album and press PLAY.');
+}).catch(e=>{say('Music catalog unavailable. '+e.message);$('albumWall').textContent='Unable to load music.'});
+baseVolume=Math.max(.01,Number(audio.volume)||1);
+if(data.expired)renderGate();
+ownerUI();
+</script>
+</body></html>

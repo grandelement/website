@@ -251,9 +251,17 @@ test(eqPath.includes("if(!eqTapIsNeeded()") && !eqPath.includes("    return fals
 test(radio.includes("if(/iPad|iPhone|iPod/i.test(navigator.userAgent||''))"),
   'Native iPhone media path preserved');
 const preview=load('radio/preview-lab.html');
-test(preview.includes('#previewCometMeter,#gate{display:none!important}') &&
-  preview.includes("button('33s',function(){sample(t,33)}"),
-  'Personal preview hides duplicate 33:33 Gate but retains track samples');
+const archivedMerchPreview=load('radio/preview-merch-legacy.html');
+test(preview.includes("LEGACY_MERCH_PREVIEW_BUILDER_ENABLED=false") &&
+  preview.includes('AUDIO_LIMIT_SECONDS=2013') &&
+  preview.includes('GRACE_SECONDS=33,FADE_SECONDS=66') &&
+  preview.includes('GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS') &&
+  preview.includes('if(data.used>=AUDIO_LIMIT_SECONDS)expireGate()') &&
+  preview.includes('audio.addEventListener(\'timeupdate\',syncListening)') &&
+  preview.includes('id="geGate"') &&
+  archivedMerchPreview.includes('function selectedTime(){') &&
+  archivedMerchPreview.includes("button('33s',function(){sample(t,33)}"),
+  'Music player direct song choice, 33:33 real playback limit and full visual Gate; legacy merchandise builder archived');
 test(!radio.includes("const hints=["),
   'No Gate riddle/questions');
 // Album planets never replace or remove the original centered Blue Sun.
@@ -309,7 +317,9 @@ for (const id of [
   'iamFxBass','iamFxMid','iamFxHigh','iamFxFilter','iamFxPhaser',
   'iamFxDelay','iamFxTime','iamFxFeedback','iamFxReverb','iamFxMonitor'
 ]) test(radio.includes('id="'+id+'"'),'I AM slider '+id);
-allIn(lab,['LIMIT=2013','SAMPLE=33','function showAlbums(){',
-  'function openAlbum(name){','GE_PLAYER_OWNER_DEMO_V1'],
-  '33:33 album-first preview and local owner demo');
+allIn(lab,['AUDIO_LIMIT_SECONDS=2013','function showAlbums(){',
+  'function openAlbum(name){','GE_PLAYER_OWNER_DEMO_V1',
+  'function isCounting(){','function stopCounting(){',
+  'function renderGate(){','function renderVolume(){','function nextTrack(){'],
+  '33:33 album-first full-song listening, native audio and Gate with pause/buffer accounting');
 console.log('\nGE site static regression checks passed: '+passed);
