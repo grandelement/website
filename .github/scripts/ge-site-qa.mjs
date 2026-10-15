@@ -177,6 +177,11 @@ test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      !primaryWatch.includes('if(!audio.paused&&audio.readyState>=3)return;') &&
      primaryWatch.includes("switchToRadio2('radio1_timeout')"),
      'Radio 1 falls back when readyState is positive but audio does not advance');
+const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
+                             radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
+test(radioButton.includes("(!radio2.active&&!observedRadio1Progress)") &&
+     radioButton.includes("void resumeLiveAtEdge();"),
+     'Tapping RADIO retries an apparently-playing-but-silent iPhone stream rather than turning it off');
 const playingEvent=radio.slice(radio.indexOf("audio.addEventListener('playing',()=>{\n  if(state.live||state.livePreparing){"),
                                 radio.indexOf("audio.addEventListener('waiting',()=>{"));
 test(playingEvent.includes('checking stream audio') &&
