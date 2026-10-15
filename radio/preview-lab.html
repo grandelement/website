@@ -57,7 +57,7 @@ footer{font-size:12px;color:#a2bdcd;line-height:1.5;margin:12px 0}
 <div id="cometTrack"><div id="cometFill"></div><div id="comet"></div></div>
 <div class="meterFoot"><span id="count">0 selected</span><span id="left">33:33 remaining</span></div>
 <div id="warning" class="warning" role="status"></div></div>
-<div class="grid"><section class="card" id="catalogFlow"><h2>CHOOSE AN ALBUM</h2><p class="muted">Choose tracks or listen to individual 33-second samples. The Radio Gate runs separately.</p><div id="albumWall" class="albumWall">Loading the catalog…</div><div id="albumView" hidden><div class="albumHeader"><button id="backAlbums" type="button">← ALL ALBUMS</button><strong id="albumTitle">ALBUM</strong></div><input type="search" id="search" placeholder="Filter tracks in this album" aria-label="Search album tracks"><div id="songs"></div></div></section><section class="card" id="personalPlayer"><h2>YOUR SELECTED PLAYLIST</h2><div id="queue"><p class="muted">Pick some songs to begin.</p></div>
+<div class="grid"><section class="card" id="catalogFlow"><h2>CHOOSE AN ALBUM</h2><p class="muted">Choose tracks or listen to individual 33-second samples. The Radio Gate runs separately.</p><div id="albumWall" class="albumWall">Loading the catalog…</div><div id="albumView" hidden><div class="albumHeader"><button id="backAlbums" type="button">← ALL ALBUMS</button><strong id="albumTitle">ALBUM</strong></div><input type="search" id="search" placeholder="Filter tracks in this album" aria-label="Search album tracks"><div class="row"><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div><div id="songs"></div></div></section><section class="card" id="personalPlayer"><h2>YOUR SELECTED PLAYLIST</h2><div id="queue"><p class="muted">Pick some songs to begin.</p></div>
 <div class="row"><button id="start" class="primary">SEND TO PLAYER · START MUSIC</button><button id="clear">CLEAR PLAYLIST</button><a href="../support/?section=music" class="button">SHOP / BUY MUSIC</a></div>
 <div class="player"><strong id="now">No song playing</strong><small id="detail">Native audio · background playback when iOS permits</small><div class="sampleBar"><div id="sampleBar"></div></div>
 <div class="row"><button id="play">PLAY / PAUSE</button><button id="next">NEXT SONG</button><button id="moreSample" hidden>NEXT 33s</button></div><div id="status" role="status">Ready to pick tracks.</div></div>
@@ -125,6 +125,17 @@ function showAlbums(){var wall=$('albumWall');wall.textContent='';
 function openAlbum(name){if(!albums[name])return;selectedAlbum=name;$('albumWall').hidden=true;$('albumView').hidden=false;$('albumTitle').textContent=name;$('search').value='';showSongs()}
 function showAlbumsHome(){selectedAlbum='';$('albumView').hidden=true;$('albumWall').hidden=false}
 $('backAlbums').addEventListener('click',showAlbumsHome);
+$('addAlbumSongs').addEventListener('click',function(){
+ if(!selectedAlbum||!albums[selectedAlbum])return;
+ var already=new Set(queue.map(function(t){return t.url}));
+ albums[selectedAlbum].forEach(function(t){if(!already.has(t.url)){queue.push(t);already.add(t.url)}});
+ paintMeter();showQueue();say('Added album songs to your playlist.');
+});
+$('addAllSongs').addEventListener('click',function(){
+ var already=new Set(queue.map(function(t){return t.url}));
+ tracks.forEach(function(t){if(!already.has(t.url)){queue.push(t);already.add(t.url)}});
+ paintMeter();showQueue();say('Added all available catalog songs. The guest playback allowance remains 33:33.');
+});
 function showSongs(){if(!selectedAlbum)return;
  var q=$('search').value.toLowerCase(),list=albums[selectedAlbum].filter(function(t){return label(t).toLowerCase().indexOf(q)>=0});
  var holder=$('songs');holder.textContent='';if(!list.length)holder.textContent='No tracks match.';
@@ -240,7 +251,7 @@ fetch('./track-durations.json',{cache:'no-store'}).then(function(r){if(!r.ok)thr
    var fromStore=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
    if(Array.isArray(fromStore)&&fromStore.length){
      var byUrl={};tracks.forEach(function(t){byUrl[t.url]=t});
-     queue=fromStore.slice(0,120).map(function(item){return item&&byUrl[item.url]}).filter(Boolean);
+     queue=fromStore.map(function(item){return item&&byUrl[item.url]}).filter(Boolean);
    }
  }catch(e){}
  showAlbums();showQueue();paintMeter();
