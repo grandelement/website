@@ -89,6 +89,31 @@ test(resetFunction.includes('localStorage.removeItem(key)') &&
 test(radio.includes('</style>\n<style id="ge-sunlab-code-reset-20261015">'),
   'Sun Lab Reset Codes layout CSS is a separate valid style element');
 
+// iOS offline Resume is a song-only repair, never an app reinstall.
+// Files cached by a different GE cache are counted without copying huge MP3s.
+allIn(radio,[
+  "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
+  "for(const item of missingSongFiles){",
+  "hit=found.response;",
+  "await cache.put(item.url,response);",
+  "if(/iPad|iPhone|iPod/i.test(navigator.userAgent||''))",
+  "failedFiles.push(filename+' ('+cause+')');",
+  "const result=await cacheMissingAssets({",
+  "if(!prepared.audit.cachedSongs){",
+  "button.classList.remove('downloading');"
+], 'iOS song-only resumable offline downloader');
+const downloadPath=radio.slice(radio.indexOf('async function cacheMissingAssets({'),radio.indexOf('  async function remove(){'));
+test(!downloadPath.includes('await registerServiceWorker()') &&
+  !downloadPath.includes('await navigator.storage.persist()') &&
+  !downloadPath.includes('for(const item of audit.missing){'),
+  'Offline Resume never updates app shell or downloads background GIFs');
+const auditPath=radio.slice(radio.indexOf('async function auditAssets('),radio.indexOf('async function cacheResponseStreaming('));
+test(!auditPath.includes('active.put(item.url,hit.clone())'),
+  'Offline scan does not double cache audio');
+const retryPath=radio.slice(radio.indexOf('async function fetchWithRetry('),radio.indexOf('async function cacheMissingAssets('));
+test(!retryPath.includes('purgeStaleSongVersions('),
+  'A failed song replacement cannot purge the previous cached version');
+
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
