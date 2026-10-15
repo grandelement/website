@@ -2197,6 +2197,15 @@ body.iam-studio-open #titleBtn{display:none!important}
 .sunlab-access-tools #sunLabResetCodes{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
 .sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
 @media(max-width:370px){.sunlab-access-tools{flex-wrap:wrap}.sunlab-access-tools span{font-size:12px}}
+
+/* Guest radio runs its existing 33:33 clock invisibly: no countdown marker.
+   Offline controls are available ONLY in the local owner test until a server
+   verifies real paid membership. Existing cached audio is left untouched. */
+#radioPreviewClock{display:none!important}
+body:not(.ge-offline-entitled) #offlineBtn,
+body:not(.ge-offline-entitled) #shipStage [data-proxy="offlineBtn"]{display:none!important}
+.ge-gate-membership{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #52bee3;border-radius:12px;background:#0d3956;color:#e8fbff;font-weight:850;text-decoration:none;line-height:1.2}
+#geGateNextPreview[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -2206,15 +2215,13 @@ body.iam-studio-open #titleBtn{display:none!important}
   <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
   <section id="geGatePanel" aria-live="polite">
     <div id="geGateTitle">The Inner Frequency</div>
-    <div id="geGateStatus">Enter the word to continue.</div>
+    <div id="geGateStatus">Enter your access code or choose Radio membership.</div>
     <div id="geGateEntry">
-      <input id="geGateWord" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Gate word" placeholder="Enter">
-      <button id="geGateEnter" type="button">Enter</button>
+      <input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Access code" placeholder="CODE" inputmode="text">
+      <button id="geGateEnter" type="button">ACCESS</button>
     </div>
-    <button id="geGateHint" type="button">Hint</button>
-    <div id="geGateHintText"></div>
-    <div id="geGateHelp"><button id="geGateEmail" type="button">Get Access</button></div>
-    <button id="geGateNextPreview" type="button" hidden>TRY YOUR 33:33 MUSIC PREVIEW</button>
+    <div id="geGateHelp"><a class="ge-gate-membership" href="../support/?section=radio&amp;flow=shop">RADIO MEMBERSHIP · $6 / MONTH</a></div>
+    <button id="geGateNextPreview" type="button" hidden aria-hidden="true">MUSIC PREVIEW</button>
     <div id="geGateAccessForm" role="dialog" aria-modal="true" aria-label="Get access code" aria-hidden="true">
       <button id="geGateAccessClose" type="button" aria-label="Close access dialog">×</button>
       <div id="geGateAccessText">Send us an email and we will send the access code back to the email account you use to contact us.</div>
@@ -2779,7 +2786,7 @@ const GATE_CONFIG = Object.freeze({
   password: 'love',
   authKey: 'GE_GATE_LOVE_V1',
   stateKey: 'GE_GATE_STATE_V5_3333',
-  removeOfflineOnTimeout: true,
+  removeOfflineOnTimeout: false,
   testDeletesOffline: false,
   helpEmail: 'access@grandelement.com',
   helpSubject: 'I need access',
@@ -4282,9 +4289,24 @@ function exitLiveMode(message='RADIO ended.'){
   if(message)setStatus(message);
 }
 
-function geOwnerDemoEnabled(){
-  try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes'}catch(_e){return false}
+function geRadioLocalTestAccess(){
+  // TEMPORARY LOCAL OWNER DEMO ONLY. Never accept this as proof of payment.
+  try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes' ||
+    localStorage.getItem(GATE_CONFIG.authKey)==='1';}catch(_e){return false}
 }
+function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
+function syncRadioOfflineAccessUI(){
+  const localTest=geRadioLocalTestAccess();
+  document.body.classList.toggle('ge-offline-entitled',localTest);
+  for(const element of [$('offlineBtn'),document.querySelector('#shipStage [data-proxy="offlineBtn"]')]){
+    if(!element)continue;
+    element.hidden=!localTest;
+    element.setAttribute('aria-hidden',localTest?'false':'true');
+    element.tabIndex=localTest?0:-1;
+  }
+}
+window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
+syncRadioOfflineAccessUI();
 function geOpenMusicSelection(){
   // Track choosing never starts an unpurchased song in the public player.
   location.assign('./preview-lab.html#choose');
@@ -6031,6 +6053,7 @@ async function registerServiceWorker(){
   }
 
   button.addEventListener('click',async()=>{
+    if(!geRadioLocalTestAccess())return; // Future production: verify membership server-side.
     if(button.classList.contains('downloading')){
       abortController?.abort();
       await setOfflinePlanAutoResume(false);
@@ -7987,28 +8010,7 @@ Vector ${vector}. ${pair[1]}.`;
         enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
         help=$('geGateHelp'),email=$('geGateEmail'),status=$('geGateStatus');
 
-  const hints=[
-    'Somebody said there’s only one thing we need.',
-    'What we are.',
-    'What grows when you give it away?',
-    'What can be felt without being touched?',
-    'What brings two separate things together without making either disappear?',
-    'What gets stronger when it is shared?',
-    'What can travel any distance without moving?',
-    'What turns a house into a home?',
-    'What does music keep trying to say?',
-    'What can be understood before a single word is spoken?',
-    'What can remain after anger is gone?',
-    'What gives without becoming smaller?',
-    'What can heal without medicine?',
-    'What is stronger than fear?',
-    'What has no borders but connects people everywhere?',
-    'What is at the center of Grand Element?',
-    'Four letters. One thing we all need.',
-    'What did somebody once say was all you need?',
-    'L _ V E',
-    'LOVE'
-  ];
+  // No riddle or hint; the Gate presents an access code and Radio membership.
 
   const emptyState=()=>({
     playCount:0,musicSeconds:0,sixthStartSeconds:null,
@@ -8062,7 +8064,7 @@ Vector ${vector}. ${pair[1]}.`;
   function stopGateRipples(){/* CSS animation remains GPU-smooth; visibility is controlled by Gate classes. */}
   function scheduleNextRipple(){ensureGateWaveRings();}
 
-  function authorized(){return localStorage.getItem(GATE_CONFIG.authKey)==='1';}
+  function authorized(){return geRadioLocalTestAccess();}
   function save(force=false){
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
     try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
@@ -8093,16 +8095,12 @@ Vector ${vector}. ${pair[1]}.`;
     scheduleStages();
   }
 
-  function updateHintUI(){
-    const shown=Math.max(0,Math.min(hints.length,Number(gs.hintIndex)||0));
-    hintText.textContent=shown?hints[shown-1]:'';
-    help.classList.add('show');
-  }
+  function updateHintUI(){if(help)help.classList.add('show');}
 
   function showPanel(expired=false){
     gate.classList.add('centered');
     stopGateRipples();
-    if(status)status.textContent=expired?'Radio preview complete. Enter the code or listen to your free music preview.':'Enter the word to continue.';
+    if(status)status.textContent=expired?'Radio preview complete. Enter CODE or choose Radio membership.':'Enter CODE for access, or choose Radio membership.';
     const nextPreview=$('geGateNextPreview');if(nextPreview)nextPreview.hidden=!expired;
     updateHintUI();
   }
@@ -8289,7 +8287,7 @@ Vector ${vector}. ${pair[1]}.`;
     gate.style.setProperty('--ge-gate-dim',String(1-visible/100));
     if(sun){sun.src=absolute(CONFIG.LOGO_SRC);sun.style.transition='none';sun.style.transform=`translate3d(${gateSunOffscreenPx()}px,0,0) scale(.84)`;sun.style.opacity='1';sun.style.filter='';}
     if(panel){panel.style.removeProperty('opacity');panel.style.removeProperty('pointer-events');}
-    if(status)status.textContent='Enter the word to continue.';
+    if(status)status.textContent='Enter your access code or choose Radio membership.';
     scheduleStages();
   }
 
@@ -8404,7 +8402,11 @@ Vector ${vector}. ${pair[1]}.`;
     }catch(_e){}
   }
 
-  function wrongWord(){gate.classList.remove('wrong');void gate.offsetWidth;gate.classList.add('wrong');if(status)status.textContent='Keep going.';word?.select();}
+  function wrongWord(){
+    // Unsupported code: go directly to the Radio membership page. Current
+    // checkout is preview-only; never claim an actual paid entitlement.
+    location.assign('../support/?section=radio&flow=shop');
+  }
   function unlock(){
     if(authorized())return;
     const entered=String(word?.value||'').trim().toLowerCase();
@@ -8412,7 +8414,8 @@ Vector ${vector}. ${pair[1]}.`;
 
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
-    try{localStorage.setItem(GATE_CONFIG.authKey,'1');}catch(_e){}
+    try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
     // Temporary legacy-Gate event for owner analytics and later email alerts.
     // Do not send location, VPN, IP, password, payment claims, or identity.
@@ -8440,7 +8443,6 @@ Vector ${vector}. ${pair[1]}.`;
     },Math.max(250,gateSeconds(GATE_CONFIG.unlockSeconds)*1000));
   }
 
-  hintBtn?.addEventListener('click',()=>{gs.hintIndex=Math.min(hints.length,(Number(gs.hintIndex)||0)+1);save(true);updateHintUI();});
   enter?.addEventListener('click',unlock);
   $('geGateNextPreview')?.addEventListener('click',()=>{
     try{audio.pause();}catch(_e){}
@@ -8504,6 +8506,7 @@ Vector ${vector}. ${pair[1]}.`;
       localStorage.removeItem(GATE_CONFIG.authKey);localStorage.removeItem(GATE_CONFIG.stateKey);
       gs=emptyState();liveStationID=false;wasCountable=false;window.GEAudioGain?.setImmediate?.(1);audio.volume=1;
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
+      window.GERadioSyncOfflineAccess?.();
       lastTickAt=Date.now();
     }
   };
