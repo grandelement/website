@@ -2660,6 +2660,7 @@ body.iam-studio-open #titleBtn{display:none!important}
       <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
       <button id="qrWebsiteTestBtn" type="button" class="sunlab-mini">Test Website QR Intro</button>
       <button id="qrRadioTestBtn" type="button" class="sunlab-mini">Test Radio QR Intro</button>
+      <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local Radio, Player, and My Music test access without deleting downloaded songs">RESET CODES</button>
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
   </section>
@@ -5532,6 +5533,10 @@ async function registerServiceWorker(){
     setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
     currentAudit=audit;
     reflectButton(audit);
+    if(audit.musicComplete){
+      panel.style.display='none';
+      text.textContent=audit.cachedSongs+' songs saved offline. Any remaining files are optional.';
+    }
     return {plan,assets:plan.assets,audit};
   }
 
@@ -5541,6 +5546,10 @@ async function registerServiceWorker(){
     setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
     currentAudit=audit;
     reflectButton(audit);
+    if(audit.musicComplete){
+      panel.style.display='none';
+      text.textContent=audit.cachedSongs+' songs saved offline. Any remaining files are optional.';
+    }
     return {assets,audit};
   }
 
@@ -5590,13 +5599,20 @@ async function registerServiceWorker(){
     button.classList.toggle('active',on);
   }
 
+  // The offline Music library is complete when every *song* is cached.
+  // Missing optional backgrounds, extra station IDs or duplicated shell URLs
+  // must not ask someone to re-download the same music on every visit.
   function reflectButton(audit=currentAudit){
     const enabled=isEnabled();
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
-    if(!enabled){ button.textContent=audit?.cachedSongs>0?'Finish Offline':'Go Offline'; return; }
-    if(audit?.requiredReady || audit?.complete){ button.textContent='Offline Ready'; return; }
-    if(audit?.shellReady&&audit?.cachedSongs>0){ button.textContent='Resume Offline'; return; }
+    if(audit?.musicComplete){
+      button.textContent='Offline Ready';
+      button.setAttribute('aria-label','All '+audit.cachedSongs+' songs saved offline. Optional artwork may still be missing.');
+      return;
+    }
+    button.removeAttribute('aria-label');
+    if(!enabled){button.textContent=audit?.cachedSongs>0?'Finish Offline':'Go Offline';return;}
     button.textContent='Resume Offline';
   }
 
@@ -5918,7 +5934,7 @@ async function registerServiceWorker(){
     reflectButton(audit);
 
     if(activePlan){
-      if(audit.complete || (quotaStoppedOptional && audit.requiredReady)) await setOfflinePlanAutoResume(false);
+      if(audit.musicComplete || audit.complete || (quotaStoppedOptional && audit.requiredReady)) await setOfflinePlanAutoResume(false);
     }
 
     if(!quiet){
@@ -5986,7 +6002,9 @@ async function registerServiceWorker(){
     const planned=await scanApprovedPlan();
     const prepared=planned || await scanExistingAssets();
 
-    if(prepared.audit.requiredReady || prepared.audit.complete){
+    // A complete music set is already done. Do not ask to resume the final
+    // optional backgrounds / station clips / duplicated shell assets.
+    if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
       const keepFiles=confirm('Turn Offline off and KEEP the downloaded songs on this device?\n\nOK = Keep files\nCancel = More options');
       if(keepFiles){
         setEnabled(false);
@@ -6468,6 +6486,25 @@ $('reloadBtn').addEventListener('click',async()=>{
     bindSunLabControl('slOuterGlowHue','outerGlowHue',fmtDeg);
     refreshSunLabSelect();
   }
+  // Owner/test control. Resets browser-only demo credentials and the guest
+  // trial clocks across Radio, the preview player, and the GE Store. No
+  // payment account, server entitlement, cache, cart, or music is deleted.
+  function resetLocalAccessCodes(){
+    const ok=confirm('RESET CODES on this device?\\n\\nReturn Radio and My Music to GUEST mode and reset the 33:33 test clocks. Downloaded songs and your Sun Lab settings are kept.\\n\\nThis does NOT cancel a real subscription or reset a server account.');
+    if(!ok)return;
+    const keys=[
+      GATE_CONFIG.authKey,
+      GATE_CONFIG.stateKey,
+      'GE_PLAYER_OWNER_DEMO_V1',
+      'GE_PLAYER_3333_TEST_V1'
+    ];
+    keys.forEach(key=>{try{localStorage.removeItem(key);}catch(_e){}});
+    try{sessionStorage.removeItem('GE_3333_PREVIEW_QUEUE_V1');}catch(_e){}
+    setPanelVisible(false);
+    // Reload to reset the in-memory Gate state and access-only UI, including
+    // a Gate already unlocked in this running tab. Refresh does not clear media.
+    location.reload();
+  }
   function initSunLab(){
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
     loadSunLab();loadSunModeProfiles();
@@ -6486,6 +6523,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       sunLabBtn.addEventListener('click',()=>{const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
+      $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
