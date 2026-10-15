@@ -8368,7 +8368,10 @@ Vector ${vector}. ${pair[1]}.`;
   function stopGateRipples(){/* CSS animation remains GPU-smooth; visibility is controlled by Gate classes. */}
   function scheduleNextRipple(){ensureGateWaveRings();}
 
-  function authorized(){return geRadioLocalTestAccess();}
+  // Developer Gate preview temporarily bypasses local LOVE authorization only
+  // for the visual/audio test. The credential and offline music are retained.
+  let developerGatePreview=false;
+  function authorized(){return geRadioLocalTestAccess()&&!developerGatePreview;}
   function save(force=false){
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
     try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
@@ -8725,6 +8728,7 @@ Vector ${vector}. ${pair[1]}.`;
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
     window.GEGateFX?.reset?.();
+    developerGatePreview=false;
     try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
     window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
@@ -8823,8 +8827,12 @@ Vector ${vector}. ${pair[1]}.`;
       word?.focus();
     },
     resetForTesting:()=>{
+      if(!geRadioLocalTestAccess())return;
       clearTimers();
-      localStorage.removeItem(GATE_CONFIG.authKey);localStorage.removeItem(GATE_CONFIG.stateKey);
+      developerGatePreview=true;
+      // Keep the LOVE developer code intact, but run the Gate just as a
+      // guest would hear and see it, including its fade and effects.
+      try{localStorage.removeItem(GATE_CONFIG.stateKey);}catch(_e){}
       gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.setImmediate?.(1);audio.volume=1;
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
       window.GERadioSyncOfflineAccess?.();
