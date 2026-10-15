@@ -3608,8 +3608,9 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 <style id="ge-home-radio-ui-v1">
 /* Homepage has one station stream. Visitors cannot manually skip its songs. */
 #mini #geHomeRadioLink{
-  display:block;width:100%;max-width:100%;white-space:normal;
-  padding:4px 6px 8px;font-size:12px;font-weight:900;letter-spacing:.09em;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:auto;min-width:160px;max-width:100%;min-height:30px;
+  padding:4px 9px;font-size:12px;font-weight:900;letter-spacing:.09em;
   color:#c8eeff;text-decoration:none;text-align:center;
   text-shadow:0 0 8px #139bff,0 0 16px #0b64bd;
   pointer-events:auto;cursor:pointer;
@@ -3619,8 +3620,14 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 #mini #seek,#mini #timeCur,#mini #timeMax,
 #gameMusicNext,#gameMusicPrev,#gameMusicMode,#gameMusicOptions,#gameSeek,
 #gameTimeCur,#gameTimeMax{display:none!important}
-#mini #mpControls{justify-content:center}
+#mini #mpControls{justify-content:center;align-items:center}
+#mini #geHomeRadioTransport{display:flex!important;align-items:center;justify-content:center;gap:12px;margin:10px 0 4px}
+#mini #geHomeRadioTransport .btn{width:auto;min-width:116px;min-height:38px;padding:8px 16px;font-size:13px;font-weight:800;letter-spacing:.065em;cursor:pointer}
+#mini #geHomeStop{border-color:rgba(255,190,190,.62);color:#ffd7d7}
+#mini #geHomeStop:disabled{opacity:.42;cursor:default}
 #mini #geHomeRadioStatus{max-width:100%;overflow-wrap:anywhere}
+#mini.geMiniPortal{overflow-x:hidden!important}
+@media(max-width:390px){#mini #geHomeRadioTransport .btn{min-width:88px;padding:8px 12px}}
 /* Desktop-only: make the Blue Sun disk 10% larger, not the mobile/tablet Sun.
    Game physics and the 12-hour clock remain separate. Keep the Moon's
    orbit centered outside the enlarged disk as well. */
@@ -3661,10 +3668,9 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 
       <!-- Player panel BELOW the button -->
       <div class="miniPlayer" id="mini">
-        <a id="geHomeRadioLink" href="./radio/?radio=1" aria-label="Open the Grand Element Radio player">GRAND ELEMENT RADIO</a>
         <div class="controls" id="mpControls">
           <div class="btn" id="prev" title="Prev">◀</div>
-          <div class="btn" id="play" title="Play/Pause">▶</div>
+          <a id="geHomeRadioLink" href="./radio/?radio=1" aria-label="Open the Grand Element Radio player">GRAND ELEMENT RADIO</a>
           <div class="btn" id="next" title="Next">▶▶</div>
           <div class="btn" id="musicOptionsBtn" title="Music album options">⚙</div>
         </div>
@@ -3683,8 +3689,9 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
           <div class="toggle active" id="tgShuffle">Shuffle</div>
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
-        <div class="row" style="justify-content:center">
-          <button class="btn" id="geChooseMusic" type="button" style="width:auto;min-width:150px;padding:6px 12px">OPEN RADIO</button>
+        <div class="row" id="geHomeRadioTransport">
+          <button class="btn" id="play" type="button" title="Start Grand Element Radio">PLAY</button>
+          <button class="btn" id="geHomeStop" type="button" title="Stop and disconnect Grand Element Radio">STOP</button>
         </div>
         <div id="geHomeRadioStatus" role="status" aria-live="polite" style="font-size:11px;text-align:center;padding:4px 6px;opacity:.9;width:100%">TAP PLAY · GRAND ELEMENT RADIO</div>
 
@@ -5215,11 +5222,6 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
     mini.style.display=opening?'flex':'none';
     if(opening){requestAnimationFrame(()=>requestAnimationFrame(clampMiniPlayer));}
   });
-  document.getElementById('geChooseMusic')?.addEventListener('click',e=>{
-    e.stopPropagation();
-    openGrandElementRadio();
-  });
-
   ['pointerdown','pointermove','touchstart'].forEach(ev=>{
     mini.addEventListener(ev, e=>{ e.stopPropagation(); }, {passive:false});
   });
