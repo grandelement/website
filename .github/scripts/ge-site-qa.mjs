@@ -55,6 +55,20 @@ allIn(radio,['hardLimitSeconds: 2013','fadeSeconds: 66',
   'Radio Gate finishes at 33:33, with 66-second fade and pause handling');
 test(!radio.includes('triggerTrack: 6,') && !radio.includes('hardLimitSeconds: 1800'),
   'Old sixth-song and 30-minute triggers removed');
+// Offline downloads require an explicit listener action and must not
+// silently restart on every return from the GE website / Home button.
+const radioOfflineBoot=radio.slice(
+  radio.indexOf('  (async()=>{\\n    try{\\n      const planned=await scanApprovedPlan();'.replace(/\\n/g,'\n')),
+  radio.indexOf('  window.GEOffline={')
+);
+test(radioOfflineBoot.includes('if(planned.plan.autoResume) await setOfflinePlanAutoResume(false);') &&
+  !radioOfflineBoot.includes('cacheMissingAssets(') &&
+  !radioOfflineBoot.includes('showPreDownloadEstimate('),
+  'Radio entry audits existing offline files without restarting downloads or prompts');
+test(radio.includes('await saveOfflinePlan(prepared.assets,{autoResume:false});') &&
+  radio.includes('async function saveOfflinePlan(assets,{autoResume=false}={})'),
+  'Manual offline downloads never re-arm auto-resume for future visits');
+
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
