@@ -13035,11 +13035,13 @@ body:not(.ge-body-race-active) #moon {
     const elapsed=((t.hour%12)*3600+t.minute*60+t.second)*1000+now.getMilliseconds();
     // 12 top, 3 right, 6 bottom, 9 left in EVERY screen orientation.
     const angle=-Math.PI/2+(elapsed/CLOCK_MS)*Math.PI*2;
-    // An inscribed oval, not a small central circle. Follow virtually the
-    // whole available viewport, leaving the moving Sun disk unobscured.
-    const margin=4;
-    const rx=Math.max(0,(innerWidth-p.w)/2-margin);
-    const ry=Math.max(0,(innerHeight-p.h)/2-margin);
+    // Automatic 12-hour path stays at least 75% of the Blue Sun's
+    // own DIAMETER clear of every screen edge, measured from the disk edge.
+    // Manual user edge-parking is deliberately exempt from this path inset.
+    // A narrow viewport collapses the corresponding radius safely to zero.
+    const outerGapFraction=.75;
+    const rx=Math.max(0,innerWidth/2-p.w*(.5+outerGapFraction));
+    const ry=Math.max(0,innerHeight/2-p.h*(.5+outerGapFraction));
     return{x:innerWidth/2+rx*Math.cos(angle),
       y:innerHeight/2+ry*Math.sin(angle),angle,rx,ry,zone:t.zone||'local'};
   }
