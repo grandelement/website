@@ -164,7 +164,7 @@ allIn(radio,[
 ], 'LOVE developer-only Radio UI and quiet native-safe Gate');
 
 const gateFxSource=radio.slice(radio.indexOf('function createGateFxGraph(ctx){'),radio.indexOf('window.GEGateFX={'));
-test(!/fxDelay|fxFeedback|delayGain|createDelay\\(|delayTime/.test(gateFxSource) &&
+test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) &&
   gateFxSource.includes('fxReverb=ctx.createConvolver()') &&
   gateFxSource.includes("fxAllpass.type='allpass'") &&
   gateFxSource.includes("fxFilter.type='lowpass'") &&
