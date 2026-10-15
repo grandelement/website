@@ -8475,7 +8475,7 @@ Vector ${vector}. ${pair[1]}.`;
     return String(first?.title||data?.now_playing?.song?.text||data?.now_playing?.song?.title||data?.song?.text||data?.song?.title||data?.title||'').trim();
   }
   async function pollLiveMetadata(){
-    if(authorized()||gs.expired||!state.live||!GATE_CONFIG.liveMetadataURL)return;
+    if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return;
     try{
       const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
       const title=extractLiveTitle(await response.json());if(!title)return;
