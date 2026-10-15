@@ -179,12 +179,20 @@ test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      'Radio 1 falls back when readyState is positive but audio does not advance');
 const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
                              radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
-test(radioButton.includes("void requestRadioStart();") &&
+test(radioButton.includes("void requestRadioStart({userGesture:true});") &&
      !radioButton.includes("exitLiveMode(") &&
      !radioButton.includes("resumeLiveAtEdge()") &&
-     radio.includes("let radioStartInFlight=null;") &&
+     radio.includes("let radioStartInFlight=null,radioTapUnlockInFlight=null;") &&
      radio.includes("if(radioStartInFlight){"),
      'RADIO button is a non-destructive, single-flight start/retry control');
+const coordinator=radio.slice(radio.indexOf('function requestRadioStart({'),
+                              radio.indexOf('async function resumeRadio(){'));
+test(coordinator.includes("if(userGesture&&audio.paused") &&
+     coordinator.includes("radioTapUnlockInFlight=unlocking") &&
+     coordinator.includes("Promise.race([work,limit])") &&
+     coordinator.includes("timeout=setTimeout(resolve,12500)") &&
+     coordinator.includes("radioStartInFlight=operation"),
+     'iPhone tap unlocks a pending autoplay on the same audio; a hung promise cannot block retry forever');
 const startCue=radio.slice(radio.indexOf('function updateRadioStartupCue(){'),
                            radio.indexOf('function liveStreamConfigured(){'));
 test(startCue.includes('observedRadio2Progress:observedRadio1Progress') &&
