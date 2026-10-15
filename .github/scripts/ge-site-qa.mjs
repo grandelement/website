@@ -45,12 +45,12 @@ for(const [label,cfg] of [['live',liveSiteConfig],['test',testSiteConfig],
   test(cfg.music?.startupEnabled===false&&!cfg.music?.firstTrack,
     label+' starts silent without a default The Source song');
 }
-test(home.includes("const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled===true;") &&
-     home.includes('id="geChooseMusic"') &&
+test(home.includes('const startupMusicEnabled=false;') &&
+     home.includes('id="geHomeRadioTransport"') &&
      home.includes("radio/preview-lab.html") &&
      home.includes("(!startupMusicEnabled&&s.userSelected!==true)") &&
      home.includes("nowPlaying.textContent='CHOOSE MUSIC'"),
-     'homepage starts without a forced first track and exposes music selection');
+     'homepage starts without a forced first track; radio and song selection remain visitor-initiated');
 test(backroom.includes('<option value="">LET VISITOR CHOOSE MUSIC</option>') &&
      !backroom.includes('find(o=>/Fire_11_The Source'),
      'Back Room can publish no opening song without reselecting The Source');

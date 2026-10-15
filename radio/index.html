@@ -8607,6 +8607,15 @@ Vector ${vector}. ${pair[1]}.`;
   $('arrivalReplyYes')?.addEventListener('click',()=>{
     if(replyChoice)replyChoice.hidden=true;
     if(replyEmailStep)replyEmailStep.hidden=false;
+    const text=(arrivalComment?.value||'').trim();
+    if($('arrivalReplyInfo'))$('arrivalReplyInfo').textContent='Your email app can send the prepared message with its reply address. If the mail app is unavailable, enter your address below to send through the website instead.';
+    // Browsers cannot read a person's email identity. The sender address is
+    // available to GE only if the listener chooses to send in their mail app.
+    if(text){
+      const subject=encodeURIComponent('Grand Element · Inner Horizon Message');
+      const body=encodeURIComponent(text+'\n\nPlease send a return message to the address I am emailing from.');
+      location.href='mailto:info@grandelement.com?subject='+subject+'&body='+body;
+    }
     replyEmail?.focus();
   });
   $('arrivalReplySend')?.addEventListener('click',()=>{
