@@ -253,7 +253,9 @@ let previewMode=initialFlow==='player'||initialFlow==='preview'||(new URL(locati
 let previewQueue=[],previewDurations=new Map(),previewDurationsReady=false;
 try{
  const old=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
- if(Array.isArray(old))previewQueue=old.filter(x=>x&&typeof x.url==='string'&&Number.isFinite(Number(x.duration_ms))&&Number(x.duration_ms)>0).slice(0,120);
+ // Retain the visitor's entire song selection across pages; the free
+  // listening allowance is still checked independently by the player.
+  if(Array.isArray(old))previewQueue=old.filter(x=>x&&typeof x.url==='string'&&Number.isFinite(Number(x.duration_ms))&&Number(x.duration_ms)>0);
 }catch(_e){}
 function formatPreviewTime(sec){
  sec=Math.max(0,Math.floor(Number(sec)||0));
