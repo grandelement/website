@@ -5770,8 +5770,9 @@ async function registerServiceWorker(){
       if(!hit && copyExisting){
         const found=await exactMatchInAnyCache(item.url);
         if(found){
+          // A song already in another GE cache IS downloaded. Do not duplicate
+          // huge audio blobs merely to make this audit report them as ready.
           hit=found.response;
-          try{ await active.put(item.url,hit.clone()); }catch(_e){}
         }
       }
 
@@ -5817,8 +5818,16 @@ async function registerServiceWorker(){
     const expected=item.size||headerLength||0;
     const headers=new Headers(response.headers);
 
-    // Stream into Cache Storage while separately counting bytes.
-    // This avoids holding an entire MP3/WAV/GIF in memory before cache.put().
+    // iOS installed web apps are often memory-constrained. Do not tee an MP3
+    // into TWO simultaneous streams; Cache.put consumes the direct response,
+    // and progress advances only after the file is genuinely stored.
+    if(/iPad|iPhone|iPod/i.test(navigator.userAgent||'')){
+      await cache.put(item.url,response);
+      onChunk(expected,expected);
+      return expected;
+    }
+
+    // Other browsers can stream and measure progress separately.
     if(response.body?.tee){
       const [cacheStream,monitorStream]=response.body.tee();
       const cacheResponse=new Response(cacheStream,{
@@ -5851,7 +5860,8 @@ async function registerServiceWorker(){
     for(let attempt=1;attempt<=MAX_RETRIES;attempt++){
       if(signal.aborted) throw new DOMException('Aborted','AbortError');
       try{
-        if(item.type==='song') await purgeStaleSongVersions(item.url);
+        // Never purge an older cached version BEFORE the replacement has
+        // downloaded successfully. The older song may be the only offline copy.
         return await cacheResponseStreaming(item,cache,signal,onChunk);
       }catch(error){
         lastError=error;
@@ -5864,13 +5874,13 @@ async function registerServiceWorker(){
   }
 
   async function cacheMissingAssets({quiet=false,reason='manual',prepared=null,initialSpeed=0}={}){
-    await registerServiceWorker();
-    if(navigator.storage?.persist) try{ await navigator.storage.persist(); }catch(_e){}
-
+    // This is a manual song-download operation, not an app update.
+    // Registering/updating the service worker again here can interrupt an
+    // installed iPhone app while files are being saved.
     const assets=prepared?.assets || await buildAssetList();
     let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
 
-    if(!audit.missing.length){
+    if(!audit.missingSongs){
       setEnabled(audit.cachedSongs>0);
       if(activePlan) await setOfflinePlanAutoResume(false);
       reflectButton(audit);
@@ -5881,7 +5891,7 @@ async function registerServiceWorker(){
         });
         setStatus('Offline library is current.');
       }
-      return {added:0,failed:0,total:assets.length,complete:true};
+      return {added:0,failed:0,total:audit.totalSongs,complete:true,musicComplete:true};
     }
 
     abortController=new AbortController();
@@ -5893,11 +5903,17 @@ async function registerServiceWorker(){
     let downloadedBytes=0;
     let completedFiles=0;
     let failed=0;
+    const failedFiles=[];
+    let storageFull=false;
     let quotaStoppedOptional=false;
     let lastKnownTotal=audit.totalBytes;
     let baseBytes=audit.existingBytes;
 
-    for(const item of audit.missing){
+    // A Resume N Songs click fetches only these N missing SONGS.
+    // Do not re-fetch screenshots, animation GIFs, shell files, or station
+    // IDs just because they aren't in the manually approved download list.
+    const missingSongFiles=audit.missing.filter(item=>item.type==='song');
+    for(const item of missingSongFiles){
       if(abortController.signal.aborted) break;
 
       let currentExpected=item.size||0;
@@ -5933,13 +5949,15 @@ async function registerServiceWorker(){
       }catch(error){
         if(abortController.signal.aborted) break;
 
-        // If browser storage fills up AFTER the music is complete, stop wasting
-        // time on optional backgrounds. The music remains fully usable offline.
-        if(error?.name==='QuotaExceededError' && item.type==='background'){
-          quotaStoppedOptional=true;
+        failed++;
+        const cause=String(error?.name||'DownloadError');
+        const filename=decodeURIComponent(new URL(item.url).pathname.split('/').pop()||'song').slice(0,100);
+        failedFiles.push(filename+' ('+cause+')');
+        // Don't attempt three more giant files when iOS is already full.
+        if(cause==='QuotaExceededError'){
+          storageFull=true;
           break;
         }
-        failed++;
       }
     }
 
@@ -5967,8 +5985,10 @@ async function registerServiceWorker(){
       if(audit.missing.length){
         line2+=` ${audit.missing.length} file${audit.missing.length===1?'':'s'} still missing.`;
       }
-      if(quotaStoppedOptional && audit.musicComplete){
-        line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline. Optional backgrounds stopped at the browser storage limit.`;
+      if(storageFull){
+        line2+=' iPhone storage limit reached. Existing songs were kept.';
+      }else if(failedFiles.length){
+        line2+=' Could not save: '+failedFiles.slice(0,3).join('; ')+'.';
       }else if(wasAborted){
         line2=`Stopped. ${audit.cachedSongs} of ${audit.totalSongs} songs are available offline. Tap Resume Offline later.`;
       }
@@ -5990,7 +6010,7 @@ async function registerServiceWorker(){
     }
 
     return {
-      added:completedFiles,failed,total:assets.length,
+      added:completedFiles,failed,failedFiles,storageFull,total:missingSongFiles.length,
       complete:audit.complete,musicComplete:audit.musicComplete,
       cachedSongs:audit.cachedSongs,totalSongs:audit.totalSongs
     };
@@ -6017,8 +6037,17 @@ async function registerServiceWorker(){
       return;
     }
 
-    const planned=await scanApprovedPlan();
-    const prepared=planned || await scanExistingAssets();
+    // Refresh from caches, but never remove music to reinitialize download.
+    let prepared;
+    try{
+      const planned=await scanApprovedPlan();
+      prepared=planned || await scanExistingAssets();
+    }catch(error){
+      panel.style.display='block';
+      text.textContent='Offline scan failed: '+String(error?.message||error)+'. Existing downloads were not cleared.';
+      setStatus('Offline scan could not finish. Your downloaded music was kept.');
+      return;
+    }
 
     // A complete music set is already done. Do not ask to resume the final
     // optional backgrounds / station clips / duplicated shell assets.
@@ -6036,21 +6065,40 @@ async function registerServiceWorker(){
       return;
     }
 
-    const estimate=await showPreDownloadEstimate(prepared);
-    if(!estimate.approved){
-      reflectButton(prepared.audit);
-      return;
+    // RESUME is already an explicit listener request: no second native
+    // confirm (which flashes white on installed iOS PWAs), and no speed test.
+    let initialSpeed=0;
+    if(!prepared.audit.cachedSongs){
+      const estimate=await showPreDownloadEstimate(prepared);
+      if(!estimate.approved){reflectButton(prepared.audit);return;}
+      initialSpeed=estimate.speed;
     }
-
-    // Only a deliberate tap starts an offline download. Never auto-retry on every Radio entry.
-    await saveOfflinePlan(prepared.assets,{autoResume:false});
-
-    await cacheMissingAssets({
-      quiet:false,
-      reason:isEnabled()?'resume':'manual',
-      prepared,
-      initialSpeed:estimate.speed
-    });
+    try{
+      // A failed plan write must not abort the actual song download or
+      // falsely mark the stored songs as lost (iOS may be near quota).
+      try{await saveOfflinePlan(prepared.assets,{autoResume:false});}
+      catch(error){console.warn('Offline plan metadata not saved:',error);}
+      const result=await cacheMissingAssets({
+        quiet:false,
+        reason:isEnabled()?'resume':'manual',
+        prepared,
+        initialSpeed
+      });
+      if(result.failedFiles?.length){
+        setStatus('Offline download incomplete: '+result.failedFiles.length+' song(s) failed. See details below.');
+      }else if(result.storageFull){
+        setStatus('iPhone offline storage is full. Saved music was kept.');
+      }
+    }catch(error){
+      panel.style.display='block';
+      text.textContent='Could not finish offline download: '+String(error?.message||error)+'. Saved files were kept.';
+      setStatus('Offline download interrupted. Your existing files were kept.');
+    }finally{
+      abortController=null;
+      button.classList.remove('downloading');
+      button.disabled=false;
+      reflectButton(currentAudit);
+    }
   });
 
   window.addEventListener('offline',()=>{
