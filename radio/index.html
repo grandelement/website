@@ -2191,6 +2191,8 @@ body.iam-studio-open #titleBtn{display:none!important}
 </style>
 <style id="ge-sunlab-code-reset-20261015">
 /* Dedicated always-visible row: never hidden by Sun Lab's scrollable action strip. */
+.sunlab-panel{grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto!important}
+#offlineText{white-space:pre-line}
 .sunlab-access-tools{display:flex;align-items:center;gap:9px;min-width:0;margin-top:8px;padding:7px 1px 0;border-top:1px solid rgba(120,185,219,.32)}
 .sunlab-access-tools #sunLabResetCodes{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
 .sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
@@ -5540,7 +5542,7 @@ async function registerServiceWorker(){
     const plan=await loadOfflinePlan();
     if(!plan) return null;
     const audit=await auditAssets(plan.assets,{copyExisting:true});
-    setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+    setEnabled(audit.cachedSongs>0);
     currentAudit=audit;
     reflectButton(audit);
     if(audit.musicComplete){
@@ -5553,7 +5555,7 @@ async function registerServiceWorker(){
   async function scanExistingAssets(){
     const assets=await buildAssetList();
     const audit=await auditAssets(assets,{copyExisting:true});
-    setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+    setEnabled(audit.cachedSongs>0);
     currentAudit=audit;
     reflectButton(audit);
     if(audit.musicComplete){
@@ -5869,7 +5871,7 @@ async function registerServiceWorker(){
     let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
 
     if(!audit.missing.length){
-      setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+      setEnabled(audit.cachedSongs>0);
       if(activePlan) await setOfflinePlanAutoResume(false);
       reflectButton(audit);
       if(!quiet){
@@ -5946,7 +5948,7 @@ async function registerServiceWorker(){
     abortController=null;
 
     audit=await auditAssets(assets,{copyExisting:false});
-    setEnabled(!!(audit.shellReady && audit.cachedSongs>0));
+    setEnabled(audit.cachedSongs>0);
     reflectButton(audit);
 
     if(activePlan){
