@@ -34,20 +34,6 @@ for (const path of ['radio/iam-private-studio.js','radio/ge-clock.js','radio/sw.
   test(true,path+' compiles');
 }
 
-const shipFlybys=load('radio/ship-album-flybys.js');
-new vm.Script(shipFlybys,{filename:'radio/ship-album-flybys.js'});
-test(true,'Ship album flyby visual module compiles');
-allIn(shipFlybys,[
-  "const stage=document.getElementById('shipStage');",
-  "const windowView=document.getElementById('shipWindowViewport');",
-  "const layer=document.createElement('div');layer.id='shipAlbumFlybyLayer'",
-  "window.addEventListener('ge-current-song'",
-  "getApproachDistance",
-  "getThrottle",
-  "body.view-ship.arrival-mode #shipAlbumFlybyLayer",
-  "ge-flyby-planet",
-  "distance=Math.max(0,Math.min(1000,distance+rate*dt))"
-], 'Secondary album planets preserve Blue Sun and reversible ship depth');
 const radio=load('radio/index.html');
 const home=load('index.html');
 const iam=load('radio/iam-private-studio.js');
@@ -68,9 +54,17 @@ allIn(radio,[
   "developerGatePreview=true",
   "developerGatePreview=false",
   "function molecularScanNote(){",
-  "window.GEShip={syncAll,applyMode,",
-  "window.dispatchEvent(new CustomEvent('ge-current-song'"
+  "window.GEShip={syncAll,applyMode};",
+  "function enqueueAlbumPlanet(label){",
+  "function updateAlbumPlanets(dt){",
+  "if(album.name==='Singles')picture.style.filter='grayscale(1) contrast(1.15)'",
+  "albumFlight.position=Math.max(-80"
 ], 'Ship EQ real-bin displays, Gate preview, science-themed fictional radar, album flyby events');
+test(!radio.includes('ship-album-flybys.js') &&
+  radio.includes('id="shipAlbumPlanetLayer"') &&
+  radio.includes("el.className='ship-album-planet'") &&
+  radio.includes("window.GEAlbumPlanets={enqueue:enqueueAlbumPlanet"),
+  'Exactly one album-planet flight system remains and original Blue Sun arrival is preserved');
 test(!radio.includes("const a=(Math.sin(t*(3.1+side*.35)") &&
   !radio.includes("else level=.16+.72*((Math.sin(t*3.2+i*.72)"),
   'Ship dashboard and ring do not show simulated audio waves');
