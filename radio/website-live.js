@@ -2,6 +2,7 @@
   'use strict';
   const audio=document.getElementById('gePlayer');
   const play=document.getElementById('play');
+  const stopButton=document.getElementById('geHomeStop');
   const label=document.getElementById('geHomeRadioLink');
   const status=document.getElementById('geHomeRadioStatus');
   if(!audio||!play)return;
@@ -16,8 +17,11 @@
   const setStatus=(s)=>{if(status)status.textContent=s;};
   function display(){
     if(label)label.textContent='GRAND ELEMENT RADIO';
-    play.textContent=!audio.paused?'❚❚':'▶';
-    play.setAttribute('aria-label',audio.paused?'Play Grand Element Radio':'Pause Grand Element Radio');
+    // The homepage intentionally uses separate PLAY and STOP controls:
+    // a playing broadcast must never change PLAY into a Pause button.
+    play.textContent='PLAY';
+    play.setAttribute('aria-label','Play Grand Element Radio');
+    if(stopButton)stopButton.disabled=(!wants&&mode==='idle');
   }
   function media(){
     try{if('mediaSession' in navigator){
@@ -167,8 +171,25 @@
   }
   function playPause(){
     if(!audio.paused&&wants){pause();return}
-    // A Play retry always tries the live station FIRST, even after shuffled fallback.
+    // Shared Game Mode transport may still toggle pause, but the homepage
+    // PLAY button below is play-only, with an independent STOP button.
     void startRadio1();
+  }
+  function playOnly(){
+    if(wants&&!audio.paused)return;
+    // A fresh explicit PLAY always attempts Radio 1 before its fallback chain.
+    void startRadio1();
+  }
+  function stop(){
+    // Unlike PAUSE, STOP disconnects the live MP3 and prevents all delayed
+    // failover callbacks from restarting playback.
+    wants=false;stopRequested=true;run++;clearTimers();
+    mode='idle';seen=false;waitingGesture=false;program=null;trackIndex=-1;
+    lastTime=NaN;lastAdvance=0;shuffleHistory=[];failedShuffles=0;
+    try{audio.pause();audio.removeAttribute('src');audio.load()}catch(_e){}
+    try{if('mediaSession' in navigator)navigator.mediaSession.playbackState='none'}catch(_e){}
+    setStatus('GRAND ELEMENT RADIO · STOPPED');
+    display();
   }
   audio.addEventListener('playing',()=>{if(!wants)return;display();media();});
   audio.addEventListener('pause',display);
@@ -216,8 +237,9 @@
   previous.ensurePlaying=async()=>{if(wants&&!audio.paused)return true;if(wants)await startRadio1();return wants&&!audio.paused};
   previous.wantsPlayback=()=>wants;
   window.GE_MUSIC_CONTROLLER=previous;
-  play.onclick=playPause;
-  window.GE_HOME_RADIO={play:()=>startRadio1(),pause,playPause,
+  play.onclick=playOnly;
+  stopButton?.addEventListener('click',stop);
+  window.GE_HOME_RADIO={play:playOnly,pause,stop,playPause,
     isLiveMode:()=>true,mode:()=>mode,playing:()=>wants&&!audio.paused,
     status:()=>status?.textContent||''};
   document.getElementById('geHomeRadioLink')?.addEventListener('click',e=>{
