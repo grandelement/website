@@ -3935,12 +3935,15 @@ function watchRadioConnection(){
   clearRadioWatch();radioTimedOut=false;
   const token=++radioWatchId;
   radioSlowTimer=setTimeout(()=>{
-    if(token!==radioWatchId||(!state.live&&!state.livePreparing)||audio.readyState>=3)return;
-    setLiveStatus('RADIO 1 · still connecting; Radio 2 will be checked next…');
+    if(token!==radioWatchId||(!state.live&&!state.livePreparing)||observedRadio1Progress)return;
+    setLiveStatus('RADIO 1 · checking actual audio progress…');
   },4200);
   radioWatchTimer=setTimeout(()=>{
     if(token!==radioWatchId||(!state.live&&!state.livePreparing)||radio2.active||radio2.loading)return;
-    if(!audio.paused&&audio.readyState>=3)return;
+    if(observedRadio1Progress)return;
+    // readyState and the "playing" event can succeed without advancing
+    // audio on an iPhone. Try the backup if no forward playback was seen.
+    if(audio.paused||document.hidden||recentUserPause())return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     syncModeButtons();
     void switchToRadio2('radio1_timeout');
@@ -4170,7 +4173,7 @@ async function resumeRadio(){
       setLiveStatus('RADIO • connecting to station…');
       watchRadioConnection();
       await audio.play();
-      setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
+      setLiveStatus('RADIO · checking audio output…');
       setStatus('Grand Element Radio');
       return;
     }catch(error){
@@ -4221,7 +4224,7 @@ async function resumeLiveAtEdge(){
     audio.src=freshLiveStreamURL();
     audio.load();
     await audio.play();
-    setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
+    setLiveStatus('RADIO · checking audio output…');
     setStatus('Grand Element Radio');
   }catch(error){
     radioPlayFailure(error);
@@ -4299,7 +4302,7 @@ async function enterLiveMode({deferPlay=false}={}){
     state.live=true;
     syncModeButtons();
     window.GELiveVideo?.start?.();
-    setLiveStatus(audio.readyState>=3&&!audio.paused?'RADIO • playing live':'RADIO • buffering live audio…');
+    setLiveStatus('RADIO · checking audio output…');
     setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
@@ -4982,7 +4985,13 @@ audio.addEventListener('timeupdate',()=>{
   const t=Number(audio.currentTime);
   if(!Number.isFinite(t))return;
   if(!Number.isFinite(lastRadio1Time)||Math.abs(lastRadio1Time-t)>=.2){
+    const first= !observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();lastRadio1Time=t;
+    if(first&&!audio.paused){
+      clearRadioWatch();
+      setLiveStatus('RADIO 1 · audio stream advancing');
+      setStatus('Grand Element Radio · stream active');
+    }
   }
 });
 setInterval(()=>{
@@ -5002,11 +5011,14 @@ audio.addEventListener('ended',()=>{
 });
 audio.addEventListener('playing',()=>{
   if(state.live||state.livePreparing){
-    clearRadioWatch();radioTimedOut=false;radioReconnectFailures=0;
+    // Do not cancel the connection watchdog before forward-time evidence.
+    // Safari can fire "playing" while producing silence.
+    if(radio2.active||observedRadio1Progress)clearRadioWatch();
+    radioTimedOut=false;radioReconnectFailures=0;
     liveState.hasPlayed=true;liveState.everPlayed=true;
     if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
-    setLiveStatus(radio2.active?'RADIO 2 · PLAYING BANGERS BACKUP':'RADIO 1 · playing live');
-    setStatus('Grand Element Radio is playing.');
+    setLiveStatus(radio2.active?'RADIO 2 · checking Bangers audio…':'RADIO 1 · checking stream audio…');
+    setStatus('Grand Element Radio · checking playback');
     updateRadioStartupCue();
   }
 });
@@ -7206,7 +7218,16 @@ Vector ${vector}. ${pair[1]}.`;
     try{eqTapAudio?.pause()}catch(_e){}
   }
   async function ensureLiveEQ(){
-    // Never open a second Icecast connection for an ordinary guest listener.
+    // iPhone Safari/PWA has a single reliable native music session. A SECOND
+    // (even silent) HTMLAudioElement can steal the audible output, producing
+    // "playing live" while the phone makes no sound. Never start EQ tap on iOS.
+    // Keep the original <audio> as the only player. Other browsers may use the
+    // isolated analyser and Gate FX when permitted.
+    if(GE_IOS_AUDIO){
+      try{eqTapAudio?.pause()}catch(_e){}
+      eqMessage('MUSIC EQ · iPhone native Radio priority · analysis unavailable');
+      return false;
+    }
     if(!eqTapIsNeeded() || document.hidden || audio.paused || !audio.currentSrc)return false;
     const source=audio.currentSrc||audio.src||'';
     try{
