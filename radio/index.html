@@ -4038,7 +4038,7 @@ function setLiveMediaSession(){
       artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
     });
     const safe=(action,handler)=>{try{navigator.mediaSession.setActionHandler(action,handler);}catch(_e){}};
-    safe('play',()=>{void resumeRadio();});
+    safe('play',()=>{void requestRadioStart();});
     safe('pause',()=>requestUserPause());
     safe('previoustrack',null);
     safe('nexttrack',null);
@@ -4174,6 +4174,37 @@ function resetRadio2(){
 setInterval(()=>{
   if(radio2.active&&state.live&&!audio.paused&&!document.hidden)radio2PlayCurrent();
 },4500);
+
+// Single Radio start/retry coordinator shared by boot, RADIO button, and
+// Media Session play. Repeated taps reuse the same pending request; one iPhone
+// audio element remains the sole playback device.
+let radioStartInFlight=null;
+function requestRadioStart({deferPlay=false}={}){
+  if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
+  if(radioStartInFlight){
+    setLiveStatus('RADIO · connecting… please wait');
+    return radioStartInFlight;
+  }
+  if(state.live&&!state.livePreparing&&!audio.paused&&
+     (radio2.active?observedRadio2Progress:observedRadio1Progress)){
+    setLiveStatus(radio2.active?'RADIO 2 · Bangers audio advancing':'RADIO 1 · audio stream advancing');
+    return Promise.resolve();
+  }
+  const operation=(async()=>{
+    if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay});
+    if(deferPlay)return;
+    if(radio2.loading){setLiveStatus('RADIO 2 · preparing backup…');return;}
+    if(radio2.active){radio2PlayCurrent();return;}
+    if(radioTimedOut)return switchToRadio2('radio1_timeout');
+    if(state.live&&!audio.paused&&!observedRadio1Progress)
+      return resumeLiveAtEdge();
+    return resumeRadio();
+  })();
+  radioStartInFlight=operation;
+  void operation.then(()=>{if(radioStartInFlight===operation)radioStartInFlight=null;},
+    ()=>{if(radioStartInFlight===operation)radioStartInFlight=null;});
+  return operation;
+}
 
 async function resumeRadio(){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
@@ -4471,7 +4502,7 @@ function reconnectLiveStream(){
       audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
-      setLiveStatus('RADIO • reconnected to the Grand Element station',true);
+      setLiveStatus('RADIO · connection restored; checking audio progress',true);
     }catch(_e){
       setLiveStatus('RADIO • reconnecting…',true);
       reconnectLiveStream();
@@ -4895,7 +4926,7 @@ playBtn?.addEventListener('click',()=>{
   if(!geOwnerDemoEnabled()){geOpenMyMusicStore();return;}
   state.userStarted=true;
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
-    void resumeRadio();return;
+    void requestRadioStart();return;
   }
   if(audio.paused)resumeAudio();else requestUserPause();
 });
@@ -4908,31 +4939,9 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
-  void window.GEResumeLiveEQ?.();
-
-  if(state.livePreparing||(state.live&&(audio.paused||radioTimedOut||audio.readyState<3||
-      (!radio2.active&&!observedRadio1Progress)))){
-    // A selected live Radio with no verified stream progress must reconnect,
-    // never toggle OFF merely because Safari fired an optimistic play event.
-    if(state.live&&!radio2.active&&!observedRadio1Progress&&!audio.paused){
-      void resumeLiveAtEdge();
-    }else if(radioTimedOut){
-      void resumeLiveAtEdge();
-    }else{
-      void resumeRadio();
-    }
-    return;
-  }
-
-  if(state.live){
-    liveState.startupCueDismissed=true;
-    updateRadioStartupCue();
-    exitLiveMode('RADIO off • returning to player music.');
-    void resumePlayerAfterLive();
-    return;
-  }
-
-  void enterLiveMode();
+  // The Radio button is never an OFF toggle. Multiple taps cannot interrupt
+  // an already playing stream or start concurrent live-edge reconnections.
+  void requestRadioStart();
 });
 $('shuffleBtn').addEventListener('click',()=>{
   if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
@@ -9058,7 +9067,7 @@ gateTestBtn?.addEventListener('click',()=>{
   // Start the Radio connection IMMEDIATELY. Library scans and cache audits
   // must never prevent iPhone listeners from getting the live station.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  void enterLiveMode({deferPlay:qrArrival});
+  void requestRadioStart({deferPlay:qrArrival});
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
