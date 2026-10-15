@@ -154,6 +154,14 @@ body.view-player #liveStatus{width:min(900px,94vw)}
 #trackList.open{display:block}
 #trackList button{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--fg);padding:10px 11px;min-height:40px;border-radius:8px;font-weight:600;white-space:normal;touch-action:manipulation}
 #trackList button.current{background:rgba(0,255,168,.15);outline:1px solid rgba(0,255,168,.55)}
+#trackList .gePickToolbar{position:sticky;top:-8px;z-index:3;background:#061627;padding:9px 7px;border-bottom:1px solid #42728b;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+#trackList .gePickToolbar strong{flex:1 0 100%;font-size:13px;color:#bceaff}
+#trackList .gePickToolbar button{width:auto;flex:1 1 auto;text-align:center;border:1px solid #437594;border-radius:7px;background:#12304b;padding:8px 7px;min-height:36px;white-space:nowrap}
+#trackList .gePickToolbar .gePickStart{background:#145b8d;border-color:#61c5f5;color:#fff}
+#trackList .gePickRow{display:flex;align-items:center;gap:9px;padding:6px 7px;border-bottom:1px solid #203a50;min-height:42px}
+#trackList .gePickRow input{width:22px;height:22px;flex:0 0 auto;accent-color:#66d8ff}
+#trackList .gePickRow label{min-width:0;flex:1;cursor:pointer;overflow-wrap:anywhere;display:flex;align-items:center;gap:9px;font-size:13px}
+#trackList .gePickRow button{width:auto;min-width:61px;flex:0 0 auto;background:#0b3148;border:1px solid #366d8c;padding:7px 9px;text-align:center}
 #bgGroup{display:flex;flex-direction:column;gap:10px;margin-top:clamp(24px,5.2svh,54px)}
 #bgGroup .bg-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%}
 #bgGroup button{min-width:0;padding-inline:6px;font-size:clamp(13px,3vw,16px);background:rgba(13,27,38,.56)}
@@ -2526,6 +2534,7 @@ body:not(.iam-studio-open) #musicGroup #shareBtn{grid-row:2!important;grid-colum
     <button id="nextBtn">Next</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
+    <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
     <button id="shareBtn">Share</button>
     <button id="loveBtn" type="button" aria-pressed="false" title="Save this song as a favorite on this device and register it in GE Vault">♡ LOVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
@@ -3724,7 +3733,28 @@ async function discoverOfflineMediaFromCaches(){
   return {songs:[...songs].sort(orderedSort),stations:[...stations]};
 }
 
+// Personal song selections do not affect the shared live Bangers station.
+const GE_SONG_PICK_KEY='GE_RADIO_PERSONAL_SONGS_V1';
+let selectedSongURLs=new Set(),personalSongMode=false;
+try{
+  const stored=JSON.parse(localStorage.getItem(GE_SONG_PICK_KEY)||'null');
+  if(Array.isArray(stored?.songs))selectedSongURLs=new Set(stored.songs.filter(x=>typeof x==='string'));
+  personalSongMode=!!stored?.enabled&&selectedSongURLs.size>0;
+}catch(_e){}
+function savePersonalSongSelection(){
+  try{localStorage.setItem(GE_SONG_PICK_KEY,
+    JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
+}
+function selectableSongs(){
+  let list=state.catalog.filter(url=>!isStationID(url)&&!isSingles(url));
+  if(offlinePlaybackMode()&&offlineAvailability.songs.size)list=list.filter(url=>offlineAvailability.songs.has(url));
+  return list.sort(orderedSort);
+}
 function allowedCatalog(){
+  if(personalSongMode){
+    const chosen=selectableSongs().filter(url=>selectedSongURLs.has(url));
+    if(chosen.length)return chosen;
+  }
   let list=state.catalog.filter(url=>!isSingles(url) && (isFeaturedSingle(url) || isCore(url) || (state.legacy && isLegacy(url))));
   if(offlinePlaybackMode() && offlineAvailability.songs.size){
     list=list.filter(url=>offlineAvailability.songs.has(url));
@@ -4832,25 +4862,73 @@ function previousTrack(userAction=false){
 }
 
 function renderTrackList(){
-  const list=allowedCatalog();
-  trackList.innerHTML='';
+  const list=selectableSongs();
+  trackList.replaceChildren();
+  const toolbar=document.createElement('div');toolbar.className='gePickToolbar';
+  const count=document.createElement('strong');
+  function updateCount(){count.textContent=selectedSongURLs.size+' SONG'+(selectedSongURLs.size===1?'':'S')+' SELECTED · NO COUNT LIMIT';}
+  updateCount();toolbar.appendChild(count);
+  function addAction(label,onClick,cls=''){
+    const button=document.createElement('button');
+    button.type='button';button.textContent=label;
+    if(cls)button.className=cls;
+    button.addEventListener('click',onClick);
+    toolbar.appendChild(button);
+  }
+  addAction('SELECT ALL',()=>{
+    for(const url of list)selectedSongURLs.add(url);
+    savePersonalSongSelection();renderTrackList();
+  });
+  addAction('CLEAR',()=>{
+    selectedSongURLs.clear();personalSongMode=false;
+    savePersonalSongSelection();rebuildQueue(state.currentURL);
+  });
+  addAction('ALL MUSIC',()=>{
+    personalSongMode=false;savePersonalSongSelection();rebuildQueue(state.currentURL);
+  });
+  addAction('PLAY SELECTED',()=>{
+    if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
+    const chosen=list.filter(url=>selectedSongURLs.has(url));
+    if(!chosen.length){setStatus('Check one or more songs first.');return;}
+    personalSongMode=true;savePersonalSongSelection();
+    if(state.live||state.livePreparing)exitLiveMode('RADIO ended. Selected songs starting.');
+    state.shuffle=false;state.pendingAfterStation=null;state.upNext=[];
+    state.history=[];state.historyPos=-1;
+    rebuildQueue('');
+    syncModeButtons();
+    void playURL(chosen[0],{record:false,backgroundChange:true,userAction:true});
+    closeTrackPicker();
+  },'gePickStart');
+  addAction('CLOSE',closeTrackPicker);
+  trackList.appendChild(toolbar);
   const fragment=document.createDocumentFragment();
   for(const url of list){
-    const button=document.createElement('button');
-    button.type='button';
-    button.dataset.url=url;
-    button.textContent=displayTitle(url,!state.shuffle);
-    if(url===state.currentURL) button.classList.add('current');
-    button.addEventListener('click',()=>{
+    const row=document.createElement('div');row.className='gePickRow';
+    const label=document.createElement('label');
+    const check=document.createElement('input');
+    check.type='checkbox';check.checked=selectedSongURLs.has(url);
+    check.setAttribute('aria-label','Select '+displayTitle(url,false));
+    const title=document.createElement('span');title.textContent=displayTitle(url,false);
+    check.addEventListener('change',()=>{
+      if(check.checked)selectedSongURLs.add(url);else selectedSongURLs.delete(url);
+      if(personalSongMode&&!selectedSongURLs.size)personalSongMode=false;
+      savePersonalSongSelection();updateCount();
+    });
+    label.append(check,title);row.appendChild(label);
+    const playNow=document.createElement('button');
+    playNow.type='button';playNow.dataset.url=url;playNow.textContent='PLAY';
+    if(url===state.currentURL)playNow.classList.add('current');
+    playNow.addEventListener('click',()=>{
       if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-      if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Track selected.');
-      state.pendingAfterStation=null;
-      if(state.shuffle) recordHistory(url);
-      state.upNext=[];
-      playURL(url,{record:false,backgroundChange:true,userAction:true});
+      personalSongMode=false;savePersonalSongSelection();
+      if(state.live||state.livePreparing)exitLiveMode('RADIO ended. Track selected.');
+      state.pendingAfterStation=null;state.upNext=[];
+      rebuildQueue(url);
+      if(state.shuffle)recordHistory(url);
+      void playURL(url,{record:false,backgroundChange:true,userAction:true});
       closeTrackPicker();
     });
-    fragment.appendChild(button);
+    row.appendChild(playNow);fragment.appendChild(row);
   }
   trackList.appendChild(fragment);
 }
@@ -5011,6 +5089,7 @@ function closeTrackPicker(){
 }
 function openTrackPicker(){
   if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
+  renderTrackList();
   document.body.classList.remove('hud-hidden');
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
@@ -5022,6 +5101,7 @@ titleBtn.addEventListener('click',()=>{
   if(trackList.classList.contains('open')) closeTrackPicker();
   else openTrackPicker();
 });
+$('chooseSongsBtn')?.addEventListener('click',openTrackPicker);
 trackBackdrop.addEventListener('click',closeTrackPicker);
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape' && trackList.classList.contains('open')) closeTrackPicker();
