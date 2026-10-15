@@ -3605,6 +3605,23 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
   #about .aboutText{width:100%!important;padding:14px 12px 18px!important}
 }
 </style>
+<style id="ge-home-radio-ui-v1">
+/* Homepage has one station stream. Visitors cannot manually skip its songs. */
+#geHomeRadioLink{
+  display:block;max-width:min(190px,72vw);white-space:nowrap;
+  font-size:clamp(9px,1.7vw,11px);font-weight:900;letter-spacing:.065em;
+  color:#c8eeff;text-decoration:none;text-align:center;
+  text-shadow:0 0 8px #139bff,0 0 16px #0b64bd;
+  pointer-events:auto;cursor:pointer;
+}
+#geHomeRadioLink:focus-visible{outline:2px solid #b8f1ff;outline-offset:3px;border-radius:4px}
+#mini #prev,#mini #next,#mini #musicOptionsBtn,#mini #tgShuffle,#mini #tgAlbum,
+#mini #seek,#mini #timeCur,#mini #timeMax,
+#gameMusicNext,#gameMusicPrev,#gameMusicMode,#gameMusicOptions,#gameSeek,
+#gameTimeCur,#gameTimeMax{display:none!important}
+#mini #mpControls{justify-content:center}
+#mini #geHomeRadioStatus{max-width:100%;overflow-wrap:anywhere}
+</style>
 
 </head>
 <body>
@@ -3629,6 +3646,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <!-- HUD near bottom of the sun -->
       <div class="sunHUD">
         <div id="nowPlaying">—</div>
+        <a id="geHomeRadioLink" href="./radio/?radio=1" aria-label="Open Grand Element Radio">GRAND ELEMENT RADIO</a>
         <div class="toggle" id="btnMusic">Music</div>
       </div>
 
@@ -3656,7 +3674,8 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
           <div class="toggle" id="tgAlbum">Album</div>
         </div>
         <div class="row" style="justify-content:center">
-          <button class="btn" id="geChooseMusic" type="button" style="width:auto;min-width:150px;padding:6px 12px">CHOOSE MUSIC</button>
+          <button class="btn" id="geChooseMusic" type="button" style="width:auto;min-width:150px;padding:6px 12px">OPEN RADIO</button>
+          <div id="geHomeRadioStatus" role="status" aria-live="polite" style="font-size:11px;text-align:center;padding:4px 6px;opacity:.9">TAP PLAY · GRAND ELEMENT RADIO</div>
         </div>
 
         <audio id="gePlayer" preload="none" playsinline webkit-playsinline crossorigin="anonymous"></audio>
@@ -5133,6 +5152,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
 })();
 
 /* ========= MUSIC ========= */
+window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an independent album player.
 (function(){
   const mini   = document.getElementById('mini');
   const player = document.getElementById('gePlayer');
@@ -5187,7 +5207,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   });
   document.getElementById('geChooseMusic')?.addEventListener('click',e=>{
     e.stopPropagation();
-    location.assign(new URL('radio/preview-lab.html',location.href).href);
+    openGrandElementRadio();
   });
 
   ['pointerdown','pointermove','touchstart'].forEach(ev=>{
@@ -5210,7 +5230,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   // Desired playback is separate from the browser's instantaneous paused state.
   // This lets us recover after iOS temporarily suspends a page without overriding a user's deliberate Pause.
   // The Back Room can request a silent website launch without disabling manual music controls.
-  const startupMusicEnabled=window.GE_SITE_CONFIG?.music?.startupEnabled===true;
+  const startupMusicEnabled=false; // Only a deliberate visitor Play starts live Radio.
   // Playback is started only through the GE audio controller. A native autoplay
   // attribute could start restored audio before the silent-start setting is checked.
   player.autoplay=false;
@@ -5223,6 +5243,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   let sharedSaveTimer=0, restoredSharedState=null;
   function markUserMusicChoice(){SHARED_STATE?.write?.({userSelected:true});}
   function saveSharedMusicState(force=false){
+    if(window.GE_HOME_RADIO_MODE)return; // Never persist a station URL as an album.
     if(!SHARED_STATE)return;
     if(sharedSaveTimer&&!force)return;
     const doSave=()=>{
@@ -5253,6 +5274,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
     return idx;
   }
   async function restoreSharedMusicState(){
+    if(window.GE_HOME_RADIO_MODE)return false;
     const s=SHARED_STATE?.read?.();
     if(!s || (!startupMusicEnabled&&s.userSelected!==true))return false;
     const idx=findSharedTrackIndex(s);
@@ -5542,6 +5564,7 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   }
 
   window.GE_MUSIC_CONTROLLER={
+    fallbackCatalog:()=>CATALOG.slice(),
     playPause:()=>btnPlay.click(),
     next:()=>next(),
     prev:()=>prev(),
@@ -5602,9 +5625,10 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   player.addEventListener('volumechange',()=>saveSharedMusicState(false));
   seek.addEventListener('input', ()=>{ try{ player.currentTime = +seek.value; }catch(e){} });
 
-  player.addEventListener('ended', ()=>{saveSharedMusicState(true);window.GE_MUSIC_CONTROLLER?.next?.();});
+  player.addEventListener('ended', ()=>{if(window.GE_HOME_RADIO_MODE)return;saveSharedMusicState(true);window.GE_MUSIC_CONTROLLER?.next?.();});
   let audioErrorTimes=[];
   player.addEventListener('error',()=>{
+    if(window.GE_HOME_RADIO_MODE)return; // The single station controller owns failover.
     const now=Date.now();audioErrorTimes=audioErrorTimes.filter(t=>now-t<10000);audioErrorTimes.push(now);
     if(audioErrorTimes.length>6){console.warn('GE audio retry guard stopped a rapid error loop');setPlayUI(false);return;}
     setTimeout(()=>{if(wantedPlayback)next();},650);
@@ -5711,6 +5735,11 @@ moon.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
   }
   // --- end single startup path ---
 fetchAllMp3s().then(async list=>{
+    if(window.GE_HOME_RADIO_MODE){
+      // Catalog is retained solely as automatic last-resort shuffle backup.
+      // This asynchronous load must never pause or replace a live station.
+      CATALOG=list.slice();refreshPlaylist();return;
+    }
     if(!list.length){ nowPlaying.textContent='No tracks found.'; return; }
     CATALOG=list.slice();
     refreshPlaylist();
@@ -13532,5 +13561,6 @@ body:not(.ge-body-race-active) #moon {
 #geCourseMode .geCourseBoard{background-color:#010713!important}
 #geCourseMode.geGolfShapedCourse .geGolfFloor{fill:rgba(3,20,36,.46)!important}
 </style>
+<script src="./radio/website-live.js"></script>
 </body>
 </html>
