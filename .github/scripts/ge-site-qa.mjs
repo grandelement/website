@@ -147,6 +147,28 @@ test(preview.includes('#previewCometMeter,#gate{display:none!important}') &&
   'Personal preview hides duplicate 33:33 Gate but retains track samples');
 test(!radio.includes("const hints=["),
   'No Gate riddle/questions');
+// Album planets never replace or remove the original centered Blue Sun.
+allIn(radio,[
+  'id="shipAlbumPlanetLayer"',
+  'id="shipPlanetLayer"',
+  'id="shipLogo"',
+  'function updateAlbumPlanets(dt){',
+  'albumFlight.position=Math.max(-80,albumFlight.position+travel',
+  'const travel=throttle>=0?1.5+throttle*25:1.5+throttle*32',
+  'updateAlbumPlanets(dt);',
+  'function currentPlanetZoom(){',
+  'function updateApproachUI(){',
+  'if(distance<=30 && arrival>.90',
+  'arrivalContact.classList.add(\'open\')',
+  'sunIsPermanent:true',
+  'arrivalUnchanged:true'
+], 'Reversible album planets and permanent Blue Sun arrival');
+test(radio.indexOf('id="shipAlbumPlanetLayer"')<radio.indexOf('id="shipPlanetLayer"') &&
+ radio.includes("#shipPlanetLayer{position:absolute;inset:0;z-index:4;"),
+ 'Blue Sun remains visually in front of album planets');
+test(!radio.includes("const escaped=name.replace(/[.*+?^$") ,
+  'Album title matcher cannot inject a broken replacement string');
+
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
