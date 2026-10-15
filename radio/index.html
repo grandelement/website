@@ -6493,8 +6493,9 @@ $('reloadBtn').addEventListener('click',async()=>{
     const clean=String(label).replace(/^LIVE\s*[•·-]\s*/i,'').trim();
     // Match explicit album prefixes first. Never guess from generic Radio text.
     for(const [name] of albumCatalog){
-      const escaped=name.replace(/[.*+?^$\u007b\u007d()|[\]\\]/g,'\\  function syncBackground(){const source=$('bgImage');if(source?.src&&stageBg&&stageBg.src!==source.src)stageBg.src=source.src;}');
-      if(new RegExp('^'+escaped+'\\s*[•:—-]\\s*','i').test(clean))
+      const prefix=String(name).toLowerCase();
+      const heading=clean.toLowerCase();
+      if([' • ',' - ',' — ',' : '].some(separator=>heading.startsWith(prefix+separator)))
         return albumCovers.get(normalizeAlbum(name));
     }
     const parts=clean.split(/\s+[•—–]\s+/);
