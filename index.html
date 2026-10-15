@@ -3607,20 +3607,30 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 </style>
 <style id="ge-home-radio-ui-v1">
 /* Homepage has one station stream. Visitors cannot manually skip its songs. */
-#geHomeRadioLink{
-  display:block;max-width:min(190px,72vw);white-space:nowrap;
-  font-size:clamp(9px,1.7vw,11px);font-weight:900;letter-spacing:.065em;
+#mini #geHomeRadioLink{
+  display:block;width:100%;max-width:100%;white-space:normal;
+  padding:4px 6px 8px;font-size:12px;font-weight:900;letter-spacing:.09em;
   color:#c8eeff;text-decoration:none;text-align:center;
   text-shadow:0 0 8px #139bff,0 0 16px #0b64bd;
   pointer-events:auto;cursor:pointer;
 }
-#geHomeRadioLink:focus-visible{outline:2px solid #b8f1ff;outline-offset:3px;border-radius:4px}
+#mini #geHomeRadioLink:focus-visible{outline:2px solid #b8f1ff;outline-offset:3px;border-radius:4px}
 #mini #prev,#mini #next,#mini #musicOptionsBtn,#mini #tgShuffle,#mini #tgAlbum,
 #mini #seek,#mini #timeCur,#mini #timeMax,
 #gameMusicNext,#gameMusicPrev,#gameMusicMode,#gameMusicOptions,#gameSeek,
 #gameTimeCur,#gameTimeMax{display:none!important}
 #mini #mpControls{justify-content:center}
 #mini #geHomeRadioStatus{max-width:100%;overflow-wrap:anywhere}
+/* Desktop-only: make the Blue Sun disk 10% larger, not the mobile/tablet Sun.
+   Game physics and the 12-hour clock remain separate. Keep the Moon's
+   orbit centered outside the enlarged disk as well. */
+@media (min-width:901px) and (hover:hover) and (pointer:fine){
+  body:not(.game-mode-active):not(.ge-body-race-active) #sunWrap{
+    width:calc(var(--sun-size) * 1.10);
+    height:calc(var(--sun-size) * 1.10);
+    --orbit-radius:calc((var(--sun-size) * .55) + (var(--moon-size) * var(--orbit-gap-moons)));
+  }
+}
 </style>
 
 </head>
@@ -3646,12 +3656,12 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <!-- HUD near bottom of the sun -->
       <div class="sunHUD">
         <div id="nowPlaying">—</div>
-        <a id="geHomeRadioLink" href="./radio/?radio=1" aria-label="Open Grand Element Radio">GRAND ELEMENT RADIO</a>
         <div class="toggle" id="btnMusic">Music</div>
       </div>
 
       <!-- Player panel BELOW the button -->
       <div class="miniPlayer" id="mini">
+        <a id="geHomeRadioLink" href="./radio/?radio=1" aria-label="Open the Grand Element Radio player">GRAND ELEMENT RADIO</a>
         <div class="controls" id="mpControls">
           <div class="btn" id="prev" title="Prev">◀</div>
           <div class="btn" id="play" title="Play/Pause">▶</div>
