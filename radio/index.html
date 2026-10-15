@@ -5475,7 +5475,7 @@ async function registerServiceWorker(){
     }).filter(Boolean);
   }
 
-  async function saveOfflinePlan(assets,{autoResume=true}={}){
+  async function saveOfflinePlan(assets,{autoResume=false}={}){
     const clean=cleanPlanAssets(assets);
     const plan={
       version:CONFIG.OFFLINE_PLAN_VERSION,
@@ -6006,7 +6006,8 @@ async function registerServiceWorker(){
       return;
     }
 
-    await saveOfflinePlan(prepared.assets,{autoResume:true});
+    // Only a deliberate tap starts an offline download. Never auto-retry on every Radio entry.
+    await saveOfflinePlan(prepared.assets,{autoResume:false});
 
     await cacheMissingAssets({
       quiet:false,
@@ -6029,16 +6030,12 @@ async function registerServiceWorker(){
     try{
       const planned=await scanApprovedPlan();
       if(planned){
-        // Resume only the exact download set the listener previously approved.
-        // This prevents new website files from turning a completed offline install
-        // into a fresh prompt every time the Home Screen app opens.
-        if(planned.plan.autoResume && planned.audit.missing.length){
-          void cacheMissingAssets({
-            quiet:true,
-            reason:'approved-plan-resume',
-            prepared:{assets:planned.assets,audit:planned.audit}
-          });
-        }
+        // A completed or partial offline download belongs to the listener.
+        // On each visit, check its status but NEVER launch download/permission
+        // dialogs, retry missing backgrounds, or start a new fetch automatically.
+        // Migrate older approved plans that had autoResume=true, preserving every
+        // cached song and the manually resumable asset list.
+        if(planned.plan.autoResume) await setOfflinePlanAutoResume(false);
         return;
       }
       await scanExistingAssets();
