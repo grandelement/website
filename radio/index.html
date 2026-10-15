@@ -2206,6 +2206,29 @@ body:not(.ge-offline-entitled) #offlineBtn,
 body:not(.ge-offline-entitled) #shipStage [data-proxy="offlineBtn"]{display:none!important}
 .ge-gate-membership{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #52bee3;border-radius:12px;background:#0d3956;color:#e8fbff;font-weight:850;text-decoration:none;line-height:1.2}
 #geGateNextPreview[hidden]{display:none!important}
+
+/* Guest only sees SUPPORT plus a small ACCESS entry; developer LOVE unlocks
+   Sun Lab and offline tools. Arrange remains permanently hidden. */
+#arrangeBtn{display:none!important}
+body:not(.ge-offline-entitled) #sunLabBtn,
+body:not(.ge-offline-entitled) #reloadBtn,
+body:not(.ge-offline-entitled) #installBtn,
+body:not(.ge-offline-entitled) #hudCombined,
+body:not(.ge-offline-entitled) #shipStage [data-proxy="reloadBtn"]{display:none!important}
+body.ge-offline-entitled #accessLaunchBtn{display:none!important}
+#accessLaunchBtn{grid-column:3;grid-row:2;min-height:36px!important;padding:6px 10px!important;font-size:13px!important;font-weight:800!important}
+#geGateHelp{display:flex!important;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:9px}
+#geGateHelp .ge-gate-membership{flex:1 1 135px;font-size:13px}
+#geGateHelp .ge-gate-contact{background:rgba(9,28,45,.94);border-color:rgba(154,198,219,.55)}
+#bottomActions{grid-template-columns:repeat(3,minmax(0,1fr))}
+body:not(.ge-offline-entitled) #bottomActions{display:flex!important;justify-content:center;align-items:center;gap:12px}
+body:not(.ge-offline-entitled) #bottomActions .bc-btn{grid-column:auto!important;grid-row:auto!important;min-height:42px!important;min-width:128px!important;font-size:14px!important}
+body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!important;width:auto!important;min-height:42px!important;font-size:14px!important}
+@media(max-width:700px){
+ body.view-player.portrait-player header h1{bottom:11dvh!important;line-height:1.15!important;max-width:92vw;text-align:center;white-space:normal!important}
+ body.view-player.portrait-player header .tag{bottom:6dvh!important;line-height:1.25!important;max-width:92vw;text-align:center;white-space:normal!important}
+ body.view-player.portrait-player #titleBtn{white-space:nowrap;text-overflow:ellipsis;max-width:92vw;overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -2220,7 +2243,10 @@ body:not(.ge-offline-entitled) #shipStage [data-proxy="offlineBtn"]{display:none
       <input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Access code" placeholder="CODE" inputmode="text">
       <button id="geGateEnter" type="button">ACCESS</button>
     </div>
-    <div id="geGateHelp"><a class="ge-gate-membership" href="../support/?section=radio&amp;flow=shop">RADIO MEMBERSHIP · $6 / MONTH</a></div>
+    <div id="geGateHelp">
+      <a class="ge-gate-membership" href="../support/?section=radio&amp;flow=shop">RADIO MEMBERSHIP · $6 / MONTH</a>
+      <a class="ge-gate-membership ge-gate-contact" href="mailto:info@grandelement.com?subject=Grand%20Element%20Radio">CONTACT</a>
+    </div>
     <button id="geGateNextPreview" type="button" hidden aria-hidden="true">MUSIC PREVIEW</button>
     <div id="geGateAccessForm" role="dialog" aria-modal="true" aria-label="Get access code" aria-hidden="true">
       <button id="geGateAccessClose" type="button" aria-label="Close access dialog">×</button>
@@ -2391,8 +2417,8 @@ body:not(.ge-offline-entitled) #shipStage [data-proxy="offlineBtn"]{display:none
 
   <div id="shipBottomActions">
     <a href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store">SUPPORT</a>
-    <button data-proxy="offlineBtn">Go Offline</button>
-    <button data-proxy="reloadBtn">Reload Library</button>
+    <button data-proxy="offlineBtn" hidden>Go Offline</button>
+    <button data-proxy="reloadBtn" hidden>Reload Library</button>
   </div>
 
   <section id="shipArrivalContact" aria-live="polite" aria-label="Inner horizon reflection">
@@ -2602,15 +2628,16 @@ body:not(.ge-offline-entitled) #shipStage [data-proxy="offlineBtn"]{display:none
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="reloadBtn">Reload Library</button>
-    <button id="offlineBtn">Go Offline</button>
+    <button id="reloadBtn" hidden>Reload Library</button>
+    <button id="offlineBtn" hidden>Go Offline</button>
     <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
       <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
       <span>Hide Text</span>
     </div>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
-    <button id="arrangeBtn" type="button">Arrange Buttons</button>
-    <button id="sunLabBtn" type="button">Sun Lab</button>
+    <button id="accessLaunchBtn" type="button" aria-label="Enter your Radio access code">ACCESS</button>
+    <button id="arrangeBtn" type="button" hidden>Arrange Buttons</button>
+    <button id="sunLabBtn" type="button" hidden>Sun Lab</button>
     <button id="installBtn">Install App</button>
   </div>
   <div id="offlinePanel">
@@ -4298,11 +4325,18 @@ function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
 function syncRadioOfflineAccessUI(){
   const localTest=geRadioLocalTestAccess();
   document.body.classList.toggle('ge-offline-entitled',localTest);
-  for(const element of [$('offlineBtn'),document.querySelector('#shipStage [data-proxy="offlineBtn"]')]){
+  for(const element of [$('offlineBtn'),$('reloadBtn'),$('sunLabBtn'),
+    document.querySelector('#shipStage [data-proxy="offlineBtn"]'),
+    document.querySelector('#shipStage [data-proxy="reloadBtn"]')]){
     if(!element)continue;
     element.hidden=!localTest;
     element.setAttribute('aria-hidden',localTest?'false':'true');
     element.tabIndex=localTest?0:-1;
+  }
+  if($('accessLaunchBtn'))$('accessLaunchBtn').hidden=localTest;
+  if(!localTest){
+    const lab=$('sunLabPanel');
+    if(lab){lab.hidden=true;lab.classList.remove('show');}
   }
 }
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
@@ -6509,6 +6543,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     setStatus(modeLabel(mode)+' active.');
   }
   function setPanelVisible(show){
+    if(show&&!geRadioLocalTestAccess())return;
     if(!sunLabPanel)return;
     const on=!!show;
     sunLabPanel.hidden=!on;
@@ -6609,7 +6644,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
-      sunLabBtn.addEventListener('click',()=>{const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      sunLabBtn.addEventListener('click',()=>{if(!geRadioLocalTestAccess())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
@@ -8501,6 +8536,16 @@ Vector ${vector}. ${pair[1]}.`;
 
   window.GEGate={
     noteRealSongPlay,trigger,restore,syncListening,isExpiredLocked,isAuthorized:authorized,desiredVolume,getState:()=>({...gs}),
+    openCodeEntry:()=>{
+      if(authorized())return;
+      if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
+      gate.classList.add('open','centered');
+      gate.setAttribute('aria-hidden','false');
+      if(status)status.textContent='Enter CODE, select Radio membership, or contact Grand Element.';
+      if(word)word.value='';
+      showPanel(false);
+      word?.focus();
+    },
     resetForTesting:()=>{
       clearTimers();
       localStorage.removeItem(GATE_CONFIG.authKey);localStorage.removeItem(GATE_CONFIG.stateKey);
@@ -8620,6 +8665,9 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
   close?.addEventListener('click',shut);
   window.GEQRIntroTest={website:()=>open('../qr/'),radio:()=>open('../qr/radio/'),close:shut};
 })();
+
+// Guests can enter a code immediately without waiting 28 minutes for the Gate.
+$('accessLaunchBtn')?.addEventListener('click',()=>window.GEGate?.openCodeEntry?.());
 
 // Sun Lab manual Gate preview. Resets authorization/timing and replays the whole sequence.
 gateTestBtn?.addEventListener('click',()=>{
