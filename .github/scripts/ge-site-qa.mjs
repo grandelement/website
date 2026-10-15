@@ -163,6 +163,27 @@ allIn(radio,[
   "if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return"
 ], 'LOVE developer-only Radio UI and quiet native-safe Gate');
 
+// Native iPhone playback takes priority over the separate Sun Lab tap.
+// A successful play()/playing event is NOT evidence that the MP3 is audible.
+const iosAudioPath=radio.slice(radio.indexOf('async function ensureLiveEQ(){'),
+                              radio.indexOf('window.GEStopEQTapIfUnused='));
+test(iosAudioPath.includes('if(GE_IOS_AUDIO){') &&
+     iosAudioPath.includes('eqTapAudio?.pause()') &&
+     iosAudioPath.indexOf('if(GE_IOS_AUDIO){')<iosAudioPath.indexOf('eqTapAudio=new Audio()'),
+     'iPhone Radio never creates a competing silent EQ player');
+const primaryWatch=radio.slice(radio.indexOf('function watchRadioConnection(){'),
+                               radio.indexOf('function radioPlayFailure('));
+test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
+     !primaryWatch.includes('if(!audio.paused&&audio.readyState>=3)return;') &&
+     primaryWatch.includes("switchToRadio2('radio1_timeout')"),
+     'Radio 1 falls back when readyState is positive but audio does not advance');
+const playingEvent=radio.slice(radio.indexOf("audio.addEventListener('playing',()=>{\n  if(state.live||state.livePreparing){"),
+                                radio.indexOf("audio.addEventListener('waiting',()=>{"));
+test(playingEvent.includes('checking stream audio') &&
+     !playingEvent.includes("setStatus('Grand Element Radio is playing.')") &&
+     radio.includes("setLiveStatus('RADIO 1 · audio stream advancing')"),
+     'Radio displays checking until stream time advances');
+
 const gateFxSource=radio.slice(radio.indexOf('function createGateFxGraph(ctx){'),radio.indexOf('window.GEGateFX={'));
 test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) &&
   gateFxSource.includes('fxReverb=ctx.createConvolver()') &&
