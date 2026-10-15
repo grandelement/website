@@ -3953,6 +3953,9 @@ function clearRadioWatch(){
   if(radioSlowTimer){clearTimeout(radioSlowTimer);radioSlowTimer=0;}
 }
 function watchRadioConnection(){
+  // Waiting/stalled can fire repeatedly on Safari. One connection has one
+  // deadline; these events must not restart the 10.5-second watchdog.
+  if(radioWatchTimer&&!radioTimedOut)return;
   clearRadioWatch();radioTimedOut=false;
   const token=++radioWatchId;
   radioSlowTimer=setTimeout(()=>{
@@ -3984,8 +3987,7 @@ function radioPlayFailure(error){
 function updateRadioStartupCue(){
   const cue=(
     (state.live||state.livePreparing) &&
-    !observedRadio1Progress &&
-    !(radio2.active&&observedRadio2Progress) &&
+    !(radio2.active?observedRadio2Progress:observedRadio1Progress) &&
     !document.hidden
   );
   const radioButtons=[
@@ -4172,7 +4174,7 @@ function resetRadio2(){
   observedRadio2Progress=false;lastRadio2Time=NaN;updateRadioStartupCue();
 }
 setInterval(()=>{
-  if(radio2.active&&state.live&&!audio.paused&&!document.hidden)radio2PlayCurrent();
+  if(radio2.active&&state.live&&!audio.paused&&!document.hidden&&!radio2.loading)radio2PlayCurrent();
 },4500);
 
 // Single Radio start/retry coordinator shared by boot, RADIO button, and
@@ -4529,7 +4531,7 @@ document.addEventListener('visibilitychange',()=>{
   liveState.backgroundWasPlaying=false;
   if(shouldRestore){
     liveState.backgroundReconnectNeeded=false;
-    void resumeLiveAtEdge();
+    void requestRadioStart();
   }else{
     liveState.backgroundReconnectNeeded=false;
   }
@@ -4756,7 +4758,7 @@ function resumeAudio(){
   audio.muted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
   if(state.live){
-    void resumeRadio();
+    void requestRadioStart();
     return;
   }
   void window.GEResumeLiveEQ?.();
@@ -5173,7 +5175,7 @@ window.addEventListener('online',()=>{
   if(document.hidden)return;
   if(state.live && !window.GEIAmStudio?.isMusicStopped?.() && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
     liveState.backgroundReconnectNeeded=false;
-    void resumeLiveAtEdge();
+    void requestRadioStart();
   }
 });
 
