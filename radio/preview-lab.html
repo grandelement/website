@@ -29,6 +29,14 @@ small,.muted{color:#adccdf}
 input[type=search],input[type=text]{width:100%;min-height:43px;border:1px solid #488ab0;border-radius:9px;background:#071b2e;color:white;font:inherit;padding:9px}
 input[type=search]{margin:4px 0 8px}
 #songs{max-height:57dvh;overflow:auto}
+#previewSelectedList{max-height:220px;overflow:auto;margin:8px 0;border:1px solid #264b65;border-radius:9px;padding:4px}
+#previewSelectedList .selectedTrack{display:flex;align-items:center;gap:6px;border-bottom:1px solid #1d425c;padding:4px 2px}
+#previewSelectedList .selectedTrack span{flex:1;min-width:0;font-size:12px;overflow-wrap:anywhere}
+#previewSelectedList .selectedTrack button{min-height:30px;padding:4px 8px;font-size:12px}
+#previewSelectionControls{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+#previewSelectionControls button{flex:1 1 auto}
+#previewSelectionCount{font-weight:800;color:#a7e7ff;margin-top:8px;display:block}
+#songs .song input[type=checkbox]{width:22px;height:22px;accent-color:#67d6ff;flex:0 0 auto}
 .song{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 3px;border-bottom:1px solid #1e3b50}
 .song.active{background:rgba(52,149,205,.18)}
 .songTitle{font-size:13px;font-weight:740;overflow-wrap:anywhere}
@@ -141,6 +149,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 <div id="albumView" hidden>
   <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
   <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
+  <div id="previewSelectionControls"><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div>
   <div id="songs"></div>
 </div>
 </section>
@@ -149,13 +158,16 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
   <strong id="now">Choose a song</strong>
   <small id="detail">One native audio player · full songs until the free listening limit</small>
   <div class="controls"><button id="play" type="button">PLAY / PAUSE</button><button id="next" type="button">NEXT SONG</button></div>
+  <span id="previewSelectionCount">0 SONGS SELECTED</span>
+  <div id="previewSelectedList" aria-label="Selected music queue"></div>
+  <div class="controls"><button id="previewPlaySelected" type="button">PLAY SELECTED</button><button id="previewClearSelected" type="button">CLEAR LIST</button></div>
   <div id="status" role="status">Choose an album and press PLAY beside a song.</div>
   <div id="guestHint">Your free listening time advances only while the music itself advances. Pausing and buffering do not consume it.</div>
   <p><a href="../support/?section=music" class="button">EXPLORE MUSIC</a></p>
   <div id="ownerControl"><strong>OWNER TEST</strong><div><input id="ownerCode" type="text" autocomplete="off" placeholder="Owner test code" aria-label="Owner test code"><button id="ownerUnlock" type="button">UNLOCK TEST</button><button id="ownerLock" type="button" hidden>EXIT TEST</button></div><small id="ownerStatus">Local demo only. Does not verify a purchase.</small></div>
 </section>
 </div>
-<footer>Playlist-duration totaling, Soul Comet, 33-second samples and the advance merchandise preview queue are temporarily disabled, not deleted. Payment and private downloads are not active yet.</footer>
+<footer>Soul Comet and 33-second samples are archived. Select any number of full songs here; the 33:33 free listening allowance is independent of the playlist length. Payment and private downloads are not active yet.</footer>
 <audio id="audio" preload="none" playsinline webkit-playsinline></audio>
 </main>
 <div id="geGate" role="dialog" aria-label="The Inner Frequency music preview gate" aria-hidden="true">
@@ -260,15 +272,70 @@ function mediaSession(t){if(!('mediaSession' in navigator))return;try{
  navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
  navigator.mediaSession.setActionHandler('nexttrack',nextTrack);
 }catch(_e){}}
+// The personal selection queue is independent of the 33:33 listening limit.
+const PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
+let selectedSongs=[],playingSelected=false;
+function saveSelected(){
+ try{sessionStorage.setItem(PREVIEW_QUEUE_KEY,JSON.stringify(selectedSongs.map(t=>({
+   url:t.url,path:t.path,title:t.title,album:t.album,duration_ms:t.duration_ms,kind:'song'
+ }))))}catch(_e){}
+}
+function renderSelected(){
+ $('previewSelectionCount').textContent=selectedSongs.length+' SONG'+(selectedSongs.length===1?'':'S')+' SELECTED · NO COUNT LIMIT';
+ const holder=$('previewSelectedList');holder.replaceChildren();
+ selectedSongs.forEach((t,index)=>{
+   const row=element('div',null,'selectedTrack'),name=element('span',(index+1)+'. '+label(t));
+   const del=element('button','REMOVE');del.type='button';
+   del.addEventListener('click',()=>{selectedSongs=selectedSongs.filter(x=>x.url!==t.url);saveSelected();renderSelected();showSongs()});
+   row.append(name,del);holder.appendChild(row);
+ });
+ saveSelected();
+}
+function addSelected(t){if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);renderSelected()}
+function removeSelected(t){selectedSongs=selectedSongs.filter(x=>x.url!==t.url);renderSelected()}
+$('addAlbumSongs').addEventListener('click',()=>{
+ for(const t of albums.get(selectedAlbum)||[])if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
+ renderSelected();showSongs();
+});
+$('addAllSongs').addEventListener('click',()=>{
+ for(const list of albums.values())for(const t of list)if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
+ renderSelected();showSongs();
+});
+$('previewClearSelected').addEventListener('click',()=>{selectedSongs=[];playingSelected=false;renderSelected();showSongs()});
+$('previewPlaySelected').addEventListener('click',()=>{
+ if(!selectedSongs.length){say('Check one or more songs before starting.');return;}
+ if(isLocked()){renderGate();return;}
+ playingSelected=true;albumTracks=selectedSongs.slice();trackIndex=0;
+ void startTrack(albumTracks[0]);
+});
+function restoreSelected(tracks){
+ try{
+   const saved=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
+   if(Array.isArray(saved)){
+     const byURL=new Map(tracks.map(t=>[t.url,t]));
+     selectedSongs=[];const seen=new Set();
+     for(const item of saved){
+       const song=byURL.get(item?.url);
+       if(song&&!seen.has(song.url)){seen.add(song.url);selectedSongs.push(song)}
+     }
+   }
+ }catch(_e){}
+ renderSelected();
+}
+
 function showSongs(){
  const holder=$('songs');holder.replaceChildren();
  const q=$('search').value.toLowerCase(),tracks=albums.get(selectedAlbum)||[];
  for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
   const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
   title.appendChild(element('small',fmt(t.duration_ms/1000)));
+  const check=element('input');check.type='checkbox';check.checked=selectedSongs.some(x=>x.url===t.url);
+  check.setAttribute('aria-label','Select '+label(t));check.addEventListener('change',()=>{
+    if(check.checked)addSelected(t);else removeSelected(t);
+  });
   const b=element('button','PLAY');b.type='button';b.addEventListener('click',()=>chooseTrack(t));
   if(currentTrack?.url===t.url)row.classList.add('active');
-  row.append(title,b);holder.appendChild(row);
+  row.append(check,title,b);holder.appendChild(row);
  }
  if(!holder.childElementCount)holder.textContent='No matching songs.';
 }
@@ -296,6 +363,7 @@ async function startTrack(t){
  try{await audio.play()}catch(_e){say('Tap PLAY / PAUSE to start this song on your device.')}
 }
 function chooseTrack(t){
+ playingSelected=false;
  const tracks=albums.get(selectedAlbum)||[];
  albumTracks=tracks.slice();trackIndex=albumTracks.findIndex(x=>x.url===t.url);
  void startTrack(t);
@@ -346,7 +414,7 @@ fetch('./track-durations.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error
  const tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
  for(const t of tracks){const list=albums.get(t.album||'Other')||[];list.push(t);albums.set(t.album||'Other',list);}
  for(const list of albums.values())list.sort((a,b)=>{const an=Number((a.title||'').match(/^\d+/)?.[0])||999,bn=Number((b.title||'').match(/^\d+/)?.[0])||999;return an-bn||label(a).localeCompare(label(b))});
- showAlbums();say(tracks.length+' songs available. Choose an album and press PLAY.');
+ showAlbums();restoreSelected(tracks);say(tracks.length+' songs available. Choose an album, select any number of tracks, then press PLAY SELECTED.');
 }).catch(e=>{say('Music catalog unavailable. '+e.message);$('albumWall').textContent='Unable to load music.'});
 baseVolume=Math.max(.01,Number(audio.volume)||1);
 if(data.expired)renderGate();
