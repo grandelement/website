@@ -69,6 +69,26 @@ test(radio.includes('await saveOfflinePlan(prepared.assets,{autoResume:false});'
   radio.includes('async function saveOfflinePlan(assets,{autoResume=false}={})'),
   'Manual offline downloads never re-arm auto-resume for future visits');
 
+// A full song library is offline-ready even when optional backgrounds or
+// redundant station/template URLs cannot be cached on a constrained iPhone.
+allIn(radio,[
+  "if(audit?.musicComplete){",
+  "if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete)",
+  "button.textContent='Offline Ready'",
+  "button.textContent=audit?.missingSongs>0?'Resume '+audit.missingSongs+' Songs':'Finish Offline'",
+  "id=\"sunLabResetCodes\"",
+  "function resetLocalAccessCodes(){",
+  "'GE_PLAYER_OWNER_DEMO_V1'",
+  "'GE_PLAYER_3333_TEST_V1'"
+], 'Offline completeness and Sun Lab guest reset');
+const resetFunction=radio.slice(radio.indexOf('function resetLocalAccessCodes(){'),radio.indexOf('function initSunLab(){'));
+test(resetFunction.includes('localStorage.removeItem(key)') &&
+  resetFunction.includes('location.reload()') &&
+  !resetFunction.includes('caches.delete') && !resetFunction.includes('GEOffline.remove'),
+  'Reset Codes clears test permissions without deleting downloaded songs');
+test(radio.includes('</style>\n<style id="ge-sunlab-code-reset-20261015">'),
+  'Sun Lab Reset Codes layout CSS is a separate valid style element');
+
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
