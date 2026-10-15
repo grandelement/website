@@ -322,4 +322,21 @@ allIn(lab,['AUDIO_LIMIT_SECONDS=2013','function showAlbums(){',
   'function isCounting(){','function stopCounting(){',
   'function renderGate(){','function renderVolume(){','function nextTrack(){'],
   '33:33 album-first full-song listening, native audio and Gate with pause/buffer accounting');
+test(radio.includes('id="arrivalReplyPrompt"') &&
+  radio.includes("async function submitArrivalMessage(){") &&
+  radio.includes("void submitArrivalMessage()") &&
+  radio.includes("id=\"arrivalReplyEmail\"") &&
+  !radio.includes("arrivalSend?.addEventListener('click',async()=>{"),
+  'Inner horizon SEND and POST call real submit handler; reply email is optional');
+test(radio.includes('ge-responsive-radio-ship-reflections-20261015') &&
+  radio.includes('#shipReflectionWall.open #reflectionBubble.open') &&
+  radio.includes('getElementById') &&
+  radio.includes("soul-reflection-dot.selected"),
+  'Ship responsive controls and readable Soul bubbles');
+test(radio.includes("const rate=.00275*Math.pow(speed,1.2)*warpMultiplier*(approach.throttle>0?2:1)") &&
+  radio.includes('FREQUENCY SWEEP') &&
+  radio.includes("requestRadioStart({userGesture:true})") &&
+  radio.includes("id=\"accessLaunchBtn\" type=\"button\" aria-label=\"Contact Grand Element\">CONTACT") &&
+  radio.includes('hardLimitSeconds: 2013'),
+  'Blue Sun accelerated, moving radar sweep, safe gesture PLAY, CONTACT and 33:33 limit remain');
 console.log('\nGE site static regression checks passed: '+passed);
