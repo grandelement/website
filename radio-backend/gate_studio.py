@@ -157,7 +157,7 @@ def audio_plan(row, defaults):
 
 def handle_get(h, path):
     if path == "/control/gate/public":
-        h.public_json_response({"ok": True, "settings": settings()})
+        h.json_response({"ok": True, "settings": settings()})
         return True
     if path != "/control/gate/studio":
         return False
@@ -187,7 +187,7 @@ def handle_post(h, path):
         if is_public:
             ip = h.headers.get("X-Real-IP", h.client_address[0])
             if unlock_limited(ip):
-                h.public_json_response({"ok": False, "error": "Too many attempts."}, 429)
+                h.json_response({"ok": False, "error": "Too many attempts."}, 429)
                 return True
             body = h.read_body_json()
             code = str(body.get("password", "")).strip()
@@ -206,7 +206,7 @@ def handle_post(h, path):
             plan = audio_plan(matching, saved["image_defaults"])
             if not plan:
                 raise ValueError("Missing tracks")
-            h.public_json_response({
+            h.json_response({
                 "ok": True, "name": matching.get("name", ""),
                 "tracks": plan,
                 "end_mode": matching.get("end_mode", "radio"),
@@ -291,7 +291,7 @@ def handle_post(h, path):
             return True
     except Exception as exc:
         if is_public:
-            h.public_json_response({"ok": False, "error": "Invalid access code."}, 401)
+            h.json_response({"ok": False, "error": "Invalid access code."}, 401)
         else:
             h.json_response({"ok": False, "error": str(exc)}, 400)
     return True
