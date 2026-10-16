@@ -4952,8 +4952,10 @@ function exitLiveMode(message='RADIO ended.'){
 }
 
 function geRadioLocalTestAccess(){
-  // TEMPORARY LOCAL OWNER DEMO ONLY. Never accept this as proof of payment.
-  try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes' ||
+  // Guest-program passwords authorize the current browser tab, not permanent
+  // owner/demo access. Backend verification happens before this flag is set.
+  try{return sessionStorage.getItem('GE_GATE_PROGRAM_ACCESS_V1')==='1' ||
+    localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes' ||
     localStorage.getItem(GATE_CONFIG.authKey)==='1';}catch(_e){return false}
 }
 function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
@@ -9557,7 +9559,11 @@ window.GEGateProgram=(function(){
     clearTimers();
     window.GEGateFX?.reset?.();
     developerGatePreview=false;
-    try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    if(program){
+      try{sessionStorage.setItem('GE_GATE_PROGRAM_ACCESS_V1','1');}catch(_e){}
+    }else{
+      try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    }
     window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
     // Temporary legacy-Gate event for owner analytics and later email alerts.
