@@ -371,7 +371,7 @@ test(radio.includes("buttons.prev.addEventListener('click'") &&
      radio.includes("$('shareBtn').addEventListener('click'"),
      'Visible music and background buttons retain click handlers');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.16-gate-11s-60s-absolute-1'") &&
+test(refreshedRadioWorker.includes("const VERSION='2026.10.16-listener-audio-v1'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
      'New radio shell cache loads updated layout without deleting offline downloads');
 
@@ -391,7 +391,7 @@ test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!
      radio.includes('position:fixed;'),
      'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
 test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
-     load('radio/sw.js').includes("2026.10.16-gate-11s-60s-absolute-1") &&
+     load('radio/sw.js').includes("2026.10.16-listener-audio-v1") &&
      load('radio/sw.js').includes("ge-radio-media-v4"),
      'Home and Radio refresh app shell without deleting downloaded music');
 test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request') &&
