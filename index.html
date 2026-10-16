@@ -6213,7 +6213,24 @@ fetchAllMp3s().then(async list=>{
    =========================== */
 const canvas=document.getElementById('fx'),ctx=canvas.getContext('2d');
 const fxFrontCanvas=document.getElementById('fxFront'),frontCtx=fxFrontCanvas?.getContext('2d')||null;
-let W=innerWidth,H=innerHeight;function resize(){W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;if(fxFrontCanvas){fxFrontCanvas.width=W;fxFrontCanvas.height=H;}}addEventListener('resize',resize,{passive:true});resize();
+// Cap the two always-on full-viewport bitmap buffers. 4K monitors could
+// otherwise allocate tens of megabytes for EACH permanently running canvas.
+const GE_UNIVERSE_CANVAS_MAX_PIXELS=2000000;
+let W=innerWidth,H=innerHeight;
+function resize(){
+  W=innerWidth;H=innerHeight;
+  const scale=Math.min(1,Math.sqrt(GE_UNIVERSE_CANVAS_MAX_PIXELS/Math.max(1,W*H)));
+  const width=Math.max(1,Math.round(W*scale)),height=Math.max(1,Math.round(H*scale));
+  canvas.width=width;canvas.height=height;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(scale,0,0,scale,0,0);
+  if(fxFrontCanvas&&frontCtx){
+    fxFrontCanvas.width=width;fxFrontCanvas.height=height;
+    fxFrontCanvas.style.width=W+'px';fxFrontCanvas.style.height=H+'px';
+    frontCtx.setTransform(scale,0,0,scale,0,0);
+  }
+}
+addEventListener('resize',resize,{passive:true});resize();
 
 const cometImg = new Image(); cometImg.src=IMG+'ge-logo%203.png';
 const shipImg  = new Image(); shipImg.src=IMG+'ge-logo-4-cutout.png';
@@ -7526,16 +7543,34 @@ function bodySoulField(dt){
 /* Main loop */
 const MAX_SHIPS   = 1;
 const MINI_MAX    = MOBILE ? 1 : 2;
+let geUniverseLastPaint=0,geUniverseLastInput=performance.now();
+const noticeUniverseInteraction=()=>{geUniverseLastInput=performance.now();};
+addEventListener('pointerdown',noticeUniverseInteraction,{passive:true});
+addEventListener('keydown',noticeUniverseInteraction,{passive:true});
+addEventListener('pointermove',e=>{if(e.buttons)noticeUniverseInteraction()},{passive:true});
 function loop(){
   try{
-  if(!RUN){setTimeout(loop,500);return;}
+  if(!RUN){geUniverseLastPaint=0;last=performance.now()/1000;setTimeout(loop,900);return;}
   // Only the visible Game Mode class is allowed to sleep the normal universe.
   // Do not trust a stale GE_GAME.state.active flag after leaving a game: that regression
   // could stop normal-site Bodies/Souls from ever spawning or drawing.
   const bodyRaceLive=document.body.classList.contains('ge-body-race-active');
   const visibleGameMode=document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;
-  if(visibleGameMode&&!bodyRaceLive){last=performance.now()/1000;setTimeout(loop,250);return;}
-  const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;PERF.dt=dt;perfHeat(dt);
+  if(visibleGameMode&&!bodyRaceLive){
+    geUniverseLastPaint=0;last=performance.now()/1000;
+    setTimeout(loop,300);return;
+  }
+  // Budget scene draws without changing elapsed-time physics. Only the
+  // foreground BODY course needs fast canvas updates; an untouched universe
+  // should never burn a full 60fps GPU load overnight.
+  const frameNow=performance.now();
+  const recentlyInteractive=frameNow-geUniverseLastInput<10000;
+  const targetFPS=bodyRaceLive?50:(window.GE_LOW_POWER?20:(recentlyInteractive?40:26));
+  const minInterval=1000/targetFPS;
+  if(frameNow-geUniverseLastPaint<minInterval-2){requestAnimationFrame(loop);return;}
+  geUniverseLastPaint=frameNow;
+  PERF.targetFPS=targetFPS;
+  const now=frameNow/1000,dt=Math.min(.055,now-last);last=now;PERF.dt=dt;perfHeat(dt);
 
   const hot = PERF.heat>0.6;
   const maxComets = window.GE_LOW_POWER ? 5 : (window.GE_EASY_SETTINGS?.SOUL_MAX_ACTIVE ?? 8);
