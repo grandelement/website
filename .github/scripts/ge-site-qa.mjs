@@ -373,4 +373,24 @@ const refreshedRadioWorker=load('radio/sw.js');
 test(refreshedRadioWorker.includes("const VERSION='2026.10.15-radio-footer-code-and-home-1'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
      'New radio shell cache loads updated layout without deleting offline downloads');
+
+test(!home.includes('https://grandelement.github.io/website/ge-images/') &&
+     !home.includes('https://grandelement.github.io/website/data/') &&
+     home.includes("url('ge-images/images/ge-logo-2.jpg')") &&
+     home.includes('src="ge-images/images/ge-radio-logo.png"') &&
+     fs.existsSync('ge-images/images/ge-logo-2.jpg') &&
+     fs.existsSync('ge-images/images/ge-radio-logo.png'),
+     'GE homepage loads Blue Sun and Radio Moon locally, without old GitHub-hosted assets');
+test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!important") &&
+     radio.includes("min-height:clamp(90px,15dvh,155px)!important") &&
+     radio.includes("max(48px,calc(42px + env(safe-area-inset-bottom)))") &&
+     radio.includes("margin:0 auto clamp(26px,3.6dvh,42px)") &&
+     radio.includes("margin:0 auto clamp(23px,3.1dvh,38px)") &&
+     radio.includes('#radioCopyright{') &&
+     radio.includes('position:fixed;'),
+     'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
+test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
+     load('radio/sw.js').includes("2026.10.15-radio-centered-iam-copyright-2") &&
+     load('radio/sw.js').includes("ge-radio-media-v4"),
+     'Home and Radio refresh app shell without deleting downloaded music');
 console.log('\nGE site static regression checks passed: '+passed);
