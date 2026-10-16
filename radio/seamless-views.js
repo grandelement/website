@@ -22,7 +22,12 @@ function radioStart(){
   if(!audio.paused)return true;
   // A native click within the original user gesture retains Safari's media
   // activation when both frames are same-origin and already initialized.
-  document.getElementById('liveBtn')?.click();
+  const liveButton=document.getElementById('liveBtn');
+  // A private Gate playlist must stay private; resuming it must not retune
+  // the person to LIVE or destroy their programmed sequence.
+  if(liveButton?.getAttribute('aria-pressed')==='false')
+    document.getElementById('playBtn')?.click();
+  else liveButton?.click();
   return true;
 }
 function radioStop(){
@@ -41,6 +46,7 @@ function updateHome(state){
     play.setAttribute('aria-pressed',p?'true':'false');
   }
   if(stop)stop.hidden=true;
+  try{window.GE_MOON_RADIO_METER?.set?.(p?.44:0,!!p)}catch(_){}
   const label=document.getElementById('geHomeRadioStatus');
   if(label)label.textContent=p?'GRAND ELEMENT RADIO · LIVE':'TAP PLAY · GRAND ELEMENT RADIO';
 }
@@ -163,6 +169,19 @@ if(radioPage){
     e.preventDefault();e.stopImmediatePropagation();
     if(embedded)parentSend('command','stop');else command('stop');
   },true);
+  if(window.GE_HOME_RADIO){
+    window.GE_HOME_RADIO.play=()=>{
+      if(embedded)parentSend('command','play');else command('play');
+    };
+    window.GE_HOME_RADIO.stop=()=>{
+      if(embedded)parentSend('command','stop');else command('stop');
+    };
+    window.GE_HOME_RADIO.playPause=()=>{
+      if(embedded)parentSend('command',latest.playing?'stop':'play');
+      else command(readRadio().playing?'stop':'play');
+    };
+    window.GE_HOME_RADIO.playing=()=>embedded?latest.playing:readRadio().playing;
+  }
   if(window.GE_MUSIC_CONTROLLER){
     window.GE_MUSIC_CONTROLLER.playPause=()=>{
       if(embedded)parentSend('command',latest.playing?'stop':'play');
