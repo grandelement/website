@@ -523,7 +523,7 @@
   function geScoreResetEpoch(){
     let device=0;
     try{device=Math.max(0,Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0)}catch(_e){}
-    return Math.max(0,Number(global.GE_SITE_CONFIG?.highScores?.resetAt)||0,device);
+    return Math.max(1792112214000,Number(global.GE_SITE_CONFIG?.highScores?.resetAt)||0,device);
   }
   function scoreIsCurrent(r){
     if(!r||typeof r!=='object')return false;
