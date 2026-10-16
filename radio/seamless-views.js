@@ -153,6 +153,19 @@ if(radioPage){
   if(embedded){
     document.documentElement.classList.add('ge-seamless-embedded');
     parentSend('ready','radio');
+    // An active Gate must not remain hidden behind the Website. Reveal
+    // the existing Radio frame only after the Blue Sun reaches its center.
+    const gate=document.getElementById('geGate');
+    if(gate&&typeof MutationObserver==='function'){
+      let exposed=false;
+      const reveal=()=>{
+        if(!exposed&&gate.classList.contains('centered')){
+          exposed=true;parentSend('view','radio');
+        }
+      };
+      new MutationObserver(reveal).observe(gate,{attributes:true,attributeFilter:['class']});
+      reveal();
+    }
   }else{
     frame=placeFrame(new URL('../?ge_portal=radio',location.href).href,
       'geWebsitePortal','Grand Element Website');
