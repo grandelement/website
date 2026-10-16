@@ -147,7 +147,7 @@ http {
       proxy_buffering off; proxy_request_buffering off; proxy_cache off;
       proxy_connect_timeout 3s;
       proxy_read_timeout 86400s; proxy_send_timeout 86400s; send_timeout 86400s;
-      add_header Access-Control-Allow-Origin "*" always;
+      # CORS comes from the preview service; do not duplicate the header.
       add_header Cache-Control "no-store" always;
       add_header X-Accel-Buffering "no" always;
     }
