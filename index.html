@@ -3292,6 +3292,16 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
 .geOptionsScoresActions .gameButton{width:auto;min-height:34px;white-space:nowrap}
 @media(max-width:460px){.geOptionsScoresActions{width:100%;justify-content:center}.geOptionsScoresHead{flex-wrap:wrap;justify-content:center}}
 </style>
+<style id="ge-high-scores-no-exit-v1">
+/* High Scores always has one way back to the Game selector, never an X/EXIT. */
+#gameOptionsPanel:has(#geOptionsScoresOverlay.show) #gameOptionsClose,
+#gameOptionsPanel:has(#geOptionsScoresOverlay.show) #gameExitBtn,
+#gameOptionsPanel:has(#geOptionsScoresOverlay.show) .modalTopClose,
+#scoreArchivePanel .modalTopClose,
+#scoreArchivePanel .gameOptionsX{display:none!important}
+#geOptionsScoresOverlay .geOptionsScoresActions{display:flex;justify-content:center;align-items:center}
+#geOptionsScoresClose,#scoreArchiveClose{min-width:160px!important;min-height:40px!important}
+</style>
 <style id="ge-about-background-controls-v2">
 #about #aboutBgButtons{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
 #about #aboutBgButtons .gameButton{min-height:34px;min-width:100px;cursor:pointer}
@@ -4198,7 +4208,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <label class="optionsOpacityRow geOptionsTransparencyTop"><span>WINDOW</span><input id="optPanelTransparency" type="range" min="0" max="100" step="1" value="72"><small class="optionsOpacityValue" id="optPanelTransparencyValue">72%</small></label>
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
-        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><div class="geOptionsScoresActions"><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button><button class="gameButton" id="geScoresReturnGame" type="button">RETURN TO GAME</button></div></div>
+        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><div class="geOptionsScoresActions"><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">‹ BACK TO GAMES</button></div></div>
         <p class="small">Saved permanently in the GE Vault when connected, with this device kept as an offline cache. Rankings use the fewest throws needed to reach the winning score.</p>
         <div class="scoreArchive" id="geOptionsScoreArchive"></div>
       </section>
@@ -4424,7 +4434,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <div class="scoreArchive" id="scoreArchive"></div>
       <div class="gameButtons">
         <button class="gameButton" id="gameStatsExportBtn" type="button">EXPORT STATS</button>
-        <button class="gameButton" id="scoreArchiveClose" type="button">RETURN TO GAME</button>
+        <button class="gameButton" id="scoreArchiveClose" type="button">‹ BACK TO GAMES</button>
       </div>
     </div>
   </div>
@@ -5080,7 +5090,7 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
     const panel=document.getElementById(id);if(!panel)continue;
     const card=panel.querySelector(cardSel);if(!card)continue;
     const close=()=>panel.classList.remove('show');
-    if(id!=='albumScan' && id!=='gamePrompt' && !card.querySelector('.modalTopClose')){
+    if(id!=='albumScan' && id!=='gamePrompt' && id!=='scoreArchivePanel' && !card.querySelector('.modalTopClose')){
       const top=document.createElement('button');top.type='button';top.className='modalTopClose';top.setAttribute('aria-label','Close');top.textContent='×';top.addEventListener('click',e=>{e.stopPropagation();close();});card.prepend(top);
     }
     const hasBottom=card.querySelector('#albumScanClose,#gameOptionsClose,#musicOptionsClose,#playerCancelBtn,#scoreArchiveClose,.modalBottomClose');
@@ -10854,14 +10864,16 @@ const GE_GAME = (()=>{
     });
   }
   scoresBtn?.addEventListener('click',()=>{renderArchive(optionsScoreArchive);optionsScoresOverlay?.classList.add('show');});
-  optionsScoresClose?.addEventListener('click',()=>optionsScoresOverlay?.classList.remove('show'));
-  document.getElementById('geScoresReturnGame')?.addEventListener('click',()=>{
+  function backFromHighScores(){
     optionsScoresOverlay?.classList.remove('show');
-    optionsPanel?.classList.remove('show');
-    if(!state.active||!state.running)startGame();
-  });
+    archivePanel?.classList.remove('show');
+    roundPrompt?.classList.remove('show');
+    optionsPanel?.classList.add('show');
+    showGameHub();
+  }
+  optionsScoresClose?.addEventListener('click',backFromHighScores);
   roundScoresBtn?.addEventListener('click',()=>{renderArchive();archivePanel.classList.add('show');});
-  archiveClose.addEventListener('click',()=>{archivePanel.classList.remove('show');roundPrompt?.classList.remove('show');optionsPanel?.classList.remove('show');if(!state.active||!state.running)startGame();});
+  archiveClose?.addEventListener('click',backFromHighScores);
 
   function completeRound(winnerIndex){
     if(state.completed) return;
