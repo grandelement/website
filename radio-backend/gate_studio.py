@@ -22,7 +22,7 @@ PROGRAMS = DATA / "gate-programs.json"
 LIBRARY = Path("/app/runtime/library.json")
 LOCK = threading.RLock()
 ATTEMPTS = {}
-IMAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,65}\\.(?:gif|png|jpg|jpeg|webp)$", re.I)
+IMAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,65}\.(?:gif|png|jpg|jpeg|webp)$", re.I)
 DEFAULT_SETTINGS = {"fade_delay_seconds": 11, "fade_seconds": 60, "reverb_level": 2.4}
 
 
