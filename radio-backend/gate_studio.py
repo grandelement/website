@@ -267,6 +267,18 @@ def handle_post(h, path):
                     raise ValueError("A new Gate program requires a password.")
                 if code and not 6 <= len(code) <= 64:
                     raise ValueError("Password must contain 6–64 characters.")
+                if code:
+                    for other in saved["programs"]:
+                        if str(other.get("id")) == pid:
+                            continue
+                        try:
+                            if hmac.compare_digest(digest(code, other.get("salt", "")),
+                                                   str(other.get("digest", ""))):
+                                raise ValueError("This Gate password is assigned to another program.")
+                        except (TypeError, ValueError) as error:
+                            if str(error).startswith("This Gate password"):
+                                raise
+                            continue
                 updated = dict(existing) if existing else {"id": pid}
                 updated.update({
                     "name": name, "steps": steps, "end_mode": mode,
