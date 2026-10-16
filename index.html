@@ -11358,11 +11358,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 <script id="ge-v1017-offline-adaptive-js">
 (function(){
   const CACHE_NAME='GE_SHARED_OFFLINE_V2';
-  const statusEls=()=>[
-    document.getElementById('offlinePanelStatus'),
-    document.getElementById('offlineAboutStatus')
-  ].filter(Boolean);
-  const setStatus=(s)=>statusEls().forEach(el=>el.textContent=s);
+  const base=new URL('./',location.href);
+  const statusEls=()=>[document.getElementById('offlinePanelStatus'),document.getElementById('offlineAboutStatus')].filter(Boolean);
+  const setStatus=message=>statusEls().forEach(el=>el.textContent=message);
   const panel=document.getElementById('offlinePanel');
   const progress=document.getElementById('offlineProgress');
   const count=document.getElementById('offlineCount');
@@ -11370,109 +11368,188 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const aboutBtn=document.getElementById('aboutOfflineBtn');
   const dlBtn=document.getElementById('offlineDownloadBtn');
   const closeBtns=[document.getElementById('offlinePanelClose'),document.getElementById('offlineCloseBtn')].filter(Boolean);
+  let busy=false,returnToAbout=false,siteSWPromise=null;
+  function registerSiteWorker(){
+    if(!('serviceWorker' in navigator)||!window.isSecureContext)
+      return Promise.resolve(null);
+    if(!siteSWPromise){
+      siteSWPromise=navigator.serviceWorker.register(new URL('sw.js',base).href,{scope:base.pathname})
+        .catch(e=>{siteSWPromise=null;console.warn('Grand Element offline worker registration failed',e);return null;});
+    }
+    return siteSWPromise;
+  }
+  // Register on normal visits as well as on offline-download requests, so an
+  // installed PWA can cold-start from the verified local homepage shell.
+  if(document.readyState==='complete')void registerSiteWorker();
+  else window.addEventListener('load',()=>{void registerSiteWorker()},{once:true});
 
-  function openOffline(){
+  function openOffline(fromAbout=false){
+    if(fromAbout){
+      returnToAbout=true;
+      document.getElementById('about')?.classList.remove('show');
+    }
     panel?.classList.add('show');
     panel?.setAttribute('aria-hidden','false');
-    refreshOfflineStatus();
+    void refreshOfflineStatus();
   }
   function closeOffline(){
     panel?.classList.remove('show');
     panel?.setAttribute('aria-hidden','true');
+    if(returnToAbout){
+      document.getElementById('about')?.classList.add('show');
+      returnToAbout=false;
+    }
   }
-  gameBtn?.addEventListener('click',openOffline);
-  aboutBtn?.addEventListener('click',openOffline);
-  closeBtns.forEach(b=>b.addEventListener('click',closeOffline));
+  gameBtn?.addEventListener('click',()=>openOffline(false));
+  aboutBtn?.addEventListener('click',()=>{
+    openOffline(true);
+    void downloadOffline();
+  });
+  closeBtns.forEach(btn=>btn.addEventListener('click',closeOffline));
   panel?.addEventListener('pointerdown',e=>{if(e.target===panel)closeOffline()});
 
   async function collectOfflineUrls(){
-    const urls=new Set([location.href.split('#')[0], location.origin+location.pathname]);
-    // Cache assets already referenced by the running page.
-    document.querySelectorAll('img[src],audio[src],source[src]').forEach(el=>{
-      try{urls.add(new URL(el.currentSrc||el.src,location.href).href)}catch(_){}
+    const urls=new Set();
+    const add=(url,source=base)=>{
+      try{
+        const u=new URL(url,source);
+        if(u.protocol==='https:'||u.protocol==='http:')urls.add(u.href);
+      }catch(_e){}
+    };
+    // Critical homepage shell, player code, Radio interface and manifests.
+    ['./','index.html','manifest.webmanifest','radio/website-live.js',
+     'radio/','radio/index.html','radio/manifest.json',
+     'ge-vault-client.js','icons/icon-192.png','icons/icon-512.png']
+      .forEach(p=>add(p,base));
+    add(location.href.split('#')[0]);
+    // Include artwork already displayed in the browser.
+    document.querySelectorAll('img[src],audio[src],source[src],script[src],link[rel="stylesheet"]').forEach(el=>{
+      const src=el.currentSrc||el.src||el.href;if(src)add(src);
     });
-    // CSS background URLs in the current HTML/CSS.
+    // Every galaxy image is part of the same editable background controls.
+    if(typeof BG_LIST!=='undefined'&&Array.isArray(BG_LIST))BG_LIST.forEach(u=>add(u));
     for(const sheet of [...document.styleSheets]){
-      let rules; try{rules=sheet.cssRules}catch(_){continue}
+      let rules;try{rules=sheet.cssRules}catch(_e){continue}
       for(const rule of [...(rules||[])]){
         const css=rule.cssText||'';
         for(const m of css.matchAll(/url\((['"]?)(.*?)\1\)/g)){
-          const raw=m[2]; if(!raw||raw.startsWith('data:'))continue;
-          try{urls.add(new URL(raw,location.href).href)}catch(_){}
+          if(m[2]&&!m[2].startsWith('data:'))add(m[2]);
         }
       }
     }
-    // The Radio manifest is authoritative for the shared music library.
-    const candidates=[
-      new URL('radio/manifest.json',location.href).href,
-      location.origin+'/radio/manifest.json'
-    ];
-    for(const manifestUrl of candidates){
-      try{
-        const r=await fetch(manifestUrl,{cache:'no-store'});
-        if(!r.ok)continue;
-        urls.add(manifestUrl);
-        const data=await r.json();
-        const rows=Array.isArray(data)?data:(data.tracks||data.files||data.music||[]);
-        const walk=(v)=>{
-          if(typeof v==='string' && /\.(mp3|m4a|aac|wav|ogg|flac|jpg|jpeg|png|gif|webp)$/i.test(v)){
-            try{urls.add(new URL(v,manifestUrl).href)}catch(_){}
-          }else if(Array.isArray(v))v.forEach(walk);
-          else if(v&&typeof v==='object')Object.values(v).forEach(walk);
-        };
-        walk(rows);
-        break;
-      }catch(_){}
-    }
-    return [...urls];
-  }
-
-  async function refreshOfflineStatus(){
-    if(!('caches' in window)){setStatus('Offline storage is not supported by this browser.');return}
+    // The manifest paths are SITE-rooted (ge-music/…), not /radio/ paths.
+    // The old URL(v, manifestUrl) incorrectly requested /radio/ge-music/…
+    const manifestUrl=new URL('radio/manifest.json',base);
     try{
-      const c=await caches.open(CACHE_NAME);
-      const keys=await c.keys();
-      if(keys.length){
-        setStatus(`OFFLINE READY · ${keys.length} shared GE files stored on this device.`);
-        if(count)count.textContent=`${keys.length} files currently stored.`;
+      const response=await fetch(manifestUrl,{cache:'no-store'});
+      if(response.ok){
+        add(manifestUrl.href);
+        const data=await response.json();
+        const items=Array.isArray(data)?data:(data.files||data.tracks||data.music||[]);
+        const walk=value=>{
+          if(typeof value==='string'){
+            if(/\.(mp3|m4a|aac|wav|ogg|flac|jpg|jpeg|png|gif|webp)(?:\?.*)?$/i.test(value)){
+              const asset=value.startsWith('/')?value.substring(1):value;
+              // GE catalog entries all refer to project-root ge-music/…
+              add(asset,base);
+            }
+          }else if(Array.isArray(value))value.forEach(walk);
+          else if(value&&typeof value==='object')Object.values(value).forEach(walk);
+        };
+        walk(items);
+      }
+    }catch(_e){}
+    return [...urls].filter(url=>!url.includes('radio.grandelement.blitz.cloud/stream'));
+  }
+  async function readyShell(cache){
+    const home=await cache.match(base.href,{ignoreSearch:true});
+    const site=home||await cache.match(new URL('index.html',base).href,{ignoreSearch:true});
+    const radioScript=await cache.match(new URL('radio/website-live.js',base).href,{ignoreSearch:true});
+    const sw=await navigator.serviceWorker?.getRegistration(base.href).catch(()=>null);
+    return {site:!!site,radioScript:!!radioScript,serviceWorker:!!sw?.active};
+  }
+  async function refreshOfflineStatus(){
+    if(busy)return;
+    if(!('caches' in window)){
+      setStatus('Offline storage is not supported by this browser.');return;
+    }
+    try{
+      const cache=await caches.open(CACHE_NAME);
+      const keys=await cache.keys();
+      const ready=await readyShell(cache);
+      if(keys.length&&ready.site&&ready.radioScript&&ready.serviceWorker){
+        setStatus('OFFLINE READY · '+keys.length+' saved files. Download more music any time.');
+        if(count)count.textContent=keys.length+' files stored on this device.';
         if(gameBtn)gameBtn.textContent='OFFLINE ✓';
+        if(aboutBtn)aboutBtn.textContent='UPDATE OFFLINE FILES';
+      }else if(keys.length){
+        setStatus('OFFLINE INCOMPLETE · '+keys.length+' files stored. Choose DOWNLOAD / UPDATE to finish setup.');
+        if(count)count.textContent=keys.length+' files stored; offline startup not yet verified.';
+        if(gameBtn)gameBtn.textContent='OFFLINE';
       }else{
-        setStatus('Save the GE site and the same Radio music library used by the Website and Game Mode.');
+        setStatus('Download the Grand Element website and music library to this device for offline use.');
+        if(count)count.textContent='No downloaded GE library found yet.';
         if(gameBtn)gameBtn.textContent='OFFLINE';
       }
-    }catch(_){}
+    }catch(e){setStatus('Offline storage check failed: '+String(e.message||e))}
   }
-
   async function downloadOffline(){
-    if(!('caches' in window)){setStatus('This browser does not support offline cache storage.');return}
-    dlBtn.disabled=true;
+    if(busy)return;
+    if(!('caches' in window)){
+      setStatus('This browser does not support offline file storage.');return;
+    }
+    busy=true;if(dlBtn)dlBtn.disabled=true;
+    if(progress)progress.style.width='0%';
+    let total=0,ok=0,failed=0;
     try{
-      setStatus('Checking the GE site and shared Radio library…');
+      setStatus('Preparing website offline support…');
+      const sw=await registerSiteWorker();
+      setStatus('Finding the GE website and music library…');
       const urls=await collectOfflineUrls();
+      total=urls.length;
       const cache=await caches.open(CACHE_NAME);
-      let done=0,ok=0;
-      for(const url of urls){
+      for(let i=0;i<urls.length;i++){
+        const url=urls[i];
         try{
-          const req=new Request(url,{mode:'cors',credentials:'same-origin'});
-          const res=await fetch(req);
-          if(res.ok || res.type==='opaque'){await cache.put(req,res.clone());ok++}
-        }catch(_){}
-        done++;
-        const pct=Math.round(done/Math.max(1,urls.length)*100);
-        if(progress)progress.style.width=pct+'%';
-        if(count)count.textContent=`${done} of ${urls.length} checked · ${ok} stored`;
-        // Yield so Android/car browsers do not lock up while downloading.
-        if(done%4===0)await new Promise(r=>setTimeout(r,20));
+          const origin=new URL(url).origin;
+          const request=new Request(url,{mode:origin===location.origin?'same-origin':'no-cors',credentials:origin===location.origin?'same-origin':'omit'});
+          const existing=await cache.match(request,{ignoreSearch:true});
+          if(existing){ok++;}
+          else{
+            const response=await fetch(request,{cache:'no-store'});
+            if(response.ok||response.type==='opaque'){
+              await cache.put(request,response.clone());ok++;
+            }else failed++;
+          }
+        }catch(e){failed++;}
+        if(progress)progress.style.width=Math.round((i+1)/Math.max(1,total)*100)+'%';
+        if(count)count.textContent=(i+1)+' / '+total+' checked · '+ok+' saved · '+failed+' unavailable';
+        if(i%3===0)await new Promise(resolve=>setTimeout(resolve,10));
       }
-      try{if(navigator.storage?.persist)await navigator.storage.persist()}catch(_){}
-      localStorage.setItem('GE_OFFLINE_READY','1');
-      setStatus(`OFFLINE READY · ${ok} shared GE files stored. Radio, Website and Game Mode use this same browser cache.`);
-      if(gameBtn){gameBtn.textContent='OFFLINE ✓';}
-      if(aboutBtn)aboutBtn.textContent='UPDATE OFFLINE FILES';
-    }finally{dlBtn.disabled=false}
+      try{await navigator.storage?.persist?.()}catch(_e){}
+      const ready=await readyShell(cache);
+      if(ready.site&&ready.radioScript&&ready.serviceWorker&&failed===0){
+        setStatus('OFFLINE READY · '+ok+' website/music files saved. Live radio broadcasts still require Internet.');
+        if(gameBtn)gameBtn.textContent='OFFLINE ✓';
+        if(aboutBtn)aboutBtn.textContent='UPDATE OFFLINE FILES';
+        try{localStorage.setItem('GE_OFFLINE_READY','1')}catch(_e){}
+      }else{
+        const missing=[];
+        if(!ready.site)missing.push('website');
+        if(!ready.radioScript)missing.push('player');
+        if(!ready.serviceWorker)missing.push('offline app worker');
+        const suffix=missing.length?' Missing: '+missing.join(', ')+'.':'';
+        setStatus('PARTIALLY SAVED · '+ok+' of '+total+' files. '+failed+' unavailable.'+suffix+' Use DOWNLOAD / UPDATE again when online.');
+        if(gameBtn)gameBtn.textContent='OFFLINE';
+        try{localStorage.removeItem('GE_OFFLINE_READY')}catch(_e){}
+      }
+      if(!sw)setStatus('Offline download completed partially; the offline app worker is not installed. Check secure HTTPS support and retry.');
+    }catch(e){
+      setStatus('Offline download could not finish: '+String(e?.message||e)+'. Please retry online.');
+    }finally{busy=false;if(dlBtn)dlBtn.disabled=false}
   }
-  dlBtn?.addEventListener('click',downloadOffline);
-  refreshOfflineStatus();
+  dlBtn?.addEventListener('click',()=>{void downloadOffline()});
+  void refreshOfflineStatus();
 
   // Adaptive performance. Start conservative on Android/car-class hardware, then
   // automatically drop to low-power if sustained frame rate is poor.
