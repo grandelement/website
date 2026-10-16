@@ -214,6 +214,7 @@ http {
     location = /dj/ { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
     location = /dj/index.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
     location = /dj.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /gate-studio.js { root /app; default_type application/javascript; add_header Cache-Control "no-cache" always; }
     location = /dj-modern { return 302 /dj-modern/; }
     location = /dj-modern/ { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj-lite { return 302 /dj-lite/; }
