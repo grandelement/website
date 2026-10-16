@@ -3770,6 +3770,8 @@ const state = {
   }
 
   function gateVolume(){
+    // Server already applies the personalized fade. Do not fade twice.
+    if(window.GEListenerPreview?.active?.())return null;
     const value=window.GEGate?.desiredVolume?.();
     return value!==null&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):null;
   }
@@ -4378,9 +4380,37 @@ function markRadio1Attempt(){
   lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;
   updateRadioStartupCue();
 }
+// iPhone Safari does not implement a reliable HTMLAudioElement volume ramp.
+// When the isolated backend exists, begin guest playback on a unique native
+// MP3 listener stream. Its final 60s are processed on the server even if
+// JavaScript is suspended while the iPhone screen is locked.
+const GE_LISTENER_PREVIEW_URL='https://radio.grandelement.blitz.cloud/listener-preview.mp3';
+let geListenerPreviewReady=false;
+fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
+  .then(r=>{geListenerPreviewReady=r.ok&&r.headers.get('X-GE-Listener-Preview')==='1';})
+  .catch(()=>{geListenerPreviewReady=false;});
+window.GEListenerPreview={
+  available:()=>geListenerPreviewReady,
+  active:()=>/\\/listener-preview\\.mp3(?:\\?|$)/.test(audio.currentSrc||audio.src||'')
+};
 function freshLiveStreamURL(){
+  const gs=window.GEGate?.getState?.();
+  const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
+  if(geListenerPreviewReady&&isGuest){
+    const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
+    const remaining=gs?.active&&gs?.expireAt
+      ?(Number(gs.expireAt)-Date.now())/1000
+      :limit-Math.max(0,Number(gs?.musicSeconds)||0);
+    if(remaining>0){
+      const target=new URL(GE_LISTENER_PREVIEW_URL);
+      target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
+      target.searchParams.set('_ge_live_edge',String(Date.now()));
+      return target.href;
+    }
+  }
+  // Preserve the previously working Radio 1 transport if the backend has
+  // not deployed or is unavailable. Never interrupt the shared BLITZ feed.
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
-  // A fresh query value prevents Safari/PWA buffering from resuming stale LIVE bytes.
   target.searchParams.set('_ge_live_edge',String(Date.now()));
   return target.href;
 }
@@ -4541,6 +4571,11 @@ setInterval(()=>{
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
+  // Prevent an expired guest from reconnecting around the server Gate stop.
+  if(window.GEGate?.isExpiredLocked?.()){
+    window.GEGate?.restore?.();
+    return Promise.resolve();
+  }
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
   if(radioStartInFlight){
     // Safari can leave automatic play pending until a real gesture.
@@ -9019,6 +9054,13 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function applyManagedVolume(){
+    // This native MP3 feed has its own server-side 60s fade and reverb.
+    // Changing audio.volume here is ineffective on iOS and causes double
+    // attenuation on desktop browsers; do not interfere with that stream.
+    if(window.GEListenerPreview?.active?.()){
+      window.GEGateFX?.setFadeProgress?.(0);
+      return;
+    }
     const v=desiredVolume();
     if(v===null||!Number.isFinite(v))return;
     const safe=Math.max(0,Math.min(1,v));
