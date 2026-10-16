@@ -3279,6 +3279,11 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulseStrong 2.03s ease-in-out infinite!important}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHaloStrong 2.03s ease-in-out infinite!important}
 </style>
+<style id="ge-score-return-button-v1">
+.geOptionsScoresActions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.geOptionsScoresActions .gameButton{width:auto;min-height:34px;white-space:nowrap}
+@media(max-width:460px){.geOptionsScoresActions{width:100%;justify-content:center}.geOptionsScoresHead{flex-wrap:wrap;justify-content:center}}
+</style>
 <style id="ge-about-background-controls-v2">
 #about #aboutBgButtons{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
 #about #aboutBgButtons .gameButton{min-height:34px;min-width:100px;cursor:pointer}
@@ -3982,7 +3987,6 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
           <div id="geSunClockSection">
             <div class="toggleRow"><div class="pill"><b>BLUE SUN CLOCK · TIME ZONE</b></div></div>
             <div style="text-align:center">
-              <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the Blue Sun’s 12-hour orbit with a time zone</label>
           <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
             <option value="auto">AUTOMATIC · DEVICE TIME ZONE</option>
             <option value="local">DEVICE TIME ZONE · NO IP LOOKUP</option>
@@ -4022,14 +4026,13 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <div class="aboutSection">
         <div class="toggleRow"><div class="pill"><b>OFFLINE</b></div></div>
         <div class="details" style="display:block;text-align:center">
-          <div class="small" id="offlineAboutStatus" style="margin-bottom:10px">Save the GE site and the same Radio music library used by the Website and Game Mode.<br><span style="opacity:.82">One library · one cache · shared playback state.</span></div>
+          <div class="small" id="offlineAboutStatus" role="status" aria-live="polite" style="margin-bottom:8px" hidden></div>
           <button class="gameButton" id="aboutOfflineBtn" type="button" style="font-weight:950">MAKE AVAILABLE OFFLINE</button>
         </div>
       </div>
 
       <div class="aboutSection" id="aboutGameAccess">
         <div class="details" style="display:block;text-align:center">
-          <div class="small" style="margin-bottom:10px">Launch the Grand Element planet game at any time, even if you previously chose to keep the planets in free-move mode.</div>
           <button class="gameButton" id="aboutPlayGameBtn" type="button" style="font-weight:950">PLAY GAME</button>
         </div>
       </div>
@@ -4187,7 +4190,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <label class="optionsOpacityRow geOptionsTransparencyTop"><span>WINDOW</span><input id="optPanelTransparency" type="range" min="0" max="100" step="1" value="72"><small class="optionsOpacityValue" id="optPanelTransparencyValue">72%</small></label>
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
-        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button></div>
+        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><div class="geOptionsScoresActions"><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">BACK</button><button class="gameButton" id="geScoresReturnGame" type="button">RETURN TO GAME</button></div></div>
         <p class="small">Saved permanently in the GE Vault when connected, with this device kept as an offline cache. Rankings use the fewest throws needed to reach the winning score.</p>
         <div class="scoreArchive" id="geOptionsScoreArchive"></div>
       </section>
@@ -4413,7 +4416,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <div class="scoreArchive" id="scoreArchive"></div>
       <div class="gameButtons">
         <button class="gameButton" id="gameStatsExportBtn" type="button">EXPORT STATS</button>
-        <button class="gameButton" id="scoreArchiveClose" type="button">CLOSE</button>
+        <button class="gameButton" id="scoreArchiveClose" type="button">RETURN TO GAME</button>
       </div>
     </div>
   </div>
@@ -10818,8 +10821,13 @@ const GE_GAME = (()=>{
   }
   scoresBtn?.addEventListener('click',()=>{renderArchive(optionsScoreArchive);optionsScoresOverlay?.classList.add('show');});
   optionsScoresClose?.addEventListener('click',()=>optionsScoresOverlay?.classList.remove('show'));
+  document.getElementById('geScoresReturnGame')?.addEventListener('click',()=>{
+    optionsScoresOverlay?.classList.remove('show');
+    optionsPanel?.classList.remove('show');
+    if(!state.active)startGame();
+  });
   roundScoresBtn?.addEventListener('click',()=>{renderArchive();archivePanel.classList.add('show');});
-  archiveClose.addEventListener('click',()=>archivePanel.classList.remove('show'));
+  archiveClose.addEventListener('click',()=>{archivePanel.classList.remove('show');roundPrompt?.classList.remove('show');optionsPanel?.classList.remove('show');if(!state.active)startGame();});
 
   function completeRound(winnerIndex){
     if(state.completed) return;
