@@ -190,9 +190,10 @@ const $=id=>document.getElementById(id);
 const audio=$('audio');
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
-let data={used:0,expired:false},saveAt=0,baseVolume=1;
-try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;}}catch(_e){}
-const APPROACH_SECONDS=(6+10+70)/1.5,GRACE_SECONDS=33,FADE_SECONDS=66;
+let data={used:0,expired:false,gateStartedAtMs:0},saveAt=0,baseVolume=1;
+try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;
+ data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);}}catch(_e){}
+const APPROACH_SECONDS=(6+10+70)/1.5,GRACE_SECONDS=11,FADE_SECONDS=60;
 const GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS;
 const WAVE_AT=GATE_AT+6/1.5,SUN_AT=WAVE_AT+10/1.5,CENTER_AT=SUN_AT+70/1.5;
 const FADE_AT=AUDIO_LIMIT_SECONDS-FADE_SECONDS;
@@ -202,17 +203,27 @@ function fmt(t){t=Math.max(0,Math.floor(Number(t)||0));return String(Math.floor(
 function say(message){$('status').textContent=message}
 function save(force=false){
  const now=performance.now();if(!force&&now-saveAt<1700)return;saveAt=now;
- try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired}))}catch(_e){}
+ try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs}))}catch(_e){}
 }
 function valid(t){if(!t||t.kind!=='song'||Number(t.duration_ms)<1000)return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
 function element(tag,text,klass=''){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(klass)e.className=klass;return e}
+function effectiveListeningSeconds(){
+ if(!data.gateStartedAtMs)return data.used;
+ // After the Gate begins the timeline advances even if Safari sleeps.
+ return Math.min(AUDIO_LIMIT_SECONDS,GATE_AT+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
+}
+function startSongGateIfReady(){
+ if(data.expired||data.gateStartedAtMs||isAuthorized()||data.used<GATE_AT)return;
+ data.gateStartedAtMs=Date.now()-Math.max(0,data.used-GATE_AT)*1000;
+ save(true);
+}
 function ensureRings(){const waves=$('geGateWaves');if(waves.childElementCount)return;
  for(let i=0;i<10;i++){const ring=element('span',null,'geGateFreqRing');ring.style.setProperty('--water-cycle','7.2s');ring.style.setProperty('--water-delay',(-7.2*i/10)+'s');waves.appendChild(ring)}}
 function renderGate(){
  if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;}return;}
- const used=data.used;
+ const used=effectiveListeningSeconds();
  if(used<GATE_AT&&!data.expired)return;
  if(!gateShown){gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');gateShown=true;ensureRings();}
  const elapsed=Math.max(0,used-GATE_AT);
@@ -224,12 +235,13 @@ function renderGate(){
  const progress=Math.max(0,Math.min(1,(used-SUN_AT)/(70/1.5)));
  sun.style.transform='translate3d('+((innerWidth*.5+innerHeight*.62)*(1-progress)).toFixed(1)+'px,0,0) scale('+(0.84+0.16*progress).toFixed(3)+')';
  $('geGateStatus').textContent=data.expired?'33:33 listening complete. Enter an access code or explore music.':
-   used>=FADE_AT?'Preview ending. The final 66 seconds fade to silence.':
+   used>=FADE_AT?'Preview ending. The final 60 seconds fade to silence.':
    'Enter an access code or explore music.';
 }
 function renderVolume(){
- if(isAuthorized()||data.used<FADE_AT)return;
- const p=Math.max(0,Math.min(1,(data.used-FADE_AT)/FADE_SECONDS));
+ const elapsed=effectiveListeningSeconds();
+ if(isAuthorized()||elapsed<FADE_AT)return;
+ const p=Math.max(0,Math.min(1,(elapsed-FADE_AT)/FADE_SECONDS));
  audio.volume=Math.max(0,Math.min(1,baseVolume*(1-p)));
 }
 function expireGate(){
@@ -238,19 +250,23 @@ function expireGate(){
  renderGate();audio.volume=0;audio.pause();
  say('33:33 listening complete. The Inner Frequency Gate is ready.');
 }
-function isLocked(){return !isAuthorized()&&data.expired;}
-function isCounting(){return !isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
+function isLocked(){
+ if(!isAuthorized()&&!data.expired&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
+ return !isAuthorized()&&data.expired;
+}
+function isCounting(){return !data.gateStartedAtMs&&!isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
 function syncListening(){
  const wall=performance.now(),media=Number(audio.currentTime);
  if(isCounting()&&Number.isFinite(media)&&Number.isFinite(lastMedia)){
    const actual=media-lastMedia,wallSeconds=Math.max(0,(wall-lastWall)/1000);
    if(actual>0&&actual<=wallSeconds+.5){
      data.used=Math.min(AUDIO_LIMIT_SECONDS,data.used+actual);
-     save();
+     startSongGateIfReady();save();
      if(data.used>=AUDIO_LIMIT_SECONDS)expireGate();
    }
  }
  lastMedia=Number.isFinite(media)?media:NaN;lastWall=wall;
+ if(!isAuthorized()&&!data.expired&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
  if(!data.expired&&!isAuthorized())renderVolume();
  renderGate();
 }
@@ -417,7 +433,8 @@ fetch('./track-durations.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error
  showAlbums();restoreSelected(tracks);say(tracks.length+' songs available. Choose an album, select any number of tracks, then press PLAY SELECTED.');
 }).catch(e=>{say('Music catalog unavailable. '+e.message);$('albumWall').textContent='Unable to load music.'});
 baseVolume=Math.max(.01,Number(audio.volume)||1);
-if(data.expired)renderGate();
+if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
+if(data.expired||data.gateStartedAtMs)renderGate();
 ownerUI();
 </script>
 </body></html>
