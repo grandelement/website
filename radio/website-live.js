@@ -20,7 +20,7 @@
     // The homepage intentionally uses separate PLAY and STOP controls:
     // a playing broadcast must never change PLAY into a Pause button.
     play.textContent=(wants&&!audio.paused)?'STOP':'PLAY';
-    play.setAttribute('aria-label','Play Grand Element Radio');
+    play.setAttribute('aria-label',(wants&&!audio.paused)?'Stop Grand Element Radio':'Play Grand Element Radio');
     if(stopButton){stopButton.hidden=true;stopButton.disabled=(!wants&&mode==='idle');}
   }
   function media(){
