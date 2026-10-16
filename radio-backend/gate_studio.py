@@ -232,6 +232,7 @@ def handle_post(h, path):
 
         with LOCK:
             saved = persisted()
+            saved_id = ""
             if path == "/control/gate/image-default":
                 path_name = str(body.get("path", ""))
                 if path_name not in {x.get("path") for x in get_library()}:
@@ -284,8 +285,9 @@ def handle_post(h, path):
                         raise ValueError("Gate program limit reached.")
                     saved["programs"].append(updated)
                 write(PROGRAMS, saved)
+                saved_id = pid
             h.json_response({
-                "ok": True, "programs": [public_program(x) for x in saved["programs"]],
+                "ok": True, "saved_id": saved_id, "programs": [public_program(x) for x in saved["programs"]],
                 "image_defaults": saved["image_defaults"],
             })
             return True
