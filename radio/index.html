@@ -4393,14 +4393,16 @@ window.GEListenerPreview={
   available:()=>geListenerPreviewReady,
   active:()=>/\/listener-preview\.mp3(?:\?|$)/.test(audio.currentSrc||audio.src||'')
 };
-function freshLiveStreamURL(){
+function freshLiveStreamURL(remainingOverride=null){
   const gs=window.GEGate?.getState?.();
   const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
   if(geListenerPreviewReady&&isGuest){
     const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
-    const remaining=gs?.active&&gs?.expireAt
-      ?(Number(gs.expireAt)-Date.now())/1000
-      :limit-Math.max(0,Number(gs?.musicSeconds)||0);
+    const remaining=remainingOverride!==null&&Number.isFinite(Number(remainingOverride))
+      ?Number(remainingOverride)
+      :gs?.active&&gs?.expireAt
+        ?(Number(gs.expireAt)-Date.now())/1000
+        :limit-Math.max(0,Number(gs?.musicSeconds)||0);
     if(remaining>0){
       const target=new URL(GE_LISTENER_PREVIEW_URL);
       target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
@@ -9632,6 +9634,24 @@ gateTestBtn?.addEventListener('click',()=>{
   sunLabPanel?.classList.remove('show');
   if(sunLabPanel)sunLabPanel.hidden=true;
   window.GEGate?.resetForTesting?.();
+  // A manual iPhone test must use the PERSONAL processed stream too.
+  // Switch on this trusted tap (not later in a timer), preserving Safari's
+  // audio gesture. Keep the separate 60ms visual reset for Gate animation.
+  if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
+    const speed=Math.max(.1,Number(GATE_CONFIG.sequenceSpeed)||1);
+    const approach=(Number(GATE_CONFIG.blurLeadSeconds)+
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/speed;
+    const remaining=approach+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
+    const personalURL=freshLiveStreamURL(remaining);
+    if(personalURL.includes('/listener-preview.mp3')){
+      try{
+        audio.pause();
+        audio.src=personalURL;
+        audio.load();
+        void audio.play().catch(()=>setLiveStatus('RADIO · tap PLAY to hear the Gate audio test.'));
+      }catch(_e){}
+    }
+  }
   setTimeout(()=>window.GEGate?.trigger?.('manual-test'),60);
 });
 
