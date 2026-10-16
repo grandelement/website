@@ -371,7 +371,7 @@ test(radio.includes("buttons.prev.addEventListener('click'") &&
      radio.includes("$('shareBtn').addEventListener('click'"),
      'Visible music and background buttons retain click handlers');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.15-radio-access-request-mail-fix-3'") &&
+test(refreshedRadioWorker.includes("const VERSION='2026.10.16-gate-11s-60s-absolute-1'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
      'New radio shell cache loads updated layout without deleting offline downloads');
 
@@ -404,6 +404,7 @@ test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Ac
      'Gate access requests use access@, separate from general CONTACT info@');
 test(radio.includes('remaining=Math.max(0,(Number(gs.expireAt)-Date.now())/1000)') &&
      radio.includes('const wet=usable&&p>0?.68*p*(1-p):0') &&
+     radio.includes('lastForegroundReconcileAt<750') &&
      !radio.includes("gs[key]=Number(gs[key])+stopped") &&
      radio.includes('if(audio.paused||!gateAudioFlowing||!state.live)return false;')===false,
      'Radio Gate wall-clock deadline unaffected by iPhone background or disconnection');

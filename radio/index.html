@@ -8988,8 +8988,13 @@ Vector ${vector}. ${pair[1]}.`;
   }
   function resumeGateTimeline(){
     if(!gs.active||gs.expired||authorized())return;
-    if(gs.pausedAt){gs.pausedAt=0;save(true);}
-    scheduleStages();
+    // A new 'playing' event after an iPhone app switch must not restart
+    // Blue Sun animations, ripple bursts or fade timers.
+    if(gs.pausedAt){
+      gs.pausedAt=0;save(true);scheduleStages();
+    }else{
+      applyManagedVolume();
+    }
   }
 
   function updateHintUI(){if(help)help.classList.add('show');}
@@ -9400,15 +9405,21 @@ Vector ${vector}. ${pair[1]}.`;
   setInterval(tick,500);
   setInterval(()=>{void pollLiveMetadata();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
   window.addEventListener('pagehide',()=>{syncListening();save(true);});
-  window.addEventListener('pageshow',()=>{
-    // Safari may suspend JS while the listener is in another app.
-    // Reconcile once from the persisted deadline; do not replay phases.
-    if(gs.active&&!authorized()){scheduleStages();applyManagedVolume();}
-  });
+  let lastForegroundReconcileAt=0;
+  function reconcileGateAfterAppSwitch(){
+    if(!gs.active||authorized())return;
+    const now=Date.now();
+    // Safari commonly fires pageshow and visibilitychange together; one
+    // restore per foreground return avoids a stop/restart visual glitch.
+    if(now-lastForegroundReconcileAt<750)return;
+    lastForegroundReconcileAt=now;
+    scheduleStages();applyManagedVolume();
+  }
+  window.addEventListener('pageshow',reconcileGateAfterAppSwitch);
   document.addEventListener('visibilitychange',()=>{
     syncListening();
     if(document.hidden){save(true);return;}
-    if(gs.active&&!authorized()){scheduleStages();applyManagedVolume();}
+    reconcileGateAfterAppSwitch();
   });
   restore();
   renderRadioClock();
