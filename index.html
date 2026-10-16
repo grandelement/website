@@ -9125,7 +9125,15 @@ const GE_GAME = (()=>{
     if(state.active)saveGameStateSoon();
     flash('CONTROLS RESET · V10.18 BASELINE');
   }
-  function clearHighScores(){try{localStorage.removeItem(STORAGE_SCORES);}catch(e){};window.GEVault?.syncGameScores?.().then(()=>{try{renderArchive();renderArchive(optionsScoreArchive);}catch(e){}}).catch(()=>{});flash('LOCAL SCORE CACHE RESET · VAULT RECORDS RETAINED')}
+  function clearHighScores(){
+    try{
+      localStorage.setItem('GE_HIGH_SCORES_LOCAL_RESET_V1',String(Date.now()));
+      localStorage.removeItem(STORAGE_SCORES);
+      localStorage.removeItem('GE_BODY_RACE_SCORES_V2');
+    }catch(_e){}
+    try{renderArchive();renderArchive(optionsScoreArchive);window.GE_GAME_BODY_SCORES_REFRESH?.();}catch(_e){}
+    flash('HIGH SCORES RESET ON THIS DEVICE · PUBLISH RESET FROM BACK ROOM FOR ALL VISITORS');
+  }
   function clearSoulProfiles(){state.profiles=Array.from({length:6},(_,i)=>defaultProfile(i));persistProfiles();rebuildScores(true);updateHUD(true);}
   function clearCurrentGameProgress(){try{localStorage.removeItem(GAME_STATE_KEY);}catch(e){};if(state.active){resetRound(true);if(isBlueSunGame())poolLayout(true);else if(isMarbles())marbleLayout(true);else{ALBUMS=getEnabledAlbums();placePlanets();requestAnimationFrame(buildPlanetPhysics);}}}
   function runResetSelection(selection={}){
@@ -10765,9 +10773,27 @@ const GE_GAME = (()=>{
     if(!c||!c.utc)return 'Recorded on this device.';
     return `UTC ${c.utc.replace('T',' ').replace('Z','')} · Julian Date ${c.jd} · ${c.j2000Days} days from J2000.0 · Earth orbital position ≈ ${c.earthOrbitPercent}% of a reference revolution · solar ecliptic longitude ≈ ${c.sunLongitude}° · Moon age ≈ ${c.lunarAge} days / ${c.lunarIllumination}% illuminated.`;
   }
-  function loadScores(){ try{ return JSON.parse(localStorage.getItem(STORAGE_SCORES)||'[]'); }catch(e){ return []; } }
+  function geGameScoreResetTime(){
+    let local=0;
+    try{local=Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0}catch(_e){}
+    return Math.max(0,Number(window.GE_SITE_CONFIG?.highScores?.resetAt)||0,local);
+  }
+  function validRecordForLeaderboard(r){
+    if(!r||Number(r.players)===0||String(r.name||'').toUpperCase()==='AUTO')return false;
+    return (Date.parse(String(r.completedAt||''))||0)>geGameScoreResetTime();
+  }
+  function loadScores(){
+    try{
+      const rows=JSON.parse(localStorage.getItem(STORAGE_SCORES)||'[]');
+      return Array.isArray(rows)?rows.filter(validRecordForLeaderboard):[];
+    }catch(_e){return []}
+  }
   let pendingScoreRecordId=null;
   function saveRecord(name,recordId=null){
+    const winner=Number.isInteger(statsSession?.pendingWinnerIndex)?statsSession.pendingWinnerIndex:state.activePlayer;
+    if(state.players===0||(state.computerOpponent&&winner===1)){
+      return {id:'nonhuman-run',name:'THE BODY',notRanked:true};
+    }
     const cosmic=cosmicContext(new Date());
     const winnerIndex=Number.isInteger(statsSession?.pendingWinnerIndex)?statsSession.pendingWinnerIndex:Math.max(0,state.scores.indexOf(Math.max(...state.scores)));
     const winningThrows=Math.max(0,Number(state.throwCounts?.[winnerIndex])||0);
@@ -10824,10 +10850,10 @@ const GE_GAME = (()=>{
   document.getElementById('geScoresReturnGame')?.addEventListener('click',()=>{
     optionsScoresOverlay?.classList.remove('show');
     optionsPanel?.classList.remove('show');
-    if(!state.active)startGame();
+    if(!state.active||!state.running)startGame();
   });
   roundScoresBtn?.addEventListener('click',()=>{renderArchive();archivePanel.classList.add('show');});
-  archiveClose.addEventListener('click',()=>{archivePanel.classList.remove('show');roundPrompt?.classList.remove('show');optionsPanel?.classList.remove('show');if(!state.active)startGame();});
+  archiveClose.addEventListener('click',()=>{archivePanel.classList.remove('show');roundPrompt?.classList.remove('show');optionsPanel?.classList.remove('show');if(!state.active||!state.running)startGame();});
 
   function completeRound(winnerIndex){
     if(state.completed) return;
@@ -12064,6 +12090,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const BODY_SCORE_KEY='GE_BODY_RACE_SCORES_V2';
   function readBodyScores(){
     let all={};try{all=JSON.parse(localStorage.getItem(BODY_SCORE_KEY)||'{}')||{}}catch(_e){}
+    const cutoff=Math.max(0,Number(window.GE_SITE_CONFIG?.highScores?.resetAt)||0,
+      Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0);
+    for(const [key,rows] of Object.entries(all)){
+      all[key]=Array.isArray(rows)?rows.filter(row=>(Number(row?.at)||0)>cutoff):[];
+    }
     return all;
   }
   function bodyScoreSort(a,b){return (Number(b.souls)||0)-(Number(a.souls)||0)||(Number(a.ms)||Infinity)-(Number(b.ms)||Infinity)||(Number(a.hits)||0)-(Number(b.hits)||0)}
@@ -12083,6 +12114,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const clean=list.find(x=>Number(x.souls)>=3)||list[0];
     el.textContent=clean?'RECORD '+(Number(clean.ms)/1000).toFixed(2)+'s · '+(Number(clean.souls)||0)+'/3':'RECORD —';
   }
+  window.GE_GAME_BODY_SCORES_REFRESH=()=>{syncBodyRecord();if(!document.getElementById('geBodyScoresPanel')?.hidden)renderBodyHighScores();};
   function renderBodyHighScores(){
     const panel=document.getElementById('geBodyScoresPanel'),listEl=document.getElementById('geBodyScoresList'),title=document.getElementById('geBodyScoresTitle');
     if(!panel||!listEl)return;const list=bodyRaceLeaderboard(level);
