@@ -19,9 +19,9 @@
     if(label)label.textContent='GRAND ELEMENT RADIO';
     // The homepage intentionally uses separate PLAY and STOP controls:
     // a playing broadcast must never change PLAY into a Pause button.
-    play.textContent='PLAY';
+    play.textContent=(wants&&!audio.paused)?'STOP':'PLAY';
     play.setAttribute('aria-label','Play Grand Element Radio');
-    if(stopButton)stopButton.disabled=(!wants&&mode==='idle');
+    if(stopButton){stopButton.hidden=true;stopButton.disabled=(!wants&&mode==='idle');}
   }
   function media(){
     try{if('mediaSession' in navigator){
@@ -237,7 +237,7 @@
   previous.ensurePlaying=async()=>{if(wants&&!audio.paused)return true;if(wants)await startRadio1();return wants&&!audio.paused};
   previous.wantsPlayback=()=>wants;
   window.GE_MUSIC_CONTROLLER=previous;
-  play.onclick=playOnly;
+  play.onclick=()=>{if(wants&&!audio.paused)stop();else playOnly();};
   stopButton?.addEventListener('click',stop);
   window.GE_HOME_RADIO={play:playOnly,pause,stop,playPause,
     isLiveMode:()=>true,mode:()=>mode,playing:()=>wants&&!audio.paused,
