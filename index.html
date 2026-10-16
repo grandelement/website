@@ -7904,7 +7904,12 @@ window.planetNodes = planetNodes;
   function state(){return window.GE_GAME?.state||null;}
   function lengthMs(){return Math.max(5000,Math.min(60000,Number(state()?.tracerLengthMs)||window.GE_EASY_SETTINGS?.TRACER_LIVE_LENGTH_MS||30000));}
   function fadeMs(){return Math.max(2000,Math.min(30000,Number(state()?.tracerFadeMs)||window.GE_EASY_SETTINGS?.TRACER_TURN_FADE_MS||15000));}
-  function targetDpr(){const native=devicePixelRatio||1;return Math.min(innerWidth<700?1.25:1.65,native);}
+  function targetDpr(){
+    // Two full-screen trail layers + fade snapshots may coexist.
+    const native=devicePixelRatio||1;
+    const pixelCap=2500000;
+    return Math.max(.35,Math.min(innerWidth<700?1.25:1.65,native,Math.sqrt(pixelCap/Math.max(1,innerWidth*innerHeight))));
+  }
   function preserve(c){const x=document.createElement('canvas');x.width=c.width;x.height=c.height;if(x.width&&x.height)x.getContext('2d').drawImage(c,0,0);return x;}
   function fitOne(c,g,old){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);c.style.width=w+'px';c.style.height=h+'px';g.setTransform(dpr,0,0,dpr,0,0);if(old.width&&old.height)g.drawImage(old,0,0,old.width,old.height,0,0,w,h);}
   function fit(){const oh=preserve(history),ol=preserve(live);dpr=targetDpr();w=innerWidth;h=innerHeight;fitOne(history,hg,oh);fitOne(live,lg,ol);last=new WeakMap();}
@@ -7998,7 +8003,7 @@ window.planetNodes = planetNodes;
 (function installGamePointMarks(){
   const canvas=document.getElementById('gamePointMarks');if(!canvas)return;
   const g=canvas.getContext('2d');let dpr=1,w=0,h=0,visible=true,animated=true;let marks=[];
-  function fit(){dpr=Math.min(innerWidth<700?1.45:1.75,devicePixelRatio||1);w=innerWidth;h=innerHeight;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';g.setTransform(dpr,0,0,dpr,0,0);}
+  function fit(){w=innerWidth;h=innerHeight;dpr=Math.max(.35,Math.min(innerWidth<700?1.45:1.75,devicePixelRatio||1,Math.sqrt(2500000/Math.max(1,w*h))));canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=w+'px';canvas.style.height=h+'px';g.setTransform(dpr,0,0,dpr,0,0);}
   function clear(){marks.length=0;g.clearRect(0,0,w,h);}
   function setVisible(v){visible=!!v;canvas.style.visibility=visible?'visible':'hidden';}
   function setAnimated(v){animated=!!v;}
@@ -8080,7 +8085,7 @@ buildPlanetPhysics();
    // Free exploration permits independent hands/fingers; Game Mode deliberately
    // retains one score-controlled shot at a time.
    const freeDrags=new Map();
-  function fit(){dpr=Math.min(innerWidth<700?1.4:1.75,devicePixelRatio||1);w=innerWidth;h=innerHeight;aim.width=Math.round(w*dpr);aim.height=Math.round(h*dpr);aim.style.width=w+'px';aim.style.height=h+'px';ag.setTransform(dpr,0,0,dpr,0,0);}
+  function fit(){w=innerWidth;h=innerHeight;dpr=Math.max(.35,Math.min(innerWidth<700?1.4:1.75,devicePixelRatio||1,Math.sqrt(2500000/Math.max(1,w*h))));aim.width=Math.round(w*dpr);aim.height=Math.round(h*dpr);aim.style.width=w+'px';aim.style.height=h+'px';ag.setTransform(dpr,0,0,dpr,0,0);}
   addEventListener('resize',fit,{passive:true});fit();
   function isGame(){return document.body.classList.contains('game-mode-active')&&!!window.GE_GAME?.state?.active;}
   function gameState(){return window.GE_GAME?.state||null;}
@@ -12617,7 +12622,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const FOUR_HOURS=4*60*60*1000;
 
   function fit(){
-    const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+    const dpr=Math.max(.35,Math.min(2,window.devicePixelRatio||1,Math.sqrt(2500000/Math.max(1,innerWidth*innerHeight))));
     canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);
     canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -13772,7 +13777,8 @@ body:not(.ge-body-race-active) #moon {
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a);
 
   function fit(){
-    DPR=Math.min(1.75,devicePixelRatio||1);W=innerWidth;H=innerHeight;
+    W=innerWidth;H=innerHeight;
+    DPR=Math.max(.35,Math.min(1.75,devicePixelRatio||1,Math.sqrt(2500000/Math.max(1,W*H))));
     canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);canvas.style.width=W+'px';canvas.style.height=H+'px';g.setTransform(DPR,0,0,DPR,0,0);
     if(!shipX)shipX=targetX=W*.5;shipX=clamp(shipX,W*.12,W*.88);targetX=clamp(targetX,W*.12,W*.88);
   }
