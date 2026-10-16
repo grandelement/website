@@ -9801,7 +9801,9 @@ gateTestBtn?.addEventListener('click',()=>{
   // Start the Radio connection IMMEDIATELY. Library scans and cache audits
   // must never prevent iPhone listeners from getting the live station.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  void requestRadioStart({deferPlay:qrArrival});
+  // Embedded Radio prepares its stream without playing until a real visitor tap.
+  const websitePortal=new URLSearchParams(location.search).get('ge_portal')==='website';
+  void requestRadioStart({deferPlay:qrArrival||websitePortal});
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
@@ -9954,7 +9956,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     if(e.pointerType==='touch')return;
     const tapped=dragging&&!moved;
     end();
-    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+    if(tapped&&!window.GESeamless?.website?.())location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
   });
 
   sun.addEventListener('touchstart',function(e){
@@ -9974,7 +9976,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     if(e.touches&&e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);return;}
     const tapped=dragging&&!moved&&(!e.touches||e.touches.length===0);
     pinchDistance=0;end();if(e.cancelable)e.preventDefault();
-    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+    if(tapped&&!window.GESeamless?.website?.())location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
   },{passive:false});
 
   sun.addEventListener('wheel',function(e){
@@ -10014,5 +10016,6 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   });
 })();
 </script>
+<script src="./seamless-views.js"></script>
 </body>
 </html>
