@@ -10863,17 +10863,42 @@ const GE_GAME = (()=>{
       target.appendChild(d);
     });
   }
-  scoresBtn?.addEventListener('click',()=>{renderArchive(optionsScoreArchive);optionsScoresOverlay?.classList.add('show');});
-  function backFromHighScores(){
+  const scoresReturnGameBtn=document.getElementById('geScoresReturnGame');
+  function clearScoreOverlays(){
     optionsScoresOverlay?.classList.remove('show');
     archivePanel?.classList.remove('show');
+  }
+  function backFromHighScores(){
+    clearScoreOverlays();
     roundPrompt?.classList.remove('show');
     optionsPanel?.classList.add('show');
     showGameHub();
   }
+  function returnToGameFromHighScores(){
+    clearScoreOverlays();
+    // Do not restart or reset a running game just to dismiss the leaderboard.
+    // A completed round returns to its REPLAY prompt rather than a frozen board.
+    if(state.active && state.completed){
+      optionsPanel?.classList.remove('show');
+      roundPrompt?.classList.add('show');
+    }else if(state.active && state.running){
+      roundPrompt?.classList.remove('show');
+      optionsPanel?.classList.remove('show');
+    }else{
+      // High Scores can be opened before a game starts; there is no live
+      // game to resume. Keep Game Control visible so a game can be selected.
+      backFromHighScores();
+    }
+  }
+  scoresBtn?.addEventListener('click',()=>{
+    renderArchive(optionsScoreArchive);
+    if(scoresReturnGameBtn)scoresReturnGameBtn.textContent=state.active&&state.running?'RETURN TO GAME':'BACK TO GAMES';
+    optionsScoresOverlay?.classList.add('show');
+  });
   optionsScoresClose?.addEventListener('click',backFromHighScores);
-  roundScoresBtn?.addEventListener('click',()=>{renderArchive();archivePanel.classList.add('show');});
-  archiveClose?.addEventListener('click',backFromHighScores);
+  scoresReturnGameBtn?.addEventListener('click',returnToGameFromHighScores);
+  roundScoresBtn?.addEventListener('click',()=>{renderArchive();archivePanel?.classList.add('show');});
+  archiveClose?.addEventListener('click',returnToGameFromHighScores);
 
   function completeRound(winnerIndex){
     if(state.completed) return;
