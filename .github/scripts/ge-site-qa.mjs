@@ -339,4 +339,37 @@ test(radio.includes("const rate=.00275*Math.pow(speed,1.2)*warpMultiplier*(appro
   radio.includes("id=\"accessLaunchBtn\" type=\"button\" aria-label=\"Contact Grand Element\">CONTACT") &&
   radio.includes('hardLimitSeconds: 2013'),
   'Blue Sun accelerated, moving radar sweep, safe gesture PLAY, CONTACT and 33:33 limit remain');
+
+test(radio.includes("HOME_URL: 'https://www.grandelement.com/'") &&
+     radio.includes("href=\"https://www.grandelement.com/\"") &&
+     radio.includes("location.assign(document.getElementById('homeLink')?.href") &&
+     radio.includes("id=\"homeLink\""),
+     'Main and floating Blue Suns route to canonical GE website');
+test(radio.includes('ge-radio-anchored-footer-spacing-20261015') &&
+     radio.includes('body.view-player:not(.iam-studio-open) #bgGroup{') &&
+     radio.includes('margin:auto auto 0!important') &&
+     radio.includes('grid-area:1 / 1 / 2 / 2!important') &&
+     radio.includes('grid-area:1 / 2 / 2 / 3!important') &&
+     radio.includes('grid-area:1 / 3 / 2 / 4!important'),
+     'Responsive Sun-to-text spacing and bottom-anchored Backgrounds with three-button row');
+test(radio.includes('id="contactLaunchBtn"') &&
+     radio.includes('id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE') &&
+     radio.includes("window.GEGate?.openCodeEntry?.()") &&
+     radio.includes("mailto:info@grandelement.com?subject=Grand%20Element%20Contact") &&
+     radio.includes("password: 'love'") &&
+     radio.includes("hardLimitSeconds: 2013"),
+     'CONTACT email, SUPPORT shopping, original LOVE test CODE, and 33:33 timing preserved');
+test(radio.includes("buttons.prev.addEventListener('click'") &&
+     radio.includes("buttons.next.addEventListener('click'") &&
+     radio.includes("buttons.off.addEventListener('click'") &&
+     radio.includes("buttons.per.addEventListener('click'") &&
+     radio.includes("buttons.shuffle.addEventListener('click'") &&
+     radio.includes("playBtn?.addEventListener('click'") &&
+     radio.includes("$('liveBtn').addEventListener('click'") &&
+     radio.includes("$('shareBtn').addEventListener('click'"),
+     'Visible music and background buttons retain click handlers');
+const refreshedRadioWorker=load('radio/sw.js');
+test(refreshedRadioWorker.includes("const VERSION='2026.10.15-radio-footer-code-and-home-1'") &&
+     refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
+     'New radio shell cache loads updated layout without deleting offline downloads');
 console.log('\nGE site static regression checks passed: '+passed);
