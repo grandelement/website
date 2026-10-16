@@ -9381,13 +9381,25 @@ Vector ${vector}. ${pair[1]}.`;
     }catch(_e){}
     window.GEAudioGain?.setImmediate?.(1);
     try{audio.volume=restoreVolume;}catch(_e){}
+    // The personal preview is intentionally finite. A visitor entering the
+    // correct code must leave that finite transport immediately, otherwise
+    // FFmpeg would still finish its fade after authorization.
+    const wasPersonalStream=!!(state.live&&window.GEListenerPreview?.active?.());
+    if(wasPersonalStream){
+      try{
+        audio.pause();
+        audio.src=freshLiveStreamURL(); // authorized => normal BLITZ stream
+        audio.load();
+        void audio.play().catch(()=>setStatus('Tap PLAY to resume Radio after unlocking.'));
+      }catch(_e){}
+    }
 
     $('geGateNextPreview').hidden=true;
     gate.classList.remove('wrong','centered');gate.classList.add('open');
     gate.style.setProperty('--ge-gate-unlock',`${gateSeconds(GATE_CONFIG.unlockSeconds)}s`);
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';sun.style.opacity='1';void sun.offsetWidth;}
     requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
-    if(wasExpired||audio.paused){audio.muted=false;audio.play().catch(()=>{});}
+    if(!wasPersonalStream&&(wasExpired||audio.paused)){audio.muted=false;audio.play().catch(()=>{});}
 
     closeTimer=setTimeout(()=>{
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
