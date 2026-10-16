@@ -7107,12 +7107,30 @@ const BG_LIST = [
   '15.jpg',
   '16.png',
 ].map(n => `${IMG}stars%20backgrounds/${n}`);
-let bgIndex=0;
+let bgIndex=0,geSiteBgOff=false,geSiteBgLoad=0;
+try{
+  const v=Number(localStorage.getItem('GE_SITE_BG_INDEX_V1'));
+  if(Number.isInteger(v)&&v>=0)bgIndex=v%BG_LIST.length;
+  geSiteBgOff=localStorage.getItem('GE_SITE_BG_OFF_V1')==='1';
+}catch(_e){}
+function geUpdateAboutBgStatus(message=''){
+  const status=document.getElementById('aboutBgStatus');
+  const off=document.getElementById('aboutBgOff');
+  if(status)status.textContent=message||(geSiteBgOff?'BACKGROUND OFF':'BACKGROUND '+(bgIndex+1)+' OF '+BG_LIST.length);
+  off?.classList.toggle('active',geSiteBgOff);
+  off?.setAttribute('aria-pressed',String(geSiteBgOff));
+}
 function setBG(i){
-  const url = BG_LIST[(i%BG_LIST.length+BG_LIST.length)%BG_LIST.length];
+  bgIndex=(i%BG_LIST.length+BG_LIST.length)%BG_LIST.length;
+  geSiteBgOff=false;
+  const requestId=++geSiteBgLoad;
+  try{localStorage.setItem('GE_SITE_BG_INDEX_V1',String(bgIndex));localStorage.setItem('GE_SITE_BG_OFF_V1','0')}catch(_e){}
+  geUpdateAboutBgStatus('LOADING BACKGROUND '+(bgIndex+1)+' OF '+BG_LIST.length+'…');
+  const url=BG_LIST[bgIndex];
   const layer=document.getElementById('siteBackground');
-  const testImg = new Image();
-  testImg.onload = ()=>{
+  const testImg=new Image();
+  testImg.onload=()=>{
+    if(requestId!==geSiteBgLoad||geSiteBgOff)return;
     if(layer){
       layer.style.backgroundImage=`url("${url}"), radial-gradient(closest-side,#fff 1px,rgba(255,255,255,0) 1px)`;
       layer.style.backgroundPosition='center center, 0 0';
@@ -7125,12 +7143,24 @@ function setBG(i){
       layer.dataset.worldBgHeight=String(worldH);
       layer.style.backgroundSize=`${worldW}px ${worldH}px, 3px 3px`;
     }
-    // Keep BODY neutral so moving the sun/orbit can never affect the picture.
     document.body.style.backgroundImage='none';
     document.body.style.backgroundColor='#000';
+    geUpdateAboutBgStatus();
   };
-  testImg.src = url;
+  testImg.onerror=()=>{if(requestId===geSiteBgLoad)geUpdateAboutBgStatus('BACKGROUND '+(bgIndex+1)+' UNAVAILABLE · TRY NEXT');};
+  testImg.src=url;
 }
+function setSiteBackgroundOff(){
+  ++geSiteBgLoad;geSiteBgOff=true;
+  const layer=document.getElementById('siteBackground');
+  if(layer){layer.style.backgroundImage='none';layer.style.backgroundColor='#000';}
+  try{localStorage.setItem('GE_SITE_BG_OFF_V1','1')}catch(_e){}
+  geUpdateAboutBgStatus();
+}
+document.getElementById('aboutBgPrev')?.addEventListener('click',()=>setBG(bgIndex-1));
+document.getElementById('aboutBgNext')?.addEventListener('click',()=>setBG(bgIndex+1));
+document.getElementById('aboutBgOff')?.addEventListener('click',setSiteBackgroundOff);
+window.GE_SITE_BACKGROUND={next:()=>setBG(bgIndex+1),prev:()=>setBG(bgIndex-1),off:setSiteBackgroundOff,current:()=>({index:bgIndex,off:geSiteBgOff,count:BG_LIST.length})};
 function rippleAndNext(x,y){
   const start=performance.now(), dur=1200, D=Math.hypot(innerWidth,innerHeight);
   function draw(now){
@@ -7147,7 +7177,7 @@ function rippleAndNext(x,y){
   }
   requestAnimationFrame(draw);
 }
-setBG(bgIndex);
+if(geSiteBgOff)setSiteBackgroundOff();else setBG(bgIndex);
 
 /* Elastic collisions */
 function collideElastic(a,b,rest=0.98){
