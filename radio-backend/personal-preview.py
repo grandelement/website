@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Per-listener MP3 preview: server-side iPhone-safe fade and rising reverb.
+
+Streams the normal BLITZ program untouched until the final 130 seconds;
+only the specific preview connection gets FFmpeg processing near its Gate.
+No changes to the shared mixer, playlist, or other listeners.
+"""
+import http.server
+import logging
+import os
+import subprocess
+import threading
+import time
+import urllib.parse
+import urllib.request
+
+HOST = '127.0.0.1'
+PORT = int(os.environ.get('GE_PREVIEW_PORT', '8091'))
+SOURCE = os.environ.get('GE_PREVIEW_SOURCE', 'http://127.0.0.1:8000/stream.mp3')
+FADE_SECONDS = 60.0
+PROCESS_BEFORE_FADE_SECONDS = 70.0
+MAX_SECONDS = 2013
+MAX_LISTENERS = 35
+MAX_FX = 3
+LOCK = threading.Lock()
+LISTENERS = {}
+FX = threading.BoundedSemaphore(MAX_FX)
+
+
+def reverb_filter(remaining):
+    """Wet-to-dry ratio increases toward the finish; both reach silence."""
+    remaining = max(0.1, min(float(remaining), MAX_SECONDS))
+    before = max(0.0, remaining - FADE_SECONDS)
+    done = max(0.0, FADE_SECONDS - remaining)
+    progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{FADE_SECONDS:.4f}))'
+    dry = f'1-({progress})'
+    wet = f'0.82*({progress})*(1-({progress}))'
+    return (
+        '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
+        'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
+        f"[dry]volume='{dry}':eval=frame[d];"
+        '[wet]aecho=0.75:0.65:37|61|107|179|313:0.50|0.38|0.26|0.18|0.12,'
+        f"volume='{wet}':eval=frame[w];"
+        '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
+        'alimiter=limit=0.95[out]'
+    )
+
+
+def mp3_frame_size(head):
+    """Keep MP3 frames intact when crossing from passthrough to re-encoding."""
+    if len(head) < 4 or head[0] != 0xFF or (head[1] & 0xE0) != 0xE0:
+        return 0
+    version = (head[1] >> 3) & 3
+    layer = (head[1] >> 1) & 3
+    bitrate_id = (head[2] >> 4) & 15
+    frequency_id = (head[2] >> 2) & 3
+    if version == 1 or layer != 1 or bitrate_id in (0, 15) or frequency_id == 3:
+        return 0
+    bitrates = (
+        (0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320)
+        if version == 3 else
+        (0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160)
+    )
+    sample_rate = (44100, 48000, 32000)[frequency_id] // (
+        1 if version == 3 else 2 if version == 2 else 4
+    )
+    size = ((144 if version == 3 else 72) * bitrates[bitrate_id] * 1000) // sample_rate + ((head[2] >> 1) & 1)
+    return size if 24 <= size <= 2000 else 0
+
+
+def listener_enter(ip):
+    with LOCK:
+        if sum(LISTENERS.values()) >= MAX_LISTENERS or LISTENERS.get(ip, 0) >= 2:
+            return False
+        LISTENERS[ip] = LISTENERS.get(ip, 0) + 1
+        return True
+
+
+def listener_exit(ip):
+    with LOCK:
+        count = LISTENERS.get(ip, 0)
+        if count <= 1:
+            LISTENERS.pop(ip, None)
+        else:
+            LISTENERS[ip] = count - 1
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+
+    def log_message(self, fmt, *args):
+        logging.info('listener-preview: ' + fmt, *args)
+
+    def respond(self, status, *, audio=False):
+        self.send_response(status)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+        self.send_header('Access-Control-Expose-Headers', 'X-GE-Listener-Preview')
+        self.send_header('X-GE-Listener-Preview', '1')
+        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Connection', 'close')
+        if audio:
+            self.send_header('Content-Type', 'audio/mpeg')
+        else:
+            self.send_header('Content-Length', '0')
+        self.end_headers()
+        self.close_connection = True
+
+    def do_OPTIONS(self):
+        self.respond(204)
+
+    def do_HEAD(self):
+        if urllib.parse.urlsplit(self.path).path != '/listener-preview.mp3':
+            self.respond(404)
+            return
+        self.respond(200)
+
+    def do_GET(self):
+        parsed = urllib.parse.urlsplit(self.path)
+        if parsed.path != '/listener-preview.mp3':
+            self.respond(404)
+            return
+        try:
+            values = urllib.parse.parse_qs(parsed.query, strict_parsing=True)
+            raw = values.get('remaining', [''])[0]
+            if not raw.isdigit():
+                raise ValueError('bad remaining')
+            remaining = int(raw)
+            if not 1 <= remaining <= MAX_SECONDS:
+                raise ValueError('remaining outside preview')
+        except (ValueError, OverflowError):
+            self.respond(400)
+            return
+        ip = self.client_address[0]
+        if not listener_enter(ip):
+            self.respond(429)
+            return
+        try:
+            self.respond(200, audio=True)
+            self.stream_for(remaining)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        except Exception:
+            logging.exception('listener-preview: listener stream failed')
+        finally:
+            listener_exit(ip)
+
+    def send_clean(self, until):
+        if time.monotonic() >= until:
+            return True
+        request = urllib.request.Request(
+            SOURCE, headers={'User-Agent': 'GE-Personal-Preview/1.0', 'Icy-MetaData': '0'}
+        )
+        with urllib.request.urlopen(request, timeout=12) as upstream:
+            pending = bytearray()
+            while time.monotonic() < until:
+                chunk = upstream.read(2048)
+                if not chunk:
+                    return False
+                pending.extend(chunk)
+                while len(pending) >= 4 and time.monotonic() < until:
+                    size = mp3_frame_size(pending)
+                    if not size:
+                        del pending[0]
+                        continue
+                    if len(pending) < size:
+                        break
+                    self.wfile.write(pending[:size])
+                    del pending[:size]
+        return True
+
+    def send_processed(self, remaining):
+        if not FX.acquire(blocking=False):
+            logging.warning('listener-preview: FX capacity reached; stopping this preview')
+            return
+        process = None
+        try:
+            args = [
+                'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
+                '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
+                '-i', SOURCE, '-t', f'{remaining:.3f}',
+                '-filter_complex', reverb_filter(remaining),
+                '-map', '[out]', '-vn', '-threads', '1',
+                '-c:a', 'libmp3lame', '-b:a', '128k',
+                '-write_xing', '0', '-id3v2_version', '0', '-write_id3v1', '0',
+                '-f', 'mp3', 'pipe:1',
+            ]
+            process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            deadline = time.monotonic() + remaining + 3.0
+            while time.monotonic() < deadline:
+                chunk = process.stdout.read(2048)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+        finally:
+            if process is not None:
+                if process.poll() is None:
+                    process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=3)
+                if process.stdout:
+                    process.stdout.close()
+            FX.release()
+
+    def stream_for(self, remaining):
+        deadline = time.monotonic() + remaining
+        start_fx = deadline - (FADE_SECONDS + PROCESS_BEFORE_FADE_SECONDS)
+        if start_fx > time.monotonic() and not self.send_clean(start_fx):
+            return
+        remaining = max(0.0, deadline - time.monotonic())
+        if remaining > 0:
+            self.send_processed(remaining)
+
+
+class Server(http.server.ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.info('GE personal preview listening on %s:%d', HOST, PORT)
+    Server((HOST, PORT), Handler).serve_forever(poll_interval=0.5)
