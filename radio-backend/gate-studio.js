@@ -111,7 +111,7 @@ async function saveProgram(){
  if(!name||!steps.length){toast("Name the program and add music first",true);return}
  const payload={id:editing,name,password,end_mode,steps:steps.map(({_uid,...rest})=>rest)};
  const v=await req(API+"program/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
- programs=v.programs;images=v.image_defaults;editing=programs.find(p=>p.name===name)?.id||editing;
+ programs=v.programs;images=v.image_defaults;editing=v.saved_id||editing;
  renderPrograms();$("gsPrograms").value=editing;load(editing);toast("SAVED · The Gate password will launch this exact order");
 }
 async function delProgram(){
