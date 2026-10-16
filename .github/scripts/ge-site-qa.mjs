@@ -348,7 +348,8 @@ test(radio.includes("HOME_URL: 'https://www.grandelement.com/'") &&
      'Main and floating Blue Suns route to canonical GE website');
 test(radio.includes('ge-radio-anchored-footer-spacing-20261015') &&
      radio.includes('body.view-player:not(.iam-studio-open) #bgGroup{') &&
-     radio.includes('margin:auto auto 0!important') &&
+     radio.includes('flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)') &&
+     radio.includes('margin:0 auto!important') &&
      radio.includes('grid-area:1 / 1 / 2 / 2!important') &&
      radio.includes('grid-area:1 / 2 / 2 / 3!important') &&
      radio.includes('grid-area:1 / 3 / 2 / 4!important'),
