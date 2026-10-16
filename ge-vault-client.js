@@ -520,8 +520,19 @@
     });
   },10000);
 
+  function geScoreResetEpoch(){
+    let device=0;
+    try{device=Math.max(0,Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0)}catch(_e){}
+    return Math.max(0,Number(global.GE_SITE_CONFIG?.highScores?.resetAt)||0,device);
+  }
+  function scoreIsCurrent(r){
+    if(!r||typeof r!=='object')return false;
+    // Computer/demo runs do not qualify for the human scoreboard.
+    if(Number(r.players)===0||String(r.name||'').toUpperCase()==='AUTO')return false;
+    return (Date.parse(String(r.completedAt||''))||0)>geScoreResetEpoch();
+  }
   function localScores(){
-    try{const v=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');return Array.isArray(v)?v:[];}catch(_e){return [];}
+    try{const v=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');return Array.isArray(v)?v.filter(scoreIsCurrent):[];}catch(_e){return [];}
   }
   function rankScores(rows){
     return rows.slice().sort((a,b)=>{
@@ -531,10 +542,10 @@
     });
   }
   function cacheScores(rows){
-    try{localStorage.setItem(SCORE_KEY,JSON.stringify(rankScores(rows).slice(0,250)));}catch(_e){}
+    try{localStorage.setItem(SCORE_KEY,JSON.stringify(rankScores(rows.filter(scoreIsCurrent)).slice(0,250)));}catch(_e){}
   }
   async function postScore(record){
-    if(!record||!record.id)return false;
+    if(!record||!record.id||!scoreIsCurrent(record))return false;
     try{
       const r=await fetch(SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,anon_id:anonId}),keepalive:true,credentials:'omit',cache:'no-store'});
       return r.ok;
@@ -555,8 +566,8 @@
       const d=await r.json();
       const remote=Array.isArray(d.items)?d.items:[];
       const map=new Map();
-      remote.forEach(x=>{if(x&&x.id)map.set(String(x.id),x);});
-      local.forEach(x=>{if(x&&x.id&&!map.has(String(x.id)))map.set(String(x.id),x);});
+      remote.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id)map.set(String(x.id),x);});
+      local.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id&&!map.has(String(x.id)))map.set(String(x.id),x);});
       const merged=rankScores([...map.values()]);
       cacheScores(merged);
       global.dispatchEvent(new CustomEvent('ge-vault-scores-updated',{detail:{count:merged.length}}));
