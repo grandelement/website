@@ -3278,6 +3278,19 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 @keyframes geMoonOfflineHaloStrong{0%,100%{transform:scale(.96);opacity:.14}50%{transform:scale(1.06);opacity:.42}}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulseStrong 2.03s ease-in-out infinite!important}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHaloStrong 2.03s ease-in-out infinite!important}
+</style>
+<style id="ge-about-background-controls-v2">
+#about #aboutBgButtons{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
+#about #aboutBgButtons .gameButton{min-height:34px;min-width:100px;cursor:pointer}
+#about #aboutBgOff.active{background:#263f60;border-color:#9ce7ff;color:#e8fbff}
+#about #aboutBgToggle{cursor:pointer;border:1px solid rgba(150,212,255,.42);background:rgba(17,42,75,.45);color:#e4f5ff}
+#about #aboutBgToggle:hover,#about #aboutBgToggle:focus-visible{border-color:#a6e5ff}
+#about #geSunClockSection{padding:9px 4px;border-top:1px solid rgba(125,199,255,.2)}
+#about #geSunClockSection .toggleRow{margin-top:0}
+#about #aboutBgHelpToggle{min-height:28px;padding:4px 10px;font-size:11px;opacity:.87}
+#about #aboutGameAccess .details{border:0!important;background:transparent!important;padding:3px 8px!important}
+#about #bgHelp ul{text-align:left}
+@media(max-width:430px){#about #aboutBgButtons .gameButton{min-width:76px;font-size:10px!important;padding:6px 7px!important}}
 </style><style id="ge-about-mobile-format-v1">
 /* ABOUT is a compact phone composition. Game access must remain immediately visible. */
 @media(max-width:700px){
@@ -3954,10 +3967,22 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       </div>
 
      
-      <div class="aboutSection" id="geSunClockSection">
-        <div class="toggleRow"><div class="pill"><b>BLUE SUN CLOCK · TIME ZONE</b></div></div>
-        <div class="details" style="display:block;text-align:center">
-          <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the Blue Sun’s 12-hour orbit with a time zone</label>
+      <div class="aboutSection" id="aboutBackgroundSection">
+        <div class="toggleRow">
+          <button class="pill" id="aboutBgToggle" type="button" aria-expanded="true" aria-controls="aboutBgControls"><b>BACKGROUND CONTROLS</b></button>
+        </div>
+        <div class="details" id="aboutBgControls" style="display:block;text-align:center">
+          <div class="small" style="margin-bottom:7px">Choose the universe background. OFF removes the background image.</div>
+          <div id="aboutBgButtons" role="group" aria-label="Website background">
+            <button class="gameButton" id="aboutBgPrev" type="button" aria-label="Previous universe background">◀ PREVIOUS</button>
+            <button class="gameButton" id="aboutBgNext" type="button" aria-label="Next universe background">NEXT ▶</button>
+            <button class="gameButton" id="aboutBgOff" type="button">OFF</button>
+          </div>
+          <div id="aboutBgStatus" class="small" role="status" aria-live="polite" style="margin:7px 0 10px">BACKGROUND 1 OF 16</div>
+          <div id="geSunClockSection">
+            <div class="toggleRow"><div class="pill"><b>BLUE SUN CLOCK · TIME ZONE</b></div></div>
+            <div style="text-align:center">
+              <label for="geSunClockTimezone" style="display:block;font-size:12px;margin:6px 0">Align the Blue Sun’s 12-hour orbit with a time zone</label>
           <select id="geSunClockTimezone" aria-label="Blue Sun clock time zone" style="width:min(100%,340px);background:#06182b;color:white;border:1px solid #64b4e8;border-radius:9px;padding:8px">
             <option value="auto">AUTOMATIC · DEVICE TIME ZONE</option>
             <option value="local">DEVICE TIME ZONE · NO IP LOOKUP</option>
@@ -3975,14 +4000,12 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
             <option value="Australia/Sydney">SYDNEY</option>
           </select>
           <div id="geSunClockReadout" style="font-size:11px;opacity:.8;margin-top:6px" aria-live="off"></div>
-        </div>
-      </div>
-      <div class="aboutSection">
-        <div class="toggleRow">
-          <div class="pill"><b>BACKGROUND CONTROLS</b></div>
-        </div>
-        <div class="details" id="bgHelp">
-          <div style="margin-bottom:8px"><b>STORY / UNIVERSE VIEWING:</b> Normal mode is the free-form Grand Element universe. Change the dimensional background, move through the scene, interact with the Sun, planets, Bodies, souls/comets, hidden text and music without having to play the arcade game.</div>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <button class="gameButton" id="aboutBgHelpToggle" type="button" aria-expanded="false" aria-controls="bgHelp">HOW THE UNIVERSE WORKS ▾</button>
+            <div id="bgHelp" style="display:none;text-align:left;margin-top:10px">
+              <div style="margin-bottom:8px"><b>STORY / UNIVERSE VIEWING:</b> Normal mode is the free-form Grand Element universe. Change the dimensional background, move through the scene, interact with the Sun, planets, Bodies, souls/comets, hidden text and music without having to play the arcade game.</div>
           <ul>
             <li><b>Blue Sun</b>: "Click" Teleport to another dimension. Move wherever you want.</li>
             <li><b>Album Planets</b>: Tap once to enlarge the planet and open its album information. Drag/throw for free-space planet physics.</li>
@@ -3990,6 +4013,8 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
             <li><b>GE Bodies</b>: The large center target is touch-friendly: one tap stops/starts the Body, two taps broadcast expanding radio-frequency waves and call responsive souls toward the Body, and three taps trigger the quantum reaction. The first captured soul can settle in the Body center while additional souls orbit outside. Press and hold the small ray control at the rear of the ship to keep the ray on, then sweep your finger through 360°; the ship center remains reserved for one tap, two tap broadcast and three tap quantum control, while the surrounding field steers.</li>
             <li><b>Hidden text</b>: Appears near cursor, and randomly on its own; click to pin/unpin.</li>
           </ul>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4002,8 +4027,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         </div>
       </div>
 
-      <div class="aboutSection">
-        <div class="toggleRow"><div class="pill"><b>PLAY GAME</b></div></div>
+      <div class="aboutSection" id="aboutGameAccess">
         <div class="details" style="display:block;text-align:center">
           <div class="small" style="margin-bottom:10px">Launch the Grand Element planet game at any time, even if you previously chose to keep the planets in free-move mode.</div>
           <button class="gameButton" id="aboutPlayGameBtn" type="button" style="font-weight:950">PLAY GAME</button>
@@ -5061,14 +5085,23 @@ document.getElementById('aboutClose').addEventListener('click', ()=> document.ge
   });
 })();
 
-// ABOUT: Background Controls toggle
+// ABOUT: Background Controls, not the Blue Sun clock, owns this toggle.
 (function(){
-  const pill = document.querySelector('.aboutSection .pill');
-  const panel = document.getElementById('bgHelp');
-  if(pill && panel){
-    pill.style.cursor='pointer';
-    pill.addEventListener('click', ()=> panel.style.display = (panel.style.display==='none'||panel.style.display==='')?'block':'none');
-  }
+  const toggle=document.getElementById('aboutBgToggle');
+  const controls=document.getElementById('aboutBgControls');
+  const helpBtn=document.getElementById('aboutBgHelpToggle');
+  const help=document.getElementById('bgHelp');
+  toggle?.addEventListener('click',()=>{
+    const open=toggle.getAttribute('aria-expanded')!=='true';
+    toggle.setAttribute('aria-expanded',String(open));
+    if(controls)controls.style.display=open?'block':'none';
+  });
+  helpBtn?.addEventListener('click',()=>{
+    const open=helpBtn.getAttribute('aria-expanded')!=='true';
+    helpBtn.setAttribute('aria-expanded',String(open));
+    helpBtn.textContent=open?'HOW THE UNIVERSE WORKS ▴':'HOW THE UNIVERSE WORKS ▾';
+    if(help)help.style.display=open?'block':'none';
+  });
 })();
 
 
