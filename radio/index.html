@@ -3285,7 +3285,7 @@ const CONFIG = Object.freeze({
 // sequenceSpeed: 1.0 = original, 1.5 = 50% faster, 2.0 = twice as fast.
 // Trigger/listening-limit values remain real listening time.
 // ================================================================
-const GATE_CONFIG = Object.freeze({
+const GATE_CONFIG = {
   enabled: true,
 
   // MASTER SEQUENCE SPEED
@@ -3324,7 +3324,19 @@ const GATE_CONFIG = Object.freeze({
   helpEmail: 'access@grandelement.com',
   helpSubject: 'Grand Element Access Request',
   accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
-});
+};
+// Only timing/audio values are public. No Gate passwords or private playlists
+// are included. The Back Room settings affect new Gate sequences only.
+fetch('https://radio.grandelement.blitz.cloud/control/gate/public',{cache:'no-store',mode:'cors'})
+  .then(response=>response.ok?response.json():null)
+  .then(data=>{
+    const incoming=data&&data.settings;
+    if(!incoming)return;
+    const delay=Number(incoming.fade_delay_seconds),fade=Number(incoming.fade_seconds);
+    if(Number.isFinite(delay)&&delay>=0&&delay<=120)GATE_CONFIG.graceSeconds=delay;
+    if(Number.isFinite(fade)&&fade>=10&&fade<=180)GATE_CONFIG.fadeSeconds=fade;
+  }).catch(()=>{});
+
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
@@ -4940,8 +4952,10 @@ function exitLiveMode(message='RADIO ended.'){
 }
 
 function geRadioLocalTestAccess(){
-  // TEMPORARY LOCAL OWNER DEMO ONLY. Never accept this as proof of payment.
-  try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes' ||
+  // Guest-program passwords authorize the current browser tab, not permanent
+  // owner/demo access. Backend verification happens before this flag is set.
+  try{return sessionStorage.getItem('GE_GATE_PROGRAM_ACCESS_V1')==='1' ||
+    localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes' ||
     localStorage.getItem(GATE_CONFIG.authKey)==='1';}catch(_e){return false}
 }
 function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
@@ -5302,6 +5316,7 @@ function selectNaturalNext(){
   return {url:nextSequential(1),record:false};
 }
 async function advanceFromEnded(){
+  if(window.GEGateProgram?.consumeEnded?.())return;
   if(state.live){reconnectLiveStream();return;}
   if(!geOwnerDemoEnabled())return;
   if(isStationID(state.currentURL) && state.pendingAfterStation){
@@ -5326,6 +5341,7 @@ async function advanceFromEnded(){
   await playURL(next.url,{record:next.record,backgroundChange:true});
 }
 function nextTrack(userAction=false){
+  if(window.GEGateProgram?.next?.())return;
   if(!geOwnerDemoEnabled()){
     if(userAction)geOpenMusicSelection();
     return; // Also covers lock-screen next, ended and background control paths.
@@ -5336,6 +5352,7 @@ function nextTrack(userAction=false){
   playURL(next.url,{record:next.record,backgroundChange:true,userAction});
 }
 function previousTrack(userAction=false){
+  if(window.GEGateProgram?.previous?.())return;
   if(!geOwnerDemoEnabled()){
     if(userAction)geOpenMusicSelection();
     return;
@@ -5910,6 +5927,12 @@ window.addEventListener('online',()=>{
   buttons.auto.addEventListener('click',()=>{ bg.auto=!bg.auto; if(bg.auto){ bg.perSong=false; bg.shuffle=false; startTimer(); }else stopTimer(); reflect(); persist(); });
   window.GEBackgrounds={
     onSongStart,
+    setProgramImage:(filename)=>{
+      const i=bg.files.indexOf(String(filename||''));
+      if(i<0)return false;
+      bg.off=false;bg.perSong=false;bg.auto=false;stopTimer();
+      apply(i);reflect();persist();return true;
+    },
     writeShareState,
     getFiles:()=>bg.files.slice(),
     reloadFiles:async(files=null)=>{ await loadFiles(true,files); return bg.files.slice(); },
@@ -9051,6 +9074,56 @@ Vector ${vector}. ${pair[1]}.`;
   updateApproachUI();updateRadarBlips();requestAnimationFrame(animationFrame);applyMode();syncAll();window.GEShip={syncAll,applyMode};
 })();
 
+
+/* Server-verified Gate passwords select a private music program. */
+window.GEGateProgram=(function(){
+ let current=null,at=-1;
+ async function verify(password){
+  try{
+   const r=await fetch('https://radio.grandelement.blitz.cloud/control/gate/unlock',{
+    method:'POST',mode:'cors',cache:'no-store',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({password})
+   });
+   const d=await r.json();
+   return r.ok&&d.ok&&Array.isArray(d.tracks)&&d.tracks.length?d:null;
+  }catch(e){console.warn('Gate verification unavailable:',e);return null}
+ }
+ async function play(n){
+  if(!current)return;
+  if(n>=current.tracks.length){finish();return}
+  const t=current.tracks[n];at=n;
+  if(t.image)window.GEBackgrounds?.setProgramImage?.(t.image);
+  try{
+   await playURL(t.url,{record:false,backgroundChange:false,userAction:true,forceReload:true});
+   setStatus('GATE PLAYLIST · '+(at+1)+' / '+current.tracks.length+' · '+(t.title||current.name));
+  }catch(e){setStatus('Tap PLAY to continue the Gate playlist.')}
+ }
+ function finish(){
+  if(!current)return;
+  const p=current;
+  if(p.end_mode==='shuffle'&&p.tracks.length){
+   void play(p.tracks.length===1?0:Math.floor(Math.random()*p.tracks.length));return
+  }
+  current=null;at=-1;
+  if(p.end_mode==='radio')void enterLiveMode({deferPlay:false}).catch(()=>setStatus('Tap RADIO to continue.'));
+  else{audio.pause();setStatus('Gate program complete.')}
+ }
+ function start(p){
+  if(!p||!Array.isArray(p.tracks)||!p.tracks.length)return false;
+  current={...p,tracks:p.tracks.slice(0,500)};at=-1;
+  if(state.live||state.livePreparing)exitLiveMode('');
+  else audio.pause();
+  void play(0);return true;
+ }
+ return {
+  verify,start,
+  consumeEnded:()=>{if(!current)return false;void play(at+1);return true},
+  next:()=>{if(!current)return false;void play(at+1);return true},
+  previous:()=>{if(!current)return false;void play(Math.max(0,at-1));return true},
+  isActive:()=>!!current
+ };
+})();
+
 /* INNER GATE CONTROLLER
    Sequence: blur → waves → Blue Sun arrival → code → 11s → 60s fade.
    Active Gate deadlines persist and cannot be extended by backgrounding the
@@ -9475,16 +9548,22 @@ Vector ${vector}. ${pair[1]}.`;
     // checkout is preview-only; never claim an actual paid entitlement.
     location.assign('../support/?section=radio&flow=shop');
   }
-  function unlock(){
+  async function unlock(){
     if(authorized())return;
     const entered=String(word?.value||'').trim().toLowerCase();
-    if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}
+    const standard=entered===String(GATE_CONFIG.password||'').trim().toLowerCase();
+    const program=standard?null:await window.GEGateProgram?.verify?.(entered);
+    if(!standard&&!program){wrongWord();return;}
 
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
     window.GEGateFX?.reset?.();
     developerGatePreview=false;
-    try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    if(program){
+      try{sessionStorage.setItem('GE_GATE_PROGRAM_ACCESS_V1','1');}catch(_e){}
+    }else{
+      try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    }
     window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
     // Temporary legacy-Gate event for owner analytics and later email alerts.
@@ -9503,7 +9582,7 @@ Vector ${vector}. ${pair[1]}.`;
     // correct code must leave that finite transport immediately, otherwise
     // FFmpeg would still finish its fade after authorization.
     const wasPersonalStream=!!(state.live&&window.GEListenerPreview?.active?.());
-    if(wasPersonalStream){
+    if(wasPersonalStream&&!program){
       try{
         audio.pause();
         audio.src=freshLiveStreamURL(); // authorized => normal BLITZ stream
@@ -9517,7 +9596,8 @@ Vector ${vector}. ${pair[1]}.`;
     gate.style.setProperty('--ge-gate-unlock',`${gateSeconds(GATE_CONFIG.unlockSeconds)}s`);
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';sun.style.opacity='1';void sun.offsetWidth;}
     requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
-    if(!wasPersonalStream&&(wasExpired||audio.paused)){audio.muted=false;audio.play().catch(()=>{});}
+    if(!wasPersonalStream&&!program&&(wasExpired||audio.paused)){audio.muted=false;audio.play().catch(()=>{});}
+    if(program)window.GEGateProgram?.start?.(program);
 
     closeTimer=setTimeout(()=>{
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');

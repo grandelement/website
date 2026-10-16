@@ -214,6 +214,7 @@ http {
     location = /dj/ { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
     location = /dj/index.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
     location = /dj.html { root /app; try_files /dj-entry.html =404; default_type text/html; add_header Cache-Control "no-store, no-cache, must-revalidate" always; add_header Pragma "no-cache" always; add_header Expires "0" always; }
+    location = /gate-studio.js { root /app; default_type application/javascript; add_header Cache-Control "no-cache" always; }
     location = /dj-modern { return 302 /dj-modern/; }
     location = /dj-modern/ { root /app; try_files /dj.html =404; default_type text/html; add_header Cache-Control "no-store" always; }
     location = /dj-lite { return 302 /dj-lite/; }
@@ -260,6 +261,7 @@ http {
       }
       proxy_pass http://127.0.0.1:8090; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-GE-DJ-Key $http_x_ge_dj_key; proxy_set_header Connection close;
       proxy_buffering off; proxy_request_buffering off; proxy_connect_timeout 2s;
       proxy_read_timeout 30s; proxy_send_timeout 30s;

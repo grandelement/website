@@ -22,6 +22,7 @@ try:
 except Exception:
     zmq = None
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import gate_studio
 from pathlib import Path
 
 RUNTIME = Path("/app/runtime")
@@ -2854,6 +2855,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlsplit(self.path)
+        if gate_studio.handle_get(self, parsed.path):
+            return
         if parsed.path == "/control/live":
             qs = urllib.parse.parse_qs(parsed.query)
             token = (qs.get("token") or [""])[0]
@@ -3356,6 +3359,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if gate_studio.handle_post(self, self.path):
+            return
         if self.path == "/control/board/meter":
             if not self.require_auth(): return
             try:
