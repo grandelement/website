@@ -139,6 +139,18 @@ http {
     location = /healthz { default_type text/plain; return 200 "GE Radio gateway OK\n"; }
     location = / { default_type text/plain; return 200 "Grand Element Radio is online.\n"; }
 
+    # Private per-listener 33:33 guest preview. FFmpeg reverb/fade affects only
+    # this one listener and never the shared 24/7 Icecast broadcast.
+    location = /listener-preview.mp3 {
+      proxy_pass http://127.0.0.1:8091; proxy_http_version 1.1;
+      proxy_set_header X-Real-IP $remote_addr; proxy_set_header Connection "";
+      proxy_buffering off; proxy_request_buffering off; proxy_cache off;
+      proxy_connect_timeout 3s;
+      proxy_read_timeout 86400s; proxy_send_timeout 86400s; send_timeout 86400s;
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cache-Control "no-store" always;
+      add_header X-Accel-Buffering "no" always;
+    }
     location = /stream.mp3 {
       proxy_pass http://127.0.0.1:8000/stream.mp3; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header Connection "";
@@ -288,7 +300,7 @@ sys.exit(1)
 PYHTTP
 }
 
-NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MASTER_PID=""; HLS_PID=""
+NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MASTER_PID=""; HLS_PID=""; PREVIEW_PID=""
 
 start_nginx(){
   if pid_alive "$NGINX_PID"; then return 0; fi
@@ -301,6 +313,12 @@ start_control(){
   echo "GE Radio: starting DJ control service..."
   python3 /app/control-server.py & CONTROL_PID=$!
   wait_http "http://127.0.0.1:8090/control/healthz" 12
+}
+start_preview(){
+  if pid_alive "$PREVIEW_PID"; then return 0; fi
+  echo "GE Radio: starting listener-isolated preview processor..."
+  python3 /app/personal-preview.py & PREVIEW_PID=$!
+  wait_port 8091 8
 }
 start_watcher(){
   if pid_alive "$WATCHER_PID"; then return 0; fi
@@ -369,7 +387,7 @@ start_audio_stack(){
 
 shutdown(){
   echo "GE Radio: shutting down..."; stop_hls; stop_audio
-  for p in "$CONTROL_PID" "$WATCHER_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
+  for p in "$CONTROL_PID" "$WATCHER_PID" "$PREVIEW_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   wait 2>/dev/null || true
 }
 trap shutdown EXIT INT TERM
@@ -377,12 +395,14 @@ trap shutdown EXIT INT TERM
 start_nginx || { echo "GE Radio: gateway failed to start."; exit 1; }
 start_control || echo "GE Radio: control service startup warning; supervisor will retry."
 start_watcher
+start_preview || echo "GE Radio: individual preview processor not ready; retrying soon."
 
 echo "GE Radio: gateway online; waiting for library playlist in background."
 while true; do
   if ! pid_alive "$NGINX_PID"; then start_nginx || true; fi
   if ! pid_alive "$CONTROL_PID"; then start_control || true; fi
   if ! pid_alive "$WATCHER_PID"; then start_watcher || true; fi
+  if ! pid_alive "$PREVIEW_PID"; then start_preview || true; fi
   if [ -s /app/runtime/playlist.m3u ]; then
     if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID" || ! pid_alive "$MASTER_PID"; then
       echo "GE Radio: radio backbone missing; restarting audio stack."
