@@ -7719,12 +7719,22 @@ requestAnimationFrame(loop);
 (function enableDragSun(){
   const wrap = document.getElementById('sunWrap');
   let dragging=false, dragPointerId=null, dx=0, dy=0, moved=false;
+  let sunTapCandidate=false,sunTapStart=null,lastSunTeleportAt=0;
+  function teleportBlueSun(){
+    if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active'))return;
+    const rect=wrap.getBoundingClientRect();
+    lastSunTeleportAt=performance.now();
+    rippleAndNext(rect.left+rect.width/2,rect.top+rect.height/2);
+  }
   wrap.addEventListener('pointerdown', (e)=>{
     if(document.body.classList.contains('ge-body-race-active')){if(e.cancelable)e.preventDefault();return;}
     // ABOUT, Music/player controls and the Radio moon are independent controls.
     // Never let the draggable Sun steal their pointer gesture on iPhone.
     if(e.target.closest('#aboutBtn,#btnMusic,#mini,#orbit,#moon,button,input,select,a,.btn,.toggle')) return;
-    dragging=true; dragPointerId=e.pointerId; moved=false; wrap.classList.add('dragging');
+    dragging=true;dragPointerId=e.pointerId;moved=false;
+    sunTapCandidate=!!e.target.closest('#sun');
+    sunTapStart={x:e.clientX,y:e.clientY};
+    wrap.classList.add('dragging');
     window.GE_SUN_CLOCK_DRAG?.start?.();
     const rect=wrap.getBoundingClientRect();
     dx=e.clientX-rect.left; dy=e.clientY-rect.top;
@@ -7764,28 +7774,31 @@ requestAnimationFrame(loop);
   addEventListener('pointerup', (e)=>{
     if(!dragging || (dragPointerId!==null && e.pointerId!==dragPointerId)) return;
     if(e.cancelable)e.preventDefault();
+    const shortTap=!!sunTapCandidate&&!!sunTapStart&&
+      Math.hypot(e.clientX-sunTapStart.x,e.clientY-sunTapStart.y)<9&&!moved;
     try{wrap.releasePointerCapture(dragPointerId);}catch(_e){}
     dragging=false; dragPointerId=null; wrap.classList.remove('dragging');
+    sunTapCandidate=false;sunTapStart=null;
     window.GE_SUN_CLOCK_DRAG?.end?.();
+    if(shortTap)teleportBlueSun();
   }, {passive:false});
   addEventListener('pointercancel', (e)=>{
     if(!dragging || (dragPointerId!==null && e.pointerId!==dragPointerId)) return;
     if(e.cancelable)e.preventDefault();
     try{wrap.releasePointerCapture(dragPointerId);}catch(_e){}
     dragging=false; dragPointerId=null; wrap.classList.remove('dragging');
+    sunTapCandidate=false;sunTapStart=null;
     window.GE_SUN_CLOCK_DRAG?.end?.();
   }, {passive:false});
 
-// Teleport only when clicking the *center sun body* (not ABOUT / Music / player panel)
-const sunEl = document.getElementById('sun');
-sunEl.addEventListener('click', (e)=>{
-  if(document.body.classList.contains('game-mode-active')) return;
-  if(e.target.closest('#aboutBtn')) return;
-  if(e.target.closest('#btnMusic')) return;
-  if(e.target.closest('#mini')) return;
-  const rect = wrap.getBoundingClientRect();
-  rippleAndNext(rect.left + rect.width/2, rect.top + rect.height/2);
-}, {passive:true});
+  // Also handle keyboard and rare click-only activation. Prevent double
+  // teleports from synthesized mouse clicks after a pointerup-triggered ripple.
+  const sunEl=document.getElementById('sun');
+  sunEl?.addEventListener('click',e=>{
+    if(e.target.closest('#aboutBtn,#btnMusic,#mini,button,input,select,a,.btn,.toggle'))return;
+    if(performance.now()-lastSunTeleportAt<750)return;
+    teleportBlueSun();
+  },{passive:true});
 })();
 
 
