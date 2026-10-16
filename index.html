@@ -3279,6 +3279,14 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::before{animation:geMoonOfflinePulseStrong 2.03s ease-in-out infinite!important}
 body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geMoonOfflineHaloStrong 2.03s ease-in-out infinite!important}
 </style>
+<style id="ge-about-intro-match-backroom-v1">
+/* Keep the actual Back Room rich-text settings, while matching its readable
+   desktop spacing in the public About introduction. Mobile remains compact. */
+@media(min-width:701px){
+  #about .aboutIntro{line-height:1.45}
+  #about .aboutIntro>div+div{margin-top:14px!important}
+}
+</style>
 <style id="ge-score-return-button-v1">
 .geOptionsScoresActions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
 .geOptionsScoresActions .gameButton{width:auto;min-height:34px;white-space:nowrap}
@@ -10828,7 +10836,7 @@ const GE_GAME = (()=>{
     const rec=saveRecord(entered||fallback,pendingScoreRecordId);
     pendingScoreRecordId=rec.id;attachStatsName(rec.name);
     if(statsSession){statsSession.recordName=rec.name;persistActiveStats();}
-    if(scoreSaveStatus){scoreSaveStatus.textContent='SAVED AS '+rec.name.toUpperCase();scoreSaveStatus.classList.add('saved')}
+    if(scoreSaveStatus){scoreSaveStatus.textContent=rec.notRanked?'COMPUTER DEMO · NOT RANKED':'SAVED AS '+rec.name.toUpperCase();scoreSaveStatus.classList.toggle('saved',!rec.notRanked)}
     renderArchive();return rec;
   }
   function escapeHtml(v){ return String(v??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
@@ -12090,8 +12098,9 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const BODY_SCORE_KEY='GE_BODY_RACE_SCORES_V2';
   function readBodyScores(){
     let all={};try{all=JSON.parse(localStorage.getItem(BODY_SCORE_KEY)||'{}')||{}}catch(_e){}
-    const cutoff=Math.max(0,1792112214000,Number(window.GE_SITE_CONFIG?.highScores?.resetAt)||0,
-      Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0);
+    let localReset=0;
+    try{localReset=Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0}catch(_e){}
+    const cutoff=Math.max(1792112214000,Number(window.GE_SITE_CONFIG?.highScores?.resetAt)||0,localReset);
     for(const [key,rows] of Object.entries(all)){
       all[key]=Array.isArray(rows)?rows.filter(row=>(Number(row?.at)||0)>cutoff):[];
     }
