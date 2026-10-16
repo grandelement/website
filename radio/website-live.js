@@ -17,8 +17,8 @@
   const setStatus=(s)=>{if(status)status.textContent=s;};
   function display(){
     if(label)label.textContent='GRAND ELEMENT RADIO';
-    // The homepage intentionally uses separate PLAY and STOP controls:
-    // a playing broadcast must never change PLAY into a Pause button.
+    // Website uses one accessible PLAY/STOP transport for the one Radio.
+    // Stop pauses the listener without changing the public broadcast.
     play.textContent=(wants&&!audio.paused)?'STOP':'PLAY';
     play.setAttribute('aria-label',(wants&&!audio.paused)?'Stop Grand Element Radio':'Play Grand Element Radio');
     if(stopButton){stopButton.hidden=true;stopButton.disabled=(!wants&&mode==='idle');}
@@ -171,8 +171,7 @@
   }
   function playPause(){
     if(!audio.paused&&wants){pause();return}
-    // Shared Game Mode transport may still toggle pause, but the homepage
-    // PLAY button below is play-only, with an independent STOP button.
+    // Homepage and Game Mode now share the same PLAY/STOP transport.
     void startRadio1();
   }
   function playOnly(){
