@@ -3301,6 +3301,8 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
 #scoreArchivePanel .gameOptionsX{display:none!important}
 #geOptionsScoresOverlay .geOptionsScoresActions{display:flex;justify-content:center;align-items:center}
 #geOptionsScoresClose,#scoreArchiveClose{min-width:160px!important;min-height:40px!important}
+#geScoresReturnGame[hidden]{display:none!important}
+#geScoresReturnGame{min-width:160px!important;min-height:40px!important;border-color:rgba(137,235,255,.85)!important}
 </style>
 <style id="ge-about-background-controls-v2">
 #about #aboutBgButtons{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
@@ -4209,7 +4211,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <label class="optionsOpacityRow geOptionsTransparencyTop"><span>WINDOW</span><input id="optPanelTransparency" type="range" min="0" max="100" step="1" value="72"><small class="optionsOpacityValue" id="optPanelTransparencyValue">72%</small></label>
       </div>
       <section class="geOptionsScoresOverlay" id="geOptionsScoresOverlay" aria-label="High Scores">
-        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><div class="geOptionsScoresActions"><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">‹ BACK TO GAMES</button></div></div>
+        <div class="geOptionsScoresHead"><h3>HIGH SCORES</h3><div class="geOptionsScoresActions"><button class="gameButton geOptionsScoresClose" id="geOptionsScoresClose" type="button">‹ BACK TO GAMES</button><button class="gameButton" id="geScoresReturnGame" type="button" hidden>RETURN TO GAME</button></div></div>
         <p class="small">Saved permanently in the GE Vault when connected, with this device kept as an offline cache. Rankings use the fewest throws needed to reach the winning score.</p>
         <div class="scoreArchive" id="geOptionsScoreArchive"></div>
       </section>
@@ -10947,7 +10949,10 @@ const GE_GAME = (()=>{
   }
   scoresBtn?.addEventListener('click',()=>{
     renderArchive(optionsScoreArchive);
-    if(scoresReturnGameBtn)scoresReturnGameBtn.textContent=state.active&&state.running?'RETURN TO GAME':'BACK TO GAMES';
+    if(scoresReturnGameBtn){
+      scoresReturnGameBtn.hidden=!(state.active&&(state.running||state.completed));
+      scoresReturnGameBtn.textContent=state.active&&state.completed?'RETURN TO REPLAY':'RETURN TO GAME';
+    }
     optionsScoresOverlay?.classList.add('show');
   });
   optionsScoresClose?.addEventListener('click',backFromHighScores);
