@@ -13081,6 +13081,21 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
 <script id="ge-moon-live-meter-v1">
 (()=>{
   const moon=document.getElementById('moon');if(!moon)return;
+  // The actual RADIO frame now owns the only audible station connection.
+  // Never create a second (even muted) analyzer audio element on iOS: it can
+  // steal or interrupt Safari's media session.
+  if(window.GE_HOME_RADIO_MODE){
+    window.GE_MOON_RADIO_METER={
+      set(v,live=true){
+        const level=Math.max(0,Math.min(1,Number(v)||0));
+        moon.style.setProperty('--moon-level',String(live?level:0));
+        moon.classList.toggle('radio-live-reactive',!!live&&level>0);
+      },
+      fallback(){moon.style.setProperty('--moon-level','0');moon.classList.remove('radio-live-reactive')},
+      reconnect(){},getState(){return {live:moon.classList.contains('radio-live-reactive')}}
+    };
+    return;
+  }
   const LIVE_URL='https://radio.grandelement.blitz.cloud/stream.mp3';
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
   const settings=window.GE_EASY_SETTINGS||{};
