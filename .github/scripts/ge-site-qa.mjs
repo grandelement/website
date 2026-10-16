@@ -336,7 +336,8 @@ test(radio.includes('ge-responsive-radio-ship-reflections-20261015') &&
 test(radio.includes("const rate=.00275*Math.pow(speed,1.2)*warpMultiplier*(approach.throttle>0?2:1)") &&
   radio.includes('FREQUENCY SWEEP') &&
   radio.includes("requestRadioStart({userGesture:true})") &&
-  radio.includes("id=\"accessLaunchBtn\" type=\"button\" aria-label=\"Contact Grand Element\">CONTACT") &&
+  radio.includes('id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT') &&
+  radio.includes('id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE') &&
   radio.includes('hardLimitSeconds: 2013'),
   'Blue Sun accelerated, moving radar sweep, safe gesture PLAY, CONTACT and 33:33 limit remain');
 
