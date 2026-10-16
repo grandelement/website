@@ -132,7 +132,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, OverflowError):
             self.respond(400)
             return
-        ip = self.client_address[0]
+        ip = self.headers.get('X-Real-IP', self.client_address[0])
         if not listener_enter(ip):
             self.respond(429)
             return
