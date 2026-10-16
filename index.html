@@ -5223,8 +5223,8 @@ refreshOrbitGeometry();
 addEventListener('resize',refreshOrbitGeometry,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(refreshOrbitGeometry,120),{passive:true});
 function tickOrbit(){
-  if(document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active')){
-    setTimeout(()=>requestAnimationFrame(tickOrbit),250);return;
+  if(document.hidden||document.body.classList.contains('game-mode-active')||document.body.classList.contains('ge-body-race-active')){
+    setTimeout(tickOrbit,1500);return;
   }
   // The Moon's motion is a self-contained CSS 60-second loop. Do not replace
   // its animated transform here: failures in other JS must not freeze it.
@@ -5233,9 +5233,10 @@ function tickOrbit(){
     const t=geSunClockTime(new Date());
     geClockReadout.textContent='SUN CLOCK · '+String((t.hour%12)||12)+':'+String(t.minute).padStart(2,'0')+(t.hour>=12?' PM':' AM')+' · '+(geClockZone==='auto'||geClockZone==='local'?'YOUR DEVICE':geClockZone.replaceAll('_',' '))+' · MOON 60s';
   }
-  requestAnimationFrame(tickOrbit);
+  // Moon orbits via CSS, no need to spend 60 JS callbacks per second updating a label.
+  setTimeout(tickOrbit,1000);
 }
-requestAnimationFrame(tickOrbit);
+setTimeout(tickOrbit,1000);
 let geRadioNavLock=false;
 function openGrandElementRadio(){
   if(geRadioNavLock)return;
@@ -13536,7 +13537,16 @@ body:not(.ge-body-race-active) #moon {
   window.addEventListener('pointerup',released);
   window.addEventListener('pointercancel',released);
   function tick(now){
-    const dt=clamp(now-last,0,80);last=now;
+    if(document.hidden){
+      last=now;setTimeout(()=>requestAnimationFrame(tick),900);return;
+    }
+    if(blocked()){
+      last=now;setTimeout(()=>requestAnimationFrame(tick),300);return;
+    }
+    // The Sun takes twelve hours to trace the screen. 15fps suffices even
+    // during its gentle 22-second return; dragging remains pointer-driven.
+    if(now-last<66){requestAnimationFrame(tick);return;}
+    const dt=clamp(now-last,0,120);last=now;
     if(innerWidth!==previousWidth||innerHeight!==previousHeight){
       previousWidth=innerWidth;previousHeight=innerHeight;
       returnAfter=now+HOME_WAIT_MS;
