@@ -2,7 +2,7 @@
 """Per-listener MP3 preview: server-side iPhone-safe fade and rising reverb.
 
 Streams the normal BLITZ program untouched until the final 130 seconds;
-only the specific preview connection gets FFmpeg processing near its Gate.
+only the specific preview connection gets FFmpeg convolution reverb near its Gate.
 No changes to the shared mixer, playlist, or other listeners.
 """
 import http.server
@@ -22,24 +22,75 @@ PROCESS_BEFORE_FADE_SECONDS = 70.0
 MAX_SECONDS = 2013
 MAX_LISTENERS = 35
 MAX_FX = 3
+IR_PATH = os.environ.get('GE_GATE_IR_PATH', '/app/runtime/gate-reverb-ir.wav')
 LOCK = threading.Lock()
 LISTENERS = {}
 FX = threading.BoundedSemaphore(MAX_FX)
 
 
+def ensure_gate_impulse():
+    """Build a true, diffuse stereo reverb impulse for this server only.
+
+    The file never changes the public station audio. Generated once at startup
+    with Python's standard library, so no external IR download is required.
+    """
+    import math
+    import random
+    import struct
+    import wave
+
+    sample_rate = 48000
+    frame_count = int(sample_rate * 1.50)
+    rng = (random.Random(4033), random.Random(4067))
+    smooth = [0.0, 0.0]
+    pcm = bytearray()
+    for i in range(frame_count):
+        seconds = i / sample_rate
+        left_right = []
+        for channel in range(2):
+            # Dense decaying reflections, deliberately not distinct tap echoes.
+            noise = rng[channel].uniform(-1.0, 1.0)
+            smooth[channel] = 0.45 * smooth[channel] + 0.55 * noise
+            envelope = math.exp(-4.6 * seconds)
+            diffuse = 0.0 if seconds < 0.014 else smooth[channel] * 0.013 * envelope
+            early = 0.0
+            for delay, strength in ((0.028, 0.11), (0.042, 0.09), (0.064, 0.06)):
+                if i == int((delay + channel * 0.004) * sample_rate):
+                    early += strength
+            left_right.append(int(max(-0.99, min(0.99, diffuse + early)) * 32767))
+        pcm.extend(struct.pack('<hh', *left_right))
+    os.makedirs(os.path.dirname(IR_PATH) or '.', exist_ok=True)
+    temp_path = IR_PATH + '.new'
+    with wave.open(temp_path, 'wb') as output:
+        output.setnchannels(2)
+        output.setsampwidth(2)
+        output.setframerate(sample_rate)
+        output.writeframes(pcm)
+    os.replace(temp_path, IR_PATH)
+
+
 def reverb_filter(remaining):
-    """Wet-to-dry ratio increases toward the finish; both reach silence."""
+    """Two INVISIBLE listener-only faders: music dry down, real reverb up.
+
+    Do not touch the broadcast mixer or HTMLAudioElement.volume (unreliable on
+    iPhone). Until the center/question + 11-second grace have passed, the
+    unprocessed dry path stays at 100% and the reverb remains at zero.
+    Both buses reach absolute silence at the listener's 33:33 deadline.
+    """
     remaining = max(0.1, min(float(remaining), MAX_SECONDS))
     before = max(0.0, remaining - FADE_SECONDS)
     done = max(0.0, FADE_SECONDS - remaining)
     progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{FADE_SECONDS:.4f}))'
     dry = f'1-({progress})'
-    wet = f'0.82*({progress})*(1-({progress}))'
+    # Relative reverb presence grows as music fades; the entire wet bus also
+    # tapers to absolute zero at the last instant, with no leftover echo.
+    wet = f'2.40*({progress})*pow(max(0,1-({progress})),0.85)'
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
         f"[dry]volume='{dry}':eval=frame[d];"
-        '[wet]aecho=0.75:0.65:37|61|107|179|313:0.50|0.38|0.26|0.18|0.12,'
+        '[wet][1:a]afir=dry=0:wet=1:irnorm=0:irlink=0,'
+        'highpass=f=140,lowpass=f=8200,'
         f"volume='{wet}':eval=frame[w];"
         '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
         'alimiter=limit=0.95[out]'
@@ -179,7 +230,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             args = [
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
                 '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
-                '-i', SOURCE, '-t', f'{remaining:.3f}',
+                '-i', SOURCE, '-i', IR_PATH, '-t', f'{remaining:.3f}',
                 '-filter_complex', reverb_filter(remaining),
                 '-map', '[out]', '-vn', '-threads', '1',
                 '-c:a', 'libmp3lame', '-b:a', '128k',
@@ -223,5 +274,6 @@ class Server(http.server.ThreadingHTTPServer):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+    ensure_gate_impulse()
     logging.info('GE personal preview listening on %s:%d', HOST, PORT)
     Server((HOST, PORT), Handler).serve_forever(poll_interval=0.5)
