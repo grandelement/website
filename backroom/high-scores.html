@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GE Back Room · High Scores</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+*{box-sizing:border-box}
+body{min-height:100vh;margin:0;color:#e7f8ff;background:radial-gradient(circle at 50% 0,#10334f,#02050c 60%);padding:clamp(16px,5vw,48px)}
+main{max-width:620px;margin:0 auto;padding:24px;border:1px solid #2c6187;border-radius:18px;background:rgba(6,24,42,.9);box-shadow:0 12px 50px #0009}
+h1{font-size:23px;letter-spacing:.07em;margin:0 0 12px}
+p{line-height:1.5;color:#b9d5e6}
+a{color:#9ce7ff}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin:23px 0}
+button{border:1px solid #78b9e8;border-radius:10px;padding:12px 16px;background:#173b59;color:#f4fbff;font-size:14px;font-weight:850;cursor:pointer}
+button:hover,button:focus-visible{background:#235b84;outline:2px solid #a2eafa;outline-offset:2px}
+button:disabled{opacity:.5;cursor:wait}
+#resetScores{border-color:#e4a9a9;background:#4a1825}
+#resetScores:hover{background:#71263c}
+#status{border-radius:10px;padding:12px;min-height:47px;background:#07182b;border:1px solid #254864}
+.note{font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<a href="./">← Back to GE Website Back Room</a>
+<h1>HIGH SCORES · BACKUP & RESET</h1>
+<p>Back up game scores before starting a new public leaderboard. Old GE Vault records are archived and excluded from rankings, not physically deleted.</p>
+<div class="actions">
+<button id="backupScores" type="button">BACK UP HIGH SCORES</button>
+<button id="resetScores" type="button">RESET HIGH SCORES</button>
+</div>
+<p id="status" role="status" aria-live="polite">Reading current scoreboard configuration…</p>
+<p class="note">Backups include the most recent 250 public GE Vault records plus this browser's local scores and Body-course records. The full historical Vault database is not downloaded by this tool. A public reset requires an active private Back Room publisher sign-in. If access has expired, <a href="./">sign in again</a>.</p>
+</main>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
+const WORK_KEY='GE_BACKROOM_TEST_CONFIG_V1';
+const SCORE_KEY='GE_GAME_SCORES_V3';
+const BODY_KEY='GE_BODY_RACE_SCORES_V2';
+const RESET_KEY='GE_HIGH_SCORES_LOCAL_RESET_V1';
+const BACKUP_KEY='GE_HIGH_SCORES_BACKUP_V1';
+const BASE_RESET=1792112214000;
+const API='https://ge-backroom-publisher.grandelement.workers.dev';
+const setStatus=s=>{$('status').textContent=s};
+function readJSON(key,fallback){try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch(_e){return fallback}}
+function bearer(){try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_e){return ''}}
+async function getLive(){
+  const r=await fetch('../config/site-live.json?score-reset-check='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('Could not load current live site configuration');
+  return r.json();
+}
+async function snapshot(){
+  const r=await fetch('https://vault.grandelement.com/v1/public/game-scores?limit=250',{cache:'no-store'});
+  if(!r.ok)throw Error('GE Vault did not return scores. Backup was not created.');
+  const d=await r.json();
+  if(!Array.isArray(d.items))throw Error('GE Vault score response was invalid.');
+  return {format:'ge-high-scores-backup-v1',backedUpAt:new Date().toISOString(),
+    scope:'Top 250 public GE Vault records, plus locally saved game and Body scores. Vault records may exceed 250.',
+    resetAt:readJSON(RESET_KEY,0),
+    vaultTop250:d.items,
+    localGameScores:readJSON(SCORE_KEY,[]),
+    localBodyScores:readJSON(BODY_KEY,{})};
+}
+function download(file){
+  const data=JSON.stringify(file,null,2)+'\n';
+  const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='GE-high-scores-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  try{localStorage.setItem(BACKUP_KEY,data)}catch(_e){}
+}
+async function backup(){
+  $('backupScores').disabled=true;setStatus('Collecting GE Vault and local high scores…');
+  try{
+    const b=await snapshot();download(b);
+    setStatus('JSON BACKUP DOWNLOADED · '+b.vaultTop250.length+' public Vault records, plus local and Body scores.');
+    return b;
+  }catch(e){setStatus('BACKUP FAILED · '+String(e.message||e));return null}
+  finally{$('backupScores').disabled=false}
+}
+async function reset(){
+  const auth=bearer();
+  if(!auth){setStatus('PRIVATE PUBLISHER SIGN-IN REQUIRED · Open the Back Room, sign in, and return here.');return}
+  if(!confirm('Reset ALL VISIBLE HIGH SCORES across Grand Element?\n\nA backup will be downloaded first. Historical GE Vault entries will be retained as an archive. This starts a new public leaderboard immediately when the live configuration publishes.'))return;
+  $('resetScores').disabled=true;
+  try{
+    setStatus('Backing up old scores before reset…');
+    const b=await snapshot();download(b);
+    setStatus('Backup downloaded. Publishing new scoreboard start date…');
+    const cfg=await getLive(),epoch=Date.now();
+    cfg.highScores={...(cfg.highScores||{}),resetAt:epoch};
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),18000);
+    let r;
+    try{
+      r=await fetch(API+'/publish',{method:'POST',headers:{Authorization:'Bearer '+auth,'Content-Type':'application/json'},body:JSON.stringify({config:cfg}),cache:'no-store',signal:controller.signal});
+    }finally{clearTimeout(timeout)}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw Error(d.error||'Publisher rejected scoreboard reset');
+    localStorage.setItem(RESET_KEY,String(epoch));
+    localStorage.removeItem(SCORE_KEY);localStorage.removeItem(BODY_KEY);
+    const draft=readJSON(WORK_KEY,null);
+    if(draft&&typeof draft==='object'){
+      draft.highScores={...(draft.highScores||{}),resetAt:epoch};
+      try{localStorage.setItem(WORK_KEY,JSON.stringify(draft))}catch(_e){}
+    }
+    try{const channel=new BroadcastChannel('ge-game-admin');channel.postMessage({type:'reset',selection:{highScores:true},at:epoch});channel.close()}catch(_e){}
+    setStatus('NEW SCOREBOARD PUBLISHED · '+new Date(epoch).toLocaleString()+' · old Vault scores archived · '+String(d.commit||'').slice(0,10));
+  }catch(e){setStatus('RESET NOT COMPLETED · '+String(e.message||e))}
+  finally{$('resetScores').disabled=false}
+}
+$('backupScores').addEventListener('click',()=>{void backup()});
+$('resetScores').addEventListener('click',()=>{void reset()});
+getLive().then(c=>{
+  const t=Math.max(BASE_RESET,Number(c.highScores?.resetAt)||0);
+  setStatus('CURRENT SCOREBOARD START · '+new Date(t).toLocaleString()+(bearer()?' · Publisher sign-in detected':' · Sign in to publisher for public reset'));
+}).catch(e=>setStatus(String(e.message||e)));
+})();
+</script>
+</body>
+</html>
