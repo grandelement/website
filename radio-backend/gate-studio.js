@@ -21,6 +21,7 @@ const css=`
 #geStudio .gsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}
 #geStudio button,#geStudio select,#geStudio input{min-height:41px;background:#0c2030;color:white;border:1px solid #3c617a;border-radius:9px;padding:7px;font-size:12px;max-width:100%;width:100%}
 #geStudio button.gsPrimary{border-color:#53ba91;background:#104c3d;font-weight:800}
+#geStudio input[type=checkbox]{width:auto;height:20px;min-height:20px}
 #geStudio button.gsDanger{border-color:#9e4a58;background:#431822}
 #geStudio button.gsTiny{width:auto;min-height:28px;padding:4px 8px;font-size:10px}
 #geStudio label{display:grid;gap:5px;font-size:10px;color:#c9dfee}
