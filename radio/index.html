@@ -3285,7 +3285,7 @@ const CONFIG = Object.freeze({
 // sequenceSpeed: 1.0 = original, 1.5 = 50% faster, 2.0 = twice as fast.
 // Trigger/listening-limit values remain real listening time.
 // ================================================================
-const GATE_CONFIG = Object.freeze({
+const GATE_CONFIG = {
   enabled: true,
 
   // MASTER SEQUENCE SPEED
@@ -3324,7 +3324,19 @@ const GATE_CONFIG = Object.freeze({
   helpEmail: 'access@grandelement.com',
   helpSubject: 'Grand Element Access Request',
   accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
-});
+};
+// Only timing/audio values are public. No Gate passwords or private playlists
+// are included. The Back Room settings affect new Gate sequences only.
+fetch('https://radio.grandelement.blitz.cloud/control/gate/public',{cache:'no-store',mode:'cors'})
+  .then(response=>response.ok?response.json():null)
+  .then(data=>{
+    const incoming=data&&data.settings;
+    if(!incoming)return;
+    const delay=Number(incoming.fade_delay_seconds),fade=Number(incoming.fade_seconds);
+    if(Number.isFinite(delay)&&delay>=0&&delay<=120)GATE_CONFIG.graceSeconds=delay;
+    if(Number.isFinite(fade)&&fade>=10&&fade<=180)GATE_CONFIG.fadeSeconds=fade;
+  }).catch(()=>{});
+
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
