@@ -6,6 +6,7 @@ only the specific preview connection gets FFmpeg convolution reverb near its Gat
 No changes to the shared mixer, playlist, or other listeners.
 """
 import http.server
+import json
 import logging
 import os
 import subprocess
@@ -19,6 +20,21 @@ PORT = int(os.environ.get('GE_PREVIEW_PORT', '8091'))
 SOURCE = os.environ.get('GE_PREVIEW_SOURCE', 'http://127.0.0.1:8000/stream.mp3')
 FADE_SECONDS = 60.0
 PROCESS_BEFORE_FADE_SECONDS = 70.0
+GATE_SETTINGS = os.environ.get("GE_GATE_SETTINGS_PATH", "/app/data/gate-settings.json")
+
+
+def listener_fade_settings():
+    # Separate preview requests pick up Back Room settings automatically.
+    try:
+        with open(GATE_SETTINGS, encoding="utf-8") as stream:
+            value = json.load(stream)
+        fade = float(value.get("fade_seconds", FADE_SECONDS))
+        reverb = float(value.get("reverb_level", 2.4))
+        if not (10 <= fade <= 180 and 0 <= reverb <= 4):
+            raise ValueError("Invalid gate settings")
+        return fade, reverb
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return FADE_SECONDS, 2.4
 MAX_SECONDS = 2013
 MAX_LISTENERS = 35
 MAX_FX = 3
@@ -69,7 +85,7 @@ def ensure_gate_impulse():
     os.replace(temp_path, IR_PATH)
 
 
-def reverb_filter(remaining):
+def reverb_filter(remaining, fade_seconds=FADE_SECONDS, reverb_level=2.4):
     """Two INVISIBLE listener-only faders: music dry down, real reverb up.
 
     Do not touch the broadcast mixer or HTMLAudioElement.volume (unreliable on
@@ -78,13 +94,13 @@ def reverb_filter(remaining):
     Both buses reach absolute silence at the listener's 33:33 deadline.
     """
     remaining = max(0.1, min(float(remaining), MAX_SECONDS))
-    before = max(0.0, remaining - FADE_SECONDS)
-    done = max(0.0, FADE_SECONDS - remaining)
-    progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{FADE_SECONDS:.4f}))'
+    before = max(0.0, remaining - fade_seconds)
+    done = max(0.0, fade_seconds - remaining)
+    progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{fade_seconds:.4f}))'
     dry = f'1-({progress})'
     # Relative reverb presence grows as music fades; the entire wet bus also
     # tapers to absolute zero at the last instant, with no leftover echo.
-    wet = f'2.40*({progress})*pow(max(0,1-({progress})),0.85)'
+    wet = f'{reverb_level:.4f}*({progress})*pow(max(0,1-({progress})),0.85)'
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
@@ -221,7 +237,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     del pending[:size]
         return True
 
-    def send_processed(self, remaining):
+    def send_processed(self, remaining, fade_seconds, reverb_level):
         if not FX.acquire(blocking=False):
             logging.warning('listener-preview: FX capacity reached; stopping this preview')
             return
@@ -231,7 +247,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
                 '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
                 '-i', SOURCE, '-i', IR_PATH, '-t', f'{remaining:.3f}',
-                '-filter_complex', reverb_filter(remaining),
+                '-filter_complex', reverb_filter(remaining, fade_seconds, reverb_level),
                 '-map', '[out]', '-vn', '-threads', '1',
                 '-c:a', 'libmp3lame', '-b:a', '128k',
                 '-write_xing', '0', '-id3v2_version', '0', '-write_id3v1', '0',
@@ -259,12 +275,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def stream_for(self, remaining):
         deadline = time.monotonic() + remaining
-        start_fx = deadline - (FADE_SECONDS + PROCESS_BEFORE_FADE_SECONDS)
+        fade_seconds, reverb_level = listener_fade_settings()
+        start_fx = deadline - (fade_seconds + PROCESS_BEFORE_FADE_SECONDS)
         if start_fx > time.monotonic() and not self.send_clean(start_fx):
             return
         remaining = max(0.0, deadline - time.monotonic())
         if remaining > 0:
-            self.send_processed(remaining)
+            self.send_processed(remaining, fade_seconds, reverb_level)
 
 
 class Server(http.server.ThreadingHTTPServer):
