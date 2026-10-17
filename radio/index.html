@@ -4507,7 +4507,7 @@ let geListenerPreviewReady=false;
 // receives the iPhone-compatible listener fade.
 const geListenerPreviewCheck=fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
   .then(r=>{geListenerPreviewReady=r.ok&&r.headers.get('X-GE-Listener-Preview')==='1'&&
-    r.headers.get('X-GE-Listener-Preview-Version')==='gate-2s-10s-v2';})
+    r.headers.get('X-GE-Listener-Preview-Version')==='gate-listener-linear-10s-v3';})
   .catch(()=>{geListenerPreviewReady=false;});
 window.GEListenerPreview={
   available:()=>geListenerPreviewReady,
@@ -4516,7 +4516,9 @@ window.GEListenerPreview={
 function freshLiveStreamURL(remainingOverride=null){
   const gs=window.GEGate?.getState?.();
   const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
-  if(geListenerPreviewReady&&isGuest){
+  // Every guest stream MUST be processed per listener, even if the HEAD
+  // version check is delayed or fails. Never silently play the dry broadcast.
+  if(isGuest){
     const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
     const remaining=remainingOverride!==null&&Number.isFinite(Number(remainingOverride))
       ?Number(remainingOverride)
@@ -4530,8 +4532,8 @@ function freshLiveStreamURL(remainingOverride=null){
       return target.href;
     }
   }
-  // Preserve the previously working Radio 1 transport if the backend has
-  // not deployed or is unavailable. Never interrupt the shared BLITZ feed.
+  // Only authorized listeners may use the unprocessed shared Radio 1 URL.
+  // Guest failures stay on the personal URL, never an un-faded fallback.
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
   target.searchParams.set('_ge_live_edge',String(Date.now()));
   return target.href;
@@ -4859,12 +4861,9 @@ async function resumeLiveAtEdge(){
 }
 async function enterLiveMode({deferPlay=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
-  // Await private-preview availability briefly before choosing the audio
-  // URL. This is essential on iOS: audio.volume is not a reliable fade.
-  if(!window.GEGate?.isAuthorized?.()){
-    await Promise.race([geListenerPreviewCheck,
-      new Promise(resolve=>setTimeout(resolve,1800))]);
-  }
+  // Do not await a HEAD request before play(): on iOS that can consume
+  // the user's playback gesture. All guests use the private fade source;
+  // HEAD only provides deployment diagnostics, not stream selection.
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
     setStatus('RADIO requires an Internet connection.');
@@ -4903,7 +4902,7 @@ async function enterLiveMode({deferPlay=false}={}){
   // Prepare the live stream without requiring CORS or auto-start permissions.
   // A real user tap can then play exactly as it does in the DJ listener.
   audio.autoplay=false;
-  audio.preload='auto';
+  audio.preload='none'; // Do not start the per-listener server countdown before PLAY.
   audio.removeAttribute('crossorigin');
   audio.muted=false;
   audio.defaultMuted=false;
@@ -9454,7 +9453,7 @@ Vector ${vector}. ${pair[1]}.`;
     clearTimers();
     // The individual iPhone preview transport also needs its deadline
     // shortened; JS volume alone cannot fade a native iPhone MP3.
-    if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
+    if(state.live&&!radio2.active&&!window.GEGate?.isAuthorized?.()){
       const url=freshLiveStreamURL((grace+fade)/1000);
       if(url.includes('/listener-preview.mp3')){
         try{
@@ -9855,7 +9854,7 @@ gateTestBtn?.addEventListener('click',()=>{
   // A manual iPhone test must use the PERSONAL processed stream too.
   // Switch on this trusted tap (not later in a timer), preserving Safari's
   // audio gesture. Keep the separate 60ms visual reset for Gate animation.
-  if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
+  if(state.live&&!radio2.active&&!window.GEGate?.isAuthorized?.()){
     const speed=Math.max(.1,Number(GATE_CONFIG.sequenceSpeed)||1);
     const approach=(Number(GATE_CONFIG.blurLeadSeconds)+
       Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/speed;
@@ -9871,7 +9870,7 @@ gateTestBtn?.addEventListener('click',()=>{
     }
   }
   if(!window.GEListenerPreview?.available?.()){
-    setLiveStatus('GATE TEST · PRIVATE 2+10 AUDIO PROCESSOR NOT VERIFIED · music will hard-stop, but the reverb fade requires the backend deployment.',true);
+    setLiveStatus('GATE TEST · LISTENER FADE PROCESSOR v3 NOT VERIFIED. Personal stream required; the live fade is not confirmed.',true);
   }
   setTimeout(()=>window.GEGate?.trigger?.('manual-test'),60);
 });
@@ -9894,7 +9893,9 @@ gateTestBtn?.addEventListener('click',()=>{
   // Start the Radio connection IMMEDIATELY. Library scans and cache audits
   // must never prevent iPhone listeners from getting the live station.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  void requestRadioStart({deferPlay:qrArrival});
+  // Prepare a single native audio element without requesting the stream
+  // until an explicit listener PLAY. No autoplay, no early server countdown.
+  void requestRadioStart({deferPlay:true});
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
