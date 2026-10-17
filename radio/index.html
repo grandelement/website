@@ -3291,7 +3291,7 @@ const GATE_CONFIG = Object.freeze({
   // MASTER SEQUENCE SPEED
   sequenceSpeed: 1.5,
   // 33:33 guest listening: the visual entrance begins early enough that the
-  // centered access question + 11-second hold + 60-second fade end at 2013s.
+  // centered access question + 2-second hold + 10-second fade end at 2013s.
   // Once Gate begins, deadlines persist and do not reset when Safari locks,
   // background playback stalls, or the user returns to the Radio page.
   hardLimitSeconds: 2013,
@@ -3312,8 +3312,8 @@ const GATE_CONFIG = Object.freeze({
   waterBlurMaxPx: 6.5,
   waterSaturationMax: 1.08,
   entranceSeconds: 70,
-  graceSeconds: 11,
-  fadeSeconds: 60,
+  graceSeconds: 2,
+  fadeSeconds: 10,
   unlockSeconds: 6,
   // ACCESS
   password: 'love',
@@ -4502,7 +4502,10 @@ function markRadio1Attempt(){
 // JavaScript is suspended while the iPhone screen is locked.
 const GE_LISTENER_PREVIEW_URL='https://radio.grandelement.blitz.cloud/listener-preview.mp3';
 let geListenerPreviewReady=false;
-fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
+// The stream choice must not race an unanswered HEAD request at first boot.
+// Otherwise the visitor hears the ordinary unprocessed Radio 1 and never
+// receives the iPhone-compatible listener fade.
+const geListenerPreviewCheck=fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
   .then(r=>{geListenerPreviewReady=r.ok&&r.headers.get('X-GE-Listener-Preview')==='1';})
   .catch(()=>{geListenerPreviewReady=false;});
 window.GEListenerPreview={
@@ -4855,6 +4858,12 @@ async function resumeLiveAtEdge(){
 }
 async function enterLiveMode({deferPlay=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
+  // Await private-preview availability briefly before choosing the audio
+  // URL. This is essential on iOS: audio.volume is not a reliable fade.
+  if(!window.GEGate?.isAuthorized?.()){
+    await Promise.race([geListenerPreviewCheck,
+      new Promise(resolve=>setTimeout(resolve,1800))]);
+  }
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
     setStatus('RADIO requires an Internet connection.');
@@ -9223,7 +9232,7 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function applyManagedVolume(){
-    // This native MP3 feed has its own server-side 60s fade and reverb.
+    // Guest native MP3 feed carries the server-side 10s fade and reverb.
     // Changing audio.volume here is ineffective on iOS and causes double
     // attenuation on desktop browsers; do not interfere with that stream.
     if(window.GEListenerPreview?.active?.()){
@@ -9383,8 +9392,8 @@ Vector ${vector}. ${pair[1]}.`;
     const waves=Math.max(0,gateSeconds(GATE_CONFIG.waveLeadSeconds)||0)*1000;
     const entrance=Math.max(1,gateSeconds(GATE_CONFIG.entranceSeconds)||50)*1000;
     // AUDIO RULE: literal real seconds; visual sequenceSpeed does not shorten these.
-    const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||11)*1000;
-    const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||60)*1000;
+    const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||2)*1000;
+    const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
 
     gs.active=true;gs.expired=false;gs.offlinePurged=false;gs.pausedAt=0;
     gs.manualTest=reason==='manual-test';gs.reason=reason||'gate';gs.triggeredAt=now;
@@ -9417,8 +9426,8 @@ Vector ${vector}. ${pair[1]}.`;
   function skipGateSunEntrance(){
     if(!gs.active||gs.expired||authorized()||Date.now()>=Number(gs.centerAt||0))return;
     const now=Date.now();
-    const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||11)*1000;
-    const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||60)*1000;
+    const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||2)*1000;
+    const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
     gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
     // Skipping the entrance leaves the original fadeAt and expireAt
     // intact: the visitor's 33:33 timeline cannot restart.
