@@ -171,48 +171,73 @@ function selectFolder(kind){
   var tab=el(k==="draft"?"listDrafts":k==="final"?"listFinals":"listSessions");
   if(tab)tab.className=k===kind?"geSelectedTab":"";
  }
+ var allTab=el("listAll");if(allTab)allTab.className=kind==="all"?"geSelectedTab":"";
+ var note=el("geAllFilesLimit");if(note)note.style.display=kind==="all"?"block":"none";
 }
 function displayLibrary(kind){
- activeKind=kind;
- selectFolder(kind);
+ activeKind=kind;selectFolder(kind);
  var token=++listGeneration,area=el("musicLibrary");
- text("libraryTitle","GOOGLE DRIVE · GE Studios / "+nameOf(kind));
+ text("libraryTitle",kind==="all"?"ALL GE FILES · Available to this uploader":
+  "GOOGLE DRIVE · GE Studios / "+nameOf(kind));
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
  if(area)clear(area);
+ if(kind==="all"&&!allFilesAvailable){
+  text("libraryStatus","ALL GE FILES requires helper v4. Existing Drafts, Finals and Sessions still work.");
+  if(area){
+   var message=d.createElement("p");
+   message.textContent="Use COMPLETE GOOGLE DRIVE to see and download everything now. The optional v4 helper repair enables a list of app-created files here.";
+   area.appendChild(message);
+  }
+  return;
+ }
  var req=request("GET","/files?kind="+kind,null,function(err,data){
   if(token!==listGeneration)return;
   if(err){
    text("libraryStatus","COULD NOT LOAD "+nameOf(kind).toUpperCase()+" · "+linkError(err));
    if(area){
-    var p=d.createElement("p");p.textContent=
-     "Files have NOT been confirmed missing. Check the helper connection above and retry.";
+    var p=d.createElement("p");
+    p.textContent="Files have NOT been confirmed missing. Check the Drive connection and retry.";
     area.appendChild(p);
    }
    return;
   }
-  var files=data.files||[];
-  text("libraryStatus",files.length+" track"+(files.length===1?"":"s")+
-   " in "+nameOf(kind)+(data.has_more?" · Showing first 100":""));
+  var files=data.files||[],isAll=kind==="all";
+  text("libraryStatus",files.length+(isAll?" file":" track")+
+   (files.length===1?"":"s")+" in "+nameOf(kind)+
+   (data.has_more?" · Showing first 1,500":"")+
+   (isAll?" · App-accessible files only. Use COMPLETE GOOGLE DRIVE for everything else.":""));
   if(!area)return;
-  if(!files.length){var empty=d.createElement("p");
-   empty.textContent="No tracks found in GE Studios/"+nameOf(kind)+".";area.appendChild(empty);return}
+  if(!files.length){
+   var empty=d.createElement("p");
+   empty.textContent=isAll?"No app-created files found. See COMPLETE GOOGLE DRIVE for all others.":
+    "No tracks found in GE Studios/"+nameOf(kind)+".";
+   area.appendChild(empty);return;
+  }
   for(var i=0;i<files.length;i++)(function(item){
    var row=d.createElement("div");row.className="geMusicFileRow";
    var info=d.createElement("div");info.className="geMusicFileName";
    var title=d.createElement("strong");title.textContent=item.name||"(unnamed)";
    var meta=d.createElement("span");meta.className="geMusicMeta";
-   meta.textContent=fmtSize(item.bytes)+(item.modified?" · "+item.modified.substring(0,10):"");
+   var path=isAll&&item.path?String(item.path):"";
+   meta.textContent=(path?path+" · ":"")+fmtSize(item.bytes)+
+      (item.modified?" · "+item.modified.substring(0,10):"");
    info.appendChild(title);info.appendChild(meta);row.appendChild(info);
-   var del=d.createElement("button");del.type="button";del.className="geDeleteMusic";
-   del.textContent=deleteAvailable?"MOVE TO TRASH":"DELETE NEEDS HELPER v2";
-   del.disabled=!deleteAvailable||busy;
-   del.onclick=function(){moveToTrash(kind,item,del)};
-   row.appendChild(del);
+   if(!isAll){
+    var del=d.createElement("button");del.type="button";del.className="geDeleteMusic";
+    del.textContent=deleteAvailable?"MOVE TO TRASH":"DELETE NEEDS CONNECTED HELPER";
+    del.disabled=!deleteAvailable||busy;
+    del.onclick=function(){moveToTrash(kind,item,del)};
+    row.appendChild(del);
+   }
    if(item.id&&/^[A-Za-z0-9_-]{10,}$/.test(item.id)){
     var open=d.createElement("button");open.type="button";
     open.className="geDriveOpen";open.textContent="OPEN IN DRIVE";
     open.onclick=function(){w.open("https://drive.google.com/file/d/"+item.id+"/view","_blank")};
     row.appendChild(open);
+    var dl=d.createElement("button");dl.type="button";
+    dl.className="geDriveDownload";dl.textContent="DOWNLOAD";
+    dl.onclick=function(){w.open("https://drive.google.com/uc?export=download&id="+item.id,"_blank")};
+    row.appendChild(dl);
    }
    area.appendChild(row);
   })(files[i]);
