@@ -60,7 +60,7 @@ assert.equal(controller.getStatus().active,false);
 
 // Regression for natural Blue Sun: automatic scheduling MUST NOT create an
 // AudioContext or reroute the playing iPhone audio outside a user gesture.
-assert.equal(controller.scheduleFade(NOW+2000,NOW+12000),false);
+assert.equal(controller.scheduleGate(NOW+4000,NOW+11000,NOW+44000,1),false);
 assert.equal(instances,0,'automatic entrance must not hijack radio audio');
 assert.equal(controller.getStatus().contextState,'uninitialized');
 
@@ -73,24 +73,24 @@ assert.equal(controller.getStatus().reverb,true,'main player has audible reverb'
 assert.equal(instances,1);
 assert.equal(ctx.convolvers.length,1,'single-source room reverb created');
 assert.equal(ctx.gains.length,3,'wet, dry and shared master buses');
-assert.equal(controller.scheduleFade(NOW+2000,NOW+12000),true);
+assert.equal(controller.scheduleGate(NOW+4000,NOW+11000,NOW+44000,1),true);
 const master=ctx.gains[0].gain.events;
 const dry=ctx.gains[1].gain.events;
 const wet=ctx.gains[2].gain.events;
-assert.ok(master.some(e=>e[0]==='set'&&e[1]===1&&e[2]===102),
-  '2-second hold at full volume');
-assert.ok(master.some(e=>e[0]==='linear'&&e[1]===0&&e[2]===112),
-  '10-second fade ends in silence');
-assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===.55&&e[2]===109),
-  'room reverb swells during the fade');
-assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===.40&&e[2]===112),
-  'room reverb is upstream of final master silence');
-assert.ok(dry.some(e=>e[0]==='linear'&&e[1]===.78&&e[2]===112),
+assert.ok(master.some(e=>e[0]==='set'&&e[1]===1&&e[2]===111),
+  '11-second hold after centered Sun before fade');
+assert.ok(master.some(e=>e[0]==='linear'&&e[1]===0&&e[2]===144),
+  '33-second fade ends in silence');
+assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===0&&e[2]===104),
+  'room reverb begins at zero as water appears');
+assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===1&&e[2]===144),
+  'room reverb reaches maximum just as the shared master silences audio');
+assert.ok(dry.some(e=>e[0]==='linear'&&e[1]===.78&&e[2]===144),
   'dry signal slightly lowers while reverb rises');
 const n=master.length;
 controller.syncProgress(.25);
 assert.equal(master.length,n,'animation frames must not cancel the audio-clock fade');
-controller.scheduleFade(NOW-4000,NOW+6000);
+controller.scheduleGate(NOW-50000,NOW-4000,NOW+6000,1);
 assert.ok(master.some(e=>e[0]==='set'&&Math.abs(e[1]-.6)<.0001),
   'reconnecting within fade resumes with reduced gain');
 controller.stopAll();
@@ -101,7 +101,7 @@ assert.equal(other.muted,true);
 assert.equal(other.paused,true);
 controller.restore();
 assert.equal(controller.arm(),true);
-console.log('Natural Gate, wet/dry room effect, 2+10 fade and cutoff pass');
+console.log('Natural Gate, water-reverb ramp, 11+33 fade and cutoff pass');
 
 const homeSource=fs.readFileSync(new URL('../radio/ge-home-gate-stop.js',import.meta.url),'utf8');
 const homeAudio=media(),storage=new Map([
