@@ -1,7 +1,7 @@
 /* GE Studios - individual listener Gate fade + reverb. Never changes BLITZ. */
 (function(){
   'use strict';
-  const main=document.getElementById('player');
+  const main=document.getElementById('player')||document.getElementById('audio');
   if(!main)return;
   const AudioContextType=window.AudioContext||window.webkitAudioContext;
   let ctx=null,source=null,master=null,wet=null,dry=null,hasReverb=false;
@@ -29,7 +29,7 @@
   function applyExistingGate(){
     const gs=window.GEGate?.getState?.();
     if(gs?.active&&!gs.expired&&Number(gs.expireAt)>Date.now()){
-      scheduleFade(gs.fadeAt,gs.expireAt);
+      scheduleGate(gs.wavesAt,gs.fadeAt,gs.expireAt,window.GEGateSettings?.get?.().reverbMax??1);
     }
   }
 
@@ -94,13 +94,13 @@
   }
 
   function setImmediate(value){return stopAutomation(value);}
-  function scheduleFade(startEpoch,endEpoch){
-    const start=Number(startEpoch),end=Number(endEpoch),now=Date.now();
+  function scheduleGate(wavesEpoch,startEpoch,endEpoch,reverbMax=1){
+    const waves=Number(wavesEpoch),start=Number(startEpoch),end=Number(endEpoch),now=Date.now();
     if(!(end>start)||end<=now)return false;
     // No arm() here. An automatic Gate MUST NOT create or hijack the
     // player's media source, particularly on iPhone Safari.
     if(!ctx||!master||blocked)return false;
-    if(scheduled?.start===start&&scheduled?.end===end)return true;
+    if(scheduled?.start===start&&scheduled?.end===end&&scheduled.waves===waves&&scheduled.reverbMax===reverbMax)return true;
     const current=ctx.currentTime,span=end-start;
     const progress=clamp((now-start)/span);
     const level=1-progress;
@@ -114,14 +114,15 @@
 
     if(wet&&hasReverb){
       wet.gain.cancelScheduledValues(current);
-      // Reverb grows from nothing to a clearly audible room effect, but
-      // shares the exact same final master fade as the original music.
-      const wetAt=p=>p<=.7?.55*(p/.7):.55-(p-.7)*.50;
-      wet.gain.setValueAtTime(wetAt(progress),current);
-      if(start>now)wet.gain.setValueAtTime(0,fadeStart);
-      const peakAt=start+span*.7;
-      if(peakAt>now)wet.gain.linearRampToValueAtTime(.55,current+(peakAt-now)/1000);
-      wet.gain.linearRampToValueAtTime(.40,fadeEnd);
+      // Water starts the room reverb at zero. The wet/dry bus builds
+      // continuously until the very end of the Gate, including all 33s of
+      // the volume fade. Master fade follows BOTH buses, ending at zero.
+      const max=clamp(Number(reverbMax)/1.5)*1.5;
+      const wetDuration=Math.max(1,end-waves);
+      const wetProgress=clamp((now-waves)/wetDuration);
+      wet.gain.setValueAtTime(max*wetProgress,current);
+      if(now<waves)wet.gain.setValueAtTime(0,current+(waves-now)/1000);
+      wet.gain.linearRampToValueAtTime(max,fadeEnd);
     }
     if(dry){
       dry.gain.cancelScheduledValues(current);
@@ -129,9 +130,12 @@
       if(start>now)dry.gain.setValueAtTime(1,fadeStart);
       dry.gain.linearRampToValueAtTime(.78,fadeEnd);
     }
-    scheduled={start,end};
+    scheduled={waves,start,end,reverbMax};
     return true;
   }
+
+  // Compatibility for existing two-argument callers and developer tests.
+  function scheduleFade(start,end){return scheduleGate(start,start,end,1);}
 
   function syncProgress(value){
     // The Web Audio clock owns the full fade; never cancel it from an
@@ -167,7 +171,7 @@
   // Install only on trusted controls; the same graph plays Radio and songs.
   document.addEventListener('click',event=>{
     if(!event.isTrusted||blocked)return;
-    if(event.target?.closest?.('#playBtn,#liveBtn,#shipPlay,#shipStage [data-proxy="liveBtn"],#gateTestBtn,#shipGateTestBtn,#trackList,#geGate')){
+    if(event.target?.closest?.('#play,#songs,#playBtn,#liveBtn,#shipPlay,#shipStage [data-proxy="liveBtn"],#gateTestBtn,#shipGateTestBtn,#trackList,#geGate')){
       arm();
     }
   },true);
@@ -178,7 +182,7 @@
   },true);
 
   window.GEAudioGain={
-    arm,scheduleFade,syncProgress,setImmediate,resetReverb,stopAll,restore,
+    arm,scheduleGate,scheduleFade,syncProgress,setImmediate,resetReverb,stopAll,restore,
     getStatus:()=>({
       active:!!master,contextState:ctx?.state||'uninitialized',
       reverb:hasReverb,scheduled,lastError
