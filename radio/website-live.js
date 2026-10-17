@@ -71,7 +71,9 @@ function attempt(nonce){
  }catch(e){failed(nonce)}
 }
 function failed(nonce){
- if(nonce!==run||!wants||waitingGesture)return;
+ // 'error', play() rejection and watchdog can fire together in older Safari.
+ // Schedule at most one retry for each failed stream attempt.
+ if(nonce!==run||!wants||waitingGesture||retryTimer)return;
  clearPending();
  if(retries>=6){
   wants=false;mode='idle';try{audio.pause()}catch(e){}
