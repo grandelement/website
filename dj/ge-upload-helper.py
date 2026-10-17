@@ -247,8 +247,10 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 3, "delete_available": True,
-                                       "session_uploads": True,
+                                       "helper_version": 4, "delete_available": True,
+                                       "session_uploads": True, "all_app_files_available": True,
+                                       "all_app_files_scope": "drive.file (app-created files only)",
+                                       "trash_empty_requires_full_drive_scope": True,
                                        "auto_start_configured": os.path.isfile(os.path.expanduser("~/Library/LaunchAgents/com.grandelement.geuploads.plist")),
                                        "auto_repair_available": False,
                                        "drive_folders": ["Drafts", "Finals", "Sessions"]})
@@ -261,10 +263,19 @@ class Handler(BaseHTTPRequestHandler):
             if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
                 return self.response(503, {"ok": False, "error": "rclone configuration missing"})
             kind = parse_qs(target.query).get("kind", [""])[0]
-            if kind not in ("draft", "final", "session"):
+            if kind not in ("draft", "final", "session", "all"):
                 return self.response(400, {"ok": False, "error": "Invalid folder"})
-            folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
-            command = [RCLONE, "--config", CONFIG, "lsjson", "--files-only", REMOTE + "/" + folder]
+            if kind == "all":
+                # With this user's deliberately restricted drive.file OAuth
+                # authorization, this lists only app-created/app-opened files.
+                # It never impersonates a full My Drive listing.
+                folder = "all app-accessible Google Drive files"
+                command = [RCLONE, "--config", CONFIG, "lsjson", "-R",
+                           "--files-only", "GEStudios:"]
+            else:
+                folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
+                command = [RCLONE, "--config", CONFIG, "lsjson", "--files-only",
+                           REMOTE + "/" + folder]
             try:
                 p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 out, err = p.communicate()
@@ -277,10 +288,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self.response(502, {"ok": False, "error":
                         "Google Drive could not list " + folder + ". Verify Drive authorization in STATUS."})
                 items = json.loads(as_text(out))
-                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0),
-                          "id": i.get("ID", ""), "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
+                files = [{"name": i.get("Name", ""), "path": i.get("Path", i.get("Name", "")),
+                          "bytes": i.get("Size", 0), "id": i.get("ID", ""),
+                          "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
                 files.sort(key=lambda f: f.get("modified", ""), reverse=True)
-                return self.response(200, {"ok": True, "files": files[:1500], "has_more": len(files) > 1500})
+                return self.response(200, {"ok": True, "files": files[:1500],
+                                           "has_more": len(files) > 1500,
+                                           "scope": "app_created_files_only" if kind == "all" else "ge_studios_folder"})
             except Exception as ex:
                 return self.response(500, {"ok": False, "error": as_text(str(ex))[:200]})
         self.response(404, {"ok": False, "error": "Not found"})
