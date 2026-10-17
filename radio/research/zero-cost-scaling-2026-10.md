@@ -60,3 +60,57 @@ Status: **research and source verification**, not a capacity certification. The 
 7. Evaluate ownership/master/performance rights for all streamed recordings separately from server hosting. GE's own compositions do not automatically establish every collaborator's master or neighboring rights.
 
 **Decision pending:** No currently verified provider meets all four requirements at once: $0 forever; no ads; brand-owned embedded player; and thousands of guaranteed simultaneous LIVE stream listeners. Our next real milestone is one tested, provider-authorized free relay, not ten hypothetical account signups.
+
+
+## Combined zero-dollar systems: research update, October 16, 2026
+
+These are *combinations*, not claims that GE has already passed a load test. The cumulative goals are $0 ongoing, ad-free, GE-branded player, same BANGERS + LIVE audio, and an eventual capacity target of thousands to 100,000 simultaneous listeners.
+
+### Candidate A: BLITZ master + audio-only HLS + P2P browser swarm + volunteer nodes
+
+- BLITZ remains the single source of BANGERS and LIVE studio transitions, unchanged for current listeners.
+- Separate FFmpeg audio-only HLS encoder reads BLITZ once and writes numbered AAC segments at optional 128/96/64 kbps.
+- Open-source [Novage P2P Media Loader](https://github.com/Novage/p2p-media-loader) plus hls.js shares those segments over WebRTC among browsers on the Grand Element website, reducing demand on the origin.
+- The project's [official wiki has a live *audio-only* HLS example](https://github.com/Novage/p2p-media-loader/wiki#live-audio-stream-with-multiple-qualities). This establishes the feasibility of its input format, **not** a test of GE's listener capacity.
+- Its [FAQ](https://github.com/Novage/p2p-media-loader/blob/main/FAQ.md) says public WebTorrent trackers are for development and **must not be relied on in production**; a private tracker can be run with wt-tracker or Aquatic.
+- HLS segments must initially originate from normal HTTP(S). P2P does not eliminate the origin, and peers behind restricted networks may fail to connect.
+- Current v4 library documentation supports iOS Safari 17.1+, not legacy iPhone 5; browsers and background-audio behavior need tests. Older devices use native Icecast when the 40-client budget permits.
+- Viewer P2P sharing reveals IP addresses to other peers; disclose this and consider an opt-out. Participation cannot be assumed.
+- Volunteers may contribute outbound bandwidth and host relay/seed nodes free of charge to GE; those resources are not free to their owners.
+- Result: **Potential combined $0 GE bill, ad-free, native-player architecture.** Thousands and 100,000 concurrent listeners remain untested hypotheses. A reliable hard guarantee without stable donated capacity is not supported.
+
+### Candidate B: BLITZ + legitimate Oracle Always Free seed/tracker + P2P
+
+- [OCI Always Free](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm) offers up to **10 TB outbound transfer each month**, plus compute within exact free quotas. Current official equivalent is **2 Ampere A1 OCPU / 12 GB memory**, not 4 / 24.
+- Oracle's [signup guide](https://docs.oracle.com/en/learn/cloud_free_tier/) states most applicants need a **credit card** for verification. This excludes it for users who cannot supply a card unless a legitimate, authorized sponsor hosts it.
+- Ten TB translates to about 17.4 hours of 10,000 simultaneous 128-kbps listening, ignoring overhead; it is not unlimited monthly delivery. VM network capacity is independently constrained.
+- Result: plausible *secondary source/tracker* where legitimately available, but not guaranteed free 100,000 concurrency by itself.
+
+### Candidate C: BLITZ + geographically independent volunteer Icecast relays
+
+- [Official Icecast relay docs](https://icecast.org/docs/icecast-latest/relaying/) confirm multiple permitted hosts can each mirror the same one master broadcast; the master needs only one stream per relay.
+- GE player can select available relays, retaining the original station sound and LIVE mix.
+- Ten processes on a single laptop or broadband uplink do not create ten times its outbound bandwidth. These must be genuinely independent donated networks with permission and documented free terms.
+- Result: ad-free, 0 bill to GE is possible when nodes are donated; actual peak capacity is bounded by donor bandwidth, connection reliability and the host rules.
+
+### Candidate D: Combined A+B+C
+
+- P2P + donated seed nodes + permitted Icecast relays is the only researched approach where capacity could **partly grow with participant contributions**, rather than proportionally charging GE for every listener.
+- Maintain one BLITZ broadcast source, one GE interface, native fallbacks for devices without P2P, and measurable relay health.
+- Critical limitations: sufficient seed capacity at first listener join; production-grade signaling, WebRTC NAT/TURN barriers, volunteer reliability, mobile limitations, measured outage recovery, IP privacy and rights clearance.
+- No claim that 100,000 listeners will work until real testing demonstrates it.
+
+### Cloudflare free CDN restriction: important finding
+
+[Cloudflare Pages static requests](https://developers.cloudflare.com/pages/functions/pricing/) are advertised free and unlimited, **but** Cloudflare's [application/CDN service terms](https://www.cloudflare.com/service-specific-terms-application-services/) permit restrictions for websites delivering a disproportionate percentage of *audio or other large files* using its free CDN. Do not design a massive audio origin by assuming Pages or free CDN will serve unlimited live audio. Pages free asset size is [25 MiB](https://developers.cloudflare.com/pages/platform/limits/). [Workers Free](https://developers.cloudflare.com/workers/platform/limits/) is limited to 100,000 requests per day; avoid polling once per listener.
+
+### Verification gates: no modification to current public BLITZ
+
+1. Create **private test** for BLITZ read-only input to isolated FFmpeg audio-only HLS conversion. Verify the full BANGERS-to-LIVE fade and real buffering with two physical devices.
+2. Add browser P2P player in a nonpublic test page, using a *permitted* tracker and HLS origin. Test with 2, 5, 10 listeners and measure peer-vs-origin downloaded bytes, actually audible music, latency and failures.
+3. Test Safari iOS 17.1+, Firefox/Chrome desktop and native fallback to Icecast on older browsers. Validate IP/privacy notices.
+4. Add one voluntarily hosted, permitted relay. Test sudden peer dropouts; check that the existing BLITZ feed continues uninterrupted.
+5. Load-test 20, 40, 100, 400, then larger batches *only on owned/authorized infrastructure*. Measure source upstream Mbps, p95 startup, stalls, WebRTC success, peer contribution and costs. Do not run unapproved high-volume tests against free providers.
+6. Do not tell fans GE supports 4,000, 10,000 or 100,000 simultaneous LIVE listeners until it has been verified at scale.
+
+**Recommendation:** Explore the P2P-assisted *live audio* distribution plus volunteer relays first, without changing the public BLITZ feed or reintroducing Radio 2.
