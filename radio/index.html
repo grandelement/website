@@ -3229,7 +3229,7 @@ body.view-player:not(.iam-studio-open) footer{
 
 <script src="../ge-vault-client.js"></script>
 <script src="./iam-private-studio.js?v=20261014-fx-controls-1"></script>
-<script src="./ge-gate-audio.js?v=20261017-website-only-gate-1"></script>
+<script src="./ge-gate-audio.js?v=20261017-natural-reverb-2"></script>
 <script>
 'use strict';
 
@@ -6160,7 +6160,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-iam-vocal-editor-v13',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261017-natural-gate-reverb-2',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -9231,7 +9231,12 @@ Vector ${vector}. ${pair[1]}.`;
       ?Math.max(0,Math.min(1,(now-fadeStart)/(fadeEnd-fadeStart))):0;
     // A single Web Audio graph now handles audible Gate fade and reverb.
     window.GEAudioGain?.syncProgress?.(safe);
-    try{audio.volume=safe;}catch(_e){}
+    // The local master already fades the audible music AND reverb. Do not
+    // square the curve by also fading HTMLMediaElement.volume on desktop.
+    // Preserve the native volume fallback only when Web Audio is unavailable.
+    if(!window.GEAudioGain?.getStatus?.().active){
+      try{audio.volume=safe;}catch(_e){}
+    }
   }
 
   function gateSunOffscreenPx(){
