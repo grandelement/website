@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-listener MP3 preview: server-side iPhone-safe fade and rising reverb.
 
-Streams the normal BLITZ program untouched until the final 130 seconds;
+Streams normal BLITZ untouched until a short pre-roll before the final Gate fade;
 only the specific preview connection gets FFmpeg convolution reverb near its Gate.
 No changes to the shared mixer, playlist, or other listeners.
 """
@@ -17,8 +17,8 @@ import urllib.request
 HOST = '127.0.0.1'
 PORT = int(os.environ.get('GE_PREVIEW_PORT', '8091'))
 SOURCE = os.environ.get('GE_PREVIEW_SOURCE', 'http://127.0.0.1:8000/stream.mp3')
-FADE_SECONDS = 60.0
-PROCESS_BEFORE_FADE_SECONDS = 70.0
+FADE_SECONDS = 10.0
+PROCESS_BEFORE_FADE_SECONDS = 8.0
 MAX_SECONDS = 2013
 MAX_LISTENERS = 35
 MAX_FX = 3
@@ -73,7 +73,7 @@ def reverb_filter(remaining):
     """Two INVISIBLE listener-only faders: music dry down, real reverb up.
 
     Do not touch the broadcast mixer or HTMLAudioElement.volume (unreliable on
-    iPhone). Until the center/question + 11-second grace have passed, the
+    iPhone). Until the center/question + 2-second grace have passed, the
     unprocessed dry path stays at 100% and the reverb remains at zero.
     Both buses reach absolute silence at the listener's 33:33 deadline.
     """
@@ -228,7 +228,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     del pending[:size]
         return True
 
-    def send_processed(self, remaining):
+    def send_processed(self, remaining, absolute_deadline):
         if not FX.acquire(blocking=False):
             logging.warning('listener-preview: FX capacity reached; stopping this preview')
             return
@@ -245,9 +245,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 '-f', 'mp3', 'pipe:1',
             ]
             process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            deadline = time.monotonic() + remaining + 3.0
-            while time.monotonic() < deadline:
-                chunk = process.stdout.read(2048)
+            # HARD CUTOFF: a stalled encoder cannot keep the guest connection
+            # alive past the one listener's deadline. No +3 second overrun.
+            import select
+            while True:
+                seconds_left = absolute_deadline - time.monotonic()
+                if seconds_left <= 0:
+                    break
+                readable, _, _ = select.select([process.stdout], [], [], min(0.15, seconds_left))
+                if not readable:
+                    continue
+                chunk = os.read(process.stdout.fileno(), 2048)
                 if not chunk:
                     break
                 self.wfile.write(chunk)
@@ -271,7 +279,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         remaining = max(0.0, deadline - time.monotonic())
         if remaining > 0:
-            self.send_processed(remaining)
+            self.send_processed(remaining, deadline)
 
 
 class Server(http.server.ThreadingHTTPServer):
