@@ -1,0 +1,54 @@
+name: GE Gate live listener readiness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ge-gate-live-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify BLITZ serves the v3 processor, not just GitHub code
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 20 \
+            'https://radio.grandelement.blitz.cloud/listener-preview.mp3?check=1' \
+            --output /tmp/ge-gate-version.txt
+          cat /tmp/ge-gate-version.txt
+          grep -F 'GE GATE AUDIO v3:' /tmp/ge-gate-version.txt
+      - name: Download the actual 12-second live listener audio
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 \
+            'https://radio.grandelement.blitz.cloud/listener-preview.mp3?remaining=12' \
+            --output /tmp/ge-gate-live.mp3
+          test "$(wc -c < /tmp/ge-gate-live.mp3)" -gt 12000
+          echo "Received $(wc -c < /tmp/ge-gate-live.mp3) encoded MP3 bytes"
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Measure actual 10-second fade output
+        run: |
+          set -euo pipefail
+          ffmpeg -nostdin -hide_banner -loglevel error -i /tmp/ge-gate-live.mp3 \
+            -f f32le -ac 1 -ar 24000 /tmp/ge-gate-live.f32
+          python3 - <<'PY'
+          import array, math, pathlib
+          data=array.array('f')
+          data.frombytes(pathlib.Path('/tmp/ge-gate-live.f32').read_bytes())
+          hz=24000
+          def rms(start,end):
+              part=data[max(0,int(start*hz)):max(0,int(end*hz))]
+              return math.sqrt(sum(float(v)*float(v) for v in part)/max(1,len(part)))
+          length=len(data)/hz
+          first=rms(0.8,1.8)
+          last=rms(max(0,length-0.32),max(0,length-0.06))
+          print(f'Live encoded duration={length:.2f}s; before fade RMS={first:.8f}; last samples RMS={last:.8f}')
+          assert length>=10.5, 'Incomplete personal preview response'
+          assert first>0.0001, 'No source audio in the live preview'
+          assert last<first*0.08, 'Live server audio did not fade to near-silence'
+          PY
