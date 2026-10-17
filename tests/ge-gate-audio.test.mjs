@@ -62,3 +62,21 @@ assert.equal(controller.getStatus().active,true);
 controller.restore();
 assert.equal(controller.arm(),true);
 console.log('Website-only Gate audio scheduling/cutoff tests passed');
+
+
+const homeSource=fs.readFileSync(new URL('../radio/ge-home-gate-stop.js',import.meta.url),'utf8');
+const homeAudio=media();
+const storage=new Map([
+  ['GE_GATE_STATE_V5_3333',JSON.stringify({active:true,expired:true,expireAt:NOW-1})]
+]);
+const localStorage={getItem:key=>storage.get(key)||null};
+const homeDoc={
+  querySelectorAll:()=>[homeAudio],
+  addEventListener(){}
+};
+const homeWindow={addEventListener(){}};
+vm.runInNewContext(homeSource,{window:homeWindow,document:homeDoc,localStorage,
+  Date:Clock,setInterval(){}}, {filename:'ge-home-gate-stop.js'});
+assert.equal(homeAudio.paused,true,'expired visitor cannot play on homepage');
+assert.equal(homeAudio.muted,true,'expired visitor is silent on homepage');
+console.log('Expired Gate cutoff also enforced on homepage');
