@@ -4611,7 +4611,7 @@ function radio2PlayCurrent(){
     });}catch(_e){}
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
-    audio.autoplay=false;audio.preload='auto';audio.removeAttribute('crossorigin');
+    audio.autoplay=false;audio.preload='auto';audio.crossOrigin='anonymous';
     audio.muted=false;audio.defaultMuted=false;
     audio.src=url;
     audio.load();
@@ -4817,9 +4817,9 @@ async function resumeLiveAtEdge(){
     audio.removeAttribute('src');
     audio.load();
     liveState.internalReset=false;
-    // Mirror the working iPhone DJ's native MP3 playback: the external stream
-    // can be heard without asking the host for cross-origin audio read access.
-    audio.removeAttribute('crossorigin');
+    // Keep listener-side Web Audio connected across Radio 1 reconnects.
+    // The existing station stream supports cross-origin media requests.
+    audio.crossOrigin='anonymous';
     audio.autoplay=false;
     audio.preload='auto';
     audio.muted=false;
@@ -4878,11 +4878,11 @@ async function enterLiveMode({deferPlay=false}={}){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  // Prepare the live stream without requiring CORS or auto-start permissions.
+  // Prepare the live stream without autoplay; Gate uses CORS Web Audio.
   // A real user tap can then play exactly as it does in the DJ listener.
   audio.autoplay=false;
   audio.preload='auto';
-  audio.removeAttribute('crossorigin');
+  audio.crossOrigin='anonymous';
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
@@ -5054,7 +5054,7 @@ function reconnectLiveStream(){
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
-      audio.removeAttribute('crossorigin');
+      audio.crossOrigin='anonymous';
       audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
@@ -5267,7 +5267,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   try{
     // A single native audio element serves songs and Radio. The optional
     // WebAudio/Sun Lab diagnostic never takes ownership of the audible path.
-    audio.removeAttribute('crossorigin');
+    audio.crossOrigin='anonymous';
     audio.muted=false;
     audio.defaultMuted=false;
     audio.volume=desiredPlaybackVolume(url);
@@ -7826,9 +7826,8 @@ Vector ${vector}. ${pair[1]}.`;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
   // Non-invasive live analyser + Gate wet-effects bus.
-  // The ORIGINAL Radio <audio> stays on the native iOS media path.
-  // A separate, never-audible tap feeds the frequency analyser; it is
-  // deliberately NOT considered active unless nonzero music bins arrive.
+  // The listener's Radio <audio> handles Gate fade and reverb in one graph.
+  // The separate EQ analyser is never started by Gate entrance on iPhone.
   // A cross-origin stream must opt into CORS for Web Audio analysis. If
   // denied or iOS blocks the tap, native Radio and its volume fade survive.
   let eqTapFailure='',eqLastSignalAt=0,eqLastStatusAt=0,fxTapWanted=false;
@@ -9230,7 +9229,7 @@ Vector ${vector}. ${pair[1]}.`;
     const fadeStart=Number(gs.fadeAt)||0,fadeEnd=Number(gs.expireAt)||0;
     const now=Date.now(),progress=gs.active&&fadeStart&&fadeEnd>fadeStart
       ?Math.max(0,Math.min(1,(now-fadeStart)/(fadeEnd-fadeStart))):0;
-    window.GEGateFX?.setFadeProgress?.(progress);
+    // A single Web Audio graph now handles audible Gate fade and reverb.
     window.GEAudioGain?.syncProgress?.(safe);
     try{audio.volume=safe;}catch(_e){}
   }
@@ -9347,8 +9346,8 @@ Vector ${vector}. ${pair[1]}.`;
     const now=Date.now();
     if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
     applyVisualStage(now);
-    // Schedule the full ten-second ramp on the AUDIO clock. This does not
-    // require a JavaScript interval to advance the volume while locked.
+    // Schedule the fade on the already armed listener audio clock only.
+    // Do not reroute native audio during automatic Blue Sun animation.
     window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt);
 
     if(now<Number(gs.wavesAt||0))wavesTimer=setTimeout(()=>{gate.classList.add('waves');scheduleNextRipple(true);},Math.max(0,Number(gs.wavesAt)-Date.now()));
@@ -9393,8 +9392,8 @@ Vector ${vector}. ${pair[1]}.`;
     gs.fadeAt=gs.centerAt+grace;gs.expireAt=gs.fadeAt+fade;
     gs.baseVolume=Math.max(0.01,Math.min(1,Number(audio.volume)||1));
     save(true);
-    window.GEGateFX?.start?.();
-    void window.GEResumeLiveEQ?.();
+    // Natural Sun entrance must never create or start a second audio
+    // element/context without an iPhone user gesture.
     window.GEAudioGain?.setImmediate?.(1);
 
     gate.classList.remove('waves','sun-moving','centered','unlocking','wrong');
