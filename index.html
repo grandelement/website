@@ -3370,6 +3370,10 @@ body:not(.game-mode-active) .moon:not(.radio-live-reactive)::after{animation:geM
 .geBodyRaceFinishRing{stroke:#fff;stroke-dasharray:5 5;fill:rgba(80,205,255,.10)}
 .geBodyRaceSvgText{fill:#eefaff;font:900 12px/1 system-ui,sans-serif;letter-spacing:.14em;text-anchor:middle;paint-order:stroke;stroke:#001321;stroke-width:4px;stroke-linejoin:round}
 .geBodyRaceHUD{position:fixed;inset:0;z-index:40;pointer-events:none;color:#eefaff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.geBodyLiveOptions{position:fixed;z-index:23090;left:12px;right:12px;bottom:max(70px,env(safe-area-inset-bottom));margin:auto;max-width:380px;max-height:70vh;overflow:auto;display:grid;gap:9px;padding:15px;border:1px solid #8de4ff;border-radius:16px;background:#04162af5;pointer-events:auto;color:white}
+.geBodyLiveOptions[hidden]{display:none!important}.geBodyLiveOptions b{text-align:center}.geBodyLiveOptions label{display:grid;grid-template-columns:88px minmax(0,1fr) 42px;gap:7px;align-items:center;font-size:11px;font-weight:800}
+.geBodyLiveOptions input{width:100%;min-width:0}.geBodyLiveOptions output{font-size:10px;text-align:right}
+@media(max-width:480px){.geBodyTopRight{gap:2px}.geBodyTopRight .geBodyRaceBtn{padding:7px;font-size:10px}}
 .geBodyRaceTop{position:absolute;left:10px;right:10px;top:max(9px,env(safe-area-inset-top));display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}
 .geBodyRaceBtn{pointer-events:auto;appearance:none;border:1px solid rgba(150,220,255,.68);background:rgba(1,13,27,.86);color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;letter-spacing:.04em;min-height:40px}
 .geBodyRaceTitle{text-align:center;font-weight:1000;letter-spacing:.08em;text-shadow:0 0 12px #54bfff;font-size:clamp(13px,3.8vw,18px)}
@@ -3929,7 +3933,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
     <div class="geBodyRaceTop">
       <button id="geBodyRaceExit" class="geBodyRaceBtn" type="button">‹ GAMES</button>
       <div id="geBodyRaceTitle" class="geBodyRaceTitle">THE BODY · COURSE 1 / 33</div>
-      <div class="geBodyTopRight"><button id="geBodyMusic" class="geBodyRaceBtn" type="button">MUSIC</button><div id="geBodyRaceTimer" class="geBodyRaceTimer">0.00</div></div>
+      <div class="geBodyTopRight"><button id="geBodyOptionsButton" class="geBodyRaceBtn" type="button">OPTIONS</button><button id="geBodyMusic" class="geBodyRaceBtn" type="button">MUSIC</button><div id="geBodyRaceTimer" class="geBodyRaceTimer">0.00</div></div>
     </div>
     <div class="geBodyMetaStack">
       <button id="geBodyHighScores" class="geBodyHighScores" type="button">HIGH SCORES</button>
@@ -3941,7 +3945,13 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
       <div id="geBodyScoresList" class="geBodyScoresList"></div>
       <button id="geBodyScoresClose" class="geBodyRaceBtn geBodyScoresClose" type="button">CLOSE</button>
     </div>
-    <div id="geBodyRaceCountdown" class="geBodyRaceCountdown"></div>
+    <div id="geBodyLiveOptions" class="geBodyLiveOptions" hidden><b>THE BODY · OPTIONS</b>
+      <label>SHIP <input id="geBodyLiveShip" type="range" min="30" max="160" step="5"><output id="geBodyLiveShipValue"></output></label>
+      <label>PLANETS <input id="geBodyLivePlanet" type="range" min="40" max="160" step="5"><output id="geBodyLivePlanetValue"></output></label>
+      <label>SOULS <input id="geBodyLiveSoul" type="range" min="50" max="180" step="5"><output id="geBodyLiveSoulValue"></output></label>
+      <label>FINGER OFFSET <input id="geBodyLiveOffset" type="range" min="35" max="145" step="5"><output id="geBodyLiveOffsetValue"></output></label>
+      <button id="geBodyLiveClose" class="geBodyRaceBtn" type="button">RETURN TO COURSE</button>
+    </div><div id="geBodyRaceCountdown" class="geBodyRaceCountdown"></div>
     <div id="geBodyRaceMessage" class="geBodyRaceMessage">FOLLOW THE DOTTED PATH</div>
     <div class="geBodyRaceActions">
       <button id="geBodyRaceReplay" class="geBodyRaceBtn" type="button">REPLAY</button>
@@ -4304,7 +4314,10 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <div class="geSpecificOptions geBodySpecificOptions" id="geBodySpecificOptions">
           <div class="optionGroupTitle">THE BODY OPTIONS</div>
           <div class="optionGrid">
-            <label class="tuneRow"><span>Body size</span><input type="range" id="optBodySize" min="10" max="200" step="5" value="100"><small class="tuneValue" id="optBodySizeValue">100%</small></label>
+            <label class="tuneRow"><span>Ship size</span><input type="range" id="optBodySize" min="30" max="160" step="5" value="100"><small class="tuneValue" id="optBodySizeValue">100%</small></label>
+            <label class="tuneRow"><span>Planet size</span><input type="range" id="optBodyPlanetSize" min="40" max="160" step="5" value="100"><small class="tuneValue" id="optBodyPlanetSizeValue">100%</small></label>
+            <label class="tuneRow"><span>Soul size</span><input type="range" id="optBodySoulSize" min="50" max="180" step="5" value="100"><small class="tuneValue" id="optBodySoulSizeValue">100%</small></label>
+            <label class="tuneRow"><span>Finger offset</span><input type="range" id="optBodyTouchOffset" min="35" max="145" step="5" value="80"><small class="tuneValue" id="optBodyTouchOffsetValue">80 px</small></label>
             <label><span>Contacts before restart</span><select id="optBodyHits"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option></select></label>
           </div>
           <p class="small">100% is the normal website Body size. Steering, tap, broadcast, ray and quantum controls are the same as the normal universe. Planets are fixed course hazards.</p>
@@ -12269,12 +12282,55 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     }catch(err){console.error('GE Body planet restore recovered',err)}
   }
   const BODY_SIZE_KEY='GE_BODY_SIZE_PCT_V1',BODY_HITS_KEY='GE_BODY_HITS_V1';
+  const BODY_COURSE_PREFS='GE_BODY_COURSE_SIZES_V1';
+  let bodyPlanetPct=100,bodySoulPct=100,bodyTouchOffset=80,bodyRefreshNeeded=false;
+  try{const v=JSON.parse(localStorage.getItem(BODY_COURSE_PREFS)||'{}');
+    bodyPlanetPct=clamp(Number(v.planet)||100,40,160);bodySoulPct=clamp(Number(v.soul)||100,50,180);bodyTouchOffset=clamp(Number(v.offset)||80,35,145);
+  }catch(_e){}
+  window.GE_BODY_COURSE_FINGER_OFFSET=()=>bodyTouchOffset;
+  function setBodyCoursePref(kind,value){
+    value=Number(value);
+    if(kind==='ship')bodySizePct=clamp(value,30,160);
+    if(kind==='planet')bodyPlanetPct=clamp(value,40,160);
+    if(kind==='soul')bodySoulPct=clamp(value,50,180);
+    if(kind==='offset')bodyTouchOffset=clamp(value,35,145);
+    const current={ship:bodySizePct,planet:bodyPlanetPct,soul:bodySoulPct,offset:bodyTouchOffset};
+    try{localStorage.setItem(BODY_SIZE_KEY,String(bodySizePct));
+      localStorage.setItem(BODY_COURSE_PREFS,JSON.stringify(current));}catch(_e){}
+    const ids={ship:['optBodySize','geBodyLiveShip'],planet:['optBodyPlanetSize','geBodyLivePlanet'],soul:['optBodySoulSize','geBodyLiveSoul'],offset:['optBodyTouchOffset','geBodyLiveOffset']};
+    for(const id of ids[kind]){
+      const el=document.getElementById(id);if(el)el.value=String(current[kind]);
+      const o=document.getElementById(id+'Value');if(o)o.textContent=current[kind]+(kind==='offset'?' px':'%');
+    }
+    if(bodyRace?.body&&kind==='ship')bodyRace.body.s=(MOBILE?.16:.20)*(bodySizePct/100);
+    if(bodyRace&&kind==='soul')for(const c of bodyRace.bonuses||[]){if(c.geBodyBaseRadius)c.r=c.geBodyBaseRadius*bodySoulPct/100;}
+    if(bodyRace&&(kind==='ship'||kind==='planet'))bodyRefreshNeeded=true;
+  }
+  for(const [kind,ids] of Object.entries({ship:['optBodySize','geBodyLiveShip'],planet:['optBodyPlanetSize','geBodyLivePlanet'],soul:['optBodySoulSize','geBodyLiveSoul'],offset:['optBodyTouchOffset','geBodyLiveOffset']})){
+    ids.forEach(id=>document.getElementById(id)?.addEventListener('input',e=>setBodyCoursePref(kind,e.target.value)));
+  }
+  const bodyLiveOptions=document.getElementById('geBodyLiveOptions');
+  document.getElementById('geBodyOptionsButton')?.addEventListener('click',()=>{
+    if(!bodyRace)return;
+    for(const [key,v] of Object.entries({ship:bodySizePct,planet:bodyPlanetPct,soul:bodySoulPct,offset:bodyTouchOffset}))setBodyCoursePref(key,v);
+    bodyRace.settingsOpen=true;bodyRace.pausedAt=performance.now();
+    bodyRace.body.paused=true;bodyRace.body.controlActive=false;
+    bodyLiveOptions.hidden=false;
+  });
+  document.getElementById('geBodyLiveClose')?.addEventListener('click',()=>{
+    if(!bodyRace)return;
+    const pausedMs=performance.now()-(bodyRace.pausedAt||performance.now());
+    if(bodyRace.startedAt)bodyRace.startedAt+=pausedMs;
+    bodyRace.settingsOpen=false;bodyRace.pausedAt=0;bodyLiveOptions.hidden=true;
+    if(bodyRefreshNeeded){bodyRefreshNeeded=false;clearBodyRaceBonuses();renderBodyRace();}
+    else if(!document.body.classList.contains('ge-body-race-countdown')&&!bodyRace.finished)bodyRace.body.paused=false;
+  });
   const optBodySize=document.getElementById('optBodySize'),optBodySizeValue=document.getElementById('optBodySizeValue'),optBodyHits=document.getElementById('optBodyHits');
   let bodySizePct=100,bodyMaxHits=3,bodyRaceGameSnapshot=null;
   try{bodySizePct=Math.max(10,Math.min(200,Number(localStorage.getItem(BODY_SIZE_KEY))||100));bodyMaxHits=Math.max(1,Math.min(5,Number(localStorage.getItem(BODY_HITS_KEY))||3));}catch(_e){}
   if(optBodySize){optBodySize.value=String(bodySizePct);if(optBodySizeValue)optBodySizeValue.textContent=bodySizePct+'%';}
   if(optBodyHits)optBodyHits.value=String(bodyMaxHits);
-  optBodySize?.addEventListener('input',()=>{bodySizePct=Math.max(10,Math.min(200,Number(optBodySize.value)||100));if(optBodySizeValue)optBodySizeValue.textContent=bodySizePct+'%';try{localStorage.setItem(BODY_SIZE_KEY,String(bodySizePct))}catch(_e){}if(bodyRace?.body)bodyRace.body.s=(MOBILE?.16:.20)*(bodySizePct/100);});
+  setBodyCoursePref('ship',bodySizePct);setBodyCoursePref('planet',bodyPlanetPct);setBodyCoursePref('soul',bodySoulPct);setBodyCoursePref('offset',bodyTouchOffset);
   optBodyHits?.addEventListener('change',()=>{bodyMaxHits=Math.max(1,Math.min(5,Number(optBodyHits.value)||3));try{localStorage.setItem(BODY_HITS_KEY,String(bodyMaxHits))}catch(_e){}if(bodyRace)bodyRace.maxHits=bodyMaxHits;});
   function ensureBodyRaceBody(start,nextPoint){
     let s=(typeof ships!=='undefined'&&ships.find(x=>x&&!x.dead))||null;
@@ -12339,7 +12395,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
       const p=sampleBodyRoute(spec.points,fractions[i]),nx=-p.ty,ny=p.tx,side=((level+i)%2)?1:-1,offset=26+((level+i*7)%18),c=new Comet();
       c.x=clamp(p.x+nx*offset*side,20,innerWidth-20);c.y=clamp(p.y+ny*offset*side,112,innerHeight-135);
       c.geRaceHome={x:c.x,y:c.y};
-      c.vx=0;c.vy=0;c.r=Math.max(6,Math.min(9,c.r||8));c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;
+      c.vx=0;c.vy=0;c.geBodyBaseRadius=Math.max(6,Math.min(9,c.r||8));c.r=c.geBodyBaseRadius*bodySoulPct/100;c.depthLevel=8;c.depth='front';c.dragging=false;c.state='fly';c.dead=false;
       c.geRaceBonus=true;c.geRaceCollected=false;c.bodyInteractive=true;c.dragging=true;c.trail=[];comets.push(c);out.push(c);
     }
     return out;
@@ -12515,7 +12571,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function bodyRaceLoop(now){
     if(!bodyRace)return;const s=bodyRace.body;
-    if(bodyRace.startedAt&&!bodyRace.finished&&!bodyRace.failed){
+    if(bodyRace.startedAt&&!bodyRace.finished&&!bodyRace.failed&&!bodyRace.settingsOpen){
       bodyRaceTimer.textContent=((now-bodyRace.startedAt+bodyRace.penaltyMs)/1000).toFixed(2);
       const markers=bodyRace.spec.markers||[],nextP=markers[bodyRace.progress];
       if(nextP&&Math.hypot(s.x-nextP.x,s.y-nextP.y)<Math.max(bodyRace.spec.markerRadius||36,shipVisualRadius(s)*.78)){
@@ -12559,7 +12615,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function renderBodyRace(){
     const spec=bodyCourseSpec(level,innerWidth,innerHeight),s=ensureBodyRaceBody(spec.points[0],spec.points[1]);if(!s){bodyRaceMessage.textContent='THE BODY IS LOADING';return}
     placeBodyRacePlanets(spec,s);drawBodyRaceTrack(spec);const bonuses=spawnBodyRaceBonuses(spec);
-    bodyRace={spec,body:s,bonuses,progress:0,startedAt:0,penaltyMs:0,collected:0,hits:0,maxHits:bodyMaxHits,finished:false,failed:false,hitCooldown:0,hitFx:null,starFx:null,starCelebrated:false};
+    bodyRace={spec,body:s,bonuses,progress:0,startedAt:0,penaltyMs:0,collected:0,hits:0,maxHits:bodyMaxHits,finished:false,failed:false,hitCooldown:0,hitFx:null,starFx:null,starCelebrated:false,settingsOpen:false,pausedAt:0};
     syncBodySoulMeter();syncBodyRecord();document.getElementById('geBodyScoresPanel')?.setAttribute('hidden','');
     bodyRaceTitle.textContent='THE BODY · '+level+' / 33 · '+spec.name;bodyRaceTimer.textContent='0.00';bodyRaceMessage.textContent='FOLLOW BETWEEN THE PLANETS · 3 SOULS';bodyRaceNext.hidden=true;
     window.GEVault?.track?.('body_course_start',{level,course:spec.name,route_points:spec.complexity||spec.points.length});
@@ -12577,7 +12633,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();
     if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false;if(Number.isFinite(bodyRace.body.geRaceOriginalScale)){bodyRace.body.s=bodyRace.body.geRaceOriginalScale;delete bodyRace.body.geRaceOriginalScale}}
     const gs=window.GE_GAME?.state||null;if(gs&&bodyRaceGameSnapshot){gs.running=bodyRaceGameSnapshot.running;gs.gameType=bodyRaceGameSnapshot.gameType;}bodyRaceGameSnapshot=null;
-    bodyRace=null;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
+    bodyRace=null;if(bodyLiveOptions)bodyLiveOptions.hidden=true;document.body.classList.remove('ge-body-race-active','ge-body-race-countdown');bodyRaceTrack.hidden=true;bodyRaceHUD.hidden=true;bodyRaceHUD.setAttribute('aria-hidden','true');document.getElementById('gameOptionsPanel')?.classList.add('show');
   }
   function renderBody(){
     openBodyRace();
