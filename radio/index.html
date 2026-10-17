@@ -4515,7 +4515,7 @@ window.GEListenerPreview={
 };
 function freshLiveStreamURL(remainingOverride=null){
   const gs=window.GEGate?.getState?.();
-  const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
+  const isGuest=!window.GEGate?.isAuthorized?.();
   // Every guest stream MUST be processed per listener, even if the HEAD
   // version check is delayed or fails. Never silently play the dry broadcast.
   if(isGuest){
@@ -4525,12 +4525,12 @@ function freshLiveStreamURL(remainingOverride=null){
       :gs?.active&&gs?.expireAt
         ?(Number(gs.expireAt)-Date.now())/1000
         :limit-Math.max(0,Number(gs?.musicSeconds)||0);
-    if(remaining>0){
-      const target=new URL(GE_LISTENER_PREVIEW_URL);
-      target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
-      target.searchParams.set('_ge_live_edge',String(Date.now()));
-      return target.href;
-    }
+    // Even a just-expired guest must never fall through to the full
+    // unprocessed station. A one-second tail is the maximum possible retry.
+    const target=new URL(GE_LISTENER_PREVIEW_URL);
+    target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
+    target.searchParams.set('_ge_live_edge',String(Date.now()));
+    return target.href;
   }
   // Only authorized listeners may use the unprocessed shared Radio 1 URL.
   // Guest failures stay on the personal URL, never an un-faded fallback.
