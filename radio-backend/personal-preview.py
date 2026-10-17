@@ -29,6 +29,10 @@ def listener_fade_settings():
         with open(GATE_SETTINGS, encoding="utf-8") as stream:
             value = json.load(stream)
         fade = float(value.get("fade_seconds", FADE_SECONDS))
+        # A persisted stock 11/60 profile must never revive the old fade.
+        if (value.get("timing_version") != "gate-2s-10s-v2"
+                and value.get("fade_delay_seconds") == 11 and fade == 60):
+            fade = FADE_SECONDS
         reverb = float(value.get("reverb_level", 2.4))
         if not (10 <= fade <= 180 and 0 <= reverb <= 4):
             raise ValueError("Invalid gate settings")
