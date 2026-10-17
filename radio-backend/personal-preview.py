@@ -18,8 +18,8 @@ import urllib.request
 HOST = '127.0.0.1'
 PORT = int(os.environ.get('GE_PREVIEW_PORT', '8091'))
 SOURCE = os.environ.get('GE_PREVIEW_SOURCE', 'http://127.0.0.1:8000/stream.mp3')
-FADE_SECONDS = 60.0
-PROCESS_BEFORE_FADE_SECONDS = 70.0
+FADE_SECONDS = 10.0
+PROCESS_BEFORE_FADE_SECONDS = 8.0
 GATE_SETTINGS = os.environ.get("GE_GATE_SETTINGS_PATH", "/app/data/gate-settings.json")
 
 
@@ -89,7 +89,7 @@ def reverb_filter(remaining, fade_seconds=FADE_SECONDS, reverb_level=2.4):
     """Two INVISIBLE listener-only faders: music dry down, real reverb up.
 
     Do not touch the broadcast mixer or HTMLAudioElement.volume (unreliable on
-    iPhone). Until the center/question + 11-second grace have passed, the
+    iPhone). Until the center/question + 2-second grace have passed, the
     unprocessed dry path stays at 100% and the reverb remains at zero.
     Both buses reach absolute silence at the listener's 33:33 deadline.
     """
@@ -98,15 +98,16 @@ def reverb_filter(remaining, fade_seconds=FADE_SECONDS, reverb_level=2.4):
     done = max(0.0, fade_seconds - remaining)
     progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{fade_seconds:.4f}))'
     dry = f'pow(max(0,1-({progress})),1.55)'
-    # Editor setting 2.4 maps to calibrated FFmpeg wet gain 0.15. The
-    # reverb SEND rises until near the end instead of falling after mid-fade.
-    wet_level = 0.0625 * max(0.0, min(4.0, reverb_level))
-    wet = f'{wet_level:.5f}*pow(({progress}),1.25)*min(1,max(0,(1-({progress}))*35))'
+    # The Back Room adjusts the multi-reflection room bus; 2.4 -> 0.42.
+    # Wet/dry RATIO grows all ten seconds while combined loudness declines.
+    wet_level = 0.175 * max(0.0, min(4.0, reverb_level))
+    wet = f'{wet_level:.5f}*pow(({progress}),1.1)*pow(max(0,1-({progress})),1.10)'
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
         f"[dry]volume='{dry}':eval=frame[d];"
-        '[wet][1:a]afir=dry=1:wet=1:irnorm=0:irlink=0,'
+        '[wet]aecho=0.65:0.75:29|43|71|101|149|223:0.40|0.36|0.25|0.20|0.12|0.08,'
+        'aecho=0.75:0.55:17|23|31:0.20|0.18|0.14,'
         'highpass=f=140,lowpass=f=8200,'
         f"volume='{wet}':eval=frame[w];"
         '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
@@ -164,8 +165,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
-        self.send_header('Access-Control-Expose-Headers', 'X-GE-Listener-Preview')
+        self.send_header('Access-Control-Expose-Headers', 'X-GE-Listener-Preview, X-GE-Listener-Preview-Version')
         self.send_header('X-GE-Listener-Preview', '1')
+        self.send_header('X-GE-Listener-Preview-Version', 'gate-2s-10s-v2')
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Connection', 'close')
@@ -239,7 +241,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     del pending[:size]
         return True
 
-    def send_processed(self, remaining, fade_seconds, reverb_level):
+    def send_processed(self, remaining, fade_seconds, reverb_level, absolute_deadline):
         if not FX.acquire(blocking=False):
             logging.warning('listener-preview: FX capacity reached; stopping this preview')
             return
@@ -248,7 +250,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             args = [
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
                 '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
-                '-i', SOURCE, '-i', IR_PATH, '-t', f'{remaining:.3f}',
+                '-i', SOURCE, '-t', f'{remaining:.3f}',
                 '-filter_complex', reverb_filter(remaining, fade_seconds, reverb_level),
                 '-map', '[out]', '-vn', '-threads', '1',
                 '-c:a', 'libmp3lame', '-b:a', '128k',
@@ -256,9 +258,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 '-f', 'mp3', 'pipe:1',
             ]
             process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            deadline = time.monotonic() + remaining + 3.0
-            while time.monotonic() < deadline:
-                chunk = process.stdout.read(2048)
+            import select
+            while True:
+                left = absolute_deadline - time.monotonic()
+                if left <= 0:
+                    break
+                ready, _, _ = select.select([process.stdout], [], [], min(0.15, left))
+                if not ready:
+                    continue
+                chunk = os.read(process.stdout.fileno(), 2048)
                 if not chunk:
                     break
                 self.wfile.write(chunk)
@@ -283,7 +291,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         remaining = max(0.0, deadline - time.monotonic())
         if remaining > 0:
-            self.send_processed(remaining, fade_seconds, reverb_level)
+            self.send_processed(remaining, fade_seconds, reverb_level, deadline)
 
 
 class Server(http.server.ThreadingHTTPServer):
@@ -293,6 +301,5 @@ class Server(http.server.ThreadingHTTPServer):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
-    ensure_gate_impulse()
     logging.info('GE personal preview listening on %s:%d', HOST, PORT)
     Server((HOST, PORT), Handler).serve_forever(poll_interval=0.5)
