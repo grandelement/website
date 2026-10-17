@@ -1,0 +1,27 @@
+name: GE website-only Gate controller
+on:
+  pull_request:
+    paths:
+      - 'radio/ge-gate-audio.js'
+      - 'radio/index.html'
+      - 'tests/ge-gate-audio.test.mjs'
+      - '.github/workflows/ge-website-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-audio-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse website audio controller and player
+        run: |
+          node --check radio/ge-gate-audio.js
+          node .github/scripts/ge-site-qa.mjs
+      - name: Check scheduling and complete source cutoff
+        run: node tests/ge-gate-audio.test.mjs
