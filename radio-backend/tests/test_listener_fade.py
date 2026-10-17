@@ -25,14 +25,17 @@ def rms(values):
     return math.sqrt(sum(x * x for x in values) / max(1, len(values)))
 
 
-def test_encoded_fade(seconds):
+def test_encoded_fade(seconds, use_reverb=True):
+    mode = "rich reverb" if use_reverb else "capacity fallback"
     with tempfile.TemporaryDirectory() as tmp:
         output = str(pathlib.Path(tmp) / "personal.mp3")
         # Constant test tone allows actual output-gain measurements.
         run("ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i",
             "sine=frequency=440:sample_rate=48000:duration=" + str(seconds),
-            "-filter_complex", preview.reverb_filter(seconds), "-map", "[out]",
+            "-filter_complex", (preview.reverb_filter(seconds) if use_reverb
+                                else preview.lightweight_fade_filter(seconds)),
+            "-map", "[out]",
             "-c:a", "libmp3lame", "-b:a", "128k", "-y", output)
         pcm = run("ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
                   "-i", output, "-f", "f32le", "-ac", "1", "-ar", "48000", "-")
@@ -54,9 +57,10 @@ def test_encoded_fade(seconds):
         # Encoder-decoded samples must be near digital zero BEFORE cutoff.
         assert level(seconds - 0.1, 0.07) < reference * 0.005, (
             "Output still audible at deadline")
-        print(f"{seconds}s guest preview: encoded output fades to silence")
+        print(f"{seconds}s {mode}: encoded output fades to silence")
 
 
 if __name__ == "__main__":
     for seconds in (18, 12, 5):
-        test_encoded_fade(seconds)
+        for use_reverb in (True, False):
+            test_encoded_fade(seconds, use_reverb)
