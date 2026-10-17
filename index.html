@@ -2715,7 +2715,7 @@ body.autopilot-active #autopilotTrails{opacity:1}
 #autopilotSpirit{position:fixed;left:-90px;top:45%;width:32px;height:32px;border:0;padding:0;border-radius:50%;background:transparent;z-index:34;display:none;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 15px rgba(225,246,255,.95));}
 #autopilotSpirit::before{content:"";position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.88) 0 8%,rgba(220,244,255,.42) 30%,rgba(175,226,255,.14) 58%,rgba(255,255,255,0) 76%);filter:blur(3px);box-shadow:0 0 16px rgba(226,247,255,.85),0 0 34px rgba(118,202,255,.44);animation:geAutoSpiritPulse 2.7s ease-in-out infinite}
 #autopilotSpirit::after{content:"";position:absolute;inset:2px;border-radius:48% 52% 46% 54%;border:1px solid rgba(232,249,255,.25);filter:blur(2px);animation:geAutoSpiritDrift 4.8s linear infinite}
-.geAutoGameSpirit{position:fixed;left:-64px;top:50%;width:32px;height:32px;border-radius:50%;z-index:23050;pointer-events:none!important;user-select:none;filter:drop-shadow(0 0 14px rgba(135,216,255,.9))}
+.geAutoGameSpirit{position:fixed;left:-80px;top:50%;width:52px;height:52px;border:0;padding:0;background:transparent;border-radius:50%;z-index:23050;pointer-events:auto!important;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 14px rgba(135,216,255,.9))}
 .geAutoGameSpirit::before{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,rgba(217,247,255,.88) 25%,rgba(112,202,255,.48) 52%,transparent 79%);box-shadow:0 0 10px #eafaff,0 0 23px rgba(90,195,255,.84)}
 .geAutoGameSpirit::after{content:"";position:absolute;inset:-7px;border:1px solid rgba(210,245,255,.24);border-radius:50%;box-shadow:0 0 20px rgba(110,210,255,.38)}
 #autopilotSpirit{transition:transform .42s ease,filter .42s ease,opacity .8s ease}
@@ -11390,7 +11390,7 @@ const GE_GAME = (()=>{
   geLockDocumentScroll();
 
   updateHUD();
-  return {start:openNewGameSetup,openChooser:openNewGameSetup,activate:startGame,exit:confirmExitGame,state,registerThrow,finishThrow,reflow,sunCollision,planetContact,saveGameStateNow,notify:flash,newGame,blueSunPool:bluePool};
+  return {start:openNewGameSetup,openChooser:openNewGameSetup,activate:startGame,exit:confirmExitGame,exitConfirmed:exitGameConfirmed,state,registerThrow,finishThrow,reflow,sunCollision,planetContact,saveGameStateNow,notify:flash,newGame,blueSunPool:bluePool};
 })();
 window.GE_GAME=GE_GAME;
 try{
@@ -12843,23 +12843,52 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function showGameSpirit(){
     if(active||!gameActive()||document.hidden||gameFlyby)return;
-    const el=document.createElement('div');el.className='geAutoGameSpirit';el.setAttribute('aria-hidden','true');
-    el.style.top=(innerHeight*(.34+Math.random()*.28))+'px';
+    // Real accessible button, not a pointer-events:none decoration.
+    const el=document.createElement('button');el.type='button';el.className='geAutoGameSpirit';
+    el.setAttribute('aria-label','Open Autopilot from the game');
+    el.title='Autopilot · Tap to enter';
+    el.style.top=(innerHeight*(.30+Math.random()*.32))+'px';
     document.body.appendChild(el);gameFlyby=el;
-    const distance=innerWidth+140,goRight=Math.random()>.5;
-    if(!goRight){el.style.left=(innerWidth+60)+'px';}
-    const from=0,to=goRight?distance:-distance;
-    // Screen-width-independent gentle movement (~100px/sec) instead of
-    // racing across a wide desktop in the old fixed 6.2 seconds.
-    const durationMs=Math.max(12000,Math.round(distance/100*1000));
+    const distance=innerWidth+180,goRight=Math.random()>.5;
+    if(!goRight)el.style.left=(innerWidth+70)+'px';
+    const to=goRight?distance:-distance;
+    // Slow crossing (~38 px/sec), with a generous 52px interactive hit target.
+    const durationMs=Math.max(20000,Math.round(distance/38*1000));
+    let motion=null;
     const clear=()=>{el.remove();if(gameFlyby===el)gameFlyby=null;};
+    el.addEventListener('click',e=>{
+      e.preventDefault();e.stopPropagation();
+      motion?.pause?.();
+      // A game is not discarded just because someone tapped the passing spirit.
+      if(!window.confirm('Exit this game and open Autopilot? Your current game will end.')){
+        motion?.play?.();return;
+      }
+      clear();
+      // Close dedicated course layers using their own cleanup handlers.
+      for(const id of ['geCourseExit','geBodyRaceExit','geGravityExit','geFlightExit']){
+        const btn=document.getElementById(id);
+        if(btn){
+          const layer=id==='geCourseExit'?'geCourseMode':id==='geBodyRaceExit'?'geBodyRaceHUD':id==='geGravityExit'?'geGravityMode':'geFlightMode';
+          const host=document.getElementById(layer);
+          if(host?.classList.contains('show')||id==='geBodyRaceExit'&&document.body.classList.contains('ge-body-race-active'))btn.click();
+        }
+      }
+      // Confirmed by the user above; exitConfirmed performs the normal game cleanup.
+      window.GE_GAME?.exitConfirmed?.();
+      document.getElementById('gameOptionsPanel')?.classList.remove('show');
+      if(gameActive()){
+        // Never start Autopilot on top of a still-running, unclosed game layer.
+        window.alert('Close the current game before starting Autopilot.');return;
+      }
+      startAutopilot();
+    },{passive:false});
     if(typeof el.animate==='function'){
-      const motion=el.animate([{transform:'translateX('+from+'px)'},{transform:'translateX('+to+'px)'}],{duration:durationMs,easing:'ease-in-out',fill:'forwards'});
+      motion=el.animate([{transform:'translateX(0)'},{transform:'translateX('+to+'px)'}],{duration:durationMs,easing:'linear',fill:'forwards'});
       motion.finished.then(clear,clear);
     }else{
-      el.style.transition='transform '+(durationMs/1000)+'s ease-in-out';
+      el.style.transition='transform '+(durationMs/1000)+'s linear';
       requestAnimationFrame(()=>{el.style.transform='translateX('+to+'px)'});
-      setTimeout(clear,durationMs+300);
+      setTimeout(clear,durationMs+400);
     }
   }
   function visitCadence(){
@@ -12868,6 +12897,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(game!==lastVisitGame){
       lastVisitGame=game;
       if(game)hideSpirit();
+      else if(gameFlyby){gameFlyby.remove();gameFlyby=null;}
       nextVisitAt=now+(game?gameCadence():normalCadence());
       return;
     }
