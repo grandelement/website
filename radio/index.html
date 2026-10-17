@@ -9231,7 +9231,12 @@ Vector ${vector}. ${pair[1]}.`;
       ?Math.max(0,Math.min(1,(now-fadeStart)/(fadeEnd-fadeStart))):0;
     // A single Web Audio graph now handles audible Gate fade and reverb.
     window.GEAudioGain?.syncProgress?.(safe);
-    try{audio.volume=safe;}catch(_e){}
+    // The local master already fades the audible music AND reverb. Do not
+    // square the curve by also fading HTMLMediaElement.volume on desktop.
+    // Preserve the native volume fallback only when Web Audio is unavailable.
+    if(!window.GEAudioGain?.getStatus?.().active){
+      try{audio.volume=safe;}catch(_e){}
+    }
   }
 
   function gateSunOffscreenPx(){
