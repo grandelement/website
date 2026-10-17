@@ -96,10 +96,10 @@ allIn(store,['radio-monthly','$6.00 / month','myMusicCode','myMusicUnlock'],
 test(store.includes('Not connected') && store.includes('Preview only'),
   'Unverified payments remain disabled');
 
-allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 11','fadeSeconds: 60',
+allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 2','fadeSeconds: 10',
   "trigger('listening-3333')","reason==='listening-3333'",
   'function holdGateTimeline(){','function resumeGateTimeline(){'],
-  'Radio Gate: 11s after centered Sun then 60s fade, fixed deadline after lock');
+  'Radio Gate: 2s after centered Sun then 10s fade, fixed deadline after lock');
 test(!radio.includes('triggerTrack: 6,') && !radio.includes('hardLimitSeconds: 1800'),
   'Old sixth-song and 30-minute triggers removed');
 // Offline downloads require an explicit listener action and must not
