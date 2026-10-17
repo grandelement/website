@@ -4442,8 +4442,8 @@ function watchRadioConnection(){
   radioWatchTimer=setTimeout(()=>{
     if(token!==radioWatchId||(!state.live&&!state.livePreparing)||radio2.active||radio2.loading)return;
     if(observedRadio1Progress)return;
-    // readyState and the "playing" event can succeed without advancing
-    // audio on an iPhone. Try the backup if no forward playback was seen.
+    // A "playing" event alone is not audible progress. Retry the single
+    // BLITZ stream if its playback time does not advance.
     if(audio.paused||document.hidden||recentUserPause())return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     syncModeButtons();
@@ -4557,8 +4557,37 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 
-// RADIO 2 — listener-side, independent Bangers clock fallback.
-// Only this audio element plays. No admin token, second station, or DJ login.
+// Radio 2 is disabled on this public listener. Keep its old implementation
+// dormant for a reversible migration; make NO request to its Worker endpoint.
+// All listening stays with the existing BLITZ/Icecast source.
+const GE_RADIO2_DISABLED=true;
+let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
+function retryRadio1Only(reason){
+ if(!state.live&&!state.livePreparing)return Promise.resolve();
+ if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return Promise.resolve();
+ if(geRadio1RetryTimer)return Promise.resolve();
+ clearLiveReconnect();clearRadioWatch();
+ radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
+ if(geRadio1RetryAttempts>=3){
+  setLiveStatus('BLITZ RADIO BUSY OR UNAVAILABLE · RETRIES STOPPED. Tap RADIO to try again.');
+  setStatus('Radio 1 could not connect. No alternate station selected.');
+  return Promise.resolve();
+ }
+ geRadio1RetryAttempts++;
+ const delay=Math.min(30000,3500*Math.pow(2,geRadio1RetryAttempts-1));
+ setLiveStatus('BLITZ RADIO UNAVAILABLE · RETRY '+geRadio1RetryAttempts+'/3 IN '+Math.ceil(delay/1000)+'s');
+ geRadio1RetryTimer=setTimeout(function(){
+  geRadio1RetryTimer=0;
+  if(!state.live||window.GEIAmStudio?.isRadioSuspended?.())return;
+  radioTimedOut=false;radioReconnectFailures=0;
+  void resumeLiveAtEdge();
+ },delay);
+ return Promise.resolve();
+}
+function clearRadio1Retry(){
+ if(geRadio1RetryTimer){clearTimeout(geRadio1RetryTimer);geRadio1RetryTimer=0}
+ geRadio1RetryAttempts=0;
+}
 const RADIO2_PROGRAM='https://ge-radio-sync.grandelement.workers.dev/v1/program';
 const radio2={active:false,loading:false,program:null,offset:0,index:-1,url:'',title:'',attempt:0,run:0};
 function radio2Current(){
@@ -4636,6 +4665,7 @@ function radio2PlayCurrent(){
   }
 }
 async function switchToRadio2(reason='radio1_unavailable'){
+  if(GE_RADIO2_DISABLED)return retryRadio1Only(reason);
   if(radio2.loading||radio2.active||(!state.live&&!state.livePreparing))return;
   if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return;
   radio2.loading=true;const run=++radio2.run;
@@ -4689,6 +4719,9 @@ setInterval(()=>{
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
+  if(GE_RADIO2_DISABLED&&userGesture&&geRadio1RetryAttempts>=3){
+    clearRadio1Retry();radioTimedOut=false;radioReconnectFailures=0;
+  }
   // Prevent an expired guest from reconnecting around the server Gate stop.
   if(window.GEGate?.isExpiredLocked?.()){
     window.GEGate?.restore?.();
@@ -4726,8 +4759,8 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
       return resumeLiveAtEdge();
     return resumeRadio();
   })();
-  // A browser media promise can remain pending after a stream failure. Free
-  // the coordinator after the watchdog period; Radio2 failover remains active.
+  // The radio source remains BLITZ only; give failed connections a bounded
+  // retry window instead of starting a second station.
   let timeout=0;
   const limit=new Promise(resolve=>{timeout=setTimeout(resolve,12500);});
   const operation=Promise.race([work,limit]).catch(error=>{
@@ -4911,7 +4944,7 @@ async function enterLiveMode({deferPlay=false}={}){
 }
 function exitLiveMode(message='RADIO ended.'){
   if(!state.live&&!state.livePreparing)return;
-  resetRadio2();radioReconnectFailures=0;
+  clearRadio1Retry();resetRadio2();radioReconnectFailures=0;
   clearRadioWatch();
   clearLiveReconnect();
   state.live=false;
@@ -5632,6 +5665,7 @@ audio.addEventListener('timeupdate',()=>{
   if(Number.isFinite(lastRadio1Time)&&t>lastRadio1Time+.15){
     const first=!observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();
+    if(GE_RADIO2_DISABLED)clearRadio1Retry();
     if(first){
       clearRadioWatch();
       setLiveStatus('RADIO 1 · audio stream advancing');
