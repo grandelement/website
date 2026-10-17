@@ -13,6 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Diagnose the actual BLITZ routes without changing the station
+        run: |
+          for route in '/' '/healthz' '/listener-preview.mp3?check=1'; do
+            echo "Route: $route"
+            curl --silent --show-error --location --max-time 15 \
+              --output /tmp/ge-probe.txt --write-out 'HTTP=%{http_code} TYPE=%{content_type} ENDPOINT=%{url_effective}\n' \
+              "https://radio.grandelement.blitz.cloud$route" || true
+            head -c 160 /tmp/ge-probe.txt || true
+            echo
+          done
+          echo "Station stream HEAD (no media download):"
+          curl --head --silent --show-error --max-time 12 \
+            'https://radio.grandelement.blitz.cloud/stream.mp3' | head -n 15 || true
       - name: Verify BLITZ serves the v3 processor, not just GitHub code
         run: |
           set -euo pipefail
