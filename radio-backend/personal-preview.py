@@ -81,19 +81,26 @@ def reverb_filter(remaining):
     before = max(0.0, remaining - FADE_SECONDS)
     done = max(0.0, FADE_SECONDS - remaining)
     progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{FADE_SECONDS:.4f}))'
-    dry = f'1-({progress})'
-    # Relative reverb presence grows as music fades; the entire wet bus also
-    # tapers to absolute zero at the last instant, with no leftover echo.
-    wet = f'2.40*({progress})*pow(max(0,1-({progress})),0.85)'
+    # The dry song continuously falls toward zero. A steeper audible curve
+    # prevents the last section from sounding like a stuck volume slider.
+    dry = f'pow(max(0,1-({progress})),1.55)'
+    # Reverb SEND builds for ~97% of the fade while the dry music dies away.
+    # Its final ~3% tapers to zero, instead of peaking halfway through as the
+    # previous p*(1-p)^0.85 curve did. 0.15 compensates for the unnormalised
+    # IR so wet reverb cannot swamp the descending song.
+    wet = f'0.15*pow(({progress}),1.25)*min(1,max(0,(1-({progress}))*35))'
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
         f"[dry]volume='{dry}':eval=frame[d];"
-        '[wet][1:a]afir=dry=0:wet=1:irnorm=0:irlink=0,'
+        '[wet][1:a]afir=dry=1:wet=1:irnorm=0:irlink=0,'
         'highpass=f=140,lowpass=f=8200,'
         f"volume='{wet}':eval=frame[w];"
         '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
-        'alimiter=limit=0.95[out]'
+        # Exact digital silence BEFORE the deadline: volume eval=frame and
+        # MP3 frame buffering can otherwise leave tiny nonzero final samples.
+        f'alimiter=limit=0.95,afade=t=out:st={max(0,remaining-0.45):.4f}:'
+        f'd={min(0.25,max(0.05,remaining-0.16)):.4f}:curve=tri[out]'
     )
 
 
