@@ -15,7 +15,8 @@ spec.loader.exec_module(module)
 
 assert module.mp3_frame_size(bytes.fromhex('fffb9400')) == 384
 assert module.mp3_frame_size(b'BAD!') == 0
-assert 'aecho=' in module.reverb_filter(130)\nassert 'afade=t=out:st=120.0000:d=10.0000' in module.reverb_filter(130)
+assert 'aecho=' in module.reverb_filter(130)
+assert 'afade=t=out:st=120.0000:d=10.0000' in module.reverb_filter(130)
 assert 't+0.0000-120.0000' in module.reverb_filter(130)
 assert 't+5.0000-0.0000' in module.reverb_filter(5)
 
