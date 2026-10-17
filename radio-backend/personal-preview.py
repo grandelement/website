@@ -106,6 +106,28 @@ def reverb_filter(remaining):
         f'afade=t=out:st={final_start:.4f}:d={final_duration:.4f}:curve=tri[out]'
     )
 
+
+def lightweight_fade_filter(remaining):
+    """CPU-light, listener-only fade when the optional reverb pool is busy.
+
+    This is NOT the shared radio mixer. A fourth (and subsequent) listener
+    still receives the complete encoded 10s fade, without optional reverb.
+    """
+    remaining = max(0.1, min(float(remaining), MAX_SECONDS))
+    before = max(0.0, remaining - FADE_SECONDS)
+    if remaining >= FADE_SECONDS:
+        master = f'afade=t=out:st={before:.4f}:d={FADE_SECONDS:.4f}:curve=tri'
+    else:
+        master = f"volume='max(0,min(1,({remaining:.4f}-t)/{FADE_SECONDS:.4f}))':eval=frame"
+    last_start = max(0.0, remaining - 0.30)
+    last_duration = min(0.20, max(0.05, remaining - last_start - 0.04))
+    return (
+        '[0:a]asetpts=PTS-STARTPTS,aresample=24000,'
+        'aformat=sample_fmts=fltp:channel_layouts=mono,'
+        f'{master},'
+        f'afade=t=out:st={last_start:.4f}:d={last_duration:.4f}:curve=tri[out]'
+    )
+
 def mp3_frame_size(head):
     """Keep MP3 frames intact when crossing from passthrough to re-encoding."""
     if len(head) < 4 or head[0] != 0xFF or (head[1] & 0xE0) != 0xE0:
@@ -247,18 +269,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def send_processed(self, remaining, absolute_deadline):
-        if not FX.acquire(blocking=False):
-            logging.warning('listener-preview: FX capacity reached; stopping this preview')
-            return
+        rich_fx = FX.acquire(blocking=False)
+        if not rich_fx:
+            logging.warning('listener-preview: reverb capacity busy; using lighter individual fade')
         process = None
         try:
+            filtergraph = reverb_filter(remaining) if rich_fx else lightweight_fade_filter(remaining)
             args = [
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
                 '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
                 '-i', SOURCE, '-t', f'{remaining:.3f}',
-                '-filter_complex', reverb_filter(remaining),
+                '-filter_complex', filtergraph,
                 '-map', '[out]', '-vn', '-threads', '1',
-                '-c:a', 'libmp3lame', '-b:a', '128k',
+                '-c:a', 'libmp3lame', '-b:a', '128k' if rich_fx else '64k',
                 '-write_xing', '0', '-id3v2_version', '0', '-write_id3v1', '0',
                 '-f', 'mp3', 'pipe:1',
             ]
@@ -288,7 +311,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     process.wait(timeout=3)
                 if process.stdout:
                     process.stdout.close()
-            FX.release()
+            if rich_fx:
+                FX.release()
 
     def stream_for(self, remaining):
         deadline = time.monotonic() + remaining
