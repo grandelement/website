@@ -185,6 +185,22 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="grid3"><div class="check"><input id="gamePoints" type="checkbox"><span>POINTS</span></div><div class="check"><input id="gamePockets" type="checkbox"><span>POCKETS</span></div><div class="check"><input id="gamePlanets" type="checkbox"><span>PLANETS</span></div></div>
 </section>
 
+<section id="radioGateTimingSection">
+  <h2>INNER FREQUENCY GATE · TIMING & REVERB</h2>
+  <p>Controls both the Radio Gate and the 33:33 song-preview Gate. After the Sun reaches the center, wait the Hold time, then fade to complete silence. Reverb grows from the first water waves all the way to the final cutoff. SAVE keeps a draft; PUBLISH LIVE applies these settings to new listening sessions.</p>
+  <div class="grid3">
+    <label><span>Blur before water (seconds)</span><input id="gateBlurLeadSeconds" type="number" inputmode="decimal" min="0" max="30" step="1" value="6"></label>
+    <label><span>Water before Sun moves (base seconds)</span><input id="gateWaveLeadSeconds" type="number" inputmode="decimal" min="0" max="45" step="1" value="10"></label>
+    <label><span>Sun entrance (base seconds)</span><input id="gateEntranceSeconds" type="number" inputmode="decimal" min="8" max="180" step="1" value="70"></label>
+    <label><span>Visual speed (1 = normal)</span><input id="gateSequenceSpeed" type="number" inputmode="decimal" min="0.5" max="3" step="0.1" value="1.5"></label>
+    <label><span>Hold after Sun centers (seconds)</span><input id="gateGraceSeconds" type="number" inputmode="decimal" min="0" max="90" step="1" value="11"></label>
+    <label><span>Volume fade to silence (seconds)</span><input id="gateFadeSeconds" type="number" inputmode="decimal" min="5" max="120" step="1" value="33"></label>
+    <label><span>Maximum reverb wet level (%)</span><input id="gateReverbMax" type="number" inputmode="decimal" min="0" max="150" step="5" value="100"></label>
+  </div>
+  <p id="gateTimingSummary" aria-live="polite">The Gate still ends at the 33:33 listening limit.</p>
+  <div class="actions"><a href="../radio/" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST RADIO GATE →</a><a href="../radio/preview-lab.html" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST MUSIC GATE →</a></div>
+</section>
+
 <section>
   <h2>WEBSITE STARTUP MUSIC</h2>
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
@@ -247,6 +263,31 @@ const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
 const PRESET_KEY='GE_BACKROOM_PRESETS_V1';
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
 const TEMP_PASS_HASH='cf3a76e30fcd7881e9202fda7785106684ea54abad2470dba3dd716ff3a7ab63';
+const gateFields={
+ sequenceSpeed:['gateSequenceSpeed',.5,3,1.5],
+ blurLeadSeconds:['gateBlurLeadSeconds',0,30,6],
+ waveLeadSeconds:['gateWaveLeadSeconds',0,45,10],
+ entranceSeconds:['gateEntranceSeconds',8,180,70],
+ graceSeconds:['gateGraceSeconds',0,90,11],
+ fadeSeconds:['gateFadeSeconds',5,120,33],
+ reverbMax:['gateReverbMax',0,1.5,1]
+};
+function readGateFields(){
+ const out={};
+ for(const [key,[id,min,max,fallback]] of Object.entries(gateFields)){
+   const raw=Number($(id)?.value);
+   const actual=key==='reverbMax'?raw/100:raw;
+   out[key]=Number.isFinite(actual)?Math.max(min,Math.min(max,actual)):fallback;
+ }
+ return out;
+}
+function renderGateTimingSummary(){
+ const t=readGateFields(),speed=t.sequenceSpeed;
+ const visual=(t.blurLeadSeconds+t.waveLeadSeconds+t.entranceSeconds)/speed;
+ const waterToSilence=(t.waveLeadSeconds+t.entranceSeconds)/speed+t.graceSeconds+t.fadeSeconds;
+ const summary=$('gateTimingSummary');
+ if(summary)summary.textContent='Full Gate: '+visual.toFixed(1)+'s approach + '+t.graceSeconds+'s centered hold + '+t.fadeSeconds+'s fade. Reverb rises over '+waterToSilence.toFixed(1)+'s from water to silence. The 33:33 listening cutoff remains fixed.';
+}
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -534,6 +575,15 @@ function populate(){
   {const rawAbout=cfg.about?.html||(introArrayToHtml(cfg.about?.intro||[]));const shownAbout=Number(cfg.about?.richTextVersion)>=2?rawAbout:migrateLegacyAboutHtml(rawAbout);$('aboutIntro').innerHTML=cleanAboutHtml(shownAbout)}field('aboutOpacity',cfg.visual.about.panelOpacity);$('aboutOpacityValue').textContent=cfg.visual.about.panelOpacity+'%';
   field('planetLayout',cfg.albums.layout);numberIds.forEach(id=>field(id,cfg.easySettings?.[id]??''));
   checked('gamePoints',cfg.games?.points!==false);checked('gamePockets',cfg.games?.pockets!==false);checked('gamePlanets',cfg.games?.planets!==false);
+  {
+    const gate=cfg.gateTiming||{};
+    for(const [key,[id,,,fallback]] of Object.entries(gateFields)){
+      const raw=Number(gate[key]);
+      const value=Number.isFinite(raw)?raw:fallback;
+      field(id,key==='reverbMax'?Math.round(value*100):value);
+    }
+    renderGateTimingSummary();
+  }
   checked('noStartupMusic',cfg.music?.startupEnabled===false);
   renderAlbums();loadSouls();dirty=false;setStatus('READY');
 }
@@ -554,6 +604,7 @@ function collect(){
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
   cfg.games={points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked};
+  cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
   const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
@@ -576,6 +627,9 @@ $('aboutClearFormat').addEventListener('click',()=>{
 $('aboutIntro').addEventListener('input',mark);
 $('aboutIntro').addEventListener('paste',()=>setTimeout(()=>{$('aboutIntro').innerHTML=cleanAboutHtml($('aboutIntro').innerHTML);mark()},0));
 $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textContent=$('welcomeOpacity').value+'%';mark()});$('aboutOpacity').addEventListener('input',()=>{$('aboutOpacityValue').textContent=$('aboutOpacity').value+'%';mark()});
+for(const [,[id]] of Object.entries(gateFields)){
+ $(id)?.addEventListener('input',renderGateTimingSummary);
+}
 document.querySelectorAll('main input,main textarea,main select').forEach(e=>{if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark)});
 $('planetLayout').addEventListener('change',()=>{
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value||'random';mark();

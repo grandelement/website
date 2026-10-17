@@ -29,7 +29,7 @@ assert 'start_preview()' in shell
 assert 'GE_LISTENER_PREVIEW_URL' in radio
 assert 'GEListenerPreview' in radio
 assert 'ge-gate-audio.js' in radio
-assert 'window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt)' in radio
+assert 'window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)' in radio
 assert 'window.GEAudioGain?.stopAll?.()' in radio
 assert "function freshLiveStreamURL()" in radio
 assert "const geListenerPreviewCheck=Promise.resolve(false)" in radio

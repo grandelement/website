@@ -96,10 +96,10 @@ allIn(store,['radio-monthly','$6.00 / month','myMusicCode','myMusicUnlock'],
 test(store.includes('Not connected') && store.includes('Preview only'),
   'Unverified payments remain disabled');
 
-allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 2','fadeSeconds: 10',
+allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 11','fadeSeconds: 33',
   "trigger('listening-3333')","reason==='listening-3333'",
   'function holdGateTimeline(){','function resumeGateTimeline(){'],
-  'Radio Gate: 2s after centered Sun then 10s fade, fixed deadline after lock');
+  'Radio Gate: 11s after centered Sun then 33s fade, fixed deadline after lock');
 test(!radio.includes('triggerTrack: 6,') && !radio.includes('hardLimitSeconds: 1800'),
   'Old sixth-song and 30-minute triggers removed');
 // Offline downloads require an explicit listener action and must not
@@ -240,10 +240,10 @@ test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) 
   gateFxSource.includes("fxFilter.type='lowpass'") &&
   gateFxSource.includes('fxWet.gain.setTargetAtTime(wet,now,.10)') &&
   radio.includes('window.GEAudioGain?.syncProgress?.(safe)') &&
-  radio.includes('window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt)') &&
+  radio.includes('window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)') &&
   !radio.includes("audio.removeAttribute('crossorigin')") &&
   radio.includes("audio.crossOrigin='anonymous'"),
-  'Single-source Gate audio reverb, native iPhone audio preparation and 10-second fade remain');
+  'Single-source Gate audio, water-to-cutoff reverb and configurable 33-second fade remain');
 
 test(!radio.includes("if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}") ||
  radio.includes("location.assign('../support/?section=radio&flow=shop');"),
@@ -257,7 +257,7 @@ const preview=load('radio/preview-lab.html');
 const archivedMerchPreview=load('radio/preview-merch-legacy.html');
 test(preview.includes("LEGACY_MERCH_PREVIEW_BUILDER_ENABLED=false") &&
   preview.includes('AUDIO_LIMIT_SECONDS=2013') &&
-  preview.includes('GRACE_SECONDS=11,FADE_SECONDS=60') &&
+  preview.includes('GRACE_SECONDS=t.graceSeconds;FADE_SECONDS=t.fadeSeconds') &&
   preview.includes('GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS') &&
   preview.includes('if(data.used>=AUDIO_LIMIT_SECONDS)expireGate()') &&
   preview.includes('audio.addEventListener(\'timeupdate\',syncListening)') &&
@@ -373,8 +373,20 @@ test(radio.includes("buttons.prev.addEventListener('click'") &&
      radio.includes("$('liveBtn').addEventListener('click'") &&
      radio.includes("$('shareBtn').addEventListener('click'"),
      'Visible music and background buttons retain click handlers');
+const gateBackroom=load('backroom/index.html');
+const gateSettings=load('radio/ge-gate-settings.js');
+test(gateBackroom.includes('id="gateGraceSeconds"') &&
+     gateBackroom.includes('id="gateFadeSeconds"') &&
+     gateBackroom.includes('id="gateReverbMax"') &&
+     gateBackroom.includes('cfg.gateTiming=readGateFields()') &&
+     gateSettings.includes("fetch('../config/site-live.json'") &&
+     radio.includes('window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)') &&
+     preview.includes('schedulePreviewGateAudio()') &&
+     preview.includes('ge-gate-settings.js'),
+     'Back Room publishes editable Gate hold/fade/reverb to Radio and music-preview player');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.17-natural-gate-reverb-v2'") &&
+test(refreshedRadioWorker.includes("const VERSION='2026.10.17-backroom-gate-11-33-v3'") &&
+     refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
      'New radio shell cache loads updated layout without deleting offline downloads');
@@ -395,7 +407,7 @@ test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!
      radio.includes('position:fixed;'),
      'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
 test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
-     load('radio/sw.js').includes("2026.10.17-natural-gate-reverb-v2") &&
+     load('radio/sw.js').includes("2026.10.17-backroom-gate-11-33-v3") &&
      load('radio/sw.js').includes("ge-radio-media-v4"),
      'Home and Radio refresh app shell without deleting downloaded music');
 test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request') &&

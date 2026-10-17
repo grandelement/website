@@ -3229,7 +3229,8 @@ body.view-player:not(.iam-studio-open) footer{
 
 <script src="../ge-vault-client.js"></script>
 <script src="./iam-private-studio.js?v=20261014-fx-controls-1"></script>
-<script src="./ge-gate-audio.js?v=20261017-natural-reverb-2"></script>
+<script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
+<script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
 <script>
 'use strict';
 
@@ -3286,13 +3287,13 @@ const CONFIG = Object.freeze({
 // sequenceSpeed: 1.0 = original, 1.5 = 50% faster, 2.0 = twice as fast.
 // Trigger/listening-limit values remain real listening time.
 // ================================================================
-const GATE_CONFIG = Object.freeze({
+const GATE_CONFIG = {
   enabled: true,
 
   // MASTER SEQUENCE SPEED
   sequenceSpeed: 1.5,
   // 33:33 guest listening: the visual entrance begins early enough that the
-  // centered access question + 2-second hold + 10-second fade end at 2013s.
+  // centered access question + 11-second hold + 33-second fade end at 2013s.
   // Once Gate begins, deadlines persist and do not reset when Safari locks,
   // background playback stalls, or the user returns to the Radio page.
   hardLimitSeconds: 2013,
@@ -3313,8 +3314,9 @@ const GATE_CONFIG = Object.freeze({
   waterBlurMaxPx: 6.5,
   waterSaturationMax: 1.08,
   entranceSeconds: 70,
-  graceSeconds: 2,
-  fadeSeconds: 10,
+  graceSeconds: 11,
+  fadeSeconds: 33,
+  reverbMax: 1,
   unlockSeconds: 6,
   // ACCESS
   password: 'love',
@@ -3325,7 +3327,14 @@ const GATE_CONFIG = Object.freeze({
   helpEmail: 'access@grandelement.com',
   helpSubject: 'Grand Element Access Request',
   accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
-});
+};
+// Back Room PUBLISH LIVE controls these Gate times, without changing BLITZ.
+function usePublishedGateTiming(){
+  const values=window.GEGateSettings?.get?.();
+  if(values)Object.assign(GATE_CONFIG,values);
+}
+usePublishedGateTiming();
+window.addEventListener('ge-gate-settings-ready',usePublishedGateTiming);
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
@@ -6160,7 +6169,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261017-natural-gate-reverb-2',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261017-backroom-gate-11-33-v3',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -9095,8 +9104,8 @@ Vector ${vector}. ${pair[1]}.`;
    website. Authorization and timing survive refreshes. */
 (function createInnerGate(){
   if(!GATE_CONFIG.enabled)return;
-  const gateSpeed=Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
-  const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed;
+  const gateSpeed=()=>Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
+  const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed();
 
   const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),
         enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
@@ -9118,10 +9127,13 @@ Vector ${vector}. ${pair[1]}.`;
       // Existing listeners may have an active 60-second Gate persisted from
       // before the 2+10 change. Migrate its finish time to the Blue Sun's
       // center + 12 seconds; a reload must not restore the old minute.
+      // Preserve in-progress 2+10 Gates; never extend a running listening
+      // allowance merely because the owner publishes new durations.
+      // Only migrate obsolete >59-second persisted fades.
       if(saved.active&&!saved.expired&&Number(saved.centerAt)>0&&
-         Number(saved.expireAt)-Number(saved.fadeAt)>11000){
-        saved.fadeAt=Number(saved.centerAt)+2000;
-        saved.expireAt=saved.fadeAt+10000;
+         Number(saved.expireAt)-Number(saved.fadeAt)>59000){
+        saved.fadeAt=Number(saved.centerAt)+11000;
+        saved.expireAt=saved.fadeAt+33000;
       }
       return saved;
     }catch(_e){return emptyState();}
@@ -9353,7 +9365,7 @@ Vector ${vector}. ${pair[1]}.`;
     applyVisualStage(now);
     // Schedule the fade on the already armed listener audio clock only.
     // Do not reroute native audio during automatic Blue Sun animation.
-    window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt);
+    window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax);
 
     if(now<Number(gs.wavesAt||0))wavesTimer=setTimeout(()=>{gate.classList.add('waves');scheduleNextRipple(true);},Math.max(0,Number(gs.wavesAt)-Date.now()));
     if(now<Number(gs.sunAt||0))sunTimer=setTimeout(()=>{gate.classList.add('sun-moving');positionSun();},Math.max(0,Number(gs.sunAt)-Date.now()));
@@ -9378,7 +9390,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(authorized()||gs.active||gs.expired)return;
     // Offset scheduler latency so its end time corresponds to 2013s listened.
     const approachSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
     const scheduledStart=Number(GATE_CONFIG.hardLimitSeconds)-
       approachSeconds-Number(GATE_CONFIG.graceSeconds)-Number(GATE_CONFIG.fadeSeconds);
     const overshootMs=reason==='listening-3333'
@@ -9426,7 +9438,7 @@ Vector ${vector}. ${pair[1]}.`;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
     gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
     // Tapping the Gate makes the Sun fully centered NOW. Begin its exact
-    // 2-second hold and 10-second fade now, never leave an old minute-long
+    // 11-second hold and 33-second fade now, never leave an old minute-long
     // audio timer running after the visual has arrived.
     gs.fadeAt=now+grace;
     gs.expireAt=gs.fadeAt+fade;
@@ -9472,7 +9484,7 @@ Vector ${vector}. ${pair[1]}.`;
   function evaluateTriggers(){
     if(authorized()||gs.active||gs.expired)return;
     const visualSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
     const lead=visualSeconds+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
     const startAt=Math.max(0,Number(GATE_CONFIG.hardLimitSeconds)-lead);
     if(gs.musicSeconds>=startAt){save(true);trigger('listening-3333');}
