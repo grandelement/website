@@ -192,9 +192,10 @@ const $=id=>document.getElementById(id);
 const audio=$('audio');
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
-let data={used:0,expired:false,gateStartedAtMs:0},saveAt=0,baseVolume=1;
+let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseVolume=1;
 try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;
- data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);}}catch(_e){}
+ data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);
+ data.gateAtSeconds=Math.max(0,Number(saved.gateAtSeconds)||0);}}catch(_e){}
 let APPROACH_SECONDS,GRACE_SECONDS,FADE_SECONDS,GATE_AT,WAVE_AT,SUN_AT,CENTER_AT,FADE_AT,ENTRANCE_SECONDS;
 function loadPreviewGateTimes(){
  const t=window.GEGateSettings?.get?.()||{sequenceSpeed:1.5,blurLeadSeconds:6,
@@ -219,7 +220,7 @@ function fmt(t){t=Math.max(0,Math.floor(Number(t)||0));return String(Math.floor(
 function say(message){$('status').textContent=message}
 function save(force=false){
  const now=performance.now();if(!force&&now-saveAt<1700)return;saveAt=now;
- try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs}))}catch(_e){}
+ try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs,gateAtSeconds:data.gateAtSeconds}))}catch(_e){}
 }
 function valid(t){if(!t||t.kind!=='song'||Number(t.duration_ms)<1000)return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
@@ -228,11 +229,13 @@ function element(tag,text,klass=''){const e=document.createElement(tag);if(text!
 function effectiveListeningSeconds(){
  if(!data.gateStartedAtMs)return data.used;
  // After the Gate begins the timeline advances even if Safari sleeps.
- return Math.min(AUDIO_LIMIT_SECONDS,GATE_AT+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
+ const originalGateAt=data.gateAtSeconds||GATE_AT;
+ return Math.min(AUDIO_LIMIT_SECONDS,originalGateAt+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
 }
 function startSongGateIfReady(){
  if(data.expired||data.gateStartedAtMs||isAuthorized()||data.used<GATE_AT)return;
  data.gateStartedAtMs=Date.now()-Math.max(0,data.used-GATE_AT)*1000;
+ data.gateAtSeconds=GATE_AT;
  save(true);schedulePreviewGateAudio();
 }
 function schedulePreviewGateAudio(){
@@ -240,7 +243,8 @@ function schedulePreviewGateAudio(){
  const start=Number(data.gateStartedAtMs);
  const waves=start+(WAVE_AT-GATE_AT)*1000;
  const fade=start+(FADE_AT-GATE_AT)*1000;
- const end=start+(AUDIO_LIMIT_SECONDS-GATE_AT)*1000;
+ // Preserve the original 33:33 deadline even if Back Room times change.
+ const end=start+(AUDIO_LIMIT_SECONDS-(data.gateAtSeconds||GATE_AT))*1000;
  window.GEAudioGain?.scheduleGate?.(waves,fade,end,
   window.GEGateSettings?.get?.().reverbMax??1);
 }
