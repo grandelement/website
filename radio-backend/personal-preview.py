@@ -70,25 +70,29 @@ def ensure_gate_impulse():
 
 
 def reverb_filter(remaining):
-    """Two INVISIBLE listener-only faders: music dry down, real reverb up.
+    """Fade ONLY this listener's encoded MP3 to digital silence in ten seconds.
 
-    Do not touch the broadcast mixer or HTMLAudioElement.volume (unreliable on
-    iPhone). Until the center/question + 2-second grace have passed, the
-    unprocessed dry path stays at 100% and the reverb remains at zero.
-    Both buses reach absolute silence at the listener's 33:33 deadline.
+    The BLITZ broadcast never changes.  The wet/dry mix is finished BEFORE
+    the final master fade, so neither the reverb nor an echo can bypass it.
+    FFmpeg's afade handles a normal 10s window.  A late connection starts at
+    its already-reduced gain and reaches zero at the original deadline.
     """
     remaining = max(0.1, min(float(remaining), MAX_SECONDS))
     before = max(0.0, remaining - FADE_SECONDS)
     done = max(0.0, FADE_SECONDS - remaining)
     progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{FADE_SECONDS:.4f}))'
-    # The dry song continuously falls toward zero. A steeper audible curve
-    # prevents the last section from sounding like a stuck volume slider.
-    dry = f'pow(max(0,1-({progress})),1.55)'
-    # Two dense layers of short reflections form a soft, room-like reverb.
-    # The reverb-to-dry ratio grows continuously throughout the 10s fade,
-    # but overall loudness DECREASES steadily to digital silence.
-    # Do not use the old afir graph: its supposedly wet bus rendered silent.
-    wet = f'0.42*pow(({progress}),1.1)*pow(max(0,1-({progress})),1.10)'
+    # Reverb grows relative to the dry signal but NEVER bypasses master fade.
+    dry = f'1-0.30*({progress})'
+    wet = f'0.28*({progress})'
+    if remaining >= FADE_SECONDS:
+        # Explicit encoder-domain linear attenuation: gain 1 -> 0 in 10s.
+        master = (f'afade=t=out:st={before:.4f}:d={FADE_SECONDS:.4f}:curve=tri')
+    else:
+        # An already-started Gate reconnect must NOT reset the volume to 1.
+        master = (f"volume='max(0,min(1,({remaining:.4f}-t)/{FADE_SECONDS:.4f}))':eval=frame")
+    # Last fractions of a second are forcibly silent before disconnect.
+    final_start = max(0.0, remaining - 0.30)
+    final_duration = min(0.20, max(0.05, remaining - final_start - 0.04))
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
@@ -98,12 +102,31 @@ def reverb_filter(remaining):
         'highpass=f=140,lowpass=f=8200,'
         f"volume='{wet}':eval=frame[w];"
         '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
-        # Exact digital silence BEFORE the deadline: volume eval=frame and
-        # MP3 frame buffering can otherwise leave tiny nonzero final samples.
-        f'alimiter=limit=0.95,afade=t=out:st={max(0,remaining-0.45):.4f}:'
-        f'd={min(0.25,max(0.05,remaining-0.16)):.4f}:curve=tri[out]'
+        f'alimiter=limit=0.95,{master},'
+        f'afade=t=out:st={final_start:.4f}:d={final_duration:.4f}:curve=tri[out]'
     )
 
+
+def lightweight_fade_filter(remaining):
+    """CPU-light, listener-only fade when the optional reverb pool is busy.
+
+    This is NOT the shared radio mixer. A fourth (and subsequent) listener
+    still receives the complete encoded 10s fade, without optional reverb.
+    """
+    remaining = max(0.1, min(float(remaining), MAX_SECONDS))
+    before = max(0.0, remaining - FADE_SECONDS)
+    if remaining >= FADE_SECONDS:
+        master = f'afade=t=out:st={before:.4f}:d={FADE_SECONDS:.4f}:curve=tri'
+    else:
+        master = f"volume='max(0,min(1,({remaining:.4f}-t)/{FADE_SECONDS:.4f}))':eval=frame"
+    last_start = max(0.0, remaining - 0.30)
+    last_duration = min(0.20, max(0.05, remaining - last_start - 0.04))
+    return (
+        '[0:a]asetpts=PTS-STARTPTS,aresample=24000,'
+        'aformat=sample_fmts=fltp:channel_layouts=mono,'
+        f'{master},'
+        f'afade=t=out:st={last_start:.4f}:d={last_duration:.4f}:curve=tri[out]'
+    )
 
 def mp3_frame_size(head):
     """Keep MP3 frames intact when crossing from passthrough to re-encoding."""
@@ -156,7 +179,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
         self.send_header('Access-Control-Expose-Headers', 'X-GE-Listener-Preview, X-GE-Listener-Preview-Version')
         self.send_header('X-GE-Listener-Preview', '1')
-        self.send_header('X-GE-Listener-Preview-Version', 'gate-2s-10s-v2')
+        self.send_header('X-GE-Listener-Preview-Version', 'gate-listener-linear-10s-v3')
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Connection', 'close')
@@ -186,12 +209,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Opening /listener-preview.mp3?check=1 on an iPhone confirms which
         # actual deployed processor is running (not which GitHub code exists).
         if parsed.query == 'check=1':
-            message = b'GE GATE AUDIO v2: 2-second hold, 10-second reverb fade, personal listener cutoff.\n'
+            message = b'GE GATE AUDIO v3: 2-second hold then 10-second linear listener-only fade to digital silence.\n'
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain; charset=utf-8')
             self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
             self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('X-GE-Listener-Preview-Version', 'gate-2s-10s-v2')
+            self.send_header('X-GE-Listener-Preview-Version', 'gate-listener-linear-10s-v3')
             self.send_header('Content-Length', str(len(message)))
             self.end_headers()
             self.wfile.write(message)
@@ -246,18 +269,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def send_processed(self, remaining, absolute_deadline):
-        if not FX.acquire(blocking=False):
-            logging.warning('listener-preview: FX capacity reached; stopping this preview')
-            return
+        rich_fx = FX.acquire(blocking=False)
+        if not rich_fx:
+            logging.warning('listener-preview: reverb capacity busy; using lighter individual fade')
         process = None
         try:
+            filtergraph = reverb_filter(remaining) if rich_fx else lightweight_fade_filter(remaining)
             args = [
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin',
                 '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '2',
                 '-i', SOURCE, '-t', f'{remaining:.3f}',
-                '-filter_complex', reverb_filter(remaining),
+                '-filter_complex', filtergraph,
                 '-map', '[out]', '-vn', '-threads', '1',
-                '-c:a', 'libmp3lame', '-b:a', '128k',
+                '-c:a', 'libmp3lame', '-b:a', '128k' if rich_fx else '64k',
                 '-write_xing', '0', '-id3v2_version', '0', '-write_id3v1', '0',
                 '-f', 'mp3', 'pipe:1',
             ]
@@ -287,7 +311,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     process.wait(timeout=3)
                 if process.stdout:
                     process.stdout.close()
-            FX.release()
+            if rich_fx:
+                FX.release()
 
     def stream_for(self, remaining):
         deadline = time.monotonic() + remaining
