@@ -6,7 +6,7 @@ const PHOTO_BASE="https://www.grandelement.com/ge-images/img/";
 const $=id=>document.getElementById(id);
 const safe=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let programs=[],images={},library=[],stationPlaylists=[],steps=[],editing="",galleryIndex=0,galleryStep=-1;
-let settings={fade_delay_seconds:11,fade_seconds:60,reverb_level:2.4};
+let settings={fade_delay_seconds:2,fade_seconds:10,reverb_level:2.4};
 const galleryFiles=["0.gif","1.gif","2.gif","3.gif","4.gif","5.gif","6.gif","7.gif","8.gif","9.gif","10.gif","10.png","12.gif","13.gif","14.gif","15.gif","16.gif","17.gif","18.gif","19.gif","20.gif","21.gif","22.gif","23.gif","24.gif","25.gif","26.gif","27.gif","28.gif","29-1.gif","29.gif","30-1.gif","30.gif","31.gif","32.jpeg","33.png","34.gif","35.gif","36.gif","36.png","37.gif","37.jpeg","38.gif","38.jpg","39.gif","40.gif","41.gif","42.gif","43.gif","44.gif","45.gif","46.gif","47.gif","slp.gif"];
 const css=`
 #geStudioOpen{border-color:#52a8db!important;background:#10314a!important;color:#fff!important}
@@ -155,8 +155,8 @@ function init(){
  <section class="gsCard"><h3>GATE AUDIO · INVISIBLE LISTENER FADERS</h3>
  <p>The Gate starts after the Blue Sun reaches its full entrance. The listener's private dry volume decreases as reverb increases. The public broadcast is not touched.</p>
  <div class="gsGrid">
- <label>Delay after centered Gate (seconds)<input id="gsDelay" type="number" min="0" max="120" value="11"></label>
- <label>Fade duration (seconds)<input id="gsFade" type="number" min="10" max="180" value="60"></label>
+ <label>Delay after centered Gate (seconds)<input id="gsDelay" type="number" min="0" max="120" value="2"></label>
+ <label>Fade duration (seconds)<input id="gsFade" type="number" min="10" max="180" value="10"></label>
  <label>Maximum reverb strength<input id="gsReverb" type="number" min="0" max="4" step=".1" value="2.4"></label>
  </div><button class="gsPrimary" id="gsSaveTiming">SAVE GATE AUDIO</button></section>
  <section class="gsCard"><h3>PRIVATE PROGRAMS · ONE PASSWORD PER LISTENING EXPERIENCE</h3>
