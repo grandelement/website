@@ -16,8 +16,9 @@ spec.loader.exec_module(module)
 assert module.mp3_frame_size(bytes.fromhex('fffb9400')) == 384
 assert module.mp3_frame_size(b'BAD!') == 0
 assert 'aecho=' in module.reverb_filter(130)
-assert 't+0.0000-70.0000' in module.reverb_filter(130)
-assert 't+30.0000-0.0000' in module.reverb_filter(30)
+assert 'afade=t=out:st=120.0000:d=10.0000' in module.reverb_filter(130)
+assert 't+0.0000-120.0000' in module.reverb_filter(130)
+assert 't+5.0000-0.0000' in module.reverb_filter(5)
 
 docker = (root / 'Dockerfile.radio').read_text()
 shell = (root / 'radio-backend/start-radio.sh').read_text()
