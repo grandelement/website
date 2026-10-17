@@ -403,7 +403,7 @@ test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Ac
      !radio.includes('mailto:info@grandelement.com?subject=Grand%20Element%20Radio'),
      'Gate access requests use access@, separate from general CONTACT info@');
 test(radio.includes('remaining=Math.max(0,(Number(gs.expireAt)-Date.now())/1000)') &&
-     radio.includes('const wet=usable&&p>0?.68*p*(1-p):0') &&
+     radio.includes('const wet=usable&&p>0?.60*Math.pow(p,1.25)') &&
      radio.includes('lastForegroundReconcileAt<750') &&
      !radio.includes("gs[key]=Number(gs[key])+stopped") &&
      radio.includes('if(audio.paused||!gateAudioFlowing||!state.live)return false;')===false,
