@@ -48,7 +48,7 @@ function snapshot(){
   "Readiness      "+read("liveReadiness"),
   "Radio test     "+read("liveProbeResult"),
   "Public player  "+(player&&player.paused?"PAUSED":"PLAYING")+" · "+read("listenerState"),
-  "Radio 2        BACKUP MUSIC ONLY · Studio LIVE ingest not implemented",
+  "Radio sources   BLITZ ONLY · Radio 2 listener switch disabled",
   "",
   "SECURITY       NO PASSWORDS OR ACCESS TOKENS IN THIS REPORT"
  ];
