@@ -8833,7 +8833,7 @@ const GE_GAME = (()=>{
   function detailKindFromState(){if(state.gameType==='blueSunPool'||state.gameType==='ninePlanet')return'pockets';if(state.gameType==='marbles')return'planets';return'points';}
   function setDetailClasses(kind){
     optionsPanel.classList.remove('detail-score','detail-pool','detail-nine','detail-marbles','detail-points','detail-pockets','detail-planets','detail-golf','detail-body','pockets-center','pockets-nine');
-    if(kind==='golf'||kind==='body'){optionsPanel.classList.add('detail-'+kind);return;}
+    if(kind==='golf'||kind==='body'){optionsPanel.classList.add('detail-'+kind);window.GE_GAME_BACKGROUND?.sync?.(kind);return;}
     if(kind==='pockets'||kind==='blueSunPool'||kind==='ninePlanet'){
       optionsPanel.classList.add('detail-pockets',state.gameType==='ninePlanet'?'pockets-nine':'pockets-center');
     }else if(kind==='planets'||kind==='marbles'){optionsPanel.classList.add('detail-planets','detail-marbles');}
@@ -8931,6 +8931,7 @@ const GE_GAME = (()=>{
     if(!GAME_DETAIL_META[kind])kind='points';currentGameDetail=kind;
     if(kind!=='golf'&&kind!=='body')applyBasicPreset(kind);
     setDetailClasses(kind);if(kind==='pockets')syncPocketsModeToggle();
+    window.GE_GAME_BACKGROUND?.sync?.(kind);
     const meta=GAME_DETAIL_META[kind];if(geGameDetailTitle)geGameDetailTitle.textContent=meta.title;if(geGameDetailKind)geGameDetailKind.textContent=meta.kind;if(geGameDetailDescription)geGameDetailDescription.textContent=meta.description;
     const startBtn=document.getElementById('gameStartNewBtn');if(startBtn)startBtn.textContent=kind==='body'?'START COURSE':(kind==='golf'?'START HOLE':'START GAME');
     if(geGameHubHome)geGameHubHome.hidden=true;if(geGameDetailScreen)geGameDetailScreen.hidden=false;
@@ -12086,6 +12087,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function renderGolf(){
     applyGolfTeleportBackground();
+    window.GE_GAME_BACKGROUND?.apply?.('golf');
     const r=board.getBoundingClientRect(),s=holeSpec(level,r.width,r.height);
     obstacles=s.walls;courseRails=s.rails||[];golfPolygon=s.poly||null;
     mode.classList.toggle('geGolfShapedCourse',!!s.poly);
@@ -14136,7 +14138,7 @@ body:not(.ge-body-race-active) #moon {
     return{x:W*.5+o.lane*(W*.45)*(.10+.90*ease),y:horizon+(near-horizon)*ease,s:(5+55*Math.pow(p,1.18))*o.size,p};
   }
   function drawStarfield(now){
-    g.fillStyle='#00050b';g.fillRect(0,0,W,H);
+    if(!window.GE_GAME_BACKGROUND?.drawFlight?.(g,W,H)){g.fillStyle='#00050b';g.fillRect(0,0,W,H);}
     const horizonY=H*.14,phase=(now*.012)%42;
     g.save();g.globalCompositeOperation='lighter';
     for(let i=0;i<34;i++){
@@ -14320,5 +14322,138 @@ body:not(.ge-body-race-active) #moon {
 </style>
 <script src="./radio/website-live.js?v=2"></script>
 <script src="./radio/ge-home-gate-stop.js?v=20261017-gate-cutoff-1"></script>
+
+<style id="ge-per-game-background-controls-v1">
+.geBgPick{color:#f4fbff;border:1px solid rgba(115,215,255,.42);border-radius:12px;background:rgba(3,18,37,.93);padding:7px;margin:9px 0;max-width:440px}
+.geBgPick>summary{cursor:pointer;font:900 12px/1.3 system-ui,sans-serif;letter-spacing:.06em;padding:4px 2px;list-style:revert}
+.geBgPick label{display:flex;gap:8px;justify-content:space-between;align-items:center;font:800 11px system-ui,sans-serif;margin-top:8px}
+.geBgPick select{width:min(205px,65%);min-width:0;color:#fff;background:#061d34;border:1px solid #72cdfc;border-radius:8px;padding:7px}
+.geBgPick small{display:block;margin-top:6px;opacity:.75;line-height:1.4}
+.geBgFloating{position:fixed;z-index:23500;top:70px;right:10px;width:min(290px,calc(100vw - 22px));pointer-events:auto}
+.geBgFloatButton{appearance:none;background:rgba(3,19,39,.92);color:#fff;border:1px solid #8cdcff;border-radius:999px;padding:9px 12px;font:900 11px system-ui,sans-serif;cursor:pointer}
+#geBodyCourseBackdrop{position:fixed;inset:0;z-index:2;pointer-events:none;display:none;background:#000 center/cover no-repeat}
+body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
+</style>
+<script id="ge-per-game-background-controls-v1-script">
+(function(){
+  const KEY='GE_GAME_BACKGROUND_BY_TYPE_V1';
+  let choices={};try{choices=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(_e){}
+  const kinds=['points','pockets','planets','golf','body','gravity','flight'];
+  const imageList=(typeof BG_LIST!=='undefined'&&Array.isArray(BG_LIST))?BG_LIST.slice():[];
+  const nodes=[],images=new Map();
+  let currentDetail='points';
+  const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(choices))}catch(_e){}};
+  const kindFromState=()=>{
+    const t=String(window.GE_GAME?.state?.gameType||'');
+    return t==='blueSunPool'||t==='ninePlanet'?'pockets':t==='marbles'?'planets':t==='body'?'body':'points';
+  };
+  function choice(kind){return Object.prototype.hasOwnProperty.call(choices,kind)?choices[kind]:'auto';}
+  const backdrop=document.createElement('div');backdrop.id='geBodyCourseBackdrop';backdrop.setAttribute('aria-hidden','true');document.body.appendChild(backdrop);
+  function paintBackground(el,url,off=false){
+    if(!el)return;el.style.backgroundImage=url?'url("'+url+'")':(off?'none':'');
+    if(off)el.style.backgroundColor='#000';
+    if(url){el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';}
+  }
+  function apply(kind){
+    if(!kinds.includes(kind))return;
+    const pref=choice(kind),off=pref==='off',i=Number(pref),url=!off&&pref!=='auto'&&Number.isInteger(i)&&i>=0&&i<imageList.length?imageList[i]:'';
+    if(kind==='points'||kind==='pockets'||kind==='planets'){
+      const panel=document.getElementById('gameBackground');
+      if(pref==='auto'){
+        const site=window.GE_SITE_BACKGROUND?.current?.();const ix=site?.index||0;
+        paintBackground(panel,imageList[ix]||imageList[0]||'',false);
+      }else paintBackground(panel,url,off);
+    }
+    if(kind==='golf'){
+      const board=document.getElementById('geCourseBoard');
+      if(pref!=='auto')paintBackground(board,url,off);
+      else if(board){
+        // Retain each hole's existing teleport scene unless a custom background is selected.
+        const n=Number((document.getElementById('geCourseTitle')?.textContent||'').match(/\\d+/)?.[0])||1;
+        const auto=n<=16?imageList[n-1]:('ge-images/golf-teleport/level-'+String(n).padStart(2,'0')+'.svg');
+        paintBackground(board,auto,false);
+      }
+    }
+    if(kind==='body'){
+      backdrop.classList.toggle('geShown',pref!=='auto');
+      paintBackground(backdrop,url,off);
+    }
+    if(kind==='gravity'){
+      const mode=document.getElementById('geGravityMode'),board=document.getElementById('geGravityBoard');
+      if(pref!=='auto'){paintBackground(mode,url,off);paintBackground(board,url,off);}
+      else{if(mode){mode.style.backgroundImage='';mode.style.backgroundColor='';}if(board){board.style.backgroundImage='';board.style.backgroundColor='';}}
+    }
+    if(kind==='flight'){
+      const mode=document.getElementById('geFlightMode');if(mode)paintBackground(mode,url,off);
+    }
+    nodes.forEach(({kind:k,select})=>{if(k===kind)select.value=pref;});
+  }
+  function set(kind,value){if(!kinds.includes(kind))return;choices[kind]=value;persist();apply(kind);}
+  function makePicker(kind){
+    const details=document.createElement('details');details.className='geBgPick';details.dataset.bgGame=kind;
+    const summary=document.createElement('summary');summary.textContent='BACKGROUND OPTIONS';details.appendChild(summary);
+    const label=document.createElement('label');label.textContent='BACKGROUND';
+    const select=document.createElement('select');select.setAttribute('aria-label',kind+' game background');
+    const opts=[['auto','AUTO / DEFAULT'],['off','OFF / BLACK'],...imageList.map((_,i)=>[String(i),'STAR BACKGROUND '+(i+1)])];
+    for(const [value,name]of opts){const o=document.createElement('option');o.value=value;o.textContent=name;select.appendChild(o);}
+    select.value=choice(kind);select.addEventListener('change',()=>set(kind,select.value));
+    label.appendChild(select);details.appendChild(label);
+    const note=document.createElement('small');note.textContent='Saved separately for this game.';details.appendChild(note);
+    nodes.push({kind,select,details});return details;
+  }
+  // Ordinary games use their existing Game Control OPTIONS pane.
+  const detail=document.getElementById('geGameDetailScreen');
+  if(detail){const holder=document.createElement('div');holder.id='geGameSpecificBackgroundOptions';detail.appendChild(holder);
+    for(const kind of ['points','pockets','planets','golf','body']){const x=makePicker(kind);x.dataset.detailKind=kind;holder.appendChild(x);}
+  }
+  // Dedicated full-screen games expose the same setting without leaving the course.
+  const golf=document.getElementById('geGolfSizePanel');golf?.insertBefore(makePicker('golf'),golf.querySelector('#geGolfSizeDone'));
+  const body=document.getElementById('geBodyLiveOptions');body?.insertBefore(makePicker('body'),body.querySelector('#geBodyLiveClose'));
+  function floatingPicker(kind,container){
+    if(!container)return;
+    const toggle=document.createElement('button');toggle.className='geBgFloatButton';toggle.type='button';toggle.textContent='OPTIONS';
+    const box=makePicker(kind);box.classList.add('geBgFloating');box.style.display='none';box.open=true;
+    toggle.addEventListener('click',()=>{box.style.display=box.style.display==='none'?'block':'none';});
+    container.appendChild(toggle);container.appendChild(box);
+  }
+  floatingPicker('gravity',document.getElementById('geGravityMode'));
+  floatingPicker('flight',document.getElementById('geFlightMode'));
+  function sync(kind){
+    currentDetail=kind||currentDetail;
+    const holder=document.getElementById('geGameSpecificBackgroundOptions');
+    if(holder)for(const x of holder.children)x.style.display=x.dataset.detailKind===kind?'block':'none';
+    apply(kind);
+  }
+  const hudPrev=document.getElementById('gameBgPrev'),hudNext=document.getElementById('gameBgNext'),hudOff=document.getElementById('gameBgOff');
+  function cycle(delta){
+    const kind=kindFromState(),v=choice(kind),i=Number(v);
+    const ix=Number.isInteger(i)&&v!=='auto'&&v!=='off'?i:(window.GE_SITE_BACKGROUND?.current?.()?.index||0);
+    set(kind,String((ix+delta+imageList.length)%Math.max(1,imageList.length)));
+  }
+  hudPrev?.addEventListener('click',e=>{e.stopImmediatePropagation();cycle(-1);},true);
+  hudNext?.addEventListener('click',e=>{e.stopImmediatePropagation();cycle(1);},true);
+  hudOff?.addEventListener('click',e=>{e.stopImmediatePropagation();set(kindFromState(),'off');},true);
+  function drawFlight(g,w,h){
+    const v=choice('flight');
+    if(v==='auto')return false;
+    if(v==='off'){g.fillStyle='#000';g.fillRect(0,0,w,h);return true;}
+    const url=imageList[Number(v)];if(!url)return false;
+    let image=images.get(url);if(!image){image=new Image();image.src=url;images.set(url,image);}
+    if(!image.complete||!image.naturalWidth)return false;
+    const ratio=Math.max(w/image.naturalWidth,h/image.naturalHeight),dw=image.naturalWidth*ratio,dh=image.naturalHeight*ratio;
+    g.drawImage(image,(w-dw)/2,(h-dh)/2,dw,dh);return true;
+  }
+  window.GE_GAME_BACKGROUND={apply,set,sync,drawFlight,selection:(k)=>choice(k)};
+  const op=document.getElementById('gameOptionsPanel');
+  new MutationObserver(()=>{
+    const kind=op?.classList.contains('detail-golf')?'golf':op?.classList.contains('detail-body')?'body':
+      op?.classList.contains('detail-pockets')?'pockets':op?.classList.contains('detail-planets')?'planets':'points';
+    if(kind!==currentDetail)sync(kind);
+  }).observe(op,{attributes:true,attributeFilter:['class']});
+  sync('points');for(const kind of ['golf','body','gravity','flight'])apply(kind);
+  document.getElementById('gameStartNewBtn')?.addEventListener('click',()=>setTimeout(()=>apply(kindFromState()),0));
+  document.getElementById('geGameDetailScreen')?.addEventListener('click',()=>setTimeout(()=>sync(currentDetail),0),{passive:true});
+})();
+</script>
 </body>
 </html>
