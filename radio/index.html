@@ -4733,6 +4733,12 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   }
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
   if(radioStartInFlight){
+    // Boot may still be waiting for a preview HEAD response. The first real
+    // iPhone tap must select and play its source synchronously, not wait for
+    // that request and lose media user activation.
+    if(userGesture&&!state.live&&!state.livePreparing&&!deferPlay){
+      return enterLiveMode({skipPreviewCheck:true});
+    }
     // Safari can leave automatic play pending until a real gesture.
     // Let ONE trusted tap call play() on the EXISTING audio element;
     // no pause/load/src changes and no second connection/reconnect worker.
@@ -4754,7 +4760,7 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
     return Promise.resolve();
   }
   const work=(async()=>{
-    if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay});
+    if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay,skipPreviewCheck:userGesture});
     if(deferPlay)return;
     if(radio2.loading){setLiveStatus('RADIO 2 · preparing backup…');return;}
     if(radio2.active){radio2PlayCurrent();return;}
@@ -4857,11 +4863,11 @@ async function resumeLiveAtEdge(){
     if(!/NotAllowedError/i.test(String(error?.name||'')))reconnectLiveStream();
   }
 }
-async function enterLiveMode({deferPlay=false}={}){
+async function enterLiveMode({deferPlay=false,skipPreviewCheck=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   // Await private-preview availability briefly before choosing the audio
   // URL. This is essential on iOS: audio.volume is not a reliable fade.
-  if(!window.GEGate?.isAuthorized?.()){
+  if(!skipPreviewCheck&&!window.GEGate?.isAuthorized?.()){
     await Promise.race([geListenerPreviewCheck,
       new Promise(resolve=>setTimeout(resolve,1800))]);
   }
@@ -5373,7 +5379,12 @@ function nextTrack(userAction=false){
     if(userAction)geOpenMusicSelection();
     return; // Also covers lock-screen next, ended and background control paths.
   }
-  if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Manual playback selected.');
+  if(state.live||state.livePreparing){
+    // NEXT is an album control; it must not silently eject a listener from
+    // the live station as a workaround for a failed Radio Play.
+    if(userAction)setLiveStatus('RADIO is a shared station. NEXT is for selected music tracks.');
+    return;
+  }
   state.pendingAfterStation=null;
   const next=state.shuffle?nextShuffle():{url:nextSequential(1),record:false};
   playURL(next.url,{record:next.record,backgroundChange:true,userAction});
@@ -5549,17 +5560,20 @@ playBtn?.addEventListener('click',()=>{
   // Keep the transport visible and usable. Radio uses this same audio element;
   // personal-song PLAY opens the user's music selection instead of the store.
   if(!geOwnerDemoEnabled()){
-    if(state.live||state.livePreparing){
-      if(audio.paused)void requestRadioStart({userGesture:true});
-      else requestUserPause();
-    }else geOpenMusicSelection();
+    // Public PLAY is always the shared Radio transport, even during early
+    // boot. Never substitute a music-selection screen for the first tap.
+    if(audio.paused)void requestRadioStart({userGesture:true});
+    else requestUserPause();
     return;
   }
   state.userStarted=true;
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
-    void requestRadioStart();return;
+    void requestRadioStart({userGesture:true});return;
   }
-  if(audio.paused)resumeAudio();else requestUserPause();
+  if(audio.paused){
+    if(state.live)void requestRadioStart({userGesture:true});
+    else resumeAudio();
+  }else requestUserPause();
 });
 playerSeek?.addEventListener('input',()=>{
   if(!geOwnerDemoEnabled())return;
@@ -9891,10 +9905,10 @@ gateTestBtn?.addEventListener('click',()=>{
   syncModeButtons();
   refreshLoveButton();
   registerServiceWorker();
-  // Start the Radio connection IMMEDIATELY. Library scans and cache audits
-  // must never prevent iPhone listeners from getting the live station.
-  const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  void requestRadioStart({deferPlay:qrArrival});
+  // Prepare Radio immediately, but do not call play() without a user gesture:
+  // Safari rejects that autoplay and the pending attempt can swallow Play taps.
+  // QR and normal arrival both begin audibly with the visitor's first Play.
+  void requestRadioStart({deferPlay:true});
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){

@@ -96,10 +96,10 @@ allIn(store,['radio-monthly','$6.00 / month','myMusicCode','myMusicUnlock'],
 test(store.includes('Not connected') && store.includes('Preview only'),
   'Unverified payments remain disabled');
 
-allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 11','fadeSeconds: 60',
+allIn(radio,['hardLimitSeconds: 2013','graceSeconds: 2','fadeSeconds: 10',
   "trigger('listening-3333')","reason==='listening-3333'",
   'function holdGateTimeline(){','function resumeGateTimeline(){'],
-  'Radio Gate: 11s after centered Sun then 60s fade, fixed deadline after lock');
+  'Radio Gate: 2s after centered Sun then 10s fade, fixed deadline after lock');
 test(!radio.includes('triggerTrack: 6,') && !radio.includes('hardLimitSeconds: 1800'),
   'Old sixth-song and 30-minute triggers removed');
 // Offline downloads require an explicit listener action and must not
@@ -180,6 +180,15 @@ allIn(radio,[
   "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
   "if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return"
 ], 'LOVE developer-only Radio UI and quiet native-safe Gate');
+
+// The initial Radio button must be a direct iPhone gesture, never an
+// asynchronous preview HEAD check or an autoplay attempt at boot.
+test(radio.includes('void requestRadioStart({deferPlay:true});') &&
+     radio.includes('return enterLiveMode({skipPreviewCheck:true});') &&
+     radio.includes('enterLiveMode({deferPlay,skipPreviewCheck:userGesture})') &&
+     radio.includes('if(!skipPreviewCheck&&!window.GEGate?.isAuthorized?.())') &&
+     radio.includes("if(userAction)setLiveStatus('RADIO is a shared station. NEXT is for selected music tracks.')"),
+     'First Radio Play is gesture-safe; NEXT cannot exit a live station');
 
 // Native iPhone playback takes priority over the separate Sun Lab tap.
 // A successful play()/playing event is NOT evidence that the MP3 is audible.
