@@ -2966,9 +2966,9 @@ body.view-player:not(.iam-studio-open) footer{
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <!-- The live Icecast MP3 must use native media playback like the working DJ listener.
-     No crossorigin attribute: no cross-origin readable audio data is requested. -->
-  <audio id="player" preload="none" playsinline></audio>
+  <!-- One listener's native audio is routed through a local GainNode when they
+       press PLAY. The BLITZ broadcast is unchanged and allows CORS. -->
+  <audio id="player" preload="none" playsinline crossorigin="anonymous"></audio>
   <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
 
   <div id="musicGroup">
@@ -3229,6 +3229,7 @@ body.view-player:not(.iam-studio-open) footer{
 
 <script src="../ge-vault-client.js"></script>
 <script src="./iam-private-studio.js?v=20261014-fx-controls-1"></script>
+<script src="./ge-gate-audio.js?v=20261017-website-only-gate-1"></script>
 <script>
 'use strict';
 
@@ -3886,8 +3887,6 @@ const state = {
   }
 
   function gateVolume(){
-    // Server already applies the personalized fade. Do not fade twice.
-    if(window.GEListenerPreview?.active?.())return null;
     const value=window.GEGate?.desiredVolume?.();
     return value!==null&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):null;
   }
@@ -4499,43 +4498,22 @@ function markRadio1Attempt(){
 // iPhone Safari does not implement a reliable HTMLAudioElement volume ramp.
 // When the isolated backend exists, begin guest playback on a unique native
 // MP3 listener stream. Its final 60s are processed on the server even if
-// JavaScript is suspended while the iPhone screen is locked.
+// The website Gate is independent of BLITZ. Never select its optional
+// listener-preview backend: BLITZ is locked and that endpoint returns 404.
 const GE_LISTENER_PREVIEW_URL='https://radio.grandelement.blitz.cloud/listener-preview.mp3';
 let geListenerPreviewReady=false;
 // The stream choice must not race an unanswered HEAD request at first boot.
 // Otherwise the visitor hears the ordinary unprocessed Radio 1 and never
 // receives the iPhone-compatible listener fade.
-const geListenerPreviewCheck=fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
-  .then(r=>{geListenerPreviewReady=r.ok&&r.headers.get('X-GE-Listener-Preview')==='1'&&
-    r.headers.get('X-GE-Listener-Preview-Version')==='gate-2s-10s-v2';})
-  .catch(()=>{geListenerPreviewReady=false;});
-window.GEListenerPreview={
-  available:()=>geListenerPreviewReady,
-  active:()=>/\/listener-preview\.mp3(?:\?|$)/.test(audio.currentSrc||audio.src||'')
-};
-function freshLiveStreamURL(remainingOverride=null){
-  const gs=window.GEGate?.getState?.();
-  const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
-  if(geListenerPreviewReady&&isGuest){
-    const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
-    const remaining=remainingOverride!==null&&Number.isFinite(Number(remainingOverride))
-      ?Number(remainingOverride)
-      :gs?.active&&gs?.expireAt
-        ?(Number(gs.expireAt)-Date.now())/1000
-        :limit-Math.max(0,Number(gs?.musicSeconds)||0);
-    if(remaining>0){
-      const target=new URL(GE_LISTENER_PREVIEW_URL);
-      target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
-      target.searchParams.set('_ge_live_edge',String(Date.now()));
-      return target.href;
-    }
-  }
-  // Preserve the previously working Radio 1 transport if the backend has
-  // not deployed or is unavailable. Never interrupt the shared BLITZ feed.
+// Legacy readiness indicator retained for integrations, never for playback.
+const geListenerPreviewCheck=Promise.resolve(false);
+window.GEListenerPreview={available:()=>false,active:()=>false};
+function freshLiveStreamURL(){
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
   target.searchParams.set('_ge_live_edge',String(Date.now()));
   return target.href;
 }
+
 function liveShareURL(){
   const target=new URL('./',location.href);
   target.searchParams.set(CONFIG.LIVE_SHARE_PARAM||'live','1');
@@ -9243,13 +9221,9 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function applyManagedVolume(){
-    // Guest native MP3 feed carries the server-side 10s fade and reverb.
-    // Changing audio.volume here is ineffective on iOS and causes double
-    // attenuation on desktop browsers; do not interfere with that stream.
-    if(window.GEListenerPreview?.active?.()){
-      window.GEGateFX?.setFadeProgress?.(0);
-      return;
-    }
+    // The listener's Gate is always responsible for every playback source.
+    // A local audio-clock GainNode handles the real fade on compatible
+    // browsers; audio.volume is only a best-effort fallback.
     const v=desiredVolume();
     if(v===null||!Number.isFinite(v))return;
     const safe=Math.max(0,Math.min(1,v));
@@ -9257,7 +9231,7 @@ Vector ${vector}. ${pair[1]}.`;
     const now=Date.now(),progress=gs.active&&fadeStart&&fadeEnd>fadeStart
       ?Math.max(0,Math.min(1,(now-fadeStart)/(fadeEnd-fadeStart))):0;
     window.GEGateFX?.setFadeProgress?.(progress);
-    window.GEAudioGain?.setImmediate?.(safe);
+    window.GEAudioGain?.syncProgress?.(safe);
     try{audio.volume=safe;}catch(_e){}
   }
 
@@ -9323,7 +9297,7 @@ Vector ${vector}. ${pair[1]}.`;
     gate.setAttribute('aria-hidden','false');
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';}
     window.GEGateFX?.reset?.();
-    window.GEAudioGain?.setImmediate?.(0);
+    window.GEAudioGain?.stopAll?.();
     // iOS Safari may ignore audio.volume. Muting and disconnecting the
     // listener's media source guarantee no dry song or wet tail continues.
     try{
@@ -9373,6 +9347,9 @@ Vector ${vector}. ${pair[1]}.`;
     const now=Date.now();
     if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
     applyVisualStage(now);
+    // Schedule the full ten-second ramp on the AUDIO clock. This does not
+    // require a JavaScript interval to advance the volume while locked.
+    window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt);
 
     if(now<Number(gs.wavesAt||0))wavesTimer=setTimeout(()=>{gate.classList.add('waves');scheduleNextRipple(true);},Math.max(0,Number(gs.wavesAt)-Date.now()));
     if(now<Number(gs.sunAt||0))sunTimer=setTimeout(()=>{gate.classList.add('sun-moving');positionSun();},Math.max(0,Number(gs.sunAt)-Date.now()));
@@ -9452,18 +9429,8 @@ Vector ${vector}. ${pair[1]}.`;
     gs.pausedAt=0;
     save(true);
     clearTimers();
-    // The individual iPhone preview transport also needs its deadline
-    // shortened; JS volume alone cannot fade a native iPhone MP3.
-    if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
-      const url=freshLiveStreamURL((grace+fade)/1000);
-      if(url.includes('/listener-preview.mp3')){
-        try{
-          audio.pause();audio.muted=false;audio.defaultMuted=false;
-          audio.src=url;audio.load();
-          void audio.play().catch(()=>setLiveStatus('Tap PLAY to hear the shortened Gate.'));
-        }catch(_e){}
-      }
-    }
+    // The local Gate reschedules the fade; never change the BLITZ source
+    // or interrupt another listener's broadcast.
     if(sun){
       sun.style.transition='none';
       sun.style.transform='translate3d(0,0,0) scale(1)';
@@ -9587,6 +9554,7 @@ Vector ${vector}. ${pair[1]}.`;
         notification_type:'gate_entry'
       });
     }catch(_e){}
+    window.GEAudioGain?.restore?.();
     window.GEAudioGain?.setImmediate?.(1);
     try{audio.muted=false;audio.defaultMuted=false;audio.volume=restoreVolume;}catch(_e){}
     // The personal preview is intentionally finite. A visitor entering the
@@ -9705,7 +9673,7 @@ Vector ${vector}. ${pair[1]}.`;
       // Keep the LOVE developer code intact, but run the Gate just as a
       // guest would hear and see it, including its fade and effects.
       try{localStorage.removeItem(GATE_CONFIG.stateKey);}catch(_e){}
-      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.setImmediate?.(1);audio.muted=false;audio.defaultMuted=false;audio.volume=1;
+      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.restore?.();window.GEAudioGain?.setImmediate?.(1);audio.muted=false;audio.defaultMuted=false;audio.volume=1;
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
       window.GERadioSyncOfflineAccess?.();
       lastTickAt=Date.now();
@@ -9852,27 +9820,9 @@ gateTestBtn?.addEventListener('click',()=>{
   sunLabPanel?.classList.remove('show');
   if(sunLabPanel)sunLabPanel.hidden=true;
   window.GEGate?.resetForTesting?.();
-  // A manual iPhone test must use the PERSONAL processed stream too.
-  // Switch on this trusted tap (not later in a timer), preserving Safari's
-  // audio gesture. Keep the separate 60ms visual reset for Gate animation.
-  if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
-    const speed=Math.max(.1,Number(GATE_CONFIG.sequenceSpeed)||1);
-    const approach=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/speed;
-    const remaining=approach+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
-    const personalURL=freshLiveStreamURL(remaining);
-    if(personalURL.includes('/listener-preview.mp3')){
-      try{
-        audio.pause();
-        audio.src=personalURL;
-        audio.load();
-        void audio.play().catch(()=>setLiveStatus('RADIO · tap PLAY to hear the Gate audio test.'));
-      }catch(_e){}
-    }
-  }
-  if(!window.GEListenerPreview?.available?.()){
-    setLiveStatus('GATE TEST · PRIVATE 2+10 AUDIO PROCESSOR NOT VERIFIED · music will hard-stop, but the reverb fade requires the backend deployment.',true);
-  }
+  // The local GainNode is unlocked in this actual user tap.
+  // Gate Test never switches to or depends on BLITZ's preview backend.
+  window.GEAudioGain?.arm?.();
   setTimeout(()=>window.GEGate?.trigger?.('manual-test'),60);
 });
 
