@@ -181,6 +181,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if parsed.path != '/listener-preview.mp3':
             self.respond(404)
             return
+        # Small public, human-readable health check using the existing nginx
+        # preview path. No private station data or credentials are exposed.
+        # Opening /listener-preview.mp3?check=1 on an iPhone confirms which
+        # actual deployed processor is running (not which GitHub code exists).
+        if parsed.query == 'check=1':
+            message = b'GE GATE AUDIO v2: 2-second hold, 10-second reverb fade, personal listener cutoff.\n'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('X-GE-Listener-Preview-Version', 'gate-2s-10s-v2')
+            self.send_header('Content-Length', str(len(message)))
+            self.end_headers()
+            self.wfile.write(message)
+            return
         try:
             values = urllib.parse.parse_qs(parsed.query, strict_parsing=True)
             raw = values.get('remaining', [''])[0]
