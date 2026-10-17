@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>GE RADIO — Shared Clock</title>
+<title>GE RADIO — BLITZ LIVE</title>
 <style>
 *{box-sizing:border-box}html,body{min-height:100%;margin:0;background:#050a11;color:#e6f3fb;font-family:Arial,Helvetica,sans-serif}
 main{width:min(100%,550px);min-height:100vh;margin:auto;padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:15px}
@@ -15,14 +15,55 @@ h2{font-size:17px;margin:0;color:#c9d6e2}
 nav{display:flex;gap:10px}nav a{color:#d5eeff;border:1px solid #536d7f;padding:10px 16px;border-radius:9px;text-decoration:none}
 audio{display:none}body:focus{outline:0}
 </style></head><body>
-<main><h1>GRAND ELEMENT</h1><h2>GE RADIO · ONE SHARED CLOCK</h2>
+<main><h1>GRAND ELEMENT</h1><h2>BLITZ · LIVE RADIO</h2>
 <button id="geClockPlay" type="button">PLAY</button>
 <div id="geClockStatus" role="status">Connecting…</div>
 <div id="geClockInfo">Waiting for music</div><div id="geClockSecondary"></div>
 <nav><a href="./">Radio Home</a><a href="./ge-dj.html">GE DJ</a></nav>
-<p class="small">Everyone follows the same song and UTC position. A change made in the DJ booth automatically switches this player between BLITZ and GE RADIO. Audio starts only after you tap PLAY. Your browser may limit crossfading in the background, especially on the older iPhone 5.</p>
+<p class="small">One live station: BLITZ plays BANGERS and switches to the live GE Studio when authorized. Tap PLAY to listen. Radio 2's scheduled backup and its Cloudflare Worker are disconnected.</p>
 <audio id="geClockBlitz" playsinline preload="none"></audio>
-<audio id="geClockGE" playsinline preload="auto"></audio>
+
 </main>
-<script src="../ge-vault-client.js"></script><script src="./ge-clock.js?v=2"></script>
+<script src="../ge-vault-client.js"></script>
+<script>
+(function(){
+ "use strict";
+ var button=document.getElementById("geClockPlay"),audio=document.getElementById("geClockBlitz");
+ var status=document.getElementById("geClockStatus"),info=document.getElementById("geClockInfo");
+ var secondary=document.getElementById("geClockSecondary");
+ var url="https://radio.grandelement.blitz.cloud/stream.mp3";
+ var listening=false,started=false,attempt=0,retry=0;
+ function clear(){if(retry){clearTimeout(retry);retry=0}}
+ function state(text){if(status)status.textContent=text}
+ function start(){
+  listening=true;started=true;clear();
+  button.textContent="PAUSE";state("BLITZ · CONNECTING…");
+  audio.removeAttribute("crossorigin");audio.preload="auto";
+  var target=url+(url.indexOf("?")>=0?"&":"?")+"_ge_edge="+Date.now();
+  audio.src=target;audio.load();
+  try{var p=audio.play();if(p&&p.catch)p.catch(function(e){
+   if(!listening)return;
+   if(e&&e.name==="NotAllowedError"){state("TAP PLAY TO HEAR RADIO");button.textContent="PLAY";return}
+   failed();
+  })}catch(e){failed()}
+ }
+ function stop(){listening=false;clear();audio.pause();button.textContent="PLAY";state("PAUSED")}
+ function failed(){
+  if(!listening||retry)return;
+  if(attempt>=3){stop();state("BLITZ UNAVAILABLE OR BUSY · TAP PLAY TO TRY AGAIN");return}
+  attempt++;
+  var delay=3500*attempt;
+  state("BLITZ UNAVAILABLE · RETRYING IN "+Math.ceil(delay/1000)+"s");
+  retry=setTimeout(function(){retry=0;if(listening)start()},delay);
+ }
+ button.onclick=function(){
+  if(listening){stop();return}
+  attempt=0;start();
+ };
+ audio.addEventListener("playing",function(){if(listening){state("BLITZ · LIVE RADIO");info.textContent="GRAND ELEMENT RADIO";secondary.textContent="Icecast public stream"}});
+ audio.addEventListener("error",failed);
+ audio.addEventListener("ended",failed);
+ state("READY · TAP PLAY");
+})();
+</script>
 </body></html>
