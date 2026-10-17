@@ -97,19 +97,21 @@ def reverb_filter(remaining, fade_seconds=FADE_SECONDS, reverb_level=2.4):
     before = max(0.0, remaining - fade_seconds)
     done = max(0.0, fade_seconds - remaining)
     progress = f'min(1,max(0,(t+{done:.4f}-{before:.4f})/{fade_seconds:.4f}))'
-    dry = f'1-({progress})'
-    # Relative reverb presence grows as music fades; the entire wet bus also
-    # tapers to absolute zero at the last instant, with no leftover echo.
-    wet = f'{reverb_level:.4f}*({progress})*pow(max(0,1-({progress})),0.85)'
+    dry = f'pow(max(0,1-({progress})),1.55)'
+    # Editor setting 2.4 maps to calibrated FFmpeg wet gain 0.15. The
+    # reverb SEND rises until near the end instead of falling after mid-fade.
+    wet_level = 0.0625 * max(0.0, min(4.0, reverb_level))
+    wet = f'{wet_level:.5f}*pow(({progress}),1.25)*min(1,max(0,(1-({progress}))*35))'
     return (
         '[0:a]asetpts=PTS-STARTPTS,aresample=48000,'
         'aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[dry][wet];'
         f"[dry]volume='{dry}':eval=frame[d];"
-        '[wet][1:a]afir=dry=0:wet=1:irnorm=0:irlink=0,'
+        '[wet][1:a]afir=dry=1:wet=1:irnorm=0:irlink=0,'
         'highpass=f=140,lowpass=f=8200,'
         f"volume='{wet}':eval=frame[w];"
         '[d][w]amix=inputs=2:duration=first:normalize=0:dropout_transition=0,'
-        'alimiter=limit=0.95[out]'
+        f'alimiter=limit=0.95,afade=t=out:st={max(0,remaining-0.45):.4f}:'
+        f'd={min(0.25,max(0.05,remaining-0.16)):.4f}:curve=tri[out]'
     )
 
 
