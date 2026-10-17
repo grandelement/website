@@ -6,13 +6,13 @@
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],session:[]}, activeKind="draft";
-var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false;
+var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
 var listGeneration=0, uploadPoll=0, issueLines=[];
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
 function el(id){return d.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s===undefined||s===null?"":s)}
-function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":"Drafts"}
+function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":kind==="all"?"All GE Files":"Drafts"}
 function fmtSize(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
 function wait(fn,ms){return w.setTimeout(fn,ms)}
 function status(s){text("uploadResults",s)}
@@ -135,6 +135,7 @@ function updateHealth(callback){
   encoderAvailable=helperOnline&&!!data.mp3_available;
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
+  allFilesAvailable=helperOnline&&!!data.all_app_files_available;
   var autostart=helperOnline&&!!data.auto_start_configured;
   text("autoRepairState",helperOnline?
    (autostart?"Mac auto-start configuration found. Restart watchdog state not directly verified.":"LOCAL HELPER RUNNING · No automatic startup configuration detected. One-time setup available below."):
@@ -387,6 +388,7 @@ function init(){
  el("listDrafts").onclick=function(){displayLibrary("draft")};
  el("listFinals").onclick=function(){displayLibrary("final")};
  el("listSessions").onclick=function(){displayLibrary("session")};
+ if(el("listAll"))el("listAll").onclick=function(){displayLibrary("all")};
  installDrop("draft");installDrop("final");installDrop("session");
  el("refreshMp3").onclick=function(){updateHealth()};
  if(el("retryHelper"))el("retryHelper").onclick=function(){
