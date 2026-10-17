@@ -81,7 +81,7 @@ assert.ok(master.some(e=>e[0]==='set'&&e[1]===1&&e[2]===111),
   '11-second hold after centered Sun before fade');
 assert.ok(master.some(e=>e[0]==='linear'&&e[1]===0&&e[2]===144),
   '33-second fade ends in silence');
-assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===0&&e[2]===104),
+assert.ok(wet.some(e=>e[0]==='set'&&e[1]===0&&e[2]===104),
   'room reverb begins at zero as water appears');
 assert.ok(wet.some(e=>e[0]==='linear'&&e[1]===1&&e[2]===144),
   'room reverb reaches maximum just as the shared master silences audio');
