@@ -240,10 +240,10 @@ test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) 
   gateFxSource.includes("fxFilter.type='lowpass'") &&
   gateFxSource.includes('fxWet.gain.setTargetAtTime(wet,now,.10)') &&
   radio.includes('window.GEAudioGain?.syncProgress?.(safe)') &&
-  radio.includes('window.GEAudioGain?.scheduleFade?.(gs.fadeAt,gs.expireAt)') &&
+  radio.includes('window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)') &&
   !radio.includes("audio.removeAttribute('crossorigin')") &&
   radio.includes("audio.crossOrigin='anonymous'"),
-  'Single-source Gate audio reverb, native iPhone audio preparation and 10-second fade remain');
+  'Single-source Gate audio, water-to-cutoff reverb and configurable 33-second fade remain');
 
 test(!radio.includes("if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}") ||
  radio.includes("location.assign('../support/?section=radio&flow=shop');"),
