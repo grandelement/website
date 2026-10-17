@@ -50,6 +50,12 @@ def write(path, obj):
 
 def settings():
     raw = read(SETTINGS, {})
+    # Migrate the previous stock 11s+60s timings if they were saved before
+    # the new editor version. Deliberate new custom timings remain intact.
+    if (raw.get("timing_version") != "gate-2s-10s-v2"
+            and raw.get("fade_delay_seconds") == 11
+            and raw.get("fade_seconds") == 60):
+        raw = {**raw, "fade_delay_seconds": 2, "fade_seconds": 10}
     result = dict(DEFAULT_SETTINGS)
     for name, low, high in (
         ("fade_delay_seconds", 0, 120),
@@ -226,7 +232,7 @@ def handle_post(h, path):
                     raise ValueError(name + " out of range.")
                 result[name] = value
             with LOCK:
-                write(SETTINGS, result)
+                write(SETTINGS, {**result, "timing_version": "gate-2s-10s-v2"})
             h.json_response({"ok": True, "settings": result})
             return True
 
