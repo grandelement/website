@@ -374,7 +374,8 @@ test(radio.includes("buttons.prev.addEventListener('click'") &&
      radio.includes("$('shareBtn').addEventListener('click'"),
      'Visible music and background buttons retain click handlers');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.16-listener-audio-v1'") &&
+test(refreshedRadioWorker.includes("const VERSION='2026.10.17-natural-gate-reverb-v2'") &&
+     refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
      'New radio shell cache loads updated layout without deleting offline downloads');
 
