@@ -12156,16 +12156,11 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const bodyRaceTrack=document.getElementById('geBodyRaceTrack'),bodyRacePath=document.getElementById('geBodyRacePath'),bodyRaceHUD=document.getElementById('geBodyRaceHUD'),bodyRaceTitle=document.getElementById('geBodyRaceTitle'),bodyRaceTimer=document.getElementById('geBodyRaceTimer'),bodyRaceCountdown=document.getElementById('geBodyRaceCountdown'),bodyRaceMessage=document.getElementById('geBodyRaceMessage'),bodyRaceNext=document.getElementById('geBodyRaceNext');
   let bodyRace=null,bodyRaceRAF=0,bodyRacePlanetSnapshot=null,bodyRaceSunSnapshot=null,bodyRaceAlbumSnapshot=null,bodyRaceToken=0;
 
+  // A straight polyline matches the actual collision corridor and gate geometry.
+  // Previously the SVG curve cut corners while movement/hazards used line segments.
   function bodyRacePathD(pts){
     if(!pts.length)return '';
-    if(pts.length<3)return 'M '+pts.map(p=>p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' L ');
-    let d='M '+pts[0].x.toFixed(1)+' '+pts[0].y.toFixed(1);
-    for(let i=0;i<pts.length-1;i++){
-      const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-      const c1x=p1.x+(p2.x-p0.x)/6,c1y=p1.y+(p2.y-p0.y)/6,c2x=p2.x-(p3.x-p1.x)/6,c2y=p2.y-(p3.y-p1.y)/6;
-      d+=' C '+c1x.toFixed(1)+' '+c1y.toFixed(1)+' '+c2x.toFixed(1)+' '+c2y.toFixed(1)+' '+p2.x.toFixed(1)+' '+p2.y.toFixed(1);
-    }
-    return d;
+    return pts.map((p,i)=>(i?'L ':'M ')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
   }
   const BODY_COURSE_TEMPLATES=[
     {name:'OPEN LINE',p:[[.18,1],[.33,.74],[.50,.49],[.66,.25],[.82,0]]},
@@ -12253,11 +12248,24 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const markerTs=[.14,.31,.50,.69,.86],markers=markerTs.map(t=>sampleBodyRoute(points,t));
     return{name:tpl.name,points,markers,markerRadius:Math.round(56-difficulty*20),sideRadius:Math.round(94-difficulty*30),complexity:points.length};
   }
+  // Saved deterministic hazard assignments for every course (no random rerolls).
+  const GE_BODY_SAVED_HAZARD_LAYOUTS=Object.freeze(Array.from({length:33},(_,li)=>
+    Object.freeze(Array.from({length:10},(_,hi)=>Object.freeze({
+      fraction:Math.min(.93,Math.max(.07,(hi+.65+((li*7+hi*3)%4)*.12)/10)),
+      side:((li*3+hi*5)%2)?1:-1,
+      offset:1+((li+hi*2)%4)*.23
+    })))
+  ));
+  function bodyRouteClearance(x,y,pts){
+    let distance=Infinity;
+    for(let i=0;i<pts.length-1;i++)distance=Math.min(distance,pointSegInfo(x,y,{a:pts[i],b:pts[i+1]}).d);
+    return distance;
+  }
   function saveBodyRacePlanets(){
     if(bodyRacePlanetSnapshot)return;
-    bodyRacePlanetSnapshot=(window.planetNodes||[]).map(p=>({p,x:p.x,y:p.y,vx:p.vx,vy:p.vy}));
+    bodyRacePlanetSnapshot=(window.planetNodes||[]).map(p=>({p,x:p.x,y:p.y,vx:p.vx,vy:p.vy,transform:p.el?.style.transform||'',transformOrigin:p.el?.style.transformOrigin||'',opacity:p.el?.style.opacity||'',display:p.el?.style.display||''}));
     const sun=document.getElementById('sunWrap');
-    if(sun&&!bodyRaceSunSnapshot)bodyRaceSunSnapshot={left:sun.style.left,top:sun.style.top,transform:sun.style.transform};
+    if(sun&&!bodyRaceSunSnapshot)bodyRaceSunSnapshot={left:sun.style.left,top:sun.style.top,transform:sun.style.transform,display:sun.style.display,opacity:sun.style.opacity};
   }
   function prepareBodyRaceUniverse(){
     try{
@@ -12271,7 +12279,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   }
   function restoreBodyRacePlanets(){
     const sun=document.getElementById('sunWrap');
-    if(sun&&bodyRaceSunSnapshot){sun.style.left=bodyRaceSunSnapshot.left;sun.style.top=bodyRaceSunSnapshot.top;sun.style.transform=bodyRaceSunSnapshot.transform;}
+    if(sun&&bodyRaceSunSnapshot){sun.style.left=bodyRaceSunSnapshot.left;sun.style.top=bodyRaceSunSnapshot.top;sun.style.transform=bodyRaceSunSnapshot.transform;sun.style.display=bodyRaceSunSnapshot.display;sun.style.opacity=bodyRaceSunSnapshot.opacity;sun.geBodyCourseHidden=false;}
+    for(const old of bodyRacePlanetSnapshot||[]){
+      if(!old.p)continue;const p=old.p;
+      p.x=old.x;p.y=old.y;p.vx=old.vx;p.vy=old.vy;p.geBodyCourseHidden=false;delete p.geBodyHazardRadius;
+      if(p.el){p.el.style.transform=old.transform;p.el.style.transformOrigin=old.transformOrigin;p.el.style.opacity=old.opacity;p.el.style.display=old.display;p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';}
+    }
     bodyRaceSunSnapshot=null;bodyRacePlanetSnapshot=null;
     try{
       if(bodyRaceAlbumSnapshot&&typeof ALBUMS!=='undefined'){
@@ -12345,38 +12358,73 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     if(nextPoint)s.angle=Math.atan2(nextPoint.y-start.y,nextPoint.x-start.x)+Math.PI;
     return s;
   }
-  function placeBodyRacePlanets(spec,s){
+  function placeBodyRacePlanets(spec,ship){
     saveBodyRacePlanets();
-    const list=(window.planetNodes||[]).slice(),bodyR=s?shipVisualRadius(s):24,sun=document.getElementById('sunWrap');
-    const sunRect=sun?.getBoundingClientRect(),sunR=Math.max(45,(sunRect?.width||100)/2);
-    const hazards=list.map((p,i)=>({kind:'planet',p,r:p.r||18,key:i}));
-    if(sun)hazards.push({kind:'sun',el:sun,r:sunR,key:99});
-    /* Rotate the hazard order every course so all nine planets and the Blue Sun form a
-       different set of five left/right marker pairs on every one of the 33 saved routes. */
-    const shift=(level*3)%Math.max(1,hazards.length),ordered=hazards.slice(shift).concat(hazards.slice(0,shift));
-    const markers=spec.markers||[],topSafe=105,bottomSafe=125;
-    function scorePos(h,x,y){
-      const edge=h.r+7;
-      if(x<edge||x>innerWidth-edge||y<Math.max(topSafe,edge)||y>innerHeight-Math.max(bottomSafe,edge))return-9999;
-      return Math.min(x-edge,innerWidth-edge-x,y-Math.max(topSafe,edge),innerHeight-Math.max(bottomSafe,edge)-y);
+    const list=(window.planetNodes||[]).slice(),sun=document.getElementById('sunWrap');
+    const sunRect=sun?.getBoundingClientRect();
+    const shipR=ship?shipVisualRadius(ship):24;
+    const hazards=list.map((p,i)=>({kind:'planet',p,r:(p.r||18)*bodyPlanetPct/100,key:i}));
+    if(sun)hazards.push({kind:'sun',el:sun,r:Math.max(24,Math.min(sunRect?.width||70,sunRect?.height||70)*.43),key:9});
+    const plan=GE_BODY_SAVED_HAZARD_LAYOUTS[(level-1)%33];
+    const bounds={left:9,right:innerWidth-9,top:105,bottom:innerHeight-113};
+    const deployed=[];
+    const route=spec.points;
+    function isValid(x,y,r){
+      if(x-r<bounds.left||x+r>bounds.right||y-r<bounds.top||y+r>bounds.bottom)return false;
+      if(bodyRouteClearance(x,y,route)<r+shipR+15)return false;
+      return deployed.every(o=>Math.hypot(o.x-x,o.y-y)>=o.r+r+9);
     }
-    function setHazard(h,x,y){
+    function candidateSlots(preferred,r,seed){
+      const opts=[];
+      // Fixed course-gate positions are tried first; a deterministic fallback grid
+      // relocates a hazard rather than trapping the ship on a narrow display.
+      const samples=[preferred,.16,.30,.45,.60,.76,.88].map(t=>sampleBodyRoute(route,typeof t==='number'?t:plan[seed].fraction));
+      for(let k=0;k<samples.length;k++){
+        const m=samples[k];for(let side of [plan[seed].side,-plan[seed].side])
+          for(let v=1;v<=5;v++){
+            const d=r+shipR+20+v*23;
+            opts.push({x:m.x+(-m.ty)*d*side,y:m.y+m.tx*d*side,priority:k*400+v*28});
+          }
+      }
+      const grid=22,offset=(seed*13+level*17)%grid;
+      for(let y=bounds.top+r+offset;y<bounds.bottom-r;y+=grid){
+        for(let x=bounds.left+r+((seed*7+level*11)%grid);x<bounds.right-r;x+=grid){
+          const m=sampleBodyRoute(route,plan[seed].fraction);
+          opts.push({x,y,priority:5000+Math.hypot(x-m.x,y-m.y)});
+        }
+      }
+      return opts.sort((a,b)=>a.priority-b.priority);
+    }
+    for(let index=0;index<hazards.length;index++){
+      const h=hazards[index],slot=plan[index%plan.length];
+      const candidates=candidateSlots(slot.fraction,h.r,index);
+      const spot=candidates.find(c=>isValid(c.x,c.y,h.r));
+      if(!spot){
+        // Safety invariant: hide a hazard that genuinely cannot fit instead of
+        // making the required route impossible on a small/rotated display.
+        if(h.kind==='planet'){h.p.geBodyCourseHidden=true;if(h.p.el)h.p.el.style.display='none';}
+        else{h.el.geBodyCourseHidden=true;h.el.style.display='none';}
+        continue;
+      }
+      deployed.push({x:spot.x,y:spot.y,r:h.r});
       if(h.kind==='sun'){
-        h.el.style.left=x+'px';h.el.style.top=y+'px';h.el.style.transform='translate(-50%,-50%)';
-      }else if(h.p){
-        h.p.x=x;h.p.y=y;h.p.vx=0;h.p.vy=0;
-        if(h.p.el){h.p.el.style.left=(x-h.p.r)+'px';h.p.el.style.top=(y-h.p.r)+'px';h.p.el.classList.remove('previewZoom','draggingPlanet','justDragged');}
+        h.el.geBodyCourseHidden=false;h.el.style.display=bodyRaceSunSnapshot?.display||'';
+        h.el.style.left=spot.x+'px';h.el.style.top=spot.y+'px';
+        h.el.style.transform='translate(-50%,-50%)';
+      }else{
+        const p=h.p;p.geBodyCourseHidden=false;p.geBodyHazardRadius=h.r;
+        p.x=spot.x;p.y=spot.y;p.vx=0;p.vy=0;
+        if(p.el){
+          p.el.style.display='';p.el.style.left=(p.x-p.r)+'px';p.el.style.top=(p.y-p.r)+'px';
+          p.el.style.transform='scale('+(bodyPlanetPct/100)+')';
+          p.el.style.transformOrigin='center center';
+          p.el.style.opacity='1';p.el.classList.remove('previewZoom','draggingPlanet','justDragged');
+        }
       }
     }
-    for(let i=0;i<5;i++){
-      const m=markers[i]||sampleBodyRoute(spec.points,(i+1)/6),h1=ordered[i*2],h2=ordered[i*2+1];if(!h1||!h2)continue;
-      const nx=-m.ty,ny=m.tx,off1=bodyR+h1.r+15,off2=bodyR+h2.r+15;
-      const a1=[m.x-nx*off1,m.y-ny*off1],a2=[m.x+nx*off2,m.y+ny*off2];
-      const b1=[m.x+nx*off1,m.y+ny*off1],b2=[m.x-nx*off2,m.y-ny*off2];
-      const sa=scorePos(h1,a1[0],a1[1])+scorePos(h2,a2[0],a2[1]),sb=scorePos(h1,b1[0],b1[1])+scorePos(h2,b2[0],b2[1]);
-      const useB=sb>sa,p1=useB?b1:a1,p2=useB?b2:a2;
-      setHazard(h1,p1[0],p1[1]);setHazard(h2,p2[0],p2[1]);
-    }
+    spec.hazardPlan=deployed.map(p=>({x:p.x/innerWidth,y:p.y/innerHeight,r:p.r}));
+    spec.hazardsVisible=deployed.length;
+    if(deployed.length<hazards.length)console.info('[GE BODY] protected path: '+deployed.length+'/'+hazards.length+' fixed hazards fitted safely on this screen');
   }
   function clearBodyRaceBonuses(){
     if(typeof comets==='undefined')return;
@@ -12529,9 +12577,12 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     const pts=bodyRace?.spec?.points||[];
     for(let i=0;i<pts.length-1;i++)dist=Math.min(dist,pointSegInfo(s.x,s.y,{a:pts[i],b:pts[i+1]}).d);
     if(dist>(bodyRace?.spec?.sideRadius||90))return{kind:'SIDE',x:s.x,y:s.y};
-    for(const p of (window.planetNodes||[])){if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.r||20)*.88)return{kind:'PLANET',x:p.x,y:p.y,el:p.el}}
+    for(const p of (window.planetNodes||[])){
+      if(p.geBodyCourseHidden)continue;
+      if(Math.hypot(s.x-p.x,s.y-p.y)<br+(p.geBodyHazardRadius||p.r||20)*.88)return{kind:'PLANET',x:p.x,y:p.y,el:p.el};
+    }
     const sunRect=document.getElementById('sunWrap')?.getBoundingClientRect();
-    if(sunRect?.width){const x=sunRect.left+sunRect.width/2,y=sunRect.top+sunRect.height/2,r=Math.min(sunRect.width,sunRect.height)*.43;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'BLUE SUN',x,y,el:document.getElementById('sunWrap')}}
+    if(sunRect?.width&&!document.getElementById('sunWrap')?.geBodyCourseHidden){const x=sunRect.left+sunRect.width/2,y=sunRect.top+sunRect.height/2,r=Math.min(sunRect.width,sunRect.height)*.43;if(Math.hypot(s.x-x,s.y-y)<br+r)return{kind:'BLUE SUN',x,y,el:document.getElementById('sunWrap')}}
     return null;
   }
   function loseBodyRaceSoul(){
