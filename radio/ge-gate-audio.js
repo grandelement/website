@@ -167,7 +167,7 @@
   // Install only on trusted controls; the same graph plays Radio and songs.
   document.addEventListener('click',event=>{
     if(!event.isTrusted||blocked)return;
-    if(event.target?.closest?.('#playBtn,#liveBtn,#gateTestBtn,#shipGateTestBtn,#trackList,#geGate')){
+    if(event.target?.closest?.('#playBtn,#liveBtn,#shipPlay,#shipStage [data-proxy="liveBtn"],#gateTestBtn,#shipGateTestBtn,#trackList,#geGate')){
       arm();
     }
   },true);
