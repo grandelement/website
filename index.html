@@ -7404,12 +7404,12 @@ canvas.addEventListener('pointerdown',e=>{
     }
     // Reuse the normal-site directional accelerator. Distance from the Body to the held
     // finger is the throttle: near = slow, farther pull = faster, capped at the normal max.
-    const sh=nearestShipField(e.clientX,e.clientY);
+    const sh=(typeof ships!=='undefined'&&ships.find(q=>q&&!q.dead))||nearestShipField(e.clientX,e.clientY);
     if(!sh)return;
     shipRayHold=null;shipCenterPress=null;
     if(sh.manualRay)sh.manualRay=null;sh.beam=0;
     shipSteer={ship:sh,id:e.pointerId};
-    steerShip(sh,e.clientX,e.clientY,false);
+    steerShip(sh,e.clientX,e.clientY+(window.GE_BODY_COURSE_FINGER_OFFSET?.()||80),false);
     try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
     e.preventDefault();e.stopImmediatePropagation();return;
   }
@@ -7449,7 +7449,7 @@ canvas.addEventListener('pointermove',e=>{
       if(e.cancelable)e.preventDefault();
       return;
     }
-    if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY,false);e.preventDefault()}
+    if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY+(window.GE_BODY_COURSE_FINGER_OFFSET?.()||80),false);e.preventDefault()}
     return;
   }
   if(updateMultiRay(e)){e.preventDefault();return}
