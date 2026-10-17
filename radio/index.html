@@ -9313,8 +9313,12 @@ Vector ${vector}. ${pair[1]}.`;
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';}
     window.GEGateFX?.reset?.();
     window.GEAudioGain?.setImmediate?.(0);
-    try{audio.volume=0;}catch(_e){}
-    try{audio.pause();}catch(_e){}
+    // iOS Safari may ignore audio.volume. Muting and disconnecting the
+    // listener's media source guarantee no dry song or wet tail continues.
+    try{
+      audio.muted=true;audio.defaultMuted=true;audio.volume=0;
+      audio.pause();audio.removeAttribute('src');audio.load();
+    }catch(_e){}
     showPanel(true);
     void purgeOffline();
   }
@@ -9429,11 +9433,26 @@ Vector ${vector}. ${pair[1]}.`;
     const grace=Math.max(0,Number(GATE_CONFIG.graceSeconds)||2)*1000;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
     gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
-    // Skipping the entrance leaves the original fadeAt and expireAt
-    // intact: the visitor's 33:33 timeline cannot restart.
+    // Tapping the Gate makes the Sun fully centered NOW. Begin its exact
+    // 2-second hold and 10-second fade now, never leave an old minute-long
+    // audio timer running after the visual has arrived.
+    gs.fadeAt=now+grace;
+    gs.expireAt=gs.fadeAt+fade;
     gs.pausedAt=0;
     save(true);
     clearTimers();
+    // The individual iPhone preview transport also needs its deadline
+    // shortened; JS volume alone cannot fade a native iPhone MP3.
+    if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
+      const url=freshLiveStreamURL((grace+fade)/1000);
+      if(url.includes('/listener-preview.mp3')){
+        try{
+          audio.pause();audio.muted=false;audio.defaultMuted=false;
+          audio.src=url;audio.load();
+          void audio.play().catch(()=>setLiveStatus('Tap PLAY to hear the shortened Gate.'));
+        }catch(_e){}
+      }
+    }
     if(sun){
       sun.style.transition='none';
       sun.style.transform='translate3d(0,0,0) scale(1)';
@@ -9558,12 +9577,12 @@ Vector ${vector}. ${pair[1]}.`;
       });
     }catch(_e){}
     window.GEAudioGain?.setImmediate?.(1);
-    try{audio.volume=restoreVolume;}catch(_e){}
+    try{audio.muted=false;audio.defaultMuted=false;audio.volume=restoreVolume;}catch(_e){}
     // The personal preview is intentionally finite. A visitor entering the
     // correct code must leave that finite transport immediately, otherwise
     // FFmpeg would still finish its fade after authorization.
     const wasPersonalStream=!!(state.live&&window.GEListenerPreview?.active?.());
-    if(wasPersonalStream){
+    if(wasPersonalStream||wasExpired||(!audio.currentSrc&&!audio.getAttribute('src'))){
       try{
         audio.pause();
         audio.src=freshLiveStreamURL(); // authorized => normal BLITZ stream
@@ -9675,7 +9694,7 @@ Vector ${vector}. ${pair[1]}.`;
       // Keep the LOVE developer code intact, but run the Gate just as a
       // guest would hear and see it, including its fade and effects.
       try{localStorage.removeItem(GATE_CONFIG.stateKey);}catch(_e){}
-      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.setImmediate?.(1);audio.volume=1;
+      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.setImmediate?.(1);audio.muted=false;audio.defaultMuted=false;audio.volume=1;
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
       window.GERadioSyncOfflineAccess?.();
       lastTickAt=Date.now();
