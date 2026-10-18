@@ -81,6 +81,52 @@ def safe_name(raw):
         return None
     return name[:180]
 
+
+def ge_timestamped_title(original_name, timestamp=None):
+    # Preserve the original song name and extension. Keep the upload date
+    # first so all versions sort naturally in Finder and Google Drive.
+    # YYYY-MM-DD - Song Name - HH-MM-SS.aif
+    local = time.localtime(timestamp)
+    day = time.strftime("%Y-%m-%d", local)
+    clock = time.strftime("%H-%M-%S", local)
+    stem, extension = os.path.splitext(as_text(original_name))
+    stem = stem.strip(" .-_")
+    # If the user already named the song with today's date, avoid doubling it.
+    date_prefix = re.match(r"^(\d{4}[-_. ]\d{1,2}[-_. ]\d{1,2}|\d{8})\s*[-_ .]+(.+)$", stem)
+    if date_prefix:
+        original_day = re.sub(r"[^0-9]", "", date_prefix.group(1))
+        if original_day == time.strftime("%Y%m%d", local) and date_prefix.group(2).strip():
+            stem = date_prefix.group(2).strip(" .-_")
+    if not stem:
+        stem = "Untitled"
+    return day + " - " + stem + " - " + clock + extension
+
+def ge_unique_drive_upload_name(folder, proposed):
+    # Avoid overwriting a different take uploaded in the same second.
+    stem, extension = os.path.splitext(proposed)
+    directory = REMOTE + "/" + folder
+    try:
+        check = subprocess.Popen(
+            [RCLONE, "--config", CONFIG, "lsjson", "--files-only", directory],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _err = check.communicate()
+        if check.returncode:
+            return proposed  # The folder may not have been created yet.
+        taken = set(as_text(item.get("Name", "")) for item in json.loads(as_text(out))
+                    if not item.get("IsDir"))
+        if proposed not in taken:
+            return proposed
+        for version in range(2, 1000):
+            alternative = stem + " - v" + str(version) + extension
+            if alternative not in taken:
+                return alternative
+        raise RuntimeError("Too many existing files share this date, title, and time.")
+    except RuntimeError:
+        raise
+    except Exception:
+        # Never silently overwrite when we cannot validate the destination.
+        raise RuntimeError("Could not check for an existing filename in Google Drive. Upload not started.")
+
 def job_update(key, **changes):
     with GUARD:
         if key in JOBS:
@@ -111,9 +157,9 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
             upload_name = os.path.splitext(original_name)[0] + ".mp3"
         else:
             upload_name = original_name
-        suffix = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
-        destination = REMOTE + "/" + folder + "/" + suffix + "-" + upload_name
+        cloud_name = ge_unique_drive_upload_name(folder, ge_timestamped_title(upload_name))
+        destination = REMOTE + "/" + folder + "/" + cloud_name
         job_update(job_id, phase="uploading", detail="Sending to Google Drive", percent=0)
         command = [RCLONE, "--config", CONFIG, "copyto", source, destination,
                    "--stats", "2s", "--stats-one-line", "-P"]
@@ -151,8 +197,8 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
         if code:
             raise RuntimeError("Google Drive upload failed: " + "".join(logs)[-550:])
         job_update(job_id, phase="complete", percent=100,
-                   detail="Uploaded " + upload_name + " to GE Studios/" + folder,
-                   name=upload_name)
+                   detail="Uploaded " + cloud_name + " to GE Studios/" + folder,
+                   name=cloud_name)
     except Exception as ex:
         job_update(job_id, phase="error", detail=as_text(str(ex))[:850])
     finally:
@@ -247,7 +293,7 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 4, "delete_available": True,
+                                       "helper_version": 5, "delete_available": True,
                                        "session_uploads": True, "all_app_files_available": True,
                                        "all_app_files_scope": "drive.file (app-created files only)",
                                        "trash_empty_requires_full_drive_scope": True,
