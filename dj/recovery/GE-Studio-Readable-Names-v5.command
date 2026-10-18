@@ -707,14 +707,15 @@ fi
 from __future__ import print_function
 import os, plistlib, sys
 target, agent = sys.argv[1:]
-if not os.path.exists(agent):
-    plistlib.writePlist({
-      "Label": "com.grandelement.geuploads",
-      "ProgramArguments": ["/usr/bin/python", "-u", target],
-      "RunAtLoad": True, "KeepAlive": True, "ThrottleInterval": 10,
-      "StandardOutPath": "/tmp/ge-studios-uploads.log",
-      "StandardErrorPath": "/tmp/ge-studios-uploads-error.log"
-    }, agent)
+# Save the updated path for the NEXT login. Do not unload/reload a currently
+# running service, which may still be processing a studio music transfer.
+plistlib.writePlist({
+  "Label": "com.grandelement.geuploads",
+  "ProgramArguments": ["/usr/bin/python", "-u", target],
+  "RunAtLoad": True, "KeepAlive": True, "ThrottleInterval": 10,
+  "StandardOutPath": "/tmp/ge-studios-uploads.log",
+  "StandardErrorPath": "/tmp/ge-studios-uploads-error.log"
+}, agent)
 __GE_AGENT_PY__
 /bin/chmod 600 "$AGENT"
 echo ""
