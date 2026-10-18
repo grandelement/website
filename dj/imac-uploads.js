@@ -182,10 +182,10 @@ function displayLibrary(kind){
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
  if(area)clear(area);
  if(kind==="all"&&!allFilesAvailable){
-  text("libraryStatus","ALL GE FILES requires helper v4. Existing Drafts, Finals and Sessions still work.");
+  text("libraryStatus","ALL GE FILES needs the updated helper. Use the V5 readable-names installer above; Drafts, Finals and Sessions still work.");
   if(area){
    var message=d.createElement("p");
-   message.textContent="Use COMPLETE GOOGLE DRIVE to see and download everything now. The optional v4 helper repair enables a list of app-created files here.";
+   message.textContent="Use COMPLETE GOOGLE DRIVE to browse everything now. When you're at the iMac, install V5, then restart after finishing uploads to enable this app-created file list.";
    area.appendChild(message);
   }
   return;
