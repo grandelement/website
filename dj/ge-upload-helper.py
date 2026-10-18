@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # GE Studios local Google Drive uploader for OS X 10.11 (Python 2.7).
 # Loopback-only service. Never touches Ableton, Saffire, BLITZ or BANGERS.
 # The DJ webpage transfers file bytes to this Mac, then rclone uploads to Drive.
