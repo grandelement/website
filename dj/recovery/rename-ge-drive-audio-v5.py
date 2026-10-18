@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # GE Studios - one-time server-side rename of our own timestamp-prefixed uploads.
 # macOS El Capitan / Python 2.7 and rclone v1.52 compatible.
 # DOES NOT download music, delete files, or alter any local project.
