@@ -111,7 +111,11 @@ def ge_unique_drive_upload_name(folder, proposed):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, _err = check.communicate()
         if check.returncode:
-            return proposed  # The folder may not have been created yet.
+            message = as_text(_err).lower()
+            if ("directory not found" in message or "folder not found" in message
+                    or "directory does not exist" in message):
+                return proposed  # The folder does not exist yet.
+            raise RuntimeError("Google Drive could not verify the destination filename.")
         taken = set(as_text(item.get("Name", "")) for item in json.loads(as_text(out))
                     if not item.get("IsDir"))
         if proposed not in taken:
