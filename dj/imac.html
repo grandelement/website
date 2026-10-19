@@ -58,6 +58,23 @@ button:disabled{opacity:.48;cursor:not-allowed}
  100%{margin-left:0}
 }
 
+
+.geUploadMonitor{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;box-sizing:border-box;background:#071622;color:#f3faff;border-bottom:4px solid #54c9ef;padding:12px 18px 15px;box-shadow:0 8px 30px rgba(0,0,0,.9);font-family:Arial,Helvetica,sans-serif}
+.geUploadMonitorHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#geUploadMonitorHeadline{font-size:32px;font-weight:900;letter-spacing:1px;line-height:1.1}
+#geUploadMonitorPercent{font-size:25px;font-weight:900;white-space:nowrap}
+#geUploadMonitorDestination{font-size:13px;font-weight:bold;color:#acdff1;margin:5px 0}
+#geUploadMonitorDetail{font-size:14px;line-height:1.3;white-space:normal;overflow-wrap:anywhere;max-height:50px;overflow:hidden;margin-top:7px}
+.geUploadMonitorTrack{height:27px;border:2px solid #87b4ce;border-radius:6px;background:#101d29;overflow:hidden}
+.geUploadMonitorFill{width:0;height:100%;background:#36bff5;transition:width .2s}
+.geUploadMonitorFill.geUploadIndeterminate{animation:geUploadSweep 1.55s ease-in-out infinite;-webkit-animation:geUploadSweep 1.55s ease-in-out infinite}
+.geMonitorDone{background:#083d25;border-bottom-color:#61ff9c}
+.geMonitorDone #geUploadMonitorHeadline{font-size:44px;color:#a9ffc7}
+.geMonitorDone .geUploadMonitorFill{background:#6bffa1}
+.geMonitorError{background:#4b140f;border-bottom-color:#ff917a}
+.geMonitorError #geUploadMonitorHeadline{color:#fff0a3}
+.geMonitorError .geUploadMonitorFill{background:#ff917a}
+@media(max-width:600px){#geUploadMonitorHeadline{font-size:24px}.geMonitorDone #geUploadMonitorHeadline{font-size:33px}#geUploadMonitorPercent{font-size:21px}.geUploadMonitor{padding:9px 12px 12px}}
 #radioMeterBar{background:#63a5f8}
 .geMeterRead{font-size:12px;color:#b8ccda}
 #liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
@@ -227,7 +244,7 @@ main{max-width:980px}
    <p id="libraryHelp" class="small">OPEN IN DRIVE shows a file's details. DOWNLOAD attempts the original file directly, including AIFF files Firefox cannot preview. For all Drive files, open COMPLETE GOOGLE DRIVE. Moving a Draft, Final or Session to Trash leaves the iMac original untouched.</p>
   </div>
   <h3 style="margin:12px 0 6px">ADD FILES</h3>
-  <p class="small">Choose a folder tab above, browse for multiple files or drag files into the box, select MP3 conversion if needed, then press UPLOAD. Browsing or dropping does not start an upload.</p>
+  <p class="small"><b>AUTO UPLOAD:</b> Choose Drafts, Finals or Sessions and set Convert to MP3 first if needed. Selecting files in Browse or dropping them starts uploading immediately. A large transfer monitor stays fixed at the top until complete.</p>
   <div class="geUploadCard" id="draftUploadCard">
    <h3>UPLOAD TO DRAFTS</h3>
    <div class="geDropZone" id="dropDraft">
@@ -259,7 +276,13 @@ main{max-width:980px}
    <p id="sessionHelperStatus" class="small">The local helper must support Sessions.</p>
    <button id="uploadSession" type="button" class="orange geUploadAction" disabled>UPLOAD SESSION FILES</button>
   </div>
-  <div class="geMeterTrack" role="progressbar" aria-label="Google Drive upload progress"><div id="uploadBar" class="geMeterFill"></div></div>
+  <div class="geUploadMonitor geMonitorWorking" id="geUploadMonitor" role="status" aria-live="polite" aria-label="Studio Drive upload progress">
+ <div class="geUploadMonitorHead"><strong id="geUploadMonitorHeadline">UPLOADING</strong><strong id="geUploadMonitorPercent">WORKING</strong></div>
+ <div id="geUploadMonitorDestination">STUDIO DRIVE</div>
+ <div class="geUploadMonitorTrack" role="progressbar" aria-label="Current Studio Drive file upload"><div class="geUploadMonitorFill" id="geUploadMonitorBar"></div></div>
+ <div id="geUploadMonitorDetail">Starting upload…</div>
+</div>
+<div class="geMeterTrack" role="progressbar" aria-label="Google Drive upload progress"><div id="uploadBar" class="geMeterFill"></div></div>
   <p id="uploadResults" role="status">Ready to browse files.</p>
   <p id="uploadIssues" role="status"></p>
  </section>
@@ -513,6 +536,6 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=7"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=16"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=17"></script>
 <script src="https://grandelement.com/dj/studio-diagnostics.js?v=3"></script>
 </body></html>
