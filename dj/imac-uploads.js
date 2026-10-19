@@ -1,5 +1,5 @@
 /* GE iMac uploads. Firefox on OS X El Capitan (ES5 + XMLHttpRequest).
- * BROWSE NEVER UPLOADS. Explicit Draft/Final button starts a chosen batch.
+ * Selecting files automatically starts the upload to the selected Draft/Final/Session folder.
  * BLITZ, BANGERS and Saffire are independent of this local Drive helper.
  */
 (function(w,d){
@@ -8,17 +8,60 @@ var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],session:[]}, activeKind="draft";
 var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
-var listGeneration=0, uploadPoll=0, issueLines=[];
+var listGeneration=0, uploadPoll=0, issueLines=[], monitorTimer=0, monitorVisible=false, lastProgress=null;
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
 function el(id){return d.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s===undefined||s===null?"":s)}
 function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":kind==="all"?"All GE Files":"Drafts"}
 function fmtSize(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
 function wait(fn,ms){return w.setTimeout(fn,ms)}
-function status(s){text("uploadResults",s)}
+function monitorShow(){
+ var m=el("geUploadMonitor");if(!m)return;
+ if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+ m.style.display="block";monitorVisible=true;
+}
+function monitorHideLater(){
+ if(monitorTimer)w.clearTimeout(monitorTimer);
+ monitorTimer=wait(function(){var m=el("geUploadMonitor");if(m)m.style.display="none";monitorVisible=false;monitorTimer=0},14000);
+}
+function monitorState(state){
+ var m=el("geUploadMonitor");if(!m)return;
+ m.className="geUploadMonitor geMonitor"+state;
+ text("geUploadMonitorHeadline",state==="Done"?"COMPLETE":state==="Error"?"UPLOAD ERROR":"UPLOADING");
+ if(state==="Done")monitorHideLater();
+}
+function status(s){
+ text("uploadResults",s);
+ if(!monitorVisible)return;
+ var headline=el("geUploadMonitorDetail");
+ if(headline)headline.textContent=String(s||"");
+}
+function monitorStart(kind,count){
+ monitorShow();monitorState("Working");
+ text("geUploadMonitorDestination",nameOf(kind).toUpperCase()+" · "+count+" FILE"+(count===1?"":"S"));
+ progress(null);
+}
+function monitorError(message){
+ monitorShow();monitorState("Error");
+ status(message);
+}
+function monitorFinish(){
+ monitorShow();
+ if(failed){monitorState("Error");text("geUploadMonitorHeadline",failed+" FAILED · "+succeeded+" UPLOADED")}
+ else {progress(100);monitorState("Done")}
+}
+
 function issue(s){issueLines.push(s);text("uploadIssues",issueLines.join("\n"))}
 function progress(value){
  var bar=el("uploadBar");if(!bar)return;
+ var topBar=el("geUploadMonitorBar");
+ if(topBar){
+  topBar.className=value===null?"geUploadMonitorFill geUploadIndeterminate":"geUploadMonitorFill";
+  topBar.style.width=value===null?"32%":Math.min(100,Math.max(0,Number(value)||0))+"%";
+  topBar.style.marginLeft="0";
+ }
+ text("geUploadMonitorPercent",value===null?"WORKING":Math.min(100,Math.max(0,Math.round(Number(value)||0)))+"%");
+
  if(value===null){
   bar.className="geMeterFill geUploadIndeterminate";
   bar.style.width="32%";
@@ -120,10 +163,8 @@ function fileChanged(kind,input){
  el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=!result.length;
  issueLines=[];text("uploadIssues","");
  progress(0);
- status(result.length?
-  nameOf(kind).toUpperCase()+" SELECTED · "+(kind==="session"?
-  "ZIP or session files will be uploaded unchanged. Press UPLOAD SESSIONS. Nothing has transferred.":"Choose Convert to MP3 (optional), then press UPLOAD "+(kind==="draft"?"DRAFT":"FINAL")+". Nothing has transferred."):
-  "Choose a music file first. No upload started.");
+ if(result.length){uploadChosen(kind)}
+ else status("Choose a music file first. No upload started.");
 }
 function updateHealth(callback){
  if(inCheck){if(callback)wait(function(){updateHealth(callback)},500);return}
@@ -270,21 +311,22 @@ function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
  var convert=kind==="session"?false:!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ monitorStart(kind,chosen[kind].length);
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
   if(err||!data.rclone_ready){
-   status("NO FILES UPLOADED · "+(err?linkError(err):"Drive is not ready on this Mac.")+
+   monitorError("NO FILES UPLOADED · "+(err?linkError(err):"Drive is not ready on this Mac.")+
      " Files remain selected for retry.");
    return;
   }
   if(convert&&!encoderAvailable){
-   status("NO FILES UPLOADED · Conversion was selected, but the helper doesn't detect a "+
+   monitorError("NO FILES UPLOADED · Conversion was selected, but the helper doesn't detect a "+
     "usable encoder. LAME is already installed; check which helper process is running. "+
     "Uncheck conversion only if you want the original file unchanged.");
    return;
   }
   var invalid=checkSelected(kind,convert);
-  if(invalid){status("NO FILES UPLOADED · "+invalid);return}
+  if(invalid){monitorError("NO FILES UPLOADED · "+invalid);return}
   issueLines=[];text("uploadIssues","");
   queue=chosen[kind].slice(0);current=null;
   total=queue.length;finished=0;succeeded=0;failed=0;
@@ -305,7 +347,7 @@ function removeChosen(kind,file){
 }
 function stopBatch(kind,message){
  queue=[];current=null;setBusy(false);progress(0);
- status(message+" · Files not confirmed uploaded remain selected. "+
+ monitorError(message+" · Files not confirmed uploaded remain selected. "+
   "Check MY "+nameOf(kind).toUpperCase()+" before retrying to avoid duplicates.");
 }
 function uploadNext(kind,convert){
@@ -314,6 +356,7 @@ function uploadNext(kind,convert){
   progress(failed?0:100);
   status("QUEUE FINISHED · "+succeeded+" uploaded · "+failed+" failed. "+
    "Files confirmed uploaded were removed from the selection. Originals on this iMac remain unchanged.");
+  monitorFinish();
   displayLibrary(kind);return;
  }
  current=queue.shift();
@@ -399,7 +442,7 @@ function installDrop(kind){
   chosen[kind]=files;selectedLabel(kind);
   el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=false;
   issueLines=[];text("uploadIssues","");progress(0);
-  status(files.length+" "+nameOf(kind)+" files selected by drag-and-drop. No upload has started; press UPLOAD to confirm.");
+  uploadChosen(kind);
  });
 }
 function init(){
@@ -423,7 +466,7 @@ function init(){
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
- status("READY · BROWSE → CHOOSE FORMAT → UPLOAD. Browsing never starts an upload.");
+ status("READY · CHOOSE FOLDER AND MP3 SETTING → SELECT FILES → UPLOAD STARTS AUTOMATICALLY.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
  // The old iMac can lose its manually started uploader while Firefox stays
  // open. Automatically recheck every 20 seconds with no Terminal commands or
