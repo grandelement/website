@@ -6978,6 +6978,20 @@ class Ship{
     if(v>vmax){this.vx*=vmax/v;this.vy*=vmax/v;}
 
     this.x+=this.vx*dt;this.y+=this.vy*dt;
+    // The Body race's control finger is a protected zone. Even a fast drag
+    // reversal cannot let the ship pass directly beneath the player's thumb.
+    // Normal website ships and all other games are completely unaffected.
+    const touch=window.GE_BODY_TOUCH_GUARD;
+    if(touch?.ship===this&&document.body.classList.contains('ge-body-race-active')&&this.controlActive){
+      const dx=this.x-touch.x,dy=this.y-touch.y;
+      const along=dx*touch.ux+dy*touch.uy;
+      const dist=Math.hypot(dx,dy);
+      if(dist<touch.gap||along<0&&dist<touch.gap*1.35){
+        this.x=touch.x+touch.ux*touch.gap;
+        this.y=touch.y+touch.uy*touch.gap;
+        this.vx=0;this.vy=0;
+      }
+    }
     const exitMargin=window.GE_EASY_SETTINGS?.SHIP_EXIT_MARGIN??130;
     if(this.x<-exitMargin||this.x>W+exitMargin||this.y<-exitMargin||this.y>H+exitMargin){
       for(const c of this.targets){if(!c||c.dead)continue;c.state='fly';c.capturedBy=null;c.lastHost=this;c.hostCooldownUntil=performance.now()+rand(1400,3200);c.vx=this.vx*.35+rand(-80,80);c.vy=this.vy*.35+rand(-80,80);}
@@ -7395,6 +7409,29 @@ function steerShip(s,x,y,fromCenter=false){
   s.controlThrottle=Math.max(0,Math.min(1,speed/max));
   s.vx=dx/d*speed;s.vy=dy/d*speed;
 }
+// THE BODY only: anchor the finger a full ship-width away in the direction
+// it initially approaches from. Keep that separation through every reversal.
+// The old fixed Y+80 offset failed whenever the finger changed direction.
+function steerBodyCourseFinger(s,x,y,start=false){
+  if(!shipSteer||shipSteer.ship!==s)return;
+  const gap=Math.max(shipVisualRadius(s)+36,Number(window.GE_BODY_COURSE_FINGER_OFFSET?.()||80));
+  if(start||!shipSteer.bodyOffset){
+    const dx=x-s.x,dy=y-s.y,d=Math.hypot(dx,dy);
+    let ux,uy;
+    if(d<gap*.7){
+      // When a player touches directly on the ship, place the finger control
+      // to the nearest free lateral side, not on top of the ship image.
+      ux=x<=innerWidth/2?-1:1;uy=0;
+    }else{ux=dx/d;uy=dy/d;}
+    shipSteer.bodyOffset={ux:-ux,uy:-uy};
+  }
+  const o=shipSteer.bodyOffset;
+  // The direction is fixed during a drag, so reversing never swaps sides.
+  // Changing the clearance option takes effect on the next pointer update.
+  const ox=o.ux*gap,oy=o.uy*gap;
+  window.GE_BODY_TOUCH_GUARD={ship:s,x,y,ux:o.ux,uy:o.uy,gap};
+  steerShip(s,x+ox,y+oy,false);
+}
 canvas.addEventListener('pointerdown',e=>{
   const bodyCourse=document.body.classList.contains('ge-body-race-active');
   if(document.body.classList.contains('game-mode-active')&&!bodyCourse)return;
@@ -7409,12 +7446,13 @@ canvas.addEventListener('pointerdown',e=>{
     }
     // Reuse the normal-site directional accelerator. Distance from the Body to the held
     // finger is the throttle: near = slow, farther pull = faster, capped at the normal max.
+    if(shipSteer)return; // A second finger cannot hijack the course steering gesture.
     const sh=(typeof ships!=='undefined'&&ships.find(q=>q&&!q.dead))||nearestShipField(e.clientX,e.clientY);
     if(!sh)return;
     shipRayHold=null;shipCenterPress=null;
     if(sh.manualRay)sh.manualRay=null;sh.beam=0;
     shipSteer={ship:sh,id:e.pointerId};
-    steerShip(sh,e.clientX,e.clientY+(window.GE_BODY_COURSE_FINGER_OFFSET?.()||80),false);
+    steerBodyCourseFinger(sh,e.clientX,e.clientY,true);
     try{canvas.setPointerCapture(e.pointerId)}catch(_e){}
     e.preventDefault();e.stopImmediatePropagation();return;
   }
@@ -7450,11 +7488,11 @@ canvas.addEventListener('pointerdown',e=>{
 canvas.addEventListener('pointermove',e=>{
   if(document.body.classList.contains('ge-body-race-active')){
     if(document.body.classList.contains('ge-body-race-countdown')){
-      if(shipSteer&&shipSteer.id===e.pointerId){shipSteer.ship.vx=0;shipSteer.ship.vy=0;shipSteer.ship.paused=true;shipSteer.ship.controlActive=false;shipSteer=null;}
+      if(shipSteer&&shipSteer.id===e.pointerId){shipSteer.ship.vx=0;shipSteer.ship.vy=0;shipSteer.ship.paused=true;shipSteer.ship.controlActive=false;shipSteer=null;window.GE_BODY_TOUCH_GUARD=null;}
       if(e.cancelable)e.preventDefault();
       return;
     }
-    if(shipSteer&&shipSteer.id===e.pointerId){steerShip(shipSteer.ship,e.clientX,e.clientY+(window.GE_BODY_COURSE_FINGER_OFFSET?.()||80),false);e.preventDefault()}
+    if(shipSteer&&shipSteer.id===e.pointerId){steerBodyCourseFinger(shipSteer.ship,e.clientX,e.clientY);e.preventDefault()}
     return;
   }
   if(updateMultiRay(e)){e.preventDefault();return}
@@ -7465,7 +7503,7 @@ canvas.addEventListener('pointermove',e=>{
 function endShipPointer(e){
   if(document.body.classList.contains('ge-body-race-active')){
     if(!shipSteer||shipSteer.id!==e.pointerId)return;
-    shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;
+    shipSteer.ship.controlActive=false;shipSteer.ship.guided=true;shipSteer=null;window.GE_BODY_TOUCH_GUARD=null;
     try{canvas.releasePointerCapture(e.pointerId)}catch(_e){}
     return;
   }
@@ -12892,6 +12930,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
     document.body.classList.add('ge-body-race-active');prepareBodyRaceUniverse();bodyRaceTrack.hidden=false;bodyRaceHUD.hidden=false;bodyRaceHUD.setAttribute('aria-hidden','false');cancelAnimationFrame(bodyRaceRAF);renderBodyRace();bodyRaceRAF=requestAnimationFrame(bodyRaceLoop);
   }
   function closeBodyRace(){
+    window.GE_BODY_TOUCH_GUARD=null;
     if(bodyRace&&!bodyRace.finished)window.GEVault?.track?.('body_course_exit',{level,course:bodyRace.spec?.name||'',souls:bodyRace.collected||0,hits:bodyRace.hits||0,progress:bodyRace.progress||0,elapsed_ms:bodyRace.startedAt?Math.round(performance.now()-bodyRace.startedAt):0});
     bodyRaceToken++;cancelAnimationFrame(bodyRaceRAF);clearBodyRaceBonuses();restoreBodyRacePlanets();
     if(bodyRace?.body){bodyRace.body.geRaceBoostUntil=0;bodyRace.body.paused=false;bodyRace.body.guided=false;if(Number.isFinite(bodyRace.body.geRaceOriginalScale)){bodyRace.body.s=bodyRace.body.geRaceOriginalScale;delete bodyRace.body.geRaceOriginalScale}}
