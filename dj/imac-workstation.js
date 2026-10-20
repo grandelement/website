@@ -103,6 +103,57 @@ function init(){
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
   studio.appendChild(studioConnection);
   var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="STUDIO DRIVE";
+  /* Put the upload controls first; keep Google Drive listings and tools collapsed. */
+  var firstCard=by("draftUploadCard");
+  var library=by("musicLibraryPanel");
+  if(firstCard&&library){
+    var addTitle=firstCard.previousElementSibling;
+    var addHelp=addTitle&&addTitle.previousElementSibling;
+    if(addTitle&&addTitle.tagName==="H3"){
+      drive.insertBefore(addTitle,library);
+      if(addHelp&&addHelp.tagName==="P")drive.insertBefore(addHelp,library);
+    }
+    var cards=["draftUploadCard","finalUploadCard","sessionUploadCard"];
+    for(var ci=0;ci<cards.length;ci++){
+      var card=by(cards[ci]);if(card)drive.insertBefore(card,library);
+    }
+    var extra=node("details","geDriveExtras");
+    var extraLabel=node("summary",null,"GOOGLE DRIVE FILES · SETTINGS · TROUBLESHOOTING");
+    extra.appendChild(extraLabel);
+    drive.insertBefore(extra,library);
+    move(library,extra);
+    var driveChildren=Array.prototype.slice.call(drive.children);
+    for(var di=0;di<driveChildren.length;di++){
+      var child=driveChildren[di];
+      if(child!==extra&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
+    }
+  }
+  /* A distance-readable result remains visible after upload completion. */
+  var bigResult=node("div","geUploadBigResult");
+  bigResult.setAttribute("role","status");
+  bigResult.setAttribute("aria-live","polite");
+  bigResult.style.display="none";
+  uploadStrip.parentNode.insertBefore(bigResult,uploadStrip.nextSibling);
+  var lastResult="";
+  function syncBigResult(){
+    var result=by("uploadResults"),message=result?result.textContent:"";
+    var line=by("geUploadMonitorHeadline");
+    var lineText=line?line.textContent:"";
+    var source=message+" "+lineText+" "+stripTitle.textContent;
+    if(/QUEUE FINISHED|UPLOAD COMPLETE|ALL FILES UPLOADED/i.test(source)&&!/failed[^0-9]*[1-9]|ERROR|FAILED[^0-9]*[1-9]/i.test(source)){
+      bigResult.textContent="COMPLETE";
+      bigResult.style.display="block";
+      lastResult=source;
+    }else if(/UPLOAD NOT CONFIRMED|UPLOAD FAILED/i.test(source)){
+      bigResult.textContent="UPLOAD FAILED";
+      bigResult.style.display="block";
+      lastResult=source;
+    }else if(/STARTING|SENDING TO IMAC|UPLOADING|TRACK [0-9]+\\//i.test(source)&&source!==lastResult){
+      bigResult.style.display="none";
+    }
+  }
+  if(w.setInterval)w.setInterval(syncBigResult,1200);
+
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
  var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
  function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
