@@ -150,4 +150,40 @@ if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else ini
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
   studio.appendChild(studioConnection);
   var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE FILES & UPLOADS";
+  /* Google: two primary actions; advanced repair stays collapsed. */
+  var ghead=node("div","geGoogleIntro");
+  var auth=node("div","geAuthPanel");
+  var actions=node("div","geGooglePrimaryActions");
+  var repair=node("button","green","RECONNECT GOOGLE · REPAIR");repair.type="button";
+  var advanced=node("details","geGoogleAdvanced");
+  var summary=node("summary",null,"MANUAL REPAIR · OPTIONS");
+  advanced.appendChild(summary);
+  var advancedBody=node("div","geGoogleAdvancedBody");
+  var check=node("button",null,"CHECK CONNECTION");check.type="button";
+  check.onclick=function(){var b=by("retryHelper");if(b)b.click();var x=by("runStudioChecks");if(x)x.click()};
+  advancedBody.appendChild(check);
+  var download=node("a","link","DOWNLOAD REPAIR SCRIPT");download.href="/dj/ge-google-reauthorize.command";download.download="ge-google-reauthorize.command";advancedBody.appendChild(download);
+  var copy=node("button",null,"COPY TERMINAL COMMAND");copy.type="button";
+  copy.onclick=function(){var cmd="bash \"$HOME/Downloads/ge-google-reauthorize.command\"";var t=node("textarea");t.value=cmd;t.style.position="fixed";t.style.left="-9999px";d.body.appendChild(t);t.select();var ok=false;try{ok=d.execCommand("copy")}catch(e){}d.body.removeChild(t);if(!ok)w.prompt("Copy:",cmd);else copy.textContent="COPIED";};
+  advancedBody.appendChild(copy);
+  help(advancedBody,"Google authorization","The iMac helper must be upgraded before a website button can launch the local repair script. Until then, download the repair script and run it on the Mac. Google sign-in always requires your approval.");
+  diagnostics(advancedBody,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
+  advanced.appendChild(advancedBody);
+  repair.onclick=function(){
+    var status=by("geGoogleRepairNotice");
+    if(status)status.textContent="LOCAL LAUNCHER REQUIRED · Open GE Google Repair.app on the iMac. The current helper cannot launch it from Firefox.";
+  };
+  actions.appendChild(repair);actions.appendChild(advanced);
+  auth.appendChild(actions);
+  var notice=node("p","geGoogleRepairNotice");notice.id="geGoogleRepairNotice";auth.appendChild(notice);
+  ghead.appendChild(auth);google.insertBefore(ghead,drive);
+  /* Studio Drive connection belongs with the Studio controls. Keep Google uploads under Google. */
+  var studioConnection=node("div","geStudioDriveConnection");
+  var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK STUDIO DRIVE";}
+  var helper=by("helperStatus");move(helper,studioConnection);
+  var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
+  studio.appendChild(studioConnection);
+  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE FILES & UPLOADS";
+
+
 
