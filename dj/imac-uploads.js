@@ -33,7 +33,7 @@ function monitorHideLater(){
 }
 function monitorState(state){
  var m=el("geUploadMonitor");if(!m)return;
- m.className="geUploadMonitor geMonitor"+state;
+ m.className="geUploadMonitor geMonitor"+state+(m.parentNode&&m.parentNode.id==="geUploadStrip"?" geDockedMonitor":"");
  text("geUploadMonitorHeadline",state==="Done"?"COMPLETE":state==="Error"?"UPLOAD ERROR":"UPLOADING");
  /* Keep completed state visible until the next upload begins. */
 }
@@ -490,6 +490,8 @@ function init(){
   });
  },20000);
 }
+/* Public read-only file-browser refresh for the iMac Google tab. */
+w.GEImacUploads={refreshFiles:function(){displayLibrary(activeKind)}};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);
 else init();
 })(window,document);
