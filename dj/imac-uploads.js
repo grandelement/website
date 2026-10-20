@@ -14,6 +14,13 @@ function el(id){return d.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s===undefined||s===null?"":s)}
 function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":kind==="all"?"All GE Files":"Drafts"}
 function fmtSize(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
+function uploadDisplayName(original){
+ var match=/^(.*?)(\\.[^.]+)$/.exec(original||"");if(!match)return original;
+ var now=new Date(),day=now.getFullYear()+"-"+("0"+(now.getMonth()+1)).slice(-2)+"-"+("0"+now.getDate()).slice(-2);
+ var title=match[1].replace(/^\\d{4}[-_. ]\\d{1,2}[-_. ]\\d{1,2}\\s*[-_ .]+/,"").trim();
+ return day+" - "+title+match[2];
+}
+
 function wait(fn,ms){return w.setTimeout(fn,ms)}
 function monitorShow(){
  var m=el("geUploadMonitor");if(!m)return;
@@ -361,7 +368,8 @@ function uploadNext(kind,convert){
  }
  current=queue.shift();
  var item=current,file=item,number=finished+1,started=Date.now();
- var path="/upload?kind="+kind+"&name="+encodeURIComponent(file.name)+"&convert="+(convert?"1":"0");
+ var cloudName=uploadDisplayName(file.name);
+ var path="/upload?kind="+kind+"&name="+encodeURIComponent(cloudName)+"&convert="+(convert?"1":"0");
  status("TRACK "+number+"/"+total+" · SENDING TO IMAC · "+file.name);
  progress(null);
  var req=request("POST",path,file,function(err,data){
