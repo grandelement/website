@@ -6830,6 +6830,7 @@ html.geFormatPhone .geClockRail #geStationStatus{font-size:7px!important;max-wid
 html.geDayMode .geClockRail button{background:#e6f0f5!important;color:#194052!important}
 html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;color:#15513c!important}
 
+.geChannelBubble.geDevicePlaceholder{display:inline-flex!important;opacity:.43!important;border:1px dashed #52606c!important;background:#0a1017!important;color:#aab3bd!important;cursor:default!important;pointer-events:none!important}.geChannelBubble.geDevicePlaceholder i{background:#59636d!important;box-shadow:none!important}
 </style><style id="ge-release-studio-access-style">
 a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;border-radius:9px;border:1px solid #69caab;background:#0d4538;color:#effff9;text-decoration:none;font:900 10px Arial,Helvetica,sans-serif;padding:6px 10px;white-space:nowrap}
 </style>
@@ -10047,13 +10048,30 @@ function boardNeedsSetup(row){
 }
 function renderKnownDeviceBubbles(){
  const host=$('geKnownDevices');if(!host)return;
- host.innerHTML=knownBoardViews().filter(function(v){return v.slotRank<4}).map(function(v){
-   const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,linked=online&&boardLogicalConnectedV134(r.id),air=!!r.mic_air;
-   const cls='geChannelBubble '+(linked?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'');
-   const state=!online?'OFFLINE':(linked?'CONNECTED':'DISCONNECTED');
-   const title=v.label+' · '+state+(self?' · THIS DEVICE':'')+' · TAP TO '+(linked?'DISCONNECT':'CONNECT / RECONNECT');
-   return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" aria-pressed="'+(linked?'true':'false')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>'
- }).join('')
+ /* Keep every device category visible even before the first pairing.
+    Only real board IDs receive connect/disconnect actions. */
+ const views=knownBoardViews();
+ const slots=[
+  {kind:'computer',label:'COMPUTER / iMAC'},
+  {kind:'iphone',label:'iPHONE'},
+  {kind:'ipad',label:'iPAD'},
+  {kind:'iphone5',label:'iPHONE 5'}
+ ];
+ let html='';
+ function bubble(v){
+  const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,linked=online&&boardLogicalConnectedV134(r.id),air=!!r.mic_air;
+  const cls='geChannelBubble '+(linked?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'');
+  const state=!online?'OFFLINE':(linked?'CONNECTED':'AVAILABLE');
+  const title=v.label+' · '+state+(self?' · THIS DEVICE':'')+' · TAP TO '+(linked?'DISCONNECT':'CONNECT / RECONNECT');
+  return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" aria-pressed="'+(linked?'true':'false')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>';
+ }
+ slots.forEach(function(slot){
+  const matches=views.filter(function(v){return v.slotKind===slot.kind});
+  if(matches.length)matches.forEach(function(v){html+=bubble(v)});
+  else html+='<button type="button" class="geChannelBubble geDevicePlaceholder" disabled aria-disabled="true" title="'+esc(slot.label+' · NOT CONNECTED')+'"><i></i><span>'+esc(slot.label)+'</span></button>';
+ });
+ views.filter(function(v){return v.slotRank>=4}).forEach(function(v){html+=bubble(v)});
+ host.innerHTML=html;
 }
 function boardDisplayLabel(board){
  const v=knownBoardViews().find(function(x){return String(x.row.id||'')===String(board&&board.id||'')});
