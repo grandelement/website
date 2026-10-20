@@ -94,7 +94,7 @@ function init(){
  function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k)};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
- select(0);
+ var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
  /* Keep the original diagnostics as a separate collapsible section under Google. */
  move(diagnostic,google);
  var statusBtn=node("button",null,"FULL CONNECTION REPORT");statusBtn.type="button";statusBtn.onclick=function(){select(3);diagnostic.open=true;var b=by("runStudioChecks");if(b)b.click();diagnostic.scrollIntoView()};
