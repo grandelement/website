@@ -7231,7 +7231,7 @@ function syncGeFormatOrientation(){
 syncGeFormatOrientation();
 window.addEventListener('resize',function(){clearTimeout(syncGeFormatOrientation._t);syncGeFormatOrientation._t=setTimeout(syncGeFormatOrientation,120)});
 
-let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
+let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioUserRequestedOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
 let diagEvents=[],diagEpoch=performance.now(),diagLongTasks=0,diagLongestTask=0,diagEventLoopLag=0,diagLastFreeze=0;
@@ -8182,11 +8182,27 @@ function freshRadioUrl(){
 function setGeAudioSession(type){
  try{if(navigator.audioSession&&'type' in navigator.audioSession){navigator.audioSession.type=type;diagEvent('AUDIO SESSION',String(type))}}catch(e){diagEvent('AUDIO SESSION ERROR',String(e&&e.message||e))}
 }
-async function reassertGeOutputRoute(){
+async function reassertGeOutputRoute(options){
  const micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0];
- setGeAudioSession(micTrack&&micTrack.readyState==='live'?'play-and-record':'playback');
+ const forcePlayback=!!(options&&options.forcePlayback);
+ setGeAudioSession(!forcePlayback&&micTrack&&micTrack.readyState==='live'?'play-and-record':'playback');
  const a=$('radioAudio');
- if(a&&radioMonitorOn){a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);try{await a.play()}catch(e){}}
+ // iOS may pause playback when the mic audio session changes. A PAUSE event
+ // must not overwrite the listener's explicit RADIO ON choice.
+ if(a&&radioUserRequestedOn){
+  a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);
+  try{await a.play();radioMonitorOn=true;radioPlaybackState='PLAYING';updateRadioButton()}
+  catch(e){diagEvent('RADIO RESUME BLOCKED',String(e&&e.message||e));radioPlaybackState='PAUSED · TAP RADIO TO RESUME';updateRadioButton();updateRadioDiagnostics()}
+ }
+}
+function resumeGeRadioAfterMicStop(){
+ if(!radioUserRequestedOn)return;
+ [250,900].forEach(function(delay){
+  setTimeout(function(){
+   const a=$('radioAudio');if(!radioUserRequestedOn||!a||(!a.paused&&!a.ended))return;
+   reassertGeOutputRoute({forcePlayback:!micAirOn&&!micCueOn}).catch(function(e){diagEvent('RADIO MIC-STOP RESTORE ERROR',String(e&&e.message||e))})
+  },delay)
+ })
 }
 async function startFreshRadioMonitor(){
  const a=$('radioAudio');if(!a)return;
@@ -8197,7 +8213,7 @@ async function startFreshRadioMonitor(){
  try{a.removeAttribute('src');a.load()}catch(e){}
  a.src=freshRadioUrl();a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);a.preload='auto';a.load();
  await a.play();
- radioMonitorOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
+ radioMonitorOn=true;radioUserRequestedOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
  updateRadioButton();updateRadioDiagnostics()
 }
 async function reconnectRadioMonitor(){
@@ -8216,12 +8232,12 @@ async function toggleRadio(){
      radioReconnectCount++;
      await startFreshRadioMonitor()
    }else{
-     a.pause();radioMonitorOn=false;radioPlaybackState='OFF';
+     radioUserRequestedOn=false;a.pause();radioMonitorOn=false;radioPlaybackState='OFF';
      setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);setMeterLevel('mixRadioAuxMeter',0);setMeterLevel('mixAuxMixMeter',0);
      updateRadioDiagnostics()
    }
  }catch(e){
-   radioMonitorOn=false;radioPlaybackState='ERROR';setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);updateRadioDiagnostics();throw e
+   radioUserRequestedOn=false;radioMonitorOn=false;radioPlaybackState='ERROR';setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);updateRadioDiagnostics();throw e
  }finally{radioToggleBusy=false;updateRadioButton();updateRadioDiagnostics()}
 }
 
@@ -8551,8 +8567,9 @@ async function stopMicOnAir(options){
    micStream=micSource=null;$('micOpen').textContent='OPEN MIC'
  }
  if($('micPathStatus'))$('micPathStatus').textContent=lineAirOn?'MIC OFF AIR · COMPUTER REMAINS ON AIR':'MIC READY · MIC OFF AIR';
- if(preserveMic)setGeAudioSession('play-and-record');else setGeAudioSession('playback');
- await reassertGeOutputRoute();
+ setGeAudioSession(micAirOn||micCueOn?'play-and-record':'playback');
+ await reassertGeOutputRoute({forcePlayback:!micAirOn&&!micCueOn});
+ resumeGeRadioAfterMicStop();
  updateAirButtons()
 }
 async function toggleMicOnAir(){
