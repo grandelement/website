@@ -78,6 +78,12 @@ function init(){
  auth.appendChild(node("h3",null,"GOOGLE CONNECTION"));
  var retry=node("button",null,"CHECK GOOGLE CONNECTION");retry.type="button";retry.onclick=function(){var b=by("retryHelper");if(b)b.click();var c=by("runStudioChecks");if(c)c.click()};
  auth.appendChild(retry);
+ var renew=node("a","link geReauthorize","1 · REAUTHORIZE GOOGLE DRIVE");
+ renew.href="/dj/ge-google-reauthorize.command";renew.download="ge-google-reauthorize.command";
+ renew.style.display="inline-block";renew.style.margin="5px";renew.style.padding="11px 13px";renew.style.background="#166753";renew.style.color="#fff";renew.style.borderRadius="5px";renew.style.fontWeight="bold";
+ auth.appendChild(renew);
+ var renewNote=node("p",null,"On the iMac: download this one-click repair, open Downloads in Finder, then Control-click the .command file and choose Open. It opens Terminal automatically and starts Google sign-in. No command typing. Your rclone configuration is backed up first.");
+ auth.appendChild(renewNote);
  var instructions=node("details","geHelp");
  instructions.appendChild(node("summary",null,"? HELP · RENEW GOOGLE AUTHORIZATION"));
  var p=node("p",null,"An expired Google token must be renewed in the iMac rclone configuration. RECONNECT DRIVE only retries the existing token; it does not sign in. On the iMac, open Terminal and run the command below. Follow the Google sign-in prompts. If rclone offers a headless authorization URL, use the iPhone to sign in and finish the prompted transfer back to the iMac. Never paste tokens or passwords into the DJ Booth.");
