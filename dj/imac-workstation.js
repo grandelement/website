@@ -103,6 +103,15 @@ function init(){
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
   studio.appendChild(studioConnection);
   var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="STUDIO DRIVE";
+  /* Frequently used Google Trash shortcut stays visible above the upload form. */
+  var trashLink=drive.querySelector('a[href="https://drive.google.com/drive/u/0/trash"]');
+  if(trashLink){
+    var quick=node("div","geTrashQuickAction");
+    quick.appendChild(trashLink);
+    var draftCard=by("draftUploadCard");
+    var heading=draftCard&&draftCard.previousElementSibling;
+    drive.insertBefore(quick,heading&&heading.tagName==="H3"?heading:draftCard);
+  }
   /* Put the upload controls first; keep Google Drive listings and tools collapsed. */
   var firstCard=by("draftUploadCard");
   var library=by("musicLibraryPanel");
