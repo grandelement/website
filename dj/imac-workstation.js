@@ -34,6 +34,15 @@ function init(){
  var stripTitle=node("span","geUploadStripTitle","UPLOAD · READY");
  var stripStatus=node("span","geUploadStripStatus","No transfer in progress");
  uploadStrip.appendChild(stripTitle);uploadStrip.appendChild(stripStatus);
+ var clearShown=node("button","geClearUploadDisplay","CLEAR OLD STATUS");clearShown.type="button";
+ clearShown.title="Clear the old upload message only. Does not cancel a transfer or remove a Drive file.";
+ clearShown.onclick=function(){
+  if(w.GEImacUploads&&w.GEImacUploads.clearFinishedDisplay&&w.GEImacUploads.clearFinishedDisplay()){
+   stripTitle.textContent="UPLOAD · READY";stripStatus.textContent="No upload in this browser";
+   uploadStrip.className="geUploadStrip";
+  }
+ };
+ uploadStrip.appendChild(clearShown);
  main.insertBefore(uploadStrip,header);
  var existingMonitor=by("geUploadMonitor");
  /* Keep progress outside the hidden Google tab and any collapsed file panels. */
