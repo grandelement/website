@@ -29,6 +29,24 @@ function init(){
  var links=[["iMAC · THIS DEVICE","/dj/imac.html"],["DJ BOOTH / DEVICES","/radio/ge-dj.html"],["STUDIO","/studio/"],["BLITZ FALLBACK","https://radio.grandelement.blitz.cloud/dj/"]];
  for(var i=0;i<links.length;i++){var a=node("a",i===0?"active":"",links[i][0]);a.href=links[i][1];top.appendChild(a)}
  main.insertBefore(top,header);header.getElementsByTagName("p")[0].style.display="none";
+ /* Persistent compact upload status immediately below the device row. */
+ var uploadStrip=node("div","geUploadStrip");uploadStrip.id="geUploadStrip";
+ var stripTitle=node("span","geUploadStripTitle","UPLOAD · READY");
+ var stripStatus=node("span","geUploadStripStatus","No transfer in progress");
+ uploadStrip.appendChild(stripTitle);uploadStrip.appendChild(stripStatus);
+ main.insertBefore(uploadStrip,header);
+ var existingMonitor=by("geUploadMonitor");
+ if(existingMonitor){uploadStrip.appendChild(existingMonitor);existingMonitor.className+=" geDockedMonitor";}
+ function syncUploadStrip(){
+  if(!existingMonitor)return;
+  var showing=existingMonitor.style.display!=="none";
+  var headline=by("geUploadMonitorHeadline"),detail=by("geUploadMonitorDetail");
+  stripTitle.textContent=showing&&headline?headline.textContent:"UPLOAD · READY";
+  stripStatus.textContent=showing&&detail?detail.textContent:"No transfer in progress";
+  uploadStrip.className=showing?"geUploadStrip active":"geUploadStrip";
+ }
+ syncUploadStrip();
+ if(w.setInterval)w.setInterval(syncUploadStrip,1200);
  var content=node("div","geWorkstation"),studio=node("section","geTab"),mixer=node("section","geTab"),effects=node("section","geTab"),google=node("section","geTab");
  studio.id="geTabStudio";mixer.id="geTabMixer";effects.id="geTabEffects";google.id="geTabGoogle";
  main.insertBefore(content,radio);
