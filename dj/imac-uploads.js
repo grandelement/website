@@ -28,7 +28,7 @@ function monitorState(state){
  var m=el("geUploadMonitor");if(!m)return;
  m.className="geUploadMonitor geMonitor"+state;
  text("geUploadMonitorHeadline",state==="Done"?"COMPLETE":state==="Error"?"UPLOAD ERROR":"UPLOADING");
- if(state==="Done")monitorHideLater();
+ /* Keep completed state visible until the next upload begins. */
 }
 function status(s){
  text("uploadResults",s);
