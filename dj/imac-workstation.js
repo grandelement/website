@@ -36,10 +36,9 @@ function init(){
  uploadStrip.appendChild(stripTitle);uploadStrip.appendChild(stripStatus);
  main.insertBefore(uploadStrip,header);
  var existingMonitor=by("geUploadMonitor");
- if(existingMonitor){uploadStrip.appendChild(existingMonitor);existingMonitor.className+=" geDockedMonitor";}
  function syncUploadStrip(){
   if(!existingMonitor)return;
-  var showing=existingMonitor.style.display!=="none";
+  var showing=existingMonitor.style.display==="block";
   var headline=by("geUploadMonitorHeadline"),detail=by("geUploadMonitorDetail");
   stripTitle.textContent=showing&&headline?headline.textContent:"UPLOAD · READY";
   stripStatus.textContent=showing&&detail?detail.textContent:"No transfer in progress";
@@ -62,7 +61,9 @@ function init(){
  help(mx,"Mixer","Connect Soundflower (2ch) in Studio first. This page shows the iMac stereo meters and live input gain. The full DJ Booth contains the expanded mixer.");
  diagnostics(mx,"Mixer",["meterStatus","leftDb","rightDb","liveGainRead","channelReadout"]);
  fx.appendChild(node("p",null,"Advanced DJ effects and stem controls are in the full GE DJ Booth. No effects are inserted into the live iMac audio path from this tab."));
- var fxlink=node("a","link","OPEN DJ EFFECTS");fxlink.href="/radio/ge-dj.html";fx.appendChild(fxlink);
+ var effectsControls=by("radioControls");
+ if(effectsControls){move(effectsControls,fx);fx.getElementsByTagName("p")[0].textContent="BLITZ music transitions. Fade, skip and stop controls activate after connecting Radio 1. Live studio audio remains protected.";}
+ var fxlink=node("a","link","ADVANCED DJ EFFECTS");fxlink.href="/radio/ge-dj.html";fx.appendChild(fxlink);
  help(fx,"Effects","Use the full GE DJ Booth for filters, EQ, stems and deck effects. This classic iMac console keeps the existing Soundflower audio route unchanged.");
  diagnostics(fx,"Effects",["connection","liveStatus","meterStatus"]);
  mixer.appendChild(mx);effects.appendChild(fx);
@@ -93,7 +94,7 @@ function init(){
  function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k)};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
- var first=0;try{first=Number(w.sessionStorage.getItem("geImacTab")||0)}catch(e){}select(first>=0&&first<4?first:0);
+ select(0);
  /* Keep the original diagnostics as a separate collapsible section under Google. */
  move(diagnostic,google);
  var statusBtn=node("button",null,"FULL CONNECTION REPORT");statusBtn.type="button";statusBtn.onclick=function(){select(3);diagnostic.open=true;var b=by("runStudioChecks");if(b)b.click();diagnostic.scrollIntoView()};
