@@ -17,7 +17,7 @@ echo "Do not share or photograph any authorization codes or tokens."
 echo
 # Answer the known rclone v1.52 reconnect prompts: refresh=yes, auto config=yes, team drive=no.
 # Google OAuth consent still requires the owner to approve access in Firefox.
-printf 'y\\ny\\nn\\n' | "$RCLONE" config reconnect GEStudios:
+printf '%s\n' y y n | "$RCLONE" config reconnect GEStudios:
 STATUS=$?
 if [ "$STATUS" -ne 0 ]; then echo; echo "Authorization was not completed. Existing config backup preserved."; read -p "Press Return to close..."; exit "$STATUS"; fi
 echo
