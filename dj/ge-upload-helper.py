@@ -83,24 +83,26 @@ def safe_name(raw):
     return name[:180]
 
 
-def ge_timestamped_title(original_name, timestamp=None):
-    # Preserve the original song name and extension. Keep the upload date
-    # first so all versions sort naturally in Finder and Google Drive.
-    # YYYY-MM-DD - Song Name - HH-MM-SS.aif
+def ge_timestamped_title(original_name, kind="draft", timestamp=None):
+    """Human-readable filenames for narrow Google Drive mobile lists."""
     local = time.localtime(timestamp)
     day = time.strftime("%Y-%m-%d", local)
-    clock = time.strftime("%H-%M-%S", local)
     stem, extension = os.path.splitext(as_text(original_name))
     stem = stem.strip(" .-_")
-    # If the user already named the song with today's date, avoid doubling it.
-    date_prefix = re.match(r"^(\d{4}[-_. ]\d{1,2}[-_. ]\d{1,2}|\d{8})\s*[-_ .]+(.+)$", stem)
-    if date_prefix:
-        original_day = re.sub(r"[^0-9]", "", date_prefix.group(1))
-        if original_day == time.strftime("%Y%m%d", local) and date_prefix.group(2).strip():
-            stem = date_prefix.group(2).strip(" .-_")
+    # Strip old date, generated clock and random-ID prefixes.
+    stem = re.sub(r"^(?:\\d{4}[-_. ]?\\d{2}[-_. ]?\\d{2})(?:[-_ ]?\\d{6})?\\s*[-_ .]*", "", stem).strip(" .-_")
+    stem = re.sub(r"^\\d{6}[-_]\\d{6}[-_][0-9a-f]{6,}[-_]*", "", stem, flags=re.I).strip(" .-_")
+    stem = re.sub(r"^\\d{6}[-_][0-9a-f]{6,}[-_]*", "", stem, flags=re.I).strip(" .-_")
+    stem = re.sub(r"\\s*[-_ ]+\\d{2}[-_]\\d{2}[-_]\\d{2}$", "", stem).strip(" .-_")
     if not stem:
         stem = "Untitled"
-    return day + " - " + stem + " - " + clock + extension
+    if kind == "draft":
+        return day + "-" + stem + extension
+    if kind == "final":
+        if re.match(r"^Grand Element\\s*[-–]\\s*", stem, re.I):
+            return stem + extension
+        return "Grand Element - " + stem + extension
+    return stem + extension
 
 def ge_unique_drive_upload_name(folder, proposed):
     # Avoid overwriting a different take uploaded in the same second.
@@ -122,7 +124,7 @@ def ge_unique_drive_upload_name(folder, proposed):
         if proposed not in taken:
             return proposed
         for version in range(2, 1000):
-            alternative = stem + " - v" + str(version) + extension
+            alternative = stem + " - V" + str(version) + extension
             if alternative not in taken:
                 return alternative
         raise RuntimeError("Too many existing files share this date, title, and time.")
@@ -163,7 +165,7 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
         else:
             upload_name = original_name
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
-        cloud_name = ge_unique_drive_upload_name(folder, ge_timestamped_title(upload_name))
+        cloud_name = ge_unique_drive_upload_name(folder, ge_timestamped_title(upload_name, kind))
         destination = REMOTE + "/" + folder + "/" + cloud_name
         job_update(job_id, phase="uploading", detail="Sending to Google Drive", percent=0)
         command = [RCLONE, "--config", CONFIG, "copyto", source, destination,
