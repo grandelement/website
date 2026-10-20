@@ -50,7 +50,7 @@ function init(){
  studio.id="geTabStudio";mixer.id="geTabMixer";effects.id="geTabEffects";google.id="geTabGoogle";
  main.insertBefore(content,radio);
  content.appendChild(studio);content.appendChild(mixer);content.appendChild(effects);content.appendChild(google);
- move(radio,studio);move(drive,studio);
+ move(radio,studio);move(drive,google);
  var mx=node("div","panel"),fx=node("div","panel");
  mx.appendChild(node("h2",null,"MIXER · IMAC"));fx.appendChild(node("h2",null,"EFFECTS · IMAC"));
  mx.appendChild(node("p",null,"Stereo input and gain controls for the iMac. Broadcasting stays OFF until you explicitly go live."));
@@ -96,13 +96,13 @@ function init(){
   auth.appendChild(actions);
   var notice=node("p","geGoogleRepairNotice");notice.id="geGoogleRepairNotice";auth.appendChild(notice);
   ghead.appendChild(auth);google.appendChild(ghead);
-  /* Studio Drive connection belongs with the Studio controls. Keep Google uploads under Google. */
+  /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
   var studioConnection=node("div","geStudioDriveConnection");
-  var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK STUDIO DRIVE";}
+  var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
   var helper=by("helperStatus");move(helper,studioConnection);
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
-  studio.appendChild(studioConnection);
-  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="STUDIO DRIVE";
+  google.insertBefore(studioConnection,drive);
+  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE DRIVE";
   /* Frequently used Google Trash shortcut stays visible above the upload form. */
   var trashLink=drive.querySelector('a[href="https://drive.google.com/drive/u/0/trash"]');
   if(trashLink){
