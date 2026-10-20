@@ -50,7 +50,7 @@ function init(){
  studio.id="geTabStudio";mixer.id="geTabMixer";effects.id="geTabEffects";google.id="geTabGoogle";
  main.insertBefore(content,radio);
  content.appendChild(studio);content.appendChild(mixer);content.appendChild(effects);content.appendChild(google);
- move(radio,studio);move(drive,google);
+ move(radio,studio);move(drive,studio);
  var mx=node("div","panel"),fx=node("div","panel");
  mx.appendChild(node("h2",null,"MIXER · IMAC"));fx.appendChild(node("h2",null,"EFFECTS · IMAC"));
  mx.appendChild(node("p",null,"Stereo input and gain controls for the iMac. Broadcasting stays OFF until you explicitly go live."));
@@ -95,14 +95,14 @@ function init(){
   actions.appendChild(repair);actions.appendChild(advanced);
   auth.appendChild(actions);
   var notice=node("p","geGoogleRepairNotice");notice.id="geGoogleRepairNotice";auth.appendChild(notice);
-  ghead.appendChild(auth);google.insertBefore(ghead,drive);
+  ghead.appendChild(auth);google.appendChild(ghead);
   /* Studio Drive connection belongs with the Studio controls. Keep Google uploads under Google. */
   var studioConnection=node("div","geStudioDriveConnection");
   var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK STUDIO DRIVE";}
   var helper=by("helperStatus");move(helper,studioConnection);
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
   studio.appendChild(studioConnection);
-  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE FILES & UPLOADS";
+  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="STUDIO DRIVE";
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
  var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
  function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
