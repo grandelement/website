@@ -36,6 +36,8 @@ function init(){
  uploadStrip.appendChild(stripTitle);uploadStrip.appendChild(stripStatus);
  main.insertBefore(uploadStrip,header);
  var existingMonitor=by("geUploadMonitor");
+ /* Keep progress outside the hidden Google tab and any collapsed file panels. */
+ if(existingMonitor){uploadStrip.appendChild(existingMonitor);existingMonitor.className+=" geDockedMonitor";}
  function syncUploadStrip(){
   if(!existingMonitor)return;
   var showing=existingMonitor.style.display==="block";
@@ -112,7 +114,7 @@ function init(){
     var heading=draftCard&&draftCard.previousElementSibling;
     drive.insertBefore(quick,heading&&heading.tagName==="H3"?heading:draftCard);
   }
-  /* Put the upload controls first; keep Google Drive listings and tools collapsed. */
+  /* Keep files plainly visible; only rarely used settings may collapse. */
   var firstCard=by("draftUploadCard");
   var library=by("musicLibraryPanel");
   if(firstCard&&library){
@@ -129,14 +131,17 @@ function init(){
     var extra=node("details","geDriveExtras");
     var extraLabel=node("summary",null,"GOOGLE DRIVE FILES · SETTINGS · TROUBLESHOOTING");
     extra.appendChild(extraLabel);
-    drive.insertBefore(extra,library);
-    move(library,extra);
+    drive.insertBefore(extra,library.nextSibling);
     var driveChildren=Array.prototype.slice.call(drive.children);
     for(var di=0;di<driveChildren.length;di++){
       var child=driveChildren[di];
       if(child!==extra&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
     }
   }
+  /* The Drive file list stays open on GOOGLE, never tucked into Settings. */
+  var driveRefresh=node("button","geRefreshDriveFiles","REFRESH GOOGLE FILES");driveRefresh.type="button";
+  driveRefresh.onclick=function(){if(w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles();};
+  if(library)drive.insertBefore(driveRefresh,library);
   /* A distance-readable result remains visible after upload completion. */
   var bigResult=node("div","geUploadBigResult");
   bigResult.setAttribute("role","status");
@@ -166,7 +171,7 @@ function init(){
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
  var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
  function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
- for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k)};nav.appendChild(b)})(i);
+ for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k);if(k===3&&w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
  var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
  /* Keep the original diagnostics as a separate collapsible section under Google. */
