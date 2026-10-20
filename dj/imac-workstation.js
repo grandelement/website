@@ -83,7 +83,7 @@ function init(){
  renew.style.display="inline-block";renew.style.margin="5px";renew.style.padding="11px 13px";renew.style.background="#166753";renew.style.color="#fff";renew.style.borderRadius="5px";renew.style.fontWeight="bold";
  auth.appendChild(renew);
  var renewNote=node("p",null,"Download the repair file on the iMac. macOS may block downloaded scripts or remove executable permissions. If double-click does not run it, use COPY RUN COMMAND, open Terminal, paste, and press Return. Your rclone configuration is backed up first.");
- var runCopy=node("button",null,"2 · COPY RUN COMMAND");runCopy.type="button";runCopy.onclick=function(){var cmd="sh \"$HOME/Downloads/ge-google-reauthorize.command\"";var t=node("textarea");t.value=cmd;t.style.position="fixed";t.style.left="-9999px";d.body.appendChild(t);t.select();try{d.execCommand("copy")}catch(e){w.prompt("Copy this command:",cmd)}d.body.removeChild(t);runCopy.textContent="COPIED · PASTE IN TERMINAL";};auth.appendChild(runCopy);
+ var runCopy=node("button",null,"COPY GOOGLE REPAIR · NO TYPING");runCopy.type="button";runCopy.onclick=function(){var cmd="bash \"$HOME/Downloads/ge-google-reauthorize.command\"";var t=node("textarea");t.value=cmd;t.style.position="fixed";t.style.left="-9999px";d.body.appendChild(t);t.select();try{d.execCommand("copy")}catch(e){w.prompt("Copy this command:",cmd)}d.body.removeChild(t);runCopy.textContent="COPIED · PASTE IN TERMINAL";};auth.appendChild(runCopy);
  auth.appendChild(renewNote);
  var instructions=node("details","geHelp");
  instructions.appendChild(node("summary",null,"? HELP · RENEW GOOGLE AUTHORIZATION"));
