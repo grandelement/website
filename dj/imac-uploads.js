@@ -491,7 +491,20 @@ function init(){
  },20000);
 }
 /* Public read-only file-browser refresh for the iMac Google tab. */
-w.GEImacUploads={refreshFiles:function(){displayLibrary(activeKind)}};
+w.GEImacUploads={
+ refreshFiles:function(){displayLibrary(activeKind)},
+ clearFinishedDisplay:function(){
+  if(busy){status("UPLOAD STILL RUNNING · Cannot clear progress until this transfer completes.");return false}
+  if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+  monitorVisible=false;
+  var m=el("geUploadMonitor");if(m)m.style.display="none";
+  current=null;queue=[];progress(0);
+  text("uploadIssues","");
+  text("uploadResults","READY · Previous transfer display cleared. No files were deleted or uploads canceled.");
+  var summary=el("geUploadBigResult");if(summary)summary.style.display="none";
+  return true
+ }
+};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);
 else init();
 })(window,document);
