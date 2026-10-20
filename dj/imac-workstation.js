@@ -129,7 +129,7 @@ function init(){
       var card=by(cards[ci]);if(card)drive.insertBefore(card,library);
     }
     var extra=node("details","geDriveExtras");
-    var extraLabel=node("summary",null,"GOOGLE DRIVE FILES · SETTINGS · TROUBLESHOOTING");
+    var extraLabel=node("summary",null,"GOOGLE SETTINGS · TROUBLESHOOTING");
     extra.appendChild(extraLabel);
     drive.insertBefore(extra,library.nextSibling);
     var driveChildren=Array.prototype.slice.call(drive.children);
