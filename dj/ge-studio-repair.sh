@@ -17,14 +17,14 @@ if [ ! -f "$RCLONE" ] || [ ! -f "$CONF" ]; then
  exit 1
 fi
 SRC=""
-for candidate in "$HOME/Downloads/ge-upload-helper-v3.py" "$HOME/Downloads/ge-upload-helper.py" "$HOME/Downloads/ge-upload-helper-v2.py"; do
+for candidate in "$HOME/Downloads/ge-upload-helper-v7.py" "$HOME/Downloads/ge-upload-helper-v3.py" "$HOME/Downloads/ge-upload-helper.py" "$HOME/Downloads/ge-upload-helper-v2.py"; do
  if [ -f "$candidate" ] && grep -q 'session_uploads' "$candidate" && grep -q 'HOST = "127.0.0.1"' "$candidate"; then
   SRC="$candidate"
   break
  fi
 done
 if [ -z "$SRC" ]; then
- echo "STOP: Download the latest GE Upload Helper v3 from the GE DJ Booth before running this repair."
+ echo "STOP: Download the latest GE Upload Helper from the GE DJ Booth before running this repair."
  echo "Your existing songs and Google Drive configuration have not been touched."
  exit 1
 fi
