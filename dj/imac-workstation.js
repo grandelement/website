@@ -113,10 +113,8 @@ function init(){
       if(childrenBefore[ai].tagName==="H3"&&/ADD FILES/i.test(childrenBefore[ai].textContent||"")){addTitle=childrenBefore[ai];break}
     }
     var addHelp=addTitle&&addTitle.nextElementSibling;
-    var mp3TestPanel=by("geMp3TestPanel");
     if(addTitle)drive.insertBefore(addTitle,library);
     if(addHelp&&addHelp.tagName==="P")drive.insertBefore(addHelp,library);
-    if(mp3TestPanel)drive.insertBefore(mp3TestPanel,library);
     var cards=["draftUploadCard","finalUploadCard","sessionUploadCard"];
     for(var ci=0;ci<cards.length;ci++){
       var card=by(cards[ci]);if(card)drive.insertBefore(card,library);
@@ -128,7 +126,7 @@ function init(){
     var driveChildren=Array.prototype.slice.call(drive.children);
     for(var di=0;di<driveChildren.length;di++){
       var child=driveChildren[di];
-      if(child!==extra&&child!==library&&child.className!=="geTrashQuickAction"&&child.id!=="geMp3TestPanel"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
+      if(child!==extra&&child!==library&&child.className!=="geTrashQuickAction"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
     }
   }
   /* The Drive file list stays open on GOOGLE, never tucked into Settings. */
@@ -175,7 +173,7 @@ function init(){
  var monitor=by("geUploadMonitor");if(monitor){monitor.className+=" geCompactUploadMonitor"}
  /* Remove repeated verbose explanations from default view without deleting them. */
  var sections=drive.querySelectorAll("p.small");
- for(i=0;i<sections.length;i++){var para=sections[i];if(para.id||para.parentNode.className.indexOf("geUploadCard")>=0||para.parentNode.className.indexOf("geMp3TestPanel")>=0||/MANUAL UPLOAD/.test(para.textContent||""))continue;
+ for(i=0;i<sections.length;i++){var para=sections[i];if(para.id||para.parentNode.className.indexOf("geUploadCard")>=0||/MANUAL UPLOAD/.test(para.textContent||""))continue;
   var wrap=node("details","geHelp geContextHelp"),summary=node("summary",null,"? HELP · "+(para.textContent||"Google Drive").slice(0,45)+"…");
   para.parentNode.insertBefore(wrap,para);wrap.appendChild(summary);wrap.appendChild(para);
  }
