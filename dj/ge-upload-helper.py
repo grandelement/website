@@ -168,7 +168,6 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
         else:
             upload_name = original_name
         actual_size = os.path.getsize(source)
-            raise RuntimeError("GitHub MP3 exceeds the 25 MB radio limit. No upload attempted.")
         job_update(job_id, file_size_bytes=actual_size,
                    mp3_mode="320" if convert else "original")
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
