@@ -269,10 +269,10 @@ function displayLibrary(kind){
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
  if(area)clear(area);
  if(kind==="all"&&!allFilesAvailable){
-  text("libraryStatus","ALL GE FILES needs the updated helper. Use the V5 readable-names installer above; Drafts, Finals and Sessions still work.");
+  text("libraryStatus","ALL GE FILES requires a newer iMac helper. Google Drive itself is available now.");
   if(area){
    var message=d.createElement("p");
-   message.textContent="Use COMPLETE GOOGLE DRIVE to browse everything now. When you're at the iMac, install V5, then restart after finishing uploads to enable this app-created file list.";
+   message.textContent="Use COMPLETE GOOGLE DRIVE to browse everything. The current iMac helper cannot list every folder yet.";
    area.appendChild(message);
   }
   return;
@@ -317,13 +317,15 @@ function displayLibrary(kind){
     row.appendChild(del);
    }
    if(item.id&&/^[A-Za-z0-9_-]{10,}$/.test(item.id)){
-    var open=d.createElement("button");open.type="button";
+    var open=d.createElement("a");
     open.className="geDriveOpen";open.textContent="OPEN IN DRIVE";
-    open.onclick=function(){w.open("https://drive.google.com/file/d/"+item.id+"/view","_blank")};
+    open.href="https://drive.google.com/file/d/"+encodeURIComponent(item.id)+"/view";
+    open.target="_blank";open.rel="noopener noreferrer";
     row.appendChild(open);
-    var dl=d.createElement("button");dl.type="button";
+    var dl=d.createElement("a");
     dl.className="geDriveDownload";dl.textContent="DOWNLOAD";
-    dl.onclick=function(){w.open("https://drive.google.com/uc?export=download&id="+item.id,"_blank")};
+    dl.href="https://drive.google.com/uc?export=download&id="+encodeURIComponent(item.id);
+    dl.target="_blank";dl.rel="noopener noreferrer";
     row.appendChild(dl);
    }
    area.appendChild(row);
