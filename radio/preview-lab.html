@@ -222,7 +222,7 @@ function save(force=false){
  const now=performance.now();if(!force&&now-saveAt<1700)return;saveAt=now;
  try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs,gateAtSeconds:data.gateAtSeconds}))}catch(_e){}
 }
-function valid(t){if(!t||t.kind!=='song'||Number(t.duration_ms)<1000)return false;
+function valid(t){if(!t||t.kind!=='song'||(t.duration_ms!=null&&(!Number.isFinite(Number(t.duration_ms))||Number(t.duration_ms)<0)))return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
 function element(tag,text,klass=''){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(klass)e.className=klass;return e}
@@ -375,7 +375,7 @@ function showSongs(){
  const q=$('search').value.toLowerCase(),tracks=albums.get(selectedAlbum)||[];
  for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
   const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
-  title.appendChild(element('small',fmt(t.duration_ms/1000)));
+  title.appendChild(element('small',Number(t.duration_ms)>0?fmt(t.duration_ms/1000):'Duration available when played'));
   const check=element('input');check.type='checkbox';check.checked=selectedSongs.some(x=>x.url===t.url);
   check.setAttribute('aria-label','Select '+label(t));check.addEventListener('change',()=>{
     if(check.checked)addSelected(t);else removeSelected(t);
@@ -457,12 +457,87 @@ $('geGateEnter').addEventListener('click',()=>{
  if(currentTrack&&audio.paused)void resume();
 });
 $('geGateWord').addEventListener('keydown',e=>{if(e.key==='Enter')$('geGateEnter').click()});
-fetch('./track-durations.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Catalog '+r.status);return r.json()}).then(data=>{
- const tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
- for(const t of tracks){const list=albums.get(t.album||'Other')||[];list.push(t);albums.set(t.album||'Other',list);}
- for(const list of albums.values())list.sort((a,b)=>{const an=Number((a.title||'').match(/^\d+/)?.[0])||999,bn=Number((b.title||'').match(/^\d+/)?.[0])||999;return an-bn||label(a).localeCompare(label(b))});
- showAlbums();restoreSelected(tracks);say(tracks.length+' songs available. Choose an album, select any number of tracks, then press PLAY SELECTED.');
-}).catch(e=>{say('Music catalog unavailable. '+e.message);$('albumWall').textContent='Unable to load music.'});
+// Song-duration metadata can lag behind the GitHub music files. Load the
+// manifest as a fallback, then use the real repository tree when available.
+// MUSIC and the main RADIO title both route here for guest song selection.
+function cleanMusicPath(input){
+ const path=String(input||'').replace(/^\\/+/, '');
+ return /^ge-music\\/music\\/.+\\/[^/]+\\.(mp3|m4a|ogg|wav)$/i.test(path)
+   && !path.split('/').some(part=>part==='.'||part==='..')?path:'';
+}
+function trackFromMusicPath(path){
+ const components=path.split('/');
+ const folder=components.slice(2,-1).join('/');
+ const album=folder.replace(/^Grand Element - (?:\\d{4} - )?/i,'')||'Grand Element';
+ const file=components[components.length-1].replace(/\\.(mp3|m4a|ogg|wav)$/i,'');
+ const numbered=file.match(/^.+?_(\\d{1,3})_(.+)$/);
+ const title=numbered?(numbered[1]+' '+numbered[2].replace(/_/g,' ')):
+   file.replace(/^Singles_/i,'').replace(/_/g,' ');
+ return {kind:'song',path,album,title,duration_ms:0,
+   url:'/'+components.map(encodeURIComponent).join('/')};
+}
+function displayCatalog(tracks,restore=false){
+ const previous=selectedAlbum;
+ albums=new Map();
+ for(const t of tracks){
+   if(!valid(t))continue;
+   const list=albums.get(t.album||'Other')||[];
+   list.push(t);albums.set(t.album||'Other',list);
+ }
+ for(const list of albums.values())list.sort((a,b)=>{
+   const an=Number((a.title||'').match(/^\\d+/)?.[0])||999;
+   const bn=Number((b.title||'').match(/^\\d+/)?.[0])||999;
+   return an-bn||label(a).localeCompare(label(b));
+ });
+ if(restore)restoreSelected(tracks.filter(valid));
+ else{
+   const lookup=new Map(tracks.filter(valid).map(t=>[t.path,t]));
+   selectedSongs=selectedSongs.map(t=>lookup.get(t.path)).filter(Boolean);
+   renderSelected();
+ }
+ showAlbums();
+ if(!$('albumView').hidden){
+   if(albums.has(previous)){selectedAlbum=previous;showSongs();}
+   else{$('albumView').hidden=true;$('albumWall').hidden=false;}
+ }
+ say(tracks.filter(valid).length+' songs available. Choose an album or select any number of songs.');
+}
+async function loadCompleteMusicCatalog(){
+ let durationTracks=[];
+ try{
+   const response=await fetch('./track-durations.json',{cache:'no-store'});
+   if(!response.ok)throw Error('Song durations '+response.status);
+   const data=await response.json();
+   durationTracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
+ }catch(error){console.warn('Song duration metadata unavailable:',error);}
+ const known=new Map(durationTracks.map(t=>[cleanMusicPath(t.path),t]).filter(([path])=>path));
+ // The manifest is a fallback for offline or GitHub API-limited listeners.
+ let fallbackPaths=[];
+ try{
+   const response=await fetch('./manifest.json',{cache:'no-store'});
+   if(response.ok){
+     const data=await response.json();
+     fallbackPaths=(Array.isArray(data.files)?data.files:[]).map(cleanMusicPath).filter(Boolean);
+   }
+ }catch(error){console.warn('Music manifest unavailable:',error);}
+ const initialPaths=[...new Set([...known.keys(),...fallbackPaths])];
+ if(initialPaths.length)displayCatalog(initialPaths.map(p=>known.get(p)||trackFromMusicPath(p)),true);
+ else{$('albumWall').textContent='Unable to load music.';say('Music catalog unavailable.');}
+ try{
+   const url='https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1';
+   const response=await fetch(url,{cache:'no-store'});
+   if(!response.ok)throw Error('GitHub music listing '+response.status);
+   const data=await response.json();
+   if(!Array.isArray(data.tree)||data.truncated)throw Error('Incomplete GitHub music listing');
+   const paths=[...new Set(data.tree.filter(t=>t.type==='blob').map(t=>cleanMusicPath(t.path)).filter(Boolean))];
+   if(paths.length){
+     const current=initialPaths.slice().sort().join('\\n');
+     const newest=paths.slice().sort().join('\\n');
+     if(current!==newest)displayCatalog(paths.map(p=>known.get(p)||trackFromMusicPath(p)));
+   }
+ }catch(error){console.warn('Using saved music listing:',error);}
+}
+void loadCompleteMusicCatalog();
 baseVolume=Math.max(.01,Number(audio.volume)||1);
 if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
 if(data.expired||data.gateStartedAtMs)renderGate();
