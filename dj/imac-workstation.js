@@ -80,32 +80,13 @@ function init(){
  mixer.appendChild(mx);effects.appendChild(fx);
  help(radio,"Studio","Choose Soundflower (2ch), press CONNECT STUDIO AUDIO, verify left and right meters, then connect Radio 1 only when needed. GO LIVE is always a separate deliberate action.");
  diagnostics(radio,"Studio",["connection","liveState","liveReadiness","liveStatus","meterStatus","leftDb","rightDb","trustedStatus"]);
-  /* Google: two primary actions; advanced repair stays collapsed. */
+  /* Google: connection checks only. Obsolete installer and repair actions removed. */
   var ghead=node("div","geGoogleIntro");
   var auth=node("div","geAuthPanel");
-  var actions=node("div","geGooglePrimaryActions");
-  var repair=node("button","green","RECONNECT GOOGLE · REPAIR");repair.type="button";
-  var advanced=node("details","geGoogleAdvanced");
-  var summary=node("summary",null,"MANUAL REPAIR · OPTIONS");
-  advanced.appendChild(summary);
-  var advancedBody=node("div","geGoogleAdvancedBody");
   var check=node("button",null,"CHECK CONNECTION");check.type="button";
   check.onclick=function(){var b=by("retryHelper");if(b)b.click();var x=by("runStudioChecks");if(x)x.click()};
-  advancedBody.appendChild(check);
-  var download=node("a","link","DOWNLOAD REPAIR SCRIPT");download.href="/dj/ge-google-reauthorize.command";download.download="ge-google-reauthorize.command";advancedBody.appendChild(download);
-  var copy=node("button",null,"COPY TERMINAL COMMAND");copy.type="button";
-  copy.onclick=function(){var cmd="bash \"$HOME/Downloads/ge-google-reauthorize.command\"";var t=node("textarea");t.value=cmd;t.style.position="fixed";t.style.left="-9999px";d.body.appendChild(t);t.select();var ok=false;try{ok=d.execCommand("copy")}catch(e){}d.body.removeChild(t);if(!ok)w.prompt("Copy:",cmd);else copy.textContent="COPIED";};
-  advancedBody.appendChild(copy);
-  help(advancedBody,"Google authorization","The iMac helper must be upgraded before a website button can launch the local repair script. Until then, download the repair script and run it on the Mac. Google sign-in always requires your approval.");
-  diagnostics(advancedBody,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
-  advanced.appendChild(advancedBody);
-  repair.onclick=function(){
-    var status=by("geGoogleRepairNotice");
-    if(status)status.textContent="LOCAL LAUNCHER REQUIRED · Open GE Google Repair.app on the iMac. The current helper cannot launch it from Firefox.";
-  };
-  actions.appendChild(repair);actions.appendChild(advanced);
-  auth.appendChild(actions);
-  var notice=node("p","geGoogleRepairNotice");notice.id="geGoogleRepairNotice";auth.appendChild(notice);
+  auth.appendChild(check);
+  diagnostics(auth,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
   ghead.appendChild(auth);google.appendChild(ghead);
   /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
   var studioConnection=node("div","geStudioDriveConnection");
