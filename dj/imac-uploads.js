@@ -7,7 +7,7 @@
 var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],session:[]}, activeKind="draft";
 var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false;
-var mp3TestBusy=false,mp3TestFailed=false;
+var mp3TestBusy=false,mp3TestFailed=false,helperVersion=0;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
 var listGeneration=0, uploadPoll=0, issueLines=[], monitorTimer=0, monitorVisible=false, lastProgress=null;
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
@@ -147,6 +147,18 @@ function request(method,path,body,callback){
   }
  };
 }
+function conversionMode(kind){
+ if(kind==="session")return "original";
+ var shortName=kind==="draft"?"Draft":"Final";
+ var gh=el("githubMp3"+shortName);
+ if(gh&&gh.checked)return "github25";
+ var standard=el("convert"+shortName);
+ return standard&&standard.checked?"320":"original";
+}
+function conversionModeLabel(mode){
+ return mode==="github25"?"GITHUB MP3 · MAX 25 MB (AUTO BITRATE)":
+        mode==="320"?"320 KBPS MP3":"KEEP ORIGINAL FORMAT";
+}
 function selectedLabel(kind){
  var files=chosen[kind],count=files.length,n=0;
  for(var i=0;i<count;i++)n+=files[i].size||0;
@@ -159,7 +171,7 @@ function selectedLabel(kind){
 }
 function setBusy(flag){
  busy=!!flag;
- ["fileDraft","fileFinal","fileSession","convertDraft","convertFinal","uploadDraft","uploadFinal","uploadSession"].forEach(function(id){
+ ["fileDraft","fileFinal","fileSession","convertDraft","convertFinal","githubMp3Draft","githubMp3Final","uploadDraft","uploadFinal","uploadSession"].forEach(function(id){
   if(el(id))el(id).disabled=busy;
  });
  if(!busy){
@@ -179,9 +191,9 @@ function resetOldUploadDisplay(){
 function pendingMessage(kind){
  var count=chosen[kind].length;
  if(!count)return "READY · Choose files to upload. Nothing is uploading.";
- var convert=kind!=="session"&&!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ var mode=conversionMode(kind);
  return "READY TO UPLOAD · "+count+" "+nameOf(kind)+" file"+(count===1?"":"s")+
-  " · "+(convert?"CONVERT TO MP3":"KEEP ORIGINAL FORMAT")+" · PRESS UPLOAD TO START.";
+  " · "+conversionModeLabel(mode)+" · PRESS UPLOAD TO START.";
 }
 function fileChanged(kind,input){
  if(busy)return;
@@ -206,6 +218,7 @@ function updateHealth(callback){
   inCheck=false;
   helperOnline=!err&&!!data.rclone_ready;
   encoderAvailable=helperOnline&&!!data.mp3_available;
+  helperVersion=Number(data.helper_version||0);
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
   allFilesAvailable=helperOnline&&!!data.all_app_files_available;
@@ -327,21 +340,24 @@ function moveToTrash(kind,item,button){
   }else displayLibrary(kind);
  });req.send();
 }
-function checkSelected(kind,convert){
+function checkSelected(kind,mode){
  var files=chosen[kind];
  for(var i=0;i<files.length;i++){
   var f=files[i],name=f.name||"";
   if(kind!=="session"&&!validExtensions.test(name))return "Unsupported audio format: "+name;
   if(!f.size||f.size>4*1024*1024*1024)return "File size invalid: "+name;
-  if(convert&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
+  if(mode!=="original"&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
    return "LAME converts WAV/AIFF only. "+name+" requires FFmpeg or upload unchanged.";
+  if(mode==="github25"&&encoderName.indexOf("LAME")>=0&&/\.mp3$/i.test(name)&&f.size>=25000000)
+   return "MP3 files over 25 MB require FFmpeg to be converted. LAME cannot decode MP3.";
+
  }
  return "";
 }
 function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
- var convert=kind==="session"?false:!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ var mode=conversionMode(kind),convert=mode==="320",github25=mode==="github25";
  monitorStart(kind,chosen[kind].length);
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
@@ -350,21 +366,28 @@ function uploadChosen(kind){
      " Files remain selected for retry.");
    return;
   }
-  if(convert&&(!encoderAvailable||mp3TestFailed)){
-   monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
-    (mp3TestFailed?"The local conversion test failed. Fix the encoder and retest.":"The helper did not detect a compatible encoder.")+
-    " Your files remain selected. Uncheck conversion to keep originals.");
-   return;
+  if(github25&&helperVersion<7){
+   monitorError("NO FILES UPLOADED · GitHub MP3 needs iMac uploader v7. "+
+    "Update the local helper first. Songs remain selected and unchanged.");return;
   }
-  var invalid=checkSelected(kind,convert);
+  var fitsUnchanged=github25&&chosen[kind].every(function(item){
+   return /\.mp3$/i.test(item.name||"")&&item.size<25000000
+  });
+  if((mode!=="original"&&mp3TestFailed)||((convert||github25&&!fitsUnchanged)&&!encoderAvailable)){
+   monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
+    (mp3TestFailed?"The conversion test failed. Retest after repairing the encoder.":
+     "No compatible encoder was detected on this iMac.")+
+    " Files remain selected; Original Format remains available.");return;
+  }
+  var invalid=checkSelected(kind,mode);
   if(invalid){monitorError("NO FILES UPLOADED · "+invalid);return}
   issueLines=[];text("uploadIssues","");
   queue=chosen[kind].slice(0);current=null;
   total=queue.length;finished=0;succeeded=0;failed=0;
   setBusy(true);progress(null);
   status("STARTING "+total+" "+nameOf(kind).toUpperCase()+
-   " TRACK"+(total===1?"":"S")+(convert?" · CONVERT TO 320 KBPS MP3":" · KEEP ORIGINAL FORMAT"));
-  uploadNext(kind,convert);
+   " TRACK"+(total===1?"":"S")+" · "+conversionModeLabel(mode));
+  uploadNext(kind,mode);
  });
 }
 function removeChosen(kind,file){
@@ -381,7 +404,8 @@ function stopBatch(kind,message){
  monitorError(message+" · Files not confirmed uploaded remain selected. "+
   "Check MY "+nameOf(kind).toUpperCase()+" before retrying to avoid duplicates.");
 }
-function uploadNext(kind,convert){
+function uploadNext(kind,mode){
+ var convert=mode==="320",github25=mode==="github25";
  if(!queue.length){
   current=null;setBusy(false);
   progress(failed?0:100);
@@ -393,7 +417,8 @@ function uploadNext(kind,convert){
  current=queue.shift();
  var item=current,file=item,number=finished+1,started=Date.now();
  var cloudName=uploadDisplayName(file.name);
- var path="/upload?kind="+kind+"&name="+encodeURIComponent(cloudName)+"&convert="+(convert?"1":"0");
+ var path="/upload?kind="+kind+"&name="+encodeURIComponent(cloudName)+
+  "&convert="+(convert?"1":"0")+(github25?"&mp3_mode=github25":"");
  status("TRACK "+number+"/"+total+" · SENDING TO IMAC · "+file.name);
  progress(null);
  var req=request("POST",path,file,function(err,data){
@@ -403,15 +428,15 @@ function uploadNext(kind,convert){
    if(!err.status||err.status===0||err.status===409){
     stopBatch(kind,"UPLOAD NOT CONFIRMED · "+linkError(err));return;
    }
-   wait(function(){uploadNext(kind,convert)},120);return;
+   wait(function(){uploadNext(kind,mode)},120);return;
   }
   if(!data.id){
    failed++;finished++;stopBatch(kind,"UPLOAD NOT CONFIRMED · No job ID returned.");return;
   }
   progress(null);
   status("TRACK "+number+"/"+total+" · FILE RECEIVED BY IMAC · "+
-   (convert?"Converting to MP3 / ":"")+"Preparing Google Drive upload…");
-  pollJob(kind,convert,item,number,started,data.id);
+   (mode==="original"?"":"MP3 processing / ")+"Preparing Google Drive upload…");
+  pollJob(kind,mode,item,number,started,data.id);
  });
  req.xhr.upload.onprogress=function(e){
   if(e.lengthComputable){
@@ -423,7 +448,8 @@ function uploadNext(kind,convert){
  };
  req.send();
 }
-function pollJob(kind,convert,item,number,started,id){
+function pollJob(kind,mode,item,number,started,id){
+ var convert=mode==="320",github25=mode==="github25";
  if(uploadPoll)w.clearTimeout(uploadPoll);
  uploadPoll=wait(function(){
   var req=request("GET","/status?id="+encodeURIComponent(id),null,function(err,data){
@@ -432,26 +458,34 @@ function pollJob(kind,convert,item,number,started,id){
    }
    var job=data.job||{};
    if(job.phase==="complete"){
+    if(github25&&(!job.file_size_bytes||Number(job.file_size_bytes)>=25000000||!/\.mp3$/i.test(job.name||""))){
+     finished++;failed++;
+     issue("GITHUB MP3 UPLOAD COULD NOT BE VERIFIED · Check Google Drive before retrying "+item.name);
+     wait(function(){uploadNext(kind,mode)},300);return;
+    }
     finished++;succeeded++;removeChosen(kind,item);progress(100);
-    status("TRACK "+number+"/"+total+" COMPLETE · "+(convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
-      "MP3 conversion and Google Drive upload confirmed":"Google Drive upload confirmed")+" · "+
-      (job.name||item.name));
-    wait(function(){uploadNext(kind,convert)},300);return;
+    var detail=github25?"GitHub MP3 "+(Number(job.file_size_bytes)/1000000).toFixed(2)+
+       " MB · "+(job.mp3_bitrate_kbps?job.mp3_bitrate_kbps+" kbps":"ORIGINAL MP3 PRESERVED"):
+      convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
+       "MP3 conversion confirmed":"Original file confirmed";
+    status("TRACK "+number+"/"+total+" COMPLETE · "+detail+" · Google Drive verified · "+(job.name||item.name));
+    wait(function(){uploadNext(kind,mode)},300);return;
    }
    if(job.phase==="error"){
     finished++;failed++;
     issue(item.name+" · "+(job.detail||"Google Drive upload failed"));
     progress(0);
-    wait(function(){uploadNext(kind,convert)},300);return;
+    wait(function(){uploadNext(kind,mode)},300);return;
    }
    var pct=Number(job.percent||0);
    progress(pct>0&&pct<100?pct:null);
    var stage=job.phase==="converting"?"CONVERTING TO MP3":
     job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING";
    status("TRACK "+number+"/"+total+" · "+stage+" · "+
-    (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+" · "+
-    Math.floor((Date.now()-started)/1000)+"s · "+item.name);
-   pollJob(kind,convert,item,number,started,id);
+    (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+
+    (github25&&job.phase==="converting"&&job.detail?" · "+job.detail:"")+
+    " · "+Math.floor((Date.now()-started)/1000)+"s · "+item.name);
+   pollJob(kind,mode,item,number,started,id);
   });req.send();
  },1700);
 }
@@ -496,13 +530,22 @@ function init(){
  el("refreshMp3").onclick=function(){updateHealth()};
  if(el("testMp3Converter"))el("testMp3Converter").onclick=testMp3Converter;
  ["draft","final"].forEach(function(kind){
-  var checkbox=el(kind==="draft"?"convertDraft":"convertFinal");
-  if(checkbox)checkbox.onchange=function(){if(!busy)status(pendingMessage(kind))}
+  var name=kind==="draft"?"Draft":"Final";
+  var standard=el("convert"+name),github=el("githubMp3"+name);
+  if(standard)standard.onchange=function(){
+   if(standard.checked&&github)github.checked=false;
+   if(!busy)status(pendingMessage(kind));
+  };
+  if(github)github.onchange=function(){
+   if(github.checked&&standard)standard.checked=false;
+   if(!busy)status(pendingMessage(kind));
+  };
  });
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
  el("convertDraft").checked=false;el("convertFinal").checked=false;
+ el("githubMp3Draft").checked=false;el("githubMp3Final").checked=false;
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
