@@ -581,7 +581,10 @@ function testMp3Converter(){
   }
   mp3TestFailed=!data.passed;
   text("geMp3TestResult",data.passed?
-   "PASS · "+(data.encoder||"MP3 encoder")+" encoded a small local WAV into an MP3. No upload was made. Actual music still needs its own check.":
+   "PASS · "+(data.encoder||"MP3 encoder")+" encoded a local test WAV into 320 kbps MP3. "+
+    (data.github_mp3_passed?"GITHUB MP3 · 25 MB SIZE CHECK PASSED ("+data.github_mp3_bitrate_kbps+" kbps). ":
+     "GitHub MP3 requires helper v7. ")+
+    "No song or Google Drive file was changed.":
    "FAIL · "+(data.reason||"Encoder did not generate a valid MP3.")+" · Original uploads are unaffected.");
  });
  req.send();
