@@ -184,6 +184,9 @@ def ge_encode_mp3(source, target, bitrate, ffmpeg, lame):
         command = [lame, "--quiet", "-h", "-b", str(bitrate), source, target]
     else:
         raise RuntimeError("GitHub MP3 needs FFmpeg for this format, or LAME for WAV/AIFF.")
+    # Standalone LAME may refuse an existing filename on retries.
+    if os.path.isfile(target):
+        os.remove(target)
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output = p.communicate()[0]
     if p.returncode or not os.path.isfile(target) or os.path.getsize(target) <= 0:
@@ -308,13 +311,17 @@ def mp3_conversion_self_test():
         source = os.path.join(temp, "source.wav")
         target = os.path.join(temp, "converted.mp3")
         # Python 2.7-compatible mono PCM test. Small input and no user file access.
-        with wave.open(source, "wb") as audio:
+        # Explicit close works with both Python 2.7 and modern Python.
+        audio = wave.open(source, "wb")
+        try:
             audio.setnchannels(1)
             audio.setsampwidth(2)
             audio.setframerate(44100)
             audio.writeframes(b"".join(
                 struct.pack("<h", int(6000 * math.sin(2 * math.pi * 440 * i / 44100.0)))
                 for i in range(15435)))
+        finally:
+            audio.close()
         if ffmpeg:
             command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
                        "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
@@ -341,7 +348,15 @@ def mp3_conversion_self_test():
         if not has_frame:
             return {"ok": True, "passed": False,
                     "reason": "Encoder returned no recognizable 320 kbps MPEG-1 Layer III frames."}
-        return {"ok": True, "passed": True, "encoder": encoder,
+        github_file, github_name, github_rate = ge_make_radio_mp3(
+            None, source, "ge-test.wav", temp)
+        github_bytes = os.path.getsize(github_file)
+        if not github_name.endswith(".mp3") or github_rate <= 0 or github_bytes >= GE_MP3_RADIO_LIMIT:
+            return {"ok": True, "passed": False,
+                    "reason": "GitHub MP3 25 MB profile did not pass its output-size check."}
+        return {"ok": True, "passed": True, "github_mp3_passed": True,
+                "github_mp3_bitrate_kbps": github_rate,
+                "github_mp3_size_bytes": github_bytes, "encoder": encoder,
                 "output_bytes": os.path.getsize(target)}
     except Exception as ex:
         return {"ok": True, "passed": False,
