@@ -194,7 +194,7 @@ function init(){
  var monitor=by("geUploadMonitor");if(monitor){monitor.className+=" geCompactUploadMonitor"}
  /* Remove repeated verbose explanations from default view without deleting them. */
  var sections=drive.querySelectorAll("p.small");
- for(i=0;i<sections.length;i++){var para=sections[i];if(para.id||para.parentNode.className.indexOf("geUploadCard")>=0)continue;
+ for(i=0;i<sections.length;i++){var para=sections[i];if(para.id||para.parentNode.className.indexOf("geUploadCard")>=0||para.parentNode.className.indexOf("geMp3TestPanel")>=0||/MANUAL UPLOAD/.test(para.textContent||""))continue;
   var wrap=node("details","geHelp geContextHelp"),summary=node("summary",null,"? HELP · "+(para.textContent||"Google Drive").slice(0,45)+"…");
   para.parentNode.insertBefore(wrap,para);wrap.appendChild(summary);wrap.appendChild(para);
  }
