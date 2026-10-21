@@ -6,6 +6,9 @@
 from __future__ import print_function
 import errno
 import json
+import math
+import struct
+import wave
 import os
 import re
 import shutil
@@ -211,6 +214,55 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
+
+def mp3_conversion_self_test():
+    """Convert a generated quarter-second WAV; never touches music or Google Drive."""
+    ffmpeg = find_ffmpeg()
+    lame = find_lame()
+    if not ffmpeg and not lame:
+        return {"ok": True, "passed": False, "reason": "FFmpeg and LAME were not detected."}
+    temp = tempfile.mkdtemp(prefix="ge-mp3-selftest-")
+    try:
+        source = os.path.join(temp, "source.wav")
+        target = os.path.join(temp, "converted.mp3")
+        # Python 2.7-compatible mono PCM test. Small input and no user file access.
+        with wave.open(source, "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(44100)
+            audio.writeframes(b"".join(
+                struct.pack("<h", int(6000 * math.sin(2 * math.pi * 440 * i / 44100.0)))
+                for i in range(15435)))
+        if ffmpeg:
+            command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
+                       "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
+                       "libmp3lame", "-b:a", "320k", "-id3v2_version", "3", target]
+            encoder = "FFmpeg / libmp3lame"
+        else:
+            command = [lame, "--quiet", "-h", "-b", "320", source, target]
+            encoder = "LAME"
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output = p.communicate()[0]
+        if p.returncode or not os.path.isfile(target) or os.path.getsize(target) < 1200:
+            return {"ok": True, "passed": False,
+                    "reason": "Encoder failed to generate an MP3. " + as_text(output or b"").strip()[-160:]}
+        with open(target, "rb") as encoded:
+            header = bytearray(encoded.read(8192))
+        has_frame = any(
+            header[i] == 255 and (header[i + 1] & 224) == 224 and
+            (header[i + 1] & 6) == 2
+            for i in range(len(header) - 1))
+        if not has_frame:
+            return {"ok": True, "passed": False,
+                    "reason": "Encoder returned a file without a recognizable MP3 Layer III frame."}
+        return {"ok": True, "passed": True, "encoder": encoder,
+                "output_bytes": os.path.getsize(target)}
+    except Exception as ex:
+        return {"ok": True, "passed": False,
+                "reason": "Local encoder test failed: " + as_text(str(ex))[:180]}
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+
 def inspect_drive_quota():
     # Read-only server-side remote test for the GE Studio Status panel.
     # Never return OAuth configuration, account IDs or raw error logs to Firefox.
@@ -300,13 +352,15 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 5, "delete_available": True,
+                                       "helper_version": 6, "delete_available": True,
                                        "session_uploads": True, "all_app_files_available": True,
                                        "all_app_files_scope": "drive.file (app-created files only)",
                                        "trash_empty_requires_full_drive_scope": True,
                                        "auto_start_configured": os.path.isfile(os.path.expanduser("~/Library/LaunchAgents/com.grandelement.geuploads.plist")),
                                        "auto_repair_available": False,
                                        "drive_folders": ["Drafts", "Finals", "Sessions"]})
+        if target.path == "/mp3-test":
+            return self.response(200, mp3_conversion_self_test())
         if target.path == "/status":
             job_id = parse_qs(target.query).get("id", [""])[0]
             with GUARD:
