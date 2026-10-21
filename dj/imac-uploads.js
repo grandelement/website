@@ -368,8 +368,7 @@ function uploadChosen(kind){
   }
   if(convert&&!encoderAvailable){
    monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
-    (mp3TestFailed?"The conversion test failed. Retest after repairing the encoder.":
-     "No compatible encoder was detected on this iMac.")+
+    "No compatible encoder was detected on this iMac."+
     " Files remain selected; Original Format remains available.");return;
   }
   var invalid=checkSelected(kind,mode);
