@@ -461,16 +461,16 @@ $('geGateWord').addEventListener('keydown',e=>{if(e.key==='Enter')$('geGateEnter
 // manifest as a fallback, then use the real repository tree when available.
 // MUSIC and the main RADIO title both route here for guest song selection.
 function cleanMusicPath(input){
- const path=String(input||'').replace(/^\\/+/, '');
- return /^ge-music\\/music\\/.+\\/[^/]+\\.(mp3|m4a|ogg|wav)$/i.test(path)
+ const path=String(input||'').replace(/^\/+/, '');
+ return /^ge-music\/music\/.+\/[^/]+\.(mp3|m4a|ogg|wav)$/i.test(path)
    && !path.split('/').some(part=>part==='.'||part==='..')?path:'';
 }
 function trackFromMusicPath(path){
  const components=path.split('/');
  const folder=components.slice(2,-1).join('/');
- const album=folder.replace(/^Grand Element - (?:\\d{4} - )?/i,'')||'Grand Element';
- const file=components[components.length-1].replace(/\\.(mp3|m4a|ogg|wav)$/i,'');
- const numbered=file.match(/^.+?_(\\d{1,3})_(.+)$/);
+ const album=folder.replace(/^Grand Element - (?:\d{4} - )?/i,'')||'Grand Element';
+ const file=components[components.length-1].replace(/\.(mp3|m4a|ogg|wav)$/i,'');
+ const numbered=file.match(/^.+?_(\d{1,3})_(.+)$/);
  const title=numbered?(numbered[1]+' '+numbered[2].replace(/_/g,' ')):
    file.replace(/^Singles_/i,'').replace(/_/g,' ');
  return {kind:'song',path,album,title,duration_ms:0,
@@ -485,8 +485,8 @@ function displayCatalog(tracks,restore=false){
    list.push(t);albums.set(t.album||'Other',list);
  }
  for(const list of albums.values())list.sort((a,b)=>{
-   const an=Number((a.title||'').match(/^\\d+/)?.[0])||999;
-   const bn=Number((b.title||'').match(/^\\d+/)?.[0])||999;
+   const an=Number((a.title||'').match(/^\d+/)?.[0])||999;
+   const bn=Number((b.title||'').match(/^\d+/)?.[0])||999;
    return an-bn||label(a).localeCompare(label(b));
  });
  if(restore)restoreSelected(tracks.filter(valid));
@@ -531,8 +531,8 @@ async function loadCompleteMusicCatalog(){
    if(!Array.isArray(data.tree)||data.truncated)throw Error('Incomplete GitHub music listing');
    const paths=[...new Set(data.tree.filter(t=>t.type==='blob').map(t=>cleanMusicPath(t.path)).filter(Boolean))];
    if(paths.length){
-     const current=initialPaths.slice().sort().join('\\n');
-     const newest=paths.slice().sort().join('\\n');
+     const current=initialPaths.slice().sort().join('\n');
+     const newest=paths.slice().sort().join('\n');
      if(current!==newest)displayCatalog(paths.map(p=>known.get(p)||trackFromMusicPath(p)));
    }
  }catch(error){console.warn('Using saved music listing:',error);}
