@@ -142,90 +142,11 @@ def job_update(key, **changes):
         if key in JOBS:
             JOBS[key].update(changes)
 
-# GitHub MP3: radio-friendly MP3, verified below 25 decimal MB.
-# This adjusts compression bitrate, not the song duration or sample frequency.
-GE_MP3_RADIO_LIMIT = 25000000
-GE_MP3_RADIO_TARGET = 24500000
-GE_MP3_BITRATES = (320, 256, 224, 192, 160, 128, 112, 96, 80, 64, 56, 48, 40, 32)
-
-def ge_mp3_duration_seconds(source, ffmpeg):
-    if ffmpeg:
-        p = subprocess.Popen([ffmpeg, "-hide_banner", "-i", source],
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        output = as_text(p.communicate()[0])
-        match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", output)
-        if match:
-            duration = int(match.group(1)) * 3600 + int(match.group(2)) * 60 + float(match.group(3))
-            if duration > 0:
-                return duration
-    # If only standalone LAME exists, derive duration from WAV or AIFF frames.
-    ext = os.path.splitext(source)[1].lower()
-    if ext in (".wav", ".aif", ".aiff"):
-        module = __import__("wave" if ext == ".wav" else "aifc")
-        reader = None
-        try:
-            reader = module.open(source, "rb")
-            duration = float(reader.getnframes()) / float(reader.getframerate())
-            if duration > 0:
-                return duration
-        except Exception:
-            pass
-        finally:
-            if reader:
-                reader.close()
-    raise RuntimeError("Cannot read song duration. GitHub MP3 will not guess a bitrate or upload a file over 25 MB.")
-
-def ge_encode_mp3(source, target, bitrate, ffmpeg, lame):
-    if ffmpeg:
-        command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
-                   "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
-                   "libmp3lame", "-b:a", str(bitrate) + "k", "-id3v2_version", "3", target]
-    elif lame and source.lower().endswith((".wav", ".aiff", ".aif")):
-        command = [lame, "--quiet", "-h", "-b", str(bitrate), source, target]
-    else:
-        raise RuntimeError("GitHub MP3 needs FFmpeg for this format, or LAME for WAV/AIFF.")
-    # Standalone LAME may refuse an existing filename on retries.
-    if os.path.isfile(target):
-        os.remove(target)
-    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    output = p.communicate()[0]
-    if p.returncode or not os.path.isfile(target) or os.path.getsize(target) <= 0:
-        raise RuntimeError("MP3 conversion failed: " + as_text(output or b"").strip()[-250:])
-
-def ge_make_radio_mp3(job_id, source, original_name, workdir):
-    """Retain compliant MP3 without lossy re-encoding; otherwise compress safely."""
-    ffmpeg, lame = find_ffmpeg(), find_lame()
-    if original_name.lower().endswith(".mp3") and os.path.getsize(source) < GE_MP3_RADIO_LIMIT:
-        job_update(job_id, phase="converting", percent=0,
-                   detail="GitHub MP3: original MP3 fits under 25 MB; quality preserved")
-        return source, original_name, 0
-    duration = ge_mp3_duration_seconds(source, ffmpeg)
-    if not ffmpeg and not (lame and original_name.lower().endswith((".wav", ".aif", ".aiff"))):
-        raise RuntimeError("GitHub MP3 requires FFmpeg for this file format; WAV/AIFF may use LAME.")
-    # Leave space for MP3 headers, frame padding and metadata.
-    candidates = [rate for rate in GE_MP3_BITRATES
-                  if duration * rate * 125.0 + 65536 < GE_MP3_RADIO_TARGET]
-    if not candidates:
-        raise RuntimeError("Song is too long to fit under 25 MB at the lowest MP3 bitrate. No upload attempted.")
-    target = os.path.join(workdir, "github-radio.mp3")
-    for bitrate in candidates:
-        job_update(job_id, phase="converting", percent=0,
-                   detail="GitHub MP3: %.1f minutes; encoding at %d kbps for 25 MB limit" %
-                   (duration / 60.0, bitrate))
-        ge_encode_mp3(source, target, bitrate, ffmpeg, lame)
-        actual = os.path.getsize(target)
-        if actual <= GE_MP3_RADIO_TARGET:
-            return target, os.path.splitext(original_name)[0] + ".mp3", bitrate
-    raise RuntimeError("Encoded MP3 exceeded 25 MB. Upload stopped; original retained.")
-
-def process_job(job_id, source, workdir, original_name, kind, convert, github_mp3=False):
+def process_job(job_id, source, workdir, original_name, kind, convert):
     try:
         ffmpeg = find_ffmpeg()
         lame = find_lame()
-        mp3_bitrate = None
-        if github_mp3:
-            source, upload_name, mp3_bitrate = ge_make_radio_mp3(job_id, source, original_name, workdir)
-        elif convert and not original_name.lower().endswith(".mp3"):
+        if convert and not original_name.lower().endswith(".mp3"):
             target = os.path.join(workdir, "converted.mp3")
             job_update(job_id, phase="converting", percent=0, detail="Converting to 320 kbps MP3")
             if ffmpeg:
@@ -247,11 +168,9 @@ def process_job(job_id, source, workdir, original_name, kind, convert, github_mp
         else:
             upload_name = original_name
         actual_size = os.path.getsize(source)
-        if github_mp3 and (not upload_name.lower().endswith(".mp3") or actual_size >= GE_MP3_RADIO_LIMIT):
             raise RuntimeError("GitHub MP3 exceeds the 25 MB radio limit. No upload attempted.")
         job_update(job_id, file_size_bytes=actual_size,
-                   mp3_mode="github25" if github_mp3 else ("320" if convert else "original"),
-                   mp3_bitrate_kbps=mp3_bitrate)
+                   mp3_mode="320" if convert else "original")
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
         cloud_name = ge_unique_drive_upload_name(folder, ge_timestamped_title(upload_name, kind))
         destination = REMOTE + "/" + folder + "/" + cloud_name
@@ -348,15 +267,7 @@ def mp3_conversion_self_test():
         if not has_frame:
             return {"ok": True, "passed": False,
                     "reason": "Encoder returned no recognizable 320 kbps MPEG-1 Layer III frames."}
-        github_file, github_name, github_rate = ge_make_radio_mp3(
-            None, source, "ge-test.wav", temp)
-        github_bytes = os.path.getsize(github_file)
-        if not github_name.endswith(".mp3") or github_rate <= 0 or github_bytes >= GE_MP3_RADIO_LIMIT:
-            return {"ok": True, "passed": False,
-                    "reason": "GitHub MP3 25 MB profile did not pass its output-size check."}
-        return {"ok": True, "passed": True, "github_mp3_passed": True,
-                "github_mp3_bitrate_kbps": github_rate,
-                "github_mp3_size_bytes": github_bytes, "encoder": encoder,
+        return {"ok": True, "passed": True, "encoder": encoder,
                 "output_bytes": os.path.getsize(target)}
     except Exception as ex:
         return {"ok": True, "passed": False,
@@ -454,7 +365,6 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
                                        "helper_version": 7, "delete_available": True,
-                                       "github_mp3_max_bytes": GE_MP3_RADIO_LIMIT,
                                        "session_uploads": True, "all_app_files_available": True,
                                        "all_app_files_scope": "drive.file (app-created files only)",
                                        "trash_empty_requires_full_drive_scope": True,
@@ -570,17 +480,11 @@ class Handler(BaseHTTPRequestHandler):
         kind = params.get("kind", [""])[0]
         name = safe_name(params.get("name", [""])[0])
         convert = params.get("convert", ["0"])[0] == "1"
-        mp3_mode = params.get("mp3_mode", [""])[0]
-        if mp3_mode not in ("", "github25"):
-            return self.response(400, {"ok": False, "error": "Unknown MP3 setting"})
-        github_mp3 = mp3_mode == "github25"
-        if github_mp3 and convert:
-            return self.response(400, {"ok": False, "error": "Choose only one MP3 conversion setting"})
         if kind not in ("draft", "final", "session") or not name:
             return self.response(400, {"ok": False, "error": "Choose a valid file for Drafts, Finals or Sessions"})
         if kind != "session" and not re.search(r"\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$", name, re.I):
             return self.response(400, {"ok": False, "error": "Drafts and Finals accept music files; use Sessions for a ZIP or complete project archive"})
-        if kind == "session" and (convert or github_mp3):
+        if kind == "session" and convert:
             return self.response(400, {"ok": False, "error": "Whole session archives must remain unchanged. MP3 conversion applies to individual audio files only."})
         if convert and not name.lower().endswith(".mp3"):
             if not find_ffmpeg() and not (find_lame() and name.lower().endswith((".wav", ".aif", ".aiff"))):
@@ -591,10 +495,6 @@ class Handler(BaseHTTPRequestHandler):
             count = 0
         if count < 1 or count > LIMIT:
             return self.response(413, {"ok": False, "error": "File must be between 1 byte and 4 GB"})
-        if github_mp3 and not (name.lower().endswith(".mp3") and count < GE_MP3_RADIO_LIMIT):
-            if not find_ffmpeg() and not (find_lame() and name.lower().endswith((".wav", ".aif", ".aiff"))):
-                return self.response(400, {"ok": False, "error":
-                    "GitHub MP3 needs FFmpeg, or LAME for WAV/AIFF. Original file was not uploaded."})
         with GUARD:
             running = any(x.get("phase") not in ("complete", "error") for x in JOBS.values())
         if running:
@@ -620,7 +520,7 @@ class Handler(BaseHTTPRequestHandler):
         job = {"phase": "queued", "percent": 0, "detail": "Preparing upload", "name": name, "kind": kind}
         with GUARD:
             JOBS[job_id] = job
-        thread = threading.Thread(target=process_job, args=(job_id, local, workdir, name, kind, convert, github_mp3))
+        thread = threading.Thread(target=process_job, args=(job_id, local, workdir, name, kind, convert))
         thread.daemon = True
         thread.start()
         self.response(202, {"ok": True, "id": job_id})
