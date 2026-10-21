@@ -2282,9 +2282,14 @@ body:not(.iam-studio-open) #musicGroup #shareBtn{grid-row:2!important;grid-colum
 
 <style id="ge-radio-music-share-hide-layout-20261020">
 body.view-player:not(.iam-studio-open) #musicGroup #musicMenuBtn{grid-area:2 / 5 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;color:#eaffff!important;background:linear-gradient(120deg,#004caa,#087aff,#004aab)!important;border:1px solid #59dcff!important;box-shadow:0 0 10px rgba(0,170,255,.65)!important;font-weight:850!important;letter-spacing:.09em!important}
-body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgShuf{grid-area:2 / 1 / 3 / 4!important}
-body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{grid-area:2 / 4 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:clamp(32px,4.4dvh,41px)!important;margin:0!important;padding:5px 4px!important;font-size:clamp(11px,1.65vw,15px)!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgPer{grid-area:2 / 1 / 3 / 3!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgShuf{grid-area:2 / 3 / 3 / 5!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{grid-area:2 / 5 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:clamp(32px,4.4dvh,41px)!important;margin:0!important;padding:5px 4px!important;font-size:clamp(11px,1.65vw,15px)!important}
 body.view-player:not(.iam-studio-open) #bottomActions #shareBtn{grid-area:2 / 3 / 3 / 4!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:36px!important}
+/* Preserve the existing owner-only access contract for Hide Text. */
+body.view-player:not(.ge-offline-entitled):not(.iam-studio-open) #bgGroup .bg-row #hudCombined{display:none!important}
+body.view-player:not(.ge-offline-entitled):not(.iam-studio-open) #bgGroup .bg-row #bgPer{grid-area:2 / 1 / 3 / 4!important}
+body.view-player:not(.ge-offline-entitled):not(.iam-studio-open) #bgGroup .bg-row #bgShuf{grid-area:2 / 4 / 3 / 7!important}
 @media(max-width:700px){body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{font-size:clamp(11px,3vw,14px)!important}}
 </style>
 <style id="ge-responsive-radio-ship-reflections-20261015">
@@ -3133,7 +3138,7 @@ body.view-player:not(.iam-studio-open) footer{
       <button class="tgl" id="bgPer" aria-pressed="true">Per Song</button>
       <button class="tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
       <button class="tgl" id="bgAuto" aria-pressed="false">Auto</button>
-<div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
+      <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
       <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
       <span>Hide Text</span>
     </div>
@@ -3144,9 +3149,8 @@ body.view-player:not(.iam-studio-open) footer{
   <div id="bottomActions">
     <button id="reloadBtn" hidden>Reload Library</button>
     <button id="offlineBtn" hidden>Go Offline</button>
-    
     <button id="shareBtn" type="button">Share</button>
-<button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
+    <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE</button>
     <button id="arrangeBtn" type="button" hidden>Arrange Buttons</button>
@@ -5615,7 +5619,7 @@ function closeTrackPicker(){
   trackList.classList.remove('open');
   trackBackdrop.classList.remove('open');
   titleBtn.setAttribute('aria-expanded','false');
-$('musicMenuBtn')?.setAttribute('aria-expanded','false');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','false');
 }
 function openTrackPicker(){
   if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
@@ -5624,12 +5628,12 @@ function openTrackPicker(){
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
   titleBtn.setAttribute('aria-expanded','true');
-$('musicMenuBtn')?.setAttribute('aria-expanded','true');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','true');
   const current=trackList.querySelector('button.current');
   if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
 }
 $('musicMenuBtn')?.addEventListener('click',()=>titleBtn.click());
- titleBtn.addEventListener('click',()=>{
+titleBtn.addEventListener('click',()=>{
   if(trackList.classList.contains('open')) closeTrackPicker();
   else openTrackPicker();
 });
