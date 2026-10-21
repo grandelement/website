@@ -152,14 +152,12 @@ function request(method,path,body,callback){
 function conversionMode(kind){
  if(kind==="session")return "original";
  var shortName=kind==="draft"?"Draft":"Final";
- var gh=el("githubMp3"+shortName);
- if(gh&&gh.checked)return "github25";
+ 
  var standard=el("convert"+shortName);
  return standard&&standard.checked?"320":"original";
 }
 function conversionModeLabel(mode){
- return mode==="github25"?"GITHUB MP3 · MAX 25 MB (AUTO BITRATE)":
-        mode==="320"?"320 KBPS MP3":"KEEP ORIGINAL FORMAT";
+ return mode==="320"?"320 KBPS MP3":"KEEP ORIGINAL FORMAT";
 }
 function selectedLabel(kind){
  var files=chosen[kind],count=files.length,n=0;
@@ -352,8 +350,6 @@ function checkSelected(kind,mode){
   if(!f.size||f.size>4*1024*1024*1024)return "File size invalid: "+name;
   if(mode!=="original"&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
    return "LAME converts WAV/AIFF only. "+name+" requires FFmpeg or upload unchanged.";
-  if(mode==="github25"&&encoderName.indexOf("LAME")>=0&&/\.mp3$/i.test(name)&&f.size>=25000000)
-   return "MP3 files over 25 MB require FFmpeg to be converted. LAME cannot decode MP3.";
 
  }
  return "";
@@ -370,14 +366,7 @@ function uploadChosen(kind){
      " Files remain selected for retry.");
    return;
   }
-  if(github25&&helperVersion<7){
-   monitorError("NO FILES UPLOADED · GitHub MP3 needs iMac uploader v7. "+
-    "Update the local helper first. Songs remain selected and unchanged.");return;
-  }
-  var fitsUnchanged=github25&&chosen[kind].every(function(item){
-   return /\.mp3$/i.test(item.name||"")&&item.size<25000000
-  });
-  if((mode!=="original"&&mp3TestFailed)||((convert||github25&&!fitsUnchanged)&&!encoderAvailable)){
+  if(convert&&!encoderAvailable){
    monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
     (mp3TestFailed?"The conversion test failed. Retest after repairing the encoder.":
      "No compatible encoder was detected on this iMac.")+
@@ -453,7 +442,7 @@ function uploadNext(kind,mode){
  req.send();
 }
 function pollJob(kind,mode,item,number,started,id){
- var convert=mode==="320",github25=mode==="github25";
+ var convert=mode==="320";
  if(uploadPoll)w.clearTimeout(uploadPoll);
  uploadPoll=wait(function(){
   var req=request("GET","/status?id="+encodeURIComponent(id),null,function(err,data){
@@ -462,15 +451,8 @@ function pollJob(kind,mode,item,number,started,id){
    }
    var job=data.job||{};
    if(job.phase==="complete"){
-    if(github25&&(!job.file_size_bytes||Number(job.file_size_bytes)>=25000000||!/\.mp3$/i.test(job.name||""))){
-     finished++;failed++;
-     issue("GITHUB MP3 UPLOAD COULD NOT BE VERIFIED · Check Google Drive before retrying "+item.name);
-     wait(function(){uploadNext(kind,mode)},300);return;
-    }
     finished++;succeeded++;removeChosen(kind,item);progress(100);
-    var detail=github25?"GitHub MP3 "+(Number(job.file_size_bytes)/1000000).toFixed(2)+
-       " MB · "+(job.mp3_bitrate_kbps?job.mp3_bitrate_kbps+" kbps":"ORIGINAL MP3 PRESERVED"):
-      convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
+    var detail=convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
        "MP3 conversion confirmed":"Original file confirmed";
     status("TRACK "+number+"/"+total+" COMPLETE · "+detail+" · Google Drive verified · "+(job.name||item.name));
     wait(function(){uploadNext(kind,mode)},300);return;
@@ -487,7 +469,6 @@ function pollJob(kind,mode,item,number,started,id){
     job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING";
    status("TRACK "+number+"/"+total+" · "+stage+" · "+
     (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+
-    (github25&&job.phase==="converting"&&job.detail?" · "+job.detail:"")+
     " · "+Math.floor((Date.now()-started)/1000)+"s · "+item.name);
    pollJob(kind,mode,item,number,started,id);
   });req.send();
@@ -532,24 +513,15 @@ function init(){
  if(el("listAll"))el("listAll").onclick=function(){displayLibrary("all")};
  installDrop("draft");installDrop("final");installDrop("session");
  el("refreshMp3").onclick=function(){updateHealth()};
- if(el("testMp3Converter"))el("testMp3Converter").onclick=testMp3Converter;
  ["draft","final"].forEach(function(kind){
   var name=kind==="draft"?"Draft":"Final";
-  var standard=el("convert"+name),github=el("githubMp3"+name);
-  if(standard)standard.onchange=function(){
-   if(standard.checked&&github)github.checked=false;
-   if(!busy)status(pendingMessage(kind));
-  };
-  if(github)github.onchange=function(){
-   if(github.checked&&standard)standard.checked=false;
-   if(!busy)status(pendingMessage(kind));
-  };
+  var standard=el("convert"+name);
+  if(standard)standard.onchange=function(){if(!busy)status(pendingMessage(kind));};
  });
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
  el("convertDraft").checked=false;el("convertFinal").checked=false;
- el("githubMp3Draft").checked=false;el("githubMp3Final").checked=false;
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
