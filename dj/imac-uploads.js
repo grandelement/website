@@ -60,6 +60,8 @@ function monitorStart(kind,count){
 }
 function monitorError(message){
  monitorShow();monitorState("Error");
+ progress(0);
+ text("geUploadMonitorPercent","STOPPED");
  status(message);
 }
 function monitorFinish(){
