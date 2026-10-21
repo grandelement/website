@@ -433,7 +433,7 @@ function pollJob(kind,convert,item,number,started,id){
    var job=data.job||{};
    if(job.phase==="complete"){
     finished++;succeeded++;removeChosen(kind,item);progress(100);
-    status("TRACK "+number+"/"+total+" COMPLETE · "+(convert&&/\.mp3$/i.test(String(job.name||""))?
+    status("TRACK "+number+"/"+total+" COMPLETE · "+(convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
       "MP3 conversion and Google Drive upload confirmed":"Google Drive upload confirmed")+" · "+
       (job.name||item.name));
     wait(function(){uploadNext(kind,convert)},300);return;
