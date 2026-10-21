@@ -173,7 +173,7 @@ function selectedLabel(kind){
 }
 function setBusy(flag){
  busy=!!flag;
- ["fileDraft","fileFinal","fileSession","convertDraft","convertFinal","githubMp3Draft","githubMp3Final","uploadDraft","uploadFinal","uploadSession"].forEach(function(id){
+ ["fileDraft","fileFinal","fileSession","convertDraft","convertFinal","uploadDraft","uploadFinal","uploadSession"].forEach(function(id){
   if(el(id))el(id).disabled=busy;
  });
  if(!busy){
@@ -361,7 +361,7 @@ function checkSelected(kind,mode){
 function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
- var mode=conversionMode(kind),convert=mode==="320",github25=mode==="github25";
+ var mode=conversionMode(kind),convert=mode==="320";
  monitorStart(kind,chosen[kind].length);
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
@@ -409,7 +409,7 @@ function stopBatch(kind,message){
   "Check MY "+nameOf(kind).toUpperCase()+" before retrying to avoid duplicates.");
 }
 function uploadNext(kind,mode){
- var convert=mode==="320",github25=mode==="github25";
+ var convert=mode==="320";
  if(!queue.length){
   current=null;setBusy(false);
   progress(failed?0:100);
@@ -422,7 +422,7 @@ function uploadNext(kind,mode){
  var item=current,file=item,number=finished+1,started=Date.now();
  var cloudName=uploadDisplayName(file.name);
  var path="/upload?kind="+kind+"&name="+encodeURIComponent(cloudName)+
-  "&convert="+(convert?"1":"0")+(github25?"&mp3_mode=github25":"");
+  "&convert="+(convert?"1":"0");
  status("TRACK "+number+"/"+total+" · SENDING TO IMAC · "+file.name);
  progress(null);
  var req=request("POST",path,file,function(err,data){
@@ -568,30 +568,6 @@ function init(){
     "AUTOMATIC CHECK · iMac uploader still unreachable. Use ONE-CLICK LOCAL HELPER TEST to tell whether it is running.");
   });
  },20000);
-}
-function testMp3Converter(){
- if(mp3TestBusy||busy)return;
- mp3TestBusy=true;
- var b=el("testMp3Converter");if(b){b.disabled=true;b.textContent="TESTING MP3…"}
- text("geMp3TestResult","RUNNING LOCAL MP3 CONVERSION TEST · No song or Google Drive file will be changed.");
- var req=request("GET","/mp3-test",null,function(err,data){
-  mp3TestBusy=false;
-  if(b){b.disabled=false;b.textContent="TEST MP3 CONVERSION"}
-  if(err){
-   text("geMp3TestResult",err.status===404?
-    "MP3 TEST NOT AVAILABLE · Installed iMac helper is older than v6. Update the helper to use the safe test.":
-    "MP3 TEST COULD NOT RUN · "+linkError(err));
-   return;
-  }
-  mp3TestFailed=!data.passed;
-  text("geMp3TestResult",data.passed?
-   "PASS · "+(data.encoder||"MP3 encoder")+" encoded a local test WAV into 320 kbps MP3. "+
-    (data.github_mp3_passed?"GITHUB MP3 · 25 MB SIZE CHECK PASSED ("+data.github_mp3_bitrate_kbps+" kbps). ":
-     "GitHub MP3 requires helper v7. ")+
-    "No song or Google Drive file was changed.":
-   "FAIL · "+(data.reason||"Encoder did not generate a valid MP3.")+" · Original uploads are unaffected.");
- });
- req.send();
 }
 /* Public read-only file-browser refresh for the iMac Google tab. */
 w.GEImacUploads={
