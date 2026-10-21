@@ -1,5 +1,5 @@
 /* GE iMac uploads. Firefox on OS X El Capitan (ES5 + XMLHttpRequest).
- * Selecting files automatically starts the upload to the selected Draft/Final/Session folder.
+ * Selecting files queues them for review. Only an explicit UPLOAD click sends bytes.
  * BLITZ, BANGERS and Saffire are independent of this local Drive helper.
  */
 (function(w,d){
@@ -7,6 +7,7 @@
 var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],session:[]}, activeKind="draft";
 var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false;
+var mp3TestBusy=false,mp3TestFailed=false;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
 var listGeneration=0, uploadPoll=0, issueLines=[], monitorTimer=0, monitorVisible=false, lastProgress=null;
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
@@ -29,7 +30,16 @@ function monitorShow(){
 }
 function monitorHideLater(){
  if(monitorTimer)w.clearTimeout(monitorTimer);
- monitorTimer=wait(function(){var m=el("geUploadMonitor");if(m)m.style.display="none";monitorVisible=false;monitorTimer=0},14000);
+ monitorTimer=wait(function(){
+  if(busy)return;
+  var m=el("geUploadMonitor");if(m)m.style.display="none";
+  monitorVisible=false;monitorTimer=0;
+  text("geUploadMonitorDetail","");
+  text("geUploadMonitorDestination","");
+  text("uploadResults","READY · Last upload finished. Choose files and press UPLOAD for the next transfer.");
+  var big=el("geUploadBigResult");if(big)big.style.display="none";
+  progress(0);
+ },14000);
 }
 function monitorState(state){
  var m=el("geUploadMonitor");if(!m)return;
@@ -55,7 +65,7 @@ function monitorError(message){
 function monitorFinish(){
  monitorShow();
  if(failed){monitorState("Error");text("geUploadMonitorHeadline",failed+" FAILED · "+succeeded+" UPLOADED")}
- else {progress(100);monitorState("Done")}
+ else {progress(100);monitorState("Done");monitorHideLater()}
 }
 
 function issue(s){issueLines.push(s);text("uploadIssues",issueLines.join("\n"))}
@@ -158,8 +168,24 @@ function setBusy(flag){
   if(el("uploadSession"))el("uploadSession").disabled=!chosen.session.length;
  }
 }
+function resetOldUploadDisplay(){
+ if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+ monitorVisible=false;
+ var m=el("geUploadMonitor");if(m)m.style.display="none";
+ var big=el("geUploadBigResult");if(big)big.style.display="none";
+ text("geUploadMonitorDetail","");
+ progress(0);
+}
+function pendingMessage(kind){
+ var count=chosen[kind].length;
+ if(!count)return "READY · Choose files to upload. Nothing is uploading.";
+ var convert=kind!=="session"&&!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ return "READY TO UPLOAD · "+count+" "+nameOf(kind)+" file"+(count===1?"":"s")+
+  " · "+(convert?"CONVERT TO MP3":"KEEP ORIGINAL FORMAT")+" · PRESS UPLOAD TO START.";
+}
 function fileChanged(kind,input){
  if(busy)return;
+ resetOldUploadDisplay();
  var files=input.files||[],result=[];
  for(var i=0;i<files.length;i++)result.push(files[i]);
  chosen[kind]=result;
@@ -170,8 +196,7 @@ function fileChanged(kind,input){
  el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=!result.length;
  issueLines=[];text("uploadIssues","");
  progress(0);
- if(result.length){uploadChosen(kind)}
- else status("Choose a music file first. No upload started.");
+ status(pendingMessage(kind));
 }
 function updateHealth(callback){
  if(inCheck){if(callback)wait(function(){updateHealth(callback)},500);return}
@@ -204,9 +229,8 @@ function updateHealth(callback){
    text("helperStatus","IMAC HELPER CONNECTED · Google Drive ready"+
      (data.helper_version?" · Helper v"+data.helper_version:""));
    text("mp3Status",encoderAvailable?
-    "MP3 READY · "+encoderName+". Check Convert to MP3 beneath the chosen Draft or Final files.":
-    "MP3 ENCODER NOT DETECTED BY HELPER · The box can be selected, "+
-    "but conversion will not start until the helper recognizes LAME.");
+    "ENCODER DETECTED · "+encoderName+" · Actual conversion NOT YET VERIFIED by this check. Use TEST MP3 CONVERSION.":
+    "NO MP3 ENCODER DETECTED · Original-file uploads can still work. Do not select MP3 conversion.");
   }
   if(callback)callback(err,data||{});
  });req.send();
@@ -326,10 +350,10 @@ function uploadChosen(kind){
      " Files remain selected for retry.");
    return;
   }
-  if(convert&&!encoderAvailable){
-   monitorError("NO FILES UPLOADED · Conversion was selected, but the helper doesn't detect a "+
-    "usable encoder. LAME is already installed; check which helper process is running. "+
-    "Uncheck conversion only if you want the original file unchanged.");
+  if(convert&&(!encoderAvailable||mp3TestFailed)){
+   monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
+    (mp3TestFailed?"The local conversion test failed. Fix the encoder and retest.":"The helper did not detect a compatible encoder.")+
+    " Your files remain selected. Uncheck conversion to keep originals.");
    return;
   }
   var invalid=checkSelected(kind,convert);
@@ -409,7 +433,9 @@ function pollJob(kind,convert,item,number,started,id){
    var job=data.job||{};
    if(job.phase==="complete"){
     finished++;succeeded++;removeChosen(kind,item);progress(100);
-    status("TRACK "+number+"/"+total+" COMPLETE · Confirmed on Google Drive · "+item.name);
+    status("TRACK "+number+"/"+total+" COMPLETE · "+(convert&&/\.mp3$/i.test(String(job.name||""))?
+      "MP3 conversion and Google Drive upload confirmed":"Google Drive upload confirmed")+" · "+
+      (job.name||item.name));
     wait(function(){uploadNext(kind,convert)},300);return;
    }
    if(job.phase==="error"){
@@ -447,10 +473,11 @@ function installDrop(kind){
    status("THIS FIREFOX CANNOT DROP THAT FOLDER DIRECTLY · Select multiple individual files, or compress the whole Ableton project folder as a ZIP and drop the ZIP.");
    return;
   }
+  resetOldUploadDisplay();
   chosen[kind]=files;selectedLabel(kind);
   el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=false;
-  issueLines=[];text("uploadIssues","");progress(0);
-  uploadChosen(kind);
+  issueLines=[];text("uploadIssues","");
+  status(pendingMessage(kind));
  });
 }
 function init(){
@@ -467,6 +494,11 @@ function init(){
  if(el("listAll"))el("listAll").onclick=function(){displayLibrary("all")};
  installDrop("draft");installDrop("final");installDrop("session");
  el("refreshMp3").onclick=function(){updateHealth()};
+ if(el("testMp3Converter"))el("testMp3Converter").onclick=testMp3Converter;
+ ["draft","final"].forEach(function(kind){
+  var checkbox=el(kind==="draft"?"convertDraft":"convertFinal");
+  if(checkbox)checkbox.onchange=function(){if(!busy)status(pendingMessage(kind))}
+ });
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
@@ -474,7 +506,7 @@ function init(){
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
- status("READY · CHOOSE FOLDER AND MP3 SETTING → SELECT FILES → UPLOAD STARTS AUTOMATICALLY.");
+ status("READY · SELECT FILES → CHOOSE MP3 OR ORIGINAL → PRESS UPLOAD. FILE SELECTION NEVER UPLOADS.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
  // The old iMac can lose its manually started uploader while Firefox stays
  // open. Automatically recheck every 20 seconds with no Terminal commands or
@@ -489,6 +521,27 @@ function init(){
     "AUTOMATIC CHECK · iMac uploader still unreachable. Use ONE-CLICK LOCAL HELPER TEST to tell whether it is running.");
   });
  },20000);
+}
+function testMp3Converter(){
+ if(mp3TestBusy||busy)return;
+ mp3TestBusy=true;
+ var b=el("testMp3Converter");if(b){b.disabled=true;b.textContent="TESTING MP3…"}
+ text("geMp3TestResult","RUNNING LOCAL MP3 CONVERSION TEST · No song or Google Drive file will be changed.");
+ var req=request("GET","/mp3-test",null,function(err,data){
+  mp3TestBusy=false;
+  if(b){b.disabled=false;b.textContent="TEST MP3 CONVERSION"}
+  if(err){
+   text("geMp3TestResult",err.status===404?
+    "MP3 TEST NOT AVAILABLE · Installed iMac helper is older than v6. Update the helper to use the safe test.":
+    "MP3 TEST COULD NOT RUN · "+linkError(err));
+   return;
+  }
+  mp3TestFailed=!data.passed;
+  text("geMp3TestResult",data.passed?
+   "PASS · "+(data.encoder||"MP3 encoder")+" encoded a small local WAV into an MP3. No upload was made. Actual music still needs its own check.":
+   "FAIL · "+(data.reason||"Encoder did not generate a valid MP3.")+" · Original uploads are unaffected.");
+ });
+ req.send();
 }
 /* Public read-only file-browser refresh for the iMac Google tab. */
 w.GEImacUploads={
