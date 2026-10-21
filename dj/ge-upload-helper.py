@@ -216,7 +216,7 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
 
 
 def mp3_conversion_self_test():
-    """Convert a generated quarter-second WAV; never touches music or Google Drive."""
+    """Convert a generated short WAV; never touches music or Google Drive."""
     ffmpeg = find_ffmpeg()
     lame = find_lame()
     if not ffmpeg and not lame:
@@ -248,13 +248,17 @@ def mp3_conversion_self_test():
                     "reason": "Encoder failed to generate an MP3. " + as_text(output or b"").strip()[-160:]}
         with open(target, "rb") as encoded:
             header = bytearray(encoded.read(8192))
+        # The test requests 320 kbps MPEG-1 Layer III; verify the frame rate,
+        # not just the output filename or encoder process exit code.
         has_frame = any(
             header[i] == 255 and (header[i + 1] & 224) == 224 and
-            (header[i + 1] & 6) == 2
-            for i in range(len(header) - 1))
+            (header[i + 1] & 6) == 2 and
+            (header[i + 1] & 24) == 24 and
+            ((header[i + 2] >> 4) & 15) == 14
+            for i in range(len(header) - 2))
         if not has_frame:
             return {"ok": True, "passed": False,
-                    "reason": "Encoder returned a file without a recognizable MP3 Layer III frame."}
+                    "reason": "Encoder returned no recognizable 320 kbps MPEG-1 Layer III frames."}
         return {"ok": True, "passed": True, "encoder": encoder,
                 "output_bytes": os.path.getsize(target)}
     except Exception as ex:
