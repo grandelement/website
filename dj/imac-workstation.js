@@ -127,12 +127,15 @@ function init(){
   var firstCard=by("draftUploadCard");
   var library=by("musicLibraryPanel");
   if(firstCard&&library){
-    var addTitle=firstCard.previousElementSibling;
-    var addHelp=addTitle&&addTitle.previousElementSibling;
-    if(addTitle&&addTitle.tagName==="H3"){
-      drive.insertBefore(addTitle,library);
-      if(addHelp&&addHelp.tagName==="P")drive.insertBefore(addHelp,library);
+    var addTitle=null,childrenBefore=Array.prototype.slice.call(drive.children);
+    for(var ai=0;ai<childrenBefore.length;ai++){
+      if(childrenBefore[ai].tagName==="H3"&&/ADD FILES/i.test(childrenBefore[ai].textContent||"")){addTitle=childrenBefore[ai];break}
     }
+    var addHelp=addTitle&&addTitle.nextElementSibling;
+    var mp3TestPanel=by("geMp3TestPanel");
+    if(addTitle)drive.insertBefore(addTitle,library);
+    if(addHelp&&addHelp.tagName==="P")drive.insertBefore(addHelp,library);
+    if(mp3TestPanel)drive.insertBefore(mp3TestPanel,library);
     var cards=["draftUploadCard","finalUploadCard","sessionUploadCard"];
     for(var ci=0;ci<cards.length;ci++){
       var card=by(cards[ci]);if(card)drive.insertBefore(card,library);
@@ -144,7 +147,7 @@ function init(){
     var driveChildren=Array.prototype.slice.call(drive.children);
     for(var di=0;di<driveChildren.length;di++){
       var child=driveChildren[di];
-      if(child!==extra&&child!==library&&child.id!=="geMp3TestPanel"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
+      if(child!==extra&&child!==library&&child.className!=="geTrashQuickAction"&&child.id!=="geMp3TestPanel"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
     }
   }
   /* The Drive file list stays open on GOOGLE, never tucked into Settings. */
