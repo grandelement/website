@@ -144,7 +144,7 @@ function init(){
     var driveChildren=Array.prototype.slice.call(drive.children);
     for(var di=0;di<driveChildren.length;di++){
       var child=driveChildren[di];
-      if(child!==extra&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
+      if(child!==extra&&child!==library&&child.id!=="geMp3TestPanel"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
     }
   }
   /* The Drive file list stays open on GOOGLE, never tucked into Settings. */
