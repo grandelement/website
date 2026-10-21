@@ -3495,7 +3495,7 @@ function libraryFromRepositoryTree(tree){
       tracked[path]=item.sha||'';
       if(lower.startsWith('ge-music/music/')){
         const url=repoPathToVersionedURL(path,item.sha||'');
-        if(!isStationID(url) && !isSingles(url)) audioItems.push(url);
+        if(!isStationID(url)) audioItems.push(url);
       }
       continue;
     }
@@ -4212,7 +4212,7 @@ function savePersonalSongSelection(){
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
 function selectableSongs(){
-  let list=state.catalog.filter(url=>!isStationID(url)&&!isSingles(url));
+  let list=state.catalog.filter(url=>!isStationID(url));
   if(offlinePlaybackMode()&&offlineAvailability.songs.size)list=list.filter(url=>offlineAvailability.songs.has(url));
   return list.sort(orderedSort);
 }
@@ -5474,7 +5474,7 @@ async function loadMusicManifest(forceFresh=false){
       const list=raw.map(item=>{
         const path=String(item||'').replace(/^\//,'').replace(/^ge-music\//,'');
         return absolute(CONFIG.MUSIC_BASE+path);
-      }).filter(url=>/\.(mp3|m4a|ogg|wav)$/i.test(url) && !isStationID(url) && !isSingles(url));
+      }).filter(url=>/\.(mp3|m4a|ogg|wav)$/i.test(url) && !isStationID(url));
       localStorage.setItem(cacheKey,JSON.stringify(list));
       return list;
     }
@@ -9898,6 +9898,25 @@ gateTestBtn?.addEventListener('click',()=>{
   }
 
   rebuildQueue('');
+  // Keep the main MUSIC/title picker current even when manifest.json has not yet
+  // been regenerated after new files are uploaded. This is a background catalog
+  // refresh only; it never starts, stops, or switches radio audio.
+  void (async()=>{
+    if(offlinePlaybackMode())return;
+    try{
+      const tree=await fetchRepositoryTree();
+      const freshCatalog=libraryFromRepositoryTree(tree).catalog;
+      if(!freshCatalog.length)return;
+      const paths=list=>list.map(urlToRepoPath).sort().join('\n');
+      if(paths(freshCatalog)===paths(state.catalog))return;
+      const selectedPaths=new Set([...selectedSongURLs].map(urlToRepoPath));
+      state.catalog=freshCatalog;
+      selectedSongURLs=new Set(state.catalog.filter(url=>selectedPaths.has(urlToRepoPath(url))));
+      savePersonalSongSelection();
+      rebuildQueue(state.currentURL);
+      try{window.GEIAmStudio?.onCatalogReady?.()}catch(_e){}
+    }catch(error){console.warn('Music catalog refresh unavailable; using the saved manifest.',error);}
+  })();
   // I AM may have opened while the Radio/music catalog was still loading.
   // Notify its dedicated player as soon as real song files are available.
   try{window.GEIAmStudio?.onCatalogReady?.()}catch(_e){}
