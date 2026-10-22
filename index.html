@@ -4618,6 +4618,20 @@ let GE_SITE_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_SITE_ALBUM_SELECTION_KEY,
   ALL_ALBUMS.filter(a=>GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey(a.musicTitle))).map(a=>a.musicTitle)
 );
+// One-time new-release migration: existing visitors retain their saved planet choices,
+// and receive the newly published Aether planet without clearing other preferences.
+// After this migration, manually hiding Aether stays hidden on later visits.
+const GE_AETHER_PLANET_MIGRATION_KEY='GE_SITE_AETHER_PLANET_ADDED_2026_V1';
+try{
+  if(!localStorage.getItem(GE_AETHER_PLANET_MIGRATION_KEY) &&
+      GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey('Aether'))){
+    if(!GE_SITE_SELECTED_ALBUMS.some(name=>geAlbumKey(name)===geAlbumKey('Aether'))){
+      GE_SITE_SELECTED_ALBUMS=[...GE_SITE_SELECTED_ALBUMS,'Aether'];
+      localStorage.setItem(GE_SITE_ALBUM_SELECTION_KEY,JSON.stringify(GE_SITE_SELECTED_ALBUMS));
+    }
+    localStorage.setItem(GE_AETHER_PLANET_MIGRATION_KEY,'1');
+  }
+}catch(_e){};
 const GE_POINTS_CORE_DEFAULT=['Fire','Spirit','Soul','Love','Intergy'];
 let GE_GAME_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_GAME_ALBUM_SELECTION_KEY,
