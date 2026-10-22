@@ -53,7 +53,7 @@ function adminAuthorized(request, env) {
   const auth = String(request.headers.get("authorization") || "").trim();
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   const expected = String(env.VAULT_ADMIN_TOKEN || "").trim();
-  return constantTimeEqual(token, expected);
+  return !!expected && !!token && constantTimeEqual(token, expected);
 }
 
 function ingestAuthorized(request, env) {
