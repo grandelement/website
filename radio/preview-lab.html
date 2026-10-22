@@ -199,6 +199,10 @@ const STORE_KEY='GE_PLAYER_LISTENING_V2_3333', OWNER_KEY='GE_PLAYER_OWNER_DEMO_V
 const $=id=>document.getElementById(id);
 const audio=$('audio');
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
+// Website planet PLAY passes its album in the URL. Honor it without adding a
+// second player or bypassing the ordinary 33:33 music Gate.
+const WEBSITE_ALBUM_REQUEST=String(new URLSearchParams(location.search).get('album')||'').trim();
+let websiteAlbumStarted=false;
 let publicPlaylistDefinitions=[],publicPlaylists=new Map(),selectedPlaylistId='',browserMode='albums',catalogTrackByPath=new Map();
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
 let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseVolume=1;
@@ -386,7 +390,7 @@ function showSongs(){
  const holder=$('songs');holder.replaceChildren();
  const q=$('search').value.toLowerCase(),tracks=currentBrowseTracks();
  for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
-  const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
+  const row=element('div',null,'song'),title=element('div',String(t.title||'').replace(/^(\d{1,3})-/,'$1 '),'songTitle');
   title.appendChild(element('small',Number(t.duration_ms)>0?fmt(t.duration_ms/1000):'Duration available when played'));
   const check=element('input');check.type='checkbox';check.checked=selectedSongs.some(x=>x.url===t.url);
   check.setAttribute('aria-label','Select '+label(t));check.addEventListener('change',()=>{
@@ -403,7 +407,9 @@ function openAlbum(name){
  browserMode='albums';selectedAlbum=name;selectedPlaylistId='';
  $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('albumView').hidden=false;
  $('albumTitle').textContent=name;$('backAlbums').textContent='← ALBUMS';
- $('addAlbumSongs').textContent='ADD WHOLE ALBUM';$('playBrowserCollection').hidden=true;
+ $('addAlbumSongs').textContent='ADD WHOLE ALBUM';
+ $('playBrowserCollection').textContent='PLAY ALBUM';
+ $('playBrowserCollection').hidden=false;
  $('search').value='';showSongs();
 }
 function switchMusicBrowse(mode){
@@ -422,11 +428,13 @@ function openPublicPlaylist(id){
  browserMode='playlists';selectedPlaylistId=id;selectedAlbum='';
  $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('albumView').hidden=false;
  $('albumTitle').textContent=list.name;$('backAlbums').textContent='← PLAYLISTS';
- $('addAlbumSongs').textContent='ADD WHOLE PLAYLIST';$('playBrowserCollection').hidden=false;
+ $('addAlbumSongs').textContent='ADD WHOLE PLAYLIST';
+ $('playBrowserCollection').textContent='PLAY PLAYLIST';
+ $('playBrowserCollection').hidden=false;
  $('search').value='';showSongs();
 }
 $('playBrowserCollection').addEventListener('click',()=>{
- const songs=currentBrowseTracks();if(!songs.length){say('This playlist has no available songs.');return;}
+ const songs=currentBrowseTracks();if(!songs.length){say('This album or playlist has no available songs.');return;}
  if(isLocked()){renderGate();return;}
  playingSelected=false;albumTracks=songs.slice();trackIndex=0;
  void startTrack(albumTracks[0]);
@@ -520,8 +528,8 @@ function trackFromMusicPath(path){
  const folder=components.slice(2,-1).join('/');
  const album=folder.replace(/^Grand Element - (?:\d{4} - )?/i,'')||'Grand Element';
  const file=components[components.length-1].replace(/\.(mp3|m4a|ogg|wav)$/i,'');
- const numbered=file.match(/^.+?_(\d{1,3})_(.+)$/);
- const title=numbered?(numbered[1]+' '+numbered[2].replace(/_/g,' ')):
+ const numbered=file.match(/^.+?_(\d{1,3})[_ -]+(.+)$/);
+ const title=numbered?(numbered[1]+' '+numbered[2].replace(/[_-]+/g,' ')):
    file.replace(/^Singles_/i,'').replace(/_/g,' ');
  return {kind:'song',path,album,title,duration_ms:0,
    url:'/'+components.map(encodeURIComponent).join('/')};
@@ -556,6 +564,21 @@ function displayCatalog(tracks,restore=false){
    }else switchMusicBrowse(previousMode);
  }
  say(tracks.filter(valid).length+' songs available. Choose an album or public playlist.');
+ // Open exactly the requested album after the catalog is available. On supported
+ // browsers try the first song; on gesture-restricted phones leave it prepared
+ // and provide the existing PLAY / PAUSE button to begin listening.
+ if(WEBSITE_ALBUM_REQUEST&&!websiteAlbumStarted){
+   const match=[...albums.keys()].find(name=>name.toLowerCase()===WEBSITE_ALBUM_REQUEST.toLowerCase());
+   if(match){
+     websiteAlbumStarted=true;
+     openAlbum(match);
+     const songs=albums.get(match)||[];
+     if(songs.length){
+       playingSelected=false;albumTracks=songs.slice();trackIndex=0;
+       void startTrack(songs[0]);
+     }
+   }
+ }
 }
 function rebuildPublicPlaylists(){
  const result=new Map();
