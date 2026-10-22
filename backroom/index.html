@@ -139,7 +139,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .brAccessNavigator span{grid-column:1/-1;text-align:center;font-size:calc(10px * var(--scale));color:var(--muted)}
 .brAccessActions button{flex:1 1 105px}
 .brAccessActions button:last-child{border-color:#ae6572;color:#ffdbe2}
-.brAccessSongPicker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin:9px 0}
+.brAccessSongTools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:9px 0}.brAccessSongTools span{color:var(--muted)}.brAccessSongChecklist{max-height:300px;overflow:auto;border:1px solid #27506a;border-radius:10px;padding:7px}.brAccessAlbumGroup{border-bottom:1px solid #27506a;padding:6px 0}.brAccessAlbumGroup:last-child{border-bottom:0}.brAccessSongChoice{margin-left:15px!important}
 .brAccessAssignedSongs{display:grid;gap:6px;margin:8px 0}
 .brAccessAssignedSongs .brAccessSongRow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#041421;border:1px solid #27506a;border-radius:9px;padding:6px}
 .brAccessAssignedSongs .brAccessSongRow span{overflow-wrap:anywhere;min-width:0;font-size:calc(10px * var(--scale))}
@@ -396,11 +396,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <h4>2 · MUSIC ASSIGNMENTS</h4>
     <p>Select a saved playlist and/or individual songs. Leave both empty for permission to the whole selected music category.</p>
     <label><span>ASSIGNED PLAYLIST</span><select id="brAccessPlaylist"><option value="">ALL / NO SPECIFIC PLAYLIST</option></select></label>
-    <label><span>FIND INDIVIDUAL SONG</span><input id="brAccessSongSearch" type="search" placeholder="Find by song or album"></label>
-    <div class="brAccessSongPicker">
-      <select id="brAccessSongSelect" aria-label="Select song to assign"><option value="">CHOOSE A SONG</option></select>
-      <button type="button" id="brAccessAddSong">ADD SONG</button>
-    </div>
+    <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
+    <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
+    <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Select multiple songs"></div>
     <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
     <h4>3 · EXPIRATION AND LIMITS</h4>
     <label><span>EXPIRES</span><select id="brAccessMode">
@@ -1489,10 +1487,29 @@ const backroomVaultManagers=(()=>{
     select.value=[...select.options].some(o=>o.value===current)?current:'';
   }
   function accessSongOptions(){
-    const sel=$('brAccessSongSelect'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
+    const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
     const found=catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(query));
-    sel.replaceChildren(new Option(found.length?'CHOOSE SONG · '+found.length+' MATCHES':'NO MATCHES',''));
-    found.slice(0,150).forEach(x=>sel.appendChild(new Option(x.track_title+(x.album?' · '+x.album:''),x.track_path)));
+    host.replaceChildren();
+    const grouped=new Map();
+    for(const track of found){const album=track.album||'OTHER SONGS';if(!grouped.has(album))grouped.set(album,[]);grouped.get(album).push(track);}
+    for(const [album,tracks] of grouped){
+      const group=create('div','','brAccessAlbumGroup');
+      const head=create('label','','check');
+      const all=document.createElement('input');all.type='checkbox';
+      all.checked=tracks.every(t=>assignedSongPaths.includes(t.track_path));
+      all.indeterminate=!all.checked&&tracks.some(t=>assignedSongPaths.includes(t.track_path));
+      all.addEventListener('change',()=>{const set=new Set(assignedSongPaths);tracks.forEach(t=>all.checked?set.add(t.track_path):set.delete(t.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
+      head.append(all,create('span',album+' · '+tracks.length+' songs'));group.appendChild(head);
+      for(const track of tracks){
+        const label=create('label','','check brAccessSongChoice'),check=document.createElement('input');
+        check.type='checkbox';check.checked=assignedSongPaths.includes(track.track_path);
+        check.addEventListener('change',()=>{const set=new Set(assignedSongPaths);check.checked?set.add(track.track_path):set.delete(track.track_path);assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
+        label.append(check,create('span',track.track_title));group.appendChild(label);
+      }
+      host.appendChild(group);
+    }
+    if(!found.length)host.appendChild(create('p','No matching songs.'));
+    status('brAccessSongCount',assignedSongPaths.length+' selected');
   }
   function accessSongTitle(path){
     const match=catalog.find(x=>x.track_path===path);
@@ -1698,7 +1715,8 @@ const backroomVaultManagers=(()=>{
       $('brAccessRevoke').addEventListener('click',()=>void codeAction('revoke'));
       $('brAccessDelete').addEventListener('click',()=>void codeAction('delete'));
       $('brAccessSongSearch').addEventListener('input',accessSongOptions);
-      $('brAccessAddSong').addEventListener('click',()=>{const path=$('brAccessSongSelect').value;if(path&&!assignedSongPaths.includes(path)){assignedSongPaths.push(path);assignedSongsUI();}});
+      $('brAccessSelectAll').addEventListener('click',()=>{const q=$('brAccessSongSearch').value.trim().toLowerCase();const set=new Set(assignedSongPaths);catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(q)).forEach(x=>set.add(x.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
+      $('brAccessClearSongs').addEventListener('click',()=>{assignedSongPaths=[];accessSongOptions();assignedSongsUI();});
       codeMaster.addEventListener('change',()=>void toggleMaster());
       $('brAccessCopy').addEventListener('click',async()=>{
         const code=$('brAccessCodeValue').textContent||'';
