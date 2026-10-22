@@ -5111,14 +5111,22 @@ function reconcileLiveAfterBackground(){
   if(document.hidden || !state.live || !liveState.wantedPlayback ||
      recentUserPause() || window.GEIAmStudio?.isRadioSuspended?.() ||
      window.GEIAmStudio?.isMusicStopped?.())return;
-  if(audio.paused||liveState.backgroundReconnectNeeded){
+  if(audio.paused){
     liveState.backgroundReconnectNeeded=false;
     // Preserve the native audio element; never create a second iOS player.
     void requestRadioStart();
-  }else if(!radio2.active&&!observedRadio1Progress){
-    // An expired background watchdog needs a fresh foreground deadline.
-    clearRadioWatch();
-    watchRadioConnection();
+  }else{
+    liveState.backgroundReconnectNeeded=false;
+    if(!radio2.active){
+      // While locked, native audio can advance with JS timeupdate suspended.
+      // Re-baseline the foreground progress check rather than tearing down a
+      // healthy stream based on an old wall-clock timestamp.
+      lastRadio1Progress=Date.now();
+      lastRadio1Time=Number(audio.currentTime)||0;
+      observedRadio1Progress=false;
+      clearRadioWatch();
+      watchRadioConnection();
+    }
   }
 }
 document.addEventListener('visibilitychange',()=>{
