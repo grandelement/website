@@ -368,60 +368,244 @@ function mediaSession(t){if(!('mediaSession' in navigator))return;try{
  navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
  navigator.mediaSession.setActionHandler('nexttrack',nextTrack);
 }catch(_e){}}
-// The personal selection queue is independent of the 33:33 listening limit.
+// This is one playlist editor, not a second audio player. Personal playlists
+// live on this device; published public playlists stay read-only on the server.
 const PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
-let selectedSongs=[],playingSelected=false;
+const PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
+const MUSIC_ALBUM_ORDER=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+let selectedSongs=[],playingSelected=false,editingMusicList=false,musicListSource='',musicListSourceId='';
+let personalPlaylists=readPersonalPlaylists();
+function musicNotice(message=''){$('musicNotice').textContent=message}
+function readPersonalPlaylists(){
+ try{
+  const rows=JSON.parse(localStorage.getItem(PERSONAL_PLAYLIST_KEY)||'[]');
+  return Array.isArray(rows)?rows.filter(row=>row&&typeof row.id==='string'&&typeof row.name==='string'&&Array.isArray(row.songs)).slice(0,100):[];
+ }catch(_e){return []}
+}
+function savePersonalPlaylists(){
+ try{localStorage.setItem(PERSONAL_PLAYLIST_KEY,JSON.stringify(personalPlaylists))}catch(_e){musicNotice('Could not save playlists on this device. Check storage availability.')}
+}
 function saveSelected(){
  try{sessionStorage.setItem(PREVIEW_QUEUE_KEY,JSON.stringify(selectedSongs.map(t=>({
    url:t.url,path:t.path,title:t.title,album:t.album,duration_ms:t.duration_ms,kind:'song'
  }))))}catch(_e){}
 }
-function renderSelected(){
- $('previewSelectionCount').textContent=selectedSongs.length+' SONG'+(selectedSongs.length===1?'':'S')+' SELECTED · NO COUNT LIMIT';
- const holder=$('previewSelectedList');holder.replaceChildren();
- selectedSongs.forEach((t,index)=>{
-   const row=element('div',null,'selectedTrack'),name=element('span',(index+1)+'. '+label(t));
-   const del=element('button','REMOVE');del.type='button';
-   del.addEventListener('click',()=>{selectedSongs=selectedSongs.filter(x=>x.url!==t.url);saveSelected();renderSelected();showSongs()});
-   row.append(name,del);holder.appendChild(row);
+function moveSelected(from,to){
+ if(from<0||to<0||from>=selectedSongs.length||to>=selectedSongs.length||from===to)return;
+ const song=selectedSongs.splice(from,1)[0];
+ selectedSongs.splice(to,0,song);renderSelected();
+}
+function renderMusicListRows(){
+ const host=$('musicListRows');host.replaceChildren();
+ selectedSongs.forEach((track,index)=>{
+  const row=element('div',null,'musicListTrack');row.setAttribute('role','listitem');row.dataset.path=track.path;
+  if(currentTrack?.url===track.url)row.classList.add('active');
+  const title=element('span',String(index+1)+'. '+String(track.title||'Untitled'),'songName');
+  title.appendChild(element('small',track.album||'Grand Element'));
+  const play=element('button',currentTrack?.url===track.url&&!audio.paused?'PAUSE':'PLAY');
+  play.type='button';play.setAttribute('aria-label','Play or pause '+label(track));
+  play.addEventListener('click',()=>playChosenInList(track));
+  const up=element('button','↑'),down=element('button','↓');
+  up.type=down.type='button';
+  up.setAttribute('aria-label','Move '+label(track)+' up');
+  down.setAttribute('aria-label','Move '+label(track)+' down');
+  up.disabled=index===0;down.disabled=index===selectedSongs.length-1;
+  up.addEventListener('click',()=>moveSelected(index,index-1));
+  down.addEventListener('click',()=>moveSelected(index,index+1));
+  row.append(title,play,up,down);
+  // The entire song bar can be dragged on touch screens and with a mouse.
+  // Changes to DOM order follow the finger immediately, like sliding dominoes.
+  let drag=null;
+  row.addEventListener('pointerdown',event=>{
+    if(event.target.closest('button,input')||event.button!==0)return;
+    drag={id:event.pointerId,y:event.clientY,start:event.clientY,active:false};
+    try{row.setPointerCapture(event.pointerId)}catch(_e){}
+  });
+  row.addEventListener('pointermove',event=>{
+    if(!drag||event.pointerId!==drag.id)return;
+    drag.y=event.clientY;
+    if(!drag.active&&Math.abs(drag.y-drag.start)<6)return;
+    drag.active=true;row.classList.add('dragging');
+    event.preventDefault();
+    const hovered=document.elementFromPoint(event.clientX,event.clientY)?.closest('.musicListTrack');
+    if(hovered&&hovered!==row&&host.contains(hovered)){
+      const box=hovered.getBoundingClientRect();
+      host.insertBefore(row,event.clientY<box.top+box.height/2?hovered:hovered.nextSibling);
+    }
+    const box=host.getBoundingClientRect(),edge=46;
+    if(event.clientY<box.top+edge)host.scrollTop-=18;
+    else if(event.clientY>box.bottom-edge)host.scrollTop+=18;
+  });
+  const finish=event=>{
+    if(!drag||event.pointerId!==drag.id)return;
+    const dragged=drag.active;drag=null;row.classList.remove('dragging');
+    if(dragged){
+      const byPath=new Map(selectedSongs.map(song=>[song.path,song]));
+      selectedSongs=[...host.querySelectorAll('.musicListTrack')].map(node=>byPath.get(node.dataset.path)).filter(Boolean);
+      renderSelected();musicNotice('Order changed. SAVE to keep this playlist.');
+    }
+  };
+  row.addEventListener('pointerup',finish);row.addEventListener('pointercancel',finish);
+  host.appendChild(row);
  });
- saveSelected();
+ if(!selectedSongs.length)host.appendChild(element('p','No songs in this list. Tap EDIT to choose songs or whole albums.'));
 }
-function addSelected(t){if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);renderSelected()}
-function removeSelected(t){selectedSongs=selectedSongs.filter(x=>x.url!==t.url);renderSelected()}
-function currentBrowseTracks(){
- return browserMode==='playlists'?(publicPlaylists.get(selectedPlaylistId)?.tracks||[]):(albums.get(selectedAlbum)||[]);
+function syncAlbumWholeCheck(){
+ const cb=$('albumSelectAll');if(!cb)return;
+ const songs=albums.get(selectedAlbum)||[];
+ const chosen=new Set(selectedSongs.map(t=>t.path));
+ const count=songs.filter(t=>chosen.has(t.path)).length;
+ cb.checked=!!songs.length&&count===songs.length;
+ cb.indeterminate=count>0&&count<songs.length;
 }
-$('addAlbumSongs').addEventListener('click',()=>{
- for(const t of currentBrowseTracks())if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
- renderSelected();showSongs();
-});
-$('addAllSongs').addEventListener('click',()=>{
- for(const list of albums.values())for(const t of list)if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
- renderSelected();showSongs();
-});
-$('previewClearSelected').addEventListener('click',()=>{selectedSongs=[];playingSelected=false;renderSelected();showSongs()});
-$('previewPlaySelected').addEventListener('click',()=>{
- if(!selectedSongs.length){say('Check one or more songs before starting.');return;}
+function syncEditorCheckboxes(){
+ const selected=new Set(selectedSongs.map(t=>t.path));
+ document.querySelectorAll('#musicListCatalog input[data-song-path]').forEach(cb=>{
+  cb.checked=selected.has(cb.dataset.songPath);
+ });
+ document.querySelectorAll('#musicListCatalog input[data-album-name]').forEach(cb=>{
+  const tracks=albums.get(cb.dataset.albumName)||[];
+  const count=tracks.filter(t=>selected.has(t.path)).length;
+  cb.checked=!!tracks.length&&count===tracks.length;
+  cb.indeterminate=count>0&&count<tracks.length;
+ });
+}
+function renderSelected(){
+ $('musicListCount').textContent=String(selectedSongs.length);
+ renderMusicListRows();syncAlbumWholeCheck();syncEditorCheckboxes();saveSelected();
+}
+function addSelected(track){
+ if(!selectedSongs.some(song=>song.path===track.path))selectedSongs.push(track);
+ renderSelected();
+}
+function removeSelected(track){
+ selectedSongs=selectedSongs.filter(song=>song.path!==track.path);
+ renderSelected();
+}
+function setAlbumSelected(name,on){
+ const tracks=albums.get(name)||[];
+ const included=new Set(selectedSongs.map(t=>t.path));
+ if(on){for(const track of tracks)if(!included.has(track.path))selectedSongs.push(track)}
+ else{const paths=new Set(tracks.map(t=>t.path));selectedSongs=selectedSongs.filter(t=>!paths.has(t.path))}
+ renderSelected();if(!$('albumView').hidden)showSongs();
+}
+function orderedAlbums(){
+ return [...albums.entries()].sort(([a],[b])=>{
+  const idx=name=>name==='Fundamental Groove'?99999:(MUSIC_ALBUM_ORDER.indexOf(name)>=0?MUSIC_ALBUM_ORDER.indexOf(name):500);
+  return idx(a)-idx(b)||a.localeCompare(b);
+ });
+}
+function renderMusicListEditor(){
+ const host=$('musicListCatalog');host.replaceChildren();
+ const query=$('musicListSearch').value.trim().toLowerCase();
+ const selected=new Set(selectedSongs.map(t=>t.path));
+ for(const [name,tracks] of orderedAlbums()){
+  const matches=tracks.filter(t=>!query||(name+' '+t.title).toLowerCase().includes(query));
+  if(!matches.length)continue;
+  const section=element('section',null,'musicListEditorAlbum');
+  const heading=element('label');
+  const whole=element('input');whole.type='checkbox';whole.dataset.albumName=name;
+  const count=tracks.filter(t=>selected.has(t.path)).length;
+  whole.checked=!!tracks.length&&count===tracks.length;
+  whole.indeterminate=count>0&&count<tracks.length;
+  whole.addEventListener('change',()=>{setAlbumSelected(name,whole.checked);renderMusicListEditor()});
+  heading.append(whole,element('span',name+' · '+tracks.length+' songs'));
+  section.appendChild(heading);
+  const songs=element('div',null,'musicListEditorSongs');
+  for(const track of matches){
+   const labelEl=element('label',null,'musicListEditorSong'),cb=element('input');
+   cb.type='checkbox';cb.dataset.songPath=track.path;cb.checked=selected.has(track.path);
+   cb.addEventListener('change',()=>{if(cb.checked)addSelected(track);else removeSelected(track);syncEditorCheckboxes()});
+   labelEl.append(cb,element('span',track.title||'Untitled'));
+   songs.appendChild(labelEl);
+  }
+  section.appendChild(songs);host.appendChild(section);
+ }
+ if(!host.childElementCount)host.appendChild(element('p','No albums or songs matched.'));
+}
+function openMusicList(edit=false){
+ editingMusicList=edit;
+ $('musicListView').hidden=false;$('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('albumView').hidden=true;
+ $('musicListBrowse').hidden=edit;$('musicListEditor').hidden=!edit;
+ $('musicListEditBtn').textContent=edit?'DONE':'EDIT';
+ $('musicListEditBtn').setAttribute('aria-pressed',String(edit));
+ $('musicListHeading').textContent=$('playlistName').value.trim()||'MY MUSIC LIST';
+ renderSelected();if(edit)renderMusicListEditor();
+}
+function playChosenInList(track){
+ if(currentTrack?.url===track.url&&!audio.paused){audio.pause();renderSelected();return;}
+ if(isLocked()){renderGate();return;}
+ playingSelected=true;albumTracks=selectedSongs.slice();
+ trackIndex=albumTracks.findIndex(t=>t.path===track.path);
+ void startTrack(track);
+}
+function playSelectedList(){
+ if(!selectedSongs.length){musicNotice('Choose songs with EDIT before playing.');return;}
  if(isLocked()){renderGate();return;}
  playingSelected=true;albumTracks=selectedSongs.slice();trackIndex=0;
  void startTrack(albumTracks[0]);
-});
+}
 function restoreSelected(tracks){
  try{
-   const saved=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
-   if(Array.isArray(saved)){
-     const byURL=new Map(tracks.map(t=>[t.url,t]));
-     selectedSongs=[];const seen=new Set();
-     for(const item of saved){
-       const song=byURL.get(item?.url);
-       if(song&&!seen.has(song.url)){seen.add(song.url);selectedSongs.push(song)}
-     }
-   }
+  const saved=JSON.parse(sessionStorage.getItem(PREVIEW_QUEUE_KEY)||'[]');
+  if(Array.isArray(saved)){
+   const lookup=new Map(tracks.map(t=>[t.path,t]));
+   const seen=new Set();selectedSongs=[];
+   for(const entry of saved){const track=lookup.get(entry?.path);if(track&&!seen.has(track.path)){seen.add(track.path);selectedSongs.push(track)}}
+  }
  }catch(_e){}
  renderSelected();
 }
-
+function playlistOptions(){
+ const select=$('savedPlaylistSelect'),current=select.value;
+ select.replaceChildren(new Option('CHOOSE A PLAYLIST TO LOAD',''));
+ for(const p of publicPlaylistDefinitions){
+  if(!p?.id||!p?.name||!Array.isArray(p.songs))continue;
+  select.appendChild(new Option('PUBLIC · '+p.name,'u:'+p.id));
+ }
+ for(const p of personalPlaylists)select.appendChild(new Option('MY · '+p.name,'p:'+p.id));
+ select.value=[...select.options].some(o=>o.value===current)?current:'';
+}
+function loadMusicPlaylist(source){
+ if(!source){musicNotice('Choose a playlist from LOAD.');return;}
+ const personal=source.startsWith('p:');
+ const id=source.slice(2);
+ const playlist=personal?personalPlaylists.find(p=>p.id===id):publicPlaylistDefinitions.find(p=>String(p.id)===id);
+ if(!playlist){musicNotice('Playlist no longer available.');return;}
+ const paths=Array.isArray(playlist.songs)?playlist.songs:[];
+ const seen=new Set();
+ selectedSongs=paths.map(path=>catalogTrackByPath.get(cleanMusicPath(path))).filter(t=>{
+  if(!t||seen.has(t.path))return false;seen.add(t.path);return true;
+ });
+ musicListSource=personal?'personal':'public';musicListSourceId=personal?id:'';
+ const name=personal?playlist.name:playlist.name+' (My Copy)';
+ $('playlistName').value=name;
+ musicNotice(selectedSongs.length?('Loaded '+playlist.name+' · '+selectedSongs.length+' songs'):'Playlist has no available music files.');
+ openMusicList(false);
+}
+function saveMusicPlaylist(){
+ const name=$('playlistName').value.trim()||'My Playlist';
+ if(!selectedSongs.length){musicNotice('Choose at least one song before saving.');return;}
+ let id=musicListSource==='personal'?musicListSourceId:'';
+ const duplicate=personalPlaylists.find(p=>p.name.toLowerCase()===name.toLowerCase());
+ if(duplicate&&duplicate.id!==id)id=duplicate.id;
+ if(!id)id='playlist-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+ const row={id,name,songs:selectedSongs.map(t=>t.path),updatedAt:Date.now()};
+ personalPlaylists=personalPlaylists.filter(p=>p.id!==id);
+ personalPlaylists.unshift(row);
+ musicListSource='personal';musicListSourceId=id;
+ $('playlistName').value=name;
+ savePersonalPlaylists();playlistOptions();$('savedPlaylistSelect').value='p:'+id;
+ showPublicPlaylists();renderSelected();
+ musicNotice('Saved '+name+' on this device. Public master playlists are unchanged.');
+}
+$('musicListBtn').addEventListener('click',()=>openMusicList(false));
+$('musicListEditBtn').addEventListener('click',()=>openMusicList(!editingMusicList));
+$('musicListSearch').addEventListener('input',renderMusicListEditor);
+$('playMusicListBtn').addEventListener('click',playSelectedList);
+$('playlistLoadBtn').addEventListener('click',()=>loadMusicPlaylist($('savedPlaylistSelect').value));
+$('playlistSaveBtn').addEventListener('click',saveMusicPlaylist);
+$('albumSelectAll').addEventListener('change',event=>setAlbumSelected(selectedAlbum,event.target.checked));
 function showSongs(){
  const holder=$('songs');holder.replaceChildren();
  const q=$('search').value.toLowerCase(),tracks=currentBrowseTracks();
