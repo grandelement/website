@@ -25,10 +25,28 @@ for(const tab of tabs){
 }
 for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlaylistTracks',
   'brAccessIssue','brAccessMaster','brAccessList','brAccessMode','brAccessMaxUses',
+  'brAccessBrowse','brAccessEditor','brAccessSelect','brAccessPrev','brAccessNext',
+  'brAccessPlaylist','brAccessSongSelect','brAccessAddSong','brAccessSave',
+  'brAccessEdit','brAccessDelete','brAccessCancel','brAccessNew',
   'brAccessCopy','save','publishLive','reset','lockBackroom']){
   assert.ok(back.includes('id="'+id+'"'),'Missing Back Room control: '+id);
 }
 assert.match(back,/backroomVaultManagers\.init\(\)/);
+assert.ok(back.includes("if(name!=='access')toggle?.click()"),'Access manager must default to collapsed');
+assert.match(back,/function renderAccessCodes/);
+assert.match(back,/function showCodeEditor/);
+assert.match(back,/function assignedSongsUI/);
+assert.match(back,/action:isEdit\?'edit':'issue'/);
+assert.match(back,/\/manage\/access-codes/);
+assert.match(vault,/accessAssignments/);
+assert.match(vault,/action==="edit"/);
+assert.match(vault,/action==="delete"/);
+assert.match(vault,/access_code_deletions/);
+assert.match(publisher,/\['issue','edit','activate','suspend','revoke','delete','master'\]/);
+assert.match(schema,/CREATE TABLE IF NOT EXISTS access_code_content/);
+assert.match(schema,/CREATE TABLE IF NOT EXISTS access_code_deletions/);
+assert.match(migration,/CREATE TABLE IF NOT EXISTS access_code_content/);
+assert.match(migration,/CREATE TABLE IF NOT EXISTS access_code_deletions/);
 assert.match(back,/\/manage\/access-codes/);
 assert.match(back,/\/manage\/playlists/);
 assert.match(publisher,/verifySession\(env,bearer\(request\)\)/);
@@ -41,4 +59,4 @@ assert.match(vault,/VAULT_HASH_KEY/);
 assert.match(schema,/CREATE TABLE IF NOT EXISTS access_codes/);
 assert.match(migration,/CREATE TABLE IF NOT EXISTS access_codes/);
 assert.ok(!/GE_BACKROOM_CODE\s*=/.test(back),'Do not embed access code in front-end');
-console.log('PASS Back Room 10 tabs, controls, Vault auth routes, code integrity, and JS syntax');
+console.log('PASS Back Room collapsible code manager, per-code songs and playlists, edit/delete, server schema and syntax');
