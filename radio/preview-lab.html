@@ -19,7 +19,7 @@ h2{font-size:17px;margin:0 0 10px}
 small,.muted{color:#adccdf}
 .card{border:1px solid #316386;border-radius:15px;padding:14px;background:rgba(2,15,31,.9)}
 .notice{margin-bottom:12px;line-height:1.6}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:12px;align-items:start}
+.layout{display:block}
 .albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px}
 .musicBrowseTabs{margin:0 0 12px;display:flex;gap:8px}
 .musicBrowseTabs button{flex:1}
@@ -27,7 +27,7 @@ small,.muted{color:#adccdf}
 .albumTile{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;text-align:left;min-height:86px;background:linear-gradient(140deg,#15436b,#061826);padding:12px}
 .albumTile strong{font-size:15px}
 .albumTile small{font-size:11px;color:#b1d0e8}
-#albumView[hidden],#albumWall[hidden]{display:none!important}
+#albumView[hidden],#albumWall[hidden],#musicListView[hidden],#publicPlaylistWall[hidden],#musicListEditor[hidden],#musicListBrowse[hidden]{display:none!important}
 .albumHeader{display:flex;gap:9px;align-items:center;margin-bottom:12px}
 input[type=search],input[type=text]{width:100%;min-height:43px;border:1px solid #488ab0;border-radius:9px;background:#071b2e;color:white;font:inherit;padding:9px}
 input[type=search]{margin:4px 0 8px}
@@ -45,7 +45,7 @@ input[type=search]{margin:4px 0 8px}
 .songTitle{font-size:13px;font-weight:740;overflow-wrap:anywhere}
 .songTitle small{display:block;font-weight:450;color:#a6c8d9}
 .song button{flex:0 0 auto;min-width:70px}
-#playerPanel{position:sticky;top:10px}
+#musicBrowser{width:100%}
 #now{font-size:15px;overflow-wrap:anywhere}
 #detail{display:block;margin:9px 0 5px}
 .controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
@@ -57,7 +57,37 @@ input[type=search]{margin:4px 0 8px}
 #ownerControl input{flex:1 1 100px;min-width:0}
 #ownerStatus{color:#86d0b0;font-size:12px}
 footer{font-size:12px;color:#a7c2d5;margin:16px 0}
-@media(max-width:680px){.layout{grid-template-columns:1fr}#playerPanel{position:static}#songs{max-height:55dvh}}
+@media(max-width:680px){#songs{max-height:55dvh}.playlistTools{flex-wrap:wrap}.playlistTools select{width:100%}}
+.musicTopBar,.playlistViewHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.musicTopBar h2{margin:0}
+.musicTopBar{margin-bottom:12px}
+.musicTopBar button{margin-left:auto}
+.playlistTools{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.playlistTools select{min-width:0;flex:1 1 200px;height:42px;border-radius:10px;border:1px solid #4d94bb;background:#0b2841;color:#fff;padding:8px}
+.playlistTools button{flex:0 0 auto}
+#playlistName{margin-bottom:10px}
+#musicNotice:not(:empty){padding:6px 0 10px;color:#a7e7ff}
+.albumBulk{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:8px 0}
+.albumBulk label{display:flex;align-items:center;gap:9px;font-weight:700;min-height:44px}
+.albumBulk input,.musicListEditorAlbum input,.musicListEditorSong input{width:21px;height:21px;accent-color:#67d6ff;flex:0 0 auto}
+.musicListRows{max-height:66dvh;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid #24516c;border-bottom:1px solid #24516c;margin-top:10px;padding:5px 0}
+.musicListTrack{display:flex;align-items:center;gap:8px;min-height:52px;padding:8px 7px;border-bottom:1px solid #234e69;background:rgba(10,43,67,.5);border-radius:7px;margin:3px 0;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.musicListTrack.dragging{background:#1a6185;outline:2px solid #9de6ff;box-shadow:0 3px 14px #0009;cursor:grabbing}
+.musicListTrack.active{border-color:#65d7ff;background:rgba(25,120,156,.3)}
+.musicListTrack .songName{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:650}
+.musicListTrack .songName small{display:block;font-weight:400;color:#acccdf}
+.musicListTrack button{min-width:35px;min-height:36px;padding:6px 8px}
+.musicListTrack button:disabled{opacity:.3}
+.playlistViewHeading strong{flex:1 1 auto;font-size:17px}
+.playlistHint{font-size:12px;color:#add0df;margin:9px 0 4px}
+#musicListEditor{margin-top:10px}
+#musicListCatalog{max-height:68dvh;overflow:auto;overscroll-behavior:contain}
+.musicListEditorAlbum{border:1px solid #35617d;border-radius:11px;margin:9px 0;padding:8px 10px}
+.musicListEditorAlbum>label{display:flex;align-items:center;gap:10px;font-weight:850;min-height:42px}
+.musicListEditorSongs{padding-left:14px}
+.musicListEditorSong{display:flex;align-items:center;gap:9px;padding:6px 4px;border-top:1px solid #254b65;min-height:42px}
+.musicListEditorSong span{flex:1;min-width:0;overflow-wrap:anywhere}
+.srOnly{position:absolute!important;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 /* Radio's Blue Sun entrance, water rings, blurred approach and access panel. */
 
 
@@ -142,40 +172,46 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 </style>
 </head>
 <body>
-<header><div><h1>GRAND ELEMENT · MUSIC PLAYER</h1><small>CHOOSE MUSIC · 33:33 GUEST LISTENING</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
+<header><div><h1>GRAND ELEMENT · MUSIC</h1><small>ALBUMS · PLAYLISTS · MUSIC LIST</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
 <main>
-<section class="card notice">Choose an album and tap <strong>PLAY</strong> on any song. You can listen to the songs you choose for <strong>33 minutes and 33 seconds</strong> total. The Inner Frequency Gate begins before the limit so its full approach and final fade finish exactly at 33:33. Radio has its own separate 33:33 allowance.</section>
-<div class="layout">
-<section class="card">
-<h2>CHOOSE MUSIC</h2>
-<div class="musicBrowseTabs" role="group" aria-label="Music browser">
-  <button id="browseAlbums" type="button" aria-pressed="true">ALBUMS</button>
-  <button id="browsePlaylists" type="button" aria-pressed="false">PLAYLISTS</button>
-</div>
-<div id="albumWall" class="albumWall">Loading albums…</div>
-<div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
-<div id="albumView" hidden>
-  <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
-  <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
-  <div id="previewSelectionControls"><button id="playBrowserCollection" type="button" hidden>PLAY PLAYLIST</button><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div>
-  <div id="songs"></div>
-</div>
+<section class="card" id="musicBrowser">
+  <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">MUSIC LIST · <span id="musicListCount">0</span></button></div>
+  <div class="playlistTools" aria-label="Playlist save and load">
+    <select id="savedPlaylistSelect" aria-label="Saved or public playlist"><option value="">CHOOSE A PLAYLIST TO LOAD</option></select>
+    <button id="playlistLoadBtn" type="button">LOAD</button>
+    <button id="playlistSaveBtn" type="button">SAVE</button>
+  </div>
+  <input id="playlistName" type="text" maxlength="100" autocomplete="off" aria-label="Playlist name" placeholder="Playlist name to save">
+  <div id="musicNotice" role="status" aria-live="polite"></div>
+  <div class="musicBrowseTabs" role="group" aria-label="Music browser">
+    <button id="browseAlbums" type="button" aria-pressed="true">ALBUMS</button>
+    <button id="browsePlaylists" type="button" aria-pressed="false">PLAYLISTS</button>
+  </div>
+  <div id="albumWall" class="albumWall">Loading albums…</div>
+  <div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
+  <div id="albumView" hidden>
+    <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
+    <div class="albumBulk"><label><input id="albumSelectAll" type="checkbox"> SELECT WHOLE ALBUM</label><button id="playBrowserCollection" type="button">PLAY ALBUM</button></div>
+    <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
+    <div id="songs"></div>
+  </div>
+  <div id="musicListView" hidden>
+    <div class="playlistViewHeading">
+      <strong id="musicListHeading">MY MUSIC LIST</strong>
+      <button id="musicListEditBtn" type="button" aria-pressed="false">EDIT</button>
+      <button id="playMusicListBtn" type="button">PLAY LIST</button>
+    </div>
+    <div id="musicListBrowse">
+      <p class="playlistHint">Drag a song to change its position, or use the ↑ ↓ arrows.</p>
+      <div id="musicListRows" role="list" aria-label="Playlist songs in playback order"></div>
+    </div>
+    <div id="musicListEditor" hidden>
+      <input id="musicListSearch" type="search" placeholder="Find an album or song" aria-label="Search all music">
+      <div id="musicListCatalog" aria-label="Albums and songs to add to playlist"></div>
+    </div>
+  </div>
 </section>
-<section class="card" id="playerPanel">
-  <h2>NOW PLAYING</h2>
-  <strong id="now">Choose a song</strong>
-  <small id="detail">One native audio player · full songs until the free listening limit</small>
-  <div class="controls"><button id="play" type="button">PLAY / PAUSE</button><button id="next" type="button">NEXT SONG</button></div>
-  <span id="previewSelectionCount">0 SONGS SELECTED</span>
-  <div id="previewSelectedList" aria-label="Selected music queue"></div>
-  <div class="controls"><button id="previewPlaySelected" type="button">PLAY SELECTED</button><button id="previewClearSelected" type="button">CLEAR LIST</button></div>
-  <div id="status" role="status">Choose an album and press PLAY beside a song.</div>
-  <div id="guestHint">Your free listening time advances only while the music itself advances. Pausing and buffering do not consume it.</div>
-  <p><a href="../support/?section=music" class="button">EXPLORE MUSIC</a></p>
-  <div id="ownerControl"><strong>OWNER TEST</strong><div><input id="ownerCode" type="text" autocomplete="off" placeholder="Owner test code" aria-label="Owner test code"><button id="ownerUnlock" type="button">UNLOCK TEST</button><button id="ownerLock" type="button" hidden>EXIT TEST</button></div><small id="ownerStatus">Local demo only. Does not verify a purchase.</small></div>
-</section>
-</div>
-<footer>Soul Comet and 33-second samples are archived. Select any number of full songs here; the 33:33 free listening allowance is independent of the playlist length. Payment and private downloads are not active yet.</footer>
+<div id="status" role="status" aria-live="polite" class="srOnly"></div>
 <audio id="audio" preload="none" playsinline webkit-playsinline crossorigin="anonymous"></audio>
 </main>
 <div id="geGate" role="dialog" aria-label="The Inner Frequency music preview gate" aria-hidden="true">
