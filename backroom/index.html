@@ -877,7 +877,10 @@ $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textC
 for(const [,[id]] of Object.entries(gateFields)){
  $(id)?.addEventListener('input',renderGateTimingSummary);
 }
-document.querySelectorAll('main input,main textarea,main select').forEach(e=>{if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark)});
+document.querySelectorAll('main input,main textarea,main select').forEach(e=>{
+  if(e.closest('[data-br-tab="access"],[data-br-tab="playlists"]'))return;
+  if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark);
+});
 $('planetLayout').addEventListener('change',()=>{
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value||'random';mark();
   if(editorTarget==='planets'&&$('screenEditor').classList.contains('show')){
@@ -1279,6 +1282,249 @@ document.querySelectorAll('#screenTextTools [data-screen-align]').forEach(btn=>b
 $('screenOpacityDown').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.max(20,(Number(v.panelOpacity)||80)-5);applyEditorOpacity();dirty=true};
 $('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min(100,(Number(v.panelOpacity)||80)+5);applyEditorOpacity();dirty=true};
 
+
+/* Dedicated owner-only modules. No access code or playlist secret enters the
+   public site configuration, drafts, presets, or localStorage. */
+const backroomVaultManagers=(()=>{
+  let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
+  let playlistLoaded=false,accessLoaded=false,codeRows=[];
+  const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
+  const create=(tag,text='',className='')=>{
+    const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;
+  };
+  const btn=(caption,handler)=>{
+    const b=create('button',caption);b.type='button';b.addEventListener('click',handler);return b;
+  };
+  const playlistStatus=text=>status('brPlaylistStatus',text);
+  const accessStatus=text=>status('brAccessStatus',text);
+  const authReady=()=>{
+    if(serverAuthenticated&&token())return true;
+    playlistStatus('The private Back Room publisher login is required to manage Vault playlists.');
+    accessStatus('The private Back Room publisher login is required to manage secure access codes.');
+    return false;
+  };
+  async function vaultAction(path,body=null){
+    if(!authReady())throw Error('Please sign in through the connected Back Room publisher.');
+    const opt=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
+    const response=await api(path,opt);
+    const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
+    if(!response.ok||!data?.ok)throw Error(data?.error||('Vault request failed ('+response.status+').'));
+    return data;
+  }
+  function playlistCopy(row){
+    return {id:String(row?.id||''),name:String(row?.name||''),locked:!!row?.locked,active:!!row?.active,
+      tracks:(row?.tracks||[]).slice().sort((a,b)=>Number(a.position||0)-Number(b.position||0)).map(x=>({
+        track_path:String(x.track_path||x.path||''),track_title:String(x.track_title||x.title||''),album:String(x.album||'')
+      }))};
+  }
+  function parseTrack(path){
+    const parts=String(path).split('/'),filename=decodeURIComponent(parts[parts.length-1]||'').replace(/\.(mp3|m4a|wav|ogg|flac)$/i,'').replace(/_/g,' ');
+    const albumDir=parts.find(x=>/Grand Element - \d{4}/.test(x))||'';
+    return{track_path:path,track_title:filename,album:albumDir.replace(/^Grand Element - \d{4} - /,'')};
+  }
+  async function loadCatalog(){
+    try{
+      const r=await fetch('../radio/manifest.json',{cache:'no-store'});
+      if(!r.ok)throw Error('Music manifest unavailable');
+      const manifest=await r.json();
+      catalog=(manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)).map(parseTrack);
+      renderCatalog();
+    }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
+  }
+  function renderCatalog(){
+    const sel=$('brSongSelect'),query=String($('brPlaylistSearch').value||'').trim().toLowerCase();
+    sel.replaceChildren();
+    const found=catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(query));
+    sel.appendChild(new Option(found.length?('CHOOSE SONG · '+found.length+' MATCHES'):'NO MATCHES',''));
+    found.slice(0,125).forEach(x=>sel.appendChild(new Option(x.track_title+(x.album?' · '+x.album:''),x.track_path)));
+  }
+  function renderTrackList(){
+    const host=$('brPlaylistTracks');host.replaceChildren();
+    status('brPlaylistTrackCount',playlistTracks.length+' song'+(playlistTracks.length===1?'':'s'));
+    playlistTracks.forEach((track,i)=>{
+      const row=create('div','','brPlaylistTrack');
+      row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
+      row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
+      row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
+      row.appendChild(btn('×',()=>{playlistTracks.splice(i,1);renderTrackList()}));
+      host.appendChild(row);
+    });
+    if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Dragging is not required; use ↑ and ↓ to set the exact order.'));
+  }
+  function renderPlaylistChooser(){
+    const sel=$('brPlaylistSelect');sel.replaceChildren();
+    sel.appendChild(new Option('NEW PLAYLIST',''));
+    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE IN VAULT':''),p.id));
+    sel.value=playlistEditingId;
+  }
+  function editPlaylist(id){
+    const found=playlists.find(x=>String(x.id)===String(id));
+    const p=playlistCopy(found);
+    playlistEditingId=p.id;playlistTracks=p.tracks;playlistLocked=p.locked;
+    $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
+    $('brPlaylistDelete').disabled=!p.id||p.locked;
+    renderPlaylistChooser();renderTrackList();
+  }
+  async function refreshPlaylists(keep=''){
+    if(!authReady())return;
+    playlistStatus('Loading playlists from GE Vault…');
+    try{
+      const data=await vaultAction('/manage/playlists');
+      playlists=Array.isArray(data.items)?data.items:[];
+      playlistLoaded=true;
+      const target=keep||playlistEditingId;
+      editPlaylist(playlists.some(x=>x.id===target)?target:'');
+      playlistStatus('GE Vault connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
+    }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
+  }
+  async function savePlaylist(){
+    const name=$('brPlaylistName').value.trim();
+    if(!name){playlistStatus('Enter the playlist name.');return;}
+    if(!playlistTracks.length){playlistStatus('Add at least one song before saving.');return;}
+    const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
+      tracks:playlistTracks,active:$('brPlaylistActive').checked}};
+    $('brPlaylistSave').disabled=true;playlistStatus('Saving to GE Vault…');
+    try{
+      const data=await vaultAction('/manage/playlists',payload);
+      await refreshPlaylists(data.id||playlistEditingId);
+      playlistStatus('Playlist saved permanently in GE Vault. Select it in the GE DJ Booth to change the playing BLITZ station.');
+    }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
+    finally{$('brPlaylistSave').disabled=false;}
+  }
+  async function deletePlaylist(){
+    const id=playlistEditingId;if(!id||playlistLocked)return;
+    if(!confirm('Delete this playlist from GE Vault? Its history will be retained.'))return;
+    try{await vaultAction('/manage/playlists',{action:'delete',id});playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from the Vault; prior version retained.');}
+    catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
+  }
+  const codeMaster=$('brAccessMaster');
+  function accessModeUI(){
+    const mode=$('brAccessMode').value;
+    $('brAccessDurationRow').hidden=!['first_use','activation'].includes(mode);
+    $('brAccessFixedRow').hidden=mode!=='fixed';
+  }
+  function formatTime(unix){
+    if(!unix)return'Never / not started';
+    try{return new Date(Number(unix)*1000).toLocaleString()}catch(_e){return String(unix)}
+  }
+  function statusCode(row){
+    if(row.revoked)return'Revoked';
+    if(!row.enabled)return'Suspended';
+    if(row.expires_at&&row.expires_at<=Date.now()/1000)return'Expired';
+    if(row.max_uses>0&&row.use_count>=row.max_uses)return'Use limit reached';
+    return'Active';
+  }
+  function renderAccessCodes(){
+    const host=$('brAccessList');host.replaceChildren();
+    if(!codeRows.length){host.appendChild(create('p','No access codes have been issued.'));return;}
+    for(const row of codeRows){
+      const wrapper=create('div','','backroomCodeEntry');
+      wrapper.appendChild(create('strong',row.label+' · …'+row.code_hint));
+      const expiry=row.duration_mode==='first_use'&&!row.first_used_at
+        ?'Expiration starts at first use':row.duration_mode==='activation'&&!row.activated_at
+        ?'Expiration starts on activation':formatTime(row.expires_at||row.fixed_expires_at);
+      wrapper.appendChild(create('small',statusCode(row)+' · '+(row.scopes||[]).join(', ').toUpperCase()+
+        ' · '+row.use_count+'/'+(row.max_uses||'∞')+' uses · '+expiry));
+      const controls=create('div','','backroomActionRow');
+      if(!row.revoked){
+        controls.appendChild(btn(row.enabled?'SUSPEND':'ACTIVATE',async()=>{
+          const action=row.enabled?'suspend':'activate';
+          try{await vaultAction('/manage/access-codes',{action,id:row.id});await refreshCodes();}
+          catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
+        }));
+        controls.appendChild(btn('REVOKE',async()=>{
+          if(!confirm('Permanently revoke this code? It cannot be restored.'))return;
+          try{await vaultAction('/manage/access-codes',{action:'revoke',id:row.id});await refreshCodes();}
+          catch(err){accessStatus('REVOKE FAILED: '+String(err.message||err));}
+        }));
+      }
+      wrapper.appendChild(controls);host.appendChild(wrapper);
+    }
+  }
+  async function refreshCodes(){
+    if(!authReady())return;
+    accessStatus('Loading access codes securely…');
+    try{
+      const data=await vaultAction('/manage/access-codes');
+      codeRows=Array.isArray(data.items)?data.items:[];
+      accessLoaded=true;codeMaster.checked=data.master_enabled!==false;
+      renderAccessCodes();
+      accessStatus('GE Vault connected · '+codeRows.length+' issued code'+(codeRows.length===1?'':'s')+
+        ' · master switch '+(codeMaster.checked?'ON':'OFF')+'.');
+    }catch(err){accessStatus('ACCESS CODES: '+String(err.message||err));}
+  }
+  async function issueCode(){
+    const label=$('brAccessLabel').value.trim();
+    const scopes=[...document.querySelectorAll('[name="brAccessScope"]:checked')].map(x=>x.value);
+    if(!label){accessStatus('Enter a name for this code.');return;}
+    if(!scopes.length){accessStatus('Choose at least one permission.');return;}
+    const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
+    const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
+    const body={action:'issue',label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
+      fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),activate_now:$('brAccessStartNow').checked};
+    const button=$('brAccessIssue');button.disabled=true;accessStatus('Creating secure code in GE Vault…');
+    $('brAccessOneTime').hidden=true;$('brAccessCodeValue').textContent='';
+    try{
+      const data=await vaultAction('/manage/access-codes',body);
+      $('brAccessCodeValue').textContent=data.code;
+      $('brAccessOneTime').hidden=false;
+      await refreshCodes();
+      accessStatus('SECURE CODE CREATED. Copy it now. For public Radio unlock, the Gate still requires separate entitlement integration.');
+    }catch(err){accessStatus('CREATE FAILED: '+String(err.message||err));}
+    finally{button.disabled=false;}
+  }
+  async function toggleMaster(){
+    const desired=codeMaster.checked;
+    if(!desired&&!confirm('Disable ALL GE access codes? This will not affect the existing Radio Gate.')){
+      codeMaster.checked=true;return;
+    }
+    codeMaster.disabled=true;
+    try{
+      const data=await vaultAction('/manage/access-codes',{action:'master',enabled:desired});
+      codeMaster.checked=data.master_enabled;
+      accessStatus('Access code master switch '+(data.master_enabled?'ENABLED':'DISABLED')+'.');
+    }catch(err){codeMaster.checked=!desired;accessStatus('MASTER SWITCH FAILED: '+String(err.message||err));}
+    finally{codeMaster.disabled=false;}
+  }
+  function openTab(tab){
+    if(tab==='playlists'&&(!playlistLoaded||!authReady()))void refreshPlaylists();
+    if(tab==='access'&&(!accessLoaded||!authReady()))void refreshCodes();
+  }
+  function init(){
+    if(!initialized){
+      initialized=true;
+      $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
+      $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
+      $('brPlaylistSearch').addEventListener('input',renderCatalog);
+      $('brAddSong').addEventListener('click',()=>{
+        const path=$('brSongSelect').value,track=catalog.find(x=>x.track_path===path);
+        if(!track)return;
+        playlistTracks.push({...track});renderTrackList();
+      });
+      $('brPlaylistSave').addEventListener('click',()=>void savePlaylist());
+      $('brPlaylistDelete').addEventListener('click',()=>void deletePlaylist());
+      $('brAccessMode').addEventListener('change',accessModeUI);
+      $('brAccessRefresh').addEventListener('click',()=>void refreshCodes());
+      $('brAccessIssue').addEventListener('click',()=>void issueCode());
+      codeMaster.addEventListener('change',()=>void toggleMaster());
+      $('brAccessCopy').addEventListener('click',async()=>{
+        const code=$('brAccessCodeValue').textContent||'';
+        if(!code)return;
+        try{await navigator.clipboard.writeText(code);accessStatus('Code copied. Keep it secure.');}
+        catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
+      });
+      window.GE_BACKROOM_ON_TAB?.(openTab);
+      void loadCatalog();
+      accessModeUI();editPlaylist('');
+    }
+    playlistLoaded=false;accessLoaded=false;
+    const current=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
+    openTab(current);
+  }
+  return{init};
+})();
+
 async function bootBackroom(){
   // Migrate the old oversized 115% default once, then honor the slider setting.
   const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
@@ -1290,6 +1536,7 @@ async function bootBackroom(){
   }
   applyText(savedText||90);
   cfg=localDraft()||await repoLive();populate();await loadMusic();
+  backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
     setStatus('SIGNED IN · READY TO EDIT AND PUBLISH');
