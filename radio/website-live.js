@@ -141,7 +141,16 @@ controller.playPause=function(){if(wants&&!audio.paused)pause();else start()};
 controller.next=function(){};controller.prev=function(){};
 controller.setShuffle=function(){return true};controller.getShuffle=function(){return true};
 controller.selectTrackNumber=function(){return false};
-controller.playAlbum=function(){location.assign(new URL('radio/',location.href).href);return false};
+// PLAY ALBUM on a planet opens the existing 33:33 music player with the
+// chosen album selected. Do not send an album request to the live BLITZ station.
+controller.playAlbum=function(albumTitle){
+ var name=String(albumTitle||'').trim();
+ if(!name)return false;
+ var target=new URL('radio/preview-lab.html',location.href);
+ target.searchParams.set('album',name);
+ location.assign(target.href);
+ return true;
+};
 controller.ensurePlaying=async function(){
  if(wants&&!audio.paused)return true;
  start();return wants&&!audio.paused;
