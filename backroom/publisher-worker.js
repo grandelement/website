@@ -204,6 +204,22 @@ async function deletePreset(env,id){
   return {presets:store.presets,commit};
 }
 
+
+/* Owner-only GE Vault bridge. The Vault admin token never reaches the browser.
+   No code/playlist record is written to public GitHub or site-live.json. */
+async function geVaultBridge(env,path,method='GET',body=null){
+  const secret=String(env.VAULT_ADMIN_TOKEN||'').trim();
+  if(!secret)return {status:503,data:{ok:false,error:'GE Vault connection is not configured on the Back Room publisher.'}};
+  const url='https://vault.grandelement.com'+path;
+  const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'error'};
+  if(body!==null)init.body=JSON.stringify(body);
+  try{
+    const response=await fetch(url,init);
+    const data=await response.json().catch(()=>({ok:false,error:'GE Vault returned an invalid response.'}));
+    return{status:response.status,data};
+  }catch(_e){return {status:502,data:{ok:false,error:'GE Vault could not be reached. The existing website and Radio settings were not changed.'}}}
+}
+
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
@@ -269,6 +285,46 @@ export default {
       }catch(error){
         return json({ok:false,error:String(error?.message||error)},502,cors);
       }
+    }
+
+
+    if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
+      if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
+      const isPlaylists=url.pathname==='/manage/playlists';
+      if(request.method==='GET'){
+        const upstream=await geVaultBridge(env,isPlaylists?'/v1/playlists':'/v1/admin/access-codes');
+        return json(upstream.data,upstream.status,cors);
+      }
+      let body={};try{body=await request.json()}catch(_e){return json({ok:false,error:'Invalid request.'},400,cors)}
+      if(isPlaylists){
+        const action=String(body.action||'');
+        if(action==='save'){
+          const p=body.playlist||{};
+          const name=String(p.name||'').trim().slice(0,100);
+          if(!name)return json({ok:false,error:'Enter a playlist name.'},400,cors);
+          const tracks=Array.isArray(p.tracks)?p.tracks.slice(0,500):[];
+          if(!tracks.length)return json({ok:false,error:'Choose at least one track.'},400,cors);
+          const validated=tracks.map(x=>({track_path:String(x.track_path||'').slice(0,600),track_title:String(x.track_title||'').slice(0,300),album:String(x.album||'').slice(0,160)}));
+          if(validated.some(x=>!x.track_path.startsWith('ge-music/music/')))return json({ok:false,error:'Only GE Music tracks can be used.'},400,cors);
+          const payload={id:String(p.id||'').slice(0,100),name,tracks:validated,
+            active:!!p.active,locked:!!p.locked,notes:String(p.notes||'').slice(0,500)};
+          const upstream=await geVaultBridge(env,'/v1/playlists','PUT',payload);
+          return json(upstream.data,upstream.status,cors);
+        }
+        if(action==='delete'){
+          const id=String(body.id||'');
+          if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return json({ok:false,error:'Invalid playlist identifier.'},400,cors);
+          const upstream=await geVaultBridge(env,'/v1/playlists/'+encodeURIComponent(id),'DELETE');
+          return json(upstream.data,upstream.status,cors);
+        }
+        return json({ok:false,error:'Unknown playlist action.'},400,cors);
+      }
+      // The Vault validates scope, limits, entropy, HMAC hashes and authorization.
+      if(!['issue','edit','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
+        return json({ok:false,error:'Unknown access-code action.'},400,cors);
+      }
+      const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
+      return json(upstream.data,upstream.status,cors);
     }
 
     if(url.pathname==='/publish'&&request.method==='POST'){

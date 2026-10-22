@@ -1,0 +1,48 @@
+name: GE Back Room Admin Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/**'
+      - 'vault-worker/**'
+      - 'tests/backroom-admin.test.mjs'
+      - '.github/workflows/backroom-admin-qa.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backroom/**'
+      - 'vault-worker/**'
+      - 'tests/backroom-admin.test.mjs'
+      - '.github/workflows/backroom-admin-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-static-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Back Room tab and Vault API JavaScript
+        run: node tests/backroom-admin.test.mjs
+      - name: Validate new D1 tables and rerunnable migration
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          db=sqlite3.connect(':memory:')
+          db.executescript(open('vault-worker/schema.sql',encoding='utf-8').read())
+          migration=open('vault-worker/migrations/20261021_access_codes.sql',encoding='utf-8').read()
+          db.executescript(migration)
+          db.executescript(migration)
+          assert db.execute("SELECT enabled FROM access_code_policy WHERE id=1").fetchone() == (1,)
+          assert db.execute("SELECT name FROM sqlite_master WHERE name='access_codes'").fetchone()
+          assert db.execute("SELECT name FROM sqlite_master WHERE name='access_code_content'").fetchone()
+          assert db.execute("SELECT name FROM sqlite_master WHERE name='access_code_deletions'").fetchone()
+          print('PASS access codes schema and repeatable migration')
+          PY

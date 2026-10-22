@@ -1,14 +1,18 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.16-listener-audio-v1';
+const VERSION='2026.10.21-music-picker-navigation-v1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
 const SHELL=[
   './',
   './index.html',
+  './preview-lab.html',
+  './track-durations.json',
   './iam-private-studio.js',
+  './ge-gate-audio.js',
+  './ge-gate-settings.js',
   './manifest.webmanifest',
   './favicon.ico',
   './icons/favicon-16.png',
@@ -139,7 +143,33 @@ async function offlineNavigationFallback(){
   });
 }
 
+async function secondaryPageNavigationResponse(request){
+  // Preview Lab and other Radio HTML pages must not be validated against the
+  // main Radio index markup. The old handler replaced them with index.html.
+  try{
+    const response=await fetch(request,{cache:'no-store'});
+    if(response.ok && /text\/html/i.test(response.headers.get('content-type')||'')){
+      const cache=await caches.open(SHELL_CACHE);
+      await cache.put(request,response.clone()).catch(()=>{});
+    }
+    return response;
+  }catch(_error){
+    const cached=await cachedResponse(request);
+    if(cached)return cached;
+    return new Response('Music selection is unavailable offline until opened online.',{
+      status:503,
+      headers:{'Content-Type':'text/plain;charset=utf-8','Cache-Control':'no-store'}
+    });
+  }
+}
+
 async function navigationResponse(request){
+  const path=new URL(request.url).pathname;
+  // Only the home page can use the strict Grand Element Radio index validator.
+  // The separate music/preview page is a legitimate HTML document.
+  if(!path.endsWith('/radio/') && !path.endsWith('/radio/index.html')){
+    return secondaryPageNavigationResponse(request);
+  }
   // Network first, but never cache or display a poisoned/plain-text index.html.
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),3500);
@@ -268,6 +298,23 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith(navigationResponse(request));
+    return;
+  }
+
+  // Catalogs should never be served cache-first: otherwise newly uploaded
+  // songs do not appear in the MUSIC or title chooser even after page reload.
+  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname)){
+    event.respondWith((async()=>{
+      try{
+        const fresh=await fetchFresh(request);
+        if(fresh.ok){
+          const shell=await caches.open(SHELL_CACHE);
+          await shell.put(request,fresh.clone()).catch(()=>{});
+          return fresh;
+        }
+      }catch(_e){}
+      return await cachedResponse(request) || new Response('Music catalog unavailable',{status:503});
+    })());
     return;
   }
 

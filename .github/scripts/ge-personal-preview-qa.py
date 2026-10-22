@@ -16,8 +16,9 @@ spec.loader.exec_module(module)
 assert module.mp3_frame_size(bytes.fromhex('fffb9400')) == 384
 assert module.mp3_frame_size(b'BAD!') == 0
 assert 'aecho=' in module.reverb_filter(130)
-assert 't+0.0000-70.0000' in module.reverb_filter(130)
-assert 't+30.0000-0.0000' in module.reverb_filter(30)
+assert 'afade=t=out:st=120.0000:d=10.0000' in module.reverb_filter(130)
+assert 't+0.0000-120.0000' in module.reverb_filter(130)
+assert 't+5.0000-0.0000' in module.reverb_filter(5)
 
 docker = (root / 'Dockerfile.radio').read_text()
 shell = (root / 'radio-backend/start-radio.sh').read_text()
@@ -27,7 +28,11 @@ assert 'location = /listener-preview.mp3 {' in shell
 assert 'start_preview()' in shell
 assert 'GE_LISTENER_PREVIEW_URL' in radio
 assert 'GEListenerPreview' in radio
-assert "method:'HEAD'" in radio
+assert 'ge-gate-audio.js' in radio
+assert 'window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)' in radio
+assert 'window.GEAudioGain?.stopAll?.()' in radio
+assert "function freshLiveStreamURL()" in radio
+assert "const geListenerPreviewCheck=Promise.resolve(false)" in radio
 
 if not shutil.which('ffmpeg'):
     raise SystemExit('FFmpeg is needed to verify the actual audio fade')

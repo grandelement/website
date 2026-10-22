@@ -58,6 +58,23 @@ button:disabled{opacity:.48;cursor:not-allowed}
  100%{margin-left:0}
 }
 
+
+.geUploadMonitor{position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;box-sizing:border-box;background:#071622;color:#f3faff;border-bottom:4px solid #54c9ef;padding:12px 18px 15px;box-shadow:0 8px 30px rgba(0,0,0,.9);font-family:Arial,Helvetica,sans-serif}
+.geUploadMonitorHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#geUploadMonitorHeadline{font-size:32px;font-weight:900;letter-spacing:1px;line-height:1.1}
+#geUploadMonitorPercent{font-size:25px;font-weight:900;white-space:nowrap}
+#geUploadMonitorDestination{font-size:13px;font-weight:bold;color:#acdff1;margin:5px 0}
+#geUploadMonitorDetail{font-size:14px;line-height:1.3;white-space:normal;overflow-wrap:anywhere;max-height:50px;overflow:hidden;margin-top:7px}
+.geUploadMonitorTrack{height:27px;border:2px solid #87b4ce;border-radius:6px;background:#101d29;overflow:hidden}
+.geUploadMonitorFill{width:0;height:100%;background:#36bff5;transition:width .2s}
+.geUploadMonitorFill.geUploadIndeterminate{animation:geUploadSweep 1.55s ease-in-out infinite;-webkit-animation:geUploadSweep 1.55s ease-in-out infinite}
+.geMonitorDone{background:#083d25;border-bottom-color:#61ff9c}
+.geMonitorDone #geUploadMonitorHeadline{font-size:44px;color:#a9ffc7}
+.geMonitorDone .geUploadMonitorFill{background:#6bffa1}
+.geMonitorError{background:#4b140f;border-bottom-color:#ff917a}
+.geMonitorError #geUploadMonitorHeadline{color:#fff0a3}
+.geMonitorError .geUploadMonitorFill{background:#ff917a}
+@media(max-width:600px){#geUploadMonitorHeadline{font-size:24px}.geMonitorDone #geUploadMonitorHeadline{font-size:33px}#geUploadMonitorPercent{font-size:21px}.geUploadMonitor{padding:9px 12px 12px}}
 #radioMeterBar{background:#63a5f8}
 .geMeterRead{font-size:12px;color:#b8ccda}
 #liveStatus{color:#87e4cd;font-weight:bold;white-space:normal}
@@ -115,6 +132,7 @@ main{max-width:980px}
 #sessionUploadCard .geSelected{color:#a6e1cd}
 @media(max-width:500px){body{padding:8px}.panel{padding:11px}.geMainActions button{flex:1 1 140px}#studioRadio #liveToggle{flex:1 1 170px}}
 </style>
+<link rel="stylesheet" href="/dj/imac-workstation.css?v=16">
 </head>
 <body>
 <main>
@@ -203,27 +221,29 @@ main{max-width:980px}
   <h2>STUDIO DRIVE</h2>
   <div class="geMainActions">
    <button id="retryHelper" type="button" class="green">RECONNECT DRIVE</button>
-   <a class="link" href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noopener">OPEN GOOGLE DRIVE</a>
+   <a class="link" href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noopener">COMPLETE GOOGLE DRIVE</a>
+   <a class="link" href="https://drive.google.com/drive/u/0/trash" target="_blank" rel="noopener" style="border-color:#b68c72">EMPTY DRIVE TRASH</a>
     <a class="link" href="/radio/release-studio.html" style="border-color:#62d4ae;color:#b4ffe3">RELEASE STUDIO · AUDIO + COVER ART</a>
   </div>
+  <p class="small">EMPTY DRIVE TRASH opens your Google Trash folder. Review its contents and confirm <b>Empty trash</b> in Google Drive. Nothing is permanently deleted by opening this link.</p>
   <p id="helperStatus" role="status">Checking connection to Google Drive on this iMac…</p>
   <p id="autoCheckStatus" class="small"></p>
-  <p><a class="link" href="/dj/GE-Studio-Repair.zip" download="GE-Studio-Repair.zip">DOWNLOAD ONE-TIME DRIVE REPAIR</a></p>
-  <p class="small">On the iMac, open the ZIP in Finder, then open GE-Studio-Repair.command. The repair checks your Drive setup and configures automatic startup. It does not change BLITZ or Ableton.</p>
   <p id="driveQuotaStatus" class="small">Drive storage check pending…</p>
   <div id="musicLibraryPanel" class="geStudioFiles">
    <div class="geFolderTabs">
     <button type="button" id="listDrafts">DRAFTS</button>
     <button type="button" id="listFinals">FINALS</button>
     <button type="button" id="listSessions">SESSIONS</button>
+    <button type="button" id="listAll">ALL GE FILES</button>
    </div>
    <h3 id="libraryTitle">GOOGLE DRIVE · GE Studios / Drafts</h3>
+   <p id="geAllFilesLimit" class="small" style="display:none">Shows files accessible to the GE upload application's restricted Google Drive permission, including other file types. To browse and download <b>every file</b> in your account, use COMPLETE GOOGLE DRIVE above.</p>
    <p id="libraryStatus" role="status">Loading uploaded files…</p>
    <div id="musicLibrary"></div>
-   <p id="libraryHelp" class="small">Open files from another computer using the same Google Drive account. Move to Trash affects only the Drive copy.</p>
+   <p id="libraryHelp" class="small">OPEN IN DRIVE shows a file's details. DOWNLOAD attempts the original file directly, including AIFF files Firefox cannot preview. For all Drive files, open COMPLETE GOOGLE DRIVE. Moving a Draft, Final or Session to Trash leaves the iMac original untouched.</p>
   </div>
   <h3 style="margin:12px 0 6px">ADD FILES</h3>
-  <p class="small">Choose a folder tab above, browse for multiple files or drag files into the box, select MP3 conversion if needed, then press UPLOAD. Browsing or dropping does not start an upload.</p>
+  <p class="small"><b>MANUAL UPLOAD:</b> Browse or drop your song, choose original or 320 kbps MP3, then press UPLOAD. Selecting a file never uploads it. The original file is kept.</p>
   <div class="geUploadCard" id="draftUploadCard">
    <h3>UPLOAD TO DRAFTS</h3>
    <div class="geDropZone" id="dropDraft">
@@ -231,7 +251,7 @@ main{max-width:980px}
     <input type="file" id="fileDraft" multiple aria-label="Choose multiple Draft music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
    </div>
    <p id="draftSelection" class="geSelected" role="status">NO FILES SELECTED</p>
-   <label for="convertDraft" class="geConvertLabel"><input id="convertDraft" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF only with LAME)</label>
+   <label for="convertDraft" class="geConvertLabel"><input id="convertDraft" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF with LAME; other formats need FFmpeg)</label>
    <button id="uploadDraft" type="button" class="green geUploadAction" disabled>UPLOAD DRAFT FILES</button>
   </div>
   <div class="geUploadCard" id="finalUploadCard" style="display:none">
@@ -241,7 +261,7 @@ main{max-width:980px}
     <input type="file" id="fileFinal" multiple aria-label="Choose multiple Final music files" accept=".mp3,.mp4,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.oga,audio/*,video/mp4">
    </div>
    <p id="finalSelection" class="geSelected" role="status">NO FILES SELECTED</p>
-   <label for="convertFinal" class="geConvertLabel"><input id="convertFinal" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF only with LAME)</label>
+   <label for="convertFinal" class="geConvertLabel"><input id="convertFinal" type="checkbox"> Convert to 320 kbps MP3 (WAV/AIFF with LAME; other formats need FFmpeg)</label>
    <button id="uploadFinal" type="button" class="orange geUploadAction" disabled>UPLOAD FINAL FILES</button>
   </div>
   <div class="geUploadCard" id="sessionUploadCard" style="display:none">
@@ -255,7 +275,13 @@ main{max-width:980px}
    <p id="sessionHelperStatus" class="small">The local helper must support Sessions.</p>
    <button id="uploadSession" type="button" class="orange geUploadAction" disabled>UPLOAD SESSION FILES</button>
   </div>
-  <div class="geMeterTrack" role="progressbar" aria-label="Google Drive upload progress"><div id="uploadBar" class="geMeterFill"></div></div>
+  <div class="geUploadMonitor geMonitorWorking" id="geUploadMonitor" role="status" aria-live="polite" aria-label="Studio Drive upload progress">
+ <div class="geUploadMonitorHead"><strong id="geUploadMonitorHeadline">UPLOADING</strong><strong id="geUploadMonitorPercent">WORKING</strong></div>
+ <div id="geUploadMonitorDestination">STUDIO DRIVE</div>
+ <div class="geUploadMonitorTrack" role="progressbar" aria-label="Current Studio Drive file upload"><div class="geUploadMonitorFill" id="geUploadMonitorBar"></div></div>
+ <div id="geUploadMonitorDetail">Starting upload…</div>
+</div>
+<div class="geMeterTrack" role="progressbar" aria-label="Google Drive upload progress"><div id="uploadBar" class="geMeterFill"></div></div>
   <p id="uploadResults" role="status">Ready to browse files.</p>
   <p id="uploadIssues" role="status"></p>
  </section>
@@ -281,10 +307,6 @@ main{max-width:980px}
   <label for="liveGain">LIVE INPUT GAIN</label>
   <input id="liveGain" type="range" min="0" max="150" value="100"><b id="liveGainRead">100%</b>
   <button id="refreshMp3" type="button">RECHECK MP3 ENCODER</button>
-  <p class="small">DRIVE RECOVERY (ONE-TIME SETUP): The iMac helper can start automatically at login and recover after a crash through a macOS LaunchAgent. The website itself cannot install software after the helper has stopped; OS X requires you to authorize the one-time repair.</p>
-  <a class="link" href="/dj/ge-upload-helper.py" download="ge-upload-helper-v3.py">1 · DOWNLOAD LATEST HELPER</a>
-  <a class="link" href="/dj/ge-studio-repair.sh" download="ge-studio-repair.sh">2 · DOWNLOAD AUTO-RESTART REPAIR</a>
-  <p class="small">After downloading both files, run the repair script once on your iMac using <code>sh ~/Downloads/ge-studio-repair.sh</code> in Terminal. The repair will not interrupt an existing upload or change Ableton or BLITZ. A permanent browser-only reinstall is not permitted by macOS security.</p>
   <a class="link" href="http://127.0.0.1:8765/health" target="_blank" rel="noopener">TEST LOCAL HELPER PAGE</a>
   <a class="link" href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener">ORIGINAL BLITZ DJ</a>
  </details>
@@ -509,6 +531,7 @@ text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLIT
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=7"></script>
-<script src="https://grandelement.com/dj/imac-uploads.js?v=14"></script>
+<script src="https://grandelement.com/dj/imac-uploads.js?v=27"></script>
 <script src="https://grandelement.com/dj/studio-diagnostics.js?v=3"></script>
+<script src="/dj/imac-workstation.js?v=20"></script>
 </body></html>

@@ -292,6 +292,23 @@ input[type=range]:not(.vf)::-moz-range-thumb{width:32px;height:32px;border-radiu
 .analyticsStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:7px 0}
 .analyticsStat{border:1px solid #2d3b47;background:#071018;border-radius:9px;padding:7px;min-width:0}
 .analyticsStat b{display:block;font-size:calc(18px * var(--analytics-scale));overflow-wrap:anywhere}.analyticsStat span{font-size:calc(7px * var(--analytics-scale));color:var(--muted);font-weight:900;overflow-wrap:anywhere}
+/* Analytics tiles become touch/keyboard accessible without changing the stored Vault records. */
+#analyticsStats .analyticsStatButton{cursor:pointer;-webkit-tap-highlight-color:rgba(92,211,197,.3);touch-action:manipulation;min-height:62px}
+#analyticsStats .analyticsStatButton:hover,#analyticsStats .analyticsStatButton:focus-visible{border-color:#69d8cb;background:#102733;outline:1px solid #69d8cb}
+#analyticsStats .analyticsStatButton.selected{border-color:#69d8cb;background:#12372f;box-shadow:inset 0 0 0 1px #69d8cb}
+.analyticsMetricDetail:empty{display:none}
+.analyticsMetricDetail{border:1px solid #3e7785;border-radius:10px;background:#07141e;padding:10px;margin:10px 0}
+.analyticsMetricHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.analyticsMetricHead h3{font-size:calc(12px * var(--analytics-scale));line-height:1.2;margin:0}
+.analyticsMetricClear{border:1px solid #59818e;border-radius:7px;background:#112432;color:#e7f7ff;font-size:calc(9px * var(--analytics-scale));font-weight:900;padding:7px 9px;min-height:34px;cursor:pointer}
+.analyticsMetricNote{font-size:calc(9px * var(--analytics-scale));color:#b4cbd4;margin:7px 0;line-height:1.4}
+.analyticsMetricList{display:flex;flex-direction:column;gap:4px;overflow:auto;max-height:340px;overscroll-behavior:contain}
+.analyticsMetricItem{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:8px;width:100%;padding:8px;border:1px solid #334b5a;background:#091a24;color:#e9f5fa;border-radius:7px;font:inherit;cursor:pointer}
+.analyticsMetricItem:focus-visible,.analyticsMetricItem:hover{border-color:#60d5c6;outline-color:#60d5c6}
+.analyticsMetricItem b{font-size:calc(10px * var(--analytics-scale));overflow-wrap:anywhere}
+.analyticsMetricItem span{display:block;margin-top:2px;font-size:calc(8px * var(--analytics-scale));color:#aabfcc;overflow-wrap:anywhere}
+.analyticsMetricAmount{font-size:calc(9px * var(--analytics-scale));color:#6cddcd;font-weight:900;white-space:nowrap}
+@media(max-width:560px){.analyticsMetricDetail{padding:7px}.analyticsMetricItem{min-height:44px}}
 .analyticsSection{margin-top:9px;border-top:1px solid #283642;padding-top:7px}.analyticsSection h3{margin:0 0 5px;font-size:calc(11px * var(--analytics-scale))}.analyticsSection .note{font-size:calc(8px * var(--analytics-scale))}
 .analyticsChips{display:flex;flex-wrap:wrap;gap:4px}.analyticsChip{border:1px solid #31404d;background:#091017;border-radius:999px;padding:4px 6px;font-size:calc(8px * var(--analytics-scale));overflow-wrap:anywhere}
 .analyticsTableWrap{overflow:auto;border:1px solid #27343f;border-radius:8px}.analyticsTable{width:100%;border-collapse:collapse;font-size:calc(8px * var(--analytics-scale));table-layout:auto}
@@ -6813,6 +6830,8 @@ html.geFormatPhone .geClockRail #geStationStatus{font-size:7px!important;max-wid
 html.geDayMode .geClockRail button{background:#e6f0f5!important;color:#194052!important}
 html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;color:#15513c!important}
 
+.geChannelBubble.geDevicePlaceholder[data-imac-google]{pointer-events:auto!important;cursor:pointer!important}.geChannelBubble.geDevicePlaceholder{display:inline-flex!important;opacity:.43!important;border:1px dashed #52606c!important;background:#0a1017!important;color:#aab3bd!important;cursor:default!important;pointer-events:none!important}.geChannelBubble.geDevicePlaceholder i{background:#59636d!important;box-shadow:none!important}
+.geChannelBubble.geImacShortcut{display:inline-flex!important;border:1px solid #45617b!important;background:#102031!important;color:#d7e7f2!important;opacity:1!important;cursor:pointer!important}.geChannelBubble.geImacShortcut i{background:#6893bb!important}
 </style><style id="ge-release-studio-access-style">
 a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;border-radius:9px;border:1px solid #69caab;background:#0d4538;color:#effff9;text-decoration:none;font:900 10px Arial,Helvetica,sans-serif;padding:6px 10px;white-space:nowrap}
 </style>
@@ -6867,7 +6886,7 @@ a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;mi
 <div class="lineInputManager"><div class="lineSectionTitle">SAVED INPUTS</div><div class="lineSavedInputs" id="lineSavedInputs"><div class="note">No saved inputs yet.</div></div><div class="lineAddDevice"><input id="lineProfileName" type="text" maxlength="40" placeholder="NAME INPUT — e.g. ABLETON"><button type="button" id="lineProfileAdd">SAVE INPUT</button></div><div class="note" id="lineProfileStatus">MICROPHONE IS BLOCKED FROM LINE.</div></div></div></div><div class="lineRemoteControls" id="lineRemoteControls" hidden><div class="lineRemoteCard"><div class="lineRemoteHead"><b>HOME / LAPTOP</b><span id="lineRemoteLinkState">OFFLINE</span></div><strong id="lineRemoteSource">NO SOURCE CONNECTED</strong><div class="note" id="lineRemoteHelp">Choose Ableton or YouTube on the HOME laptop once. This device then controls that COMPUTER channel.</div>
 <div class="lineAudioDiag remote" id="lineRemoteDiag"><div class="lineAudioDiagHead"><b>HOME AUDIO CHECK</b></div><div class="lineAudioDiagText" id="lineRemoteDiagText">Waiting for HOME diagnostics…</div></div>
 </div></div><div class="lineControlGrid"><button class="cueBtn" id="lineCue">MONITOR</button><button class="airBtn" id="lineAir">ON AIR</button><button class="sourceBtn" id="lineFxOpen">EFFECTS</button></div><div class="note lineFileName" id="lineName">No file loaded.</div></div></div>
-<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><div class="deviceVideoSourcePick" id="deviceVideoSourcePick" hidden><select id="deviceVideoDevice"><option value="">AUTO CAMERA</option></select><button type="button" id="deviceVideoRescan">RESCAN VIDEO</button></div><video id="deviceChannelLocalVideoPreview" autoplay muted playsinline hidden style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid #3e596b;border-radius:9px;background:#02070b"></video><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
+<div class="sheet" id="deviceChannelSheet"><div class="sheetIn"><div class="sheetHead"><div><div class="label">DEVICE CHANNEL</div><div class="sheetTitle" id="deviceChannelTitle">DEVICE</div></div><button data-close="deviceChannelSheet">CLOSE</button></div><div class="deviceChannelStatusCard"><div class="deviceChannelPresence"><i id="deviceChannelLamp"></i><div><b id="deviceChannelConnection">OFFLINE</b><small id="deviceChannelBoardName">NOT CONNECTED</small></div></div><div class="deviceSignalHead"><b>AUDIO INPUT</b><span id="deviceChannelMeterRead">0%</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelMeter"></div></div><div class="deviceVideoSignal"><div class="deviceVideoState"><b>VIDEO SIGNAL</b><span id="deviceChannelVideoState">NO VIDEO INPUT</span></div><div class="hmeter"><div class="hmeterFill" id="deviceChannelVideoMeter"></div></div></div><div class="deviceVideoSourcePick" id="deviceVideoSourcePick" hidden><select id="deviceVideoDevice"><option value="">AUTO CAMERA</option></select><button type="button" id="deviceVideoRescan">RESCAN VIDEO</button></div><video id="deviceChannelLocalVideoPreview" autoplay muted playsinline hidden style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid #3e596b;border-radius:9px;background:#02070b"></video><img id="deviceChannelVideoPreview" alt="Remote device video preview" hidden><div class="deviceChannelDiag"><div class="lineSectionTitle">DEVICE CHECK</div><div class="note deviceChannelDiagText" id="deviceChannelDiagText">Waiting for device signal…</div></div></div><div class="deviceChannelMicLive" id="deviceChannelMicLive" hidden>MIC LIVE</div><div class="deviceChannelMic"><div class="lineSectionTitle">MICROPHONE</div><div class="note" id="deviceChannelMicState">MICROPHONE APP NOT LINKED.</div><div class="deviceChannelFader"><span>LEVEL</span><input id="deviceChannelLevel" type="range" min="0" max="150" value="100" disabled><b id="deviceChannelLevelRead">100%</b></div><div class="deviceChannelButtons"><button id="deviceChannelReady" disabled>MIC</button><button id="deviceChannelAir" disabled>VIDEO</button><button id="deviceChannelFlip" disabled>FLIP</button><button id="deviceChannelMute" disabled>MONITOR</button></div></div><button type="button" class="sourceBtn" id="deviceChannelLinkMic">CONNECT DEVICE</button><button type="button" id="geImacGoogleButton" class="sourceBtn" hidden>GOOGLE · iMAC DRIVE</button><div class="note" id="deviceChannelPairState"></div><div class="note" id="deviceChannelHelp">The channel can be connected to GE DJ even when its microphone is not ready.</div></div></div>
 <div class="sheet" id="mixerSheet"><div class="sheetIn"><div class="sheetHead mixerHeader"><div class="mixerTopRow"><div class="mixerChannelHost" id="mixerChannelHost"></div><div class="mixerHeadActions"><button id="mixerChannelsLabel" type="button" disabled>CHANNELS</button><button id="mixerChannelsBtn" type="button">＋ ADD</button><button class="geWorkspaceUndo" id="geUndoMixer" data-ge-undo type="button" aria-label="Undo last adjustment" disabled>↶ UNDO</button><button id="mixerPopoutBtn" type="button">POPOUT</button><button id="mixerCloseBtn" type="button">CLOSE</button></div></div><div class="mixerSecondRow"><div class="mixerScaleHost" id="mixerScaleHost"></div><div class="mixerLayoutBar"><button id="mixerFit">FIT</button><button id="mixerZoomOut" aria-label="Show fewer mixer strips">↓</button><input id="mixerZoom" type="range" min="20" max="100" step="20" value="20" aria-label="Mixer channel width"><button id="mixerZoomIn" aria-label="Show more mixer strips">↑</button><label class="mixerLock"><input id="mixerLayoutLock" type="checkbox">LOCK</label><div class="mixerZoomRead" id="mixerZoomRead">5 ACROSS</div></div></div></div><div class="mixerChannelPicker" id="mixerChannelPicker">
  <div class="mixerAddTitle">ADD CHANNEL</div>
  <div class="mixerAddChoices">   <button type="button" data-add-mixer-channel="aux">AUX</button>
@@ -6999,6 +7018,7 @@ a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;mi
   <div class="analyticsStatus" id="analyticsStatus"></div>
 <div class="analyticsTimezone">TIME REFERENCE · KANSAS CITY CENTRAL TIME · AMERICA/CHICAGO</div>
   <div class="analyticsStats" id="analyticsStats"></div>
+  <div class="analyticsMetricDetail" id="analyticsMetricDetail" role="region" aria-live="polite" aria-label="Selected analytics statistic details"></div>
   <div class="analyticsSection"><h3>ACTIVITY GROUPS</h3><div class="analyticsChips" id="analyticsGroups"></div></div>
   <div class="analyticsSection"><h3>WHERE THEY USED GE</h3><div class="analyticsChips" id="analyticsSurfaces"></div></div>
   <div class="analyticsSection"><h3>EVENT TYPES</h3><div class="analyticsChips" id="analyticsEventTypes"></div></div>
@@ -7006,7 +7026,7 @@ a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;mi
   <div class="analyticsSection"><h3>QR / CAMPAIGNS</h3><div class="analyticsChips" id="analyticsCampaigns"></div></div>
   <div class="analyticsSection"><h3>TOP LOCATIONS</h3><div class="analyticsChips" id="analyticsLocations"></div></div>
   <div class="analyticsSection"><h3>NETWORK / LANGUAGE / REFERRERS</h3><div class="analyticsChips" id="analyticsTechnology"></div></div>
-  <div class="analyticsSection"><h3>INDIVIDUAL FANS · TAP A ROW FOR FULL HISTORY</h3><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="fans"><thead><tr><th data-sort="display_name">NAME / FAN ID</th><th data-sort="last_seen_at">TIME</th><th data-sort="city">LOCATION</th><th data-sort="sessions">SESSIONS</th><th data-sort="events">EVENTS</th><th data-sort="unique_tracks">SONGS</th><th data-sort="listened_seconds">LISTENED</th><th data-sort="campaign">CAMPAIGN</th></tr></thead><tbody id="analyticsFans"></tbody></table></div><div class="fanDetail" id="analyticsFanDetail"></div></div>
+  <div class="analyticsSection"><h3 id="analyticsFansHeading">INDIVIDUAL FANS · TAP A ROW FOR FULL HISTORY</h3><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="fans"><thead><tr><th data-sort="display_name">NAME / FAN ID</th><th data-sort="last_seen_at">TIME</th><th data-sort="city">LOCATION</th><th data-sort="sessions">SESSIONS</th><th data-sort="events">EVENTS</th><th data-sort="unique_tracks">SONGS</th><th data-sort="listened_seconds">LISTENED</th><th data-sort="campaign">CAMPAIGN</th></tr></thead><tbody id="analyticsFans"></tbody></table></div><div class="fanDetail" id="analyticsFanDetail"></div></div>
   <div class="analyticsSection"><h3>FAN LISTENING</h3><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="music"><thead><tr><th data-sort="track_title">TRACK</th><th data-sort="album">ALBUM</th><th data-sort="performances">PLAYS</th><th data-sort="unique_listeners">LISTENERS</th><th data-sort="total_listened_seconds">LISTENED</th><th data-sort="average_listened_seconds">AVG</th><th data-sort="completed">COMPLETE</th><th data-sort="ascap_work_id">ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsMusic"></tbody></table></div></div>
   <div class="analyticsSection"><h3>STATION PERFORMANCE LOG · ASCAP SUPPORT</h3><div class="note">One server-side record is created for each Grand Element Radio song start. ASCAP Work ID and registration status are carried with matching registered songs.</div><div class="analyticsTableWrap"><table class="analyticsTable" data-analytics-table="station"><thead><tr><th data-sort="track_title">TRACK</th><th data-sort="album">ALBUM</th><th data-sort="performances">PERFORMANCES</th><th data-sort="last_played_at">TIME</th><th data-sort="ascap_work_id">ASCAP WORK / STATUS</th></tr></thead><tbody id="analyticsStation"></tbody></table></div></div>
   <div class="analyticsSection analyticsSearchSection"><h3>SEARCH / DATE / LOCATION</h3>
@@ -7211,7 +7231,7 @@ function syncGeFormatOrientation(){
 syncGeFormatOrientation();
 window.addEventListener('resize',function(){clearTimeout(syncGeFormatOrientation._t);syncGeFormatOrientation._t=setTimeout(syncGeFormatOrientation,120)});
 
-let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
+let radioToggleBusy=false,micAirToggleBusy=false,lineAirToggleBusy=false,applyingSharedLineAir=false;let lineInputPct=0,micInputPct=0;let liveStopping=false,liveLastError='',liveSentBytes=0,liveDroppedFrames=0;let ctx=null,radioMonitorOn=false,radioUserRequestedOn=false,radioWarmStarted=false,radioPlaybackState='OFF',djLevelPct=0,djLevelDb=-60;
 let lastStatusPollAt=0,lastRadioMeterAt=0,lastRadioMeterData=null,radioReconnectCount=0;
 let radioEvents={play:0,pause:0,waiting:0,stalled:0,ended:0,error:0};
 let diagEvents=[],diagEpoch=performance.now(),diagLongTasks=0,diagLongestTask=0,diagEventLoopLag=0,diagLastFreeze=0;
@@ -8162,11 +8182,27 @@ function freshRadioUrl(){
 function setGeAudioSession(type){
  try{if(navigator.audioSession&&'type' in navigator.audioSession){navigator.audioSession.type=type;diagEvent('AUDIO SESSION',String(type))}}catch(e){diagEvent('AUDIO SESSION ERROR',String(e&&e.message||e))}
 }
-async function reassertGeOutputRoute(){
+async function reassertGeOutputRoute(options){
  const micTrack=micStream&&micStream.getAudioTracks&&micStream.getAudioTracks()[0];
- setGeAudioSession(micTrack&&micTrack.readyState==='live'?'play-and-record':'playback');
+ const forcePlayback=!!(options&&options.forcePlayback);
+ setGeAudioSession(!forcePlayback&&micTrack&&micTrack.readyState==='live'?'play-and-record':'playback');
  const a=$('radioAudio');
- if(a&&radioMonitorOn){a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);try{await a.play()}catch(e){}}
+ // iOS may pause playback when the mic audio session changes. A PAUSE event
+ // must not overwrite the listener's explicit RADIO ON choice.
+ if(a&&radioUserRequestedOn){
+  a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);
+  try{await a.play();radioMonitorOn=true;radioPlaybackState='PLAYING';updateRadioButton()}
+  catch(e){diagEvent('RADIO RESUME BLOCKED',String(e&&e.message||e));radioPlaybackState='PAUSED · TAP RADIO TO RESUME';updateRadioButton();updateRadioDiagnostics()}
+ }
+}
+function resumeGeRadioAfterMicStop(){
+ if(!radioUserRequestedOn)return;
+ [250,900].forEach(function(delay){
+  setTimeout(function(){
+   const a=$('radioAudio');if(!radioUserRequestedOn||!a||(!a.paused&&!a.ended))return;
+   reassertGeOutputRoute({forcePlayback:!micAirOn&&!micCueOn}).catch(function(e){diagEvent('RADIO MIC-STOP RESTORE ERROR',String(e&&e.message||e))})
+  },delay)
+ })
 }
 async function startFreshRadioMonitor(){
  const a=$('radioAudio');if(!a)return;
@@ -8177,7 +8213,7 @@ async function startFreshRadioMonitor(){
  try{a.removeAttribute('src');a.load()}catch(e){}
  a.src=freshRadioUrl();a.muted=false;a.volume=clamp(radioCueLevel/100,0,1);a.preload='auto';a.load();
  await a.play();
- radioMonitorOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
+ radioMonitorOn=true;radioUserRequestedOn=true;radioWarmStarted=true;radioPlaybackState='PLAYING';
  updateRadioButton();updateRadioDiagnostics()
 }
 async function reconnectRadioMonitor(){
@@ -8196,12 +8232,12 @@ async function toggleRadio(){
      radioReconnectCount++;
      await startFreshRadioMonitor()
    }else{
-     a.pause();radioMonitorOn=false;radioPlaybackState='OFF';
+     radioUserRequestedOn=false;a.pause();radioMonitorOn=false;radioPlaybackState='OFF';
      setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);setMeterLevel('mixRadioAuxMeter',0);setMeterLevel('mixAuxMixMeter',0);
      updateRadioDiagnostics()
    }
  }catch(e){
-   radioMonitorOn=false;radioPlaybackState='ERROR';setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);updateRadioDiagnostics();throw e
+   radioUserRequestedOn=false;radioMonitorOn=false;radioPlaybackState='ERROR';setMeterLevel('radioMeter',0);setMeterLevel('dockRadioMeter',0);setMeterLevel('mixMasterRadioMeter',0);updateRadioDiagnostics();throw e
  }finally{radioToggleBusy=false;updateRadioButton();updateRadioDiagnostics()}
 }
 
@@ -8531,8 +8567,9 @@ async function stopMicOnAir(options){
    micStream=micSource=null;$('micOpen').textContent='OPEN MIC'
  }
  if($('micPathStatus'))$('micPathStatus').textContent=lineAirOn?'MIC OFF AIR · COMPUTER REMAINS ON AIR':'MIC READY · MIC OFF AIR';
- if(preserveMic)setGeAudioSession('play-and-record');else setGeAudioSession('playback');
- await reassertGeOutputRoute();
+ setGeAudioSession(micAirOn||micCueOn?'play-and-record':'playback');
+ await reassertGeOutputRoute({forcePlayback:!micAirOn&&!micCueOn});
+ resumeGeRadioAfterMicStop();
  updateAirButtons()
 }
 async function toggleMicOnAir(){
@@ -10029,13 +10066,35 @@ function boardNeedsSetup(row){
 }
 function renderKnownDeviceBubbles(){
  const host=$('geKnownDevices');if(!host)return;
- host.innerHTML=knownBoardViews().filter(function(v){return v.slotRank<4}).map(function(v){
-   const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,linked=online&&boardLogicalConnectedV134(r.id),air=!!r.mic_air;
-   const cls='geChannelBubble '+(linked?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'');
-   const state=!online?'OFFLINE':(linked?'CONNECTED':'DISCONNECTED');
-   const title=v.label+' · '+state+(self?' · THIS DEVICE':'')+' · TAP TO '+(linked?'DISCONNECT':'CONNECT / RECONNECT');
-   return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" aria-pressed="'+(linked?'true':'false')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>'
- }).join('')
+ /* Keep every device category visible even before the first pairing.
+    Only real board IDs receive connect/disconnect actions. */
+ const views=knownBoardViews();
+ const slots=[
+  {kind:'computer',label:'COMPUTER'},
+  {kind:'imac',label:'iMAC'},
+  {kind:'iphone',label:'iPHONE'},
+  {kind:'ipad',label:'iPAD'},
+  {kind:'iphone5',label:'iPHONE 5'}
+ ];
+ let html='';
+ function bubble(v){
+  const r=v.row,self=String(r.id||'')===String(GE_BOARD_ID),online=!!r.online,linked=online&&boardLogicalConnectedV134(r.id),air=!!r.mic_air;
+  const cls='geChannelBubble '+(linked?'connected ':'knownOffline ')+(self?'selfDevice ':'')+(air?'onAir ':'');
+  const state=!online?'OFFLINE':(linked?'CONNECTED':'AVAILABLE');
+  const title=v.label+' · '+state+(self?' · THIS DEVICE':'')+(v.slotKind==='computer'?' · OPEN iMAC CONTROLS':' · TAP TO '+(linked?'DISCONNECT':'CONNECT / RECONNECT'));
+  return '<button type="button" class="'+cls+'" data-board-device="'+esc(r.id||'')+'" aria-pressed="'+(linked?'true':'false')+'" title="'+esc(title)+'"><i></i><span>'+esc(v.label)+'</span></button>';
+ }
+ slots.forEach(function(slot){
+  if(slot.kind==='imac'){
+   html+='<button type="button" class="geChannelBubble geImacShortcut" data-imac-google="1" title="iMAC STUDIO · OPEN GOOGLE / STUDIO CONTROLS"><i></i><span>iMAC</span></button>';
+   return;
+  }
+  const matches=views.filter(function(v){return v.slotKind===slot.kind});
+  if(matches.length)matches.forEach(function(v){html+=bubble(v)});
+  else html+='<button type="button" class="geChannelBubble geDevicePlaceholder" '+'disabled aria-disabled="true"'+' title="'+esc(slot.label+' · NOT CONNECTED')+'"><i></i><span>'+esc(slot.label)+'</span></button>';
+ });
+ views.filter(function(v){return v.slotRank>=4}).forEach(function(v){html+=bubble(v)});
+ host.innerHTML=html;
 }
 function boardDisplayLabel(board){
  const v=knownBoardViews().find(function(x){return String(x.row.id||'')===String(board&&board.id||'')});
@@ -10045,6 +10104,7 @@ function renderBoardDeviceChannelSheet(board){
  renderCameraDevicePickerV121();
  if(!board)return;
  const id=String(board.id||''),self=id===String(GE_BOARD_ID),online=!!board.online;
+ const googleButton=$('geImacGoogleButton');if(googleButton)googleButton.hidden=boardSlotKind(board)!=='computer';
  const selfFast=boardFastMeters[id]||null;
  const audioConnected=self?geTrackLive(micStream):!!board.mic_connected;
  const audioPct=self?Number(micInputPct||0):(selfFast&&Number(selfFast.age||0)<1.2?Number(selfFast.mic_peak||0):Number(board.mic_peak||0));
@@ -11065,8 +11125,10 @@ document.addEventListener('visibilitychange',function(){
 });
 window.addEventListener('online',geBoardHeartbeat);
 window.addEventListener('pointerdown',requestBoardWakeLock,{once:true});
-$('geChannelStatus').onclick=function(e){
- const known=e.target.closest('[data-board-device]');if(known){toggleKnownBoardConnectionV134(known.dataset.boardDevice).catch(function(err){alert(err.message||err)});return}
+if($('geImacGoogleButton'))$('geImacGoogleButton').onclick=function(){window.location.href='/dj/imac.html?tab=google'};
+ $('geChannelStatus').onclick=function(e){
+ const imac=e.target.closest('[data-imac-google]');if(imac){window.location.href='/dj/imac.html?tab=google';return}
+  const known=e.target.closest('[data-board-device]');if(known){const board=boardById(known.dataset.boardDevice);if(board&&boardSlotKind(board)==='computer'){openBoardDeviceChannel(known.dataset.boardDevice);return}toggleKnownBoardConnectionV134(known.dataset.boardDevice).catch(function(err){alert(err.message||err)});return}
  const b=e.target.closest('[data-channel-bubble]');if(!b)return;geOpenBoardId='';toggleChannelConnection(b.dataset.channelBubble)
 };
 document.querySelectorAll('[data-ge-arrangement]').forEach(function(b){b.onclick=function(){applyGeArrangement(this.dataset.geArrangement,true)}});
@@ -11763,4 +11825,5 @@ if(djTrustedId&&djTrustedToken){
  if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script><script src="https://grandelement.com/radio/ge-imac-studio.js?v=1"></script>
+<script src="https://grandelement.com/radio/ge-vault-drilldown.js?v=1"></script>
 </body></html>

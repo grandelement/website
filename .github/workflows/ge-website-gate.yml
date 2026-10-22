@@ -1,0 +1,35 @@
+name: GE website-only Gate controller
+on:
+  pull_request:
+    paths:
+      - 'radio/ge-gate-audio.js'
+      - 'radio/ge-gate-settings.js'
+      - 'radio/preview-lab.html'
+      - 'backroom/index.html'
+      - 'config/site-live.json'
+      - 'radio/index.html'
+      - 'tests/ge-gate-audio.test.mjs'
+      - '.github/workflows/ge-website-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-audio-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse website audio controller and player
+        run: |
+          node --check radio/ge-gate-audio.js
+          node --check radio/ge-gate-settings.js
+          node --check radio/ge-home-gate-stop.js
+          node -e "const fs=require('fs');const html=fs.readFileSync('radio/preview-lab.html','utf8'); const m=html.match(/<script>\\s*([\\s\\S]*?)<\\/script>/); if(!m)throw Error('Preview script not found');new Function(m[1])"
+          node --check radio/ge-home-gate-stop.js
+          node .github/scripts/ge-site-qa.mjs
+      - name: Check scheduling and complete source cutoff
+        run: node tests/ge-gate-audio.test.mjs

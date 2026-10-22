@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # GE Studios local Google Drive uploader for OS X 10.11 (Python 2.7).
 # Loopback-only service. Never touches Ableton, Saffire, BLITZ or BANGERS.
 # The DJ webpage transfers file bytes to this Mac, then rclone uploads to Drive.
 from __future__ import print_function
 import errno
 import json
+import math
+import struct
+import wave
 import os
 import re
 import shutil
@@ -81,6 +85,58 @@ def safe_name(raw):
         return None
     return name[:180]
 
+
+def ge_timestamped_title(original_name, kind="draft", timestamp=None):
+    """Human-readable filenames for narrow Google Drive mobile lists."""
+    local = time.localtime(timestamp)
+    day = time.strftime("%Y-%m-%d", local)
+    stem, extension = os.path.splitext(as_text(original_name))
+    stem = stem.strip(" .-_")
+    # Strip old date, generated clock and random-ID prefixes.
+    stem = re.sub(r"^(?:\\d{4}[-_. ]?\\d{2}[-_. ]?\\d{2})(?:[-_ ]?\\d{6})?\\s*[-_ .]*", "", stem).strip(" .-_")
+    stem = re.sub(r"^\\d{6}[-_]\\d{6}[-_][0-9a-f]{6,}[-_]*", "", stem, flags=re.I).strip(" .-_")
+    stem = re.sub(r"^\\d{6}[-_][0-9a-f]{6,}[-_]*", "", stem, flags=re.I).strip(" .-_")
+    stem = re.sub(r"\\s*[-_ ]+\\d{2}[-_]\\d{2}[-_]\\d{2}$", "", stem).strip(" .-_")
+    if not stem:
+        stem = "Untitled"
+    if kind == "draft":
+        return day + "-" + stem + extension
+    if kind == "final":
+        if re.match(r"^Grand Element\\s*[-–]\\s*", stem, re.I):
+            return stem + extension
+        return "Grand Element - " + stem + extension
+    return stem + extension
+
+def ge_unique_drive_upload_name(folder, proposed):
+    # Avoid overwriting a different take uploaded in the same second.
+    stem, extension = os.path.splitext(proposed)
+    directory = REMOTE + "/" + folder
+    try:
+        check = subprocess.Popen(
+            [RCLONE, "--config", CONFIG, "lsjson", "--files-only", directory],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _err = check.communicate()
+        if check.returncode:
+            message = as_text(_err).lower()
+            if ("directory not found" in message or "folder not found" in message
+                    or "directory does not exist" in message):
+                return proposed  # The folder does not exist yet.
+            raise RuntimeError("Google Drive could not verify the destination filename.")
+        taken = set(as_text(item.get("Name", "")) for item in json.loads(as_text(out))
+                    if not item.get("IsDir"))
+        if proposed not in taken:
+            return proposed
+        for version in range(2, 1000):
+            alternative = stem + " - V" + str(version) + extension
+            if alternative not in taken:
+                return alternative
+        raise RuntimeError("Too many existing files share this date, title, and time.")
+    except RuntimeError:
+        raise
+    except Exception:
+        # Never silently overwrite when we cannot validate the destination.
+        raise RuntimeError("Could not check for an existing filename in Google Drive. Upload not started.")
+
 def job_update(key, **changes):
     with GUARD:
         if key in JOBS:
@@ -111,9 +167,12 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
             upload_name = os.path.splitext(original_name)[0] + ".mp3"
         else:
             upload_name = original_name
-        suffix = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+        actual_size = os.path.getsize(source)
+        job_update(job_id, file_size_bytes=actual_size,
+                   mp3_mode="320" if convert else "original")
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
-        destination = REMOTE + "/" + folder + "/" + suffix + "-" + upload_name
+        cloud_name = ge_unique_drive_upload_name(folder, ge_timestamped_title(upload_name, kind))
+        destination = REMOTE + "/" + folder + "/" + cloud_name
         job_update(job_id, phase="uploading", detail="Sending to Google Drive", percent=0)
         command = [RCLONE, "--config", CONFIG, "copyto", source, destination,
                    "--stats", "2s", "--stats-one-line", "-P"]
@@ -151,12 +210,69 @@ def process_job(job_id, source, workdir, original_name, kind, convert):
         if code:
             raise RuntimeError("Google Drive upload failed: " + "".join(logs)[-550:])
         job_update(job_id, phase="complete", percent=100,
-                   detail="Uploaded " + upload_name + " to GE Studios/" + folder,
-                   name=upload_name)
+                   detail="Uploaded " + cloud_name + " to GE Studios/" + folder,
+                   name=cloud_name)
     except Exception as ex:
         job_update(job_id, phase="error", detail=as_text(str(ex))[:850])
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
+
+
+def mp3_conversion_self_test():
+    """Convert a generated short WAV; never touches music or Google Drive."""
+    ffmpeg = find_ffmpeg()
+    lame = find_lame()
+    if not ffmpeg and not lame:
+        return {"ok": True, "passed": False, "reason": "FFmpeg and LAME were not detected."}
+    temp = tempfile.mkdtemp(prefix="ge-mp3-selftest-")
+    try:
+        source = os.path.join(temp, "source.wav")
+        target = os.path.join(temp, "converted.mp3")
+        # Python 2.7-compatible mono PCM test. Small input and no user file access.
+        # Explicit close works with both Python 2.7 and modern Python.
+        audio = wave.open(source, "wb")
+        try:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(44100)
+            audio.writeframes(b"".join(
+                struct.pack("<h", int(6000 * math.sin(2 * math.pi * 440 * i / 44100.0)))
+                for i in range(15435)))
+        finally:
+            audio.close()
+        if ffmpeg:
+            command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
+                       "-y", "-i", source, "-vn", "-map", "0:a:0", "-codec:a",
+                       "libmp3lame", "-b:a", "320k", "-id3v2_version", "3", target]
+            encoder = "FFmpeg / libmp3lame"
+        else:
+            command = [lame, "--quiet", "-h", "-b", "320", source, target]
+            encoder = "LAME"
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output = p.communicate()[0]
+        if p.returncode or not os.path.isfile(target) or os.path.getsize(target) < 1200:
+            return {"ok": True, "passed": False,
+                    "reason": "Encoder failed to generate an MP3. " + as_text(output or b"").strip()[-160:]}
+        with open(target, "rb") as encoded:
+            header = bytearray(encoded.read(8192))
+        # The test requests 320 kbps MPEG-1 Layer III; verify the frame rate,
+        # not just the output filename or encoder process exit code.
+        has_frame = any(
+            header[i] == 255 and (header[i + 1] & 224) == 224 and
+            (header[i + 1] & 6) == 2 and
+            (header[i + 1] & 24) == 24 and
+            ((header[i + 2] >> 4) & 15) == 14
+            for i in range(len(header) - 2))
+        if not has_frame:
+            return {"ok": True, "passed": False,
+                    "reason": "Encoder returned no recognizable 320 kbps MPEG-1 Layer III frames."}
+        return {"ok": True, "passed": True, "encoder": encoder,
+                "output_bytes": os.path.getsize(target)}
+    except Exception as ex:
+        return {"ok": True, "passed": False,
+                "reason": "Local encoder test failed: " + as_text(str(ex))[:180]}
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
 
 def inspect_drive_quota():
     # Read-only server-side remote test for the GE Studio Status panel.
@@ -247,11 +363,15 @@ class Handler(BaseHTTPRequestHandler):
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 3, "delete_available": True,
-                                       "session_uploads": True,
+                                       "helper_version": 7, "delete_available": True,
+                                       "session_uploads": True, "all_app_files_available": True,
+                                       "all_app_files_scope": "drive.file (app-created files only)",
+                                       "trash_empty_requires_full_drive_scope": True,
                                        "auto_start_configured": os.path.isfile(os.path.expanduser("~/Library/LaunchAgents/com.grandelement.geuploads.plist")),
                                        "auto_repair_available": False,
                                        "drive_folders": ["Drafts", "Finals", "Sessions"]})
+        if target.path == "/mp3-test":
+            return self.response(200, mp3_conversion_self_test())
         if target.path == "/status":
             job_id = parse_qs(target.query).get("id", [""])[0]
             with GUARD:
@@ -261,10 +381,19 @@ class Handler(BaseHTTPRequestHandler):
             if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
                 return self.response(503, {"ok": False, "error": "rclone configuration missing"})
             kind = parse_qs(target.query).get("kind", [""])[0]
-            if kind not in ("draft", "final", "session"):
+            if kind not in ("draft", "final", "session", "all"):
                 return self.response(400, {"ok": False, "error": "Invalid folder"})
-            folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
-            command = [RCLONE, "--config", CONFIG, "lsjson", "--files-only", REMOTE + "/" + folder]
+            if kind == "all":
+                # With this user's deliberately restricted drive.file OAuth
+                # authorization, this lists only app-created/app-opened files.
+                # It never impersonates a full My Drive listing.
+                folder = "all app-accessible Google Drive files"
+                command = [RCLONE, "--config", CONFIG, "lsjson", "-R",
+                           "--files-only", "GEStudios:"]
+            else:
+                folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions"}[kind]
+                command = [RCLONE, "--config", CONFIG, "lsjson", "--files-only",
+                           REMOTE + "/" + folder]
             try:
                 p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 out, err = p.communicate()
@@ -277,10 +406,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self.response(502, {"ok": False, "error":
                         "Google Drive could not list " + folder + ". Verify Drive authorization in STATUS."})
                 items = json.loads(as_text(out))
-                files = [{"name": i.get("Name", ""), "bytes": i.get("Size", 0),
-                          "id": i.get("ID", ""), "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
+                files = [{"name": i.get("Name", ""), "path": i.get("Path", i.get("Name", "")),
+                          "bytes": i.get("Size", 0), "id": i.get("ID", ""),
+                          "modified": i.get("ModTime", "")} for i in items if not i.get("IsDir")]
                 files.sort(key=lambda f: f.get("modified", ""), reverse=True)
-                return self.response(200, {"ok": True, "files": files[:1500], "has_more": len(files) > 1500})
+                return self.response(200, {"ok": True, "files": files[:1500],
+                                           "has_more": len(files) > 1500,
+                                           "scope": "app_created_files_only" if kind == "all" else "ge_studios_folder"})
             except Exception as ex:
                 return self.response(500, {"ok": False, "error": as_text(str(ex))[:200]})
         self.response(404, {"ok": False, "error": "Not found"})

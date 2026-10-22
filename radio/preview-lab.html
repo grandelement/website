@@ -168,7 +168,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 </section>
 </div>
 <footer>Soul Comet and 33-second samples are archived. Select any number of full songs here; the 33:33 free listening allowance is independent of the playlist length. Payment and private downloads are not active yet.</footer>
-<audio id="audio" preload="none" playsinline webkit-playsinline></audio>
+<audio id="audio" preload="none" playsinline webkit-playsinline crossorigin="anonymous"></audio>
 </main>
 <div id="geGate" role="dialog" aria-label="The Inner Frequency music preview gate" aria-hidden="true">
   <div id="geGateBackdrop"></div><div id="geGateWaves" aria-hidden="true"></div>
@@ -180,6 +180,8 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
     <div id="geGateHelp"><a class="button" href="../support/?section=music">EXPLORE MUSIC</a></div>
   </section>
 </div>
+<script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
+<script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
 <script>
 /* Former 33-second samples, merchandise queue and Soul Comet are preserved
    in preview-merch-legacy.html. Their feature flag is OFF in this player. */
@@ -190,34 +192,61 @@ const $=id=>document.getElementById(id);
 const audio=$('audio');
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
-let data={used:0,expired:false,gateStartedAtMs:0},saveAt=0,baseVolume=1;
+let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseVolume=1;
 try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;
- data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);}}catch(_e){}
-const APPROACH_SECONDS=(6+10+70)/1.5,GRACE_SECONDS=11,FADE_SECONDS=60;
-const GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS;
-const WAVE_AT=GATE_AT+6/1.5,SUN_AT=WAVE_AT+10/1.5,CENTER_AT=SUN_AT+70/1.5;
-const FADE_AT=AUDIO_LIMIT_SECONDS-FADE_SECONDS;
+ data.gateStartedAtMs=Math.max(0,Number(saved.gateStartedAtMs)||0);
+ data.gateAtSeconds=Math.max(0,Number(saved.gateAtSeconds)||0);}}catch(_e){}
+let APPROACH_SECONDS,GRACE_SECONDS,FADE_SECONDS,GATE_AT,WAVE_AT,SUN_AT,CENTER_AT,FADE_AT,ENTRANCE_SECONDS;
+function loadPreviewGateTimes(){
+ const t=window.GEGateSettings?.get?.()||{sequenceSpeed:1.5,blurLeadSeconds:6,
+  waveLeadSeconds:10,entranceSeconds:70,graceSeconds:11,fadeSeconds:33};
+ const speed=Number(t.sequenceSpeed)||1.5;
+ APPROACH_SECONDS=(t.blurLeadSeconds+t.waveLeadSeconds+t.entranceSeconds)/speed;
+ GRACE_SECONDS=t.graceSeconds;FADE_SECONDS=t.fadeSeconds;
+ GATE_AT=AUDIO_LIMIT_SECONDS-APPROACH_SECONDS-GRACE_SECONDS-FADE_SECONDS;
+ WAVE_AT=GATE_AT+t.blurLeadSeconds/speed;
+ SUN_AT=WAVE_AT+t.waveLeadSeconds/speed;
+ ENTRANCE_SECONDS=t.entranceSeconds/speed;
+ CENTER_AT=SUN_AT+ENTRANCE_SECONDS;
+ FADE_AT=CENTER_AT+GRACE_SECONDS;
+}
+loadPreviewGateTimes();
+window.addEventListener('ge-gate-settings-ready',()=>{
+  if(!data.gateStartedAtMs&&!data.expired)loadPreviewGateTimes();
+});
 const gate=$('geGate'),sun=$('geGateSun');let gateShown=false;
 function isAuthorized(){try{return localStorage.getItem(OWNER_KEY)==='yes'||localStorage.getItem('GE_GATE_LOVE_V1')==='1'}catch(_e){return false}}
 function fmt(t){t=Math.max(0,Math.floor(Number(t)||0));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 function say(message){$('status').textContent=message}
 function save(force=false){
  const now=performance.now();if(!force&&now-saveAt<1700)return;saveAt=now;
- try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs}))}catch(_e){}
+ try{localStorage.setItem(STORE_KEY,JSON.stringify({used:data.used,expired:data.expired,gateStartedAtMs:data.gateStartedAtMs,gateAtSeconds:data.gateAtSeconds}))}catch(_e){}
 }
-function valid(t){if(!t||t.kind!=='song'||Number(t.duration_ms)<1000)return false;
+function valid(t){if(!t||t.kind!=='song'||(t.duration_ms!=null&&(!Number.isFinite(Number(t.duration_ms))||Number(t.duration_ms)<0)))return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
 function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
 function element(tag,text,klass=''){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(klass)e.className=klass;return e}
 function effectiveListeningSeconds(){
  if(!data.gateStartedAtMs)return data.used;
  // After the Gate begins the timeline advances even if Safari sleeps.
- return Math.min(AUDIO_LIMIT_SECONDS,GATE_AT+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
+ const originalGateAt=data.gateAtSeconds||GATE_AT;
+ return Math.min(AUDIO_LIMIT_SECONDS,originalGateAt+Math.max(0,(Date.now()-data.gateStartedAtMs)/1000));
 }
 function startSongGateIfReady(){
  if(data.expired||data.gateStartedAtMs||isAuthorized()||data.used<GATE_AT)return;
  data.gateStartedAtMs=Date.now()-Math.max(0,data.used-GATE_AT)*1000;
- save(true);
+ data.gateAtSeconds=GATE_AT;
+ save(true);schedulePreviewGateAudio();
+}
+function schedulePreviewGateAudio(){
+ if(!data.gateStartedAtMs||data.expired||isAuthorized())return;
+ const start=Number(data.gateStartedAtMs);
+ const waves=start+(WAVE_AT-GATE_AT)*1000;
+ const fade=start+(FADE_AT-GATE_AT)*1000;
+ // Preserve the original 33:33 deadline even if Back Room times change.
+ const end=start+(AUDIO_LIMIT_SECONDS-(data.gateAtSeconds||GATE_AT))*1000;
+ window.GEAudioGain?.scheduleGate?.(waves,fade,end,
+  window.GEGateSettings?.get?.().reverbMax??1);
 }
 function ensureRings(){const waves=$('geGateWaves');if(waves.childElementCount)return;
  for(let i=0;i<10;i++){const ring=element('span',null,'geGateFreqRing');ring.style.setProperty('--water-cycle','7.2s');ring.style.setProperty('--water-delay',(-7.2*i/10)+'s');waves.appendChild(ring)}}
@@ -232,22 +261,22 @@ function renderGate(){
  gate.classList.toggle('waves',used>=WAVE_AT&&used<CENTER_AT);
  gate.classList.toggle('sun-moving',used>=SUN_AT);
  gate.classList.toggle('centered',used>=CENTER_AT||data.expired);
- const progress=Math.max(0,Math.min(1,(used-SUN_AT)/(70/1.5)));
+ const progress=Math.max(0,Math.min(1,(used-SUN_AT)/Math.max(.1,ENTRANCE_SECONDS)));
  sun.style.transform='translate3d('+((innerWidth*.5+innerHeight*.62)*(1-progress)).toFixed(1)+'px,0,0) scale('+(0.84+0.16*progress).toFixed(3)+')';
  $('geGateStatus').textContent=data.expired?'33:33 listening complete. Enter an access code or explore music.':
-   used>=FADE_AT?'Preview ending. The final 60 seconds fade to silence.':
+   used>=FADE_AT?'Preview ending. The final '+FADE_SECONDS+' seconds fade to silence.':
    'Enter an access code or explore music.';
 }
 function renderVolume(){
  const elapsed=effectiveListeningSeconds();
  if(isAuthorized()||elapsed<FADE_AT)return;
  const p=Math.max(0,Math.min(1,(elapsed-FADE_AT)/FADE_SECONDS));
- audio.volume=Math.max(0,Math.min(1,baseVolume*(1-p)));
+ if(!window.GEAudioGain?.getStatus?.().active)audio.volume=Math.max(0,Math.min(1,baseVolume*(1-p)));
 }
 function expireGate(){
  if(isAuthorized()||data.expired)return;
  data.used=AUDIO_LIMIT_SECONDS;data.expired=true;save(true);
- renderGate();audio.volume=0;audio.pause();
+ renderGate();window.GEAudioGain?.stopAll?.();audio.volume=0;audio.muted=true;audio.pause();
  say('33:33 listening complete. The Inner Frequency Gate is ready.');
 }
 function isLocked(){
@@ -267,7 +296,9 @@ function syncListening(){
  }
  lastMedia=Number.isFinite(media)?media:NaN;lastWall=wall;
  if(!isAuthorized()&&!data.expired&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
- if(!data.expired&&!isAuthorized())renderVolume();
+ if(!data.expired&&!isAuthorized()){
+  schedulePreviewGateAudio();renderVolume();
+ }
  renderGate();
 }
 function resetMediaSample(){lastMedia=NaN;lastWall=performance.now();}
@@ -344,7 +375,7 @@ function showSongs(){
  const q=$('search').value.toLowerCase(),tracks=albums.get(selectedAlbum)||[];
  for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
   const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
-  title.appendChild(element('small',fmt(t.duration_ms/1000)));
+  title.appendChild(element('small',Number(t.duration_ms)>0?fmt(t.duration_ms/1000):'Duration available when played'));
   const check=element('input');check.type='checkbox';check.checked=selectedSongs.some(x=>x.url===t.url);
   check.setAttribute('aria-label','Select '+label(t));check.addEventListener('change',()=>{
     if(check.checked)addSelected(t);else removeSelected(t);
@@ -371,7 +402,7 @@ async function startTrack(t){
  if(!valid(t)){say('This song is unavailable.');return;}
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
  stopCounting();
- currentTrack=t;audio.pause();audio.removeAttribute('crossorigin');audio.autoplay=false;
+ currentTrack=t;audio.pause();audio.crossOrigin='anonymous';audio.autoplay=false;
  audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.load();audio.muted=false;
  renderVolume();resetMediaSample();
  $('now').textContent=label(t);$('detail').textContent='Full song · continuous 33:33 guest allowance';
@@ -409,7 +440,7 @@ function ownerUI(){
 $('ownerUnlock').addEventListener('click',()=>{
  if($('ownerCode').value.trim().toLowerCase()!=='love'){say('Code not recognized.');return;}
  try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
- $('ownerCode').value='';ownerUI();audio.volume=baseVolume;
+ $('ownerCode').value='';window.GEAudioGain?.restore?.();ownerUI();audio.volume=baseVolume;
  say('Owner demo enabled. You can listen without the guest limit.');
 });
 $('ownerLock').addEventListener('click',()=>{
@@ -420,18 +451,93 @@ $('geGateEnter').addEventListener('click',()=>{
  const code=$('geGateWord').value.trim().toLowerCase();
  if(code!=='love'){location.assign('../support/?section=music');return;}
  try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
- $('geGateWord').value='';ownerUI();audio.volume=baseVolume;
+ $('geGateWord').value='';window.GEAudioGain?.restore?.();ownerUI();audio.volume=baseVolume;
  gate.classList.add('unlocking');
  setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
  if(currentTrack&&audio.paused)void resume();
 });
 $('geGateWord').addEventListener('keydown',e=>{if(e.key==='Enter')$('geGateEnter').click()});
-fetch('./track-durations.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Catalog '+r.status);return r.json()}).then(data=>{
- const tracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
- for(const t of tracks){const list=albums.get(t.album||'Other')||[];list.push(t);albums.set(t.album||'Other',list);}
- for(const list of albums.values())list.sort((a,b)=>{const an=Number((a.title||'').match(/^\d+/)?.[0])||999,bn=Number((b.title||'').match(/^\d+/)?.[0])||999;return an-bn||label(a).localeCompare(label(b))});
- showAlbums();restoreSelected(tracks);say(tracks.length+' songs available. Choose an album, select any number of tracks, then press PLAY SELECTED.');
-}).catch(e=>{say('Music catalog unavailable. '+e.message);$('albumWall').textContent='Unable to load music.'});
+// Song-duration metadata can lag behind the GitHub music files. Load the
+// manifest as a fallback, then use the real repository tree when available.
+// MUSIC and the main RADIO title both route here for guest song selection.
+function cleanMusicPath(input){
+ const path=String(input||'').replace(/^\/+/, '');
+ return /^ge-music\/music\/.+\/[^/]+\.(mp3|m4a|ogg|wav)$/i.test(path)
+   && !path.split('/').some(part=>part==='.'||part==='..')?path:'';
+}
+function trackFromMusicPath(path){
+ const components=path.split('/');
+ const folder=components.slice(2,-1).join('/');
+ const album=folder.replace(/^Grand Element - (?:\d{4} - )?/i,'')||'Grand Element';
+ const file=components[components.length-1].replace(/\.(mp3|m4a|ogg|wav)$/i,'');
+ const numbered=file.match(/^.+?_(\d{1,3})_(.+)$/);
+ const title=numbered?(numbered[1]+' '+numbered[2].replace(/_/g,' ')):
+   file.replace(/^Singles_/i,'').replace(/_/g,' ');
+ return {kind:'song',path,album,title,duration_ms:0,
+   url:'/'+components.map(encodeURIComponent).join('/')};
+}
+function displayCatalog(tracks,restore=false){
+ const previous=selectedAlbum;
+ albums=new Map();
+ for(const t of tracks){
+   if(!valid(t))continue;
+   const list=albums.get(t.album||'Other')||[];
+   list.push(t);albums.set(t.album||'Other',list);
+ }
+ for(const list of albums.values())list.sort((a,b)=>{
+   const an=Number((a.title||'').match(/^\d+/)?.[0])||999;
+   const bn=Number((b.title||'').match(/^\d+/)?.[0])||999;
+   return an-bn||label(a).localeCompare(label(b));
+ });
+ if(restore)restoreSelected(tracks.filter(valid));
+ else{
+   const lookup=new Map(tracks.filter(valid).map(t=>[t.path,t]));
+   selectedSongs=selectedSongs.map(t=>lookup.get(t.path)).filter(Boolean);
+   renderSelected();
+ }
+ showAlbums();
+ if(!$('albumView').hidden){
+   if(albums.has(previous)){selectedAlbum=previous;showSongs();}
+   else{$('albumView').hidden=true;$('albumWall').hidden=false;}
+ }
+ say(tracks.filter(valid).length+' songs available. Choose an album or select any number of songs.');
+}
+async function loadCompleteMusicCatalog(){
+ let durationTracks=[];
+ try{
+   const response=await fetch('./track-durations.json',{cache:'no-store'});
+   if(!response.ok)throw Error('Song durations '+response.status);
+   const data=await response.json();
+   durationTracks=(Array.isArray(data.tracks)?data.tracks:[]).filter(valid);
+ }catch(error){console.warn('Song duration metadata unavailable:',error);}
+ const known=new Map(durationTracks.map(t=>[cleanMusicPath(t.path),t]).filter(([path])=>path));
+ // The manifest is a fallback for offline or GitHub API-limited listeners.
+ let fallbackPaths=[];
+ try{
+   const response=await fetch('./manifest.json',{cache:'no-store'});
+   if(response.ok){
+     const data=await response.json();
+     fallbackPaths=(Array.isArray(data.files)?data.files:[]).map(cleanMusicPath).filter(Boolean);
+   }
+ }catch(error){console.warn('Music manifest unavailable:',error);}
+ const initialPaths=[...new Set([...known.keys(),...fallbackPaths])];
+ if(initialPaths.length)displayCatalog(initialPaths.map(p=>known.get(p)||trackFromMusicPath(p)),true);
+ else{$('albumWall').textContent='Unable to load music.';say('Music catalog unavailable.');}
+ try{
+   const url='https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1';
+   const response=await fetch(url,{cache:'no-store'});
+   if(!response.ok)throw Error('GitHub music listing '+response.status);
+   const data=await response.json();
+   if(!Array.isArray(data.tree)||data.truncated)throw Error('Incomplete GitHub music listing');
+   const paths=[...new Set(data.tree.filter(t=>t.type==='blob').map(t=>cleanMusicPath(t.path)).filter(Boolean))];
+   if(paths.length){
+     const current=initialPaths.slice().sort().join('\n');
+     const newest=paths.slice().sort().join('\n');
+     if(current!==newest)displayCatalog(paths.map(p=>known.get(p)||trackFromMusicPath(p)));
+   }
+ }catch(error){console.warn('Using saved music listing:',error);}
+}
+void loadCompleteMusicCatalog();
 baseVolume=Math.max(.01,Number(audio.volume)||1);
 if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
 if(data.expired||data.gateStartedAtMs)renderGate();

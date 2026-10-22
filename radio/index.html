@@ -2280,6 +2280,16 @@ body:not(.iam-studio-open) #musicGroup #shareBtn{grid-row:2!important;grid-colum
 }
 </style>
 
+<style id="ge-radio-music-share-hide-layout-20261020">
+body.view-player:not(.iam-studio-open) #musicGroup #musicMenuBtn{grid-area:2 / 5 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;color:#eaffff!important;background:linear-gradient(120deg,#004caa,#087aff,#004aab)!important;border:1px solid #59dcff!important;box-shadow:0 0 10px rgba(0,170,255,.65)!important;font-weight:850!important;letter-spacing:.09em!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgPer{grid-area:2 / 1 / 3 / 3!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgShuf{grid-area:2 / 3 / 3 / 5!important}
+body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{grid-area:2 / 5 / 3 / 7!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:clamp(32px,4.4dvh,41px)!important;margin:0!important;padding:5px 4px!important;font-size:clamp(11px,1.65vw,15px)!important}
+body.view-player:not(.iam-studio-open) #bottomActions #shareBtn{grid-area:2 / 3 / 3 / 4!important;display:flex!important;align-items:center;justify-content:center;min-width:0!important;min-height:36px!important}
+/* Hide Text is a normal player display control, not an owner-only setting.
+   Keep Per Song | Shuffle | Hide Text adjacent for every listener. */
+@media(max-width:700px){body.view-player.portrait-player:not(.iam-studio-open) #bgGroup .bg-row #hudCombined{font-size:clamp(11px,3vw,14px)!important}}
+</style>
 <style id="ge-responsive-radio-ship-reflections-20261015">
 /* Hide, don't delete, temporarily shelved features. */
 #chooseSongsBtn,#loveBtn,#bgAuto,#shipStage [data-proxy="bgAuto"]{display:none!important}
@@ -2966,9 +2976,9 @@ body.view-player:not(.iam-studio-open) footer{
   </header>
 
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
-  <!-- The live Icecast MP3 must use native media playback like the working DJ listener.
-     No crossorigin attribute: no cross-origin readable audio data is requested. -->
-  <audio id="player" preload="none" playsinline></audio>
+  <!-- One listener's native audio is routed through a local GainNode when they
+       press PLAY. The BLITZ broadcast is unchanged and allows CORS. -->
+  <audio id="player" preload="none" playsinline crossorigin="anonymous"></audio>
   <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
 
   <div id="musicGroup">
@@ -2979,7 +2989,7 @@ body.view-player:not(.iam-studio-open) footer{
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
-    <button id="shareBtn">Share</button>
+    <button id="musicMenuBtn" type="button" aria-controls="trackList" aria-expanded="false">MUSIC ▾</button>
     <button id="loveBtn" type="button" aria-pressed="false" title="Save this song as a favorite on this device and register it in GE Vault">♡ LOVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
   </div>
@@ -3126,6 +3136,10 @@ body.view-player:not(.iam-studio-open) footer{
       <button class="tgl" id="bgPer" aria-pressed="true">Per Song</button>
       <button class="tgl" id="bgShuf" aria-pressed="true">Shuffle</button>
       <button class="tgl" id="bgAuto" aria-pressed="false">Auto</button>
+      <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
+      <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
+      <span>Hide Text</span>
+    </div>
     </div>
   </section>
 
@@ -3133,10 +3147,7 @@ body.view-player:not(.iam-studio-open) footer{
   <div id="bottomActions">
     <button id="reloadBtn" hidden>Reload Library</button>
     <button id="offlineBtn" hidden>Go Offline</button>
-    <div id="hudCombined" class="hud-combined" role="button" tabindex="0" aria-label="Hide text; checkbox controls automatic hiding">
-      <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
-      <span>Hide Text</span>
-    </div>
+    <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE</button>
@@ -3229,6 +3240,8 @@ body.view-player:not(.iam-studio-open) footer{
 
 <script src="../ge-vault-client.js"></script>
 <script src="./iam-private-studio.js?v=20261014-fx-controls-1"></script>
+<script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
+<script src="./ge-gate-audio.js?v=20261017-water-reverb-33-v1"></script>
 <script>
 'use strict';
 
@@ -3285,13 +3298,13 @@ const CONFIG = Object.freeze({
 // sequenceSpeed: 1.0 = original, 1.5 = 50% faster, 2.0 = twice as fast.
 // Trigger/listening-limit values remain real listening time.
 // ================================================================
-const GATE_CONFIG = Object.freeze({
+const GATE_CONFIG = {
   enabled: true,
 
   // MASTER SEQUENCE SPEED
   sequenceSpeed: 1.5,
   // 33:33 guest listening: the visual entrance begins early enough that the
-  // centered access question + 2-second hold + 10-second fade end at 2013s.
+  // centered access question + 11-second hold + 33-second fade end at 2013s.
   // Once Gate begins, deadlines persist and do not reset when Safari locks,
   // background playback stalls, or the user returns to the Radio page.
   hardLimitSeconds: 2013,
@@ -3312,8 +3325,9 @@ const GATE_CONFIG = Object.freeze({
   waterBlurMaxPx: 6.5,
   waterSaturationMax: 1.08,
   entranceSeconds: 70,
-  graceSeconds: 2,
-  fadeSeconds: 10,
+  graceSeconds: 11,
+  fadeSeconds: 33,
+  reverbMax: 1,
   unlockSeconds: 6,
   // ACCESS
   password: 'love',
@@ -3324,7 +3338,14 @@ const GATE_CONFIG = Object.freeze({
   helpEmail: 'access@grandelement.com',
   helpSubject: 'Grand Element Access Request',
   accessEndpoint: 'https://ge-private-message.grandelement.workers.dev/api/access-request'
-});
+};
+// Back Room PUBLISH LIVE controls these Gate times, without changing BLITZ.
+function usePublishedGateTiming(){
+  const values=window.GEGateSettings?.get?.();
+  if(values)Object.assign(GATE_CONFIG,values);
+}
+usePublishedGateTiming();
+window.addEventListener('ge-gate-settings-ready',usePublishedGateTiming);
 
 const CORE_ALBUMS = Object.freeze(['Intergy','Love','Soul','Spirit','Fire']);
 const LEGACY_ALBUMS = Object.freeze(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
@@ -3474,7 +3495,7 @@ function libraryFromRepositoryTree(tree){
       tracked[path]=item.sha||'';
       if(lower.startsWith('ge-music/music/')){
         const url=repoPathToVersionedURL(path,item.sha||'');
-        if(!isStationID(url) && !isSingles(url)) audioItems.push(url);
+        if(!isStationID(url)) audioItems.push(url);
       }
       continue;
     }
@@ -3886,8 +3907,6 @@ const state = {
   }
 
   function gateVolume(){
-    // Server already applies the personalized fade. Do not fade twice.
-    if(window.GEListenerPreview?.active?.())return null;
     const value=window.GEGate?.desiredVolume?.();
     return value!==null&&Number.isFinite(value)?Math.max(0,Math.min(1,value)):null;
   }
@@ -4193,7 +4212,7 @@ function savePersonalSongSelection(){
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
 function selectableSongs(){
-  let list=state.catalog.filter(url=>!isStationID(url)&&!isSingles(url));
+  let list=state.catalog.filter(url=>!isStationID(url));
   if(offlinePlaybackMode()&&offlineAvailability.songs.size)list=list.filter(url=>offlineAvailability.songs.has(url));
   return list.sort(orderedSort);
 }
@@ -4499,43 +4518,22 @@ function markRadio1Attempt(){
 // iPhone Safari does not implement a reliable HTMLAudioElement volume ramp.
 // When the isolated backend exists, begin guest playback on a unique native
 // MP3 listener stream. Its final 60s are processed on the server even if
-// JavaScript is suspended while the iPhone screen is locked.
+// The website Gate is independent of BLITZ. Never select its optional
+// listener-preview backend: BLITZ is locked and that endpoint returns 404.
 const GE_LISTENER_PREVIEW_URL='https://radio.grandelement.blitz.cloud/listener-preview.mp3';
 let geListenerPreviewReady=false;
 // The stream choice must not race an unanswered HEAD request at first boot.
 // Otherwise the visitor hears the ordinary unprocessed Radio 1 and never
 // receives the iPhone-compatible listener fade.
-const geListenerPreviewCheck=fetch(GE_LISTENER_PREVIEW_URL,{method:'HEAD',mode:'cors',cache:'no-store'})
-  .then(r=>{geListenerPreviewReady=r.ok&&r.headers.get('X-GE-Listener-Preview')==='1'&&
-    r.headers.get('X-GE-Listener-Preview-Version')==='gate-2s-10s-v2';})
-  .catch(()=>{geListenerPreviewReady=false;});
-window.GEListenerPreview={
-  available:()=>geListenerPreviewReady,
-  active:()=>/\/listener-preview\.mp3(?:\?|$)/.test(audio.currentSrc||audio.src||'')
-};
-function freshLiveStreamURL(remainingOverride=null){
-  const gs=window.GEGate?.getState?.();
-  const isGuest=!window.GEGate?.isAuthorized?.()&&!gs?.expired;
-  if(geListenerPreviewReady&&isGuest){
-    const limit=Math.max(1,Number(GATE_CONFIG.hardLimitSeconds)||2013);
-    const remaining=remainingOverride!==null&&Number.isFinite(Number(remainingOverride))
-      ?Number(remainingOverride)
-      :gs?.active&&gs?.expireAt
-        ?(Number(gs.expireAt)-Date.now())/1000
-        :limit-Math.max(0,Number(gs?.musicSeconds)||0);
-    if(remaining>0){
-      const target=new URL(GE_LISTENER_PREVIEW_URL);
-      target.searchParams.set('remaining',String(Math.max(1,Math.min(2013,Math.ceil(remaining)))));
-      target.searchParams.set('_ge_live_edge',String(Date.now()));
-      return target.href;
-    }
-  }
-  // Preserve the previously working Radio 1 transport if the backend has
-  // not deployed or is unavailable. Never interrupt the shared BLITZ feed.
+// Legacy readiness indicator retained for integrations, never for playback.
+const geListenerPreviewCheck=Promise.resolve(false);
+window.GEListenerPreview={available:()=>false,active:()=>false};
+function freshLiveStreamURL(){
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
   target.searchParams.set('_ge_live_edge',String(Date.now()));
   return target.href;
 }
+
 function liveShareURL(){
   const target=new URL('./',location.href);
   target.searchParams.set(CONFIG.LIVE_SHARE_PARAM||'live','1');
@@ -4633,7 +4631,7 @@ function radio2PlayCurrent(){
     });}catch(_e){}
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
-    audio.autoplay=false;audio.preload='auto';audio.removeAttribute('crossorigin');
+    audio.autoplay=false;audio.preload='auto';audio.crossOrigin='anonymous';
     audio.muted=false;audio.defaultMuted=false;
     audio.src=url;
     audio.load();
@@ -4839,9 +4837,9 @@ async function resumeLiveAtEdge(){
     audio.removeAttribute('src');
     audio.load();
     liveState.internalReset=false;
-    // Mirror the working iPhone DJ's native MP3 playback: the external stream
-    // can be heard without asking the host for cross-origin audio read access.
-    audio.removeAttribute('crossorigin');
+    // Keep listener-side Web Audio connected across Radio 1 reconnects.
+    // The existing station stream supports cross-origin media requests.
+    audio.crossOrigin='anonymous';
     audio.autoplay=false;
     audio.preload='auto';
     audio.muted=false;
@@ -4900,11 +4898,11 @@ async function enterLiveMode({deferPlay=false}={}){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  // Prepare the live stream without requiring CORS or auto-start permissions.
+  // Prepare the live stream without autoplay; Gate uses CORS Web Audio.
   // A real user tap can then play exactly as it does in the DJ listener.
   audio.autoplay=false;
   audio.preload='auto';
-  audio.removeAttribute('crossorigin');
+  audio.crossOrigin='anonymous';
   audio.muted=false;
   audio.defaultMuted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
@@ -5076,7 +5074,7 @@ function reconnectLiveStream(){
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
-      audio.removeAttribute('crossorigin');
+      audio.crossOrigin='anonymous';
       audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
@@ -5289,7 +5287,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   try{
     // A single native audio element serves songs and Radio. The optional
     // WebAudio/Sun Lab diagnostic never takes ownership of the audible path.
-    audio.removeAttribute('crossorigin');
+    audio.crossOrigin='anonymous';
     audio.muted=false;
     audio.defaultMuted=false;
     audio.volume=desiredPlaybackVolume(url);
@@ -5476,7 +5474,7 @@ async function loadMusicManifest(forceFresh=false){
       const list=raw.map(item=>{
         const path=String(item||'').replace(/^\//,'').replace(/^ge-music\//,'');
         return absolute(CONFIG.MUSIC_BASE+path);
-      }).filter(url=>/\.(mp3|m4a|ogg|wav)$/i.test(url) && !isStationID(url) && !isSingles(url));
+      }).filter(url=>/\.(mp3|m4a|ogg|wav)$/i.test(url) && !isStationID(url));
       localStorage.setItem(cacheKey,JSON.stringify(list));
       return list;
     }
@@ -5619,6 +5617,7 @@ function closeTrackPicker(){
   trackList.classList.remove('open');
   trackBackdrop.classList.remove('open');
   titleBtn.setAttribute('aria-expanded','false');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','false');
 }
 function openTrackPicker(){
   if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
@@ -5627,9 +5626,11 @@ function openTrackPicker(){
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
   titleBtn.setAttribute('aria-expanded','true');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','true');
   const current=trackList.querySelector('button.current');
   if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
 }
+$('musicMenuBtn')?.addEventListener('click',()=>titleBtn.click());
 titleBtn.addEventListener('click',()=>{
   if(trackList.classList.contains('open')) closeTrackPicker();
   else openTrackPicker();
@@ -6182,7 +6183,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261010-iam-vocal-editor-v13',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261021-music-picker-navigation-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -7848,9 +7849,8 @@ Vector ${vector}. ${pair[1]}.`;
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
   // Non-invasive live analyser + Gate wet-effects bus.
-  // The ORIGINAL Radio <audio> stays on the native iOS media path.
-  // A separate, never-audible tap feeds the frequency analyser; it is
-  // deliberately NOT considered active unless nonzero music bins arrive.
+  // The listener's Radio <audio> handles Gate fade and reverb in one graph.
+  // The separate EQ analyser is never started by Gate entrance on iPhone.
   // A cross-origin stream must opt into CORS for Web Audio analysis. If
   // denied or iOS blocks the tap, native Radio and its volume fade survive.
   let eqTapFailure='',eqLastSignalAt=0,eqLastStatusAt=0,fxTapWanted=false;
@@ -9118,8 +9118,8 @@ Vector ${vector}. ${pair[1]}.`;
    website. Authorization and timing survive refreshes. */
 (function createInnerGate(){
   if(!GATE_CONFIG.enabled)return;
-  const gateSpeed=Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
-  const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed;
+  const gateSpeed=()=>Math.max(0.1,Number(GATE_CONFIG.sequenceSpeed)||1);
+  const gateSeconds=value=>Math.max(0,Number(value)||0)/gateSpeed();
 
   const gate=$('geGate'),sun=$('geGateSun'),panel=$('geGatePanel'),word=$('geGateWord'),
         enter=$('geGateEnter'),hintBtn=$('geGateHint'),hintText=$('geGateHintText'),
@@ -9141,10 +9141,13 @@ Vector ${vector}. ${pair[1]}.`;
       // Existing listeners may have an active 60-second Gate persisted from
       // before the 2+10 change. Migrate its finish time to the Blue Sun's
       // center + 12 seconds; a reload must not restore the old minute.
+      // Preserve in-progress 2+10 Gates; never extend a running listening
+      // allowance merely because the owner publishes new durations.
+      // Only migrate obsolete >59-second persisted fades.
       if(saved.active&&!saved.expired&&Number(saved.centerAt)>0&&
-         Number(saved.expireAt)-Number(saved.fadeAt)>11000){
-        saved.fadeAt=Number(saved.centerAt)+2000;
-        saved.expireAt=saved.fadeAt+10000;
+         Number(saved.expireAt)-Number(saved.fadeAt)>59000){
+        saved.fadeAt=Number(saved.centerAt)+11000;
+        saved.expireAt=saved.fadeAt+33000;
       }
       return saved;
     }catch(_e){return emptyState();}
@@ -9243,22 +9246,23 @@ Vector ${vector}. ${pair[1]}.`;
   }
 
   function applyManagedVolume(){
-    // Guest native MP3 feed carries the server-side 10s fade and reverb.
-    // Changing audio.volume here is ineffective on iOS and causes double
-    // attenuation on desktop browsers; do not interfere with that stream.
-    if(window.GEListenerPreview?.active?.()){
-      window.GEGateFX?.setFadeProgress?.(0);
-      return;
-    }
+    // The listener's Gate is always responsible for every playback source.
+    // A local audio-clock GainNode handles the real fade on compatible
+    // browsers; audio.volume is only a best-effort fallback.
     const v=desiredVolume();
     if(v===null||!Number.isFinite(v))return;
     const safe=Math.max(0,Math.min(1,v));
     const fadeStart=Number(gs.fadeAt)||0,fadeEnd=Number(gs.expireAt)||0;
     const now=Date.now(),progress=gs.active&&fadeStart&&fadeEnd>fadeStart
       ?Math.max(0,Math.min(1,(now-fadeStart)/(fadeEnd-fadeStart))):0;
-    window.GEGateFX?.setFadeProgress?.(progress);
-    window.GEAudioGain?.setImmediate?.(safe);
-    try{audio.volume=safe;}catch(_e){}
+    // A single Web Audio graph now handles audible Gate fade and reverb.
+    window.GEAudioGain?.syncProgress?.(safe);
+    // The local master already fades the audible music AND reverb. Do not
+    // square the curve by also fading HTMLMediaElement.volume on desktop.
+    // Preserve the native volume fallback only when Web Audio is unavailable.
+    if(!window.GEAudioGain?.getStatus?.().active){
+      try{audio.volume=safe;}catch(_e){}
+    }
   }
 
   function gateSunOffscreenPx(){
@@ -9323,7 +9327,7 @@ Vector ${vector}. ${pair[1]}.`;
     gate.setAttribute('aria-hidden','false');
     if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';}
     window.GEGateFX?.reset?.();
-    window.GEAudioGain?.setImmediate?.(0);
+    window.GEAudioGain?.stopAll?.();
     // iOS Safari may ignore audio.volume. Muting and disconnecting the
     // listener's media source guarantee no dry song or wet tail continues.
     try{
@@ -9373,6 +9377,9 @@ Vector ${vector}. ${pair[1]}.`;
     const now=Date.now();
     if(gs.expired||now>=Number(gs.expireAt||0)){expireGate();return;}
     applyVisualStage(now);
+    // Schedule the fade on the already armed listener audio clock only.
+    // Do not reroute native audio during automatic Blue Sun animation.
+    window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax);
 
     if(now<Number(gs.wavesAt||0))wavesTimer=setTimeout(()=>{gate.classList.add('waves');scheduleNextRipple(true);},Math.max(0,Number(gs.wavesAt)-Date.now()));
     if(now<Number(gs.sunAt||0))sunTimer=setTimeout(()=>{gate.classList.add('sun-moving');positionSun();},Math.max(0,Number(gs.sunAt)-Date.now()));
@@ -9397,7 +9404,7 @@ Vector ${vector}. ${pair[1]}.`;
     if(authorized()||gs.active||gs.expired)return;
     // Offset scheduler latency so its end time corresponds to 2013s listened.
     const approachSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
     const scheduledStart=Number(GATE_CONFIG.hardLimitSeconds)-
       approachSeconds-Number(GATE_CONFIG.graceSeconds)-Number(GATE_CONFIG.fadeSeconds);
     const overshootMs=reason==='listening-3333'
@@ -9416,8 +9423,8 @@ Vector ${vector}. ${pair[1]}.`;
     gs.fadeAt=gs.centerAt+grace;gs.expireAt=gs.fadeAt+fade;
     gs.baseVolume=Math.max(0.01,Math.min(1,Number(audio.volume)||1));
     save(true);
-    window.GEGateFX?.start?.();
-    void window.GEResumeLiveEQ?.();
+    // Natural Sun entrance must never create or start a second audio
+    // element/context without an iPhone user gesture.
     window.GEAudioGain?.setImmediate?.(1);
 
     gate.classList.remove('waves','sun-moving','centered','unlocking','wrong');
@@ -9445,25 +9452,15 @@ Vector ${vector}. ${pair[1]}.`;
     const fade=Math.max(1,Number(GATE_CONFIG.fadeSeconds)||10)*1000;
     gs.wavesAt=now;gs.sunAt=now;gs.centerAt=now;
     // Tapping the Gate makes the Sun fully centered NOW. Begin its exact
-    // 2-second hold and 10-second fade now, never leave an old minute-long
+    // 11-second hold and 33-second fade now, never leave an old minute-long
     // audio timer running after the visual has arrived.
     gs.fadeAt=now+grace;
     gs.expireAt=gs.fadeAt+fade;
     gs.pausedAt=0;
     save(true);
     clearTimers();
-    // The individual iPhone preview transport also needs its deadline
-    // shortened; JS volume alone cannot fade a native iPhone MP3.
-    if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
-      const url=freshLiveStreamURL((grace+fade)/1000);
-      if(url.includes('/listener-preview.mp3')){
-        try{
-          audio.pause();audio.muted=false;audio.defaultMuted=false;
-          audio.src=url;audio.load();
-          void audio.play().catch(()=>setLiveStatus('Tap PLAY to hear the shortened Gate.'));
-        }catch(_e){}
-      }
-    }
+    // The local Gate reschedules the fade; never change the BLITZ source
+    // or interrupt another listener's broadcast.
     if(sun){
       sun.style.transition='none';
       sun.style.transform='translate3d(0,0,0) scale(1)';
@@ -9501,7 +9498,7 @@ Vector ${vector}. ${pair[1]}.`;
   function evaluateTriggers(){
     if(authorized()||gs.active||gs.expired)return;
     const visualSeconds=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed;
+      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/gateSpeed();
     const lead=visualSeconds+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
     const startAt=Math.max(0,Number(GATE_CONFIG.hardLimitSeconds)-lead);
     if(gs.musicSeconds>=startAt){save(true);trigger('listening-3333');}
@@ -9587,6 +9584,7 @@ Vector ${vector}. ${pair[1]}.`;
         notification_type:'gate_entry'
       });
     }catch(_e){}
+    window.GEAudioGain?.restore?.();
     window.GEAudioGain?.setImmediate?.(1);
     try{audio.muted=false;audio.defaultMuted=false;audio.volume=restoreVolume;}catch(_e){}
     // The personal preview is intentionally finite. A visitor entering the
@@ -9705,7 +9703,7 @@ Vector ${vector}. ${pair[1]}.`;
       // Keep the LOVE developer code intact, but run the Gate just as a
       // guest would hear and see it, including its fade and effects.
       try{localStorage.removeItem(GATE_CONFIG.stateKey);}catch(_e){}
-      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.setImmediate?.(1);audio.muted=false;audio.defaultMuted=false;audio.volume=1;
+      gs=emptyState();liveStationID=false;wasCountable=false;window.GEGateFX?.reset?.();window.GEAudioGain?.restore?.();window.GEAudioGain?.setImmediate?.(1);audio.muted=false;audio.defaultMuted=false;audio.volume=1;
       gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
       window.GERadioSyncOfflineAccess?.();
       lastTickAt=Date.now();
@@ -9852,27 +9850,9 @@ gateTestBtn?.addEventListener('click',()=>{
   sunLabPanel?.classList.remove('show');
   if(sunLabPanel)sunLabPanel.hidden=true;
   window.GEGate?.resetForTesting?.();
-  // A manual iPhone test must use the PERSONAL processed stream too.
-  // Switch on this trusted tap (not later in a timer), preserving Safari's
-  // audio gesture. Keep the separate 60ms visual reset for Gate animation.
-  if(state.live&&!radio2.active&&window.GEListenerPreview?.available?.()){
-    const speed=Math.max(.1,Number(GATE_CONFIG.sequenceSpeed)||1);
-    const approach=(Number(GATE_CONFIG.blurLeadSeconds)+
-      Number(GATE_CONFIG.waveLeadSeconds)+Number(GATE_CONFIG.entranceSeconds))/speed;
-    const remaining=approach+Number(GATE_CONFIG.graceSeconds)+Number(GATE_CONFIG.fadeSeconds);
-    const personalURL=freshLiveStreamURL(remaining);
-    if(personalURL.includes('/listener-preview.mp3')){
-      try{
-        audio.pause();
-        audio.src=personalURL;
-        audio.load();
-        void audio.play().catch(()=>setLiveStatus('RADIO · tap PLAY to hear the Gate audio test.'));
-      }catch(_e){}
-    }
-  }
-  if(!window.GEListenerPreview?.available?.()){
-    setLiveStatus('GATE TEST · PRIVATE 2+10 AUDIO PROCESSOR NOT VERIFIED · music will hard-stop, but the reverb fade requires the backend deployment.',true);
-  }
+  // The local GainNode is unlocked in this actual user tap.
+  // Gate Test never switches to or depends on BLITZ's preview backend.
+  window.GEAudioGain?.arm?.();
   setTimeout(()=>window.GEGate?.trigger?.('manual-test'),60);
 });
 
@@ -9918,6 +9898,25 @@ gateTestBtn?.addEventListener('click',()=>{
   }
 
   rebuildQueue('');
+  // Keep the main MUSIC/title picker current even when manifest.json has not yet
+  // been regenerated after new files are uploaded. This is a background catalog
+  // refresh only; it never starts, stops, or switches radio audio.
+  void (async()=>{
+    if(offlinePlaybackMode())return;
+    try{
+      const tree=await fetchRepositoryTree();
+      const freshCatalog=libraryFromRepositoryTree(tree).catalog;
+      if(!freshCatalog.length)return;
+      const paths=list=>list.map(urlToRepoPath).sort().join('\n');
+      if(paths(freshCatalog)===paths(state.catalog))return;
+      const selectedPaths=new Set([...selectedSongURLs].map(urlToRepoPath));
+      state.catalog=freshCatalog;
+      selectedSongURLs=new Set(state.catalog.filter(url=>selectedPaths.has(urlToRepoPath(url))));
+      savePersonalSongSelection();
+      rebuildQueue(state.currentURL);
+      try{window.GEIAmStudio?.onCatalogReady?.()}catch(_e){}
+    }catch(error){console.warn('Music catalog refresh unavailable; using the saved manifest.',error);}
+  })();
   // I AM may have opened while the Radio/music catalog was still loading.
   // Notify its dedicated player as soon as real song files are available.
   try{window.GEIAmStudio?.onCatalogReady?.()}catch(_e){}

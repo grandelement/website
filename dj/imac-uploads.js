@@ -1,24 +1,86 @@
 /* GE iMac uploads. Firefox on OS X El Capitan (ES5 + XMLHttpRequest).
- * BROWSE NEVER UPLOADS. Explicit Draft/Final button starts a chosen batch.
+ * Selecting files queues them for review. Only an explicit UPLOAD click sends bytes.
  * BLITZ, BANGERS and Saffire are independent of this local Drive helper.
  */
 (function(w,d){
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],session:[]}, activeKind="draft";
-var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false;
+var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false;
+var helperVersion=0;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
-var listGeneration=0, uploadPoll=0, issueLines=[];
+var listGeneration=0, uploadPoll=0, issueLines=[], monitorTimer=0, monitorVisible=false, lastProgress=null;
 var validExtensions=/\.(mp3|mp4|wav|aif|aiff|m4a|aac|flac|ogg|oga)$/i;
 function el(id){return d.getElementById(id)}
 function text(id,s){var x=el(id);if(x)x.textContent=String(s===undefined||s===null?"":s)}
-function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":"Drafts"}
+function nameOf(kind){return kind==="final"?"Finals":kind==="session"?"Sessions":kind==="all"?"All GE Files":"Drafts"}
 function fmtSize(n){return (Number(n||0)/1048576).toFixed(2)+" MB"}
+function uploadDisplayName(original){
+ var match=/^(.*?)(\\.[^.]+)$/.exec(original||"");if(!match)return original;
+ var now=new Date(),day=now.getFullYear()+"-"+("0"+(now.getMonth()+1)).slice(-2)+"-"+("0"+now.getDate()).slice(-2);
+ var title=match[1].replace(/^\\d{4}[-_. ]\\d{1,2}[-_. ]\\d{1,2}\\s*[-_ .]+/,"").trim();
+ return day+" - "+title+match[2];
+}
+
 function wait(fn,ms){return w.setTimeout(fn,ms)}
-function status(s){text("uploadResults",s)}
+function monitorShow(){
+ var m=el("geUploadMonitor");if(!m)return;
+ if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+ m.style.display="block";monitorVisible=true;
+}
+function monitorHideLater(){
+ if(monitorTimer)w.clearTimeout(monitorTimer);
+ monitorTimer=wait(function(){
+  if(busy)return;
+  var m=el("geUploadMonitor");if(m)m.style.display="none";
+  monitorVisible=false;monitorTimer=0;
+  text("geUploadMonitorDetail","");
+  text("geUploadMonitorDestination","");
+  text("uploadResults","READY · Last upload finished. Choose files and press UPLOAD for the next transfer.");
+  var big=el("geUploadBigResult");if(big)big.style.display="none";
+  progress(0);
+ },14000);
+}
+function monitorState(state){
+ var m=el("geUploadMonitor");if(!m)return;
+ m.className="geUploadMonitor geMonitor"+state+(m.parentNode&&m.parentNode.id==="geUploadStrip"?" geDockedMonitor":"");
+ text("geUploadMonitorHeadline",state==="Done"?"COMPLETE":state==="Error"?"UPLOAD ERROR":"UPLOADING");
+ /* Keep completed state visible until the next upload begins. */
+}
+function status(s){
+ text("uploadResults",s);
+ if(!monitorVisible)return;
+ var headline=el("geUploadMonitorDetail");
+ if(headline)headline.textContent=String(s||"");
+}
+function monitorStart(kind,count){
+ monitorShow();monitorState("Working");
+ text("geUploadMonitorDestination",nameOf(kind).toUpperCase()+" · "+count+" FILE"+(count===1?"":"S"));
+ progress(null);
+}
+function monitorError(message){
+ monitorShow();monitorState("Error");
+ progress(0);
+ text("geUploadMonitorPercent","STOPPED");
+ status(message);
+}
+function monitorFinish(){
+ monitorShow();
+ if(failed){monitorState("Error");text("geUploadMonitorHeadline",failed+" FAILED · "+succeeded+" UPLOADED")}
+ else {progress(100);monitorState("Done");monitorHideLater()}
+}
+
 function issue(s){issueLines.push(s);text("uploadIssues",issueLines.join("\n"))}
 function progress(value){
  var bar=el("uploadBar");if(!bar)return;
+ var topBar=el("geUploadMonitorBar");
+ if(topBar){
+  topBar.className=value===null?"geUploadMonitorFill geUploadIndeterminate":"geUploadMonitorFill";
+  topBar.style.width=value===null?"32%":Math.min(100,Math.max(0,Number(value)||0))+"%";
+  topBar.style.marginLeft="0";
+ }
+ text("geUploadMonitorPercent",value===null?"WORKING":Math.min(100,Math.max(0,Math.round(Number(value)||0)))+"%");
+
  if(value===null){
   bar.className="geMeterFill geUploadIndeterminate";
   bar.style.width="32%";
@@ -87,6 +149,16 @@ function request(method,path,body,callback){
   }
  };
 }
+function conversionMode(kind){
+ if(kind==="session")return "original";
+ var shortName=kind==="draft"?"Draft":"Final";
+ 
+ var standard=el("convert"+shortName);
+ return standard&&standard.checked?"320":"original";
+}
+function conversionModeLabel(mode){
+ return mode==="320"?"320 KBPS MP3":"KEEP ORIGINAL FORMAT";
+}
 function selectedLabel(kind){
  var files=chosen[kind],count=files.length,n=0;
  for(var i=0;i<count;i++)n+=files[i].size||0;
@@ -108,8 +180,24 @@ function setBusy(flag){
   if(el("uploadSession"))el("uploadSession").disabled=!chosen.session.length;
  }
 }
+function resetOldUploadDisplay(){
+ if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+ monitorVisible=false;
+ var m=el("geUploadMonitor");if(m)m.style.display="none";
+ var big=el("geUploadBigResult");if(big)big.style.display="none";
+ text("geUploadMonitorDetail","");
+ progress(0);
+}
+function pendingMessage(kind){
+ var count=chosen[kind].length;
+ if(!count)return "READY · Choose files to upload. Nothing is uploading.";
+ var mode=conversionMode(kind);
+ return "READY TO UPLOAD · "+count+" "+nameOf(kind)+" file"+(count===1?"":"s")+
+  " · "+conversionModeLabel(mode)+" · PRESS UPLOAD TO START.";
+}
 function fileChanged(kind,input){
  if(busy)return;
+ resetOldUploadDisplay();
  var files=input.files||[],result=[];
  for(var i=0;i<files.length;i++)result.push(files[i]);
  chosen[kind]=result;
@@ -120,10 +208,7 @@ function fileChanged(kind,input){
  el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=!result.length;
  issueLines=[];text("uploadIssues","");
  progress(0);
- status(result.length?
-  nameOf(kind).toUpperCase()+" SELECTED · "+(kind==="session"?
-  "ZIP or session files will be uploaded unchanged. Press UPLOAD SESSIONS. Nothing has transferred.":"Choose Convert to MP3 (optional), then press UPLOAD "+(kind==="draft"?"DRAFT":"FINAL")+". Nothing has transferred."):
-  "Choose a music file first. No upload started.");
+ status(pendingMessage(kind));
 }
 function updateHealth(callback){
  if(inCheck){if(callback)wait(function(){updateHealth(callback)},500);return}
@@ -133,8 +218,10 @@ function updateHealth(callback){
   inCheck=false;
   helperOnline=!err&&!!data.rclone_ready;
   encoderAvailable=helperOnline&&!!data.mp3_available;
+  helperVersion=Number(data.helper_version||0);
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
+  allFilesAvailable=helperOnline&&!!data.all_app_files_available;
   var autostart=helperOnline&&!!data.auto_start_configured;
   text("autoRepairState",helperOnline?
    (autostart?"Mac auto-start configuration found. Restart watchdog state not directly verified.":"LOCAL HELPER RUNNING · No automatic startup configuration detected. One-time setup available below."):
@@ -155,9 +242,8 @@ function updateHealth(callback){
    text("helperStatus","IMAC HELPER CONNECTED · Google Drive ready"+
      (data.helper_version?" · Helper v"+data.helper_version:""));
    text("mp3Status",encoderAvailable?
-    "MP3 READY · "+encoderName+". Check Convert to MP3 beneath the chosen Draft or Final files.":
-    "MP3 ENCODER NOT DETECTED BY HELPER · The box can be selected, "+
-    "but conversion will not start until the helper recognizes LAME.");
+    "ENCODER DETECTED · "+encoderName+" · Actual conversion NOT YET VERIFIED by this check. Use TEST MP3 CONVERSION.":
+    "NO MP3 ENCODER DETECTED · Original-file uploads can still work. Do not select MP3 conversion.");
   }
   if(callback)callback(err,data||{});
  });req.send();
@@ -170,48 +256,75 @@ function selectFolder(kind){
   var tab=el(k==="draft"?"listDrafts":k==="final"?"listFinals":"listSessions");
   if(tab)tab.className=k===kind?"geSelectedTab":"";
  }
+ var allTab=el("listAll");if(allTab)allTab.className=kind==="all"?"geSelectedTab":"";
+ var note=el("geAllFilesLimit");if(note)note.style.display=kind==="all"?"block":"none";
 }
 function displayLibrary(kind){
- activeKind=kind;
- selectFolder(kind);
+ activeKind=kind;selectFolder(kind);
  var token=++listGeneration,area=el("musicLibrary");
- text("libraryTitle","GOOGLE DRIVE · GE Studios / "+nameOf(kind));
+ text("libraryTitle",kind==="all"?"ALL GE FILES · Available to this uploader":
+  "GOOGLE DRIVE · GE Studios / "+nameOf(kind));
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
  if(area)clear(area);
+ if(kind==="all"&&!allFilesAvailable){
+  text("libraryStatus","ALL GE FILES requires a newer iMac helper. Google Drive itself is available now.");
+  if(area){
+   var message=d.createElement("p");
+   message.textContent="Use COMPLETE GOOGLE DRIVE to browse everything. The current iMac helper cannot list every folder yet.";
+   area.appendChild(message);
+  }
+  return;
+ }
  var req=request("GET","/files?kind="+kind,null,function(err,data){
   if(token!==listGeneration)return;
   if(err){
    text("libraryStatus","COULD NOT LOAD "+nameOf(kind).toUpperCase()+" · "+linkError(err));
    if(area){
-    var p=d.createElement("p");p.textContent=
-     "Files have NOT been confirmed missing. Check the helper connection above and retry.";
+    var p=d.createElement("p");
+    p.textContent="Files have NOT been confirmed missing. Check the Drive connection and retry.";
     area.appendChild(p);
    }
    return;
   }
-  var files=data.files||[];
-  text("libraryStatus",files.length+" track"+(files.length===1?"":"s")+
-   " in "+nameOf(kind)+(data.has_more?" · Showing first 100":""));
+  var files=data.files||[],isAll=kind==="all";
+  text("libraryStatus",files.length+(isAll?" file":" track")+
+   (files.length===1?"":"s")+" in "+nameOf(kind)+
+   (data.has_more?" · Showing first 1,500":"")+
+   (isAll?" · App-accessible files only. Use COMPLETE GOOGLE DRIVE for everything else.":""));
   if(!area)return;
-  if(!files.length){var empty=d.createElement("p");
-   empty.textContent="No tracks found in GE Studios/"+nameOf(kind)+".";area.appendChild(empty);return}
+  if(!files.length){
+   var empty=d.createElement("p");
+   empty.textContent=isAll?"No app-created files found. See COMPLETE GOOGLE DRIVE for all others.":
+    "No tracks found in GE Studios/"+nameOf(kind)+".";
+   area.appendChild(empty);return;
+  }
   for(var i=0;i<files.length;i++)(function(item){
    var row=d.createElement("div");row.className="geMusicFileRow";
    var info=d.createElement("div");info.className="geMusicFileName";
    var title=d.createElement("strong");title.textContent=item.name||"(unnamed)";
    var meta=d.createElement("span");meta.className="geMusicMeta";
-   meta.textContent=fmtSize(item.bytes)+(item.modified?" · "+item.modified.substring(0,10):"");
+   var path=isAll&&item.path?String(item.path):"";
+   meta.textContent=(path?path+" · ":"")+fmtSize(item.bytes)+
+      (item.modified?" · "+item.modified.substring(0,10):"");
    info.appendChild(title);info.appendChild(meta);row.appendChild(info);
-   var del=d.createElement("button");del.type="button";del.className="geDeleteMusic";
-   del.textContent=deleteAvailable?"MOVE TO TRASH":"DELETE NEEDS HELPER v2";
-   del.disabled=!deleteAvailable||busy;
-   del.onclick=function(){moveToTrash(kind,item,del)};
-   row.appendChild(del);
+   if(!isAll){
+    var del=d.createElement("button");del.type="button";del.className="geDeleteMusic";
+    del.textContent=deleteAvailable?"MOVE TO TRASH":"DELETE NEEDS CONNECTED HELPER";
+    del.disabled=!deleteAvailable||busy;
+    del.onclick=function(){moveToTrash(kind,item,del)};
+    row.appendChild(del);
+   }
    if(item.id&&/^[A-Za-z0-9_-]{10,}$/.test(item.id)){
-    var open=d.createElement("button");open.type="button";
+    var open=d.createElement("a");
     open.className="geDriveOpen";open.textContent="OPEN IN DRIVE";
-    open.onclick=function(){w.open("https://drive.google.com/file/d/"+item.id+"/view","_blank")};
+    open.href="https://drive.google.com/file/d/"+encodeURIComponent(item.id)+"/view";
+    open.target="_blank";open.rel="noopener noreferrer";
     row.appendChild(open);
+    var dl=d.createElement("a");
+    dl.className="geDriveDownload";dl.textContent="DOWNLOAD";
+    dl.href="https://drive.google.com/uc?export=download&id="+encodeURIComponent(item.id);
+    dl.target="_blank";dl.rel="noopener noreferrer";
+    row.appendChild(dl);
    }
    area.appendChild(row);
   })(files[i]);
@@ -229,43 +342,44 @@ function moveToTrash(kind,item,button){
   }else displayLibrary(kind);
  });req.send();
 }
-function checkSelected(kind,convert){
+function checkSelected(kind,mode){
  var files=chosen[kind];
  for(var i=0;i<files.length;i++){
   var f=files[i],name=f.name||"";
   if(kind!=="session"&&!validExtensions.test(name))return "Unsupported audio format: "+name;
   if(!f.size||f.size>4*1024*1024*1024)return "File size invalid: "+name;
-  if(convert&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
+  if(mode!=="original"&&encoderName.indexOf("LAME")>=0&&!/\.(wav|aif|aiff|mp3)$/i.test(name))
    return "LAME converts WAV/AIFF only. "+name+" requires FFmpeg or upload unchanged.";
+
  }
  return "";
 }
 function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
- var convert=kind==="session"?false:!!el(kind==="draft"?"convertDraft":"convertFinal").checked;
+ var mode=conversionMode(kind),convert=mode==="320";
+ monitorStart(kind,chosen[kind].length);
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
   if(err||!data.rclone_ready){
-   status("NO FILES UPLOADED · "+(err?linkError(err):"Drive is not ready on this Mac.")+
+   monitorError("NO FILES UPLOADED · "+(err?linkError(err):"Drive is not ready on this Mac.")+
      " Files remain selected for retry.");
    return;
   }
   if(convert&&!encoderAvailable){
-   status("NO FILES UPLOADED · Conversion was selected, but the helper doesn't detect a "+
-    "usable encoder. LAME is already installed; check which helper process is running. "+
-    "Uncheck conversion only if you want the original file unchanged.");
-   return;
+   monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
+    "No compatible encoder was detected on this iMac."+
+    " Files remain selected; Original Format remains available.");return;
   }
-  var invalid=checkSelected(kind,convert);
-  if(invalid){status("NO FILES UPLOADED · "+invalid);return}
+  var invalid=checkSelected(kind,mode);
+  if(invalid){monitorError("NO FILES UPLOADED · "+invalid);return}
   issueLines=[];text("uploadIssues","");
   queue=chosen[kind].slice(0);current=null;
   total=queue.length;finished=0;succeeded=0;failed=0;
   setBusy(true);progress(null);
   status("STARTING "+total+" "+nameOf(kind).toUpperCase()+
-   " TRACK"+(total===1?"":"S")+(convert?" · CONVERT TO 320 KBPS MP3":" · KEEP ORIGINAL FORMAT"));
-  uploadNext(kind,convert);
+   " TRACK"+(total===1?"":"S")+" · "+conversionModeLabel(mode));
+  uploadNext(kind,mode);
  });
 }
 function removeChosen(kind,file){
@@ -279,20 +393,24 @@ function removeChosen(kind,file){
 }
 function stopBatch(kind,message){
  queue=[];current=null;setBusy(false);progress(0);
- status(message+" · Files not confirmed uploaded remain selected. "+
+ monitorError(message+" · Files not confirmed uploaded remain selected. "+
   "Check MY "+nameOf(kind).toUpperCase()+" before retrying to avoid duplicates.");
 }
-function uploadNext(kind,convert){
+function uploadNext(kind,mode){
+ var convert=mode==="320";
  if(!queue.length){
   current=null;setBusy(false);
   progress(failed?0:100);
   status("QUEUE FINISHED · "+succeeded+" uploaded · "+failed+" failed. "+
    "Files confirmed uploaded were removed from the selection. Originals on this iMac remain unchanged.");
+  monitorFinish();
   displayLibrary(kind);return;
  }
  current=queue.shift();
  var item=current,file=item,number=finished+1,started=Date.now();
- var path="/upload?kind="+kind+"&name="+encodeURIComponent(file.name)+"&convert="+(convert?"1":"0");
+ var cloudName=uploadDisplayName(file.name);
+ var path="/upload?kind="+kind+"&name="+encodeURIComponent(cloudName)+
+  "&convert="+(convert?"1":"0");
  status("TRACK "+number+"/"+total+" · SENDING TO IMAC · "+file.name);
  progress(null);
  var req=request("POST",path,file,function(err,data){
@@ -302,15 +420,15 @@ function uploadNext(kind,convert){
    if(!err.status||err.status===0||err.status===409){
     stopBatch(kind,"UPLOAD NOT CONFIRMED · "+linkError(err));return;
    }
-   wait(function(){uploadNext(kind,convert)},120);return;
+   wait(function(){uploadNext(kind,mode)},120);return;
   }
   if(!data.id){
    failed++;finished++;stopBatch(kind,"UPLOAD NOT CONFIRMED · No job ID returned.");return;
   }
   progress(null);
   status("TRACK "+number+"/"+total+" · FILE RECEIVED BY IMAC · "+
-   (convert?"Converting to MP3 / ":"")+"Preparing Google Drive upload…");
-  pollJob(kind,convert,item,number,started,data.id);
+   (mode==="original"?"":"MP3 processing / ")+"Preparing Google Drive upload…");
+  pollJob(kind,mode,item,number,started,data.id);
  });
  req.xhr.upload.onprogress=function(e){
   if(e.lengthComputable){
@@ -322,7 +440,8 @@ function uploadNext(kind,convert){
  };
  req.send();
 }
-function pollJob(kind,convert,item,number,started,id){
+function pollJob(kind,mode,item,number,started,id){
+ var convert=mode==="320";
  if(uploadPoll)w.clearTimeout(uploadPoll);
  uploadPoll=wait(function(){
   var req=request("GET","/status?id="+encodeURIComponent(id),null,function(err,data){
@@ -332,23 +451,25 @@ function pollJob(kind,convert,item,number,started,id){
    var job=data.job||{};
    if(job.phase==="complete"){
     finished++;succeeded++;removeChosen(kind,item);progress(100);
-    status("TRACK "+number+"/"+total+" COMPLETE · Confirmed on Google Drive · "+item.name);
-    wait(function(){uploadNext(kind,convert)},300);return;
+    var detail=convert&&!/\.mp3$/i.test(String(item.name||""))&&/\.mp3$/i.test(String(job.name||""))?
+       "MP3 conversion confirmed":"Original file confirmed";
+    status("TRACK "+number+"/"+total+" COMPLETE · "+detail+" · Google Drive verified · "+(job.name||item.name));
+    wait(function(){uploadNext(kind,mode)},300);return;
    }
    if(job.phase==="error"){
     finished++;failed++;
     issue(item.name+" · "+(job.detail||"Google Drive upload failed"));
     progress(0);
-    wait(function(){uploadNext(kind,convert)},300);return;
+    wait(function(){uploadNext(kind,mode)},300);return;
    }
    var pct=Number(job.percent||0);
    progress(pct>0&&pct<100?pct:null);
    var stage=job.phase==="converting"?"CONVERTING TO MP3":
     job.phase==="uploading"?"UPLOADING TO GOOGLE DRIVE":"PREPARING";
    status("TRACK "+number+"/"+total+" · "+stage+" · "+
-    (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+" · "+
-    Math.floor((Date.now()-started)/1000)+"s · "+item.name);
-   pollJob(kind,convert,item,number,started,id);
+    (pct>0&&pct<100?pct+"%":"WORKING; EXACT % UNAVAILABLE")+
+    " · "+Math.floor((Date.now()-started)/1000)+"s · "+item.name);
+   pollJob(kind,mode,item,number,started,id);
   });req.send();
  },1700);
 }
@@ -370,10 +491,11 @@ function installDrop(kind){
    status("THIS FIREFOX CANNOT DROP THAT FOLDER DIRECTLY · Select multiple individual files, or compress the whole Ableton project folder as a ZIP and drop the ZIP.");
    return;
   }
+  resetOldUploadDisplay();
   chosen[kind]=files;selectedLabel(kind);
   el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":"uploadSession").disabled=false;
-  issueLines=[];text("uploadIssues","");progress(0);
-  status(files.length+" "+nameOf(kind)+" files selected by drag-and-drop. No upload has started; press UPLOAD to confirm.");
+  issueLines=[];text("uploadIssues","");
+  status(pendingMessage(kind));
  });
 }
 function init(){
@@ -387,8 +509,14 @@ function init(){
  el("listDrafts").onclick=function(){displayLibrary("draft")};
  el("listFinals").onclick=function(){displayLibrary("final")};
  el("listSessions").onclick=function(){displayLibrary("session")};
+ if(el("listAll"))el("listAll").onclick=function(){displayLibrary("all")};
  installDrop("draft");installDrop("final");installDrop("session");
  el("refreshMp3").onclick=function(){updateHealth()};
+ ["draft","final"].forEach(function(kind){
+  var name=kind==="draft"?"Draft":"Final";
+  var standard=el("convert"+name);
+  if(standard)standard.onchange=function(){if(!busy)status(pendingMessage(kind));};
+ });
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
@@ -396,7 +524,7 @@ function init(){
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
- status("READY · BROWSE → CHOOSE FORMAT → UPLOAD. Browsing never starts an upload.");
+ status("READY · SELECT FILES → CHOOSE MP3 OR ORIGINAL → PRESS UPLOAD. FILE SELECTION NEVER UPLOADS.");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
  // The old iMac can lose its manually started uploader while Firefox stays
  // open. Automatically recheck every 20 seconds with no Terminal commands or
@@ -412,6 +540,21 @@ function init(){
   });
  },20000);
 }
+/* Public read-only file-browser refresh for the iMac Google tab. */
+w.GEImacUploads={
+ refreshFiles:function(){displayLibrary(activeKind)},
+ clearFinishedDisplay:function(){
+  if(busy){status("UPLOAD STILL RUNNING · Cannot clear progress until this transfer completes.");return false}
+  if(monitorTimer){w.clearTimeout(monitorTimer);monitorTimer=0}
+  monitorVisible=false;
+  var m=el("geUploadMonitor");if(m)m.style.display="none";
+  current=null;queue=[];progress(0);
+  text("uploadIssues","");
+  text("uploadResults","READY · Previous transfer display cleared. No files were deleted or uploads canceled.");
+  var summary=el("geUploadBigResult");if(summary)summary.style.display="none";
+  return true
+ }
+};
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);
 else init();
 })(window,document);
