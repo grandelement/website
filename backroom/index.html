@@ -112,7 +112,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomActionRow span{color:var(--muted);font-size:calc(11px * var(--scale))}
 .backroomInlineStatus{border:1px solid #26617b;border-radius:10px;background:#041a2d;padding:9px;margin:9px 0;color:#b8e5fa;font-size:calc(11px * var(--scale))}
 .brPlaylistTracks{display:grid;gap:7px;margin:9px 0;max-height:340px;overflow:auto}
-.brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px}
+.brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.brPlaylistTrack.dragging{background:#15527a;border-color:#93dfff;outline:2px solid #73c5ed;cursor:grabbing}
 .brPlaylistTrack span{min-width:0;overflow-wrap:anywhere;font-size:calc(10px * var(--scale))}
 .brPlaylistTrack button{padding:6px 8px;min-width:31px}
 .backroomPermissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:8px 0}
@@ -344,7 +344,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
   <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
-  <div id="brPlaylistTracks" class="brPlaylistTracks" aria-label="Playlist song order"></div>
+  <div id="brPlaylistTracks" class="brPlaylistTracks" role="list" aria-label="Playlist song order"></div>
   <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active in GE Vault (not an instant BLITZ station change)</span></label>
   <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC · Include this playlist in the listener's MUSIC button after PUBLISH LIVE</span></label>
   <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private Vault playlists and access-code assignments stay private.</p>
@@ -1406,15 +1406,45 @@ const backroomVaultManagers=(()=>{
     status('brPlaylistTrackCount',playlistTracks.length+' song'+(playlistTracks.length===1?'':'s'));
     playlistTracks.forEach((track,i)=>{
       const row=create('div','','brPlaylistTrack');
+      row.setAttribute('role','listitem');row.dataset.position=String(i);
       row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
       row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
       row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
       row.appendChild(btn('×',()=>{playlistTracks.splice(i,1);renderTrackList()}));
+      let drag=null;
+      row.addEventListener('pointerdown',event=>{
+        if(event.target.closest('button')||event.button!==0)return;
+        drag={id:event.pointerId,start:event.clientY,active:false};
+        try{row.setPointerCapture(event.pointerId)}catch(_e){}
+      });
+      row.addEventListener('pointermove',event=>{
+        if(!drag||drag.id!==event.pointerId)return;
+        if(!drag.active&&Math.abs(event.clientY-drag.start)<6)return;
+        drag.active=true;row.classList.add('dragging');event.preventDefault();
+        const hovered=document.elementFromPoint(event.clientX,event.clientY)?.closest('.brPlaylistTrack');
+        if(hovered&&hovered!==row&&host.contains(hovered)){
+          const box=hovered.getBoundingClientRect();
+          host.insertBefore(row,event.clientY<box.top+box.height/2?hovered:hovered.nextSibling);
+        }
+        const box=host.getBoundingClientRect();
+        if(event.clientY<box.top+40)host.scrollTop-=16;
+        else if(event.clientY>box.bottom-40)host.scrollTop+=16;
+      });
+      const finish=event=>{
+        if(!drag||drag.id!==event.pointerId)return;
+        const moved=drag.active;drag=null;row.classList.remove('dragging');
+        if(moved){
+          const old=playlistTracks.slice();
+          playlistTracks=[...host.querySelectorAll('.brPlaylistTrack')].map(el=>old[Number(el.dataset.position)]).filter(Boolean);
+          renderTrackList();playlistStatus('Playlist order adjusted. Press SAVE TO VAULT to keep the new order.');
+        }
+      };
+      row.addEventListener('pointerup',finish);row.addEventListener('pointercancel',finish);
       host.appendChild(row);
     });
-    if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Dragging is not required; use ↑ and ↓ to set the exact order.'));
+    if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Drag to arrange the order, or use ↑ and ↓.'));
   }
-
+  
   // Public catalog snapshot contains only approved titles and music file paths,
   // never private Vault records, user data, access codes or redemption history.
   function publicPlaylists(){
