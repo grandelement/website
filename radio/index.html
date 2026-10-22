@@ -4429,10 +4429,18 @@ const liveState={
   internalReset:false,
   userPauseUntil:0,
   backgroundWasPlaying:false,
-  backgroundReconnectNeeded:false
+  backgroundReconnectNeeded:false,
+  // Keep the user's playback intent if WebKit pauses before visibilitychange.
+  wantedPlayback:false
 };
 function requestUserPause(){
   liveState.userPauseUntil=Date.now()+2500;
+  // Lock-screen PAUSE is deliberate: later foreground recovery must respect it.
+  liveState.wantedPlayback=false;
+  liveState.backgroundWasPlaying=false;
+  liveState.backgroundReconnectNeeded=false;
+  clearLiveReconnect();
+  clearRadioWatch();
   try{audio.pause();}catch(_e){}
 }
 function recentUserPause(){return Date.now()<liveState.userPauseUntil;}
@@ -4549,7 +4557,7 @@ function setLiveMediaSession(){
       artwork:[{src:absolute(CONFIG.LOGO_SRC),sizes:'512x512',type:'image/jpeg'}]
     });
     const safe=(action,handler)=>{try{navigator.mediaSession.setActionHandler(action,handler);}catch(_e){}};
-    safe('play',()=>{void requestRadioStart();});
+    safe('play',()=>{void requestRadioStart({userGesture:true});});
     safe('pause',()=>requestUserPause());
     safe('previoustrack',null);
     safe('nexttrack',null);
@@ -4580,7 +4588,12 @@ function retryRadio1Only(reason){
  setLiveStatus('BLITZ RADIO UNAVAILABLE · RETRY '+geRadio1RetryAttempts+'/3 IN '+Math.ceil(delay/1000)+'s');
  geRadio1RetryTimer=setTimeout(function(){
   geRadio1RetryTimer=0;
-  if(!state.live||window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(!state.live||window.GEIAmStudio?.isRadioSuspended?.()||recentUserPause()||!liveState.wantedPlayback)return;
+  if(document.hidden){
+    // Do not tear down the native playing stream while the phone is locked.
+    liveState.backgroundReconnectNeeded=true;
+    return;
+  }
   radioTimedOut=false;radioReconnectFailures=0;
   void resumeLiveAtEdge();
  },delay);
@@ -4961,6 +4974,9 @@ function exitLiveMode(message='RADIO ended.'){
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
   liveState.autoplayBlocked=false;
+  liveState.wantedPlayback=false;
+  liveState.backgroundWasPlaying=false;
+  liveState.backgroundReconnectNeeded=false;
   setLiveStatus('',false);
   try{audio.pause();}catch(_e){}
 
@@ -5068,8 +5084,13 @@ function reconnectLiveStream(){
   radioReconnectFailures++;markRadio1Attempt();
   setLiveStatus('RADIO • retrying connection ('+radioReconnectFailures+'/2)…');
   liveState.reconnectTimer=setTimeout(async()=>{
-    if(window.GEIAmStudio?.isRadioSuspended?.()||radioTimedOut)return;
-    if(!state.live)return;
+    if(window.GEIAmStudio?.isRadioSuspended?.()||radioTimedOut||recentUserPause())return;
+    if(!state.live||!liveState.wantedPlayback)return;
+    if(document.hidden){
+      // Deferred retries may fire after Safari locks the screen.
+      liveState.backgroundReconnectNeeded=true;
+      return;
+    }
     try{
       audio.pause();
       audio.removeAttribute('src');
@@ -5085,31 +5106,35 @@ function reconnectLiveStream(){
     }
   },1800);
 }
+function reconcileLiveAfterBackground(){
+  if(document.hidden || !state.live || !liveState.wantedPlayback ||
+     recentUserPause() || window.GEIAmStudio?.isRadioSuspended?.() ||
+     window.GEIAmStudio?.isMusicStopped?.())return;
+  if(audio.paused||liveState.backgroundReconnectNeeded){
+    liveState.backgroundReconnectNeeded=false;
+    // Preserve the native audio element; never create a second iOS player.
+    void requestRadioStart();
+  }else if(!radio2.active&&!observedRadio1Progress){
+    // An expired background watchdog needs a fresh foreground deadline.
+    clearRadioWatch();
+    watchRadioConnection();
+  }
+}
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
-    liveState.backgroundWasPlaying=!!(state.live&&!audio.paused);
+    // WebKit may pause audio before the page visibility event arrives.
+    liveState.backgroundWasPlaying=!!(state.live&&liveState.wantedPlayback&&!recentUserPause());
     if(liveState.backgroundWasPlaying){
       try{if('audioSession' in navigator)navigator.audioSession.type='playback';}catch(_e){}
       setLiveMediaSession();
     }
     return;
   }
-
-  const shouldRestore=
-    state.live &&
-    !window.GEIAmStudio?.isMusicStopped?.() &&
-    liveState.backgroundWasPlaying &&
-    !recentUserPause() &&
-    (audio.paused||liveState.backgroundReconnectNeeded);
-
+  reconcileLiveAfterBackground();
   liveState.backgroundWasPlaying=false;
-  if(shouldRestore){
-    liveState.backgroundReconnectNeeded=false;
-    void requestRadioStart();
-  }else{
-    liveState.backgroundReconnectNeeded=false;
-  }
 });
+// A home-screen iOS app can resume through pageshow without visibilitychange.
+window.addEventListener('pageshow',reconcileLiveAfterBackground);
 
 window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAtEdge:resumeLiveAtEdge,shareURL:liveShareURL};
 
@@ -5737,6 +5762,7 @@ audio.addEventListener('play',()=>{
     liveState.everPlayed=true;
     liveState.needsFreshEdge=false;
     liveState.autoplayBlocked=false;
+    liveState.wantedPlayback=true;
     updateRadioStartupCue();
   }
   void window.GEResumeLiveEQ?.();
@@ -5747,7 +5773,7 @@ audio.addEventListener('pause',()=>{
   const backgroundInterruption=
     state.live &&
     document.hidden &&
-    liveState.backgroundWasPlaying &&
+    liveState.wantedPlayback &&
     liveState.hasPlayed &&
     !liveState.internalReset &&
     !recentUserPause();
