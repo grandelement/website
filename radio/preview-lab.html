@@ -374,7 +374,7 @@ const PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
 const PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
 const MUSIC_ALBUM_ORDER=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 let selectedSongs=[],playingSelected=false,editingMusicList=false,musicListSource='',musicListSourceId='';
-let personalPlaylists=readPersonalPlaylists();
+let personalPlaylists=readPersonalPlaylists(),pendingMusicPlaylist='';
 function musicNotice(message=''){$('musicNotice').textContent=message}
 function readPersonalPlaylists(){
  try{
@@ -568,6 +568,10 @@ function playlistOptions(){
 }
 function loadMusicPlaylist(source){
  if(!source){musicNotice('Choose a playlist from LOAD.');return;}
+ if(!catalogTrackByPath.size){
+   pendingMusicPlaylist=source;musicNotice('Music catalog loading. Playlist will open when songs are ready.');
+   return;
+ }
  const personal=source.startsWith('p:');
  const id=source.slice(2);
  const playlist=personal?personalPlaylists.find(p=>p.id===id):publicPlaylistDefinitions.find(p=>String(p.id)===id);
@@ -761,6 +765,10 @@ function displayCatalog(tracks,restore=false){
  }
  catalogTrackByPath=new Map(tracks.filter(valid).map(t=>[cleanMusicPath(t.path),t]).filter(([path])=>path));
  rebuildPublicPlaylists();showAlbums();
+ if(pendingMusicPlaylist){
+   const wanted=pendingMusicPlaylist;pendingMusicPlaylist='';
+   loadMusicPlaylist(wanted);
+ }
  if(!$('albumView').hidden){
   if(previousMode==='albums'&&albums.has(previous)){selectedAlbum=previous;showSongs();syncAlbumWholeCheck();}
   else switchMusicBrowse(previousMode);
