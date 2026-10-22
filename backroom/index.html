@@ -80,8 +80,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 }
 
 /* DJ Booth-style Back Room categories. The header stays compact and is the only sticky element. */
-.backroomTabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:4px 0 0}
-.backroomTabs button{font-size:calc(11px * var(--scale));padding:9px 4px;min-width:0;line-height:1.15;border-radius:10px;background:#0a263d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.backroomTabs{display:flex;gap:5px;padding:5px 0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.backroomTabs button{flex:0 0 auto;scroll-snap-align:start;font-size:calc(10px * var(--scale));padding:9px 10px;min-height:34px;line-height:1.15;border-radius:10px;background:#0a263d;white-space:nowrap}
 .backroomTabs button[aria-selected="true"]{background:#18709f;border-color:#8ce6ff;box-shadow:inset 0 0 0 1px rgba(164,231,255,.38)}
 .backroomTabs button:focus-visible,.backroomGroupToggle:focus-visible{outline:2px solid #9aeaff;outline-offset:2px}
 .backroomTabHelp{margin:5px 0 10px;color:var(--muted);font-size:calc(10px * var(--scale))}
@@ -98,13 +98,35 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomGamesGrid .check b{font-size:calc(11px * var(--scale))}
 .backroomGamesGrid .check small{color:var(--muted);font-size:calc(9px * var(--scale));font-weight:600}
 @media(max-width:700px){
- .backroomTabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
- .backroomTabs button{min-height:37px;padding:7px 3px;font-size:calc(10px * var(--scale))}
+ .backroomTabs{gap:5px;margin-right:-14px;padding-right:14px}
+ .backroomTabs button{min-height:35px;padding:8px 10px;font-size:calc(10px * var(--scale))}
  .backroomTabHelp{font-size:calc(9px * var(--scale))}
  .backroomGroupContents>p{font-size:calc(10px * var(--scale))}
  .backroomGamesGrid{grid-template-columns:1fr;gap:7px}
  .backroomGamesGrid .check{padding:9px 10px}
 }
+
+.backroomQuickLinks,.backroomActionRow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:9px 0}
+.backroomQuickLinks a,.backroomActionRow a{border:1px solid #4d90b8;border-radius:9px;background:#0a2944;color:#c4f1ff;text-decoration:none;padding:9px 11px;font-weight:900;font-size:calc(10px * var(--scale))}
+.backroomActionRow button{min-height:36px}
+.backroomActionRow span{color:var(--muted);font-size:calc(11px * var(--scale))}
+.backroomInlineStatus{border:1px solid #26617b;border-radius:10px;background:#041a2d;padding:9px;margin:9px 0;color:#b8e5fa;font-size:calc(11px * var(--scale))}
+.brPlaylistTracks{display:grid;gap:7px;margin:9px 0;max-height:340px;overflow:auto}
+.brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px}
+.brPlaylistTrack span{min-width:0;overflow-wrap:anywhere;font-size:calc(10px * var(--scale))}
+.brPlaylistTrack button{padding:6px 8px;min-width:31px}
+.backroomPermissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:8px 0}
+.backroomPermissions .check{min-width:0;padding:8px}
+.backroomPermissions span{margin:0;font-size:calc(10px * var(--scale))}
+.backroomCodeReveal{display:grid;gap:8px;background:#061b2b;border:1px solid #80dcff;border-radius:12px;padding:12px;margin:12px 0}
+.backroomCodeReveal[hidden]{display:none!important}
+.backroomCodeReveal output{font:900 calc(12px * var(--scale))/1.6 ui-monospace,monospace;overflow-wrap:anywhere;user-select:text}
+.backroomCodeList{display:grid;gap:8px;margin-top:9px}
+.backroomCodeEntry{border:1px solid #24536b;border-radius:11px;padding:10px;background:#041522}
+.backroomCodeEntry strong{display:block;font-size:calc(12px * var(--scale))}
+.backroomCodeEntry small{display:block;color:var(--muted);white-space:normal;margin:4px 0 6px}
+.backroomCodeEntry .backroomActionRow{margin:5px 0 0}
+@media(max-width:700px){.backroomPermissions{grid-template-columns:1fr}.brPlaylistTrack{grid-template-columns:minmax(0,1fr) repeat(3,31px)}.backroomQuickLinks button{padding:8px}}
 </style>
 </head>
 <body>
@@ -137,23 +159,40 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </details>
 </header>
 
-<nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room categories">
+<nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
   <button id="brTabHome" type="button" role="tab" data-tab="home" aria-selected="true">HOME</button>
   <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="false">CONTENT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
-  <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false">MUSIC</button>
+  <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
+  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
+  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
+  <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
+  <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
 </nav>
-<p class="backroomTabHelp">Choose a category, then tap a section to open its controls.</p>
+<p class="backroomTabHelp">Choose a section. Swipe the tabs sideways to see more.</p>
 
 <section data-br-tab="home">
+  <h2>QUICK ACCESS</h2>
+  <p>Everything in the GE Back Room now has its own tab. Save makes a working draft; Publish Live updates public website settings.</p>
+  <div class="backroomQuickLinks">
+    <button type="button" data-open-br="playlists">PLAYLISTS</button>
+    <button type="button" data-open-br="access">ACCESS CODES</button>
+    <button type="button" data-open-br="radio">RADIO</button>
+    <button type="button" data-open-br="games">GAMES</button>
+    <button type="button" data-open-br="gate">GATE SETTINGS</button>
+    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">GE DJ BOOTH ↗</a>
+  </div>
+</section>
+
+<section data-br-tab="scores">
   <h2>HIGH SCORES</h2>
   <p>Download a backup or begin a clean leaderboard.</p>
   <div class="actions"><a href="./high-scores.html" style="color:#a8edff;font-weight:900">BACKUP / RESET HIGH SCORES →</a></div>
 </section>
 
-<section data-br-tab="home">
+<section data-br-tab="presets">
   <h2>SAVED PRESETS</h2>
   <p>Save the entire Back Room setup, including all text, album visibility and order, exact planet positions, Welcome and About placement, activity settings, games, first song, and Soul names.</p>
   <div class="grid">
@@ -261,6 +300,75 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
+
+<section data-br-tab="radio">
+  <h2>RADIO CONTROL</h2>
+  <p>RADIO 1 is BLITZ Primary. RADIO 2 is its Cloudflare backup. Both belong to one GE DJ Booth, using Bangers as the intended station playlist.</p>
+  <div class="backroomQuickLinks">
+    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
+    <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
+    <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
+  </div>
+  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Playlist records in the Vault do not by themselves restart the live station.</p>
+</section>
+
+<section data-br-tab="playlists">
+  <h2>PLAYLISTS</h2>
+  <p>Edit durable GE music playlists in the Vault. The BLITZ DJ Booth remains responsible for the currently playing station and its queue.</p>
+  <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to connect to the GE Vault.</div>
+  <div class="backroomActionRow">
+    <button type="button" id="brPlaylistsRefresh">REFRESH FROM VAULT</button>
+    <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
+    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
+  </div>
+  <label><span>SAVED PLAYLISTS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
+  <label><span>PLAYLIST NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Bangers"></label>
+  <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
+  <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
+  <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
+  <div id="brPlaylistTracks" class="brPlaylistTracks" aria-label="Playlist song order"></div>
+  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active in GE Vault (not an instant BLITZ station change)</span></label>
+  <div class="backroomActionRow">
+    <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
+    <button type="button" id="brPlaylistDelete">DELETE PLAYLIST</button>
+  </div>
+</section>
+
+<section data-br-tab="access">
+  <h2>ACCESS CODES</h2>
+  <p>Issue time-limited or permanent access codes, choose permissions, limit use, and revoke them. New codes appear only once after server creation.</p>
+  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to connect to the GE Vault.</div>
+  <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH — ENABLE ACCESS CODES</span></label>
+  <p>Turning the master switch off disables every issued code. The approved Radio Gate continues working independently until code redemption is explicitly integrated.</p>
+  <div class="backroomActionRow"><button type="button" id="brAccessRefresh">REFRESH CODES</button></div>
+  <label><span>CODE NAME</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+  <div class="backroomPermissions">
+    <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
+    <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
+    <label class="check"><input type="checkbox" name="brAccessScope" value="music"><span>MUSIC</span></label>
+    <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
+    <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
+  </div>
+  <label><span>EXPIRES</span><select id="brAccessMode">
+    <option value="first_use">After the recipient first uses it</option>
+    <option value="activation">After I activate it</option>
+    <option value="fixed">On a specific date and time</option>
+    <option value="none">Never</option>
+  </select></label>
+  <label id="brAccessDurationRow"><span>ACCESS DURATION (HOURS)</span><input id="brAccessHours" type="number" min="1" max="43800" value="168" step="1"></label>
+  <label id="brAccessFixedRow" hidden><span>EXPIRATION DATE AND TIME</span><input id="brAccessFixed" type="datetime-local"></label>
+  <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
+  <label class="check"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
+  <div class="backroomActionRow"><button type="button" id="brAccessIssue" class="primary">GENERATE SECURE CODE</button></div>
+  <div id="brAccessOneTime" class="backroomCodeReveal" hidden>
+    <b>NEW CODE — COPY NOW. IT WILL NOT BE SHOWN AGAIN.</b>
+    <output id="brAccessCodeValue"></output>
+    <button type="button" id="brAccessCopy">COPY CODE</button>
+  </div>
+  <h3>ISSUED CODES</h3>
+  <div id="brAccessList" class="backroomCodeList"><p>No codes loaded.</p></div>
+</section>
+
 <section id="radioGateTimingSection" data-br-tab="gate">
   <h2>INNER FREQUENCY GATE · TIMING & REVERB</h2>
   <p>Controls both the Radio Gate and the 33:33 song-preview Gate. After the Sun reaches the center, wait the Hold time, then fade to complete silence. Reverb grows from the first water waves all the way to the final cutoff. SAVE keeps a draft; PUBLISH LIVE applies these settings to new listening sessions.</p>
@@ -277,7 +385,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="actions"><a href="../radio/" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST RADIO GATE →</a><a href="../radio/preview-lab.html" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST MUSIC GATE →</a></div>
 </section>
 
-<section data-br-tab="music">
+<section data-br-tab="radio">
   <h2>WEBSITE STARTUP MUSIC</h2>
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
@@ -335,7 +443,7 @@ const $=id=>document.getElementById(id);
 
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['home','content','universe','games','music','gate'],panels=new Map();
+  const categories=['home','content','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.nextElementSibling.insertAdjacentElement('afterend',panelHost);
   for(const category of categories){
@@ -379,7 +487,14 @@ function installBackroomTabs(){
     toggle?.click();
   }
   let initial='home';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'home'}catch(_e){}
+  if(initial==='music')initial='radio';
   activate(initial);
+  for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
+    activate(btn.dataset.openBr,true);
+    document.getElementById('backroomTabs')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+  // Each owner tab loads its private records only when selected.
+  window.GE_BACKROOM_ON_TAB=(fn)=>{tabButtons.forEach(button=>button.addEventListener('click',()=>fn(button.dataset.tab)));};
 }
 installBackroomTabs();
 
