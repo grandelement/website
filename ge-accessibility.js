@@ -8,16 +8,18 @@ const A=document;
 const radio=!!A.getElementById('musicGroup');
 const localeKey='GE_LANGUAGE_V1';
 const declinedKey='GE_LANGUAGE_ENGLISH_CHOICE_V1';
+const zoomKey='GE_ACCESS_ZOOM_V1';
 const names={en:'English',es:'Español',fr:'Français',de:'Deutsch',nl:'Nederlands',pt:'Português'};
 const strings={
-en:{previous:'PREV',play:'PLAY',pause:'PAUSE',next:'NEXT',shuffle:'SHUFFLE',radio:'RADIO',songs:'SONGS',music:'MUSIC',love:'LOVE',bgPrev:'PREV',bgOff:'OFF',bgNext:'NEXT',perSong:'PER SONG',bgShuffle:'SHUFFLE',contact:'CONTACT',support:'SUPPORT',share:'SHARE',code:'CODE',about:'ABOUT',openRadio:'RADIO',playAlbum:'PLAY ALBUM',stop:'STOP',language:'Language',choose:'Choose your language',intro:'English is the default. You can change your language at any time.',recommend:'Your browser or country may prefer another language. Would you like to use it?',save:'USE LANGUAGE',keep:'KEEP ENGLISH',close:'CLOSE',game:'GAME',albumInfo:'album. Open album information',backgrounds:'Backgrounds',selected:'Language saved',option:'LANGUAGE',musicOptions:'MUSIC OPTIONS'},
-es:{previous:'ANTERIOR',play:'REPRODUCIR',pause:'PAUSA',next:'SIGUIENTE',shuffle:'ALEATORIO',radio:'RADIO',songs:'CANCIONES',music:'MÚSICA',love:'ME GUSTA',bgPrev:'ANT.',bgOff:'APAGAR',bgNext:'SIG.',perSong:'POR CANCIÓN',bgShuffle:'ALEATORIO',contact:'CONTACTO',support:'APOYAR',share:'COMPARTIR',code:'CÓDIGO',about:'ACERCA DE',openRadio:'RADIO',playAlbum:'ESCUCHAR ÁLBUM',stop:'PARAR',language:'Idioma',choose:'Elige tu idioma',intro:'El inglés es el idioma predeterminado. Puedes cambiarlo cuando quieras.',recommend:'Tu navegador o país sugiere otro idioma. ¿Quieres usarlo?',save:'USAR IDIOMA',keep:'SEGUIR EN INGLÉS',close:'CERRAR',game:'JUEGO',albumInfo:'álbum. Abrir información',backgrounds:'Fondos',selected:'Idioma guardado',option:'IDIOMA',musicOptions:'OPCIONES DE MÚSICA'},
-fr:{previous:'PRÉC.',play:'LECTURE',pause:'PAUSE',next:'SUIV.',shuffle:'ALÉATOIRE',radio:'RADIO',songs:'TITRES',music:'MUSIQUE',love:'J’AIME',bgPrev:'PRÉC.',bgOff:'ARRÊT',bgNext:'SUIV.',perSong:'PAR TITRE',bgShuffle:'ALÉATOIRE',contact:'CONTACT',support:'SOUTENIR',share:'PARTAGER',code:'CODE',about:'À PROPOS',openRadio:'RADIO',playAlbum:'ÉCOUTER L’ALBUM',stop:'ARRÊT',language:'Langue',choose:'Choisissez votre langue',intro:'L’anglais est la langue par défaut. Vous pouvez changer de langue à tout moment.',recommend:'Votre navigateur ou pays suggère une autre langue. Voulez-vous l’utiliser ?',save:'UTILISER',keep:'GARDER L’ANGLAIS',close:'FERMER',game:'JEU',albumInfo:'album. Ouvrir les détails',backgrounds:'Arrière-plans',selected:'Langue enregistrée',option:'LANGUE',musicOptions:'OPTIONS MUSIQUE'},
-de:{previous:'ZURÜCK',play:'SPIELEN',pause:'PAUSE',next:'WEITER',shuffle:'ZUFALL',radio:'RADIO',songs:'SONGS',music:'MUSIK',love:'LIEBEN',bgPrev:'ZURÜCK',bgOff:'AUS',bgNext:'WEITER',perSong:'PRO SONG',bgShuffle:'ZUFALL',contact:'KONTAKT',support:'UNTERSTÜTZEN',share:'TEILEN',code:'CODE',about:'ÜBER UNS',openRadio:'RADIO',playAlbum:'ALBUM SPIELEN',stop:'STOPP',language:'Sprache',choose:'Sprache auswählen',intro:'Englisch ist voreingestellt. Du kannst die Sprache jederzeit ändern.',recommend:'Dein Browser oder Land schlägt eine andere Sprache vor. Möchtest du sie nutzen?',save:'SPRACHE NUTZEN',keep:'ENGLISCH BEHALTEN',close:'SCHLIESSEN',game:'SPIEL',albumInfo:'Album. Albuminformationen öffnen',backgrounds:'Hintergründe',selected:'Sprache gespeichert',option:'SPRACHE',musicOptions:'MUSIKOPTIONEN'},
-nl:{previous:'VORIGE',play:'AFSPELEN',pause:'PAUZE',next:'VOLGENDE',shuffle:'WILLEKEURIG',radio:'RADIO',songs:'NUMMERS',music:'MUZIEK',love:'LEUK',bgPrev:'VORIGE',bgOff:'UIT',bgNext:'VOLGENDE',perSong:'PER NUMMER',bgShuffle:'WILLEKEURIG',contact:'CONTACT',support:'STEUN',share:'DELEN',code:'CODE',about:'OVER',openRadio:'RADIO',playAlbum:'ALBUM AFSPELEN',stop:'STOP',language:'Taal',choose:'Kies je taal',intro:'Engels is standaard. Je kunt je taal altijd wijzigen.',recommend:'Je browser of land suggereert een andere taal. Wil je die gebruiken?',save:'TAAL GEBRUIKEN',keep:'ENGELS HOUDEN',close:'SLUITEN',game:'SPEL',albumInfo:'album. Albuminformatie openen',backgrounds:'Achtergronden',selected:'Taal opgeslagen',option:'TAAL',musicOptions:'MUZIEKOPTIES'},
-pt:{previous:'ANTERIOR',play:'TOCAR',pause:'PAUSA',next:'PRÓXIMA',shuffle:'ALEATÓRIO',radio:'RÁDIO',songs:'FAIXAS',music:'MÚSICA',love:'CURTIR',bgPrev:'ANT.',bgOff:'DESLIGAR',bgNext:'PRÓX.',perSong:'POR FAIXA',bgShuffle:'ALEATÓRIO',contact:'CONTATO',support:'APOIAR',share:'COMPARTILHAR',code:'CÓDIGO',about:'SOBRE',openRadio:'RÁDIO',playAlbum:'TOCAR ÁLBUM',stop:'PARAR',language:'Idioma',choose:'Escolha seu idioma',intro:'O inglês é o idioma padrão. Você pode mudar quando quiser.',recommend:'Seu navegador ou país sugere outro idioma. Deseja usá-lo?',save:'USAR IDIOMA',keep:'MANTER INGLÊS',close:'FECHAR',game:'JOGO',albumInfo:'álbum. Abrir informações',backgrounds:'Fundos',selected:'Idioma salvo',option:'IDIOMA',musicOptions:'OPÇÕES DE MÚSICA'}
+en:{previous:'PREV',play:'PLAY',pause:'PAUSE',next:'NEXT',shuffle:'SHUFFLE',radio:'RADIO',songs:'SONGS',music:'MUSIC',love:'LOVE',bgPrev:'PREV',bgOff:'OFF',bgNext:'NEXT',perSong:'PER SONG',bgShuffle:'SHUFFLE',contact:'CONTACT',support:'SUPPORT',share:'SHARE',code:'CODE',about:'ABOUT',openRadio:'RADIO',playAlbum:'PLAY ALBUM',stop:'STOP',language:'Language',choose:'Choose your language',intro:'English is the default. You can change your language at any time.',recommend:'Your browser or country may prefer another language. Would you like to use it?',save:'USE LANGUAGE',keep:'KEEP ENGLISH',close:'CLOSE',game:'GAME',albumInfo:'album. Open album information',backgrounds:'Backgrounds',selected:'Language saved',option:'LANGUAGE',musicOptions:'MUSIC OPTIONS',zoom:'Allow pinch-to-zoom outside games'},
+es:{previous:'ANTERIOR',play:'REPRODUCIR',pause:'PAUSA',next:'SIGUIENTE',shuffle:'ALEATORIO',radio:'RADIO',songs:'CANCIONES',music:'MÚSICA',love:'ME GUSTA',bgPrev:'ANT.',bgOff:'APAGAR',bgNext:'SIG.',perSong:'POR CANCIÓN',bgShuffle:'ALEATORIO',contact:'CONTACTO',support:'APOYAR',share:'COMPARTIR',code:'CÓDIGO',about:'ACERCA DE',openRadio:'RADIO',playAlbum:'ESCUCHAR ÁLBUM',stop:'PARAR',language:'Idioma',choose:'Elige tu idioma',intro:'El inglés es el idioma predeterminado. Puedes cambiarlo cuando quieras.',recommend:'Tu navegador o país sugiere otro idioma. ¿Quieres usarlo?',save:'USAR IDIOMA',keep:'SEGUIR EN INGLÉS',close:'CERRAR',game:'JUEGO',albumInfo:'álbum. Abrir información',backgrounds:'Fondos',selected:'Idioma guardado',option:'IDIOMA',musicOptions:'OPCIONES DE MÚSICA',zoom:'Permitir zoom con dos dedos fuera de los juegos'},
+fr:{previous:'PRÉC.',play:'LECTURE',pause:'PAUSE',next:'SUIV.',shuffle:'ALÉATOIRE',radio:'RADIO',songs:'TITRES',music:'MUSIQUE',love:'J’AIME',bgPrev:'PRÉC.',bgOff:'ARRÊT',bgNext:'SUIV.',perSong:'PAR TITRE',bgShuffle:'ALÉATOIRE',contact:'CONTACT',support:'SOUTENIR',share:'PARTAGER',code:'CODE',about:'À PROPOS',openRadio:'RADIO',playAlbum:'ÉCOUTER L’ALBUM',stop:'ARRÊT',language:'Langue',choose:'Choisissez votre langue',intro:'L’anglais est la langue par défaut. Vous pouvez changer de langue à tout moment.',recommend:'Votre navigateur ou pays suggère une autre langue. Voulez-vous l’utiliser ?',save:'UTILISER',keep:'GARDER L’ANGLAIS',close:'FERMER',game:'JEU',albumInfo:'album. Ouvrir les détails',backgrounds:'Arrière-plans',selected:'Langue enregistrée',option:'LANGUE',musicOptions:'OPTIONS MUSIQUE',zoom:'Autoriser le zoom hors des jeux'},
+de:{previous:'ZURÜCK',play:'SPIELEN',pause:'PAUSE',next:'WEITER',shuffle:'ZUFALL',radio:'RADIO',songs:'SONGS',music:'MUSIK',love:'LIEBEN',bgPrev:'ZURÜCK',bgOff:'AUS',bgNext:'WEITER',perSong:'PRO SONG',bgShuffle:'ZUFALL',contact:'KONTAKT',support:'UNTERSTÜTZEN',share:'TEILEN',code:'CODE',about:'ÜBER UNS',openRadio:'RADIO',playAlbum:'ALBUM SPIELEN',stop:'STOPP',language:'Sprache',choose:'Sprache auswählen',intro:'Englisch ist voreingestellt. Du kannst die Sprache jederzeit ändern.',recommend:'Dein Browser oder Land schlägt eine andere Sprache vor. Möchtest du sie nutzen?',save:'SPRACHE NUTZEN',keep:'ENGLISCH BEHALTEN',close:'SCHLIESSEN',game:'SPIEL',albumInfo:'Album. Albuminformationen öffnen',backgrounds:'Hintergründe',selected:'Sprache gespeichert',option:'SPRACHE',musicOptions:'MUSIKOPTIONEN',zoom:'Vergrößern mit zwei Fingern außerhalb der Spiele'},
+nl:{previous:'VORIGE',play:'AFSPELEN',pause:'PAUZE',next:'VOLGENDE',shuffle:'WILLEKEURIG',radio:'RADIO',songs:'NUMMERS',music:'MUZIEK',love:'LEUK',bgPrev:'VORIGE',bgOff:'UIT',bgNext:'VOLGENDE',perSong:'PER NUMMER',bgShuffle:'WILLEKEURIG',contact:'CONTACT',support:'STEUN',share:'DELEN',code:'CODE',about:'OVER',openRadio:'RADIO',playAlbum:'ALBUM AFSPELEN',stop:'STOP',language:'Taal',choose:'Kies je taal',intro:'Engels is standaard. Je kunt je taal altijd wijzigen.',recommend:'Je browser of land suggereert een andere taal. Wil je die gebruiken?',save:'TAAL GEBRUIKEN',keep:'ENGELS HOUDEN',close:'SLUITEN',game:'SPEL',albumInfo:'album. Albuminformatie openen',backgrounds:'Achtergronden',selected:'Taal opgeslagen',option:'TAAL',musicOptions:'MUZIEKOPTIES',zoom:'Zoomen met twee vingers buiten spellen toestaan'},
+pt:{previous:'ANTERIOR',play:'TOCAR',pause:'PAUSA',next:'PRÓXIMA',shuffle:'ALEATÓRIO',radio:'RÁDIO',songs:'FAIXAS',music:'MÚSICA',love:'CURTIR',bgPrev:'ANT.',bgOff:'DESLIGAR',bgNext:'PRÓX.',perSong:'POR FAIXA',bgShuffle:'ALEATÓRIO',contact:'CONTATO',support:'APOIAR',share:'COMPARTILHAR',code:'CÓDIGO',about:'SOBRE',openRadio:'RÁDIO',playAlbum:'TOCAR ÁLBUM',stop:'PARAR',language:'Idioma',choose:'Escolha seu idioma',intro:'O inglês é o idioma padrão. Você pode mudar quando quiser.',recommend:'Seu navegador ou país sugere outro idioma. Deseja usá-lo?',save:'USAR IDIOMA',keep:'MANTER INGLÊS',close:'FECHAR',game:'JOGO',albumInfo:'álbum. Abrir informações',backgrounds:'Fundos',selected:'Idioma salvo',option:'IDIOMA',musicOptions:'OPÇÕES DE MÚSICA',zoom:'Permitir ampliar com dois dedos fora dos jogos'}
 };
 let lang='en', lastFocus=null, dialog=null, combo=null, globe=null, live=null, dialogText=null;
+let zoomEnabled=false;
 function code(input){const val=String(input||'').toLowerCase().split(/[-_]/)[0];return strings[val]?val:'';}
 function text(key){return (strings[lang]&&strings[lang][key])||strings.en[key]||key;}
 function find(selector){return A.querySelector(selector);}
@@ -42,7 +44,7 @@ const controls=[
 ['#shipLeftControls [data-proxy="bgPrev"]','bgPrev','◀']
 ];
 const homeButtons=[
-['#play','play'],['#geHomeStop','stop'],['#albumScanListen','playAlbum'],
+['#play','play','▶'],['#geHomeStop','stop','■'],['#albumScanListen','playAlbum'],
 ['#aboutBtn','about'],['#btnMusic','music'],['#musicOptionsBtn','musicOptions']
 ];
 function setLabel(el,key,symbol){
@@ -70,10 +72,11 @@ function renderRadioControls(){
  const now=find('#titleBtn');if(now)now.setAttribute('aria-live','polite');
 }
 function renderHomeControls(){
- for(const [selector,key] of homeButtons){
+ for(const [selector,key,symbol] of homeButtons){
   const el=find(selector);
   if(!el)continue;
-  setLabel(el,key);
+  setLabel(el,key,symbol);
+  if(selector==='#aboutBtn'||selector==='#btnMusic')el.textContent=text(key);
   if(el.tagName==='DIV'){el.setAttribute('tabindex','0');el.setAttribute('role','button');}
   // Only static headings/buttons are translated. Dynamic RADIO status remains untouched.
   if(selector==='#albumScanListen')el.textContent=text('playAlbum');
@@ -109,7 +112,15 @@ function redraw(){
   find('#geLangSave').textContent=text('save');
   find('#geLangKeep').textContent=text('keep');
   find('#geLangClose').setAttribute('aria-label',text('close'));
+  const zoomText=find('#geLangZoomLabel');if(zoomText)zoomText.textContent=text('zoom');
  }
+}
+function applyZoom(on,persist){
+ zoomEnabled=!!on;
+ window.GE_A11Y_ZOOM=zoomEnabled;
+ A.documentElement.classList.toggle('ge-access-zoom',zoomEnabled);
+ const setting=find('#geLangZoomCheck');if(setting)setting.checked=zoomEnabled;
+ if(persist)try{localStorage.setItem(zoomKey,zoomEnabled?'1':'0')}catch(_e){}
 }
 function applyLanguage(value,persist){
  const next=code(value)||'en';
@@ -193,6 +204,15 @@ function createUI(){
  '<button type="button" class="ge-language-save" id="geLangSave">USE LANGUAGE</button>'+
  '<button type="button" id="geLangClose" aria-label="Close">×</button></div></div>';
  A.body.append(dialog);
+ // Browser zoom is opt-in on the physics-based universe; Radio permits
+ // standard browser zoom regardless of this setting.
+ const panel=dialog.querySelector('.ge-language-panel');
+ const zoomRow=A.createElement('label');
+ zoomRow.className='ge-language-zoom';
+ zoomRow.innerHTML='<input id="geLangZoomCheck" type="checkbox"><span id="geLangZoomLabel"></span>';
+ zoomRow.hidden=radio;
+ panel.insertBefore(zoomRow,panel.querySelector('.ge-language-actions'));
+ find('#geLangZoomCheck').addEventListener('change',e=>applyZoom(e.target.checked,true));
  combo=find('#geLangSelect');
  for(const [id,name] of Object.entries(names)){
   const opt=A.createElement('option');opt.value=id;opt.textContent=name;opt.lang=id;combo.append(opt);
@@ -220,7 +240,7 @@ function createUI(){
  dialog.addEventListener('keydown',e=>{
   if(e.key==='Escape'){e.preventDefault();close();return;}
   if(e.key!=='Tab')return;
-  const focusable=[combo,find('#geLangKeep'),find('#geLangSave'),find('#geLangClose')];
+  const focusable=[combo,...(radio?[]:[find('#geLangZoomCheck')]),find('#geLangKeep'),find('#geLangSave'),find('#geLangClose')];
   const idx=focusable.indexOf(A.activeElement);
   if(e.shiftKey&&idx<=0){e.preventDefault();focusable[focusable.length-1].focus();}
   else if(!e.shiftKey&&idx===focusable.length-1){e.preventDefault();focusable[0].focus();}
@@ -236,8 +256,8 @@ function createUI(){
  return open;
 }
 async function suggestedLanguage(){
- const browser=Array.isArray(navigator.languages)?navigator.languages:[navigator.language];
- const preferred=browser.map(code).find(x=>x&&x!=='en');
+ const browser=Array.isArray(navigator.languages)&&navigator.languages.length?navigator.languages:[navigator.language];
+ const preferred=code(browser[0]);
  // Optional same-origin Cloudflare hint. A 404 or other host simply uses the
  // browser preferences. Never retain or print the IP value returned by trace.
  let country='';
@@ -256,7 +276,7 @@ async function suggestedLanguage(){
  // Browser setting takes precedence over region; a country alone does not
  // imply the visitor's language, so always ask before switching.
  const regional=countries[country]||'';
- return preferred||(!code(browser[0])?regional:'')||regional||'';
+ return (preferred&&preferred!=='en'?preferred:regional)||'';
 }
 function fitViewport(){
  if(!radio)return;
@@ -291,7 +311,9 @@ function fitViewport(){
 }
 function start(){
  A.documentElement.classList.add(radio?'ge-radio-ui':'ge-site-ui');
+ try{zoomEnabled=localStorage.getItem(zoomKey)==='1'}catch(_e){}
  const open=createUI();
+ applyZoom(zoomEnabled,false);
  try{const saved=code(localStorage.getItem(localeKey));if(saved)lang=saved;}catch(_e){}
  applyLanguage(lang,false);
  setupKeyboard();
