@@ -2780,7 +2780,62 @@ body.view-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{
   #shipRightControls #shipHideControl{grid-row:6!important}
 }
 </style>
-<link rel="stylesheet" href="../ge-accessibility.css?v=20261022-iam-center-v1">
+<link rel="stylesheet" href="../ge-accessibility.css?v=20261022-radio-controls-restored-v2">
+<style id="ge-radio-native-controls-restore-20261022">
+/* Final local override: preserve the established iPhone Radio layout even if
+   a previous app-shell version cached the old shared accessibility stylesheet.
+   Screen-reader names still come from GE accessibility.js. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button[data-ge-symbol],
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row button[data-ge-symbol],
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions [data-ge-symbol]{
+  display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;
+  gap:0!important;font-size:clamp(12px,3vw,16px)!important;line-height:1.12!important;
+  letter-spacing:normal!important;white-space:normal!important;overflow-wrap:normal!important;
+  word-break:normal!important;padding:7px 5px!important;min-height:40px!important
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button[data-ge-symbol]::before,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button[data-ge-symbol]::after,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row button[data-ge-symbol]::before,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row button[data-ge-symbol]::after,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions [data-ge-symbol]::before,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions [data-ge-symbol]::after{
+  content:none!important;display:none!important
+}
+/* Backgrounds: PREV | OFF | NEXT / PER SONG | SHUFFLE | HIDE TEXT. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(40px,auto)!important;gap:clamp(5px,.8vw,9px)!important;width:100%!important
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgPrev{grid-area:1/1/2/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgOff{grid-area:1/2/2/3!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgNext{grid-area:1/3/2/4!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgPer{grid-area:2/1/3/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgShuf{grid-area:2/2/3/3!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #bgAuto{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #hudCombined{
+  grid-area:2/3/3/4!important;display:flex!important;flex-direction:row!important;
+  align-items:center!important;justify-content:center!important;gap:5px!important;
+  min-width:0!important;min-height:40px!important;padding:6px 4px!important;
+  font-size:clamp(11px,3vw,14px)!important
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup #hudCombined span{
+  white-space:normal!important;word-break:normal!important
+}
+/* The earlier utility placement: CONTACT | SUPPORT | CODE, SHARE underneath. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(40px,auto)!important;gap:clamp(5px,.8vw,9px)!important
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #contactLaunchBtn{grid-area:1/1/2/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions .bc-btn{grid-area:1/2/2/3!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #accessLaunchBtn{grid-area:1/3/2/4!important;display:flex!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #shareBtn{grid-area:2/3/3/4!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn{grid-area:2/1/3/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn{grid-area:2/2/3/3!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #sunLabBtn{grid-area:3/1/4/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #arrangeBtn{grid-area:3/2/4/3!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #installBtn{grid-area:3/3/4/4!important}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -6289,7 +6344,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-iam-center-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-controls-restored-v2',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
