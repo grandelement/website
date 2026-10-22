@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.21-music-picker-navigation-v1';
+const VERSION='2026.10.22-reset-site-public-playlists-v1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -26,6 +26,7 @@ const SHELL=[
   '../ge-images/images/ge-logo-2.jpg',
   '../ge-images/img/31.gif',
   './manifest.json',
+  '../config/site-live.json',
   './loudness.json',
   '../ge-images/img/manifest.json'
 ];
@@ -301,9 +302,9 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Catalogs should never be served cache-first: otherwise newly uploaded
-  // songs do not appear in the MUSIC or title chooser even after page reload.
-  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname)){
+  // Song catalogs and published MUSIC playlists must be network-first,
+  // so newly published selections appear without stale SW shell caches.
+  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname) || url.pathname==='/config/site-live.json'){
     event.respondWith((async()=>{
       try{
         const fresh=await fetchFresh(request);

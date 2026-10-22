@@ -21,6 +21,9 @@ small,.muted{color:#adccdf}
 .notice{margin-bottom:12px;line-height:1.6}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:12px;align-items:start}
 .albumWall{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px}
+.musicBrowseTabs{margin:0 0 12px;display:flex;gap:8px}
+.musicBrowseTabs button{flex:1}
+.musicBrowseTabs button[aria-pressed="true"]{background:#126592;border-color:#9adfff}
 .albumTile{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;text-align:left;min-height:86px;background:linear-gradient(140deg,#15436b,#061826);padding:12px}
 .albumTile strong{font-size:15px}
 .albumTile small{font-size:11px;color:#b1d0e8}
@@ -144,12 +147,17 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 <section class="card notice">Choose an album and tap <strong>PLAY</strong> on any song. You can listen to the songs you choose for <strong>33 minutes and 33 seconds</strong> total. The Inner Frequency Gate begins before the limit so its full approach and final fade finish exactly at 33:33. Radio has its own separate 33:33 allowance.</section>
 <div class="layout">
 <section class="card">
-<h2>CHOOSE AN ALBUM</h2>
+<h2>CHOOSE MUSIC</h2>
+<div class="musicBrowseTabs" role="group" aria-label="Music browser">
+  <button id="browseAlbums" type="button" aria-pressed="true">ALBUMS</button>
+  <button id="browsePlaylists" type="button" aria-pressed="false">PLAYLISTS</button>
+</div>
 <div id="albumWall" class="albumWall">Loading albums…</div>
+<div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
 <div id="albumView" hidden>
   <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
   <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
-  <div id="previewSelectionControls"><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div>
+  <div id="previewSelectionControls"><button id="playBrowserCollection" type="button" hidden>PLAY PLAYLIST</button><button id="addAlbumSongs" type="button">ADD WHOLE ALBUM</button><button id="addAllSongs" type="button">ADD ALL SONGS</button></div>
   <div id="songs"></div>
 </div>
 </section>
@@ -191,6 +199,7 @@ const STORE_KEY='GE_PLAYER_LISTENING_V2_3333', OWNER_KEY='GE_PLAYER_OWNER_DEMO_V
 const $=id=>document.getElementById(id);
 const audio=$('audio');
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
+let publicPlaylistDefinitions=[],publicPlaylists=new Map(),selectedPlaylistId='',browserMode='albums',catalogTrackByPath=new Map();
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
 let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseVolume=1;
 try{const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(saved&&typeof saved==='object'){data.used=Math.max(0,Math.min(AUDIO_LIMIT_SECONDS,Number(saved.used)||0));data.expired=!!saved.expired||data.used>=AUDIO_LIMIT_SECONDS;
@@ -340,8 +349,11 @@ function renderSelected(){
 }
 function addSelected(t){if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);renderSelected()}
 function removeSelected(t){selectedSongs=selectedSongs.filter(x=>x.url!==t.url);renderSelected()}
+function currentBrowseTracks(){
+ return browserMode==='playlists'?(publicPlaylists.get(selectedPlaylistId)?.tracks||[]):(albums.get(selectedAlbum)||[]);
+}
 $('addAlbumSongs').addEventListener('click',()=>{
- for(const t of albums.get(selectedAlbum)||[])if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
+ for(const t of currentBrowseTracks())if(!selectedSongs.some(x=>x.url===t.url))selectedSongs.push(t);
  renderSelected();showSongs();
 });
 $('addAllSongs').addEventListener('click',()=>{
@@ -372,7 +384,7 @@ function restoreSelected(tracks){
 
 function showSongs(){
  const holder=$('songs');holder.replaceChildren();
- const q=$('search').value.toLowerCase(),tracks=albums.get(selectedAlbum)||[];
+ const q=$('search').value.toLowerCase(),tracks=currentBrowseTracks();
  for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
   const row=element('div',null,'song'),title=element('div',String(t.title||''),'songTitle');
   title.appendChild(element('small',Number(t.duration_ms)>0?fmt(t.duration_ms/1000):'Duration available when played'));
@@ -387,8 +399,46 @@ function showSongs(){
  if(!holder.childElementCount)holder.textContent='No matching songs.';
 }
 function openAlbum(name){
- if(!albums.has(name))return;selectedAlbum=name;
- $('albumWall').hidden=true;$('albumView').hidden=false;$('albumTitle').textContent=name;$('search').value='';showSongs();
+ if(!albums.has(name))return;
+ browserMode='albums';selectedAlbum=name;selectedPlaylistId='';
+ $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('albumView').hidden=false;
+ $('albumTitle').textContent=name;$('backAlbums').textContent='← ALBUMS';
+ $('addAlbumSongs').textContent='ADD WHOLE ALBUM';$('playBrowserCollection').hidden=true;
+ $('search').value='';showSongs();
+}
+function switchMusicBrowse(mode){
+ browserMode=mode==='playlists'?'playlists':'albums';
+ selectedAlbum='';selectedPlaylistId='';
+ $('albumView').hidden=true;$('albumWall').hidden=browserMode!=='albums';
+ $('publicPlaylistWall').hidden=browserMode!=='playlists';
+ $('browseAlbums').setAttribute('aria-pressed',String(browserMode==='albums'));
+ $('browsePlaylists').setAttribute('aria-pressed',String(browserMode==='playlists'));
+ if(browserMode==='playlists')showPublicPlaylists();
+}
+$('browseAlbums').addEventListener('click',()=>switchMusicBrowse('albums'));
+$('browsePlaylists').addEventListener('click',()=>switchMusicBrowse('playlists'));
+function openPublicPlaylist(id){
+ const list=publicPlaylists.get(id);if(!list)return;
+ browserMode='playlists';selectedPlaylistId=id;selectedAlbum='';
+ $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('albumView').hidden=false;
+ $('albumTitle').textContent=list.name;$('backAlbums').textContent='← PLAYLISTS';
+ $('addAlbumSongs').textContent='ADD WHOLE PLAYLIST';$('playBrowserCollection').hidden=false;
+ $('search').value='';showSongs();
+}
+$('playBrowserCollection').addEventListener('click',()=>{
+ const songs=currentBrowseTracks();if(!songs.length){say('This playlist has no available songs.');return;}
+ if(isLocked()){renderGate();return;}
+ playingSelected=false;albumTracks=songs.slice();trackIndex=0;
+ void startTrack(albumTracks[0]);
+});
+function showPublicPlaylists(){
+ const wall=$('publicPlaylistWall');wall.replaceChildren();
+ for(const [id,playlist] of publicPlaylists){
+   const b=element('button',null,'albumTile');b.type='button';
+   b.append(element('strong',playlist.name),element('small',playlist.tracks.length+' songs'));
+   b.addEventListener('click',()=>openPublicPlaylist(id));wall.appendChild(b);
+ }
+ if(!wall.childElementCount)wall.textContent='No public playlists have been published yet.';
 }
 function showAlbums(){
  const wall=$('albumWall');wall.replaceChildren();
@@ -411,14 +461,14 @@ async function startTrack(t){
 }
 function chooseTrack(t){
  playingSelected=false;
- const tracks=albums.get(selectedAlbum)||[];
+ const tracks=currentBrowseTracks();
  albumTracks=tracks.slice();trackIndex=albumTracks.findIndex(x=>x.url===t.url);
  void startTrack(t);
 }
 function nextTrack(){
  if(isLocked()){renderGate();return;}
  if(!albumTracks.length||trackIndex<0){say('Choose a song first.');return;}
- if(trackIndex+1>=albumTracks.length){audio.pause();say('End of album. Choose another song or album.');return;}
+ if(trackIndex+1>=albumTracks.length){audio.pause();say('End of list. Choose another song, album, or playlist.');return;}
  trackIndex++;void startTrack(albumTracks[trackIndex]);
 }
 async function resume(){
@@ -430,7 +480,7 @@ audio.addEventListener('ended',()=>{if(!data.expired)nextTrack()});
 $('play').addEventListener('click',()=>{if(audio.paused)void resume();else audio.pause()});
 $('next').addEventListener('click',nextTrack);
 $('search').addEventListener('input',showSongs);
-$('backAlbums').addEventListener('click',()=>{$('albumView').hidden=true;$('albumWall').hidden=false;});
+$('backAlbums').addEventListener('click',()=>switchMusicBrowse(browserMode));
 function ownerUI(){
  const authorized=isAuthorized();
  $('ownerUnlock').hidden=authorized;$('ownerCode').hidden=authorized;$('ownerLock').hidden=!authorized;
@@ -477,7 +527,7 @@ function trackFromMusicPath(path){
    url:'/'+components.map(encodeURIComponent).join('/')};
 }
 function displayCatalog(tracks,restore=false){
- const previous=selectedAlbum;
+ const previous=selectedAlbum,previousPlaylist=selectedPlaylistId,previousMode=browserMode;
  albums=new Map();
  for(const t of tracks){
    if(!valid(t))continue;
@@ -495,12 +545,45 @@ function displayCatalog(tracks,restore=false){
    selectedSongs=selectedSongs.map(t=>lookup.get(t.path)).filter(Boolean);
    renderSelected();
  }
+ catalogTrackByPath=new Map(tracks.filter(valid).map(t=>[cleanMusicPath(t.path),t]).filter(([path])=>path));
+ rebuildPublicPlaylists();
  showAlbums();
  if(!$('albumView').hidden){
-   if(albums.has(previous)){selectedAlbum=previous;showSongs();}
-   else{$('albumView').hidden=true;$('albumWall').hidden=false;}
+   if(previousMode==='playlists'&&publicPlaylists.has(previousPlaylist)){
+     selectedPlaylistId=previousPlaylist;showSongs();
+   }else if(previousMode==='albums'&&albums.has(previous)){
+     selectedAlbum=previous;showSongs();
+   }else switchMusicBrowse(previousMode);
  }
- say(tracks.filter(valid).length+' songs available. Choose an album or select any number of songs.');
+ say(tracks.filter(valid).length+' songs available. Choose an album or public playlist.');
+}
+function rebuildPublicPlaylists(){
+ const result=new Map();
+ for(const item of publicPlaylistDefinitions){
+   if(!item||!item.id||!item.name||!Array.isArray(item.songs))continue;
+   const seen=new Set(),songs=[];
+   for(const file of item.songs){
+     const path=cleanMusicPath(file);
+     if(!path||seen.has(path))continue;
+     const t=catalogTrackByPath.get(path);
+     if(!t)continue;
+     seen.add(path);songs.push(t);
+   }
+   if(songs.length)result.set(String(item.id),{name:String(item.name),tracks:songs});
+ }
+ publicPlaylists=result;showPublicPlaylists();
+}
+async function loadPublicPlaylists(){
+ try{
+   const response=await fetch('../config/site-live.json?public-playlists='+Date.now(),{cache:'no-store'});
+   if(!response.ok)throw Error('Published site settings unavailable');
+   const data=await response.json();
+   publicPlaylistDefinitions=Array.isArray(data.music?.publicPlaylists)?data.music.publicPlaylists:[];
+   rebuildPublicPlaylists();
+ }catch(error){
+   console.warn('Published playlist settings unavailable:',error);
+   publicPlaylistDefinitions=[];rebuildPublicPlaylists();
+ }
 }
 async function loadCompleteMusicCatalog(){
  let durationTracks=[];
@@ -538,6 +621,7 @@ async function loadCompleteMusicCatalog(){
  }catch(error){console.warn('Using saved music listing:',error);}
 }
 void loadCompleteMusicCatalog();
+void loadPublicPlaylists();
 baseVolume=Math.max(.01,Number(audio.volume)||1);
 if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
 if(data.expired||data.gateStartedAtMs)renderGate();

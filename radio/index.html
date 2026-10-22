@@ -2207,7 +2207,7 @@ body.iam-studio-open #titleBtn{display:none!important}
 .sunlab-panel{grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto!important}
 #offlineText{white-space:pre-line}
 .sunlab-access-tools{display:flex;align-items:center;gap:9px;min-width:0;margin-top:8px;padding:7px 1px 0;border-top:1px solid rgba(120,185,219,.32)}
-.sunlab-access-tools #sunLabResetCodes{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
+.sunlab-access-tools #sunLabResetSite{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
 .sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
 @media(max-width:370px){.sunlab-access-tools{flex-wrap:wrap}.sunlab-access-tools span{font-size:12px}}
 
@@ -3222,7 +3222,7 @@ body.view-player:not(.iam-studio-open) footer{
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
     <div class="sunlab-access-tools">
-      <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local Radio, Player, and My Music test access without deleting downloaded songs">RESET CODES</button>
+      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Reset visitor access, settings, listening history and offline music on this device">RESET SITE</button>
       <span>Clear local test access and return to Guest. Music downloads are kept.</span>
     </div>
   </section>
@@ -5630,7 +5630,8 @@ function openTrackPicker(){
   const current=trackList.querySelector('button.current');
   if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
 }
-$('musicMenuBtn')?.addEventListener('click',()=>titleBtn.click());
+// MUSIC always opens the album and public-playlist browser for guests and owners.
+$('musicMenuBtn')?.addEventListener('click',geOpenMusicSelection);
 titleBtn.addEventListener('click',()=>{
   if(trackList.classList.contains('open')) closeTrackPicker();
   else openTrackPicker();
@@ -6183,7 +6184,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261021-music-picker-navigation-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-reset-site-public-playlists-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -7463,24 +7464,48 @@ $('reloadBtn').addEventListener('click',async()=>{
     bindSunLabControl('slOuterGlowHue','outerGlowHue',fmtDeg);
     refreshSunLabSelect();
   }
-  // Owner/test control. Resets browser-only demo credentials and the guest
-  // trial clocks across Radio, the preview player, and the GE Store. No
-  // payment account, server entitlement, cache, cart, or music is deleted.
-  function resetLocalAccessCodes(){
-    const ok=confirm('RESET CODES on this device?\\n\\nReturn Radio and My Music to GUEST mode and reset the 33:33 test clocks. Downloaded songs and your Sun Lab settings are kept.\\n\\nThis does NOT cancel a real subscription or reset a server account.');
+  // Fresh visitor on this device only. No server account, issued access
+  // code, subscription, or private Back Room draft is changed.
+  async function resetLocalSite(){
+    const ok=confirm('RESET SITE on this device?\\n\\nClear Radio, Music, games, play/test accounts, guest listening clocks, personal settings, downloaded songs and offline caches.\\n\\nThis cannot be undone. Back Room administration and real server accounts are kept.');
     if(!ok)return;
-    const keys=[
-      GATE_CONFIG.authKey,
-      GATE_CONFIG.stateKey,
-      'GE_PLAYER_OWNER_DEMO_V1',
-      'GE_PLAYER_3333_TEST_V1'
-    ];
-    keys.forEach(key=>{try{localStorage.removeItem(key);}catch(_e){}});
-    try{sessionStorage.removeItem('GE_3333_PREVIEW_QUEUE_V1');}catch(_e){}
-    setPanelVisible(false);
-    // Reload to reset the in-memory Gate state and access-only UI, including
-    // a Gate already unlocked in this running tab. Refresh does not clear media.
-    location.reload();
+    window.GE_RESET_SITE_IN_PROGRESS=true;
+    const button=$('sunLabResetSite');
+    if(button){button.disabled=true;button.textContent='RESETTING…';}
+    try{audio.pause();audio.removeAttribute('src');audio.load();}catch(_e){}
+    // Preserve private unpublished administrator work.
+    for(const storage of [localStorage,sessionStorage]){
+      try{
+        const keys=[];
+        for(let i=0;i<storage.length;i++)keys.push(storage.key(i));
+        for(const key of keys){
+          if(!key||key.startsWith('GE_BACKROOM_'))continue;
+          storage.removeItem(key);
+        }
+      }catch(error){console.warn('RESET SITE storage:',error);}
+    }
+    if('caches' in window){
+      try{
+        const names=await caches.keys();
+        await Promise.all(names.filter(name=>{
+          const lower=String(name).toLowerCase();
+          return lower.startsWith('ge-')||lower.startsWith('ge_')||lower.startsWith('grandelement')||lower.startsWith('grand-element');
+        }).map(name=>caches.delete(name)));
+      }catch(error){console.warn('RESET SITE caches:',error);}
+    }
+    if('serviceWorker' in navigator){
+      try{
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.filter(r=>r.scope.startsWith(location.origin+'/'))
+          .map(r=>r.unregister()));
+      }catch(error){console.warn('RESET SITE worker:',error);}
+    }
+    // Background playback timers can otherwise repopulate visitor keys while
+    // Cache Storage and service workers are being removed.
+    for(const storage of [localStorage,sessionStorage]){
+      try{const keys=[];for(let i=0;i<storage.length;i++)keys.push(storage.key(i));for(const key of keys){if(key&&!key.startsWith('GE_BACKROOM_'))storage.removeItem(key);}}catch(_e){}
+    }
+    location.replace('./?fresh='+Date.now());
   }
   function initSunLab(){
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
@@ -7500,7 +7525,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       sunLabBtn.addEventListener('click',()=>{if(!geRadioLocalTestAccess())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
-      $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
+      $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
       sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
@@ -9197,6 +9222,7 @@ Vector ${vector}. ${pair[1]}.`;
   let developerGatePreview=false;
   function authorized(){return geRadioLocalTestAccess()&&!developerGatePreview;}
   function save(force=false){
+    if(window.GE_RESET_SITE_IN_PROGRESS)return;
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
     try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
   }
