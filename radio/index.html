@@ -7503,7 +7503,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     // Background playback timers can otherwise repopulate visitor keys while
     // Cache Storage and service workers are being removed.
     for(const storage of [localStorage,sessionStorage]){
-      try{for(const key of Object.keys(storage)){if(!key.startsWith('GE_BACKROOM_'))storage.removeItem(key);}}catch(_e){}
+      try{const keys=[];for(let i=0;i<storage.length;i++)keys.push(storage.key(i));for(const key of keys){if(key&&!key.startsWith('GE_BACKROOM_'))storage.removeItem(key);}}catch(_e){}
     }
     location.replace('./?fresh='+Date.now());
   }
