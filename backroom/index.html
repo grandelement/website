@@ -1165,7 +1165,15 @@ $('screenOpacityDown').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.m
 $('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min(100,(Number(v.panelOpacity)||80)+5);applyEditorOpacity();dirty=true};
 
 async function bootBackroom(){
-  applyText(90);
+  // Migrate the old oversized 115% default once, then honor the slider setting.
+  const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
+  let savedText=localStorage.getItem(TEXT_KEY);
+  if(localStorage.getItem(compactKey)!=='1'){
+    if(savedText===null||savedText==='115')savedText='90';
+    localStorage.setItem(compactKey,'1');
+    localStorage.setItem(TEXT_KEY,savedText);
+  }
+  applyText(savedText||90);
   cfg=localDraft()||await repoLive();populate();await loadMusic();
   if(serverAuthenticated){
     await refreshPresets();
