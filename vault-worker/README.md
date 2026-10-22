@@ -213,3 +213,29 @@ The schema installs SQLite triggers that reject routine DELETE statements agains
 - audit_log
 
 This is an accidental-loss safeguard, not a claim that data can never be removed under any circumstances. A required privacy/legal deletion must use a deliberate maintenance migration that explicitly removes/recreates the relevant guardrail and records the action.
+
+
+## Private access codes (2026-10-21)
+
+Before deploying the updated Vault Worker to an **existing** D1 database:
+
+```sh
+cd vault-worker
+npx wrangler d1 execute ge-studios-vault --remote --file=migrations/20261021_access_codes.sql
+npx wrangler deploy
+```
+
+The migration uses `IF NOT EXISTS` and retains existing Vault, playlist, Radio, and Gate records. For a new database, `schema.sql` includes the same tables.
+
+The existing `VAULT_HASH_KEY` secret is used to HMAC each cryptographically generated 128-bit code with a dedicated domain prefix. Only a hash and last-four-character hint are stored in D1; raw codes are returned **once** to an authenticated owner. Issued codes support:
+- Permissions: website, radio, music, albums, games.
+- Expiration: hours after activation, hours after first use, a fixed UTC time, or never.
+- Max uses (0 = unlimited), suspension/re-activation, permanent revocation.
+- One master switch, default enabled, to reject all redemptions without deleting code history.
+
+Routes:
+- `GET /v1/admin/access-codes` — bearer `VAULT_ADMIN_TOKEN`, list safe metadata and master switch.
+- `POST /v1/admin/access-codes` — bearer admin token, change `issue`, `activate`, `suspend`, `revoke`, `master`.
+- `POST /v1/public/access/redeem` — redeem a high-entropy code for a requested scope; server atomically counts usage and enforces expiration. This endpoint is an authorization **primitive**, not a session cookie or a payment entitlement by itself.
+
+**Integration boundary:** The approved public Radio Gate and other website membership gates do not call the redemption endpoint yet. Public products must add trusted, server-verified scoped entitlements and abuse controls before treating a code as access to purchased content. Merely showing a new owner code in the Back Room does not currently unlock those experiences.
