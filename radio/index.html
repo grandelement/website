@@ -7468,6 +7468,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   async function resetLocalSite(){
     const ok=confirm('RESET SITE on this device?\\n\\nClear Radio, Music, games, play/test accounts, guest listening clocks, personal settings, downloaded songs and offline caches.\\n\\nThis cannot be undone. Back Room administration and real server accounts are kept.');
     if(!ok)return;
+    window.GE_RESET_SITE_IN_PROGRESS=true;
     const button=$('sunLabResetSite');
     if(button){button.disabled=true;button.textContent='RESETTING…';}
     try{audio.pause();audio.removeAttribute('src');audio.load();}catch(_e){}
@@ -7497,6 +7498,11 @@ $('reloadBtn').addEventListener('click',async()=>{
         await Promise.all(registrations.filter(r=>r.scope.startsWith(location.origin+'/'))
           .map(r=>r.unregister()));
       }catch(error){console.warn('RESET SITE worker:',error);}
+    }
+    // Background playback timers can otherwise repopulate visitor keys while
+    // Cache Storage and service workers are being removed.
+    for(const storage of [localStorage,sessionStorage]){
+      try{for(const key of Object.keys(storage)){if(!key.startsWith('GE_BACKROOM_'))storage.removeItem(key);}}catch(_e){}
     }
     location.replace('./?fresh='+Date.now());
   }
@@ -9215,6 +9221,7 @@ Vector ${vector}. ${pair[1]}.`;
   let developerGatePreview=false;
   function authorized(){return geRadioLocalTestAccess()&&!developerGatePreview;}
   function save(force=false){
+    if(window.GE_RESET_SITE_IN_PROGRESS)return;
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
     try{localStorage.setItem(GATE_CONFIG.stateKey,JSON.stringify(gs));}catch(_e){}
   }
