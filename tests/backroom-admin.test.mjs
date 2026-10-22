@@ -35,7 +35,7 @@ for(const id of ['viewWebsite','save','publishLive']){
 for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlaylistTracks',
   'brAccessIssue','brAccessMaster','brAccessList','brAccessMode','brAccessMaxUses',
   'brAccessBrowse','brAccessEditor','brAccessSelect','brAccessPrev','brAccessNext',
-  'brAccessPlaylist','brAccessSongSelect','brAccessAddSong','brAccessSave',
+  'brAccessPlaylist','brAccessSongSearch','brAccessSongChecklist','brAccessSelectAll','brAccessClearSongs','brAccessSongs','brAccessSave',
   'brAccessEdit','brAccessDelete','brAccessCancel','brAccessNew',
   'brAccessCopy','save','publishLive','reset','lockBackroom']){
   assert.ok(back.includes('id="'+id+'"'),'Missing Back Room control: '+id);
