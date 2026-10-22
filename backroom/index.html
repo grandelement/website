@@ -126,6 +126,24 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomCodeEntry strong{display:block;font-size:calc(12px * var(--scale))}
 .backroomCodeEntry small{display:block;color:var(--muted);white-space:normal;margin:4px 0 6px}
 .backroomCodeEntry .backroomActionRow{margin:5px 0 0}
+.brAccessToolbar,.brAccessEditorActions,.brAccessActions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.brAccessToolbar .check{flex:1 1 220px;margin:0}
+.brAccessPanel{border:1px solid #295875;border-radius:12px;background:#061a2c;padding:12px;margin:12px 0}
+.brAccessPanel[hidden]{display:none!important}
+.brAccessPanel h3{margin:4px 0 12px}
+.brAccessPanel h4{margin:15px 0 6px;color:#b4e7ff;font-size:calc(11px * var(--scale))}
+.brAccessPanel>p{color:var(--muted);font-size:calc(11px * var(--scale))}
+.brAccessNotice{font-size:calc(10px * var(--scale));color:#add4e8;line-height:1.5}
+.brAccessNavigator{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:center;margin:10px 0}
+.brAccessNavigator select{width:100%;min-width:0}
+.brAccessNavigator span{grid-column:1/-1;text-align:center;font-size:calc(10px * var(--scale));color:var(--muted)}
+.brAccessActions button{flex:1 1 105px}
+.brAccessActions button:last-child{border-color:#ae6572;color:#ffdbe2}
+.brAccessSongPicker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin:9px 0}
+.brAccessAssignedSongs{display:grid;gap:6px;margin:8px 0}
+.brAccessAssignedSongs .brAccessSongRow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#041421;border:1px solid #27506a;border-radius:9px;padding:6px}
+.brAccessAssignedSongs .brAccessSongRow span{overflow-wrap:anywhere;min-width:0;font-size:calc(10px * var(--scale))}
+.brAccessAssignedSongs .brAccessSongRow button{flex:0 0 auto}
 @media(max-width:700px){.backroomPermissions{grid-template-columns:1fr}.brPlaylistTrack{grid-template-columns:minmax(0,1fr) repeat(3,31px)}.backroomQuickLinks button{padding:8px}}
 </style>
 </head>
@@ -336,37 +354,78 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
-  <p>Issue time-limited or permanent access codes, choose permissions, limit use, and revoke them. New codes appear only once after server creation.</p>
+  <p>Open or close this manager with the ACCESS CODES heading. Browse one issued code at a time, or create a new assignment.</p>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to connect to the GE Vault.</div>
-  <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH — ENABLE ACCESS CODES</span></label>
-  <p>Turning the master switch off disables every issued code. The approved Radio Gate continues working independently until code redemption is explicitly integrated.</p>
-  <div class="backroomActionRow"><button type="button" id="brAccessRefresh">REFRESH CODES</button></div>
-  <label><span>CODE NAME</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
-  <div class="backroomPermissions">
-    <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
-    <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
-    <label class="check"><input type="checkbox" name="brAccessScope" value="music"><span>MUSIC</span></label>
-    <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
-    <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
+
+  <div class="brAccessToolbar">
+    <button type="button" class="primary" id="brAccessNew">NEW ACCESS CODE</button>
+    <button type="button" id="brAccessRefresh">REFRESH</button>
+    <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
   </div>
-  <label><span>EXPIRES</span><select id="brAccessMode">
-    <option value="first_use">After the recipient first uses it</option>
-    <option value="activation">After I activate it</option>
-    <option value="fixed">On a specific date and time</option>
-    <option value="none">Never</option>
-  </select></label>
-  <label id="brAccessDurationRow"><span>ACCESS DURATION (HOURS)</span><input id="brAccessHours" type="number" min="1" max="43800" value="168" step="1"></label>
-  <label id="brAccessFixedRow" hidden><span>EXPIRATION DATE AND TIME</span><input id="brAccessFixed" type="datetime-local"></label>
-  <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
-  <label class="check"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
-  <div class="backroomActionRow"><button type="button" id="brAccessIssue" class="primary">GENERATE SECURE CODE</button></div>
+  <p class="brAccessNotice">The public Radio Gate does not yet redeem Vault codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
+
+  <div id="brAccessBrowse" class="brAccessPanel">
+    <h3>ISSUED CODES</h3>
+    <label><span>SEARCH CODES</span><input id="brAccessSearch" type="search" placeholder="Name, last four digits, permission"></label>
+    <div class="brAccessNavigator">
+      <button type="button" id="brAccessPrev" aria-label="Previous access code">← PREV</button>
+      <select id="brAccessSelect" aria-label="Select issued access code"><option value="">No codes loaded</option></select>
+      <button type="button" id="brAccessNext" aria-label="Next access code">NEXT →</button>
+      <span id="brAccessPosition">0 OF 0</span>
+    </div>
+    <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
+    <div class="brAccessActions">
+      <button type="button" id="brAccessEdit">EDIT CODE</button>
+      <button type="button" id="brAccessToggle">SUSPEND</button>
+      <button type="button" id="brAccessRevoke">REVOKE</button>
+      <button type="button" id="brAccessDelete">DELETE</button>
+    </div>
+  </div>
+
+  <div id="brAccessEditor" class="brAccessPanel" hidden>
+    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
+    <label><span>CODE NAME</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <h4>1 · ACCESS PERMISSIONS</h4>
+    <div class="backroomPermissions">
+      <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="music"><span>MUSIC</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
+      <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
+    </div>
+    <h4>2 · MUSIC ASSIGNMENTS</h4>
+    <p>Select a saved playlist and/or individual songs. Leave both empty for permission to the whole selected music category.</p>
+    <label><span>ASSIGNED PLAYLIST</span><select id="brAccessPlaylist"><option value="">ALL / NO SPECIFIC PLAYLIST</option></select></label>
+    <label><span>FIND INDIVIDUAL SONG</span><input id="brAccessSongSearch" type="search" placeholder="Find by song or album"></label>
+    <div class="brAccessSongPicker">
+      <select id="brAccessSongSelect" aria-label="Select song to assign"><option value="">CHOOSE A SONG</option></select>
+      <button type="button" id="brAccessAddSong">ADD SONG</button>
+    </div>
+    <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
+    <h4>3 · EXPIRATION AND LIMITS</h4>
+    <label><span>EXPIRES</span><select id="brAccessMode">
+      <option value="first_use">After first redemption of this code</option>
+      <option value="activation">After I activate it</option>
+      <option value="fixed">On a specific date and time</option>
+      <option value="none">Never</option>
+    </select></label>
+    <label id="brAccessDurationRow"><span>ACCESS DURATION (HOURS)</span><input id="brAccessHours" type="number" min="1" max="43800" value="168" step="1"></label>
+    <label id="brAccessFixedRow" hidden><span>EXPIRATION DATE AND TIME</span><input id="brAccessFixed" type="datetime-local"></label>
+    <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
+    <label class="check" id="brAccessStartRow"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
+    <div class="brAccessEditorActions">
+      <button type="button" class="primary" id="brAccessIssue">GENERATE SECURE CODE</button>
+      <button type="button" class="primary" id="brAccessSave" hidden>SAVE CHANGES</button>
+      <button type="button" id="brAccessCancel">CANCEL</button>
+    </div>
+    <p class="brAccessNotice">Editing keeps the original secret code and use history. A redeemed code cannot be displayed again.</p>
+  </div>
+
   <div id="brAccessOneTime" class="backroomCodeReveal" hidden>
     <b>NEW CODE — COPY NOW. IT WILL NOT BE SHOWN AGAIN.</b>
     <output id="brAccessCodeValue"></output>
     <button type="button" id="brAccessCopy">COPY CODE</button>
   </div>
-  <h3>ISSUED CODES</h3>
-  <div id="brAccessList" class="backroomCodeList"><p>No codes loaded.</p></div>
 </section>
 
 <section id="radioGateTimingSection" data-br-tab="gate">
@@ -485,7 +544,7 @@ function installBackroomTabs(){
     const sections=[...panel.querySelectorAll(':scope > section')];
     const first=name==='universe'?sections.find(s=>s.querySelector('h2')?.textContent.includes('UNIVERSE ACTIVITY')):sections[0];
     const toggle=first?.querySelector('.backroomGroupToggle');
-    toggle?.click();
+    if(name!=='access')toggle?.click();
   }
   let initial='home';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'home'}catch(_e){}
   if(initial==='music')initial='radio';
