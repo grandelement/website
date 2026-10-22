@@ -318,6 +318,7 @@ async function suggestedLanguage(){
  const regional=countries[country]||'';
  return (preferred&&preferred!=='en'?preferred:regional)||'';
 }
+let lastFitViewportKey='',lastFittedSun=0,lastFittedIam=0;
 function fitViewport(){
   if(!radio)return;
   const root=A.documentElement,body=A.body,wrap=find('main.wrap');
@@ -333,8 +334,17 @@ function fitViewport(){
   const portrait=window.matchMedia('(orientation:portrait)').matches;
   const smallPortrait=portrait&&w<=700;
   const zoomed=(window.visualViewport?.scale||1)>1.15;
+  const viewportKey=w+'x'+h+'/'+(portrait?'p':'l');
   let sun=Math.min(portrait?178:182,Math.max(102,Math.round(h*(portrait?.188:.20))));
   let iam=Math.min(98,Math.max(72,Math.round(h*.112)));
+  // ResizeObserver can fire because our own responsive sizing changed the
+  // header. Reuse its settled dimensions instead of enlarging/shrinking the
+  // Sun in an endless observer feedback loop.
+  if(viewportKey===lastFitViewportKey&&lastFittedSun>0){
+    sun=Math.min(sun,lastFittedSun);
+    iam=Math.min(iam,lastFittedIam);
+  }
+  lastFitViewportKey=viewportKey;
   root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
 
   // Fit against actual element rectangles rather than only scrollHeight.
@@ -371,6 +381,7 @@ function fitViewport(){
         }
         break;
       }
+      lastFittedSun=sun;lastFittedIam=iam;
       if(fits){
         root.classList.remove('ge-access-overflow');
         return;
@@ -381,6 +392,7 @@ function fitViewport(){
 
   // On unusually short screens, large accessibility text or browser zoom,
   // never hide the bottom buttons. Use the normal document flow with scrolling.
+  lastFittedSun=sun;lastFittedIam=iam;
   root.style.setProperty('--ge-fit-sun',sun+'px');
   root.style.setProperty('--ge-fit-iam',iam+'px');
   const tooSmall=h<545||w<310;
