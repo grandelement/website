@@ -469,6 +469,7 @@ function installBackroomTabs(){
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
+    window.GE_BACKROOM_TAB_SELECTED?.(tab);
   }
   for(const btn of tabButtons){
     btn.addEventListener('click',()=>activate(btn.dataset.tab));
@@ -1318,7 +1319,10 @@ const backroomVaultManagers=(()=>{
       }))};
   }
   function parseTrack(path){
-    const parts=String(path).split('/'),filename=decodeURIComponent(parts[parts.length-1]||'').replace(/\.(mp3|m4a|wav|ogg|flac)$/i,'').replace(/_/g,' ');
+    const parts=String(path).split('/');
+    let filename=parts[parts.length-1]||'';
+    try{filename=decodeURIComponent(filename)}catch(_e){}
+    filename=filename.replace(/\.(mp3|m4a|wav|ogg|flac)$/i,'').replace(/_/g,' ');
     const albumDir=parts.find(x=>/Grand Element - \d{4}/.test(x))||'';
     return{track_path:path,track_title:filename,album:albumDir.replace(/^Grand Element - \d{4} - /,'')};
   }
@@ -1514,7 +1518,7 @@ const backroomVaultManagers=(()=>{
         try{await navigator.clipboard.writeText(code);accessStatus('Code copied. Keep it secure.');}
         catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
       });
-      window.GE_BACKROOM_ON_TAB?.(openTab);
+      window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
       accessModeUI();editPlaylist('');
     }
