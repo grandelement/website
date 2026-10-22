@@ -327,15 +327,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
     <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
   </div>
-  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Playlist records in the Vault do not by themselves restart the live station.</p>
+  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Saving a playlist does not restart the live station.</p>
 </section>
 
 <section data-br-tab="playlists">
   <h2>PLAYLISTS</h2>
-  <p>Edit durable GE music playlists in the Vault. The BLITZ DJ Booth remains responsible for the currently playing station and its queue.</p>
-  <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to connect to the GE Vault.</div>
+  <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
+  <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
-    <button type="button" id="brPlaylistsRefresh">REFRESH FROM VAULT</button>
+    <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
     <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
   </div>
@@ -345,11 +345,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
   <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
   <div id="brPlaylistTracks" class="brPlaylistTracks" role="list" aria-label="Playlist song order"></div>
-  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active in GE Vault (not an instant BLITZ station change)</span></label>
+  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active (does not immediately switch the live station)</span></label>
   <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC · Include this playlist in the listener's MUSIC button after PUBLISH LIVE</span></label>
-  <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private Vault playlists and access-code assignments stay private.</p>
+  <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private playlists and access-code assignments stay private.</p>
   <div class="backroomActionRow">
-    <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
+    <button type="button" class="primary" id="brPlaylistSave">SAVE PLAYLIST</button>
     <button type="button" id="brPlaylistDelete">DELETE PLAYLIST</button>
   </div>
 </section>
@@ -357,14 +357,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
   <p>Open or close this manager with the ACCESS CODES heading. Browse one issued code at a time, or create a new assignment.</p>
-  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to connect to the GE Vault.</div>
+  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to load saved codes.</div>
 
   <div class="brAccessToolbar">
     <button type="button" class="primary" id="brAccessNew">NEW ACCESS CODE</button>
     <button type="button" id="brAccessRefresh">REFRESH</button>
     <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
   </div>
-  <p class="brAccessNotice">The public Radio Gate does not yet redeem Vault codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
+  <p class="brAccessNotice">The public Radio Gate does not yet redeem private access codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
 
   <div id="brAccessBrowse" class="brAccessPanel">
     <h3>ISSUED CODES</h3>
@@ -1359,7 +1359,7 @@ const backroomVaultManagers=(()=>{
   const accessStatus=text=>status('brAccessStatus',text);
   const authReady=()=>{
     if(serverAuthenticated&&token())return true;
-    playlistStatus('The private Back Room publisher login is required to manage Vault playlists.');
+    playlistStatus('The private Back Room publisher login is required to manage playlists.');
     accessStatus('The private Back Room publisher login is required to manage secure access codes.');
     return false;
   };
@@ -1368,7 +1368,7 @@ const backroomVaultManagers=(()=>{
     const opt=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
     const response=await api(path,opt);
     const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
-    if(!response.ok||!data?.ok)throw Error(data?.error||('Vault request failed ('+response.status+').'));
+    if(!response.ok||!data?.ok)throw Error(data?.error||('Back Room request failed ('+response.status+').'));
     return data;
   }
   function playlistCopy(row){
@@ -1436,7 +1436,7 @@ const backroomVaultManagers=(()=>{
         if(moved){
           const old=playlistTracks.slice();
           playlistTracks=[...host.querySelectorAll('.brPlaylistTrack')].map(el=>old[Number(el.dataset.position)]).filter(Boolean);
-          renderTrackList();playlistStatus('Playlist order adjusted. Press SAVE TO VAULT to keep the new order.');
+          renderTrackList();playlistStatus('Playlist order adjusted. Press SAVE PLAYLIST to keep the new order.');
         }
       };
       row.addEventListener('pointerup',finish);row.addEventListener('pointercancel',finish);
@@ -1467,7 +1467,7 @@ const backroomVaultManagers=(()=>{
   function renderPlaylistChooser(){
     const sel=$('brPlaylistSelect');sel.replaceChildren();
     sel.appendChild(new Option('NEW PLAYLIST',''));
-    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE IN VAULT':''),p.id));
+    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE':''),p.id));
     sel.value=playlistEditingId;
   }
   function editPlaylist(id){
@@ -1481,14 +1481,14 @@ const backroomVaultManagers=(()=>{
   }
   async function refreshPlaylists(keep=''){
     if(!authReady())return;
-    playlistStatus('Loading playlists from GE Vault…');
+    playlistStatus('Loading playlists…');
     try{
       const data=await vaultAction('/manage/playlists');
       playlists=Array.isArray(data.items)?data.items:[];
       playlistLoaded=true;
       const target=keep||playlistEditingId;
       editPlaylist(playlists.some(x=>x.id===target)?target:'');
-      playlistStatus('GE Vault connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
+      playlistStatus('Back Room connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
     }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
   }
   async function savePlaylist(){
@@ -1498,20 +1498,20 @@ const backroomVaultManagers=(()=>{
     const publicInMusic=$('brPlaylistPublic').checked;
     const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
       tracks:playlistTracks,active:$('brPlaylistActive').checked}};
-    $('brPlaylistSave').disabled=true;playlistStatus('Saving to GE Vault…');
+    $('brPlaylistSave').disabled=true;playlistStatus('Saving playlist…');
     try{
       const data=await vaultAction('/manage/playlists',payload);
       const savedId=String(data.id||playlistEditingId||'');
       syncPublicPlaylist(savedId,name,playlistTracks,publicInMusic);
       await refreshPlaylists(savedId);
-      playlistStatus(publicInMusic?'Saved to GE Vault and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Saved to GE Vault. Public visibility updates require PUBLISH LIVE.');
+      playlistStatus(publicInMusic?'Playlist saved and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Playlist saved. Public visibility updates require PUBLISH LIVE.');
     }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
     finally{$('brPlaylistSave').disabled=false;}
   }
   async function deletePlaylist(){
     const id=playlistEditingId;if(!id||playlistLocked)return;
-    if(!confirm('Delete this playlist from GE Vault? Its history will be retained.'))return;
-    try{await vaultAction('/manage/playlists',{action:'delete',id});syncPublicPlaylist(id,'',[],false);playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from GE Vault. Press PUBLISH LIVE to remove its public listing.');}
+    if(!confirm('Delete this playlist? Its history will be retained.'))return;
+    try{await vaultAction('/manage/playlists',{action:'delete',id});syncPublicPlaylist(id,'',[],false);playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted. Press PUBLISH LIVE to remove its public listing.');}
     catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
   }
 
@@ -1673,7 +1673,7 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      accessStatus('GE Vault connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
+      accessStatus('Back Room connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
         ' · master '+(codeMaster.checked?'ON':'OFF')+'.');
     }catch(err){accessStatus('ACCESS CODES: '+String(err.message||err));}
   }
