@@ -78,6 +78,33 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   input[type=text],input[type=email],input[type=number],input[type=password],select,textarea{font-size:calc(12px * var(--scale));padding:8px}
   .check{padding:8px}
 }
+
+/* DJ Booth-style Back Room categories. The header stays compact and is the only sticky element. */
+.backroomTabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:4px 0 0}
+.backroomTabs button{font-size:calc(11px * var(--scale));padding:9px 4px;min-width:0;line-height:1.15;border-radius:10px;background:#0a263d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.backroomTabs button[aria-selected="true"]{background:#18709f;border-color:#8ce6ff;box-shadow:inset 0 0 0 1px rgba(164,231,255,.38)}
+.backroomTabs button:focus-visible,.backroomGroupToggle:focus-visible{outline:2px solid #9aeaff;outline-offset:2px}
+.backroomTabHelp{margin:5px 0 10px;color:var(--muted);font-size:calc(10px * var(--scale))}
+.backroomTabPanel[hidden]{display:none!important}
+.backroomTabPanel>section{margin:8px 0}
+.backroomGroupToggle{display:flex;align-items:center;justify-content:space-between;text-align:left;width:100%;background:none;border:0;padding:0;min-height:33px;color:var(--text);font-size:inherit;letter-spacing:.015em;border-radius:5px}
+.backroomGroupToggle:after{content:'+';font-weight:900;font-size:20px;color:#9fddfa;padding:0 4px}
+.backroomGroupToggle[aria-expanded="true"]:after{content:'−'}
+.backroomGroupContents[hidden]{display:none!important}
+.backroomGroupContents>p{margin:0 0 13px;color:var(--muted);font-size:calc(13px * var(--scale))}
+.backroomGamesGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.backroomGamesGrid .check{margin:0;cursor:pointer;min-width:0}
+.backroomGamesGrid .check span{margin:0;display:grid;gap:3px;min-width:0}
+.backroomGamesGrid .check b{font-size:calc(11px * var(--scale))}
+.backroomGamesGrid .check small{color:var(--muted);font-size:calc(9px * var(--scale));font-weight:600}
+@media(max-width:700px){
+ .backroomTabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .backroomTabs button{min-height:37px;padding:7px 3px;font-size:calc(10px * var(--scale))}
+ .backroomTabHelp{font-size:calc(9px * var(--scale))}
+ .backroomGroupContents>p{font-size:calc(10px * var(--scale))}
+ .backroomGamesGrid{grid-template-columns:1fr;gap:7px}
+ .backroomGamesGrid .check{padding:9px 10px}
+}
 </style>
 </head>
 <body>
@@ -110,13 +137,23 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </details>
 </header>
 
-<section>
+<nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room categories">
+  <button id="brTabHome" type="button" role="tab" data-tab="home" aria-selected="true">HOME</button>
+  <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="false">CONTENT</button>
+  <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
+  <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
+  <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false">MUSIC</button>
+  <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
+</nav>
+<p class="backroomTabHelp">Choose a category, then tap a section to open its controls.</p>
+
+<section data-br-tab="home">
   <h2>HIGH SCORES</h2>
   <p>Download a backup or begin a clean leaderboard.</p>
   <div class="actions"><a href="./high-scores.html" style="color:#a8edff;font-weight:900">BACKUP / RESET HIGH SCORES →</a></div>
 </section>
 
-<section>
+<section data-br-tab="home">
   <h2>SAVED PRESETS</h2>
   <p>Save the entire Back Room setup, including all text, album visibility and order, exact planet positions, Welcome and About placement, activity settings, games, first song, and Soul names.</p>
   <div class="grid">
@@ -130,7 +167,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section>
+<section data-br-tab="content">
   <h2>WELCOME SCREEN</h2>
   <p>Edit the wording here or place the actual welcome box directly on the website.</p>
   <div class="check"><input id="welcomeEnabled" type="checkbox"><span>Show welcome screen</span></div>
@@ -141,7 +178,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <p class="screenEditTip">To edit visually, use VIEW WEBSITE at the top of the Back Room.</p>
 </section>
 
-<section>
+<section data-br-tab="content">
   <h2>ABOUT</h2>
   <p>Edit the About wording in the same size, width, spacing, alignment and glow used on the website.</p>
   <div class="aboutEditorShell">
@@ -172,7 +209,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   
 </section>
 
-<section>
+<section data-br-tab="universe">
   <h2>ALBUM PLANETS</h2>
   <p>Choose the arrangement here, or move planets in VIEW WEBSITE → EDIT.</p>
   <div class="grid">
@@ -182,7 +219,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="albums"></div>
 </section>
 
-<section>
+<section data-br-tab="universe">
   <h2>UNIVERSE ACTIVITY</h2>
   <p>Smaller seconds means more activity.</p>
   <div class="grid3">
@@ -200,7 +237,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section>
+<section data-br-tab="universe">
   <h2>SOUL NAMES / PEOPLE</h2>
   <p>These names stay on this device. Put Mom or any other player name here.</p>
   <div class="grid3">
@@ -210,12 +247,21 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="actions"><button id="saveSoulNames" type="button">SAVE SOUL NAMES</button></div>
 </section>
 
-<section>
+<section data-br-tab="games">
   <h2>GAMES AVAILABLE</h2>
-  <div class="grid3"><div class="check"><input id="gamePoints" type="checkbox"><span>POINTS</span></div><div class="check"><input id="gamePockets" type="checkbox"><span>POCKETS</span></div><div class="check"><input id="gamePlanets" type="checkbox"><span>PLANETS</span></div></div>
+  <p>Choose which games appear in the public Game Control. Each game keeps its own options.</p>
+  <div class="backroomGamesGrid">
+    <label class="check"><input id="gamePoints" type="checkbox"><span><b>POINTS</b><small>Throw / Rubber Band</small></span></label>
+    <label class="check"><input id="gamePockets" type="checkbox"><span><b>POCKETS</b><small>Center Pool / 9 Ball</small></span></label>
+    <label class="check"><input id="gamePlanets" type="checkbox"><span><b>PLANETS</b><small>Marbles</small></span></label>
+    <label class="check"><input id="gameGolf" type="checkbox"><span><b>GOLF</b><small>33 holes / The Body opponent</small></span></label>
+    <label class="check"><input id="gameGravity" type="checkbox"><span><b>GRAVITY</b><small>33 tilt mazes</small></span></label>
+    <label class="check"><input id="gameBody" type="checkbox"><span><b>THE BODY</b><small>33 flight courses</small></span></label>
+    <label class="check"><input id="gameFlight" type="checkbox"><span><b>FLIGHT</b><small>Assembly draft</small></span></label>
+  </div>
 </section>
 
-<section id="radioGateTimingSection">
+<section id="radioGateTimingSection" data-br-tab="gate">
   <h2>INNER FREQUENCY GATE · TIMING & REVERB</h2>
   <p>Controls both the Radio Gate and the 33:33 song-preview Gate. After the Sun reaches the center, wait the Hold time, then fade to complete silence. Reverb grows from the first water waves all the way to the final cutoff. SAVE keeps a draft; PUBLISH LIVE applies these settings to new listening sessions.</p>
   <div class="grid3">
@@ -231,7 +277,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="actions"><a href="../radio/" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST RADIO GATE →</a><a href="../radio/preview-lab.html" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST MUSIC GATE →</a></div>
 </section>
 
-<section>
+<section data-br-tab="music">
   <h2>WEBSITE STARTUP MUSIC</h2>
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
@@ -286,6 +332,57 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
+
+function installBackroomTabs(){
+  const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
+  const categories=['home','content','universe','games','music','gate'],panels=new Map();
+  const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
+  const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.nextElementSibling.insertAdjacentElement('afterend',panelHost);
+  for(const category of categories){
+    const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
+    panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
+    panelHost.appendChild(panel);panels.set(category,panel);
+  }
+  for(const [i,section] of sections.entries()){
+    const category=section.dataset.brTab,panel=panels.get(category);if(!panel)continue;
+    panel.appendChild(section);
+    const heading=section.querySelector(':scope > h2');if(!heading)continue;
+    const label=heading.textContent.trim();heading.textContent='';
+    const trigger=document.createElement('button');trigger.className='backroomGroupToggle';trigger.type='button';
+    trigger.textContent=label;trigger.setAttribute('aria-expanded','false');
+    const contents=document.createElement('div');contents.className='backroomGroupContents';contents.id='brGroupContents-'+i;
+    trigger.setAttribute('aria-controls',contents.id);heading.appendChild(trigger);
+    while(heading.nextSibling)contents.appendChild(heading.nextSibling);
+    section.appendChild(contents);contents.hidden=true;
+    trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
+  }
+  function activate(tab,focus=false){
+    if(!panels.has(tab))tab='home';
+    for(const [name,panel]of panels){panel.hidden=name!==tab;}
+    for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
+    try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
+  }
+  for(const btn of tabButtons){
+    btn.addEventListener('click',()=>activate(btn.dataset.tab));
+    btn.addEventListener('keydown',e=>{
+      if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
+      e.preventDefault();const at=categories.indexOf(btn.dataset.tab);
+      const idx=e.key==='Home'?0:e.key==='End'?categories.length-1:(at+(e.key==='ArrowRight'?1:-1)+categories.length)%categories.length;
+      activate(categories[idx],true);
+    });
+  }
+  // Show one useful section when first entering each category.
+  for(const [name,panel] of panels){
+    const sections=[...panel.querySelectorAll(':scope > section')];
+    const first=name==='universe'?sections.find(s=>s.querySelector('h2')?.textContent.includes('UNIVERSE ACTIVITY')):sections[0];
+    const toggle=first?.querySelector('.backroomGroupToggle');
+    toggle?.click();
+  }
+  let initial='home';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'home'}catch(_e){}
+  activate(initial);
+}
+installBackroomTabs();
+
 const WORK_KEY='GE_BACKROOM_TEST_CONFIG_V1';
 const TEXT_KEY='GE_BACKROOM_TEXT_SIZE_V1';
 const PROFILE_KEY='GE_GAME_PLAYER_PROFILES_V1';
@@ -604,7 +701,9 @@ function populate(){
   field('welcomeOpacity',cfg.visual.welcome.panelOpacity);$('welcomeOpacityValue').textContent=cfg.visual.welcome.panelOpacity+'%';
   {const rawAbout=cfg.about?.html||(introArrayToHtml(cfg.about?.intro||[]));const shownAbout=Number(cfg.about?.richTextVersion)>=2?rawAbout:migrateLegacyAboutHtml(rawAbout);$('aboutIntro').innerHTML=cleanAboutHtml(shownAbout)}field('aboutOpacity',cfg.visual.about.panelOpacity);$('aboutOpacityValue').textContent=cfg.visual.about.panelOpacity+'%';
   field('planetLayout',cfg.albums.layout);numberIds.forEach(id=>field(id,cfg.easySettings?.[id]??''));
-  checked('gamePoints',cfg.games?.points!==false);checked('gamePockets',cfg.games?.pockets!==false);checked('gamePlanets',cfg.games?.planets!==false);
+  for(const [id,key] of Object.entries({gamePoints:'points',gamePockets:'pockets',gamePlanets:'planets',gameGolf:'golf',gameGravity:'gravity',gameBody:'body',gameFlight:'flight'})){
+    checked(id,cfg.games?.[key]!==false);
+  }
   {
     const gate=cfg.gateTiming||{};
     for(const [key,[id,,,fallback]] of Object.entries(gateFields)){
@@ -633,7 +732,10 @@ function collect(){
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
-  cfg.games={points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked};
+  cfg.games={...(cfg.games||{}),
+    points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked,
+    golf:$('gameGolf').checked,gravity:$('gameGravity').checked,body:$('gameBody').checked,flight:$('gameFlight').checked
+  };
   cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
