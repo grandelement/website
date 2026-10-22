@@ -1391,7 +1391,7 @@ const backroomVaultManagers=(()=>{
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
       catalog=(manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)).map(parseTrack);
-      renderCatalog();
+      renderCatalog();accessSongOptions();assignedSongsUI();
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
@@ -1460,85 +1460,201 @@ const backroomVaultManagers=(()=>{
     try{await vaultAction('/manage/playlists',{action:'delete',id});playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from the Vault; prior version retained.');}
     catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
   }
+
+  // One selected code and one editor: no repeated control rows or permanent open forms.
   const codeMaster=$('brAccessMaster');
+  let selectedCodeId='',editingCodeId='',assignedSongPaths=[],visibleCodes=[];
+  const scopeBoxes=()=>[...document.querySelectorAll('[name="brAccessScope"]')];
   function accessModeUI(){
     const mode=$('brAccessMode').value;
     $('brAccessDurationRow').hidden=!['first_use','activation'].includes(mode);
     $('brAccessFixedRow').hidden=mode!=='fixed';
   }
   function formatTime(unix){
-    if(!unix)return'Never / not started';
+    if(!unix)return'Not started / never';
     try{return new Date(Number(unix)*1000).toLocaleString()}catch(_e){return String(unix)}
   }
   function statusCode(row){
     if(row.revoked)return'Revoked';
     if(!row.enabled)return'Suspended';
-    if(row.expires_at&&row.expires_at<=Date.now()/1000)return'Expired';
+    if(row.expires_at&&Number(row.expires_at)<=Date.now()/1000)return'Expired';
     if(row.max_uses>0&&row.use_count>=row.max_uses)return'Use limit reached';
     return'Active';
   }
-  function renderAccessCodes(){
-    const host=$('brAccessList');host.replaceChildren();
-    if(!codeRows.length){host.appendChild(create('p','No access codes have been issued.'));return;}
-    for(const row of codeRows){
-      const wrapper=create('div','','backroomCodeEntry');
-      wrapper.appendChild(create('strong',row.label+' · …'+row.code_hint));
-      const expiry=row.duration_mode==='first_use'&&!row.first_used_at
-        ?'Expiration starts at first use':row.duration_mode==='activation'&&!row.activated_at
-        ?'Expiration starts on activation':formatTime(row.expires_at||row.fixed_expires_at);
-      wrapper.appendChild(create('small',statusCode(row)+' · '+(row.scopes||[]).join(', ').toUpperCase()+
-        ' · '+row.use_count+'/'+(row.max_uses||'∞')+' uses · '+expiry));
-      const controls=create('div','','backroomActionRow');
-      if(!row.revoked){
-        controls.appendChild(btn(row.enabled?'SUSPEND':'ACTIVATE',async()=>{
-          const action=row.enabled?'suspend':'activate';
-          try{await vaultAction('/manage/access-codes',{action,id:row.id});await refreshCodes();}
-          catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
-        }));
-        controls.appendChild(btn('REVOKE',async()=>{
-          if(!confirm('Permanently revoke this code? It cannot be restored.'))return;
-          try{await vaultAction('/manage/access-codes',{action:'revoke',id:row.id});await refreshCodes();}
-          catch(err){accessStatus('REVOKE FAILED: '+String(err.message||err));}
-        }));
-      }
-      wrapper.appendChild(controls);host.appendChild(wrapper);
+  function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
+  function accessPlaylistOptions(){
+    const select=$('brAccessPlaylist'),current=select.value;
+    select.replaceChildren(new Option('NO SPECIFIC PLAYLIST · ALL ALLOWED MUSIC',''));
+    playlists.forEach(p=>select.appendChild(new Option(p.name,p.id)));
+    select.value=[...select.options].some(o=>o.value===current)?current:'';
+  }
+  function accessSongOptions(){
+    const sel=$('brAccessSongSelect'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
+    const found=catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(query));
+    sel.replaceChildren(new Option(found.length?'CHOOSE SONG · '+found.length+' MATCHES':'NO MATCHES',''));
+    found.slice(0,150).forEach(x=>sel.appendChild(new Option(x.track_title+(x.album?' · '+x.album:''),x.track_path)));
+  }
+  function accessSongTitle(path){
+    const match=catalog.find(x=>x.track_path===path);
+    return match?(match.track_title+(match.album?' · '+match.album:'')):parseTrack(path).track_title;
+  }
+  function assignedSongsUI(){
+    const host=$('brAccessSongs');host.replaceChildren();
+    if(!assignedSongPaths.length){host.appendChild(create('p','No individual songs assigned.'));return;}
+    for(const path of assignedSongPaths){
+      const row=create('div','','brAccessSongRow');
+      row.appendChild(create('span',accessSongTitle(path)));
+      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);assignedSongsUI()}));
+      host.appendChild(row);
     }
   }
-  async function refreshCodes(){
+  function showCodeBrowser(){
+    $('brAccessBrowse').hidden=false;
+    $('brAccessEditor').hidden=true;
+    editingCodeId='';
+  }
+  function showCodeEditor(id=''){
+    const row=codeRows.find(x=>String(x.id)===String(id))||null;
+    if(row?.revoked){accessStatus('A revoked code cannot be edited. Create a new one.');return;}
+    editingCodeId=row?.id||'';
+    $('brAccessBrowse').hidden=true;
+    $('brAccessEditor').hidden=false;
+    $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
+    $('brAccessLabel').value=row?.label||'';
+    const scopes=row?row.scopes:['radio'];
+    scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
+    $('brAccessMode').value=row?.duration_mode||'first_use';
+    $('brAccessHours').value=row?.duration_seconds?Math.max(1,Math.round(row.duration_seconds/3600)):168;
+    const fixed=row?.fixed_expires_at;
+    if(fixed){
+      const d=new Date(Number(fixed)*1000);
+      const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+      $('brAccessFixed').value=local.toISOString().slice(0,16);
+    }else $('brAccessFixed').value='';
+    $('brAccessMaxUses').value=row?.max_uses||0;
+    $('brAccessStartNow').checked=true;
+    $('brAccessStartRow').hidden=!!row;
+    $('brAccessIssue').hidden=!!row;
+    $('brAccessSave').hidden=!row;
+    assignedSongPaths=[...(row?.track_paths||[])];
+    accessPlaylistOptions();
+    $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
+    accessSongOptions();assignedSongsUI();accessModeUI();
+    $('brAccessOneTime').hidden=true;
+  }
+  function renderAccessCodes(){
+    const q=String($('brAccessSearch').value||'').trim().toLowerCase();
+    visibleCodes=codeRows.filter(row=>{
+      const hay=[row.label,row.code_hint,...(row.scopes||[]),...(row.playlist_ids||[]),
+        ...(row.track_paths||[])].join(' ').toLowerCase();
+      return !q||hay.includes(q);
+    });
+    const sel=$('brAccessSelect');sel.replaceChildren();
+    if(!visibleCodes.some(x=>x.id===selectedCodeId))selectedCodeId=visibleCodes[0]?.id||'';
+    visibleCodes.forEach(row=>sel.appendChild(new Option(
+      row.label+' · …'+row.code_hint+' · '+statusCode(row),row.id
+    )));
+    sel.value=selectedCodeId;
+    const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
+    $('brAccessPosition').textContent=visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0';
+    $('brAccessPrev').disabled=idx<=0;
+    $('brAccessNext').disabled=idx<0||idx===visibleCodes.length-1;
+    const selected=selectedCode(),host=$('brAccessList');host.replaceChildren();
+    const disabled=!selected;
+    $('brAccessEdit').disabled=disabled||!!selected?.revoked;
+    $('brAccessToggle').disabled=disabled||!!selected?.revoked;
+    $('brAccessRevoke').disabled=disabled||!!selected?.revoked;
+    $('brAccessDelete').disabled=disabled;
+    $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
+    if(!selected){
+      host.appendChild(create('p',q?'No codes match your search.':'No access codes issued. Choose NEW ACCESS CODE.'));
+      return;
+    }
+    const wrapper=create('div','','backroomCodeEntry');
+    wrapper.appendChild(create('strong',selected.label+' · …'+selected.code_hint));
+    const expiry=selected.duration_mode==='first_use'&&!selected.first_used_at?'Starts at first redemption':
+      selected.duration_mode==='activation'&&!selected.activated_at?'Starts on activation':
+      selected.duration_mode==='none'?'Never':formatTime(selected.expires_at||selected.fixed_expires_at);
+    const meta=[
+      statusCode(selected),selected.use_count+'/'+(selected.max_uses||'∞')+' redemptions',
+      'Expires: '+expiry,'Created: '+formatTime(selected.created_at)
+    ].join(' · ');
+    wrapper.appendChild(create('small',meta));
+    wrapper.appendChild(create('p','PERMISSIONS · '+(selected.scopes||[]).join(' · ').toUpperCase()));
+    const names=(selected.playlist_ids||[]).map(id=>playlists.find(p=>p.id===id)?.name||id);
+    wrapper.appendChild(create('p','PLAYLIST · '+(names.length?names.join(', '):'No playlist restriction')));
+    const songs=(selected.track_paths||[]).map(accessSongTitle);
+    wrapper.appendChild(create('p','SONGS · '+(songs.length?songs.join(' / '):'No individual song restriction')));
+    host.appendChild(wrapper);
+  }
+  async function refreshCodes(preferId=''){
     if(!authReady())return;
-    accessStatus('Loading access codes securely…');
+    accessStatus('Loading issued codes…');
     try{
-      const data=await vaultAction('/manage/access-codes');
-      codeRows=Array.isArray(data.items)?data.items:[];
-      accessLoaded=true;codeMaster.checked=data.master_enabled!==false;
+      const [codes,pls]=await Promise.all([
+        vaultAction('/manage/access-codes'),
+        vaultAction('/manage/playlists').catch(()=>null)
+      ]);
+      codeRows=Array.isArray(codes.items)?codes.items:[];
+      if(pls?.items){playlists=pls.items;accessPlaylistOptions();}
+      accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
+      if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      accessStatus('GE Vault connected · '+codeRows.length+' issued code'+(codeRows.length===1?'':'s')+
-        ' · master switch '+(codeMaster.checked?'ON':'OFF')+'.');
+      accessStatus('GE Vault connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
+        ' · master '+(codeMaster.checked?'ON':'OFF')+'.');
     }catch(err){accessStatus('ACCESS CODES: '+String(err.message||err));}
   }
-  async function issueCode(){
+  function codePayload(){
     const label=$('brAccessLabel').value.trim();
-    const scopes=[...document.querySelectorAll('[name="brAccessScope"]:checked')].map(x=>x.value);
-    if(!label){accessStatus('Enter a name for this code.');return;}
-    if(!scopes.length){accessStatus('Choose at least one permission.');return;}
+    const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
+    if(!label)throw Error('Enter a name for this code.');
+    if(!scopes.length)throw Error('Choose at least one permission.');
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
-    const body={action:'issue',label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
-      fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),activate_now:$('brAccessStartNow').checked};
-    const button=$('brAccessIssue');button.disabled=true;accessStatus('Creating secure code in GE Vault…');
-    $('brAccessOneTime').hidden=true;$('brAccessCodeValue').textContent='';
+    if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
+    return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
+      fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
+      activate_now:$('brAccessStartNow').checked,
+      playlist_ids:$('brAccessPlaylist').value?[$('brAccessPlaylist').value]:[],
+      track_paths:assignedSongPaths.slice()};
+  }
+  async function saveCode(isEdit){
+    const button=$(isEdit?'brAccessSave':'brAccessIssue');
+    let payload;
+    try{payload=codePayload()}catch(e){accessStatus(String(e.message||e));return;}
+    if(isEdit&&!editingCodeId)return;
+    button.disabled=true;
+    accessStatus(isEdit?'Saving code assignments…':'Generating secure code…');
     try{
-      const data=await vaultAction('/manage/access-codes',body);
-      $('brAccessCodeValue').textContent=data.code;
-      $('brAccessOneTime').hidden=false;
-      await refreshCodes();
-      accessStatus('SECURE CODE CREATED. Copy it now. For public Radio unlock, the Gate still requires separate entitlement integration.');
-    }catch(err){accessStatus('CREATE FAILED: '+String(err.message||err));}
+      const data=await vaultAction('/manage/access-codes',
+        {...payload,action:isEdit?'edit':'issue',...(isEdit?{id:editingCodeId}:{})});
+      const codeId=data.id||editingCodeId;
+      if(!isEdit){
+        $('brAccessCodeValue').textContent=data.code||'';
+        $('brAccessOneTime').hidden=false;
+      }
+      showCodeBrowser();
+      await refreshCodes(codeId);
+      accessStatus(isEdit?'CODE UPDATED. The secret and usage history are unchanged.':
+        'CODE CREATED. Copy the secret above now; it cannot be retrieved later.');
+      if(!isEdit)$('brAccessOneTime').hidden=false;
+    }catch(err){accessStatus('SAVE FAILED: '+String(err.message||err));}
     finally{button.disabled=false;}
+  }
+  async function codeAction(action){
+    const row=selectedCode();if(!row)return;
+    if(action==='delete'&&!confirm('Delete '+row.label+' from active code management? Access ends immediately; an audit record remains.'))return;
+    if(action==='revoke'&&!confirm('Permanently revoke '+row.label+'? This cannot be undone.'))return;
+    try{
+      await vaultAction('/manage/access-codes',{action,id:row.id});
+      if(action==='delete')selectedCodeId='';
+      await refreshCodes(selectedCodeId);
+      accessStatus('CODE '+action.toUpperCase()+' COMPLETED.');
+    }catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
   }
   async function toggleMaster(){
     const desired=codeMaster.checked;
-    if(!desired&&!confirm('Disable ALL GE access codes? This will not affect the existing Radio Gate.')){
+    if(!desired&&!confirm('Disable ALL access codes? The existing public Radio Gate operates independently.')){
       codeMaster.checked=true;return;
     }
     codeMaster.disabled=true;
@@ -1569,7 +1685,20 @@ const backroomVaultManagers=(()=>{
       $('brPlaylistDelete').addEventListener('click',()=>void deletePlaylist());
       $('brAccessMode').addEventListener('change',accessModeUI);
       $('brAccessRefresh').addEventListener('click',()=>void refreshCodes());
-      $('brAccessIssue').addEventListener('click',()=>void issueCode());
+      $('brAccessNew').addEventListener('click',()=>showCodeEditor());
+      $('brAccessEdit').addEventListener('click',()=>{if(selectedCode())showCodeEditor(selectedCodeId);});
+      $('brAccessCancel').addEventListener('click',showCodeBrowser);
+      $('brAccessIssue').addEventListener('click',()=>void saveCode(false));
+      $('brAccessSave').addEventListener('click',()=>void saveCode(true));
+      $('brAccessSearch').addEventListener('input',renderAccessCodes);
+      $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
+      $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
+      $('brAccessNext').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>=0&&i<visibleCodes.length-1){selectedCodeId=visibleCodes[i+1].id;renderAccessCodes();}});
+      $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
+      $('brAccessRevoke').addEventListener('click',()=>void codeAction('revoke'));
+      $('brAccessDelete').addEventListener('click',()=>void codeAction('delete'));
+      $('brAccessSongSearch').addEventListener('input',accessSongOptions);
+      $('brAccessAddSong').addEventListener('click',()=>{const path=$('brAccessSongSelect').value;if(path&&!assignedSongPaths.includes(path)){assignedSongPaths.push(path);assignedSongsUI();}});
       codeMaster.addEventListener('change',()=>void toggleMaster());
       $('brAccessCopy').addEventListener('click',async()=>{
         const code=$('brAccessCodeValue').textContent||'';
@@ -1579,7 +1708,7 @@ const backroomVaultManagers=(()=>{
       });
       window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
-      accessModeUI();editPlaylist('');
+      accessModeUI();editPlaylist('');accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
     }
     playlistLoaded=false;accessLoaded=false;
     const current=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
