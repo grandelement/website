@@ -4743,6 +4743,7 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
     return Promise.resolve();
   }
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
+  if(userGesture)liveState.wantedPlayback=true;
   if(radioStartInFlight){
     // Safari can leave automatic play pending until a real gesture.
     // Let ONE trusted tap call play() on the EXISTING audio element;
@@ -5357,7 +5358,7 @@ function resumeAudio(){
   audio.muted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
   if(state.live){
-    void requestRadioStart();
+    void requestRadioStart({userGesture:true});
     return;
   }
   void window.GEResumeLiveEQ?.();
@@ -5580,7 +5581,7 @@ playBtn?.addEventListener('click',()=>{
   }
   state.userStarted=true;
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
-    void requestRadioStart();return;
+    void requestRadioStart({userGesture:true});return;
   }
   if(audio.paused)resumeAudio();else requestUserPause();
 });
@@ -5836,7 +5837,7 @@ window.addEventListener('offline',()=>{
 });
 window.addEventListener('online',()=>{
   if(document.hidden)return;
-  if(state.live && !window.GEIAmStudio?.isMusicStopped?.() && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
+  if(state.live && liveState.wantedPlayback && !window.GEIAmStudio?.isMusicStopped?.() && !recentUserPause() && (audio.paused||liveState.backgroundReconnectNeeded)){
     liveState.backgroundReconnectNeeded=false;
     void requestRadioStart();
   }
