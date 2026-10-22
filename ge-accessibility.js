@@ -355,12 +355,15 @@ function fitViewport(){
     const top=find('#musicGroup'),bottom=find('#bgGroup'),center=find('#iamLaunchRow');
     if(top&&bottom&&center){
       root.classList.add('ge-radio-iam-midpoint');
-      const gapGoal=18;
+      const gapGoal=26; // room beyond the pulsing I AM ring, not just its button border
       let fits=false;
       for(let attempt=0;attempt<16;attempt++){
         root.style.setProperty('--ge-fit-sun',sun+'px');
         root.style.setProperty('--ge-fit-iam',iam+'px');
-        const topBound=top.getBoundingClientRect().bottom;
+        const clock=find('#radioPreviewClock');
+        const clockVisible=clock&&!clock.hidden&&clock.getClientRects().length>0;
+        const topBound=Math.max(top.getBoundingClientRect().bottom,
+          clockVisible?clock.getBoundingClientRect().bottom:0);
         const bottomBound=bottom.getBoundingClientRect().top;
         const centerRect=center.getBoundingClientRect();
         const gapAbove=centerRect.top-topBound;
