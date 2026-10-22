@@ -320,7 +320,7 @@ export default {
         return json({ok:false,error:'Unknown playlist action.'},400,cors);
       }
       // The Vault validates scope, limits, entropy, HMAC hashes and authorization.
-      if(!['issue','activate','suspend','revoke','master'].includes(String(body.action||''))){
+      if(!['issue','edit','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
         return json({ok:false,error:'Unknown access-code action.'},400,cors);
       }
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
