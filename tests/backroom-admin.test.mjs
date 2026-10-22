@@ -18,10 +18,19 @@ for(const [i,s]of inlineScripts.entries()){
   if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
-const tabs=['home','content','universe','games','radio','playlists','access','gate','scores','presets'];
+const tabs=['content','universe','games','radio','playlists','access','gate','scores','presets'];
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
+}
+assert.ok(!back.includes('QUICK ACCESS'),'Redundant Quick Access panel must remain removed');
+assert.ok(!back.includes('id="brTabHome"'),'Empty HOME tab must remain removed');
+assert.ok(back.includes("if(initial==='home')initial='content'"),'Old saved HOME tab must migrate to CONTENT');
+assert.ok(back.includes("const categories=['content','universe'"),'CONTENT should be the first Back Room category');
+assert.ok(back.includes("#backroomMain .topControls button.publish{"),'Main Back Room buttons have independent readable typography');
+assert.ok(back.includes("font-size:clamp(15px,calc(17px * var(--scale)),18px)"),'Main action text is enlarged from tiny mobile setting');
+for(const id of ['viewWebsite','save','publishLive']){
+  assert.ok(back.includes('id="'+id+'"'),'Keep primary Back Room action '+id);
 }
 for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlaylistTracks',
   'brAccessIssue','brAccessMaster','brAccessList','brAccessMode','brAccessMaxUses',
