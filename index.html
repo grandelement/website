@@ -21,6 +21,7 @@ Preserve together:
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<script>try{window.GE_A11Y_ZOOM=localStorage.getItem('GE_ACCESS_ZOOM_V1')==='1'}catch(_e){window.GE_A11Y_ZOOM=false}</script>
 <script>
 (function(){
   try{
@@ -2560,16 +2561,18 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   if(window.__GE_HARD_TOUCHLOCK__) return;
   window.__GE_HARD_TOUCHLOCK__=true;
   const SCROLLABLE='#about,.geGameControlCard,.gameOptionsPanel,.musicOptionsPanel,.miniPlayer,.albumScanCard';
+  const zoomAllowed=()=>window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active')&&!document.body.classList.contains('ge-body-race-active');
   const gameCardFor=t=>t?.closest?.('.geGameControlCard')||null;
   let box=null,lastY=0;
   const findBox=t=>t?.closest?.(SCROLLABLE)||null;
   const snapRoot=()=>{
+    if(zoomAllowed())return;
     try{if(window.scrollX||window.scrollY)window.scrollTo(0,0);}catch(_e){}
     if(document.documentElement)document.documentElement.scrollTop=0;
     if(document.body)document.body.scrollTop=0;
   };
   document.addEventListener('touchstart',e=>{
-    if(!e.touches?.length)return;
+    if(zoomAllowed()||!e.touches?.length)return;
     box=findBox(e.target);
     lastY=e.touches[0].clientY;
     if(gameCardFor(e.target)){box=null;return;}
@@ -2579,7 +2582,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
     if((e.touches.length>1 || !nativeControl) && e.cancelable)e.preventDefault();
   },{passive:false,capture:true});
   document.addEventListener('touchmove',e=>{
-    if(!e.touches?.length)return;
+    if(zoomAllowed()||!e.touches?.length)return;
     if(gameCardFor(e.target))return;
     const y=e.touches[0].clientY,dy=y-lastY; lastY=y;
     // Range controls keep their native thumb behavior, but touch-action:none prevents page pan.
@@ -2594,7 +2597,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   document.addEventListener('touchend',()=>{box=null;snapRoot();},{passive:true,capture:true});
   document.addEventListener('touchcancel',()=>{box=null;snapRoot();},{passive:true,capture:true});
   for(const type of ['gesturestart','gesturechange','gestureend']){
-    document.addEventListener(type,e=>{if(e.cancelable)e.preventDefault();},{passive:false,capture:true});
+    document.addEventListener(type,e=>{if(!zoomAllowed()&&e.cancelable)e.preventDefault();},{passive:false,capture:true});
   }
   window.addEventListener('scroll',snapRoot,{passive:true,capture:true});
   window.addEventListener('pageshow',snapRoot,{passive:true});
@@ -11446,17 +11449,19 @@ const GE_GAME = (()=>{
   const blockUniverseSelection=e=>{if(e.target?.closest?.('#planets,#sunWrap,#gameAimGuide,#fx,#fxFront'))e.preventDefault();};
   document.addEventListener('selectstart',blockUniverseSelection,{capture:true});
   document.addEventListener('contextmenu',blockUniverseSelection,{capture:true});
-  for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>e.preventDefault(),{passive:false,capture:true});
-  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false,capture:true});
+  for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>{if(!window.GE_A11Y_ZOOM||document.body.classList.contains('game-mode-active'))e.preventDefault()},{passive:false,capture:true});
+  document.addEventListener('dblclick',e=>{if(!window.GE_A11Y_ZOOM||document.body.classList.contains('game-mode-active'))e.preventDefault();},{passive:false,capture:true});
   // v13 installs the stronger capture-phase lock in <head>. Keep the legacy handler only as a fallback.
   if(!window.__GE_HARD_TOUCHLOCK__){
     const GE_SCROLLABLE_TOUCH='#about,.geGameControlCard,.gameOptionsPanel,.musicOptionsPanel,.miniPlayer,.albumScanCard';
     let geTouchStartY=0;
     document.addEventListener('touchstart',e=>{
+      if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
       if(e.touches?.length>1){e.preventDefault();return;}
       if(e.touches?.length===1)geTouchStartY=e.touches[0].clientY;
     },{passive:false,capture:true});
     document.addEventListener('touchmove',e=>{
+      if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
       if(!e.touches?.length)return;
       if(e.touches.length>1){e.preventDefault();return;}
       const scrollBox=e.target?.closest?.(GE_SCROLLABLE_TOUCH);
@@ -11471,6 +11476,7 @@ const GE_GAME = (()=>{
   // Final viewport guard: the document itself is never a scroll surface. This also protects
   // the fixed background and planet coordinate system from Safari rubber-band/page movement.
   const geLockDocumentScroll=()=>{
+    if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
     if((window.scrollX||0)!==0||(window.scrollY||0)!==0)window.scrollTo(0,0);
     if(document.documentElement.scrollTop)document.documentElement.scrollTop=0;
     if(document.body.scrollTop)document.body.scrollTop=0;
