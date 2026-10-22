@@ -14212,7 +14212,11 @@ body:not(.ge-body-race-active) #moon {
   const BLEND_MS=Math.max(1000,Number(settings.AMBIENT_ORBIT_BLEND_MS)||5600);
   const GRAVITY_MIN=Math.max(0,Math.min(.30,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MIN)||.05));
   const GRAVITY_MAX=Math.max(GRAVITY_MIN,Math.min(.35,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MAX)||.16));
-  const ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
+  // Orbit identity is independent of album release/display order.
+  // Keep the original nine orbital indices intact: changing these would move
+  // existing planets to different ellipses, reverse directions and change speeds.
+  // Aether is the tenth planet and gets its own orbit at the end of this map.
+  const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Aether'];
   const ORDER_KEYS=ORDER.map(key);
 
   /* Each album owns a different universe-sized ellipse. These are intentionally not
@@ -14226,7 +14230,10 @@ body:not(.ge-body-race-active) #moon {
     {cx:.43,cy:.46,rx:.44,ry:.32,deg:-30,dir: 1},
     {cx:.57,cy:.48,rx:.35,ry:.24,deg: 44,dir:-1},
     {cx:.46,cy:.42,rx:.42,ry:.40,deg:-63,dir: 1},
-    {cx:.54,cy:.57,rx:.39,ry:.35,deg: 24,dir: 1}
+    {cx:.54,cy:.57,rx:.39,ry:.35,deg: 24,dir: 1},
+    // Aether: a distinct tenth, tilted elliptical path with the same
+    // drag, gravity, edge-fit and eased orbit-rejoin behavior as every album.
+    {cx:.49,cy:.51,rx:.40,ry:.33,deg:-29,dir:-1}
   ];
 
   const planetState=new WeakMap(),held=new WeakSet();
