@@ -346,6 +346,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
   <div id="brPlaylistTracks" class="brPlaylistTracks" aria-label="Playlist song order"></div>
   <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active in GE Vault (not an instant BLITZ station change)</span></label>
+  <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC · Include this playlist in the listener's MUSIC button after PUBLISH LIVE</span></label>
+  <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private Vault playlists and access-code assignments stay private.</p>
   <div class="backroomActionRow">
     <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
     <button type="button" id="brPlaylistDelete">DELETE PLAYLIST</button>
@@ -1412,6 +1414,26 @@ const backroomVaultManagers=(()=>{
     });
     if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Dragging is not required; use ↑ and ↓ to set the exact order.'));
   }
+
+  // Public catalog snapshot contains only approved titles and music file paths,
+  // never private Vault records, user data, access codes or redemption history.
+  function publicPlaylists(){
+    cfg.music=cfg.music||{};
+    if(!Array.isArray(cfg.music.publicPlaylists))cfg.music.publicPlaylists=[];
+    return cfg.music.publicPlaylists;
+  }
+  function syncPublicPlaylist(id,name,tracks,visible){
+    if(!id)return;
+    const list=publicPlaylists().filter(p=>String(p.id)!==String(id));
+    if(visible){
+      const paths=[...new Set(tracks.map(x=>String(x.track_path||'')).filter(
+        path=>path.startsWith('ge-music/music/')&&['.mp3','.m4a','.ogg','.wav'].some(ext=>path.toLowerCase().endsWith(ext))
+      ))];
+      if(paths.length)list.push({id:String(id),name:String(name).slice(0,100),songs:paths});
+    }
+    cfg.music.publicPlaylists=list;
+    mark();
+  }
   function renderPlaylistChooser(){
     const sel=$('brPlaylistSelect');sel.replaceChildren();
     sel.appendChild(new Option('NEW PLAYLIST',''));
@@ -1423,6 +1445,7 @@ const backroomVaultManagers=(()=>{
     const p=playlistCopy(found);
     playlistEditingId=p.id;playlistTracks=p.tracks;playlistLocked=p.locked;
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
+    $('brPlaylistPublic').checked=!!p.id&&publicPlaylists().some(row=>String(row.id)===String(p.id));
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     renderPlaylistChooser();renderTrackList();
   }
@@ -1442,20 +1465,23 @@ const backroomVaultManagers=(()=>{
     const name=$('brPlaylistName').value.trim();
     if(!name){playlistStatus('Enter the playlist name.');return;}
     if(!playlistTracks.length){playlistStatus('Add at least one song before saving.');return;}
+    const publicInMusic=$('brPlaylistPublic').checked;
     const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
       tracks:playlistTracks,active:$('brPlaylistActive').checked}};
     $('brPlaylistSave').disabled=true;playlistStatus('Saving to GE Vault…');
     try{
       const data=await vaultAction('/manage/playlists',payload);
-      await refreshPlaylists(data.id||playlistEditingId);
-      playlistStatus('Playlist saved permanently in GE Vault. Select it in the GE DJ Booth to change the playing BLITZ station.');
+      const savedId=String(data.id||playlistEditingId||'');
+      syncPublicPlaylist(savedId,name,playlistTracks,publicInMusic);
+      await refreshPlaylists(savedId);
+      playlistStatus(publicInMusic?'Saved to GE Vault and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Saved to GE Vault. Public visibility updates require PUBLISH LIVE.');
     }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
     finally{$('brPlaylistSave').disabled=false;}
   }
   async function deletePlaylist(){
     const id=playlistEditingId;if(!id||playlistLocked)return;
     if(!confirm('Delete this playlist from GE Vault? Its history will be retained.'))return;
-    try{await vaultAction('/manage/playlists',{action:'delete',id});playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from the Vault; prior version retained.');}
+    try{await vaultAction('/manage/playlists',{action:'delete',id});syncPublicPlaylist(id,'',[],false);playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from GE Vault. Press PUBLISH LIVE to remove its public listing.');}
     catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
   }
 
