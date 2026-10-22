@@ -1820,6 +1820,21 @@ async function accessCodeHash(raw, env) {
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
 }
+function accessAssignments(body) {
+  const rawPlaylists=Array.isArray(body.playlist_ids)?body.playlist_ids:[];
+  const rawTracks=Array.isArray(body.track_paths)?body.track_paths:[];
+  if(rawPlaylists.length>40||rawTracks.length>250)return {error:"Too many content assignments."};
+  const playlist_ids=[...new Set(rawPlaylists.map(String).map(x=>x.trim()))];
+  const track_paths=[...new Set(rawTracks.map(String).map(x=>x.trim()))];
+  if(playlist_ids.some(x=>!/^[a-zA-Z0-9_-]{1,100}$/.test(x)))
+    return {error:"Invalid playlist identifier."};
+  if(track_paths.some(x=>x.length>600||!/^ge-music\/music\//.test(x)||!/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))
+    return {error:"Invalid song assignment."};
+  const scopes=Array.isArray(body.scopes)?body.scopes:[];
+  if((playlist_ids.length||track_paths.length)&&!scopes.some(x=>["website","radio","music","albums"].includes(x)))
+    return {error:"Song and playlist assignments require a music or radio permission."};
+  return {playlist_ids,track_paths};
+}
 function accessPublicRow(row) {
   if (!row) return null;
   return {
@@ -1828,14 +1843,15 @@ function accessPublicRow(row) {
     duration_seconds:row.duration_seconds,fixed_expires_at:row.fixed_expires_at,
     expires_at:row.expires_at,activated_at:row.activated_at,first_used_at:row.first_used_at,
     max_uses:row.max_uses,use_count:row.use_count,enabled:!!row.enabled,
-    revoked:!!row.revoked_at,created_at:row.created_at,updated_at:row.updated_at
+    revoked:!!row.revoked_at,created_at:row.created_at,updated_at:row.updated_at,
+    playlist_ids:JSON.parse(row.playlist_ids_json||"[]"),track_paths:JSON.parse(row.track_paths_json||"[]")
   };
 }
 async function accessAdminGet(request, env) {
   if (!adminAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   const [policy,rows]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
-    env.VAULT_DB.prepare("SELECT * FROM access_codes ORDER BY created_at DESC LIMIT 500").all()
+    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all()
   ]);
   return json({ok:true,master_enabled:policy?.enabled!==0,items:(rows.results||[]).map(accessPublicRow)});
 }
@@ -1863,6 +1879,8 @@ async function accessAdminChange(request,env){
     if(mode==="fixed"&&(!fixed||fixed<=t||fixed>t+10*365*24*3600))return json({ok:false,error:"Choose a future expiration date."},400);
     const maxUses=Math.floor(Number(body.max_uses)||0);
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
+    const assignments=accessAssignments(body);
+    if(assignments.error)return json({ok:false,error:assignments.error},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
     const code="GE-"+hex.match(/.{4}/g).join("-");
@@ -1871,17 +1889,57 @@ async function accessAdminChange(request,env){
     const activatedAt=activate?t:null;
     const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
     const newId=id("access");
-    await env.VAULT_DB.prepare(
-      "INSERT INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(newId,label,hash,hex.slice(-4),JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t).run();
-    await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses});
+    await env.VAULT_DB.batch([
+      env.VAULT_DB.prepare(
+        "INSERT INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+      ).bind(newId,label,hash,hex.slice(-4),JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t),
+      env.VAULT_DB.prepare("INSERT INTO access_code_content (code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)")
+        .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
+    ]);
+    await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hex.slice(-4),scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
   }
-  if(action==="activate"||action==="suspend"||action==="revoke"){
+  if(action==="edit"){
     const codeId=String(body.id||"").slice(0,100);
-    const existing=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE id=?").bind(codeId).first();
+    const existing=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE id=? AND NOT EXISTS(SELECT 1 FROM access_code_deletions WHERE code_id=access_codes.id)").bind(codeId).first();
     if(!existing)return json({ok:false,error:"Access code not found."},404);
-    if(existing.revoked_at)return json({ok:false,error:"Revoked codes cannot be reactivated. Issue a new code."},409);
+    if(existing.revoked_at)return json({ok:false,error:"Revoked codes cannot be edited."},409);
+    const label=String(body.label||"").trim().slice(0,100);
+    if(!label)return json({ok:false,error:"Enter a code label."},400);
+    const scopes=Array.isArray(body.scopes)?[...new Set(body.scopes.map(String).filter(x=>GE_ACCESS_SCOPES.has(x)))]:[];
+    if(!scopes.length)return json({ok:false,error:"Choose at least one permission."},400);
+    const mode=String(body.duration_mode||"first_use");
+    if(!["activation","first_use","fixed","none"].includes(mode))return json({ok:false,error:"Invalid expiration mode."},400);
+    const hours=Number(body.duration_hours)||0;
+    if(["activation","first_use"].includes(mode)&&(!Number.isFinite(hours)||hours<=0||hours>24*365*5))return json({ok:false,error:"Duration must be 1 hour to 5 years."},400);
+    const seconds=["activation","first_use"].includes(mode)?Math.round(hours*3600):0;
+    const fixed=mode==="fixed"?Math.floor(Number(body.fixed_expires_at)||0):null;
+    if(mode==="fixed"&&(!fixed||fixed<=t||fixed>t+10*365*24*3600))return json({ok:false,error:"Choose a future expiration date."},400);
+    const maxUses=Math.floor(Number(body.max_uses)||0);
+    if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
+    const assignments=accessAssignments({...body,scopes});
+    if(assignments.error)return json({ok:false,error:assignments.error},400);
+    for(const playlistId of assignments.playlist_ids){
+      const match=await env.VAULT_DB.prepare("SELECT id FROM playlists WHERE id=?").bind(playlistId).first();
+      if(!match)return json({ok:false,error:"One assigned playlist no longer exists."},400);
+    }
+    // Editing never replaces the secret, clears existing usage, or restarts elapsed time.
+    const expiry=mode==="fixed"?fixed:mode==="activation"&&existing.activated_at?existing.activated_at+seconds
+      :mode==="first_use"&&existing.first_used_at?existing.first_used_at+seconds:null;
+    await env.VAULT_DB.batch([
+      env.VAULT_DB.prepare("UPDATE access_codes SET label=?,scopes_json=?,duration_mode=?,duration_seconds=?,fixed_expires_at=?,expires_at=?,max_uses=?,updated_at=? WHERE id=?")
+        .bind(label,JSON.stringify(scopes),mode,seconds,fixed,expiry,maxUses,t,codeId),
+      env.VAULT_DB.prepare("INSERT INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET playlist_ids_json=excluded.playlist_ids_json,track_paths_json=excluded.track_paths_json,updated_at=excluded.updated_at")
+        .bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
+    ]);
+    await audit(env,"admin","access.edit","access_code",codeId,{label,scopes,mode,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
+    return json({ok:true,id:codeId,action:"edit"});
+  }
+  if(action==="activate"||action==="suspend"||action==="revoke"||action==="delete"){
+    const codeId=String(body.id||"").slice(0,100);
+    const existing=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE id=? AND NOT EXISTS(SELECT 1 FROM access_code_deletions WHERE code_id=access_codes.id)").bind(codeId).first();
+    if(!existing)return json({ok:false,error:"Access code not found."},404);
+    if(existing.revoked_at&&action!=="delete")return json({ok:false,error:"Revoked codes cannot be reactivated. Issue a new code."},409);
     if(action==="activate"){
       const activatedAt=existing.activated_at||t;
       const exp=existing.duration_mode==="activation"?activatedAt+existing.duration_seconds:existing.expires_at;
@@ -1889,8 +1947,13 @@ async function accessAdminChange(request,env){
       await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=1,activated_at=?,expires_at=?,updated_at=? WHERE id=?").bind(activatedAt,exp,t,codeId).run();
     }else if(action==="suspend"){
       await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=0,updated_at=? WHERE id=?").bind(t,codeId).run();
-    }else{
+    }else if(action==="revoke"){
       await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=0,revoked_at=?,updated_at=? WHERE id=?").bind(t,t,codeId).run();
+    }else{
+      await env.VAULT_DB.batch([
+        env.VAULT_DB.prepare("UPDATE access_codes SET enabled=0,revoked_at=COALESCE(revoked_at,?),updated_at=? WHERE id=?").bind(t,t,codeId),
+        env.VAULT_DB.prepare("INSERT OR IGNORE INTO access_code_deletions(code_id,deleted_at) VALUES(?,?)").bind(codeId,t)
+      ]);
     }
     await audit(env,"admin","access."+action,"access_code",codeId,{});
     return json({ok:true,id:codeId,action});
@@ -1903,11 +1966,17 @@ async function accessRedeem(request,env){
   const body=await readBody(request);
   const hash=await accessCodeHash(body.code,env);
   if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
-  const row=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE code_hash=?").bind(hash).first();
-  if(!row||!row.enabled||row.revoked_at)return json({ok:false,error:"Invalid or expired code."},403);
+  const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
+  if(!row||!row.enabled||row.revoked_at||row.deleted_at)return json({ok:false,error:"Invalid or expired code."},403);
   const scope=String(body.scope||"radio");
   const scopes=JSON.parse(row.scopes_json||"[]");
   if(!scopes.includes(scope)&&!scopes.includes("website"))return json({ok:false,error:"Code does not permit this content."},403);
+  const playlist_ids=JSON.parse(row.playlist_ids_json||"[]"),track_paths=JSON.parse(row.track_paths_json||"[]");
+  if(playlist_ids.length||track_paths.length){
+    const playlistId=String(body.playlist_id||""),trackPath=String(body.track_path||"");
+    if(!(playlistId&&playlist_ids.includes(playlistId))&&!(trackPath&&track_paths.includes(trackPath)))
+      return json({ok:false,error:"This code is assigned to different music content."},403);
+  }
   const t=now();
   const expiration=row.duration_mode==="fixed"?row.fixed_expires_at
     :row.duration_mode==="activation"?row.expires_at
