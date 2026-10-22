@@ -319,35 +319,73 @@ async function suggestedLanguage(){
  return (preferred&&preferred!=='en'?preferred:regional)||'';
 }
 function fitViewport(){
- if(!radio)return;
- const root=A.documentElement,body=A.body,wrap=find('main.wrap');
- const shouldFit=body.classList.contains('view-player')&&!body.classList.contains('iam-studio-open');
- if(!shouldFit||!wrap){
-  root.classList.remove('ge-access-overflow');
-  root.style.removeProperty('--ge-fit-sun');root.style.removeProperty('--ge-fit-iam');return;
- }
- const h=Math.round(window.visualViewport?.height||innerHeight);
- const w=Math.round(window.visualViewport?.width||innerWidth);
- const portrait=window.matchMedia('(orientation: portrait)').matches;
- const sunBase=Math.min(portrait?178:182,Math.max(100,Math.round(h*(portrait?.19:.20))));
- let sun=sunBase,iam=Math.min(100,Math.max(54,Math.round(h*.105)));
- root.classList.remove('ge-access-overflow');
- for(let attempt=0;attempt<9;attempt++){
-   root.style.setProperty('--ge-fit-sun',sun+'px');
-   root.style.setProperty('--ge-fit-iam',iam+'px');
-   const overflow=wrap.scrollHeight-wrap.clientHeight;
-   if(overflow<4)break;
-   if(iam>52)iam=Math.max(52,iam-Math.min(15,overflow));
-   else if(sun>96)sun=Math.max(96,sun-Math.min(15,overflow));
-   else break;
- }
- root.style.setProperty('--ge-fit-sun',sun+'px');
- root.style.setProperty('--ge-fit-iam',iam+'px');
- const zoomed=window.visualViewport?.scale>1.15;
- const tooSmall=h<545||w<310;
- // If content still exceeds the screen, scrolling is safer than a clipped
- // CODE button or invisible focus target, especially with accessibility zoom.
- root.classList.toggle('ge-access-overflow',!!(zoomed||tooSmall||wrap.scrollHeight>wrap.clientHeight+5));
+  if(!radio)return;
+  const root=A.documentElement,body=A.body,wrap=find('main.wrap');
+  const shouldFit=body.classList.contains('view-player')&&!body.classList.contains('iam-studio-open');
+  if(!shouldFit||!wrap){
+    root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
+    root.style.removeProperty('--ge-fit-sun');
+    root.style.removeProperty('--ge-fit-iam');
+    return;
+  }
+  const h=Math.round(window.visualViewport?.height||innerHeight);
+  const w=Math.round(window.visualViewport?.width||innerWidth);
+  const portrait=window.matchMedia('(orientation:portrait)').matches;
+  const smallPortrait=portrait&&w<=700;
+  const zoomed=(window.visualViewport?.scale||1)>1.15;
+  let sun=Math.min(portrait?178:182,Math.max(102,Math.round(h*(portrait?.188:.20))));
+  let iam=Math.min(98,Math.max(72,Math.round(h*.112)));
+  root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
+
+  // Fit against actual element rectangles rather than only scrollHeight.
+  // Flex's remaining space is NOT the physical middle of the iPhone screen.
+  // The center mode positions I AM at 50dvh and keeps all music controls above
+  // and all Backgrounds/public controls below with a breathing-room margin.
+  if(smallPortrait&&!zoomed){
+    const top=find('#musicGroup'),bottom=find('#bgGroup'),center=find('#iamLaunchRow');
+    if(top&&bottom&&center){
+      root.classList.add('ge-radio-iam-midpoint');
+      const gapGoal=18;
+      let fits=false;
+      for(let attempt=0;attempt<16;attempt++){
+        root.style.setProperty('--ge-fit-sun',sun+'px');
+        root.style.setProperty('--ge-fit-iam',iam+'px');
+        const topBound=top.getBoundingClientRect().bottom;
+        const bottomBound=bottom.getBoundingClientRect().top;
+        const centerRect=center.getBoundingClientRect();
+        const gapAbove=centerRect.top-topBound;
+        const gapBelow=bottomBound-centerRect.bottom;
+        const excess=wrap.scrollHeight-wrap.clientHeight;
+        if(gapAbove>=gapGoal&&gapBelow>=gapGoal&&excess<5){
+          fits=true;break;
+        }
+        // Preserve an ample I AM circle if shrinking the Blue Sun alone
+        // can make room above it. Do not compress buttons below 44px.
+        if(gapAbove<gapGoal&&sun>96){
+          sun=Math.max(96,sun-Math.max(6,Math.ceil(gapGoal-gapAbove)));
+          continue;
+        }
+        if((gapAbove<gapGoal||gapBelow<gapGoal)&&iam>70){
+          iam=Math.max(70,iam-Math.max(5,Math.ceil(Math.max(gapGoal-gapAbove,gapGoal-gapBelow,0))));
+          continue;
+        }
+        break;
+      }
+      if(fits){
+        root.classList.remove('ge-access-overflow');
+        return;
+      }
+      root.classList.remove('ge-radio-iam-midpoint');
+    }
+  }
+
+  // On unusually short screens, large accessibility text or browser zoom,
+  // never hide the bottom buttons. Use the normal document flow with scrolling.
+  root.style.setProperty('--ge-fit-sun',sun+'px');
+  root.style.setProperty('--ge-fit-iam',iam+'px');
+  const tooSmall=h<545||w<310;
+  root.classList.toggle('ge-access-overflow',
+    !!(smallPortrait||zoomed||tooSmall||wrap.scrollHeight>wrap.clientHeight+5));
 }
 function start(){
  A.documentElement.classList.add(radio?'ge-radio-ui':'ge-site-ui');
@@ -365,8 +403,12 @@ function start(){
   for(const e of ['resize','orientationchange','pageshow'])addEventListener(e,fit,{passive:true});
   window.visualViewport?.addEventListener('resize',fit,{passive:true});
   if(window.ResizeObserver){
-    const target=find('#musicGroup');
-    if(target)new ResizeObserver(fit).observe(target);
+    const observed=['#musicGroup','header','#bgGroup','#bottomActions','footer']
+      .map(find).filter(Boolean);
+    if(observed.length){
+      const observer=new ResizeObserver(fit);
+      for(const target of observed)observer.observe(target);
+    }
   }
   fit();setTimeout(fit,300);setTimeout(fit,1600);
  }
