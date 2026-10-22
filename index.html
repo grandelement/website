@@ -137,6 +137,11 @@ Preserve together:
   }
   body.game-mode-active #gameBackground{ display:block; }
 
+  
+/* Honor Back Room visibility for all seven Game Control entries.
+   The game's settings and code remain intact when an entry is hidden. */
+#basicGamePanel .basicGameCard[hidden]{display:none!important}
+
   /* FX canvas */
   #fx{ position:fixed; inset:0; display:block; z-index:3; }
   #fxFront{position:fixed;inset:0;display:block;z-index:6;pointer-events:none;}
@@ -5090,9 +5095,16 @@ addEventListener('orientationchange',()=>{
   const availability=[
     ['basicThrowGame',games.points],
     ['basicBlueSunPoolGame',games.pockets],
-    ['basicMarblesGame',games.planets]
+    ['basicMarblesGame',games.planets],
+    ['basicGolfGame',games.golf],
+    ['basicGravityGame',games.gravity],
+    ['basicBodyGame',games.body],
+    ['basicFlightGame',games.flight]
   ];
-  availability.forEach(([id,on])=>{const el=document.getElementById(id);if(el&&on===false)el.hidden=true;});
+  availability.forEach(([id,on])=>{
+    const el=document.getElementById(id);
+    if(el)el.hidden=on===false;
+  });
   if(window.GE_SITE_MODE==='test'||window.GE_SITE_MODE==='live-draft'){
     const badge=document.createElement('div');
     badge.id='geSiteModeBadge';
