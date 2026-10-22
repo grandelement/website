@@ -141,8 +141,33 @@ function keyboardActivation(el){
    el.click();
  });
 }
+function setupRadioKeyboard(){
+ const picker=find('#trackList');
+ if(!picker)return;
+ let returnTo=null;
+ new MutationObserver(()=>{
+  const isOpen=picker.classList.contains('open');
+  if(isOpen){
+   if(!returnTo)returnTo=A.activeElement;
+   // A native button is easier for VoiceOver than the title alone.
+   requestAnimationFrame(()=>picker.querySelector('button')?.focus({preventScroll:true}));
+  }else if(returnTo){
+   if(returnTo.isConnected)returnTo.focus({preventScroll:true});
+   returnTo=null;
+  }
+ }).observe(picker,{attributes:true,attributeFilter:['class']});
+ picker.addEventListener('keydown',e=>{
+  if(e.key!=='Tab'||!picker.classList.contains('open'))return;
+  const options=[...picker.querySelectorAll('button:not([disabled]),input:not([disabled])')]
+   .filter(x=>x.getClientRects().length);
+  if(!options.length)return;
+  const first=options[0],last=options[options.length-1];
+  if(e.shiftKey&&A.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&A.activeElement===last){e.preventDefault();first.focus();}
+ });
+}
 function setupKeyboard(){
- if(radio)return;
+ if(radio){setupRadioKeyboard();return;}
  for(const selector of ['#aboutBtn','#btnMusic','#moon'])keyboardActivation(find(selector));
  const planets=find('#planets');
  if(planets){
