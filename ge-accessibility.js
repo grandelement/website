@@ -203,9 +203,9 @@ function setupKeyboard(){
 }
 function createUI(){
  const skip=A.createElement('a');
- skip.href=radio?'#musicGroup':'#sunWrap';
+ skip.href=radio?'#musicGroup':'./radio/';
  skip.className='ge-a11y-skip';
- skip.textContent=radio?'Skip to music controls':'Skip to Grand Element';
+ skip.textContent=radio?'Skip to music controls':'Listen to Grand Element Radio';
  A.body.prepend(skip);
  const target=find(radio?'#musicGroup':'#sunWrap');if(target)target.setAttribute('tabindex','-1');
  globe=A.createElement('button');
