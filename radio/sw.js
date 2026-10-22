@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.22-iam-center-v1';
+const VERSION='2026.10.22-radio-controls-restored-v2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -301,6 +301,25 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith(navigationResponse(request));
+    return;
+  }
+
+  // Shared UI assets MUST be network-first. Previously they were cache-first
+  // with ignoreSearch:true, so iPhones could keep an old icon/layout stylesheet
+  // despite a fresh HTML page and a new ?v= cache-busting URL.
+  if(url.pathname==='/ge-accessibility.css' || url.pathname==='/ge-accessibility.js'){
+    event.respondWith((async()=>{
+      try{
+        const fresh=await fetchFresh(request);
+        if(fresh.ok){
+          const shell=await caches.open(SHELL_CACHE);
+          await shell.put(request,fresh.clone()).catch(()=>{});
+          return fresh;
+        }
+      }catch(_e){}
+      return await cachedResponse(request) ||
+        new Response('GE accessibility resource unavailable',{status:503});
+    })());
     return;
   }
 
