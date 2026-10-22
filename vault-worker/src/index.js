@@ -1807,6 +1807,125 @@ async function adminExport(env) {
   };
 }
 
+
+/* Owner-issued access codes live in D1, not in public site settings or browsers.
+   The existing Radio Gate is deliberately NOT modified by this service. */
+const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games"]);
+function accessNormalizeCode(raw) {
+  return String(raw || "").trim().toUpperCase().replace(/^GE[\s-]*/, "").replace(/[\s-]/g, "");
+}
+async function accessCodeHash(raw, env) {
+  const code = accessNormalizeCode(raw);
+  if (!/^[A-F0-9]{32}$/.test(code)) return null;
+  if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
+  return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
+}
+function accessPublicRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,label:row.label,code_hint:row.code_hint,
+    scopes:JSON.parse(row.scopes_json || "[]"),duration_mode:row.duration_mode,
+    duration_seconds:row.duration_seconds,fixed_expires_at:row.fixed_expires_at,
+    expires_at:row.expires_at,activated_at:row.activated_at,first_used_at:row.first_used_at,
+    max_uses:row.max_uses,use_count:row.use_count,enabled:!!row.enabled,
+    revoked:!!row.revoked_at,created_at:row.created_at,updated_at:row.updated_at
+  };
+}
+async function accessAdminGet(request, env) {
+  if (!adminAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  const [policy,rows]=await Promise.all([
+    env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
+    env.VAULT_DB.prepare("SELECT * FROM access_codes ORDER BY created_at DESC LIMIT 500").all()
+  ]);
+  return json({ok:true,master_enabled:policy?.enabled!==0,items:(rows.results||[]).map(accessPublicRow)});
+}
+async function accessAdminChange(request,env){
+  if (!adminAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  const body=await readBody(request), action=String(body.action||"");
+  const t=now();
+  if(action==="master"){
+    const enabled=!!body.enabled;
+    await env.VAULT_DB.prepare("INSERT INTO access_code_policy(id,enabled,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at").bind(enabled?1:0,t).run();
+    await audit(env,"admin","access.master","access_policy","1",{enabled});
+    return json({ok:true,master_enabled:enabled});
+  }
+  if(action==="issue"){
+    const label=String(body.label||"").trim().slice(0,100);
+    if(!label)return json({ok:false,error:"Enter a code label."},400);
+    const scopes=Array.isArray(body.scopes)?[...new Set(body.scopes.map(String).filter(x=>GE_ACCESS_SCOPES.has(x)))]:[];
+    if(!scopes.length)return json({ok:false,error:"Choose at least one permission."},400);
+    const mode=String(body.duration_mode||"first_use");
+    if(!["activation","first_use","fixed","none"].includes(mode))return json({ok:false,error:"Invalid expiration mode."},400);
+    const hours=Number(body.duration_hours)||0;
+    if(["activation","first_use"].includes(mode)&&(!Number.isFinite(hours)||hours<=0||hours>24*365*5))return json({ok:false,error:"Duration must be between 1 hour and 5 years."},400);
+    const seconds=["activation","first_use"].includes(mode)?Math.round(hours*3600):0;
+    const fixed=mode==="fixed"?Math.floor(Number(body.fixed_expires_at)||0):null;
+    if(mode==="fixed"&&(!fixed||fixed<=t||fixed>t+10*365*24*3600))return json({ok:false,error:"Choose a future expiration date."},400);
+    const maxUses=Math.floor(Number(body.max_uses)||0);
+    if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
+    const codeBytes=crypto.getRandomValues(new Uint8Array(16));
+    const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+    const code="GE-"+hex.match(/.{4}/g).join("-");
+    const hash=await accessCodeHash(code,env);
+    const activate=body.activate_now!==false;
+    const activatedAt=activate?t:null;
+    const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
+    const newId=id("access");
+    await env.VAULT_DB.prepare(
+      "INSERT INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    ).bind(newId,label,hash,hex.slice(-4),JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t).run();
+    await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses});
+    return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hex.slice(-4),scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
+  }
+  if(action==="activate"||action==="suspend"||action==="revoke"){
+    const codeId=String(body.id||"").slice(0,100);
+    const existing=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE id=?").bind(codeId).first();
+    if(!existing)return json({ok:false,error:"Access code not found."},404);
+    if(existing.revoked_at)return json({ok:false,error:"Revoked codes cannot be reactivated. Issue a new code."},409);
+    if(action==="activate"){
+      const activatedAt=existing.activated_at||t;
+      const exp=existing.duration_mode==="activation"?activatedAt+existing.duration_seconds:existing.expires_at;
+      if(exp&&exp<=t)return json({ok:false,error:"Code is expired. Issue a new one."},409);
+      await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=1,activated_at=?,expires_at=?,updated_at=? WHERE id=?").bind(activatedAt,exp,t,codeId).run();
+    }else if(action==="suspend"){
+      await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=0,updated_at=? WHERE id=?").bind(t,codeId).run();
+    }else{
+      await env.VAULT_DB.prepare("UPDATE access_codes SET enabled=0,revoked_at=?,updated_at=? WHERE id=?").bind(t,t,codeId).run();
+    }
+    await audit(env,"admin","access."+action,"access_code",codeId,{});
+    return json({ok:true,id:codeId,action});
+  }
+  return json({ok:false,error:"Unknown access-code action."},400);
+}
+async function accessRedeem(request,env){
+  const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
+  if(policy?.enabled===0)return json({ok:false,error:"Access codes are disabled."},403);
+  const body=await readBody(request);
+  const hash=await accessCodeHash(body.code,env);
+  if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
+  const row=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE code_hash=?").bind(hash).first();
+  if(!row||!row.enabled||row.revoked_at)return json({ok:false,error:"Invalid or expired code."},403);
+  const scope=String(body.scope||"radio");
+  const scopes=JSON.parse(row.scopes_json||"[]");
+  if(!scopes.includes(scope)&&!scopes.includes("website"))return json({ok:false,error:"Code does not permit this content."},403);
+  const t=now();
+  const expiration=row.duration_mode==="fixed"?row.fixed_expires_at
+    :row.duration_mode==="activation"?row.expires_at
+    :row.duration_mode==="first_use"&&row.first_used_at?row.expires_at:null;
+  if(expiration&&expiration<=t)return json({ok:false,error:"Invalid or expired code."},403);
+  if(row.max_uses>0&&row.use_count>=row.max_uses)return json({ok:false,error:"Code usage limit reached."},403);
+  const firstUsed=row.first_used_at||t;
+  const expires=row.duration_mode==="first_use"?(row.expires_at||firstUsed+row.duration_seconds):expiration;
+  const update=await env.VAULT_DB.prepare(
+    "UPDATE access_codes SET use_count=use_count+1,first_used_at=COALESCE(first_used_at,?),expires_at=COALESCE(expires_at,?),updated_at=? WHERE id=? AND enabled=1 AND revoked_at IS NULL AND (max_uses=0 OR use_count<max_uses) AND (expires_at IS NULL OR expires_at>?)"
+  ).bind(t,expires,t,row.id,t).run();
+  if(!update.meta?.changes)return json({ok:false,error:"Invalid or expired code."},403);
+  await audit(env,"public","access.redeem","access_code",row.id,{scope});
+  // No long-lived auth cookie is issued here. Public applications must implement
+  // server-verified scoped entitlement before using this as a paid access gate.
+  return json({ok:true,scope,scopes,expires_at:expires||null,uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null});
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -1827,6 +1946,22 @@ export default {
     try {
       if (url.pathname === "/health") {
         return json({ ok: true, service: "GE Studios Vault", time: now() }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/access/redeem" && request.method === "POST") {
+        const response=await accessRedeem(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if (url.pathname === "/v1/admin/access-codes" && request.method === "GET") {
+        const response=await accessAdminGet(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if (url.pathname === "/v1/admin/access-codes" && request.method === "POST") {
+        const response=await accessAdminChange(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
       }
 
       if (url.pathname === "/v1/public/game-scores" && request.method === "GET") {
