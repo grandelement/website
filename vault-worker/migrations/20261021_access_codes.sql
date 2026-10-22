@@ -28,3 +28,19 @@ CREATE TABLE IF NOT EXISTS access_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_access_codes_created ON access_codes(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_access_codes_hash ON access_codes(code_hash);
+
+-- Content assignments are separate to preserve every pre-existing issued code.
+CREATE TABLE IF NOT EXISTS access_code_content (
+  code_id TEXT PRIMARY KEY,
+  playlist_ids_json TEXT NOT NULL DEFAULT '[]',
+  track_paths_json TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+);
+
+-- Owner "delete" archives an issued code without destroying security/audit history.
+CREATE TABLE IF NOT EXISTS access_code_deletions (
+  code_id TEXT PRIMARY KEY,
+  deleted_at INTEGER NOT NULL,
+  FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+);
