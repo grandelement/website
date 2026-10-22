@@ -12,10 +12,10 @@ const migration=read('vault-worker/migrations/20261021_access_codes.sql');
 for(const [name,source] of [['publisher',publisher],['vault',vault]]){
   new Script(source.replace('export default {','const __testExport = {'),{filename:name+'.js'});
 }
-const inlineScripts=[...back.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)];
+const inlineScripts=[...back.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.ok(inlineScripts.length>=1,'Back Room must have an inline script');
 for(const [i,s]of inlineScripts.entries()){
-  if(/src=|application\\/json/.test(s[1]))continue;
+  if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
 const tabs=['home','content','universe','games','radio','playlists','access','gate','scores','presets'];
