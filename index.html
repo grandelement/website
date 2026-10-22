@@ -4592,7 +4592,9 @@ const ALL_ALBUMS = [
   { title:"Sessions II", musicTitle:"Sessions II", cover:IMG+"Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii", legendary:true },
   { title:"Sessions I", musicTitle:"Sessions I", cover:IMG+"Grand%20Element%20-%20Sessions%20I.jpg", link:"https://grandelement.bandcamp.com/album/sessions-i", legendary:true },
   { title:"Live!", musicTitle:"Live", cover:IMG+"Grand%20Element%20-%20Live.jpg", link:"https://grandelement.bandcamp.com/album/live", legendary:true },
-  { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true }
+  { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true },
+  // Original red 2005 album; optional on the website, last in the catalog.
+  { title:"Fundamental Groove", musicTitle:"Fundamental Groove", cover:IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"", legendary:true }
 ];
 const GE_SITE_ALBUM_SETTINGS=window.GE_SITE_CONFIG?.albums||{};
 if(Array.isArray(GE_SITE_ALBUM_SETTINGS.order)&&GE_SITE_ALBUM_SETTINGS.order.length){
@@ -5431,7 +5433,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
   let wantedPlayback=startupMusicEnabled;
   try{player.defaultPlaybackRate=1;player.playbackRate=1;}catch(_e){}
   player.addEventListener('ratechange',()=>{try{if(Math.abs(player.playbackRate-1)>.001)player.playbackRate=1;}catch(_e){}});
-  const RADIO_ALBUM_ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
+  const RADIO_ALBUM_ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 
   const SHARED_STATE=window.GE_SHARED_MUSIC_STATE;
   let sharedSaveTimer=0, restoredSharedState=null;
@@ -14224,11 +14226,10 @@ body:not(.ge-body-race-active) #moon {
   const BLEND_MS=Math.max(1000,Number(settings.AMBIENT_ORBIT_BLEND_MS)||5600);
   const GRAVITY_MIN=Math.max(0,Math.min(.30,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MIN)||.05));
   const GRAVITY_MAX=Math.max(GRAVITY_MIN,Math.min(.35,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MAX)||.16));
-  // Orbit identity is independent of album release/display order.
-  // Keep the original nine orbital indices intact: changing these would move
-  // existing planets to different ellipses, reverse directions and change speeds.
-  // Aether is the tenth planet and gets its own orbit at the end of this map.
-  const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Aether'];
+  // Orbit identity stays independent of album display order. Preserve all
+  // existing planet speeds and ellipses; Fundamental Groove is optional
+  // and receives the slowest separate orbit at index 10.
+  const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Aether','Fundamental Groove'];
   const ORDER_KEYS=ORDER.map(key);
 
   /* Each album owns a different universe-sized ellipse. These are intentionally not
@@ -14243,9 +14244,10 @@ body:not(.ge-body-race-active) #moon {
     {cx:.57,cy:.48,rx:.35,ry:.24,deg: 44,dir:-1},
     {cx:.46,cy:.42,rx:.42,ry:.40,deg:-63,dir: 1},
     {cx:.54,cy:.57,rx:.39,ry:.35,deg: 24,dir: 1},
-    // Aether: a distinct tenth, tilted elliptical path with the same
-    // drag, gravity, edge-fit and eased orbit-rejoin behavior as every album.
-    {cx:.49,cy:.51,rx:.40,ry:.33,deg:-29,dir:-1}
+    // Aether retains its original tenth orbit.
+    {cx:.49,cy:.51,rx:.40,ry:.33,deg:-29,dir:-1},
+    // Fundamental Groove: the 2005 debut, and slowest orbit if selected.
+    {cx:.51,cy:.50,rx:.37,ry:.30,deg:42,dir:1}
   ];
 
   const planetState=new WeakMap(),held=new WeakSet();
