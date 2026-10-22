@@ -221,7 +221,8 @@ function createUI(){
  skip.className='ge-a11y-skip';
  skip.textContent=preview?'Skip to album choices':(radio?'Skip to music controls':'Listen to Grand Element Radio');
  A.body.prepend(skip);
- const target=find(preview?'#browseAlbums':(radio?'#musicGroup':'#sunWrap'));if(target)target.setAttribute('tabindex','-1');
+ const target=find(preview?'#browseAlbums':(radio?'#musicGroup':'#sunWrap'));
+ if(target&&!['BUTTON','A','INPUT','SELECT'].includes(target.tagName))target.setAttribute('tabindex','-1');
  globe=A.createElement('button');
  globe.type='button';globe.className='ge-language-trigger';
  globe.textContent='🌐';globe.setAttribute('aria-haspopup','dialog');
