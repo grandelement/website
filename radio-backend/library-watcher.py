@@ -33,7 +33,7 @@ STATION_PERFORMANCE_STATE = DATA / "station-performance-state.json"
 GE_VAULT_URL = os.environ.get("GE_VAULT_URL", "https://vault.grandelement.com").rstrip("/")
 GE_VAULT_ADMIN_TOKEN = os.environ.get("GE_VAULT_ADMIN_TOKEN", "").strip()
 
-CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
+CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire", "aether"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
 
 def atomic_text(path, text):
