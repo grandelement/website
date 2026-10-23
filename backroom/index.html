@@ -891,6 +891,36 @@ function renderGateTimingSummary(){
 }
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
+// The only DJ playlist authority is the BLITZ controller. This is a
+// password-free view of its saved playlist names/paths, not another database.
+let geDJSavedPlaylists=[],geDJPlaylistReady=false;
+function syncDJSavedPlaylistsToPublic(){
+  if(!cfg||!geDJPlaylistReady)return;
+  cfg.music=cfg.music||{};
+  const pathsOk=path=>/^ge-music\/music\//.test(path)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path)&&!path.includes('..');
+  const old=JSON.stringify(cfg.music.publicPlaylists||[]);
+  cfg.music.publicPlaylists=geDJSavedPlaylists.map(playlist=>({
+    id:playlist.id,name:playlist.name,songs:[...new Set(playlist.paths.filter(pathsOk))]
+  })).filter(playlist=>playlist.songs.length>0);
+  if(JSON.stringify(cfg.music.publicPlaylists)!==old)mark();
+  const total=geDJSavedPlaylists.length,shown=cfg.music.publicPlaylists.length;
+  $('brDJPlaylistStatus').textContent='DJ BOOTH CONNECTED · '+total+' saved playlist(s), '+shown+
+    ' available with website songs. Changes in the public MUSIC menu take effect on PUBLISH LIVE.';
+}
+window.addEventListener('message',event=>{
+  const frame=$('brDJPlaylistFrame');
+  if(!frame||event.source!==frame.contentWindow||event.origin!==location.origin)return;
+  const message=event.data;
+  if(message?.type!=='ge-dj-playlists-update'||message.format!=='ge-radio-playlists-v1'||!Array.isArray(message.items))return;
+  geDJSavedPlaylists=message.items.filter(row=>row&&typeof row.id==='string'&&typeof row.name==='string'&&
+    Array.isArray(row.paths)).map(row=>({
+    id:row.id.slice(0,100),name:row.name.slice(0,100),
+    paths:row.paths.filter(path=>typeof path==='string').slice(0,250)
+  }));
+  geDJPlaylistReady=true;
+  syncDJSavedPlaylistsToPublic();
+  window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED?.(geDJSavedPlaylists);
+});
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 let statusTimer=0;
 const setStatus=t=>{
@@ -2030,8 +2060,9 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    select.replaceChildren(new Option('CHOOSE PLAYLIST · CHECK ITS SONGS',''));
-    playlists.forEach(p=>select.appendChild(new Option(p.name,p.id)));
+    select.replaceChildren(new Option('CHOOSE SAVED DJ PLAYLIST · CHECK ITS SONGS',''));
+    const source=geDJPlaylistReady?geDJSavedPlaylists:playlists;
+    source.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
   }
   function accessSongOptions(){
@@ -2113,8 +2144,9 @@ const backroomVaultManagers=(()=>{
     if(row?.playlist_ids?.length){
       const all=new Set(assignedSongPaths);
       for(const id of row.playlist_ids){
-        const playlist=playlists.find(p=>p.id===id);
-        for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);
+        const playlist=(geDJPlaylistReady?geDJSavedPlaylists:playlists).find(p=>p.id===id);
+        if(geDJPlaylistReady){for(const path of playlist?.paths||[])all.add(path);}
+        else {for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);}
       }
       assignedSongPaths=[...all];
     }
@@ -2160,7 +2192,8 @@ const backroomVaultManagers=(()=>{
     ].join(' · ');
     wrapper.appendChild(create('small',meta));
     wrapper.appendChild(create('p','PERMISSIONS · '+(selected.scopes||[]).join(' · ').toUpperCase()));
-    const names=(selected.playlist_ids||[]).map(id=>playlists.find(p=>p.id===id)?.name||id);
+    const names=(selected.playlist_ids||[]).map(id=>
+      (geDJPlaylistReady?geDJSavedPlaylists:playlists).find(p=>p.id===id)?.name||id);
     wrapper.appendChild(create('p','PLAYLIST · '+(names.length?names.join(', '):'No playlist restriction')));
     const songs=(selected.track_paths||[]).map(accessSongTitle);
     wrapper.appendChild(create('p','SONGS · '+(songs.length?songs.join(' / '):'No individual song restriction')));
@@ -2175,7 +2208,8 @@ const backroomVaultManagers=(()=>{
         vaultAction('/manage/playlists').catch(()=>null)
       ]);
       codeRows=Array.isArray(codes.items)?codes.items:[];
-      if(pls?.items){playlists=pls.items;accessPlaylistOptions();}
+      if(pls?.items)playlists=pls.items;
+      accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
@@ -2272,15 +2306,14 @@ const backroomVaultManagers=(()=>{
     }finally{clearTimeout(timer);}
   }
   function openTab(tab){
-    if(tab==='radio')void checkRadio2Bangers();
-    if((tab==='playlists'||tab==='radio')&&!playlistLoaded&&authReady())void refreshPlaylists();
-    if(tab==='access'&&(!accessLoaded||!authReady()))void refreshCodes();
+    // PLAYLISTS is the real authenticated GE DJ Booth, not the old Vault editor.
+    if(tab==='access'&&!accessLoaded&&authReady())void refreshCodes();
   }
   function init(){
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
-      $('brRadio2Check').addEventListener('click',()=>void checkRadio2Bangers());
+
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
       $('brImportBangers').addEventListener('click',importBangersFromDJ);
       $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
@@ -2309,9 +2342,10 @@ const backroomVaultManagers=(()=>{
       $('brAccessPlaylist').addEventListener('change',()=>{
         const id=$('brAccessPlaylist').value;
         if(!id)return;
-        const playlist=playlists.find(p=>p.id===id);
-        if(!playlist){accessStatus('Playlist not found. Refresh playlists.');return;}
-        const paths=[...new Set((playlist.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean))];
+        const playlist=(geDJPlaylistReady?geDJSavedPlaylists:playlists).find(p=>p.id===id);
+        if(!playlist){accessStatus('Playlist not found. Open PLAYLISTS to refresh the DJ source.');return;}
+        const paths=[...new Set(geDJPlaylistReady?(playlist.paths||[]):
+          (playlist.tracks||[]).map(t=>String(t.track_path||'')))].filter(Boolean);
         assignedSongPaths=paths;
         accessSongOptions();assignedSongsUI();
         accessStatus('Selected '+paths.length+' songs from '+playlist.name+'. Uncheck any song before saving the code.');
@@ -2326,6 +2360,7 @@ const backroomVaultManagers=(()=>{
         try{await navigator.clipboard.writeText(code);accessStatus('Code copied. Keep it secure.');}
         catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
       });
+      window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{accessPlaylistOptions();renderAccessCodes();};
       window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
       accessModeUI();editPlaylist('');accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
@@ -2348,6 +2383,7 @@ async function bootBackroom(){
   }
   applyText(savedText||90);
   cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
+  if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
