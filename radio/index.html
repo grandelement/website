@@ -3066,6 +3066,39 @@ html.ge-radio-ui #trackList .gePickerPlaylistActions select:disabled{opacity:.58
  html.ge-radio-ui #trackList>.gePickerPlaylists{max-height:24dvh!important}
 }
 </style>
+
+<style id="ge-radio-one-scroll-safari-20261023">
+/* iOS Safari: one native scroll container. The previous flex pane within a
+   fixed overflow-hidden dialog could not be swiped reliably after opening
+   playlists, and selecting an option could trap the gesture. */
+@media (max-width:800px), (pointer:coarse) {
+ html.ge-radio-ui #trackList.open{
+   display:block!important;overflow-y:auto!important;overflow-x:hidden!important;
+   -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
+   overscroll-behavior-y:contain!important;scroll-behavior:auto!important;
+   min-height:0!important;
+ }
+ html.ge-radio-ui #trackList>.gePickToolbar,
+ html.ge-radio-ui #trackList>.gePickerPlaylists{
+   display:flex!important;flex-wrap:wrap!important;
+   max-height:none!important;min-height:0!important;overflow:visible!important;
+   flex:none!important;position:relative!important;top:auto!important;
+ }
+ html.ge-radio-ui #trackList>.gePickerPlaylists{
+   display:grid!important;
+ }
+ html.ge-radio-ui #trackList>#geTrackScroller{
+   display:block!important;position:static!important;
+   height:auto!important;max-height:none!important;min-height:0!important;
+   flex:none!important;overflow:visible!important;
+   touch-action:pan-y!important;
+   -webkit-overflow-scrolling:auto!important;
+ }
+ html.ge-radio-ui #trackList>#geTrackScroller .gePickAlbumHeader{
+   position:relative!important;top:auto!important;
+ }
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -6077,10 +6110,20 @@ function gePlaylistUI(list){
  const rows=gePlaylistMode==='ge'?gePublishedLists:geLocalPlaylists();
  select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'DJ':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
  select.disabled=rows.length===0;
- if(!rows.length&&gePlaylistMode==='ge'){
-  const help=document.createElement('small');
-  help.textContent='BANGERS not yet available from the published DJ source. Confirm the original DJ Bangers is saved in Vault and the updated public service is deployed.';
-  holder.appendChild(help);
+ if(gePlaylistMode==='ge'){
+  if(!rows.length){
+    const help=document.createElement('small');
+    help.textContent='BANGERS is approved for public MUSIC but the original DJ playlist could not be loaded from GE Vault. No substitute songs are shown.';
+    holder.appendChild(help);
+  }
+  const retry=document.createElement('button');
+  retry.type='button';retry.textContent='REFRESH DJ PLAYLISTS';
+  retry.setAttribute('aria-label','Refresh the original GE DJ playlists from Vault');
+  retry.addEventListener('click',()=>{
+    retry.disabled=true;window.GE_DJ_PLAYLIST_SOURCE_STATUS='REFRESHING DJ PLAYLISTS…';
+    void geLoadPublishedPlaylists().finally(()=>{retry.disabled=false});
+  });
+  holder.appendChild(retry);
  }
  for(const item of rows)select.appendChild(new Option(item.name,String(item.id)));
  if(rows.some(item=>String(item.id)===gePlaylistSelected))select.value=gePlaylistSelected;
@@ -6246,9 +6289,7 @@ function renderTrackList(){
   scrollArea.setAttribute('aria-label','All Grand Element songs — scroll by album');
   scrollArea.tabIndex=0;
   scrollArea.appendChild(fragment);
-  // Keep page-level touch gestures from hijacking the iPhone song-list swipe.
-  scrollArea.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
-  scrollArea.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
+  // Let Safari handle one native scroll container; no nested touch interception.
   trackList.appendChild(scrollArea);
   updateAlbumHeadings();
 }
@@ -6992,7 +7033,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-radio-mobile-playlists-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-radio-music-native-scroll-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
