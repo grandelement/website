@@ -122,7 +122,8 @@ assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
   'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
 assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
-  radio.includes("config.music?.publicPlaylists"),'Radio MUSIC must load current DJ source with a safe published fallback');
+  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V1"),
+  'Radio MUSIC must load only canonical DJ Vault playlists with a last-known-good local cache');
 assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
   'Back Room should reuse the authenticated DJ device without creating a second playlist database');
 assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
