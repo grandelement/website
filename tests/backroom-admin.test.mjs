@@ -18,20 +18,22 @@ for(const [i,s]of inlineScripts.entries()){
   if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
-const tabs=['welcome','about','universe','games','radio','playlists','access','gate','scores','presets'];
+const tabs=['welcome','about','universe','games','radio','access','gate','scores','presets'];
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
 }
+assert.ok(!back.includes('data-tab="playlists"'),'Playlists should be inside RADIO, not a separate navigation tab');
+assert.ok(back.includes('data-br-tab="playlists"'),'Radio playlists editor section must exist');
 assert.ok(!back.includes('QUICK ACCESS'),'Redundant Quick Access panel must remain removed');
 assert.ok(!back.includes('id="brTabHome"'),'Empty HOME tab must remain removed');
 assert.ok(back.includes('grid-template-columns:repeat(20,minmax(0,1fr))!important'),
   'Back Room category buttons must appear in a 20-column two-row grid');
 const spans=[...back.matchAll(/\.backroomTabs button:nth-child\((\d+)\)\{grid-column:span (\d+)\}/g)]
   .map(match=>[Number(match[1]),Number(match[2])]);
-assert.equal(spans.length,10,'Ten tab buttons need explicit row spans');
+assert.equal(spans.length,9,'Nine tab buttons need explicit row spans');
 assert.equal(spans.slice(0,5).reduce((sum,[,n])=>sum+n,0),20,'First row fits exactly five tabs');
-assert.equal(spans.slice(5).reduce((sum,[,n])=>sum+n,0),20,'Second row fits remaining five tabs');
+assert.equal(spans.slice(5).reduce((sum,[,n])=>sum+n,0),20,'Second row fits remaining four tabs');
 assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling directions should remain');
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
