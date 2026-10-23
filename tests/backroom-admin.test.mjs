@@ -93,14 +93,22 @@ assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
 assert.ok(!back.includes('id="brRadio2Check"'),'Remove confusing Radio 2 Bangers check control');
-assert.ok(back.includes('id="brDJPlaylistFrame"')&&back.includes('ge_playlists=1'),
-  'Embed the authentic GE DJ Booth playlist manager');
-assert.ok(back.includes('id="brLegacyPlaylistEditor" hidden'),'Do not show competing playlist editors');
+assert.ok(back.includes('id="brDJPlaylistEditor"')&&back.includes('id="brDJPassword"'),
+  'Back Room should show original DJ playlist controls without changing the DJ Booth');
+assert.ok(!back.includes('id="brDJPlaylistFrame"')&&!dj.includes("GE_DJ_PLAYLIST_ONLY"),
+  'DJ Booth must remain untouched; no modified embedding mode');
 assert.ok(dj.includes("/control/playlists/save")&&dj.includes("/control/playlists")&&
-  dj.includes("GE_DJ_PLAYLIST_ONLY")&&dj.includes("sendDJPlaylists()"),
-  'Real DJ playlist backend must be the shared authoritative source');
-assert.ok(back.includes("ge-dj-playlists-update")&&back.includes("geDJSavedPlaylists"),
-  'Back Room should receive saved DJ playlist names and songs securely via same-origin message');
+  dj.includes("/control/custom-mix"),
+  'Original DJ Booth playlist APIs are the shared master');
+assert.ok(back.includes("geDJApi('/control/playlists/save'")&&
+  back.includes("geDJApi('/control/playlists/delete'")&&
+  back.includes("geDJApi('/control/custom-mix'"),
+  'Back Room must save, delete and activate the real DJ records, not another playlist database');
+assert.ok(back.includes("geDJApi('/control/library')")&&back.includes('id="brDJAlbumChoices"')&&
+  back.includes('id="brDJSongChoices"'),
+  'Back Room must show the original DJ library with album and per-song checkboxes');
+assert.ok(back.includes("geDJApi('/control/playlists')")&&back.includes("geDJSavedPlaylists"),
+  'Back Room must load actual DJ playlist IDs, names and song paths');
 assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
   'The Radio MUSIC published playlists must come from original DJ data');
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
