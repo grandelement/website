@@ -179,4 +179,62 @@ assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &
 assert.ok(back.includes("minlength=\"12\"") &&
   back.includes("/^[a-zA-Z0-9-]{12,64}$/.test(requested)"),
   'Custom Access Code editor must match the Vault minimum length');
+
+// Exercise the real Radio MUSIC playlist loader, not just source-code labels.
+const djLoaderStart=radio.indexOf('async function geLoadPublishedPlaylists(){');
+const djLoaderEnd=radio.indexOf('function gePlaylistUI(list){',djLoaderStart);
+assert.ok(djLoaderStart>=0&&djLoaderEnd>djLoaderStart,'Radio MUSIC playlist loader must be present');
+const djLoader=new Script(radio.slice(djLoaderStart,djLoaderEnd),{filename:'radio-published-dj-loader.js'});
+const radioSongA='ge-music/music/Grand Element - Singles/Singles_I=Energy.mp3';
+const radioSongB='ge-music/music/Grand Element - 2017 - Soul/Soul_02_Halo.mp3';
+async function runPublishedDJFixture(music,items,{vaultUnavailable=false}={}){
+  const context={
+    window:{},console:{warn(){}},gePlaylistOpen:false,
+    gePublishedLists:[],
+    trackList:{classList:{contains:()=>false}},
+    localStorage:{getItem:()=>null,setItem(){}},
+    fetch:async url=>{
+      if(String(url).includes('config/site-live.json'))
+        return {ok:true,json:async()=>({music})};
+      if(vaultUnavailable)throw Error('Vault temporarily unreachable');
+      return {ok:true,json:async()=>({
+        ok:true,format:'ge-public-dj-playlists-v1',items
+      })};
+    }
+  };
+  djLoader.runInNewContext(context);
+  await context.geLoadPublishedPlaylists();
+  return {lists:context.gePublishedLists,status:context.window.GE_DJ_PLAYLIST_SOURCE_STATUS};
+}
+const publishedBangers={
+  publicDJPlaylistNames:['Bangers'],
+  publicPlaylists:[{id:'real-dj-bangers',name:'Bangers',songs:[radioSongA,'../../private.mp3']}]
+};
+const offlineBangers=await runPublishedDJFixture(publishedBangers,[],{vaultUnavailable:true});
+assert.deepEqual([...offlineBangers.lists[0].songs],[radioSongA],
+  'Only approved original DJ snapshot song paths are used when Vault is down');
+assert.match(offlineBangers.status,/OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT/,
+  'Offline Vault must identify the published snapshot rather than claim a live feed');
+const emptyVaultBangers=await runPublishedDJFixture(publishedBangers,[{
+  id:'real-dj-bangers',name:'Bangers',songs:[]
+}]);
+assert.deepEqual([...emptyVaultBangers.lists[0].songs],[radioSongA],
+  'Empty Vault replication must not hide the owner-published Bangers snapshot');
+const privateDJ=await runPublishedDJFixture(
+  {publicDJPlaylistNames:['Bangers'],publicPlaylists:[]},
+  [{id:'secret',name:'Private DJ Set',songs:[radioSongB]},
+   {id:'authentic-bangers',name:'Bangers',songs:[radioSongA]}]
+);
+assert.equal(privateDJ.lists.length,1,'Unpublished original DJ records stay private');
+assert.equal(privateDJ.lists[0].name,'Bangers');
+const idOnly=await runPublishedDJFixture(
+  {publicDJPlaylistNames:[],publicPlaylists:[{id:'approved',name:'Owner Set',songs:[radioSongA]}]},
+  [{id:'approved',name:'Owner Set',songs:[radioSongA,radioSongB]}]
+);
+assert.deepEqual([...idOnly.lists[0].songs],[radioSongA],
+  'ID-specific publication must not leak newly added unapproved songs');
+const none=await runPublishedDJFixture({publicDJPlaylistNames:[],publicPlaylists:[]},
+  [{id:'private-bangers',name:'Bangers',songs:[radioSongA]}]);
+assert.equal(none.lists.length,0,'No playlists appear without an explicit owner publication');
+
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
