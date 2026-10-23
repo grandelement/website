@@ -5289,6 +5289,7 @@ syncRadioOfflineAccessUI();
 
 let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
 let geInlineMusicActive=false,geInlineMusicPaused=true,geInlineMusicTitle='';
+let geInlineMusicGateAutoOpened=false;
 function geInlineMusicSend(action){
   if(!geInlineMusicFrame?.contentWindow)return;
   geInlineMusicFrame.contentWindow.postMessage({type:'ge-radio-music-control',action},location.origin);
@@ -5302,6 +5303,7 @@ function geInlineMusicSyncTransport(){
   if(seek){seek.disabled=true;seek.value='0';}
 }
 function geInlineMusicHide(){
+  if(geInlineMusicPanel?.classList.contains('ge-gate-active'))return;
   if(geInlineMusicPanel)geInlineMusicPanel.inert=true;
   geInlineMusicPanel?.classList.remove('ge-open');
   geInlineMusicBackdrop?.classList.remove('ge-open');
@@ -5363,8 +5365,13 @@ function geInlineMusicInit(){
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
       geInlineMusicSyncTransport();
     }else if(data.type==='ge-radio-music-gate'){
-      // The existing 33:33 Gate remains visible even after closing MUSIC.
+      geInlineMusicGateAutoOpened=!geInlineMusicPanel.classList.contains('ge-open');
+      geInlineMusicPanel.classList.add('ge-gate-active');
       geInlineMusicShow(true);
+    }else if(data.type==='ge-radio-music-gate-clear'){
+      geInlineMusicPanel.classList.remove('ge-gate-active');
+      if(geInlineMusicGateAutoOpened)geInlineMusicHide();
+      geInlineMusicGateAutoOpened=false;
     }
   });
   for(const [id,action] of [['playBtn','toggle'],['nextBtn','next'],['prevBtn','previous']]){
@@ -5392,7 +5399,7 @@ function geInlineMusicShow(force=false){
   geInlineMusicPanel.inert=false;
   geInlineMusicPanel.classList.add('ge-open');
   $('musicMenuBtn')?.setAttribute('aria-expanded','true');
-  geInlineMusicPanel.querySelector('.geMusicModalHead button')?.focus();
+  if(!geInlineMusicPanel.classList.contains('ge-gate-active'))geInlineMusicPanel.querySelector('.geMusicModalHead button')?.focus();
 }
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 function geOpenMusicSelection(){
@@ -6002,7 +6009,13 @@ function renderTrackList(){
     });
     row.appendChild(playNow);fragment.appendChild(row);
   }
-  trackList.appendChild(fragment);
+  const scrollArea=document.createElement('div');
+  scrollArea.id='geTrackScroller';
+  scrollArea.setAttribute('role','region');
+  scrollArea.setAttribute('aria-label','All Grand Element songs — scroll by album');
+  scrollArea.tabIndex=0;
+  scrollArea.appendChild(fragment);
+  trackList.appendChild(scrollArea);
   updateAlbumHeadings();
 }
 
@@ -10715,6 +10728,6 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   });
 })();
 </script>
-<script defer src="../ge-accessibility.js?v=20261022-iam-center-v1"></script>
+<script defer src="../ge-accessibility.js?v=20261023-about-language1"></script>
 </body>
 </html>
