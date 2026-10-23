@@ -2837,6 +2837,28 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #arrangeB
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #installBtn{grid-area:4/3/5/4!important}
 html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(14px,1.7vw,16px)!important;line-height:1.25!important;opacity:.92!important}
 </style>
+
+<style id="ge-radio-inline-music-20261022">
+/* MUSIC is an in-page panel. Its document persists while the visitor browses,
+   saves playlists, or closes the panel; it does not navigate the Radio page. */
+#geInlineMusicBackdrop{position:fixed;inset:0;z-index:20010;background:rgba(0,4,12,.78);backdrop-filter:blur(5px);display:none}
+#geInlineMusicPanel{position:fixed;z-index:20011;left:50%;top:50%;transform:translate(-50%,-50%);
+ width:min(940px,96vw);height:min(88dvh,920px);max-height:calc(100dvh - 20px);
+ display:flex;flex-direction:column;overflow:hidden;min-height:0;
+ background:#05182c;color:#eafaff;border:1px solid #62bce9;border-radius:15px;
+ box-shadow:0 16px 70px #000b;opacity:0;pointer-events:none}
+#geInlineMusicBackdrop.ge-open{display:block}
+#geInlineMusicPanel.ge-open{opacity:1;pointer-events:auto}
+#geInlineMusicPanel .geMusicModalHead{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+ gap:12px;padding:9px 12px;background:#0b2840;border-bottom:1px solid #326589}
+#geInlineMusicPanel .geMusicModalHead strong{font:850 15px system-ui,sans-serif;letter-spacing:.07em}
+#geInlineMusicPanel .geMusicModalHead button{width:auto;min-height:36px;padding:6px 14px;flex:0 0 auto;background:#143c59}
+#geInlineMusicFrame{border:0;background:#06182a;width:100%;height:100%;min-height:0;flex:1}
+@media(max-width:600px){
+ #geInlineMusicPanel{width:calc(100vw - 10px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);border-radius:10px}
+ #geInlineMusicPanel .geMusicModalHead{padding:6px 9px}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -5151,10 +5173,124 @@ function syncRadioOfflineAccessUI(){
 }
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
 syncRadioOfflineAccessUI();
-function geOpenMusicSelection(){
-  // Track choosing never starts an unpurchased song in the public player.
-  location.assign('./preview-lab.html#choose');
+
+let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
+let geInlineMusicActive=false,geInlineMusicPaused=true,geInlineMusicTitle='';
+function geInlineMusicSend(action){
+  if(!geInlineMusicFrame?.contentWindow)return;
+  geInlineMusicFrame.contentWindow.postMessage({type:'ge-radio-music-control',action},location.origin);
 }
+function geInlineMusicSyncTransport(){
+  if(!geInlineMusicActive)return;
+  if(geInlineMusicTitle)titleBtn.textContent=geInlineMusicTitle;
+  const playButton=$('playBtn');
+  if(playButton)playButton.textContent=geInlineMusicPaused?'Play':'Pause';
+  const seek=$('playerSeek');
+  if(seek){seek.disabled=true;seek.value='0';}
+}
+function geInlineMusicHide(){
+  if(geInlineMusicPanel)geInlineMusicPanel.inert=true;
+  geInlineMusicPanel?.classList.remove('ge-open');
+  geInlineMusicBackdrop?.classList.remove('ge-open');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','false');
+  $('musicMenuBtn')?.focus();
+}
+function geInlineMusicStop(){
+  geInlineMusicSend('stop');
+  geInlineMusicActive=false;geInlineMusicPaused=true;geInlineMusicTitle='';
+}
+function geInlineMusicBeforePlay(title){
+  // Called synchronously by the same-origin album player's user-click handler.
+  // Handoff must precede its audio.play(), particularly on iPhone Safari.
+  if(state.live||state.livePreparing)exitLiveMode('');
+  else requestUserPause();
+  geInlineMusicActive=true;geInlineMusicPaused=false;
+  geInlineMusicTitle=String(title||'Grand Element Music').slice(0,180);
+  geInlineMusicSyncTransport();
+}
+function geInlineMusicInit(){
+  if(geInlineMusicPanel)return;
+  geInlineMusicBackdrop=document.createElement('div');
+  geInlineMusicBackdrop.id='geInlineMusicBackdrop';
+  geInlineMusicBackdrop.addEventListener('click',geInlineMusicHide);
+  geInlineMusicPanel=document.createElement('section');
+  geInlineMusicPanel.id='geInlineMusicPanel';
+  geInlineMusicPanel.setAttribute('role','dialog');
+  geInlineMusicPanel.setAttribute('aria-modal','true');
+  geInlineMusicPanel.setAttribute('aria-label','Grand Element Music and playlists');
+  geInlineMusicPanel.inert=true;
+  const head=document.createElement('div');head.className='geMusicModalHead';
+  const heading=document.createElement('strong');heading.textContent='MUSIC · ALBUMS · PLAYLISTS';
+  const close=document.createElement('button');close.type='button';close.textContent='CLOSE';
+  close.setAttribute('aria-label','Close music selector without stopping playback');
+  close.addEventListener('click',geInlineMusicHide);
+  head.append(heading,close);
+  geInlineMusicFrame=document.createElement('iframe');
+  geInlineMusicFrame.id='geInlineMusicFrame';
+  geInlineMusicFrame.title='Grand Element albums and playlist editor';
+  geInlineMusicFrame.allow='autoplay';
+  // Load once; never reload on a subsequent MUSIC click.
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio';
+  geInlineMusicPanel.append(head,geInlineMusicFrame);
+  document.body.append(geInlineMusicBackdrop,geInlineMusicPanel);
+  window.addEventListener('message',event=>{
+    if(event.origin!==location.origin||event.source!==geInlineMusicFrame?.contentWindow)return;
+    const data=event.data;
+    if(!data||typeof data!=='object')return;
+    if(data.type==='ge-radio-music-starting'){
+      // Stop the station only when the listener explicitly starts a chosen song.
+      if(state.live||state.livePreparing)exitLiveMode('');
+      else requestUserPause();
+      geInlineMusicActive=true;
+      geInlineMusicPaused=false;
+      geInlineMusicTitle=String(data.title||'Grand Element Music').slice(0,180);
+      geInlineMusicSyncTransport();
+    }else if(data.type==='ge-radio-music-state'&&geInlineMusicActive){
+      geInlineMusicPaused=!!data.paused;
+      if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
+      geInlineMusicSyncTransport();
+    }else if(data.type==='ge-radio-music-gate'){
+      // The existing 33:33 Gate remains visible even after closing MUSIC.
+      geInlineMusicShow(true);
+    }
+  });
+  for(const [id,action] of [['playBtn','toggle'],['nextBtn','next'],['prevBtn','previous']]){
+    $(id)?.addEventListener('click',event=>{
+      if(!geInlineMusicActive)return;
+      event.preventDefault();event.stopImmediatePropagation();
+      geInlineMusicSend(action);
+    },true);
+  }
+  titleBtn.addEventListener('click',event=>{
+    if(!geInlineMusicActive)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    geInlineMusicShow();
+  },true);
+  $('liveBtn')?.addEventListener('click',()=>{
+    if(geInlineMusicActive)geInlineMusicStop();
+  },true);
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&geInlineMusicPanel?.classList.contains('ge-open')){
+      event.preventDefault();geInlineMusicHide();
+    }
+  });
+}
+function geInlineMusicShow(force=false){
+  geInlineMusicInit();
+  if(!force&&geInlineMusicPanel.classList.contains('ge-open'))return;
+  document.body.classList.remove('hud-hidden');
+  geInlineMusicBackdrop.classList.add('ge-open');
+  geInlineMusicPanel.inert=false;
+  geInlineMusicPanel.classList.add('ge-open');
+  $('musicMenuBtn')?.setAttribute('aria-expanded','true');
+  geInlineMusicPanel.querySelector('.geMusicModalHead button')?.focus();
+}
+window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
+function geOpenMusicSelection(){
+  // Never navigate away or pause BLITZ merely to browse albums and playlists.
+  geInlineMusicShow();
+}
+
 function geOpenMyMusicStore(){
   // Play takes guests to the commerce/My Music entry, not a free file URL.
   location.assign('../support/?section=music&flow=player');
@@ -5696,6 +5832,7 @@ $('nextBtn').addEventListener('click',()=>nextTrack(true));
 const playBtn=$('playBtn'),playerSeek=$('playerSeek');
 function syncMainTransport(){
   // Show the true live transport state. For personal songs, PLAY opens music choice.
+  if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
   if(playBtn)playBtn.textContent=(state.live||state.livePreparing||geOwnerDemoEnabled())?(audio.paused?'Play':'Pause'):'Play';
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
@@ -6345,7 +6482,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-utility-order-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-inline-music-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -9804,7 +9941,7 @@ Vector ${vector}. ${pair[1]}.`;
   enter?.addEventListener('click',unlock);
   $('geGateNextPreview')?.addEventListener('click',()=>{
     try{audio.pause();}catch(_e){}
-    location.assign('./preview-lab.html#choose');
+    geOpenMusicSelection();
   });
   word?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();unlock();}});
 
@@ -10149,8 +10286,7 @@ gateTestBtn?.addEventListener('click',()=>{
 })();
 document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   // Reuse this tab so only one music player is alive at a time.
-  requestUserPause();
-  location.assign('./preview-lab.html');
+  geOpenMusicSelection();
 });
 </script>
 <script id="ge-background-audio-hardening">
