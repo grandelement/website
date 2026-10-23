@@ -900,10 +900,13 @@ function syncDJSavedPlaylistsToPublic(){
   }
   cfg.music=cfg.music||{};
   const pathsOk=path=>/^ge-music\/music\//.test(path)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path)&&!path.includes('..');
+  // A DJ playlist is private until its owner explicitly publishes that ID.
+  // Refreshing the DJ library must never silently expose every saved rotation.
+  const explicitlyPublic=new Set((cfg.music.publicPlaylists||[]).map(p=>String(p.id)));
   const old=JSON.stringify(cfg.music.publicPlaylists||[]);
   cfg.music.publicPlaylists=geDJSavedPlaylists.map(playlist=>({
     id:playlist.id,name:playlist.name,songs:[...new Set(playlist.paths.filter(pathsOk))]
-  })).filter(playlist=>playlist.songs.length>0);
+  })).filter(playlist=>explicitlyPublic.has(String(playlist.id))&&playlist.songs.length>0);
   if(JSON.stringify(cfg.music.publicPlaylists)!==old)mark();
   const total=geDJSavedPlaylists.length,shown=cfg.music.publicPlaylists.length;
   $('brDJPlaylistStatus').textContent='DJ BOOTH CONNECTED · '+total+' saved playlist(s), '+shown+
@@ -2051,6 +2054,7 @@ const backroomVaultManagers=(()=>{
   }
   async function savePlaylist(){
     const name=$('brPlaylistName').value.trim(),included=playlistTracks.filter(t=>!t._excluded);
+    const makePublic=$('brPlaylistPublic').checked;
     if(!name){playlistStatus('TYPE A PLAYLIST NAME.');$('brPlaylistName').focus();return;}
     if(!included.length){playlistStatus('CHECK AT LEAST ONE SONG FIRST.');return;}
     // Match original DJ Booth behavior: same saved name updates its existing ID;
@@ -2066,7 +2070,13 @@ const backroomVaultManagers=(()=>{
       if(!data.playlist?.id||!Array.isArray(data.items))throw Error('DJ did not confirm saving.');
       acceptDJPlaylistSnapshot(data.items,data.vault_saved===true);
       const saved=String(data.playlist.id);
+      // The PUBLIC checkbox only updates the publishable snapshot after the
+      // original DJ store confirms the write. Unpublishing is always allowed.
+      if(!makePublic||data.vault_saved===true)
+        syncPublicPlaylist(saved,name,included,makePublic);
       editPlaylist(saved);
+      if(makePublic&&data.vault_saved!==true)
+        playlistStatus('DJ saved locally, but GE Vault has not confirmed it. Public playlist changes were NOT staged.');
       if($('brPlaylistActive').checked){
         const radio=await geDJApi('/control/custom-mix',{enabled:true,playlist_id:saved});
         playlistStatus('ON RADIO 1 · '+name+(radio.vault_saved?' · VAULT':' · BLITZ LOCAL'));
@@ -2085,8 +2095,10 @@ const backroomVaultManagers=(()=>{
       const data=await geDJApi('/control/playlists/delete',{id});
       if(!Array.isArray(data.items))throw Error('DJ did not confirm deletion.');
       acceptDJPlaylistSnapshot(data.items,data.vault_deleted===true);
+      // Delete the public reference too; never leave a deleted DJ list advertised.
+      syncPublicPlaylist(id,found.name,[],false);
       editPlaylist('');
-      playlistStatus('DELETED · '+found.name+' · PUBLISH LIVE to update Radio MUSIC');
+      playlistStatus('DELETED · '+found.name+' · PUBLISH LIVE to remove it from Radio MUSIC');
     }catch(err){playlistStatus('DJ DELETE FAILED · '+String(err.message||err));}
   }
   function renderDJAlbumChoices(){
