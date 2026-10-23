@@ -111,6 +111,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomActionRow button{min-height:36px}
 .backroomActionRow span{color:var(--muted);font-size:calc(11px * var(--scale))}
 .backroomInlineStatus{border:1px solid #26617b;border-radius:10px;background:#041a2d;padding:9px;margin:9px 0;color:#b8e5fa;font-size:calc(11px * var(--scale))}
+.brMasterAlbum{border:1px solid #245778;border-radius:10px;padding:8px;margin:8px 0;background:#041b2d}
+.brMasterAlbum>strong{display:block;margin-bottom:7px;color:#a6e5ff}
+.brMasterSong{display:flex;align-items:center;gap:8px;min-height:33px;padding:4px;border-bottom:1px solid #20415b;font-size:calc(11px * var(--scale))}
+.brMasterSong input{width:19px;height:19px;accent-color:#5cd6ff;flex-shrink:0}
+#brMasterSearch{flex:1;min-width:110px;max-width:290px}
+#brMasterCount{font-size:calc(11px * var(--scale))}
 .brPlaylistTracks{display:grid;gap:7px;margin:9px 0;max-height:340px;overflow:auto}
 .brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.brPlaylistTrack.dragging{background:#15527a;border-color:#93dfff;outline:2px solid #73c5ed;cursor:grabbing}
 .brPlaylistTrack span{min-width:0;overflow-wrap:anywhere;font-size:calc(10px * var(--scale))}
@@ -331,15 +337,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   font-size:clamp(12px,calc(15px * var(--scale)),16px)!important;
   line-height:1.08!important;letter-spacing:-.01em;
 }
+/* Five tabs per row, with extra space for ACCESS CODES. */
 #backroomMain .backroomTabs button:nth-child(1){grid-column:span 4}
 #backroomMain .backroomTabs button:nth-child(2){grid-column:span 4}
-#backroomMain .backroomTabs button:nth-child(3){grid-column:span 3}
-#backroomMain .backroomTabs button:nth-child(4){grid-column:span 3}
-#backroomMain .backroomTabs button:nth-child(5){grid-column:span 6}
-#backroomMain .backroomTabs button:nth-child(6){grid-column:span 6}
-#backroomMain .backroomTabs button:nth-child(7){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(3){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(4){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(5){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(6){grid-column:span 5}
+#backroomMain .backroomTabs button:nth-child(7){grid-column:span 5}
 #backroomMain .backroomTabs button:nth-child(8){grid-column:span 5}
 #backroomMain .backroomTabs button:nth-child(9){grid-column:span 5}
+#backroomMain #brPanel-welcome > section.brDirectSection,
+#backroomMain #brPanel-about > section.brDirectSection{
+  padding:10px 12px;margin:6px 0;
+}
 #backroomMain #brPanel-gate > section.brDirectSection{
   padding:9px 12px;margin:6px 0;
 }
@@ -364,6 +375,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   #backroomMain .brHeaderRow h1{font-size:15px}
 }
 
+ .brGameOptionRow{border:1px solid #27506a;border-radius:10px;padding:9px;margin:6px 0}.brGameOptionRow .check{display:inline-flex;margin-right:10px}.brGameOptionDetails{padding:8px 0}.brGameOptionDetails[hidden]{display:none}
+ .brPlaylistTrack.excluded{opacity:.45;text-decoration:line-through}
+ .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 </style>
 </head>
 <body>
@@ -400,11 +414,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
-  <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="true">CONTENT</button>
+  <button id="brTabWelcome" type="button" role="tab" data-tab="welcome" aria-selected="true">WELCOME</button>
+  <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
-  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
+  
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
@@ -419,7 +434,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="presets">
   <h2>SAVED PRESETS</h2>
-  <p>Save the entire Back Room setup, including all text, album visibility and order, exact planet positions, Welcome and About placement, activity settings, games, first song, and Soul names.</p>
+  <p>Save a snapshot of the public website configuration, including text, planet positions, games, Radio Moon, Gate timing, approved songs and public playlists. Private Vault access codes and private playlists are managed separately and are NOT included in presets.</p>
   <div class="grid">
     <label><span>Preset name</span><input id="presetName" type="text" maxlength="60" placeholder="Example: Favorite Universe"></label>
     <label><span>Saved preset</span><select id="presetSelect"><option value="">No saved presets yet</option></select></label>
@@ -428,21 +443,24 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="primary" id="savePreset" type="button">SAVE PRESET</button>
     <button id="loadPreset" type="button">LOAD PRESET</button>
     <button id="deletePreset" type="button">DELETE PRESET</button>
+    <button id="exportPreset" type="button">DOWNLOAD BACKUP</button>
+    <button id="importPreset" type="button">RESTORE BACKUP FILE</button>
+    <input id="importPresetFile" type="file" accept=".json,application/json" hidden>
   </div>
 </section>
 
-<section data-br-tab="content">
+<section data-br-tab="welcome">
   <h2>WELCOME SCREEN</h2>
   <p>Edit the wording here or place the actual welcome box directly on the website.</p>
   <div class="check"><input id="welcomeEnabled" type="checkbox"><span>Show welcome screen</span></div>
   <div class="grid" style="margin-top:10px"><label><span>Title</span><input id="welcomeTitle" type="text"></label><label><span>Contact text</span><input id="welcomeContact" type="text"></label></div>
   <label style="margin-top:10px"><span>Message</span><textarea id="welcomeBody"></textarea></label>
   <label style="margin-top:10px"><span>Contact email</span><input id="welcomeEmail" type="email"></label>
-  <label style="margin-top:10px"><span>Window transparency <b id="welcomeOpacityValue">78%</b></span><input id="welcomeOpacity" type="range" min="20" max="100" step="1" value="78"></label>
+  <input id="welcomeOpacity" type="hidden" value="78"><span id="welcomeOpacityValue" hidden>78%</span>
   <p class="screenEditTip">To edit visually, use VIEW WEBSITE at the top of the Back Room.</p>
 </section>
 
-<section data-br-tab="content">
+<section data-br-tab="about">
   <h2>ABOUT</h2>
   <p>Edit the About wording in the same size, width, spacing, alignment and glow used on the website.</p>
   <div class="aboutEditorShell">
@@ -469,7 +487,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <div id="aboutIntro" class="aboutLiveText" contenteditable="true" spellcheck="true"></div>
     </div>
   </div>
-  <label style="margin-top:10px"><span>Window transparency <b id="aboutOpacityValue">96%</b></span><input id="aboutOpacity" type="range" min="20" max="100" step="1" value="96"></label>
+  <input id="aboutOpacity" type="hidden" value="96"><span id="aboutOpacityValue" hidden>96%</span>
   
 </section>
 
@@ -501,27 +519,17 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section data-br-tab="universe">
-  <h2>SOUL NAMES / PEOPLE</h2>
-  <p>These names stay on this device. Put Mom or any other player name here.</p>
-  <div class="grid3">
-    <label><span>Soul 1</span><input id="soulName1" type="text" maxlength="18"></label><label><span>Soul 2</span><input id="soulName2" type="text" maxlength="18"></label><label><span>Soul 3</span><input id="soulName3" type="text" maxlength="18"></label>
-    <label><span>Soul 4</span><input id="soulName4" type="text" maxlength="18"></label><label><span>Soul 5</span><input id="soulName5" type="text" maxlength="18"></label><label><span>Soul 6</span><input id="soulName6" type="text" maxlength="18"></label>
-  </div>
-  <div class="actions"><button id="saveSoulNames" type="button">SAVE SOUL NAMES</button></div>
-</section>
-
 <section data-br-tab="games">
   <h2>GAMES AVAILABLE</h2>
   <p>Choose which games appear in the public Game Control. Each game keeps its own options.</p>
   <div class="backroomGamesGrid">
-    <label class="check"><input id="gamePoints" type="checkbox"><span><b>POINTS</b><small>Throw / Rubber Band</small></span></label>
-    <label class="check"><input id="gamePockets" type="checkbox"><span><b>POCKETS</b><small>Center Pool / 9 Ball</small></span></label>
-    <label class="check"><input id="gamePlanets" type="checkbox"><span><b>PLANETS</b><small>Marbles</small></span></label>
-    <label class="check"><input id="gameGolf" type="checkbox"><span><b>GOLF</b><small>33 holes / The Body opponent</small></span></label>
-    <label class="check"><input id="gameGravity" type="checkbox"><span><b>GRAVITY</b><small>33 tilt mazes</small></span></label>
-    <label class="check"><input id="gameBody" type="checkbox"><span><b>THE BODY</b><small>33 flight courses</small></span></label>
-    <label class="check"><input id="gameFlight" type="checkbox"><span><b>FLIGHT</b><small>Assembly draft</small></span></label>
+    <div class="brGameOptionRow"><label class="check"><input id="gamePoints" type="checkbox"><span><b>POINTS</b><small>Throw / Rubber Band</small></span></label><button type="button" class="brGameOptionsButton" data-game="gamePoints" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gamePockets" type="checkbox"><span><b>POCKETS</b><small>Center Pool / 9 Ball</small></span></label><button type="button" class="brGameOptionsButton" data-game="gamePockets" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gamePlanets" type="checkbox"><span><b>PLANETS</b><small>Marbles</small></span></label><button type="button" class="brGameOptionsButton" data-game="gamePlanets" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gameGolf" type="checkbox"><span><b>GOLF</b><small>33 holes / The Body opponent</small></span></label><button type="button" class="brGameOptionsButton" data-game="gameGolf" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gameGravity" type="checkbox"><span><b>GRAVITY</b><small>33 tilt mazes</small></span></label><button type="button" class="brGameOptionsButton" data-game="gameGravity" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gameBody" type="checkbox"><span><b>THE BODY</b><small>33 flight courses</small></span></label><button type="button" class="brGameOptionsButton" data-game="gameBody" title="Open this game setup">OPTIONS</button></div>
+    <div class="brGameOptionRow"><label class="check"><input id="gameFlight" type="checkbox"><span><b>FLIGHT</b><small>Assembly draft</small></span></label><button type="button" class="brGameOptionsButton" data-game="gameFlight" title="Open this game setup">OPTIONS</button></div>
   </div>
 </section>
 
@@ -530,23 +538,34 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <h2>RADIO CONTROL</h2>
   <p>RADIO 1 is BLITZ Primary. RADIO 2 is its Cloudflare backup. Both belong to one GE DJ Booth, using Bangers as the intended station playlist.</p>
   <div class="backroomQuickLinks">
-    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
-    <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
-    <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
+    <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
+    <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
-  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Saving a playlist does not restart the live station.</p>
+  <p>Live broadcast scheduling stays in the DJ Booth. Website startup and Radio Moon controls are below. Radio playlists appear immediately above the GE Radio Master Song List.</p>
+  <div class="backroomActionRow">
+    <button type="button" id="brRadio2Check">CHECK RADIO 2 BANGERS</button>
+    <span id="brRadio2Status" role="status" aria-live="polite">Radio 2 Bangers publishing has not been checked yet.</span>
+  </div>
+  <p>GE RADIO MASTER SONG LIST controls which tracks may play automatically on BLITZ Radio and website Player/Shuffle. A checked song stays approved when its audio file is replaced. New uploads default OFF until explicitly checked and PUBLISH LIVE is pressed.</p>
+  <section id="brMasterSection" aria-label="GE Radio Master Song List">
+    <h3>GE RADIO MASTER SONG LIST</h3>
+    <div class="backroomActionRow"><input id="brMasterSearch" type="search" placeholder="Find song or album" aria-label="Search radio approved music"><button id="brMasterRefresh" type="button">REFRESH LIBRARY</button><strong id="brMasterCount">Loading…</strong></div>
+    <p class="brAccessNotice">Changes are staged. SAVE then PUBLISH LIVE to approve or remove Radio and automatic Shuffle songs. All album tracks remain available in MUSIC and SHOP.</p>
+    <div id="brMasterSongs" role="group" aria-label="Approved radio and automatic player songs"></div>
+  </section>
 </section>
 
 <section data-br-tab="playlists">
-  <h2>PLAYLISTS</h2>
+  <h2>RADIO PLAYLISTS</h2><p>Select Bangers when available from the saved DJ playlists; do not substitute an unrelated playlist for the live BLITZ rotation.</p>
   <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
     <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
-    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
+    <button type="button" id="brImportBangers">LOAD SAVED DJ BANGERS</button>
+    <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
-  <label><span>SAVED PLAYLISTS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
+  <label><span>SAVED PLAYLISTS · BANGERS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
   <label><span>PLAYLIST NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Bangers"></label>
   <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
@@ -563,7 +582,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
-  <p>Open or close this manager with the ACCESS CODES heading. Browse one issued code at a time, or create a new assignment.</p>
+  <p>Manage Vault-issued codes here. LOVE is an older Radio Gate code and appears separately below. Choose a code to edit, suspend, revoke or delete.</p>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to load saved codes.</div>
 
   <div class="brAccessToolbar">
@@ -571,7 +590,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button type="button" id="brAccessRefresh">REFRESH</button>
     <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
   </div>
-  <p class="brAccessNotice">The public Radio Gate does not yet redeem private access codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
+  <p class="brAccessNotice">Vault-issued codes and the older LOVE Radio Gate use different validation systems. Vault assignments do not yet unlock the public Radio Gate automatically.</p>
 
   <div id="brAccessBrowse" class="brAccessPanel">
     <h3>ISSUED CODES</h3>
@@ -582,7 +601,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessNext" aria-label="Next access code">NEXT →</button>
       <span id="brAccessPosition">0 OF 0</span>
     </div>
-    <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
+    <div class="brAccessNotice" id="brAccessLegacyNotice">
+    <strong>LOVE · LEGACY RADIO GATE CODE</strong>
+    <p>LOVE is configured in the older Radio Gate, not in the Vault-issued code database. It is shown here for reference, but cannot be edited or deleted through Vault code actions. Changing or disabling it requires updating the Radio Gate separately.</p>
+  </div>
+  <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
     <div class="brAccessActions">
       <button type="button" id="brAccessEdit">EDIT CODE</button>
       <button type="button" id="brAccessToggle">SUSPEND</button>
@@ -592,7 +615,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 
   <div id="brAccessEditor" class="brAccessPanel" hidden>
-    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
+    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3><p>Enter a code name, select permissions and songs, then GENERATE &amp; SAVE CODE. The secure code is shown once after saving.</p>
     <label><span>CODE NAME</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
     <h4>1 · ACCESS PERMISSIONS</h4>
     <div class="backroomPermissions">
@@ -603,8 +626,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     <h4>2 · MUSIC ASSIGNMENTS</h4>
-    <p>Select a saved playlist and/or individual songs. Leave both empty for permission to the whole selected music category.</p>
-    <label><span>ASSIGNED PLAYLIST</span><select id="brAccessPlaylist"><option value="">ALL / NO SPECIFIC PLAYLIST</option></select></label>
+    <p>Choose a playlist to preselect its songs, then adjust the individual checkboxes. Press GENERATE &amp; SAVE CODE for a new code or SAVE CHANGES for an existing one. Vault code permissions do not automatically unlock the legacy Radio Gate.</p>
+    <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
     <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
     <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
     <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Select multiple songs"></div>
@@ -621,7 +644,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
     <label class="check" id="brAccessStartRow"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
     <div class="brAccessEditorActions">
-      <button type="button" class="primary" id="brAccessIssue">GENERATE SECURE CODE</button>
+      <button type="button" class="primary" id="brAccessIssue">GENERATE &amp; SAVE CODE</button>
       <button type="button" class="primary" id="brAccessSave" hidden>SAVE CHANGES</button>
       <button type="button" id="brAccessCancel">CANCEL</button>
     </div>
@@ -656,7 +679,17 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
   <label><span>Optional first song (only for automatic startup)</span><select id="firstTrackSelect"><option>Loading music…</option></select></label>
-  <p>Visitors can always start music manually with PLAY.</p>
+  <p>Browsers may block automatic sound until the visitor presses PLAY.</p>
+</section>
+<section data-br-tab="radio">
+  <h2>RADIO MOON SATELLITE</h2>
+  <div class="grid">
+    <label class="check"><input id="radioMoonVisible" type="checkbox" checked><span>SHOW RADIO MOON</span></label>
+    <label><span>Moon glow (%)</span><input id="radioMoonGlow" type="range" min="0" max="200" step="5" value="100"><output id="radioMoonGlowValue">100%</output></label>
+    <label><span>Orbit time (seconds per revolution)</span><input id="radioMoonOrbitSeconds" type="number" min="10" max="600" step="5" value="60"></label>
+    <label><span>Distance from Blue Sun (desktop)</span><input id="radioMoonDistanceDesktop" type="number" min="0.5" max="5" step="0.1" value="2.2"></label>
+    <label><span>Distance from Blue Sun (mobile)</span><input id="radioMoonDistanceMobile" type="number" min="0.5" max="5" step="0.1" value="1.1"></label>
+  </div>
 </section>
 </main>
 
@@ -673,6 +706,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="hidden" id="editorPlanets" type="button">PLANETS</button>
     <button class="hidden" id="editorHideControls" type="button">HIDE TOOLS</button>
     <button class="hidden" id="editorShowControls" type="button">TOOLS</button>
+  </div>
+  <div id="editorOpacityControls" class="editorOpacityControls" hidden>
+    <label>WELCOME TRANSPARENCY <output id="editorWelcomeOpacityValue">78%</output><input id="editorWelcomeOpacity" type="range" min="20" max="100" step="1" value="78"></label>
+    <label>ABOUT TRANSPARENCY <output id="editorAboutOpacityValue">96%</output><input id="editorAboutOpacity" type="range" min="20" max="100" step="1" value="96"></label>
   </div>
   <div class="screenTextTools hiddenTools" id="screenTextTools">
     <button type="button" data-screen-cmd="bold"><b>B</b></button>
@@ -707,12 +744,29 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 'use strict';
 const $=id=>document.getElementById(id);
 
+function installGameOptionControls(){
+  const gameKinds={gamePoints:'points',gamePockets:'pockets',gamePlanets:'planets',gameGolf:'golf',gameGravity:'gravity',gameBody:'body',gameFlight:'flight'};
+  const openSetup=button=>{
+    const row=button.closest('.brGameOptionRow');
+    const key=row?.querySelector('.brGameOptionsButton')?.dataset.game;
+    const game=gameKinds[key];
+    if(!game)return;
+    // A single tap opens that game's real setup; the adjacent checkbox only
+    // controls its visibility in the public game chooser.
+    window.open('../?ge_game_setup='+encodeURIComponent(game),'_blank','noopener');
+  };
+  document.querySelectorAll('.brGameOptionsButton').forEach(button=>{
+    button.addEventListener('click',()=>openSetup(button));
+  });
+}
+installGameOptionControls();
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['content','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
+  const categories=['welcome','about','universe','games','radio','access','gate','scores','presets'],panelCategories=[...categories.slice(0,5),'playlists',...categories.slice(5)],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
-  for(const category of categories){
+  // Keep Radio playlists with Radio rather than as a separate top-level tab.
+  for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
     panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
     panelHost.appendChild(panel);panels.set(category,panel);
@@ -723,7 +777,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'){
+    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -738,8 +792,14 @@ function installBackroomTabs(){
     trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
   }
   function activate(tab,focus=false){
-    if(!panels.has(tab))tab='content';
-    for(const [name,panel]of panels){panel.hidden=name!==tab;}
+    if(!panels.has(tab))tab='welcome';
+    if(tab==='playlists')tab='radio';
+    for(const [name,panel]of panels){panel.hidden=name!==tab&&!(tab==='radio'&&name==='playlists');}
+    if(tab==='radio'){
+      const radio=panels.get('radio'),playlistsPanel=panels.get('playlists');
+      const master=radio?.querySelector('#brMasterSection');
+      if(master&&playlistsPanel&&playlistsPanel.parentElement!==radio)radio.insertBefore(playlistsPanel,master);
+    }
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
@@ -761,8 +821,8 @@ function installBackroomTabs(){
     const toggle=first?.querySelector('.backroomGroupToggle');
     if(name!=='access')toggle?.click();
   }
-  let initial='content';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'content'}catch(_e){}
-  if(initial==='home')initial='content';
+  let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
+  if(initial==='home'||initial==='content')initial='welcome';
   if(initial==='music')initial='radio';
   activate(initial);
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
@@ -968,6 +1028,33 @@ async function saveNamedPreset(){
     setStatus('PRESET SAVED · '+name+' · CLOUD BACKUP PENDING');
   }finally{$('savePreset').disabled=false}
 }
+function exportPresetBackup(){
+  collect();
+  const name=String($('presetName').value||'').trim()||'GE Website Backup';
+  const backup={format:'GE_BACKROOM_PUBLIC_PRESET_V1',exportedAt:new Date().toISOString(),name,config:clone(cfg),soulNames:currentSoulNames()};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download='ge-website-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  setStatus('PUBLIC WEBSITE BACKUP DOWNLOADED · PRIVATE VAULT DATA NOT INCLUDED');
+}
+async function importPresetBackup(file){
+  if(!file)return;
+  if(file.size>2_000_000){setStatus('BACKUP TOO LARGE');return;}
+  try{
+    const backup=JSON.parse(await file.text());
+    if(backup?.format!=='GE_BACKROOM_PUBLIC_PRESET_V1'||!backup.config||typeof backup.config!=='object'||Array.isArray(backup.config))throw Error('Unrecognized backup format');
+    if(!backup.config.visual||!backup.config.albums||!backup.config.games)throw Error('Backup is missing required website configuration');
+    if(!confirm('Restore this public website configuration into the Back Room draft? The live website will NOT change until you publish.'))return;
+    cfg=clone(backup.config);localStorage.setItem(WORK_KEY,JSON.stringify(cfg));populate();await loadMusic();
+    if(Array.isArray(backup.soulNames))storeSoulNames(backup.soulNames);
+    dirty=true;$('presetName').value=String(backup.name||'Imported Backup').slice(0,60);
+    setStatus('BACKUP RESTORED TO DRAFT · SAVE PRESET OR PUBLISH LIVE WHEN READY');
+  }catch(e){setStatus('BACKUP RESTORE FAILED · '+String(e.message||e));}
+}
+$('exportPreset').onclick=exportPresetBackup;
+$('importPreset').onclick=()=>$('importPresetFile').click();
+$('importPresetFile').addEventListener('change',e=>{void importPresetBackup(e.target.files?.[0]);e.target.value='';});
 async function loadNamedPreset(){
   const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
   if(!p){setStatus('CHOOSE A SAVED PRESET');return}
@@ -1022,10 +1109,6 @@ function renderAlbums(){
     box.querySelectorAll('input,textarea').forEach(e=>e.addEventListener('input',mark));wrap.appendChild(box);
   });
 }
-function loadSouls(){let p=[];try{p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(_e){};for(let i=0;i<6;i++)field('soulName'+(i+1),p?.[i]?.name||('Soul '+(i+1)))}
-function saveSouls(){let old=[];try{old=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(_e){};const p=Array.from({length:6},(_,i)=>({name:String($('soulName'+(i+1)).value||('Soul '+(i+1))).trim().slice(0,18)||('Soul '+(i+1)),handicap:!!old?.[i]?.handicap,multiplier:[2,3,4].includes(Number(old?.[i]?.multiplier))?Number(old[i].multiplier):2}));localStorage.setItem(PROFILE_KEY,JSON.stringify(p));setStatus('SOUL NAMES SAVED')}
-$('saveSoulNames').onclick=saveSouls;
-
 function escapeHtml(text){
   return String(text??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -1117,7 +1200,14 @@ function populate(){
     renderGateTimingSummary();
   }
   checked('noStartupMusic',cfg.music?.startupEnabled===false);
-  renderAlbums();loadSouls();dirty=false;setStatus('READY');
+  const moon=cfg.radioMoon||{};
+  checked('radioMoonVisible',moon.visible!==false);
+  field('radioMoonGlow',moon.glow??100);
+  $('radioMoonGlowValue').textContent=String(moon.glow??100)+'%';
+  field('radioMoonOrbitSeconds',moon.orbitSeconds??60);
+  field('radioMoonDistanceDesktop',moon.distanceDesktop??2.2);
+  field('radioMoonDistanceMobile',moon.distanceMobile??1.1);
+  renderAlbums();if(brMasterLoaded)brMasterRender();dirty=false;setStatus('READY');
 }
 function collect(){
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
@@ -1142,6 +1232,14 @@ function collect(){
   cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
+  const bounded=(id,min,max,fallback)=>{const raw=Number($(id).value);return Number.isFinite(raw)&&$(id).value!==''?Math.max(min,Math.min(max,raw)):fallback};
+  cfg.radioMoon={
+    visible:$('radioMoonVisible').checked,
+    glow:bounded('radioMoonGlow',0,200,100),
+    orbitSeconds:bounded('radioMoonOrbitSeconds',10,600,60),
+    distanceDesktop:bounded('radioMoonDistanceDesktop',.5,5,2.2),
+    distanceMobile:bounded('radioMoonDistanceMobile',.5,5,1.1)
+  };
   const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
   return cfg;
 }
@@ -1165,7 +1263,10 @@ $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textC
 for(const [,[id]] of Object.entries(gateFields)){
  $(id)?.addEventListener('input',renderGateTimingSummary);
 }
-document.querySelectorAll('main input,main textarea,main select').forEach(e=>{
+$('radioMoonGlow').addEventListener('input',()=>{$('radioMoonGlowValue').textContent=$('radioMoonGlow').value+'%'});
+// Sections move from <main> into #backroomTabPanels during tab setup.
+// Listen on the actual mounted controls or edits never mark the draft as dirty.
+document.querySelectorAll('#backroomTabPanels input,#backroomTabPanels textarea,#backroomTabPanels select').forEach(e=>{
   if(e.closest('[data-br-tab="access"],[data-br-tab="playlists"]'))return;
   if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark);
 });
@@ -1179,6 +1280,75 @@ $('planetLayout').addEventListener('change',()=>{
 $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
+let brMasterCatalog=[],brMasterLoaded=false;
+function brMasterAlbum(path){
+ const folder=String(path).split('/')[2]||'';
+ return folder.replace(/^Grand Element - (?:\d{4} - )?/,'').trim()||'Other';
+}
+function brMasterRender(){
+ const host=$('brMasterSongs'),term=String($('brMasterSearch').value||'').trim().toLowerCase();
+ host.replaceChildren();
+ const approved=new Set(cfg.music?.radioMasterSongPaths||[]);
+ const order=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+ const groups=new Map();
+ for(const path of brMasterCatalog){
+  const album=brMasterAlbum(path);
+  if(!groups.has(album))groups.set(album,[]);
+  groups.get(album).push(path);
+ }
+ for(const album of [...groups.keys()].sort((a,b)=>{
+  const i=order.indexOf(a),j=order.indexOf(b);
+  return (i<0?100:i)-(j<0?100:j)||a.localeCompare(b);
+ })){
+  const matches=groups.get(album).filter(path=>(album+' '+path.split('/').pop()).toLowerCase().includes(term));
+  if(!matches.length)continue;
+  const box=document.createElement('section');box.className='brMasterAlbum';
+  const title=document.createElement('strong');title.textContent=album+' · '+groups.get(album).length+' songs';
+  box.appendChild(title);
+  for(const path of matches){
+   const label=document.createElement('label');label.className='brMasterSong';
+   const input=document.createElement('input');input.type='checkbox';input.checked=approved.has(path);
+   input.setAttribute('aria-label','Approved for Radio and Shuffle: '+path.split('/').pop());
+   input.addEventListener('change',()=>{
+     const next=new Set(cfg.music.radioMasterSongPaths||[]);
+     if(input.checked)next.add(path);else next.delete(path);
+     cfg.music.radioMasterSongPaths=[...next].sort();
+     brMasterCount();mark();
+   });
+   const name=document.createElement('span');name.textContent=path.split('/').pop().replace(/\.(mp3|m4a|wav|ogg)$/i,'').replace(/_/g,' ');
+   label.append(input,name);box.appendChild(label);
+  }
+  host.appendChild(box);
+ }
+ if(!host.childElementCount)host.textContent='No matching songs. Refresh the album inventory.';
+ brMasterCount();
+}
+function brMasterCount(){
+ const paths=new Set(brMasterCatalog),approved=new Set(cfg.music?.radioMasterSongPaths||[]);
+ const valid=[...approved].filter(path=>paths.has(path)).length;
+ $('brMasterCount').textContent=valid+' / '+brMasterCatalog.length+' APPROVED'+(approved.size>valid?' · '+(approved.size-valid)+' unavailable':'');
+}
+async function brMasterLoadCatalog(){
+ try{
+  const r=await fetch('../radio/manifest.json?radioMaster='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('MUSIC manifest unavailable');
+  const json=await r.json();
+  const paths=(json.files||[]).filter(path=>typeof path==='string'&&/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)&&!path.includes('..'));
+  brMasterCatalog=[...new Set(paths)].sort();
+  if(!Array.isArray(cfg.music?.radioMasterSongPaths)){
+   const live=await repoLive();
+   cfg.music=cfg.music||{};
+   cfg.music.radioMasterSongPaths=[...(live.music?.radioMasterSongPaths||[])];
+  }
+  brMasterLoaded=true;brMasterRender();
+ }catch(e){
+  $('brMasterSongs').textContent='Music inventory unavailable: '+String(e.message||e);
+  $('brMasterCount').textContent='NOT READY';
+ }
+}
+$('brMasterRefresh').addEventListener('click',brMasterLoadCatalog);
+$('brMasterSearch').addEventListener('input',brMasterRender);
+
 async function loadMusic(){
   try{const r=await fetch('../radio/manifest.json?'+Date.now(),{cache:'no-store'}),d=await r.json(),files=(d.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg)$/i.test(x));const sel=$('firstTrackSelect');sel.innerHTML='<option value="">LET VISITOR CHOOSE MUSIC</option>';
     for(const p of files){const raw=decodeURIComponent(p.split('/').pop()||'').replace(/\.[^.]+$/,'');const m=raw.match(/^(.*?)[ _-]+(\d+)[ _-]+(.+)$/);const o=document.createElement('option');o.value=p;o.textContent=raw.replace(/_/g,' ');o.dataset.album=(p.match(/Grand Element - \d{4} - ([^/]+)/)||[])[1]||'';o.dataset.track=m?m[2]:'';o.dataset.title=m?m[3].replace(/_/g,' '):raw;sel.appendChild(o)}
@@ -1188,6 +1358,7 @@ async function loadMusic(){
 
 async function publish(){
   saveDraft();
+  if(!Array.isArray(cfg.music?.radioMasterSongPaths)||!cfg.music.radioMasterSongPaths.length){setStatus('REFUSING TO PUBLISH · GE RADIO MASTER SONG LIST IS EMPTY');return}
   if(!serverAuthenticated||!token()){setStatus('PUBLISH NEEDS THE PRIVATE CLOUDFLARE PUBLISHER');return}
   if(!confirm('Publish these settings to the live website now?'))return;
   setStatus('PUBLISHING…');$('publishLive').disabled=true;
@@ -1334,6 +1505,7 @@ function applyEditorAlignment(){
 }
 function applyEditorOpacity(){
   const v=editorVisual(),d=$('editorFrame').contentDocument;
+  if(!d||!v)return;
   if(editorTarget==='welcome'){
     const el=d.getElementById('geWelcomeCard');if(el)el.style.backgroundColor='rgba(4,18,32,'+(Math.max(20,Math.min(100,Number(v.panelOpacity)||78))/100)+')';
   }else{
@@ -1392,26 +1564,54 @@ function editorToolbar(){
     ?'Tap text to edit, drag planets to move them. WELCOME and ABOUT open those sections. SAVE keeps a draft; PUBLISH LIVE is in the Back Room.'
     :'';
   showPlanetPicker(false);
+  if($('editorOpacityControls'))setupPreviewOpacity();
 }
 function reloadSitePreview(){
   const frame=$('editorFrame');
   frame.onload=()=>{
-    if(editorEnabled)installUnifiedSiteEdits();
+    if(editorEnabled){installUnifiedSiteEdits();setupPreviewOpacity();}
   };
   frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
+}
+function setupPreviewOpacity(){
+  // Preview sliders belong to VIEW WEBSITE too: the owner must see the visual change.
+  const box=$('editorOpacityControls');box.hidden=false;
+  for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
+    const input=$(id),value=Number(cfg.visual?.[kind]?.panelOpacity??(kind==='welcome'?78:96));
+    input.value=String(value);$(id+'Value').textContent=value+'%';
+  }
+}
+for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
+  $(id).addEventListener('input',()=>{
+    const v=Number($(id).value);cfg.visual=cfg.visual||{};cfg.visual[kind]=cfg.visual[kind]||{};cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
+    $(kind+'Opacity').value=String(v);$(kind+'OpacityValue').textContent=v+'%';
+    const doc=$('editorFrame')?.contentDocument;
+    if(doc){
+      // Bring the affected panel into view so dragging the slider shows the
+      // real website effect immediately without entering text edit mode.
+      if(kind==='welcome'){
+        doc.getElementById('about')?.classList.remove('show');
+        doc.getElementById('geWelcome')?.classList.add('show');
+      }else{
+        doc.getElementById('geWelcome')?.classList.remove('show');
+        doc.getElementById('about')?.classList.add('show');
+      }
+    }
+    const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;mark();
+  });
 }
 function openEditor(){
   // Copy current form values into the working preview without publishing them.
   collect();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
   editorEnabled=false;editorTarget='view';editorStartCfg=null;editorActiveText=null;editorSavedRange=null;
   $('screenEditor').classList.add('show');
-  editorToolbar();
+  editorToolbar();setupPreviewOpacity();
   reloadSitePreview();
 }
 function activateEditMode(){
   if(editorEnabled)return;
   editorStartCfg=clone(cfg);editorEnabled=true;editorTarget='all';editorActiveText=null;editorSavedRange=null;
-  editorToolbar();
+  editorToolbar();setupPreviewOpacity();
   installUnifiedSiteEdits();
 }
 function installUnifiedSiteEdits(){
@@ -1618,8 +1818,8 @@ const backroomVaultManagers=(()=>{
       const r=await fetch('../radio/manifest.json',{cache:'no-store'});
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
-      catalog=(manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)).map(parseTrack);
-      renderCatalog();accessSongOptions();assignedSongsUI();
+      catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
+      renderCatalog();accessSongOptions();assignedSongsUI();accessStatus('Music catalog loaded · '+catalog.length+' songs across '+new Set(catalog.map(t=>t.album)).size+' albums/collections.');
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
@@ -1635,13 +1835,14 @@ const backroomVaultManagers=(()=>{
     playlistTracks.forEach((track,i)=>{
       const row=create('div','','brPlaylistTrack');
       row.setAttribute('role','listitem');row.dataset.position=String(i);
+      const chosen=document.createElement('input');chosen.type='checkbox';chosen.checked=!track._excluded;row.classList.toggle('excluded',!!track._excluded);chosen.setAttribute('aria-label','Include '+(track.track_title||track.track_path));chosen.addEventListener('change',()=>{track._excluded=!chosen.checked;row.classList.toggle('excluded',track._excluded);status('brPlaylistTrackCount',playlistTracks.filter(t=>!t._excluded).length+' of '+playlistTracks.length+' songs selected · SAVE PLAYLIST to apply');});row.appendChild(chosen);
       row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
       row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
       row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
       row.appendChild(btn('×',()=>{playlistTracks.splice(i,1);renderTrackList()}));
       let drag=null;
       row.addEventListener('pointerdown',event=>{
-        if(event.target.closest('button')||event.button!==0)return;
+        if(event.target.closest('button,input,select,textarea,label')||event.button!==0)return;
         drag={id:event.pointerId,start:event.clientY,active:false};
         try{row.setPointerCapture(event.pointerId)}catch(_e){}
       });
@@ -1707,6 +1908,37 @@ const backroomVaultManagers=(()=>{
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     renderPlaylistChooser();renderTrackList();
   }
+  function importBangersFromDJ(){
+    // GE DJ stores this backup only in this browser/origin. Never invent a
+    // Bangers rotation when the actual DJ backup is missing.
+    let backup=null;
+    try{backup=JSON.parse(localStorage.getItem('geRadioPlaylistBackup')||'null');}
+    catch(_e){playlistStatus('DJ PLAYLIST BACKUP IS UNREADABLE. Open GE DJ Booth and save Bangers there.');return;}
+    if(backup?.format!=='ge-radio-playlists-v1'||!Array.isArray(backup.items)){
+      playlistStatus('NO DJ BACKUP ON THIS DEVICE. Open GE DJ Booth on this website, load Bangers and save the DJ playlist first.');
+      return;
+    }
+    const bangers=backup.items.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
+    if(!bangers){playlistStatus('BANGERS IS NOT IN THIS DEVICE\'S DJ BACKUP. No songs changed.');return;}
+    if(!catalog.length){playlistStatus('GE SONG CATALOG IS LOADING. Use LOAD SAVED DJ BANGERS again after songs appear.');void loadCatalog();return;}
+    const paths=[...new Set((bangers.paths||[]).map(String).filter(Boolean))];
+    if(!paths.length){playlistStatus('THE SAVED DJ BANGERS PLAYLIST IS EMPTY. No songs changed.');return;}
+    const missing=paths.filter(path=>!catalog.some(song=>song.track_path===path));
+    if(missing.length){
+      playlistStatus('DJ BANGERS HAS '+missing.length+' SONG(S) MISSING FROM THE WEBSITE CATALOG. No songs changed. Refresh the GE music catalog before importing.');
+      return;
+    }
+    const existing=playlists.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
+    playlistEditingId=String(existing?.id||'');
+    playlistLocked=!!existing?.locked;
+    playlistTracks=paths.map(path=>({...catalog.find(x=>x.track_path===path)}));
+    $('brPlaylistName').value=bangers.name;
+    $('brPlaylistActive').checked=!!backup.active_playlist_enabled&&String(backup.active_playlist_id)===String(bangers.id);
+    $('brPlaylistPublic').checked=!!existing?.id&&publicPlaylists().some(p=>String(p.id)===String(existing.id));
+    $('brPlaylistDelete').disabled=!existing?.id||playlistLocked;
+    renderPlaylistChooser();renderTrackList();
+    playlistStatus('DJ BANGERS LOADED FROM THIS DEVICE · '+paths.length+' real songs. Review checkboxes, then SAVE PLAYLIST. This does NOT change the live BLITZ queue.');
+  }
   async function refreshPlaylists(keep=''){
     if(!authReady())return;
     playlistStatus('Loading playlists…');
@@ -1715,22 +1947,31 @@ const backroomVaultManagers=(()=>{
       playlists=Array.isArray(data.items)?data.items:[];
       playlistLoaded=true;
       const target=keep||playlistEditingId;
-      editPlaylist(playlists.some(x=>x.id===target)?target:'');
-      playlistStatus('Back Room connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
+      const bangers=playlists.find(x=>String(x.name||'').trim().toLowerCase()==='bangers');
+      editPlaylist(playlists.some(x=>x.id===target)?target:(bangers?.id||''));
+      if(!bangers&&!target){
+        // Prefer the real DJ Booth's local Bangers backup when the Vault has no
+        // saved Bangers yet, without changing the live station or auto-saving.
+        let hasDJBackup=false;
+        try{hasDJBackup=!!localStorage.getItem('geRadioPlaylistBackup')}catch(_e){}
+        if(hasDJBackup){importBangersFromDJ();return;}
+      }
+      playlistStatus(bangers?'BANGERS SELECTED · '+(bangers.tracks||[]).length+' saved songs. Review and save changes here; live BLITZ scheduling stays in DJ Booth.':'BANGERS NOT FOUND IN SAVED BACK ROOM PLAYLISTS · Open GE DJ Booth on this website, save Bangers there, then use LOAD SAVED DJ BANGERS.');
     }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
   }
   async function savePlaylist(){
     const name=$('brPlaylistName').value.trim();
     if(!name){playlistStatus('Enter the playlist name.');return;}
-    if(!playlistTracks.length){playlistStatus('Add at least one song before saving.');return;}
+    const includedTracks=playlistTracks.filter(t=>!t._excluded).map(({_excluded,...track})=>track);
+    if(!includedTracks.length){playlistStatus('Select at least one song before saving.');return;}
     const publicInMusic=$('brPlaylistPublic').checked;
     const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
-      tracks:playlistTracks,active:$('brPlaylistActive').checked}};
+      tracks:includedTracks,active:$('brPlaylistActive').checked}};
     $('brPlaylistSave').disabled=true;playlistStatus('Saving playlist…');
     try{
       const data=await vaultAction('/manage/playlists',payload);
       const savedId=String(data.id||playlistEditingId||'');
-      syncPublicPlaylist(savedId,name,playlistTracks,publicInMusic);
+      syncPublicPlaylist(savedId,name,includedTracks,publicInMusic);
       await refreshPlaylists(savedId);
       playlistStatus(publicInMusic?'Playlist saved and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Playlist saved. Public visibility updates require PUBLISH LIVE.');
     }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
@@ -1766,7 +2007,7 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    select.replaceChildren(new Option('NO SPECIFIC PLAYLIST · ALL ALLOWED MUSIC',''));
+    select.replaceChildren(new Option('CHOOSE PLAYLIST · CHECK ITS SONGS',''));
     playlists.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
   }
@@ -1780,6 +2021,7 @@ const backroomVaultManagers=(()=>{
       const group=create('div','','brAccessAlbumGroup');
       const head=create('label','','check');
       const all=document.createElement('input');all.type='checkbox';
+      all.setAttribute('aria-label','Select all '+album+' songs');
       all.checked=tracks.every(t=>assignedSongPaths.includes(t.track_path));
       all.indeterminate=!all.checked&&tracks.some(t=>assignedSongPaths.includes(t.track_path));
       all.addEventListener('change',()=>{const set=new Set(assignedSongPaths);tracks.forEach(t=>all.checked?set.add(t.track_path):set.delete(t.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
@@ -1805,7 +2047,7 @@ const backroomVaultManagers=(()=>{
     for(const path of assignedSongPaths){
       const row=create('div','','brAccessSongRow');
       row.appendChild(create('span',accessSongTitle(path)));
-      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);assignedSongsUI()}));
+      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);accessSongOptions();assignedSongsUI()}));
       host.appendChild(row);
     }
   }
@@ -1820,6 +2062,8 @@ const backroomVaultManagers=(()=>{
     editingCodeId=row?.id||'';
     $('brAccessBrowse').hidden=true;
     $('brAccessEditor').hidden=false;
+    // Focus the editable name field after the form becomes visible, including on mobile.
+    requestAnimationFrame(()=>{try{$('brAccessLabel').focus({preventScroll:true});}catch(_e){$('brAccessLabel').focus();}});
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||'';
     const scopes=row?row.scopes:['radio'];
@@ -1840,6 +2084,17 @@ const backroomVaultManagers=(()=>{
     assignedSongPaths=[...(row?.track_paths||[])];
     accessPlaylistOptions();
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
+    // Old playlist grants are expanded into explicit tracks for editing, so
+    // removing a song actually removes its access instead of leaving an
+    // unrestricted playlist ID entitlement in place.
+    if(row?.playlist_ids?.length){
+      const all=new Set(assignedSongPaths);
+      for(const id of row.playlist_ids){
+        const playlist=playlists.find(p=>p.id===id);
+        for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);
+      }
+      assignedSongPaths=[...all];
+    }
     accessSongOptions();assignedSongsUI();accessModeUI();
     $('brAccessOneTime').hidden=true;
   }
@@ -1908,15 +2163,17 @@ const backroomVaultManagers=(()=>{
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
-    if(!label)throw Error('Enter a name for this code.');
-    if(!scopes.length)throw Error('Choose at least one permission.');
+    if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
+    if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
     return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
-      playlist_ids:$('brAccessPlaylist').value?[$('brAccessPlaylist').value]:[],
+      // The playlist selector is a bulk-checking preset, not a blanket
+      // entitlement: otherwise unchecked songs would still be accessible.
+      playlist_ids:[],
       track_paths:assignedSongPaths.slice()};
   }
   async function saveCode(isEdit){
@@ -1966,15 +2223,43 @@ const backroomVaultManagers=(()=>{
     }catch(err){codeMaster.checked=!desired;accessStatus('MASTER SWITCH FAILED: '+String(err.message||err));}
     finally{codeMaster.disabled=false;}
   }
+  async function checkRadio2Bangers(){
+    const output=$('brRadio2Status');
+    output.textContent='Checking the published Radio 2 Bangers program…';
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+    try{
+      const response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/program',
+        {cache:'no-store',signal:controller.signal});
+      if(!response.ok)throw Error('Radio 2 program HTTP '+response.status);
+      const body=await response.json(),program=body?.program;
+      const tracks=Array.isArray(program?.tracks)?program.tracks:[];
+      const valid=body?.ok===true&&program?.format==='ge-radio-clock-v1'&&
+        String(program?.playlist_name||'').trim().toLowerCase()==='bangers'&&tracks.length>=3;
+      if(!valid){
+        output.textContent='RADIO 2 NOT SYNCED TO BANGERS · Open GE DJ Booth and publish the authentic BLITZ Bangers rotation.';
+        return;
+      }
+      const date=Number(program.published_at_ms);
+      const published=Number.isFinite(date)&&date>0?' · published '+new Date(date).toLocaleString():'';
+      output.textContent='RADIO 2 BANGERS CONFIRMED · '+tracks.length+' scheduled tracks'+published+
+        ' · This confirms Radio 2 only, not which playlist Radio 1 is currently broadcasting.';
+    }catch(error){
+      output.textContent='RADIO 2 STATUS UNAVAILABLE · '+String(error?.message||error).slice(0,100)+
+        '. The current BLITZ playlist has not been verified.';
+    }finally{clearTimeout(timer);}
+  }
   function openTab(tab){
-    if(tab==='playlists'&&(!playlistLoaded||!authReady()))void refreshPlaylists();
+    if(tab==='radio')void checkRadio2Bangers();
+    if((tab==='playlists'||tab==='radio')&&!playlistLoaded&&authReady())void refreshPlaylists();
     if(tab==='access'&&(!accessLoaded||!authReady()))void refreshCodes();
   }
   function init(){
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brRadio2Check').addEventListener('click',()=>void checkRadio2Bangers());
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
+      $('brImportBangers').addEventListener('click',importBangersFromDJ);
       $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
       $('brPlaylistSearch').addEventListener('input',renderCatalog);
       $('brAddSong').addEventListener('click',()=>{
@@ -1998,6 +2283,16 @@ const backroomVaultManagers=(()=>{
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
       $('brAccessRevoke').addEventListener('click',()=>void codeAction('revoke'));
       $('brAccessDelete').addEventListener('click',()=>void codeAction('delete'));
+      $('brAccessPlaylist').addEventListener('change',()=>{
+        const id=$('brAccessPlaylist').value;
+        if(!id)return;
+        const playlist=playlists.find(p=>p.id===id);
+        if(!playlist){accessStatus('Playlist not found. Refresh playlists.');return;}
+        const paths=[...new Set((playlist.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean))];
+        assignedSongPaths=paths;
+        accessSongOptions();assignedSongsUI();
+        accessStatus('Selected '+paths.length+' songs from '+playlist.name+'. Uncheck any song before saving the code.');
+      });
       $('brAccessSongSearch').addEventListener('input',accessSongOptions);
       $('brAccessSelectAll').addEventListener('click',()=>{const q=$('brAccessSongSearch').value.trim().toLowerCase();const set=new Set(assignedSongPaths);catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(q)).forEach(x=>set.add(x.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
       $('brAccessClearSongs').addEventListener('click',()=>{assignedSongPaths=[];accessSongOptions();assignedSongsUI();});
@@ -2029,7 +2324,7 @@ async function bootBackroom(){
     localStorage.setItem(TEXT_KEY,savedText);
   }
   applyText(savedText||90);
-  cfg=localDraft()||await repoLive();populate();await loadMusic();
+  cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();

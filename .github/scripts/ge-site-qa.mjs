@@ -14,7 +14,7 @@ function allIn(source, needles, label) {
 }
 function guarded(source, signature, guard, label) {
   const pos = source.indexOf(signature);
-  test(pos >= 0 && source.slice(pos, pos + signature.length + 240).includes(guard), label);
+  test(pos >= 0 && source.slice(pos, pos + signature.length + 640).includes(guard), label);
 }
 
 // Compile all embedded application scripts. This detects broken brackets and
@@ -40,6 +40,14 @@ const backroom=load('backroom/index.html');
 const liveSiteConfig=JSON.parse(load('config/site-live.json'));
 const testSiteConfig=JSON.parse(load('config/site-test.json'));
 const savedBackroomPresets=JSON.parse(load('config/backroom-presets.json'));
+test(home.includes("ge_game_setup") &&
+     home.includes("requestedGame==='gravity'||requestedGame==='flight'") &&
+     home.includes("if(button)button.click()"),
+     'Back Room deep links open Gravity and Flight through their actual game controls');
+test(backroom.includes("const openSetup=button=>") &&
+     backroom.includes("ge_game_setup="),
+     'Back Room game OPTIONS link directly to each game setup');
+
 for(const [label,cfg] of [['live',liveSiteConfig],['test',testSiteConfig],
   ...savedBackroomPresets.presets.map((p,i)=>['preset '+i,p.config])]){
   test(cfg.music?.startupEnabled===false&&!cfg.music?.firstTrack,
@@ -193,7 +201,8 @@ const primaryWatch=radio.slice(radio.indexOf('function watchRadioConnection(){')
                                radio.indexOf('function radioPlayFailure('));
 test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      !primaryWatch.includes('if(!audio.paused&&audio.readyState>=3)return;') &&
-     primaryWatch.includes("switchToRadio2('radio1_timeout')"),
+     primaryWatch.includes("switchToRadio2('radio1_timeout')") &&
+     primaryWatch.includes("!liveState.wantedPlayback"),
      'Radio 1 falls back when readyState is positive but audio does not advance');
 const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
                              radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
@@ -289,6 +298,10 @@ test(radio.indexOf('id="shipAlbumPlanetLayer"')<radio.indexOf('id="shipPlanetLay
 test(!radio.includes("const escaped=name.replace(/[.*+?^$") ,
   'Album title matcher cannot inject a broken replacement string');
 
+test(radio.includes('const GE_RADIO2_DISABLED=false;') &&
+     radio.includes("String(program.playlist_name||'').toLowerCase()!=='bangers'") &&
+     radio.includes('void retryRadio1Only(reason);'),
+     'Radio 2 failover is enabled only for validated Bangers and retries Radio 1 if backup is unavailable');
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
@@ -296,9 +309,11 @@ for (const [signature,guard,label] of [
   ['function nextTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Next'],
   ['function previousTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Previous'],
   ['async function advanceFromEnded(){','if(!geOwnerDemoEnabled())','Radio automatic next'],
-  ['function openTrackPicker(){','if(!geOwnerDemoEnabled())','Radio track picker'],
+  ['async function playURL(url,','if(!geOwnerDemoEnabled())','Radio actual library playback'],
   ['function resumeAudio(){','!geOwnerDemoEnabled()','Radio Play']
 ]) guarded(radio,signature,guard,label+' checks access');
+test(radio.includes('function openTrackPicker(){') && radio.includes('if(fullMusicPickerCatalog.length)renderTrackList();'),
+  'Guests can browse the full music catalog while actual playback remains access-controlled');
 for (const [signature,guard,label] of [
   ['async function startCurrent(){','if(!geHasOwnerMusicDemo())','Homepage Play'],
   ['function next(){','if(!geHasOwnerMusicDemo())','Homepage Next'],
@@ -385,7 +400,10 @@ test(gateBackroom.includes('id="gateGraceSeconds"') &&
      preview.includes('ge-gate-settings.js'),
      'Back Room publishes editable Gate hold/fade/reverb to Radio and music-preview player');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.17-backroom-gate-11-33-v3'") &&
+const workerCacheVersion=/const VERSION='([^']+)'/.exec(refreshedRadioWorker)?.[1]||'';
+const workerURLVersion=workerCacheVersion.replace(/^(\d{4})\.(\d{2})\.(\d{2})/,'$1$2$3');
+test(/^20\d{2}\.\d{2}\.\d{2}-.+/.test(workerCacheVersion) &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
@@ -407,7 +425,7 @@ test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!
      radio.includes('position:fixed;'),
      'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
 test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
-     load('radio/sw.js').includes("2026.10.17-backroom-gate-11-33-v3") &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      load('radio/sw.js').includes("ge-radio-media-v4"),
      'Home and Radio refresh app shell without deleting downloaded music');
 test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request') &&
@@ -428,4 +446,40 @@ test(preview.includes('effectiveListeningSeconds()') &&
      preview.includes('gateStartedAtMs') &&
      preview.includes('startSongGateIfReady()'),
      'Independent personal music Gate persists after backgrounding');
+test(home.includes('approved.has(item.clean)') &&
+     home.includes("const masterUrl=location.origin+BASE_PATH+'config/site-live.json'") &&
+     home.includes('if(approved.size!==approvedPaths.length)') &&
+     home.includes("const RADIO_ALBUM_ORDER=['Singles','Aether'"),
+     'Homepage fallback Player/Shuffle plays only Master-approved paths, Singles first');
+const approvedList=liveSiteConfig.music?.radioMasterSongPaths;
+const files=JSON.parse(load('radio/manifest.json')).files;
+test(Array.isArray(approvedList)&&approvedList.length>0&&
+     approvedList.length===new Set(approvedList).size&&
+     approvedList.every(path=>files.includes(path)),
+     'Published GE Radio Master Song List has no duplicates or unavailable paths');
+test(radio.includes('approvedAutoPaths.has(canonicalSongPath(url))') &&
+     radio.includes('radioMasterSongPaths') &&
+     !radio.includes('GE_AUTO_SOURCE_COMMIT') &&
+     backroom.includes('id="brMasterSongs"'),
+     'Radio Player/Shuffle shares a path-based allowlist editable in Back Room');
+test(radio.includes('GE PLAYLISTS') &&
+     radio.includes('MY PLAYLISTS') &&
+     radio.includes('GE_MUSIC_PERSONAL_PLAYLISTS_V1') &&
+     radio.includes("geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack") &&
+     load('radio/preview-lab.html').includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
+     'Listener MUSIC provides published and named personal playlists and single-song preview');
+
+
+const homepagePWA=JSON.parse(load('manifest.webmanifest'));
+test(home.includes('href="./favicon-32x32.png"') &&
+     home.includes('href="./favicon-16x16.png"') &&
+     home.includes('href="./apple-touch-icon.png"') &&
+     fs.existsSync('favicon-32x32.png') &&
+     fs.existsSync('favicon-16x16.png') &&
+     fs.existsSync('apple-touch-icon.png') &&
+     Array.isArray(homepagePWA.icons) &&
+     homepagePWA.icons.length>=2 &&
+     homepagePWA.icons.every(icon=>fs.existsSync(icon.src.replace(/^\.\//,''))),
+     'Homepage favicon and all PWA/Home Screen icons resolve to actual files');
+
 console.log('\nGE site static regression checks passed: '+passed);

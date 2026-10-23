@@ -2207,6 +2207,7 @@ body.iam-studio-open #titleBtn{display:none!important}
 .sunlab-panel{grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto!important}
 #offlineText{white-space:pre-line}
 .sunlab-access-tools{display:flex;align-items:center;gap:9px;min-width:0;margin-top:8px;padding:7px 1px 0;border-top:1px solid rgba(120,185,219,.32)}
+.sunlab-access-tools #sunLabResetCodes{min-height:43px!important;border:1px solid rgba(97,215,255,.75)!important;color:#effbff!important;font-weight:800!important}
 .sunlab-access-tools #sunLabResetSite{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
 .sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
 @media(max-width:370px){.sunlab-access-tools{flex-wrap:wrap}.sunlab-access-tools span{font-size:12px}}
@@ -2868,6 +2869,23 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(1
  #geInlineMusicPanel .geMusicModalHead{padding:6px 9px}
 }
 </style>
+
+<style id="ge-radio-music-playlists-ui-20261022">
+#trackList .gePickToolbar{display:flex;flex-wrap:wrap;gap:6px}
+#trackList .gePickerPlaylists{background:#08283e;border:1px solid #367b9f;border-radius:10px;
+ padding:9px;margin:6px 0 11px;display:grid;gap:8px;min-width:0}
+#trackList .gePickerPlaylistBar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#trackList .gePickerPlaylistBar button[aria-pressed="true"]{background:#1c6686;border-color:#85e0ff}
+#trackList .gePickerPlaylistActions{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) auto auto;gap:6px;align-items:center}
+#trackList .gePickerPlaylistActions select,#trackList .gePickerPlaylistActions input{min-width:0;max-width:100%;font-size:13px}
+#trackList .gePickerPlaylists small{color:#afd8ec;text-align:left}
+@media(max-width:600px){
+ #trackList .gePickToolbar{gap:4px}
+ #trackList .gePickToolbar button{font-size:10px;min-width:0;padding:6px 7px}
+ #trackList .gePickerPlaylistActions{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ #trackList .gePickerPlaylistActions select,#trackList .gePickerPlaylistActions input{font-size:12px}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -3379,8 +3397,9 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(1
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
     <div class="sunlab-access-tools">
-      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Reset visitor access, settings, listening history and offline music on this device">RESET SITE</button>
-      <span>Clear local test access and return to Guest. Music downloads are kept.</span>
+      <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local test access only; keep downloaded music">RESET CODES</button>
+      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Erase local listener settings and offline downloads on this device">RESET SITE</button>
+      <span>RESET CODES keeps downloads. RESET SITE deletes offline music and local settings.</span>
     </div>
   </section>
   <div id="status" role="status" aria-live="polite"></div>
@@ -4373,7 +4392,7 @@ function canonicalSongPath(input){
   }catch(_e){return ''}
   return GE_MUSIC_SONG_ROOT.test(path)?path:'';
 }
-const MUSIC_PICKER_ALBUM_ORDER=['Aether','Singles','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+const MUSIC_PICKER_ALBUM_ORDER=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 function musicPickerSort(a,b){
   const ai=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(a));
   const bi=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(b));
@@ -4433,35 +4452,26 @@ function selectableSongs(){
   return (fullMusicPickerCatalog.length?fullMusicPickerCatalog:
     sortedFullSongCatalog(state.catalog)).slice().sort(musicPickerSort);
 }
-// Station and background Shuffle are independent of the full album/MUSIC catalog.
-// This is an immutable snapshot of the recordings approved before the re-upload.
-// Raw commit URLs cannot silently change when a same-named file is replaced on main.
-const GE_AUTO_SOURCE_COMMIT='69442ea48d04024881d20d8e78725ebd42d970fa';
-let frozenAutoSongs=[],frozenAutoReady=false;
+// Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
+let approvedAutoPaths=new Set(),approvedAutoReady=false;
 async function loadFrozenAutoSongs(){
   try{
-    const response=await fetch('./approved-autoplay.json',{cache:'no-store'});
-    if(!response.ok)throw new Error('Approved automatic-play manifest unavailable');
+    const response=await fetch('../config/site-live.json?radio-master='+Date.now(),{cache:'no-store'});
+    if(!response.ok)throw Error('GE Radio Master Song List unavailable');
     const data=await response.json();
-    if(data?.format!=='ge-radio-automatic-play-lock-v1'||
-       data.snapshotCommit!==GE_AUTO_SOURCE_COMMIT||
-       !Array.isArray(data.approved)||!data.approved.length)
-      throw new Error('Approved playlist version mismatch');
-    const paths=new Set();
-    frozenAutoSongs=data.approved.map(item=>{
-      const path=String(item?.path||'');
-      if(!/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)||
-         !/^[a-f0-9]{40}$/i.test(item.blobSha)||paths.has(path))
-        throw new Error('Unsafe automatic-play song entry');
-      paths.add(path);
-      return 'https://raw.githubusercontent.com/grandelement/website/'+
-        GE_AUTO_SOURCE_COMMIT+'/'+path.split('/').map(encodeURIComponent).join('/');
-    });
-    frozenAutoReady=true;
+    const paths=data?.music?.radioMasterSongPaths;
+    if(!Array.isArray(paths)||!paths.length||paths.length>10000)throw Error('Radio Master list invalid');
+    const unique=new Set();
+    for(const path of paths){
+      if(typeof path!=='string'||!GE_MUSIC_SONG_ROOT.test(path)||path.includes('..')||unique.has(path))
+        throw Error('Invalid Radio Master song path');
+      unique.add(path);
+    }
+    approvedAutoPaths=unique;approvedAutoReady=true;
     return true;
   }catch(error){
-    frozenAutoSongs=[];frozenAutoReady=false;
-    console.error('Automatic Shuffle blocked: no approved frozen catalog',error);
+    approvedAutoPaths=new Set();approvedAutoReady=false;
+    console.error('Automatic player blocked pending valid Radio Master Song List:',error);
     return false;
   }
 }
@@ -4471,8 +4481,9 @@ function allowedCatalog(){
     const chosen=selectableSongs().filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
     if(chosen.length)return chosen;
   }
-  if(!frozenAutoReady)return []; // Fail closed: never substitute GitHub main.
-  return frozenAutoSongs.slice().sort(orderedSort);
+  if(!approvedAutoReady)return []; // Fail closed: no silent new song approvals.
+  // Use the current recording under an approved path. New tracks stay excluded.
+  return state.catalog.filter(url=>approvedAutoPaths.has(canonicalSongPath(url))).sort(orderedSort);
 }
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
@@ -4718,7 +4729,9 @@ function watchRadioConnection(){
     if(observedRadio1Progress)return;
     // A "playing" event alone is not audible progress. Retry the single
     // BLITZ stream if its playback time does not advance.
-    if(audio.paused||document.hidden||recentUserPause())return;
+    // Safari may remain paused even after the visitor requested PLAY and the
+    // stream connection failed. Intentional pause is tracked separately.
+    if(document.hidden||recentUserPause()||!liveState.wantedPlayback)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     syncModeButtons();
     void switchToRadio2('radio1_timeout');
@@ -4814,10 +4827,10 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 
-// Radio 2 is disabled on this public listener. Keep its old implementation
-// dormant for a reversible migration; make NO request to its Worker endpoint.
-// All listening stays with the existing BLITZ/Icecast source.
-const GE_RADIO2_DISABLED=true;
+// RADIO 1 remains first. Only on a confirmed playback failure do we probe
+// RADIO 2. The backup is accepted only when its server publishes a validated
+// Bangers program; otherwise retry the primary instead of substituting songs.
+const GE_RADIO2_DISABLED=false;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
 function retryRadio1Only(reason){
  if(!state.live&&!state.livePreparing)return Promise.resolve();
@@ -4961,8 +4974,9 @@ async function switchToRadio2(reason='radio1_unavailable'){
     if(run!==radio2.run)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
     const why=String(error?.message||'Connection failed').replace(/https?:\/\/[^/\s]+/g,'Radio 2').slice(0,100);
-    setLiveStatus('RADIO 2 NOT READY · '+why+' · tap SHUFFLE for music.');
-    setStatus('Radio 2 Bangers program unavailable: '+why);
+    setLiveStatus('RADIO 2 NOT READY · '+why+' · retrying RADIO 1…');
+    setStatus('Bangers backup unavailable; retrying the original BLITZ stream.');
+    void retryRadio1Only(reason);
   }finally{
     clearTimeout(timer);if(run===radio2.run)radio2.loading=false;
   }
@@ -4981,7 +4995,7 @@ setInterval(()=>{
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
-  if(GE_RADIO2_DISABLED&&userGesture&&geRadio1RetryAttempts>=3){
+  if(userGesture&&geRadio1RetryAttempts>=3){
     clearRadio1Retry();radioTimedOut=false;radioReconnectFailures=0;
   }
   // Prevent an expired guest from reconnecting around the server Gate stop.
@@ -5360,11 +5374,7 @@ function geInlineMusicInit(){
       geInlineMusicSend(action);
     },true);
   }
-  titleBtn.addEventListener('click',event=>{
-    if(!geInlineMusicActive)return;
-    event.preventDefault();event.stopImmediatePropagation();
-    geInlineMusicShow();
-  },true);
+  // Title continues to open the very same MUSIC list, even during a personal preview.
   $('liveBtn')?.addEventListener('click',()=>{
     if(geInlineMusicActive)geInlineMusicStop();
   },true);
@@ -5782,6 +5792,79 @@ function previousTrack(userAction=false){
   if(url) playURL(url,{record:false,backgroundChange:true,userAction});
 }
 
+
+const GE_RADIO_PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
+let gePlaylistOpen=false,gePlaylistMode='my',gePlaylistSelected='',gePlaylistName='',gePublishedLists=[];
+function geLocalPlaylists(){
+ try{
+  const rows=JSON.parse(localStorage.getItem(GE_RADIO_PERSONAL_PLAYLIST_KEY)||'[]');
+  return Array.isArray(rows)?rows.filter(row=>row&&typeof row.name==='string'&&Array.isArray(row.songs)).slice(0,100):[];
+ }catch(_e){return []}
+}
+async function geLoadPublishedPlaylists(){
+ try{
+  const response=await fetch('../config/site-live.json?playlists='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('No published playlists');
+  const config=await response.json();
+  gePublishedLists=(Array.isArray(config.music?.publicPlaylists)?config.music.publicPlaylists:[])
+   .filter(item=>item&&typeof item.id==='string'&&typeof item.name==='string'&&Array.isArray(item.songs));
+ }catch(error){console.warn('GE playlists unavailable',error);gePublishedLists=[]}
+ if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
+}
+function gePlaylistUI(list){
+ const holder=document.createElement('section');holder.className='gePickerPlaylists';
+ const bar=document.createElement('div');bar.className='gePickerPlaylistBar';
+ for(const [key,title] of [['ge','GE PLAYLISTS'],['my','MY PLAYLISTS']]){
+  const button=document.createElement('button');button.type='button';button.textContent=title;
+  button.setAttribute('aria-pressed',String(gePlaylistMode===key));
+  button.addEventListener('click',()=>{
+   gePlaylistMode=key;gePlaylistSelected='';renderTrackList();
+  });bar.appendChild(button);
+ }
+ holder.appendChild(bar);
+ const bottom=document.createElement('div');bottom.className='gePickerPlaylistActions';
+ const name=document.createElement('input');name.type='text';name.maxLength=100;name.placeholder='Name your playlist';
+ name.setAttribute('aria-label','Personal playlist name');name.value=gePlaylistName;
+ name.addEventListener('input',()=>{gePlaylistName=name.value});
+ const select=document.createElement('select');select.setAttribute('aria-label','Choose saved or GE playlist');
+ const rows=gePlaylistMode==='ge'?gePublishedLists:geLocalPlaylists();
+ select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'GE':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
+ for(const item of rows)select.appendChild(new Option(item.name,String(item.id)));
+ if(rows.some(item=>String(item.id)===gePlaylistSelected))select.value=gePlaylistSelected;
+ select.addEventListener('change',()=>{gePlaylistSelected=select.value});
+ const load=document.createElement('button');load.type='button';load.textContent='LOAD';
+ load.addEventListener('click',()=>{
+  const found=rows.find(x=>String(x.id)===select.value);
+  if(!found){setStatus('Choose a playlist to load.');return}
+  const available=new Set(list.map(canonicalSongPath));
+  selectedSongURLs=new Set(found.songs.map(canonicalSongPath).filter(path=>available.has(path)));
+  personalSongMode=false;savePersonalSongSelection();
+  gePlaylistName=gePlaylistMode==='my'?found.name:found.name+' (My Copy)';
+  setStatus('Loaded '+found.name+' · '+selectedSongURLs.size+' songs');
+  renderTrackList();
+ });
+ const save=document.createElement('button');save.type='button';save.textContent='SAVE';
+ save.addEventListener('click',()=>{
+  const title=gePlaylistName.trim()||'My Playlist';
+  if(!selectedSongURLs.size){setStatus('Select songs before saving a playlist.');return}
+  const rows=geLocalPlaylists();
+  const matching=rows.find(row=>row.name.toLowerCase()===title.toLowerCase());
+  const id=matching?.id||'playlist-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+  const saved={id,name:title,songs:[...selectedSongURLs],updatedAt:Date.now()};
+  const next=[saved,...rows.filter(row=>row.id!==id)].slice(0,100);
+  try{localStorage.setItem(GE_RADIO_PERSONAL_PLAYLIST_KEY,JSON.stringify(next))}
+  catch(_e){setStatus('Could not save playlist on this device.');return}
+  gePlaylistName=title;gePlaylistMode='my';gePlaylistSelected=id;
+  setStatus('Saved '+title+' on this device');renderTrackList();
+ });
+ bottom.append(select,name,load,save);holder.appendChild(bottom);
+ const hint=document.createElement('small');hint.textContent=gePlaylistMode==='ge'?
+  'GE playlists are published by Grand Element. LOAD one, then SAVE a personal copy.':
+  'MY PLAYLISTS are saved on this device; they do not change Radio or anyone else’s playlists.';
+ holder.appendChild(hint);
+ return holder;
+}
+
 function renderTrackList(){
   const list=selectableSongs();
   trackList.replaceChildren();
@@ -5825,8 +5908,13 @@ function renderTrackList(){
     void playURL(chosen[0],{record:false,backgroundChange:true,userAction:true});
     closeTrackPicker();
   },'gePickStart');
+  addAction('PLAYLISTS',()=>{
+    gePlaylistOpen=!gePlaylistOpen;renderTrackList();
+    if(gePlaylistOpen)void geLoadPublishedPlaylists();
+  });
   addAction('CLOSE',closeTrackPicker);
   trackList.appendChild(toolbar);
+  if(gePlaylistOpen)trackList.appendChild(gePlaylistUI(list));
   const fragment=document.createDocumentFragment();
   let currentAlbum='';
   const albumHeaders=new Map();
@@ -5883,14 +5971,17 @@ function renderTrackList(){
     playNow.type='button';playNow.dataset.url=url;playNow.textContent='PLAY';
     if(canonicalSongPath(url)===canonicalSongPath(state.currentURL))playNow.classList.add('current');
     playNow.addEventListener('click',()=>{
-      if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-      personalSongMode=false;savePersonalSongSelection();
-      if(state.live||state.livePreparing)exitLiveMode('RADIO ended. Track selected.');
-      state.pendingAfterStation=null;state.upNext=[];
-      rebuildQueue(url);
-      if(state.shuffle)recordHistory(url);
-      void playURL(url,{record:false,backgroundChange:true,userAction:true});
-      closeTrackPicker();
+      geInlineMusicInit();
+      const path=canonicalSongPath(url);
+      const play=geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack;
+      if(typeof play!=='function'){
+        setStatus('Music preview loading. Tap PLAY again when the library is ready.');
+        return;
+      }
+      try{
+        if(!play(path))setStatus('Song not ready in MUSIC. Tap PLAY again.');
+        // Keep THIS SAME popup open, with Radio background preview running.
+      }catch(error){setStatus('Could not start this song. Tap PLAY again.');}
     });
     row.appendChild(playNow);fragment.appendChild(row);
   }
@@ -6072,6 +6163,7 @@ function openTrackPicker(){
     trackList.appendChild(loading);
   }
   void ensureFullMusicPickerCatalog();
+  geInlineMusicInit(); // Warm 33:33 preview in the background for per-track PLAY.
   document.body.classList.remove('hud-hidden');
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
@@ -6636,7 +6728,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-approved-freeze-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-bangers-access-radio-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -7960,6 +8052,16 @@ $('reloadBtn').addEventListener('click',async()=>{
     }
     location.replace('./?fresh='+Date.now());
   }
+  function resetLocalAccessCodes(){
+    if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
+    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey];
+    for(const key of keys){
+      if(!key)continue;
+      try{localStorage.removeItem(key);}catch(_e){}
+      try{sessionStorage.removeItem(key);}catch(_e){}
+    }
+    location.reload();
+  }
   function initSunLab(){
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
     loadSunLab();loadSunModeProfiles();
@@ -7978,6 +8080,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       sunLabBtn.addEventListener('click',()=>{if(!geRadioLocalTestAccess())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
+      $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
       sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
