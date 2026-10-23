@@ -71,7 +71,7 @@ assert.match(schema,/CREATE TABLE IF NOT EXISTS access_code_deletions/);
 assert.match(migration,/CREATE TABLE IF NOT EXISTS access_code_content/);
 assert.match(migration,/CREATE TABLE IF NOT EXISTS access_code_deletions/);
 assert.match(back,/\/manage\/access-codes/);
-assert.match(back,/\/manage\/playlists/);
+assert.doesNotMatch(back,/\/manage\/playlists/, 'Do not load a second playlist manager for Access Codes');
 assert.match(publisher,/verifySession\(env,bearer\(request\)\)/);
 assert.match(publisher,/VAULT_ADMIN_TOKEN/);
 assert.match(vault,/GE_ACCESS_SCOPES/);
