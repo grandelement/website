@@ -8235,7 +8235,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
   function resetLocalAccessCodes(){
     if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
-    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey];
+    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey,'GE_VAULT_RADIO_SESSION_V1'];
     for(const key of keys){
       if(!key)continue;
       try{localStorage.removeItem(key);}catch(_e){}
@@ -9957,7 +9957,17 @@ Vector ${vector}. ${pair[1]}.`;
   // Developer Gate preview temporarily bypasses local LOVE authorization only
   // for the visual/audio test. The credential and offline music are retained.
   let developerGatePreview=false;
-  function authorized(){return geRadioLocalTestAccess()&&!developerGatePreview;}
+  const GE_VAULT_RADIO_SESSION_KEY='GE_VAULT_RADIO_SESSION_V1';
+  function vaultRadioSessionValid(){
+    try{
+      const until=Number(sessionStorage.getItem(GE_VAULT_RADIO_SESSION_KEY)||0);
+      if(until>Date.now())return true;
+      if(until)sessionStorage.removeItem(GE_VAULT_RADIO_SESSION_KEY);
+    }catch(_e){}
+    return false;
+  }
+  // Vault-verified Radio guests never inherit owner/DJ/demo/offline privileges.
+  function authorized(){return (geRadioLocalTestAccess()||vaultRadioSessionValid())&&!developerGatePreview;}
   function save(force=false){
     if(window.GE_RESET_SITE_IN_PROGRESS)return;
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
@@ -10325,16 +10335,52 @@ Vector ${vector}. ${pair[1]}.`;
     // checkout is preview-only; never claim an actual paid entitlement.
     location.assign('../support/?section=radio&flow=shop');
   }
-  function unlock(){
-    if(authorized())return;
-    const entered=String(word?.value||'').trim().toLowerCase();
-    if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}
+  let vaultRedeemBusy=false;
+  async function unlock(){
+    if(authorized()||vaultRedeemBusy)return;
+    const entered=String(word?.value||'').trim();
+    const isLegacy=entered.toLowerCase()===String(GATE_CONFIG.password||'').trim().toLowerCase();
+    if(!isLegacy){
+      if(!entered){wrongWord();return;}
+      vaultRedeemBusy=true;
+      if(enter)enter.disabled=true;
+      if(status)status.textContent='Checking your GE Access Code…';
+      try{
+        const response=await fetch('https://vault.grandelement.com/v1/public/access/redeem',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({code:entered,scope:'radio'}),cache:'no-store'
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||result.ok!==true){
+          if(status)status.textContent=String(result.error||'Code could not be verified.').slice(0,160);
+          return;
+        }
+        const expires=Number(result.expires_at)||0;
+        const validUntil=expires>0?expires*1000:(Date.now()+60*60*1000);
+        if(validUntil<=Date.now()){
+          if(status)status.textContent='This GE Access Code has expired.';
+          return;
+        }
+        // A Radio-only session is not an owner account, a paid entitlement,
+        // a DJ permission, or a right to offline downloads.
+        try{sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));}
+        catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
+      }catch(_e){
+        if(status)status.textContent='GE Vault cannot be reached. Try the code again online.';
+        return;
+      }finally{
+        vaultRedeemBusy=false;
+        if(enter)enter.disabled=false;
+      }
+    }
 
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
     window.GEGateFX?.reset?.();
     developerGatePreview=false;
-    try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    if(isLegacy){
+      try{localStorage.setItem(GATE_CONFIG.authKey,'1');localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes');}catch(_e){}
+    }
     window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
     // Temporary legacy-Gate event for owner analytics and later email alerts.
@@ -10343,7 +10389,8 @@ Vector ${vector}. ${pair[1]}.`;
     try{
       void window.GEVault?.radio?.('gate_entry',{
         gate:'inner_frequency',result:'unlocked',
-        access_method:'legacy_gate',verification:'client_only',
+        access_method:isLegacy?'legacy_gate':'vault_radio_code',
+        verification:isLegacy?'client_only':'vault_redeemed_radio_scope',
         notification_type:'gate_entry'
       });
     }catch(_e){}
