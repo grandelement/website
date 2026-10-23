@@ -556,7 +556,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
     <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
   </div>
-  <label><span>SAVED PLAYLISTS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
+  <label><span>SAVED PLAYLISTS · BANGERS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
   <label><span>PLAYLIST NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Bangers"></label>
   <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
@@ -775,6 +775,11 @@ function installBackroomTabs(){
     if(!panels.has(tab))tab='welcome';
     if(tab==='playlists')tab='radio';
     for(const [name,panel]of panels){panel.hidden=name!==tab&&!(tab==='radio'&&name==='playlists');}
+    if(tab==='radio'){
+      const radio=panels.get('radio'),playlistsPanel=panels.get('playlists');
+      const master=radio?.querySelector('#brMasterSection');
+      if(master&&playlistsPanel)radio.insertBefore(playlistsPanel,master);
+    }
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
@@ -1752,6 +1757,7 @@ const backroomVaultManagers=(()=>{
     playlistTracks.forEach((track,i)=>{
       const row=create('div','','brPlaylistTrack');
       row.setAttribute('role','listitem');row.dataset.position=String(i);
+      const chosen=document.createElement('input');chosen.type='checkbox';chosen.checked=true;chosen.setAttribute('aria-label','Include '+(track.track_title||track.track_path));chosen.addEventListener('change',()=>{if(!chosen.checked){playlistTracks.splice(i,1);renderTrackList();}});row.appendChild(chosen);
       row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
       row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
       row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
