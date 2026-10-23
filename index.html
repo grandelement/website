@@ -5433,7 +5433,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
   let wantedPlayback=startupMusicEnabled;
   try{player.defaultPlaybackRate=1;player.playbackRate=1;}catch(_e){}
   player.addEventListener('ratechange',()=>{try{if(Math.abs(player.playbackRate-1)>.001)player.playbackRate=1;}catch(_e){}});
-  const RADIO_ALBUM_ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+  const RADIO_ALBUM_ORDER=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 
   const SHARED_STATE=window.GE_SHARED_MUSIC_STATE;
   let sharedSaveTimer=0, restoredSharedState=null;
@@ -5597,7 +5597,23 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
     // Prefer local manifest.json (fast + no GitHub API limits)
     try{
       const manifestUrl = location.origin + BASE_PATH + 'radio/manifest.json';
-      const mr = await fetch(manifestUrl, {cache:'no-store'});
+      // The GE Radio Master Song List is the *only* automatic Player/Shuffle
+      // approval source, including the fallback player inside the homepage.
+      // Read the published list, not local selections or the entire manifest.
+      const masterUrl=location.origin+BASE_PATH+'config/site-live.json';
+      const [mr,approvedResponse]=await Promise.all([
+        fetch(manifestUrl,{cache:'no-store'}),
+        fetch(masterUrl,{cache:'no-store'})
+      ]);
+      if(!approvedResponse.ok)throw new Error('GE Radio Master approval list unavailable');
+      const published=await approvedResponse.json();
+      const approvedPaths=published?.music?.radioMasterSongPaths;
+      if(!Array.isArray(approvedPaths)||!approvedPaths.length)
+        throw new Error('GE Radio Master approval list missing');
+      const approved=new Set(approvedPaths.filter(path=>
+        typeof path==='string'&&/^ge-music\/music\/.+\.(?:mp3|m4a|ogg|wav)$/i.test(path)&&
+        !path.includes('..')));
+      if(approved.size!==approvedPaths.length)throw new Error('GE Radio Master approval list invalid');
       if(mr.ok){
         const mj = await mr.json();
         const list = Array.isArray(mj) ? mj : (mj && Array.isArray(mj.files) ? mj.files : []);
@@ -5609,7 +5625,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
             const album = parseAlbumFromPath(clean);
             return {p, clean, album};
           })
-          .filter(item => allowedAlbums.has(normAlbumName(item.album)))
+          .filter(item => allowedAlbums.has(normAlbumName(item.album))&&approved.has(item.clean))
           .map(({p, clean, album})=>{
             const base = location.origin + (BASE_PATH.endsWith('/') ? BASE_PATH : (BASE_PATH + '/'));
             const rel  = encodeURI(String(clean).replace(/^\/+/, '').replace(/^website\//,''));
@@ -5620,7 +5636,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
             return { url, album, trackNum, track, path:clean };
           });
       }
-    }catch(e){ console.warn('GE music manifest unavailable:',e); }
+    }catch(e){ console.warn('GE homepage music or approved Master list unavailable:',e); }
 
     // v10.5: do not fall back to downloading the entire recursive GitHub tree.
     // The local radio manifest is authoritative; failing closed is much lighter on phones.
