@@ -201,7 +201,8 @@ const primaryWatch=radio.slice(radio.indexOf('function watchRadioConnection(){')
                                radio.indexOf('function radioPlayFailure('));
 test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      !primaryWatch.includes('if(!audio.paused&&audio.readyState>=3)return;') &&
-     primaryWatch.includes("switchToRadio2('radio1_timeout')"),
+     primaryWatch.includes("switchToRadio2('radio1_timeout')") &&
+     primaryWatch.includes("!liveState.wantedPlayback"),
      'Radio 1 falls back when readyState is positive but audio does not advance');
 const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
                              radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
