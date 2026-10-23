@@ -880,14 +880,21 @@ async function listPublicDJPlaylists(env){
   // The DJ library is private by default. Only playlists explicitly selected
   // and PUBLISHED by the owner in site-live.json are visible to listeners.
   // Fail closed if the published configuration cannot be verified.
-  let permitted;
+  let permitted,permittedNames=new Set();
   try{
     const configUrl=String(env.GE_PUBLIC_SITE_CONFIG_URL||"https://grandelement.com/config/site-live.json");
     const response=await fetch(configUrl,{cache:"no-store"});
     if(!response.ok)throw new Error("Published config unavailable");
     const config=await response.json();
-    if(!Array.isArray(config?.music?.publicPlaylists))return [];
-    permitted=new Map(config.music.publicPlaylists.filter(entry=>
+    // Explicit publication may identify the live original DJ Bangers by name;
+    // this follows the real DJ record when the playlist ID changes.
+    // Never publish arbitrary private DJ lists or unrelated songs.
+    permittedNames=new Set((Array.isArray(config?.music?.publicDJPlaylistNames)?
+      config.music.publicDJPlaylistNames:[])
+      .filter(name=>typeof name==="string"&&name.trim().toLowerCase()==="bangers")
+      .map(name=>name.trim().toLowerCase()));
+    permitted=new Map((Array.isArray(config?.music?.publicPlaylists)?
+      config.music.publicPlaylists:[]).filter(entry=>
       entry&&typeof entry.id==="string"&&Array.isArray(entry.songs)
     ).map(entry=>[entry.id,new Set(entry.songs.filter(path=>
       typeof path==="string"&&/^ge-music\/music\//.test(path)&&
@@ -897,21 +904,24 @@ async function listPublicDJPlaylists(env){
     console.warn("DJ public playlist config check failed",error);
     return [];
   }
-  if(!permitted.size)return [];
+  if(!permitted.size&&!permittedNames.size)return [];
   const rows=await env.VAULT_DB.prepare(
     "SELECT id,name,metadata_json FROM playlists ORDER BY active DESC,updated_at DESC LIMIT 200"
   ).all();
   const items=[];
   for(const playlist of rows.results||[]){
     const publishedSongs=permitted.get(String(playlist.id));
-    if(!publishedSongs?.size)continue;
+    const publishedByName=permittedNames.has(String(playlist.name||"").trim().toLowerCase());
+    if(!publishedSongs?.size&&!publishedByName)continue;
     let meta={};
     try{meta=JSON.parse(playlist.metadata_json||"{}")}catch(_e){}
     if(meta.source!=="ge-radio")continue;
     const tracks=await env.VAULT_DB.prepare(
       "SELECT track_path FROM playlist_tracks WHERE playlist_id=? ORDER BY position"
     ).bind(playlist.id).all();
-    const songs=(tracks.results||[]).map(row=>String(row.track_path||"")).filter(path=>publishedSongs.has(path));
+    const songs=(tracks.results||[]).map(row=>String(row.track_path||"")).filter(path=>
+      /^ge-music\/music\/.+\.(mp3|m4a|wav|ogg|flac)$/i.test(path)&&
+      !path.includes("..")&&(publishedByName||publishedSongs?.has(path)));
     if(songs.length)items.push({id:String(playlist.id),name:String(playlist.name),songs});
   }
   return items;
