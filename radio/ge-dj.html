@@ -6835,20 +6835,6 @@ html.geDayMode .geClockRail button.geStationOn{background:#c5f0dc!important;colo
 </style><style id="ge-release-studio-access-style">
 a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;border-radius:9px;border:1px solid #69caab;background:#0d4538;color:#effff9;text-decoration:none;font:900 10px Arial,Helvetica,sans-serif;padding:6px 10px;white-space:nowrap}
 </style>
-<style id="ge-dj-single-playlist-window">
-/* The very same authenticated DJ playlist editor can be embedded in Back Room.
-   All playlist writes still use DJ /control/playlists -> Vault. */
-body.ge-dj-playlist-embed{overflow:auto!important;min-height:100vh!important;background:#020711!important}
-body.ge-dj-playlist-embed .wrap,
-body.ge-dj-playlist-embed .dock,
-body.ge-dj-playlist-embed .geLayoutModal,
-body.ge-dj-playlist-embed .modal:not(#playlistModal){display:none!important}
-body.ge-dj-playlist-embed.geAuthenticated #playlistModal{display:block!important;position:relative!important;inset:auto!important;z-index:1!important;padding:0!important;background:transparent!important;overflow:visible!important}
-body.ge-dj-playlist-embed #playlistModal .modalBox{width:100%!important;max-width:100%!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:0!important;border-radius:0!important}
-body.ge-dj-playlist-embed #playlistModal .playlistChooser{display:block!important}
-body.ge-dj-playlist-embed #playlistModal #playlistClose{display:none!important}
-body.ge-dj-playlist-embed #lock{z-index:999!important}
-</style>
 </head><body>
 <div class="geDisplayZoomBar" id="geDisplayZoomBar" aria-label="DJ device and layout controls">
  <div class="geConnectionRail">
@@ -7469,30 +7455,6 @@ function browserPlaylistPack(){
   };
 }
 function cacheCurrentPlaylists(){cachePlaylistPack(browserPlaylistPack())}
-const GE_DJ_PLAYLIST_ONLY=new URLSearchParams(location.search).get('ge_playlists')==='1';
-if(GE_DJ_PLAYLIST_ONLY)document.body.classList.add('ge-dj-playlist-embed');
-function notifyDJPlaylistView(){
- if(!GE_DJ_PLAYLIST_ONLY||window.parent===window)return;
- const data=browserPlaylistPack();
- try{window.parent.postMessage({type:'ge-dj-playlists-update',format:data.format,
-  items:data.items,active_playlist_id:data.active_playlist_id,
-  active_playlist_enabled:data.active_playlist_enabled,vault_confirmed:!!lastDJVaultConfirmed},location.origin)}catch(_e){}
-}
-let lastDJVaultConfirmed=false;
-function openDedicatedDJPlaylists(){
- if(!GE_DJ_PLAYLIST_ONLY)return;
- $('playlistModal').classList.add('show');
- $('playlistChooser').classList.add('show');
- const bangers=playlists.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
- const active=playlists.find(p=>String(p.id)===String(status?.custom_mix_id||''));
- const chosen=active||bangers||playlists[0];
- if(chosen)loadPlaylistIntoBuilder(chosen.id);else resetPlaylistBuilder();
- renderSavedPlaylists();notifyDJPlaylistView();
-}
-window.addEventListener('message',e=>{
- if(!GE_DJ_PLAYLIST_ONLY||e.source!==window.parent||e.origin!==location.origin)return;
- if(e.data?.type==='ge-dj-playlists-request')notifyDJPlaylistView();
-});
 async function restoreBrowserBackupIfNeeded(){
   if(playlists.length)return false;
   let pack=null;try{pack=JSON.parse(localStorage.getItem('geRadioPlaylistBackup')||'null')}catch(e){}
@@ -7519,9 +7481,7 @@ async function loadPlaylists(){
     else if(d.vault_error)setPlaylistStatus('VAULT ERROR · '+d.vault_error,true);
     else if(playlists.length)setPlaylistStatus('LOADED FROM VAULT · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S'));
     else setPlaylistStatus('VAULT CONNECTED · NO SAVED PLAYLISTS FOUND',true);
-    lastDJVaultConfirmed=!!d.vault_configured&&!d.vault_error;
-    openDedicatedDJPlaylists();
-  }catch(e){playlists=[];renderSavedPlaylists();setPlaylistStatus(e.message||'Could not load playlists',true);openDedicatedDJPlaylists()}
+  }catch(e){playlists=[];renderSavedPlaylists();setPlaylistStatus(e.message||'Could not load playlists',true)}
 }
 function normalizedPlaylistName(v){return String(v||'').trim().replace(/\s+/g,' ').toLowerCase()}
 function renderSavedPlaylists(){
@@ -7584,7 +7544,6 @@ async function savePlaylist(){
   const r=await api('/control/playlists/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:saveId,name:name,paths:paths})}),d=await r.json().catch(function(){return {}});
   if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Save failed',true);return null}
   playlists=d.items||playlists;playlistEditId=String(d.playlist.id);playlistBaseName=d.playlist.name||name;playlistChooserIds=new Set([playlistEditId]);$('playlistName').value=playlistBaseName;renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});
-  lastDJVaultConfirmed=!!d.vault_saved;notifyDJPlaylistView();
   if(d.vault_saved)setPlaylistStatus((saveId?'UPDATED · ':'SAVED NEW · ')+d.playlist.name+' · VAULT');
   else setPlaylistStatus((saveId?'UPDATED LOCALLY · ':'SAVED LOCALLY · ')+d.playlist.name+' · VAULT NOT CONNECTED'+(d.vault_error?' · '+d.vault_error:''),true);
   return d.playlist
@@ -7601,20 +7560,19 @@ async function deleteCheckedPlaylists(){
   }
   if(ids.indexOf(playlistEditId)>=0){playlistEditId='';playlistBaseName='';$('playlistName').value=''}
   playlistChooserIds.clear();renderSavedPlaylists();cacheCurrentPlaylists();fetchPlaylistPack().then(cachePlaylistPack).catch(function(){});
-  lastDJVaultConfirmed=!!lastDelete.vault_deleted;notifyDJPlaylistView();
   if(lastDelete.vault_deleted)setPlaylistStatus('DELETED FROM WORKING LIST · VAULT HISTORY RETAINED · '+names.join(', '));
   else setPlaylistStatus('DELETED LOCALLY · VAULT NOT UPDATED'+(lastDelete.vault_error?' · '+lastDelete.vault_error:''),true)
 }
 async function usePlaylist(){
   const saved=await savePlaylist();if(!saved)return;const id=String(saved.id);
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:true,playlist_id:id})}),d=await r.json().catch(function(){return {}});
-  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not activate playlist',true);return}if(status){status.custom_mix_enabled=true;status.custom_mix_id=id;status.active_playlist_name=saved.name}renderSavedPlaylists();cacheCurrentPlaylists();lastDJVaultConfirmed=!!d.vault_saved;notifyDJPlaylistView();
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not activate playlist',true);return}if(status){status.custom_mix_enabled=true;status.custom_mix_id=id;status.active_playlist_name=saved.name}renderSavedPlaylists();cacheCurrentPlaylists();
   if(d.vault_saved)setPlaylistStatus('ON RADIO · '+saved.name+' · VAULT');
   else setPlaylistStatus('ON RADIO · '+saved.name+' · VAULT NOT UPDATED'+(d.vault_error?' · '+d.vault_error:''),true)
 }
 async function normalRotation(){
   const r=await api('/control/custom-mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:false,playlist_id:''})}),d=await r.json().catch(function(){return {}});
-  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();cacheCurrentPlaylists();notifyDJPlaylistView();setPlaylistStatus('NORMAL RADIO ROTATION')
+  if(!r.ok||!d.ok){setPlaylistStatus(d.error||'Could not restore normal rotation',true);return}if(status){status.custom_mix_enabled=false;status.custom_mix_id=''}renderSavedPlaylists();cacheCurrentPlaylists();setPlaylistStatus('NORMAL RADIO ROTATION')
 }
 let analyticsData=null,analyticsCurrentFan='',analyticsScale=Number(localStorage.getItem('geAnalyticsScale')||1)||1,analyticsFanFilter='',analyticsLocationFilter='';
 const analyticsSort={fans:{key:'last_seen_at',dir:'desc'},music:{key:'total_listened_seconds',dir:'desc'},station:{key:'last_played_at',dir:'desc'}};
@@ -7900,10 +7858,6 @@ async function verify(k){
  if(key)await rememberDjDevice();
  document.body.classList.add('geAuthenticated');
  $('lock').classList.add('hide');
- if(GE_DJ_PLAYLIST_ONLY){
-   await loadLibrary();await loadPlaylists();
-   return; // Playlist editing does not need audio, devices, meters or broadcast polling.
- }
  geVerifyRunningDjBuild().catch(function(){});
  maybeAskGeLayout();
  await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});
@@ -7913,9 +7867,9 @@ async function verify(k){
 $('enter').onclick=async function(){
  try{
   $('loginStatus').textContent='CONNECTING…';
-  if(!GE_DJ_PLAYLIST_ONLY)await ensureAudio();
+  await ensureAudio();
   await verify($('password').value);
-  if(!GE_DJ_PLAYLIST_ONLY&&!GE_IS_IPHONE5)await autoConnectDeviceMedia();
+  if(!GE_IS_IPHONE5)await autoConnectDeviceMedia();
   $('loginStatus').textContent=''
  }catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}
 };
@@ -11863,12 +11817,12 @@ document.querySelectorAll('#geStationTabs a').forEach(function(link){
 });
 window.__GE_DJ_BOOT_OK=true;
 if(djTrustedId&&djTrustedToken){
- verify('').then(function(){if(GE_DJ_PLAYLIST_ONLY)return true;geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
+ verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
  })
 }else{
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
- if(saved)verify(saved).then(function(){if(GE_DJ_PLAYLIST_ONLY)return true;geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
+ if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script><script src="https://grandelement.com/radio/ge-imac-studio.js?v=1"></script>
 <script src="https://grandelement.com/radio/ge-vault-drilldown.js?v=1"></script>
