@@ -157,6 +157,14 @@
     };
   }
 
+  function preferredLanguage(){
+    try{
+      const saved=String(localStorage.getItem('GE_LANGUAGE_V1')||'').toLowerCase();
+      if(/^(en|es|fr|de|nl|pt)$/.test(saved))return saved;
+    }catch(_e){}
+    return String(navigator.language||'').slice(0,12);
+  }
+
   function base(surface){
     const u=new URL(location.href);
     const first=acquisition.first||{};
@@ -173,14 +181,14 @@
       page_url:u.origin+u.pathname,
       page_path:u.pathname,
       referrer:document.referrer||'',
-      language:navigator.language||'',
+      language:preferredLanguage(),
       utm_source:utmSource,
       utm_medium:utmMedium,
       utm_campaign:utmCampaign,
       utm_content:utmContent,
       utm_term:utmTerm,
       metadata:{
-        language:navigator.language||'',
+        language:preferredLanguage(),
         utm_source:utmSource,
         utm_medium:utmMedium,
         utm_campaign:utmCampaign,
