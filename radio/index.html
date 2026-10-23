@@ -2840,7 +2840,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(1
 
 <style id="ge-radio-full-library-picker-20261022">
 #trackList .gePickAlbumHeader{display:flex;align-items:center;gap:9px;
- position:sticky;top:0;z-index:2;background:#103451;color:#e9faff;
+ position:relative;z-index:1;background:#103451;color:#e9faff;
  border-bottom:1px solid #4a9ac5;padding:9px 8px;font-weight:850;
  text-align:left;margin-top:5px}
 #trackList .gePickAlbumHeader input{width:21px;height:21px;flex:0 0 auto;accent-color:#6ad7ff}
@@ -4373,9 +4373,18 @@ function canonicalSongPath(input){
   }catch(_e){return ''}
   return GE_MUSIC_SONG_ROOT.test(path)?path:'';
 }
+const MUSIC_PICKER_ALBUM_ORDER=['Aether','Singles','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+function musicPickerSort(a,b){
+  const ai=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(a));
+  const bi=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(b));
+  const rank=index=>index<0?MUSIC_PICKER_ALBUM_ORDER.length:index;
+  if(rank(ai)!==rank(bi))return rank(ai)-rank(bi);
+  const n=parseTrack(a).track-parseTrack(b).track;
+  return n||a.localeCompare(b);
+}
 function sortedFullSongCatalog(paths){
   const unique=new Set(paths.map(canonicalSongPath).filter(Boolean));
-  return [...unique].map(repoPathToURL).sort(orderedSort);
+  return [...unique].map(repoPathToURL).sort(musicPickerSort);
 }
 async function ensureFullMusicPickerCatalog(force=false){
   if(fullMusicPickerCatalog.length&&!force)return fullMusicPickerCatalog;
@@ -4422,7 +4431,7 @@ function selectableSongs(){
   // This is the complete music folder (including Singles and older albums),
   // not the current stream, shuffled subset, or locally cached Bangers tracks.
   return (fullMusicPickerCatalog.length?fullMusicPickerCatalog:
-    sortedFullSongCatalog(state.catalog)).slice().sort(orderedSort);
+    sortedFullSongCatalog(state.catalog)).slice().sort(musicPickerSort);
 }
 function allowedCatalog(){
   if(personalSongMode){
@@ -6023,7 +6032,15 @@ function closeTrackPicker(){
 function openTrackPicker(){
   // The same full-library chooser opens for both guests and owners. Access
   // controls apply only if the user later chooses to play a track.
-  renderTrackList();
+  // Do not flash the station's Bangers-sized playback list while loading.
+  if(fullMusicPickerCatalog.length)renderTrackList();
+  else{
+    trackList.replaceChildren();
+    const loading=document.createElement('p');
+    loading.textContent='LOADING COMPLETE MUSIC LIBRARY…';
+    loading.style.padding='20px';
+    trackList.appendChild(loading);
+  }
   void ensureFullMusicPickerCatalog();
   document.body.classList.remove('hud-hidden');
   trackList.classList.add('open');
