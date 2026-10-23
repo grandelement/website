@@ -297,6 +297,10 @@ test(radio.indexOf('id="shipAlbumPlanetLayer"')<radio.indexOf('id="shipPlanetLay
 test(!radio.includes("const escaped=name.replace(/[.*+?^$") ,
   'Album title matcher cannot inject a broken replacement string');
 
+test(radio.includes('const GE_RADIO2_DISABLED=false;') &&
+     radio.includes("String(program.playlist_name||'').toLowerCase()!=='bangers'") &&
+     radio.includes('void retryRadio1Only(reason);'),
+     'Radio 2 failover is enabled only for validated Bangers and retries Radio 1 if backup is unavailable');
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
