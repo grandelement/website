@@ -890,8 +890,8 @@ async function listPublicDJPlaylists(env){
     permitted=new Map(config.music.publicPlaylists.filter(entry=>
       entry&&typeof entry.id==="string"&&Array.isArray(entry.songs)
     ).map(entry=>[entry.id,new Set(entry.songs.filter(path=>
-      typeof path==="string"&&/^ge-music\\/music\\//.test(path)&&
-      !path.includes("..")&&/\\.(mp3|m4a|wav|ogg|flac)$/i.test(path)
+      typeof path==="string"&&/^ge-music\/music\//.test(path)&&
+      !path.includes("..")&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path)
     ))]));
   }catch(error){
     console.warn("DJ public playlist config check failed",error);
