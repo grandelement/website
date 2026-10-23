@@ -1923,6 +1923,7 @@ const backroomVaultManagers=(()=>{
       const r=await fetch('../radio/manifest.json',{cache:'no-store'});
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
+      if(geDJPlaylistReady)return; // The authenticated DJ library is authoritative for playlist editing.
       catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
       renderCatalog();accessSongOptions();assignedSongsUI();accessStatus('Music catalog loaded · '+catalog.length+' songs across '+new Set(catalog.map(t=>t.album)).size+' albums/collections.');
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
@@ -2011,7 +2012,7 @@ const backroomVaultManagers=(()=>{
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
     $('brPlaylistPublic').checked=!!p.id&&publicPlaylists().some(row=>String(row.id)===String(p.id));
     $('brPlaylistDelete').disabled=!p.id||p.locked;
-    renderPlaylistChooser();renderTrackList();
+    renderPlaylistChooser();renderTrackList();renderDJAlbumChoices();
   }
   function importBangersFromDJ(){
     // GE DJ stores this backup only in this browser/origin. Never invent a
@@ -2408,7 +2409,6 @@ const backroomVaultManagers=(()=>{
     }finally{clearTimeout(timer);}
   }
   function openTab(tab){
-    // PLAYLISTS is the real authenticated GE DJ Booth, not the old Vault editor.
     if(tab==='access'&&!accessLoaded&&authReady())void refreshCodes();
     if(tab==='access'||tab==='playlists')void refreshDJPlaylistSource();
   }
@@ -2416,6 +2416,10 @@ const backroomVaultManagers=(()=>{
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brDJConnect').addEventListener('click',()=>void refreshDJPlaylistSource());
+      $('brDJPassword').addEventListener('keydown',event=>{
+        if(event.key==='Enter'){event.preventDefault();void refreshDJPlaylistSource();}
+      });
 
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
       $('brImportBangers').addEventListener('click',importBangersFromDJ);
@@ -2424,7 +2428,9 @@ const backroomVaultManagers=(()=>{
       $('brAddSong').addEventListener('click',()=>{
         const path=$('brSongSelect').value,track=catalog.find(x=>x.track_path===path);
         if(!track)return;
-        playlistTracks.push({...track});renderTrackList();
+        if(!playlistTracks.some(t=>t.track_path===track.track_path))
+          playlistTracks.push({...track});
+        renderTrackList();renderDJAlbumChoices();
       });
       $('brPlaylistSave').addEventListener('click',()=>void savePlaylist());
       $('brPlaylistDelete').addEventListener('click',()=>void deletePlaylist());
@@ -2464,6 +2470,19 @@ const backroomVaultManagers=(()=>{
         catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
       });
       window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{accessPlaylistOptions();renderAccessCodes();};
+      window.GE_BACKROOM_DJ_SOURCE_LOADED=(items,library,status)=>{
+        catalog=library.map(song=>({
+          track_path:song.path,track_title:song.title||parseTrack(song.path).track_title,
+          album:song.album||parseTrack(song.path).album
+        }));
+        playlists=items;playlistLoaded=true;
+        const current=playlists.find(p=>p.id===playlistEditingId);
+        const active=String(status?.custom_mix_id||'');
+        for(const p of playlists)p.active=!!status?.custom_mix_enabled&&p.id===active;
+        const bangers=playlists.find(p=>String(p.name).toLowerCase()==='bangers');
+        editPlaylist(current?.id||playlists.find(p=>p.id===active)?.id||bangers?.id||playlists[0]?.id||'');
+        renderCatalog();accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
+      };
       window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
       accessModeUI();editPlaylist('');accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
