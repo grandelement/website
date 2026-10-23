@@ -57,7 +57,7 @@ for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlayl
   assert.ok(back.includes('id="'+id+'"'),'Missing Back Room control: '+id);
 }
 assert.match(back,/backroomVaultManagers\.init\(\)/);
-assert.ok(back.includes("if(name!=='access')toggle?.click()"),'Access manager must default to collapsed');
+assert.ok(back.includes("if(name!=='access')toggle?.click()"),'Access manager should be visible immediately without an extra accordion click');
 assert.match(back,/function renderAccessCodes/);
 assert.match(back,/function showCodeEditor/);
 assert.match(back,/function assignedSongsUI/);
@@ -84,4 +84,15 @@ assert.match(vault,/VAULT_HASH_KEY/);
 assert.match(schema,/CREATE TABLE IF NOT EXISTS access_codes/);
 assert.match(migration,/CREATE TABLE IF NOT EXISTS access_codes/);
 assert.ok(!/GE_BACKROOM_CODE\s*=/.test(back),'Do not embed access code in front-end');
-console.log('PASS Back Room collapsible code manager, per-code songs and playlists, edit/delete, server schema and syntax');
+assert.ok(back.includes("document.querySelectorAll('#backroomTabPanels input,#backroomTabPanels textarea,#backroomTabPanels select')"),'All mounted settings must mark unsaved changes');
+assert.ok(back.includes("event.target.closest('button,input,select,textarea,label')"),'Playlist dragging must not swallow checkbox taps');
+assert.ok(back.includes("const openSetup=button=>"),'Game OPTIONS should open setup in one tap');
+for(const game of ['points','pockets','planets','golf','gravity','body','flight']){
+  assert.ok(back.includes("gamePoints:'points'") && back.includes("gameFlight:'flight'"),'All game OPTIONS links need explicit mapping');
+}
+assert.ok(back.includes('id="brImportBangers"'),'Radio needs an import control for the DJ Bangers backup');
+assert.ok(back.includes("localStorage.getItem('geRadioPlaylistBackup')"),'Bangers import must read the authentic GE DJ browser backup');
+assert.ok(back.includes("bangers.paths||[]"),'Bangers import must preserve real selected tracks');
+assert.ok(back.includes('DJ BANGERS LOADED FROM THIS DEVICE'),'Bangers import should distinguish saved DJ data from live BLITZ status');
+assert.ok(back.includes('href="../radio/ge-dj.html"'),'DJ Booth should open on the same website origin for backup access');
+console.log('PASS Back Room code management, selectable Bangers playlist, direct game setup, draft change tracking and syntax');
