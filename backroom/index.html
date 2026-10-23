@@ -2328,9 +2328,11 @@ const backroomVaultManagers=(()=>{
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
     const requested=$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim();
-    if(requested&&!/^[a-zA-Z0-9-]{12,64}$/.test(requested)){
+    const normalizedRequested=requested.toUpperCase().replace(/^GE[\\s-]+/,'').replace(/[\\s-]/g,'');
+    if(requested&&(!/^[a-zA-Z0-9-]{12,64}$/.test(requested)||
+      !/^[A-Z0-9]{12,64}$/.test(normalizedRequested))){
       $('brAccessCustomCode').focus();
-      throw Error('Your code needs 12 to 64 letters, numbers or dashes.');
+      throw Error('Your code needs 12 to 64 letters or numbers after any GE prefix and dashes.');
     }
     if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
