@@ -111,6 +111,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomActionRow button{min-height:36px}
 .backroomActionRow span{color:var(--muted);font-size:calc(11px * var(--scale))}
 .backroomInlineStatus{border:1px solid #26617b;border-radius:10px;background:#041a2d;padding:9px;margin:9px 0;color:#b8e5fa;font-size:calc(11px * var(--scale))}
+.brMasterAlbum{border:1px solid #245778;border-radius:10px;padding:8px;margin:8px 0;background:#041b2d}
+.brMasterAlbum>strong{display:block;margin-bottom:7px;color:#a6e5ff}
+.brMasterSong{display:flex;align-items:center;gap:8px;min-height:33px;padding:4px;border-bottom:1px solid #20415b;font-size:calc(11px * var(--scale))}
+.brMasterSong input{width:19px;height:19px;accent-color:#5cd6ff;flex-shrink:0}
+#brMasterSearch{flex:1;min-width:110px;max-width:290px}
+#brMasterCount{font-size:calc(11px * var(--scale))}
 .brPlaylistTracks{display:grid;gap:7px;margin:9px 0;max-height:340px;overflow:auto}
 .brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.brPlaylistTrack.dragging{background:#15527a;border-color:#93dfff;outline:2px solid #73c5ed;cursor:grabbing}
 .brPlaylistTrack span{min-width:0;overflow-wrap:anywhere;font-size:calc(10px * var(--scale))}
@@ -534,7 +540,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
     <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
   </div>
-  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Saving a playlist does not restart the live station.</p>
+  <p>GE RADIO MASTER SONG LIST controls which tracks may play automatically on BLITZ Radio and website Player/Shuffle. A checked song stays approved when its audio file is replaced. New uploads default OFF until explicitly checked and PUBLISH LIVE is pressed.</p>
+  <section id="brMasterSection" aria-label="GE Radio Master Song List">
+    <h3>GE RADIO MASTER SONG LIST</h3>
+    <div class="backroomActionRow"><input id="brMasterSearch" type="search" placeholder="Find song or album" aria-label="Search radio approved music"><button id="brMasterRefresh" type="button">REFRESH LIBRARY</button><strong id="brMasterCount">Loading…</strong></div>
+    <p class="brAccessNotice">Changes are staged. SAVE then PUBLISH LIVE to approve or remove Radio and automatic Shuffle songs. All album tracks remain available in MUSIC and SHOP.</p>
+    <div id="brMasterSongs" role="group" aria-label="Approved radio and automatic player songs"></div>
+  </section>
 </section>
 
 <section data-br-tab="playlists">
@@ -1117,7 +1129,7 @@ function populate(){
     renderGateTimingSummary();
   }
   checked('noStartupMusic',cfg.music?.startupEnabled===false);
-  renderAlbums();loadSouls();dirty=false;setStatus('READY');
+  renderAlbums();loadSouls();if(brMasterLoaded)brMasterRender();dirty=false;setStatus('READY');
 }
 function collect(){
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
@@ -1141,6 +1153,7 @@ function collect(){
   };
   cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
+  // GE Radio Master path list is independently edited and never derived from all uploads.
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
   const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
   return cfg;
@@ -1179,6 +1192,76 @@ $('planetLayout').addEventListener('change',()=>{
 $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
+
+let brMasterCatalog=[],brMasterLoaded=false;
+function brMasterAlbum(path){
+ const folder=String(path).split('/')[2]||'';
+ return folder.replace(/^Grand Element - (?:\d{4} - )?/,'').trim()||'Other';
+}
+function brMasterRender(){
+ const host=$('brMasterSongs'),term=String($('brMasterSearch').value||'').trim().toLowerCase();
+ host.replaceChildren();
+ const approved=new Set(cfg.music?.radioMasterSongPaths||[]);
+ const order=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+ const groups=new Map();
+ for(const path of brMasterCatalog){
+  const album=brMasterAlbum(path);
+  if(!groups.has(album))groups.set(album,[]);
+  groups.get(album).push(path);
+ }
+ for(const album of [...groups.keys()].sort((a,b)=>{
+  const i=order.indexOf(a),j=order.indexOf(b);
+  return (i<0?100:i)-(j<0?100:j)||a.localeCompare(b);
+ })){
+  const matches=groups.get(album).filter(path=>(album+' '+path.split('/').pop()).toLowerCase().includes(term));
+  if(!matches.length)continue;
+  const box=document.createElement('section');box.className='brMasterAlbum';
+  const title=document.createElement('strong');title.textContent=album+' · '+groups.get(album).length+' songs';
+  box.appendChild(title);
+  for(const path of matches){
+   const label=document.createElement('label');label.className='brMasterSong';
+   const input=document.createElement('input');input.type='checkbox';input.checked=approved.has(path);
+   input.setAttribute('aria-label','Approved for Radio and Shuffle: '+path.split('/').pop());
+   input.addEventListener('change',()=>{
+     const next=new Set(cfg.music.radioMasterSongPaths||[]);
+     if(input.checked)next.add(path);else next.delete(path);
+     cfg.music.radioMasterSongPaths=[...next].sort();
+     brMasterCount();mark();
+   });
+   const name=document.createElement('span');name.textContent=path.split('/').pop().replace(/\.(mp3|m4a|wav|ogg)$/i,'').replace(/_/g,' ');
+   label.append(input,name);box.appendChild(label);
+  }
+  host.appendChild(box);
+ }
+ if(!host.childElementCount)host.textContent='No matching songs. Refresh the album inventory.';
+ brMasterCount();
+}
+function brMasterCount(){
+ const paths=new Set(brMasterCatalog),approved=new Set(cfg.music?.radioMasterSongPaths||[]);
+ const valid=[...approved].filter(path=>paths.has(path)).length;
+ $('brMasterCount').textContent=valid+' / '+brMasterCatalog.length+' APPROVED'+(approved.size>valid?' · '+(approved.size-valid)+' unavailable':'');
+}
+async function brMasterLoadCatalog(){
+ try{
+  const r=await fetch('../radio/manifest.json?radioMaster='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('MUSIC manifest unavailable');
+  const json=await r.json();
+  const paths=(json.files||[]).filter(path=>typeof path==='string'&&/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)&&!path.includes('..'));
+  brMasterCatalog=[...new Set(paths)].sort();
+  if(!Array.isArray(cfg.music?.radioMasterSongPaths)){
+   const live=await repoLive();
+   cfg.music=cfg.music||{};
+   cfg.music.radioMasterSongPaths=[...(live.music?.radioMasterSongPaths||[])];
+  }
+  brMasterLoaded=true;brMasterRender();
+ }catch(e){
+  $('brMasterSongs').textContent='Music inventory unavailable: '+String(e.message||e);
+  $('brMasterCount').textContent='NOT READY';
+ }
+}
+$('brMasterRefresh').addEventListener('click',brMasterLoadCatalog);
+$('brMasterSearch').addEventListener('input',brMasterRender);
+
 async function loadMusic(){
   try{const r=await fetch('../radio/manifest.json?'+Date.now(),{cache:'no-store'}),d=await r.json(),files=(d.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg)$/i.test(x));const sel=$('firstTrackSelect');sel.innerHTML='<option value="">LET VISITOR CHOOSE MUSIC</option>';
     for(const p of files){const raw=decodeURIComponent(p.split('/').pop()||'').replace(/\.[^.]+$/,'');const m=raw.match(/^(.*?)[ _-]+(\d+)[ _-]+(.+)$/);const o=document.createElement('option');o.value=p;o.textContent=raw.replace(/_/g,' ');o.dataset.album=(p.match(/Grand Element - \d{4} - ([^/]+)/)||[])[1]||'';o.dataset.track=m?m[2]:'';o.dataset.title=m?m[3].replace(/_/g,' '):raw;sel.appendChild(o)}
@@ -1188,6 +1271,7 @@ async function loadMusic(){
 
 async function publish(){
   saveDraft();
+  if(!Array.isArray(cfg.music?.radioMasterSongPaths)||!cfg.music.radioMasterSongPaths.length){setStatus('REFUSING TO PUBLISH · GE RADIO MASTER SONG LIST IS EMPTY');return}
   if(!serverAuthenticated||!token()){setStatus('PUBLISH NEEDS THE PRIVATE CLOUDFLARE PUBLISHER');return}
   if(!confirm('Publish these settings to the live website now?'))return;
   setStatus('PUBLISHING…');$('publishLive').disabled=true;
@@ -2029,7 +2113,7 @@ async function bootBackroom(){
     localStorage.setItem(TEXT_KEY,savedText);
   }
   applyText(savedText||90);
-  cfg=localDraft()||await repoLive();populate();await loadMusic();
+  cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
