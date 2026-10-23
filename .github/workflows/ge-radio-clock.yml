@@ -1,4 +1,4 @@
-name: Build GE Radio UTC schedule
+name: Refresh GE MUSIC and shop catalogs (Radio rotation frozen)
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - "ge-music/music/**"
       - "ge-music/clips/**"
       - ".github/scripts/build_ge_radio_clock.py"
+      - ".github/scripts/sync_ge_music_catalog.py"
       - ".github/workflows/ge-radio-clock.yml"
   workflow_dispatch:
 
@@ -29,16 +30,18 @@ jobs:
           lfs: true
       - name: Install ffprobe
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Build measured UTC schedule
+      - name: Validate and inventory every album for MUSIC and SHOP
+        run: python3 .github/scripts/sync_ge_music_catalog.py
+      - name: Refresh full-library song durations (no Radio schedule changes)
         run: python3 .github/scripts/build_ge_radio_clock.py
       - name: Commit manifest only if changed
         run: |
-          git add radio/sync-playlist.json radio/track-durations.json
-          if git diff --cached --quiet -- radio/sync-playlist.json radio/track-durations.json; then
-            echo "Schedule unchanged."
+          git add radio/manifest.json radio/track-durations.json support/catalog.json
+          if git diff --cached --quiet -- radio/manifest.json radio/track-durations.json support/catalog.json; then
+            echo "Music and shop catalogs unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update measured GE Radio UTC playlist"
+          git commit -m "Refresh full GE Music and shop catalogs without changing Radio rotation"
           git push
