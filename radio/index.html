@@ -6728,7 +6728,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-bangers-access-radio-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-bangers-fresh-media-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10491,10 +10491,17 @@ gateTestBtn?.addEventListener('click',()=>{
     if(offlinePlaybackMode())return;
     try{
       const tree=await fetchRepositoryTree();
-      const freshCatalog=libraryFromRepositoryTree(tree).catalog;
+      const library=libraryFromRepositoryTree(tree);
+      const freshCatalog=library.catalog;
       if(!freshCatalog.length)return;
       const paths=list=>list.map(urlToRepoPath).sort().join('\n');
-      if(paths(freshCatalog)===paths(state.catalog))return;
+      const oldShas=loadMediaShaMap();
+      const changedAudio=Object.keys(library.shaMap).some(path=>
+        /^ge-music\/music\//.test(path)&&oldShas[path]!==library.shaMap[path]);
+      // A same-filename replacement changes the Git BLOB SHA without
+      // changing the number or names of songs. Don't discard that update.
+      saveMediaShaMap(library.shaMap);
+      if(paths(freshCatalog)===paths(state.catalog)&&!changedAudio)return;
       state.catalog=freshCatalog;
       // Personal selection uses stable repository paths and does not get
       // replaced by a refreshed stream playback catalog.
