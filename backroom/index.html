@@ -1821,7 +1821,7 @@ const backroomVaultManagers=(()=>{
       row.appendChild(btn('×',()=>{playlistTracks.splice(i,1);renderTrackList()}));
       let drag=null;
       row.addEventListener('pointerdown',event=>{
-        if(event.target.closest('button')||event.button!==0)return;
+        if(event.target.closest('button,input,select,textarea,label')||event.button!==0)return;
         drag={id:event.pointerId,start:event.clientY,active:false};
         try{row.setPointerCapture(event.pointerId)}catch(_e){}
       });
@@ -1962,6 +1962,7 @@ const backroomVaultManagers=(()=>{
       const group=create('div','','brAccessAlbumGroup');
       const head=create('label','','check');
       const all=document.createElement('input');all.type='checkbox';
+      all.setAttribute('aria-label','Select all '+album+' songs');
       all.checked=tracks.every(t=>assignedSongPaths.includes(t.track_path));
       all.indeterminate=!all.checked&&tracks.some(t=>assignedSongPaths.includes(t.track_path));
       all.addEventListener('change',()=>{const set=new Set(assignedSongPaths);tracks.forEach(t=>all.checked?set.add(t.track_path):set.delete(t.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
