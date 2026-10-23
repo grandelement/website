@@ -93,6 +93,10 @@ for(const game of ['points','pockets','planets','golf','gravity','body','flight'
 assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"),'Welcome and About transparency sliders must be visible in WEBSITE VIEW');
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
+assert.ok(back.includes('id="brRadio2Check"')&&back.includes('id="brRadio2Status"'),
+  'Owner needs a live read-only Radio 2 Bangers status check');
+assert.ok(back.includes("program?.playlist_name||''")&&back.includes("checkRadio2Bangers()"),
+  'Do not call an unrelated playlist a confirmed Bangers broadcast');
 assert.ok(back.includes('id="brImportBangers"'),'Radio needs an import control for the DJ Bangers backup');
 assert.ok(back.includes("localStorage.getItem('geRadioPlaylistBackup')"),'Bangers import must read the authentic GE DJ browser backup');
 assert.ok(back.includes("bangers.paths||[]"),'Bangers import must preserve real selected tracks');
