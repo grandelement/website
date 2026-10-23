@@ -6073,7 +6073,7 @@ async function geLoadPublishedPlaylists(){
     !path.includes('..')&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path);
   // Owner-authorized records copied from the authenticated BLITZ DJ store
   // at PUBLISH LIVE. The published config is a snapshot, not another playlist.
-  const seen=new Set((rows||[]).map(item=>String(item?.id||'')));
+  const seen=new Set((rows||[]).filter(item=>Array.isArray(item?.songs)&&item.songs.some(songPath)).map(item=>String(item.id)));
   const publishedSnapshot=[...allowed].map(([id,songs])=>({
     id,name:publishedConfigNames.get(id)||'DJ Playlist',
     songs:[...songs].filter(songPath)
