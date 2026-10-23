@@ -1999,6 +1999,8 @@ const backroomVaultManagers=(()=>{
     editingCodeId=row?.id||'';
     $('brAccessBrowse').hidden=true;
     $('brAccessEditor').hidden=false;
+    // Focus the editable name field after the form becomes visible, including on mobile.
+    requestAnimationFrame(()=>{try{$('brAccessLabel').focus({preventScroll:true});}catch(_e){$('brAccessLabel').focus();}});
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||'';
     const scopes=row?row.scopes:['radio'];
@@ -2098,8 +2100,8 @@ const backroomVaultManagers=(()=>{
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
-    if(!label)throw Error('Enter a name for this code.');
-    if(!scopes.length)throw Error('Choose at least one permission.');
+    if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
+    if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
