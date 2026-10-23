@@ -527,11 +527,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <h2>RADIO CONTROL</h2>
   <p>RADIO 1 is BLITZ Primary. RADIO 2 is its Cloudflare backup. Both belong to one GE DJ Booth, using Bangers as the intended station playlist.</p>
   <div class="backroomQuickLinks">
-    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
-    <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
-    <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
+    <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
+    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN LIVE DJ BOOTH ↗</a>
   </div>
-  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Saving a playlist does not restart the live station.</p>
+  <p>Live broadcast scheduling stays in the DJ Booth. Website startup and Radio Moon controls are below.</p>
 </section>
 
 <section data-br-tab="playlists">
@@ -653,7 +652,17 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
   <label><span>Optional first song (only for automatic startup)</span><select id="firstTrackSelect"><option>Loading music…</option></select></label>
-  <p>Visitors can always start music manually with PLAY.</p>
+  <p>Browsers may block automatic sound until the visitor presses PLAY.</p>
+</section>
+<section data-br-tab="radio">
+  <h2>RADIO MOON SATELLITE</h2>
+  <div class="grid">
+    <label class="check"><input id="radioMoonVisible" type="checkbox" checked><span>SHOW RADIO MOON</span></label>
+    <label><span>Moon glow (%)</span><input id="radioMoonGlow" type="range" min="0" max="200" step="5" value="100"><output id="radioMoonGlowValue">100%</output></label>
+    <label><span>Orbit time (seconds per revolution)</span><input id="radioMoonOrbitSeconds" type="number" min="10" max="600" step="5" value="60"></label>
+    <label><span>Distance from Blue Sun (desktop)</span><input id="radioMoonDistanceDesktop" type="number" min="0.5" max="5" step="0.1" value="2.2"></label>
+    <label><span>Distance from Blue Sun (mobile)</span><input id="radioMoonDistanceMobile" type="number" min="0.5" max="5" step="0.1" value="1.1"></label>
+  </div>
 </section>
 </main>
 
@@ -1110,6 +1119,13 @@ function populate(){
     renderGateTimingSummary();
   }
   checked('noStartupMusic',cfg.music?.startupEnabled===false);
+  const moon=cfg.radioMoon||{};
+  checked('radioMoonVisible',moon.visible!==false);
+  field('radioMoonGlow',moon.glow??100);
+  $('radioMoonGlowValue').textContent=String(moon.glow??100)+'%';
+  field('radioMoonOrbitSeconds',moon.orbitSeconds??60);
+  field('radioMoonDistanceDesktop',moon.distanceDesktop??2.2);
+  field('radioMoonDistanceMobile',moon.distanceMobile??1.1);
   renderAlbums();dirty=false;setStatus('READY');
 }
 function collect(){
@@ -1135,6 +1151,14 @@ function collect(){
   cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
   cfg.music.startupEnabled=!$('noStartupMusic').checked;
+  const bounded=(id,min,max,fallback)=>{const raw=Number($(id).value);return Number.isFinite(raw)&&$(id).value!==''?Math.max(min,Math.min(max,raw)):fallback};
+  cfg.radioMoon={
+    visible:$('radioMoonVisible').checked,
+    glow:bounded('radioMoonGlow',0,200,100),
+    orbitSeconds:bounded('radioMoonOrbitSeconds',10,600,60),
+    distanceDesktop:bounded('radioMoonDistanceDesktop',.5,5,2.2),
+    distanceMobile:bounded('radioMoonDistanceMobile',.5,5,1.1)
+  };
   const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
   return cfg;
 }
@@ -1158,6 +1182,7 @@ $('welcomeOpacity').addEventListener('input',()=>{$('welcomeOpacityValue').textC
 for(const [,[id]] of Object.entries(gateFields)){
  $(id)?.addEventListener('input',renderGateTimingSummary);
 }
+$('radioMoonGlow').addEventListener('input',()=>{$('radioMoonGlowValue').textContent=$('radioMoonGlow').value+'%'});
 document.querySelectorAll('main input,main textarea,main select').forEach(e=>{
   if(e.closest('[data-br-tab="access"],[data-br-tab="playlists"]'))return;
   if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark);
