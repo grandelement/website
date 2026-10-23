@@ -483,4 +483,25 @@ test(home.includes('href="./favicon-32x32.png"') &&
      homepagePWA.icons.every(icon=>fs.existsSync(icon.src.replace(/^\.\//,''))),
      'Homepage favicon and all PWA/Home Screen icons resolve to actual files');
 
+
+const vaultDJ=load('vault-worker/src/index.js');
+test(Array.isArray(liveSiteConfig.music?.publicDJPlaylistNames)&&
+     liveSiteConfig.music.publicDJPlaylistNames.length===1&&
+     liveSiteConfig.music.publicDJPlaylistNames[0]==='Bangers'&&
+     vaultDJ.includes('publishedByName')&&
+     vaultDJ.includes('if(meta.source!=="ge-radio")continue;')&&
+     radio.includes("publishedNames.has(String(item?.name||'').trim().toLowerCase())"),
+     'MUSIC reads only owner-approved Bangers from the existing original DJ Vault table');
+test(radio.includes("geTrackScroller")&&
+     radio.includes("scrollArea.addEventListener('touchmove',event=>event.stopPropagation()")&&
+     radio.includes("#trackList>#geTrackScroller")&&
+     radio.includes("top:max(43px,calc(env(safe-area-inset-top) + 8px))"),
+     'iPhone MUSIC song list scrolls independently below the status bar');
+test(radio.includes('ge-radio-mobile-layout-scroll-20261023')&&
+     radio.includes('width:clamp(108px,17.3dvh,156px)')&&
+     radio.includes('</footer>')===false ? false :
+     radio.includes('<div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>\n</main>') &&
+     radio.includes('#bottomActions #offlineBtn{display:none!important}'),
+     'Radio keeps a smaller EQ Sun and a non-overlapping footer while hiding pre-purchase tools');
+
 console.log('\nGE site static regression checks passed: '+passed);
