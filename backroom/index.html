@@ -916,12 +916,9 @@ function syncDJSavedPlaylistsToPublic(){
   $('brDJPlaylistStatus').textContent='DJ BOOTH CONNECTED · '+total+' saved playlist(s), '+shown+
     ' available with website songs. Changes in the public MUSIC menu take effect on PUBLISH LIVE.';
 }
-window.addEventListener('message',event=>{
-  const frame=$('brDJPlaylistFrame');
-  if(!frame||event.source!==frame.contentWindow||event.origin!==location.origin)return;
-  const message=event.data;
-  if(message?.type!=='ge-dj-playlists-update'||message.format!=='ge-radio-playlists-v1'||!Array.isArray(message.items))return;
-  geDJSavedPlaylists=message.items.filter(row=>row&&typeof row.id==='string'&&typeof row.name==='string'&&
+function acceptDJPlaylistSnapshot(items){
+  if(!Array.isArray(items))return;
+  geDJSavedPlaylists=items.filter(row=>row&&typeof row.id==='string'&&typeof row.name==='string'&&
     Array.isArray(row.paths)).map(row=>({
     id:row.id.slice(0,100),name:row.name.slice(0,100),
     paths:row.paths.filter(path=>typeof path==='string').slice(0,250)
@@ -929,7 +926,35 @@ window.addEventListener('message',event=>{
   geDJPlaylistReady=true;
   syncDJSavedPlaylistsToPublic();
   window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED?.(geDJSavedPlaylists);
+}
+window.addEventListener('message',event=>{
+  const frame=$('brDJPlaylistFrame');
+  if(!frame||event.source!==frame.contentWindow||event.origin!==location.origin)return;
+  const message=event.data;
+  if(message?.type!=='ge-dj-playlists-update'||message.format!=='ge-radio-playlists-v1')return;
+  acceptDJPlaylistSnapshot(message.items);
 });
+async function refreshDJPlaylistSource(){
+  // Reuse the trusted device already authorized by the real DJ Booth.
+  // No DJ passwords or access tokens are copied to site configs or Vault.
+  let id='',token='';
+  try{id=localStorage.getItem('geDjTrustedIdV1')||'';
+      token=localStorage.getItem('geDjTrustedTokenV1')||'';}catch(_e){}
+  if(!id||!token)return false;
+  try{
+    const response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy/control/playlists',{
+      headers:{'X-GE-DJ-Device-ID':id,'X-GE-DJ-Device-Token':token},cache:'no-store'});
+    if(!response.ok)throw Error('DJ Booth authorization unavailable ('+response.status+')');
+    const data=await response.json();
+    if(!Array.isArray(data.items))throw Error('DJ Booth playlist response is invalid');
+    acceptDJPlaylistSnapshot(data.items);
+    return true;
+  }catch(error){
+    $('brDJPlaylistStatus').textContent='Open PLAYLISTS and sign in to GE DJ Booth to load the original saved playlists · '+
+      String(error.message||error).slice(0,110);
+    return false;
+  }
+}
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 let statusTimer=0;
 const setStatus=t=>{
@@ -2332,6 +2357,7 @@ const backroomVaultManagers=(()=>{
   function openTab(tab){
     // PLAYLISTS is the real authenticated GE DJ Booth, not the old Vault editor.
     if(tab==='access'&&!accessLoaded&&authReady())void refreshCodes();
+    if(tab==='access'||tab==='playlists')void refreshDJPlaylistSource();
   }
   function init(){
     if(!initialized){
@@ -2524,6 +2550,7 @@ async function bootBackroom(){
   applyText(savedText||90);
   cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
+  void refreshDJPlaylistSource();
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
