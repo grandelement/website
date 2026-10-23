@@ -167,8 +167,8 @@ assert.ok(vault.includes('"/v1/public/access/redeem"') &&
   vault.includes("async function accessRedeem(request,env)"),
   'Vault radio code validation must occur server-side');
 const currentWorkerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1]||'';
-const currentRadioVersion=currentWorkerVersion.replace(/^(\\d{4})\\.(\\d{2})\\.(\\d{2})/,'$1$2$3');
-assert.ok(/^20\\d{2}\\.\\d{2}\\.\\d{2}-radio/.test(currentWorkerVersion) &&
+const currentRadioVersion=currentWorkerVersion.replace(/^([0-9]{4})[.]([0-9]{2})[.]([0-9]{2})/,'$1$2$3');
+assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &&
   radio.includes('./sw.js?v='+currentRadioVersion) &&
   sw.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
   'iPhone Radio service worker registration and media cache must match current Radio code');
