@@ -395,7 +395,7 @@ test(gateBackroom.includes('id="gateGraceSeconds"') &&
      preview.includes('ge-gate-settings.js'),
      'Back Room publishes editable Gate hold/fade/reverb to Radio and music-preview player');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.17-backroom-gate-11-33-v3'") &&
+test(refreshedRadioWorker.includes("const VERSION='2026.10.23-bangers-access-radio-v1'") &&
      refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
