@@ -399,7 +399,10 @@ test(gateBackroom.includes('id="gateGraceSeconds"') &&
      preview.includes('ge-gate-settings.js'),
      'Back Room publishes editable Gate hold/fade/reverb to Radio and music-preview player');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.23-bangers-access-radio-v1'") &&
+const workerCacheVersion=/const VERSION='([^']+)'/.exec(refreshedRadioWorker)?.[1]||'';
+const workerURLVersion=workerCacheVersion.replace(/^(\d{4})\.(\d{2})\.(\d{2})/,'$1$2$3');
+test(/^20\d{2}\.\d{2}\.\d{2}-.+/.test(workerCacheVersion) &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
@@ -421,7 +424,7 @@ test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!
      radio.includes('position:fixed;'),
      'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
 test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
-     load('radio/sw.js').includes("2026.10.23-bangers-access-radio-v1") &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      load('radio/sw.js').includes("ge-radio-media-v4"),
      'Home and Radio refresh app shell without deleting downloaded music');
 test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request') &&
@@ -442,4 +445,40 @@ test(preview.includes('effectiveListeningSeconds()') &&
      preview.includes('gateStartedAtMs') &&
      preview.includes('startSongGateIfReady()'),
      'Independent personal music Gate persists after backgrounding');
+test(home.includes('approved.has(item.clean)') &&
+     home.includes("const masterUrl=location.origin+BASE_PATH+'config/site-live.json'") &&
+     home.includes('if(approved.size!==approvedPaths.length)') &&
+     home.includes("const RADIO_ALBUM_ORDER=['Singles','Aether'"),
+     'Homepage fallback Player/Shuffle plays only Master-approved paths, Singles first');
+const approvedList=liveSiteConfig.music?.radioMasterSongPaths;
+const files=JSON.parse(load('radio/manifest.json')).files;
+test(Array.isArray(approvedList)&&approvedList.length>0&&
+     approvedList.length===new Set(approvedList).size&&
+     approvedList.every(path=>files.includes(path)),
+     'Published GE Radio Master Song List has no duplicates or unavailable paths');
+test(radio.includes('approvedAutoPaths.has(canonicalSongPath(url))') &&
+     radio.includes('radioMasterSongPaths') &&
+     !radio.includes('GE_AUTO_SOURCE_COMMIT') &&
+     backroom.includes('id="brMasterSongs"'),
+     'Radio Player/Shuffle shares a path-based allowlist editable in Back Room');
+test(radio.includes('GE PLAYLISTS') &&
+     radio.includes('MY PLAYLISTS') &&
+     radio.includes('GE_MUSIC_PERSONAL_PLAYLISTS_V1') &&
+     radio.includes("geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack") &&
+     load('radio/preview-lab.html').includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
+     'Listener MUSIC provides published and named personal playlists and single-song preview');
+
+
+const homepagePWA=JSON.parse(load('manifest.webmanifest'));
+test(home.includes('href="./favicon-32x32.png"') &&
+     home.includes('href="./favicon-16x16.png"') &&
+     home.includes('href="./apple-touch-icon.png"') &&
+     fs.existsSync('favicon-32x32.png') &&
+     fs.existsSync('favicon-16x16.png') &&
+     fs.existsSync('apple-touch-icon.png') &&
+     Array.isArray(homepagePWA.icons) &&
+     homepagePWA.icons.length>=2 &&
+     homepagePWA.icons.every(icon=>fs.existsSync(icon.src.replace(/^\.\//,''))),
+     'Homepage favicon and all PWA/Home Screen icons resolve to actual files');
+
 console.log('\nGE site static regression checks passed: '+passed);
