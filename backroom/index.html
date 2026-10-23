@@ -2477,7 +2477,15 @@ const backroomVaultManagers=(()=>{
         try{await navigator.clipboard.writeText(code);accessStatus('Code copied. Keep it secure.');}
         catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
       });
-      window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{accessPlaylistOptions();renderAccessCodes();};
+      window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=(items)=>{
+        // Reflect the exact IDs returned by the original DJ store after SAVE
+        // or DELETE, so the chooser and edit pane cannot use stale records.
+        if(Array.isArray(items)){
+          playlists=items;playlistLoaded=true;
+          renderPlaylistChooser();
+        }
+        accessPlaylistOptions();renderAccessCodes();
+      };
       window.GE_BACKROOM_DJ_SOURCE_LOADED=(items,library,status)=>{
         catalog=library.map(song=>({
           track_path:song.path,track_title:song.title||parseTrack(song.path).track_title,
