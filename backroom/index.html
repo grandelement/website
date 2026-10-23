@@ -894,23 +894,27 @@ let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=fa
 let geDJSavedPlaylists=[],geDJPlaylistReady=false,geDJVaultConfirmed=false;
 function syncDJSavedPlaylistsToPublic(){
   if(!cfg||!geDJPlaylistReady)return;
-  if(!geDJVaultConfirmed){
-    $('brDJPlaylistStatus').textContent='BLITZ playlist available locally. GE Vault has not confirmed the save; public MUSIC stays unchanged.';
-    return;
-  }
   cfg.music=cfg.music||{};
   const pathsOk=path=>/^ge-music\/music\//.test(path)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path)&&!path.includes('..');
-  // A DJ playlist is private until its owner explicitly publishes that ID.
-  // Refreshing the DJ library must never silently expose every saved rotation.
+  // This is a snapshot of the authenticated ORIGINAL BLITZ DJ data, not a
+  // second playlist database. Publication still requires owner approval and
+  // PUBLISH LIVE. A delayed Vault sync must not hide an approved playlist.
   const explicitlyPublic=new Set((cfg.music.publicPlaylists||[]).map(p=>String(p.id)));
+  const bangersApproved=(cfg.music.publicDJPlaylistNames||[]).some(
+    name=>String(name).trim().toLowerCase()==='bangers');
   const old=JSON.stringify(cfg.music.publicPlaylists||[]);
   cfg.music.publicPlaylists=geDJSavedPlaylists.map(playlist=>({
     id:playlist.id,name:playlist.name,songs:[...new Set(playlist.paths.filter(pathsOk))]
-  })).filter(playlist=>explicitlyPublic.has(String(playlist.id))&&playlist.songs.length>0);
+  })).filter(playlist=>
+    (explicitlyPublic.has(String(playlist.id))||
+    (bangersApproved&&String(playlist.name).trim().toLowerCase()==='bangers'))&&
+    playlist.songs.length>0);
   if(JSON.stringify(cfg.music.publicPlaylists)!==old)mark();
   const total=geDJSavedPlaylists.length,shown=cfg.music.publicPlaylists.length;
-  $('brDJPlaylistStatus').textContent='DJ BOOTH CONNECTED · '+total+' saved playlist(s), '+shown+
-    ' available with website songs. Changes in the public MUSIC menu take effect on PUBLISH LIVE.';
+  $('brDJPlaylistStatus').textContent='ORIGINAL DJ BOOTH CONNECTED · '+total+
+    ' saved playlist(s), '+shown+' explicitly approved for public MUSIC'+
+    (geDJVaultConfirmed?' · GE Vault synced':' · GE Vault pending; published snapshot available')+
+    '. PUBLISH LIVE to apply; Radio 1 rotation is unchanged.';
 }
 function acceptDJPlaylistSnapshot(items,vaultConfirmed=false){
   if(!Array.isArray(items))return;
@@ -2001,6 +2005,10 @@ const backroomVaultManagers=(()=>{
       if(paths.length)list.push({id:String(id),name:String(name).slice(0,100),songs:paths});
     }
     cfg.music.publicPlaylists=list;
+    // Bangers has one explicit name approval. Clearing PUBLIC revokes that
+    // approval so a later refresh cannot silently publish it again.
+    if(String(name).trim().toLowerCase()==='bangers')
+      cfg.music.publicDJPlaylistNames=visible?['Bangers']:[];
     mark();
   }
   function renderPlaylistChooser(){
@@ -2072,11 +2080,10 @@ const backroomVaultManagers=(()=>{
       const saved=String(data.playlist.id);
       // The PUBLIC checkbox only updates the publishable snapshot after the
       // original DJ store confirms the write. Unpublishing is always allowed.
-      if(!makePublic||data.vault_saved===true)
-        syncPublicPlaylist(saved,name,included,makePublic);
+      syncPublicPlaylist(saved,name,included,makePublic);
       editPlaylist(saved);
       if(makePublic&&data.vault_saved!==true)
-        playlistStatus('DJ saved locally, but GE Vault has not confirmed it. Public playlist changes were NOT staged.');
+        playlistStatus('Saved to ORIGINAL DJ · public snapshot staged for PUBLISH LIVE while GE Vault sync catches up.');
       if($('brPlaylistActive').checked){
         const radio=await geDJApi('/control/custom-mix',{enabled:true,playlist_id:saved});
         playlistStatus('ON RADIO 1 · '+name+(radio.vault_saved?' · VAULT':' · BLITZ LOCAL'));

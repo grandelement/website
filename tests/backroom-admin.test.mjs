@@ -102,7 +102,7 @@ assert.ok(!back.includes('id="brDJPlaylistFrame"')&&
 assert.ok(back.includes("geDJApi('/control/playlists')")&&
   back.includes("geDJApi('/control/library')")&&
   back.includes('geDJVaultConfirmed'),
-  'Back Room must read canonical DJ records with authenticated requests and stage public records only after Vault confirmation');
+  'Back Room must read authenticated original DJ records and track Vault synchronization');
 assert.ok(back.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor">') &&
   !back.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor" hidden>'),
   'Show one native Back Room editor rather than a broken DJ iframe');
@@ -118,13 +118,17 @@ assert.ok(back.includes("geDJApi('/control/library')")&&back.includes('id="brDJA
   'Back Room must show the original DJ library with album and per-song checkboxes');
 assert.ok(back.includes("geDJApi('/control/playlists')")&&back.includes("geDJSavedPlaylists"),
   'Back Room must load actual DJ playlist IDs, names and song paths');
-assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
-  'The Radio MUSIC published playlists must come from original DJ data');
+assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map(")&&
+  back.includes("bangersApproved&&String(playlist.name).trim().toLowerCase()==='bangers'")&&
+  back.includes("cfg.music.publicDJPlaylistNames=visible?['Bangers']:[]"),
+  'The published Radio MUSIC snapshot must come from explicitly approved original DJ records');
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
   'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
 assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
-  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2"),
-  'Radio MUSIC must load only canonical DJ Vault playlists with a last-known-good local cache');
+  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2")&&
+  radio.includes("publishedConfigNames.get(id)")&&
+  radio.includes("OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT"),
+  'Radio MUSIC prefers live Vault playlists and falls back to owner-approved original DJ snapshots');
 assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
   'Back Room should reuse the authenticated DJ device without creating a second playlist database');
 assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
@@ -175,4 +179,62 @@ assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &
 assert.ok(back.includes("minlength=\"12\"") &&
   back.includes("/^[a-zA-Z0-9-]{12,64}$/.test(requested)"),
   'Custom Access Code editor must match the Vault minimum length');
+
+// Exercise the real Radio MUSIC playlist loader, not just source-code labels.
+const djLoaderStart=radio.indexOf('async function geLoadPublishedPlaylists(){');
+const djLoaderEnd=radio.indexOf('function gePlaylistUI(list){',djLoaderStart);
+assert.ok(djLoaderStart>=0&&djLoaderEnd>djLoaderStart,'Radio MUSIC playlist loader must be present');
+const djLoader=new Script(radio.slice(djLoaderStart,djLoaderEnd),{filename:'radio-published-dj-loader.js'});
+const radioSongA='ge-music/music/Grand Element - Singles/Singles_I=Energy.mp3';
+const radioSongB='ge-music/music/Grand Element - 2017 - Soul/Soul_02_Halo.mp3';
+async function runPublishedDJFixture(music,items,{vaultUnavailable=false}={}){
+  const context={
+    window:{},console:{warn(){}},gePlaylistOpen:false,
+    gePublishedLists:[],
+    trackList:{classList:{contains:()=>false}},
+    localStorage:{getItem:()=>null,setItem(){}},
+    fetch:async url=>{
+      if(String(url).includes('config/site-live.json'))
+        return {ok:true,json:async()=>({music})};
+      if(vaultUnavailable)throw Error('Vault temporarily unreachable');
+      return {ok:true,json:async()=>({
+        ok:true,format:'ge-public-dj-playlists-v1',items
+      })};
+    }
+  };
+  djLoader.runInNewContext(context);
+  await context.geLoadPublishedPlaylists();
+  return {lists:context.gePublishedLists,status:context.window.GE_DJ_PLAYLIST_SOURCE_STATUS};
+}
+const publishedBangers={
+  publicDJPlaylistNames:['Bangers'],
+  publicPlaylists:[{id:'real-dj-bangers',name:'Bangers',songs:[radioSongA,'../../private.mp3']}]
+};
+const offlineBangers=await runPublishedDJFixture(publishedBangers,[],{vaultUnavailable:true});
+assert.deepEqual([...offlineBangers.lists[0].songs],[radioSongA],
+  'Only approved original DJ snapshot song paths are used when Vault is down');
+assert.match(offlineBangers.status,/OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT/,
+  'Offline Vault must identify the published snapshot rather than claim a live feed');
+const emptyVaultBangers=await runPublishedDJFixture(publishedBangers,[{
+  id:'real-dj-bangers',name:'Bangers',songs:[]
+}]);
+assert.deepEqual([...emptyVaultBangers.lists[0].songs],[radioSongA],
+  'Empty Vault replication must not hide the owner-published Bangers snapshot');
+const privateDJ=await runPublishedDJFixture(
+  {publicDJPlaylistNames:['Bangers'],publicPlaylists:[]},
+  [{id:'secret',name:'Private DJ Set',songs:[radioSongB]},
+   {id:'authentic-bangers',name:'Bangers',songs:[radioSongA]}]
+);
+assert.equal(privateDJ.lists.length,1,'Unpublished original DJ records stay private');
+assert.equal(privateDJ.lists[0].name,'Bangers');
+const idOnly=await runPublishedDJFixture(
+  {publicDJPlaylistNames:[],publicPlaylists:[{id:'approved',name:'Owner Set',songs:[radioSongA]}]},
+  [{id:'approved',name:'Owner Set',songs:[radioSongA,radioSongB]}]
+);
+assert.deepEqual([...idOnly.lists[0].songs],[radioSongA],
+  'ID-specific publication must not leak newly added unapproved songs');
+const none=await runPublishedDJFixture({publicDJPlaylistNames:[],publicPlaylists:[]},
+  [{id:'private-bangers',name:'Bangers',songs:[radioSongA]}]);
+assert.equal(none.lists.length,0,'No playlists appear without an explicit owner publication');
+
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
