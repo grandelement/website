@@ -20,6 +20,7 @@ for(const [i,s]of inlineScripts.entries()){
 }
 const tabs=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'];
 const dj=read('radio/ge-dj.html');
+const radio=read('radio/index.html');
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
@@ -102,6 +103,12 @@ assert.ok(back.includes("ge-dj-playlists-update")&&back.includes("geDJSavedPlayl
   'Back Room should receive saved DJ playlist names and songs securely via same-origin message');
 assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
   'The Radio MUSIC published playlists must come from original DJ data');
+assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
+  'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
+assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
+  radio.includes("config.music?.publicPlaylists"),'Radio MUSIC must load current DJ source with a safe published fallback');
+assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
+  'Back Room should reuse the authenticated DJ device without creating a second playlist database');
 assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
   'New Access Codes must accept a typed secret');
 assert.ok(vault.includes("body.requested_code")&&vault.includes("This access code already exists"),
