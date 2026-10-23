@@ -920,31 +920,53 @@ function acceptDJPlaylistSnapshot(items){
   syncDJSavedPlaylistsToPublic();
   window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED?.(geDJSavedPlaylists);
 }
-window.addEventListener('message',event=>{
-  const frame=$('brDJPlaylistFrame');
-  if(!frame||event.source!==frame.contentWindow||event.origin!==location.origin)return;
-  const message=event.data;
-  if(message?.type!=='ge-dj-playlists-update'||message.format!=='ge-radio-playlists-v1')return;
-  acceptDJPlaylistSnapshot(message.items);
-});
-async function refreshDJPlaylistSource(){
-  // Reuse the trusted device already authorized by the real DJ Booth.
-  // No DJ passwords or access tokens are copied to site configs or Vault.
-  let id='',token='';
-  try{id=localStorage.getItem('geDjTrustedIdV1')||'';
-      token=localStorage.getItem('geDjTrustedTokenV1')||'';}catch(_e){}
-  if(!id||!token)return false;
+let geDJLibrary=[];
+function geDJAuthHeaders(){
+  const headers={};
+  const pass=String($('brDJPassword')?.value||'').trim();
+  let cachedPassword='',id='',trusted='';
   try{
-    const response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy/control/playlists',{
-      headers:{'X-GE-DJ-Device-ID':id,'X-GE-DJ-Device-Token':token},cache:'no-store'});
-    if(!response.ok)throw Error('DJ Booth authorization unavailable ('+response.status+')');
-    const data=await response.json();
-    if(!Array.isArray(data.items))throw Error('DJ Booth playlist response is invalid');
-    acceptDJPlaylistSnapshot(data.items);
+    cachedPassword=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword')||'';
+    id=localStorage.getItem('geDjTrustedIdV1')||'';
+    trusted=localStorage.getItem('geDjTrustedTokenV1')||'';
+  }catch(_e){}
+  if(pass||cachedPassword)headers['X-GE-DJ-Key']=pass||cachedPassword;
+  if(id&&trusted){headers['X-GE-DJ-Device-ID']=id;headers['X-GE-DJ-Device-Token']=trusted;}
+  return headers;
+}
+async function geDJApi(path,payload){
+  const headers=geDJAuthHeaders();
+  if(!headers['X-GE-DJ-Key']&&!headers['X-GE-DJ-Device-Token'])
+    throw Error('DJ sign-in needed · enter DJ password above, or sign in to the original DJ Booth in this browser.');
+  if(payload!==undefined)headers['Content-Type']='application/json';
+  const response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy'+path,{
+    method:payload===undefined?'GET':'POST',headers,cache:'no-store',
+    ...(payload===undefined?{}:{body:JSON.stringify(payload)})
+  });
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||body.ok===false)throw Error(body.error||('DJ request failed ('+response.status+').'));
+  return body;
+}
+async function refreshDJPlaylistSource(){
+  $('brDJPlaylistStatus').textContent='CONNECTING TO ORIGINAL DJ PLAYLIST STORE…';
+  try{
+    const [saved,library,status]=await Promise.all([
+      geDJApi('/control/playlists'),
+      geDJApi('/control/library'),
+      geDJApi('/control/status').catch(()=>null)
+    ]);
+    if(!Array.isArray(saved.items)||!Array.isArray(library.items))
+      throw Error('Original DJ Booth returned an invalid playlist or music library response.');
+    geDJLibrary=library.items.filter(x=>x?.kind==='song'&&typeof x.path==='string')
+      .map(x=>({path:x.path,title:String(x.title||x.picker_title||''),album:String(x.album||'Other')}));
+    acceptDJPlaylistSnapshot(saved.items);
+    window.GE_BACKROOM_DJ_SOURCE_LOADED?.(saved.items,geDJLibrary,status);
+    $('brDJPlaylistStatus').textContent='ORIGINAL DJ BOOTH · '+saved.items.length+
+      ' saved playlists · '+geDJLibrary.length+' songs'+
+      (saved.vault_error?' · VAULT ISSUE: '+String(saved.vault_error).slice(0,80):'');
     return true;
   }catch(error){
-    $('brDJPlaylistStatus').textContent='Open PLAYLISTS and sign in to GE DJ Booth to load the original saved playlists · '+
-      String(error.message||error).slice(0,110);
+    $('brDJPlaylistStatus').textContent='DJ PLAYLISTS NOT CONNECTED · '+String(error.message||error).slice(0,160);
     return false;
   }
 }
