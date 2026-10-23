@@ -553,7 +553,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div class="brGameOptionRow"><label class="check"><input id="gameFlight" type="checkbox"><span><b>FLIGHT</b><small>Assembly draft</small></span></label><button type="button" class="brGameOptionsButton" data-game="gameFlight" title="Open this game setup">OPTIONS</button></div>
   </div>
 </section>
-
+<section data-br-tab="games" id="brGameGeneralDefaults">
+  <h2>GENERAL GAME DEFAULTS</h2>
+  <p class="brGameDefaultsIntro">These are the initial defaults for a new visitor, not the gameplay settings for individual games. A returning player's saved game settings take priority.</p>
+  <div class="grid">
+    <label><span>DEFAULT NUMBER OF PLAYERS</span><select id="brGameDefaultPlayers"><option value="0">0 · THE BODY AUTOMATIC DEMO</option><option value="1" selected>1 PLAYER</option><option value="2">2 PLAYERS</option><option value="3">3 PLAYERS</option><option value="4">4 PLAYERS</option><option value="5">5 PLAYERS</option><option value="6">6 PLAYERS</option></select></label>
+    <label class="check"><input id="brGameDefaultComputer" type="checkbox"><span>PLAY COMPUTER BY DEFAULT (2 PLAYERS)</span></label>
+  </div>
+</section>
 
 <section data-br-tab="radio">
   <h2>RADIO CONTROL</h2>
@@ -1280,7 +1287,9 @@ function collect(){
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
   cfg.games={...(cfg.games||{}),
     points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked,
-    golf:$('gameGolf').checked,gravity:$('gameGravity').checked,body:$('gameBody').checked,flight:$('gameFlight').checked
+    golf:$('gameGolf').checked,gravity:$('gameGravity').checked,body:$('gameBody').checked,flight:$('gameFlight').checked,
+    defaults:{players:Math.max(0,Math.min(6,Number($('brGameDefaultPlayers').value)||0)),
+      playComputer:$('brGameDefaultComputer').checked}
   };
   cfg.gateTiming=readGateFields();
   cfg.music=cfg.music||{};
