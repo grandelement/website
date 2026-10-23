@@ -599,8 +599,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     <h4>2 · MUSIC ASSIGNMENTS</h4>
-    <p>Select a saved playlist and/or individual songs. Leave both empty for permission to the whole selected music category.</p>
-    <label><span>ASSIGNED PLAYLIST</span><select id="brAccessPlaylist"><option value="">ALL / NO SPECIFIC PLAYLIST</option></select></label>
+    <p>Pick a playlist to check all its songs, then uncheck anything you do not want. You can also select songs outside the Radio playlists. Only the checked songs are assigned.</p>
+    <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
     <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
     <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
     <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Select multiple songs"></div>
@@ -1784,7 +1784,7 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    select.replaceChildren(new Option('NO SPECIFIC PLAYLIST · ALL ALLOWED MUSIC',''));
+    select.replaceChildren(new Option('CHOOSE PLAYLIST · CHECK ITS SONGS',''));
     playlists.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
   }
@@ -1823,7 +1823,7 @@ const backroomVaultManagers=(()=>{
     for(const path of assignedSongPaths){
       const row=create('div','','brAccessSongRow');
       row.appendChild(create('span',accessSongTitle(path)));
-      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);assignedSongsUI()}));
+      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);accessSongOptions();assignedSongsUI()}));
       host.appendChild(row);
     }
   }
@@ -1858,6 +1858,17 @@ const backroomVaultManagers=(()=>{
     assignedSongPaths=[...(row?.track_paths||[])];
     accessPlaylistOptions();
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
+    // Old playlist grants are expanded into explicit tracks for editing, so
+    // removing a song actually removes its access instead of leaving an
+    // unrestricted playlist ID entitlement in place.
+    if(row?.playlist_ids?.length){
+      const all=new Set(assignedSongPaths);
+      for(const id of row.playlist_ids){
+        const playlist=playlists.find(p=>p.id===id);
+        for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);
+      }
+      assignedSongPaths=[...all];
+    }
     accessSongOptions();assignedSongsUI();accessModeUI();
     $('brAccessOneTime').hidden=true;
   }
@@ -1934,7 +1945,9 @@ const backroomVaultManagers=(()=>{
     return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
-      playlist_ids:$('brAccessPlaylist').value?[$('brAccessPlaylist').value]:[],
+      // The playlist selector is a bulk-checking preset, not a blanket
+      // entitlement: otherwise unchecked songs would still be accessible.
+      playlist_ids:[],
       track_paths:assignedSongPaths.slice()};
   }
   async function saveCode(isEdit){
@@ -2016,6 +2029,16 @@ const backroomVaultManagers=(()=>{
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
       $('brAccessRevoke').addEventListener('click',()=>void codeAction('revoke'));
       $('brAccessDelete').addEventListener('click',()=>void codeAction('delete'));
+      $('brAccessPlaylist').addEventListener('change',()=>{
+        const id=$('brAccessPlaylist').value;
+        if(!id)return;
+        const playlist=playlists.find(p=>p.id===id);
+        if(!playlist){accessStatus('Playlist not found. Refresh playlists.');return;}
+        const paths=[...new Set((playlist.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean))];
+        assignedSongPaths=paths;
+        accessSongOptions();assignedSongsUI();
+        accessStatus('Selected '+paths.length+' songs from '+playlist.name+'. Uncheck any song before saving the code.');
+      });
       $('brAccessSongSearch').addEventListener('input',accessSongOptions);
       $('brAccessSelectAll').addEventListener('click',()=>{const q=$('brAccessSongSearch').value.trim().toLowerCase();const set=new Set(assignedSongPaths);catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(q)).forEach(x=>set.add(x.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
       $('brAccessClearSongs').addEventListener('click',()=>{assignedSongPaths=[];accessSongOptions();assignedSongsUI();});
