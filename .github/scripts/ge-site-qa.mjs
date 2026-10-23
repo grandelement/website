@@ -40,6 +40,14 @@ const backroom=load('backroom/index.html');
 const liveSiteConfig=JSON.parse(load('config/site-live.json'));
 const testSiteConfig=JSON.parse(load('config/site-test.json'));
 const savedBackroomPresets=JSON.parse(load('config/backroom-presets.json'));
+test(home.includes("ge_game_setup") &&
+     home.includes("requestedGame==='gravity'||requestedGame==='flight'") &&
+     home.includes("if(button)button.click()"),
+     'Back Room deep links open Gravity and Flight through their actual game controls');
+test(backroom.includes("const openSetup=button=>") &&
+     backroom.includes("ge_game_setup="),
+     'Back Room game OPTIONS link directly to each game setup');
+
 for(const [label,cfg] of [['live',liveSiteConfig],['test',testSiteConfig],
   ...savedBackroomPresets.presets.map((p,i)=>['preset '+i,p.config])]){
   test(cfg.music?.startupEnabled===false&&!cfg.music?.firstTrack,
