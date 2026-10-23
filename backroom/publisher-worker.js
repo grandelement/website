@@ -5,7 +5,8 @@
  * Secrets required in Cloudflare:
  *   BACKROOM_PASSWORD   admin password (never commit it)
  *   SESSION_SECRET      long random signing secret
- *   GITHUB_TOKEN        fine-grained token: Contents read/write on grandelement/website only
+ *   GitHub App preferred: GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY
+ *   GITHUB_TOKEN        optional legacy fallback during migration
  *
  * Optional vars:
  *   GITHUB_OWNER        default: grandelement
@@ -93,14 +94,57 @@ function validConfig(cfg){
   if(!cfg.games||typeof cfg.games!=='object')return false;
   return true;
 }
+// GitHub App credentials stay exclusively in Cloudflare Worker secrets.
+// Installation access tokens expire automatically; the Worker requests fresh ones.
+let appTokenCache=null;
+async function githubAppJwt(env){
+  const appId=String(env.GITHUB_APP_ID||'').trim();
+  const pem=String(env.GITHUB_APP_PRIVATE_KEY||'').replace(/\\n/g,'\n').trim();
+  if(!appId||!pem)throw new Error('GitHub App credentials are incomplete.');
+  const body=pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g,'');
+  const bytes=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  const key=await crypto.subtle.importKey('pkcs8',bytes,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  const now=Math.floor(Date.now()/1000);
+  const header=b64url(enc.encode(JSON.stringify({alg:'RS256',typ:'JWT'})));
+  const payload=b64url(enc.encode(JSON.stringify({iat:now-60,exp:now+540,iss:appId})));
+  const unsigned=header+'.'+payload;
+  return unsigned+'.'+b64url(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,enc.encode(unsigned)));
+}
+async function githubCredential(env){
+  const hasApp=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
+  if(!hasApp){
+    if(env.GITHUB_TOKEN)return String(env.GITHUB_TOKEN);
+    throw new Error('GitHub publishing credentials are not configured.');
+  }
+  const identity=String(env.GITHUB_APP_ID)+':'+String(env.GITHUB_APP_INSTALLATION_ID);
+  if(appTokenCache&&appTokenCache.identity===identity&&appTokenCache.expires>Date.now()+120000){
+    return appTokenCache.token;
+  }
+  const jwt=await githubAppJwt(env);
+  const response=await fetch('https://api.github.com/app/installations/'+encodeURIComponent(String(env.GITHUB_APP_INSTALLATION_ID))+'/access_tokens',{
+    method:'POST',
+    headers:{
+      'Accept':'application/vnd.github+json',
+      'Authorization':'Bearer '+jwt,
+      'X-GitHub-Api-Version':'2022-11-28',
+      'User-Agent':'GE-Studios-Backroom-Publisher'
+    },
+    body:JSON.stringify({repositories:[env.GITHUB_REPO||'website'],permissions:{contents:'write'}})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.token)throw new Error('GitHub App authorization failed ('+response.status+'). Check App installation and Contents permission.');
+  appTokenCache={identity,token:data.token,expires:Date.parse(data.expires_at)||Date.now()+50*60*1000};
+  return data.token;
+}
 async function github(env,path,init={}){
   const owner=env.GITHUB_OWNER||'grandelement';
   const repo=env.GITHUB_REPO||'website';
+  const credential=await githubCredential(env);
   return fetch('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/contents/'+path,{
     ...init,
     headers:{
       'Accept':'application/vnd.github+json',
-      'Authorization':'Bearer '+env.GITHUB_TOKEN,
+      'Authorization':'Bearer '+credential,
       'X-GitHub-Api-Version':'2022-11-28',
       'User-Agent':'GE-Studios-Backroom-Publisher',
       ...(init.headers||{})
@@ -235,7 +279,8 @@ export default {
     }
     if(origin&&!allowedOrigin(origin))return json({ok:false,error:'Origin not allowed.'},403,'');
     const cors=allowedOrigin(origin)?origin:'';
-    const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&env.GITHUB_TOKEN);
+    const appReady=!!(env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY);
+    const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&(appReady||env.GITHUB_TOKEN));
 
     if(url.pathname==='/health'&&request.method==='GET'){
       return json({ok:true,configured},200,cors);
