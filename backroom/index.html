@@ -1570,7 +1570,8 @@ function reloadSitePreview(){
   frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
 }
 function setupPreviewOpacity(){
-  const box=$('editorOpacityControls');box.hidden=!editorEnabled;
+  // Preview sliders belong to VIEW WEBSITE too: the owner must see the visual change.
+  const box=$('editorOpacityControls');box.hidden=false;
   for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
     const input=$(id),value=Number(cfg.visual?.[kind]?.panelOpacity??(kind==='welcome'?78:96));
     input.value=String(value);$(id+'Value').textContent=value+'%';
@@ -1580,6 +1581,18 @@ for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAbout
   $(id).addEventListener('input',()=>{
     const v=Number($(id).value);cfg.visual=cfg.visual||{};cfg.visual[kind]=cfg.visual[kind]||{};cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
     $(kind+'Opacity').value=String(v);$(kind+'OpacityValue').textContent=v+'%';
+    const doc=$('editorFrame')?.contentDocument;
+    if(doc){
+      // Bring the affected panel into view so dragging the slider shows the
+      // real website effect immediately without entering text edit mode.
+      if(kind==='welcome'){
+        doc.getElementById('about')?.classList.remove('show');
+        doc.getElementById('geWelcome')?.classList.add('show');
+      }else{
+        doc.getElementById('geWelcome')?.classList.remove('show');
+        doc.getElementById('about')?.classList.add('show');
+      }
+    }
     const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;mark();
   });
 }
