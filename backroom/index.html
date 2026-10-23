@@ -1903,6 +1903,7 @@ const backroomVaultManagers=(()=>{
     }
     const bangers=backup.items.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
     if(!bangers){playlistStatus('BANGERS IS NOT IN THIS DEVICE\'S DJ BACKUP. No songs changed.');return;}
+    if(!catalog.length){playlistStatus('GE SONG CATALOG IS LOADING. Use LOAD SAVED DJ BANGERS again after songs appear.');void loadCatalog();return;}
     const paths=[...new Set((bangers.paths||[]).map(String).filter(Boolean))];
     if(!paths.length){playlistStatus('THE SAVED DJ BANGERS PLAYLIST IS EMPTY. No songs changed.');return;}
     const missing=paths.filter(path=>!catalog.some(song=>song.track_path===path));
@@ -1931,7 +1932,14 @@ const backroomVaultManagers=(()=>{
       const target=keep||playlistEditingId;
       const bangers=playlists.find(x=>String(x.name||'').trim().toLowerCase()==='bangers');
       editPlaylist(playlists.some(x=>x.id===target)?target:(bangers?.id||''));
-      playlistStatus(bangers?'BANGERS SELECTED · '+(bangers.tracks||[]).length+' saved songs. Review and save changes here; live BLITZ scheduling stays in DJ Booth.':'BANGERS NOT FOUND IN SAVED BACK ROOM PLAYLISTS · Check the separate BLITZ DJ Booth before changing rotation.');
+      if(!bangers&&!target){
+        // Prefer the real DJ Booth's local Bangers backup when the Vault has no
+        // saved Bangers yet, without changing the live station or auto-saving.
+        let hasDJBackup=false;
+        try{hasDJBackup=!!localStorage.getItem('geRadioPlaylistBackup')}catch(_e){}
+        if(hasDJBackup){importBangersFromDJ();return;}
+      }
+      playlistStatus(bangers?'BANGERS SELECTED · '+(bangers.tracks||[]).length+' saved songs. Review and save changes here; live BLITZ scheduling stays in DJ Booth.':'BANGERS NOT FOUND IN SAVED BACK ROOM PLAYLISTS · Open GE DJ Booth on this website, save Bangers there, then use LOAD SAVED DJ BANGERS.');
     }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
   }
   async function savePlaylist(){
