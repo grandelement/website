@@ -2838,6 +2838,15 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #installB
 html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(14px,1.7vw,16px)!important;line-height:1.25!important;opacity:.92!important}
 </style>
 
+<style id="ge-radio-full-library-picker-20261022">
+#trackList .gePickAlbumHeader{display:flex;align-items:center;gap:9px;
+ position:relative;z-index:1;background:#103451;color:#e9faff;
+ border-bottom:1px solid #4a9ac5;padding:9px 8px;font-weight:850;
+ text-align:left;margin-top:5px}
+#trackList .gePickAlbumHeader input{width:21px;height:21px;flex:0 0 auto;accent-color:#6ad7ff}
+#trackList .gePickAlbumHeader span{flex:1;min-width:0}
+#trackList .gePickAlbumHeader small{color:#9bd7fa;font-size:11px}
+</style>
 <style id="ge-radio-inline-music-20261022">
 /* MUSIC is an in-page panel. Its document persists while the visitor browses,
    saves playlists, or closes the panel; it does not navigate the Radio page. */
@@ -4348,11 +4357,70 @@ async function discoverOfflineMediaFromCaches(){
 }
 
 // Personal song selections do not affect the shared live Bangers station.
-const GE_SONG_PICK_KEY='GE_RADIO_PERSONAL_SONGS_V1';
+const GE_SONG_PICK_KEY='GE_RADIO_PERSONAL_SONGS_V2';
+// V2 starts with NO preselected station playlist. Only deliberate user choices persist.
 let selectedSongURLs=new Set(),personalSongMode=false;
+let fullMusicPickerCatalog=[];
+let fullMusicPickerLoading=null;
+const GE_MUSIC_SONG_ROOT=/^ge-music\/music\/.+\.(?:mp3|m4a|ogg|wav)$/i;
+function canonicalSongPath(input){
+  const value=String(input||'').trim();
+  let path='';
+  try{
+    // Both GitHub's raw repository paths and browser URLs are accepted.
+    const raw=value.replace(/^\/+/, '');
+    path=raw.startsWith('ge-music/music/')?decodeURIComponent(raw):urlToRepoPath(value);
+  }catch(_e){return ''}
+  return GE_MUSIC_SONG_ROOT.test(path)?path:'';
+}
+const MUSIC_PICKER_ALBUM_ORDER=['Aether','Singles','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+function musicPickerSort(a,b){
+  const ai=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(a));
+  const bi=MUSIC_PICKER_ALBUM_ORDER.indexOf(albumNameFromURL(b));
+  const rank=index=>index<0?MUSIC_PICKER_ALBUM_ORDER.length:index;
+  if(rank(ai)!==rank(bi))return rank(ai)-rank(bi);
+  const n=parseTrack(a).track-parseTrack(b).track;
+  return n||a.localeCompare(b);
+}
+function sortedFullSongCatalog(paths){
+  const unique=new Set(paths.map(canonicalSongPath).filter(Boolean));
+  return [...unique].map(repoPathToURL).sort(musicPickerSort);
+}
+async function ensureFullMusicPickerCatalog(force=false){
+  if(fullMusicPickerCatalog.length&&!force)return fullMusicPickerCatalog;
+  if(fullMusicPickerLoading)return fullMusicPickerLoading;
+  fullMusicPickerLoading=(async()=>{
+    let urls=[];
+    // The repository's track-durations catalog and manifest each contain the
+    // complete 94-file music tree. Never use BLITZ/Bangers playback queue here.
+    for(const [file,kind] of [['./track-durations.json','tracks'],['./manifest.json','files']]){
+      try{
+        const response=await fetch(file,{cache:'no-store'});
+        if(!response.ok)continue;
+        const data=await response.json();
+        const paths=kind==='tracks'?
+          (Array.isArray(data.tracks)?data.tracks.map(t=>t.path):[]):
+          (Array.isArray(data.files)?data.files:[]);
+        const found=sortedFullSongCatalog(paths);
+        if(found.length>urls.length)urls=found;
+      }catch(error){console.warn('Full music catalog source unavailable:',file,error);}
+    }
+    if(!urls.length){
+      // Cached manifest and existing Radio catalog are last-resort fallbacks;
+      // they are not the synchronized Bangers playlist.
+      urls=sortedFullSongCatalog([...(await loadMusicManifest()).map(urlToRepoPath),...state.catalog.map(urlToRepoPath)]);
+    }
+    if(urls.length){
+      fullMusicPickerCatalog=urls;
+      if(trackList.classList.contains('open'))renderTrackList();
+    }
+    return fullMusicPickerCatalog;
+  })().finally(()=>{fullMusicPickerLoading=null});
+  return fullMusicPickerLoading;
+}
 try{
   const stored=JSON.parse(localStorage.getItem(GE_SONG_PICK_KEY)||'null');
-  if(Array.isArray(stored?.songs))selectedSongURLs=new Set(stored.songs.filter(x=>typeof x==='string'));
+  if(Array.isArray(stored?.songs))selectedSongURLs=new Set(stored.songs.map(canonicalSongPath).filter(Boolean));
   personalSongMode=!!stored?.enabled&&selectedSongURLs.size>0;
 }catch(_e){}
 function savePersonalSongSelection(){
@@ -4360,13 +4428,14 @@ function savePersonalSongSelection(){
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
 function selectableSongs(){
-  let list=state.catalog.filter(url=>!isStationID(url));
-  if(offlinePlaybackMode()&&offlineAvailability.songs.size)list=list.filter(url=>offlineAvailability.songs.has(url));
-  return list.sort(orderedSort);
+  // This is the complete music folder (including Singles and older albums),
+  // not the current stream, shuffled subset, or locally cached Bangers tracks.
+  return (fullMusicPickerCatalog.length?fullMusicPickerCatalog:
+    sortedFullSongCatalog(state.catalog)).slice().sort(musicPickerSort);
 }
 function allowedCatalog(){
   if(personalSongMode){
-    const chosen=selectableSongs().filter(url=>selectedSongURLs.has(url));
+    const chosen=selectableSongs().filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
     if(chosen.length)return chosen;
   }
   let list=state.catalog.filter(url=>!isSingles(url) && (isFeaturedSingle(url) || isCore(url) || (state.legacy && isLegacy(url))));
@@ -5688,7 +5757,12 @@ function renderTrackList(){
   trackList.replaceChildren();
   const toolbar=document.createElement('div');toolbar.className='gePickToolbar';
   const count=document.createElement('strong');
-  function updateCount(){count.textContent=selectedSongURLs.size+' SONG'+(selectedSongURLs.size===1?'':'S')+' SELECTED · NO COUNT LIMIT';}
+  function updateCount(){
+    const available=new Set(list.map(canonicalSongPath));
+    const selected=[...selectedSongURLs].filter(path=>available.has(path)).length;
+    const folders=new Set(list.map(albumNameFromURL)).size;
+    count.textContent=list.length+' SONGS · '+folders+' FOLDERS · '+selected+' SELECTED';
+  }
   updateCount();toolbar.appendChild(count);
   function addAction(label,onClick,cls=''){
     const button=document.createElement('button');
@@ -5698,7 +5772,7 @@ function renderTrackList(){
     toolbar.appendChild(button);
   }
   addAction('SELECT ALL',()=>{
-    for(const url of list)selectedSongURLs.add(url);
+    for(const url of list)selectedSongURLs.add(canonicalSongPath(url));
     savePersonalSongSelection();renderTrackList();
   });
   addAction('CLEAR',()=>{
@@ -5710,7 +5784,7 @@ function renderTrackList(){
   });
   addAction('PLAY SELECTED',()=>{
     if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-    const chosen=list.filter(url=>selectedSongURLs.has(url));
+    const chosen=list.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
     if(!chosen.length){setStatus('Check one or more songs first.');return;}
     personalSongMode=true;savePersonalSongSelection();
     if(state.live||state.livePreparing)exitLiveMode('RADIO ended. Selected songs starting.');
@@ -5724,22 +5798,60 @@ function renderTrackList(){
   addAction('CLOSE',closeTrackPicker);
   trackList.appendChild(toolbar);
   const fragment=document.createDocumentFragment();
+  let currentAlbum='';
+  const albumHeaders=new Map();
+  function updateAlbumHeadings(){
+    for(const item of albumHeaders.values()){
+      const count=item.paths.filter(path=>selectedSongURLs.has(path)).length;
+      item.checkbox.checked=item.paths.length>0&&count===item.paths.length;
+      item.checkbox.indeterminate=count>0&&count<item.paths.length;
+      item.count.textContent=count+'/'+item.paths.length+' selected';
+    }
+  }
+  function addAlbumHeading(album,paths){
+    const header=document.createElement('label');
+    header.className='gePickAlbumHeader';
+    const cb=document.createElement('input');cb.type='checkbox';
+    const name=document.createElement('span');name.textContent=album;
+    const countEl=document.createElement('small');
+    header.append(cb,name,countEl);
+    fragment.appendChild(header);
+    albumHeaders.set(album,{paths,checkbox:cb,count:countEl});
+    cb.addEventListener('change',()=>{
+      for(const path of paths){
+        if(cb.checked)selectedSongURLs.add(path);else selectedSongURLs.delete(path);
+      }
+      savePersonalSongSelection();
+      // Update checkboxes in place rather than rebuilding and losing scroll.
+      for(const input of trackList.querySelectorAll('.gePickRow input[type=checkbox]')){
+        input.checked=selectedSongURLs.has(input.dataset.songPath);
+      }
+      updateCount();updateAlbumHeadings();
+    });
+  }
   for(const url of list){
+    const album=albumNameFromURL(url);
+    if(album!==currentAlbum){
+      currentAlbum=album;
+      addAlbumHeading(album,list.filter(song=>albumNameFromURL(song)===album).map(canonicalSongPath));
+    }
     const row=document.createElement('div');row.className='gePickRow';
     const label=document.createElement('label');
     const check=document.createElement('input');
-    check.type='checkbox';check.checked=selectedSongURLs.has(url);
+    check.type='checkbox';check.dataset.songPath=canonicalSongPath(url);
+    check.checked=selectedSongURLs.has(check.dataset.songPath);
     check.setAttribute('aria-label','Select '+displayTitle(url,false));
     const title=document.createElement('span');title.textContent=displayTitle(url,false);
     check.addEventListener('change',()=>{
-      if(check.checked)selectedSongURLs.add(url);else selectedSongURLs.delete(url);
+      const path=check.dataset.songPath;
+      if(check.checked)selectedSongURLs.add(path);else selectedSongURLs.delete(path);
       if(personalSongMode&&!selectedSongURLs.size)personalSongMode=false;
-      savePersonalSongSelection();updateCount();
+      savePersonalSongSelection();updateCount();updateAlbumHeadings();
     });
     label.append(check,title);row.appendChild(label);
     const playNow=document.createElement('button');
     playNow.type='button';playNow.dataset.url=url;playNow.textContent='PLAY';
-    if(url===state.currentURL)playNow.classList.add('current');
+    if(canonicalSongPath(url)===canonicalSongPath(state.currentURL))playNow.classList.add('current');
     playNow.addEventListener('click',()=>{
       if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
       personalSongMode=false;savePersonalSongSelection();
@@ -5753,6 +5865,7 @@ function renderTrackList(){
     row.appendChild(playNow);fragment.appendChild(row);
   }
   trackList.appendChild(fragment);
+  updateAlbumHeadings();
 }
 
 async function loadMusicManifest(forceFresh=false){
@@ -5917,8 +6030,18 @@ function closeTrackPicker(){
   $('musicMenuBtn')?.setAttribute('aria-expanded','false');
 }
 function openTrackPicker(){
-  if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-  renderTrackList();
+  // The same full-library chooser opens for both guests and owners. Access
+  // controls apply only if the user later chooses to play a track.
+  // Do not flash the station's Bangers-sized playback list while loading.
+  if(fullMusicPickerCatalog.length)renderTrackList();
+  else{
+    trackList.replaceChildren();
+    const loading=document.createElement('p');
+    loading.textContent='LOADING COMPLETE MUSIC LIBRARY…';
+    loading.style.padding='20px';
+    trackList.appendChild(loading);
+  }
+  void ensureFullMusicPickerCatalog();
   document.body.classList.remove('hud-hidden');
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
@@ -6483,7 +6606,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-music-title-popup-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-full-library-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10224,6 +10347,9 @@ gateTestBtn?.addEventListener('click',()=>{
   }
 
   rebuildQueue('');
+  // Independently read ALL ge-music/music albums and Singles for MUSIC.
+  // No Bangers playlist selection is implied by Radio playback.
+  void ensureFullMusicPickerCatalog();
   // Keep the main MUSIC/title picker current even when manifest.json has not yet
   // been regenerated after new files are uploaded. This is a background catalog
   // refresh only; it never starts, stops, or switches radio audio.
@@ -10235,9 +10361,9 @@ gateTestBtn?.addEventListener('click',()=>{
       if(!freshCatalog.length)return;
       const paths=list=>list.map(urlToRepoPath).sort().join('\n');
       if(paths(freshCatalog)===paths(state.catalog))return;
-      const selectedPaths=new Set([...selectedSongURLs].map(urlToRepoPath));
       state.catalog=freshCatalog;
-      selectedSongURLs=new Set(state.catalog.filter(url=>selectedPaths.has(urlToRepoPath(url))));
+      // Personal selection uses stable repository paths and does not get
+      // replaced by a refreshed stream playback catalog.
       savePersonalSongSelection();
       rebuildQueue(state.currentURL);
       try{window.GEIAmStudio?.onCatalogReady?.()}catch(_e){}
