@@ -228,7 +228,9 @@ function createUI(){
  globe.textContent='🌐';globe.setAttribute('aria-haspopup','dialog');
  globe.setAttribute('aria-expanded','false');
  globe.setAttribute('aria-label','Language');
- A.body.append(globe);
+ // Language is manually changeable only in Website > ABOUT.
+ // The detached trigger remains an internal a11y state anchor for the
+ // first-visit dialog. It is never visible on Radio or the website.
  live=A.createElement('div');live.className='ge-a11y-live';
  live.setAttribute('role','status');live.setAttribute('aria-live','polite');
  A.body.append(live);
@@ -260,7 +262,8 @@ function createUI(){
  const close=()=>{
   dialog.hidden=true;globe.setAttribute('aria-expanded','false');A.body.classList.remove('ge-language-open');
   try{localStorage.setItem(declinedKey,'1')}catch(_e){}
-  (lastFocus||globe).focus({preventScroll:true});lastFocus=null;
+  const restore=lastFocus?.isConnected?lastFocus:find('#geLanguagePreference');
+  restore?.focus?.({preventScroll:true});lastFocus=null;
  };
  const open=(recommendation)=>{
   lastFocus=A.activeElement;
@@ -316,7 +319,9 @@ async function suggestedLanguage(){
  // Browser setting takes precedence over region; a country alone does not
  // imply the visitor's language, so always ask before switching.
  const regional=countries[country]||'';
- return (preferred&&preferred!=='en'?preferred:regional)||'';
+ // On a first visit outside the US, ask once even if English is preferred.
+ // Browser language takes priority. The visitor must confirm a choice.
+ return (preferred&&preferred!=='en'?preferred:regional)||(country&&country!=='US'?'en':'');
 }
 let lastFitViewportKey='',lastFittedSun=0,lastFittedIam=0;
 function fitViewport(){
@@ -409,6 +414,9 @@ function start(){
  applyZoom(zoomEnabled,false);
  try{const saved=code(localStorage.getItem(localeKey));if(saved)lang=saved;}catch(_e){}
  applyLanguage(lang,false);
+ addEventListener('storage',event=>{
+  if(event.key===localeKey&&event.newValue)applyLanguage(event.newValue,false);
+ });
  setupKeyboard();
  if(radio){
   const player=find('#player')||find('#audio');
@@ -430,7 +438,7 @@ function start(){
  let prior=false;try{prior=!!localStorage.getItem(localeKey)||!!localStorage.getItem(declinedKey);}catch(_e){}
  if(!prior)void suggestedLanguage().then(preferred=>{
   // Don't interrupt the visitor's interaction or a currently open dialog.
-  if(preferred && preferred!=='en' && dialog?.hidden && !A.hidden){
+  if(preferred && dialog?.hidden && !A.hidden){
    try{if(localStorage.getItem(localeKey)||localStorage.getItem(declinedKey))return;}catch(_e){}
    open(preferred);
   }
