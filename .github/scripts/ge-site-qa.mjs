@@ -499,7 +499,6 @@ test(radio.includes("geTrackScroller")&&
      'iPhone MUSIC song list scrolls independently below the status bar');
 test(radio.includes('ge-radio-mobile-layout-scroll-20261023')&&
      radio.includes('width:clamp(108px,17.3dvh,156px)')&&
-     radio.includes('</footer>')===false ? false :
      radio.includes('<div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>\n</main>') &&
      radio.includes('#bottomActions #offlineBtn{display:none!important}'),
      'Radio keeps a smaller EQ Sun and a non-overlapping footer while hiding pre-purchase tools');
