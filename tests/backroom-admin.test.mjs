@@ -122,7 +122,7 @@ assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
   'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
 assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
-  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V1"),
+  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2"),
   'Radio MUSIC must load only canonical DJ Vault playlists with a last-known-good local cache');
 assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
   'Back Room should reuse the authenticated DJ device without creating a second playlist database');
@@ -139,4 +139,21 @@ assert.ok(back.includes('<section data-br-tab="welcome">\n  <h2>WEBSITE STARTUP 
   'Website startup music belongs at bottom of WELCOME');
 assert.ok(back.includes('<section data-br-tab="moon">\n  <h2>RADIO MOON SATELLITE</h2>'),
   'Radio Moon satellite controls belong only to MOON');
+assert.ok(back.includes("const explicitlyPublic=new Set") &&
+  back.includes("explicitlyPublic.has(String(playlist.id))") &&
+  back.includes("const makePublic=$('brPlaylistPublic').checked") &&
+  back.includes("syncPublicPlaylist(saved,name,included,makePublic)") &&
+  !back.includes('<input id="brPlaylistPublic" type="checkbox" checked>'),
+  'DJ playlists default private and require an explicit Back Room PUBLIC selection');
+assert.ok(back.includes("window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=(items)=>") &&
+  back.includes("playlists=items;playlistLoaded=true;"),
+  'Saving a DJ playlist must refresh the Back Room playlist chooser');
+assert.ok(vault.includes('config?.music?.publicPlaylists') &&
+  vault.includes("publishedSongs=permitted.get(String(playlist.id))") &&
+  vault.includes("if(meta.source!==\"ge-radio\")continue"),
+  'Vault public playlist feed must require both owner publication and original DJ ownership');
+assert.ok(radio.includes("allowed.has(item.id)") &&
+  radio.includes("allowed.get(item.id).has(path)") &&
+  radio.includes("DJ PLAYLIST PERMISSIONS UNAVAILABLE"),
+  'Radio MUSIC must independently filter the Vault feed and fail closed on permission errors');
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
