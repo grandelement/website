@@ -493,10 +493,17 @@ test(Array.isArray(liveSiteConfig.music?.publicDJPlaylistNames)&&
      radio.includes("publishedNames.has(String(item?.name||'').trim().toLowerCase())"),
      'MUSIC reads only owner-approved Bangers from the existing original DJ Vault table');
 test(radio.includes("geTrackScroller")&&
-     radio.includes("scrollArea.addEventListener('touchmove',event=>event.stopPropagation()")&&
+     radio.includes("trackList.scrollTop=priorPanelScroll")&&
+     radio.includes("scrollArea.scrollTop=priorSongScroll")&&
      radio.includes("#trackList>#geTrackScroller")&&
+     radio.includes("html.ge-radio-ui #trackList.open{")&&
      radio.includes("top:max(43px,calc(env(safe-area-inset-top) + 8px))"),
-     'iPhone MUSIC song list scrolls independently below the status bar');
+     'iPhone MUSIC uses one native scrolling panel and preserves position below the status bar');
+ test(radio.includes("OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT")&&
+     radio.includes("publishedConfigNames.get(id)")&&
+     radio.includes("allowed.get(item.id).has(path)")&&
+     backroom.includes("cfg.music.publicDJPlaylistNames=visible?['Bangers']:[]"),
+     'Original DJ Bangers publication survives Vault replication lag without exposing private playlists');
 test(radio.includes('ge-radio-mobile-layout-scroll-20261023')&&
      radio.includes('width:clamp(108px,17.3dvh,156px)')&&
      radio.includes('<div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>\n</main>') &&
