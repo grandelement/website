@@ -4433,16 +4433,46 @@ function selectableSongs(){
   return (fullMusicPickerCatalog.length?fullMusicPickerCatalog:
     sortedFullSongCatalog(state.catalog)).slice().sort(musicPickerSort);
 }
+// Station and background Shuffle are independent of the full album/MUSIC catalog.
+// This is an immutable snapshot of the recordings approved before the re-upload.
+// Raw commit URLs cannot silently change when a same-named file is replaced on main.
+const GE_AUTO_SOURCE_COMMIT='69442ea48d04024881d20d8e78725ebd42d970fa';
+let frozenAutoSongs=[],frozenAutoReady=false;
+async function loadFrozenAutoSongs(){
+  try{
+    const response=await fetch('./approved-autoplay.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('Approved automatic-play manifest unavailable');
+    const data=await response.json();
+    if(data?.format!=='ge-radio-automatic-play-lock-v1'||
+       data.snapshotCommit!==GE_AUTO_SOURCE_COMMIT||
+       !Array.isArray(data.approved)||!data.approved.length)
+      throw new Error('Approved playlist version mismatch');
+    const paths=new Set();
+    frozenAutoSongs=data.approved.map(item=>{
+      const path=String(item?.path||'');
+      if(!/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)||
+         !/^[a-f0-9]{40}$/i.test(item.blobSha)||paths.has(path))
+        throw new Error('Unsafe automatic-play song entry');
+      paths.add(path);
+      return 'https://raw.githubusercontent.com/grandelement/website/'+
+        GE_AUTO_SOURCE_COMMIT+'/'+path.split('/').map(encodeURIComponent).join('/');
+    });
+    frozenAutoReady=true;
+    return true;
+  }catch(error){
+    frozenAutoSongs=[];frozenAutoReady=false;
+    console.error('Automatic Shuffle blocked: no approved frozen catalog',error);
+    return false;
+  }
+}
 function allowedCatalog(){
   if(personalSongMode){
+    // Only an explicit MUSIC selection can use new/re-uploaded current files.
     const chosen=selectableSongs().filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
     if(chosen.length)return chosen;
   }
-  let list=state.catalog.filter(url=>!isSingles(url) && (isFeaturedSingle(url) || isCore(url) || (state.legacy && isLegacy(url))));
-  if(offlinePlaybackMode() && offlineAvailability.songs.size){
-    list=list.filter(url=>offlineAvailability.songs.has(url));
-  }
-  return list.sort(orderedSort);
+  if(!frozenAutoReady)return []; // Fail closed: never substitute GitHub main.
+  return frozenAutoSongs.slice().sort(orderedSort);
 }
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
@@ -6606,7 +6636,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-full-library-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-hardfreeze-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10331,6 +10361,7 @@ gateTestBtn?.addEventListener('click',()=>{
     setStatus('Grand Element Radio · checking live station');
   }
 
+  await loadFrozenAutoSongs();
   const discovered=await discoverOfflineMediaFromCaches();
 
   const manifestCatalog=applyKnownMediaVersions(
