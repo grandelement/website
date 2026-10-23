@@ -2207,6 +2207,7 @@ body.iam-studio-open #titleBtn{display:none!important}
 .sunlab-panel{grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto!important}
 #offlineText{white-space:pre-line}
 .sunlab-access-tools{display:flex;align-items:center;gap:9px;min-width:0;margin-top:8px;padding:7px 1px 0;border-top:1px solid rgba(120,185,219,.32)}
+.sunlab-access-tools #sunLabResetCodes{min-height:43px!important;border:1px solid rgba(97,215,255,.75)!important;color:#effbff!important;font-weight:800!important}
 .sunlab-access-tools #sunLabResetSite{min-height:43px!important;min-width:120px!important;white-space:nowrap!important;flex:0 0 auto!important;border:1px solid rgba(97,215,255,.80)!important;background:rgba(20,77,110,.95)!important;color:#f0fcff!important;font-weight:850!important}
 .sunlab-access-tools span{font-size:12px;line-height:1.25;color:#bedbea;min-width:0}
 @media(max-width:370px){.sunlab-access-tools{flex-wrap:wrap}.sunlab-access-tools span{font-size:12px}}
@@ -3396,8 +3397,9 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{font-size:clamp(1
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
     <div class="sunlab-access-tools">
-      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Reset visitor access, settings, listening history and offline music on this device">RESET SITE</button>
-      <span>Clear local test access and return to Guest. Music downloads are kept.</span>
+      <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local test access only; keep downloaded music">RESET CODES</button>
+      <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Erase local listener settings and offline downloads on this device">RESET SITE</button>
+      <span>RESET CODES keeps downloads. RESET SITE deletes offline music and local settings.</span>
     </div>
   </section>
   <div id="status" role="status" aria-live="polite"></div>
@@ -8047,6 +8049,14 @@ $('reloadBtn').addEventListener('click',async()=>{
     }
     location.replace('./?fresh='+Date.now());
   }
+  function resetLocalAccessCodes(){
+    if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
+    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey];
+    for(const storage of [localStorage,sessionStorage]){
+      for(const key of keys){try{if(key)storage.removeItem(key);}catch(_e){}}
+    }
+    location.reload();
+  }
   function initSunLab(){
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
     loadSunLab();loadSunModeProfiles();
@@ -8065,6 +8075,7 @@ $('reloadBtn').addEventListener('click',async()=>{
       sunLabBtn.addEventListener('click',()=>{if(!geRadioLocalTestAccess())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
+      $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
       $('sunLabResetSite')?.addEventListener('click',()=>void resetLocalSite());
       sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
