@@ -376,6 +376,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 }
 
  .brGameOptionRow{border:1px solid #27506a;border-radius:10px;padding:9px;margin:6px 0}.brGameOptionRow .check{display:inline-flex;margin-right:10px}.brGameOptionDetails{padding:8px 0}.brGameOptionDetails[hidden]{display:none}
+ .brPlaylistTrack.excluded{opacity:.45;text-decoration:line-through}
  .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 </style>
 </head>
@@ -1806,7 +1807,7 @@ const backroomVaultManagers=(()=>{
     playlistTracks.forEach((track,i)=>{
       const row=create('div','','brPlaylistTrack');
       row.setAttribute('role','listitem');row.dataset.position=String(i);
-      const chosen=document.createElement('input');chosen.type='checkbox';chosen.checked=true;chosen.setAttribute('aria-label','Include '+(track.track_title||track.track_path));chosen.addEventListener('change',()=>{if(!chosen.checked){playlistTracks.splice(i,1);renderTrackList();}});row.appendChild(chosen);
+      const chosen=document.createElement('input');chosen.type='checkbox';chosen.checked=!track._excluded;row.classList.toggle('excluded',!!track._excluded);chosen.setAttribute('aria-label','Include '+(track.track_title||track.track_path));chosen.addEventListener('change',()=>{track._excluded=!chosen.checked;row.classList.toggle('excluded',track._excluded);status('brPlaylistTrackCount',playlistTracks.filter(t=>!t._excluded).length+' of '+playlistTracks.length+' songs selected · SAVE PLAYLIST to apply');});row.appendChild(chosen);
       row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
       row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
       row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
@@ -1895,15 +1896,16 @@ const backroomVaultManagers=(()=>{
   async function savePlaylist(){
     const name=$('brPlaylistName').value.trim();
     if(!name){playlistStatus('Enter the playlist name.');return;}
-    if(!playlistTracks.length){playlistStatus('Add at least one song before saving.');return;}
+    const includedTracks=playlistTracks.filter(t=>!t._excluded).map(({_excluded,...track})=>track);
+    if(!includedTracks.length){playlistStatus('Select at least one song before saving.');return;}
     const publicInMusic=$('brPlaylistPublic').checked;
     const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
-      tracks:playlistTracks,active:$('brPlaylistActive').checked}};
+      tracks:includedTracks,active:$('brPlaylistActive').checked}};
     $('brPlaylistSave').disabled=true;playlistStatus('Saving playlist…');
     try{
       const data=await vaultAction('/manage/playlists',payload);
       const savedId=String(data.id||playlistEditingId||'');
-      syncPublicPlaylist(savedId,name,playlistTracks,publicInMusic);
+      syncPublicPlaylist(savedId,name,includedTracks,publicInMusic);
       await refreshPlaylists(savedId);
       playlistStatus(publicInMusic?'Playlist saved and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Playlist saved. Public visibility updates require PUBLISH LIVE.');
     }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
