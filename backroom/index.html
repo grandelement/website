@@ -558,7 +558,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="backroomActionRow">
     <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
-    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
+    <button type="button" id="brImportBangers">LOAD SAVED DJ BANGERS</button>
+    <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
   <label><span>SAVED PLAYLISTS · BANGERS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
   <label><span>PLAYLIST NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Bangers"></label>
@@ -1890,6 +1891,36 @@ const backroomVaultManagers=(()=>{
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     renderPlaylistChooser();renderTrackList();
   }
+  function importBangersFromDJ(){
+    // GE DJ stores this backup only in this browser/origin. Never invent a
+    // Bangers rotation when the actual DJ backup is missing.
+    let backup=null;
+    try{backup=JSON.parse(localStorage.getItem('geRadioPlaylistBackup')||'null');}
+    catch(_e){playlistStatus('DJ PLAYLIST BACKUP IS UNREADABLE. Open GE DJ Booth and save Bangers there.');return;}
+    if(backup?.format!=='ge-radio-playlists-v1'||!Array.isArray(backup.items)){
+      playlistStatus('NO DJ BACKUP ON THIS DEVICE. Open GE DJ Booth on this website, load Bangers and save the DJ playlist first.');
+      return;
+    }
+    const bangers=backup.items.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
+    if(!bangers){playlistStatus('BANGERS IS NOT IN THIS DEVICE\'S DJ BACKUP. No songs changed.');return;}
+    const paths=[...new Set((bangers.paths||[]).map(String).filter(Boolean))];
+    if(!paths.length){playlistStatus('THE SAVED DJ BANGERS PLAYLIST IS EMPTY. No songs changed.');return;}
+    const missing=paths.filter(path=>!catalog.some(song=>song.track_path===path));
+    if(missing.length){
+      playlistStatus('DJ BANGERS HAS '+missing.length+' SONG(S) MISSING FROM THE WEBSITE CATALOG. No songs changed. Refresh the GE music catalog before importing.');
+      return;
+    }
+    const existing=playlists.find(p=>String(p.name||'').trim().toLowerCase()==='bangers');
+    playlistEditingId=String(existing?.id||'');
+    playlistLocked=!!existing?.locked;
+    playlistTracks=paths.map(path=>({...catalog.find(x=>x.track_path===path)}));
+    $('brPlaylistName').value=bangers.name;
+    $('brPlaylistActive').checked=!!backup.active_playlist_enabled&&String(backup.active_playlist_id)===String(bangers.id);
+    $('brPlaylistPublic').checked=!!existing?.id&&publicPlaylists().some(p=>String(p.id)===String(existing.id));
+    $('brPlaylistDelete').disabled=!existing?.id||playlistLocked;
+    renderPlaylistChooser();renderTrackList();
+    playlistStatus('DJ BANGERS LOADED FROM THIS DEVICE · '+paths.length+' real songs. Review checkboxes, then SAVE PLAYLIST. This does NOT change the live BLITZ queue.');
+  }
   async function refreshPlaylists(keep=''){
     if(!authReady())return;
     playlistStatus('Loading playlists…');
@@ -2176,6 +2207,7 @@ const backroomVaultManagers=(()=>{
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
+      $('brImportBangers').addEventListener('click',importBangersFromDJ);
       $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
       $('brPlaylistSearch').addEventListener('input',renderCatalog);
       $('brAddSong').addEventListener('click',()=>{
