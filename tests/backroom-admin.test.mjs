@@ -21,6 +21,7 @@ for(const [i,s]of inlineScripts.entries()){
 const tabs=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'];
 const dj=read('radio/ge-dj.html');
 const radio=read('radio/index.html');
+const sw=read('radio/sw.js');
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
@@ -156,4 +157,19 @@ assert.ok(radio.includes("allowed.has(item.id)") &&
   radio.includes("allowed.get(item.id).has(path)") &&
   radio.includes("DJ PLAYLIST PERMISSIONS UNAVAILABLE"),
   'Radio MUSIC must independently filter the Vault feed and fail closed on permission errors');
+assert.ok(radio.includes("https://vault.grandelement.com/v1/public/access/redeem") &&
+  radio.includes("scope:'radio'") &&
+  radio.includes("GE_VAULT_RADIO_SESSION_V1") &&
+  radio.includes("if(isLegacy){") &&
+  radio.includes("verification:isLegacy?'client_only':'vault_redeemed_radio_scope'"),
+  'Radio Gate must redeem Vault codes without granting them owner/demo LOVE flags');
+assert.ok(vault.includes('"/v1/public/access/redeem"') &&
+  vault.includes("async function accessRedeem(request,env)"),
+  'Vault radio code validation must occur server-side');
+assert.ok(sw.includes("2026.10.23-radio-vault-code-public-dj-v1") &&
+  radio.includes("20261023-radio-vault-code-public-dj-v1"),
+  'iPhone Radio service worker must refresh for new Gate and playlist rules');
+assert.ok(back.includes("minlength=\"12\"") &&
+  back.includes("/^[a-zA-Z0-9-]{12,64}$/.test(requested)"),
+  'Custom Access Code editor must match the Vault minimum length');
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
