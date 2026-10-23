@@ -417,7 +417,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
-  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
+  
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
@@ -536,7 +536,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
     <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN LIVE DJ BOOTH ↗</a>
   </div>
-  <p>Live broadcast scheduling stays in the DJ Booth. Website startup and Radio Moon controls are below.</p>
+  <p>Live broadcast scheduling stays in the DJ Booth. Website startup and Radio Moon controls are below. Radio playlists appear immediately above the GE Radio Master Song List.</p>
   <p>GE RADIO MASTER SONG LIST controls which tracks may play automatically on BLITZ Radio and website Player/Shuffle. A checked song stays approved when its audio file is replaced. New uploads default OFF until explicitly checked and PUBLISH LIVE is pressed.</p>
   <section id="brMasterSection" aria-label="GE Radio Master Song List">
     <h3>GE RADIO MASTER SONG LIST</h3>
@@ -547,7 +547,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </section>
 
 <section data-br-tab="playlists">
-  <h2>PLAYLISTS</h2>
+  <h2>RADIO PLAYLISTS</h2>
   <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
@@ -735,6 +735,7 @@ function installBackroomTabs(){
   const categories=['welcome','about','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
+  // Keep Radio playlists with Radio rather than as a separate top-level tab.
   for(const category of categories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
     panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
@@ -762,7 +763,8 @@ function installBackroomTabs(){
   }
   function activate(tab,focus=false){
     if(!panels.has(tab))tab='welcome';
-    for(const [name,panel]of panels){panel.hidden=name!==tab;}
+    if(tab==='playlists')tab='radio';
+    for(const [name,panel]of panels){panel.hidden=name!==tab&&!(tab==='radio'&&name==='playlists');}
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
