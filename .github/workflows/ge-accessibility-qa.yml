@@ -1,0 +1,29 @@
+name: GE Accessibility Smoke Checks
+on:
+  push:
+    paths:
+      - ge-accessibility.js
+      - ge-accessibility.css
+      - index.html
+      - radio/index.html
+      - radio/website-live.js
+      - radio/preview-lab.html
+      - radio/manifest.json
+      - sw.js
+      - radio/sw.js
+      - .github/scripts/ge-accessibility-qa.mjs
+      - .github/workflows/ge-accessibility-qa.yml
+  workflow_dispatch:
+jobs:
+  accessibility-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out website
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify GE accessibility and music routing contracts
+        run: node .github/scripts/ge-accessibility-qa.mjs

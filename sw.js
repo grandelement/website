@@ -6,7 +6,7 @@ const SITE_SHELL='GE_SITE_SHELL_V2_LOCAL_BRAND_ART';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
-const SHELL=['./','./index.html','./radio/website-live.js','./manifest.webmanifest'];
+const SHELL=['./','./index.html','./radio/website-live.js','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
 async function fromAnyCache(request){
   return (await caches.match(request,{ignoreSearch:true}))||null;

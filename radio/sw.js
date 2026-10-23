@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.21-music-picker-navigation-v1';
+const VERSION='2026.10.22-radio-approved-freeze-v1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -9,7 +9,11 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
+  '../ge-accessibility.js',
+  '../ge-accessibility.css',
   './track-durations.json',
+  './approved-autoplay.json',
+  './manifest.json',
   './iam-private-studio.js',
   './ge-gate-audio.js',
   './ge-gate-settings.js',
@@ -26,6 +30,7 @@ const SHELL=[
   '../ge-images/images/ge-logo-2.jpg',
   '../ge-images/img/31.gif',
   './manifest.json',
+  '../config/site-live.json',
   './loudness.json',
   '../ge-images/img/manifest.json'
 ];
@@ -301,9 +306,28 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Catalogs should never be served cache-first: otherwise newly uploaded
-  // songs do not appear in the MUSIC or title chooser even after page reload.
-  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname)){
+  // Shared UI assets MUST be network-first. Previously they were cache-first
+  // with ignoreSearch:true, so iPhones could keep an old icon/layout stylesheet
+  // despite a fresh HTML page and a new ?v= cache-busting URL.
+  if(url.pathname==='/ge-accessibility.css' || url.pathname==='/ge-accessibility.js'){
+    event.respondWith((async()=>{
+      try{
+        const fresh=await fetchFresh(request);
+        if(fresh.ok){
+          const shell=await caches.open(SHELL_CACHE);
+          await shell.put(request,fresh.clone()).catch(()=>{});
+          return fresh;
+        }
+      }catch(_e){}
+      return await cachedResponse(request) ||
+        new Response('GE accessibility resource unavailable',{status:503});
+    })());
+    return;
+  }
+
+  // Song catalogs and published MUSIC playlists must be network-first,
+  // so newly published selections appear without stale SW shell caches.
+  if(/\/radio\/(?:manifest|track-durations)\.json$/i.test(url.pathname) || url.pathname==='/config/site-live.json'){
     event.respondWith((async()=>{
       try{
         const fresh=await fetchFresh(request);

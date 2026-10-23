@@ -20,7 +20,8 @@ Preserve together:
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<script>try{window.GE_A11Y_ZOOM=localStorage.getItem('GE_ACCESS_ZOOM_V1')==='1'}catch(_e){window.GE_A11Y_ZOOM=false}</script>
 <script>
 (function(){
   try{
@@ -2560,16 +2561,18 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   if(window.__GE_HARD_TOUCHLOCK__) return;
   window.__GE_HARD_TOUCHLOCK__=true;
   const SCROLLABLE='#about,.geGameControlCard,.gameOptionsPanel,.musicOptionsPanel,.miniPlayer,.albumScanCard';
+  const zoomAllowed=()=>window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active')&&!document.body.classList.contains('ge-body-race-active');
   const gameCardFor=t=>t?.closest?.('.geGameControlCard')||null;
   let box=null,lastY=0;
   const findBox=t=>t?.closest?.(SCROLLABLE)||null;
   const snapRoot=()=>{
+    if(zoomAllowed())return;
     try{if(window.scrollX||window.scrollY)window.scrollTo(0,0);}catch(_e){}
     if(document.documentElement)document.documentElement.scrollTop=0;
     if(document.body)document.body.scrollTop=0;
   };
   document.addEventListener('touchstart',e=>{
-    if(!e.touches?.length)return;
+    if(zoomAllowed()||!e.touches?.length)return;
     box=findBox(e.target);
     lastY=e.touches[0].clientY;
     if(gameCardFor(e.target)){box=null;return;}
@@ -2579,7 +2582,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
     if((e.touches.length>1 || !nativeControl) && e.cancelable)e.preventDefault();
   },{passive:false,capture:true});
   document.addEventListener('touchmove',e=>{
-    if(!e.touches?.length)return;
+    if(zoomAllowed()||!e.touches?.length)return;
     if(gameCardFor(e.target))return;
     const y=e.touches[0].clientY,dy=y-lastY; lastY=y;
     // Range controls keep their native thumb behavior, but touch-action:none prevents page pan.
@@ -2594,7 +2597,7 @@ button,.btn,.toggle,.sunAbout,.moon,input,select,a,summary{touch-action:none!imp
   document.addEventListener('touchend',()=>{box=null;snapRoot();},{passive:true,capture:true});
   document.addEventListener('touchcancel',()=>{box=null;snapRoot();},{passive:true,capture:true});
   for(const type of ['gesturestart','gesturechange','gestureend']){
-    document.addEventListener(type,e=>{if(e.cancelable)e.preventDefault();},{passive:false,capture:true});
+    document.addEventListener(type,e=>{if(!zoomAllowed()&&e.cancelable)e.preventDefault();},{passive:false,capture:true});
   }
   window.addEventListener('scroll',snapRoot,{passive:true,capture:true});
   window.addEventListener('pageshow',snapRoot,{passive:true});
@@ -3762,6 +3765,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 }
 </style>
 
+<link rel="stylesheet" href="./ge-accessibility.css?v=20261022-a11y3">
 </head>
 <body>
   <div id="siteBackground" aria-hidden="true"></div>
@@ -4439,6 +4443,10 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
         <p class="small">Choose exactly which albums the player may use. Shuffle randomizes only these albums. Album mode plays these albums in order, track by track.</p>
         <div id="musicAlbumPicker" class="gameAlbumPicker"></div>
       </div>
+      <div class="albumPickerSection" style="margin-top:12px">
+        <label id="geLanguageOptionLabel" for="geLanguagePreference" class="albumPickerTitle">LANGUAGE</label>
+        <select id="geLanguagePreference" aria-label="Preferred interface language" style="display:block;width:100%;max-width:340px;min-height:44px;margin:8px 0;background:#061a30;color:#f2faff;border:1px solid #6dc7ef;border-radius:9px;padding:8px 12px;font:600 16px system-ui"></select>
+      </div>
       <div class="gameButtons">
         <button class="gameButton" id="musicSelectAll" type="button">SELECT ALL MUSIC</button>
         <button class="gameButton" id="musicOptionsClose" type="button">CLOSE</button>
@@ -4575,6 +4583,7 @@ const PLANET_DEFAULT_SWIRL_WIDTH = 0.085;
 const PLANET_DEFAULT_SWIRL_TURNS = 1.18;
 
 const ALL_ALBUMS = [
+  { title:"Aether", musicTitle:"Aether", cover:IMG+"Grand%20Element%20-%20Aether.jpg", link:"", legendary:false },
   { title:"Fire", musicTitle:"Fire", cover:IMG+"Grand%20Element%20-%20Fire.jpg", link:"https://grandelement.bandcamp.com/album/fire", legendary:false },
   { title:"Spirit", musicTitle:"Spirit", cover:IMG+"Grand%20Element%20-%20Spirit.jpg", link:"https://grandelement.bandcamp.com/album/spirit", legendary:false },
   { title:"Soul", musicTitle:"Soul", cover:IMG+"Grand%20Element%20-%20Soul.jpg", link:"https://grandelement.bandcamp.com/album/soul", legendary:false },
@@ -4583,7 +4592,9 @@ const ALL_ALBUMS = [
   { title:"Sessions II", musicTitle:"Sessions II", cover:IMG+"Grand%20Element%20-%20Sessions%20II.jpg", link:"https://grandelement.bandcamp.com/album/sessions-ii", legendary:true },
   { title:"Sessions I", musicTitle:"Sessions I", cover:IMG+"Grand%20Element%20-%20Sessions%20I.jpg", link:"https://grandelement.bandcamp.com/album/sessions-i", legendary:true },
   { title:"Live!", musicTitle:"Live", cover:IMG+"Grand%20Element%20-%20Live.jpg", link:"https://grandelement.bandcamp.com/album/live", legendary:true },
-  { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true }
+  { title:"Trio", musicTitle:"Trio", cover:IMG+"Grand%20Element%20-%20Trio.jpg", link:"https://grandelement.bandcamp.com/album/trio", legendary:true },
+  // Original red 2005 album; optional on the website, last in the catalog.
+  { title:"Fundamental Groove", musicTitle:"Fundamental Groove", cover:IMG+"Grand%20Element%20-%20Fundamental%20Groove.jpg", link:"", legendary:true }
 ];
 const GE_SITE_ALBUM_SETTINGS=window.GE_SITE_CONFIG?.albums||{};
 if(Array.isArray(GE_SITE_ALBUM_SETTINGS.order)&&GE_SITE_ALBUM_SETTINGS.order.length){
@@ -4617,6 +4628,20 @@ let GE_SITE_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_SITE_ALBUM_SELECTION_KEY,
   ALL_ALBUMS.filter(a=>GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey(a.musicTitle))).map(a=>a.musicTitle)
 );
+// One-time new-release migration: existing visitors retain their saved planet choices,
+// and receive the newly published Aether planet without clearing other preferences.
+// After this migration, manually hiding Aether stays hidden on later visits.
+const GE_AETHER_PLANET_MIGRATION_KEY='GE_SITE_AETHER_PLANET_ADDED_2026_V1';
+try{
+  if(!localStorage.getItem(GE_AETHER_PLANET_MIGRATION_KEY) &&
+      GE_SITE_VISIBLE_ALBUM_KEYS.has(geAlbumKey('Aether'))){
+    if(!GE_SITE_SELECTED_ALBUMS.some(name=>geAlbumKey(name)===geAlbumKey('Aether'))){
+      GE_SITE_SELECTED_ALBUMS=[...GE_SITE_SELECTED_ALBUMS,'Aether'];
+      localStorage.setItem(GE_SITE_ALBUM_SELECTION_KEY,JSON.stringify(GE_SITE_SELECTED_ALBUMS));
+    }
+    localStorage.setItem(GE_AETHER_PLANET_MIGRATION_KEY,'1');
+  }
+}catch(_e){};
 const GE_POINTS_CORE_DEFAULT=['Fire','Spirit','Soul','Love','Intergy'];
 let GE_GAME_SELECTED_ALBUMS=geReadAlbumSelection(
   GE_GAME_ALBUM_SELECTION_KEY,
@@ -4977,6 +5002,7 @@ addEventListener('orientationchange',()=>{
 
   const geArchiveFoundation="Grand Element music is designed to create an open, hypnotic space in the mind where the listener can imagine, reflect and create. Repetition, rhythm and spacious sound are used to quiet ordinary mental chatter, leave room for the listener's own inner voice, and let the music speak more directly to the soul.";
   const notes=Object.assign({
+    aether:{year:'2026',energy:'Harmony in Chaos',tagline:'Harmony in Chaos',bio:"Aether explores the beauty of chaos. Unusual time signatures, overlapping scales, and deep drum-and-bass grooves create a constantly shifting world of sound. Above it all, a soaring piano moves freely through the chaos, its melody clear and unmistakable, somehow bringing everything together. Different energies, moving independently, yet connected as one."},
     trio:{year:'2006',energy:'Expansion',bio:'Trio is designed to create an open, expanding space where structured rhythm and freer melodic movement can exist together. Its energy is about moving beyond two fixed sides and making room for another possibility, giving the listener more space for imagination, movement and their own inner response.'},
     live:{year:'2007',energy:'Collective',bio:'Live! is designed to turn shared experience into part of the music. Spontaneity, reaction and the energy between performers and audience create a living space that invites the listener out of analysis and into direct experience, connection and presence.'},
     sessionsi:{year:'2008',energy:'Exploration',bio:"Sessions I is a collection of musical environments built for exploration. Soul, funk, rock, rhythm and atmosphere move through different forms while leaving enough open space for the listener's own thoughts, melodies and images to appear."},
@@ -5407,7 +5433,7 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
   let wantedPlayback=startupMusicEnabled;
   try{player.defaultPlaybackRate=1;player.playbackRate=1;}catch(_e){}
   player.addEventListener('ratechange',()=>{try{if(Math.abs(player.playbackRate-1)>.001)player.playbackRate=1;}catch(_e){}});
-  const RADIO_ALBUM_ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
+  const RADIO_ALBUM_ORDER=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 
   const SHARED_STATE=window.GE_SHARED_MUSIC_STATE;
   let sharedSaveTimer=0, restoredSharedState=null;
@@ -9604,7 +9630,7 @@ const GE_GAME = (()=>{
   }
 
   /* ===== BLUE SUN GAMES: CENTER POOL + NINE PLANET ===== */
-  const BLUE_POOL_ORDER=['Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire'];
+  const BLUE_POOL_ORDER=['Trio','Live','Sessions I','Sessions II','Intergy','Love','Soul','Spirit','Fire','Aether'];
   const bluePool={phase:'break',next:1,pocket:{x:0,y:0,r:60},pockets:[],basePocketR:60,cueStart:{x:0,y:0},rackCenter:{x:0,y:0},spotBase:{x:0,y:0},shot:null,won:false,runPoints:0,pocketed:new Set(),lost:new Set(),runNumber:1,lastBounds:null,ballInHand:null,cueMoveMode:false,lastCueTap:0,pushOutAvailable:false,pushOutActive:false,pushOutChooser:null,foulStreak:[0],breaker:0};
   function isBlueSunPool(){return state.gameType==='blueSunPool';}
   function isNinePlanet(){return state.gameType==='ninePlanet';}
@@ -11425,17 +11451,19 @@ const GE_GAME = (()=>{
   const blockUniverseSelection=e=>{if(e.target?.closest?.('#planets,#sunWrap,#gameAimGuide,#fx,#fxFront'))e.preventDefault();};
   document.addEventListener('selectstart',blockUniverseSelection,{capture:true});
   document.addEventListener('contextmenu',blockUniverseSelection,{capture:true});
-  for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>e.preventDefault(),{passive:false,capture:true});
-  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false,capture:true});
+  for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>{if(!window.GE_A11Y_ZOOM||document.body.classList.contains('game-mode-active'))e.preventDefault()},{passive:false,capture:true});
+  document.addEventListener('dblclick',e=>{if(!window.GE_A11Y_ZOOM||document.body.classList.contains('game-mode-active'))e.preventDefault();},{passive:false,capture:true});
   // v13 installs the stronger capture-phase lock in <head>. Keep the legacy handler only as a fallback.
   if(!window.__GE_HARD_TOUCHLOCK__){
     const GE_SCROLLABLE_TOUCH='#about,.geGameControlCard,.gameOptionsPanel,.musicOptionsPanel,.miniPlayer,.albumScanCard';
     let geTouchStartY=0;
     document.addEventListener('touchstart',e=>{
+      if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
       if(e.touches?.length>1){e.preventDefault();return;}
       if(e.touches?.length===1)geTouchStartY=e.touches[0].clientY;
     },{passive:false,capture:true});
     document.addEventListener('touchmove',e=>{
+      if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
       if(!e.touches?.length)return;
       if(e.touches.length>1){e.preventDefault();return;}
       const scrollBox=e.target?.closest?.(GE_SCROLLABLE_TOUCH);
@@ -11450,6 +11478,7 @@ const GE_GAME = (()=>{
   // Final viewport guard: the document itself is never a scroll surface. This also protects
   // the fixed background and planet coordinate system from Safari rubber-band/page movement.
   const geLockDocumentScroll=()=>{
+    if(window.GE_A11Y_ZOOM&&!document.body.classList.contains('game-mode-active'))return;
     if((window.scrollX||0)!==0||(window.scrollY||0)!==0)window.scrollTo(0,0);
     if(document.documentElement.scrollTop)document.documentElement.scrollTop=0;
     if(document.body.scrollTop)document.body.scrollTop=0;
@@ -11872,6 +11901,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   const golfBalls=[];
   let golfActivePlayer=0,golfShotPending=false,golfRoundDone=false,golfTotals=[];
   const GOLF_PLANETS=[
+    {name:'Aether',color:'#aeb7c5',cover:'Grand%20Element%20-%20Aether.jpg'},
     {name:'Fire',color:'#ff7660',cover:'Grand%20Element%20-%20Fire.jpg'},
     {name:'Spirit',color:'#64dbff',cover:'Grand%20Element%20-%20Spirit.jpg'},
     {name:'Soul',color:'#b5a0ff',cover:'Grand%20Element%20-%20Soul.jpg'},
@@ -13344,7 +13374,7 @@ addEventListener('unhandledrejection',e=>{try{window.GE_RUNTIME_ERRORS.push({t:D
   function albumChoices(){
     const seen=new Set(),out=[];
     (window.PLAYLIST||[]).forEach(it=>{const a=(it?.album||'').trim();const k=a.toLowerCase();if(a&&!seen.has(k)){seen.add(k);out.push(a);}});
-    return out.length?out:['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
+    return out.length?out:['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
   }
   const checkCard=check.querySelector('.autoCard');
   let checkFadeTimer=0;
@@ -14196,7 +14226,10 @@ body:not(.ge-body-race-active) #moon {
   const BLEND_MS=Math.max(1000,Number(settings.AMBIENT_ORBIT_BLEND_MS)||5600);
   const GRAVITY_MIN=Math.max(0,Math.min(.30,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MIN)||.05));
   const GRAVITY_MAX=Math.max(GRAVITY_MIN,Math.min(.35,Number(settings.AMBIENT_ORBIT_SUN_GRAVITY_MAX)||.16));
-  const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio'];
+  // Orbit identity stays independent of album display order. Preserve all
+  // existing planet speeds and ellipses; Fundamental Groove is optional
+  // and receives the slowest separate orbit at index 10.
+  const ORDER=['Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Aether','Fundamental Groove'];
   const ORDER_KEYS=ORDER.map(key);
 
   /* Each album owns a different universe-sized ellipse. These are intentionally not
@@ -14210,7 +14243,11 @@ body:not(.ge-body-race-active) #moon {
     {cx:.43,cy:.46,rx:.44,ry:.32,deg:-30,dir: 1},
     {cx:.57,cy:.48,rx:.35,ry:.24,deg: 44,dir:-1},
     {cx:.46,cy:.42,rx:.42,ry:.40,deg:-63,dir: 1},
-    {cx:.54,cy:.57,rx:.39,ry:.35,deg: 24,dir: 1}
+    {cx:.54,cy:.57,rx:.39,ry:.35,deg: 24,dir: 1},
+    // Aether retains its original tenth orbit.
+    {cx:.49,cy:.51,rx:.40,ry:.33,deg:-29,dir:-1},
+    // Fundamental Groove: the 2005 debut, and slowest orbit if selected.
+    {cx:.51,cy:.50,rx:.37,ry:.30,deg:42,dir:1}
   ];
 
   const planetState=new WeakMap(),held=new WeakSet();
@@ -14721,5 +14758,6 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
   document.getElementById('geGameDetailScreen')?.addEventListener('click',()=>setTimeout(()=>sync(currentDetail),0),{passive:true});
 })();
 </script>
+<script defer src="./ge-accessibility.js?v=20261022-a11y3"></script>
 </body>
 </html>

@@ -112,7 +112,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .backroomActionRow span{color:var(--muted);font-size:calc(11px * var(--scale))}
 .backroomInlineStatus{border:1px solid #26617b;border-radius:10px;background:#041a2d;padding:9px;margin:9px 0;color:#b8e5fa;font-size:calc(11px * var(--scale))}
 .brPlaylistTracks{display:grid;gap:7px;margin:9px 0;max-height:340px;overflow:auto}
-.brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px}
+.brPlaylistTrack{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:5px;align-items:center;background:#041421;border:1px solid #27506a;border-radius:10px;padding:6px 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.brPlaylistTrack.dragging{background:#15527a;border-color:#93dfff;outline:2px solid #73c5ed;cursor:grabbing}
 .brPlaylistTrack span{min-width:0;overflow-wrap:anywhere;font-size:calc(10px * var(--scale))}
 .brPlaylistTrack button{padding:6px 8px;min-width:31px}
 .backroomPermissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:8px 0}
@@ -145,6 +145,225 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .brAccessAssignedSongs .brAccessSongRow span{overflow-wrap:anywhere;min-width:0;font-size:calc(10px * var(--scale))}
 .brAccessAssignedSongs .brAccessSongRow button{flex:0 0 auto}
 @media(max-width:700px){.backroomPermissions{grid-template-columns:1fr}.brPlaylistTrack{grid-template-columns:minmax(0,1fr) repeat(3,31px)}.backroomQuickLinks button{padding:8px}}
+
+/* Back Room legibility pass 2026-10-22.
+   Text size is independent of the dimensions of the existing buttons.
+   Do not add padding, button height or width simply to enlarge labels. */
+:where(#backroomMain) button,
+:where(#backroomMain) .button,
+:where(#backroomMain) .backroomActionRow a,
+:where(#backroomMain) .backroomQuickLinks a{
+  font-size:clamp(15px,calc(17px * var(--scale)),20px);
+  line-height:1.15;
+  letter-spacing:0;
+}
+#backroomMain .topControls button,
+#backroomMain .topControls button.publish{
+  font-size:clamp(15px,calc(17px * var(--scale)),18px);
+  font-weight:850;
+  line-height:1.08;
+  letter-spacing:-.015em;
+  white-space:normal;
+  overflow-wrap:normal;
+  min-width:0;
+  /* Deliberately retain existing mobile/desktop dimensions and padding. */
+}
+#backroomMain .backroomTabs button{
+  font-size:clamp(15px,calc(17px * var(--scale)),20px);
+  line-height:1.12;
+  letter-spacing:0;
+}
+#backroomMain .backroomGroupToggle{
+  font-size:clamp(17px,calc(19px * var(--scale)),23px);
+  line-height:1.2;
+}
+#backroomMain .actions button,
+#backroomMain .backroomActionRow button,
+#backroomMain .backroomQuickLinks button,
+#backroomMain .brAccessActions button,
+#backroomMain .brAccessSongTools button,
+#backroomMain .brAccessNavigator button{
+  font-size:clamp(15px,calc(17px * var(--scale)),20px);
+  line-height:1.15;
+  white-space:normal;
+  min-width:0;
+}
+#backroomMain .backroomQuickLinks a,
+#backroomMain .backroomActionRow a{
+  font-size:clamp(15px,calc(17px * var(--scale)),20px);
+  line-height:1.15;
+  overflow-wrap:anywhere;
+}
+#backroomMain .editorBar button,
+#backroomMain .screenTextTools button,
+#backroomMain .aboutToolbar button,
+#backroomMain .albumMove button,
+#backroomMain .brPlaylistTrack button{
+  font-size:clamp(14px,calc(15px * var(--scale)),18px);
+}
+#backroomMain #backroomToolbarSettings>summary{
+  font-size:clamp(14px,calc(15px * var(--scale)),18px);
+}
+#backroomMain .backroomTabHelp{
+  font-size:clamp(13px,calc(14px * var(--scale)),17px);
+}
+#backroomMain .topControls .status{
+  font-size:clamp(12px,calc(13px * var(--scale)),17px);
+}
+/* Existing headings and form labels were also being reduced to 9–10px
+   on phones. Increase lettering only; do not enlarge their containing cards. */
+#backroomMain label,
+#backroomMain .backroomGamesGrid .check b,
+#backroomMain .brPlaylistTrack span,
+#backroomMain .backroomPermissions span{
+  font-size:clamp(13px,calc(15px * var(--scale)),19px);
+}
+#backroomMain .backroomGamesGrid .check small,
+#backroomMain .brAccessNotice,
+#backroomMain .brAccessPanel>p{
+  font-size:clamp(12px,calc(13px * var(--scale)),17px);
+}
+#backroomMain section>p,
+#backroomMain .backroomGroupContents>p{
+  font-size:clamp(13px,calc(14px * var(--scale)),18px);
+}
+#backroomMain :is(input[type=text],input[type=email],input[type=number],input[type=password],input[type=search],select,textarea){
+  font-size:clamp(15px,calc(16px * var(--scale)),20px);
+}
+#backroomMain :is(button,a,summary,input,textarea,select):focus-visible{
+  outline:2px solid #a4eeff;
+  outline-offset:2px;
+}
+@media(max-width:700px){
+  #backroomMain .topControls button,
+  #backroomMain .topControls button.publish{
+    /* Fit the largest readable type within the ORIGINAL 34px button boxes. */
+    font-size:clamp(13px,min(calc(17px * var(--scale)),3.7vw),17px);
+    height:34px;
+    max-height:34px;
+    white-space:nowrap;
+    /* Keep the existing 5px vertical / 2px horizontal padding and grid widths. */
+  }
+}
+
+/* Compact GE Back Room owner controls: no wasted label/instruction rows.
+   Buttons retain readable text but use only the height they need. */
+#backroomMain > header{
+  padding:5px 12px 8px;
+  margin-bottom:7px;
+}
+#backroomMain .brHeaderRow{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  min-height:31px;
+}
+#backroomMain .brHeaderRow h1{
+  margin:0;font-size:clamp(15px,calc(16px * var(--scale)),19px);
+  line-height:1.1;letter-spacing:.025em;
+}
+#backroomMain #backroomToolbarSettings{
+  position:relative;margin:0;flex:0 0 auto;
+}
+#backroomMain #backroomToolbarSettings > summary{
+  display:flex;align-items:center;justify-content:center;list-style:none;
+  box-sizing:border-box;width:35px;height:32px;padding:0;
+  font:800 25px/1 system-ui;color:#b3ecff;background:#0b2a42;
+  border:1px solid #427998;border-radius:8px;cursor:pointer;
+}
+#backroomMain #backroomToolbarSettings > summary::-webkit-details-marker{display:none}
+#backroomMain #backroomToolbarSettings > summary::after{content:none!important}
+#backroomMain #backroomToolbarSettings .brSettingsMenu{
+  position:absolute;right:0;top:calc(100% + 7px);z-index:110;
+  width:min(355px,calc(100vw - 32px));padding:14px;
+  border:1px solid #76cef7;border-radius:12px;
+  background:#061b2c;box-shadow:0 15px 42px #000c;
+}
+#backroomMain #backroomToolbarSettings .brSettingsMenu .grid{
+  display:grid;grid-template-columns:1fr;gap:7px;margin:0;
+}
+#backroomMain #backroomToolbarSettings .brSettingsMenu label{
+  font-size:clamp(14px,calc(15px * var(--scale)),18px);
+}
+#backroomMain #backroomToolbarSettings .brSettingsMenu button{
+  font-size:clamp(13px,calc(15px * var(--scale)),17px);
+  padding:7px 8px;min-height:38px;
+}
+#backroomMain .topControls{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  width:100%;gap:6px;margin:4px 0 0;align-items:stretch;
+}
+#backroomMain .topControls > button,
+#backroomMain .topControls > button.publish{
+  box-sizing:border-box;width:100%;min-width:0;
+  height:40px!important;min-height:40px!important;max-height:40px!important;
+  padding:3px 2px!important;margin:0;border-radius:9px;
+  font-size:clamp(13px,calc(16px * var(--scale)),17px)!important;
+  line-height:1.02!important;letter-spacing:-.02em;
+  white-space:normal;overflow-wrap:normal;
+}
+#backroomMain #status[hidden]{display:none!important}
+#backroomMain #status:not([hidden]){
+  position:fixed;z-index:120;left:50%;
+  bottom:max(15px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  width:max-content;max-width:calc(100vw - 24px);
+  min-height:0;padding:9px 13px;border:1px solid #5bbee9;
+  border-radius:10px;background:#041a2ef5;color:#e7f9ff;
+  font-size:clamp(13px,calc(14px * var(--scale)),17px);
+  line-height:1.25;white-space:normal;overflow-wrap:anywhere;
+  box-shadow:0 9px 26px #0008;pointer-events:none;
+}
+/* Every category is visible in exactly two rows (5 above, 4 below).
+   Allocate extra width to long words instead of shrinking every label. */
+#backroomMain .backroomTabs{
+  display:grid!important;
+  grid-template-columns:repeat(20,minmax(0,1fr))!important;
+  grid-auto-flow:row!important;gap:5px 0!important;
+  overflow:visible!important;overflow-x:visible!important;
+  margin:0 0 7px!important;padding:0!important;
+  width:100%;scroll-snap-type:none!important;
+}
+#backroomMain .backroomTabs button{
+  box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  width:auto;min-width:0;min-height:43px;height:auto;
+  margin:0 2px!important;padding:5px 1px!important;
+  border-radius:9px;scroll-snap-align:none;
+  text-align:center;white-space:normal;overflow-wrap:normal;
+  font-size:clamp(12px,calc(15px * var(--scale)),16px)!important;
+  line-height:1.08!important;letter-spacing:-.01em;
+}
+#backroomMain .backroomTabs button:nth-child(1){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(2){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(3){grid-column:span 3}
+#backroomMain .backroomTabs button:nth-child(4){grid-column:span 3}
+#backroomMain .backroomTabs button:nth-child(5){grid-column:span 6}
+#backroomMain .backroomTabs button:nth-child(6){grid-column:span 6}
+#backroomMain .backroomTabs button:nth-child(7){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(8){grid-column:span 5}
+#backroomMain .backroomTabs button:nth-child(9){grid-column:span 5}
+#backroomMain #brPanel-gate > section.brDirectSection{
+  padding:9px 12px;margin:6px 0;
+}
+#backroomMain #brPanel-gate > section.brDirectSection > p:first-child{
+  display:none;
+}
+@media(max-width:700px){
+  #backroomMain > header{margin:0 -14px 5px;padding:5px 10px 7px}
+  #backroomMain .topControls > button,
+  #backroomMain .topControls > button.publish{
+    height:39px!important;min-height:39px!important;max-height:39px!important;
+    font-size:clamp(12px,3.6vw,15.5px)!important;
+  }
+  #backroomMain .backroomTabs button{
+    font-size:clamp(11.5px,3.5vw,14.5px)!important;
+    padding:5px 0!important;min-height:43px;
+  }
+  #backroomMain .backroomTabs button:nth-child(2){font-size:clamp(11.5px,3.25vw,14px)!important}
+}
+@media(max-width:330px){
+  #backroomMain .backroomTabs button{font-size:11.5px!important}
+  #backroomMain .brHeaderRow h1{font-size:15px}
+}
+
 </style>
 </head>
 <body>
@@ -160,26 +379,28 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <main id="backroomMain" class="hidden">
 <header>
-  <h1>GE WEBSITE BACK ROOM</h1>
-  <div class="sub">Make changes here. SAVE keeps your working copy. PUBLISH LIVE changes the public website.</div>
+  <div class="brHeaderRow">
+    <h1>GE BACK ROOM</h1>
+    <details id="backroomToolbarSettings">
+      <summary aria-label="Back Room settings" title="Back Room settings">⚙</summary>
+      <div class="brSettingsMenu">
+        <div class="grid">
+          <label><span>TEXT SIZE <b id="backroomTextSizeValue">90%</b></span><input id="backroomTextSize" type="range" min="75" max="160" step="5" value="90"></label>
+          <div class="actions"><button id="reset" type="button">RESET</button><button id="lockBackroom" type="button">LOCK BACK ROOM</button></div>
+        </div>
+      </div>
+    </details>
+  </div>
   <div class="topControls">
-    <div id="status" class="status">Loading…</div>
     <button class="primary" id="viewWebsite" type="button">VIEW WEBSITE</button>
     <button class="primary" id="save" type="button">SAVE</button>
     <button class="publish" id="publishLive" type="button">PUBLISH LIVE</button>
   </div>
-  <details id="backroomToolbarSettings">
-    <summary>SETTINGS</summary>
-    <div class="grid">
-      <label><span>BACK ROOM TEXT SIZE <b id="backroomTextSizeValue">90%</b></span><input id="backroomTextSize" type="range" min="75" max="160" step="5" value="90"></label>
-      <div class="actions"><button id="reset" type="button">RESET</button><button id="lockBackroom" type="button">LOCK BACK ROOM</button></div>
-    </div>
-  </details>
+  <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
-  <button id="brTabHome" type="button" role="tab" data-tab="home" aria-selected="true">HOME</button>
-  <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="false">CONTENT</button>
+  <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="true">CONTENT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
@@ -189,20 +410,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
 </nav>
-<p class="backroomTabHelp">Choose a section. Swipe the tabs sideways to see more.</p>
-
-<section data-br-tab="home">
-  <h2>QUICK ACCESS</h2>
-  <p>Everything in the GE Back Room now has its own tab. Save makes a working draft; Publish Live updates public website settings.</p>
-  <div class="backroomQuickLinks">
-    <button type="button" data-open-br="playlists">PLAYLISTS</button>
-    <button type="button" data-open-br="access">ACCESS CODES</button>
-    <button type="button" data-open-br="radio">RADIO</button>
-    <button type="button" data-open-br="games">GAMES</button>
-    <button type="button" data-open-br="gate">GATE SETTINGS</button>
-    <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">GE DJ BOOTH ↗</a>
-  </div>
-</section>
 
 <section data-br-tab="scores">
   <h2>HIGH SCORES</h2>
@@ -327,15 +534,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">OPEN RADIO PLAYER ↗</a>
     <button type="button" data-open-br="playlists">EDIT PLAYLISTS</button>
   </div>
-  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Playlist records in the Vault do not by themselves restart the live station.</p>
+  <p>Changes to BLITZ's playing queue still require the live DJ Booth. Saving a playlist does not restart the live station.</p>
 </section>
 
 <section data-br-tab="playlists">
   <h2>PLAYLISTS</h2>
-  <p>Edit durable GE music playlists in the Vault. The BLITZ DJ Booth remains responsible for the currently playing station and its queue.</p>
-  <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to connect to the GE Vault.</div>
+  <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
+  <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
-    <button type="button" id="brPlaylistsRefresh">REFRESH FROM VAULT</button>
+    <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
     <a href="https://radio.grandelement.blitz.cloud/dj/" target="_blank" rel="noopener noreferrer">OPEN DJ BOOTH ↗</a>
   </div>
@@ -344,10 +551,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
   <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
-  <div id="brPlaylistTracks" class="brPlaylistTracks" aria-label="Playlist song order"></div>
-  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active in GE Vault (not an instant BLITZ station change)</span></label>
+  <div id="brPlaylistTracks" class="brPlaylistTracks" role="list" aria-label="Playlist song order"></div>
+  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active (does not immediately switch the live station)</span></label>
+  <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC · Include this playlist in the listener's MUSIC button after PUBLISH LIVE</span></label>
+  <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private playlists and access-code assignments stay private.</p>
   <div class="backroomActionRow">
-    <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
+    <button type="button" class="primary" id="brPlaylistSave">SAVE PLAYLIST</button>
     <button type="button" id="brPlaylistDelete">DELETE PLAYLIST</button>
   </div>
 </section>
@@ -355,14 +564,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
   <p>Open or close this manager with the ACCESS CODES heading. Browse one issued code at a time, or create a new assignment.</p>
-  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to connect to the GE Vault.</div>
+  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to load saved codes.</div>
 
   <div class="brAccessToolbar">
     <button type="button" class="primary" id="brAccessNew">NEW ACCESS CODE</button>
     <button type="button" id="brAccessRefresh">REFRESH</button>
     <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
   </div>
-  <p class="brAccessNotice">The public Radio Gate does not yet redeem Vault codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
+  <p class="brAccessNotice">The public Radio Gate does not yet redeem private access codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
 
   <div id="brAccessBrowse" class="brAccessPanel">
     <h3>ISSUED CODES</h3>
@@ -500,9 +709,9 @@ const $=id=>document.getElementById(id);
 
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['home','content','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
+  const categories=['content','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
-  const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.nextElementSibling.insertAdjacentElement('afterend',panelHost);
+  const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   for(const category of categories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
     panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
@@ -512,6 +721,13 @@ function installBackroomTabs(){
     const category=section.dataset.brTab,panel=panels.get(category);if(!panel)continue;
     panel.appendChild(section);
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
+    // The GATE tab contains a single settings section: no duplicate section
+    // heading or '+' gate to click through. Display its fields immediately.
+    if(category==='gate'){
+      heading.remove();
+      section.classList.add('brDirectSection');
+      continue;
+    }
     const label=heading.textContent.trim();heading.textContent='';
     const trigger=document.createElement('button');trigger.className='backroomGroupToggle';trigger.type='button';
     trigger.textContent=label;trigger.setAttribute('aria-expanded','false');
@@ -522,7 +738,7 @@ function installBackroomTabs(){
     trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
   }
   function activate(tab,focus=false){
-    if(!panels.has(tab))tab='home';
+    if(!panels.has(tab))tab='content';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
@@ -531,9 +747,10 @@ function installBackroomTabs(){
   for(const btn of tabButtons){
     btn.addEventListener('click',()=>activate(btn.dataset.tab));
     btn.addEventListener('keydown',e=>{
-      if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;
+      if(!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;
       e.preventDefault();const at=categories.indexOf(btn.dataset.tab);
-      const idx=e.key==='Home'?0:e.key==='End'?categories.length-1:(at+(e.key==='ArrowRight'?1:-1)+categories.length)%categories.length;
+      const delta=e.key==='ArrowDown'?5:e.key==='ArrowUp'?-5:e.key==='ArrowRight'?1:-1;
+      const idx=e.key==='Home'?0:e.key==='End'?categories.length-1:(at+delta+categories.length)%categories.length;
       activate(categories[idx],true);
     });
   }
@@ -544,7 +761,8 @@ function installBackroomTabs(){
     const toggle=first?.querySelector('.backroomGroupToggle');
     if(name!=='access')toggle?.click();
   }
-  let initial='home';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'home'}catch(_e){}
+  let initial='content';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'content'}catch(_e){}
+  if(initial==='home')initial='content';
   if(initial==='music')initial='radio';
   activate(initial);
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
@@ -591,7 +809,19 @@ function renderGateTimingSummary(){
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
 const albumKey=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const setStatus=t=>{$('status').textContent=t};
+let statusTimer=0;
+const setStatus=t=>{
+  const el=$('status');
+  el.textContent=String(t||'');
+  clearTimeout(statusTimer);
+  const quiet=/^(SIGNED IN\b|LOADING\b)/i.test(el.textContent);
+  el.hidden=quiet;
+  if(!quiet && !/(?:FAILED|ERROR|NEEDS|UNAVAILABLE|UNSAVED)/i.test(el.textContent)){
+    statusTimer=setTimeout(()=>{el.hidden=true},4500);
+  } else if(/UNSAVED/i.test(el.textContent)) {
+    statusTimer=setTimeout(()=>{el.hidden=true},3500);
+  }
+};
 const field=(id,v='')=>{if($(id))$(id).value=v??''};
 const checked=(id,v)=>{if($(id))$(id).checked=!!v};
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -1357,7 +1587,7 @@ const backroomVaultManagers=(()=>{
   const accessStatus=text=>status('brAccessStatus',text);
   const authReady=()=>{
     if(serverAuthenticated&&token())return true;
-    playlistStatus('The private Back Room publisher login is required to manage Vault playlists.');
+    playlistStatus('The private Back Room publisher login is required to manage playlists.');
     accessStatus('The private Back Room publisher login is required to manage secure access codes.');
     return false;
   };
@@ -1366,7 +1596,7 @@ const backroomVaultManagers=(()=>{
     const opt=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
     const response=await api(path,opt);
     const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
-    if(!response.ok||!data?.ok)throw Error(data?.error||('Vault request failed ('+response.status+').'));
+    if(!response.ok||!data?.ok)throw Error(data?.error||('Back Room request failed ('+response.status+').'));
     return data;
   }
   function playlistCopy(row){
@@ -1404,18 +1634,68 @@ const backroomVaultManagers=(()=>{
     status('brPlaylistTrackCount',playlistTracks.length+' song'+(playlistTracks.length===1?'':'s'));
     playlistTracks.forEach((track,i)=>{
       const row=create('div','','brPlaylistTrack');
+      row.setAttribute('role','listitem');row.dataset.position=String(i);
       row.appendChild(create('span',(i+1)+'. '+(track.track_title||track.track_path)));
       row.appendChild(btn('↑',()=>{if(i<1)return;[playlistTracks[i-1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i-1]];renderTrackList()}));
       row.appendChild(btn('↓',()=>{if(i>=playlistTracks.length-1)return;[playlistTracks[i+1],playlistTracks[i]]=[playlistTracks[i],playlistTracks[i+1]];renderTrackList()}));
       row.appendChild(btn('×',()=>{playlistTracks.splice(i,1);renderTrackList()}));
+      let drag=null;
+      row.addEventListener('pointerdown',event=>{
+        if(event.target.closest('button')||event.button!==0)return;
+        drag={id:event.pointerId,start:event.clientY,active:false};
+        try{row.setPointerCapture(event.pointerId)}catch(_e){}
+      });
+      row.addEventListener('pointermove',event=>{
+        if(!drag||drag.id!==event.pointerId)return;
+        if(!drag.active&&Math.abs(event.clientY-drag.start)<6)return;
+        drag.active=true;row.classList.add('dragging');event.preventDefault();
+        const hovered=document.elementFromPoint(event.clientX,event.clientY)?.closest('.brPlaylistTrack');
+        if(hovered&&hovered!==row&&host.contains(hovered)){
+          const box=hovered.getBoundingClientRect();
+          host.insertBefore(row,event.clientY<box.top+box.height/2?hovered:hovered.nextSibling);
+        }
+        const box=host.getBoundingClientRect();
+        if(event.clientY<box.top+40)host.scrollTop-=16;
+        else if(event.clientY>box.bottom-40)host.scrollTop+=16;
+      });
+      const finish=event=>{
+        if(!drag||drag.id!==event.pointerId)return;
+        const moved=drag.active;drag=null;row.classList.remove('dragging');
+        if(moved){
+          const old=playlistTracks.slice();
+          playlistTracks=[...host.querySelectorAll('.brPlaylistTrack')].map(el=>old[Number(el.dataset.position)]).filter(Boolean);
+          renderTrackList();playlistStatus('Playlist order adjusted. Press SAVE PLAYLIST to keep the new order.');
+        }
+      };
+      row.addEventListener('pointerup',finish);row.addEventListener('pointercancel',finish);
       host.appendChild(row);
     });
-    if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Dragging is not required; use ↑ and ↓ to set the exact order.'));
+    if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Drag to arrange the order, or use ↑ and ↓.'));
+  }
+  
+  // Public catalog snapshot contains only approved titles and music file paths,
+  // never private Vault records, user data, access codes or redemption history.
+  function publicPlaylists(){
+    cfg.music=cfg.music||{};
+    if(!Array.isArray(cfg.music.publicPlaylists))cfg.music.publicPlaylists=[];
+    return cfg.music.publicPlaylists;
+  }
+  function syncPublicPlaylist(id,name,tracks,visible){
+    if(!id)return;
+    const list=publicPlaylists().filter(p=>String(p.id)!==String(id));
+    if(visible){
+      const paths=[...new Set(tracks.map(x=>String(x.track_path||'')).filter(
+        path=>path.startsWith('ge-music/music/')&&['.mp3','.m4a','.ogg','.wav'].some(ext=>path.toLowerCase().endsWith(ext))
+      ))];
+      if(paths.length)list.push({id:String(id),name:String(name).slice(0,100),songs:paths});
+    }
+    cfg.music.publicPlaylists=list;
+    mark();
   }
   function renderPlaylistChooser(){
     const sel=$('brPlaylistSelect');sel.replaceChildren();
     sel.appendChild(new Option('NEW PLAYLIST',''));
-    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE IN VAULT':''),p.id));
+    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE':''),p.id));
     sel.value=playlistEditingId;
   }
   function editPlaylist(id){
@@ -1423,39 +1703,43 @@ const backroomVaultManagers=(()=>{
     const p=playlistCopy(found);
     playlistEditingId=p.id;playlistTracks=p.tracks;playlistLocked=p.locked;
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
+    $('brPlaylistPublic').checked=!!p.id&&publicPlaylists().some(row=>String(row.id)===String(p.id));
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     renderPlaylistChooser();renderTrackList();
   }
   async function refreshPlaylists(keep=''){
     if(!authReady())return;
-    playlistStatus('Loading playlists from GE Vault…');
+    playlistStatus('Loading playlists…');
     try{
       const data=await vaultAction('/manage/playlists');
       playlists=Array.isArray(data.items)?data.items:[];
       playlistLoaded=true;
       const target=keep||playlistEditingId;
       editPlaylist(playlists.some(x=>x.id===target)?target:'');
-      playlistStatus('GE Vault connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
+      playlistStatus('Back Room connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
     }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
   }
   async function savePlaylist(){
     const name=$('brPlaylistName').value.trim();
     if(!name){playlistStatus('Enter the playlist name.');return;}
     if(!playlistTracks.length){playlistStatus('Add at least one song before saving.');return;}
+    const publicInMusic=$('brPlaylistPublic').checked;
     const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
       tracks:playlistTracks,active:$('brPlaylistActive').checked}};
-    $('brPlaylistSave').disabled=true;playlistStatus('Saving to GE Vault…');
+    $('brPlaylistSave').disabled=true;playlistStatus('Saving playlist…');
     try{
       const data=await vaultAction('/manage/playlists',payload);
-      await refreshPlaylists(data.id||playlistEditingId);
-      playlistStatus('Playlist saved permanently in GE Vault. Select it in the GE DJ Booth to change the playing BLITZ station.');
+      const savedId=String(data.id||playlistEditingId||'');
+      syncPublicPlaylist(savedId,name,playlistTracks,publicInMusic);
+      await refreshPlaylists(savedId);
+      playlistStatus(publicInMusic?'Playlist saved and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Playlist saved. Public visibility updates require PUBLISH LIVE.');
     }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
     finally{$('brPlaylistSave').disabled=false;}
   }
   async function deletePlaylist(){
     const id=playlistEditingId;if(!id||playlistLocked)return;
-    if(!confirm('Delete this playlist from GE Vault? Its history will be retained.'))return;
-    try{await vaultAction('/manage/playlists',{action:'delete',id});playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted from the Vault; prior version retained.');}
+    if(!confirm('Delete this playlist? Its history will be retained.'))return;
+    try{await vaultAction('/manage/playlists',{action:'delete',id});syncPublicPlaylist(id,'',[],false);playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted. Press PUBLISH LIVE to remove its public listing.');}
     catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
   }
 
@@ -1617,7 +1901,7 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      accessStatus('GE Vault connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
+      accessStatus('Back Room connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
         ' · master '+(codeMaster.checked?'ON':'OFF')+'.');
     }catch(err){accessStatus('ACCESS CODES: '+String(err.message||err));}
   }

@@ -13,7 +13,11 @@ from pathlib import Path
 
 REPO = "grandelement/website"
 REPO_URL = "https://github.com/grandelement/website.git"
-BRANCH = "main"
+# HARD FREEZE: this snapshot predates the album re-upload. Do not replace
+# with main or a moving branch: that would automatically introduce unapproved
+# songs and same-path replacement masters into the live BLITZ rotation.
+# Updating the RADIO library requires a separately reviewed owner approval.
+BRANCH = "69442ea48d04024881d20d8e78725ebd42d970fa"
 CHECK_SECONDS = 900
 AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".aac", ".ogg", ".oga", ".flac")
 
@@ -33,7 +37,7 @@ STATION_PERFORMANCE_STATE = DATA / "station-performance-state.json"
 GE_VAULT_URL = os.environ.get("GE_VAULT_URL", "https://vault.grandelement.com").rstrip("/")
 GE_VAULT_ADMIN_TOKEN = os.environ.get("GE_VAULT_ADMIN_TOKEN", "").strip()
 
-CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire"}
+CORE_ALBUMS = {"intergy", "love", "soul", "spirit", "fire", "aether"}
 LEGACY_ALBUMS = {"fundamental groove", "trio", "live", "sessions i", "sessions ii"}
 
 def atomic_text(path, text):
