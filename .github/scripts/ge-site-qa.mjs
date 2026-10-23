@@ -463,7 +463,7 @@ test(radio.includes('approvedAutoPaths.has(canonicalSongPath(url))') &&
      !radio.includes('GE_AUTO_SOURCE_COMMIT') &&
      backroom.includes('id="brMasterSongs"'),
      'Radio Player/Shuffle shares a path-based allowlist editable in Back Room');
-test(radio.includes('GE PLAYLISTS') &&
+test(radio.includes('DJ PLAYLISTS') &&
      radio.includes('MY PLAYLISTS') &&
      radio.includes('GE_MUSIC_PERSONAL_PLAYLISTS_V1') &&
      radio.includes("geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack") &&
