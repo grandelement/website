@@ -1832,8 +1832,9 @@ const backroomVaultManagers=(()=>{
       playlists=Array.isArray(data.items)?data.items:[];
       playlistLoaded=true;
       const target=keep||playlistEditingId;
-      editPlaylist(playlists.some(x=>x.id===target)?target:'');
-      playlistStatus('Back Room connected · '+playlists.length+' playlist'+(playlists.length===1?'':'s')+'. The DJ Booth controls the live BLITZ queue.');
+      const bangers=playlists.find(x=>String(x.name||'').trim().toLowerCase()==='bangers');
+      editPlaylist(playlists.some(x=>x.id===target)?target:(bangers?.id||''));
+      playlistStatus(bangers?'BANGERS SELECTED · '+(bangers.tracks||[]).length+' saved songs. Review and save changes here; live BLITZ scheduling stays in DJ Booth.':'BANGERS NOT FOUND IN SAVED BACK ROOM PLAYLISTS · Check the separate BLITZ DJ Booth before changing rotation.');
     }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
   }
   async function savePlaylist(){
@@ -2097,7 +2098,7 @@ const backroomVaultManagers=(()=>{
     finally{codeMaster.disabled=false;}
   }
   function openTab(tab){
-    if(tab==='playlists'&&(!playlistLoaded||!authReady()))void refreshPlaylists();
+    if((tab==='playlists'||tab==='radio')&&!playlistLoaded)void refreshPlaylists();
     if(tab==='access'&&(!accessLoaded||!authReady()))void refreshCodes();
   }
   function init(){
