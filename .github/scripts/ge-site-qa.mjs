@@ -467,4 +467,17 @@ test(radio.includes('GE PLAYLISTS') &&
      load('radio/preview-lab.html').includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
      'Listener MUSIC provides published and named personal playlists and single-song preview');
 
+
+const homepagePWA=JSON.parse(load('manifest.webmanifest'));
+test(home.includes('href="./favicon-32x32.png"') &&
+     home.includes('href="./favicon-16x16.png"') &&
+     home.includes('href="./apple-touch-icon.png"') &&
+     fs.existsSync('favicon-32x32.png') &&
+     fs.existsSync('favicon-16x16.png') &&
+     fs.existsSync('apple-touch-icon.png') &&
+     Array.isArray(homepagePWA.icons) &&
+     homepagePWA.icons.length>=2 &&
+     homepagePWA.icons.every(icon=>fs.existsSync(icon.src.replace(/^\.\//,''))),
+     'Homepage favicon and all PWA/Home Screen icons resolve to actual files');
+
 console.log('\nGE site static regression checks passed: '+passed);
