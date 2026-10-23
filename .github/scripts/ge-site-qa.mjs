@@ -375,7 +375,7 @@ test(radio.includes('ge-radio-anchored-footer-spacing-20261015') &&
      'Responsive Sun-to-text spacing and bottom-anchored Backgrounds with three-button row');
 test(radio.includes('id="contactLaunchBtn"') &&
      radio.includes('id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE') &&
-     radio.includes("window.GEGate?.openCodeEntry?.()") &&
+     radio.includes("if(controller?.openCodeEntry)controller.openCodeEntry();") &&
      radio.includes("mailto:info@grandelement.com?subject=Grand%20Element%20Contact") &&
      radio.includes("password: 'love'") &&
      radio.includes("hardLimitSeconds: 2013"),
