@@ -9024,6 +9024,20 @@ const GE_GAME = (()=>{
     renderMarblePlayerAlbums();syncShotStyleToggle();renderGamePreview(kind,0,false);previewStep=0;updatePlayerOption();syncBasicGameCards();
     if(kind==='golf')window.GE_GOLF_CONFIG?.syncSetup?.();
   }
+  // Back Room deep-link: open the requested game's real configuration panel.
+  // This does not start a game or change the public game availability settings.
+  try{
+    const requestedGame=new URLSearchParams(location.search).get('ge_game_setup');
+    if(requestedGame&&GAME_DETAIL_META[requestedGame]){
+      const showRequestedGame=()=>{
+        if(!optionsPanel||!document.body.contains(optionsPanel))return;
+        optionsPanel.classList.add('show');
+        openGameDetail(requestedGame);
+      };
+      if(document.readyState==='complete')setTimeout(showRequestedGame,0);
+      else window.addEventListener('load',showRequestedGame,{once:true});
+    }
+  }catch(_e){}
   geGameDetailBack?.addEventListener('click',showGameHub);
   document.querySelectorAll('[data-game-detail]').forEach(btn=>btn.addEventListener('click',()=>openGameDetail(btn.dataset.gameDetail)));
   document.getElementById('basicFlightGame')?.addEventListener('click',()=>{if(window.GE_FLIGHT?.open)window.GE_FLIGHT.open();else flash('FLIGHT IS LOADING')});
