@@ -9028,11 +9028,16 @@ const GE_GAME = (()=>{
   // This does not start a game or change the public game availability settings.
   try{
     const requestedGame=new URLSearchParams(location.search).get('ge_game_setup');
-    if(requestedGame&&GAME_DETAIL_META[requestedGame]){
+    if(requestedGame&&(GAME_DETAIL_META[requestedGame]||requestedGame==='gravity'||requestedGame==='flight')){
       const showRequestedGame=()=>{
         if(!optionsPanel||!document.body.contains(optionsPanel))return;
         optionsPanel.classList.add('show');
-        openGameDetail(requestedGame);
+        if(requestedGame==='gravity'||requestedGame==='flight'){
+          showGameHub();
+          // Special games have independent setup screens, not GAME_DETAIL_META entries.
+          const button=document.getElementById(requestedGame==='gravity'?'basicGravityGame':'basicFlightGame');
+          if(button)button.click();
+        }else openGameDetail(requestedGame);
       };
       if(document.readyState==='complete')setTimeout(showRequestedGame,0);
       else window.addEventListener('load',showRequestedGame,{once:true});
