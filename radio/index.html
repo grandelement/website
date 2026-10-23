@@ -5927,8 +5927,9 @@ function openTrackPicker(){
   const current=trackList.querySelector('button.current');
   if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
 }
-// MUSIC always opens the album and public-playlist browser for guests and owners.
-$('musicMenuBtn')?.addEventListener('click',geOpenMusicSelection);
+// MUSIC must use the exact same selector and playback-safe behavior as tapping the song title.
+// This reuses the existing popup rather than opening a separate music screen.
+$('musicMenuBtn')?.addEventListener('click',()=>titleBtn.click());
 titleBtn.addEventListener('click',()=>{
   if(trackList.classList.contains('open')) closeTrackPicker();
   else openTrackPicker();
@@ -6482,7 +6483,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-radio-inline-music-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261022-music-title-popup-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
