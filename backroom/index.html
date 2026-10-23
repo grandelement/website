@@ -655,8 +655,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3><p>Enter your new code or leave it blank to generate a secure code, choose permissions and DJ playlists or songs, then SAVE CODE. Codes are securely hashed and displayed only when created.</p>
-    <label><span>NEW ACCESS CODE · TYPE YOUR CODE HERE</span><input id="brAccessCustomCode" type="text" minlength="8" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="YOURCODE1234 or GE-YOURCODE1234"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp">Use 8 to 64 letters, numbers or dashes. Leave blank to generate a random code. For security, a code cannot be retrieved after creation.</p>
+    <label><span>NEW ACCESS CODE · TYPE YOUR CODE HERE</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="YOURCODE1234 or GE-YOURCODE1234"></label>
+    <p class="brAccessNotice" id="brAccessCustomHelp">Use 12 to 64 letters, numbers or dashes. Leave blank to generate a random code. For security, a code cannot be retrieved after creation.</p>
     <label><span>CODE NAME / DESCRIPTION</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
     <h4>1 · ACCESS PERMISSIONS</h4>
     <div class="backroomPermissions">
@@ -2229,7 +2229,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomHelp').textContent=row?
       'Existing codes cannot be revealed or replaced. Edit the permissions below or create a new code.':
-      'Type 8–64 letters, numbers or dashes, or leave blank for a secure random code.';
+      'Type 12–64 letters, numbers or dashes, or leave blank for a secure random code.';
     const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
@@ -2328,9 +2328,9 @@ const backroomVaultManagers=(()=>{
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
     const requested=$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim();
-    if(requested&&!/^[a-zA-Z0-9-]{8,64}$/.test(requested)){
+    if(requested&&!/^[a-zA-Z0-9-]{12,64}$/.test(requested)){
       $('brAccessCustomCode').focus();
-      throw Error('Your code needs 8 to 64 letters, numbers or dashes.');
+      throw Error('Your code needs 12 to 64 letters, numbers or dashes.');
     }
     if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
