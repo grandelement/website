@@ -382,7 +382,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #backroomMain .backroomTabs button[data-tab="radio"]{border-color:#4e91c0}
 #backroomMain .backroomTabs button[data-tab="radio"][aria-selected="true"]{background:#1685b7!important;border:2px solid #a8eeff!important;box-shadow:0 0 0 2px rgba(50,165,235,.35),0 0 18px rgba(22,142,217,.45)!important}
 #brDJPlaylistFrame{display:block;width:100%;height:clamp(650px,82vh,1060px);border:1px solid #2b668a;border-radius:10px;background:#020711;margin:10px 0}
-#brLegacyPlaylistEditor[hidden]{display:none!important}
+.brDJPlaylistAlbums{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.brDJPlaylistAlbums button{min-height:38px}
+.brDJPlaylistAlbums button[aria-pressed="true"]{background:#136e98;border-color:#a5eaff}
+.brDJPlaylistSongChecks{display:grid;gap:6px;max-height:40vh;overflow-y:auto;margin:8px 0}
+.brDJPlaylistSongChecks .check{padding:6px;border:1px solid #24506d;border-radius:8px}
+#brDJPlaylistSection .backroomActionRow>label{flex:1 1 220px}
+#brDJPlaylistEditor .backroomActionRow>label{flex:1 1 220px}
 .brScoresTable{display:grid;gap:12px;margin:12px 0}
 .brScoresGame{border:1px solid #27516d;border-radius:10px;padding:9px}
 .brScoresGame h3{margin:0 0 7px;color:#a5e6ff}
@@ -581,32 +587,34 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="playlists" id="brDJPlaylistSection">
   <h2>DJ BOOTH PLAYLISTS</h2>
-  <p>This is the actual authenticated DJ Booth playlist editor: the same saved Bangers and all other playlists, albums, song checkboxes, SAVE and USE ON RADIO controls. Log into the DJ Booth inside this tab if asked.</p>
-  <div id="brDJPlaylistStatus" role="status">Open PLAYLISTS to connect to the original BLITZ DJ saved playlists.</div>
-  <iframe id="brDJPlaylistFrame" title="Original GE DJ Booth playlist manager" data-src="../radio/ge-dj.html?ge_playlists=1" loading="lazy" referrerpolicy="same-origin"></iframe>
-  <p class="brAccessNotice">Saving here updates the DJ Booth source. To make the playlist names and song selections available in public Radio MUSIC, use PUBLISH LIVE after the DJ playlists load. Do not create a second playlist database.</p>
+  <p>The existing GE DJ Booth stays unchanged. This tab connects directly to the SAME BLITZ playlist and music library services used in your original DJ Booth.</p>
+  <div class="backroomActionRow"><label><span>DJ PASSWORD (ONLY IF NOT ALREADY SIGNED IN)</span><input id="brDJPassword" type="password" autocomplete="current-password" placeholder="Use the existing DJ password"></label>
+  <button type="button" id="brDJConnect">CONNECT TO DJ PLAYLISTS</button><a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">ORIGINAL DJ BOOTH ↗</a></div>
+  <div id="brDJPlaylistStatus" role="status" aria-live="polite">Open PLAYLISTS to load the actual saved Bangers and other DJ playlists.</div>
+  <p class="brAccessNotice">Changes saved below go to the original DJ Booth. PUBLISH LIVE updates the public Radio MUSIC playlist menu using a read-only website snapshot. DJ passwords never publish.</p>
 </section>
-<section data-br-tab="playlists" id="brLegacyPlaylistEditor" hidden>
-  <h2>OLD RADIO PLAYLIST EDITOR</h2><p>Legacy internal editor kept inactive while the original BLITZ DJ playlist manager is used.</p>
-  <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
+<section data-br-tab="playlists" id="brDJPlaylistEditor">
+  <h2>DJ PLAYLIST EDITOR</h2><p>Save and select songs in your original DJ Booth playlist store. Bangers and every other saved DJ playlist use the same IDs here and in the DJ Booth.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
     <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
-    <button type="button" id="brImportBangers">LOAD SAVED DJ BANGERS</button>
+    <button type="button" id="brImportBangers" hidden>LEGACY IMPORT</button>
     <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
-  <label><span>SAVED PLAYLISTS · BANGERS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
+  <label><span>DJ SAVED PLAYLISTS · BANGERS AND OTHERS</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
   <label><span>PLAYLIST NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Bangers"></label>
   <label><span>FIND A SONG</span><input id="brPlaylistSearch" type="search" placeholder="Song name or album"></label>
   <label><span>ADD SONG</span><select id="brSongSelect"><option value="">Loading GE music catalog…</option></select></label>
   <div class="backroomActionRow"><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount">0 songs</span></div>
+  <div id="brDJAlbumChoices" class="brDJPlaylistAlbums" role="group" aria-label="Select DJ albums and songs"></div>
+  <div id="brDJSongChoices" class="brDJPlaylistSongChecks" role="group" aria-label="Select individual DJ songs"></div>
   <div id="brPlaylistTracks" class="brPlaylistTracks" role="list" aria-label="Playlist song order"></div>
-  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>Mark as active (does not immediately switch the live station)</span></label>
-  <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC · Include this playlist in the listener's MUSIC button after PUBLISH LIVE</span></label>
+  <label class="check"><input id="brPlaylistActive" type="checkbox"><span>USE ON RADIO 1 AFTER SAVE (changes current BLITZ rotation)</span></label>
+  <label class="check"><input id="brPlaylistPublic" type="checkbox" checked><span>PUBLIC IN RADIO MUSIC · List this playlist after PUBLISH LIVE</span></label>
   <p class="brAccessNotice">Only playlists you explicitly mark public are copied into the website configuration. Private playlists and access-code assignments stay private.</p>
   <div class="backroomActionRow">
-    <button type="button" class="primary" id="brPlaylistSave">SAVE PLAYLIST</button>
+    <button type="button" class="primary" id="brPlaylistSave">SAVE TO ORIGINAL DJ BOOTH</button>
     <button type="button" id="brPlaylistDelete">DELETE PLAYLIST</button>
   </div>
 </section>
