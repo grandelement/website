@@ -747,11 +747,11 @@ function installGameOptionControls(){
 installGameOptionControls();
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['welcome','about','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
+  const categories=['welcome','about','universe','games','radio','access','gate','scores','presets'],panelCategories=[...categories.slice(0,5),'playlists',...categories.slice(5)],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   // Keep Radio playlists with Radio rather than as a separate top-level tab.
-  for(const category of categories){
+  for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
     panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
     panelHost.appendChild(panel);panels.set(category,panel);
@@ -783,7 +783,7 @@ function installBackroomTabs(){
     if(tab==='radio'){
       const radio=panels.get('radio'),playlistsPanel=panels.get('playlists');
       const master=radio?.querySelector('#brMasterSection');
-      if(master&&playlistsPanel)radio.insertBefore(playlistsPanel,master);
+      if(master&&playlistsPanel&&playlistsPanel.parentElement!==radio)radio.insertBefore(playlistsPanel,master);
     }
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
@@ -1519,11 +1519,12 @@ function editorToolbar(){
     ?'Tap text to edit, drag planets to move them. WELCOME and ABOUT open those sections. SAVE keeps a draft; PUBLISH LIVE is in the Back Room.'
     :'';
   showPlanetPicker(false);
+  if($('editorOpacityControls'))setupPreviewOpacity();
 }
 function reloadSitePreview(){
   const frame=$('editorFrame');
   frame.onload=()=>{
-    if(editorEnabled)installUnifiedSiteEdits();
+    if(editorEnabled){installUnifiedSiteEdits();setupPreviewOpacity();}
   };
   frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
 }
@@ -1538,7 +1539,7 @@ for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAbout
   $(id).addEventListener('input',()=>{
     const v=Number($(id).value);cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
     $(kind+'Opacity').value=String(v);$(kind+'OpacityValue').textContent=v+'%';
-    const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;dirty=true;
+    const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;mark();
   });
 }
 function openEditor(){
