@@ -926,6 +926,15 @@ function acceptDJPlaylistSnapshot(items,vaultConfirmed=false){
   syncDJSavedPlaylistsToPublic();
   window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED?.(geDJSavedPlaylists);
 }
+// The embedded original DJ editor sends names/paths only, never credentials.
+// Reject messages from unrelated frames, tabs or external origins.
+window.addEventListener('message',event=>{
+  const frame=$('brDJPlaylistFrame');
+  if(!frame||event.origin!==location.origin||event.source!==frame.contentWindow)return;
+  const data=event.data;
+  if(data?.type!=='ge-dj-playlists-update'||data.format!=='ge-radio-playlists-v1'||!Array.isArray(data.items))return;
+  acceptDJPlaylistSnapshot(data.items,data.vault_confirmed===true);
+});
 let geDJLibrary=[];
 function geDJAuthHeaders(){
   const headers={};
