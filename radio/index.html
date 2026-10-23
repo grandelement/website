@@ -5976,7 +5976,7 @@ function previousTrack(userAction=false){
 
 
 const GE_RADIO_PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
-let gePlaylistOpen=false,gePlaylistMode='my',gePlaylistSelected='',gePlaylistName='',gePublishedLists=[];
+let gePlaylistOpen=false,gePlaylistMode='ge',gePlaylistSelected='',gePlaylistName='',gePublishedLists=[];
 function geLocalPlaylists(){
  try{
   const rows=JSON.parse(localStorage.getItem(GE_RADIO_PERSONAL_PLAYLIST_KEY)||'[]');
@@ -5987,11 +5987,15 @@ async function geLoadPublishedPlaylists(){
  // The published website configuration determines which DJ playlists are
  // public. GE Vault supplies the corresponding original DJ records and songs.
  // A private DJ playlist must never appear simply because Vault returned it.
- let allowed;
+ let allowed,publishedNames=new Set();
  try{
   const configResponse=await fetch('../config/site-live.json',{cache:'no-store'});
   if(!configResponse.ok)throw Error('Published playlist permissions unavailable');
   const config=await configResponse.json();
+  publishedNames=new Set((Array.isArray(config?.music?.publicDJPlaylistNames)?
+    config.music.publicDJPlaylistNames:[])
+    .filter(name=>typeof name==='string'&&name.trim().toLowerCase()==='bangers')
+    .map(name=>name.trim().toLowerCase()));
   allowed=new Map((Array.isArray(config?.music?.publicPlaylists)?config.music.publicPlaylists:[])
    .filter(item=>item&&typeof item.id==='string'&&Array.isArray(item.songs))
    .map(item=>[item.id,new Set(item.songs)]));
@@ -6002,7 +6006,7 @@ async function geLoadPublishedPlaylists(){
   if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
   return;
  }
- if(!allowed.size){
+ if(!allowed.size&&!publishedNames.size){
   gePublishedLists=[];
   window.GE_DJ_PLAYLIST_SOURCE_STATUS='NO DJ PLAYLISTS PUBLISHED';
   if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
@@ -6016,7 +6020,8 @@ async function geLoadPublishedPlaylists(){
   const data=await response.json();
   if(data?.ok!==true||data.format!=='ge-public-dj-playlists-v1'||!Array.isArray(data.items))
     throw Error('GE Vault playlist response was invalid');
-  rows=data.items.filter(item=>allowed.has(String(item?.id)));
+  rows=data.items.filter(item=>allowed.has(String(item?.id))||
+    publishedNames.has(String(item?.name||'').trim().toLowerCase()));
   try{localStorage.setItem(cacheKey,JSON.stringify({savedAt:Date.now(),items:rows}))}catch(_e){}
  }catch(error){
   console.warn('GE Vault DJ playlists temporarily unavailable',error);
@@ -6028,9 +6033,11 @@ async function geLoadPublishedPlaylists(){
  const songPath=path=>typeof path==='string'&&/^ge-music\/music\//.test(path)&&
    !path.includes('..')&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path);
  gePublishedLists=(rows||[]).filter(item=>item&&typeof item.id==='string'&&
-   allowed.has(item.id)&&typeof item.name==='string'&&Array.isArray(item.songs))
+   (allowed.has(item.id)||publishedNames.has(String(item.name||'').trim().toLowerCase()))&&
+   typeof item.name==='string'&&Array.isArray(item.songs))
   .map(item=>({id:item.id,name:item.name,songs:[...new Set(item.songs.filter(path=>
-    songPath(path)&&allowed.get(item.id).has(path)
+    songPath(path)&&(publishedNames.has(String(item.name||'').trim().toLowerCase())||
+    allowed.get(item.id)?.has(path))
   ))]}))
   .filter(item=>item.songs.length>0);
  window.GE_DJ_PLAYLIST_SOURCE_STATUS=rows?
@@ -6063,7 +6070,13 @@ function gePlaylistUI(list){
  name.addEventListener('input',()=>{gePlaylistName=name.value});
  const select=document.createElement('select');select.setAttribute('aria-label','Choose saved or GE playlist');
  const rows=gePlaylistMode==='ge'?gePublishedLists:geLocalPlaylists();
- select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'GE':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
+ select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'DJ':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
+ select.disabled=rows.length===0;
+ if(!rows.length&&gePlaylistMode==='ge'){
+  const help=document.createElement('small');
+  help.textContent='BANGERS not yet available from the published DJ source. Confirm the original DJ Bangers is saved in Vault and the updated public service is deployed.';
+  holder.appendChild(help);
+ }
  for(const item of rows)select.appendChild(new Option(item.name,String(item.id)));
  if(rows.some(item=>String(item.id)===gePlaylistSelected))select.value=gePlaylistSelected;
  select.addEventListener('change',()=>{gePlaylistSelected=select.value});
@@ -6144,7 +6157,9 @@ function renderTrackList(){
     closeTrackPicker();
   },'gePickStart');
   addAction('PLAYLISTS',()=>{
-    gePlaylistOpen=!gePlaylistOpen;renderTrackList();
+    gePlaylistOpen=!gePlaylistOpen;
+    if(gePlaylistOpen)gePlaylistMode='ge';
+    renderTrackList();
     if(gePlaylistOpen)void geLoadPublishedPlaylists();
   });
   addAction('CLOSE',closeTrackPicker);
