@@ -508,16 +508,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section data-br-tab="universe">
-  <h2>SOUL NAMES / PEOPLE</h2>
-  <p>These names stay on this device. Put Mom or any other player name here.</p>
-  <div class="grid3">
-    <label><span>Soul 1</span><input id="soulName1" type="text" maxlength="18"></label><label><span>Soul 2</span><input id="soulName2" type="text" maxlength="18"></label><label><span>Soul 3</span><input id="soulName3" type="text" maxlength="18"></label>
-    <label><span>Soul 4</span><input id="soulName4" type="text" maxlength="18"></label><label><span>Soul 5</span><input id="soulName5" type="text" maxlength="18"></label><label><span>Soul 6</span><input id="soulName6" type="text" maxlength="18"></label>
-  </div>
-  <div class="actions"><button id="saveSoulNames" type="button">SAVE SOUL NAMES</button></div>
-</section>
-
 <section data-br-tab="games">
   <h2>GAMES AVAILABLE</h2>
   <p>Choose which games appear in the public Game Control. Each game keeps its own options.</p>
@@ -1029,10 +1019,6 @@ function renderAlbums(){
     box.querySelectorAll('input,textarea').forEach(e=>e.addEventListener('input',mark));wrap.appendChild(box);
   });
 }
-function loadSouls(){let p=[];try{p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(_e){};for(let i=0;i<6;i++)field('soulName'+(i+1),p?.[i]?.name||('Soul '+(i+1)))}
-function saveSouls(){let old=[];try{old=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(_e){};const p=Array.from({length:6},(_,i)=>({name:String($('soulName'+(i+1)).value||('Soul '+(i+1))).trim().slice(0,18)||('Soul '+(i+1)),handicap:!!old?.[i]?.handicap,multiplier:[2,3,4].includes(Number(old?.[i]?.multiplier))?Number(old[i].multiplier):2}));localStorage.setItem(PROFILE_KEY,JSON.stringify(p));setStatus('SOUL NAMES SAVED')}
-$('saveSoulNames').onclick=saveSouls;
-
 function escapeHtml(text){
   return String(text??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -1124,7 +1110,7 @@ function populate(){
     renderGateTimingSummary();
   }
   checked('noStartupMusic',cfg.music?.startupEnabled===false);
-  renderAlbums();loadSouls();dirty=false;setStatus('READY');
+  renderAlbums();dirty=false;setStatus('READY');
 }
 function collect(){
   cfg.version=Number(cfg.version)||1;cfg.mode='test';
