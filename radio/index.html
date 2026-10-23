@@ -5966,14 +5966,17 @@ function renderTrackList(){
     playNow.type='button';playNow.dataset.url=url;playNow.textContent='PLAY';
     if(canonicalSongPath(url)===canonicalSongPath(state.currentURL))playNow.classList.add('current');
     playNow.addEventListener('click',()=>{
-      if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-      personalSongMode=false;savePersonalSongSelection();
-      if(state.live||state.livePreparing)exitLiveMode('RADIO ended. Track selected.');
-      state.pendingAfterStation=null;state.upNext=[];
-      rebuildQueue(url);
-      if(state.shuffle)recordHistory(url);
-      void playURL(url,{record:false,backgroundChange:true,userAction:true});
-      closeTrackPicker();
+      geInlineMusicInit();
+      const path=canonicalSongPath(url);
+      const play=geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack;
+      if(typeof play!=='function'){
+        setStatus('Music preview loading. Tap PLAY again when the library is ready.');
+        return;
+      }
+      try{
+        if(!play(path))setStatus('Song not ready in MUSIC. Tap PLAY again.');
+        // Keep THIS SAME popup open, with Radio background preview running.
+      }catch(error){setStatus('Could not start this song. Tap PLAY again.');}
     });
     row.appendChild(playNow);fragment.appendChild(row);
   }
