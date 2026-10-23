@@ -23,33 +23,23 @@ def meta(path,kind="song"):
  title=path.stem.split("_",1)[-1].replace("_"," ").strip()
  return dict(url="/"+quote(rel,safe="/"),path=rel,title=title,album=album,duration_ms=duration_ms(path),kind=kind)
 def main():
- files=sorted((p for p in MUSIC.rglob("*.mp3") if p.parent.name.endswith(tuple(" - "+x for x in CORE))),key=lambda p:p.relative_to(ROOT).as_posix().casefold())
- if len(files)<20:raise RuntimeError("Missing core MP3s: refusing incomplete schedule")
+ # Radio schedule is HARD FROZEN. Never rebuild sync-playlist.json when
+ # files are uploaded. Only refresh complete file metadata for MUSIC/SHOP.
+ # The primary BLITZ station sources immutable approved audio independently.
  ids=sorted(CLIPS.glob("GE Station Identification - *.m4a"))
- tracks=[]
- for i,path in enumerate(files):
-  tracks.append(meta(path))
-  if (i+1)%5==0 and ids:tracks.append(meta(ids[((i+1)//5-1)%len(ids)],"station_id"))
  # Independent measured track catalog covers every GE album, including
  # Trio, Sessions I/II, Live and any Bangers selections outside the core rotation.
  # This is metadata only; no duplicate recordings are committed.
  catalog=[]
  for path in sorted(MUSIC.rglob("*"),key=lambda p:p.relative_to(ROOT).as_posix().casefold()):
   if not path.is_file() or path.suffix.lower() not in AUDIO_EXTS:continue
-  try:
-   catalog.append(meta(path))
-  except Exception as exc:
-   print("GE RADIO track metadata unavailable: %s (%s)"%(path,exc))
+  # A corrupt, unsupported, or incomplete upload must fail the refresh, not
+  # silently publish a misleading partial music/shop catalog.
+  catalog.append(meta(path))
  for path in ids:
   try:catalog.append(meta(path,"station_id"))
   except Exception as exc:print("GE RADIO station clip metadata unavailable: %s (%s)"%(path,exc))
- if len(catalog)<len(files):raise RuntimeError("Measured album catalog incomplete; refusing to publish it")
+ if not any(x["kind"]=="song" for x in catalog):raise RuntimeError("Music catalog contains no playable album recordings")
  CATALOG_OUT.write_text(json.dumps({"format":"ge-radio-track-durations-v1","tracks":catalog},indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
- print("GE RADIO full album track duration catalog: %s audio files"%(len(catalog)))
- total=sum(x["duration_ms"] for x in tracks)
- out={"format":"ge-radio-clock-v1","epoch_utc_ms":EPOCH,"cycle_duration_ms":total,"tracks":tracks}
- out["playlist_hash"]=hashlib.sha256(json.dumps(tracks,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:16]
- OUT.parent.mkdir(exist_ok=True)
- OUT.write_text(json.dumps(out,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
- print("GE RADIO clock manifest: %s tracks, %.2f hours, hash %s"%(len(tracks),total/3600000,out["playlist_hash"]))
+ print("GE MUSIC album duration catalog updated: %s audio items; Radio schedule remains FROZEN"%(len(catalog)))
 if __name__=="__main__":main()
