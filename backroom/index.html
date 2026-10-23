@@ -559,7 +559,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
-  <p>Open or close this manager with the ACCESS CODES heading. Browse one issued code at a time, or create a new assignment.</p>
+  <p>Manage Vault-issued codes here. LOVE is an older Radio Gate code and appears separately below. Choose a code to edit, suspend, revoke or delete.</p>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to load saved codes.</div>
 
   <div class="brAccessToolbar">
@@ -567,7 +567,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button type="button" id="brAccessRefresh">REFRESH</button>
     <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
   </div>
-  <p class="brAccessNotice">The public Radio Gate does not yet redeem private access codes. Assignments are stored securely, but do not unlock the player until entitlement enforcement is connected.</p>
+  <p class="brAccessNotice">Vault-issued codes and the older LOVE Radio Gate use different validation systems. Vault assignments do not yet unlock the public Radio Gate automatically.</p>
 
   <div id="brAccessBrowse" class="brAccessPanel">
     <h3>ISSUED CODES</h3>
@@ -578,7 +578,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessNext" aria-label="Next access code">NEXT →</button>
       <span id="brAccessPosition">0 OF 0</span>
     </div>
-    <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
+    <div class="brAccessNotice" id="brAccessLegacyNotice">
+    <strong>LOVE · LEGACY RADIO GATE CODE</strong>
+    <p>LOVE is configured in the older Radio Gate, not in the Vault-issued code database. It is shown here for reference, but cannot be edited or deleted through Vault code actions. Changing or disabling it requires updating the Radio Gate separately.</p>
+  </div>
+  <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
     <div class="brAccessActions">
       <button type="button" id="brAccessEdit">EDIT CODE</button>
       <button type="button" id="brAccessToggle">SUSPEND</button>
@@ -1636,8 +1640,8 @@ const backroomVaultManagers=(()=>{
       const r=await fetch('../radio/manifest.json',{cache:'no-store'});
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
-      catalog=(manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)).map(parseTrack);
-      renderCatalog();accessSongOptions();assignedSongsUI();
+      catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
+      renderCatalog();accessSongOptions();assignedSongsUI();accessStatus('Music catalog loaded · '+catalog.length+' songs across '+new Set(catalog.map(t=>t.album)).size+' albums/collections.');
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
