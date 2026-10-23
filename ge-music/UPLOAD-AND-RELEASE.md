@@ -1,5 +1,14 @@
 # GE Studios music re-upload — lock and release procedure (22 October 2026)
 
+> **October 22 update:** The website Player/Shuffle now uses an editable
+> GE Radio Master Song List in Back Room, approved by current music paths,
+> not Git commit blobs. Replacing audio under an unchanged path retains its
+> approval. New paths default excluded from automatic playback.
+> **The live BLITZ backend remains on its earlier pinned revision until the
+> real Bangers rotation can be compared and a separately reviewed backend
+> deployment can enforce this same list. Do not assume GitHub merge redeploys
+> the BLITZ container.**
+
 ## DO NOT START THE BULK UPLOAD UNTIL LIVE BLITZ IS VERIFIED ON THE FROZEN SOURCE
 
 Pinned source commit: `69442ea48d04024881d20d8e78725ebd42d970fa`.
