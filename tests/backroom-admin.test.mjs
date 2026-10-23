@@ -166,9 +166,12 @@ assert.ok(radio.includes("https://vault.grandelement.com/v1/public/access/redeem
 assert.ok(vault.includes('"/v1/public/access/redeem"') &&
   vault.includes("async function accessRedeem(request,env)"),
   'Vault radio code validation must occur server-side');
-assert.ok(sw.includes("2026.10.23-radio-vault-code-public-dj-v1") &&
-  radio.includes("20261023-radio-vault-code-public-dj-v1"),
-  'iPhone Radio service worker must refresh for new Gate and playlist rules');
+const currentWorkerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1]||'';
+const currentRadioVersion=currentWorkerVersion.replace(/^([0-9]{4})[.]([0-9]{2})[.]([0-9]{2})/,'$1$2$3');
+assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &&
+  radio.includes('./sw.js?v='+currentRadioVersion) &&
+  sw.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
+  'iPhone Radio service worker registration and media cache must match current Radio code');
 assert.ok(back.includes("minlength=\"12\"") &&
   back.includes("/^[a-zA-Z0-9-]{12,64}$/.test(requested)"),
   'Custom Access Code editor must match the Vault minimum length');
