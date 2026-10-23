@@ -1906,10 +1906,9 @@ const backroomVaultManagers=(()=>{
     return data;
   }
   function playlistCopy(row){
+    const paths=Array.isArray(row?.paths)?row.paths:(row?.tracks||[]).map(x=>x.track_path||x.path);
     return {id:String(row?.id||''),name:String(row?.name||''),locked:!!row?.locked,active:!!row?.active,
-      tracks:(row?.tracks||[]).slice().sort((a,b)=>Number(a.position||0)-Number(b.position||0)).map(x=>({
-        track_path:String(x.track_path||x.path||''),track_title:String(x.track_title||x.title||''),album:String(x.album||'')
-      }))};
+      tracks:paths.map(path=>catalog.find(song=>song.track_path===path)||parseTrack(path))};
   }
   function parseTrack(path){
     const parts=String(path).split('/');
@@ -2045,50 +2044,89 @@ const backroomVaultManagers=(()=>{
     renderPlaylistChooser();renderTrackList();
     playlistStatus('DJ BANGERS LOADED FROM THIS DEVICE · '+paths.length+' real songs. Review checkboxes, then SAVE PLAYLIST. This does NOT change the live BLITZ queue.');
   }
-  async function refreshPlaylists(keep=''){
-    if(!authReady())return;
-    playlistStatus('Loading playlists…');
-    try{
-      const data=await vaultAction('/manage/playlists');
-      playlists=Array.isArray(data.items)?data.items:[];
-      playlistLoaded=true;
-      const target=keep||playlistEditingId;
-      const bangers=playlists.find(x=>String(x.name||'').trim().toLowerCase()==='bangers');
-      editPlaylist(playlists.some(x=>x.id===target)?target:(bangers?.id||''));
-      if(!bangers&&!target){
-        // Prefer the real DJ Booth's local Bangers backup when the Vault has no
-        // saved Bangers yet, without changing the live station or auto-saving.
-        let hasDJBackup=false;
-        try{hasDJBackup=!!localStorage.getItem('geRadioPlaylistBackup')}catch(_e){}
-        if(hasDJBackup){importBangersFromDJ();return;}
-      }
-      playlistStatus(bangers?'BANGERS SELECTED · '+(bangers.tracks||[]).length+' saved songs. Review and save changes here; live BLITZ scheduling stays in DJ Booth.':'BANGERS NOT FOUND IN SAVED BACK ROOM PLAYLISTS · Open GE DJ Booth on this website, save Bangers there, then use LOAD SAVED DJ BANGERS.');
-    }catch(err){playlistStatus('PLAYLISTS: '+String(err.message||err));}
+  async function refreshPlaylists(){
+    return refreshDJPlaylistSource();
   }
   async function savePlaylist(){
-    const name=$('brPlaylistName').value.trim();
-    if(!name){playlistStatus('Enter the playlist name.');return;}
-    const includedTracks=playlistTracks.filter(t=>!t._excluded).map(({_excluded,...track})=>track);
-    if(!includedTracks.length){playlistStatus('Select at least one song before saving.');return;}
-    const publicInMusic=$('brPlaylistPublic').checked;
-    const payload={action:'save',playlist:{id:playlistEditingId,name,locked:playlistLocked,
-      tracks:includedTracks,active:$('brPlaylistActive').checked}};
-    $('brPlaylistSave').disabled=true;playlistStatus('Saving playlist…');
+    const name=$('brPlaylistName').value.trim(),included=playlistTracks.filter(t=>!t._excluded);
+    if(!name){playlistStatus('TYPE A PLAYLIST NAME.');$('brPlaylistName').focus();return;}
+    if(!included.length){playlistStatus('CHECK AT LEAST ONE SONG FIRST.');return;}
+    // Match original DJ Booth behavior: same saved name updates its existing ID;
+    // renaming creates a new record without overwriting the old one.
+    const sameName=geDJSavedPlaylists.find(p=>String(p.name||'').trim().replace(/\s+/g,' ').toLowerCase()===name.replace(/\s+/g,' ').toLowerCase());
+    const old=geDJSavedPlaylists.find(p=>p.id===playlistEditingId);
+    const id=sameName?.id||(old&&old.name.toLowerCase()===name.toLowerCase()?old.id:'');
+    $('brPlaylistSave').disabled=true;playlistStatus('Saving to ORIGINAL DJ Booth…');
     try{
-      const data=await vaultAction('/manage/playlists',payload);
-      const savedId=String(data.id||playlistEditingId||'');
-      syncPublicPlaylist(savedId,name,includedTracks,publicInMusic);
-      await refreshPlaylists(savedId);
-      playlistStatus(publicInMusic?'Playlist saved and staged for public MUSIC. Press PUBLISH LIVE at the top of the Back Room.':'Playlist saved. Public visibility updates require PUBLISH LIVE.');
-    }catch(err){playlistStatus('SAVE FAILED: '+String(err.message||err));}
+      const data=await geDJApi('/control/playlists/save',{
+        id,name,paths:[...new Set(included.map(song=>song.track_path).filter(Boolean))]
+      });
+      if(!data.playlist?.id||!Array.isArray(data.items))throw Error('DJ did not confirm saving.');
+      acceptDJPlaylistSnapshot(data.items);
+      const saved=String(data.playlist.id);
+      editPlaylist(saved);
+      if($('brPlaylistActive').checked){
+        const radio=await geDJApi('/control/custom-mix',{enabled:true,playlist_id:saved});
+        playlistStatus('ON RADIO 1 · '+name+(radio.vault_saved?' · VAULT':' · BLITZ LOCAL'));
+      }else{
+        playlistStatus('SAVED TO ORIGINAL DJ BOOTH · '+name+
+          (data.vault_saved?' · VAULT':' · BLITZ LOCAL')+' · PUBLISH LIVE to update Radio MUSIC');
+      }
+    }catch(error){playlistStatus('DJ PLAYLIST SAVE FAILED · '+String(error.message||error));}
     finally{$('brPlaylistSave').disabled=false;}
   }
   async function deletePlaylist(){
-    const id=playlistEditingId;if(!id||playlistLocked)return;
-    if(!confirm('Delete this playlist? Its history will be retained.'))return;
-    try{await vaultAction('/manage/playlists',{action:'delete',id});syncPublicPlaylist(id,'',[],false);playlistEditingId='';await refreshPlaylists();playlistStatus('Playlist deleted. Press PUBLISH LIVE to remove its public listing.');}
-    catch(err){playlistStatus('DELETE FAILED: '+String(err.message||err));}
+    const id=playlistEditingId;if(!id)return playlistStatus('CHOOSE A SAVED DJ PLAYLIST.');
+    const found=geDJSavedPlaylists.find(x=>x.id===id);
+    if(!found||!confirm('Delete '+found.name+' from the ORIGINAL DJ Booth playlist collection?'))return;
+    try{
+      const data=await geDJApi('/control/playlists/delete',{id});
+      if(!Array.isArray(data.items))throw Error('DJ did not confirm deletion.');
+      acceptDJPlaylistSnapshot(data.items);
+      editPlaylist('');
+      playlistStatus('DELETED · '+found.name+' · PUBLISH LIVE to update Radio MUSIC');
+    }catch(err){playlistStatus('DJ DELETE FAILED · '+String(err.message||err));}
   }
+  function renderDJAlbumChoices(){
+    const albums=[...new Set(catalog.map(x=>x.album||'Other'))],albumHost=$('brDJAlbumChoices'),
+      songHost=$('brDJSongChoices');
+    if(!albumHost||!songHost)return;
+    if(!djAlbumSelected||!albums.includes(djAlbumSelected))djAlbumSelected=albums[0]||'';
+    albumHost.replaceChildren();songHost.replaceChildren();
+    for(const album of albums){
+      const songs=catalog.filter(x=>(x.album||'Other')===album);
+      const included=songs.filter(song=>playlistTracks.some(track=>track.track_path===song.track_path&&!track._excluded));
+      const select=document.createElement('input');select.type='checkbox';
+      select.checked=!!songs.length&&included.length===songs.length;
+      select.indeterminate=included.length>0&&included.length<songs.length;
+      select.setAttribute('aria-label','Include all '+album+' songs');
+      select.addEventListener('change',()=>{
+        for(const song of songs){
+          playlistTracks=playlistTracks.filter(t=>t.track_path!==song.track_path);
+          if(select.checked)playlistTracks.push({...song});
+        }
+        renderTrackList();renderDJAlbumChoices();
+      });
+      const button=document.createElement('button');button.type='button';button.textContent=album;
+      button.setAttribute('aria-pressed',String(album===djAlbumSelected));
+      button.addEventListener('click',()=>{djAlbumSelected=album;renderDJAlbumChoices();});
+      const group=document.createElement('label');group.className='check';
+      group.append(select,button);albumHost.appendChild(group);
+    }
+    for(const song of catalog.filter(x=>(x.album||'Other')===djAlbumSelected)){
+      const label=document.createElement('label');label.className='check';
+      const box=document.createElement('input');box.type='checkbox';
+      box.checked=playlistTracks.some(t=>t.track_path===song.track_path&&!t._excluded);
+      box.addEventListener('change',()=>{
+        playlistTracks=playlistTracks.filter(t=>t.track_path!==song.track_path);
+        if(box.checked)playlistTracks.push({...song});
+        renderTrackList();renderDJAlbumChoices();
+      });
+      const text=document.createElement('span');text.textContent=song.track_title;
+      label.append(box,text);songHost.appendChild(label);
+    }
+  }
+  let djAlbumSelected='';
 
   // One selected code and one editor: no repeated control rows or permanent open forms.
   const codeMaster=$('brAccessMaster');
