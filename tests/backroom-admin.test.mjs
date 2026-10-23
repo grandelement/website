@@ -83,10 +83,11 @@ assert.match(migration,/CREATE TABLE IF NOT EXISTS access_codes/);
 assert.ok(!/GE_BACKROOM_CODE\s*=/.test(back),'Do not embed access code in front-end');
 assert.ok(back.includes("document.querySelectorAll('#backroomTabPanels input,#backroomTabPanels textarea,#backroomTabPanels select')"),'All mounted settings must mark unsaved changes');
 assert.ok(back.includes("event.target.closest('button,input,select,textarea,label')"),'Playlist dragging must not swallow checkbox taps');
-assert.ok(back.includes("const openSetup=button=>"),'Game OPTIONS should open setup in one tap');
-for(const game of ['points','pockets','planets','golf','gravity','body','flight']){
-  assert.ok(back.includes("gamePoints:'points'") && back.includes("gameFlight:'flight'"),'All game OPTIONS links need explicit mapping');
-}
+assert.ok(!back.includes('class="brGameOptionsButton"'),
+  'Back Room contains only expandable general defaults, not each game setup control');
+assert.ok(back.includes('id="brGameGeneralDefaults"')&&
+  back.includes("if(name!=='access'&&name!=='games')toggle?.click()"),
+  'Game Defaults and Games Available expand using the standard section plus controls');
 assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"),'Welcome and About transparency sliders must be visible in WEBSITE VIEW');
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
