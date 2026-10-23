@@ -174,6 +174,17 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #geGate.blurring #geGateBackdrop::after{animation:none!important;opacity:var(--preview-dim,0)}
 #geGateSun{transition:none!important}
 #geGatePanel a.button{margin-top:4px}
+
+/* Embed only: the current Radio page remains mounted and keeps its station. */
+body.ge-radio-music-embedded{min-height:100dvh}
+body.ge-radio-music-embedded>header{display:none!important}
+body.ge-radio-music-embedded>main{padding:7px!important;max-width:none!important}
+body.ge-radio-music-embedded .card{padding:10px!important;border:0!important}
+body.ge-radio-music-embedded #musicBrowser{border-radius:0!important}
+.albumSelectTile{min-width:0;display:flex;flex-direction:column;gap:5px}
+.albumSelectTile .albumTile{flex:1}
+.albumSelectTile label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:34px;font-weight:750;font-size:12px;border:1px solid #32698a;border-radius:8px;background:#0d304a}
+.albumSelectTile input[type=checkbox]{width:21px;height:21px;accent-color:#67d6ff}
 </style>
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-a11y3">
 </head>
@@ -181,7 +192,7 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 <header><div><h1>GRAND ELEMENT · MUSIC</h1><small>ALBUMS · PLAYLISTS · MUSIC LIST</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
 <main>
 <section class="card" id="musicBrowser">
-  <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">MUSIC LIST · <span id="musicListCount">0</span></button></div>
+  <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">SELECT SONGS / MUSIC LIST · <span id="musicListCount">0</span></button></div>
   <div id="musicTransport" class="musicCompactTransport" hidden><span id="musicPlayingTitle" aria-live="polite"></span><button id="musicPause" type="button">PAUSE</button><button id="musicNext" type="button">NEXT</button></div>
   <div class="playlistTools" aria-label="Playlist save and load">
     <select id="savedPlaylistSelect" aria-label="Saved or public playlist"><option value="">CHOOSE A PLAYLIST TO LOAD</option></select>
@@ -242,6 +253,37 @@ const AUDIO_LIMIT_SECONDS=2013;
 const STORE_KEY='GE_PLAYER_LISTENING_V2_3333', OWNER_KEY='GE_PLAYER_OWNER_DEMO_V1';
 const $=id=>document.getElementById(id);
 const audio=$('audio');
+
+const GE_RADIO_MUSIC_EMBED=new URLSearchParams(location.search).get('embed')==='radio'&&window.parent!==window;
+if(GE_RADIO_MUSIC_EMBED)document.body.classList.add('ge-radio-music-embedded');
+function geRadioEmbedNotify(type,fields={}){
+ if(!GE_RADIO_MUSIC_EMBED)return;
+ try{window.parent.postMessage({type,...fields},location.origin)}catch(_e){}
+}
+function geRadioEmbedPlaybackState(){
+ if(!GE_RADIO_MUSIC_EMBED)return;
+ geRadioEmbedNotify('ge-radio-music-state',{
+  paused:audio.paused,title:currentTrack?label(currentTrack):''
+ });
+}
+if(GE_RADIO_MUSIC_EMBED){
+ for(const name of ['playing','pause','ended','error'])audio.addEventListener(name,geRadioEmbedPlaybackState);
+ window.addEventListener('message',event=>{
+  if(event.source!==window.parent||event.origin!==location.origin)return;
+  const msg=event.data;
+  if(!msg||msg.type!=='ge-radio-music-control')return;
+  if(msg.action==='stop'){
+   audio.pause();stopCounting();currentTrack=null;albumTracks=[];trackIndex=-1;
+   updateMusicTransport();geRadioEmbedPlaybackState();
+  }else if(msg.action==='toggle'){
+   if(audio.paused)void resume();else audio.pause();
+  }else if(msg.action==='next')nextTrack();
+  else if(msg.action==='previous'&&trackIndex>0){
+   trackIndex--;void startTrack(albumTracks[trackIndex]);
+  }
+ });
+}
+
 let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=null;
 // Website planet PLAY passes its album in the URL. Honor it without adding a
 // second player or bypassing the ordinary 33:33 music Gate.
@@ -311,7 +353,7 @@ function renderGate(){
  if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;}return;}
  const used=effectiveListeningSeconds();
  if(used<GATE_AT&&!data.expired)return;
- if(!gateShown){gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');gateShown=true;ensureRings();}
+ if(!gateShown){gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');gateShown=true;ensureRings();geRadioEmbedNotify('ge-radio-music-gate');}
  const elapsed=Math.max(0,used-GATE_AT);
  gate.style.setProperty('--preview-blur',(12*Math.min(1,elapsed/(16/1.5))).toFixed(2)+'px');
  gate.style.setProperty('--preview-dim',(.75*Math.min(1,elapsed/APPROACH_SECONDS)).toFixed(3));
@@ -486,7 +528,13 @@ function syncEditorCheckboxes(){
 }
 function renderSelected(){
  $('musicListCount').textContent=String(selectedSongs.length);
- renderMusicListRows();syncAlbumWholeCheck();syncEditorCheckboxes();saveSelected();
+ renderMusicListRows();syncAlbumWholeCheck();syncEditorCheckboxes();
+ document.querySelectorAll('input[data-ge-album-tile]').forEach(cb=>{
+  const tracks=albums.get(cb.dataset.geAlbumTile)||[],selected=new Set(selectedSongs.map(t=>t.path));
+  const n=tracks.filter(t=>selected.has(t.path)).length;
+  cb.checked=tracks.length>0&&n===tracks.length;cb.indeterminate=n>0&&n<tracks.length;
+ });
+ saveSelected();
 }
 function addSelected(track){
  if(!selectedSongs.some(song=>song.path===track.path))selectedSongs.push(track);
@@ -639,7 +687,7 @@ $('musicListDeleteBtn').addEventListener('click',()=>{
  playlistOptions();showPublicPlaylists();syncDeleteMusicPlaylist();
  musicNotice('Deleted saved playlist '+row.name+'. The current song list remains available until you leave.');
 });
-$('musicListBtn').addEventListener('click',()=>openMusicList(false));
+$('musicListBtn').addEventListener('click',()=>openMusicList(true));
 $('musicListEditBtn').addEventListener('click',()=>openMusicList(!editingMusicList));
 $('musicListSearch').addEventListener('input',renderMusicListEditor);
 $('playMusicListBtn').addEventListener('click',playSelectedList);
@@ -713,14 +761,26 @@ function showPublicPlaylists(){
 function showAlbums(){
  const wall=$('albumWall');wall.replaceChildren();
  for(const [name,list] of orderedAlbums()){
+  const tile=element('div',null,'albumSelectTile');
   const button=element('button',null,'albumTile');button.type='button';
   button.append(element('strong',name),element('small',list.length+' songs'));
-  button.addEventListener('click',()=>openAlbum(name));wall.appendChild(button);
+  button.addEventListener('click',()=>openAlbum(name));
+  const labelEl=element('label');
+  const check=element('input');check.type='checkbox';check.dataset.geAlbumTile=name;
+  const count=list.filter(t=>selectedSongs.some(s=>s.path===t.path)).length;
+  check.checked=!!list.length&&count===list.length;check.indeterminate=count>0&&count<list.length;
+  check.addEventListener('change',()=>setAlbumSelected(name,check.checked));
+  labelEl.append(check,element('span','ADD WHOLE ALBUM'));
+  tile.append(button,labelEl);wall.appendChild(tile);
  }
 }
 async function startTrack(t){
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
+ if(GE_RADIO_MUSIC_EMBED){
+  // Synchronous, same-origin handoff retains iPhone's Play user gesture.
+  try{window.parent.GEInlineMusic?.beforePlay?.(label(t))}catch(_e){}
+ }
  stopCounting();
  currentTrack=t;audio.pause();audio.crossOrigin='anonymous';audio.autoplay=false;
  audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.load();audio.muted=false;
@@ -897,6 +957,7 @@ async function loadCompleteMusicCatalog(){
 }
 void loadCompleteMusicCatalog();
 void loadPublicPlaylists();
+if(GE_RADIO_MUSIC_EMBED)openMusicList(true);
 baseVolume=Math.max(.01,Number(audio.volume)||1);
 if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECONDS)expireGate();
 if(data.expired||data.gateStartedAtMs)renderGate();
