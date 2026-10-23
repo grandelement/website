@@ -4364,7 +4364,13 @@ let fullMusicPickerCatalog=[];
 let fullMusicPickerLoading=null;
 const GE_MUSIC_SONG_ROOT=/^ge-music\/music\/.+\.(?:mp3|m4a|ogg|wav)$/i;
 function canonicalSongPath(input){
-  const path=urlToRepoPath(String(input||''));
+  const value=String(input||'').trim();
+  let path='';
+  try{
+    // Both GitHub's raw repository paths and browser URLs are accepted.
+    const raw=value.replace(/^\/+/, '');
+    path=raw.startsWith('ge-music/music/')?decodeURIComponent(raw):urlToRepoPath(value);
+  }catch(_e){return ''}
   return GE_MUSIC_SONG_ROOT.test(path)?path:'';
 }
 function sortedFullSongCatalog(paths){
@@ -5783,13 +5789,15 @@ function renderTrackList(){
   addAction('CLOSE',closeTrackPicker);
   trackList.appendChild(toolbar);
   const fragment=document.createDocumentFragment();
-  let currentAlbum='',albumCheckbox=null,albumCount=null,albumPaths=[];
-  function refreshAlbumHeading(){
-    if(!albumCheckbox)return;
-    const n=albumPaths.filter(path=>selectedSongURLs.has(path)).length;
-    albumCheckbox.checked=n===albumPaths.length&&n>0;
-    albumCheckbox.indeterminate=n>0&&n<albumPaths.length;
-    albumCount.textContent=n+'/'+albumPaths.length+' selected';
+  let currentAlbum='';
+  const albumHeaders=new Map();
+  function updateAlbumHeadings(){
+    for(const item of albumHeaders.values()){
+      const count=item.paths.filter(path=>selectedSongURLs.has(path)).length;
+      item.checkbox.checked=item.paths.length>0&&count===item.paths.length;
+      item.checkbox.indeterminate=count>0&&count<item.paths.length;
+      item.count.textContent=count+'/'+item.paths.length+' selected';
+    }
   }
   function addAlbumHeading(album,paths){
     const header=document.createElement('label');
@@ -5799,15 +5807,18 @@ function renderTrackList(){
     const countEl=document.createElement('small');
     header.append(cb,name,countEl);
     fragment.appendChild(header);
-    albumCheckbox=cb;albumCount=countEl;albumPaths=paths;
+    albumHeaders.set(album,{paths,checkbox:cb,count:countEl});
     cb.addEventListener('change',()=>{
       for(const path of paths){
         if(cb.checked)selectedSongURLs.add(path);else selectedSongURLs.delete(path);
       }
       savePersonalSongSelection();
-      renderTrackList();
+      // Update checkboxes in place rather than rebuilding and losing scroll.
+      for(const input of trackList.querySelectorAll('.gePickRow input[type=checkbox]')){
+        input.checked=selectedSongURLs.has(input.dataset.songPath);
+      }
+      updateCount();updateAlbumHeadings();
     });
-    refreshAlbumHeading();
   }
   for(const url of list){
     const album=albumNameFromURL(url);
@@ -5818,27 +5829,20 @@ function renderTrackList(){
     const row=document.createElement('div');row.className='gePickRow';
     const label=document.createElement('label');
     const check=document.createElement('input');
-    check.type='checkbox';check.checked=selectedSongURLs.has(canonicalSongPath(url));
+    check.type='checkbox';check.dataset.songPath=canonicalSongPath(url);
+    check.checked=selectedSongURLs.has(check.dataset.songPath);
     check.setAttribute('aria-label','Select '+displayTitle(url,false));
     const title=document.createElement('span');title.textContent=displayTitle(url,false);
     check.addEventListener('change',()=>{
-      const path=canonicalSongPath(url);
+      const path=check.dataset.songPath;
       if(check.checked)selectedSongURLs.add(path);else selectedSongURLs.delete(path);
       if(personalSongMode&&!selectedSongURLs.size)personalSongMode=false;
-      savePersonalSongSelection();updateCount();
-      // Keep the heading and its whole-album checkbox synchronized.
-      const header=row.previousElementSibling?.classList.contains('gePickAlbumHeader')?
-        row.previousElementSibling:row.parentElement;
-      void header;
-      const selected=selectedSongURLs;
-      fragment.querySelectorAll?.('.gePickAlbumHeader');
-      // The current album's summary is recalculated on the next render.
-      if(albumCheckbox&&album===currentAlbum)refreshAlbumHeading();
+      savePersonalSongSelection();updateCount();updateAlbumHeadings();
     });
     label.append(check,title);row.appendChild(label);
     const playNow=document.createElement('button');
     playNow.type='button';playNow.dataset.url=url;playNow.textContent='PLAY';
-    if(url===state.currentURL)playNow.classList.add('current');
+    if(canonicalSongPath(url)===canonicalSongPath(state.currentURL))playNow.classList.add('current');
     playNow.addEventListener('click',()=>{
       if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
       personalSongMode=false;savePersonalSongSelection();
@@ -5852,6 +5856,7 @@ function renderTrackList(){
     row.appendChild(playNow);fragment.appendChild(row);
   }
   trackList.appendChild(fragment);
+  updateAlbumHeadings();
 }
 
 async function loadMusicManifest(forceFresh=false){
