@@ -5924,10 +5924,31 @@ function geLocalPlaylists(){
  }catch(_e){return []}
 }
 async function geLoadPublishedPlaylists(){
- // The DJ Booth and Back Room write the original GE Vault DJ playlists.
- // Public Radio can only read that SAME Vault collection; never write the
- // broadcast rotation or promote a private/listener playlist.
- const cacheKey='GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V1';
+ // The published website configuration determines which DJ playlists are
+ // public. GE Vault supplies the corresponding original DJ records and songs.
+ // A private DJ playlist must never appear simply because Vault returned it.
+ let allowed;
+ try{
+  const configResponse=await fetch('../config/site-live.json',{cache:'no-store'});
+  if(!configResponse.ok)throw Error('Published playlist permissions unavailable');
+  const config=await configResponse.json();
+  allowed=new Map((Array.isArray(config?.music?.publicPlaylists)?config.music.publicPlaylists:[])
+   .filter(item=>item&&typeof item.id==='string'&&Array.isArray(item.songs))
+   .map(item=>[item.id,new Set(item.songs)]));
+ }catch(error){
+  console.warn('Public DJ playlist permission check failed',error);
+  gePublishedLists=[];
+  window.GE_DJ_PLAYLIST_SOURCE_STATUS='DJ PLAYLIST PERMISSIONS UNAVAILABLE';
+  if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
+  return;
+ }
+ if(!allowed.size){
+  gePublishedLists=[];
+  window.GE_DJ_PLAYLIST_SOURCE_STATUS='NO DJ PLAYLISTS PUBLISHED';
+  if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
+  return;
+ }
+ const cacheKey='GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2';
  let rows=null,fromCache=false;
  try{
   const response=await fetch('https://vault.grandelement.com/v1/public/dj-playlists',{cache:'no-store'});
@@ -5935,7 +5956,7 @@ async function geLoadPublishedPlaylists(){
   const data=await response.json();
   if(data?.ok!==true||data.format!=='ge-public-dj-playlists-v1'||!Array.isArray(data.items))
     throw Error('GE Vault playlist response was invalid');
-  rows=data.items;
+  rows=data.items.filter(item=>allowed.has(String(item?.id)));
   try{localStorage.setItem(cacheKey,JSON.stringify({savedAt:Date.now(),items:rows}))}catch(_e){}
  }catch(error){
   console.warn('GE Vault DJ playlists temporarily unavailable',error);
@@ -5947,14 +5968,17 @@ async function geLoadPublishedPlaylists(){
  const songPath=path=>typeof path==='string'&&/^ge-music\/music\//.test(path)&&
    !path.includes('..')&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path);
  gePublishedLists=(rows||[]).filter(item=>item&&typeof item.id==='string'&&
-   typeof item.name==='string'&&Array.isArray(item.songs))
-  .map(item=>({id:item.id,name:item.name,songs:[...new Set(item.songs.filter(songPath))]}))
+   allowed.has(item.id)&&typeof item.name==='string'&&Array.isArray(item.songs))
+  .map(item=>({id:item.id,name:item.name,songs:[...new Set(item.songs.filter(path=>
+    songPath(path)&&allowed.get(item.id).has(path)
+  ))]}))
   .filter(item=>item.songs.length>0);
  window.GE_DJ_PLAYLIST_SOURCE_STATUS=rows?
-  (fromCache?'OFFLINE DJ PLAYLIST COPY · latest saved Vault version':'LIVE GE VAULT DJ PLAYLISTS'):
+  (fromCache?'OFFLINE DJ PLAYLIST COPY · CURRENT PUBLISHED PERMISSIONS':'LIVE GE VAULT DJ PLAYLISTS'):
   'DJ PLAYLISTS UNAVAILABLE · cannot reach GE Vault';
  if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
 }
+
 function gePlaylistUI(list){
  const holder=document.createElement('section');holder.className='gePickerPlaylists';
  const bar=document.createElement('div');bar.className='gePickerPlaylistBar';
