@@ -3099,6 +3099,24 @@ html.ge-radio-ui #trackList .gePickerPlaylistActions select:disabled{opacity:.58
  }
 }
 </style>
+<style id="ge-radio23-utility-fixes">
+html.ge-radio-ui body.view-player.ge-offline-entitled:not(.iam-studio-open) #bottomActions #offlineBtn:not([hidden]){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ grid-area:3/2/4/3!important;min-height:38px!important;
+}
+#geRadioContactPanel{display:none;position:fixed;z-index:50010;left:50%;top:50%;
+ transform:translate(-50%,-50%);width:min(440px,calc(100vw - 24px));
+ padding:20px 16px;background:#06192a;color:#eafaff;
+ border:1px solid #69c3eb;border-radius:15px;box-shadow:0 0 0 100vmax rgba(0,0,0,.78),0 15px 45px #000;
+ text-align:center}
+#geRadioContactPanel.open{display:block}
+#geRadioContactPanel h2{font-size:16px;margin:0 0 14px;letter-spacing:.05em}
+#geRadioContactPanel p{margin:0 0 14px;font-size:16px;user-select:text;-webkit-user-select:text}
+#geRadioContactPanel .geContactActions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+#geRadioContactPanel .geContactActions>*{flex:1 1 118px;min-height:40px;padding:9px;
+ border:1px solid #419dc8;background:#103b58;border-radius:9px;
+ display:flex;align-items:center;justify-content:center;color:#effbff;text-decoration:none;font:700 12px system-ui}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -6428,10 +6446,19 @@ $('liveBtn').addEventListener('click',()=>{
   void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
-  if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
-  if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Shuffle/Album mode selected.');
-  const anchor=!isStationID(state.currentURL)?state.currentURL:'';
+  // SHUFFLE is not a shortcut to MUSIC and does not alter the live broadcast.
   state.shuffle=!state.shuffle;
+  if(state.live||state.livePreparing){
+    syncModeButtons();
+    setStatus('Personal music shuffle '+(state.shuffle?'ON':'OFF')+' · Radio continues unchanged.');
+    return;
+  }
+  if(!geOwnerDemoEnabled()){
+    syncModeButtons();
+    setStatus('Shuffle '+(state.shuffle?'ON':'OFF')+' · enter CODE for library playback.');
+    return;
+  }
+  const anchor=!isStationID(state.currentURL)?state.currentURL:'';
   state.pendingAfterStation=null;
   state.upNext=[];
   if(!state.shuffle){
@@ -10480,7 +10507,8 @@ Vector ${vector}. ${pair[1]}.`;
   }
   let vaultRedeemBusy=false;
   async function unlock(){
-    if(authorized()||vaultRedeemBusy)return;
+    // A Radio-only code holder may later enter a distinct owner code.
+    if(geRadioLocalTestAccess()||vaultRedeemBusy)return;
     const entered=String(word?.value||'').trim();
     const isLegacy=entered.toLowerCase()===String(GATE_CONFIG.password||'').trim().toLowerCase();
     if(!isLegacy){
@@ -10640,7 +10668,11 @@ Vector ${vector}. ${pair[1]}.`;
   window.GEGate={
     noteRealSongPlay,trigger,restore,syncListening,isExpiredLocked,isAuthorized:authorized,desiredVolume,getState:()=>({...gs}),
     openCodeEntry:()=>{
-      if(authorized())return;
+      if(geRadioLocalTestAccess()){
+        window.GERadioSyncOfflineAccess?.();
+        setStatus('Owner code active · offline controls are available.');
+        return;
+      }
       if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
       gate.classList.add('open','centered');
       gate.setAttribute('aria-hidden','false');
@@ -10786,16 +10818,36 @@ document.addEventListener('touchmove',function(event){
 },{passive:false});
 
 // Guests can enter a code immediately without waiting 28 minutes for the Gate.
-$('contactLaunchBtn')?.addEventListener('click',()=>{
-  location.href='mailto:info@grandelement.com?subject=Grand%20Element%20Contact';
-});
-$('accessLaunchBtn')?.addEventListener('click',()=>{
-  // This invokes the existing LOVE Gate controller; it is not checkout proof.
-  if(window.GEGate?.isAuthorized?.()){
-    setLiveStatus('CODE ACTIVE · local preview access unlocked.',true);
-  }else{
-    window.GEGate?.openCodeEntry?.();
+function geOpenContact(){
+  // mailto: can do nothing on an iPhone without a configured Mail account.
+  let panel=$('geRadioContactPanel');
+  if(!panel){
+    panel=document.createElement('section');panel.id='geRadioContactPanel';
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
+    panel.setAttribute('aria-label','Contact Grand Element');
+    const title=document.createElement('h2');title.textContent='CONTACT GRAND ELEMENT';
+    const address=document.createElement('p');address.textContent='info@grandelement.com';
+    const actions=document.createElement('div');actions.className='geContactActions';
+    const copy=document.createElement('button');copy.type='button';copy.textContent='COPY EMAIL';
+    const compose=document.createElement('a');compose.href='mailto:info@grandelement.com?subject=Grand%20Element%20Contact';compose.textContent='WRITE EMAIL';
+    const close=document.createElement('button');close.type='button';close.textContent='CLOSE';
+    copy.addEventListener('click',async()=>{
+      try{await navigator.clipboard.writeText('info@grandelement.com');copy.textContent='EMAIL COPIED';}
+      catch(_e){copy.textContent='SELECT ADDRESS ABOVE TO COPY';}
+    });
+    close.addEventListener('click',()=>{panel.classList.remove('open');panel.hidden=true;});
+    actions.append(copy,compose,close);panel.append(title,address,actions);
+    document.body.appendChild(panel);
   }
+  panel.hidden=false;panel.classList.add('open');
+  panel.querySelector('button')?.focus();
+}
+$('contactLaunchBtn')?.addEventListener('click',geOpenContact);
+$('accessLaunchBtn')?.addEventListener('click',()=>{
+  // Radio access alone is not a purchase or offline entitlement.
+  const controller=window.GEGate;
+  if(controller?.openCodeEntry)controller.openCodeEntry();
+  else setStatus('CODE panel is initializing. Tap CODE again.');
 });
 
 // Sun Lab manual Gate preview. Resets authorization/timing and replays the whole sequence.
