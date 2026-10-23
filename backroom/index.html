@@ -812,7 +812,7 @@ function installBackroomTabs(){
   function activate(tab,focus=false){
     if(!panels.has(tab))tab='welcome';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
-    if(tab==='playlists'){
+    if(tab==='playlists'&&!$('backroomMain').classList.contains('hidden')){
       const frame=$('brDJPlaylistFrame');
       if(frame&&!frame.getAttribute('src'))frame.src=frame.dataset.src;
     }
@@ -2536,6 +2536,12 @@ async function bootBackroom(){
   cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   void refreshDJPlaylistSource();
+  const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
+  if(selectedTab==='scores')void loadBackroomScores();
+  if(selectedTab==='playlists'){
+    const frame=$('brDJPlaylistFrame');
+    if(frame&&!frame.getAttribute('src'))frame.src=frame.dataset.src;
+  }
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
