@@ -2399,6 +2399,99 @@ const backroomVaultManagers=(()=>{
   return{init};
 })();
 
+// The SCORES tab displays actual public Vault scores by game, plus scores
+// saved on this browser. Blank leaderboards are still shown for every game.
+const GE_SCORE_GROUPS=[
+  {name:'POINTS',types:['points','score']},
+  {name:'CENTER POOL',types:['blueSunPool','center','pockets']},
+  {name:'NINE BALL',types:['ninePlanet','nine']},
+  {name:'MARBLES',types:['marbles','planets']},
+  {name:'GOLF',types:['golf']},
+  {name:'GRAVITY',types:['gravity']},
+  {name:'THE BODY',types:['body','bodyRace']},
+  {name:'FLIGHT',types:['flight']}
+];
+let brScoresLoaded=false,brScoresBusy=false;
+function readBackroomLocalScores(){
+  try{
+    const records=JSON.parse(localStorage.getItem('GE_GAME_SCORES_V3')||'[]');
+    return Array.isArray(records)?records:[];
+  }catch(_e){return []}
+}
+function scoreElement(tag,content){
+  const el=document.createElement(tag);el.textContent=String(content??'');return el;
+}
+async function loadBackroomScores(){
+  if(brScoresBusy)return;
+  brScoresBusy=true;
+  $('brScoresStatus').textContent='Loading each game leaderboard from GE Vault…';
+  const host=$('brScoresTable');host.replaceChildren();
+  const allTypes=[...new Set(GE_SCORE_GROUPS.flatMap(group=>group.types))];
+  const lookup=new Map(),failures=[];
+  await Promise.all(allTypes.map(async type=>{
+    try{
+      const response=await fetch('https://vault.grandelement.com/v1/public/game-scores?limit=250&game_type='+encodeURIComponent(type),
+        {cache:'no-store'});
+      if(!response.ok)throw Error('HTTP '+response.status);
+      const data=await response.json();
+      if(!Array.isArray(data.items))throw Error('Invalid scores format');
+      lookup.set(type,data.items);
+    }catch(error){lookup.set(type,[]);failures.push(type+': '+String(error.message||error));}
+  }));
+  const cutoff=Math.max(Number(cfg?.highScores?.resetAt)||0,
+    Number(localStorage.getItem('GE_HIGH_SCORES_LOCAL_RESET_V1'))||0,1792112214000);
+  const local=readBackroomLocalScores().filter(row=>
+    row&&typeof row==='object'&&Number(row.players)!==0&&String(row.name||'').toUpperCase()!=='AUTO'&&
+    (Date.parse(String(row.completedAt||''))||0)>cutoff);
+  let total=0;
+  for(const group of GE_SCORE_GROUPS){
+    const section=document.createElement('section');section.className='brScoresGame';
+    section.appendChild(scoreElement('h3',group.name));
+    const records=new Map();
+    for(const type of group.types){
+      for(const row of lookup.get(type)||[]){
+        if(!row||Number(row.players)===0||String(row.name||'').toUpperCase()==='AUTO')continue;
+        if((Date.parse(String(row.completedAt||''))||0)<=cutoff)continue;
+        records.set(String(row.id||row.name+'-'+row.completedAt),{...row,origin:'VAULT'});
+      }
+    }
+    for(const row of local){
+      if(group.types.includes(String(row.gameType||row.game_type||''))){
+        const id=String(row.id||row.name+'-'+row.completedAt);
+        if(!records.has(id))records.set(id,{...row,origin:'THIS DEVICE'});
+      }
+    }
+    const rows=[...records.values()].sort((a,b)=>{
+      const aThrows=Number(a.winningThrows)>0?Number(a.winningThrows):Number.POSITIVE_INFINITY;
+      const bThrows=Number(b.winningThrows)>0?Number(b.winningThrows):Number.POSITIVE_INFINITY;
+      return aThrows-bThrows||(Number(b.score)||0)-(Number(a.score)||0);
+    });
+    total+=rows.length;
+    if(!rows.length)section.appendChild(scoreElement('p',
+      failures.some(message=>group.types.some(type=>message.startsWith(type+':')))?
+        'Scores temporarily unavailable for this game.':'No recorded high scores yet.'));
+    else{
+      const table=document.createElement('table');
+      const head=document.createElement('tr');
+      for(const title of ['#','PLAYER','THROWS','SCORE','SOURCE'])head.appendChild(scoreElement('th',title));
+      table.appendChild(head);
+      rows.forEach((row,i)=>{
+        const tr=document.createElement('tr');
+        for(const value of [i+1,row.name||'Anonymous',Number(row.winningThrows)||'—',
+          Number(row.score)||0,row.origin])tr.appendChild(scoreElement('td',value));
+        table.appendChild(tr);
+      });
+      section.appendChild(table);
+    }
+    host.appendChild(section);
+  }
+  $('brScoresStatus').textContent=GE_SCORE_GROUPS.length+' game leaderboards · '+total+
+    ' scores shown'+(failures.length?' · Vault unavailable for '+failures.length+' game type(s); device scores shown where available.':' · GE Vault connected.');
+  brScoresLoaded=true;brScoresBusy=false;
+}
+$('brScoresRefresh').addEventListener('click',()=>void loadBackroomScores());
+window.GE_BACKROOM_SHOW_SCORES=()=>{if(!brScoresLoaded)void loadBackroomScores();};
+
 async function bootBackroom(){
   // Migrate the old oversized 115% default once, then honor the slider setting.
   const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
