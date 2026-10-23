@@ -873,6 +873,29 @@ async function linkFanIdentity(request, env) {
   return json({ ok: true, fan_id: fanId });
 }
 
+// The public Radio MUSIC menu reads the original GE DJ playlists from the
+// same Vault tables used by the authenticated BLITZ DJ. Only playlists that
+// BLITZ explicitly saved with source=ge-radio and public music paths appear.
+async function listPublicDJPlaylists(env){
+  const rows=await env.VAULT_DB.prepare(
+    "SELECT id,name,metadata_json FROM playlists ORDER BY active DESC,updated_at DESC LIMIT 200"
+  ).all();
+  const items=[];
+  for(const playlist of rows.results||[]){
+    let meta={};
+    try{meta=JSON.parse(playlist.metadata_json||"{}")}catch(_e){}
+    if(meta.source!=="ge-radio")continue;
+    const tracks=await env.VAULT_DB.prepare(
+      "SELECT track_path FROM playlist_tracks WHERE playlist_id=? ORDER BY position"
+    ).bind(playlist.id).all();
+    const songs=(tracks.results||[]).map(row=>String(row.track_path||"")).filter(path=>
+      /^ge-music\/music\//.test(path)&&!path.includes("..")&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path)
+    );
+    if(songs.length)items.push({id:String(playlist.id),name:String(playlist.name),songs});
+  }
+  return items;
+}
+
 async function listPlaylists(env) {
   const rows = await env.VAULT_DB.prepare(
     "SELECT * FROM playlists ORDER BY active DESC, updated_at DESC",
@@ -2161,6 +2184,10 @@ export default {
           "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events ORDER BY occurred_at DESC LIMIT 5000",
         ).all();
         return json({ ok: true, items: rows.results || [] }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/dj-playlists" && request.method === "GET") {
+        return json({ok:true,format:"ge-public-dj-playlists-v1",items:await listPublicDJPlaylists(env)},200,cors);
       }
 
       if (url.pathname === "/v1/playlists" && request.method === "GET") {
