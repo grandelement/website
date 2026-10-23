@@ -375,6 +375,21 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   #backroomMain .brHeaderRow h1{font-size:15px}
 }
 
+/* Twelve-column mobile-safe two-row Back Room navigation. */
+#backroomMain .backroomTabs{grid-template-columns:repeat(28,minmax(0,1fr))!important}
+#backroomMain .backroomTabs button:nth-child(-n+4){grid-column:span 7!important}
+#backroomMain .backroomTabs button:nth-child(n+5){grid-column:span 4!important}
+#backroomMain .backroomTabs button[data-tab="radio"]{border-color:#4e91c0}
+#backroomMain .backroomTabs button[data-tab="radio"][aria-selected="true"]{background:#1685b7!important;border:2px solid #a8eeff!important;box-shadow:0 0 0 2px rgba(50,165,235,.35),0 0 18px rgba(22,142,217,.45)!important}
+#brDJPlaylistFrame{display:block;width:100%;height:clamp(650px,82vh,1060px);border:1px solid #2b668a;border-radius:10px;background:#020711;margin:10px 0}
+#brLegacyPlaylistEditor[hidden]{display:none!important}
+.brScoresTable{display:grid;gap:12px;margin:12px 0}
+.brScoresGame{border:1px solid #27516d;border-radius:10px;padding:9px}
+.brScoresGame h3{margin:0 0 7px;color:#a5e6ff}
+.brScoresGame table{width:100%;border-collapse:collapse;font-size:12px}
+.brScoresGame th,.brScoresGame td{padding:6px 4px;border-bottom:1px solid #204157;text-align:left}
+.brScoresGame td:last-child,.brScoresGame th:last-child{text-align:right}
+.brGameDefaultsIntro{margin:0 0 8px}
  .brGameOptionRow{border:1px solid #27506a;border-radius:10px;padding:9px;margin:6px 0}.brGameOptionRow .check{display:inline-flex;margin-right:10px}.brGameOptionDetails{padding:8px 0}.brGameOptionDetails[hidden]{display:none}
  .brPlaylistTrack.excluded{opacity:.45;text-decoration:line-through}
  .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
@@ -419,8 +434,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
-  
+  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
+  <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
@@ -428,8 +444,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="scores">
   <h2>HIGH SCORES</h2>
-  <p>Download a backup or begin a clean leaderboard.</p>
-  <div class="actions"><a href="./high-scores.html" style="color:#a8edff;font-weight:900">BACKUP / RESET HIGH SCORES →</a></div>
+  <p>High scores for every GE game, loaded from the same GE Vault scoreboard used by the website. Local scores on this device are included below.</p>
+  <div class="backroomActionRow">
+    <button type="button" id="brScoresRefresh">REFRESH SCORES</button>
+    <a href="./high-scores.html" style="color:#a8edff;font-weight:900">BACKUP / RESET HIGH SCORES →</a>
+  </div>
+  <div id="brScoresStatus" role="status">Open SCORES to load all game leaderboards.</div>
+  <div id="brScoresTable" class="brScoresTable"></div>
 </section>
 
 <section data-br-tab="presets">
@@ -541,11 +562,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
     <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
-  <p>Live broadcast scheduling stays in the DJ Booth. Website startup and Radio Moon controls are below. Radio playlists appear immediately above the GE Radio Master Song List.</p>
-  <div class="backroomActionRow">
-    <button type="button" id="brRadio2Check">CHECK RADIO 2 BANGERS</button>
-    <span id="brRadio2Status" role="status" aria-live="polite">Radio 2 Bangers publishing has not been checked yet.</span>
-  </div>
+  <p>RADIO controls its master song approvals. Use PLAYLISTS for your saved BLITZ DJ Booth rotations, WELCOME for startup music and MOON for satellite settings.</p>
   <p>GE RADIO MASTER SONG LIST controls which tracks may play automatically on BLITZ Radio and website Player/Shuffle. A checked song stays approved when its audio file is replaced. New uploads default OFF until explicitly checked and PUBLISH LIVE is pressed.</p>
   <section id="brMasterSection" aria-label="GE Radio Master Song List">
     <h3>GE RADIO MASTER SONG LIST</h3>
@@ -555,8 +572,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </section>
 </section>
 
-<section data-br-tab="playlists">
-  <h2>RADIO PLAYLISTS</h2><p>Select Bangers when available from the saved DJ playlists; do not substitute an unrelated playlist for the live BLITZ rotation.</p>
+<section data-br-tab="playlists" id="brDJPlaylistSection">
+  <h2>DJ BOOTH PLAYLISTS</h2>
+  <p>This is the actual authenticated DJ Booth playlist editor: the same saved Bangers and all other playlists, albums, song checkboxes, SAVE and USE ON RADIO controls. Log into the DJ Booth inside this tab if asked.</p>
+  <div id="brDJPlaylistStatus" role="status">Open PLAYLISTS to connect to the original BLITZ DJ saved playlists.</div>
+  <iframe id="brDJPlaylistFrame" title="Original GE DJ Booth playlist manager" data-src="../radio/ge-dj.html?ge_playlists=1" loading="lazy" referrerpolicy="same-origin"></iframe>
+  <p class="brAccessNotice">Saving here updates the DJ Booth source. To make the playlist names and song selections available in public Radio MUSIC, use PUBLISH LIVE after the DJ playlists load. Do not create a second playlist database.</p>
+</section>
+<section data-br-tab="playlists" id="brLegacyPlaylistEditor" hidden>
+  <h2>OLD RADIO PLAYLIST EDITOR</h2><p>Legacy internal editor kept inactive while the original BLITZ DJ playlist manager is used.</p>
   <p>Create, arrange, and publish playlists. The live BLITZ queue is controlled separately through the DJ Booth.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
@@ -674,14 +698,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="actions"><a href="../radio/" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST RADIO GATE →</a><a href="../radio/preview-lab.html" target="_blank" rel="noopener" style="color:#a8edff;font-weight:900">TEST MUSIC GATE →</a></div>
 </section>
 
-<section data-br-tab="radio">
+<section data-br-tab="welcome">
   <h2>WEBSITE STARTUP MUSIC</h2>
   <p>Choose whether the website starts playing automatically. The selected first song stays saved even when startup is silent.</p>
   <label class="check" style="margin:8px 0 12px"><input id="noStartupMusic" type="checkbox"><span>NO MUSIC WHEN WEBSITE OPENS</span></label>
   <label><span>Optional first song (only for automatic startup)</span><select id="firstTrackSelect"><option>Loading music…</option></select></label>
   <p>Browsers may block automatic sound until the visitor presses PLAY.</p>
 </section>
-<section data-br-tab="radio">
+<section data-br-tab="moon">
   <h2>RADIO MOON SATELLITE</h2>
   <div class="grid">
     <label class="check"><input id="radioMoonVisible" type="checkbox" checked><span>SHOW RADIO MOON</span></label>
@@ -762,10 +786,10 @@ function installGameOptionControls(){
 installGameOptionControls();
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['welcome','about','universe','games','radio','access','gate','scores','presets'],panelCategories=[...categories.slice(0,5),'playlists',...categories.slice(5)],panels=new Map();
+  const categories=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
-  // Keep Radio playlists with Radio rather than as a separate top-level tab.
+  // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
     panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','brTab'+category[0].toUpperCase()+category.slice(1));
@@ -777,7 +801,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'){
+    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'||category==='moon'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -793,13 +817,12 @@ function installBackroomTabs(){
   }
   function activate(tab,focus=false){
     if(!panels.has(tab))tab='welcome';
-    if(tab==='playlists')tab='radio';
-    for(const [name,panel]of panels){panel.hidden=name!==tab&&!(tab==='radio'&&name==='playlists');}
-    if(tab==='radio'){
-      const radio=panels.get('radio'),playlistsPanel=panels.get('playlists');
-      const master=radio?.querySelector('#brMasterSection');
-      if(master&&playlistsPanel&&playlistsPanel.parentElement!==radio)radio.insertBefore(playlistsPanel,master);
+    for(const [name,panel]of panels){panel.hidden=name!==tab;}
+    if(tab==='playlists'){
+      const frame=$('brDJPlaylistFrame');
+      if(frame&&!frame.getAttribute('src'))frame.src=frame.dataset.src;
     }
+    if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
@@ -819,7 +842,7 @@ function installBackroomTabs(){
     const sections=[...panel.querySelectorAll(':scope > section')];
     const first=name==='universe'?sections.find(s=>s.querySelector('h2')?.textContent.includes('UNIVERSE ACTIVITY')):sections[0];
     const toggle=first?.querySelector('.backroomGroupToggle');
-    if(name!=='access')toggle?.click();
+    if(name!=='access'&&name!=='games')toggle?.click();
   }
   let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
   if(initial==='home'||initial==='content')initial='welcome';
