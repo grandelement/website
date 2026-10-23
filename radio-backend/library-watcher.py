@@ -13,11 +13,10 @@ from pathlib import Path
 
 REPO = "grandelement/website"
 REPO_URL = "https://github.com/grandelement/website.git"
-# HARD FREEZE: this snapshot predates the album re-upload. Do not replace
-# with main or a moving branch: that would automatically introduce unapproved
-# songs and same-path replacement masters into the live BLITZ rotation.
-# Updating the RADIO library requires a separately reviewed owner approval.
-BRANCH = "69442ea48d04024881d20d8e78725ebd42d970fa"
+# Radio song membership is LOCKED by the published Back Room Master Song List.
+# Audio versions follow GitHub main, so replacing an approved recording keeps
+# its Radio approval. New files are excluded unless explicitly added in Back Room.
+BRANCH = "main"
 CHECK_SECONDS = 900
 AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".aac", ".ogg", ".oga", ".flac")
 
@@ -370,19 +369,32 @@ def annotation(entry, commit_sha, cross=None):
         fields.append(f'liq_cross_duration="{cross:.1f}"')
     return "annotate:" + ",".join(fields) + ":" + raw_url(commit_sha, entry["path"])
 
+MASTER_LIST_PATH = "config/site-live.json"
+
+def load_master_paths():
+    # Only the Back Room's explicit approved path list controls the station.
+    # Fail closed if the published list is missing, empty, or damaged.
+    raw = git_run(["show", "FETCH_HEAD:" + MASTER_LIST_PATH])
+    data = json.loads(raw)
+    paths = data.get("music", {}).get("radioMasterSongPaths")
+    if not isinstance(paths, list) or not paths or len(paths) > 10000:
+        raise ValueError("GE Radio Master Song List missing or empty")
+    found = set()
+    for path in paths:
+        if (not isinstance(path, str) or not path.startswith("ge-music/music/")
+            or not path.lower().endswith(AUDIO_EXTS) or ".." in path
+            or path in found):
+            raise ValueError("Invalid approved GE Radio song path")
+        found.add(path)
+    return found
+
 def eligible_songs(songs, settings):
+    approved = load_master_paths()
+    # Custom DJ playlists cannot override the GE RADIO Master Song List.
     custom_paths = active_custom_paths(settings)
     if custom_paths is not None:
-        wanted = set(custom_paths)
-        return [song for song in songs if song.get("path") in wanted]
-
-    selected = []
-    legacy = bool(settings.get("legacy", False))
-    for song in songs:
-        album = song["album"].strip().lower()
-        if album in CORE_ALBUMS or (legacy and album in LEGACY_ALBUMS):
-            selected.append(song)
-    return selected
+        approved.intersection_update(custom_paths)
+    return [song for song in songs if song.get("path") in approved]
 
 def save_library(commit_sha, songs, clips):
     items = []
