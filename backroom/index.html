@@ -2154,7 +2154,7 @@ const backroomVaultManagers=(()=>{
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
     select.replaceChildren(new Option('CHOOSE SAVED DJ PLAYLIST · CHECK ITS SONGS',''));
-    const source=geDJPlaylistReady?geDJSavedPlaylists:playlists;
+    const source=geDJPlaylistReady?geDJSavedPlaylists:[]; // Only original DJ playlists
     source.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
   }
@@ -2242,7 +2242,7 @@ const backroomVaultManagers=(()=>{
     if(row?.playlist_ids?.length){
       const all=new Set(assignedSongPaths);
       for(const id of row.playlist_ids){
-        const playlist=(geDJPlaylistReady?geDJSavedPlaylists:playlists).find(p=>p.id===id);
+        const playlist=geDJSavedPlaylists.find(p=>p.id===id);
         if(geDJPlaylistReady){for(const path of playlist?.paths||[])all.add(path);}
         else {for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);}
       }
@@ -2301,12 +2301,8 @@ const backroomVaultManagers=(()=>{
     if(!authReady())return;
     accessStatus('Loading issued codes…');
     try{
-      const [codes,pls]=await Promise.all([
-        vaultAction('/manage/access-codes'),
-        vaultAction('/manage/playlists').catch(()=>null)
-      ]);
+      const codes=await vaultAction('/manage/access-codes');
       codeRows=Array.isArray(codes.items)?codes.items:[];
-      if(pls?.items)playlists=pls.items;
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
@@ -2454,8 +2450,7 @@ const backroomVaultManagers=(()=>{
         if(!id)return;
         const playlist=(geDJPlaylistReady?geDJSavedPlaylists:playlists).find(p=>p.id===id);
         if(!playlist){accessStatus('Playlist not found. Open PLAYLISTS to refresh the DJ source.');return;}
-        const paths=[...new Set(geDJPlaylistReady?(playlist.paths||[]):
-          (playlist.tracks||[]).map(t=>String(t.track_path||'')))].filter(Boolean);
+        const paths=[...new Set(playlist.paths||[])].filter(Boolean);
         assignedSongPaths=paths;
         accessSongOptions();assignedSongsUI();
         accessStatus('Selected '+paths.length+' songs from '+playlist.name+'. Uncheck any song before saving the code.');
