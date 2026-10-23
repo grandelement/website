@@ -14082,6 +14082,26 @@ body:not(.ge-body-race-active) #moon {
   animation:geRadioMoonLogoUpright60 60s linear infinite;
 }
 </style>
+<style id="ge-radio-moon-admin-css">
+body:not(.ge-body-race-active) #orbit,
+body:not(.ge-body-race-active) #moon{animation-duration:var(--ge-moon-period,60s)!important}
+body.ge-moon-disabled #moon{display:none!important}
+#moon img{filter:brightness(var(--ge-moon-brightness,1))}
+</style>
+<script id="ge-radio-moon-admin-js">
+(()=>{
+const c=window.GE_SITE_CONFIG?.radioMoon||{},r=document.documentElement;
+const num=(x,lo,hi,d)=>{const n=Number(x);return x==null||!Number.isFinite(n)?d:Math.min(hi,Math.max(lo,n))};
+r.style.setProperty('--ge-moon-period',num(c.orbitSeconds,10,600,60)+'s');
+r.style.setProperty('--ge-moon-brightness',num(c.glow,0,200,100)/100);
+r.style.setProperty('--orbit-distance-desktop',num(c.distanceDesktop,.5,5,2.2));
+r.style.setProperty('--orbit-distance-mobile',num(c.distanceMobile,.5,5,1.1));
+document.body.classList.toggle('ge-moon-disabled',c.visible===false);
+const sheet=document.createElement('style');
+sheet.textContent='@media (max-width:700px) and (orientation:portrait),(max-height:500px) and (orientation:landscape){:root{--orbit-gap-moons:'+num(c.distanceMobile,.5,5,1.1)+'!important}}';
+document.head.appendChild(sheet);
+})();
+</script>
 <script id="ge-blue-sun-clock-home-v2">
 (function(){
   'use strict';
