@@ -3001,6 +3001,71 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #iamLaunchBtn::after{
  html.ge-radio-ui #musicGroup #liveBtn[aria-pressed="true"],html.ge-radio-ui #iamLaunchBtn{animation:none!important}
 }
 </style>
+
+<style id="ge-radio-mobile-layout-scroll-20261023">
+/* About 25% smaller Blue Sun, with more breathing room for animated EQ rays. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) header .logo-wrap{
+ width:clamp(106px,min(18vw,18dvh),168px)!important;
+ height:clamp(106px,min(18vw,18dvh),168px)!important;
+ max-height:20dvh!important;margin-bottom:clamp(16px,2.4dvh,27px)!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQAura{inset:-23%!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQFog{inset:-36%!important}
+@media(orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap{
+ width:clamp(108px,17.3dvh,156px)!important;height:clamp(108px,17.3dvh,156px)!important;
+ max-height:18.75dvh!important;margin-bottom:clamp(12px,2dvh,21px)!important}
+}
+/* Hide pre-purchase download controls. Offline library management belongs in MY MUSIC
+   once actual purchased-music entitlements exist; local owner-demo != purchase. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions{
+ grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ grid-auto-rows:minmax(35px,auto)!important;gap:5px!important;padding:5px!important;margin-bottom:0!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions>.bc-btn{
+ grid-area:2/2/3/3!important;min-height:36px!important}
+/* Footer/status now flow after the buttons, not in the fixed bottom safe area. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #radioCopyright{
+ position:static!important;transform:none!important;display:block!important;
+ width:100%!important;max-width:100%!important;white-space:normal!important;
+ margin:4px auto 0!important;padding:0 7px!important;flex:0 0 auto!important;
+ font-size:clamp(9px,2.4vw,11px)!important;line-height:1.35!important;opacity:.66!important;text-align:center!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #status{
+ position:relative!important;max-width:94vw!important;min-height:0!important;
+ margin:5px auto 0!important;overflow-wrap:anywhere!important;flex:0 0 auto!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) footer{margin:3px auto 0!important}
+/* Only the songs pane scrolls; no body drag/rubber band while MUSIC is open. */
+html.ge-radio-ui #trackList{
+ box-sizing:border-box!important;top:calc(env(safe-area-inset-top) + 7px)!important;
+ left:50%!important;transform:translateX(-50%)!important;
+ height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 14px)!important;
+ max-height:none!important;overflow:hidden!important;display:none!important;
+ flex-flow:column nowrap!important;touch-action:pan-y!important}
+html.ge-radio-ui #trackList.open{display:flex!important}
+html.ge-radio-ui #trackList>.gePickToolbar{
+ flex:0 0 auto!important;max-height:24dvh!important;min-height:0!important;
+ overflow-y:auto!important;touch-action:pan-y!important}
+html.ge-radio-ui #trackList>.gePickerPlaylists{
+ flex:0 0 auto!important;max-height:23dvh!important;min-height:0!important;
+ overflow-y:auto!important;touch-action:pan-y!important}
+html.ge-radio-ui #trackList>#geTrackScroller{
+ display:block!important;flex:1 1 0px!important;min-height:90px!important;
+ max-height:none!important;overflow-y:scroll!important;overflow-x:hidden!important;
+ position:relative!important;-webkit-overflow-scrolling:touch!important;
+ overscroll-behavior:contain!important;touch-action:pan-y!important}
+html.ge-radio-ui #trackList>#geTrackScroller .gePickRow,
+html.ge-radio-ui #trackList>#geTrackScroller .gePickAlbumHeader{touch-action:pan-y!important}
+html.ge-radio-ui #trackList .gePickerPlaylistActions select:disabled{opacity:.58}
+@media(max-width:600px){
+ /* Safari can paint the iPhone status bar over fixed modals. Leave its top strip free. */
+ html.ge-radio-ui #trackList{
+  top:max(43px,calc(env(safe-area-inset-top) + 8px))!important;
+  height:calc(100dvh - max(43px,calc(env(safe-area-inset-top) + 8px)) - env(safe-area-inset-bottom) - 8px)!important
+ }
+ html.ge-radio-ui #trackList>.gePickToolbar{max-height:22dvh!important}
+ html.ge-radio-ui #trackList>.gePickerPlaylists{max-height:24dvh!important}
+}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -3519,8 +3584,8 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #iamLaunchBtn::after{
   </section>
   <div id="status" role="status" aria-live="polite"></div>
   <footer>Much Love!!</footer>
+  <div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
 </main>
-<div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>
 <div id="geHeadphoneNotice" role="dialog" aria-modal="true" aria-labelledby="geHeadphoneNoticeTitle" aria-describedby="geHeadphoneNoticeText" hidden>
   <div class="ge-hn-dialog">
     <h2 id="geHeadphoneNoticeTitle">WIRED HEADPHONES RECOMMENDED</h2>
@@ -5916,7 +5981,7 @@ function previousTrack(userAction=false){
 
 
 const GE_RADIO_PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
-let gePlaylistOpen=false,gePlaylistMode='my',gePlaylistSelected='',gePlaylistName='',gePublishedLists=[];
+let gePlaylistOpen=false,gePlaylistMode='ge',gePlaylistSelected='',gePlaylistName='',gePublishedLists=[];
 function geLocalPlaylists(){
  try{
   const rows=JSON.parse(localStorage.getItem(GE_RADIO_PERSONAL_PLAYLIST_KEY)||'[]');
@@ -5927,11 +5992,15 @@ async function geLoadPublishedPlaylists(){
  // The published website configuration determines which DJ playlists are
  // public. GE Vault supplies the corresponding original DJ records and songs.
  // A private DJ playlist must never appear simply because Vault returned it.
- let allowed;
+ let allowed,publishedNames=new Set();
  try{
   const configResponse=await fetch('../config/site-live.json',{cache:'no-store'});
   if(!configResponse.ok)throw Error('Published playlist permissions unavailable');
   const config=await configResponse.json();
+  publishedNames=new Set((Array.isArray(config?.music?.publicDJPlaylistNames)?
+    config.music.publicDJPlaylistNames:[])
+    .filter(name=>typeof name==='string'&&name.trim().toLowerCase()==='bangers')
+    .map(name=>name.trim().toLowerCase()));
   allowed=new Map((Array.isArray(config?.music?.publicPlaylists)?config.music.publicPlaylists:[])
    .filter(item=>item&&typeof item.id==='string'&&Array.isArray(item.songs))
    .map(item=>[item.id,new Set(item.songs)]));
@@ -5942,7 +6011,7 @@ async function geLoadPublishedPlaylists(){
   if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
   return;
  }
- if(!allowed.size){
+ if(!allowed.size&&!publishedNames.size){
   gePublishedLists=[];
   window.GE_DJ_PLAYLIST_SOURCE_STATUS='NO DJ PLAYLISTS PUBLISHED';
   if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
@@ -5956,7 +6025,8 @@ async function geLoadPublishedPlaylists(){
   const data=await response.json();
   if(data?.ok!==true||data.format!=='ge-public-dj-playlists-v1'||!Array.isArray(data.items))
     throw Error('GE Vault playlist response was invalid');
-  rows=data.items.filter(item=>allowed.has(String(item?.id)));
+  rows=data.items.filter(item=>allowed.has(String(item?.id))||
+    publishedNames.has(String(item?.name||'').trim().toLowerCase()));
   try{localStorage.setItem(cacheKey,JSON.stringify({savedAt:Date.now(),items:rows}))}catch(_e){}
  }catch(error){
   console.warn('GE Vault DJ playlists temporarily unavailable',error);
@@ -5968,9 +6038,11 @@ async function geLoadPublishedPlaylists(){
  const songPath=path=>typeof path==='string'&&/^ge-music\/music\//.test(path)&&
    !path.includes('..')&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(path);
  gePublishedLists=(rows||[]).filter(item=>item&&typeof item.id==='string'&&
-   allowed.has(item.id)&&typeof item.name==='string'&&Array.isArray(item.songs))
+   (allowed.has(item.id)||publishedNames.has(String(item.name||'').trim().toLowerCase()))&&
+   typeof item.name==='string'&&Array.isArray(item.songs))
   .map(item=>({id:item.id,name:item.name,songs:[...new Set(item.songs.filter(path=>
-    songPath(path)&&allowed.get(item.id).has(path)
+    songPath(path)&&(publishedNames.has(String(item.name||'').trim().toLowerCase())||
+    allowed.get(item.id)?.has(path))
   ))]}))
   .filter(item=>item.songs.length>0);
  window.GE_DJ_PLAYLIST_SOURCE_STATUS=rows?
@@ -6003,7 +6075,13 @@ function gePlaylistUI(list){
  name.addEventListener('input',()=>{gePlaylistName=name.value});
  const select=document.createElement('select');select.setAttribute('aria-label','Choose saved or GE playlist');
  const rows=gePlaylistMode==='ge'?gePublishedLists:geLocalPlaylists();
- select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'GE':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
+ select.appendChild(new Option(rows.length?'CHOOSE '+(gePlaylistMode==='ge'?'DJ':'MY')+' PLAYLIST':'NO PLAYLISTS',''));
+ select.disabled=rows.length===0;
+ if(!rows.length&&gePlaylistMode==='ge'){
+  const help=document.createElement('small');
+  help.textContent='BANGERS not yet available from the published DJ source. Confirm the original DJ Bangers is saved in Vault and the updated public service is deployed.';
+  holder.appendChild(help);
+ }
  for(const item of rows)select.appendChild(new Option(item.name,String(item.id)));
  if(rows.some(item=>String(item.id)===gePlaylistSelected))select.value=gePlaylistSelected;
  select.addEventListener('change',()=>{gePlaylistSelected=select.value});
@@ -6084,7 +6162,9 @@ function renderTrackList(){
     closeTrackPicker();
   },'gePickStart');
   addAction('PLAYLISTS',()=>{
-    gePlaylistOpen=!gePlaylistOpen;renderTrackList();
+    gePlaylistOpen=!gePlaylistOpen;
+    if(gePlaylistOpen)gePlaylistMode='ge';
+    renderTrackList();
     if(gePlaylistOpen)void geLoadPublishedPlaylists();
   });
   addAction('CLOSE',closeTrackPicker);
@@ -6166,6 +6246,9 @@ function renderTrackList(){
   scrollArea.setAttribute('aria-label','All Grand Element songs — scroll by album');
   scrollArea.tabIndex=0;
   scrollArea.appendChild(fragment);
+  // Keep page-level touch gestures from hijacking the iPhone song-list swipe.
+  scrollArea.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
+  scrollArea.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
   trackList.appendChild(scrollArea);
   updateAlbumHeadings();
 }
@@ -6909,7 +6992,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-radio-vault-code-public-dj-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-radio-mobile-playlists-v1',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
