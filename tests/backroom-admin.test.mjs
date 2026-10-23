@@ -18,7 +18,7 @@ for(const [i,s]of inlineScripts.entries()){
   if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
-const tabs=['content','universe','games','radio','playlists','access','gate','scores','presets'];
+const tabs=['welcome','about','universe','games','radio','playlists','access','gate','scores','presets'];
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
@@ -29,17 +29,17 @@ assert.ok(back.includes('grid-template-columns:repeat(20,minmax(0,1fr))!importan
   'Back Room category buttons must appear in a 20-column two-row grid');
 const spans=[...back.matchAll(/\.backroomTabs button:nth-child\((\d+)\)\{grid-column:span (\d+)\}/g)]
   .map(match=>[Number(match[1]),Number(match[2])]);
-assert.equal(spans.length,9,'Nine tab buttons need explicit row spans');
+assert.equal(spans.length,10,'Ten tab buttons need explicit row spans');
 assert.equal(spans.slice(0,5).reduce((sum,[,n])=>sum+n,0),20,'First row fits exactly five tabs');
-assert.equal(spans.slice(5).reduce((sum,[,n])=>sum+n,0),20,'Second row fits remaining four tabs');
+assert.equal(spans.slice(5).reduce((sum,[,n])=>sum+n,0),20,'Second row fits remaining five tabs');
 assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling directions should remain');
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
-assert.match(back,/if\(category==='gate'\)\s*\{\s*heading\.remove\(\)/);
+assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\)\s*\{\s*heading\.remove\(\)/);
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
-assert.ok(back.includes("if(initial==='home')initial='content'"),'Old saved HOME tab must migrate to CONTENT');
-assert.ok(back.includes("const categories=['content','universe'"),'CONTENT should be the first Back Room category');
+assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
+assert.ok(back.includes("const categories=['welcome','about','universe'"),'WELCOME and ABOUT should replace CONTENT');
 assert.ok(back.includes("#backroomMain .topControls button.publish{"),'Main Back Room buttons have independent readable typography');
 assert.ok(back.includes("font-size:clamp(15px,calc(17px * var(--scale)),18px)"),'Main action text is enlarged from tiny mobile setting');
 for(const id of ['viewWebsite','save','publishLive']){
