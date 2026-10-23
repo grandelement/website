@@ -95,8 +95,18 @@ assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"
 assert.ok(!back.includes('id="brRadio2Check"'),'Remove confusing Radio 2 Bangers check control');
 assert.ok(back.includes('id="brDJPlaylistEditor"')&&back.includes('id="brDJPassword"'),
   'Back Room should show original DJ playlist controls without changing the DJ Booth');
-assert.ok(!back.includes('id="brDJPlaylistFrame"')&&!dj.includes("GE_DJ_PLAYLIST_ONLY"),
-  'DJ Booth must remain untouched; no modified embedding mode');
+assert.ok(back.includes('id="brDJPlaylistFrame"') &&
+  back.includes('data-src="../radio/ge-dj.html?ge_playlists=1"') &&
+  dj.includes('const GE_DJ_PLAYLIST_ONLY=') &&
+  dj.includes("'/control/playlists/save'") &&
+  dj.includes("'/control/playlists'"),
+  'Back Room must reuse the original DJ editor and same saved playlist endpoints');
+assert.ok(back.includes("event.origin!==location.origin") &&
+  back.includes("event.source!==frame.contentWindow") &&
+  back.includes('geDJVaultConfirmed'),
+  'DJ playlist synchronization accepts trusted iframe updates and confirmed Vault records only');
+assert.ok(back.includes('#brDJPlaylistEditor{display:none!important}'),
+  'Legacy duplicate playlist editor must not compete with original DJ controls');
 assert.ok(dj.includes("/control/playlists/save")&&dj.includes("/control/playlists")&&
   dj.includes("/control/custom-mix"),
   'Original DJ Booth playlist APIs are the shared master');
