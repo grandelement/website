@@ -2443,6 +2443,22 @@ async function loadBackroomScores(){
   const local=readBackroomLocalScores().filter(row=>
     row&&typeof row==='object'&&Number(row.players)!==0&&String(row.name||'').toUpperCase()!=='AUTO'&&
     (Date.parse(String(row.completedAt||''))||0)>cutoff);
+  // THE BODY has an independent per-course speed/soul leaderboard rather
+  // than throw-count scores; include every saved course on this device.
+  let bodyRaceScores={};
+  try{bodyRaceScores=JSON.parse(localStorage.getItem('GE_BODY_RACE_SCORES_V2')||'{}')||{}}
+  catch(_e){}
+  const localBody=[];
+  for(const [course,rows] of Object.entries(bodyRaceScores)){
+    if(!Array.isArray(rows))continue;
+    rows.forEach((entry,i)=>{
+      if(!entry||Number(entry.at)<=cutoff)return;
+      localBody.push({id:'body-'+course+'-'+i+'-'+entry.at,
+        name:'COURSE '+course,score:Number(entry.souls)||0,timeMs:Number(entry.ms)||0,
+        completedAt:new Date(Number(entry.at)).toISOString(),gameType:'body',
+        players:1,origin:'THIS DEVICE'});
+    });
+  }
   let total=0;
   for(const group of GE_SCORE_GROUPS){
     const section=document.createElement('section');section.className='brScoresGame';
@@ -2461,6 +2477,7 @@ async function loadBackroomScores(){
         if(!records.has(id))records.set(id,{...row,origin:'THIS DEVICE'});
       }
     }
+    if(group.name==='THE BODY')for(const entry of localBody)records.set(entry.id,entry);
     const rows=[...records.values()].sort((a,b)=>{
       const aThrows=Number(a.winningThrows)>0?Number(a.winningThrows):Number.POSITIVE_INFINITY;
       const bThrows=Number(b.winningThrows)>0?Number(b.winningThrows):Number.POSITIVE_INFINITY;
@@ -2473,11 +2490,14 @@ async function loadBackroomScores(){
     else{
       const table=document.createElement('table');
       const head=document.createElement('tr');
-      for(const title of ['#','PLAYER','THROWS','SCORE','SOURCE'])head.appendChild(scoreElement('th',title));
+      for(const title of ['#','PLAYER',group.name==='THE BODY'?'TIME':'THROWS',
+        group.name==='THE BODY'?'SOULS':'SCORE','SOURCE'])head.appendChild(scoreElement('th',title));
       table.appendChild(head);
       rows.forEach((row,i)=>{
         const tr=document.createElement('tr');
-        for(const value of [i+1,row.name||'Anonymous',Number(row.winningThrows)||'—',
+        for(const value of [i+1,row.name||'Anonymous',
+          group.name==='THE BODY'&&Number(row.timeMs)>0?(Number(row.timeMs)/1000).toFixed(2)+'s':
+            Number(row.winningThrows)||'—',
           Number(row.score)||0,row.origin])tr.appendChild(scoreElement('td',value));
         table.appendChild(tr);
       });
