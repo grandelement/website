@@ -433,7 +433,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="presets">
   <h2>SAVED PRESETS</h2>
-  <p>Save the entire Back Room setup, including all text, album visibility and order, exact planet positions, Welcome and About placement, activity settings, games, first song, and Soul names.</p>
+  <p>Save a snapshot of the public website configuration, including text, planet positions, games, Radio Moon, Gate timing, approved songs and public playlists. Private Vault access codes and private playlists are managed separately and are NOT included in presets.</p>
   <div class="grid">
     <label><span>Preset name</span><input id="presetName" type="text" maxlength="60" placeholder="Example: Favorite Universe"></label>
     <label><span>Saved preset</span><select id="presetSelect"><option value="">No saved presets yet</option></select></label>
@@ -617,7 +617,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     <h4>2 · MUSIC ASSIGNMENTS</h4>
-    <p>Pick a playlist to check all its songs, then uncheck anything you do not want. You can also select songs outside the Radio playlists. Only the checked songs are assigned.</p>
+    <p>Choose a playlist to preselect its songs, then adjust the individual checkboxes. Press GENERATE &amp; SAVE CODE for a new code or SAVE CHANGES for an existing one. Vault code permissions do not automatically unlock the legacy Radio Gate.</p>
     <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
     <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
     <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
@@ -2104,7 +2104,7 @@ const backroomVaultManagers=(()=>{
     finally{codeMaster.disabled=false;}
   }
   function openTab(tab){
-    if((tab==='playlists'||tab==='radio')&&!playlistLoaded)void refreshPlaylists();
+    if((tab==='playlists'||tab==='radio')&&!playlistLoaded&&authReady())void refreshPlaylists();
     if(tab==='access'&&(!accessLoaded||!authReady()))void refreshCodes();
   }
   function init(){
