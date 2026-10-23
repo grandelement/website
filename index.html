@@ -8645,6 +8645,12 @@ const GE_GAME = (()=>{
   const STORAGE_SCORES='GE_GAME_SCORES_V3';
   const STORAGE_PLAYERS='GE_GAME_PLAYERS_V1';
   const STORAGE_PROFILES='GE_GAME_PLAYER_PROFILES_V1';
+  // Back Room defines first-visit defaults only. Saved per-game choices still
+  // override these values when a returning player opens a game.
+  const siteGameDefaults=window.GE_SITE_CONFIG?.games?.defaults||{};
+  const firstPlayers=Math.max(0,Math.min(6,Number.isFinite(Number(siteGameDefaults.players))?
+    Math.trunc(Number(siteGameDefaults.players)):1));
+  const firstComputer=siteGameDefaults.playComputer===true;
 
   const state={
     active:false,
@@ -8652,8 +8658,8 @@ const GE_GAME = (()=>{
     gameType:'score',
     score:0,
     scores:[0],
-    players:1,
-    computerOpponent:false,
+    players:firstComputer?2:firstPlayers,
+    computerOpponent:firstComputer,
     computerDifficulty:'normal',
     throwCounts:[0],
     profiles:[],
