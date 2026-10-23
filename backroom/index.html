@@ -588,13 +588,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="playlists" id="brDJPlaylistSection">
   <h2>DJ BOOTH PLAYLISTS</h2>
-  <p>This uses the actual DJ Booth playlist editor, including the existing Bangers and other saved playlists.</p>
-  <div class="backroomActionRow" hidden><input id="brDJPassword" type="password"><button id="brDJConnect" type="button">REFRESH</button></div>
-  <div id="brDJPlaylistStatus" role="status">Connect inside the DJ Booth playlist editor to load the Vault playlists.</div>
-  <iframe id="brDJPlaylistFrame" data-src="../radio/ge-dj.html?ge_playlists=1" title="Original Grand Element DJ playlist editor" loading="lazy"></iframe>
-  <p class="brAccessNotice">This editor saves to the original DJ playlist store and GE Vault when connected. The Radio MUSIC menu reads its approved Vault playlists.</p>
+  <p>The original GE DJ Booth is unchanged. This page reuses its authenticated playlist and music library APIs, including the existing Bangers and other saved DJ playlists.</p>
+  <div class="backroomActionRow"><label><span>DJ PASSWORD · only if this browser is not already signed in</span><input id="brDJPassword" type="password" autocomplete="current-password" placeholder="Existing DJ password"></label><button id="brDJConnect" type="button">CONNECT / REFRESH</button></div>
+  <div id="brDJPlaylistStatus" role="status" aria-live="polite">Open PLAYLISTS to load your DJ saved playlists from BLITZ.</div>
+  <p class="brAccessNotice">The album and song checkboxes below save to the SAME original DJ playlist store. Radio MUSIC reads the approved Vault list and the published website snapshot. No new playlist database.</p>
 </section>
-<section data-br-tab="playlists" id="brDJPlaylistEditor" hidden>
+<section data-br-tab="playlists" id="brDJPlaylistEditor">
   <h2>DJ PLAYLIST EDITOR</h2><p>Save and select songs in your original DJ Booth playlist store. Bangers and every other saved DJ playlist use the same IDs here and in the DJ Booth.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
@@ -821,10 +820,6 @@ function installBackroomTabs(){
   function activate(tab,focus=false){
     if(!panels.has(tab))tab='welcome';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
-    if(tab==='playlists'&&!$('backroomMain').classList.contains('hidden')){
-      const frame=$('brDJPlaylistFrame');
-      if(frame&&!frame.getAttribute('src'))frame.src=frame.dataset.src;
-    }
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
@@ -926,15 +921,6 @@ function acceptDJPlaylistSnapshot(items,vaultConfirmed=false){
   syncDJSavedPlaylistsToPublic();
   window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED?.(geDJSavedPlaylists);
 }
-// The embedded original DJ editor sends names/paths only, never credentials.
-// Reject messages from unrelated frames, tabs or external origins.
-window.addEventListener('message',event=>{
-  const frame=$('brDJPlaylistFrame');
-  if(!frame||event.origin!==location.origin||event.source!==frame.contentWindow)return;
-  const data=event.data;
-  if(data?.type!=='ge-dj-playlists-update'||data.format!=='ge-radio-playlists-v1'||!Array.isArray(data.items))return;
-  acceptDJPlaylistSnapshot(data.items,data.vault_confirmed===true);
-});
 let geDJLibrary=[];
 function geDJAuthHeaders(){
   const headers={};
@@ -2078,7 +2064,7 @@ const backroomVaultManagers=(()=>{
         id,name,paths:[...new Set(included.map(song=>song.track_path).filter(Boolean))]
       });
       if(!data.playlist?.id||!Array.isArray(data.items))throw Error('DJ did not confirm saving.');
-      acceptDJPlaylistSnapshot(data.items);
+      acceptDJPlaylistSnapshot(data.items,data.vault_saved===true);
       const saved=String(data.playlist.id);
       editPlaylist(saved);
       if($('brPlaylistActive').checked){
@@ -2098,7 +2084,7 @@ const backroomVaultManagers=(()=>{
     try{
       const data=await geDJApi('/control/playlists/delete',{id});
       if(!Array.isArray(data.items))throw Error('DJ did not confirm deletion.');
-      acceptDJPlaylistSnapshot(data.items);
+      acceptDJPlaylistSnapshot(data.items,data.vault_deleted===true);
       editPlaylist('');
       playlistStatus('DELETED · '+found.name+' · PUBLISH LIVE to update Radio MUSIC');
     }catch(err){playlistStatus('DJ DELETE FAILED · '+String(err.message||err));}
@@ -2640,10 +2626,6 @@ async function bootBackroom(){
   void refreshDJPlaylistSource();
   const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
   if(selectedTab==='scores')void loadBackroomScores();
-  if(selectedTab==='playlists'){
-    const frame=$('brDJPlaylistFrame');
-    if(frame&&!frame.getAttribute('src'))frame.src=frame.dataset.src;
-  }
   backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
