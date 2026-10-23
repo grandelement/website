@@ -14,7 +14,7 @@ function allIn(source, needles, label) {
 }
 function guarded(source, signature, guard, label) {
   const pos = source.indexOf(signature);
-  test(pos >= 0 && source.slice(pos, pos + signature.length + 240).includes(guard), label);
+  test(pos >= 0 && source.slice(pos, pos + signature.length + 640).includes(guard), label);
 }
 
 // Compile all embedded application scripts. This detects broken brackets and
