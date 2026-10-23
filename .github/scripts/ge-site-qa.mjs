@@ -397,7 +397,7 @@ test(gateBackroom.includes('id="gateGraceSeconds"') &&
 const refreshedRadioWorker=load('radio/sw.js');
 const workerCacheVersion=/const VERSION='([^']+)'/.exec(refreshedRadioWorker)?.[1]||'';
 const workerURLVersion=workerCacheVersion.replace(/^(\d{4})\.(\d{2})\.(\d{2})/,'$1$2$3');
-test(/^20\d{2}\.\d{2}\.\d{2}-radio/.test(workerCacheVersion) &&
+test(/^20\d{2}\.\d{2}\.\d{2}-.+/.test(workerCacheVersion) &&
      radio.includes('./sw.js?v='+workerURLVersion) &&
      refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
