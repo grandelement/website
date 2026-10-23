@@ -146,6 +146,12 @@ function applyLanguage(value,persist){
  // Mark localized controls individually so screen readers pronounce them correctly.
  redraw();
  if(live&&persist)live.textContent=text('selected')+': '+names[lang];
+ if(persist){
+  // Preference is saved in the browser. Existing Vault analytics receives
+  // only the selected language code, linked to its normal anonymous session.
+  // Never create an identity solely from an IP address.
+  try{window.GEVault?.track?.(radio?'radio':'website','language_preference',{language:next,metadata:{selected_language:next}})}catch(_e){}
+ }
 }
 function keyboardActivation(el){
  if(!el)return;
