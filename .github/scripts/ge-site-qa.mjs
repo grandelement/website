@@ -304,9 +304,11 @@ for (const [signature,guard,label] of [
   ['function nextTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Next'],
   ['function previousTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Previous'],
   ['async function advanceFromEnded(){','if(!geOwnerDemoEnabled())','Radio automatic next'],
-  ['function openTrackPicker(){','if(!geOwnerDemoEnabled())','Radio track picker'],
+  ['async function playURL(url,','if(!geOwnerDemoEnabled())','Radio actual library playback'],
   ['function resumeAudio(){','!geOwnerDemoEnabled()','Radio Play']
 ]) guarded(radio,signature,guard,label+' checks access');
+test(radio.includes('function openTrackPicker(){') && radio.includes('if(fullMusicPickerCatalog.length)renderTrackList();'),
+  'Guests can browse the full music catalog while actual playback remains access-controlled');
 for (const [signature,guard,label] of [
   ['async function startCurrent(){','if(!geHasOwnerMusicDemo())','Homepage Play'],
   ['function next(){','if(!geHasOwnerMusicDemo())','Homepage Next'],
