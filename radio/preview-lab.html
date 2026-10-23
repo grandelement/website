@@ -185,6 +185,30 @@ body.ge-radio-music-embedded #musicBrowser{border-radius:0!important}
 .albumSelectTile .albumTile{flex:1}
 .albumSelectTile label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:34px;font-weight:750;font-size:12px;border:1px solid #32698a;border-radius:8px;background:#0d304a}
 .albumSelectTile input[type=checkbox]{width:21px;height:21px;accent-color:#67d6ff}
+
+/* Gate fills entire iframe; Radio removes its MUSIC panel chrome during Gate. */
+#geGate{position:fixed!important;inset:0!important;left:0!important;top:0!important;
+ width:100vw!important;height:100dvh!important;min-width:0!important;min-height:0!important;
+ border:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important}
+#geGateSunWrap{position:absolute!important;top:50%!important;left:50%!important;
+ height:100dvh!important;width:100dvh!important;max-height:none!important;max-width:none!important;
+ transform:translate(-50%,-50%)!important}
+#geGateSun{width:100%!important;height:100%!important;object-fit:cover!important}
+@media(min-width:700px) and (min-height:480px){
+ #geGatePanel{top:59%!important;left:50%!important;
+  width:min(335px,48dvh,65vw)!important;max-width:65vw!important;
+  padding:7px 5px!important;margin:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;
+  box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  text-shadow:0 0 11px #001120,0 0 5px #001120!important}
+ #geGateTitle{font-size:clamp(15px,1.8dvh,23px)!important;margin:0 0 6px!important}
+ #geGateStatus{font-size:clamp(11px,1.35dvh,15px)!important;margin:0 0 9px!important}
+ #geGateEntry{gap:6px!important}
+ #geGateWord,#geGateEnter{min-height:36px!important;font-size:clamp(11px,1.35dvh,15px)!important;padding:5px!important}
+ #geGateHelp a{min-height:32px!important;font-size:12px!important}
+}
+body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;pointer-events:none!important}
+
 </style>
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-a11y3">
 </head>
@@ -350,7 +374,7 @@ function schedulePreviewGateAudio(){
 function ensureRings(){const waves=$('geGateWaves');if(waves.childElementCount)return;
  for(let i=0;i<10;i++){const ring=element('span',null,'geGateFreqRing');ring.style.setProperty('--water-cycle','7.2s');ring.style.setProperty('--water-delay',(-7.2*i/10)+'s');waves.appendChild(ring)}}
 function renderGate(){
- if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;}return;}
+ if(isAuthorized()){if(gateShown){gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;geRadioEmbedNotify('ge-radio-music-gate-clear');}return;}
  const used=effectiveListeningSeconds();
  if(used<GATE_AT&&!data.expired)return;
  if(!gateShown){gate.classList.add('open','blurring');gate.setAttribute('aria-hidden','false');gateShown=true;ensureRings();geRadioEmbedNotify('ge-radio-music-gate');}
@@ -976,5 +1000,5 @@ if(!data.expired&&!isAuthorized()&&effectiveListeningSeconds()>=AUDIO_LIMIT_SECO
 if(data.expired||data.gateStartedAtMs)renderGate();
 ownerUI();
 </script>
-<script defer src="../ge-accessibility.js?v=20261022-a11y3"></script>
+<script defer src="../ge-accessibility.js?v=20261023-about-language1"></script>
 </body></html>
