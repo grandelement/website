@@ -1881,10 +1881,18 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments(body);
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    const requested=String(body.requested_code||"").trim().toUpperCase();
+    if(requested&&!/^[A-Z0-9-]{8,64}$/.test(requested))
+      return json({ok:false,error:"Code must have 8–64 letters, numbers or dashes."},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
-    const code="GE-"+hex.match(/.{4}/g).join("-");
+    const code=requested||("GE-"+hex.match(/.{4}/g).join("-"));
     const hash=await accessCodeHash(code,env);
+    // Code hashes are unique: never replace the secret or assignment of an
+    // existing access code with a different person's typed value.
+    const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
+    if(collision)return json({ok:false,error:"This access code already exists. Enter a different code."},409);
+    const hint=code.replace(/-/g,"").slice(-4);
     const activate=body.activate_now!==false;
     const activatedAt=activate?t:null;
     const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
@@ -1892,12 +1900,12 @@ async function accessAdminChange(request,env){
     await env.VAULT_DB.batch([
       env.VAULT_DB.prepare(
         "INSERT INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-      ).bind(newId,label,hash,hex.slice(-4),JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t),
+      ).bind(newId,label,hash,hint,JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t),
       env.VAULT_DB.prepare("INSERT INTO access_code_content (code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)")
         .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
     ]);
     await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
-    return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hex.slice(-4),scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
+    return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hint,scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
   }
   if(action==="edit"){
     const codeId=String(body.id||"").slice(0,100);
