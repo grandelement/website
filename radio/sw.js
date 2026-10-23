@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.23-bangers-access-radio-v1';
+const VERSION='2026.10.23-bangers-fresh-media-v1';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -212,22 +212,25 @@ async function navigationResponse(request){
 }
 
 async function mediaResponse(request){
+  // Same-path song replacements must win while ONLINE. The earlier
+  // cache-first path kept playing obsolete recordings after an upload.
+  // Offline still falls back to the listener's existing saved music.
   const url=new URL(request.url);
-  const versioned=url.searchParams.has('v');
-
-  const cached=versioned
-    ? ((await caches.match(request,{ignoreSearch:false})) ||
-       (await caches.match(request.url,{ignoreSearch:false})))
+  try{
+    const fresh=await fetch(request,{cache:'no-store'});
+    if(fresh.ok){
+      if(fresh.status===200 && request.method==='GET'){
+        const cache=await caches.open(MEDIA_CACHE);
+        cache.put(request.url,fresh.clone()).catch(()=>{});
+      }
+      return fresh;
+    }
+  }catch(_e){}
+  const cached=url.searchParams.has('v')
+    ? (await caches.match(request,{ignoreSearch:false}))
     : await cachedResponse(request);
-
-  if(cached) return rangeFromCache(request,cached);
-
-  const network=await fetch(request,{cache:versioned?'no-store':'default'});
-  if(network.ok && network.status===200 && request.method==='GET'){
-    const cache=await caches.open(MEDIA_CACHE);
-    cache.put(request.url,network.clone()).catch(()=>{});
-  }
-  return network;
+  if(cached)return rangeFromCache(request,cached);
+  return fetch(request,{cache:'no-store'});
 }
 
 async function staticResponse(request){
