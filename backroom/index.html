@@ -442,6 +442,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="primary" id="savePreset" type="button">SAVE PRESET</button>
     <button id="loadPreset" type="button">LOAD PRESET</button>
     <button id="deletePreset" type="button">DELETE PRESET</button>
+    <button id="exportPreset" type="button">DOWNLOAD BACKUP</button>
+    <button id="importPreset" type="button">RESTORE BACKUP FILE</button>
+    <input id="importPresetFile" type="file" accept=".json,application/json" hidden>
   </div>
 </section>
 
@@ -1012,6 +1015,33 @@ async function saveNamedPreset(){
     setStatus('PRESET SAVED · '+name+' · CLOUD BACKUP PENDING');
   }finally{$('savePreset').disabled=false}
 }
+function exportPresetBackup(){
+  collect();
+  const name=String($('presetName').value||'').trim()||'GE Website Backup';
+  const backup={format:'GE_BACKROOM_PUBLIC_PRESET_V1',exportedAt:new Date().toISOString(),name,config:clone(cfg),soulNames:currentSoulNames()};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download='ge-website-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  setStatus('PUBLIC WEBSITE BACKUP DOWNLOADED · PRIVATE VAULT DATA NOT INCLUDED');
+}
+async function importPresetBackup(file){
+  if(!file)return;
+  if(file.size>2_000_000){setStatus('BACKUP TOO LARGE');return;}
+  try{
+    const backup=JSON.parse(await file.text());
+    if(backup?.format!=='GE_BACKROOM_PUBLIC_PRESET_V1'||!backup.config||typeof backup.config!=='object'||Array.isArray(backup.config))throw Error('Unrecognized backup format');
+    if(!backup.config.visual||!backup.config.albums||!backup.config.games)throw Error('Backup is missing required website configuration');
+    if(!confirm('Restore this public website configuration into the Back Room draft? The live website will NOT change until you publish.'))return;
+    cfg=clone(backup.config);localStorage.setItem(WORK_KEY,JSON.stringify(cfg));populate();await loadMusic();
+    if(Array.isArray(backup.soulNames))storeSoulNames(backup.soulNames);
+    dirty=true;$('presetName').value=String(backup.name||'Imported Backup').slice(0,60);
+    setStatus('BACKUP RESTORED TO DRAFT · SAVE PRESET OR PUBLISH LIVE WHEN READY');
+  }catch(e){setStatus('BACKUP RESTORE FAILED · '+String(e.message||e));}
+}
+$('exportPreset').onclick=exportPresetBackup;
+$('importPreset').onclick=()=>$('importPresetFile').click();
+$('importPresetFile').addEventListener('change',e=>{void importPresetBackup(e.target.files?.[0]);e.target.value='';});
 async function loadNamedPreset(){
   const id=$('presetSelect').value,p=presets.find(x=>x.id===id);
   if(!p){setStatus('CHOOSE A SAVED PRESET');return}
