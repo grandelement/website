@@ -44,9 +44,10 @@ test(home.includes("ge_game_setup") &&
      home.includes("requestedGame==='gravity'||requestedGame==='flight'") &&
      home.includes("if(button)button.click()"),
      'Back Room deep links open Gravity and Flight through their actual game controls');
-test(backroom.includes("const openSetup=button=>") &&
-     backroom.includes("ge_game_setup="),
-     'Back Room game OPTIONS link directly to each game setup');
+test(backroom.includes('id="brGameGeneralDefaults"') &&
+     backroom.includes('id="brGameDefaultPlayers"') &&
+     !backroom.includes('class="brGameOptionsButton"'),
+     'Back Room uses expandable general defaults instead of game-specific settings');
 
 for(const [label,cfg] of [['live',liveSiteConfig],['test',testSiteConfig],
   ...savedBackroomPresets.presets.map((p,i)=>['preset '+i,p.config])]){
