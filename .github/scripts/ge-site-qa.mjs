@@ -471,6 +471,31 @@ test(radio.includes('DJ PLAYLISTS') &&
      'Listener MUSIC provides published and named personal playlists and single-song preview');
 
 
+const radioShuffleHandler=radio.slice(radio.indexOf("('shuffleBtn').addEventListener('click'"),radio.indexOf("('legacyBtn').addEventListener('click'"));
+test(radioShuffleHandler.includes("state.shuffle=!state.shuffle")&&
+     !radioShuffleHandler.includes("geOpenMusicSelection()")&&
+     radioShuffleHandler.includes("Radio continues unchanged."),
+     'SHUFFLE no longer opens MUSIC or interrupts shared live playback');
+test(radio.includes("function geOpenContact(){")&&
+     radio.includes("COPY EMAIL")&&
+     radio.includes("('contactLaunchBtn')?.addEventListener('click',geOpenContact)"),
+     'CONTACT displays a copyable address when mailto is unavailable');
+test(radio.includes("if(geRadioLocalTestAccess()||vaultRedeemBusy)return;")&&
+     radio.includes("if(controller?.openCodeEntry)controller.openCodeEntry();")&&
+     radio.includes("#bottomActions #offlineBtn:not([hidden])"),
+     'CODE accepts later owner access, showing offline tools only after owner unlock');
+const musicPicker=load('radio/preview-lab.html');
+test(musicPicker.includes("function playWholeAlbum(name)")&&
+     musicPicker.includes("'PLAY ALBUM','playAlbumTile'")&&
+     musicPicker.includes("('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedAlbum))"),
+     'Whole albums play from the album browser');
+test(musicPicker.includes('id="saveAlbumOffline"')&&
+     musicPicker.includes("caches.open('ge-radio-media-v4')")&&
+     musicPicker.includes("if(!isAuthorized()){renderGate();return;}"),
+     'Owner offline album save reuses the media cache');
+test(load('docs/RADIO23-REPAIR-LEDGER.md').includes('BANGERS is **just a saved playlist**'),
+     'Radio 23 preserves BANGERS as one saved playlist');
+
 const homepagePWA=JSON.parse(load('manifest.webmanifest'));
 test(home.includes('href="./favicon-32x32.png"') &&
      home.includes('href="./favicon-16x16.png"') &&
