@@ -397,7 +397,10 @@ test(gateBackroom.includes('id="gateGraceSeconds"') &&
      preview.includes('ge-gate-settings.js'),
      'Back Room publishes editable Gate hold/fade/reverb to Radio and music-preview player');
 const refreshedRadioWorker=load('radio/sw.js');
-test(refreshedRadioWorker.includes("const VERSION='2026.10.22-radio-master-playlists-v1'") &&
+const workerCacheVersion=/const VERSION='([^']+)'/.exec(refreshedRadioWorker)?.[1]||'';
+const workerURLVersion=workerCacheVersion.replace(/^(\d{4})\.(\d{2})\.(\d{2})/,'$1$2$3');
+test(/^20\d{2}\.\d{2}\.\d{2}-radio/.test(workerCacheVersion) &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      refreshedRadioWorker.includes("'./ge-gate-settings.js'") &&
      refreshedRadioWorker.includes("'./ge-gate-audio.js'") &&
      refreshedRadioWorker.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
@@ -419,7 +422,7 @@ test(radio.includes("flex:1 1 0px!important;min-height:clamp(100px,16dvh,220px)!
      radio.includes('position:fixed;'),
      'GE Radio places I AM midway, adds Sun/title space, reserves copyright footer strip');
 test(load('sw.js').includes("GE_SITE_SHELL_V2_LOCAL_BRAND_ART") &&
-     load('radio/sw.js').includes("2026.10.22-radio-master-playlists-v1") &&
+     radio.includes('./sw.js?v='+workerURLVersion) &&
      load('radio/sw.js').includes("ge-radio-media-v4"),
      'Home and Radio refresh app shell without deleting downloaded music');
 test(radio.includes('mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request') &&
