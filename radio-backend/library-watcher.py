@@ -13,11 +13,10 @@ from pathlib import Path
 
 REPO = "grandelement/website"
 REPO_URL = "https://github.com/grandelement/website.git"
-# HARD FREEZE: this snapshot predates the album re-upload. Do not replace
-# with main or a moving branch: that would automatically introduce unapproved
-# songs and same-path replacement masters into the live BLITZ rotation.
-# Updating the RADIO library requires a separately reviewed owner approval.
-BRANCH = "69442ea48d04024881d20d8e78725ebd42d970fa"
+# Keep approvals on SONG PATHS, never frozen audio blob hashes.
+# A replaced master at an approved path plays the new version after refresh.
+# New songs are excluded from automatic rotation unless owner-approved.
+BRANCH = "main"
 CHECK_SECONDS = 900
 AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".aac", ".ogg", ".oga", ".flac")
 
@@ -370,19 +369,35 @@ def annotation(entry, commit_sha, cross=None):
         fields.append(f'liq_cross_duration="{cross:.1f}"')
     return "annotate:" + ",".join(fields) + ":" + raw_url(commit_sha, entry["path"])
 
+def approved_master_paths():
+    # Read owner-published selections from the *same checked-out commit* as
+    # the audio tree. Reject missing or malformed approvals, never fall back
+    # to the unrestricted all-albums library.
+    raw = git_run(["show", "FETCH_HEAD:config/site-live.json"])
+    rows = json.loads(raw).get("music", {}).get("radioMasterSongPaths")
+    if not isinstance(rows, list) or not rows or len(rows) > 10000:
+        raise RuntimeError("GE Radio Master Song List is unavailable")
+    approved = set()
+    for path in rows:
+        if (not isinstance(path, str) or not path.startswith("ge-music/music/")
+            or not path.lower().endswith(AUDIO_EXTS) or ".." in path
+            or path in approved):
+            raise RuntimeError("GE Radio Master Song List has invalid song entries")
+        approved.add(path)
+    return approved
+
 def eligible_songs(songs, settings):
+    # Preserve the already-curated live Bangers playlist. These tracks were
+    # explicitly chosen by the owner; a provisional new Master list must not
+    # silently remove Trio/legacy songs during the audio-source migration.
     custom_paths = active_custom_paths(settings)
     if custom_paths is not None:
         wanted = set(custom_paths)
         return [song for song in songs if song.get("path") in wanted]
 
-    selected = []
-    legacy = bool(settings.get("legacy", False))
-    for song in songs:
-        album = song["album"].strip().lower()
-        if album in CORE_ALBUMS or (legacy and album in LEGACY_ALBUMS):
-            selected.append(song)
-    return selected
+    # All automatic/default rotations obey the explicit Back Room Master list.
+    approved = approved_master_paths()
+    return [song for song in songs if song.get("path") in approved]
 
 def save_library(commit_sha, songs, clips):
     items = []
@@ -536,11 +551,17 @@ def main():
             save_library(commit_sha, songs, clips)
             custom_paths = active_custom_paths(settings)
             custom_sig = ",".join(custom_paths or []) if settings.get("custom_mix_enabled") else ""
+            # Updating unrelated website files must not reshuffle a station.
+            # A selected song's replacement blob DOES trigger a new rotation,
+            # even when its filename and approval remain unchanged.
+            active = eligible_songs(songs, settings)
             signature = (
-                f"{commit_sha}|legacy={int(settings['legacy'])}"
-                f"|custom={int(settings.get('custom_mix_enabled', False))}"
-                f"|custom_id={settings.get('custom_mix_id','')}"
-                f"|paths={custom_sig}"
+                json.dumps([(item["path"], item["sha"]) for item in active],sort_keys=True)
+                + "|station=" + json.dumps([(item["path"],item["sha"]) for item in clips],sort_keys=True)
+                + f"|legacy={int(settings['legacy'])}"
+                + f"|custom={int(settings.get('custom_mix_enabled', False))}"
+                + f"|custom_id={settings.get('custom_mix_id','')}"
+                + f"|paths={custom_sig}"
             )
             if not PLAYLIST.exists() or signature != last_signature:
                 build_rotation(commit_sha, songs, clips, settings)
