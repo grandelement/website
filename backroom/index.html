@@ -331,15 +331,21 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   font-size:clamp(12px,calc(15px * var(--scale)),16px)!important;
   line-height:1.08!important;letter-spacing:-.01em;
 }
+/* Five tabs per row, with extra space for ACCESS CODES. */
 #backroomMain .backroomTabs button:nth-child(1){grid-column:span 4}
 #backroomMain .backroomTabs button:nth-child(2){grid-column:span 4}
-#backroomMain .backroomTabs button:nth-child(3){grid-column:span 3}
-#backroomMain .backroomTabs button:nth-child(4){grid-column:span 3}
-#backroomMain .backroomTabs button:nth-child(5){grid-column:span 6}
-#backroomMain .backroomTabs button:nth-child(6){grid-column:span 6}
-#backroomMain .backroomTabs button:nth-child(7){grid-column:span 4}
-#backroomMain .backroomTabs button:nth-child(8){grid-column:span 5}
-#backroomMain .backroomTabs button:nth-child(9){grid-column:span 5}
+#backroomMain .backroomTabs button:nth-child(3){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(4){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(5){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(6){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(7){grid-column:span 6}
+#backroomMain .backroomTabs button:nth-child(8){grid-column:span 3}
+#backroomMain .backroomTabs button:nth-child(9){grid-column:span 3}
+#backroomMain .backroomTabs button:nth-child(10){grid-column:span 4}
+#backroomMain #brPanel-welcome > section.brDirectSection,
+#backroomMain #brPanel-about > section.brDirectSection{
+  padding:10px 12px;margin:6px 0;
+}
 #backroomMain #brPanel-gate > section.brDirectSection{
   padding:9px 12px;margin:6px 0;
 }
@@ -400,7 +406,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
-  <button id="brTabContent" type="button" role="tab" data-tab="content" aria-selected="true">CONTENT</button>
+  <button id="brTabWelcome" type="button" role="tab" data-tab="welcome" aria-selected="true">WELCOME</button>
+  <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
@@ -431,7 +438,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section data-br-tab="content">
+<section data-br-tab="welcome">
   <h2>WELCOME SCREEN</h2>
   <p>Edit the wording here or place the actual welcome box directly on the website.</p>
   <div class="check"><input id="welcomeEnabled" type="checkbox"><span>Show welcome screen</span></div>
@@ -442,7 +449,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <p class="screenEditTip">To edit visually, use VIEW WEBSITE at the top of the Back Room.</p>
 </section>
 
-<section data-br-tab="content">
+<section data-br-tab="about">
   <h2>ABOUT</h2>
   <p>Edit the About wording in the same size, width, spacing, alignment and glow used on the website.</p>
   <div class="aboutEditorShell">
@@ -709,7 +716,7 @@ const $=id=>document.getElementById(id);
 
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['content','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
+  const categories=['welcome','about','universe','games','radio','playlists','access','gate','scores','presets'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   for(const category of categories){
@@ -723,7 +730,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'){
+    if(category==='gate'||category==='welcome'||category==='about'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -738,7 +745,7 @@ function installBackroomTabs(){
     trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
   }
   function activate(tab,focus=false){
-    if(!panels.has(tab))tab='content';
+    if(!panels.has(tab))tab='welcome';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
@@ -761,8 +768,8 @@ function installBackroomTabs(){
     const toggle=first?.querySelector('.backroomGroupToggle');
     if(name!=='access')toggle?.click();
   }
-  let initial='content';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'content'}catch(_e){}
-  if(initial==='home')initial='content';
+  let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
+  if(initial==='home'||initial==='content')initial='welcome';
   if(initial==='music')initial='radio';
   activate(initial);
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
