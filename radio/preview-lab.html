@@ -422,7 +422,7 @@ function mediaSession(t){if(!('mediaSession' in navigator))return;try{
 // live on this device; published public playlists stay read-only on the server.
 const PREVIEW_QUEUE_KEY='GE_3333_PREVIEW_QUEUE_V1';
 const PERSONAL_PLAYLIST_KEY='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
-const MUSIC_ALBUM_ORDER=['Aether','Singles','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+const MUSIC_ALBUM_ORDER=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 let selectedSongs=[],playingSelected=false,editingMusicList=false,musicListSource='',musicListSourceId='';
 let personalPlaylists=readPersonalPlaylists(),pendingMusicPlaylist='';
 function musicNotice(message=''){$('musicNotice').textContent=message}
@@ -795,6 +795,19 @@ function chooseTrack(t){
  trackIndex=albumTracks.findIndex(x=>x.url===t.url);
  void startTrack(t);
 }
+// PLAY in Radio's song-title / MUSIC popup starts exactly one chosen
+// preview in the background. The popup remains open for browsing.
+window.GEPlayLibraryTrack=function(path){
+ const key=cleanMusicPath(path);
+ const track=catalogTrackByPath.get(key);
+ if(!track)return false;
+ if(isLocked()){renderGate();return true;}
+ selectedAlbum=track.album||'';
+ playingSelected=false;
+ albumTracks=[track];trackIndex=0;
+ void startTrack(track);
+ return true;
+};
 function nextTrack(){
  if(isLocked()){renderGate();return;}
  if(!albumTracks.length||trackIndex<0){say('Choose a song first.');return;}
