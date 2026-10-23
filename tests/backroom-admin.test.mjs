@@ -102,7 +102,7 @@ assert.ok(!back.includes('id="brDJPlaylistFrame"')&&
 assert.ok(back.includes("geDJApi('/control/playlists')")&&
   back.includes("geDJApi('/control/library')")&&
   back.includes('geDJVaultConfirmed'),
-  'Back Room must read canonical DJ records with authenticated requests and stage public records only after Vault confirmation');
+  'Back Room must read authenticated original DJ records and track Vault synchronization');
 assert.ok(back.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor">') &&
   !back.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor" hidden>'),
   'Show one native Back Room editor rather than a broken DJ iframe');
@@ -118,13 +118,17 @@ assert.ok(back.includes("geDJApi('/control/library')")&&back.includes('id="brDJA
   'Back Room must show the original DJ library with album and per-song checkboxes');
 assert.ok(back.includes("geDJApi('/control/playlists')")&&back.includes("geDJSavedPlaylists"),
   'Back Room must load actual DJ playlist IDs, names and song paths');
-assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
-  'The Radio MUSIC published playlists must come from original DJ data');
+assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map(")&&
+  back.includes("bangersApproved&&String(playlist.name).trim().toLowerCase()==='bangers'")&&
+  back.includes("cfg.music.publicDJPlaylistNames=visible?['Bangers']:[]"),
+  'The published Radio MUSIC snapshot must come from explicitly approved original DJ records');
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
   'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
 assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
-  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2"),
-  'Radio MUSIC must load only canonical DJ Vault playlists with a last-known-good local cache');
+  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2")&&
+  radio.includes("publishedConfigNames.get(id)")&&
+  radio.includes("OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT"),
+  'Radio MUSIC prefers live Vault playlists and falls back to owner-approved original DJ snapshots');
 assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
   'Back Room should reuse the authenticated DJ device without creating a second playlist database');
 assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
