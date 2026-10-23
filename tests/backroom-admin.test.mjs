@@ -18,27 +18,24 @@ for(const [i,s]of inlineScripts.entries()){
   if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
-const tabs=['welcome','about','universe','games','radio','access','gate','scores','presets'];
+const tabs=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'];
+const dj=read('radio/ge-dj.html');
 for(const tab of tabs){
   assert.ok(back.includes('data-tab="'+tab+'"'),'Missing tab: '+tab);
   assert.ok(back.includes('data-br-tab="'+tab+'"'),'Missing section: '+tab);
 }
-assert.ok(!back.includes('data-tab="playlists"'),'Playlists should be inside RADIO, not a separate navigation tab');
-assert.ok(back.includes('data-br-tab="playlists"'),'Radio playlists editor section must exist');
-assert.ok(!back.includes('QUICK ACCESS'),'Redundant Quick Access panel must remain removed');
-assert.ok(!back.includes('id="brTabHome"'),'Empty HOME tab must remain removed');
-assert.ok(back.includes('grid-template-columns:repeat(20,minmax(0,1fr))!important'),
-  'Back Room category buttons must appear in a 20-column two-row grid');
-const spans=[...back.matchAll(/\.backroomTabs button:nth-child\((\d+)\)\{grid-column:span (\d+)\}/g)]
-  .map(match=>[Number(match[1]),Number(match[2])]);
-assert.equal(spans.length,9,'Nine tab buttons need explicit row spans');
-assert.equal(spans.slice(0,5).reduce((sum,[,n])=>sum+n,0),20,'First row fits exactly five tabs');
-assert.equal(spans.slice(5).reduce((sum,[,n])=>sum+n,0),20,'Second row fits remaining four tabs');
+assert.ok(back.includes('data-tab="playlists"'),'Original DJ playlists need a dedicated tab next to RADIO');
+assert.ok(back.includes('data-tab="moon"'),'Radio Moon must have its own tab');
+assert.ok(back.includes('grid-template-columns:repeat(28,minmax(0,1fr))!important'),
+  'Four tabs in first row and seven in second row should fit without scrolling');
+assert.ok(back.includes('button:nth-child(-n+4){grid-column:span 7!important}'), 'Four first-row tabs');
+assert.ok(back.includes('button:nth-child(n+5){grid-column:span 4!important}'), 'Seven second-row tabs');
+assert.ok(back.includes('button[data-tab="radio"][aria-selected="true"]'), 'RADIO highlights when active');
 assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling directions should remain');
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
-assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='playlists'\)\s*\{\s*heading\.remove\(\)/);
+assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='playlists'\|\|category==='moon'\)\s*\{\s*heading\.remove\(\)/);
 assert.ok(back.includes("category==='access'||category==='playlists'"),'Access Codes and Radio Playlists should open without a second accordion click');
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
 assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
@@ -57,7 +54,7 @@ for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlayl
   assert.ok(back.includes('id="'+id+'"'),'Missing Back Room control: '+id);
 }
 assert.match(back,/backroomVaultManagers\.init\(\)/);
-assert.ok(back.includes("if(name!=='access')toggle?.click()"),'Access manager should be visible immediately without an extra accordion click');
+assert.ok(back.includes("if(name!=='access'&&name!=='games')toggle?.click()"),'Game sections should use the + expansion while Access Code input is directly visible');
 assert.match(back,/function renderAccessCodes/);
 assert.match(back,/function showCodeEditor/);
 assert.match(back,/function assignedSongsUI/);
@@ -93,13 +90,28 @@ for(const game of ['points','pockets','planets','golf','gravity','body','flight'
 assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"),'Welcome and About transparency sliders must be visible in WEBSITE VIEW');
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
-assert.ok(back.includes('id="brRadio2Check"')&&back.includes('id="brRadio2Status"'),
-  'Owner needs a live read-only Radio 2 Bangers status check');
-assert.ok(back.includes("program?.playlist_name||''")&&back.includes("checkRadio2Bangers()"),
-  'Do not call an unrelated playlist a confirmed Bangers broadcast');
-assert.ok(back.includes('id="brImportBangers"'),'Radio needs an import control for the DJ Bangers backup');
-assert.ok(back.includes("localStorage.getItem('geRadioPlaylistBackup')"),'Bangers import must read the authentic GE DJ browser backup');
-assert.ok(back.includes("bangers.paths||[]"),'Bangers import must preserve real selected tracks');
-assert.ok(back.includes('DJ BANGERS LOADED FROM THIS DEVICE'),'Bangers import should distinguish saved DJ data from live BLITZ status');
-assert.ok(back.includes('href="../radio/ge-dj.html"'),'DJ Booth should open on the same website origin for backup access');
-console.log('PASS Back Room code management, selectable Bangers playlist, direct game setup, draft change tracking and syntax');
+assert.ok(!back.includes('id="brRadio2Check"'),'Remove confusing Radio 2 Bangers check control');
+assert.ok(back.includes('id="brDJPlaylistFrame"')&&back.includes('ge_playlists=1'),
+  'Embed the authentic GE DJ Booth playlist manager');
+assert.ok(back.includes('id="brLegacyPlaylistEditor" hidden'),'Do not show competing playlist editors');
+assert.ok(dj.includes("/control/playlists/save")&&dj.includes("/control/playlists")&&
+  dj.includes("GE_DJ_PLAYLIST_ONLY")&&dj.includes("sendDJPlaylists()"),
+  'Real DJ playlist backend must be the shared authoritative source');
+assert.ok(back.includes("ge-dj-playlists-update")&&back.includes("geDJSavedPlaylists"),
+  'Back Room should receive saved DJ playlist names and songs securely via same-origin message');
+assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map("),
+  'The Radio MUSIC published playlists must come from original DJ data');
+assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
+  'New Access Codes must accept a typed secret');
+assert.ok(vault.includes("body.requested_code")&&vault.includes("This access code already exists"),
+  'Vault must hash and safely validate owner-chosen codes');
+assert.ok(back.includes("showCodeEditor();"),'Access Code editor must be visible without additional clicks');
+assert.ok(back.includes('id="brScoresTable"')&&back.includes('async function loadBackroomScores()'),
+  'All games should show real scores in the Back Room tab');
+assert.ok(back.includes('id="brGameDefaultPlayers"')&&back.includes('id="brGameDefaultComputer"'),
+  'General game defaults belong in an expandable group');
+assert.ok(back.includes('<section data-br-tab="welcome">\n  <h2>WEBSITE STARTUP MUSIC</h2>'),
+  'Website startup music belongs at bottom of WELCOME');
+assert.ok(back.includes('<section data-br-tab="moon">\n  <h2>RADIO MOON SATELLITE</h2>'),
+  'Radio Moon satellite controls belong only to MOON');
+console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
