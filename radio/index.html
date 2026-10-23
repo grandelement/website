@@ -4825,10 +4825,10 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 
-// Radio 2 is disabled on this public listener. Keep its old implementation
-// dormant for a reversible migration; make NO request to its Worker endpoint.
-// All listening stays with the existing BLITZ/Icecast source.
-const GE_RADIO2_DISABLED=true;
+// RADIO 1 remains first. Only on a confirmed playback failure do we probe
+// RADIO 2. The backup is accepted only when its server publishes a validated
+// Bangers program; otherwise retry the primary instead of substituting songs.
+const GE_RADIO2_DISABLED=false;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
 function retryRadio1Only(reason){
  if(!state.live&&!state.livePreparing)return Promise.resolve();
@@ -4972,8 +4972,9 @@ async function switchToRadio2(reason='radio1_unavailable'){
     if(run!==radio2.run)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
     const why=String(error?.message||'Connection failed').replace(/https?:\/\/[^/\s]+/g,'Radio 2').slice(0,100);
-    setLiveStatus('RADIO 2 NOT READY · '+why+' · tap SHUFFLE for music.');
-    setStatus('Radio 2 Bangers program unavailable: '+why);
+    setLiveStatus('RADIO 2 NOT READY · '+why+' · retrying RADIO 1…');
+    setStatus('Bangers backup unavailable; retrying the original BLITZ stream.');
+    void retryRadio1Only(reason);
   }finally{
     clearTimeout(timer);if(run===radio2.run)radio2.loading=false;
   }
@@ -4992,7 +4993,7 @@ setInterval(()=>{
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
-  if(GE_RADIO2_DISABLED&&userGesture&&geRadio1RetryAttempts>=3){
+  if(userGesture&&geRadio1RetryAttempts>=3){
     clearRadio1Retry();radioTimedOut=false;radioReconnectFailures=0;
   }
   // Prevent an expired guest from reconnecting around the server Gate stop.
