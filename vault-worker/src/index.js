@@ -1835,11 +1835,15 @@ async function adminExport(env) {
    The existing Radio Gate is deliberately NOT modified by this service. */
 const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games"]);
 function accessNormalizeCode(raw) {
-  return String(raw || "").trim().toUpperCase().replace(/^GE[\s-]*/, "").replace(/[\s-]/g, "");
+  // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
+  // prefix when followed by a separator, not from owner codes like GENTLE123.
+  return String(raw || "").trim().toUpperCase().replace(/^GE[\s-]+/, "").replace(/[\s-]/g, "");
 }
 async function accessCodeHash(raw, env) {
   const code = accessNormalizeCode(raw);
-  if (!/^[A-F0-9]{32}$/.test(code)) return null;
+  // The original 32-hex codes remain valid; owner-chosen alphanumeric codes
+  // use the same keyed HMAC and require a longer minimum for online safety.
+  if (!/^[A-Z0-9]{12,64}$/.test(code)) return null;
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
 }
@@ -1905,12 +1909,14 @@ async function accessAdminChange(request,env){
     const assignments=accessAssignments(body);
     if(assignments.error)return json({ok:false,error:assignments.error},400);
     const requested=String(body.requested_code||"").trim().toUpperCase();
-    if(requested&&!/^[A-Z0-9-]{8,64}$/.test(requested))
-      return json({ok:false,error:"Code must have 8–64 letters, numbers or dashes."},400);
+    if(requested&&(!/^[A-Z0-9-]{12,64}$/.test(requested)||
+        !/^[A-Z0-9]{12,64}$/.test(accessNormalizeCode(requested))))
+      return json({ok:false,error:"Use 12–64 letters, numbers or dashes after the optional GE prefix."},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
     const code=requested||("GE-"+hex.match(/.{4}/g).join("-"));
     const hash=await accessCodeHash(code,env);
+    if(!hash)return json({ok:false,error:"Invalid access code."},400);
     // Code hashes are unique: never replace the secret or assignment of an
     // existing access code with a different person's typed value.
     const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
