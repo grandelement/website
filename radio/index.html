@@ -5802,13 +5802,30 @@ function geLocalPlaylists(){
  }catch(_e){return []}
 }
 async function geLoadPublishedPlaylists(){
+ // The GE DJ Booth / BLITZ owns the original playlist database. The public
+ // endpoint is a read-only, safe projection from those same GE Vault rows.
+ // An older deployed Vault may not offer this route yet, so use the last
+ // explicitly published site snapshot until the Vault Worker is updated.
+ let rows=null;
  try{
-  const response=await fetch('../config/site-live.json?playlists='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('No published playlists');
-  const config=await response.json();
-  gePublishedLists=(Array.isArray(config.music?.publicPlaylists)?config.music.publicPlaylists:[])
-   .filter(item=>item&&typeof item.id==='string'&&typeof item.name==='string'&&Array.isArray(item.songs));
- }catch(error){console.warn('GE playlists unavailable',error);gePublishedLists=[]}
+  const response=await fetch('https://vault.grandelement.com/v1/public/dj-playlists',{cache:'no-store'});
+  if(response.ok){
+   const data=await response.json();
+   if(data?.ok&&data.format==='ge-public-dj-playlists-v1'&&Array.isArray(data.items))
+    rows=data.items;
+  }
+ }catch(_e){}
+ if(!rows){
+  try{
+   const response=await fetch('../config/site-live.json?playlists='+Date.now(),{cache:'no-store'});
+   if(!response.ok)throw Error('No published playlists');
+   const config=await response.json();
+   rows=Array.isArray(config.music?.publicPlaylists)?config.music.publicPlaylists:[];
+  }catch(error){console.warn('GE playlists unavailable',error);rows=[]}
+ }
+ gePublishedLists=rows.filter(item=>item&&typeof item.id==='string'&&
+   typeof item.name==='string'&&Array.isArray(item.songs)&&
+   item.songs.some(path=>typeof path==='string'&&path.startsWith('ge-music/music/')));
  if(trackList.classList.contains('open')&&gePlaylistOpen)renderTrackList();
 }
 function gePlaylistUI(list){
