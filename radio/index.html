@@ -8052,8 +8052,10 @@ $('reloadBtn').addEventListener('click',async()=>{
   function resetLocalAccessCodes(){
     if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
     const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey];
-    for(const storage of [localStorage,sessionStorage]){
-      for(const key of keys){try{if(key)storage.removeItem(key);}catch(_e){}}
+    for(const key of keys){
+      if(!key)continue;
+      try{localStorage.removeItem(key);}catch(_e){}
+      try{sessionStorage.removeItem(key);}catch(_e){}
     }
     location.reload();
   }
