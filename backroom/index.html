@@ -377,6 +377,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 }
 
  .brGameOptionRow{border:1px solid #27506a;border-radius:10px;padding:9px;margin:6px 0}.brGameOptionRow .check{display:inline-flex;margin-right:10px}.brGameOptionDetails{padding:8px 0}.brGameOptionDetails[hidden]{display:none}
+ .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 </style>
 </head>
 <body>
@@ -697,6 +698,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="hidden" id="editorPlanets" type="button">PLANETS</button>
     <button class="hidden" id="editorHideControls" type="button">HIDE TOOLS</button>
     <button class="hidden" id="editorShowControls" type="button">TOOLS</button>
+  </div>
+  <div id="editorOpacityControls" class="editorOpacityControls" hidden>
+    <label>WELCOME TRANSPARENCY <output id="editorWelcomeOpacityValue">78%</output><input id="editorWelcomeOpacity" type="range" min="20" max="100" step="1" value="78"></label>
+    <label>ABOUT TRANSPARENCY <output id="editorAboutOpacityValue">96%</output><input id="editorAboutOpacity" type="range" min="20" max="100" step="1" value="96"></label>
   </div>
   <div class="screenTextTools hiddenTools" id="screenTextTools">
     <button type="button" data-screen-cmd="bold"><b>B</b></button>
@@ -1522,18 +1527,32 @@ function reloadSitePreview(){
   };
   frame.src='../?ge_mode=test&ge_editor=1&v='+Date.now();
 }
+function setupPreviewOpacity(){
+  const box=$('editorOpacityControls');box.hidden=!editorEnabled;
+  for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
+    const input=$(id),value=Number(cfg.visual?.[kind]?.panelOpacity??(kind==='welcome'?78:96));
+    input.value=String(value);$(id+'Value').textContent=value+'%';
+  }
+}
+for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
+  $(id).addEventListener('input',()=>{
+    const v=Number($(id).value);cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
+    $(kind+'Opacity').value=String(v);$(kind+'OpacityValue').textContent=v+'%';
+    const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;dirty=true;
+  });
+}
 function openEditor(){
   // Copy current form values into the working preview without publishing them.
   collect();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));
   editorEnabled=false;editorTarget='view';editorStartCfg=null;editorActiveText=null;editorSavedRange=null;
   $('screenEditor').classList.add('show');
-  editorToolbar();
+  editorToolbar();setupPreviewOpacity();
   reloadSitePreview();
 }
 function activateEditMode(){
   if(editorEnabled)return;
   editorStartCfg=clone(cfg);editorEnabled=true;editorTarget='all';editorActiveText=null;editorSavedRange=null;
-  editorToolbar();
+  editorToolbar();setupPreviewOpacity();
   installUnifiedSiteEdits();
 }
 function installUnifiedSiteEdits(){
