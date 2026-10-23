@@ -1495,6 +1495,7 @@ function applyEditorAlignment(){
 }
 function applyEditorOpacity(){
   const v=editorVisual(),d=$('editorFrame').contentDocument;
+  if(!d||!v)return;
   if(editorTarget==='welcome'){
     const el=d.getElementById('geWelcomeCard');if(el)el.style.backgroundColor='rgba(4,18,32,'+(Math.max(20,Math.min(100,Number(v.panelOpacity)||78))/100)+')';
   }else{
@@ -1571,7 +1572,7 @@ function setupPreviewOpacity(){
 }
 for(const [kind,id] of [['welcome','editorWelcomeOpacity'],['about','editorAboutOpacity']]){
   $(id).addEventListener('input',()=>{
-    const v=Number($(id).value);cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
+    const v=Number($(id).value);cfg.visual=cfg.visual||{};cfg.visual[kind]=cfg.visual[kind]||{};cfg.visual[kind].panelOpacity=v;$(id+'Value').textContent=v+'%';
     $(kind+'Opacity').value=String(v);$(kind+'OpacityValue').textContent=v+'%';
     const previous=editorTarget;editorTarget=kind;applyEditorOpacity();editorTarget=previous;mark();
   });
