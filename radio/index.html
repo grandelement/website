@@ -4729,7 +4729,9 @@ function watchRadioConnection(){
     if(observedRadio1Progress)return;
     // A "playing" event alone is not audible progress. Retry the single
     // BLITZ stream if its playback time does not advance.
-    if(audio.paused||document.hidden||recentUserPause())return;
+    // Safari may remain paused even after the visitor requested PLAY and the
+    // stream connection failed. Intentional pause is tracked separately.
+    if(document.hidden||recentUserPause()||!liveState.wantedPlayback)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     syncModeButtons();
     void switchToRadio2('radio1_timeout');
