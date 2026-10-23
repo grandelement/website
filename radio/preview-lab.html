@@ -27,6 +27,11 @@ small,.muted{color:#adccdf}
 .albumTile{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;text-align:left;min-height:86px;background:linear-gradient(140deg,#15436b,#061826);padding:12px}
 .albumTile strong{font-size:15px}
 .albumTile small{font-size:11px;color:#b1d0e8}
+.albumSelectTile{display:flex;flex-direction:column;gap:6px;min-width:0}
+.albumSelectTile>.albumTile{flex:1 1 auto}
+.albumSelectTile .playAlbumTile{min-height:38px;padding:7px;font-size:12px;background:#105779;border-color:#59b4e8}
+.albumSelectTile>label{display:flex;align-items:center;gap:6px;font-size:11px}
+.albumSelectTile>label input{width:18px;height:18px}
 #albumView[hidden],#albumWall[hidden],#musicListView[hidden],#publicPlaylistWall[hidden],#musicListEditor[hidden],#musicListBrowse[hidden]{display:none!important}
 .albumHeader{display:flex;gap:9px;align-items:center;margin-bottom:12px}
 input[type=search],input[type=text]{width:100%;min-height:43px;border:1px solid #488ab0;border-radius:9px;background:#071b2e;color:white;font:inherit;padding:9px}
@@ -233,7 +238,7 @@ body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;
   <div id="publicPlaylistWall" class="albumWall" hidden>Loading public playlists…</div>
   <div id="albumView" hidden>
     <div class="albumHeader"><button id="backAlbums" type="button">← ALBUMS</button><strong id="albumTitle">ALBUM</strong></div>
-    <div class="albumBulk"><label><input id="albumSelectAll" type="checkbox"> SELECT WHOLE ALBUM</label><button id="playBrowserCollection" type="button">PLAY ALBUM</button></div>
+    <div class="albumBulk"><label><input id="albumSelectAll" type="checkbox"> SELECT WHOLE ALBUM</label><button id="playBrowserCollection" type="button">PLAY ALBUM</button><button id="saveAlbumOffline" type="button" hidden>SAVE ALBUM OFFLINE</button></div>
     <input type="search" id="search" placeholder="Find a song in this album" aria-label="Find a song">
     <div id="songs"></div>
   </div>
@@ -740,6 +745,7 @@ function openAlbum(name){
  $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('musicListView').hidden=true;$('albumView').hidden=false;
  $('albumTitle').textContent=name;$('search').value='';
  showSongs();syncAlbumWholeCheck();
+ $('saveAlbumOffline').hidden=!isAuthorized();
 }
 function switchMusicBrowse(mode){
  browserMode=mode==='playlists'?'playlists':'albums';
@@ -757,12 +763,37 @@ function openPublicPlaylist(id){
  $('savedPlaylistSelect').value='u:'+id;
  loadMusicPlaylist('u:'+id);
 }
-$('playBrowserCollection').addEventListener('click',()=>{
- const songs=albums.get(selectedAlbum)||[];
+function playWholeAlbum(name){
+ const songs=albums.get(name)||[];
  if(!songs.length){musicNotice('This album has no available songs.');return;}
  if(isLocked()){renderGate();return;}
- playingSelected=false;albumTracks=songs.slice();trackIndex=0;
+ selectedAlbum=name;playingSelected=false;albumTracks=songs.slice();trackIndex=0;
  void startTrack(albumTracks[0]);
+}
+$('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedAlbum));
+$('saveAlbumOffline').addEventListener('click',async()=>{
+ if(!isAuthorized()){renderGate();return;}
+ const tracks=albums.get(selectedAlbum)||[];
+ if(!tracks.length||!('caches' in window)){musicNotice('Offline album storage unavailable.');return;}
+ const button=$('saveAlbumOffline');button.disabled=true;
+ let saved=0;
+ try{
+  const cache=await caches.open('ge-radio-media-v4');
+  for(const track of tracks){
+   try{
+    const url=new URL(track.url,location.origin);
+    if(url.origin!==location.origin)continue;
+    const response=await fetch(url.href,{cache:'no-store'});
+    if(!response.ok||response.type==='opaque')throw Error('Unavailable');
+    await cache.put(url.href,response.clone());saved++;
+    musicNotice('Saving '+selectedAlbum+' offline · '+saved+'/'+tracks.length+' songs');
+   }catch(error){console.warn('Offline album song not stored:',track.path,error);}
+  }
+  musicNotice(saved===tracks.length?
+   selectedAlbum+' saved on this device for offline playback.':
+   selectedAlbum+' · '+saved+'/'+tracks.length+' songs saved. Check storage and connection.');
+ }catch(_e){musicNotice('Offline album save failed on this device.');}
+ finally{button.disabled=false;}
 });
 function showPublicPlaylists(){
  const wall=$('publicPlaylistWall');wall.replaceChildren();
@@ -795,7 +826,10 @@ function showAlbums(){
   check.checked=!!list.length&&count===list.length;check.indeterminate=count>0&&count<list.length;
   check.addEventListener('change',()=>setAlbumSelected(name,check.checked));
   labelEl.append(check,element('span','ADD WHOLE ALBUM'));
-  tile.append(button,labelEl);wall.appendChild(tile);
+  const play=element('button','PLAY ALBUM','playAlbumTile');play.type='button';
+  play.setAttribute('aria-label','Play complete '+name+' album');
+  play.addEventListener('click',()=>playWholeAlbum(name));
+  tile.append(button,play,labelEl);wall.appendChild(tile);
  }
 }
 async function startTrack(t){
@@ -862,6 +896,7 @@ $('geGateEnter').addEventListener('click',()=>{
  if(code!=='love'){location.assign('../support/?section=music');return;}
  try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
  $('geGateWord').value='';window.GEAudioGain?.restore?.();ownerUI();audio.volume=baseVolume;
+ $('saveAlbumOffline').hidden=!isAuthorized();
  gate.classList.add('unlocking');
  setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
  if(currentTrack&&audio.paused)void resume();
