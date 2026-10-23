@@ -646,8 +646,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 
   <div id="brAccessEditor" class="brAccessPanel" hidden>
-    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3><p>Enter a code name, select permissions and songs, then GENERATE &amp; SAVE CODE. The secure code is shown once after saving.</p>
-    <label><span>CODE NAME</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3><p>Enter your new code or leave it blank to generate a secure code, choose permissions and DJ playlists or songs, then SAVE CODE. Codes are securely hashed and displayed only when created.</p>
+    <label><span>NEW ACCESS CODE · TYPE YOUR CODE HERE</span><input id="brAccessCustomCode" type="text" minlength="8" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="YOURCODE1234 or GE-YOURCODE1234"></label>
+    <p class="brAccessNotice" id="brAccessCustomHelp">Use 8 to 64 letters, numbers or dashes. Leave blank to generate a random code. For security, a code cannot be retrieved after creation.</p>
+    <label><span>CODE NAME / DESCRIPTION</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
     <h4>1 · ACCESS PERMISSIONS</h4>
     <div class="backroomPermissions">
       <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
@@ -675,7 +677,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
     <label class="check" id="brAccessStartRow"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
     <div class="brAccessEditorActions">
-      <button type="button" class="primary" id="brAccessIssue">GENERATE &amp; SAVE CODE</button>
+      <button type="button" class="primary" id="brAccessIssue">SAVE NEW ACCESS CODE</button>
       <button type="button" class="primary" id="brAccessSave" hidden>SAVE CHANGES</button>
       <button type="button" id="brAccessCancel">CANCEL</button>
     </div>
@@ -2131,6 +2133,11 @@ const backroomVaultManagers=(()=>{
     requestAnimationFrame(()=>{try{$('brAccessLabel').focus({preventScroll:true});}catch(_e){$('brAccessLabel').focus();}});
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||'';
+    $('brAccessCustomCode').value='';
+    $('brAccessCustomCode').disabled=!!row;
+    $('brAccessCustomHelp').textContent=row?
+      'Existing codes cannot be revealed or replaced. Edit the permissions below or create a new code.':
+      'Type 8–64 letters, numbers or dashes, or leave blank for a secure random code.';
     const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
@@ -2232,6 +2239,11 @@ const backroomVaultManagers=(()=>{
     const label=$('brAccessLabel').value.trim();
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
+    const requested=$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim();
+    if(requested&&!/^[a-zA-Z0-9-]{8,64}$/.test(requested)){
+      $('brAccessCustomCode').focus();
+      throw Error('Your code needs 8 to 64 letters, numbers or dashes.');
+    }
     if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
@@ -2239,6 +2251,7 @@ const backroomVaultManagers=(()=>{
     return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
+      requested_code:$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim(),
       // The playlist selector is a bulk-checking preset, not a blanket
       // entitlement: otherwise unchecked songs would still be accessible.
       playlist_ids:[],
@@ -2375,6 +2388,9 @@ const backroomVaultManagers=(()=>{
       window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
       accessModeUI();editPlaylist('');accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
+      // NEW ACCESS CODE is the default view: the editable secret field and
+      // permissions are immediately visible, not buried behind a second click.
+      showCodeEditor();
     }
     playlistLoaded=false;accessLoaded=false;
     const current=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
