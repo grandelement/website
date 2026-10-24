@@ -401,7 +401,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 
 </style>
-</head>
+<style id="br-access-compact-ui">
+#brPanel-access .brAccessTop{display:grid;gap:8px;margin-bottom:10px}
+#brPanel-access .brAccessTop label{display:grid;gap:5px}
+#brPanel-access .brAccessTop input{width:100%;min-height:44px;font-size:17px}
+#brPanel-access .brAccessTopActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#brPanel-access .brAccessTopActions button{min-height:42px}
+#brPanel-access #brAccessSelect{width:100%;min-height:85px}
+#brPanel-access .brAccessSecondary{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:10px 0}
+#brPanel-access .brAccessSecondary button{padding:8px}
+#brPanel-access .brAccessCategory{border:1px solid #27506a;border-radius:10px;margin:9px 0;padding:9px}
+#brPanel-access .brAccessCategory summary{cursor:pointer;font-weight:800;padding:5px}
+#brPanel-access .brAccessCategory[open] summary{margin-bottom:10px}
+#brPanel-access #brAccessEditor{margin-top:12px}
+</style></head>
 <body>
 <div id="lockScreen">
   <div class="lockCard">
@@ -621,44 +634,39 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
-  <p>Manage Vault-issued codes here. LOVE is an older Radio Gate code and appears separately below. Choose a code to edit, suspend, revoke or delete.</p>
-  <div class="backroomInlineStatus" id="brAccessStatus" role="status">Open ACCESS CODES to load saved codes.</div>
-
-  <div class="brAccessToolbar">
-    <button type="button" class="primary" id="brAccessNew">NEW ACCESS CODE</button>
-    <button type="button" id="brAccessRefresh">REFRESH</button>
-    <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>MASTER SWITCH · ENABLE CODES</span></label>
-  </div>
-  <p class="brAccessNotice">Vault-issued codes with Radio permission can be checked online at the public Radio Gate. Codes restricted to particular songs are not blanket Radio permissions. LOVE remains a separate legacy code. This client-side Gate is not yet secure paid-entitlement enforcement.</p>
-
-  <div id="brAccessBrowse" class="brAccessPanel">
-    <h3>ISSUED CODES</h3>
-    <label><span>SEARCH CODES</span><input id="brAccessSearch" type="search" placeholder="Name, last four digits, permission"></label>
-    <div class="brAccessNavigator">
-      <button type="button" id="brAccessPrev" aria-label="Previous access code">← PREV</button>
-      <select id="brAccessSelect" aria-label="Select issued access code"><option value="">No codes loaded</option></select>
-      <button type="button" id="brAccessNext" aria-label="Next access code">NEXT →</button>
-      <span id="brAccessPosition">0 OF 0</span>
+  <div class="brAccessTop">
+    <label><span>FIND OR CREATE CODE</span><input id="brAccessSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Start typing a code or name"></label>
+    <div class="brAccessTopActions">
+      <button type="button" class="primary" id="brAccessQuickSave">SAVE</button>
+      <button type="button" id="brAccessQuickLoad">LOAD</button>
+      <button type="button" id="brAccessQuickEdit">EDIT</button>
     </div>
-    <div class="brAccessNotice" id="brAccessLegacyNotice">
-    <strong>LOVE · LEGACY RADIO GATE CODE</strong>
-    <p>LOVE is configured in the older Radio Gate, not in the Vault-issued code database. It is shown here for reference, but cannot be edited or deleted through Vault code actions. Changing or disabling it requires updating the Radio Gate separately.</p>
+    <select id="brAccessSelect" size="4" aria-label="Matching saved codes"></select>
+    <span id="brAccessPosition" class="sub">0 CODES</span>
   </div>
-  <div id="brAccessList" class="backroomCodeList" aria-live="polite"><p>No codes loaded.</p></div>
+  <div class="backroomInlineStatus" id="brAccessStatus" role="status"></div>
+  <div class="brAccessSecondary">
+    <button type="button" id="brAccessNew">NEW</button>
+    <button type="button" id="brAccessRefresh">REFRESH</button>
+    <label class="check"><input id="brAccessMaster" type="checkbox" checked><span>ENABLE CODES</span></label>
+  </div>
+  <div id="brAccessBrowse" class="brAccessPanel">
+    <div id="brAccessList" class="backroomCodeList" aria-live="polite"></div>
     <div class="brAccessActions">
-      <button type="button" id="brAccessEdit">EDIT CODE</button>
+      <button type="button" id="brAccessEdit">EDIT SELECTED</button>
       <button type="button" id="brAccessToggle">SUSPEND</button>
       <button type="button" id="brAccessRevoke">REVOKE</button>
       <button type="button" id="brAccessDelete">DELETE</button>
+      <button type="button" id="brAccessPrev" hidden>PREVIOUS</button>
+      <button type="button" id="brAccessNext" hidden>NEXT</button>
     </div>
   </div>
-
   <div id="brAccessEditor" class="brAccessPanel" hidden>
-    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3><p>Enter your new code or leave it blank to generate a secure code, choose permissions and DJ playlists or songs, then SAVE CODE. Codes are securely hashed and displayed only when created.</p>
+    <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
     <label><span>NEW ACCESS CODE · TYPE YOUR CODE HERE</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="YOURCODE1234 or GE-YOURCODE1234"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp">Use 12 to 64 letters, numbers or dashes. Leave blank to generate a random code. For security, a code cannot be retrieved after creation.</p>
+    <p class="brAccessNotice" id="brAccessCustomHelp" hidden></p>
     <label><span>CODE NAME / DESCRIPTION</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
-    <h4>1 · ACCESS PERMISSIONS</h4>
+    <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
     <div class="backroomPermissions">
       <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
@@ -666,14 +674,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
-    <h4>2 · MUSIC ASSIGNMENTS</h4>
-    <p>Choose a playlist to preselect its songs, then adjust the individual checkboxes. Press GENERATE &amp; SAVE CODE for a new code or SAVE CHANGES for an existing one. Vault code permissions do not automatically unlock the legacy Radio Gate.</p>
+    </details>
+    <details class="brAccessCategory"><summary>PLAYLISTS &amp; SONGS</summary>
     <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
     <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
     <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
     <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Select multiple songs"></div>
     <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
-    <h4>3 · EXPIRATION AND LIMITS</h4>
+    </details>
+    <details class="brAccessCategory"><summary>EXPIRATION &amp; LIMITS</summary>
     <label><span>EXPIRES</span><select id="brAccessMode">
       <option value="first_use">After first redemption of this code</option>
       <option value="activation">After I activate it</option>
@@ -684,12 +693,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label id="brAccessFixedRow" hidden><span>EXPIRATION DATE AND TIME</span><input id="brAccessFixed" type="datetime-local"></label>
     <label><span>MAXIMUM USES (0 = UNLIMITED)</span><input id="brAccessMaxUses" type="number" min="0" max="1000000" step="1" value="0"></label>
     <label class="check" id="brAccessStartRow"><input id="brAccessStartNow" type="checkbox" checked><span>ACTIVATE CODE NOW</span></label>
+    </details>
     <div class="brAccessEditorActions">
       <button type="button" class="primary" id="brAccessIssue">SAVE NEW ACCESS CODE</button>
       <button type="button" class="primary" id="brAccessSave" hidden>SAVE CHANGES</button>
       <button type="button" id="brAccessCancel">CANCEL</button>
     </div>
-    <p class="brAccessNotice">Editing keeps the original secret code and use history. A redeemed code cannot be displayed again.</p>
+
   </div>
 
   <div id="brAccessOneTime" class="backroomCodeReveal" hidden>
@@ -2226,13 +2236,12 @@ const backroomVaultManagers=(()=>{
     const row=codeRows.find(x=>String(x.id)===String(id))||null;
     if(row?.revoked){accessStatus('A revoked code cannot be edited. Create a new one.');return;}
     editingCodeId=row?.id||'';
-    $('brAccessBrowse').hidden=true;
+    $('brAccessBrowse').hidden=false;
     $('brAccessEditor').hidden=false;
-    // Focus the editable name field after the form becomes visible, including on mobile.
-    requestAnimationFrame(()=>{try{$('brAccessLabel').focus({preventScroll:true});}catch(_e){$('brAccessLabel').focus();}});
+    requestAnimationFrame(()=>{const field=row?$('brAccessLabel'):$('brAccessCustomCode');field.focus({preventScroll:true});});
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
-    $('brAccessLabel').value=row?.label||'';
-    $('brAccessCustomCode').value='';
+    $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
+    $('brAccessCustomCode').value=row?'':$('brAccessSearch').value.trim();
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomHelp').textContent=row?
       'Existing codes cannot be revealed or replaced. Edit the permissions below or create a new code.':
@@ -2283,9 +2292,12 @@ const backroomVaultManagers=(()=>{
       row.label+' · …'+row.code_hint+' · '+statusCode(row),row.id
     )));
     sel.value=selectedCodeId;
+    sel.size=Math.max(2,Math.min(5,visibleCodes.length||2));
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
     $('brAccessPosition').textContent=visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0';
     $('brAccessPrev').disabled=idx<=0;
+    $('brAccessQuickLoad').disabled=!selectedCodeId;
+    $('brAccessQuickEdit').disabled=!selectedCodeId||!!selectedCode()?.revoked;
     $('brAccessNext').disabled=idx<0||idx===visibleCodes.length-1;
     const selected=selectedCode(),host=$('brAccessList');host.replaceChildren();
     const disabled=!selected;
@@ -2295,7 +2307,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessDelete').disabled=disabled;
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
-      host.appendChild(create('p',q?'No codes match your search.':'No access codes issued. Choose NEW ACCESS CODE.'));
+      host.appendChild(create('p',q?'No saved match. SAVE creates a new code.':'No saved codes. Type above to create one.'));
       return;
     }
     const wrapper=create('div','','backroomCodeEntry');
@@ -2459,7 +2471,18 @@ const backroomVaultManagers=(()=>{
       $('brAccessCancel').addEventListener('click',showCodeBrowser);
       $('brAccessIssue').addEventListener('click',()=>void saveCode(false));
       $('brAccessSave').addEventListener('click',()=>void saveCode(true));
-      $('brAccessSearch').addEventListener('input',renderAccessCodes);
+      $('brAccessSearch').addEventListener('input',()=>{renderAccessCodes();const q=$('brAccessSearch').value.trim();$('brAccessQuickSave').textContent=visibleCodes.length?'SAVE':'SAVE NEW';});
+      $('brAccessQuickLoad').addEventListener('click',()=>{const row=selectedCode();if(row)showCodeEditor(row.id);else accessStatus('No saved code matches. Type a new code and SAVE.');});
+      $('brAccessQuickEdit').addEventListener('click',()=>{const row=selectedCode();if(row)showCodeEditor(row.id);else accessStatus('Choose a saved code first.');});
+      $('brAccessQuickSave').addEventListener('click',()=>{
+        const q=$('brAccessSearch').value.trim();
+        if(editingCodeId){$('brAccessSave').click();return;}
+        const exact=visibleCodes.find(row=>row.label.toLowerCase()===q.toLowerCase());
+        if(exact){showCodeEditor(exact.id);accessStatus('Review permissions and press SAVE CHANGES.');return;}
+        showCodeEditor();
+        if(q&&!$('brAccessCustomCode').value)$('brAccessCustomCode').value=q;
+        accessStatus('Choose access permissions, then SAVE NEW ACCESS CODE.');
+      });
       $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
       $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
       $('brAccessNext').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>=0&&i<visibleCodes.length-1){selectedCodeId=visibleCodes[i+1].id;renderAccessCodes();}});
