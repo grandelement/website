@@ -3029,8 +3029,12 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQFog{inset:-36%!imp
 }
 /* Hide pre-purchase download controls. Offline library management belongs in MY MUSIC
    once actual purchased-music entitlements exist; local owner-demo != purchase. */
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn,
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn{display:none!important}
+/* Offline remains available to an explicitly unlocked local owner/demo only.
+   The hidden attribute still controls visibility for other listeners. */
+html.ge-radio-ui body.view-player.ge-offline-entitled:not(.iam-studio-open) #bottomActions #offlineBtn:not([hidden]){
+ display:flex!important;grid-area:3/2/4/3!important;min-height:38px!important;
+}
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions{
  grid-template-columns:repeat(3,minmax(0,1fr))!important;
  grid-auto-rows:minmax(35px,auto)!important;gap:5px!important;padding:5px!important;margin-bottom:0!important}
@@ -10655,7 +10659,7 @@ Vector ${vector}. ${pair[1]}.`;
   let vaultRedeemBusy=false;
   async function unlock(){
     // A Radio-only code holder may later enter a distinct owner code.
-    if(geRadioLocalTestAccess()||vaultRedeemBusy)return;
+    if(vaultRedeemBusy)return;
     const entered=String(word?.value||'').trim();
     const isLegacy=entered.toLowerCase()===String(GATE_CONFIG.password||'').trim().toLowerCase();
     if(!isLegacy){
@@ -10815,11 +10819,9 @@ Vector ${vector}. ${pair[1]}.`;
   window.GEGate={
     noteRealSongPlay,trigger,restore,syncListening,isExpiredLocked,isAuthorized:authorized,desiredVolume,getState:()=>({...gs}),
     openCodeEntry:()=>{
-      if(geRadioLocalTestAccess()){
-        window.GERadioSyncOfflineAccess?.();
-        setStatus('Owner code active · offline controls are available.');
-        return;
-      }
+      // Always open on explicit CODE press, including an already-unlocked owner.
+      // Previously this early-return made CODE appear broken after LOVE.
+      window.GERadioSyncOfflineAccess?.();
       if(sun)sun.src=absolute(CONFIG.LOGO_SRC);
       gate.classList.add('open','centered');
       gate.setAttribute('aria-hidden','false');
