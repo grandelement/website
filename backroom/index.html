@@ -652,7 +652,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
   <div class="brAccessTop">
-    <label><span>FIND OR CREATE CODE</span><input id="brAccessSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Start typing a code or name"></label>
+    <label><span>FIND SAVED CODE / NAME A NEW CODE</span><input id="brAccessSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search codes or give a new code a name"></label>
     <div class="brAccessTopActions">
       <button type="button" class="primary" id="brAccessQuickSave">SAVE</button>
       <button type="button" id="brAccessQuickLoad">LOAD</button>
@@ -661,7 +661,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <select id="brAccessSelect" size="4" aria-label="Matching saved codes"></select>
     <span id="brAccessPosition" class="sub">0 CODES</span>
   </div>
-  <div class="backroomInlineStatus" id="brAccessStatus" role="status"></div>
+  <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
+  <p class="brAccessNotice" id="brAccessLegacyNotice">The original LOVE Radio Gate password is separate from Vault-issued codes. It will not appear in this list or create a DJ playlist. New access codes are issued through the private Vault.</p>
   <div class="brAccessSecondary">
     <button type="button" id="brAccessNew">NEW</button>
     <button type="button" id="brAccessRefresh">REFRESH</button>
@@ -680,8 +681,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
-    <label><span>NEW ACCESS CODE · TYPE YOUR CODE HERE</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="YOURCODE1234 or GE-YOURCODE1234"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp" hidden></p>
+    <label><span>OPTIONAL CUSTOM ACCESS CODE · 12–64 CHARACTERS</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Leave blank for a secure generated code"></label>
+    <p class="brAccessNotice" id="brAccessCustomHelp">Leave this blank to generate a secure code. The name above is only a label, not the access secret.</p>
     <label><span>CODE NAME / DESCRIPTION</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
     <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
     <div class="backroomPermissions">
@@ -2211,7 +2212,7 @@ const backroomVaultManagers=(()=>{
 
   // One selected code and one editor: no repeated control rows or permanent open forms.
   const codeMaster=$('brAccessMaster');
-  let selectedCodeId='',editingCodeId='',assignedSongPaths=[],visibleCodes=[];
+  let selectedCodeId='',editingCodeId='',assignedSongPaths=[],visibleCodes=[],savingCode=false;
   const scopeBoxes=()=>[...document.querySelectorAll('[name="brAccessScope"]')];
   function accessModeUI(){
     const mode=$('brAccessMode').value;
@@ -2288,14 +2289,15 @@ const backroomVaultManagers=(()=>{
     editingCodeId=row?.id||'';
     $('brAccessBrowse').hidden=false;
     $('brAccessEditor').hidden=false;
-    requestAnimationFrame(()=>{const field=row?$('brAccessLabel'):$('brAccessCustomCode');field.focus({preventScroll:true});});
+    requestAnimationFrame(()=>$('brAccessLabel').focus({preventScroll:true}));
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
-    $('brAccessCustomCode').value=row?'':$('brAccessSearch').value.trim();
+    // Search text is a display name, never a four-letter secret such as the legacy LOVE Gate code.
+    $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomHelp').textContent=row?
-      'Existing codes cannot be revealed or replaced. Edit the permissions below or create a new code.':
-      'Type 12–64 letters, numbers or dashes, or leave blank for a secure random code.';
+      'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
+      'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
     const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
@@ -2344,7 +2346,7 @@ const backroomVaultManagers=(()=>{
     sel.value=selectedCodeId;
     sel.size=Math.max(2,Math.min(5,visibleCodes.length||2));
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
-    $('brAccessPosition').textContent=visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0';
+    $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0');
     $('brAccessPrev').disabled=idx<=0;
     $('brAccessQuickLoad').disabled=!selectedCodeId;
     $('brAccessQuickEdit').disabled=!selectedCodeId||!!selectedCode()?.revoked;
@@ -2357,7 +2359,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessDelete').disabled=disabled;
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
-      host.appendChild(create('p',q?'No saved match. SAVE creates a new code.':'No saved codes. Type above to create one.'));
+      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match. SAVE NEW creates a Vault code with this name.':'No saved Vault-issued codes. The older Radio Gate password is separate.'));
       return;
     }
     const wrapper=create('div','','backroomCodeEntry');
@@ -2379,18 +2381,28 @@ const backroomVaultManagers=(()=>{
     host.appendChild(wrapper);
   }
   async function refreshCodes(preferId=''){
-    if(!authReady())return;
-    accessStatus('Loading issued codes…');
+    if(!authReady()){
+      accessLoaded=false;codeRows=[];renderAccessCodes();
+      accessStatus('CODES NOT CONNECTED · This Back Room session is local-only. Sign in through the private Cloudflare publisher to save codes.');
+      return false;
+    }
+    accessStatus('Connecting to GE Vault and loading issued codes…');
     try{
       const codes=await vaultAction('/manage/access-codes');
-      codeRows=Array.isArray(codes.items)?codes.items:[];
+      if(!Array.isArray(codes.items))throw Error('Vault returned no code list.');
+      codeRows=codes.items;
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      accessStatus('Back Room connected · '+codeRows.length+' code'+(codeRows.length===1?'':'s')+
-        ' · master '+(codeMaster.checked?'ON':'OFF')+'.');
-    }catch(err){accessStatus('ACCESS CODES: '+String(err.message||err));}
+      accessStatus('VAULT CONNECTED · '+codeRows.length+' issued code'+(codeRows.length===1?'':'s')+
+        ' · master '+(codeMaster.checked?'ON':'OFF')+'. The legacy Radio Gate code is separate.');
+      return true;
+    }catch(err){
+      accessLoaded=false;codeRows=[];renderAccessCodes();
+      accessStatus('VAULT DISCONNECTED · Codes cannot be saved or loaded. '+String(err.message||err));
+      return false;
+    }
   }
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
@@ -2417,27 +2429,42 @@ const backroomVaultManagers=(()=>{
       track_paths:assignedSongPaths.slice()};
   }
   async function saveCode(isEdit){
+    if(savingCode)return;
+    if(!accessLoaded||!authReady()){
+      accessStatus('NOT SAVED · GE Vault is not connected. Press REFRESH and check the connection before saving.');
+      return;
+    }
     const button=$(isEdit?'brAccessSave':'brAccessIssue');
     let payload;
-    try{payload=codePayload()}catch(e){accessStatus(String(e.message||e));return;}
+    try{payload=codePayload()}catch(e){accessStatus('NOT SAVED · '+String(e.message||e));return;}
     if(isEdit&&!editingCodeId)return;
-    button.disabled=true;
-    accessStatus(isEdit?'Saving code assignments…':'Generating secure code…');
+    savingCode=true;button.disabled=true;$('brAccessQuickSave').disabled=true;
+    accessStatus(isEdit?'Saving permissions to GE Vault…':'Issuing new code in GE Vault…');
     try{
       const data=await vaultAction('/manage/access-codes',
         {...payload,action:isEdit?'edit':'issue',...(isEdit?{id:editingCodeId}:{})});
       const codeId=data.id||editingCodeId;
+      if(!codeId||(!isEdit&&!data.code))throw Error('Vault did not confirm a saved code and its one-time secret.');
       if(!isEdit){
-        $('brAccessCodeValue').textContent=data.code||'';
+        $('brAccessCodeValue').textContent=data.code;
         $('brAccessOneTime').hidden=false;
       }
       showCodeBrowser();
-      await refreshCodes(codeId);
-      accessStatus(isEdit?'CODE UPDATED. The secret and usage history are unchanged.':
-        'CODE CREATED. Copy the secret above now; it cannot be retrieved later.');
-      if(!isEdit)$('brAccessOneTime').hidden=false;
-    }catch(err){accessStatus('SAVE FAILED: '+String(err.message||err));}
-    finally{button.disabled=false;}
+      const refreshed=await refreshCodes(codeId);
+      const confirmed=refreshed&&codeRows.some(row=>String(row.id)===String(codeId));
+      if(confirmed){
+        accessStatus(isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
+          'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.');
+      }else{
+        accessStatus('VAULT ACCEPTED THE '+(isEdit?'UPDATE':'NEW CODE')+
+          ', BUT THE SAVED LIST COULD NOT BE VERIFIED. Do not press SAVE again; refresh the list.');
+      }
+      if(!isEdit){
+        $('brAccessOneTime').hidden=false;
+        $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    }catch(err){accessStatus('NOT SAVED · '+String(err.message||err));}
+    finally{savingCode=false;button.disabled=false;$('brAccessQuickSave').disabled=false;}
   }
   async function codeAction(action){
     const row=selectedCode();if(!row)return;
@@ -2526,12 +2553,21 @@ const backroomVaultManagers=(()=>{
       $('brAccessQuickEdit').addEventListener('click',()=>{const row=selectedCode();if(row)showCodeEditor(row.id);else accessStatus('Choose a saved code first.');});
       $('brAccessQuickSave').addEventListener('click',()=>{
         const q=$('brAccessSearch').value.trim();
-        if(editingCodeId){$('brAccessSave').click();return;}
-        const exact=visibleCodes.find(row=>row.label.toLowerCase()===q.toLowerCase());
-        if(exact){showCodeEditor(exact.id);accessStatus('Review permissions and press SAVE CHANGES.');return;}
-        showCodeEditor();
-        if(q&&!$('brAccessCustomCode').value)$('brAccessCustomCode').value=q;
-        accessStatus('Choose access permissions, then SAVE NEW ACCESS CODE.');
+        if(editingCodeId){void saveCode(true);return;}
+        const exact=codeRows.find(row=>String(row.label||'').toLowerCase()===q.toLowerCase());
+        if(exact){showCodeEditor(exact.id);accessStatus('Saved code found. Review permissions and press SAVE CHANGES.');return;}
+        if(!accessLoaded||!authReady()){
+          accessStatus('NOT SAVED · The Vault is not connected. Use REFRESH to check the private publisher connection.');
+          return;
+        }
+        if($('brAccessEditor').hidden){
+          showCodeEditor();
+          accessStatus('New code: '+(q||'enter a name')+'. Select permissions and press SAVE NEW ACCESS CODE.');
+          return;
+        }
+        if(q&&!$('brAccessLabel').value.trim())$('brAccessLabel').value=q;
+        // The top SAVE NEW now executes the same validated Vault write as the editor SAVE.
+        void saveCode(false);
       });
       $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
       $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
