@@ -8,7 +8,7 @@ const button=document.getElementById('geMusicV3Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
-const state={open:false,loading:false,loaded:false,tracks:[],tab:'albums',album:'',term:'',selected:new Set(),publicLists:[],myLists:[],notice:'',request:0};
+const state={open:false,loading:false,loaded:false,tracks:[],tab:'albums',album:'',term:'',selected:new Set(),publicLists:[],myLists:[],notice:'',request:0,playlistsLoading:false,playlistMessage:'',approvedNames:[]};
 try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw))state.selected=new Set(raw.filter(x=>typeof x==='string'))}catch(_){}
 const host=document.createElement('div');host.id='geMusicV3Host';host.dataset.build=BUILD;
 host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
@@ -106,12 +106,45 @@ function saveMine(){
  catch(_){say('Could not save this playlist on this device.')}
 }
 async function loadPublished(){
+ // Read only original, explicitly published DJ playlists from the GE D1
+ // public endpoint. Never synthesize Bangers from Radio 1 or Radio 2.
+ if(state.playlistsLoading)return;
+ state.playlistsLoading=true;state.playlistMessage='CHECKING ORIGINAL GE DJ PLAYLISTS…';
+ if(state.open&&state.tab==='playlists')render();
  try{
-  const bridge=window.GEMusicV3Bridge;
-  if(!bridge?.publicLists)return;
-  const rows=await bridge.publicLists();
-  state.publicLists=Array.isArray(rows)?rows:[];if(state.open&&state.tab==='playlists')render();
- }catch(_){say('Published GE playlist service is unavailable.')}
+  const cfgResponse=await fetch('../config/site-live.json?ge_music_public='+Date.now(),{cache:'no-store'});
+  if(!cfgResponse.ok)throw Error('Published playlist permissions are unavailable.');
+  const cfg=await cfgResponse.json();
+  const names=new Set((Array.isArray(cfg?.music?.publicDJPlaylistNames)?cfg.music.publicDJPlaylistNames:[])
+   .filter(x=>typeof x==='string').map(x=>x.trim().toLowerCase()).filter(Boolean));
+  const records=Array.isArray(cfg?.music?.publicPlaylists)?cfg.music.publicPlaylists:[];
+  const byId=new Map(records.filter(x=>typeof x?.id==='string'&&Array.isArray(x.songs))
+   .map(x=>[x.id,new Set(x.songs)]));
+  state.approvedNames=[...names];
+  if(!names.size&&!byId.size){
+   state.publicLists=[];state.playlistMessage='NO GE PLAYLISTS HAVE BEEN PUBLISHED YET.';return;
+  }
+  const response=await fetch('https://vault.grandelement.com/v1/public/dj-playlists?musicv3='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('GE PLAYLISTS returned HTTP '+response.status+'.');
+  const data=await response.json();
+  if(data?.ok!==true||data.format!=='ge-public-dj-playlists-v1'||!Array.isArray(data.items))
+   throw Error('GE PLAYLISTS returned an invalid response.');
+  const valid=path=>typeof path==='string'&&path.startsWith('ge-music/music/')&&
+   !path.includes('..')&&['mp3','m4a','wav','ogg','flac'].includes(path.split('.').pop().toLowerCase());
+  state.publicLists=data.items.filter(row=>row&&typeof row.id==='string'&&typeof row.name==='string'&&Array.isArray(row.songs)&&
+   (names.has(row.name.trim().toLowerCase())||byId.has(row.id))).map(row=>{
+    const byName=names.has(row.name.trim().toLowerCase());
+    const songs=row.songs.filter(path=>valid(path)&&(byName||byId.get(row.id)?.has(path)));
+    return {id:row.id,name:row.name,songs:[...new Set(songs)]};
+   }).filter(row=>row.songs.length>0);
+  state.playlistMessage=state.publicLists.length?
+   'CONNECTED · '+state.publicLists.length+' PUBLISHED GE PLAYLIST'+(state.publicLists.length===1?'':'S')+' · ORIGINAL DJ SONG ORDER':
+   (state.approvedNames.length?state.approvedNames.map(x=>x.toUpperCase()).join(', ')+' APPROVED FOR PUBLICATION · ORIGINAL DJ SONGS NOT YET SYNCED.':
+   'PUBLISHED PLAYLIST RECORDS HAVE NOT YET SYNCED.');
+ }catch(error){
+  state.publicLists=[];
+  state.playlistMessage='GE PLAYLISTS CONNECTION FAILED · '+String(error?.message||'Unknown error')+' · TRY REFRESH.';
+ }finally{state.playlistsLoading=false;if(state.open&&state.tab==='playlists')render()}
 }
 function loadPlaylist(row){
  const allowed=new Set(state.tracks.map(x=>x.path));
@@ -159,10 +192,15 @@ function render(){
   let album='';
   tracks.forEach(t=>{if(t.album!==album){album=t.album;scroller.appendChild(elem('div','section',album))}appendSong(scroller,t)});
  }else{
-  const caption=elem('div','section','GE DJ PLAYLISTS');scroller.appendChild(caption);
-  const info=elem('p','empty',window.GE_DJ_PLAYLIST_SOURCE_STATUS||'Owner-published GE playlists');
-  scroller.appendChild(info);
-  if(!state.publicLists.length)scroller.appendChild(elem('p','empty','No published GE playlists are available right now.'));
+  scroller.appendChild(elem('div','section','GE PLAYLISTS'));
+  const refresh=elem('button','','REFRESH GE PLAYLISTS');
+  refresh.type='button';refresh.disabled=state.playlistsLoading;
+  refresh.addEventListener('click',()=>{void loadPublished()});
+  scroller.appendChild(refresh);
+  scroller.appendChild(elem('p','empty',state.playlistMessage||'Checking published DJ playlists…'));
+  if(!state.publicLists.length&&!state.playlistsLoading){
+   scroller.appendChild(elem('p','empty','No songs will be substituted. The original DJ playlist must finish synchronization before its track list appears.'));
+  }
   const section=(rows)=>rows.forEach(row=>{
    const box=elem('div','playlist'),h=elem('h3','',row.name),p=elem('p','',row.songs.length+' saved songs');
    const bar=elem('div','actions'),btn=elem('button','','LOAD SONGS');btn.type='button';btn.addEventListener('click',()=>loadPlaylist(row));
