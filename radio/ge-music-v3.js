@@ -8,7 +8,7 @@ const button=document.getElementById('geMusicV3Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
-const state={open:false,loading:false,loaded:false,tracks:[],tab:'albums',album:'',term:'',selected:new Set(),publicLists:[],myLists:[],notice:'',request:0,playlistsLoading:false,playlistMessage:'',approvedNames:[]};
+const state={open:false,loading:false,loaded:false,tracks:[],tab:'playlists',album:'',term:'',selected:new Set(),publicLists:[],myLists:[],notice:'',request:0,playlistsLoading:false,playlistMessage:'',approvedNames:[]};
 try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw))state.selected=new Set(raw.filter(x=>typeof x==='string'))}catch(_){}
 const host=document.createElement('div');host.id='geMusicV3Host';host.dataset.build=BUILD;
 host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
@@ -57,7 +57,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">NEW LIBRARY · V3</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><input class="search" type="search" placeholder="Search songs and albums" aria-label="Search all music">
- <div class="tabs" role="tablist"><button class="tab" data-tab="albums" role="tab" aria-selected="true">ALBUMS</button><button class="tab" data-tab="songs" role="tab" aria-selected="false">SONGS</button><button class="tab" data-tab="playlists" role="tab" aria-selected="false">PLAYLISTS</button></div>
+ <div class="tabs" role="tablist"><button class="tab" data-tab="albums" role="tab" aria-selected="false">ALBUMS</button><button class="tab" data-tab="songs" role="tab" aria-selected="false">SONGS</button><button class="tab" data-tab="playlists" role="tab" aria-selected="true">PLAYLISTS</button></div>
  <div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">0 SELECTED</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div>
@@ -139,7 +139,7 @@ async function loadPublished(){
    }).filter(row=>row.songs.length>0);
   state.playlistMessage=state.publicLists.length?
    'CONNECTED · '+state.publicLists.length+' PUBLISHED GE PLAYLIST'+(state.publicLists.length===1?'':'S')+' · ORIGINAL DJ SONG ORDER':
-   (state.approvedNames.length?state.approvedNames.map(x=>x.toUpperCase()).join(', ')+' APPROVED FOR PUBLICATION · ORIGINAL DJ SONGS NOT YET SYNCED.':
+   (state.approvedNames.length?state.approvedNames.map(x=>x.toUpperCase()).join(', ')+' APPROVED · ORIGINAL DJ SONGS NOT AVAILABLE IN PUBLIC PLAYLIST FEED.':
    'PUBLISHED PLAYLIST RECORDS HAVE NOT YET SYNCED.');
  }catch(error){
   state.publicLists=[];
@@ -150,7 +150,7 @@ function loadPlaylist(row){
  const allowed=new Set(state.tracks.map(x=>x.path));
  state.selected=new Set(row.songs.map(canonical).filter(p=>allowed.has(p)));
  saveSelected();state.tab='songs';state.album='';state.term='';el('.search').value='';
- say(row.name+' · '+state.selected.size+' songs loaded for selection.');render();
+ say(row.name+' · '+state.selected.size+'/'+row.songs.length+' songs available in this public music catalog.');render();
 }
 function playTrack(track){
  // Playback remains controlled by the existing radio preview/access gate.
