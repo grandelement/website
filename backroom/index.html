@@ -2115,7 +2115,14 @@ const backroomVaultManagers=(()=>{
     playlistTracks=paths.map(path=>({...catalog.find(x=>x.track_path===path)}));
     $('brPlaylistName').value=bangers.name;
     $('brPlaylistActive').checked=!!backup.active_playlist_enabled&&String(backup.active_playlist_id)===String(bangers.id);
-    $('brPlaylistPublic').checked=!!(existing?.metadata?.public||existing?.public);
+    // Existing Bangers was explicitly published by the owner in site-live.
+    // Preserve that approval when importing the genuine saved DJ record,
+    // but never override a newer explicit private Vault flag.
+    let oldMetadata={};try{oldMetadata=JSON.parse(existing?.metadata_json||'{}')}catch(_e){}
+    const earlierBangersApproval=String(bangers.name||'').trim().toLowerCase()==='bangers'&&
+      (cfg?.music?.publicDJPlaylistNames||[]).some(n=>String(n).trim().toLowerCase()==='bangers');
+    $('brPlaylistPublic').checked=oldMetadata.public===true||
+      (oldMetadata.public===undefined&&earlierBangersApproval);
     $('brPlaylistDelete').disabled=!existing?.id||playlistLocked;
     renderPlaylistChooser();renderTrackList();
     playlistStatus('DJ BANGERS LOADED FROM THIS DEVICE · '+paths.length+' real songs. Review checkboxes, then SAVE PLAYLIST. This does NOT change the live BLITZ queue.');
