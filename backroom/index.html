@@ -694,6 +694,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     </div>
     </details>
     <details class="brAccessCategory"><summary>PLAYLISTS &amp; SONGS</summary>
+    <p class="brAccessNotice" id="brAccessPlaylistNotice">Checking original DJ playlist connection…</p>
+    <button type="button" id="brAccessOpenPlaylists">OPEN DJ PLAYLISTS / CONNECT</button>
     <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
     <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
     <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
@@ -2237,6 +2239,10 @@ const backroomVaultManagers=(()=>{
     const source=geDJPlaylistReady?geDJSavedPlaylists:[]; // Only original DJ playlists
     source.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
+    select.disabled=!geDJPlaylistReady||!source.length;
+    $('brAccessPlaylistNotice').textContent=geDJPlaylistReady?
+      'ORIGINAL DJ CONNECTED · '+source.length+' saved playlist(s). Selecting one checks its songs for this access code. Save the code under ACCESS CODES; it does not create another playlist.':
+      'ORIGINAL DJ NOT CONNECTED · Open PLAYLISTS, connect the original DJ Booth, then return here to assign songs. Vault access codes are stored separately.';
   }
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
@@ -2542,6 +2548,9 @@ const backroomVaultManagers=(()=>{
       $('brPlaylistSave').addEventListener('click',()=>void savePlaylist());
       $('brPlaylistDelete').addEventListener('click',()=>void deletePlaylist());
       $('brAccessMode').addEventListener('change',accessModeUI);
+      $('brAccessOpenPlaylists').addEventListener('click',()=>{
+        document.querySelector('#backroomTabs button[data-tab="playlists"]')?.click();
+      });
       $('brAccessRefresh').addEventListener('click',()=>void refreshCodes());
       $('brAccessNew').addEventListener('click',()=>showCodeEditor());
       $('brAccessEdit').addEventListener('click',()=>{if(selectedCode())showCodeEditor(selectedCodeId);});
