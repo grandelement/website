@@ -3178,6 +3178,17 @@ html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{opacity:1!i
  }
 }
 </style>
+<style id="ge-music-picker-background-lock-v1">
+/* MUSIC owns touch scrolling while open; Radio dashboard must stay stationary. */
+html.ge-radio-ui:has(body.ge-music-picker-open),
+html.ge-radio-ui body.ge-music-picker-open{
+ overflow:hidden!important;overscroll-behavior:none!important;
+}
+html.ge-radio-ui body.ge-music-picker-open #trackList.open{
+ overflow-y:auto!important;touch-action:pan-y!important;
+ overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;
+}
+</style>
 <style id="ge-radio24-music-single-scroll">
 /* One native scroll surface for the entire MUSIC picker on iOS and desktop.
    Overrides legacy flex and absolute song-pane experiments. */
@@ -6674,6 +6685,7 @@ $('legacyBtn').addEventListener('click',()=>{
 });
 const trackBackdrop=$('trackBackdrop');
 function closeTrackPicker(){
+  document.body.classList.remove('ge-music-picker-open');
   trackList.classList.remove('open');
   trackBackdrop.classList.remove('open');
   titleBtn.setAttribute('aria-expanded','false');
@@ -6694,6 +6706,7 @@ function openTrackPicker(){
   void ensureFullMusicPickerCatalog();
   geInlineMusicInit(); // Warm 33:33 preview in the background for per-track PLAY.
   document.body.classList.remove('hud-hidden');
+  document.body.classList.add('ge-music-picker-open');
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
   requestAnimationFrame(geLayoutMusicSongPane);
@@ -6712,6 +6725,14 @@ titleBtn.addEventListener('click',()=>{
 });
 $('chooseSongsBtn')?.addEventListener('click',openTrackPicker);
 trackBackdrop.addEventListener('click',closeTrackPicker);
+// Prevent a touch on the shaded backdrop from dragging the page behind MUSIC.
+// Touches originating inside #trackList remain native for smooth iPhone scrolling.
+document.addEventListener('touchmove',event=>{
+  if(!trackList.classList.contains('open'))return;
+  if(event.target.closest?.('#trackList'))return;
+  if(event.cancelable)event.preventDefault();
+},{passive:false});
+
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape' && trackList.classList.contains('open')) closeTrackPicker();
 });
