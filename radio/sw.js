@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.24-portrait-buttons-v8';
+const VERSION='2026.10.24-network-first-ui-v9';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -246,23 +246,20 @@ async function staticResponse(request){
       }
     }catch(_e){}
   }
+  // UI architecture must update whenever online; cached UI is an
+  // offline fallback only. Audio downloads stay in MEDIA_CACHE.
+  try{
+    const response=await fetch(request,{cache:'no-store'});
+    if(response.ok){
+      const cache=await caches.open(SHELL_CACHE);
+      await cache.put(request,response.clone()).catch(()=>{});
+      return response;
+    }
+    if(response.status!==503 && response.status!==504)return response;
+  }catch(_e){}
   const cached=await cachedResponse(request);
-  if(cached){
-    fetch(request,{cache:'no-store'}).then(async response=>{
-      if(response.ok){
-        const cache=await caches.open(SHELL_CACHE);
-        cache.put(request,response.clone()).catch(()=>{});
-      }
-    }).catch(()=>{});
-    return cached;
-  }
-
-  const response=await fetch(request);
-  if(response.ok){
-    const cache=await caches.open(SHELL_CACHE);
-    cache.put(request,response.clone()).catch(()=>{});
-  }
-  return response;
+  if(cached)return cached;
+  return new Response('Radio app file unavailable offline',{status:503});
 }
 
 self.addEventListener('fetch',event=>{
