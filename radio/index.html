@@ -3348,7 +3348,7 @@ flex:0 0 auto!important;height:75px!important;min-height:75px!important;margin:4
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
     <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
-    <button id="geMusicV3Button" type="button" aria-controls="geMusicV3Host" aria-expanded="false" data-ge-music-build="GE-MUSIC-V3-20261024">MUSIC · NEW</button>
+    <button id="geMusicV3Button" type="button" aria-controls="geMusicV4Host" aria-expanded="false" data-ge-music-build="GE-MUSIC-V4-20261024">MUSIC</button>
     <button id="loveBtn" type="button" aria-pressed="false" title="Save this song as a favorite on this device and register it in GE Vault">♡ LOVE</button>
     <button class="tgl" id="legacyBtn" aria-pressed="false" hidden>Legacy</button>
   </div>
@@ -4619,7 +4619,7 @@ function allowedCatalog(){
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
   if(anchor && !state.queue.includes(anchor) && !isStationID(anchor)) anchor='';
-  window.GEMusicV3?.refresh?.();
+  window.GEMusicV4?.refresh?.();
   return anchor;
 }
 function syncModeButtons(){
@@ -5531,7 +5531,7 @@ function geInlineMusicShow(force=false){
   if(!geInlineMusicPanel.classList.contains('ge-gate-active'))geInlineMusicPanel.querySelector('.geMusicModalHead button')?.focus();
 }
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
-window.GEMusicV3Bridge={
+window.GEMusicV4Bridge={
  prepare:()=>geInlineMusicInit(),
  play:(input)=>{
   const path=canonicalSongPath(input);
@@ -5544,7 +5544,7 @@ window.GEMusicV3Bridge={
  },
  publicLists:async()=>{await geLoadPublishedPlaylists();return gePublishedLists.map(row=>({id:row.id,name:row.name,songs:[...row.songs]}))}
 };
-function geOpenMusicSelection(){window.GEMusicV3?.open?.();}
+function geOpenMusicSelection(){window.GEMusicV4?.open?.();}
 
 function geOpenMyMusicStore(){
   // Play takes guests to the commerce/My Music entry, not a free file URL.
@@ -5802,7 +5802,7 @@ function updateMediaSession(url){
     safe('pause',()=>requestUserPause());
   }catch(_e){}
 }
-function updateCurrentRow(){window.GEMusicV3?.refresh?.();}
+function updateCurrentRow(){window.GEMusicV4?.refresh?.();}
 function backgroundForNewSong(){ if(window.GEBackgrounds) window.GEBackgrounds.onSongStart(); }
 
 async function playURL(url,{record=false,backgroundChange=false,userAction=false,forceReload=false}={}){
@@ -5966,13 +5966,13 @@ async function geLoadPublishedPlaylists(){
     console.warn('Public DJ playlist permission check failed',error);
     gePublishedLists=[];
     window.GE_DJ_PLAYLIST_SOURCE_STATUS='DJ PLAYLIST PERMISSIONS UNAVAILABLE';
-    window.GEMusicV3?.refresh?.();
+    window.GEMusicV4?.refresh?.();
     return;
   }
   if(!allowed.size&&!publishedNames.size){
     gePublishedLists=[];
     window.GE_DJ_PLAYLIST_SOURCE_STATUS='NO DJ PLAYLISTS PUBLISHED';
-    window.GEMusicV3?.refresh?.();
+    window.GEMusicV4?.refresh?.();
     return;
   }
   const cacheKey='GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2';
@@ -6017,7 +6017,7 @@ async function geLoadPublishedPlaylists(){
     (fromPublishedSnapshot?'OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT · Vault synchronization pending':
      fromCache?'OFFLINE DJ PLAYLIST COPY · CURRENT PUBLISHED PERMISSIONS':'LIVE GE VAULT DJ PLAYLISTS'):
     'GE PLAYLISTS UNAVAILABLE · original DJ playlist not available from GE Vault';
-  window.GEMusicV3?.refresh?.();
+  window.GEMusicV4?.refresh?.();
 }
 
 async function loadMusicManifest(forceFresh=false){
@@ -6183,8 +6183,8 @@ $('legacyBtn').addEventListener('click',()=>{
     if(fallback) playURL(fallback,{record:state.shuffle,backgroundChange:true,userAction:true});
   }
 });
-titleBtn.addEventListener('click',()=>window.GEMusicV3?.open?.());
-$('chooseSongsBtn')?.addEventListener('click',()=>window.GEMusicV3?.open?.());
+titleBtn.addEventListener('click',()=>window.GEMusicV4?.open?.());
+$('chooseSongsBtn')?.addEventListener('click',()=>window.GEMusicV4?.open?.());
 $('shareBtn').addEventListener('click',async()=>{
   const url=state.live?liveShareURL():await resolvedShareURL();
   const song=state.live?(CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio'):(isStationID(state.currentURL)?'Grand Element Radio':parseTrack(state.currentURL).song);
@@ -6565,7 +6565,7 @@ window.addEventListener('online',()=>{
   }
   function hideNow(){
     if(document.body.classList.contains('iam-studio-open'))return;
-    if(window.GEMusicV3?.state?.().open)return;
+    if(window.GEMusicV4?.state?.().open)return;
     if(document.body.classList.contains('hud-hidden'))return;
     if(document.body.classList.contains('view-player'))positionFloatingSunFromLogo();
     document.body.classList.add('hud-hidden');
@@ -10628,7 +10628,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v3.js?v=20261024-original-dj-sync-playlists-first-v3"></script>
+<script defer src="./ge-music-v4.js?v=20261024-vault-direct-selector-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
   const a=document.getElementById('player');
