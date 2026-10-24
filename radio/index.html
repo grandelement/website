@@ -3146,33 +3146,37 @@ html.ge-radio-ui #trackList.open>#geTrackScroller .gePickRow,
 html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{opacity:1!important;visibility:visible!important}
 </style>
 <style id="ge-radio24-music-single-scroll">
-/* MUSIC: fixed dialog, non-scrolling toolbar, one native scrolling song pane.
-   This final stylesheet overrides the older contradictory outer-scroll rules. */
-html.ge-radio-ui #trackList.open{
+/* Unlike earlier html.ge-radio-ui selectors these rules match the REAL
+   document (<html lang="en">). One bounded native song scroller. */
+#trackList.open{
  display:flex!important;flex-flow:column nowrap!important;
- overflow:hidden!important;overscroll-behavior:contain!important;
- touch-action:auto!important;min-height:0!important;
+ box-sizing:border-box!important;
+ position:fixed!important;top:max(43px,calc(env(safe-area-inset-top) + 8px))!important;
+ left:50%!important;transform:translateX(-50%)!important;
+ width:min(760px,calc(100vw - 16px))!important;
+ height:calc(100dvh - max(43px,calc(env(safe-area-inset-top) + 8px)) - env(safe-area-inset-bottom) - 8px)!important;
+ max-height:none!important;overflow:hidden!important;
+ overscroll-behavior:contain!important;touch-action:auto!important;
 }
-html.ge-radio-ui #trackList.open>.gePickToolbar{
+#trackList.open>.gePickToolbar{
+ position:relative!important;top:auto!important;
  display:flex!important;flex:0 0 auto!important;flex-wrap:wrap!important;
- max-height:36%!important;overflow-y:auto!important;overflow-x:hidden!important;
+ max-height:30%!important;overflow-y:auto!important;overflow-x:hidden!important;
  min-height:0!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
 }
-html.ge-radio-ui #trackList.open>.gePickerPlaylists{
+#trackList.open>.gePickerPlaylists{
  display:grid!important;flex:0 1 auto!important;min-height:0!important;
  max-height:28%!important;overflow-y:auto!important;overflow-x:hidden!important;
  -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
 }
-html.ge-radio-ui #trackList.open>#geTrackScroller{
+#trackList.open>#geTrackScroller{
  display:block!important;position:relative!important;flex:1 1 0%!important;
  height:0!important;min-height:0!important;max-height:none!important;
  overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;
  -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
 }
-html.ge-radio-ui #trackList.open>#geTrackScroller .gePickRow,
-html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{
- touch-action:pan-y!important;
-}
+#trackList.open>#geTrackScroller .gePickRow,
+#trackList.open>#geTrackScroller .gePickAlbumHeader{touch-action:pan-y!important}
 </style>
 </head>
 <body>
@@ -7137,7 +7141,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261024-music-scroll-structure-v3',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261024-music-scroll-selector-v4',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
