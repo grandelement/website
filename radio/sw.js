@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.24-music-v3-dj-sync-zoom-fix';
+const VERSION='2026.10.24-music-v4-vault-direct';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -9,7 +9,7 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
-  './ge-music-v3.js',
+  './ge-music-v4.js',
   '../ge-accessibility.js',
   '../ge-accessibility.css',
   './track-durations.json',
