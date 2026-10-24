@@ -1512,6 +1512,25 @@ async function loadMusic(){
 }
 
 async function publish(){
+  // Refresh the authoritative DJ Booth playlist records BEFORE freezing the
+  // public snapshot. A name-only approval (e.g. Bangers) cannot play songs.
+  const djPlaylistNames=(cfg?.music?.publicDJPlaylistNames||[])
+    .map(name=>String(name).trim().toLowerCase()).filter(Boolean);
+  const djPlaylistIds=(cfg?.music?.publicPlaylists||[])
+    .map(list=>String(list?.id||'')).filter(Boolean);
+  if(djPlaylistNames.length||djPlaylistIds.length){
+    const connected=await refreshDJPlaylistSource();
+    if(!connected){
+      setStatus('PUBLISH BLOCKED · connect to the original DJ Booth and refresh its saved playlists first. Existing live settings were not changed.');
+      return;
+    }
+    const missing=djPlaylistNames.filter(name=>!Array.isArray(cfg.music.publicPlaylists)||
+      !cfg.music.publicPlaylists.some(list=>String(list.name||'').trim().toLowerCase()===name&&list.songs?.length));
+    if(missing.length){
+      setStatus('PUBLISH BLOCKED · approved GE playlist missing from DJ Booth: '+missing.join(', ')+'. No substitute tracks were published.');
+      return;
+    }
+  }
   saveDraft();
   if(!Array.isArray(cfg.music?.radioMasterSongPaths)||!cfg.music.radioMasterSongPaths.length){setStatus('REFUSING TO PUBLISH · GE RADIO MASTER SONG LIST IS EMPTY');return}
   if(!serverAuthenticated||!token()){setStatus('PUBLISH NEEDS THE PRIVATE CLOUDFLARE PUBLISHER');return}
