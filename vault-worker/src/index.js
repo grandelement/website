@@ -876,6 +876,31 @@ async function linkFanIdentity(request, env) {
 // The public Radio MUSIC menu reads the original GE DJ playlists from the
 // same Vault tables used by the authenticated BLITZ DJ. Public output
 // additionally requires an explicit PUBLISH LIVE selection by the owner.
+// GE MUSIC V4: playlists are read directly from the permanent D1 Vault.
+// The publication flag is owner-controlled and never depends on BLITZ.
+// Previously published Bangers in an original ge-radio record is retained.
+async function listPublicMusicPlaylists(env){
+  const rows=await env.VAULT_DB.prepare(
+    "SELECT id,name,updated_at,metadata_json FROM playlists ORDER BY updated_at DESC LIMIT 200"
+  ).all();
+  const items=[];
+  for(const p of rows.results||[]){
+    let meta={};try{meta=JSON.parse(p.metadata_json||"{}")}catch(_){}
+    const legacyBangers=String(p.name||"").trim().toLowerCase()==="bangers"&&meta.source==="ge-radio";
+    if(meta.public!==true&&!legacyBangers)continue;
+    const tracks=await env.VAULT_DB.prepare(
+      "SELECT track_path FROM playlist_tracks WHERE playlist_id=? ORDER BY position"
+    ).bind(p.id).all();
+    const songs=(tracks.results||[]).map(x=>String(x.track_path||"")).filter(path=>
+      path.startsWith("ge-music/music/")&&!path.includes("..")&&
+      ["mp3","m4a","wav","ogg","flac"].includes(path.split(".").pop().toLowerCase())
+    );
+    if(!songs.length)continue;
+    items.push({id:String(p.id),name:String(p.name),songs,updated_at:Number(p.updated_at)||0});
+  }
+  return items;
+}
+
 async function listPublicDJPlaylists(env){
   // The DJ library is private by default. Only playlists explicitly selected
   // and PUBLISHED by the owner in site-live.json are visible to listeners.
@@ -949,8 +974,12 @@ async function savePlaylist(request, env) {
   if (!name) return json({ ok: false, error: "Playlist name is required." }, 400);
   const tracks = Array.isArray(body.tracks) ? body.tracks : [];
   const t = now();
-  const existing = await env.VAULT_DB.prepare("SELECT created_at FROM playlists WHERE id=?").bind(playlistId).first();
-
+  const existing = await env.VAULT_DB.prepare("SELECT created_at,metadata_json FROM playlists WHERE id=?").bind(playlistId).first();
+  // Track updates from older clients must not revoke owner publication.
+  let prior={};try{prior=JSON.parse(existing?.metadata_json||"{}")}catch(_){}
+  const given=body.metadata&&typeof body.metadata==="object"&&!Array.isArray(body.metadata)?body.metadata:{};
+  const metadata={...prior,...given};
+  if(typeof metadata.public!=="boolean")metadata.public=false;
   const statements = [
     env.VAULT_DB.prepare(
       `INSERT INTO playlists (id,name,created_at,updated_at,active,locked,notes,metadata_json)
@@ -970,7 +999,7 @@ async function savePlaylist(request, env) {
       body.active ? 1 : 0,
       body.locked ? 1 : 0,
       body.notes || null,
-      cleanJson(body.metadata),
+      cleanJson(metadata),
     ),
     env.VAULT_DB.prepare("DELETE FROM playlist_tracks WHERE playlist_id=?").bind(playlistId),
   ];
@@ -1002,7 +1031,7 @@ async function savePlaylist(request, env) {
     playlistId,
     t,
     existing ? "update" : "create",
-    cleanJson({ id: playlistId, name, active: !!body.active, locked: !!body.locked, notes: body.notes || null, metadata: body.metadata || {}, tracks }),
+    cleanJson({ id: playlistId, name, active: !!body.active, locked: !!body.locked, notes: body.notes || null, metadata, tracks }),
   ).run();
   await audit(env, "admin", "playlist.save", "playlist", playlistId, { name, tracks: tracks.length });
   return json({ ok: true, id: playlistId });
@@ -2221,6 +2250,10 @@ export default {
           "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events ORDER BY occurred_at DESC LIMIT 5000",
         ).all();
         return json({ ok: true, items: rows.results || [] }, 200, cors);
+      }
+
+      if (url.pathname === "/v1/public/music-playlists" && request.method === "GET") {
+        return json({ok:true,format:"ge-music-playlists-v1",items:await listPublicMusicPlaylists(env)},200,cors);
       }
 
       if (url.pathname === "/v1/public/dj-playlists" && request.method === "GET") {
