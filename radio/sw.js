@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.24-music-background-lock-v10';
+const VERSION='2026.10.24-isolated-music-v3';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -9,6 +9,7 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
+  './ge-music-v3.js',
   '../ge-accessibility.js',
   '../ge-accessibility.css',
   './track-durations.json',
