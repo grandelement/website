@@ -7108,7 +7108,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261023-radio23-player-controls-v1',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261024-music-scroll-v2',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10832,6 +10832,30 @@ window.GEIAmPrivateStudioBoot?.({audio,state,CONFIG,displayTitle,allowedCatalog,
   qrRadioTestBtn?.addEventListener('click',()=>open('../qr/radio/'));
   close?.addEventListener('click',shut);
   window.GEQRIntroTest={website:()=>open('../qr/'),radio:()=>open('../qr/radio/'),close:shut};
+})();
+
+// iPhone MUSIC scroll fallback: keep the song list usable even if older dashboard
+// styles or iOS WebKit intercept native scrolling. Only handles one-finger
+// gestures within the open MUSIC popup; form controls and pinch are untouched.
+(function(){
+  const picker=document.getElementById('trackList');
+  if(!picker || !/iPhone|iPad|iPod/i.test(navigator.userAgent))return;
+  let lastY=null;
+  picker.addEventListener('touchstart',e=>{
+    lastY=(e.touches.length===1 && !e.target.closest('input,select,textarea,[contenteditable="true"],input[type="range"]'))?e.touches[0].clientY:null;
+  },{passive:true});
+  picker.addEventListener('touchmove',e=>{
+    if(!picker.classList.contains('open') || lastY===null || e.touches.length!==1)return;
+    const y=e.touches[0].clientY;
+    const delta=lastY-y;
+    lastY=y;
+    if(picker.scrollHeight>picker.clientHeight+2){
+      if(e.cancelable)e.preventDefault();
+      picker.scrollTop+=delta;
+    }
+  },{passive:false});
+  picker.addEventListener('touchend',()=>{lastY=null},{passive:true});
+  picker.addEventListener('touchcancel',()=>{lastY=null},{passive:true});
 })();
 
 // Native iPhone portrait must not rubber-band the entire Radio dashboard.

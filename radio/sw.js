@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.23-radio23-player-controls-v1';
+const VERSION='2026.10.24-music-scroll-v2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
