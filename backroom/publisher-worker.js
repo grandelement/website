@@ -351,8 +351,11 @@ export default {
           if(!tracks.length)return json({ok:false,error:'Choose at least one track.'},400,cors);
           const validated=tracks.map(x=>({track_path:String(x.track_path||'').slice(0,600),track_title:String(x.track_title||'').slice(0,300),album:String(x.album||'').slice(0,160)}));
           if(validated.some(x=>!x.track_path.startsWith('ge-music/music/')))return json({ok:false,error:'Only GE Music tracks can be used.'},400,cors);
+          // GE Vault owns playlist visibility. Only authenticated Back Room
+          // sessions can set this flag; a public browser cannot publish lists.
           const payload={id:String(p.id||'').slice(0,100),name,tracks:validated,
-            active:!!p.active,locked:!!p.locked,notes:String(p.notes||'').slice(0,500)};
+            active:!!p.active,locked:!!p.locked,notes:String(p.notes||'').slice(0,500),
+            metadata:{source:'ge-vault',public:!!p.public}};
           const upstream=await geVaultBridge(env,'/v1/playlists','PUT',payload);
           return json(upstream.data,upstream.status,cors);
         }
