@@ -6272,7 +6272,68 @@ function geUpdateMusicScrollDiagnostic(){
 window.addEventListener('resize',()=>requestAnimationFrame(geLayoutMusicSongPane),{passive:true});
 window.visualViewport?.addEventListener('resize',()=>requestAnimationFrame(geLayoutMusicSongPane),{passive:true});
 
+// Opt-in iPhone MUSIC scroll trace. Open radio/?musicdebug=1, then MUSIC.
+// No analytics transmission: COPY copies a local trace for diagnosis.
+const geMusicTraceEnabled=new URLSearchParams(location.search).get('musicdebug')==='1';
+const geMusicTrace=[];
+let geMusicTraceLastY=0,geMusicTraceLastX=0,geMusicTraceStart=0;
+function geMusicTraceLog(type,detail=''){
+ if(!geMusicTraceEnabled)return;
+ const panel=document.getElementById('trackList');
+ const scroller=panel?.querySelector('#geTrackScroller');
+ const line=[new Date().toISOString().slice(11,23),type,
+   'panel='+Math.round(panel?.scrollTop||0)+'/'+Math.round((panel?.scrollHeight||0)-(panel?.clientHeight||0)),
+   'songs='+Math.round(scroller?.scrollTop||0)+'/'+Math.round((scroller?.scrollHeight||0)-(scroller?.clientHeight||0)),
+   detail].join(' ');
+ geMusicTrace.push(line);
+ if(geMusicTrace.length>200)geMusicTrace.shift();
+ const output=document.getElementById('geMusicTraceOutput');
+ if(output)output.textContent=geMusicTrace.slice(-9).join('\n');
+}
+if(geMusicTraceEnabled){
+ document.addEventListener('touchstart',event=>{
+  if(!event.target.closest?.('#trackList'))return;
+  const t=event.touches[0];if(!t)return;
+  geMusicTraceStart=performance.now();geMusicTraceLastY=t.clientY;geMusicTraceLastX=t.clientX;
+  geMusicTraceLog('touchstart',event.target.tagName+'.'+String(event.target.className||'').slice(0,35));
+ },{capture:true,passive:true});
+ document.addEventListener('touchmove',event=>{
+  if(!event.target.closest?.('#trackList'))return;
+  const t=event.touches[0];if(!t)return;
+  const dy=Math.round(t.clientY-geMusicTraceLastY),dx=Math.round(t.clientX-geMusicTraceLastX);
+  geMusicTraceLastY=t.clientY;geMusicTraceLastX=t.clientX;
+  if(Math.abs(dy)>3||Math.abs(dx)>3)geMusicTraceLog('touchmove','dy='+dy+' dx='+dx+' prevented='+event.defaultPrevented);
+ },{capture:false,passive:true});
+ document.addEventListener('touchend',event=>{
+  if(event.target.closest?.('#trackList'))geMusicTraceLog('touchend','ms='+Math.round(performance.now()-geMusicTraceStart));
+ },{capture:true,passive:true});
+ document.addEventListener('scroll',event=>{
+  if(event.target?.id==='trackList'||event.target?.id==='geTrackScroller')
+   geMusicTraceLog('scroll',event.target.id);
+ },{capture:true,passive:true});
+ window.GEMusicScrollTrace={copy:()=>geMusicTrace.join('\n'),events:geMusicTrace};
+}
+function geMusicTraceControls(){
+ if(!geMusicTraceEnabled)return;
+ let box=document.getElementById('geMusicTracePanel');
+ if(!box){
+  box=document.createElement('section');box.id='geMusicTracePanel';
+  box.style.cssText='position:fixed;right:8px;bottom:8px;z-index:20050;width:min(330px,95vw);max-height:35vh;overflow:auto;background:#061525;color:#9ff3fc;border:1px solid #55a8ce;border-radius:8px;padding:7px;font:10px monospace;white-space:pre-wrap';
+  const title=document.createElement('strong');title.textContent='MUSIC SCROLL TRACE';
+  const copy=document.createElement('button');copy.textContent='COPY TRACE';copy.type='button';
+  copy.style.cssText='float:right;padding:5px;background:#174e68;color:white;border:1px solid #8acfe8;border-radius:5px';
+  copy.addEventListener('click',async()=>{
+   const value=geMusicTrace.join('\n');
+   try{await navigator.clipboard.writeText(value);copy.textContent='COPIED';}
+   catch(_){const selection=document.createElement('textarea');selection.value=value;box.appendChild(selection);selection.select();copy.textContent='SELECT TEXT';}
+  });
+  const output=document.createElement('div');output.id='geMusicTraceOutput';output.style.marginTop='8px';
+  box.append(title,copy,output);document.body.appendChild(box);
+ }
+ geMusicTraceLog('diagnostic-ready');
+}
 function renderTrackList(){
+  geMusicTraceLog('render-start');
   const list=selectableSongs();
   // Retain native iPhone (outer) and desktop (inner) scroll across playlist
   // refreshes and selection changes; do not reset to the first album.
@@ -6408,6 +6469,7 @@ function renderTrackList(){
   trackList.appendChild(scrollArea);
   updateAlbumHeadings();
   requestAnimationFrame(geLayoutMusicSongPane);
+  if(geMusicTraceEnabled)requestAnimationFrame(geMusicTraceControls);
   if(trackList.classList.contains('open')){
     trackList.scrollTop=priorPanelScroll;
     scrollArea.scrollTop=priorSongScroll;
