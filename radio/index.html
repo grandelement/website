@@ -3146,37 +3146,42 @@ html.ge-radio-ui #trackList.open>#geTrackScroller .gePickRow,
 html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{opacity:1!important;visibility:visible!important}
 </style>
 <style id="ge-radio24-music-single-scroll">
-/* MUSIC uses an independently positioned, native song scroller. The header and
-   GE playlists cannot consume the song pane's height or steal its scroll. */
-#trackList.open{
- display:block!important;box-sizing:border-box!important;
- position:fixed!important;top:max(43px,calc(env(safe-area-inset-top) + 8px))!important;
+/* One native scroll surface for the entire MUSIC picker on iOS and desktop.
+   Overrides legacy flex and absolute song-pane experiments. */
+html.ge-radio-ui #trackList.open{
+ display:block!important;position:fixed!important;
+ box-sizing:border-box!important;
+ top:max(43px,calc(env(safe-area-inset-top) + 8px))!important;
  left:50%!important;transform:translateX(-50%)!important;
  width:min(760px,calc(100vw - 16px))!important;
  height:calc(100dvh - max(43px,calc(env(safe-area-inset-top) + 8px)) - env(safe-area-inset-bottom) - 8px)!important;
- max-height:none!important;overflow:hidden!important;touch-action:auto!important;
+ max-height:none!important;min-height:0!important;
+ overflow-x:hidden!important;overflow-y:auto!important;
+ -webkit-overflow-scrolling:touch!important;
+ touch-action:pan-y!important;overscroll-behavior-y:contain!important;
+ scroll-behavior:auto!important;
 }
-#trackList.open>.gePickToolbar{
- position:relative!important;top:auto!important;
+html.ge-radio-ui #trackList.open>.gePickToolbar,
+html.ge-radio-ui #trackList.open>.gePickerPlaylists{
  display:flex!important;flex-wrap:wrap!important;
- height:auto!important;min-height:0!important;max-height:29%!important;
- overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;
+ position:static!important;top:auto!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ flex:none!important;overflow:visible!important;
+ touch-action:pan-y!important;
 }
-#trackList.open>.gePickerPlaylists{
- position:relative!important;display:grid!important;
- height:auto!important;min-height:0!important;max-height:32%!important;
- overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;
-}
-#trackList.open>#geTrackScroller{
- display:block!important;position:absolute!important;
- top:var(--ge-song-pane-top,145px)!important;right:8px!important;bottom:8px!important;left:8px!important;
+html.ge-radio-ui #trackList.open>.gePickerPlaylists{display:grid!important}
+html.ge-radio-ui #trackList.open>#geTrackScroller{
+ display:block!important;position:static!important;
+ top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
  width:auto!important;height:auto!important;max-height:none!important;min-height:0!important;
- flex:none!important;overflow-y:scroll!important;overflow-x:hidden!important;
- -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
- overscroll-behavior-y:contain!important;
+ flex:none!important;
+ overflow:visible!important;-webkit-overflow-scrolling:auto!important;
+ touch-action:pan-y!important;
 }
-#trackList.open>#geTrackScroller .gePickRow,
-#trackList.open>#geTrackScroller .gePickAlbumHeader{touch-action:pan-y!important}
+html.ge-radio-ui #trackList.open>#geTrackScroller .gePickRow,
+html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{
+ touch-action:pan-y!important;
+}
 </style>
 </head>
 <body>
@@ -6255,29 +6260,9 @@ function gePlaylistUI(list){
 // The music SONGS are their own native scrolling window, separate from the
 // controls/GE playlists. Measure only when the picker changes or resizes.
 function geLayoutMusicSongPane(){
-  if(!trackList.classList.contains('open'))return;
-  const scroller=trackList.querySelector('#geTrackScroller');
-  if(!scroller)return;
-  const panel=trackList.getBoundingClientRect();
-  const toolbar=trackList.querySelector('.gePickToolbar');
-  const playlists=trackList.querySelector('.gePickerPlaylists');
-  const last=playlists||toolbar;
-  const bottom=last?last.getBoundingClientRect().bottom:panel.top+80;
-  const proposed=Math.ceil(bottom-panel.top+8);
-  const maxTop=Math.max(40,Math.floor(panel.height-76));
-  trackList.style.setProperty('--ge-song-pane-top',Math.max(30,Math.min(proposed,maxTop))+'px');
-  if(new URLSearchParams(location.search).has('musicdebug')){
-    let diag=trackList.querySelector('#geMusicScrollDiagnostic');
-    if(!diag){
-      diag=document.createElement('output');
-      diag.id='geMusicScrollDiagnostic';
-      diag.style.cssText='position:absolute;right:14px;bottom:13px;z-index:9;font:11px monospace;background:#061a2b;color:#95fbff;padding:2px 5px;pointer-events:none';
-      trackList.appendChild(diag);
-      scroller.addEventListener('scroll',()=>geUpdateMusicScrollDiagnostic(),{passive:true});
-      scroller.addEventListener('touchstart',()=>geUpdateMusicScrollDiagnostic(),{passive:true});
-    }
-    requestAnimationFrame(geUpdateMusicScrollDiagnostic);
-  }
+  // MUSIC scrolls on #trackList only. No absolute song pane, measurements,
+  // or scroll ownership changes after the first swipe.
+  trackList.style.removeProperty('--ge-song-pane-top');
 }
 function geUpdateMusicScrollDiagnostic(){
   const pane=trackList.querySelector('#geTrackScroller');
