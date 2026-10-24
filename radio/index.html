@@ -3146,34 +3146,34 @@ html.ge-radio-ui #trackList.open>#geTrackScroller .gePickRow,
 html.ge-radio-ui #trackList.open>#geTrackScroller .gePickAlbumHeader{opacity:1!important;visibility:visible!important}
 </style>
 <style id="ge-radio24-music-single-scroll">
-/* Unlike earlier html.ge-radio-ui selectors these rules match the REAL
-   document (<html lang="en">). One bounded native song scroller. */
+/* MUSIC uses an independently positioned, native song scroller. The header and
+   GE playlists cannot consume the song pane's height or steal its scroll. */
 #trackList.open{
- display:flex!important;flex-flow:column nowrap!important;
- box-sizing:border-box!important;
+ display:block!important;box-sizing:border-box!important;
  position:fixed!important;top:max(43px,calc(env(safe-area-inset-top) + 8px))!important;
  left:50%!important;transform:translateX(-50%)!important;
  width:min(760px,calc(100vw - 16px))!important;
  height:calc(100dvh - max(43px,calc(env(safe-area-inset-top) + 8px)) - env(safe-area-inset-bottom) - 8px)!important;
- max-height:none!important;overflow:hidden!important;
- overscroll-behavior:contain!important;touch-action:auto!important;
+ max-height:none!important;overflow:hidden!important;touch-action:auto!important;
 }
 #trackList.open>.gePickToolbar{
  position:relative!important;top:auto!important;
- display:flex!important;flex:0 0 auto!important;flex-wrap:wrap!important;
- max-height:30%!important;overflow-y:auto!important;overflow-x:hidden!important;
- min-height:0!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
+ display:flex!important;flex-wrap:wrap!important;
+ height:auto!important;min-height:0!important;max-height:29%!important;
+ overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;
 }
 #trackList.open>.gePickerPlaylists{
- display:grid!important;flex:0 1 auto!important;min-height:0!important;
- max-height:28%!important;overflow-y:auto!important;overflow-x:hidden!important;
- -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
+ position:relative!important;display:grid!important;
+ height:auto!important;min-height:0!important;max-height:32%!important;
+ overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;
 }
 #trackList.open>#geTrackScroller{
- display:block!important;position:relative!important;flex:1 1 0%!important;
- height:0!important;min-height:0!important;max-height:none!important;
- overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;
+ display:block!important;position:absolute!important;
+ top:var(--ge-song-pane-top,145px)!important;right:8px!important;bottom:8px!important;left:8px!important;
+ width:auto!important;height:auto!important;max-height:none!important;min-height:0!important;
+ flex:none!important;overflow-y:scroll!important;overflow-x:hidden!important;
  -webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;
+ overscroll-behavior-y:contain!important;
 }
 #trackList.open>#geTrackScroller .gePickRow,
 #trackList.open>#geTrackScroller .gePickAlbumHeader{touch-action:pan-y!important}
@@ -6252,6 +6252,41 @@ function gePlaylistUI(list){
  return holder;
 }
 
+// The music SONGS are their own native scrolling window, separate from the
+// controls/GE playlists. Measure only when the picker changes or resizes.
+function geLayoutMusicSongPane(){
+  if(!trackList.classList.contains('open'))return;
+  const scroller=trackList.querySelector('#geTrackScroller');
+  if(!scroller)return;
+  const panel=trackList.getBoundingClientRect();
+  const toolbar=trackList.querySelector('.gePickToolbar');
+  const playlists=trackList.querySelector('.gePickerPlaylists');
+  const last=playlists||toolbar;
+  const bottom=last?last.getBoundingClientRect().bottom:panel.top+80;
+  const proposed=Math.ceil(bottom-panel.top+8);
+  const maxTop=Math.max(40,Math.floor(panel.height-76));
+  trackList.style.setProperty('--ge-song-pane-top',Math.max(30,Math.min(proposed,maxTop))+'px');
+  if(new URLSearchParams(location.search).has('musicdebug')){
+    let diag=trackList.querySelector('#geMusicScrollDiagnostic');
+    if(!diag){
+      diag=document.createElement('output');
+      diag.id='geMusicScrollDiagnostic';
+      diag.style.cssText='position:absolute;right:14px;bottom:13px;z-index:9;font:11px monospace;background:#061a2b;color:#95fbff;padding:2px 5px;pointer-events:none';
+      trackList.appendChild(diag);
+      scroller.addEventListener('scroll',()=>geUpdateMusicScrollDiagnostic(),{passive:true});
+      scroller.addEventListener('touchstart',()=>geUpdateMusicScrollDiagnostic(),{passive:true});
+    }
+    requestAnimationFrame(geUpdateMusicScrollDiagnostic);
+  }
+}
+function geUpdateMusicScrollDiagnostic(){
+  const pane=trackList.querySelector('#geTrackScroller');
+  const out=trackList.querySelector('#geMusicScrollDiagnostic');
+  if(pane&&out)out.textContent='SONGS '+pane.clientHeight+'/'+pane.scrollHeight+' SCROLL '+Math.round(pane.scrollTop);
+}
+window.addEventListener('resize',()=>requestAnimationFrame(geLayoutMusicSongPane),{passive:true});
+window.visualViewport?.addEventListener('resize',()=>requestAnimationFrame(geLayoutMusicSongPane),{passive:true});
+
 function renderTrackList(){
   const list=selectableSongs();
   // Retain native iPhone (outer) and desktop (inner) scroll across playlist
@@ -6387,6 +6422,7 @@ function renderTrackList(){
   // Let Safari handle one native scroll container; no nested touch interception.
   trackList.appendChild(scrollArea);
   updateAlbumHeadings();
+  requestAnimationFrame(geLayoutMusicSongPane);
   if(trackList.classList.contains('open')){
     trackList.scrollTop=priorPanelScroll;
     scrollArea.scrollTop=priorSongScroll;
@@ -6580,10 +6616,12 @@ function openTrackPicker(){
   document.body.classList.remove('hud-hidden');
   trackList.classList.add('open');
   trackBackdrop.classList.add('open');
+  requestAnimationFrame(geLayoutMusicSongPane);
   titleBtn.setAttribute('aria-expanded','true');
   $('musicMenuBtn')?.setAttribute('aria-expanded','true');
   const current=trackList.querySelector('button.current');
-  if(current) setTimeout(()=>current.scrollIntoView({block:'center',behavior:'auto'}),0);
+  // Do not scroll the popup's ancestors on open; the user controls the SONGS pane.
+  if(current) current.setAttribute('aria-current','true');
 }
 // MUSIC must use the exact same selector and playback-safe behavior as tapping the song title.
 // This reuses the existing popup rather than opening a separate music screen.
@@ -7141,7 +7179,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261024-music-scroll-selector-v4',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261024-music-independent-pane-v5',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
