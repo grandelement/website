@@ -886,7 +886,7 @@ async function listPublicMusicPlaylists(env){
   const items=[];
   for(const p of rows.results||[]){
     let meta={};try{meta=JSON.parse(p.metadata_json||"{}")}catch(_){}
-    const legacyBangers=String(p.name||"").trim().toLowerCase()==="bangers"&&meta.source==="ge-radio";
+    const legacyBangers=meta.public===undefined&&String(p.name||"").trim().toLowerCase()==="bangers"&&meta.source==="ge-radio";
     if(meta.public!==true&&!legacyBangers)continue;
     const tracks=await env.VAULT_DB.prepare(
       "SELECT track_path FROM playlist_tracks WHERE playlist_id=? ORDER BY position"
