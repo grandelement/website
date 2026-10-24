@@ -66,3 +66,26 @@ ordered track paths and revision. No manual re-creation or special casing BANGER
 Stage new private sync and public read alongside the old paths. Backfill and
 compare records. Switch Radio readers only after checks pass. Keep existing
 DJ controller and D1 backups until migration is verified; do not delete data.
+
+
+## Vault-first MUSIC V4 implementation (October 24, 2026)
+
+The user-approved architecture is **GE Vault for permanent playlist storage and selection; BLITZ only for the live-radio stream**.
+
+- Listener: `radio/ge-music-v4.js`. One CHOOSE MUSIC selector contains ALL SONGS, each ALBUM, and public GE VAULT PLAYLISTS. Choosing an item shows its actual ordered songs and PLAY/checkbox controls in the same scrollable window. `radio/index.html` no longer requests the original V3 public-playlist snapshot. Preview playback still uses the existing access-limited `radio/preview-lab.html` player, not the DJ controller.
+- Public playlist read: `GET https://vault.grandelement.com/v1/public/music-playlists`, defined in `vault-worker/src/index.js`. It reads `VAULT_DB.playlists` and `VAULT_DB.playlist_tracks` in position order, returns only authorized public rows, and never reads BLITZ or a GitHub-generated song queue. Previously explicitly published Bangers with original `source=ge-radio` is recognized only if no owner publication flag exists; an explicit private flag always prevails.
+- Owner playlist editor: `backroom/index.html` uses the authenticated `/manage/playlists` endpoints in `backroom/publisher-worker.js`, which forward to Vault. An owner can save name, ordered songs and Public flag directly to D1 without restarting BLITZ or pressing PUBLISH LIVE.
+- `vault-worker/src/index.js` merges playlist metadata on update so older DJ syncs cannot silently erase publication flags.
+- Browser selections marked SAVE ON DEVICE are explicitly local, not represented as server-synced Vault playlists. The owner Back Room is the authenticated durable editor.
+
+### Deployment is still a separate required operation
+
+**GitHub commits do not deploy the Vault or Back Room Cloudflare Workers.** On the authorized Cloudflare account, deploy `vault-worker/` using its existing `wrangler.jsonc`, and `backroom/` using its `wrangler.toml`. This must be completed before the new API responds publicly or the Back Room publisher accepts the new Public metadata field. Do not change existing D1 database bindings, replay `schema.sql` destructively, or put Worker secrets in frontend files or GitHub.
+
+First verify that `GET /v1/public/music-playlists` returns HTTP 200 with `{ok:true,format:"ge-music-playlists-v1",items:[...]}`. The returned list may legitimately be empty until owner-approved playlists are in D1; never synthesize Bangers from the Radio clock.
+
+### Original Bangers one-time migration
+
+If Bangers is not already in Vault, open the authenticated Back Room PLAYLISTS tab. Use IMPORT SAVED DJ BANGERS **only if** the original DJ backup is present in this device's browser storage, verify its existing song order and count, check PUBLIC IN MUSIC, then SAVE TO GE VAULT. No BLITZ server connection or restart is needed for this saved-backup import. If no saved backup exists, retrieve the genuine playlist once from the original DJ owner account; **do not substitute Radio 2's synchronized broadcast schedule, because that is not the authoritative playlist record**.
+
+After deployment, verify actual playlist ID, song count, track order, saved Public flag, refresh persistence, private-list isolation, song PLAY and iPhone scroll with the live API. Syntax checks or a GitHub commit alone do not establish successful live operation.
