@@ -346,7 +346,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #backroomMain .backroomTabs button:nth-child(6){grid-column:span 5}
 #backroomMain .backroomTabs button:nth-child(7){grid-column:span 5}
 #backroomMain .backroomTabs button:nth-child(8){grid-column:span 5}
-#backroomMain .backroomTabs button:nth-child(9){grid-column:span 5}
+#backroomMain .backroomTabs button:nth-child(9){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(10){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(11){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(12){grid-column:span 4}
+#backroomMain .backroomTabs button:nth-child(n+6):nth-child(-n+10){grid-column:span 4}
 #backroomMain #brPanel-welcome > section.brDirectSection,
 #backroomMain #brPanel-about > section.brDirectSection{
   padding:10px 12px;margin:6px 0;
@@ -453,6 +457,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabAbout" type="button" role="tab" data-tab="about" aria-selected="false">ABOUT</button>
   <button id="brTabUniverse" type="button" role="tab" data-tab="universe" aria-selected="false">UNIVERSE</button>
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
+  <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false">MUSIC</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
   <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
@@ -461,6 +466,18 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
 </nav>
+
+<section data-br-tab="music">
+  <h2>MUSIC</h2>
+  <p>Controls for the public MUSIC button. Playlists are managed once in PLAYLISTS using the original GE DJ Booth and Vault records. Only explicitly published playlists appear for listeners.</p>
+  <div class="backroomQuickLinks">
+    <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST PUBLIC MUSIC ↗</a>
+    <button type="button" id="brMusicGoPlaylists">MANAGE GE PLAYLISTS</button>
+  </div>
+  <h3>PUBLIC MUSIC PLAYLISTS</h3>
+  <p>These are the playlists currently selected for the public MUSIC button in this Back Room working configuration. Publish the website changes to make them live.</p>
+  <div id="brMusicPublicLists" class="backroomInlineStatus" role="status">No playlists published in the working configuration.</div>
+</section>
 
 <section data-br-tab="scores">
   <h2>HIGH SCORES</h2>
@@ -796,9 +813,22 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 const $=id=>document.getElementById(id);
 
 // Back Room games are enabled here; their actual gameplay settings remain inside each game.
+window.GE_BACKROOM_SHOW_MUSIC=function(){
+  const host=document.getElementById('brMusicPublicLists');if(!host)return;
+  const lists=Array.isArray(cfg?.music?.publicPlaylists)?cfg.music.publicPlaylists:[];
+  host.replaceChildren();
+  if(!lists.length){host.textContent='No public playlists selected in this working configuration.';return;}
+  for(const playlist of lists){
+    const row=document.createElement('div');row.style.padding='7px 0';
+    const name=document.createElement('strong');name.textContent=String(playlist.name||'Unnamed playlist');
+    const count=document.createElement('span');count.textContent=' · '+(Array.isArray(playlist.songs)?playlist.songs.length:0)+' songs';
+    row.append(name,count);host.appendChild(row);
+  }
+};
+document.getElementById('brMusicGoPlaylists')?.addEventListener('click',()=>document.getElementById('brTabPlaylists')?.click());
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
+  const categories=['welcome','about','universe','games','music','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
@@ -813,7 +843,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'||category==='moon'){
+    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'||category==='moon'||category==='music'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -831,6 +861,7 @@ function installBackroomTabs(){
     if(!panels.has(tab))tab='welcome';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
+    if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
     for(const button of tabButtons){const active=button.dataset.tab===tab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
