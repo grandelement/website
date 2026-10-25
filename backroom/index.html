@@ -457,6 +457,16 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brDJPlaylistSection{min-height:125px}
 #brPanel-playlists .brCompactStatus{margin:9px 0 4px}
 #brMusicPlaylistTools{margin:8px 0}
+
+/* MUSIC: one master inventory, one deliberate live save. */
+.brMasterToolbar{display:grid;grid-template-columns:minmax(76px,1fr) minmax(110px,1.45fr) auto;align-items:center;gap:8px;margin:3px 0 10px}
+.brMasterToolbar button{min-height:48px;font-weight:900}
+.brMasterToolbar strong{font-size:calc(11px * var(--scale));font-variant-numeric:tabular-nums;white-space:normal;text-align:right}
+#brMasterSearch{display:block;width:100%;max-width:none;margin-bottom:8px;min-height:43px}
+#brMasterSongs{margin-top:10px}
+#brMasterSongs .brMasterAlbum{margin:7px 0}
+#brMasterSongs .brMasterSong{min-height:42px}
+@media(max-width:440px){.brMasterToolbar{grid-template-columns:minmax(70px,1fr) minmax(110px,1.2fr)}.brMasterToolbar strong{grid-column:1/-1;text-align:left}}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -508,14 +518,16 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </nav>
 
 <section data-br-tab="music">
-  <h2>MUSIC</h2>
-  <div class="backroomQuickLinks">
-    <a href="./music-upload.html">UPLOAD MUSIC</a>
-    <a href="../radio/" target="_blank" rel="noopener noreferrer">PUBLIC MUSIC</a>
-    <button type="button" id="brMusicGoPlaylists">EDIT PLAYLISTS</button>
-  </div>
-  <h3>PUBLIC PLAYLISTS</h3>
-  <div id="brMusicPublicLists" class="brCompactStatus" role="status">Loading from GE Vault…</div>
+  <section id="brMasterSection" aria-label="Master Song List">
+    <div class="brMasterToolbar">
+      <button type="button" id="brMasterRefresh">LOAD</button>
+      <button type="button" class="primary" id="brMasterSave">SAVE MASTER</button>
+      <strong id="brMasterCount">Loading…</strong>
+    </div>
+    <input id="brMasterSearch" type="search" placeholder="FIND SONG OR ALBUM" aria-label="Find songs in the master list">
+    <div id="brMasterStatus" class="brCompactStatus" role="status" aria-live="polite">Loading saved Master List…</div>
+    <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
+  </section>
 </section>
 
 <section data-br-tab="scores">
@@ -645,14 +657,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST WEBSITE RADIO ↗</a>
     <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">OPEN GE DJ BOOTH ↗</a>
   </div>
-  <p>RADIO controls its master song approvals. Use PLAYLISTS for your saved BLITZ DJ Booth rotations, WELCOME for startup music and MOON for satellite settings.</p>
-  <p>GE RADIO MASTER SONG LIST controls which tracks may play automatically on BLITZ Radio and website Player/Shuffle. A checked song stays approved when its audio file is replaced. New uploads default OFF until explicitly checked and PUBLISH LIVE is pressed.</p>
-  <section id="brMasterSection" aria-label="GE Radio Master Song List">
-    <h3>GE RADIO MASTER SONG LIST</h3>
-    <div class="backroomActionRow"><input id="brMasterSearch" type="search" placeholder="Find song or album" aria-label="Search radio approved music"><button id="brMasterRefresh" type="button">REFRESH LIBRARY</button><strong id="brMasterCount">Loading…</strong></div>
-    <p class="brAccessNotice">Changes are staged. SAVE then PUBLISH LIVE to approve or remove Radio and automatic Shuffle songs. All album tracks remain available in MUSIC and SHOP.</p>
-    <div id="brMasterSongs" role="group" aria-label="Approved radio and automatic player songs"></div>
-  </section>
+  <p>MASTER SONG LIST is managed in MUSIC. The DJ Booth controls live BLITZ playback.</p>
+
 </section>
 
 <section data-br-tab="playlists" id="brDJPlaylistSection">
@@ -664,8 +670,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div id="brPlaylistViewSongs" class="brPlaylistViewSongs" role="list" aria-live="polite" hidden></div>
 </section>
 
-<section data-br-tab="music" id="brDJPlaylistEditor">
-  <h2>MUSIC PLAYLIST EDITOR</h2>
+<section data-br-tab="playlists" id="brDJPlaylistEditor">
+  <h2>PLAYLIST OPTIONS</h2>
   <details id="brMusicPlaylistTools" class="brSourceDetails">
     <summary>EDIT PLAYLIST</summary>
   <div class="brPlaylistPrimary">
@@ -875,28 +881,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 const $=id=>document.getElementById(id);
 
 // Back Room games are enabled here; their actual gameplay settings remain inside each game.
-window.GE_BACKROOM_SHOW_MUSIC=async function(){
-  const host=document.getElementById('brMusicPublicLists');if(!host)return;
-  host.textContent='Checking GE Vault published playlists…';
-  try{
-    const response=await fetch('https://vault.grandelement.com/v1/public/music-playlists',{cache:'no-store'});
-    if(!response.ok)throw Error('GE Vault HTTP '+response.status);
-    const data=await response.json();
-    if(!data?.ok||!Array.isArray(data.items))throw Error('Invalid GE Vault playlist response');
-    host.replaceChildren();
-    if(!data.items.length){host.textContent='GE Vault connected. No playlists marked PUBLIC yet.';return}
-    for(const p of data.items){
-      const row=document.createElement('div');row.style.padding='7px 0';
-      const strong=document.createElement('strong');strong.textContent=String(p.name||'Unnamed');
-      const count=document.createElement('span');count.textContent=' · '+(p.songs?.length||0)+' songs';
-      row.append(strong,count);host.append(row);
-    }
-  }catch(err){host.textContent='GE Vault playlist endpoint unavailable: '+String(err.message||err)+'. Existing music files were not changed.'}
+// Music loads the published master record, never another copy of playlists.
+window.GE_BACKROOM_SHOW_MUSIC=function(){
+  if(window.GE_BACKROOM_MASTER_READY)window.GE_BACKROOM_MASTER_LOAD?.();
 };
-document.getElementById('brMusicGoPlaylists')?.addEventListener('click',()=>{
-  const tools=document.getElementById('brMusicPlaylistTools');
-  if(tools){tools.open=true;tools.scrollIntoView({behavior:'smooth',block:'start'});}
-});
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
   const categories=['welcome','about','universe','games','music','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
@@ -1508,7 +1496,7 @@ $('radioMoonGlow').addEventListener('input',()=>{$('radioMoonGlowValue').textCon
 // Sections move from <main> into #backroomTabPanels during tab setup.
 // Listen on the actual mounted controls or edits never mark the draft as dirty.
 document.querySelectorAll('#backroomTabPanels input,#backroomTabPanels textarea,#backroomTabPanels select').forEach(e=>{
-  if(e.closest('[data-br-tab="access"],[data-br-tab="playlists"]'))return;
+  if(e.closest('[data-br-tab="access"],[data-br-tab="playlists"],#brMasterSection'))return;
   if(!['backroomTextSize','welcomeOpacity','aboutOpacity'].includes(e.id))e.addEventListener('input',mark);
 });
 $('planetLayout').addEventListener('change',()=>{
@@ -1521,15 +1509,30 @@ $('planetLayout').addEventListener('change',()=>{
 $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
-let brMasterCatalog=[],brMasterLoaded=false;
+let brMasterCatalog=[],brMasterLoaded=false,brMasterDirty=false,brMasterBusy=false,
+    brMasterSavedSignature='',brMasterLastCommit='';
+const brMasterRoot=/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i;
 function brMasterAlbum(path){
  const folder=String(path).split('/')[2]||'';
  return folder.replace(/^Grand Element - (?:\d{4} - )?/,'').trim()||'Other';
 }
+function brMasterSignature(paths){
+ return JSON.stringify([...new Set(Array.isArray(paths)?paths:[])].sort());
+}
+function brMasterMessage(message){
+ const el=$('brMasterStatus');if(el)el.textContent=String(message||'');
+}
+function brMasterCount(){
+ const paths=new Set(brMasterCatalog),approved=new Set(cfg?.music?.radioMasterSongPaths||[]);
+ const valid=[...approved].filter(path=>paths.has(path)).length;
+ const unavailable=[...approved].filter(path=>!paths.has(path)).length;
+ $('brMasterCount').textContent=valid+' / '+brMasterCatalog.length+' IN MASTER'+
+   (unavailable?' · '+unavailable+' MISSING':'');
+}
 function brMasterRender(){
  const host=$('brMasterSongs'),term=String($('brMasterSearch').value||'').trim().toLowerCase();
  host.replaceChildren();
- const approved=new Set(cfg.music?.radioMasterSongPaths||[]);
+ const approved=new Set(cfg?.music?.radioMasterSongPaths||[]);
  const order=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
  const groups=new Map();
  for(const path of brMasterCatalog){
@@ -1543,52 +1546,104 @@ function brMasterRender(){
  })){
   const matches=groups.get(album).filter(path=>(album+' '+path.split('/').pop()).toLowerCase().includes(term));
   if(!matches.length)continue;
-  const box=document.createElement('section');box.className='brMasterAlbum';
-  const title=document.createElement('strong');title.textContent=album+' · '+groups.get(album).length+' songs';
-  box.appendChild(title);
+  const group=document.createElement('section');group.className='brMasterAlbum';
+  const heading=document.createElement('strong');heading.textContent=album+' · '+groups.get(album).length+' SONGS';
+  group.appendChild(heading);
   for(const path of matches){
    const label=document.createElement('label');label.className='brMasterSong';
    const input=document.createElement('input');input.type='checkbox';input.checked=approved.has(path);
-   input.setAttribute('aria-label','Approved for Radio and Shuffle: '+path.split('/').pop());
+   const songName=path.split('/').pop().replace(/\.(mp3|m4a|wav|ogg)$/i,'').replace(/_/g,' ');
+   input.setAttribute('aria-label','Include '+songName+' in Radio and Shuffle Master');
    input.addEventListener('change',()=>{
      const next=new Set(cfg.music.radioMasterSongPaths||[]);
      if(input.checked)next.add(path);else next.delete(path);
      cfg.music.radioMasterSongPaths=[...next].sort();
-     brMasterCount();mark();
+     brMasterDirty=brMasterSignature(cfg.music.radioMasterSongPaths)!==brMasterSavedSignature;
+     brMasterCount();
+     brMasterMessage(brMasterDirty?'UNSAVED · SAVE MASTER TO UPDATE RADIO / SHUFFLE':'MASTER MATCHES PUBLISHED VERSION');
    });
-   const name=document.createElement('span');name.textContent=path.split('/').pop().replace(/\.(mp3|m4a|wav|ogg)$/i,'').replace(/_/g,' ');
-   label.append(input,name);box.appendChild(label);
+   const name=document.createElement('span');name.textContent=songName;
+   label.append(input,name);group.appendChild(label);
   }
-  host.appendChild(box);
+  host.appendChild(group);
  }
- if(!host.childElementCount)host.textContent='No matching songs. Refresh the album inventory.';
+ if(!host.childElementCount)host.textContent='NO MATCHING SONGS';
  brMasterCount();
 }
-function brMasterCount(){
- const paths=new Set(brMasterCatalog),approved=new Set(cfg.music?.radioMasterSongPaths||[]);
- const valid=[...approved].filter(path=>paths.has(path)).length;
- $('brMasterCount').textContent=valid+' / '+brMasterCatalog.length+' APPROVED'+(approved.size>valid?' · '+(approved.size-valid)+' unavailable':'');
-}
-async function brMasterLoadCatalog(){
+async function brMasterLoadPublished(force=false){
+ if(brMasterBusy)return;
+ if(brMasterDirty&&!force&&!confirm('Discard unsaved Master changes and load the published song list?'))return;
+ brMasterBusy=true;$('brMasterRefresh').disabled=true;
+ brMasterMessage('LOADING MASTER…');
  try{
-  const r=await fetch('../radio/manifest.json?radioMaster='+Date.now(),{cache:'no-store'});
-  if(!r.ok)throw Error('MUSIC manifest unavailable');
-  const json=await r.json();
-  const paths=(json.files||[]).filter(path=>typeof path==='string'&&/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)&&!path.includes('..'));
-  brMasterCatalog=[...new Set(paths)].sort();
-  if(!Array.isArray(cfg.music?.radioMasterSongPaths)){
-   const live=await repoLive();
-   cfg.music=cfg.music||{};
-   cfg.music.radioMasterSongPaths=[...(live.music?.radioMasterSongPaths||[])];
-  }
-  brMasterLoaded=true;brMasterRender();
- }catch(e){
-  $('brMasterSongs').textContent='Music inventory unavailable: '+String(e.message||e);
-  $('brMasterCount').textContent='NOT READY';
- }
+  // The manifest inventories audio files. Removal from Radio/Shuffle approval
+  // never deletes the original files or rewrites this physical inventory.
+  const [response,live]=await Promise.all([
+   fetch('../radio/manifest.json?master='+Date.now(),{cache:'no-store'}),repoLive()
+  ]);
+  if(!response.ok)throw Error('Music manifest unavailable · HTTP '+response.status);
+  const manifest=await response.json();
+  if(!Array.isArray(manifest.files))throw Error('Music manifest contains no file list');
+  const available=manifest.files.filter(path=>typeof path==='string'&&brMasterRoot.test(path)&&
+    !path.includes('..'));
+  const approvals=live?.music?.radioMasterSongPaths;
+  if(!Array.isArray(approvals))throw Error('Published Master list is unavailable');
+  brMasterCatalog=[...new Set(available)].sort();
+  brMasterLoaded=true;cfg.music=cfg.music||{};
+  cfg.music.radioMasterSongPaths=[...new Set(approvals)].sort();
+  brMasterSavedSignature=brMasterSignature(approvals);
+  brMasterDirty=false;brMasterRender();
+  const missing=approvals.filter(path=>!brMasterCatalog.includes(path)).length;
+  brMasterMessage('MASTER LOADED · '+brMasterCatalog.length+' SONGS'+
+    (missing?' · '+missing+' UNAVAILABLE PATHS':''));
+ }catch(error){
+  brMasterMessage('MASTER NOT LOADED · '+String(error.message||error));
+ }finally{brMasterBusy=false;$('brMasterRefresh').disabled=false;}
 }
-$('brMasterRefresh').addEventListener('click',brMasterLoadCatalog);
+async function brMasterSavePublished(){
+ if(brMasterBusy||!brMasterLoaded)return;
+ if(!serverAuthenticated||!token()){
+  brMasterMessage('SIGN IN REQUIRED · CONNECT TO THE PRIVATE BACK ROOM PUBLISHER');
+  return;
+ }
+ const selected=[...new Set(cfg.music?.radioMasterSongPaths||[])].filter(p=>brMasterCatalog.includes(p)).sort();
+ if(!selected.length){
+  brMasterMessage('NOT SAVED · RADIO / SHUFFLE MASTER CANNOT BE EMPTY');
+  return;
+ }
+ if(!brMasterDirty){
+  brMasterMessage('ALREADY SAVED · '+selected.length+' SONGS');
+  return;
+ }
+ brMasterBusy=true;$('brMasterSave').disabled=true;
+ brMasterMessage('SAVING MASTER…');
+ try{
+  // Re-read the live config: this dedicated SAVE never publishes the user's
+  // other unsaved Back Room edits or overwrites Bangers/playlists.
+  const live=await repoLive();
+  if(brMasterSignature(live?.music?.radioMasterSongPaths)!==brMasterSavedSignature){
+   throw Error('MASTER CHANGED ELSEWHERE · LOAD AGAIN BEFORE SAVING');
+  }
+  const published={...live,music:{...(live.music||{}),
+    radioMasterSongPaths:selected,
+    radioMasterRevision:(Number(live.music?.radioMasterRevision)||0)+1}};
+  const response=await api('/publish',{method:'POST',body:JSON.stringify({config:published})});
+  const reply=await response.json().catch(()=>({}));
+  if(!response.ok||reply.ok!==true||!reply.commit)
+   throw Error(reply.error||'Publisher did not confirm a GitHub commit');
+  brMasterSavedSignature=brMasterSignature(selected);
+  brMasterLastCommit=reply.commit;brMasterDirty=false;
+  cfg.music.radioMasterSongPaths=selected;brMasterRender();
+  brMasterMessage('SAVED LIVE · '+selected.length+' SONGS · '+String(reply.commit).slice(0,10));
+ }catch(error){
+  brMasterMessage('NOT SAVED · '+String(error.message||error));
+ }finally{brMasterBusy=false;$('brMasterSave').disabled=false;}
+}
+$('brMasterRefresh').addEventListener('click',()=>void brMasterLoadPublished());
+$('brMasterSave').addEventListener('click',()=>void brMasterSavePublished());
 $('brMasterSearch').addEventListener('input',brMasterRender);
+window.GE_BACKROOM_MASTER_LOAD=()=>{if(!brMasterDirty)void brMasterLoadPublished()};
+
 
 async function loadMusic(){
   try{const r=await fetch('../radio/manifest.json?'+Date.now(),{cache:'no-store'}),d=await r.json(),files=(d.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg)$/i.test(x));const sel=$('firstTrackSelect');sel.innerHTML='<option value="">LET VISITOR CHOOSE MUSIC</option>';
@@ -2983,7 +3038,9 @@ async function bootBackroom(){
     localStorage.setItem(TEXT_KEY,savedText);
   }
   applyText(savedText||90);
-  cfg=localDraft()||await repoLive();populate();await loadMusic();await brMasterLoadCatalog();
+  cfg=localDraft()||await repoLive();populate();await loadMusic();
+  window.GE_BACKROOM_MASTER_READY=true;
+  await brMasterLoadPublished();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
   if(selectedTab==='scores')void loadBackroomScores();
