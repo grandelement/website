@@ -2322,8 +2322,14 @@ const backroomVaultManagers=(()=>{
       needsPublisherLogin();playlistStatus('NOT SAVED · Sign in to the private publisher to save your playlist.');
       return;
     }
-    const same=playlists.find(p=>p.name.trim().toLowerCase()===name.toLowerCase());
-    const id=same?.id||playlistEditingId||'',prior=playlists.find(p=>p.id===id);
+    // Editing a selected playlist must never silently overwrite another
+    // playlist with a matching name. Every record keeps its stable Vault ID.
+    const collision=playlists.find(p=>p.name.trim().toLowerCase()===name.toLowerCase()&&p.id!==playlistEditingId);
+    if(collision){
+      playlistStatus('PLAYLIST NAME EXISTS · Select that playlist to edit it, or choose another name.');
+      return;
+    }
+    const id=playlistEditingId||'',prior=playlists.find(p=>p.id===id);
     const entry={id,name,tracks:tracks.map(t=>({
       track_path:String(t.track_path||''),track_title:String(t.track_title||''),album:String(t.album||'')
     })),public:!!$('brPlaylistPublic').checked,active:!!prior?.active,locked:!!prior?.locked};
