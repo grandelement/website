@@ -452,6 +452,18 @@ test(home.includes('approved.has(item.clean)') &&
      home.includes('if(approved.size!==approvedPaths.length)') &&
      home.includes("const RADIO_ALBUM_ORDER=['Singles','Aether'"),
      'Homepage fallback Player/Shuffle plays only Master-approved paths, Singles first');
+// One Back Room MUSIC surface; no accidental publish of unrelated draft settings.
+test(backroom.includes('<section data-br-tab="music">\n  <section id="brMasterSection"') &&
+     backroom.includes('id="brMasterRefresh"') &&
+     backroom.includes('id="brMasterSave"') &&
+     backroom.includes('id="brMasterSongs"') &&
+     backroom.includes("await api('/publish',{method:'POST',body:JSON.stringify({config:published}),timeoutMs:25000})") &&
+     backroom.includes("radioMasterRevision:(Number(live.music?.radioMasterRevision)||0)+1") &&
+     backroom.includes("const live=await repoLive()") &&
+     backroom.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor">') &&
+     !backroom.includes('id="brMusicGoPlaylists"') &&
+     !backroom.includes('id="brMusicPublicLists"'),
+     'MUSIC offers one saved Master Song List and keeps PLAYLISTS separate');
 const approvedList=liveSiteConfig.music?.radioMasterSongPaths;
 const files=JSON.parse(load('radio/manifest.json')).files;
 test(Array.isArray(approvedList)&&approvedList.length>0&&
