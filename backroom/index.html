@@ -2206,17 +2206,45 @@ const backroomVaultManagers=(()=>{
     const name=$('brPlaylistName').value.trim(),tracks=playlistTracks.filter(t=>!t._excluded);
     if(!name){playlistStatus('ENTER A PLAYLIST NAME');return}
     if(!tracks.length){playlistStatus('CHOOSE SONGS');return}
+    if(!serverAuthenticated||!token()){
+      playlistStatus('NOT SAVED · LOCAL-ONLY EDITOR. Use RECONNECT PUBLISHER to restore the private GE Vault session.');
+      return;
+    }
     const same=playlists.find(p=>p.name.trim().toLowerCase()===name.toLowerCase());
     const id=same?.id||playlistEditingId||'',prior=playlists.find(p=>p.id===id);
     const entry={id,name,tracks:tracks.map(t=>({
       track_path:String(t.track_path||''),track_title:String(t.track_title||''),album:String(t.album||'')
     })),public:!!$('brPlaylistPublic').checked,active:!!prior?.active,locked:!!prior?.locked};
+    const pendingTracks=playlistTracks.map(t=>({...t}));
     const button=$('brPlaylistSave');button.disabled=true;playlistStatus('SAVING TO GE VAULT…');
     try{
       const result=await vaultAction('/manage/playlists',{action:'save',playlist:entry});
-      const saved=String(result.id||id);playlistEditingId=saved;
-      await refreshPlaylists();editPlaylist(saved);
-      playlistStatus('SAVED TO GE VAULT · '+name+' · '+tracks.length+' SONGS · '+(entry.public?'PUBLIC':'PRIVATE')+'. BLITZ UNCHANGED.');
+      const saved=String(result.id||id);
+      if(!saved)throw Error('GE Vault did not confirm a playlist ID.');
+      playlistEditingId=saved;
+      const reloaded=await refreshPlaylists();
+      if(!reloaded){
+        playlistTracks=pendingTracks;
+        $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
+        renderTrackList();renderDJAlbumChoices();
+        playlistStatus('VAULT ACCEPTED WRITE, BUT SAVED LIST COULD NOT BE READ BACK · Do not create a duplicate. Run CHECK VAULT CONNECTION and REFRESH PLAYLISTS.');
+        return;
+      }
+      const verified=playlists.find(p=>String(p.id)===saved);
+      let metadata={};try{metadata=JSON.parse(verified?.metadata_json||'{}')}catch(_e){}
+      const savedTracks=(verified?.tracks||[]).map(t=>String(t.track_path||''));
+      const correct=verified?.name===name&&metadata.public===entry.public&&
+        JSON.stringify(savedTracks)===JSON.stringify(entry.tracks.map(t=>t.track_path));
+      if(!correct){
+        playlistEditingId=saved;
+        playlistTracks=pendingTracks;
+        $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
+        renderTrackList();renderDJAlbumChoices();
+        playlistStatus('VAULT READBACK DOES NOT MATCH SONG ORDER OR PUBLIC SETTING · Your selections remain in the editor. Check publisher deployment before saving again.');
+        return;
+      }
+      editPlaylist(saved);
+      playlistStatus('SAVED AND VERIFIED IN GE VAULT · '+name+' · '+tracks.length+' SONGS · '+(entry.public?'PUBLIC':'PRIVATE')+'. BLITZ UNCHANGED.');
     }catch(e){playlistStatus('VAULT SAVE FAILED · '+String(e.message||e)+'. BLITZ UNCHANGED.')}
     finally{button.disabled=false}
   }
