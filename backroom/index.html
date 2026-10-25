@@ -469,14 +469,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="music">
   <h2>MUSIC</h2>
-  <p>Controls for the public MUSIC button. Playlists are managed once in PLAYLISTS using the original GE DJ Booth and Vault records. Only explicitly published playlists appear for listeners.</p>
+  <p>Upload music masters first, verify each album and track, then manage your permanent playlists in GE Vault. BLITZ is only used for live Radio.</p>
   <div class="backroomQuickLinks">
+    <a href="./music-upload.html" target="_blank" rel="noopener noreferrer">UPLOAD ALBUMS AND SONGS ↗</a>
     <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST PUBLIC MUSIC ↗</a>
-    <button type="button" id="brMusicGoPlaylists">MANAGE GE PLAYLISTS</button>
+    <button type="button" id="brMusicGoPlaylists">MANAGE GE VAULT PLAYLISTS</button>
   </div>
-  <h3>PUBLIC MUSIC PLAYLISTS</h3>
-  <p>These are the playlists currently selected for the public MUSIC button in this Back Room working configuration. Publish the website changes to make them live.</p>
-  <div id="brMusicPublicLists" class="backroomInlineStatus" role="status">No playlists published in the working configuration.</div>
+  <h3>GE VAULT PUBLISHED PLAYLISTS</h3>
+  <p>Only owner-approved public playlists from Cloudflare GE Vault should appear in the MUSIC selector. No playlist is automatically created by uploading files.</p>
+  <div id="brMusicPublicLists" class="backroomInlineStatus" role="status">Connect to GE Vault to check public playlists.</div>
 </section>
 
 <section data-br-tab="scores">
@@ -627,6 +628,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <h2>GE VAULT PLAYLIST EDITOR</h2><p>Manage playlist names, song order and publication in GE Vault. Live Radio selection remains separate.</p>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status">Open PLAYLISTS to load saved playlists.</div>
   <div class="backroomActionRow">
+    <a href="./music-upload.html" target="_blank" rel="noopener noreferrer">UPLOAD SONGS ↗</a>
     <button type="button" id="brPlaylistsRefresh">REFRESH PLAYLISTS</button>
     <button type="button" id="brPlaylistsNew">NEW PLAYLIST</button>
     <button type="button" id="brImportBangers">IMPORT SAVED DJ BANGERS</button>
@@ -816,17 +818,23 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 const $=id=>document.getElementById(id);
 
 // Back Room games are enabled here; their actual gameplay settings remain inside each game.
-window.GE_BACKROOM_SHOW_MUSIC=function(){
+window.GE_BACKROOM_SHOW_MUSIC=async function(){
   const host=document.getElementById('brMusicPublicLists');if(!host)return;
-  const lists=Array.isArray(cfg?.music?.publicPlaylists)?cfg.music.publicPlaylists:[];
-  host.replaceChildren();
-  if(!lists.length){host.textContent='No public playlists selected in this working configuration.';return;}
-  for(const playlist of lists){
-    const row=document.createElement('div');row.style.padding='7px 0';
-    const name=document.createElement('strong');name.textContent=String(playlist.name||'Unnamed playlist');
-    const count=document.createElement('span');count.textContent=' · '+(Array.isArray(playlist.songs)?playlist.songs.length:0)+' songs';
-    row.append(name,count);host.appendChild(row);
-  }
+  host.textContent='Checking GE Vault published playlists…';
+  try{
+    const response=await fetch('https://vault.grandelement.com/v1/public/music-playlists',{cache:'no-store'});
+    if(!response.ok)throw Error('GE Vault HTTP '+response.status);
+    const data=await response.json();
+    if(!data?.ok||!Array.isArray(data.items))throw Error('Invalid GE Vault playlist response');
+    host.replaceChildren();
+    if(!data.items.length){host.textContent='GE Vault connected. No playlists marked PUBLIC yet.';return}
+    for(const p of data.items){
+      const row=document.createElement('div');row.style.padding='7px 0';
+      const strong=document.createElement('strong');strong.textContent=String(p.name||'Unnamed');
+      const count=document.createElement('span');count.textContent=' · '+(p.songs?.length||0)+' songs';
+      row.append(strong,count);host.append(row);
+    }
+  }catch(err){host.textContent='GE Vault playlist endpoint unavailable: '+String(err.message||err)+'. Existing music files were not changed.'}
 };
 document.getElementById('brMusicGoPlaylists')?.addEventListener('click',()=>document.getElementById('brTabPlaylists')?.click());
 function installBackroomTabs(){
