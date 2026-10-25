@@ -2239,7 +2239,17 @@ const backroomVaultManagers=(()=>{
     renderPlaylistChooser();renderTrackList();
     playlistStatus('DJ BANGERS LOADED FROM THIS DEVICE · '+paths.length+' real songs. Review checkboxes, then SAVE PLAYLIST. This does NOT change the live BLITZ queue.');
   }
+  function playlistHasUnsavedEdits(){
+    const prior=playlists.find(p=>p.id===playlistEditingId);
+    const name=$('brPlaylistName').value.trim();
+    const chosen=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path||''));
+    if(!prior)return !!name||chosen.length>0;
+    let metadata={};try{metadata=JSON.parse(prior.metadata_json||'{}')}catch(_e){}
+    return name!==prior.name||!!$('brPlaylistPublic').checked!==(metadata.public===true)||
+      JSON.stringify(chosen)!==JSON.stringify((prior.tracks||[]).map(t=>String(t.track_path||'')));
+  }
   async function refreshPlaylists(){
+    const preserveEditor=playlistHasUnsavedEdits();
     playlistStatus('CONNECTING TO GE VAULT…');
     try{
       const result=await vaultAction('/manage/playlists');
@@ -2248,12 +2258,14 @@ const backroomVaultManagers=(()=>{
       playlists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string');
       playlistLoaded=true;
       const found=playlists.find(p=>p.id===old)||playlists.find(p=>p.name.toLowerCase()==='bangers')||playlists[0];
-      editPlaylist(found?.id||'');
+      if(preserveEditor)renderPlaylistChooser();
+      else editPlaylist(found?.id||'');
       renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
-      const msg='GE VAULT CONNECTED · '+playlists.length+' SAVED PLAYLIST'+(playlists.length===1?'':'S');
+      const msg='GE VAULT CONNECTED · '+playlists.length+' SAVED PLAYLIST'+(playlists.length===1?'':'S')+
+        (preserveEditor?' · UNSAVED EDITS PRESERVED':'');
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;return true;
     }catch(e){
-      const msg='GE VAULT ERROR · '+String(e.message||e);
+      const msg='GE VAULT OFFLINE · '+String(e.message||e);
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;return false;
     }
   }
