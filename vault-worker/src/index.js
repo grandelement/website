@@ -879,6 +879,28 @@ async function linkFanIdentity(request, env) {
 // GE MUSIC V4: playlists are read directly from the permanent D1 Vault.
 // The publication flag is owner-controlled and never depends on BLITZ.
 // Previously published Bangers in an original ge-radio record is retained.
+// Uploaded audio remains PRIVATE until a separate verified release process.
+// This endpoint records an asset receipt; it never publishes a recording.
+async function saveMusicAssetReceipt(request,env){
+ if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
+ const body=await readBody(request);
+ const a=body?.asset||{};
+ const album=String(a.album_folder||"").trim(),title=String(a.track_title||"").trim();
+ const name=String(a.original_filename||"").trim(),key=String(a.storage_key||"");
+ const mime=String(a.media_type||"").toLowerCase(),bytes=Number(a.bytes||0);
+ const id=String(a.id||"").trim();
+ if(!/^music-[a-f0-9-]{36}$/i.test(id)||album.length>150||album.length<4||
+    title.length<1||title.length>180||name.length>190||!name||
+    !/^staged\/[a-f0-9-]{36}\/[a-zA-Z0-9._-]+\.(mp3|m4a|wav|ogg)$/i.test(key)||
+    !["audio/mpeg","audio/mp4","audio/wav","audio/x-wav","audio/ogg","application/ogg"].includes(mime)||
+    !Number.isSafeInteger(bytes)||bytes<1||bytes>60*1024*1024)
+   return json({ok:false,error:"Invalid private audio receipt."},400);
+ const t=now();
+ await env.VAULT_DB.prepare(
+  "INSERT INTO music_assets (id,album_folder,track_title,original_filename,storage_key,media_type,bytes,status,created_at,updated_at,metadata_json) VALUES (?,?,?,?,?,?,?,'staged',?,?,?) ON CONFLICT(id) DO NOTHING"
+ ).bind(id,album,title,name,key,mime,bytes,t,t,JSON.stringify({source:"ge-backroom-album-upload",private:true})).run();
+ return json({ok:true,id,status:"staged",private:true},200);
+}
 async function listPublicMusicPlaylists(env){
   const rows=await env.VAULT_DB.prepare(
     "SELECT id,name,updated_at,metadata_json FROM playlists ORDER BY updated_at DESC LIMIT 200"
@@ -2250,6 +2272,12 @@ export default {
           "SELECT id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json FROM fan_events ORDER BY occurred_at DESC LIMIT 5000",
         ).all();
         return json({ ok: true, items: rows.results || [] }, 200, cors);
+      }
+
+      if(url.pathname==="/v1/admin/music-assets"&&request.method==="POST"){
+        const response=await saveMusicAssetReceipt(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
       }
 
       if (url.pathname === "/v1/public/music-playlists" && request.method === "GET") {
