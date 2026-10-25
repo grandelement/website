@@ -94,7 +94,34 @@ function setAuthed(ok){$('login').classList.toggle('hidden',ok);$('owner').class
 function signout(){session='';try{sessionStorage.removeItem(SESSION_KEY)}catch(_e){}setAuthed(false);$('ownerPassword').value='';message('loginStatus','Signed out. No Vault data was modified.')}
 async function signIn(e){e.preventDefault();const password=$('ownerPassword').value;if(!password)return;const b=$('loginButton');b.disabled=true;message('loginStatus','Checking private owner access…');try{const data=await readJSON(PUBLISHER+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});if(!data.token)throw Error('Publisher returned no session.');session=String(data.token);try{sessionStorage.setItem(SESSION_KEY,session)}catch(_e){}$('ownerPassword').value='';setAuthed(true);await reload()}catch(err){message('loginStatus','Sign in failed: '+String(err.message||err))}finally{b.disabled=false}}
 async function resume(){let value='';try{value=sessionStorage.getItem(SESSION_KEY)||''}catch(_e){}if(!value){message('loginStatus','Private owner sign-in required.');return}session=value;try{await readPrivate('/session');setAuthed(true);await reload()}catch(_e){signout();message('loginStatus','Session expired or publisher unavailable. Please sign in again.')}}
-async function catalog(){try{const r=await fetch('../radio/track-durations.json',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();const seen=new Set; songs=toArray(j.tracks).filter(t=>typeof t.path==='string'&&byPath(t.path)&&!seen.has(t.path)&&seen.add(t.path)).map(t=>({path:t.path,title: t.title||songName(t.path),album:t.album||songAlbum(t.path)}));catalogOk=true;message('catalogSummary',songs.length+' SONGS');renderSongs()}catch(err){catalogOk=false;message('catalogSummary','UNAVAILABLE');clear('songsBody').append(node('tr',''));const td=node('td','Catalog not available: '+String(err.message||err));td.colSpan=4;$('songsBody').firstChild.append(td)}}
+async function catalog(){
+ try{
+  const responses=await Promise.all([
+   fetch('../radio/manifest.json',{cache:'no-store'}),
+   fetch('../radio/track-durations.json',{cache:'no-store'})
+  ]);
+  if(!responses.some(r=>r.ok))throw Error('No published catalog source available');
+  const [manifest,durations]=await Promise.all(responses.map(r=>r.ok?r.json().catch(()=>({})):Promise.resolve({})));
+  const ordered=new Map();
+  const add=(path,detail)=>{
+   if(typeof path!=='string'||!byPath(path))return;
+   if(!ordered.has(path))ordered.set(path,{path,title:songName(path),album:songAlbum(path)});
+   if(detail&&typeof detail==='object'){
+    const row=ordered.get(path);
+    if(typeof detail.title==='string'&&detail.title.trim())row.title=detail.title;
+    if(typeof detail.album==='string'&&detail.album.trim())row.album=detail.album;
+   }
+  };
+  // Exactly the same two published sources consulted by GE MUSIC V5.
+  for(const path of toArray(manifest.files))add(path);
+  for(const item of toArray(durations.tracks))add(item?.path,item);
+  songs=Array.from(ordered.values()).sort((a,b)=>a.album.localeCompare(b.album)||a.title.localeCompare(b.title));
+  catalogOk=true;message('catalogSummary',songs.length+' SONGS');renderSongs();
+ }catch(err){
+  catalogOk=false;message('catalogSummary','UNAVAILABLE');
+  const row=node('tr'),td=node('td','Catalog not available: '+String(err.message||err));td.colSpan=4;row.append(td);clear('songsBody').append(row);
+ }
+}
 function playlistIdsForSong(path){return playlists.filter(p=>toArray(p.tracks).some(t=>t.track_path===path)).map(p=>p.name)}
 function codeLabelsForSong(path){return codes.filter(c=>assignedSongs(c).has(path)).map(c=>c.label)}
 function renderSongs(){const body=clear('songsBody');if(!catalogOk)return;const term=$('songSearch').value.trim().toLowerCase();let shown=0;for(const song of songs){const containing=playlistOk?playlistIdsForSong(song.path):[];const assigned=codesOk&&playlistOk?codeLabelsForSong(song.path):[];if(filter==='inplaylist'&&!containing.length)continue;if(filter==='assigned'&&!assigned.length)continue;if(term&&!(song.title+' '+song.album+' '+song.path).toLowerCase().includes(term))continue;shown++;const tr=node('tr');const a=node('td');a.append(node('strong',song.title),node('small',song.album));tr.append(a);tr.append(node('td',playlistOk?(containing.join(', ')||'—'):'NOT CONNECTED'));tr.append(node('td',codesOk&&playlistOk?(assigned.join(', ')||'—'):'NOT CONNECTED'));tr.append(node('td','PUBLIC MP3'));body.append(tr)}if(!shown){const tr=node('tr');const td=node('td','No matching songs');td.colSpan=4;tr.append(td);body.append(tr)}}
