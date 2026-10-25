@@ -444,6 +444,19 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 @media(max-width:600px){
  .brSourceToolbar{grid-template-columns:minmax(0,1fr) 90px}
 }
+
+/* PLAYLISTS is a read-only display of the one permanent Vault record. */
+.brPlaylistViewSelector{display:block;margin:9px 0}
+.brPlaylistViewSelector select{width:100%;min-height:49px;font-size:calc(14px * var(--scale));font-weight:800}
+.brPlaylistViewSongs{display:grid;gap:0;border-top:1px solid #2d516b;margin:9px 0 0}
+.brPlaylistViewSongs[hidden]{display:none!important}
+.brPlaylistViewSong{display:grid;grid-template-columns:2.25em minmax(0,1fr);gap:9px;padding:11px 7px;border-bottom:1px solid #234158;align-items:start}
+.brPlaylistViewSong .brTrackNumber{color:#84cde9;font-weight:800;font-variant-numeric:tabular-nums}
+.brPlaylistViewSong strong{display:block;font-size:calc(12px * var(--scale));overflow-wrap:anywhere}
+.brPlaylistViewSong small{display:block;color:#9dbed1;margin-top:3px;font-size:calc(10px * var(--scale))}
+#brDJPlaylistSection{min-height:125px}
+#brPanel-playlists .brCompactStatus{margin:9px 0 4px}
+#brMusicPlaylistTools{margin:8px 0}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -496,15 +509,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="music">
   <h2>MUSIC</h2>
-  <p>Upload music masters first, verify each album and track, then manage your permanent playlists in GE Vault. BLITZ is only used for live Radio.</p>
   <div class="backroomQuickLinks">
-    <a href="./music-upload.html">UPLOAD ALBUMS AND SONGS</a>
-    <a href="../radio/" target="_blank" rel="noopener noreferrer">TEST PUBLIC MUSIC ↗</a>
-    <button type="button" id="brMusicGoPlaylists">MANAGE GE VAULT PLAYLISTS</button>
+    <a href="./music-upload.html">UPLOAD MUSIC</a>
+    <a href="../radio/" target="_blank" rel="noopener noreferrer">PUBLIC MUSIC</a>
+    <button type="button" id="brMusicGoPlaylists">EDIT PLAYLISTS</button>
   </div>
-  <h3>GE VAULT PUBLISHED PLAYLISTS</h3>
-  <p>Only owner-approved public playlists from Cloudflare GE Vault should appear in the MUSIC selector. No playlist is automatically created by uploading files.</p>
-  <div id="brMusicPublicLists" class="backroomInlineStatus" role="status">Connect to GE Vault to check public playlists.</div>
+  <h3>PUBLIC PLAYLISTS</h3>
+  <div id="brMusicPublicLists" class="brCompactStatus" role="status">Loading from GE Vault…</div>
 </section>
 
 <section data-br-tab="scores">
@@ -645,20 +656,18 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </section>
 
 <section data-br-tab="playlists" id="brDJPlaylistSection">
-  <h2>GE VAULT PLAYLISTS</h2>
-  <div class="brSourceToolbar">
-    <label><span>SOURCE</span><select id="brPlaylistSource" aria-label="Playlist source">
-      <option value="vault">VAULT · SAVED PLAYLISTS</option>
-      <option value="albums">LIBRARY · ALBUMS</option>
-      <option value="blitz">BLITZ · BANGERS BACKUP</option>
-    </select></label>
-    <button id="brDJConnect" class="primary" type="button">LOAD</button>
-  </div>
-  <label hidden><span>Legacy DJ password</span><input id="brDJPassword" type="password" autocomplete="current-password"></label>
-  <div id="brDJPlaylistStatus" class="brCompactStatus" role="status" aria-live="polite">Loading GE Vault…</div>
+  <h2>PLAYLISTS</h2>
+  <label class="brPlaylistViewSelector"><span>PLAYLIST</span>
+    <select id="brViewPlaylistSelect" aria-label="Saved Vault playlists"><option value="">NO PLAYLISTS</option></select>
+  </label>
+  <div id="brDJPlaylistStatus" class="brCompactStatus" role="status" aria-live="polite">Connecting to GE Vault…</div>
+  <div id="brPlaylistViewSongs" class="brPlaylistViewSongs" role="list" aria-live="polite" hidden></div>
 </section>
-<section data-br-tab="playlists" id="brDJPlaylistEditor">
-  <h2>PLAYLIST EDITOR</h2>
+
+<section data-br-tab="music" id="brDJPlaylistEditor">
+  <h2>MUSIC PLAYLIST EDITOR</h2>
+  <details id="brMusicPlaylistTools" class="brSourceDetails">
+    <summary>EDIT PLAYLIST</summary>
   <div class="brPlaylistPrimary">
     <button type="button" id="brPlaylistsNew">NEW</button>
     <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
@@ -691,6 +700,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <a href="../radio/ge-dj.html" target="_blank" rel="noopener noreferrer">DJ BOOTH</a>
       <button type="button" id="brPlaylistDelete">DELETE</button>
     </div>
+  </details>
   </details>
 </section>
 
@@ -883,7 +893,10 @@ window.GE_BACKROOM_SHOW_MUSIC=async function(){
     }
   }catch(err){host.textContent='GE Vault playlist endpoint unavailable: '+String(err.message||err)+'. Existing music files were not changed.'}
 };
-document.getElementById('brMusicGoPlaylists')?.addEventListener('click',()=>document.getElementById('brTabPlaylists')?.click());
+document.getElementById('brMusicGoPlaylists')?.addEventListener('click',()=>{
+  const tools=document.getElementById('brMusicPlaylistTools');
+  if(tools){tools.open=true;tools.scrollIntoView({behavior:'smooth',block:'start'});}
+});
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
   const categories=['welcome','about','universe','games','music','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
