@@ -65,7 +65,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.1</span></div><button class="close" type="button">CLOSE</button></div>
- <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GE Vault playlists">REFRESH VAULT</button></div><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
+ <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GE Vault playlists">REFRESH PLAYLISTS</button></div><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
  <div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">0 SELECTED</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE ON DEVICE</button><a href="../backroom/" style="color:#b8e9ff;font-size:11px">MANAGE GE VAULT</a></div>
@@ -119,37 +119,23 @@ function saveMine(){
 }
 async function loadPublished(){
  if(state.playlistsLoading)return;
- state.playlistsLoading=true;state.playlistMessage='CHECKING GITHUB PLAYLIST MASTER…';
+ state.playlistsLoading=true;state.playlistMessage='LOADING GITHUB PLAYLIST MASTER…';
  if(state.open)render();
- const sources=[],combined=new Map(),errors=[];
- // GitHub is the independent public playlist reference. Existing Vault items
- // remain a transitional fallback so Bangers/legacy lists are not discarded.
  try{
-  const res=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
-  if(!res.ok)throw Error('HTTP '+res.status);
-  const data=await res.json();
-  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))throw Error('Invalid GitHub playlist registry');
-  const list=data.playlists.filter(p=>p&&p.visibility==='published'&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
+  const response=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('GitHub HTTP '+response.status);
+  const data=await response.json();
+  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))
+    throw Error('Invalid GitHub playlist format');
+  state.publicLists=data.playlists.filter(p=>p&&p.visibility==='published'&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
    .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)})).filter(p=>p.songs.length);
-  for(const p of list)combined.set(p.id,p);
-  sources.push('GITHUB '+list.length);
- }catch(e){errors.push('GITHUB '+String(e.message||e))}
- try{
-  const res=await fetch('https://vault.grandelement.com/v1/public/music-playlists?refresh='+Date.now(),{cache:'no-store'});
-  if(!res.ok)throw Error('HTTP '+res.status);
-  const data=await res.json();
-  if(data?.ok!==true||data.format!=='ge-music-playlists-v1'||!Array.isArray(data.items))throw Error('Invalid Vault response');
-  const list=data.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
-   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)})).filter(p=>p.songs.length);
-  for(const p of list)if(!combined.has(p.id))combined.set(p.id,p);
-  sources.push('LEGACY VAULT '+list.length);
- }catch(e){errors.push('LEGACY VAULT '+String(e.message||e))}
- state.publicLists=[...combined.values()];
- state.playlistMessage=sources.length
-  ?'PLAYLIST SOURCES · '+sources.join(' · ')+(errors.length?' · '+errors.join(' · '):'')
-  :'PLAYLISTS UNAVAILABLE · '+errors.join(' · ');
- state.playlistsLoading=false;if(state.open)render();
+  state.playlistMessage='GITHUB CONNECTED · '+state.publicLists.length+' PUBLISHED PLAYLIST'+(state.publicLists.length===1?'':'S');
+ }catch(error){
+  state.publicLists=[];
+  state.playlistMessage='GITHUB PLAYLIST FILE UNAVAILABLE · '+String(error.message||error);
+ }finally{state.playlistsLoading=false;if(state.open)render()}
 }
+
 function playTrack(track){
  // Playback remains controlled by the existing radio preview/access gate.
  const outcome=window.GEMusicV5Bridge?.play?.(track.path);
@@ -218,14 +204,14 @@ function render(){
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
   meta.textContent=names.length+' ALBUMS · '+state.tracks.length+' PUBLISHED SONGS';
  }else if(state.view==='playlists'){
-  scroller.append(elem('div','section','GE VAULT PLAYLISTS'));
+  scroller.append(elem('div','section','GITHUB PLAYLISTS'));
   scroller.append(elem('p','empty',state.playlistMessage||'Checking GE Vault…'));
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of shown)card(scroller,p.name,p.songs.length+' SONGS',()=>setView('vault:'+p.id));
-  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No public Vault playlists are available. Owner playlists are managed in the Back Room; these tracks are not changed by BLITZ.'));
+  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No public GitHub playlists available. The Back Room manages the shared list; this does not change BLITZ.'));
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   if(local.length){scroller.append(elem('div','section','SAVED ON THIS DEVICE'));for(const p of local)card(scroller,p.name,p.songs.length+' SONGS',()=>setView('local:'+p.id))}
-  meta.textContent=state.publicLists.length+' VAULT PLAYLISTS · '+local.length+' DEVICE PLAYLISTS';
+  meta.textContent=state.publicLists.length+' GITHUB PLAYLISTS · '+local.length+' DEVICE PLAYLISTS';
  }else{
   const chosen=chosenSongs();
   const shown=chosen.filter(filterTrack);

@@ -264,6 +264,105 @@ async function geVaultBridge(env,path,method='GET',body=null){
   }catch(_e){return {status:502,data:{ok:false,error:'GE Vault could not be reached. The existing website and Radio settings were not changed.'}}}
 }
 
+
+// GitHub-only published/unlisted playlist registry. This path does not call
+// GE Vault, D1 or any Cloudflare data store. Authentication is the existing
+// short-lived Back Room session; permanent writes are GitHub commits.
+const GITHUB_PLAYLISTS_PATH='playlists/registry.json';
+function playlistSongPath(p){
+  return typeof p==='string'&&p.length<=600&&/^ge-music\/music\/.+\.(?:mp3|m4a|wav|ogg|flac)$/i.test(p)&&
+    !p.includes('..')&&!p.includes('\\')&&!p.includes('?')&&!p.includes('#');
+}
+async function readGithubPlaylistRegistry(env){
+  const branch=env.GITHUB_BRANCH||'main';
+  const response=await github(env,GITHUB_PLAYLISTS_PATH+'?ref='+encodeURIComponent(branch),{method:'GET'});
+  if(!response.ok)throw Error('GitHub playlist file could not be read (HTTP '+response.status+'). Nothing was changed.');
+  const file=await response.json();
+  let data;
+  try{data=JSON.parse(decodeGithubText(file.content||''))}catch(_e){throw Error('GitHub playlist registry is invalid JSON. No records were changed.')}
+  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))
+    throw Error('GitHub playlist registry has an unexpected format. No records were changed.');
+  return {registry:data,sha:String(file.sha||'')};
+}
+function githubPlaylistToEditor(row){
+  const songs=Array.isArray(row.songs)?row.songs:[];
+  return {id:row.id,name:row.name,active:false,locked:false,metadata_json:JSON.stringify({
+    source:'ge-github',public:row.visibility==='published',visibility:row.visibility||'unlisted'
+  }),tracks:songs.map((track_path,position)=>({track_path,position}))};
+}
+async function saveGithubPlaylistRegistry(env,registry,sha){
+  const branch=env.GITHUB_BRANCH||'main';
+  const content=JSON.stringify(registry,null,2)+'\n';
+  if(content.length>1100000)throw Error('GitHub playlist registry is too large for safe update.');
+  const response=await github(env,GITHUB_PLAYLISTS_PATH,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      message:'Update GE shared playlists from Back Room',
+      branch,sha,content:utf8B64(content)
+    })
+  });
+  const saved=await response.json().catch(()=>({}));
+  if(!response.ok){
+    if(response.status===409||response.status===422)
+      throw Error('GitHub playlist changed while you were editing. Refresh and review before saving again.');
+    throw Error('GitHub refused playlist save (HTTP '+response.status+'): '+String(saved.message||'Unknown error').slice(0,180));
+  }
+  return String(saved.commit?.sha||'');
+}
+async function handleGithubPlaylists(request,env,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:'Owner login required. Sign in to Back Room.'},401,cors);
+  try{
+    const {registry,sha}=await readGithubPlaylistRegistry(env);
+    if(request.method==='GET'){
+      return json({ok:true,storage:'GITHUB',items:registry.playlists.map(githubPlaylistToEditor),commit_sha:sha},200,cors);
+    }
+    if(request.method!=='POST')return json({ok:false,error:'Only GET and POST are supported.'},405,cors);
+    const body=await request.json().catch(()=>null);
+    if(!body||typeof body!=='object')return json({ok:false,error:'Invalid playlist request.'},400,cors);
+    const action=String(body.action||'');
+    if(action==='save'){
+      const proposed=body.playlist||{},name=String(proposed.name||'').trim();
+      const id=String(proposed.id||'').trim()||'playlist_'+crypto.randomUUID().replace(/-/g,'');
+      const tracks=Array.isArray(proposed.tracks)?proposed.tracks:[];
+      if(!name||name.length>100)return json({ok:false,error:'Playlist name is required (up to 100 characters).'},400,cors);
+      if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))return json({ok:false,error:'Invalid playlist ID.'},400,cors);
+      if(tracks.length<1||tracks.length>500)return json({ok:false,error:'Select 1–500 songs.'},400,cors);
+      const songs=tracks.map(t=>String(t?.track_path||''));
+      if(songs.some(p=>!playlistSongPath(p)))return json({ok:false,error:'Playlist contains an invalid GE Music path.'},400,cors);
+      if(new Set(songs).size!==songs.length)return json({ok:false,error:'Remove duplicate songs from the playlist.'},400,cors);
+      if(registry.playlists.some(p=>p.id!==id&&String(p.name||'').trim().toLowerCase()===name.toLowerCase()))
+        return json({ok:false,error:'That playlist name already exists; select it to edit.'},409,cors);
+      if(proposed.id&&!registry.playlists.some(p=>p.id===id))
+        return json({ok:false,error:'This playlist was removed or renamed elsewhere; refresh before saving.'},409,cors);
+      const prior=registry.playlists.find(p=>p.id===id);
+      const next={
+        id,name,visibility:proposed.public?'published':'unlisted',
+        songs,updated_at:new Date().toISOString()
+      };
+      if(prior?.created_at)next.created_at=prior.created_at;
+      else next.created_at=next.updated_at;
+      // Never change the live BLITZ queue; this registry is a separate collection.
+      registry.playlists=registry.playlists.filter(p=>p.id!==id);
+      registry.playlists.push(next);
+      const commit=await saveGithubPlaylistRegistry(env,registry,sha);
+      return json({ok:true,id,name,commit_sha:commit,storage:'GITHUB'},200,cors);
+    }
+    if(action==='delete'){
+      const id=String(body.id||'');
+      if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))return json({ok:false,error:'Invalid playlist ID.'},400,cors);
+      if(!registry.playlists.some(p=>p.id===id))return json({ok:false,error:'Playlist was not found; refresh first.'},404,cors);
+      // Never delete the authentic BLITZ Bangers source: it lives on the DJ backend.
+      registry.playlists=registry.playlists.filter(p=>p.id!==id);
+      const commit=await saveGithubPlaylistRegistry(env,registry,sha);
+      return json({ok:true,id,commit_sha:commit,storage:'GITHUB'},200,cors);
+    }
+    return json({ok:false,error:'Unknown GitHub playlist action.'},400,cors);
+  }catch(error){
+    return json({ok:false,error:String(error?.message||error).slice(0,280)},502,cors);
+  }
+}
+
 const GE_UPLOAD_LIMIT=60*1024*1024;
 const GE_AUDIO_TYPES={mp3:"audio/mpeg",m4a:"audio/mp4",wav:"audio/wav",ogg:"audio/ogg"};
 // Owner-only PRIVATE R2 upload. Never writes to public GitHub or changes Radio.
@@ -391,6 +490,10 @@ export default {
       }
     }
 
+
+    if(url.pathname==='/manage/github-playlists'&&['GET','POST'].includes(request.method)){
+      return handleGithubPlaylists(request,env,cors);
+    }
 
     if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);

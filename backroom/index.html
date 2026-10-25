@@ -666,7 +666,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <label class="brPlaylistViewSelector"><span>PLAYLIST</span>
     <select id="brViewPlaylistSelect" aria-label="Saved Vault playlists"><option value="">NO PLAYLISTS</option></select>
   </label>
-  <div id="brDJPlaylistStatus" class="brCompactStatus" role="status" aria-live="polite">Connecting to GE Vault…</div>
+  <div id="brDJPlaylistStatus" class="brCompactStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
   <div id="brPlaylistViewSongs" class="brPlaylistViewSongs" role="list" aria-live="polite" hidden></div>
 </section>
 
@@ -676,12 +676,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <summary>EDIT PLAYLIST</summary>
   <div class="brPlaylistPrimary">
     <button type="button" id="brPlaylistsNew">NEW</button>
-    <button type="button" class="primary" id="brPlaylistSave">SAVE TO VAULT</button>
+    <button type="button" class="primary" id="brPlaylistSave">SAVE PLAYLIST TO GITHUB</button>
   </div>
   <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading playlists…</div>
   <label><span>SAVED PLAYLIST</span><select id="brPlaylistSelect"><option value="">New playlist</option></select></label>
   <label><span>NAME</span><input id="brPlaylistName" type="text" maxlength="100" placeholder="Playlist name"></label>
-  <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>PUBLIC IN MUSIC</span></label>
+  <label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC MUSIC (UNCHECKED = UNLISTED IN MUSIC; THE GITHUB FILE IS PUBLIC)</span></label>
   <label class="check" hidden><input id="brPlaylistActive" type="checkbox" disabled><span>Radio 1 is controlled in DJ Booth</span></label>
   <details class="brSourceDetails" open>
     <summary>ALBUMS &amp; SONGS</summary>
@@ -2156,6 +2156,21 @@ const backroomVaultManagers=(()=>{
     }
     throw Error('GE Vault could not be reached.');
   }
+  async function githubPlaylistAction(body=null){
+    if(!authReady()){needsPublisherLogin();throw Error('Sign in to save playlists to GitHub.');}
+    const path='/manage/github-playlists',options=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
+    const response=await api(path,options);
+    const data=await response.json().catch(()=>({ok:false,error:'Invalid GitHub playlist response.'}));
+    if(response.status===401){serverAuthenticated=false;setToken('');needsPublisherLogin();throw Error('Owner session expired; sign in again.');}
+    if(!response.ok||data?.ok!==true)throw Error(data?.error||('GitHub playlist API HTTP '+response.status));
+    const indicator=$('brVaultConnection');
+    if(indicator){
+      indicator.textContent='PLAYLISTS · GITHUB CONNECTED';
+      indicator.dataset.state='connected';
+      indicator.title='Playlists saved in grandelement/website/playlists/registry.json. Access codes remain a separate private feature.';
+    }
+    return data;
+  }
   function playlistCopy(row){
     const paths=Array.isArray(row?.paths)?row.paths:(row?.tracks||[]).map(x=>x.track_path||x.path);
     let metadata={};try{metadata=row?.metadata||JSON.parse(row?.metadata_json||'{}')}catch(_e){}
@@ -2290,7 +2305,7 @@ const backroomVaultManagers=(()=>{
     if(!select||!host)return;
     select.replaceChildren();
     if(!playlistLoaded){
-      select.appendChild(new Option('VAULT NOT CONNECTED',''));
+      select.appendChild(new Option('GITHUB PLAYLISTS NOT LOADED',''));
       select.disabled=true;host.replaceChildren();host.hidden=true;
       return;
     }
@@ -2385,10 +2400,10 @@ const backroomVaultManagers=(()=>{
   }
   async function refreshPlaylists(){
     const preserveEditor=playlistHasUnsavedEdits();
-    playlistStatus('CONNECTING TO GE VAULT…');
+    playlistStatus('LOADING GITHUB PLAYLISTS…');
     try{
-      const result=await vaultAction('/manage/playlists');
-      if(!Array.isArray(result.items))throw Error('Invalid Vault playlist collection');
+      const result=await githubPlaylistAction();
+      if(!Array.isArray(result.items))throw Error('GitHub did not return a playlist list.');
       const old=playlistEditingId;
       playlists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string');
       playlistLoaded=true;
@@ -2396,48 +2411,41 @@ const backroomVaultManagers=(()=>{
       if(preserveEditor)renderPlaylistChooser();
       else editPlaylist(found?.id||'');
       renderPlaylistViewer();renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
-      const msg=playlists.length?
-        'VAULT · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':''):
-        'VAULT CONNECTED · NO PLAYLISTS';
+      const msg='GITHUB · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':'');
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;return true;
     }catch(e){
-      const msg='VAULT OFFLINE · '+String(e.message||e);
+      playlistLoaded=false;
+      const msg='GITHUB PLAYLIST CONNECTION FAILED · '+String(e.message||e);
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;
+      const indicator=$('brVaultConnection');
+      if(indicator){indicator.textContent='PLAYLISTS · GITHUB UNAVAILABLE';indicator.dataset.state='offline';indicator.title=msg;}
       renderPlaylistViewer();return false;
     }
   }
   async function savePlaylist(){
     const name=$('brPlaylistName').value.trim(),tracks=playlistTracks.filter(t=>!t._excluded);
     if(!name){playlistStatus('ENTER A PLAYLIST NAME');return}
-    if(!tracks.length){playlistStatus('CHOOSE SONGS');return}
-    if(!serverAuthenticated||!token()){
-      needsPublisherLogin();playlistStatus('NOT SAVED · Sign in to the private publisher to save your playlist.');
-      return;
-    }
-    // Editing a selected playlist must never silently overwrite another
-    // playlist with a matching name. Every record keeps its stable Vault ID.
+    if(!tracks.length){playlistStatus('CHECK AT LEAST ONE SONG');return}
+    if(!authReady()){needsPublisherLogin();playlistStatus('SIGN IN TO BACK ROOM TO SAVE IN GITHUB.');return;}
     const collision=playlists.find(p=>p.name.trim().toLowerCase()===name.toLowerCase()&&p.id!==playlistEditingId);
-    if(collision){
-      playlistStatus('PLAYLIST NAME EXISTS · Select that playlist to edit it, or choose another name.');
-      return;
-    }
+    if(collision){playlistStatus('PLAYLIST NAME EXISTS · Select the original playlist to edit it.');return}
     const id=playlistEditingId||'',prior=playlists.find(p=>p.id===id);
     const entry={id,name,tracks:tracks.map(t=>({
       track_path:String(t.track_path||''),track_title:String(t.track_title||''),album:String(t.album||'')
-    })),public:!!$('brPlaylistPublic').checked,active:!!prior?.active,locked:!!prior?.locked};
+    })),public:!!$('brPlaylistPublic').checked,active:false,locked:false};
     const pendingTracks=playlistTracks.map(t=>({...t}));
-    const button=$('brPlaylistSave');button.disabled=true;playlistStatus('SAVING TO GE VAULT…');
+    const button=$('brPlaylistSave');button.disabled=true;playlistStatus('SAVING PLAYLIST TO GITHUB…');
     try{
-      const result=await vaultAction('/manage/playlists',{action:'save',playlist:entry});
+      const result=await githubPlaylistAction({action:'save',playlist:entry});
       const saved=String(result.id||id);
-      if(!saved)throw Error('GE Vault did not confirm a playlist ID.');
+      if(!saved||!result.commit_sha)throw Error('GitHub did not confirm the saved playlist commit.');
       playlistEditingId=saved;
       const reloaded=await refreshPlaylists();
       if(!reloaded){
         playlistTracks=pendingTracks;
         $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
         renderTrackList();renderDJAlbumChoices();
-        playlistStatus('VAULT WRITE ACCEPTED · READBACK FAILED. Use LOAD to verify before saving again.');
+        playlistStatus('GITHUB COMMIT CONFIRMED · REFRESH FAILED · '+result.commit_sha.slice(0,12));
         return;
       }
       const verified=playlists.find(p=>String(p.id)===saved);
@@ -2446,27 +2454,26 @@ const backroomVaultManagers=(()=>{
       const correct=verified?.name===name&&metadata.public===entry.public&&
         JSON.stringify(savedTracks)===JSON.stringify(entry.tracks.map(t=>t.track_path));
       if(!correct){
-        playlistEditingId=saved;
-        playlistTracks=pendingTracks;
+        playlistEditingId=saved;playlistTracks=pendingTracks;
         $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
         renderTrackList();renderDJAlbumChoices();
-        playlistStatus('VAULT READBACK DOES NOT MATCH SONG ORDER OR PUBLIC SETTING · Your selections remain in the editor. Check publisher deployment before saving again.');
+        playlistStatus('GITHUB READBACK MISMATCH · Review before trying again. Commit '+result.commit_sha.slice(0,12));
         return;
       }
       selectedViewPlaylistId=saved;editPlaylist(saved);renderPlaylistViewer();
-      playlistStatus('SAVED IN VAULT · '+name+' · '+tracks.length+' SONGS · '+(entry.public?'PUBLIC':'PRIVATE'));
-    }catch(e){playlistStatus('VAULT SAVE FAILED · '+String(e.message||e)+'. BLITZ UNCHANGED.')}
+      playlistStatus('SAVED & VERIFIED IN GITHUB · '+name+' · '+tracks.length+' SONGS · COMMIT '+result.commit_sha.slice(0,12));
+    }catch(e){playlistStatus('GITHUB SAVE FAILED · '+String(e.message||e)+'. DJ BOOTH UNCHANGED.')}
     finally{button.disabled=false}
   }
   async function deletePlaylist(){
     const id=playlistEditingId,p=playlists.find(x=>x.id===id);
-    if(!p)return playlistStatus('SELECT A VAULT PLAYLIST');
-    if(!confirm('Permanently delete '+p.name+' from GE Vault?'))return;
+    if(!p)return playlistStatus('SELECT A GITHUB PLAYLIST');
+    if(!confirm('Delete '+p.name+' from the GitHub playlist file? This does not alter BLITZ.'))return;
     try{
-      await vaultAction('/manage/playlists',{action:'delete',id});
+      await githubPlaylistAction({action:'delete',id});
       playlistEditingId='';if(selectedViewPlaylistId===id)selectedViewPlaylistId='';
-      await refreshPlaylists();renderPlaylistViewer();playlistStatus('DELETED FROM VAULT · '+p.name);
-    }catch(e){playlistStatus('VAULT DELETE FAILED · '+String(e.message||e))}
+      await refreshPlaylists();renderPlaylistViewer();playlistStatus('DELETED FROM GITHUB PLAYLIST FILE · '+p.name);
+    }catch(e){playlistStatus('GITHUB DELETE FAILED · '+String(e.message||e))}
   }
   function renderDJAlbumChoices(){
     const albumHost=$('brDJAlbumChoices'),songHost=$('brDJSongChoices');
@@ -2533,12 +2540,12 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    select.replaceChildren(new Option('VAULT PLAYLIST · ASSIGN SONGS',''));
+    select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
     const source=playlistLoaded?playlists:[];
     source.forEach(p=>select.appendChild(new Option(p.name,p.id)));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
-    $('brAccessPlaylistNotice').textContent=playlistLoaded?'VAULT · '+source.length+' PLAYLISTS':'VAULT · CONNECTING';
+    $('brAccessPlaylistNotice').textContent=playlistLoaded?'GITHUB · '+source.length+' PLAYLISTS':'GITHUB PLAYLISTS · CONNECTING';
   }
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
@@ -2897,7 +2904,7 @@ const backroomVaultManagers=(()=>{
         const id=$('brAccessPlaylist').value;
         if(!id)return;
         const playlist=playlists.find(p=>p.id===id);
-        if(!playlist){accessStatus('Playlist unavailable · LOAD the GE Vault list.');return;}
+        if(!playlist){accessStatus('Playlist unavailable · LOAD GITHUB PLAYLISTS.');return;}
         assignedSongPaths=[...new Set((playlist.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean))];
         accessSongOptions();assignedSongsUI();
         accessStatus(playlist.name+' · '+assignedSongPaths.length+' SONGS SELECTED');

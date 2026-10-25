@@ -23,12 +23,12 @@ Use the existing published files, not a second copied catalog:
 Each song must exist in the catalog. The order of `songs` is the playback order. Never overwrite an unrelated playlist with the same name; IDs remain stable. Unpublished/private music and private listener assignments must **not** be committed to this public repository. In particular, **never put access codes, passwords, hashes, purchaser IDs, email addresses, or private fan data in GitHub**.
 
 ## Where it is loaded
-- `radio/ge-music-v5.js` loads published playlists directly from the GitHub **raw** registry; this read does **not** depend on Cloudflare Vault endpoints or a Cloudflare build. The existing Vault response is used as a legacy fallback only to avoid losing old published music while transitioning.
+- `radio/ge-music-v5.js` loads published playlists directly from the GitHub **raw** registry; this read does **not** depend on Cloudflare Vault endpoints or a Cloudflare build. There is **no Cloudflare Vault fallback** for playlists. If GitHub fails, display an explicit error without substituting a different database.
 - The BLITZ DJ Booth's live Bangers rotation remains untouched. Do not replace Bangers with guesses or initialize the radio playlists from this empty registry.
 - The Back Room playlist editor now exposes one scrollable checklist of the entire music catalog, in addition to the original album view.
 
 ## Saving playlists
-Authenticated GitHub writes are required; an ordinary browser cannot safely commit to GitHub without owner authorization. This commit establishes storage and read paths, **not** a completed browser-to-GitHub save integration. Until an authenticated writer is connected, a Back Room "SAVE TO VAULT" still uses the old Vault publisher and must report a real error if unavailable. Owner-authorized ChatGPT/GitHub connector edits can update this registry directly. Do not falsely report an unsaved playlist as saved.
+The Back Room owner session calls `/manage/github-playlists` on the existing Back Room publisher, which commits playlist changes directly to this GitHub file through the preexisting private GitHub App credentials. **Cloudflare Vault/D1 is not read or written for playlist management.** The publisher Worker needs deployment of the updated code before this save route works on the live website. GitHub-only playlists do not alter the BLITZ live DJ queue. Never claim saved unless GitHub returns a commit and an authenticated readback matches.
 
 ## Access codes
 The code-to-playlist relation is `code → authorized playlist ID / song paths → session → playback`. Codes, entitlements, use limits and expiration must stay in a **private, server-validated store**, never in public JSON or browser storage. This registry does **not** create paid access or private audio protection: published MP3 URLs are currently public.
