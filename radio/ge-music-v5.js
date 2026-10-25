@@ -4,7 +4,7 @@
 (()=>{
 'use strict';
 const BUILD='GE-MUSIC-V5-20261024';
-const button=document.getElementById('geMusicV4Button');
+const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
