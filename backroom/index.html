@@ -947,7 +947,6 @@ function installBackroomTabs(){
   }
   let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
   if(initial==='home'||initial==='content')initial='welcome';
-  if(initial==='music')initial='radio';
   activate(initial);
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
     activate(btn.dataset.openBr,true);
@@ -2089,53 +2088,6 @@ const backroomVaultManagers=(()=>{
     }
     throw Error('GE Vault could not be reached.');
   }
-  // Read-only connection diagnosis. Do not include secrets or issue test records.
-  let diagnosingVault=false;
-  async function diagnoseVault(section){
-    if(diagnosingVault)return;
-    diagnosingVault=true;
-    const statusOut=section==='access'?accessStatus:playlistStatus;
-    statusOut('CHECKING EXISTING GE VAULT AND PRIVATE PUBLISHER…');
-    try{
-      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),7000);
-      let publisher,vault;
-      try{
-        [publisher,vault]=await Promise.all([
-          fetch(API+'/health',{cache:'no-store',signal:controller.signal}).then(r=>r.json().then(d=>({ok:r.ok,...d}))),
-          fetch('https://vault.grandelement.com/health',{cache:'no-store',signal:controller.signal}).then(r=>r.json().then(d=>({ok:r.ok,...d}))).catch(()=>({ok:false}))
-        ]);
-      }finally{clearTimeout(timeout)}
-      if(!publisher.ok||!publisher.configured){
-        statusOut('PRIVATE PUBLISHER OFFLINE OR NOT CONFIGURED · Check existing ge-backroom-publisher Cloudflare Worker and its secrets. Vault health: '+(vault.ok?'REACHABLE':'UNVERIFIED'));
-        return;
-      }
-      if(!vault.ok){
-        statusOut('PUBLISHER ONLINE · VAULT HEALTH CHECK FAILED OR WAS BLOCKED. Check existing ge-studios-vault Worker and vault.grandelement.com custom domain.');
-        return;
-      }
-      if(!serverAuthenticated||!token()){
-        statusOut('VAULT AND PUBLISHER BOTH ONLINE · This is a LOCAL-ONLY Back Room login. Press RECONNECT PUBLISHER and use the private publisher password.');
-        return;
-      }
-      const sessionResponse=await api('/session',{method:'GET'});
-      const session=await sessionResponse.json().catch(()=>({}));
-      if(!sessionResponse.ok||session.ok!==true){
-        statusOut('PUBLISHER SESSION EXPIRED · Press RECONNECT PUBLISHER to authenticate again.');
-        return;
-      }
-      const route=section==='access'?'/manage/access-codes':'/manage/playlists';
-      const response=await api(route,{method:'GET'});
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok||data.ok!==true){
-        statusOut('VAULT ADMIN BRIDGE ERROR (HTTP '+response.status+') · '+String(data.error||'Check matching VAULT_ADMIN_TOKEN, deployment, and D1 migrations').slice(0,190));
-        return;
-      }
-      if(section==='access')await refreshCodes();else await refreshPlaylists();
-      statusOut('GE VAULT VERIFIED · Worker, publisher session, admin bridge and saved '+(section==='access'?'codes':'playlists')+' all connected.');
-    }catch(error){
-      statusOut('CONNECTION TEST FAILED · '+String(error?.message||error).slice(0,170)+'. Check Cloudflare Worker health and DNS.');
-    }finally{diagnosingVault=false}
-  }
   function playlistCopy(row){
     const paths=Array.isArray(row?.paths)?row.paths:(row?.tracks||[]).map(x=>x.track_path||x.path);
     let metadata={};try{metadata=row?.metadata||JSON.parse(row?.metadata_json||'{}')}catch(_e){}
@@ -2710,21 +2662,30 @@ const backroomVaultManagers=(()=>{
         '. The current BLITZ playlist has not been verified.';
     }finally{clearTimeout(timer);}
   }
+  function loadPlaylistSource(){
+    const choice=$('brPlaylistSource').value;
+    if(choice==='vault')return refreshPlaylists();
+    if(choice==='blitz'){importBangersFromDJ();$('brDJPlaylistStatus').textContent='BLITZ · BANGERS BACKUP';return Promise.resolve(true);}
+    renderDJAlbumChoices();$('brDJPlaylistStatus').textContent='ALBUM LIBRARY · '+catalog.length+' SONGS';
+    return Promise.resolve(true);
+  }
   function openTab(tab){
-    // The section load itself checks connectivity and retries transient GET
-    // failures. There is no separate manual connection check.
-    if(tab==='access')void refreshCodes();
-    if(tab==='playlists')void refreshPlaylists();
+    if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
+    if(tab==='playlists'&&$('brPlaylistSource').value==='vault')void refreshPlaylists();
   }
   function init(){
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
-      $('brPlaylistDiagnostic').addEventListener('click',()=>void diagnoseVault('playlists'));
-      $('brAccessDiagnostic').addEventListener('click',()=>void diagnoseVault('access'));
-      $('brPlaylistReconnect').addEventListener('click',lock);
-      $('brAccessReconnect').addEventListener('click',lock);
-      $('brDJConnect').addEventListener('click',()=>void refreshPlaylists());
+      $('brDJConnect').addEventListener('click',()=>void loadPlaylistSource());
+      $('brPlaylistSource').addEventListener('change',()=>void loadPlaylistSource());
+      $('brVaultConnection').addEventListener('click',()=>{
+        if(!serverAuthenticated||!token()){lock();return}
+        const tab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
+        if(tab==='access')void refreshCodes();
+        else if(tab==='playlists')void loadPlaylistSource();
+        else void refreshPlaylists();
+      });
       $('brDJPassword').addEventListener('keydown',event=>{
         if(event.key==='Enter'){event.preventDefault();void refreshPlaylists();}
       });
