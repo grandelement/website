@@ -126,14 +126,12 @@ function redraw(){
   find('#geLangSave').textContent=text('save');
   find('#geLangKeep').textContent=text('keep');
   find('#geLangClose').setAttribute('aria-label',text('close'));
-  const zoomText=find('#geLangZoomLabel');if(zoomText)zoomText.textContent=text('zoom');
  }
 }
 function applyZoom(on,persist){
  zoomEnabled=!!on;
  window.GE_A11Y_ZOOM=zoomEnabled;
  A.documentElement.classList.toggle('ge-access-zoom',zoomEnabled);
- const setting=find('#geLangZoomCheck');if(setting)setting.checked=zoomEnabled;
  if(persist)try{localStorage.setItem(zoomKey,zoomEnabled?'1':'0')}catch(_e){}
 }
 function applyLanguage(value,persist){
@@ -243,24 +241,15 @@ function createUI(){
  dialog=A.createElement('div');
  dialog.className='ge-language-dialog';dialog.hidden=true;
  dialog.innerHTML='<div class="ge-language-panel" role="dialog" aria-modal="true" aria-labelledby="geLangTitle" aria-describedby="geLangIntro">'+
+ '<button type="button" id="geLangClose" aria-label="Close">×</button>'+
  '<h2 id="geLangTitle">Choose your language</h2>'+
  '<p id="geLangIntro">English is the default.</p>'+
  '<p id="geLangRecommendation" hidden></p>'+
  '<label for="geLangSelect" id="geLangLabel">Language</label>'+
  '<select id="geLangSelect"></select>'+
  '<div class="ge-language-actions"><button type="button" id="geLangKeep">KEEP ENGLISH</button>'+
- '<button type="button" class="ge-language-save" id="geLangSave">USE LANGUAGE</button>'+
- '<button type="button" id="geLangClose" aria-label="Close">×</button></div></div>';
+ '<button type="button" class="ge-language-save" id="geLangSave">USE LANGUAGE</button></div></div>';
  A.body.append(dialog);
- // Browser zoom is opt-in on the physics-based universe; Radio permits
- // standard browser zoom regardless of this setting.
- const panel=dialog.querySelector('.ge-language-panel');
- const zoomRow=A.createElement('label');
- zoomRow.className='ge-language-zoom';
- zoomRow.innerHTML='<input id="geLangZoomCheck" type="checkbox"><span id="geLangZoomLabel"></span>';
- zoomRow.hidden=radio;
- panel.insertBefore(zoomRow,panel.querySelector('.ge-language-actions'));
- find('#geLangZoomCheck').addEventListener('change',e=>applyZoom(e.target.checked,true));
  combo=find('#geLangSelect');
  for(const [id,name] of Object.entries(names)){
   const opt=A.createElement('option');opt.value=id;opt.textContent=name;opt.lang=id;combo.append(opt);
@@ -289,7 +278,7 @@ function createUI(){
  dialog.addEventListener('keydown',e=>{
   if(e.key==='Escape'){e.preventDefault();close();return;}
   if(e.key!=='Tab')return;
-  const focusable=[combo,...(radio?[]:[find('#geLangZoomCheck')]),find('#geLangKeep'),find('#geLangSave'),find('#geLangClose')];
+  const focusable=[find('#geLangClose'),combo,find('#geLangKeep'),find('#geLangSave')];
   const idx=focusable.indexOf(A.activeElement);
   if(e.shiftKey&&idx<=0){e.preventDefault();focusable[focusable.length-1].focus();}
   else if(!e.shiftKey&&idx===focusable.length-1){e.preventDefault();focusable[0].focus();}
