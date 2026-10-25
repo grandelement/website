@@ -360,17 +360,22 @@ def vault_playlists_load():
     items = [_vault_playlist_to_local(row) for row in rows if isinstance(row, dict)]
     items = [x for x in items if x.get("id") and x.get("name") and x.get("paths")]
     local = {"items": items}
+    # An empty or incompletely migrated Vault is NOT permission to erase the
+    # real Bangers/DJ local playlists, last-known-good backup or live rotation.
+    # Return its authoritative empty list to clients, but leave RADIO alone.
+    if not items:
+        return local
+    # Keep the local station cache readable, but do not replace the separately
+    # maintained backup during a read/synchronization from GE Vault.
     write_json(CUSTOM_PLAYLISTS, local)
-    write_json(CUSTOM_PLAYLISTS_BACKUP, local)
     active = next((row for row in rows if bool(row.get("active", False))), None)
     settings = station_settings()
     if active:
         settings["custom_mix_enabled"] = True
         settings["custom_mix_id"] = str(active.get("id", "") or "")
-    elif settings.get("custom_mix_id") and not any(str(x.get("id")) == str(settings.get("custom_mix_id")) for x in items):
-        settings["custom_mix_enabled"] = False
-        settings["custom_mix_id"] = ""
-    write_json(SETTINGS, settings)
+        write_json(SETTINGS, settings)
+    # A missing playlist during a partial Vault migration must never
+    # disable the current BLITZ broadcast; only explicit DJ actions do that.
     return local
 
 def _playlist_tracks_for_vault(item):
