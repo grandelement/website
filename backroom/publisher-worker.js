@@ -436,7 +436,7 @@ export default {
     const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&(appReady||env.GITHUB_TOKEN));
 
     if(url.pathname==='/health'&&request.method==='GET'){
-      return json({ok:true,configured},200,cors);
+      return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true},200,cors);
     }
     if(!configured)return json({ok:false,error:'Publisher secrets are not configured.'},503,cors);
 

@@ -96,4 +96,15 @@ jobs:
           print('Publisher health:', json.dumps(data, sort_keys=True))
           if data.get('ok') is not True or data.get('configured') is not True:
               raise SystemExit('Publisher is online but required publisher credentials are not configured.')
+          if data.get('playlist_storage') != 'GITHUB' or data.get('github_playlists_endpoint') is not True:
+              raise SystemExit('Deployed Publisher does not have the GitHub playlist endpoint. Deploy current backroom/publisher-worker.js.')
+          from urllib.error import HTTPError
+          url = 'https://ge-backroom-publisher.grandelement.workers.dev/manage/github-playlists'
+          try:
+              urllib.request.urlopen(url, timeout=15)
+              raise SystemExit('SECURITY ERROR: private playlist API returned success without owner authorization.')
+          except HTTPError as e:
+              if e.code != 401:
+                  raise SystemExit(f'Github playlist API route check failed: expected 401 without login, received HTTP {e.code}')
+          print('Verified: GitHub playlist route exists and is protected by owner session.')
           PY

@@ -2162,6 +2162,7 @@ const backroomVaultManagers=(()=>{
     const response=await api(path,options);
     const data=await response.json().catch(()=>({ok:false,error:'Invalid GitHub playlist response.'}));
     if(response.status===401){serverAuthenticated=false;setToken('');needsPublisherLogin();throw Error('Owner session expired; sign in again.');}
+    if(response.status===404)throw Error('PUBLISHER UPDATE REQUIRED · The GitHub playlist route is not deployed yet. Run the GE Studios Workers GitHub Action for BACKROOM. Your playlists have not been deleted.');
     if(!response.ok||data?.ok!==true)throw Error(data?.error||('GitHub playlist API HTTP '+response.status));
     const indicator=$('brVaultConnection');
     if(indicator){
