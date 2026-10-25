@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Grand Element · Album Upload</title>
+<style>
+:root{color-scheme:dark;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#030d1b;color:#e9f7ff}
+*{box-sizing:border-box}body{margin:0 auto;padding:18px 12px 75px;max-width:880px}
+h1{font-size:22px;margin:0}h2{font-size:18px;margin:0 0 8px}p{margin:7px 0 14px}
+a{color:#8de1ff}header{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:20px}
+.card{border:1px solid #327399;background:#0a2136;border-radius:13px;margin:12px 0;padding:13px}
+.note{font-size:13px;color:#bbdef2}
+.warning{color:#ffe5ad}label{font-weight:700}button,input{font:inherit}
+button{background:#0d4372;color:#f4fbff;border:1px solid #6bcafa;border-radius:9px;padding:9px 12px;min-height:43px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.current{background:#0a78d8;border-color:#c0efff}
+button.primary{background:#0783f9;font-weight:850}
+.album-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px}
+.album-grid button{text-align:left;min-width:0}
+.album-grid small{display:block;color:#bfe5ff;font-size:12px;font-weight:400}
+input[type=file],input[type=text],input[type=number]{width:100%;background:#051727;border:1px solid #3782ac;border-radius:8px;color:#fff;padding:10px;min-height:42px;margin:5px 0}
+input[type=file]{padding:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1;min-width:150px}
+#queueList{display:grid;gap:7px}
+.track{padding:10px;background:#061b30;border:1px solid #245373;border-radius:9px}
+.track .filename{overflow-wrap:anywhere;font-size:13px;color:#b8e0fa}
+.track b{font-size:13px}
+.track input{margin:3px 0 0}
+#log{white-space:pre-wrap;overflow-wrap:anywhere;max-height:235px;overflow-y:auto;font-size:13px}
+progress{width:100%;height:17px;accent-color:#20a4fa}
+#status{white-space:pre-wrap;overflow-wrap:anywhere}
+#inventory{max-height:260px;overflow-y:auto}
+#inventory .track{padding:4px 7px;font-size:12px;margin-bottom:4px}
+small{color:#abd2e8}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+</style></head><body>
+<header><div><h1>GRAND ELEMENT · ALBUM UPLOAD</h1><div class="note">Owner-only · GE Vault + private Cloudflare audio storage</div></div><a href="./">BACK ROOM</a></header>
+<section class="card">
+<h2>1. Choose the album</h2>
+<p class="note">The website already has 94 songs in 12 album/singles folders. Select their existing album before supplying missing or replacement masters. New uploads will not overwrite the existing songs.</p>
+<div id="albumButtons" class="album-grid"></div>
+<details><summary>New album not listed?</summary>
+ <div class="row"><label>Album year<input id="newYear" type="number" min="1990" max="2100" placeholder="2027"></label>
+ <label>Album name<input id="newName" type="text" maxlength="80" placeholder="New Album"></label></div>
+ <button type="button" id="useNew">USE NEW ALBUM</button>
+</details>
+<p id="albumChosen" role="status"><strong>No album selected.</strong></p>
+<div id="inventory" aria-label="Files already published in selected album"></div>
+</section>
+<section class="card">
+<h2>2. Select your audio files</h2>
+<label for="files">MP3, M4A, WAV or OGG · maximum 60 MB per file</label>
+<input type="file" id="files" accept=".mp3,.m4a,.wav,.ogg,audio/*" multiple>
+<p class="note">All selected files remain on your computer or phone. Select files first, review track names below, then explicitly press UPLOAD. Source files and existing public recordings are never deleted.</p>
+<div id="queueList"></div>
+</section>
+<section class="card">
+<h2>3. Upload to private cloud storage</h2>
+<div class="row"><button type="button" class="primary" id="upload" disabled>UPLOAD SELECTED SONGS</button><button type="button" id="cancel" disabled>STOP UPLOAD</button><button type="button" id="check">CHECK VAULT STORAGE</button></div>
+<progress id="meter" value="0" max="100"></progress>
+<p id="status" role="status" aria-live="polite">Sign in through the private Back Room, then choose an album and files.</p>
+<pre id="log" aria-label="Upload confirmation log"></pre>
+<p class="warning note"><strong>PRIVATE STAGING ONLY:</strong> Uploaded masters stay private. Nothing joins the public MUSIC list, merchandise store, BLITZ Radio, or Bangers playlist until a separate verified publishing step is completed. The Vault receipt must also be confirmed.</p>
+</section>
+<section class="card"><h2>Files received in private GE cloud storage</h2>
+<div id="staged" class="note">Use CHECK VAULT STORAGE to confirm actual uploads. These are not yet public songs.</div></section>
+<script>
+(()=>{
+'use strict';
+const API='https://ge-backroom-publisher.grandelement.workers.dev';
+const TOKEN='GE_BACKROOM_PUBLISH_SESSION_V1';
+const $=id=>document.getElementById(id),LIMIT=60*1024*1024;
+const validExt=/\.(mp3|m4a|wav|ogg)$/i;
+let album='',queue=[],active=false,current=null,inventory=[];
+const albums=[
+['Grand Element - Singles','Singles'],
+['Grand Element - 2026 - Aether','Aether'],
+['Grand Element - 2024 - Fire','Fire'],
+['Grand Element - 2021 - Spirit','Spirit'],
+['Grand Element - 2017 - Soul','Soul'],
+['Grand Element - 2011 - Love','Love'],
+['Grand Element - 2010 - Intergy','Intergy'],
+['Grand Element - 2009 - Sessions II','Sessions II'],
+['Grand Element - 2008 - Sessions I','Sessions I'],
+['Grand Element - 2007 - Live','Live'],
+['Grand Element - 2006 - Trio','Trio'],
+['Grand Element - 2005 - Fundamental Groove','Fundamental Groove']
+];
+function session(){try{return sessionStorage.getItem(TOKEN)||''}catch(_){return''}}
+function note(t){$('status').textContent=t}
+function line(t){$('log').textContent+=(new Date().toLocaleTimeString()+' · '+t+'\n');$('log').scrollTop=$('log').scrollHeight}
+function escapeText(el,text){el.textContent=text;return el}
+function albumFiles(){return inventory.filter(p=>p.split('/')[2]===album)}
+function renderInventory(){
+ const list=albumFiles(),host=$('inventory');host.replaceChildren();
+ const summary=document.createElement('div');
+ summary.className='note';summary.textContent=list.length+' files currently published on the website in this album';
+ host.appendChild(summary);
+ for(const path of list){const row=document.createElement('div');row.className='track';row.textContent=path.split('/').pop();host.appendChild(row)}
+}
+function choose(value){
+ if(active)return;
+ album=value;$('albumChosen').textContent='ALBUM: '+value;
+ document.querySelectorAll('#albumButtons button').forEach(b=>b.classList.toggle('current',b.dataset.album===album));
+ renderInventory();renderQueue();
+}
+function createAlbumButtons(){
+ const root=$('albumButtons');root.replaceChildren();
+ for(const [folder,name] of albums){
+  const b=document.createElement('button');b.type='button';b.dataset.album=folder;
+  const count=inventory.filter(path=>path.split('/')[2]===folder).length;
+  b.append(escapeText(document.createElement('strong'),name));
+  const small=document.createElement('small');small.textContent=count+' songs on website';b.append(small);
+  b.addEventListener('click',()=>choose(folder));root.appendChild(b);
+ }
+}
+async function loadExisting(){
+ try{
+  const r=await fetch('../radio/manifest.json',{cache:'no-store'});
+  if(!r.ok)throw Error('Website music catalog HTTP '+r.status);
+  const data=await r.json();
+  inventory=(Array.isArray(data.files)?data.files:[]).filter(x=>typeof x==='string'&&x.startsWith('ge-music/music/')&&validExt.test(x));
+  createAlbumButtons();renderInventory();
+ }catch(err){line('Existing website list unavailable: '+String(err.message||err))}
+}
+function titleFromName(name){
+ return name.replace(validExt,'').replace(/^.*?_\d{1,3}[-_]?/,'').replace(/_/g,' ').trim()||name.replace(validExt,'');
+}
+function renderQueue(){
+ const host=$('queueList');host.replaceChildren();
+ for(let i=0;i<queue.length;i++){
+  const item=queue[i],row=document.createElement('div');row.className='track';
+  const top=document.createElement('div');top.className='filename';top.textContent=(i+1)+'. '+item.file.name+' · '+(item.file.size/1048576).toFixed(1)+' MB';
+  const lab=document.createElement('label');lab.textContent='Track title';
+  const input=document.createElement('input');input.type='text';input.maxLength=180;input.value=item.title;input.disabled=active;
+  input.addEventListener('change',()=>item.title=input.value.trim());lab.append(input);row.append(top,lab);host.appendChild(row);
+ }
+ $('upload').disabled=active||!album||!queue.length;
+ $('cancel').disabled=!active;
+}
+$('files').addEventListener('change',event=>{
+ if(active)return;
+ const all=[...event.target.files];
+ queue=all.filter(file=>validExt.test(file.name)&&file.size>0&&file.size<=LIMIT).map(file=>({file,title:titleFromName(file.name)}));
+ const rejected=all.length-queue.length;
+ renderQueue();
+ note(queue.length+' file(s) ready to upload.'+(rejected?' '+rejected+' rejected (wrong format, empty or more than 60 MB).':''));
+});
+$('useNew').addEventListener('click',()=>{
+ const year=Number($('newYear').value),name=$('newName').value.trim();
+ if(!Number.isInteger(year)||year<1990||year>2100||!/^[-a-zA-Z0-9 _().&]{1,80}$/.test(name)){note('Enter a valid album year and name.');return}
+ choose('Grand Element - '+year+' - '+name);
+});
+function sendOne(item,index){
+ return new Promise((resolve,reject)=>{
+  const xhr=new XMLHttpRequest();current=xhr;
+  const url=API+'/manage/music/uploads?'+new URLSearchParams({
+   album,name:item.file.name,title:item.title,bytes:String(item.file.size)
+  }).toString();
+  xhr.open('POST',url,true);
+  xhr.setRequestHeader('Authorization','Bearer '+session());
+  xhr.setRequestHeader('Content-Type',item.file.type||'application/octet-stream');
+  xhr.upload.onprogress=e=>{if(e.lengthComputable){$('meter').value=Math.round(100*(index+e.loaded/e.total)/queue.length);note('UPLOADING '+(index+1)+'/'+queue.length+' · '+item.file.name+' · '+Math.round(100*e.loaded/e.total)+'%')}};
+  xhr.onload=()=>{
+   let data={};try{data=JSON.parse(xhr.responseText||'{}')}catch(_){}
+   if(xhr.status>=200&&xhr.status<300&&data.ok&&data.stored)resolve(data);
+   else reject(new Error(data.error||'Upload not confirmed (HTTP '+xhr.status+')'));
+  };
+  xhr.onerror=()=>reject(new Error('Network interrupted; verify storage before retrying.'));
+  xhr.onabort=()=>reject(new Error('Upload stopped; verify storage before retrying.'));
+  xhr.send(item.file);
+ });
+}
+$('upload').addEventListener('click',async()=>{
+ if(active||!album||!queue.length)return;
+ if(!session()){note('Owner session missing. Sign in through the main Back Room on this same website first.');return}
+ if(queue.some(x=>!x.title||x.title.length>180)){note('Every song needs a track title.');return}
+ if(!confirm('Upload '+queue.length+' file(s) to PRIVATE GE cloud storage for '+album+'? Existing songs and BLITZ radio will not be changed.'))return;
+ active=true;renderQueue();$('meter').value=0;
+ const total=queue.length,done=[];let stopped=false;
+ for(let i=0;i<total;i++){
+  const item=queue[i];
+  try{
+   const receipt=await sendOne(item,i);
+   done.push(item);
+   line('CONFIRMED · '+item.file.name+' · '+receipt.bytes+' bytes · '+(receipt.vault_saved?'VAULT RECORDED':'R2 STORED · VAULT RECEIPT PENDING'));
+   if(receipt.warning)line('NOTICE · '+receipt.warning);
+  }catch(err){stopped=true;line('UPLOAD STOPPED at '+item.file.name+' · '+String(err.message||err));break}
+  finally{current=null}
+ }
+ queue=queue.filter(item=>!done.includes(item));
+ active=false;renderQueue();
+ note(stopped?'Transfer interrupted. '+done.length+'/'+total+' confirmed. Use CHECK VAULT STORAGE before retrying.':
+  'PRIVATE UPLOAD COMPLETE · '+done.length+' files received. Review Vault receipts; no public or Radio changes.');
+ if(!stopped)$('meter').value=100;
+ await checkStorage();
+});
+$('cancel').addEventListener('click',()=>{if(current)current.abort()});
+async function checkStorage(){
+ if(!session()){note('Sign into the private Back Room first; the uploader never accepts public uploads.');return}
+ const target=$('staged');target.textContent='Checking private Cloudflare storage…';
+ try{
+  const r=await fetch(API+'/manage/music/uploads',{headers:{Authorization:'Bearer '+session()},cache:'no-store'});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok||!data.ok)throw Error(data.error||'Storage HTTP '+r.status);
+  target.replaceChildren();
+  const h=document.createElement('p');h.textContent=data.items.length+' private audio file(s) confirmed in R2. Not public.';target.append(h);
+  for(const a of data.items){
+   const row=document.createElement('div');row.className='track';
+   row.textContent=(a.album||'Unknown album')+' / '+(a.name||a.key)+' · '+(a.bytes/1048576).toFixed(1)+' MB';
+   target.append(row);
+  }
+ }catch(err){target.textContent='Storage unavailable: '+String(err.message||err)}
+}
+$('check').addEventListener('click',checkStorage);
+loadExisting();createAlbumButtons();
+})();
+</script></body></html>
