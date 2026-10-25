@@ -4877,6 +4877,7 @@ function watchRadioConnection(){
     // stream connection failed. Intentional pause is tracked separately.
     if(document.hidden||recentUserPause()||!liveState.wantedPlayback)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
+    radioTryCanonicalStream=true;
     syncModeButtons();
     void switchToRadio2('radio1_timeout');
   },10500);
@@ -4888,6 +4889,7 @@ function radioPlayFailure(error){
     setLiveStatus('RADIO • iPhone: tap PLAY for sound.');
   }else{
     clearRadioWatch();radioTimedOut=true;
+    radioTryCanonicalStream=true;
     void switchToRadio2('radio1_play_error');
   }
   updateRadioStartupCue();
@@ -4940,8 +4942,16 @@ let geListenerPreviewReady=false;
 // Legacy readiness indicator retained for integrations, never for playback.
 const geListenerPreviewCheck=Promise.resolve(false);
 window.GEListenerPreview={available:()=>false,active:()=>false};
+let radioTryCanonicalStream=false;
 function freshLiveStreamURL(){
   const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
+  // Some Icecast reverse proxies accept the exact MP3 mount but reject a
+  // cache-busting query. After a failed connection, test the SAME station's
+  // canonical mount once before declaring BLITZ unreachable.
+  if(radioTryCanonicalStream){
+    radioTryCanonicalStream=false;
+    return target.href;
+  }
   target.searchParams.set('_ge_live_edge',String(Date.now()));
   return target.href;
 }
@@ -5149,6 +5159,7 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   if(retryStalledRadio1){
     clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
     radioTimedOut=false;radioReconnectFailures=0;
+    radioTryCanonicalStream=true;
   }else if(userGesture&&geRadio1RetryAttempts>=3){
     clearRadio1Retry();radioTimedOut=false;radioReconnectFailures=0;
   }
