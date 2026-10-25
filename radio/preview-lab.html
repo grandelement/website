@@ -981,16 +981,35 @@ function rebuildPublicPlaylists(){
  publicPlaylists=result;showPublicPlaylists();playlistOptions();
 }
 async function loadPublicPlaylists(){
+ // Every platform reads the same owner-approved GE Vault playlist records.
+ // A successfully loaded empty Vault means NO PLAYLISTS, not a reason to
+ // resurrect old playlists from GitHub or the DJ local cache.
+ try{
+   const response=await fetch('https://vault.grandelement.com/v1/public/music-playlists',{cache:'no-store'});
+   if(!response.ok)throw Error('GE Vault HTTP '+response.status);
+   const data=await response.json();
+   if(data?.ok!==true||data.format!=='ge-music-playlists-v1'||!Array.isArray(data.items))
+     throw Error('Invalid GE Vault playlist response');
+   publicPlaylistDefinitions=data.items.map(item=>({
+     id:String(item.id||''),name:String(item.name||''),songs:Array.isArray(item.songs)?item.songs:[]
+   })).filter(item=>item.id&&item.name);
+   rebuildPublicPlaylists();
+   return;
+ }catch(error){
+   console.warn('GE Vault public playlists unavailable; showing the last published website snapshot:',error);
+ }
+ // Temporary read-only fallback, never a second editable playlist library.
+ // Keep previously published music playable during a Vault outage.
  try{
    const response=await fetch('../config/site-live.json?public-playlists='+Date.now(),{cache:'no-store'});
    if(!response.ok)throw Error('Published site settings unavailable');
    const data=await response.json();
    publicPlaylistDefinitions=Array.isArray(data.music?.publicPlaylists)?data.music.publicPlaylists:[];
-   rebuildPublicPlaylists();
  }catch(error){
-   console.warn('Published playlist settings unavailable:',error);
-   publicPlaylistDefinitions=[];rebuildPublicPlaylists();
+   console.warn('No published playlist snapshot available:',error);
+   publicPlaylistDefinitions=[];
  }
+ rebuildPublicPlaylists();
 }
 async function loadCompleteMusicCatalog(){
  let durationTracks=[];
