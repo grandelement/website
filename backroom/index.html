@@ -1022,10 +1022,8 @@ function syncDJSavedPlaylistsToPublic(){
     playlist.songs.length>0);
   if(JSON.stringify(cfg.music.publicPlaylists)!==old)mark();
   const total=geDJSavedPlaylists.length,shown=cfg.music.publicPlaylists.length;
-  $('brDJPlaylistStatus').textContent='ORIGINAL DJ BOOTH CONNECTED · '+total+
-    ' saved playlist(s), '+shown+' explicitly approved for public MUSIC'+
-    (geDJVaultConfirmed?' · GE Vault synced':' · GE Vault pending; published snapshot available')+
-    '. PUBLISH LIVE to apply; Radio 1 rotation is unchanged.';
+  // The Vault connection label belongs to the actual Vault read, not a DJ
+  // snapshot; never report the Vault as connected from cached BLITZ data.
 }
 function acceptDJPlaylistSnapshot(items,vaultConfirmed=false){
   if(!Array.isArray(items))return;
@@ -2037,7 +2035,7 @@ $('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min
    public site configuration, drafts, presets, or localStorage. */
 const backroomVaultManagers=(()=>{
   let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
-  let playlistLoaded=false,accessLoaded=false,codeRows=[];
+  let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
     const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;
@@ -2195,11 +2193,47 @@ const backroomVaultManagers=(()=>{
       cfg.music.publicDJPlaylistNames=visible?['Bangers']:[];
     mark();
   }
+  function renderPlaylistViewer(){
+    const select=$('brViewPlaylistSelect'),host=$('brPlaylistViewSongs');
+    if(!select||!host)return;
+    select.replaceChildren();
+    if(!playlistLoaded){
+      select.appendChild(new Option('VAULT NOT CONNECTED',''));
+      select.disabled=true;host.replaceChildren();host.hidden=true;
+      return;
+    }
+    if(!playlists.length){
+      selectedViewPlaylistId='';
+      select.appendChild(new Option('NO PLAYLISTS',''));
+      select.disabled=true;host.replaceChildren();host.hidden=true;
+      return;
+    }
+    select.disabled=false;
+    if(!playlists.some(p=>p.id===selectedViewPlaylistId))selectedViewPlaylistId=playlists[0].id;
+    for(const p of playlists)select.appendChild(new Option(p.name,p.id));
+    select.value=selectedViewPlaylistId;
+    const playlist=playlists.find(p=>p.id===selectedViewPlaylistId);
+    const tracks=Array.isArray(playlist?.tracks)?playlist.tracks:[];
+    host.replaceChildren();
+    for(const [i,track] of tracks.entries()){
+      const row=create('div','','brPlaylistViewSong');
+      row.setAttribute('role','listitem');
+      row.appendChild(create('span',String(i+1).padStart(2,'0'),'brTrackNumber'));
+      const info=create('div');
+      const meta=catalog.find(song=>song.track_path===track.track_path)||parseTrack(track.track_path);
+      info.appendChild(create('strong',track.track_title||meta.track_title||'Song'));
+      if(track.album||meta.album)info.appendChild(create('small',track.album||meta.album));
+      row.appendChild(info);
+      host.appendChild(row);
+    }
+    host.hidden=tracks.length===0;
+  }
   function renderPlaylistChooser(){
     const sel=$('brPlaylistSelect');sel.replaceChildren();
     sel.appendChild(new Option('NEW PLAYLIST',''));
-    for(const p of playlists)sel.appendChild(new Option(p.name+(p.active?' · ACTIVE':''),p.id));
+    for(const p of playlists)sel.appendChild(new Option(p.name,p.id));
     sel.value=playlistEditingId;
+    renderPlaylistViewer();
   }
   function editPlaylist(id){
     const found=playlists.find(x=>String(x.id)===String(id));
@@ -2269,13 +2303,15 @@ const backroomVaultManagers=(()=>{
       const found=playlists.find(p=>p.id===old)||playlists.find(p=>p.name.toLowerCase()==='bangers')||playlists[0];
       if(preserveEditor)renderPlaylistChooser();
       else editPlaylist(found?.id||'');
-      renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
-      const msg='GE VAULT CONNECTED · '+playlists.length+' SAVED PLAYLIST'+(playlists.length===1?'':'S')+
-        (preserveEditor?' · UNSAVED EDITS PRESERVED':'');
+      renderPlaylistViewer();renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
+      const msg=playlists.length?
+        'VAULT · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':''):
+        'VAULT CONNECTED · NO PLAYLISTS';
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;return true;
     }catch(e){
-      const msg='GE VAULT OFFLINE · '+String(e.message||e);
-      playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;return false;
+      const msg='VAULT OFFLINE · '+String(e.message||e);
+      playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;
+      renderPlaylistViewer();return false;
     }
   }
   async function savePlaylist(){
@@ -2319,8 +2355,8 @@ const backroomVaultManagers=(()=>{
         playlistStatus('VAULT READBACK DOES NOT MATCH SONG ORDER OR PUBLIC SETTING · Your selections remain in the editor. Check publisher deployment before saving again.');
         return;
       }
-      editPlaylist(saved);
-      playlistStatus('SAVED AND VERIFIED IN GE VAULT · '+name+' · '+tracks.length+' SONGS · '+(entry.public?'PUBLIC':'PRIVATE')+'. BLITZ UNCHANGED.');
+      selectedViewPlaylistId=saved;editPlaylist(saved);renderPlaylistViewer();
+      playlistStatus('SAVED IN VAULT · '+name+' · '+tracks.length+' SONGS · '+(entry.public?'PUBLIC':'PRIVATE'));
     }catch(e){playlistStatus('VAULT SAVE FAILED · '+String(e.message||e)+'. BLITZ UNCHANGED.')}
     finally{button.disabled=false}
   }
@@ -2330,7 +2366,8 @@ const backroomVaultManagers=(()=>{
     if(!confirm('Permanently delete '+p.name+' from GE Vault?'))return;
     try{
       await vaultAction('/manage/playlists',{action:'delete',id});
-      playlistEditingId='';await refreshPlaylists();playlistStatus('DELETED FROM VAULT · '+p.name);
+      playlistEditingId='';if(selectedViewPlaylistId===id)selectedViewPlaylistId='';
+      await refreshPlaylists();renderPlaylistViewer();playlistStatus('DELETED FROM VAULT · '+p.name);
     }catch(e){playlistStatus('VAULT DELETE FAILED · '+String(e.message||e))}
   }
   function renderDJAlbumChoices(){
@@ -2690,7 +2727,7 @@ const backroomVaultManagers=(()=>{
   }
   function openTab(tab){
     if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
-    if(tab==='playlists'&&$('brPlaylistSource').value==='vault')void refreshPlaylists();
+    if(tab==='playlists'||tab==='music')void refreshPlaylists();
   }
   function init(){
     if(!initialized){
@@ -2712,6 +2749,13 @@ const backroomVaultManagers=(()=>{
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
       $('brImportBangers').addEventListener('click',importBangersFromDJ);
       $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
+      $('brViewPlaylistSelect').addEventListener('change',e=>{
+        selectedViewPlaylistId=e.target.value;
+        renderPlaylistViewer();
+        // The Music editor follows the selected playlist, unless there are
+        // unsaved edits the owner has not explicitly committed.
+        if(!playlistHasUnsavedEdits())editPlaylist(selectedViewPlaylistId);
+      });
       $('brPlaylistSearch').addEventListener('input',renderCatalog);
       $('brAddSong').addEventListener('click',()=>{
         const path=$('brSongSelect').value,track=catalog.find(x=>x.track_path===path);
