@@ -264,6 +264,60 @@ async function geVaultBridge(env,path,method='GET',body=null){
   }catch(_e){return {status:502,data:{ok:false,error:'GE Vault could not be reached. The existing website and Radio settings were not changed.'}}}
 }
 
+const GE_UPLOAD_LIMIT=60*1024*1024;
+const GE_AUDIO_TYPES={mp3:"audio/mpeg",m4a:"audio/mp4",wav:"audio/wav",ogg:"audio/ogg"};
+// Owner-only PRIVATE R2 upload. Never writes to public GitHub or changes Radio.
+async function handleMusicUpload(request,env,url,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:"Sign in through the private GE Back Room first."},401,cors);
+  if(!env.GE_AUDIO_UPLOADS)
+    return json({ok:false,error:"GE audio storage is not bound. Create private R2 bucket ge-audio-uploads and bind it as GE_AUDIO_UPLOADS to the Back Room publisher."},503,cors);
+  if(request.method==="GET"){
+    const results=[];
+    let cursor;
+    do{
+      const items=await env.GE_AUDIO_UPLOADS.list({prefix:"staged/",limit:250,...(cursor?{cursor}:{})});
+      results.push(...items.objects.map(x=>({key:x.key,bytes:x.size,uploaded:x.uploaded?.toISOString?.()||"",album:x.customMetadata?.album||"",name:x.customMetadata?.name||"",title:x.customMetadata?.title||"",status:"PRIVATE · STAGED"})));
+      cursor=items.truncated?items.cursor:null;
+    }while(cursor&&results.length<1000);
+    return json({ok:true,items:results,total:results.length,storage:"GE AUDIO · PRIVATE R2"},200,cors);
+  }
+  if(request.method!=="POST")return json({ok:false,error:"Upload only supports GET or POST."},405,cors);
+  const album=String(url.searchParams.get("album")||"").trim();
+  const name=String(url.searchParams.get("name")||"").trim();
+  const title=String(url.searchParams.get("title")||"").trim();
+  const declared=Number(url.searchParams.get("bytes"));
+  const ext=name.split(".").pop().toLowerCase();
+  if(!/^Grand Element - (?:[0-9]{4} - [a-zA-Z0-9][a-zA-Z0-9 _().&-]{0,80}|Singles)$/.test(album)||
+     name.length>180||!name||name.includes("/")||name.includes("\\")||!Object.hasOwn(GE_AUDIO_TYPES,ext)||
+     !title||title.length>180||!Number.isSafeInteger(declared)||declared<1||declared>GE_UPLOAD_LIMIT)
+    return json({ok:false,error:"Enter a valid album and title, then choose one audio file (MP3, M4A, WAV, OGG; maximum 60 MB)."},400,cors);
+  const length=Number(request.headers.get("Content-Length")||0);
+  if(length&&length!==declared)
+    return json({ok:false,error:"Upload size does not match the selected file."},400,cors);
+  if(!request.body)return json({ok:false,error:"Empty upload. No file was saved."},400,cors);
+  // Every upload has an immutable key. This deliberately cannot overwrite an existing master.
+  const uid=crypto.randomUUID();
+  const key="staged/"+uid+"/"+name.replace(/[^a-zA-Z0-9._-]+/g,"_").replace(/^\.+/,"").slice(0,155);
+  const mime=GE_AUDIO_TYPES[ext];
+  const stored=await env.GE_AUDIO_UPLOADS.put(key,request.body,{
+    httpMetadata:{contentType:mime},
+    customMetadata:{album,name,title,origin:"ge-backroom-album-upload"},
+  });
+  if(!stored)return json({ok:false,error:"Cloud storage did not confirm the upload."},503,cors);
+  if(stored.size!==declared){
+    await env.GE_AUDIO_UPLOADS.delete(key);
+    return json({ok:false,error:"Uploaded file length was incomplete; discarded the incomplete private copy."},422,cors);
+  }
+  const receipt={id:"music-"+uid,album_folder:album,track_title:title,original_filename:name,storage_key:key,media_type:mime,bytes:stored.size};
+  const saved=await geVaultBridge(env,"/v1/admin/music-assets","POST",{asset:receipt});
+  // Never delete a successfully uploaded original if Vault indexing is down.
+  // The authenticated R2 listing retains the receipt for safe reconciliation.
+  return json({ok:true,stored:true,private:true,storage_key:key,bytes:stored.size,
+    vault_saved:saved.status===200&&saved.data?.ok===true,
+    warning:saved.status===200&&saved.data?.ok===true?"":"Private audio saved; Vault catalog receipt is still pending. Do not re-upload.",
+    asset_id:receipt.id},saved.status===200&&saved.data?.ok===true?200:202,cors);
+}
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
@@ -286,6 +340,11 @@ export default {
       return json({ok:true,configured},200,cors);
     }
     if(!configured)return json({ok:false,error:'Publisher secrets are not configured.'},503,cors);
+
+    if(url.pathname==='/manage/music/uploads'&&['GET','POST'].includes(request.method)){
+      try{return await handleMusicUpload(request,env,url,cors)}
+      catch(error){return json({ok:false,error:"Private audio transfer failed: "+String(error?.message||error).slice(0,170)},503,cors)}
+    }
 
     if(url.pathname==='/login'&&request.method==='POST'){
       let body={};try{body=await request.json()}catch(_e){}
