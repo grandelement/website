@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5-20261024';
+const BUILD='GE-MUSIC-V5.1-20261025';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
@@ -42,7 +42,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:420px){.browse button{font-size:12px}.header .brand{font-size:13px}}
 .meta{color:#addcf5;font-size:12px;min-height:17px;margin-top:7px}
 .notice{color:#c5efff;font-size:12px;min-height:18px;margin-top:5px}
-.scroll{flex:1 1 auto;height:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:11px 10px 26px;scroll-behavior:auto}
+.scroll{display:block;flex:1 1 0px;height:0;min-height:0;min-width:0;overflow-y:scroll;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:11px 10px 40px;scroll-behavior:auto;position:relative}
 .album{display:flex;width:100%;justify-content:space-between;gap:10px;min-height:52px;margin:0 0 7px;background:linear-gradient(110deg,#0c3b66,#071e32);border:1px solid #4384b0}
 .album b{min-width:0;overflow-wrap:anywhere;text-align:left}.album small{color:#a3dbff;flex:0 0 auto}
 .section{padding:8px 7px;background:#0c3653;border-bottom:1px solid #4384ac;font-weight:850;margin:12px 0 5px}
@@ -64,7 +64,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.1</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GE Vault playlists">REFRESH VAULT</button></div><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
  <div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
@@ -72,6 +72,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </section>`;
 document.body.appendChild(host);
 const el=sel=>root.querySelector(sel),scroller=el('.scroll'),meta=el('.meta'),notice=el('.notice');
+// Keep native iOS scrolling within this Shadow DOM. The old Radio document
+// touch handler must not cancel scrolling through event retargeting.
+scroller.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
+scroller.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
 const saveSelected=()=>{try{localStorage.setItem(store,JSON.stringify([...state.selected]))}catch(_){}};
 function canonical(input){const s=String(input||'').replace(/^\/+/, '');try{const path=s.startsWith('ge-music/music/')?decodeURIComponent(s):decodeURIComponent(new URL(s,location.href).pathname.replace(/^\/+/,''));return /^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)&&!path.includes('..')?path:''}catch(_){return ''}}
 function details(path){
@@ -128,7 +132,10 @@ async function loadPublished(){
   state.playlistMessage=state.publicLists.length?'GE VAULT CONNECTED · '+state.publicLists.length+' PUBLIC PLAYLIST'+(state.publicLists.length===1?'':'S'):
     'GE VAULT CONNECTED · NO PUBLIC PLAYLISTS AVAILABLE';
  }catch(e){
-  state.publicLists=[];state.playlistMessage='GE VAULT UNAVAILABLE · '+String(e.message||e);
+  state.publicLists=[];
+  state.playlistMessage=String(e.message||e).includes('HTTP 404')
+    ?'GE VAULT API NOT DEPLOYED (HTTP 404) · Owner must deploy the Vault Worker.'
+    :'GE VAULT UNAVAILABLE · '+String(e.message||e);
  }finally{state.playlistsLoading=false;if(state.open)render()}
 }
 function playTrack(track){
