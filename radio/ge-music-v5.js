@@ -119,24 +119,36 @@ function saveMine(){
 }
 async function loadPublished(){
  if(state.playlistsLoading)return;
- state.playlistsLoading=true;state.playlistMessage='CONNECTING TO GE VAULT…';
+ state.playlistsLoading=true;state.playlistMessage='CHECKING GITHUB PLAYLIST MASTER…';
  if(state.open)render();
+ const sources=[],combined=new Map(),errors=[];
+ // GitHub is the independent public playlist reference. Existing Vault items
+ // remain a transitional fallback so Bangers/legacy lists are not discarded.
  try{
-  const response=await fetch('https://vault.grandelement.com/v1/public/music-playlists?refresh='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('GE Vault HTTP '+response.status);
-  const data=await response.json();
-  if(data?.ok!==true||data.format!=='ge-music-playlists-v1'||!Array.isArray(data.items))
-   throw Error('Invalid GE Vault playlist response');
-  state.publicLists=data.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
+  const res=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json();
+  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))throw Error('Invalid GitHub playlist registry');
+  const list=data.playlists.filter(p=>p&&p.visibility==='published'&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
    .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)})).filter(p=>p.songs.length);
-  state.playlistMessage=state.publicLists.length?'GE VAULT CONNECTED · '+state.publicLists.length+' PUBLIC PLAYLIST'+(state.publicLists.length===1?'':'S'):
-    'GE VAULT CONNECTED · NO PUBLIC PLAYLISTS AVAILABLE';
- }catch(e){
-  state.publicLists=[];
-  state.playlistMessage=String(e.message||e).includes('HTTP 404')
-    ?'GE VAULT API NOT DEPLOYED (HTTP 404) · Owner must deploy the Vault Worker.'
-    :'GE VAULT UNAVAILABLE · '+String(e.message||e);
- }finally{state.playlistsLoading=false;if(state.open)render()}
+  for(const p of list)combined.set(p.id,p);
+  sources.push('GITHUB '+list.length);
+ }catch(e){errors.push('GITHUB '+String(e.message||e))}
+ try{
+  const res=await fetch('https://vault.grandelement.com/v1/public/music-playlists?refresh='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json();
+  if(data?.ok!==true||data.format!=='ge-music-playlists-v1'||!Array.isArray(data.items))throw Error('Invalid Vault response');
+  const list=data.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
+   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)})).filter(p=>p.songs.length);
+  for(const p of list)if(!combined.has(p.id))combined.set(p.id,p);
+  sources.push('LEGACY VAULT '+list.length);
+ }catch(e){errors.push('LEGACY VAULT '+String(e.message||e))}
+ state.publicLists=[...combined.values()];
+ state.playlistMessage=sources.length
+  ?'PLAYLIST SOURCES · '+sources.join(' · ')+(errors.length?' · '+errors.join(' · '):'')
+  :'PLAYLISTS UNAVAILABLE · '+errors.join(' · ');
+ state.playlistsLoading=false;if(state.open)render();
 }
 function playTrack(track){
  // Playback remains controlled by the existing radio preview/access gate.

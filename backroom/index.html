@@ -685,6 +685,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <label class="check" hidden><input id="brPlaylistActive" type="checkbox" disabled><span>Radio 1 is controlled in DJ Booth</span></label>
   <details class="brSourceDetails" open>
     <summary>ALBUMS &amp; SONGS</summary>
+    <div class="brSourceSubOptions" style="margin:10px 0;border:1px solid #355b77;border-radius:10px;padding:10px">
+      <strong>ALL SONGS · CHECK THE SONGS TO INCLUDE</strong>
+      <p class="sub" style="margin:5px 0">Full scrollable song list. Checked selections become the named playlist when saved.</p>
+      <input id="brAllSongsSearch" type="search" placeholder="Find any song or album" aria-label="Filter the complete playlist song checklist" style="width:100%;margin:8px 0">
+      <div id="brAllSongsChoices" role="group" aria-label="All songs for the named playlist" style="max-height:min(55vh,540px);overflow-y:auto;overscroll-behavior:contain;padding:8px;border:1px solid #315776;border-radius:8px"></div>
+    </div>
     <div id="brDJAlbumChoices" class="brDJPlaylistAlbums" role="group" aria-label="Album selector"></div>
     <div id="brDJSongChoices" class="brDJPlaylistSongChecks" role="group" aria-label="Songs in selected album"></div>
     <details class="brSourceSubOptions"><summary>FIND SONG</summary>
@@ -2170,7 +2176,7 @@ const backroomVaultManagers=(()=>{
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
       catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
-      renderCatalog();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
+      renderCatalog();renderAllSongs();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
@@ -2179,6 +2185,36 @@ const backroomVaultManagers=(()=>{
     const found=catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(query));
     sel.appendChild(new Option(found.length?('CHOOSE SONG · '+found.length+' MATCHES'):'NO MATCHES',''));
     found.slice(0,125).forEach(x=>sel.appendChild(new Option(x.track_title+(x.album?' · '+x.album:''),x.track_path)));
+  }
+  // One persistent, full-length song checklist; no arbitrary 125-item cutoff.
+  function renderAllSongs(){
+    const host=$('brAllSongsChoices'),search=$('brAllSongsSearch');
+    if(!host||!search)return;
+    if(!search.dataset.geBound){
+      search.dataset.geBound='1';
+      search.addEventListener('input',renderAllSongs);
+    }
+    const q=search.value.trim().toLowerCase();
+    const matches=catalog.filter(song=>(String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
+    const active=new Set(playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path)));
+    host.replaceChildren();
+    const summary=create('div',active.size+' SELECTED · '+matches.length+' SONGS SHOWN','sub');
+    host.appendChild(summary);
+    for(const song of matches){
+      const label=create('label','','check');
+      label.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 3px;border-bottom:1px solid #27465e;cursor:pointer';
+      const box=document.createElement('input');box.type='checkbox';box.checked=active.has(String(song.track_path));box.setAttribute('aria-label','Include '+song.track_title+' from '+song.album);
+      box.addEventListener('change',()=>{
+        playlistTracks=playlistTracks.filter(t=>String(t.track_path)!==String(song.track_path));
+        if(box.checked)playlistTracks.push({...song});
+        renderTrackList();
+        renderDJAlbumChoices();
+        playlistStatus('SONG SELECTION CHANGED · Enter a name and SAVE PLAYLIST to keep it.');
+      });
+      const caption=create('span',(song.track_title||song.track_path)+' · '+(song.album||''));
+      label.append(box,caption);host.appendChild(label);
+    }
+    if(!matches.length)host.appendChild(create('p','No songs match that search.'));
   }
   function renderTrackList(){
     const host=$('brPlaylistTracks');host.replaceChildren();
@@ -2223,6 +2259,7 @@ const backroomVaultManagers=(()=>{
       host.appendChild(row);
     });
     if(!playlistTracks.length)host.appendChild(create('p','Add songs above. Drag to arrange the order, or use ↑ and ↓.'));
+    renderAllSongs();
   }
   
   // Public catalog snapshot contains only approved titles and music file paths,
