@@ -450,6 +450,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="publish" id="publishLive" type="button">PUBLISH LIVE</button>
   </div>
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
+  <div id="brVaultConnection" class="brVaultConnection" role="status" aria-live="polite" data-state="checking">VAULT · CHECKING</div>
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
@@ -1076,6 +1077,24 @@ async function enterBackroom(){
   await bootBackroom();
 }
 function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
+async function restorePublisherSession(){
+  // A genuine publisher session can be reused until its server expiry.
+  // Never store the owner password or mistake the legacy local login for admin access.
+  if(!token())return false;
+  try{
+    const response=await api('/session',{method:'GET'});
+    const body=await response.json().catch(()=>({}));
+    if(response.ok&&body.ok===true){
+      serverAuthenticated=true;
+      $('lockScreen').classList.add('hidden');
+      $('backroomMain').classList.remove('hidden');
+      await bootBackroom();
+      return true;
+    }
+  }catch(_e){}
+  setToken('');serverAuthenticated=false;
+  return false;
+}
 async function safeEnterBackroom(){
   const button=$('gateEnter'),message=$('gateMessage');
   if(button.disabled)return;
@@ -1972,19 +1991,55 @@ const backroomVaultManagers=(()=>{
   };
   const playlistStatus=text=>status('brPlaylistStatus',text);
   const accessStatus=text=>status('brAccessStatus',text);
-  const authReady=()=>{
-    if(serverAuthenticated&&token())return true;
-    playlistStatus('The private Back Room publisher login is required to manage playlists.');
-    accessStatus('The private Back Room publisher login is required to manage secure access codes.');
-    return false;
+  const vaultIndicator=(state,details='')=>{
+    const el=$('brVaultConnection');
+    if(!el)return;
+    el.textContent='VAULT · '+state;
+    el.title=details||'GE Studios Vault';
+    el.dataset.state=state.toLowerCase().replace(/[^a-z]+/g,'-');
   };
+  const needsPublisherLogin=()=>{
+    vaultIndicator('SIGN IN','Publisher session needed. Existing Vault records are safe.');
+    accessStatus('SIGN IN REQUIRED · Your private publisher session is missing or expired.');
+    playlistStatus('SIGN IN REQUIRED · Your private publisher session is missing or expired.');
+  };
+  const authReady=()=>serverAuthenticated&&!!token();
   async function vaultAction(path,body=null){
-    if(!authReady())throw Error('Please sign in through the connected Back Room publisher.');
+    if(!authReady()){
+      needsPublisherLogin();
+      throw Error('Owner sign-in required. Your data has not been deleted.');
+    }
     const opt=body===null?{method:'GET'}:{method:'POST',body:JSON.stringify(body)};
-    const response=await api(path,opt);
-    const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
-    if(!response.ok||!data?.ok)throw Error(data?.error||('Back Room request failed ('+response.status+').'));
-    return data;
+    // Read requests retry one transient Cloudflare/network failure; writes never
+    // auto-repeat because a duplicate code or playlist could be created.
+    const attempts=body===null?2:1;
+    for(let attempt=0;attempt<attempts;attempt++){
+      try{
+        const response=await api(path,opt);
+        const data=await response.json().catch(()=>({ok:false,error:'Invalid service response.'}));
+        if(response.status===401){
+          serverAuthenticated=false;setToken('');needsPublisherLogin();
+          throw Error('Publisher session expired. Sign in again to continue.');
+        }
+        if((response.status===429||response.status>=500)&&attempt+1<attempts){
+          await new Promise(resolve=>setTimeout(resolve,300));
+          continue;
+        }
+        if(!response.ok||!data?.ok){
+          vaultIndicator('OFFLINE',String(data?.error||'HTTP '+response.status));
+          throw Error(data?.error||('Vault request failed ('+response.status+').'));
+        }
+        vaultIndicator('CONNECTED');
+        return data;
+      }catch(error){
+        if(attempt+1<attempts&&!/sign in|session expired/i.test(String(error.message||error))){
+          await new Promise(resolve=>setTimeout(resolve,300));continue;
+        }
+        vaultIndicator(authReady()?'OFFLINE':'SIGN IN',String(error.message||error));
+        throw error;
+      }
+    }
+    throw Error('GE Vault could not be reached.');
   }
   // Read-only connection diagnosis. Do not include secrets or issue test records.
   let diagnosingVault=false;
@@ -2207,7 +2262,7 @@ const backroomVaultManagers=(()=>{
     if(!name){playlistStatus('ENTER A PLAYLIST NAME');return}
     if(!tracks.length){playlistStatus('CHOOSE SONGS');return}
     if(!serverAuthenticated||!token()){
-      playlistStatus('NOT SAVED · LOCAL-ONLY EDITOR. Use RECONNECT PUBLISHER to restore the private GE Vault session.');
+      needsPublisherLogin();playlistStatus('NOT SAVED · Sign in to the private publisher to save your playlist.');
       return;
     }
     const same=playlists.find(p=>p.name.trim().toLowerCase()===name.toLowerCase());
@@ -2475,7 +2530,7 @@ const backroomVaultManagers=(()=>{
   async function refreshCodes(preferId=''){
     if(!authReady()){
       accessLoaded=false;codeRows=[];renderAccessCodes();
-      accessStatus('CODES NOT CONNECTED · This Back Room session is local-only. Sign in through the private Cloudflare publisher to save codes.');
+      needsPublisherLogin();
       return false;
     }
     accessStatus('Connecting to GE Vault and loading issued codes…');
@@ -2492,7 +2547,7 @@ const backroomVaultManagers=(()=>{
       return true;
     }catch(err){
       accessLoaded=false;codeRows=[];renderAccessCodes();
-      accessStatus('VAULT DISCONNECTED · Codes cannot be saved or loaded. '+String(err.message||err));
+      accessStatus('CODES NOT LOADED · '+String(err.message||err));
       return false;
     }
   }
@@ -2608,7 +2663,9 @@ const backroomVaultManagers=(()=>{
     }finally{clearTimeout(timer);}
   }
   function openTab(tab){
-    if(tab==='access'&&!accessLoaded&&authReady())void refreshCodes();
+    // The section load itself checks connectivity and retries transient GET
+    // failures. There is no separate manual connection check.
+    if(tab==='access')void refreshCodes();
     if(tab==='playlists')void refreshPlaylists();
   }
   function init(){
@@ -2867,7 +2924,7 @@ async function bootBackroom(){
   }
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-setTimeout(()=>$('gatePassword').focus(),100);
+void restorePublisherSession().then(restored=>{if(!restored)$('gatePassword').focus()});
 })();
 </script>
 </body>
