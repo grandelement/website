@@ -2133,7 +2133,29 @@ export default {
 
     try {
       if (url.pathname === "/health") {
-        return json({ ok: true, service: "GE Studios Vault", time: now() }, 200, cors);
+        // A Worker process can respond while its D1 binding or migrations are
+        // missing. Health must verify the real permanent playlist storage.
+        if (!env.VAULT_DB) return json({
+          ok: false, service: "GE Studios Vault", storage: "D1 NOT BOUND", time: now(),
+        }, 503, cors);
+        try {
+          await env.VAULT_DB.prepare("SELECT id FROM playlists LIMIT 1").first();
+        } catch (_error) {
+          return json({
+            ok: false, service: "GE Studios Vault", storage: "PLAYLIST TABLE UNAVAILABLE",
+            time: now(),
+          }, 503, cors);
+        }
+        let accessCodesReady = true;
+        try {
+          await env.VAULT_DB.prepare("SELECT id FROM access_codes LIMIT 1").first();
+        } catch (_error) {
+          accessCodesReady = false;
+        }
+        return json({
+          ok: true, service: "GE Studios Vault", storage: "READY",
+          access_codes_ready: accessCodesReady, time: now(),
+        }, 200, cors);
       }
 
       if (url.pathname === "/v1/public/access/redeem" && request.method === "POST") {
