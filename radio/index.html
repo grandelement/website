@@ -5139,7 +5139,17 @@ setInterval(()=>{
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
-  if(userGesture&&geRadio1RetryAttempts>=3){
+  // A fresh human RADIO tap must try the original BLITZ stream again, even
+  // when Radio 2's clock endpoint is down or the earlier watchdog timed out.
+  // Previously radioTimedOut forced subsequent taps back into unavailable
+  // Radio 2 instead of opening a new Radio 1 connection.
+  const retryStalledRadio1=!!(userGesture&&!observedRadio1Progress&&
+    (radioTimedOut||geRadio1RetryAttempts>0||radio2.loading||
+     (radio2.active&&!observedRadio2Progress)));
+  if(retryStalledRadio1){
+    clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
+    radioTimedOut=false;radioReconnectFailures=0;
+  }else if(userGesture&&geRadio1RetryAttempts>=3){
     clearRadio1Retry();radioTimedOut=false;radioReconnectFailures=0;
   }
   // Prevent an expired guest from reconnecting around the server Gate stop.
@@ -5173,6 +5183,10 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   const work=(async()=>{
     if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay});
     if(deferPlay)return;
+    if(retryStalledRadio1 && !state.livePreparing){
+      setLiveStatus('RADIO 1 · reconnecting to BLITZ from a fresh stream…');
+      return resumeLiveAtEdge();
+    }
     if(radio2.loading){setLiveStatus('RADIO 2 · preparing backup…');return;}
     if(radio2.active){radio2PlayCurrent();return;}
     if(radioTimedOut)return switchToRadio2('radio1_timeout');
@@ -10390,7 +10404,11 @@ document.addEventListener('touchmove',function(event){
      !b.classList.contains('portrait-player') ||
      b.classList.contains('iam-studio-open'))return;
   if(!window.matchMedia('(orientation:portrait) and (max-width:700px)').matches)return;
-  if(event.target.closest('#geMusicV3Host,#geInlineMusicPanel,.wrap,.sunlab-panel,#geGate,#geOnAirIntro,#geHeadphoneNotice,input[type="range"],textarea,[contenteditable="true"]'))return;
+  // A Shadow DOM touch retargets to its HOST at document level. The old
+  // geMusicV3Host name blocked every swipe inside V5 on iPhone.
+  const path=typeof event.composedPath==='function'?event.composedPath():[];
+  if(path.some(node=>node?.id==='geMusicV5Host'||node?.id==='geMusicV4Host'))return;
+  if(event.target?.closest?.('#geMusicV5Host,#geInlineMusicPanel,.wrap,.sunlab-panel,#geGate,#geOnAirIntro,#geHeadphoneNotice,input[type="range"],textarea,[contenteditable="true"]'))return;
   if(event.cancelable)event.preventDefault();
 },{passive:false});
 
