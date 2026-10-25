@@ -1096,7 +1096,7 @@ const clone=v=>JSON.parse(JSON.stringify(v));
 async function digest(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function token(){try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_e){return ''}}
 function setToken(v){try{v?sessionStorage.setItem(TOKEN_KEY,v):sessionStorage.removeItem(TOKEN_KEY)}catch(_e){}}
-async function api(path,opt={}){const headers={'Content-Type':'application/json',...(opt.headers||{})};if(token())headers.Authorization='Bearer '+token();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),8000);try{return await fetch(API+path,{cache:'no-store',...opt,headers,signal:controller.signal})}finally{clearTimeout(timeout)}}
+async function api(path,opt={}){const {timeoutMs=8000,...requestOptions}=opt;const headers={'Content-Type':'application/json',...(requestOptions.headers||{})};if(token())headers.Authorization='Bearer '+token();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),Math.min(30000,Math.max(1000,Number(timeoutMs)||8000)));try{return await fetch(API+path,{cache:'no-store',...requestOptions,headers,signal:controller.signal})}finally{clearTimeout(timeout)}}
 async function enterBackroom(){
   const pass=String($('gatePassword').value||'');
   $('gateMessage').textContent='Checking…';
@@ -1627,7 +1627,7 @@ async function brMasterSavePublished(){
   const published={...live,music:{...(live.music||{}),
     radioMasterSongPaths:selected,
     radioMasterRevision:(Number(live.music?.radioMasterRevision)||0)+1}};
-  const response=await api('/publish',{method:'POST',body:JSON.stringify({config:published})});
+  const response=await api('/publish',{method:'POST',body:JSON.stringify({config:published}),timeoutMs:25000});
   const reply=await response.json().catch(()=>({}));
   if(!response.ok||reply.ok!==true||!reply.commit)
    throw Error(reply.error||'Publisher did not confirm a GitHub commit');
@@ -2788,7 +2788,7 @@ const backroomVaultManagers=(()=>{
   }
   function openTab(tab){
     if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
-    if(tab==='playlists'||tab==='music')void refreshPlaylists();
+    if(tab==='playlists')void refreshPlaylists();
   }
   function init(){
     if(!initialized){
