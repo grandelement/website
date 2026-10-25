@@ -2108,7 +2108,7 @@ const backroomVaultManagers=(()=>{
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
       catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
-      renderCatalog();accessSongOptions();assignedSongsUI();accessStatus('Music catalog loaded · '+catalog.length+' songs across '+new Set(catalog.map(t=>t.album)).size+' albums/collections.');
+      renderCatalog();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
@@ -2313,43 +2313,44 @@ const backroomVaultManagers=(()=>{
     }catch(e){playlistStatus('VAULT DELETE FAILED · '+String(e.message||e))}
   }
   function renderDJAlbumChoices(){
-    const albums=[...new Set(catalog.map(x=>x.album||'Other'))],albumHost=$('brDJAlbumChoices'),
-      songHost=$('brDJSongChoices');
+    const albumHost=$('brDJAlbumChoices'),songHost=$('brDJSongChoices');
     if(!albumHost||!songHost)return;
-    if(!djAlbumSelected||!albums.includes(djAlbumSelected))djAlbumSelected=albums[0]||'';
+    const albums=[...new Set(catalog.map(x=>x.album||'Other'))].sort((a,b)=>a.localeCompare(b));
+    if(!albums.includes(djAlbumSelected))djAlbumSelected=albums[0]||'';
     albumHost.replaceChildren();songHost.replaceChildren();
-    for(const album of albums){
-      const songs=catalog.filter(x=>(x.album||'Other')===album);
-      const included=songs.filter(song=>playlistTracks.some(track=>track.track_path===song.track_path&&!track._excluded));
-      const select=document.createElement('input');select.type='checkbox';
-      select.checked=!!songs.length&&included.length===songs.length;
-      select.indeterminate=included.length>0&&included.length<songs.length;
-      select.setAttribute('aria-label','Include all '+album+' songs');
-      select.addEventListener('change',()=>{
-        for(const song of songs){
-          playlistTracks=playlistTracks.filter(t=>t.track_path!==song.track_path);
-          if(select.checked)playlistTracks.push({...song});
-        }
-        renderTrackList();renderDJAlbumChoices();
-      });
-      const button=document.createElement('button');button.type='button';button.textContent=album;
-      button.setAttribute('aria-pressed',String(album===djAlbumSelected));
-      button.addEventListener('click',()=>{djAlbumSelected=album;renderDJAlbumChoices();});
-      const group=document.createElement('label');group.className='check';
-      group.append(select,button);albumHost.appendChild(group);
-    }
-    for(const song of catalog.filter(x=>(x.album||'Other')===djAlbumSelected)){
-      const label=document.createElement('label');label.className='check';
-      const box=document.createElement('input');box.type='checkbox';
-      box.checked=playlistTracks.some(t=>t.track_path===song.track_path&&!t._excluded);
+    const label=create('label','','brAlbumPicker');
+    label.appendChild(create('span','ALBUM'));
+    const menu=document.createElement('select');
+    menu.setAttribute('aria-label','Choose album');
+    albums.forEach(album=>menu.appendChild(new Option(album,album)));
+    menu.value=djAlbumSelected;
+    menu.addEventListener('change',()=>{djAlbumSelected=menu.value;renderDJAlbumChoices()});
+    label.appendChild(menu);albumHost.appendChild(label);
+    const songs=catalog.filter(x=>(x.album||'Other')===djAlbumSelected);
+    const included=songs.filter(song=>playlistTracks.some(t=>t.track_path===song.track_path&&!t._excluded));
+    const allLabel=create('label','','check'),all=document.createElement('input');
+    all.type='checkbox';all.setAttribute('aria-label','Select all songs from '+djAlbumSelected);
+    all.checked=!!songs.length&&included.length===songs.length;
+    all.indeterminate=included.length>0&&included.length<songs.length;
+    all.addEventListener('change',()=>{
+      for(const song of songs){
+        playlistTracks=playlistTracks.filter(t=>t.track_path!==song.track_path);
+        if(all.checked)playlistTracks.push({...song});
+      }
+      renderTrackList();renderDJAlbumChoices();
+    });
+    allLabel.append(all,create('span','ALL SONGS · '+songs.length));albumHost.appendChild(allLabel);
+    for(const song of songs){
+      const row=create('label','','check'),box=document.createElement('input');
+      box.type='checkbox';box.checked=playlistTracks.some(t=>t.track_path===song.track_path&&!t._excluded);
       box.addEventListener('change',()=>{
         playlistTracks=playlistTracks.filter(t=>t.track_path!==song.track_path);
         if(box.checked)playlistTracks.push({...song});
         renderTrackList();renderDJAlbumChoices();
       });
-      const text=document.createElement('span');text.textContent=song.track_title;
-      label.append(box,text);songHost.appendChild(label);
+      row.append(box,create('span',song.track_title));songHost.appendChild(row);
     }
+    if(!songs.length)songHost.appendChild(create('p','No songs in this album.'));
   }
   let djAlbumSelected='';
 
