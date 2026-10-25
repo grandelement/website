@@ -3292,6 +3292,45 @@ body:not(.game-mode-active) .planet {
   body:not(.game-mode-active) .planet {width:30.8px!important;height:30.8px!important}
 }
 </style>
+<style id="ge-merch-flybys-v1">
+/* Two real storefront merchandise mockups passing through the normal GE
+   universe at approximately the gentle orbit/autopilot drift speed. */
+#geMerchFlybys{position:fixed;inset:0;z-index:11;overflow:hidden;pointer-events:none;contain:layout style}
+.geMerchFlyby{
+  --ge-merch-size:clamp(48px,calc(var(--planet-size,44px) * 1.15),72px);
+  position:absolute;left:0;top:40%;width:var(--ge-merch-size);height:var(--ge-merch-size);
+  box-sizing:border-box;pointer-events:auto;cursor:pointer;
+  border:1px solid rgba(139,209,252,.45);border-radius:50%;
+  background:#f5f5f5;box-shadow:0 0 10px rgba(93,179,230,.24);
+  overflow:hidden;opacity:0;will-change:transform;
+  -webkit-tap-highlight-color:transparent;
+  animation:geMerchFlybyTransit 110s linear both infinite;
+}
+.geMerchFlyby img{
+  position:absolute;left:0;top:-50%;width:200%;height:200%;max-width:none;
+  display:block;object-fit:cover;pointer-events:none;
+  transition:transform .25s ease;
+}
+.geMerchFlyby:hover img,.geMerchFlyby:focus-visible img{transform:scale(1.13);transform-origin:25% center}
+.geMerchFlyby--shirt{top:37%;animation-delay:10s}
+.geMerchFlyby--hat{top:66%;animation-delay:20s;animation-direction:normal}
+@keyframes geMerchFlybyTransit{
+  0%{transform:translate3d(-130%,8vh,0);opacity:0}
+  2%{opacity:.96}
+  55%{opacity:.96}
+  59%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
+  100%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
+}
+body.game-mode-active #geMerchFlybys,
+body.blue-sun-pool-active #geMerchFlybys,
+body.marbles-game-active #geMerchFlybys,
+body.ge-body-race-active #geMerchFlybys{display:none!important}
+@media(prefers-reduced-motion:reduce){
+ .geMerchFlyby{animation:none;opacity:.9;transform:none;position:fixed}
+ .geMerchFlyby--shirt{top:32%;left:auto;right:8px}
+ .geMerchFlyby--hat{top:calc(32% + 64px);left:auto;right:8px}
+}
+</style>
 <style id="ge-main-universe-layer-radio-v1">
 body:not(.game-mode-active) #fxFront{z-index:9!important}
 body:not(.game-mode-active) .planets{z-index:4!important}
@@ -3837,6 +3876,16 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 
   <!-- Planets -->
   <div class="planets" id="planets"></div>
+
+  <!-- Original images already published in the GE Merchandise storefront. -->
+  <div id="geMerchFlybys">
+    <a class="geMerchFlyby geMerchFlyby--shirt" href="./support/?section=merch" aria-label="View Grand Element white T-shirt in Merchandise" data-merch-product="tee-white" title="GE WHITE T-SHIRT">
+      <img src="./support/assets/white-tee.png" alt="" decoding="async" loading="eager" draggable="false">
+    </a>
+    <a class="geMerchFlyby geMerchFlyby--hat" href="./support/?section=merch" aria-label="View Grand Element blue trucker hat in Merchandise" data-merch-product="hat-blue" title="GE TRUCKER HAT">
+      <img src="./support/assets/hat-blue.png" alt="" decoding="async" loading="eager" draggable="false">
+    </a>
+  </div>
 
   <canvas id="autopilotTrails" aria-hidden="true"></canvas>
   <button id="autopilotSpirit" type="button" aria-label="Start Autopilot"><span class="autoSpiritLabel">AUTOPILOT</span></button>
@@ -14823,5 +14872,29 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
 })();
 </script>
 <script defer src="./ge-accessibility.js?v=20261025-language-close2"></script>
+<script id="ge-merch-flybys-analytics-v1">
+(() => {
+  // Analytics are opportunistic: never block opening the GE merchandise store.
+  const viewportEligible=() => !document.hidden &&
+    !document.body.classList.contains('game-mode-active') &&
+    !document.body.classList.contains('blue-sun-pool-active') &&
+    !document.body.classList.contains('marbles-game-active') &&
+    !document.body.classList.contains('ge-body-race-active');
+  for (const link of document.querySelectorAll('#geMerchFlybys [data-merch-product]')) {
+    const product_id=link.dataset.merchProduct;
+    link.addEventListener('animationstart',() => {
+      if(!viewportEligible())return;
+      try{window.GEVault?.track?.('merch_flyby_view',{product_id});}catch(_error){}
+    });
+    link.addEventListener('animationiteration',() => {
+      if(!viewportEligible())return;
+      try{window.GEVault?.track?.('merch_flyby_view',{product_id});}catch(_error){}
+    });
+    link.addEventListener('click',() => {
+      try{window.GEVault?.track?.('merch_flyby_click',{product_id});}catch(_error){}
+    });
+  }
+})();
+</script>
 </body>
 </html>
