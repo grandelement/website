@@ -2755,7 +2755,7 @@ const backroomVaultManagers=(()=>{
     finally{codeMaster.disabled=false;}
   }
   async function checkRadio2Bangers(){
-    const output=$('brRadio2Status');
+    const output=$('brRadio2Status')||$('brDJPlaylistStatus');
     output.textContent='Checking the published Radio 2 Bangers program…';
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
     try{
@@ -2779,13 +2779,6 @@ const backroomVaultManagers=(()=>{
         '. The current BLITZ playlist has not been verified.';
     }finally{clearTimeout(timer);}
   }
-  function loadPlaylistSource(){
-    const choice=$('brPlaylistSource').value;
-    if(choice==='vault')return refreshPlaylists();
-    if(choice==='blitz'){importBangersFromDJ();$('brDJPlaylistStatus').textContent='BLITZ · BANGERS BACKUP';return Promise.resolve(true);}
-    renderDJAlbumChoices();$('brDJPlaylistStatus').textContent='ALBUM LIBRARY · '+catalog.length+' SONGS';
-    return Promise.resolve(true);
-  }
   function openTab(tab){
     if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
     if(tab==='playlists')void refreshPlaylists();
@@ -2794,17 +2787,11 @@ const backroomVaultManagers=(()=>{
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
-      $('brDJConnect').addEventListener('click',()=>void loadPlaylistSource());
-      $('brPlaylistSource').addEventListener('change',()=>void loadPlaylistSource());
       $('brVaultConnection').addEventListener('click',()=>{
         if(!serverAuthenticated||!token()){lock();return}
         const tab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
         if(tab==='access')void refreshCodes();
-        else if(tab==='playlists')void loadPlaylistSource();
         else void refreshPlaylists();
-      });
-      $('brDJPassword').addEventListener('keydown',event=>{
-        if(event.key==='Enter'){event.preventDefault();void refreshPlaylists();}
       });
 
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
@@ -2813,7 +2800,7 @@ const backroomVaultManagers=(()=>{
       $('brViewPlaylistSelect').addEventListener('change',e=>{
         selectedViewPlaylistId=e.target.value;
         renderPlaylistViewer();
-        // The Music editor follows the selected playlist, unless there are
+        // The playlist editor follows the selected playlist, unless there are
         // unsaved edits the owner has not explicitly committed.
         if(!playlistHasUnsavedEdits())editPlaylist(selectedViewPlaylistId);
       });
