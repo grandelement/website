@@ -599,8 +599,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </nav>
 
 <section data-br-tab="music">
-  <details id="brMusicRadioMaster" class="brSourceDetails" style="margin-top:12px">
-    <summary>RADIO MASTER SETTINGS</summary>
+  <!-- Legacy radio master controls retained offscreen solely for older application event handlers. All new owner playlists are managed by the visible GE Playlist editor. Do not delete or reset the actual master records. -->
+  <div id="brMusicRadioMaster" hidden aria-hidden="true" style="display:none !important">
   <section id="brMasterSection" aria-label="Master Song List">
     <div class="brMasterToolbar">
       <button type="button" id="brMasterRefresh">LOAD</button>
@@ -611,7 +611,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brMasterStatus" class="brCompactStatus" role="status" aria-live="polite">Loading saved Master List…</div>
     <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
   </section>
-  </details>
+  </div>
 </section>
 
 <section data-br-tab="scores">
@@ -768,6 +768,13 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
 <input id="brAllSongsSearch" type="search" placeholder="Search all songs" aria-label="Search the full music checklist" style="width:100%;min-height:43px;font-size:16px;margin:8px 0">
+<div id="brPlaylistSongFilters" style="display:flex;align-items:center;gap:5px;margin:3px 0 9px">
+  <select id="brAllSongsAlbum" aria-label="Filter songs by album" title="Choose an album to view" style="flex:1;min-width:0;min-height:34px;padding:5px;font-size:13px">
+    <option value="">ALL ALBUMS</option>
+  </select>
+  <button id="brPlaylistSelectAll" type="button" aria-label="Select all songs in every album" title="Check every song" style="flex:0 0 auto;padding:6px 8px;min-height:34px;font-size:12px">ALL</button>
+  <button id="brPlaylistClearAll" type="button" aria-label="Clear all song selections" title="Uncheck every song" style="flex:0 0 auto;padding:6px 8px;min-height:34px;font-size:12px">CLEAR</button>
+</div>
 <div id="brAllSongsChoices" role="group" aria-label="Scroll through and check playlist songs" style="max-height:60vh;min-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px;border:1px solid #315776;border-radius:10px"></div>
 <details id="brMusicPlaylistTools" class="brSourceDetails" style="margin-top:10px"><summary>MORE OPTIONS</summary><label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC GE MUSIC (THE GITHUB FILE IS PUBLIC EVEN WHEN UNCHECKED)</span></label><button type="button" id="brPlaylistsRefresh">REFRESH FROM GITHUB</button></details>
 <div style="display:none !important" aria-hidden="true">
@@ -2327,6 +2334,13 @@ const backroomVaultManagers=(()=>{
       if(!r.ok)throw Error('Music manifest unavailable');
       const manifest=await r.json();
       catalog=[...new Set((manifest.files||[]).filter(x=>/^ge-music\/music\//.test(x)&&/\.(mp3|m4a|wav|ogg|flac)$/i.test(x)))].map(parseTrack);
+      const albumFilter=$('brAllSongsAlbum');
+      const albumSelected=albumFilter.value;
+      albumFilter.replaceChildren(new Option('ALL ALBUMS',''));
+      for(const album of [...new Set(catalog.map(song=>song.album||'Other'))]){
+        albumFilter.appendChild(new Option(album,album));
+      }
+      albumFilter.value=[...albumFilter.options].some(x=>x.value===albumSelected)?albumSelected:'';
       renderCatalog();renderAllSongs();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
@@ -2345,7 +2359,9 @@ const backroomVaultManagers=(()=>{
       search.dataset.geBound='1';search.addEventListener('input',renderAllSongs);
     }
     const q=search.value.trim().toLowerCase();
+    const albumChoice=$('brAllSongsAlbum').value;
     const matches=catalog.filter(song=>
+      (!albumChoice||(song.album||'Other')===albumChoice)&&
       (String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
     const selected=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path));
     const active=new Set(selected);
@@ -2362,7 +2378,7 @@ const backroomVaultManagers=(()=>{
     // Include already-complete albums, so their whole-album checkbox remains reachable.
     const albums=[...new Set(matches.map(song=>song.album||'Other'))];
     host.replaceChildren();
-    const summary=create('div',active.size+' CHECKED · '+catalog.length+' TOTAL SONGS','sub');
+    const summary=create('div',active.size+' CHECKED · '+matches.length+' SHOWN · '+catalog.length+' TOTAL','sub');
     summary.style.cssText='padding:7px 4px 9px;font-weight:800';
     host.appendChild(summary);
     const heading=(caption)=>{
@@ -3109,6 +3125,24 @@ const backroomVaultManagers=(()=>{
     if(!initialized){
       initialized=true;
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brAllSongsAlbum').addEventListener('change',()=>{
+        $('brAllSongsChoices').scrollTop=0;
+        renderAllSongs();
+      });
+      $('brPlaylistClearAll').addEventListener('click',()=>{
+        playlistTracks=[];
+        renderTrackList();renderDJAlbumChoices();
+        $('brAllSongsChoices').scrollTop=0;
+        playlistStatus('ALL SONG CHECKMARKS CLEARED · Press SAVE to keep the change.');
+      });
+      $('brPlaylistSelectAll').addEventListener('click',()=>{
+        if(!catalog.length){playlistStatus('SONG CATALOG IS NOT LOADED');return;}
+        // Whole-catalog selection regardless of the current search or album filter.
+        playlistTracks=catalog.map(song=>({...song}));
+        renderTrackList();renderDJAlbumChoices();
+        $('brAllSongsChoices').scrollTop=0;
+        playlistStatus('ALL '+catalog.length+' SONGS CHECKED · Press SAVE to keep the change.');
+      });
       $('brVaultConnection').addEventListener('click',()=>{
         if(!serverAuthenticated||!token()){lock();return}
         const tab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
