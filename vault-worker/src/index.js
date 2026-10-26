@@ -1968,6 +1968,73 @@ function accessPublicRow(row) {
 }
 // One-time migration on authenticated owner code-list request. An existing,
 // suspended, revoked or deleted record is never recreated.
+// Minimal additive D1 schema repair, performed ONLY after a successful
+// server-side owner/Access Codes authorization. Wrangler's public D1 API
+// token has Workers deploy permission but may not have D1 Edit permission;
+// the already-bound Vault Worker has narrowly scoped database access.
+// These exact definitions match migrations/20261021_access_codes.sql.
+// All commands are IF NOT EXISTS / INSERT OR IGNORE: no DROP, DELETE,
+// replacement, or modification of existing code records.
+async function ensureAccessCodeTables(env){
+  const required=[
+    "SELECT id FROM access_code_policy LIMIT 1",
+    "SELECT id FROM access_codes LIMIT 1",
+    "SELECT code_id FROM access_code_content LIMIT 1",
+    "SELECT code_id FROM access_code_deletions LIMIT 1"
+  ];
+  let allPresent=true;
+  for(const query of required){
+    try{await env.VAULT_DB.prepare(query).first()}
+    catch(_){allPresent=false;break}
+  }
+  if(allPresent)return false;
+  const statements=[
+    `CREATE TABLE IF NOT EXISTS access_code_policy (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    )`,
+    "INSERT OR IGNORE INTO access_code_policy (id,enabled,updated_at) VALUES (1,1,0)",
+    `CREATE TABLE IF NOT EXISTS access_codes (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      code_hash TEXT NOT NULL UNIQUE,
+      code_hint TEXT NOT NULL,
+      scopes_json TEXT NOT NULL,
+      duration_mode TEXT NOT NULL CHECK (duration_mode IN ('activation','first_use','fixed','none')),
+      duration_seconds INTEGER NOT NULL DEFAULT 0,
+      fixed_expires_at INTEGER,
+      expires_at INTEGER,
+      activated_at INTEGER,
+      first_used_at INTEGER,
+      max_uses INTEGER NOT NULL DEFAULT 0,
+      use_count INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      revoked_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`,
+    "CREATE INDEX IF NOT EXISTS idx_access_codes_created ON access_codes(created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_access_codes_hash ON access_codes(code_hash)",
+    `CREATE TABLE IF NOT EXISTS access_code_content (
+      code_id TEXT PRIMARY KEY,
+      playlist_ids_json TEXT NOT NULL DEFAULT '[]',
+      track_paths_json TEXT NOT NULL DEFAULT '[]',
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS access_code_deletions (
+      code_id TEXT PRIMARY KEY,
+      deleted_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`
+  ];
+  await env.VAULT_DB.batch(statements.map(statement=>env.VAULT_DB.prepare(statement)));
+  // D1 created these tables in an atomic batch. This query must succeed
+  // before LOVE is ever imported or any code is created.
+  for(const query of required)await env.VAULT_DB.prepare(query).first();
+  return true;
+}
 async function ensureLegacyLoveRecord(env){
   const hash=await accessCodeHash("LOVE",env);
   const existing=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
@@ -1988,6 +2055,7 @@ async function ensureLegacyLoveRecord(env){
 }
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  await ensureAccessCodeTables(env);
   await ensureLegacyLoveRecord(env);
   const [policy,rows]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
@@ -1997,6 +2065,7 @@ async function accessAdminGet(request, env) {
 }
 async function accessAdminChange(request,env){
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  await ensureAccessCodeTables(env);
   const body=await readBody(request), action=String(body.action||"");
   const t=now();
   if(action==="master"){
