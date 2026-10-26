@@ -1,0 +1,75 @@
+name: GE Access Codes — connect existing Workers safely
+
+# One-time automatic setup after this workflow is added. Rerun manually only if
+# rotating the isolated Access Codes bridge token intentionally.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-access-codes-bridge-setup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ge-studios-workers-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  connect:
+    name: Test, deploy, and securely connect Access Codes bridge
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out GE website main
+        uses: actions/checkout@v4
+
+      - name: Test owner login and both Workers' actual code handlers
+        run: node --experimental-default-type=module tests/access-code-bridge.test.mjs
+
+      - name: Verify existing GitHub Actions Cloudflare deployment credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Install modern Wrangler for jsonc and toml Workers
+        run: npm install -g wrangler@4
+
+      - name: Deploy both existing Workers, preserving D1 and other secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler deploy --config vault-worker/wrangler.jsonc
+          wrangler deploy --config backroom/wrangler.toml
+
+      - name: Generate scoped private token and configure both existing Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          # Generate a NEW credential for Access Codes ONLY. Do not rotate or
+          # expose the existing VAULT_ADMIN_TOKEN or touch D1 contents.
+          BRIDGE=$(openssl rand -hex 32)
+          echo "::add-mask::$BRIDGE"
+          printf '%s' "$BRIDGE" | wrangler secret put VAULT_ACCESS_CODES_TOKEN --config vault-worker/wrangler.jsonc
+          printf '%s' "$BRIDGE" | wrangler secret put VAULT_ACCESS_CODES_TOKEN --config backroom/wrangler.toml
+          unset BRIDGE
+          echo "Scoped Access Codes bridge secret set on existing Vault and Publisher Workers."
+
+      - name: Verify both Workers list the new private secret binding
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler secret list --config vault-worker/wrangler.jsonc | grep -q '"VAULT_ACCESS_CODES_TOKEN"'
+          wrangler secret list --config backroom/wrangler.toml | grep -q '"VAULT_ACCESS_CODES_TOKEN"'
+          echo "PASS: Both existing Workers have the scoped bridge secret. Values never logged."
+          echo "NOTE: Browser end-to-end tests are still required; external CI HTTP checks are blocked by Cloudflare 1010."
