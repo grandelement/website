@@ -2124,6 +2124,7 @@ $('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min
    public site configuration, drafts, presets, or localStorage. */
 const backroomVaultManagers=(()=>{
   let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
+  let playlistChoiceIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -2235,53 +2236,82 @@ const backroomVaultManagers=(()=>{
     const host=$('brAllSongsChoices'),search=$('brAllSongsSearch');
     if(!host||!search)return;
     if(!search.dataset.geBound){
-      search.dataset.geBound='1';
-      search.addEventListener('input',renderAllSongs);
+      search.dataset.geBound='1';search.addEventListener('input',renderAllSongs);
     }
     const q=search.value.trim().toLowerCase();
-    const matches=catalog.filter(song=>(String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
+    const matches=catalog.filter(song=>
+      (String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
     const selected=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path));
     const active=new Set(selected);
-    const catalogByPath=new Map(catalog.map(song=>[String(song.track_path),song]));
-    // Preserve the saved playlist's actual song order. All other songs stay
-    // available beneath it in the very same scrollable checklist.
-    const checked=selected.map(path=>catalogByPath.get(path)).filter(song=>
-      song&&matches.some(m=>m.track_path===song.track_path));
+    const allByPath=new Map(catalog.map(song=>[String(song.track_path),song]));
+    const matching=new Set(matches.map(song=>song.track_path));
+    const checked=selected.map(path=>allByPath.get(path)).filter(song=>song&&matching.has(song.track_path));
     const unchecked=matches.filter(song=>!active.has(String(song.track_path)));
+    const grouped=new Map();
+    for(const song of unchecked){
+      const album=song.album||'Other';
+      if(!grouped.has(album))grouped.set(album,[]);
+      grouped.get(album).push(song);
+    }
+    // Include already-complete albums, so their whole-album checkbox remains reachable.
+    const albums=[...new Set(matches.map(song=>song.album||'Other'))];
     host.replaceChildren();
-    const summary=create('div',active.size+' SELECTED · '+matches.length+' SONGS SHOWN','sub');
-    summary.style.cssText='padding:5px 4px 10px;font-weight:800';
+    const summary=create('div',active.size+' CHECKED · '+catalog.length+' TOTAL SONGS','sub');
+    summary.style.cssText='padding:7px 4px 9px;font-weight:800';
     host.appendChild(summary);
-    const section=label=>{
-      const row=create('div',label,'sub');
-      row.style.cssText='padding:8px 4px 5px;color:#90dfff;font-weight:850;border-bottom:1px solid #315776';
-      host.appendChild(row);
+    const heading=(caption)=>{
+      const el=create('div',caption,'sub');el.style.cssText='padding:9px 4px 5px;color:#92dfff;font-weight:850;border-bottom:1px solid #315776';
+      host.appendChild(el);
     };
-    const appendSong=song=>{
+    const refreshAt=(offset)=>{
+      renderTrackList();renderDJAlbumChoices();
+      host.scrollTop=offset;
+      playlistStatus('SONGS CHANGED · Enter a name and SAVE to keep this playlist.');
+    };
+    const appendSong=(song)=>{
       const label=create('label','','check');
-      label.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 3px;border-bottom:1px solid #27465e;cursor:pointer';
+      label.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 6px;border-bottom:1px solid #27465e;cursor:pointer';
       const box=document.createElement('input');box.type='checkbox';box.checked=active.has(String(song.track_path));
       box.setAttribute('aria-label','Include '+song.track_title+' from '+song.album);
       box.addEventListener('change',()=>{
-        const oldScroll=host.scrollTop;
+        const offset=host.scrollTop;
         playlistTracks=playlistTracks.filter(t=>String(t.track_path)!==String(song.track_path));
         if(box.checked)playlistTracks.push({...song});
-        renderTrackList();renderDJAlbumChoices();
-        host.scrollTop=oldScroll;
-        playlistStatus('SONG SELECTION CHANGED · Press SAVE to keep it.');
+        refreshAt(offset);
       });
       const caption=create('span',(song.track_title||song.track_path)+' · '+(song.album||''));
+      caption.style.cssText='display:block;margin:0;overflow-wrap:anywhere';
       label.append(box,caption);host.appendChild(label);
     };
     if(checked.length){
-      section('IN THIS PLAYLIST · '+checked.length+' CHECKED');
+      heading('IN THIS PLAYLIST · '+checked.length+' SONGS');
       for(const song of checked)appendSong(song);
     }
-    if(unchecked.length){
-      if(checked.length)section('ALL OTHER SONGS · '+unchecked.length);
-      for(const song of unchecked)appendSong(song);
+    heading('ALL ALBUMS · CHECK AN ALBUM TO ADD EVERY SONG');
+    for(const album of albums){
+      const allAlbum=catalog.filter(song=>(song.album||'Other')===album);
+      const count=allAlbum.filter(song=>active.has(song.track_path)).length;
+      const label=create('label','','check');
+      label.style.cssText='display:flex;align-items:center;gap:10px;margin:8px 0 4px;background:#0e3854;border:1px solid #4b9ac3;font-weight:850;cursor:pointer';
+      const albumBox=document.createElement('input');albumBox.type='checkbox';
+      albumBox.checked=count===allAlbum.length&&allAlbum.length>0;
+      albumBox.indeterminate=count>0&&count<allAlbum.length;
+      albumBox.setAttribute('aria-label','Select every song on album '+album);
+      albumBox.addEventListener('change',()=>{
+        const offset=host.scrollTop;
+        const paths=new Set(allAlbum.map(song=>song.track_path));
+        playlistTracks=playlistTracks.filter(t=>!paths.has(String(t.track_path)));
+        if(albumBox.checked){
+          for(const song of allAlbum)playlistTracks.push({...song});
+        }
+        refreshAt(offset);
+      });
+      const title=create('span',album+' · '+count+'/'+allAlbum.length+' SELECTED');
+      title.style.cssText='display:block;margin:0;overflow-wrap:anywhere';
+      label.append(albumBox,title);host.appendChild(label);
+      for(const song of (grouped.get(album)||[]))appendSong(song);
     }
-    if(!matches.length)host.appendChild(create('p','No songs match that search.'));
+    if(!matches.length)host.appendChild(create('p','No songs match that search.','sub'));
   }
   function renderTrackList(){
     const host=$('brPlaylistTracks');host.replaceChildren();
@@ -2392,37 +2422,73 @@ const backroomVaultManagers=(()=>{
     if(host)host.hidden=true;
     $('brPlaylistName').setAttribute('aria-expanded','false');
   }
+
   function showPlaylistChoices(query=''){
-    const host=$('brPlaylistChoices');
-    if(!host)return;
-    host.replaceChildren();
-    const header=create('div',playlists.length+' SAVED GITHUB PLAYLIST'+(playlists.length===1?'':'S'),'sub');
-    header.style.cssText='padding:7px 10px;color:#8bddfb;font-weight:800';
-    host.appendChild(header);
-    const addOption=(label,action,selected=false)=>{
-      const row=document.createElement('button');row.type='button';
-      row.setAttribute('role','option');row.setAttribute('aria-selected',String(selected));
-      row.textContent=label;
-      row.style.cssText='display:block;width:100%;text-align:left;padding:12px 14px;margin:2px 0;min-height:46px;'+
-        'border:1px solid #315875;border-radius:7px;background:'+(selected?'#166b99':'#0b2c47')+
-        ';color:#e2f8ff;font-size:17px;white-space:normal;overflow-wrap:anywhere';
-      row.addEventListener('click',()=>{
-        if(playlistHasUnsavedEdits()&&!confirm('Discard unsaved song/name changes and load another playlist?'))return;
-        hidePlaylistChoices();action();
-      });
-      host.appendChild(row);
-    };
-    addOption('＋ NEW PLAYLIST',()=>{
-      editPlaylist('');
-      playlistStatus('NEW PLAYLIST · Enter a name, check songs, then SAVE.');
-    });
+    const host=$('brPlaylistChoices');if(!host)return;
     const needle=String(query||'').trim().toLowerCase();
-    const matches=playlists.filter(p=>!needle||p.name.toLowerCase().includes(needle));
-    for(const p of matches)addOption(p.name+' · '+(p.tracks||[]).length+' SONGS',()=>{
-      editPlaylist(p.id);
-      playlistStatus('LOADED · '+p.name+' · '+(p.tracks||[]).length+' SONGS');
-    },p.id===playlistEditingId);
-    if(!matches.length)host.appendChild(create('div','No saved playlists match. Type a new name to create one.','sub'));
+    host.replaceChildren();
+    const heading=create('div',playlists.length+' SAVED PLAYLIST'+(playlists.length===1?'':'S')+' · CHECK ONE OR MORE','sub');
+    heading.style.cssText='padding:8px;color:#a3eaff;font-size:13px;font-weight:850';
+    host.appendChild(heading);
+    const actionRow=document.createElement('div');
+    actionRow.style.cssText='position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:6px;background:#051626';
+    const load=btn('LOAD SELECTED',()=>{
+      const chosen=playlists.filter(p=>playlistChoiceIds.has(p.id));
+      if(!chosen.length){playlistStatus('CHECK AT LEAST ONE SAVED PLAYLIST');return;}
+      if(playlistHasUnsavedEdits()&&!confirm('Replace the current unsaved song selections with the checked playlist(s)?'))return;
+      const desiredName=$('brPlaylistName').value.trim();
+      if(chosen.length===1){
+        editPlaylist(chosen[0].id);
+        playlistStatus('LOADED · '+chosen[0].name+' · '+(chosen[0].tracks||[]).length+' SONGS');
+        return;
+      }
+      const chosenName=chosen.map(p=>p.name).join(' + ');
+      const merged=[],used=new Set();
+      for(const p of chosen)for(const row of (p.tracks||[])){
+        const path=String(row.track_path||'');
+        if(!path||used.has(path))continue;
+        used.add(path);
+        merged.push(catalog.find(song=>song.track_path===path)||parseTrack(path));
+      }
+      if(merged.length>500){playlistStatus('COMBINED LIST HAS MORE THAN 500 SONGS · Remove some playlists before loading.');return;}
+      editPlaylist('');
+      playlistTracks=merged;
+      // Combined playlists are a new unsaved mix. Never overwrite the originals.
+      const nameIsOld=playlists.some(p=>p.name.trim().toLowerCase()===desiredName.toLowerCase());
+      $('brPlaylistName').value=nameIsOld?'':desiredName;
+      $('brPlaylistPublic').checked=false;
+      renderTrackList();renderDJAlbumChoices();hidePlaylistChoices();
+      $('brAllSongsChoices').scrollTop=0;
+      playlistStatus('COMBINED '+chosen.length+' PLAYLISTS · '+merged.length+' UNIQUE SONGS · TYPE A NEW NAME AND SAVE');
+    });
+    load.className='primary';
+    const del=btn('DELETE',()=>{
+      const chosen=playlists.filter(p=>playlistChoiceIds.has(p.id));
+      if(chosen.length!==1){playlistStatus('CHECK EXACTLY ONE PLAYLIST TO DELETE');return;}
+      hidePlaylistChoices();
+      void deletePlaylist(chosen[0].id);
+    });
+    del.title='Delete one checked saved playlist only after confirmation';
+    actionRow.append(load,del);host.appendChild(actionRow);
+    const filtered=playlists.filter(p=>!needle||p.name.toLowerCase().includes(needle));
+    for(const p of filtered){
+      const label=document.createElement('label');label.className='check';
+      label.style.cssText='display:flex;align-items:center;gap:9px;margin:5px 2px;min-height:51px;padding:7px 9px;cursor:pointer';
+      const box=document.createElement('input');box.type='checkbox';box.checked=playlistChoiceIds.has(p.id);
+      box.setAttribute('aria-label','Include playlist '+p.name+' in combined load');
+      box.addEventListener('change',()=>{
+        box.checked?playlistChoiceIds.add(p.id):playlistChoiceIds.delete(p.id);
+        const count=host.querySelector('[data-ge-picked]');
+        if(count)count.textContent=playlistChoiceIds.size+' PICKED';
+      });
+      const name=create('span',p.name+' · '+(p.tracks||[]).length+' SONGS');
+      name.style.cssText='display:block;margin:0;font-weight:750;font-size:15px;overflow-wrap:anywhere';
+      label.append(box,name);host.appendChild(label);
+    }
+    if(!filtered.length)host.appendChild(create('p','No matching saved playlist. Type a new name, check songs, then SAVE.','sub'));
+    const count=create('div',playlistChoiceIds.size+' PICKED','sub');
+    count.dataset.gePicked='1';count.style.cssText='padding:5px 10px;color:#92dfff;font-size:12px';
+    host.appendChild(count);
     host.hidden=false;
     $('brPlaylistName').setAttribute('aria-expanded','true');
   }
@@ -2439,6 +2505,7 @@ const backroomVaultManagers=(()=>{
     const p=playlistCopy(found);
     playlistEditingId=p.id;playlistTracks=p.tracks;playlistLocked=p.locked;
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
+    playlistChoiceIds=p.id?new Set([p.id]):new Set();
     $('brPlaylistPublic').checked=!!p.public;
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     // Loading means showing the playlist's checked songs first, not retaining
@@ -2566,9 +2633,10 @@ const backroomVaultManagers=(()=>{
     }catch(e){playlistStatus('GITHUB SAVE FAILED · '+String(e.message||e)+'. DJ BOOTH UNCHANGED.')}
     finally{button.disabled=false}
   }
-  async function deletePlaylist(){
+  async function deletePlaylist(targetId=''){
     const typed=$('brPlaylistName').value.trim();
-    const p=playlists.find(x=>x.name.trim().toLowerCase()===typed.toLowerCase());
+    const p=targetId?playlists.find(x=>x.id===targetId):
+      playlists.find(x=>x.name.trim().toLowerCase()===typed.toLowerCase());
     const id=p?.id||'';
     if(!p)return playlistStatus('CHOOSE A SAVED PLAYLIST NAME BEFORE DELETING');
     if(!confirm('Delete '+p.name+' from the GitHub playlist file? This does not alter BLITZ.'))return;
@@ -2945,11 +3013,14 @@ const backroomVaultManagers=(()=>{
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
       // The iPhone does not reliably expose datalist choices on tap, so use
       // a real, scrollable in-page menu. Tapping the name shows ALL saved names.
-      $('brPlaylistName').addEventListener('focus',()=>showPlaylistChoices());
-      $('brPlaylistName').addEventListener('click',()=>showPlaylistChoices());
+      $('brPlaylistName').addEventListener('focus',()=>{
+        playlistChoiceIds=playlistEditingId?new Set([playlistEditingId]):new Set();
+        showPlaylistChoices();
+      });
       $('brPlaylistOpenList').addEventListener('click',()=>{
-        if($('brPlaylistChoices').hidden)showPlaylistChoices();
-        else hidePlaylistChoices();
+        if(!$('brPlaylistChoices').hidden){hidePlaylistChoices();return;}
+        playlistChoiceIds=playlistEditingId?new Set([playlistEditingId]):new Set();
+        showPlaylistChoices();
       });
       document.addEventListener('pointerdown',event=>{
         if(!event.target.closest('#brPlaylistPicker'))hidePlaylistChoices();
