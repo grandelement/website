@@ -468,6 +468,40 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brMasterSongs .brMasterSong{min-height:42px}
 @media(max-width:440px){.brMasterToolbar{grid-template-columns:minmax(70px,1fr) minmax(110px,1.2fr)}.brMasterToolbar strong{grid-column:1/-1;text-align:left}}
 </style>
+
+<style id="br-website-context-actions-20261026">
+/* WEBSITE buttons are only within the corresponding website tabs. */
+#backroomMain > header{padding-bottom:5px!important}
+#backroomMain > header .brHeaderRow{min-height:35px}
+#backroomMain .brWebsiteActionArea{margin:7px 0 11px}
+#backroomMain .brWebsiteActionArea .topControls{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:7px!important;margin:0!important;padding:0!important;align-items:stretch!important;
+}
+#backroomMain .brWebsiteActionArea .topControls > button{
+ min-width:0!important;min-height:43px!important;padding:9px 4px!important;
+ font-size:clamp(12px,3.2vw,16px)!important;line-height:1.1!important;
+ letter-spacing:-.015em!important;overflow-wrap:normal!important;
+ border-radius:9px!important;
+}
+#backroomMain > header #status{display:none!important}
+#backroomMain .brWebsiteActionStatus{
+ margin-top:7px;padding:8px 10px;background:#051927;border:1px solid #285878;
+ border-radius:9px;color:#c5eeff;font-size:12px;line-height:1.35;
+}
+#backroomMain .brWebsiteActionStatus[hidden]{display:none!important}
+#backroomMain #backroomToolbarSettings{
+ margin:12px 0!important;padding:9px 11px;border:1px solid #315a75;
+ border-radius:9px;background:#061a2c;
+}
+#backroomMain #backroomToolbarSettings>summary{
+ font-size:14px!important;cursor:pointer;color:#a8e7ff;font-weight:850;
+ padding:5px!important;
+}
+@media(min-width:750px){
+ #backroomMain .brWebsiteActionArea .topControls{max-width:740px;margin:0 auto!important}
+}
+</style>
 <style id="br-sticky-music-playlists-20261026">
 /* Website-wide Draft/Publish actions were moved inside WEBSITE (WELCOME) tools. */
 #backroomMain > header{position:static!important;top:auto!important;margin-bottom:3px!important}
@@ -942,9 +976,75 @@ function installBackroomTabs(){
     section.appendChild(contents);contents.hidden=true;
     trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
   }
-  // Website controls retain their original handlers but live in the Website/Welcome section.
-  const websiteActions=$('backroomMain').querySelector(':scope > header .topControls');
-  if(websiteActions)panels.get('welcome')?.prepend(websiteActions);
+  // WEBSITE action buttons are contextual tools, not a permanent header bar.
+  // Preserve the original three element IDs and onclick handlers in WELCOME.
+  // Other website tabs get distinct proxy buttons for the exact same actions.
+  const websiteTabs=['welcome','about','universe','games'];
+  const originalActions=$('backroomMain').querySelector(':scope > header .topControls');
+  const websiteStatus=$('status');
+  const actionRows=[];
+  if(originalActions){
+    const welcomeArea=document.createElement('div');
+    welcomeArea.className='brWebsiteActionArea';
+    welcomeArea.appendChild(originalActions);
+    panels.get('welcome')?.prepend(welcomeArea);
+    actionRows.push(welcomeArea);
+    for(const tab of websiteTabs.slice(1)){
+      const area=document.createElement('div');
+      area.className='brWebsiteActionArea';
+      const row=document.createElement('div');row.className='topControls';
+      for(const actionId of ['viewWebsite','save','publishLive']){
+        const original=$(actionId);
+        const proxy=document.createElement('button');
+        proxy.type='button';
+        proxy.className=original.className;
+        proxy.textContent=original.textContent;
+        proxy.dataset.websiteAction=actionId;
+        proxy.setAttribute('aria-label',original.textContent+' · '+tab.toUpperCase());
+        proxy.addEventListener('click',()=>{
+          if(original.disabled)return;
+          original.click();
+        });
+        // Mirror busy/disabled states, without cloning IDs or duplicating save logic.
+        const syncDisabled=()=>{proxy.disabled=original.disabled};
+        syncDisabled();
+        new MutationObserver(syncDisabled).observe(original,{attributes:true,attributeFilter:['disabled']});
+        row.appendChild(proxy);
+      }
+      area.appendChild(row);
+      panels.get(tab)?.prepend(area);
+      actionRows.push(area);
+    }
+    // The old status line lives above the nonsticky header. Mirror feedback
+    // beside these controls so save and publish results remain visible.
+    if(websiteStatus){
+      const displays=actionRows.map(area=>{
+        const output=document.createElement('div');
+        output.className='brWebsiteActionStatus';
+        output.setAttribute('role','status');
+        output.setAttribute('aria-live','polite');
+        area.appendChild(output);return output;
+      });
+      const syncStatus=()=>{
+        for(const output of displays){
+          output.textContent=websiteStatus.hidden?'':websiteStatus.textContent;
+          output.hidden=websiteStatus.hidden||!websiteStatus.textContent.trim();
+        }
+      };
+      new MutationObserver(syncStatus).observe(websiteStatus,{
+        attributes:true,attributeFilter:['hidden'],
+        childList:true,characterData:true,subtree:true
+      });
+      syncStatus();
+    }
+  }
+  // Keep Settings, Reset and Lock functional but off the permanent top bar.
+  const settings=$('backroomToolbarSettings');
+  if(settings){
+    const summary=settings.querySelector('summary');
+    if(summary)summary.textContent='WEBSITE SETTINGS';
+    panels.get('welcome')?.append(settings);
+  }
   // Keep the legacy playlist panel for compatibility; its working editor belongs to MUSIC.
   const musicPlaylistEditor=$('brDJPlaylistEditor');
   if(musicPlaylistEditor)panels.get('music')?.prepend(musicPlaylistEditor);
