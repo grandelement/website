@@ -7,11 +7,16 @@ const worker=(await import('data:text/javascript;base64,'+Buffer.from(js).toStri
 const secret='mock-test-vault-hmac-not-production',owner='unit-test-only-owner-token';
 const legacyHash=createHmac('sha256',secret).update('ge-access-v1:LOVE').digest('hex');
 let record=null,contentRow=null,policy={enabled:1},auditCount=0,migrationCount=0;
+let schemaReady=false,schemaBatches=0,schemaCreated=new Set();
 const db={
  prepare(sql){
   let p=[];const x={
    bind(...args){p=args;return x;},
    async first(){
+    if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions) LIMIT 1$/.test(sql)){
+      if(!schemaReady)throw Error('D1: no such table: access_codes');
+      return null;
+    }
     if(sql.includes('FROM access_code_policy'))return policy;
     if(sql.includes('SELECT id FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id}:null;
     if(sql.includes('FROM access_codes a')){
@@ -29,6 +34,11 @@ const db={
     throw Error('Unexpected list: '+sql);
    },
    async run(){
+    if(sql.includes('CREATE TABLE IF NOT EXISTS')||sql.includes('CREATE INDEX IF NOT EXISTS')){
+      schemaCreated.add(sql.slice(0,95));return {meta:{changes:1}}
+    }
+    if(sql.includes('INSERT OR IGNORE INTO access_code_policy'))
+      return {meta:{changes:1}};
     if(sql.includes('INSERT INTO audit_log')){auditCount++;return {meta:{changes:1}}}
     if(sql.includes('INSERT OR IGNORE INTO access_codes')){
       if(!record){
@@ -59,7 +69,11 @@ const db={
    }
   };return x;
  },
- async batch(prepared){for(const statement of prepared)await statement.run();return prepared.map(()=>({meta:{changes:1}}))}
+ async batch(prepared){
+   for(const statement of prepared)await statement.run();
+   if(prepared.length>=7){schemaReady=true;schemaBatches++;}
+   return prepared.map(()=>({meta:{changes:1}}))
+ }
 };
 const env={VAULT_DB:db,VAULT_HASH_KEY:secret,VAULT_ACCESS_CODES_TOKEN:owner,ALLOWED_ORIGINS:'https://grandelement.com'};
 async function request(path,body,admin=false){
@@ -80,6 +94,9 @@ assert.equal(r.data.items.length,1);
 assert.equal(r.data.items[0].label,'LOVE · Original Radio Gate');
 assert.deepEqual(r.data.items[0].scopes,['radio']);
 assert.equal(record.code_hash,legacyHash,'LOVE hashed with private Vault secret');
+assert.equal(schemaReady,true,'missing D1 Access Codes tables must be created by authenticated GET');
+assert.equal(schemaBatches,1,'Access Codes schema migrated exactly once');
+assert.ok(schemaCreated.size>=6,'all Access Codes CREATE TABLE and INDEX statements run');
 assert.equal(migrationCount,1);
 r=await request(redeem,{code:'LoVe',scope:'radio'});
 assert.equal(r.status,200,JSON.stringify(r.data));
@@ -91,6 +108,7 @@ assert.equal(r.status,403,'other weak four-character codes never work');
 r=await request(admin,undefined,true);
 assert.equal(r.data.items.length,1);
 assert.equal(migrationCount,1,'repeat GET must not create duplicate');
+assert.equal(schemaBatches,1,'later GETs must reuse the tables and preserve code records');
 r=await request(admin,{action:'suspend',id:'access_legacy_love_v1'},true);
 assert.equal(r.status,200,JSON.stringify(r.data));
 r=await request(redeem,{code:'LOVE',scope:'radio'});
