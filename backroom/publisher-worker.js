@@ -264,10 +264,21 @@ async function geVaultBridge(env,path,method='GET',body=null){
   const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'error'};
   if(body!==null)init.body=JSON.stringify(body);
   try{
-    const response=await fetch(url,init);
-    const data=await response.json().catch(()=>({ok:false,error:'GE Vault returned an invalid response.'}));
+    // Production uses the Wrangler service binding. This bypasses the public
+    // Cloudflare edge and calls the SAME Vault Worker (same D1 database) directly.
+    // The public URL remains only a development/test fallback when not bound.
+    const response=env.GE_VAULT?.fetch
+      ?await env.GE_VAULT.fetch(new Request(url,init))
+      :await fetch(url,init);
+    const data=await response.json().catch(()=>({ok:false,error:'GE Vault returned a non-JSON response (HTTP '+response.status+').'}));
     return{status:response.status,data};
-  }catch(_e){return {status:502,data:{ok:false,error:'GE Vault could not be reached. The existing website and Radio settings were not changed.'}}}
+  }catch(error){
+    // Log only the failure class, never secret headers or access-code values.
+    console.error('GE Vault bridge failure',String(error?.name||'Error'));
+    return {status:502,data:{ok:false,error:env.GE_VAULT?.fetch?
+      'Private GE Vault service binding failed. Check Vault Worker health and binding deployment.':
+      'GE Vault could not be reached. Private GE_VAULT binding is missing on the Back Room Worker.'}};
+  }
 }
 
 
@@ -442,8 +453,20 @@ export default {
     const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&(appReady||env.GITHUB_TOKEN));
 
     if(url.pathname==='/health'&&request.method==='GET'){
+      let vaultProbe={bound:!!env.GE_VAULT?.fetch,reachable:false,access_codes_ready:false};
+      if(vaultProbe.bound){
+        try{
+          const health=await env.GE_VAULT.fetch(new Request('https://vault.grandelement.com/health'));
+          const report=await health.json();
+          vaultProbe.reachable=health.ok&&report?.ok===true;
+          vaultProbe.access_codes_ready=vaultProbe.reachable&&report?.access_codes_ready===true;
+        }catch(error){console.error('GE Vault health probe failed',String(error?.name||'Error'))}
+      }
       return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true,
-        access_codes_bridge_configured:!!(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN)},200,cors);
+        access_codes_bridge_configured:!!(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN),
+        vault_service_bound:vaultProbe.bound,
+        vault_reachable:vaultProbe.reachable,
+        vault_access_codes_ready:vaultProbe.access_codes_ready},200,cors);
     }
     if(!configured)return json({ok:false,error:'Publisher secrets are not configured.'},503,cors);
 
