@@ -831,14 +831,31 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     </details>
-    <details class="brAccessCategory"><summary>PLAYLISTS &amp; SONGS</summary>
-    <p class="brAccessNotice" id="brAccessPlaylistNotice">Vault playlists load automatically.</p>
-    <button type="button" id="brAccessOpenPlaylists">OPEN PLAYLISTS</button>
-    <label><span>USE PLAYLIST AS SONG PRESET</span><select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST (OPTIONAL)</option></select></label>
-    <label><span>SEARCH SONGS · CHECK AS MANY AS YOU WANT</span><input id="brAccessSongSearch" type="search" placeholder="Filter songs or albums"></label>
-    <div class="brAccessSongTools"><button type="button" id="brAccessSelectAll">SELECT ALL MATCHES</button><button type="button" id="brAccessClearSongs">CLEAR SONGS</button><span id="brAccessSongCount">0 selected</span></div>
-    <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Select multiple songs"></div>
-    <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
+    <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS &amp; SONGS</summary>
+    <p class="brAccessNotice" id="brAccessPlaylistNotice">Loading GE playlists from GitHub…</p>
+    <div id="brAccessPlaylistChoices" role="group" aria-label="Select saved GE playlists to grant" class="brAccessSongChecklist" style="max-height:190px;min-height:55px"></div>
+    <div class="brAccessSongTools">
+      <button type="button" class="primary" id="brAccessLoadPlaylists">LOAD CHECKED PLAYLISTS</button>
+      <button type="button" id="brAccessPlaylistRefresh">REFRESH GITHUB LIST</button>
+    </div>
+    <div hidden aria-hidden="true">
+      <button type="button" id="brAccessOpenPlaylists">OPEN PLAYLISTS</button>
+      <select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST</option></select>
+    </div>
+    <label><span>SEARCH SONGS · CHECK INDIVIDUAL SONGS OR ENTIRE ALBUMS</span>
+      <input id="brAccessSongSearch" type="search" placeholder="Find song or album"></label>
+    <div class="brAccessSongTools">
+      <select id="brAccessAlbum" aria-label="Filter access-code songs by album" style="min-width:130px;flex:1 1 140px;max-width:100%;font-size:14px">
+        <option value="">ALL ALBUMS</option>
+      </select>
+      <button type="button" id="brAccessSelectAll">SELECT ALL SHOWN</button>
+      <button type="button" id="brAccessClearSongs">CLEAR</button>
+      <span id="brAccessSongCount">0 selected</span>
+    </div>
+    <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Scroll through all songs with checkboxes"></div>
+    <details class="brSourceDetails"><summary>VIEW SELECTED SONGS</summary>
+      <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
+    </details>
     </details>
     <details class="brAccessCategory"><summary>EXPIRATION &amp; LIMITS</summary>
     <label><span>EXPIRES</span><select id="brAccessMode">
@@ -2238,6 +2255,7 @@ $('screenOpacityUp').onclick=()=>{const v=editorVisual();v.panelOpacity=Math.min
 const backroomVaultManagers=(()=>{
   let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
   let playlistChoiceIds=new Set();
+  let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -2341,6 +2359,11 @@ const backroomVaultManagers=(()=>{
         albumFilter.appendChild(new Option(album,album));
       }
       albumFilter.value=[...albumFilter.options].some(x=>x.value===albumSelected)?albumSelected:'';
+      const accessAlbum=$('brAccessAlbum'),chosen=accessAlbum.value;
+      accessAlbum.replaceChildren(new Option('ALL ALBUMS',''));
+      for(const album of [...new Set(catalog.map(song=>song.album||'Other'))])
+        accessAlbum.appendChild(new Option(album,album));
+      accessAlbum.value=[...accessAlbum.options].some(opt=>opt.value===chosen)?chosen:'';
       renderCatalog();renderAllSongs();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
@@ -2834,16 +2857,42 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
     const source=playlistLoaded?playlists:[];
-    source.forEach(p=>select.appendChild(new Option(p.name,p.id)));
+    select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
+    for(const p of source)select.appendChild(new Option(p.name,p.id));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
-    $('brAccessPlaylistNotice').textContent=playlistLoaded?'GITHUB · '+source.length+' PLAYLISTS':'GITHUB PLAYLISTS · CONNECTING';
+    const host=$('brAccessPlaylistChoices');host.replaceChildren();
+    if(!playlistLoaded){
+      host.appendChild(create('p','GitHub playlists not connected yet. Press REFRESH GITHUB LIST.','sub'));
+      $('brAccessPlaylistNotice').textContent='GITHUB PLAYLISTS · NOT LOADED';
+      return;
+    }
+    $('brAccessPlaylistNotice').textContent='GITHUB CONNECTED · '+source.length+
+      ' SAVED GE PLAYLIST'+(source.length===1?'':'S')+' · Check one or more, then LOAD.';
+    if(!source.length){
+      host.appendChild(create('p','No GE playlists saved yet. Create one in MUSIC first.','sub'));
+      return;
+    }
+    for(const p of source){
+      const label=create('label','','check');
+      label.style.cssText='display:flex;align-items:center;gap:9px;margin:3px 0;min-height:43px';
+      const box=document.createElement('input');box.type='checkbox';
+      box.checked=accessSelectedPlaylistIds.has(p.id);
+      box.setAttribute('aria-label','Grant songs from '+p.name);
+      box.addEventListener('change',()=>{
+        box.checked?accessSelectedPlaylistIds.add(p.id):accessSelectedPlaylistIds.delete(p.id);
+      });
+      const title=create('span',p.name+' · '+(p.tracks||[]).length+' songs');
+      title.style.cssText='display:block;margin:0;font-size:14px';
+      label.append(box,title);host.appendChild(label);
+    }
   }
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
-    const found=catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(query));
+    const album=$('brAccessAlbum').value;
+    const found=catalog.filter(x=>(!album||(x.album||'Other')===album)&&
+      (x.track_title+' '+x.album).toLowerCase().includes(query));
     host.replaceChildren();
     const grouped=new Map();
     for(const track of found){const album=track.album||'OTHER SONGS';if(!grouped.has(album))grouped.set(album,[]);grouped.get(album).push(track);}
@@ -2917,8 +2966,11 @@ const backroomVaultManagers=(()=>{
     $('brAccessIssue').hidden=!!row;
     $('brAccessSave').hidden=!row;
     assignedSongPaths=[...(row?.track_paths||[])];
+    accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
+    $('brAccessMusicCategory').open=!!assignedSongPaths.length||!!accessSelectedPlaylistIds.size||
+      scopes.includes('music')||scopes.includes('albums');
     // Old playlist grants are expanded into explicit tracks for editing, so
     // removing a song actually removes its access instead of leaving an
     // unrestricted playlist ID entitlement in place.
@@ -3118,7 +3170,14 @@ const backroomVaultManagers=(()=>{
     }finally{clearTimeout(timer);}
   }
   function openTab(tab){
-    if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
+    if(tab==='access'){
+      // Access Codes requires BOTH the private code records and the owner GE
+      // playlist registry. Always refresh the latter; stale/empty cached
+      // selections were disabling the picker on iPhones.
+      void refreshCodes();
+      if(!playlistLoaded)void refreshPlaylists();
+      else accessPlaylistOptions();
+    }
     if(tab==='music')void refreshPlaylists();
   }
   function init(){
@@ -3250,7 +3309,49 @@ const backroomVaultManagers=(()=>{
         accessStatus(playlist.name+' · '+assignedSongPaths.length+' SONGS SELECTED');
       });
       $('brAccessSongSearch').addEventListener('input',accessSongOptions);
-      $('brAccessSelectAll').addEventListener('click',()=>{const q=$('brAccessSongSearch').value.trim().toLowerCase();const set=new Set(assignedSongPaths);catalog.filter(x=>(x.track_title+' '+x.album).toLowerCase().includes(q)).forEach(x=>set.add(x.track_path));assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();});
+      $('brAccessAlbum').addEventListener('change',accessSongOptions);
+      for(const checkbox of scopeBoxes()){
+        checkbox.addEventListener('change',()=>{
+          if(checkbox.value==='music'&&checkbox.checked)$('brAccessMusicCategory').open=true;
+        });
+      }
+      $('brAccessPlaylistRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brAccessLoadPlaylists').addEventListener('click',()=>{
+        const chosen=playlists.filter(p=>accessSelectedPlaylistIds.has(p.id));
+        if(!playlistLoaded){accessStatus('NOT LOADED · Refresh GitHub playlists first.');return;}
+        if(!chosen.length){accessStatus('CHECK ONE OR MORE GE PLAYLISTS FIRST');return;}
+        const paths=[...new Set(chosen.flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean)))];
+        const missing=paths.filter(path=>!catalog.some(song=>song.track_path===path));
+        if(missing.length){
+          accessStatus('NOT LOADED · '+missing.length+' playlist songs are absent from the music catalog. Refresh songs before assigning.');
+          return;
+        }
+        if(paths.length>250){
+          accessStatus('NOT LOADED · Access Codes supports at most 250 individual song assignments.');
+          return;
+        }
+        if(assignedSongPaths.length&&!confirm('Replace current assigned songs with the '+chosen.length+' selected playlist(s)?'))return;
+        assignedSongPaths=paths;
+        // Persist actual authorized track paths rather than trusting a mutable
+        // playlist ID that might later contain different songs.
+        $('brAccessSongSearch').value='';
+        $('brAccessAlbum').value='';
+        $('brAccessMusicCategory').open=true;
+        const music=scopeBoxes().find(x=>x.value==='music');
+        if(music)music.checked=true;
+        accessSongOptions();assignedSongsUI();
+        $('brAccessSongChecklist').scrollTop=0;
+        accessStatus('LOADED '+chosen.length+' GITHUB PLAYLIST'+(chosen.length===1?'':'S')+
+          ' · '+paths.length+' SONGS · SAVE CODE TO APPLY');
+      });
+      $('brAccessSelectAll').addEventListener('click',()=>{
+        const q=$('brAccessSongSearch').value.trim().toLowerCase(),album=$('brAccessAlbum').value;
+        const set=new Set(assignedSongPaths);
+        catalog.filter(x=>(!album||(x.album||'Other')===album)&&
+          (x.track_title+' '+x.album).toLowerCase().includes(q))
+          .forEach(x=>set.add(x.track_path));
+        assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();
+      });
       $('brAccessClearSongs').addEventListener('click',()=>{assignedSongPaths=[];accessSongOptions();assignedSongsUI();});
       codeMaster.addEventListener('change',()=>void toggleMaster());
       $('brAccessCopy').addEventListener('click',async()=>{
@@ -3263,11 +3364,15 @@ const backroomVaultManagers=(()=>{
       window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{accessPlaylistOptions();renderAccessCodes();};
       window.GE_BACKROOM_DJ_SOURCE_LOADED=(items,library)=>{
         if(Array.isArray(library)&&library.length){
-          catalog=library.map(song=>({
-            track_path:song.path,track_title:song.title||parseTrack(song.path).track_title,
-            album:song.album||parseTrack(song.path).album
-          }));
-          renderCatalog();renderDJAlbumChoices();accessSongOptions();assignedSongsUI();
+          // The canonical website manifest is the primary catalog. A DJ
+          // snapshot must never replace it and silently remove access choices.
+          if(!catalog.length){
+            catalog=library.map(song=>({
+              track_path:song.path,track_title:song.title||parseTrack(song.path).track_title,
+              album:song.album||parseTrack(song.path).album
+            }));
+            renderCatalog();renderDJAlbumChoices();accessSongOptions();assignedSongsUI();
+          }
         }
         accessPlaylistOptions();renderAccessCodes();
       };
