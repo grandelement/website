@@ -1,13 +1,13 @@
 # GE STUDIOS VAULT — CANONICAL ROUTING INSTRUCTIONS
 
 Status: PERMANENT ARCHITECTURE  
-Source of truth for durable GE data: **Cloudflare D1 / GE Studios Vault**  
+Source of truth for private fan/analytics data: **Cloudflare D1 / GE Studios Vault**. The **owner-approved GE playlist master** is the GitHub file `playlists/registry.json` (see `playlists/INTEGRATION_CONTRACT.md`).  
 Canonical public event endpoint: `https://vault.grandelement.com/v1/public/event`  
 Canonical public Soul Reflection endpoint: `https://vault.grandelement.com/v1/public/reflections`
 
 ## Rule 1 — Deployments never own permanent data
 
-GitHub, GitHub Pages, Blitz containers, browser localStorage, service workers and phones are application/cache surfaces. They are **not** the permanent record.
+GitHub is the owner-approved permanent record **only for public/nonconfidential GE playlist definitions** at `playlists/registry.json`. GitHub Pages, Blitz containers, browser localStorage, service workers and phones are application/cache surfaces for private fan data; they must not hold the sole permanent fan record.
 
 Permanent records belong in Vault first. Local copies may exist only as cache/offline recovery.
 
@@ -62,7 +62,7 @@ Private comments/messages:
 
 ## Rule 5 — Playlists and permanent configuration
 
-Named playlists, track order, active playlist, permanent settings, permanent locations and permanent operational instructions belong in Vault.
+**Playlist exception (supersedes older Vault-first instructions):** Owner-curated GE playlist names, stable IDs and ordered song paths belong in GitHub `playlists/registry.json`; Cloudflare D1 must not be a competing curated playlist master. Existing BLITZ live DJ/Radio Bangers remain on their controller until an explicitly tested integration. Private fan identities, playlists not approved for public disclosure, access codes, entitlements and analytics belong in an authenticated private backend, not in public GitHub. Permanent settings, locations and operational instructions continue to belong in Vault.
 
 Use locked Vault values for infrastructure facts that should not change accidentally, including:
 - music/song root
