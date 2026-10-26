@@ -3073,8 +3073,14 @@ const backroomVaultManagers=(()=>{
     visibleCodes.forEach(row=>sel.appendChild(new Option(
       row.label+' · …'+row.code_hint+' · '+statusCode(row),row.id
     )));
+    if(!visibleCodes.length){
+      const note=!accessLoaded?'VAULT OFFLINE — RECONNECT OR REFRESH':
+        q?'NO CODES MATCH YOUR SEARCH':'NO CODES SAVED';
+      sel.appendChild(new Option(note,''));
+    }
+    sel.disabled=!visibleCodes.length;
     sel.value=selectedCodeId;
-    sel.size=Math.max(2,Math.min(5,visibleCodes.length||2));
+    sel.size=Math.max(1,Math.min(5,visibleCodes.length||1));
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
     $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0');
     $('brAccessPrev').disabled=idx<=0;
