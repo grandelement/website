@@ -467,6 +467,47 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brMasterSongs .brMasterAlbum{margin:7px 0}
 #brMasterSongs .brMasterSong{min-height:42px}
 @media(max-width:440px){.brMasterToolbar{grid-template-columns:minmax(70px,1fr) minmax(110px,1.2fr)}.brMasterToolbar strong{grid-column:1/-1;text-align:left}}
+</style>
+<style id="br-sticky-music-playlists-20261026">
+/* Website-wide Draft/Publish actions were moved inside WEBSITE (WELCOME) tools. */
+#backroomMain > header{position:static!important;top:auto!important;margin-bottom:3px!important}
+#backroomMain .backroomTabs{
+ position:sticky!important;top:0!important;z-index:120!important;
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ gap:6px!important;overflow:visible!important;
+ margin:0 -14px 8px!important;padding:8px 9px!important;
+ background:rgba(1,10,20,.97)!important;
+ border-bottom:1px solid #245c7d;
+ box-shadow:0 4px 15px #0008;backdrop-filter:blur(12px)
+}
+#backroomMain .backroomTabs button{
+ grid-column:auto!important;min-width:0!important;max-width:100%!important;
+ min-height:42px!important;padding:7px 4px!important;
+ font-size:clamp(11px,3.1vw,16px)!important;
+ line-height:1.05!important;white-space:normal!important;
+ overflow-wrap:normal!important;letter-spacing:-.02em!important;
+ border-radius:9px!important;
+}
+#backroomMain .backroomTabs button:nth-child(-n+4),
+#backroomMain .backroomTabs button:nth-child(n+5){grid-column:auto!important}
+#backroomMain .backroomTabs #brTabAccess{grid-column:span 2!important}
+#backroomMain .backroomTabs #brTabPlaylists{display:none!important}
+#backroomMain .topControls{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:6px 0 12px!important}
+#backroomMain .topControls button{min-width:0;min-height:43px!important;white-space:normal!important;padding:8px 4px!important;font-size:clamp(12px,3vw,16px)!important;line-height:1.1!important}
+#brPanel-music > #brDJPlaylistEditor{margin-top:6px;padding:10px 12px!important;overflow:visible!important}
+#brPanel-music #brPlaylistPicker{z-index:22}
+#brPanel-music #brAllSongsSearch{display:block;width:100%;max-width:none;margin:7px 0 10px}
+#brPanel-music #brAllSongsChoices{scrollbar-width:thin}
+#brPanel-music #brAllSongsChoices label.check{margin:0;border-radius:0}
+#brPanel-music #brPlaylistChoices[hidden]{display:none!important}
+#brPanel-music #brPlaylistChoices button{font-size:15px!important}
+#brPanel-music #brMusicRadioMaster{background:#051b2b;padding:10px;border:1px solid #2a5878;border-radius:10px}
+#brPanel-music #brMusicRadioMaster > summary{cursor:pointer;font-size:13px;font-weight:850;color:#b3eaff}
+@media(min-width:750px){
+ #backroomMain .backroomTabs{grid-template-columns:repeat(11,minmax(0,1fr))!important;gap:5px!important}
+ #backroomMain .backroomTabs #brTabAccess{grid-column:auto!important}
+ #backroomMain .backroomTabs button{font-size:clamp(11px,1vw,15px)!important;min-height:47px!important}
+}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -509,15 +550,17 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabGames" type="button" role="tab" data-tab="games" aria-selected="false">GAMES</button>
   <button id="brTabMusic" type="button" role="tab" data-tab="music" aria-selected="false">MUSIC</button>
   <button id="brTabRadio" type="button" role="tab" data-tab="radio" aria-selected="false">RADIO</button>
-  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false">PLAYLISTS</button>
-  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
+  <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
+  <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false" hidden aria-hidden="true" tabindex="-1">PLAYLISTS</button>
 </nav>
 
 <section data-br-tab="music">
+  <details id="brMusicRadioMaster" class="brSourceDetails" style="margin-top:12px">
+    <summary>RADIO MASTER SETTINGS</summary>
   <section id="brMasterSection" aria-label="Master Song List">
     <div class="brMasterToolbar">
       <button type="button" id="brMasterRefresh">LOAD</button>
@@ -528,6 +571,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brMasterStatus" class="brCompactStatus" role="status" aria-live="polite">Loading saved Master List…</div>
     <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
   </section>
+  </details>
 </section>
 
 <section data-br-tab="scores">
@@ -667,29 +711,27 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 <section data-br-tab="playlists" id="brDJPlaylistEditor">
 <h2>GE PLAYLISTS</h2>
 <div id="brPlaylistPicker" style="position:relative;z-index:5">
-  <label for="brPlaylistName" style="display:block;margin-bottom:4px;font-weight:750">PLAYLIST</label>
-  <div style="display:flex;align-items:stretch;gap:4px">
-    <input id="brPlaylistName" type="text" maxlength="100" spellcheck="false" autocomplete="off"
-      aria-controls="brPlaylistChoices" aria-expanded="false" aria-haspopup="listbox"
-      placeholder="Name a new playlist or choose a saved one"
-      style="flex:1;min-width:0;min-height:48px;font-size:18px">
-    <button id="brPlaylistOpenList" type="button" aria-label="Show all saved GitHub playlists" aria-controls="brPlaylistChoices"
-      style="min-width:52px;font-size:24px;line-height:1">▾</button>
+  <label for="brPlaylistName" style="display:block;margin-bottom:4px;font-weight:750">NAME THIS PLAYLIST</label>
+  <input id="brPlaylistName" type="text" maxlength="100" spellcheck="false" autocomplete="off"
+    aria-controls="brPlaylistChoices" aria-expanded="false" aria-haspopup="listbox"
+    placeholder="Type a name for this mix" style="display:block;width:100%;min-height:48px;font-size:17px">
+  <div class="brPlaylistPrimary" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0">
+    <button type="button" class="primary" id="brPlaylistSave">SAVE</button>
+    <button type="button" id="brPlaylistOpenList" aria-label="Choose one or more saved GitHub playlists" aria-controls="brPlaylistChoices">PLAYLISTS ▾</button>
   </div>
   <div id="brPlaylistChoices" role="listbox" aria-label="Saved GitHub playlist names" hidden
-    style="position:absolute;top:100%;left:0;right:0;max-height:min(43vh,350px);overflow-y:auto;
+    style="position:absolute;top:100%;left:0;right:0;max-height:min(48vh,410px);overflow-y:auto;
       -webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain;
       border:2px solid #70caff;border-radius:10px;background:#051626;box-shadow:0 10px 24px #000b;
       padding:6px;z-index:40"></div>
 </div>
-<div class="brPlaylistPrimary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0">
-<button type="button" id="brPlaylistLoad">LOAD</button><button type="button" class="primary" id="brPlaylistSave">SAVE</button><button type="button" id="brPlaylistDelete">DELETE</button></div>
+
 <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
 <input id="brAllSongsSearch" type="search" placeholder="Search all songs" aria-label="Search the full music checklist" style="width:100%;min-height:43px;font-size:16px;margin:8px 0">
 <div id="brAllSongsChoices" role="group" aria-label="Scroll through and check playlist songs" style="max-height:60vh;min-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px;border:1px solid #315776;border-radius:10px"></div>
 <details id="brMusicPlaylistTools" class="brSourceDetails" style="margin-top:10px"><summary>MORE OPTIONS</summary><label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC GE MUSIC (THE GITHUB FILE IS PUBLIC EVEN WHEN UNCHECKED)</span></label><button type="button" id="brPlaylistsRefresh">REFRESH FROM GITHUB</button></details>
 <div style="display:none !important" aria-hidden="true">
-<button type="button" id="brPlaylistsNew">NEW</button><select id="brPlaylistSelect"></select><input id="brPlaylistActive" type="checkbox" disabled>
+<button type="button" id="brPlaylistLoad">LOAD</button><button type="button" id="brPlaylistDelete">DELETE</button><button type="button" id="brPlaylistsNew">NEW</button><select id="brPlaylistSelect"></select><input id="brPlaylistActive" type="checkbox" disabled>
 <div id="brDJAlbumChoices"></div><div id="brDJSongChoices"></div><input id="brPlaylistSearch" type="search"><select id="brSongSelect"></select><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount"></span><div id="brPlaylistTracks"></div><button type="button" id="brImportBangers">IMPORT BANGERS</button>
 </div>
 </section>
@@ -870,8 +912,8 @@ window.GE_BACKROOM_SHOW_MUSIC=function(){
   if(window.GE_BACKROOM_MASTER_READY)window.GE_BACKROOM_MASTER_LOAD?.();
 };
 function installBackroomTabs(){
-  const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]')];
-  const categories=['welcome','about','universe','games','music','radio','playlists','access','moon','gate','scores','presets'],panelCategories=categories,panels=new Map();
+  const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]:not([hidden])')];
+  const categories=['welcome','about','universe','games','music','radio','moon','gate','access','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
@@ -900,7 +942,14 @@ function installBackroomTabs(){
     section.appendChild(contents);contents.hidden=true;
     trigger.addEventListener('click',()=>{contents.hidden=!contents.hidden;trigger.setAttribute('aria-expanded',String(!contents.hidden));});
   }
+  // Website controls retain their original handlers but live in the Website/Welcome section.
+  const websiteActions=$('backroomMain').querySelector(':scope > header .topControls');
+  if(websiteActions)panels.get('welcome')?.prepend(websiteActions);
+  // Keep the legacy playlist panel for compatibility; its working editor belongs to MUSIC.
+  const musicPlaylistEditor=$('brDJPlaylistEditor');
+  if(musicPlaylistEditor)panels.get('music')?.prepend(musicPlaylistEditor);
   function activate(tab,focus=false){
+    if(tab==='playlists')tab='music';
     if(!panels.has(tab))tab='welcome';
     for(const [name,panel]of panels){panel.hidden=name!==tab;}
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
@@ -928,6 +977,7 @@ function installBackroomTabs(){
   }
   let initial='welcome';try{initial=sessionStorage.getItem('GE_BACKROOM_ACTIVE_TAB_V1')||'welcome'}catch(_e){}
   if(initial==='home'||initial==='content')initial='welcome';
+  if(initial==='playlists')initial='music';
   activate(initial);
   for(const btn of document.querySelectorAll('[data-open-br]'))btn.addEventListener('click',()=>{
     activate(btn.dataset.openBr,true);
@@ -2879,7 +2929,7 @@ const backroomVaultManagers=(()=>{
   }
   function openTab(tab){
     if(tab==='access'){void refreshCodes();if(!playlistLoaded)void refreshPlaylists();}
-    if(tab==='playlists')void refreshPlaylists();
+    if(tab==='music')void refreshPlaylists();
   }
   function init(){
     if(!initialized){
@@ -2939,7 +2989,7 @@ const backroomVaultManagers=(()=>{
       $('brPlaylistDelete').addEventListener('click',()=>void deletePlaylist());
       $('brAccessMode').addEventListener('change',accessModeUI);
       $('brAccessOpenPlaylists').addEventListener('click',()=>{
-        document.querySelector('#backroomTabs button[data-tab="playlists"]')?.click();
+        document.querySelector('#backroomTabs button[data-tab="music"]')?.click();
       });
       $('brAccessRefresh').addEventListener('click',()=>void refreshCodes());
       $('brAccessNew').addEventListener('click',()=>showCodeEditor());
