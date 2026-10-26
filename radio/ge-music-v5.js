@@ -3,12 +3,19 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.2-20261026';
+const BUILD='GE-MUSIC-V5.3-20261026';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
-const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1';
+const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
+  musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
+  musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…'};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+try{
+ const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
+ if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
+   state.musicAccess=saved;
+}catch(_){}
 try{const raw=JSON.parse(localStorage.getItem(store)||'[]');if(Array.isArray(raw))state.selected=new Set(raw.filter(x=>typeof x==='string'))}catch(_){}
 const host=document.createElement('div');host.id='geMusicV5Host';host.dataset.build=BUILD;
 host.style.cssText='position:fixed;inset:0;z-index:60010;display:none;isolation:isolate';
@@ -33,6 +40,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .browse button[aria-pressed=true]{background:#1378c5;border-color:#b5f2ff;color:white;box-shadow:inset 0 0 10px #2b99e9}
 .libraryAction{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .libraryAction button{font-size:12px;min-height:36px;padding:5px 9px}
+.musicCodeTools{margin-top:9px;border:1px solid #285b7d;border-radius:9px;padding:7px;background:#062238}
+.musicCodeTools summary{cursor:pointer;color:#aee9ff;font-size:12px;font-weight:800}
+.musicCodeRow{display:flex;align-items:center;gap:6px;margin-top:8px}
+.musicCodeRow input{min-width:0;flex:1;color:#fff;background:#031321;border:1px solid #4b91bd;border-radius:8px;padding:8px 9px;font-size:16px;min-height:41px}
+.musicCodeRow button{min-height:41px;font-size:12px}
+.musicCodeState{color:#abeaff;font-size:11px;margin-top:6px}
+.song button[disabled]{opacity:.48}
 .breadcrumb{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
 .breadcrumb strong{min-width:0;font-size:14px;overflow-wrap:anywhere}
 .album{min-width:0}
@@ -64,8 +78,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.2</span></div><button class="close" type="button">CLOSE</button></div>
- <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.3</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
  <div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">0 SELECTED</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button><a href="../backroom/" style="color:#b8e9ff;font-size:11px">MANAGE GE PLAYLISTS</a></div>
@@ -147,8 +161,73 @@ function recordPlaylistInteraction(eventType,detail){
  // Never send an IP address or private fan details to the public GitHub registry.
  try{void window.GEVault?.radio?.(eventType,detail)}catch(_e){}
 }
-function playTrack(track){
- // Playback remains controlled by the existing radio preview/access gate.
+function musicAccessActive(){
+ if(state.musicAccess&&Number(state.musicAccess.until)>Date.now())return state.musicAccess;
+ if(state.musicAccess){state.musicAccess=null;try{sessionStorage.removeItem(musicSessionKey)}catch(_){}}
+ return null;
+}
+function musicAccessStatus(){
+ const access=musicAccessActive(),status=el('.musicCodeState');
+ status.textContent=access?
+   ('CODE ACTIVE · '+(access.restricted?access.allowed.length+' AUTHORIZED SONGS':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):
+   'No Music code active · Existing guest previews remain available.';
+}
+function clearMusicAccess(){
+ state.musicAccess=null;
+ try{sessionStorage.removeItem(musicSessionKey)}catch(_){}
+ el('.musicCodeInput').value='';
+ musicAccessStatus();say('Music code cleared. Guest previews remain available.');setView('all');
+}
+async function musicCodeRequest(body){
+ const response=await fetch(musicSessionEndpoint,{
+   method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+   body:JSON.stringify(body)
+ });
+ const data=await response.json().catch(()=>({ok:false,error:'Invalid Vault response'}));
+ if(!response.ok||data?.ok!==true)
+   throw Error(String(data.error||('Vault HTTP '+response.status)));
+ return data;
+}
+async function redeemMusicCode(){
+ if(state.redeemBusy)return;
+ const code=el('.musicCodeInput').value.trim();
+ if(!code){say('Enter the Music access code first.');return}
+ state.redeemBusy=true;el('.musicCodeUnlock').disabled=true;
+ el('.musicCodeState').textContent='Verifying code with GE Vault…';
+ try{
+   const data=await musicCodeRequest({action:'redeem',code});
+   const allowed=Array.isArray(data.allowed_tracks)?
+     [...new Set(data.allowed_tracks.map(canonical).filter(Boolean))]:[];
+   const access={token:String(data.token||''),until:Number(data.session_expires_at)*1000,
+     restricted:!!data.restricted,allowed};
+   if(!access.token||access.until<=Date.now())throw Error('Music session not confirmed.');
+   state.musicAccess=access;
+   try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
+   el('.musicCodeInput').value='';musicAccessStatus();
+   if(access.restricted){
+     state.selected=new Set(allowed);saveSelected();
+     setView('access-code');
+     say('Music code verified · '+allowed.length+' authorized songs loaded.');
+   }else{setView('all');say('Music code verified for the full music library.')}
+ }catch(error){
+   clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
+ }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
+}
+async function playTrack(track){
+ // A code-restricted Music session can NEVER substitute the public Radio
+ // scope or change the global Bangers broadcast. Verify every requested song.
+ const access=musicAccessActive();
+ if(access){
+   if(access.restricted&&!access.allowed.includes(track.path)){
+     say('This song is not included in your code.');return;
+   }
+   try{await musicCodeRequest({action:'verify',token:access.token,track_path:track.path})}
+   catch(error){
+     say('MUSIC CODE REJECTED · '+String(error.message||error));clearMusicAccess();return;
+   }
+ }
+ // Existing preview transport remains in charge; code verification alone is
+ // not proof of paid-content delivery or a full-length song license.
  const outcome=window.GEMusicV5Bridge?.play?.(track.path);
  if(outcome?.ok){say('Opening '+track.title+'.');return}
  say(outcome?.message||'Music preview is loading. Tap PLAY again.');
@@ -168,6 +247,10 @@ function appendSong(parent,track){
  });
  label.append(checkbox,elem('span','',track.title));
  const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
+ const access=musicAccessActive();
+ if(access?.restricted&&!access.allowed.includes(track.path)){
+   play.disabled=true;play.title='Not authorized by the current Music code';
+ }
  play.addEventListener('click',()=>playTrack(track));
  row.append(label,play);parent.appendChild(row);
 }
@@ -178,7 +261,8 @@ function setView(view){
  render();scroller.scrollTop=0;
 }
 function activeCategory(){
- return state.view.startsWith('album:')?'albums':
+ return state.view==='access-code'?'all':
+   state.view.startsWith('album:')?'albums':
    state.view.startsWith('vault:')?'ge-playlists':
    state.view.startsWith('local:')?'user-playlists':state.view;
 }
@@ -195,6 +279,12 @@ function breadcrumb(label,back){
  scroller.append(wrapper);
 }
 function chosenSongs(){
+ if(state.view==='access-code'){
+   const access=musicAccessActive();
+   if(!access)return [];
+   const byPath=new Map(state.tracks.map(t=>[t.path,t]));
+   return access.restricted?access.allowed.map(path=>byPath.get(path)).filter(Boolean):state.tracks;
+ }
  if(state.view.startsWith('album:'))return state.tracks.filter(t=>t.album===state.view.slice(6));
  if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
   const isVault=state.view.startsWith('vault:');
@@ -250,6 +340,7 @@ function render(){
  }else{
   const chosen=chosenSongs();
   const shown=chosen.filter(filterTrack);
+  if(state.view==='access-code')breadcrumb('ACCESS CODE · AUTHORIZED MUSIC','all');
   if(state.view.startsWith('album:'))breadcrumb(state.view.slice(6),'albums');
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
    const isVault=state.view.startsWith('vault:');
@@ -289,6 +380,12 @@ el('.close').addEventListener('click',close);
 el('.search').addEventListener('input',event=>{state.term=event.target.value;render();scroller.scrollTop=0});
 root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 root.querySelector('.geV5Refresh').addEventListener('click',()=>void loadPublished());
+root.querySelector('.musicCodeUnlock').addEventListener('click',()=>void redeemMusicCode());
+root.querySelector('.musicCodeClear').addEventListener('click',clearMusicAccess);
+root.querySelector('.musicCodeInput').addEventListener('keydown',event=>{
+ if(event.key==='Enter'){event.preventDefault();void redeemMusicCode()}
+});
+musicAccessStatus();
 root.querySelector('[data-action=clear]').addEventListener('click',()=>{state.selected.clear();saveSelected();say('Selection cleared.');render()});
 root.querySelector('[data-action=save]').addEventListener('click',saveMine);
 document.addEventListener('keydown',event=>{if(!state.open)return;if(event.key==='Escape'){event.preventDefault();close()}});
