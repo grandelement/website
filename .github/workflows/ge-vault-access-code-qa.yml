@@ -1,0 +1,30 @@
+name: GE Vault Access Codes Regression
+on:
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'tests/legacy-love-vault.test.mjs'
+      - 'tests/access-music-session.test.mjs'
+      - '.github/workflows/ge-vault-access-code-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'tests/legacy-love-vault.test.mjs'
+      - 'tests/access-music-session.test.mjs'
+      - '.github/workflows/ge-vault-access-code-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  access-codes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify health-driven idempotent D1 schema repair, LOVE lifecycle and revocation
+        run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
+      - name: Verify scoped Music sessions, use limits and forbidden content
+        run: node --experimental-default-type=module tests/access-music-session.test.mjs
