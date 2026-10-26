@@ -1,3 +1,5 @@
+> **UPDATE 2026-10-26 — The playlist-source paragraph below is superseded.** The permanent GE owner playlist source is `playlists/registry.json` in `grandelement/website`, written by authenticated `/manage/github-playlists`. The existing GE Fan Base Vault remains the private source for fan identities, events, payments and entitlements. User private playlist cross-device persistence is **not yet implemented**. Do not put fan data or IP addresses in the public GitHub registry. Refer to [current integration contract](../playlists/INTEGRATION_CONTRACT.md). Existing BLITZ Bangers must remain unchanged.
+
 # Grand Element — Permanent Fan Base Vault Integration Contract
 
 Status: Required architecture and acceptance criteria. This document does not claim the integrations are already deployed or verified.
