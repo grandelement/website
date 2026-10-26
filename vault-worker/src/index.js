@@ -2330,14 +2330,18 @@ export default {
         }
         let accessCodesReady = true;
         try {
-          await env.VAULT_DB.prepare("SELECT id FROM access_codes LIMIT 1").first();
-        } catch (_error) {
+          // The same additive repair used by authorized Access Codes management.
+          // CREATE IF NOT EXISTS / INSERT OR IGNORE; existing records are retained.
+          await ensureAccessCodeTables(env);
+        } catch (error) {
+          console.error("GE Vault access-code storage health failed", String(error?.name || "Error"));
           accessCodesReady = false;
         }
         return json({
-          ok: true, service: "GE Studios Vault", storage: "READY",
+          ok: accessCodesReady, service: "GE Studios Vault",
+          storage: accessCodesReady ? "READY" : "ACCESS CODES UNAVAILABLE",
           access_codes_ready: accessCodesReady, time: now(),
-        }, 200, cors);
+        }, accessCodesReady ? 200 : 503, cors);
       }
 
       if (url.pathname === "/v1/public/access/music-session" && request.method === "POST") {
