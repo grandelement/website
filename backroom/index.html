@@ -666,7 +666,22 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </section>
 <section data-br-tab="playlists" id="brDJPlaylistEditor">
 <h2>GE PLAYLISTS</h2>
-<label><span>PLAYLIST</span><input id="brPlaylistName" type="text" maxlength="100" list="brPlaylistNameOptions" spellcheck="false" autocomplete="off" placeholder="Type a new name or choose a saved playlist" style="width:100%;min-height:48px;font-size:18px"><datalist id="brPlaylistNameOptions"></datalist></label>
+<div id="brPlaylistPicker" style="position:relative;z-index:5">
+  <label for="brPlaylistName" style="display:block;margin-bottom:4px;font-weight:750">PLAYLIST</label>
+  <div style="display:flex;align-items:stretch;gap:4px">
+    <input id="brPlaylistName" type="text" maxlength="100" spellcheck="false" autocomplete="off"
+      aria-controls="brPlaylistChoices" aria-expanded="false" aria-haspopup="listbox"
+      placeholder="Name a new playlist or choose a saved one"
+      style="flex:1;min-width:0;min-height:48px;font-size:18px">
+    <button id="brPlaylistOpenList" type="button" aria-label="Show all saved GitHub playlists" aria-controls="brPlaylistChoices"
+      style="min-width:52px;font-size:24px;line-height:1">▾</button>
+  </div>
+  <div id="brPlaylistChoices" role="listbox" aria-label="Saved GitHub playlist names" hidden
+    style="position:absolute;top:100%;left:0;right:0;max-height:min(43vh,350px);overflow-y:auto;
+      -webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain;
+      border:2px solid #70caff;border-radius:10px;background:#051626;box-shadow:0 10px 24px #000b;
+      padding:6px;z-index:40"></div>
+</div>
 <div class="brPlaylistPrimary" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0">
 <button type="button" id="brPlaylistLoad">LOAD</button><button type="button" class="primary" id="brPlaylistSave">SAVE</button><button type="button" id="brPlaylistDelete">DELETE</button></div>
 <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
@@ -2175,23 +2190,46 @@ const backroomVaultManagers=(()=>{
     }
     const q=search.value.trim().toLowerCase();
     const matches=catalog.filter(song=>(String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
-    const active=new Set(playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path)));
+    const selected=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path));
+    const active=new Set(selected);
+    const catalogByPath=new Map(catalog.map(song=>[String(song.track_path),song]));
+    // Preserve the saved playlist's actual song order. All other songs stay
+    // available beneath it in the very same scrollable checklist.
+    const checked=selected.map(path=>catalogByPath.get(path)).filter(song=>
+      song&&matches.some(m=>m.track_path===song.track_path));
+    const unchecked=matches.filter(song=>!active.has(String(song.track_path)));
     host.replaceChildren();
     const summary=create('div',active.size+' SELECTED · '+matches.length+' SONGS SHOWN','sub');
+    summary.style.cssText='padding:5px 4px 10px;font-weight:800';
     host.appendChild(summary);
-    for(const song of matches){
+    const section=label=>{
+      const row=create('div',label,'sub');
+      row.style.cssText='padding:8px 4px 5px;color:#90dfff;font-weight:850;border-bottom:1px solid #315776';
+      host.appendChild(row);
+    };
+    const appendSong=song=>{
       const label=create('label','','check');
       label.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 3px;border-bottom:1px solid #27465e;cursor:pointer';
-      const box=document.createElement('input');box.type='checkbox';box.checked=active.has(String(song.track_path));box.setAttribute('aria-label','Include '+song.track_title+' from '+song.album);
+      const box=document.createElement('input');box.type='checkbox';box.checked=active.has(String(song.track_path));
+      box.setAttribute('aria-label','Include '+song.track_title+' from '+song.album);
       box.addEventListener('change',()=>{
+        const oldScroll=host.scrollTop;
         playlistTracks=playlistTracks.filter(t=>String(t.track_path)!==String(song.track_path));
         if(box.checked)playlistTracks.push({...song});
-        renderTrackList();
-        renderDJAlbumChoices();
-        playlistStatus('SONG SELECTION CHANGED · Enter a name and SAVE PLAYLIST to keep it.');
+        renderTrackList();renderDJAlbumChoices();
+        host.scrollTop=oldScroll;
+        playlistStatus('SONG SELECTION CHANGED · Press SAVE to keep it.');
       });
       const caption=create('span',(song.track_title||song.track_path)+' · '+(song.album||''));
       label.append(box,caption);host.appendChild(label);
+    };
+    if(checked.length){
+      section('IN THIS PLAYLIST · '+checked.length+' CHECKED');
+      for(const song of checked)appendSong(song);
+    }
+    if(unchecked.length){
+      if(checked.length)section('ALL OTHER SONGS · '+unchecked.length);
+      for(const song of unchecked)appendSong(song);
     }
     if(!matches.length)host.appendChild(create('p','No songs match that search.'));
   }
@@ -2299,13 +2337,51 @@ const backroomVaultManagers=(()=>{
     }
     host.hidden=tracks.length===0;
   }
+  function hidePlaylistChoices(){
+    const host=$('brPlaylistChoices');
+    if(host)host.hidden=true;
+    $('brPlaylistName').setAttribute('aria-expanded','false');
+  }
+  function showPlaylistChoices(query=''){
+    const host=$('brPlaylistChoices');
+    if(!host)return;
+    host.replaceChildren();
+    const header=create('div',playlists.length+' SAVED GITHUB PLAYLIST'+(playlists.length===1?'':'S'),'sub');
+    header.style.cssText='padding:7px 10px;color:#8bddfb;font-weight:800';
+    host.appendChild(header);
+    const addOption=(label,action,selected=false)=>{
+      const row=document.createElement('button');row.type='button';
+      row.setAttribute('role','option');row.setAttribute('aria-selected',String(selected));
+      row.textContent=label;
+      row.style.cssText='display:block;width:100%;text-align:left;padding:12px 14px;margin:2px 0;min-height:46px;'+
+        'border:1px solid #315875;border-radius:7px;background:'+(selected?'#166b99':'#0b2c47')+
+        ';color:#e2f8ff;font-size:17px;white-space:normal;overflow-wrap:anywhere';
+      row.addEventListener('click',()=>{
+        if(playlistHasUnsavedEdits()&&!confirm('Discard unsaved song/name changes and load another playlist?'))return;
+        hidePlaylistChoices();action();
+      });
+      host.appendChild(row);
+    };
+    addOption('＋ NEW PLAYLIST',()=>{
+      editPlaylist('');
+      playlistStatus('NEW PLAYLIST · Enter a name, check songs, then SAVE.');
+    });
+    const needle=String(query||'').trim().toLowerCase();
+    const matches=playlists.filter(p=>!needle||p.name.toLowerCase().includes(needle));
+    for(const p of matches)addOption(p.name+' · '+(p.tracks||[]).length+' SONGS',()=>{
+      editPlaylist(p.id);
+      playlistStatus('LOADED · '+p.name+' · '+(p.tracks||[]).length+' SONGS');
+    },p.id===playlistEditingId);
+    if(!matches.length)host.appendChild(create('div','No saved playlists match. Type a new name to create one.','sub'));
+    host.hidden=false;
+    $('brPlaylistName').setAttribute('aria-expanded','true');
+  }
   function renderPlaylistChooser(){
     const sel=$('brPlaylistSelect');sel.replaceChildren();
     sel.appendChild(new Option('NEW PLAYLIST',''));
     for(const p of playlists)sel.appendChild(new Option(p.name,p.id));
     sel.value=playlistEditingId;
-    const names=$('brPlaylistNameOptions');
-    if(names){names.replaceChildren();for(const p of playlists)names.appendChild(new Option(p.name,p.name));}
+    if(!$('brPlaylistChoices').hidden)showPlaylistChoices();
     renderPlaylistViewer();
   }
   function editPlaylist(id){
@@ -2315,7 +2391,12 @@ const backroomVaultManagers=(()=>{
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
     $('brPlaylistPublic').checked=!!p.public;
     $('brPlaylistDelete').disabled=!p.id||p.locked;
+    // Loading means showing the playlist's checked songs first, not retaining
+    // an old search or midway scroll position from a previous playlist.
+    $('brAllSongsSearch').value='';
+    hidePlaylistChoices();
     renderPlaylistChooser();renderTrackList();renderDJAlbumChoices();
+    $('brAllSongsChoices').scrollTop=0;
   }
   function importBangersFromDJ(){
     // GE DJ stores this backup only in this browser/origin. Never invent a
@@ -2812,15 +2893,28 @@ const backroomVaultManagers=(()=>{
       });
 
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
+      // The iPhone does not reliably expose datalist choices on tap, so use
+      // a real, scrollable in-page menu. Tapping the name shows ALL saved names.
+      $('brPlaylistName').addEventListener('focus',()=>showPlaylistChoices());
+      $('brPlaylistName').addEventListener('click',()=>showPlaylistChoices());
+      $('brPlaylistOpenList').addEventListener('click',()=>{
+        if($('brPlaylistChoices').hidden)showPlaylistChoices();
+        else hidePlaylistChoices();
+      });
+      document.addEventListener('pointerdown',event=>{
+        if(!event.target.closest('#brPlaylistPicker'))hidePlaylistChoices();
+      });
       $('brPlaylistName').addEventListener('input',()=>{
         const typed=$('brPlaylistName').value.trim().toLowerCase();
         const p=playlists.find(row=>row.name.trim().toLowerCase()===typed);
         $('brPlaylistDelete').disabled=!p||!!p.locked;
+        showPlaylistChoices(typed);
       });
       $('brPlaylistLoad').addEventListener('click',()=>{
         const typed=$('brPlaylistName').value.trim();
         const p=playlists.find(row=>row.name.trim().toLowerCase()===typed.toLowerCase());
         if(!p){playlistStatus('PLAYLIST NOT FOUND · Choose a saved name, or enter a new one to SAVE.');return;}
+        hidePlaylistChoices();
         editPlaylist(p.id);
         playlistStatus('LOADED · '+p.name+' · '+(p.tracks||[]).length+' SONGS');
       });
