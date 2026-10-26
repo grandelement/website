@@ -1,0 +1,49 @@
+name: GE Vault — repair Access Codes through bound D1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-access-codes-self-heal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Isolated one-time Vault repair. Existing database and Worker name retained.
+# Does NOT call Cloudflare D1 management API (API token lacks D1 scope).
+concurrency:
+  group: ge-studios-access-codes-bound-d1-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Verify additive schema fallback and deploy existing Vault
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove missing D1 Access Codes tables self-create after owner authorization
+        run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
+      - name: Verify Music code security unchanged
+        run: node --experimental-default-type=module tests/access-music-session.test.mjs
+      - name: Require existing Cloudflare Worker deployment credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Cloudflare API token missing"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Cloudflare account ID missing"; exit 1; }
+      - name: Deploy existing GE Studios Vault only (no D1 API migration)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          workingDirectory: vault-worker
+          command: deploy
+      - name: Explain activation
+        run: |
+          echo "Vault code deployed with authenticated, idempotent table repair."
+          echo "Back Room -> Access Codes -> Refresh triggers fixed-scope schema creation through bound D1."
+          echo "Existing D1 data, code records, fan records, GitHub playlists, secrets, and Radio Bangers are preserved."
