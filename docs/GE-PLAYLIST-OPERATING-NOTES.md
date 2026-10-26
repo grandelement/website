@@ -23,3 +23,10 @@ Implement private authenticated playlist storage keyed to existing anonymous vis
 
 ## Deploy/test
 The last successful owner screenshot confirmed Test saved and verified with seven songs in GitHub. New UI changes are in GitHub code. A GitHub Pages deployment plus an iPhone test are still needed before claiming the modified interface works live. CI regression checks include some failures; investigate failures separately, don't equate a clean JavaScript parse with a working device UI.
+
+## 2026-10-26 owner iPhone playlist picker / selected-song visibility fix
+- The `<datalist>` name chooser was not revealing saved names on the iPhone. `backroom/index.html` now has `brPlaylistPicker`, `brPlaylistName`, `brPlaylistOpenList` and `brPlaylistChoices`: tap the text box OR down-arrow to expose a real, scrollable list of all currently saved GitHub playlists. A new name can still be typed into the same field. Selecting a saved name loads it and closes the dropdown.
+- The owner's **LOAD** button performs the same named load and resets prior music search and scroll position.
+- `renderAllSongs()` puts all **checked tracks first in the exact saved order** under IN THIS PLAYLIST, then the remaining catalog under ALL OTHER SONGS. All songs stay in one scroll area, with checkboxes and song search. This prevents the previous illusion that a loaded playlist has no checked tracks because the list was scrolled midway through unrelated songs.
+- Confirmed at the GitHub registry: `Test` and `Test 2` both exist separately with 7 songs each. The original screenshot only displayed an `LOADED · Test · 7 SONGS` status alongside unrelated unchecked songs.
+- The fix is a repository change, not proof of live iPhone deployment; after Pages succeeds, reload the site and test opening name dropdown, selecting Test 2, viewing seven checked songs at top, and returning to Test without losing either.
