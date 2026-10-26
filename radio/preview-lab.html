@@ -841,7 +841,10 @@ async function startTrack(t){
  }
  stopCounting();
  currentTrack=t;audio.pause();audio.crossOrigin='anonymous';audio.autoplay=false;
- audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.load();audio.muted=false;
+ audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.muted=false;
+ // On iOS Safari, invoke play() directly from the tap rather than forcing
+ // a separate load() cycle that can interrupt the gesture-bound playback.
+ audio.playsInline=true;
  renderVolume();resetMediaSample();
  mediaSession(t);if(!$('albumView').hidden)showSongs();renderSelected();updateMusicTransport();say('Connecting…');
  try{await audio.play();musicNotice('')}
