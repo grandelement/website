@@ -1,3 +1,5 @@
+> **ARCHIVED / SUPERSEDED 2026-10-26.** The original Vault-first playlist proposal below is no longer the approved playlist architecture. Owner GE playlists are now stored in GitHub `playlists/registry.json`, not D1. Follow [the current playlist integration contract](../playlists/INTEGRATION_CONTRACT.md) for all new work. The existing radio DJ/Bangers backend has not yet been migrated, and fan user playlist synchronization is not yet server-persistent. Do not reintroduce D1/Vault as a competing playlist master.
+
 # GE Playlist Library — single-source migration plan
 
 ## Decision
