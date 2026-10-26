@@ -115,7 +115,11 @@ function saveMine(){
  if(found&&!confirm('Overwrite your saved playlist "'+found.name+'" on this device?'))return;
  const row={id:found?.id||('music-'+Date.now().toString(36)),name:clean,songs:[...state.selected],updatedAt:Date.now()};
  const updated=[row,...mine.filter(x=>x.id!==row.id)].slice(0,100);
- try{localStorage.setItem(myKey,JSON.stringify(updated));say('Saved on THIS DEVICE ONLY · Cross-device fan playlist syncing is not connected yet.');setView('user-playlists')}
+ try{
+   localStorage.setItem(myKey,JSON.stringify(updated));
+   recordPlaylistInteraction('control_change',{control:'user_playlist_save',playlist_id:row.id,song_count:row.songs.length,storage:'local_device'});
+   say('Saved on THIS DEVICE ONLY · Cross-device fan playlist syncing is not connected yet.');setView('user-playlists')
+ }
  catch(_){say('Could not save this playlist on this device.')}
 }
 async function loadPublished(){
@@ -137,6 +141,12 @@ async function loadPublished(){
  }finally{state.playlistsLoading=false;if(state.open)render()}
 }
 
+function recordPlaylistInteraction(eventType,detail){
+ // Reuse the existing GE Fan Base Vault ledger. It supplies anonymous visitor
+ // and session IDs and handles network identity privately server-side.
+ // Never send an IP address or private fan details to the public GitHub registry.
+ try{void window.GEVault?.radio?.(eventType,detail)}catch(_e){}
+}
 function playTrack(track){
  // Playback remains controlled by the existing radio preview/access gate.
  const outcome=window.GEMusicV5Bridge?.play?.(track.path);
@@ -147,7 +157,15 @@ function appendSong(parent,track){
  const row=elem('div','song'),label=elem('label'),checkbox=elem('input');
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
  checkbox.setAttribute('aria-label','Select '+track.title);
- checkbox.addEventListener('change',()=>{checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);saveSelected();updateMeta()});
+ checkbox.addEventListener('change',()=>{
+   checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
+   saveSelected();updateMeta();
+   recordPlaylistInteraction('control_change',{
+     track_id:track.path,track_title:track.title,album:track.album,
+     control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
+     playlist_id:(state.view.startsWith('vault:')||state.view.startsWith('local:'))?state.view.slice(state.view.indexOf(':')+1):''
+   });
+ });
  label.append(checkbox,elem('span','',track.title));
  const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
  play.addEventListener('click',()=>playTrack(track));
@@ -210,7 +228,9 @@ function render(){
   scroller.append(elem('p','empty',state.playlistMessage||'Checking GitHub…'));
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of shown)card(scroller,p.name,p.songs.length+' SONGS',()=>{
-   state.selected=new Set(p.songs);saveSelected();setView('vault:'+p.id);
+   state.selected=new Set(p.songs);saveSelected();
+   recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'ge_github',song_count:p.songs.length});
+   setView('vault:'+p.id);
   });
   if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No published GE playlists. The owner manages GE playlists in the Back Room.'));
   meta.textContent=state.publicLists.length+' PUBLISHED GE PLAYLISTS · '+state.tracks.length+' SONGS';
@@ -219,7 +239,9 @@ function render(){
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
    card(scroller,p.name,p.songs.length+' SONGS',()=>{
-     state.selected=new Set(p.songs);saveSelected();setView('local:'+p.id);
+     state.selected=new Set(p.songs);saveSelected();
+     recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'user_local_device',song_count:p.songs.length});
+     setView('local:'+p.id);
    });
   }
   if(!local.length)scroller.append(elem('p','empty','Check songs under ALL SONGS, then SAVE USER PLAYLIST. Saved only on this device until fan account synchronization is ready.'));
