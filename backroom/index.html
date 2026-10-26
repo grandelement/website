@@ -2413,7 +2413,26 @@ const backroomVaultManagers=(()=>{
       host.scrollTop=offset;
       playlistStatus('SONGS CHANGED · Enter a name and SAVE to keep this playlist.');
     };
-    const appendSong=(song)=>{
+    const selectedHost=document.createElement('div');
+    selectedHost.id='brCheckedSongReorder';
+    selectedHost.setAttribute('role','list');
+    selectedHost.setAttribute('aria-label','Selected songs in saved order. Grab a handle and drag to reorder.');
+    const applyCheckedOrder=()=>{
+      const visible=[...selectedHost.querySelectorAll('[data-selected-track]')]
+        .map(row=>row.dataset.selectedTrack);
+      if(!visible.length)return;
+      const visibleSet=new Set(visible),byPath=new Map(playlistTracks.map(x=>[String(x.track_path),x]));
+      let position=0;
+      // A filtered view reorders only visible checked songs. Hidden songs
+      // remain in their existing positions and retain their original order.
+      playlistTracks=playlistTracks.map(track=>visibleSet.has(String(track.track_path))?
+        (byPath.get(visible[position++])||track):track);
+      const scroll=host.scrollTop;
+      renderTrackList();renderDJAlbumChoices();
+      host.scrollTop=scroll;
+      playlistStatus('PLAYLIST ORDER CHANGED · Press SAVE to keep this order in GitHub.');
+    };
+    const appendSong=(song,selectedRow=false)=>{
       const label=create('label','','check');
       label.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 6px;border-bottom:1px solid #27465e;cursor:pointer';
       const box=document.createElement('input');box.type='checkbox';box.checked=active.has(String(song.track_path));
@@ -2425,12 +2444,68 @@ const backroomVaultManagers=(()=>{
         refreshAt(offset);
       });
       const caption=create('span',(song.track_title||song.track_path)+' · '+(song.album||''));
-      caption.style.cssText='display:block;margin:0;overflow-wrap:anywhere';
-      label.append(box,caption);host.appendChild(label);
+      caption.style.cssText='display:block;margin:0;overflow-wrap:anywhere;flex:1;min-width:0';
+      label.append(box,caption);
+      if(selectedRow){
+        label.dataset.selectedTrack=String(song.track_path);
+        label.style.cssText+=';background:#0b304a;border:1px solid #356480;border-radius:6px;margin-bottom:4px;transition:background .12s';
+        const grip=create('button','⠿','brTrackDragHandle');
+        grip.type='button';grip.title='Drag this song to a new position';
+        grip.setAttribute('aria-label','Drag '+(song.track_title||'song')+' to reorder');
+        grip.style.cssText='flex:0 0 41px;min-height:39px;min-width:41px;font-size:22px;'+
+          'color:#b6eeff;background:#103f5b;border:1px solid #4a9ac6;'+
+          'border-radius:7px;touch-action:none;cursor:grab;user-select:none';
+        let drag=null;
+        grip.addEventListener('pointerdown',event=>{
+          if(event.button!==0)return;
+          event.preventDefault();
+          drag={id:event.pointerId,moved:false};
+          try{grip.setPointerCapture(event.pointerId)}catch(_e){}
+          label.style.background='#185981';
+          grip.style.cursor='grabbing';
+        });
+        grip.addEventListener('pointermove',event=>{
+          if(!drag||drag.id!==event.pointerId)return;
+          event.preventDefault();drag.moved=true;
+          // Reinsert the actual selected-song row while adjacent songs shift.
+          for(const row of [...selectedHost.children]){
+            if(row===label)continue;
+            const rect=row.getBoundingClientRect();
+            if(event.clientY>=rect.top&&event.clientY<=rect.bottom){
+              selectedHost.insertBefore(label,
+                event.clientY<rect.top+rect.height/2?row:row.nextSibling);
+              break;
+            }
+          }
+          const bounds=host.getBoundingClientRect();
+          if(event.clientY<bounds.top+45)host.scrollTop-=21;
+          else if(event.clientY>bounds.bottom-45)host.scrollTop+=21;
+        });
+        const finish=event=>{
+          if(!drag||drag.id!==event.pointerId)return;
+          const moved=drag.moved;drag=null;grip.style.cursor='grab';
+          label.style.background='';
+          if(moved)applyCheckedOrder();
+        };
+        grip.addEventListener('pointerup',finish);
+        grip.addEventListener('pointercancel',finish);
+        grip.addEventListener('keydown',event=>{
+          if(event.key!=='ArrowUp'&&event.key!=='ArrowDown')return;
+          event.preventDefault();
+          const rows=[...selectedHost.children],i=rows.indexOf(label);
+          if(event.key==='ArrowUp'&&i>0)selectedHost.insertBefore(label,rows[i-1]);
+          else if(event.key==='ArrowDown'&&i<rows.length-1)
+            selectedHost.insertBefore(label,rows[i+1].nextSibling);
+          else return;
+          applyCheckedOrder();
+        });
+        label.append(grip);selectedHost.appendChild(label);
+      }else host.appendChild(label);
     };
     if(checked.length){
-      heading('IN THIS PLAYLIST · '+checked.length+' SONGS');
-      for(const song of checked)appendSong(song);
+      heading('IN THIS PLAYLIST · '+checked.length+' SONGS · DRAG ⠿ TO ARRANGE');
+      host.appendChild(selectedHost);
+      for(const song of checked)appendSong(song,true);
     }
     heading('ALL ALBUMS · CHECK AN ALBUM TO ADD EVERY SONG');
     for(const album of albums){
