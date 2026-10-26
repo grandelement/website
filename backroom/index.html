@@ -797,7 +797,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
 
-  <details class="brSourceSubOptions"><summary>LEGACY GATE</summary><p class="brAccessNotice" id="brAccessLegacyNotice">LOVE is an older Radio Gate password, not a Vault-issued access code.</p></details>
+  <p class="brAccessNotice" id="brAccessLegacyNotice">The historic LOVE Radio Gate code is migrated into the same GE Vault access-code list. Select it to suspend, revoke, or replace it. A replacement must be issued before you retire LOVE.</p>
   <details class="brSourceDetails">
     <summary>MANAGE CODES</summary>
     <div class="brAccessSecondary">
@@ -812,6 +812,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessToggle">SUSPEND</button>
       <button type="button" id="brAccessRevoke">REVOKE</button>
       <button type="button" id="brAccessDelete">DELETE</button>
+      <button type="button" id="brAccessReplace">REPLACE CODE</button>
       <button type="button" id="brAccessPrev" hidden>PREVIOUS</button>
       <button type="button" id="brAccessNext" hidden>NEXT</button>
     </div>
@@ -3086,9 +3087,10 @@ const backroomVaultManagers=(()=>{
     $('brAccessToggle').disabled=disabled||!!selected?.revoked;
     $('brAccessRevoke').disabled=disabled||!!selected?.revoked;
     $('brAccessDelete').disabled=disabled;
+    $('brAccessReplace').disabled=disabled;
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
-      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match. SAVE NEW creates a Vault code with this name.':'No saved Vault-issued codes. The older Radio Gate password is separate.'));
+      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match. SAVE NEW creates a Vault code with this name.':'No saved access codes. Refresh to migrate existing LOVE into Vault.'));
       return;
     }
     const wrapper=create('div','','backroomCodeEntry');
@@ -3124,8 +3126,8 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      accessStatus('VAULT CONNECTED · '+codeRows.length+' issued code'+(codeRows.length===1?'':'s')+
-        ' · master '+(codeMaster.checked?'ON':'OFF')+'. The legacy Radio Gate code is separate.');
+      accessStatus('VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
+        ' · master '+(codeMaster.checked?'ON':'OFF')+'. LOVE is managed here alongside the others.');
       return true;
     }catch(err){
       accessLoaded=false;codeRows=[];renderAccessCodes();
@@ -3206,9 +3208,37 @@ const backroomVaultManagers=(()=>{
       accessStatus('CODE '+action.toUpperCase()+' COMPLETED.');
     }catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
   }
+  function replaceSelectedCode(){
+    const old=selectedCode();
+    if(!old)return accessStatus('SELECT A SAVED CODE FIRST.');
+    if(!confirm('Prepare a replacement for "'+old.label+'"? This will NOT disable the old code until you deliberately suspend or revoke it.'))return;
+    showCodeEditor();
+    // Copy every existing entitlement into a NEW Vault code without copying
+    // the old secret; this is a deliberate new issue, never an edit to an
+    // existing hashed code.
+    $('brAccessLabel').value='Replacement for '+old.label;
+    $('brAccessCustomCode').value='';
+    $('brAccessCustomCode').disabled=false;
+    scopeBoxes().forEach(box=>box.checked=(old.scopes||[]).includes(box.value));
+    $('brAccessMode').value=old.duration_mode||'none';
+    $('brAccessHours').value=old.duration_seconds?
+      Math.max(1,Math.round(old.duration_seconds/3600)):168;
+    $('brAccessFixed').value='';
+    if(old.duration_mode==='fixed'){
+      $('brAccessMode').value='first_use';
+      $('brAccessHours').value=168;
+    }
+    $('brAccessMaxUses').value=old.max_uses||0;
+    $('brAccessStartNow').checked=true;
+    assignedSongPaths=[...(old.track_paths||[])];
+    accessSelectedPlaylistIds=new Set(old.playlist_ids||[]);
+    $('brAccessMusicCategory').open=assignedSongPaths.length>0;
+    accessSongOptions();assignedSongsUI();accessModeUI();
+    accessStatus('REPLACEMENT DRAFT · Choose a new 12+ character code (or generate one), then SAVE NEW. Test it before suspending '+old.label+'.');
+  }
   async function toggleMaster(){
     const desired=codeMaster.checked;
-    if(!desired&&!confirm('Disable ALL access codes? The existing public Radio Gate operates independently.')){
+    if(!desired&&!confirm('Disable ALL access codes including LOVE and Radio Gate entry?')){
       codeMaster.checked=true;return;
     }
     codeMaster.disabled=true;
@@ -3375,6 +3405,7 @@ const backroomVaultManagers=(()=>{
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
       $('brAccessRevoke').addEventListener('click',()=>void codeAction('revoke'));
       $('brAccessDelete').addEventListener('click',()=>void codeAction('delete'));
+      $('brAccessReplace').addEventListener('click',replaceSelectedCode);
       $('brAccessPlaylist').addEventListener('change',()=>{
         const id=$('brAccessPlaylist').value;
         if(!id)return;
