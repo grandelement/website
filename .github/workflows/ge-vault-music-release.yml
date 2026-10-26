@@ -1,0 +1,71 @@
+name: GE Music Access — verify and deploy Vault
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'tests/access-music-session.test.mjs'
+      - '.github/workflows/ge-vault-music-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ge-studios-workers-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify scoped access-code security
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test real Vault Worker handler with mocked D1
+        run: node --experimental-default-type=module tests/access-music-session.test.mjs
+  release:
+    name: Deploy tested Vault Worker
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure existing Cloudflare deployment credentials are configured
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Cloudflare API token missing"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Cloudflare Account ID missing"; exit 1; }
+      - name: Deploy current GE Studios Vault Worker without changing D1 or secrets
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: vault-worker
+          command: deploy
+      - name: Verify Music session route is reachable without consuming a code
+        run: |
+          python3 - <<'PY'
+          import json,time,urllib.request,urllib.error
+          url='https://vault.grandelement.com/v1/public/access/music-session'
+          req=urllib.request.Request(url,method='POST',headers={'Content-Type':'application/json','Origin':'https://grandelement.com'},data=b'{"action":"verify","token":"","track_path":""}')
+          for attempt in range(7):
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as resp:
+                      status=resp.status;body=json.load(resp)
+              except urllib.error.HTTPError as err:
+                  status=err.code
+                  try: body=json.load(err)
+                  except (ValueError,UnicodeDecodeError): body={}
+              except (urllib.error.URLError,TimeoutError) as err:
+                  status=0;body={};print('Connection retry',attempt,str(err)[:140])
+              if status==403 and body.get('ok') is False and 'Music session' in str(body.get('error','')):
+                  print('PASS: live private Music-session route exists, rejects missing token with 403, preserves code usage.')
+                  break
+              if attempt==6:
+                  raise SystemExit(f'Vault music-session route not confirmed: HTTP {status}: {str(body)[:250]}')
+              time.sleep(4)
+          PY
