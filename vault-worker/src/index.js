@@ -2227,6 +2227,63 @@ async function accessRedeem(request,env){
   return json({ok:true,scope,scopes,expires_at:expires||null,uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null});
 }
 
+/**
+ * Idempotent access-code schema repair against the existing VAULT_DB binding.
+ * Matches migrations/20261021_access_codes.sql. No DROP, DELETE, TRUNCATE,
+ * REPLACE or writes to any non-access-code table.
+ */
+async function ensureAccessCodeTables(env) {
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS access_code_policy (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL
+    )`,
+    "INSERT OR IGNORE INTO access_code_policy (id,enabled,updated_at) VALUES (1,1,0)",
+    `CREATE TABLE IF NOT EXISTS access_codes (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      code_hash TEXT NOT NULL UNIQUE,
+      code_hint TEXT NOT NULL,
+      scopes_json TEXT NOT NULL,
+      duration_mode TEXT NOT NULL CHECK (duration_mode IN ('activation','first_use','fixed','none')),
+      duration_seconds INTEGER NOT NULL DEFAULT 0,
+      fixed_expires_at INTEGER,
+      expires_at INTEGER,
+      activated_at INTEGER,
+      first_used_at INTEGER,
+      max_uses INTEGER NOT NULL DEFAULT 0,
+      use_count INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      revoked_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`,
+    "CREATE INDEX IF NOT EXISTS idx_access_codes_created ON access_codes(created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_access_codes_hash ON access_codes(code_hash)",
+    `CREATE TABLE IF NOT EXISTS access_code_content (
+      code_id TEXT PRIMARY KEY,
+      playlist_ids_json TEXT NOT NULL DEFAULT '[]',
+      track_paths_json TEXT NOT NULL DEFAULT '[]',
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS access_code_deletions (
+      code_id TEXT PRIMARY KEY,
+      deleted_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`
+  ];
+  for (const sql of statements) await env.VAULT_DB.prepare(sql).run();
+}
+
+async function verifyAccessCodeTables(env) {
+  await env.VAULT_DB.prepare("SELECT id FROM access_codes LIMIT 1").first();
+  await env.VAULT_DB.prepare("SELECT id FROM access_code_policy LIMIT 1").first();
+  await env.VAULT_DB.prepare("SELECT code_id FROM access_code_content LIMIT 1").first();
+  await env.VAULT_DB.prepare("SELECT code_id FROM access_code_deletions LIMIT 1").first();
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -2261,9 +2318,17 @@ export default {
         }
         let accessCodesReady = true;
         try {
-          await env.VAULT_DB.prepare("SELECT id FROM access_codes LIMIT 1").first();
+          await verifyAccessCodeTables(env);
         } catch (_error) {
-          accessCodesReady = false;
+          try {
+            // One-time additive repair using the existing, authorized D1 Worker
+            // binding when the deployment API token has no D1-import permission.
+            await ensureAccessCodeTables(env);
+            await verifyAccessCodeTables(env);
+          } catch (repairError) {
+            console.error("GE access-code schema repair failure", String(repairError?.name || "Error"));
+            accessCodesReady = false;
+          }
         }
         return json({
           ok: true, service: "GE Studios Vault", storage: "READY",
