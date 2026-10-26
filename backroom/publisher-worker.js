@@ -252,8 +252,14 @@ async function deletePreset(env,id){
 /* Owner-only GE Vault bridge. The Vault admin token never reaches the browser.
    No code/playlist record is written to public GitHub or site-live.json. */
 async function geVaultBridge(env,path,method='GET',body=null){
-  const secret=String(env.VAULT_ADMIN_TOKEN||'').trim();
-  if(!secret)return {status:503,data:{ok:false,error:'GE Vault connection is not configured on the Back Room publisher.'}};
+  // Access Codes have a dedicated least-privilege bridge secret. Legacy
+  // admin fallback exists for publishers that were configured previously.
+  // GitHub remains the exclusive GE playlist master.
+  const accessPath=path==='/v1/admin/access-codes';
+  const secret=String((accessPath&&env.VAULT_ACCESS_CODES_TOKEN)||env.VAULT_ADMIN_TOKEN||'').trim();
+  if(!secret)return {status:503,data:{ok:false,error:accessPath?
+    'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
+    'GE Vault connection is not configured on the Back Room publisher.'}};
   const url='https://vault.grandelement.com'+path;
   const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'error'};
   if(body!==null)init.body=JSON.stringify(body);
@@ -436,7 +442,8 @@ export default {
     const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&(appReady||env.GITHUB_TOKEN));
 
     if(url.pathname==='/health'&&request.method==='GET'){
-      return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true},200,cors);
+      return json({ok:true,configured,playlist_storage:'GITHUB',github_playlists_endpoint:true,
+        access_codes_bridge_configured:!!(env.VAULT_ACCESS_CODES_TOKEN||env.VAULT_ADMIN_TOKEN)},200,cors);
     }
     if(!configured)return json({ok:false,error:'Publisher secrets are not configured.'},503,cors);
 
