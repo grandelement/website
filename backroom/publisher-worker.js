@@ -179,6 +179,38 @@ async function publishLive(env,cfg){
 }
 
 
+// The short legacy LOVE Radio Gate credential predates Vault. Its admission
+// switch is a LIVE website setting, not a fabricated Vault access-code record.
+// Reads and writes preserve every other website setting and playlist.
+async function legacyLoveSettings(env,requested){
+  const branch=env.GITHUB_BRANCH||'main';
+  const path='config/site-live.json';
+  const response=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+  if(!response.ok)throw new Error('Cannot read the current live Radio Gate setting ('+response.status+').');
+  const file=await response.json();
+  const current=JSON.parse(decodeGithubText(file.content||''));
+  if(!validConfig(current))throw new Error('Live website configuration is invalid. Nothing was changed.');
+  const existing=current.access?.legacyLoveEnabled!==false;
+  if(typeof requested!=='boolean')return {enabled:existing,source:'GITHUB_LIVE'};
+  if(requested===existing)return {enabled:existing,unchanged:true,source:'GITHUB_LIVE'};
+  current.access={...(current.access||{}),legacyLoveEnabled:requested};
+  current.publishedAt=new Date().toISOString();
+  const body=JSON.stringify(current,null,2)+'\n';
+  if(body.length>250000)throw new Error('Website config too large; LOVE setting not updated.');
+  const update=await github(env,path,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      message:(requested?'Enable':'Disable')+' legacy LOVE Radio Gate admission from Back Room',
+      content:utf8B64(body),sha:file.sha,branch
+    })
+  });
+  const result=await update.json().catch(()=>({}));
+  if(!update.ok)throw new Error('Could not commit the LOVE Gate setting ('+update.status+'). Nothing changed.');
+  if(!result?.commit?.sha)throw new Error('GitHub did not confirm the LOVE Gate setting commit.');
+  return {enabled:requested,commit:result.commit.sha,source:'GITHUB_LIVE'};
+}
+
+
 function decodeGithubText(content){
   const raw=atob(String(content||'').replace(/\s/g,''));
   const bytes=new Uint8Array(raw.length);
@@ -497,6 +529,24 @@ export default {
       }
     }
 
+
+    if(url.pathname==='/manage/legacy-love'&&['GET','POST'].includes(request.method)){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Sign in to the Back Room to manage the legacy Radio Gate.'},401,cors);
+      try{
+        let enabled;
+        if(request.method==='POST'){
+          const body=await request.json().catch(()=>null);
+          if(!body||typeof body.enabled!=='boolean')
+            return json({ok:false,error:'Choose whether LOVE should accept new Radio Gate entries.'},400,cors);
+          enabled=body.enabled;
+        }
+        const result=await legacyLoveSettings(env,enabled);
+        return json({ok:true,name:'LOVE',kind:'LEGACY_RADIO_GATE',...result},200,cors);
+      }catch(error){
+        return json({ok:false,error:String(error.message||error)},502,cors);
+      }
+    }
 
     if(url.pathname==='/manage/github-playlists'&&['GET','POST'].includes(request.method)){
       return handleGithubPlaylists(request,env,cors);
