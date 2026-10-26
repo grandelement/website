@@ -10,6 +10,8 @@ on:
       - 'backroom/publisher-worker.js'
       - 'radio/index.html'
       - 'tests/legacy-love-vault.test.mjs'
+      - 'tests/private-vault-binding.test.mjs'
+      - 'backroom/wrangler.toml'
   workflow_dispatch:
 
 permissions:
@@ -30,6 +32,8 @@ jobs:
         run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
       - name: Verify scoped Music code security is unaffected
         run: node --experimental-default-type=module tests/access-music-session.test.mjs
+      - name: Verify private Worker service binding bypasses public Vault edge and loads LOVE
+        run: node --experimental-default-type=module tests/private-vault-binding.test.mjs
   deploy:
     name: Deploy existing Vault and Back Room Workers
     needs: test
@@ -54,4 +58,5 @@ jobs:
           set -euo pipefail
           wrangler deploy --config vault-worker/wrangler.jsonc
           wrangler deploy --config backroom/wrangler.toml
+          echo "Deployed publisher with private GE_VAULT service binding to ge-studios-vault."
           echo "Workers uploaded. Real owner/browser redemption still requires validation."
