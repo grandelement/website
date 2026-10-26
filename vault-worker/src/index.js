@@ -2192,6 +2192,10 @@ async function accessRedeem(request,env){
   const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
   if(policy?.enabled===0)return json({ok:false,error:"Access codes are disabled."},403);
   const body=await readBody(request);
+  // Backwards-compatible first use: migrate the historic LOVE code into the
+  // same D1 table BEFORE checking it, without requiring an owner to sign in
+  // first. The migration never revives a revoked/suspended/deleted code.
+  if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
   const hash=await accessCodeHash(body.code,env);
   if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
   const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
