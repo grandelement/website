@@ -1,0 +1,50 @@
+name: GE Back Room — private Vault connection repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-backroom-private-vault-link.yml'
+      - 'backroom/wrangler.toml'
+      - 'backroom/publisher-worker.js'
+      - 'tests/private-vault-binding.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Independent of older full Vault releases; this deploys only the already
+# existing Back Room Publisher Worker and never changes D1 data or Vault secrets.
+concurrency:
+  group: ge-backroom-private-vault-link
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify private service binding, owner authentication, and LOVE listing
+        run: node --experimental-default-type=module tests/private-vault-binding.test.mjs
+      - name: Check Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID missing"; exit 1; }
+      - name: Deploy only existing Back Room Publisher with private Vault service binding
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          workingDirectory: backroom
+          command: deploy
+      - name: Confirm deployment target
+        run: |
+          echo "Publisher: ge-backroom-publisher"
+          echo "Private service binding: GE_VAULT -> ge-studios-vault"
+          echo "Access code database, original LOVE record and master playlists unchanged by this deployment."
+          echo "Owner Safari test: Back Room -> Access Codes -> Refresh; or public Publisher /health readiness flags."
