@@ -1,0 +1,76 @@
+name: GE Access Codes — restore missing D1 tables
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-access-codes-d1-migration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ge-studios-d1-access-code-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply additive Access Codes D1 schema on existing Vault
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Access Codes SQL against an existing SQLite database twice
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          db=sqlite3.connect(':memory:')
+          script=open('vault-worker/migrations/20261021_access_codes.sql').read()
+          db.execute('CREATE TABLE IF NOT EXISTS existing_fan_record (id TEXT PRIMARY KEY, note TEXT)')
+          db.execute("INSERT INTO existing_fan_record VALUES ('preserve','do-not-change')")
+          for _ in range(2):
+              db.executescript(script)
+          tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+          assert {'access_code_policy','access_codes','access_code_content','access_code_deletions'}.issubset(tables)
+          assert db.execute("SELECT note FROM existing_fan_record WHERE id='preserve'").fetchone()[0]=='do-not-change'
+          assert db.execute("SELECT enabled FROM access_code_policy WHERE id=1").fetchone()[0]==1
+          print('PASS: idempotent Access Codes migration preserves prior data.')
+          PY
+      - name: Ensure existing Cloudflare credentials exist
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Missing Cloudflare API token"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Missing Cloudflare Account ID"; exit 1; }
+      - name: Install current Wrangler v4
+        run: npm install -g wrangler@4
+      - name: Inspect production D1 table names only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler d1 execute ge-studios-vault --remote --config vault-worker/wrangler.jsonc \
+            --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('access_code_policy','access_codes','access_code_content','access_code_deletions') ORDER BY name;"
+      - name: Apply only additive Access Codes migration to existing production D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          # No DROP/DELETE/UPDATE statements and no new database.
+          wrangler d1 execute ge-studios-vault --remote --config vault-worker/wrangler.jsonc \
+            --file vault-worker/migrations/20261021_access_codes.sql
+      - name: Verify all four production Access Codes tables and master policy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler d1 execute ge-studios-vault --remote --config vault-worker/wrangler.jsonc \
+            --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('access_code_policy','access_codes','access_code_content','access_code_deletions') ORDER BY name;"
+          wrangler d1 execute ge-studios-vault --remote --config vault-worker/wrangler.jsonc \
+            --command "SELECT enabled FROM access_code_policy WHERE id=1;"
+          echo "Production Access Codes D1 migration executed; no fan records, secret values, or access-code hashes displayed."
