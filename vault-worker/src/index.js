@@ -1923,8 +1923,7 @@ async function adminExport(env) {
 }
 
 
-/* Owner-issued access codes live in D1, not in public site settings or browsers.
-   The existing Radio Gate is deliberately NOT modified by this service. */
+/* All Radio Gate codes live in D1, including migrated legacy LOVE. */
 const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games"]);
 function accessNormalizeCode(raw) {
   // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
@@ -1935,7 +1934,8 @@ async function accessCodeHash(raw, env) {
   const code = accessNormalizeCode(raw);
   // The original 32-hex codes remain valid; owner-chosen alphanumeric codes
   // use the same keyed HMAC and require a longer minimum for online safety.
-  if (!/^[A-Z0-9]{12,64}$/.test(code)) return null;
+  // Existing short LOVE is the sole exception; newly issued codes require 12–64 characters.
+  if (code !== "LOVE" && !/^[A-Z0-9]{12,64}$/.test(code)) return null;
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
 }
@@ -1966,8 +1966,29 @@ function accessPublicRow(row) {
     playlist_ids:JSON.parse(row.playlist_ids_json||"[]"),track_paths:JSON.parse(row.track_paths_json||"[]")
   };
 }
+// One-time migration on authenticated owner code-list request. An existing,
+// suspended, revoked or deleted record is never recreated.
+async function ensureLegacyLoveRecord(env){
+  const hash=await accessCodeHash("LOVE",env);
+  const existing=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
+  if(existing)return {id:existing.id,created:false};
+  const t=now(),codeId="access_legacy_love_v1";
+  await env.VAULT_DB.batch([
+    env.VAULT_DB.prepare(
+      "INSERT OR IGNORE INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    ).bind(codeId,"LOVE · Original Radio Gate",hash,"LOVE",JSON.stringify(["radio"]),"none",0,null,null,t,0,0,1,null,t,t),
+    env.VAULT_DB.prepare(
+      "INSERT OR IGNORE INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)"
+    ).bind(codeId,"[]","[]",t)
+  ]);
+  await audit(env,"system","access.legacy-love-migrate","access_code",codeId,{
+    source:"original_radio_gate",scope:"radio",short_legacy_code:true
+  });
+  return {id:codeId,created:true};
+}
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  await ensureLegacyLoveRecord(env);
   const [policy,rows]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
     env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all()
