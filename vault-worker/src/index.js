@@ -56,6 +56,16 @@ function adminAuthorized(request, env) {
   return !!expected && !!token && constantTimeEqual(token, expected);
 }
 
+// Private Back Room bridge credential: accepts only the access-code admin
+// endpoints. It cannot authorize Vault analytics, users, playlists, ingest or
+// other general administrator operations. Existing Vault admin token still works.
+function accessCodesAuthorized(request,env){
+  if(adminAuthorized(request,env))return true;
+  const auth=String(request.headers.get("authorization")||"").trim();
+  const token=auth.toLowerCase().startsWith("bearer ")?auth.slice(7).trim():"";
+  const expected=String(env.VAULT_ACCESS_CODES_TOKEN||"").trim();
+  return !!token&&!!expected&&constantTimeEqual(token,expected);
+}
 function ingestAuthorized(request, env) {
   return constantTimeEqual(
     String(request.headers.get("x-ge-vault-key") || "").trim(),
@@ -1957,7 +1967,7 @@ function accessPublicRow(row) {
   };
 }
 async function accessAdminGet(request, env) {
-  if (!adminAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   const [policy,rows]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
     env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all()
@@ -1965,7 +1975,7 @@ async function accessAdminGet(request, env) {
   return json({ok:true,master_enabled:policy?.enabled!==0,items:(rows.results||[]).map(accessPublicRow)});
 }
 async function accessAdminChange(request,env){
-  if (!adminAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
+  if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   const body=await readBody(request), action=String(body.action||"");
   const t=now();
   if(action==="master"){
