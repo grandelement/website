@@ -2106,7 +2106,7 @@ async function accessMusicSession(request,env){
     sessionExpires=Number(until);
     if(sessionExpires<=t||sessionExpires>t+3600)
       return json({ok:false,error:"Music session expired."},403);
-    const expected=await hmacHex("ge-music-session-v1:"+codeId+":"+until+":"+nonce,env.VAULT_HASH_KEY);
+    const expected=await hmacHex("ge-music-session-v1:"+codeId+"."+until+"."+nonce,env.VAULT_HASH_KEY);
     if(!constantTimeEqual(sig,expected))
       return json({ok:false,error:"Music session invalid."},403);
     row=await env.VAULT_DB.prepare(query+" WHERE a.id=?").bind(codeId).first();
