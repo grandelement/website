@@ -59,8 +59,13 @@ jobs:
                       status=resp.status;body=json.load(resp)
               except urllib.error.HTTPError as err:
                   status=err.code
-                  try: body=json.load(err)
+                  content=err.read(500)
+                  try: body=json.loads(content.decode('utf-8','replace'))
                   except (ValueError,UnicodeDecodeError): body={}
+                  if not body:
+                      safe={k:err.headers.get(k,'') for k in ('Server','Content-Type','CF-RAY','WWW-Authenticate','Location')}
+                      print('Non-JSON response headers:',safe)
+                      print('Non-JSON response start:',content.decode('utf-8','replace')[:220])
               except (urllib.error.URLError,TimeoutError) as err:
                   status=0;body={};print('Connection retry',attempt,str(err)[:140])
               if status==403 and body.get('ok') is False and 'Music session' in str(body.get('error','')):
