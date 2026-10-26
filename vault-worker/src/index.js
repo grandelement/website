@@ -2079,6 +2079,84 @@ async function accessAdminChange(request,env){
   }
   return json({ok:false,error:"Unknown access-code action."},400);
 }
+// Dedicated MUSIC code sessions use the existing secure code records and D1.
+// Redeeming consumes one allowed use. Subsequent track verifications do not
+// increment uses. Suspension/revocation are checked on every verification.
+// This DOES NOT turn Radio 1/2 into personalized broadcasts.
+async function accessMusicSession(request,env){
+  const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
+  if(policy?.enabled===0)return json({ok:false,error:"Access codes are disabled."},403);
+  const body=await readBody(request),action=String(body.action||"redeem"),t=now();
+  const query=String.raw`SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,
+   COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at
+   FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id
+   LEFT JOIN access_code_deletions d ON d.code_id=a.id`;
+  let row,sessionExpires=0;
+  if(action==="redeem"){
+    const hash=await accessCodeHash(body.code,env);
+    if(!hash)return json({ok:false,error:"Invalid Music code."},403);
+    row=await env.VAULT_DB.prepare(query+" WHERE a.code_hash=?").bind(hash).first();
+  }else if(action==="verify"){
+    const token=String(body.token||""),parts=token.split(".");
+    if(parts.length!==4||!/^access_[0-9a-f-]{36}$/.test(parts[0])||
+       !/^[0-9]{10}$/.test(parts[1])||!/^[0-9a-f]{32}$/.test(parts[2])||
+       !/^[0-9a-f]{64}$/.test(parts[3]))
+      return json({ok:false,error:"Music session invalid."},403);
+    const [codeId,until,nonce,sig]=parts;
+    sessionExpires=Number(until);
+    if(sessionExpires<=t||sessionExpires>t+3600)
+      return json({ok:false,error:"Music session expired."},403);
+    const expected=await hmacHex("ge-music-session-v1:"+codeId+":"+until+":"+nonce,env.VAULT_HASH_KEY);
+    if(!constantTimeEqual(sig,expected))
+      return json({ok:false,error:"Music session invalid."},403);
+    row=await env.VAULT_DB.prepare(query+" WHERE a.id=?").bind(codeId).first();
+  }else return json({ok:false,error:"Unknown Music session action."},400);
+  if(!row||!row.enabled||row.revoked_at||row.deleted_at)
+    return json({ok:false,error:"Music access code inactive."},403);
+  const scopes=JSON.parse(row.scopes_json||"[]");
+  if(!scopes.some(scope=>["music","albums","website"].includes(scope)))
+    return json({ok:false,error:"This code does not permit Music."},403);
+  const playlistIds=JSON.parse(row.playlist_ids_json||"[]");
+  const allowedPaths=[...new Set(JSON.parse(row.track_paths_json||"[]"))];
+  // The old D1 playlist IDs are NOT the new GitHub IDs. Disallow mutable
+  // playlist-only grants until explicitly converted to track paths by owner.
+  if(playlistIds.length&&!allowedPaths.length)
+    return json({ok:false,error:"Owner must update the song assignments for this code."},403);
+  const expires=row.expires_at||null;
+  if(expires&&Number(expires)<=t)
+    return json({ok:false,error:"Music code expired."},403);
+  if(action==="verify"){
+    if(expires&&sessionExpires>Number(expires))
+      return json({ok:false,error:"Music session expired."},403);
+    const track=String(body.track_path||"");
+    if(!/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg|flac)$/i.test(track)||track.includes(".."))
+      return json({ok:false,error:"Invalid song path."},400);
+    if(allowedPaths.length&&!allowedPaths.includes(track))
+      return json({ok:false,error:"This code does not include that song."},403);
+    return json({ok:true,authorized:true,track_path:track,session_expires_at:sessionExpires});
+  }
+  if(row.max_uses>0&&row.use_count>=row.max_uses)
+    return json({ok:false,error:"Code usage limit reached."},403);
+  const newExpires=row.duration_mode==="first_use"?
+    (expires||t+Number(row.duration_seconds)):expires;
+  if(newExpires&&Number(newExpires)<=t)
+    return json({ok:false,error:"Music code expired."},403);
+  const update=await env.VAULT_DB.prepare(
+    "UPDATE access_codes SET use_count=use_count+1,first_used_at=COALESCE(first_used_at,?),expires_at=COALESCE(expires_at,?),updated_at=? WHERE id=? AND enabled=1 AND revoked_at IS NULL AND (max_uses=0 OR use_count<max_uses) AND (expires_at IS NULL OR expires_at>?)"
+  ).bind(t,newExpires,t,row.id,t).run();
+  if(!update.meta?.changes)return json({ok:false,error:"Music code no longer active."},403);
+  sessionExpires=Math.min(t+3600,Number(newExpires||t+3600));
+  const random=crypto.getRandomValues(new Uint8Array(16));
+  const nonce=Array.from(random,b=>b.toString(16).padStart(2,"0")).join("");
+  const unsigned=row.id+"."+sessionExpires+"."+nonce;
+  const sig=await hmacHex("ge-music-session-v1:"+unsigned,env.VAULT_HASH_KEY);
+  await audit(env,"public","access.music-session","access_code",row.id,{
+    restricted:allowedPaths.length>0,track_count:allowedPaths.length
+  });
+  return json({ok:true,token:unsigned+"."+sig,session_expires_at:sessionExpires,
+    restricted:allowedPaths.length>0,allowed_tracks:allowedPaths});
+}
+
 async function accessRedeem(request,env){
   const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
   if(policy?.enabled===0)return json({ok:false,error:"Access codes are disabled."},403);
@@ -2158,6 +2236,11 @@ export default {
         }, 200, cors);
       }
 
+      if (url.pathname === "/v1/public/access/music-session" && request.method === "POST") {
+        const response=await accessMusicSession(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
       if (url.pathname === "/v1/public/access/redeem" && request.method === "POST") {
         const response=await accessRedeem(request,env);
         Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
