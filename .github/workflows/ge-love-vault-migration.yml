@@ -1,0 +1,57 @@
+name: GE LOVE — consolidate Radio Gate in Vault
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-love-vault-migration.yml'
+      - 'vault-worker/src/index.js'
+      - 'backroom/index.html'
+      - 'backroom/publisher-worker.js'
+      - 'radio/index.html'
+      - 'tests/legacy-love-vault.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ge-studios-workers-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Verify LOVE migration, revocation and security
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test LOVE migration with the real Vault route and mocked D1
+        run: node --experimental-default-type=module tests/legacy-love-vault.test.mjs
+      - name: Verify scoped Music code security is unaffected
+        run: node --experimental-default-type=module tests/access-music-session.test.mjs
+  deploy:
+    name: Deploy existing Vault and Back Room Workers
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require Cloudflare deployment credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Cloudflare deployment token missing"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Cloudflare account ID missing"; exit 1; }
+      - name: Install Wrangler v4
+        run: npm install -g wrangler@4
+      - name: Deploy Vault then Back Room publisher, preserving existing D1 and secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler deploy --config vault-worker/wrangler.jsonc
+          wrangler deploy --config backroom/wrangler.toml
+          echo "Workers uploaded. Real owner/browser redemption still requires validation."
