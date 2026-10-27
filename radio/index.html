@@ -10161,8 +10161,16 @@ Vector ${vector}. ${pair[1]}.`;
         }
         // A Radio-only session is not an owner account, a paid entitlement,
         // a DJ permission, or a right to offline downloads.
-        try{sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));}
-        catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
+        try{
+          sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));
+          // Share *scoped*, temporary Vault validation with the homepage Gate.
+          // This contains no secret code and grants no owner, DJ or offline rights.
+          const grantedScopes=Array.isArray(result.scopes)
+            ?result.scopes.filter(scope=>['website','radio','music','albums','games'].includes(scope)):[];
+          sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+            scopes:grantedScopes,until:validUntil,verifiedFor:'radio'
+          }));
+        }catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
       }catch(_e){
         if(status)status.textContent='GE Vault cannot be reached. Try the code again online.';
         return;
