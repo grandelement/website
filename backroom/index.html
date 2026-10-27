@@ -2992,7 +2992,7 @@ const backroomVaultManagers=(()=>{
       return;
     }
     $('brAccessPlaylistNotice').textContent='GITHUB CONNECTED · '+source.length+
-      ' SAVED GE PLAYLIST'+(source.length===1?'':'S')+' · Check one or more, then LOAD.';
+      ' SAVED GE PLAYLIST'+(source.length===1?'':'S')+' · Check playlists, then SAVE the access code. Songs are included automatically.';
     if(!source.length){
       host.appendChild(create('p','No GE playlists saved yet. Create one in MUSIC first.','sub'));
       return;
@@ -3245,6 +3245,28 @@ const backroomVaultManagers=(()=>{
       return false;
     }
   }
+  function selectedAccessAssignments(){
+    const selected=[...accessSelectedPlaylistIds];
+    const previous=[...appliedPlaylistIds];
+    const changed=selected.length!==previous.length||
+      selected.some(id=>!appliedPlaylistIds.has(id));
+    if(!changed)return {playlist_ids:previous,track_paths:assignedSongPaths.slice()};
+    if(!playlistLoaded)throw Error('Refresh GE playlists before saving changed playlist selections.');
+    const source=playlists.filter(p=>selected.includes(p.id));
+    if(source.length!==selected.length)throw Error('A checked playlist is no longer saved in GitHub. Refresh playlists.');
+    // Preserve individually checked songs, but remove paths provided ONLY by
+    // old playlist choices. A new selection always snapshots exact tracks.
+    const oldPlaylistSongs=new Set(playlists.filter(p=>appliedPlaylistIds.has(p.id))
+      .flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean)));
+    const manual=assignedSongPaths.filter(path=>!oldPlaylistSongs.has(path));
+    const chosen=source.flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean));
+    if(selected.length&&!chosen.length)throw Error('Selected playlists have no songs to assign.');
+    const paths=[...new Set([...manual,...chosen])];
+    if(paths.length>250)throw Error('Access Codes can grant at most 250 selected songs.');
+    const missing=chosen.filter(path=>!catalog.some(t=>t.track_path===path));
+    if(missing.length)throw Error('Playlist songs missing from GE catalog: '+missing.length+'. Refresh songs before saving.');
+    return {playlist_ids:selected,track_paths:paths};
+  }
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
@@ -3260,14 +3282,13 @@ const backroomVaultManagers=(()=>{
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
+    const assignments=selectedAccessAssignments();
     return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
       requested_code:$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim(),
-      // Playlist IDs preserve which GitHub playlists were selected.
-      // Actual access is restricted by the immutable song-path snapshot.
-      playlist_ids:[...appliedPlaylistIds],
-      track_paths:assignedSongPaths.slice()};
+      // Checked GitHub playlists are SNAPSHOTTED on Save, not by a second Load button.
+      playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths};
   }
   async function saveCode(isEdit){
     if(savingCode)return;
@@ -3305,6 +3326,10 @@ const backroomVaultManagers=(()=>{
         Number(saved.max_uses||0)===Number(payload.max_uses||0)&&
         saved.duration_mode===payload.duration_mode;
       if(confirmed){
+        appliedPlaylistIds=new Set(payload.playlist_ids);
+        accessSelectedPlaylistIds=new Set(payload.playlist_ids);
+        assignedSongPaths=payload.track_paths.slice();
+        accessPlaylistOptions();accessSongOptions();assignedSongsUI();
         accessStatus(isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
           'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.');
       }else{

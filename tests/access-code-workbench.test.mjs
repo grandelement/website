@@ -36,3 +36,9 @@ assert.match(html,/if\(selectedCode\(\)&&!selectedCode\(\)\.revoked\)showCodeEdi
 assert.match(radioHtml,/ACCESS KEY · NOT CODE NAME/);
 assert.match(radioHtml,/Enter the complete secret shown when issued, not its saved name/);
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
+
+assert.match(html,/function selectedAccessAssignments\(\)/);
+assert.match(html,/const assignments=selectedAccessAssignments\(\)/);
+assert.match(html,/playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths/);
+assert.match(html,/Check playlists, then SAVE the access code/);
+console.log('PASS: checked GitHub playlist songs are included when the access code is saved');
