@@ -869,7 +869,7 @@ function showAlbums(){
 }
 async function startTrack(t){
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
- if(!(await verifyMusicTrack(t)))return;
+ if(musicSession()&&!ownerPreview()&&!(await verifyMusicTrack(t)))return;
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
  if(GE_RADIO_MUSIC_EMBED){
   // Synchronous, same-origin handoff retains iPhone's Play user gesture.
@@ -913,7 +913,7 @@ function nextTrack(){
 }
 async function resume(){
  if(!currentTrack){musicNotice('Choose a song to play.');return;}
- if(!(await verifyMusicTrack(currentTrack)))return;
+ if(musicSession()&&!ownerPreview()&&!(await verifyMusicTrack(currentTrack)))return;
  if(isLocked()){renderGate();return;}
  try{if(audio.paused)await audio.play()}catch(_e){musicNotice('Tap PLAY to resume on this device.')}
 }
