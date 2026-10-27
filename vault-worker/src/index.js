@@ -2059,17 +2059,18 @@ async function ensureAccessCodeTables(env){
 }
 async function ensureLegacyLoveRecord(env){
   const hash=await accessCodeHash("LOVE",env);
-  const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json FROM access_codes WHERE code_hash=?").bind(hash).first();
+  const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json,label FROM access_codes WHERE code_hash=?").bind(hash).first();
   const allScopes=JSON.stringify([...GE_ACCESS_SCOPES]);
   if(existing){
     // Correct the original mistaken Radio-only import, but never revive or
     // replace a suspended, revoked, deleted or owner-customized record.
     if(existing.id==="access_legacy_love_v1" &&
+       existing.label==="LOVE · Original Radio Gate" &&
        existing.scopes_json===JSON.stringify(["radio"])){
       const upgraded=await env.VAULT_DB.prepare(
-        "UPDATE access_codes SET scopes_json=?,label=CASE WHEN label=? THEN ? ELSE label END,updated_at=? WHERE id=? AND code_hash=? AND scopes_json=? AND revoked_at IS NULL"
+        "UPDATE access_codes SET scopes_json=?,label=CASE WHEN label=? THEN ? ELSE label END,updated_at=? WHERE id=? AND code_hash=? AND scopes_json=? AND label=? AND revoked_at IS NULL"
       ).bind(allScopes,"LOVE · Original Radio Gate","LOVE · Original All Access",now(),
-        existing.id,hash,JSON.stringify(["radio"])).run();
+        existing.id,hash,JSON.stringify(["radio"]),"LOVE · Original Radio Gate").run();
       if(upgraded.meta?.changes)
         await audit(env,"system","access.legacy-love-all-access","access_code",existing.id,{});
     }
