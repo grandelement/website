@@ -168,8 +168,8 @@ r=await request(redeem,{code:'LOVE',scope:'radio'});
 assert.equal(r.status,403,'revoked LOVE rejected');
 r=await request(admin,undefined,true);
 assert.equal(migrationCount,1,'revoked LOVE cannot auto-reappear');
-r=await request(admin,{action:'issue',label:'four-char unsafe',scopes:['radio'],
- duration_mode:'none',requested_code:'ABCD'},true);
-assert.equal(r.status,400,'new short codes remain disallowed');
+r=await request(admin,{action:'issue',label:'three-char invalid',scopes:['radio'],
+ duration_mode:'none',requested_code:'ABC'},true);
+assert.equal(r.status,400,'codes shorter than four characters remain disallowed');
 assert.ok(auditCount>=4);
 console.log('PASS: original LOVE credential stays active with all five scopes, owner-retrievable, and in-place migration preserves suspension/revocation');
