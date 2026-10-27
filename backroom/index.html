@@ -2458,11 +2458,13 @@ const backroomVaultManagers=(()=>{
     }
     const q=search.value.trim().toLowerCase();
     const albumChoice=$('brAllSongsAlbum').value;
-    const matches=catalog.filter(song=>
+    let matches=catalog.filter(song=>
       (!albumChoice||(song.album||'Other')===albumChoice)&&
       (String(song.track_title||'')+' '+String(song.album||'')).toLowerCase().includes(q));
     const selected=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path));
     const active=new Set(selected);
+    const view=$('brMusicSongView').value;
+    if(view!=='all')matches=matches.filter(song=>active.has(String(song.track_path)));
     const allByPath=new Map(catalog.map(song=>[String(song.track_path),song]));
     const matching=new Set(matches.map(song=>song.track_path));
     const checked=selected.map(path=>allByPath.get(path)).filter(song=>song&&matching.has(song.track_path));
@@ -2578,12 +2580,12 @@ const backroomVaultManagers=(()=>{
       }else host.appendChild(label);
     };
     if(checked.length){
-      heading('IN THIS PLAYLIST · '+checked.length+' SONGS · DRAG ⠿ TO ARRANGE');
+      heading((view==='checked'?'CHECKED SONGS':'PLAYLIST ORDER')+' · '+checked.length+' SONGS · DRAG TO ARRANGE');
       host.appendChild(selectedHost);
       for(const song of checked)appendSong(song,true);
     }
-    heading('ALL ALBUMS · CHECK AN ALBUM TO ADD EVERY SONG');
-    for(const album of albums){
+    if(view==='all')heading('ALL ALBUMS · CHECK AN ALBUM TO ADD EVERY SONG');
+    if(view==='all')for(const album of albums){
       const allAlbum=catalog.filter(song=>(song.album||'Other')===album);
       const count=allAlbum.filter(song=>active.has(song.track_path)).length;
       const label=create('label','','check');
@@ -3042,8 +3044,12 @@ const backroomVaultManagers=(()=>{
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
     const album=$('brAccessAlbum').value;
+    const view=$('brAccessSongView').value;
     const found=catalog.filter(x=>(!album||(x.album||'Other')===album)&&
-      (x.track_title+' '+x.album).toLowerCase().includes(query));
+      (x.track_title+' '+x.album).toLowerCase().includes(query)&&
+      (view==='all'||assignedSongPaths.includes(x.track_path)));
+    host.hidden=view==='playlist';
+    $('brAccessOrderSection').open=view==='playlist';
     host.replaceChildren();
     const grouped=new Map();
     for(const track of found){const album=track.album||'OTHER SONGS';if(!grouped.has(album))grouped.set(album,[]);grouped.get(album).push(track);}
@@ -3067,18 +3073,65 @@ const backroomVaultManagers=(()=>{
     if(!found.length)host.appendChild(create('p','No matching songs.'));
     status('brAccessSongCount',assignedSongPaths.length+' selected');
   }
+  async function saveAccessSelectionAsPlaylist(){
+    const name=$('brAccessNewPlaylistName').value.trim();
+    if(!name)return accessStatus('NAME THE NEW PLAYLIST FIRST.');
+    if(!assignedSongPaths.length)return accessStatus('CHECK SONGS BEFORE SAVING A PLAYLIST.');
+    if(!playlistLoaded)return accessStatus('GITHUB PLAYLISTS NOT CONNECTED. REFRESH FIRST.');
+    if(playlists.some(p=>p.name.trim().toLowerCase()===name.toLowerCase()))
+      return accessStatus('PLAYLIST NAME EXISTS. PICK A DIFFERENT NAME; EXISTING PLAYLISTS WILL NOT BE OVERWRITTEN.');
+    if(!authReady())return accessStatus('SIGN IN TO SAVE TO GITHUB.');
+    const entry={id:'',name,tracks:assignedSongPaths.map(path=>{
+      const song=catalog.find(x=>x.track_path===path)||parseTrack(path);
+      return {track_path:path,track_title:song.track_title,album:song.album||''};
+    }),public:false,active:false,locked:false};
+    const button=$('brAccessSaveAsPlaylist');button.disabled=true;
+    accessStatus('SAVING ORDERED PLAYLIST TO GITHUB…');
+    try{
+      const result=await githubPlaylistAction({action:'save',playlist:entry});
+      if(!result.commit_sha||!result.id)throw Error('GitHub did not confirm a playlist commit.');
+      if(!await refreshPlaylists())throw Error('Playlist committed, but read-back failed: '+result.commit_sha);
+      const saved=playlists.find(p=>p.id===result.id);
+      const correct=saved?.name===name&&
+        JSON.stringify((saved.tracks||[]).map(x=>x.track_path))===
+        JSON.stringify(entry.tracks.map(x=>x.track_path));
+      if(!correct)throw Error('Playlist was committed but the ordered songs could not be verified.');
+      $('brAccessNewPlaylistName').value='';
+      accessStatus('SAVED AND VERIFIED · '+name+' · '+entry.tracks.length+' SONGS · GITHUB COMMIT '+result.commit_sha.slice(0,12)+'. Access-code edits still require SAVE.');
+    }catch(error){accessStatus('PLAYLIST SAVE UNVERIFIED · '+String(error.message||error));}
+    finally{button.disabled=false;}
+  }
   function accessSongTitle(path){
     const match=catalog.find(x=>x.track_path===path);
     return match?(match.track_title+(match.album?' · '+match.album:'')):parseTrack(path).track_title;
   }
+  // Ordered-song rows are the access-code playlist, not a second independent playlist store.
   function assignedSongsUI(){
     const host=$('brAccessSongs');host.replaceChildren();
-    if(!assignedSongPaths.length){host.appendChild(create('p','No individual songs assigned.'));return;}
-    for(const path of assignedSongPaths){
+    if(!assignedSongPaths.length){host.appendChild(create('p','No songs checked yet.'));return;}
+    const move=(from,to)=>{
+      if(to<0||to>=assignedSongPaths.length||from===to)return;
+      const list=assignedSongPaths.slice(),[path]=list.splice(from,1);
+      list.splice(to,0,path);assignedSongPaths=list;
+      assignedSongsUI();accessSongOptions();
+      accessStatus('SONG ORDER UPDATED · SAVE CODE to keep this order in Vault.');
+    };
+    for(const [i,path] of assignedSongPaths.entries()){
       const row=create('div','','brAccessSongRow');
-      row.appendChild(create('span',accessSongTitle(path)));
-      row.appendChild(btn('REMOVE',()=>{assignedSongPaths=assignedSongPaths.filter(x=>x!==path);accessSongOptions();assignedSongsUI()}));
-      host.appendChild(row);
+      row.dataset.path=path;
+      row.style.cssText='display:flex;align-items:center;gap:6px;min-height:46px;border-bottom:1px solid #315776';
+      const title=create('span',(i+1)+'. '+accessSongTitle(path));
+      title.style.cssText='flex:1;min-width:0;overflow-wrap:anywhere';
+      const up=btn('↑',()=>move(i,i-1));
+      up.setAttribute('aria-label','Move '+accessSongTitle(path)+' up');up.disabled=i===0;
+      const down=btn('↓',()=>move(i,i+1));
+      down.setAttribute('aria-label','Move '+accessSongTitle(path)+' down');down.disabled=i===assignedSongPaths.length-1;
+      const remove=btn('×',()=>{
+        assignedSongPaths=assignedSongPaths.filter(x=>x!==path);
+        assignedSongsUI();accessSongOptions();
+      });
+      remove.setAttribute('aria-label','Remove '+accessSongTitle(path));
+      row.append(title,up,down,remove);host.appendChild(row);
     }
   }
   function showCodeBrowser(){
@@ -3356,7 +3409,7 @@ const backroomVaultManagers=(()=>{
       const confirmed=!!saved&&saved.label===payload.label&&
         sameSet(saved.scopes,payload.scopes)&&
         sameSet(saved.playlist_ids,payload.playlist_ids)&&
-        sameSet(saved.track_paths,payload.track_paths)&&
+        JSON.stringify(saved.track_paths||[])===JSON.stringify(payload.track_paths||[])&&
         Number(saved.max_uses||0)===Number(payload.max_uses||0)&&
         saved.duration_mode===payload.duration_mode;
       if(confirmed){
@@ -3419,11 +3472,11 @@ const backroomVaultManagers=(()=>{
     const row=selectedCode();
     if(!row||row.id!==editingCodeId)return accessStatus('LOAD THE SAVED CODE BEFORE RESETTING ITS KEY.');
     if(savingCode)return;
-    if(!confirm('Reset the ACCESS KEY for "'+row.label+'"? The old key will stop working immediately. Saved permissions, playlists and usage remain unchanged.'))return;
+    if(!confirm('Make "'+row.label+'" the actual Radio Gate code? The OLD key will stop working immediately. Permissions, playlists and use counts stay unchanged.'))return;
     savingCode=true;
     const button=$('brAccessReplaceKey');button.disabled=true;
     try{
-      const result=await vaultAction('/manage/access-codes',{action:'rotate',id:row.id});
+      const result=await vaultAction('/manage/access-codes',{action:'rotate',id:row.id,requested_code:row.label});
       if(!result?.code||result.id!==row.id)throw Error('Vault did not return the new access key.');
       // Present the key before ANY follow-up network call: once the rotation
       // commits, this is the sole copy returned by the server.
@@ -3820,6 +3873,9 @@ const backroomVaultManagers=(()=>{
         accessSelectedPlaylistIds.clear();accessPlaylistOptions();
         accessSongOptions();assignedSongsUI();
       });
+      $('brAccessSongView').addEventListener('change',()=>{accessSongOptions();assignedSongsUI();});
+      $('brMusicSongView').addEventListener('change',renderAllSongs);
+      $('brAccessSaveAsPlaylist').addEventListener('click',()=>void saveAccessSelectionAsPlaylist());
       codeMaster.addEventListener('change',()=>void toggleMaster());
       $('brAccessCopy').addEventListener('click',async()=>{
         const code=$('brAccessCodeValue').textContent||'';
