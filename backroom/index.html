@@ -821,6 +821,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
 <input id="brAllSongsSearch" type="search" placeholder="Search all songs" aria-label="Search the full music checklist" style="width:100%;min-height:43px;font-size:16px;margin:8px 0">
+<label><span>VIEW SONGS</span><select id="brMusicSongView"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="playlist">PLAYLIST ORDER</option></select></label>
 <div id="brPlaylistSongFilters" style="display:flex;align-items:center;gap:5px;margin:3px 0 9px">
   <select id="brAllSongsAlbum" aria-label="Filter songs by album" title="Choose an album to view" style="flex:1;min-width:0;min-height:34px;padding:5px;font-size:13px">
     <option value="">ALL ALBUMS</option>
@@ -876,15 +877,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </details>
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
-    <label><span>RADIO ACCESS KEY (OPTIONAL · 12–64 CHARACTERS)</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Choose a 12+ character key, or generate one"></label>
-    <p class="brAccessNotice" id="brAccessCustomHelp">Leave this blank to generate a secure code. The name above is only a label, not the access secret.</p>
-    <label><span>CODE NAME (FOR YOUR RECORDS ONLY)</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
+    <p class="brAccessNotice" id="brAccessCustomHelp">The name entered above is the actual Radio Gate code.</p>
+    <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
-      <strong>ACTUAL RADIO ACCESS KEY</strong>
+      <strong>RADIO GATE CODE</strong>
       <p id="brAccessKeyHelpText"></p>
       <div class="brAccessKeyActions">
         <button type="button" id="brAccessRevealKey">SHOW SAVED ACCESS KEY</button>
-        <button type="button" id="brAccessReplaceKey">RESET LOST KEY</button>
+        <button type="button" id="brAccessReplaceKey">MAKE NAME THE GATE CODE</button>
       </div>
     </div>
     <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
@@ -917,10 +918,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessClearSongs">CLEAR</button>
       <span id="brAccessSongCount">0 selected</span>
     </div>
+    <label><span>VIEW SONGS</span><select id="brAccessSongView"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="playlist">PLAYLIST ORDER</option></select></label>
     <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Scroll through all songs with checkboxes"></div>
-    <details class="brSourceDetails"><summary>VIEW SELECTED SONGS</summary>
+    <details class="brSourceDetails" id="brAccessOrderSection"><summary>PLAYLIST ORDER · ARRANGE SELECTED SONGS</summary>
       <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
     </details>
+    <div class="brAccessSongTools"><input id="brAccessNewPlaylistName" type="text" maxlength="100" placeholder="New playlist name" aria-label="New playlist name" style="flex:1;min-width:150px"><button type="button" id="brAccessSaveAsPlaylist">SAVE AS PLAYLIST</button></div>
     </details>
     <details class="brAccessCategory"><summary>EXPIRATION &amp; LIMITS</summary>
     <label><span>EXPIRES</span><select id="brAccessMode">
@@ -943,8 +946,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 
   <div id="brAccessOneTime" class="backroomCodeReveal" hidden>
-    <b>THIS IS THE RADIO ACCESS KEY — COPY IT NOW</b>
-    <p class="brAccessKeyInstruction">Enter the complete key below into the Radio Gate, NOT the name you gave this record. For security, it cannot be retrieved after closing this page.</p>
+    <b>THIS IS THE RADIO GATE CODE</b>
+    <p class="brAccessKeyInstruction">This is the code your guest enters. You can reveal the saved code again through your private Vault.</p>
     <output id="brAccessCodeValue"></output>
     <button type="button" id="brAccessCopy">COPY CODE</button>
   </div>
@@ -3107,7 +3110,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
-    $('brAccessCustomHelp').textContent='New codes are generated automatically unless a custom key is entered.';
+    $('brAccessCustomHelp').textContent='The name IS the Radio Gate code. Short names are easier to guess, so set appropriate permissions and use limits.';
     const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
@@ -3197,16 +3200,17 @@ const backroomVaultManagers=(()=>{
       return !q||hay.includes(q);
     });
     const sel=$('brAccessSelect');sel.replaceChildren();
-    if(selectedCodeId!=='__new__'&&!visibleCodes.some(x=>x.id===selectedCodeId))selectedCodeId=visibleCodes[0]?.id||'';
+    if(!visibleCodes.some(x=>x.id===selectedCodeId))selectedCodeId=visibleCodes[0]?.id||'';
     visibleCodes.forEach(row=>sel.appendChild(new Option(row.label,row.id)));
-    sel.appendChild(new Option('+ NEW ACCESS CODE','__new__'));
+
+    // Saved-code dropdown contains only actual saved codes; NEW is a separate action.
     if(!visibleCodes.length){
       const note=!accessLoaded?'VAULT OFFLINE — RECONNECT OR REFRESH':
         q?'NO MATCH · '+codeRows.length+' SAVED · TAP SHOW ALL':'NO CODES SAVED';
       sel.appendChild(new Option(note,''));
     }
     sel.disabled=!accessLoaded;
-    sel.value=selectedCodeId||'__new__';
+    sel.value=selectedCodeId||'';
     sel.size=1;
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
     $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':
@@ -3302,12 +3306,10 @@ const backroomVaultManagers=(()=>{
     const label=$('brAccessLabel').value.trim();
     const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
-    const requested=$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim();
-    const normalizedRequested=requested.toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
-    if(requested&&(!/^[a-zA-Z0-9-]{12,64}$/.test(requested)||
-      !/^[A-Z0-9]{12,64}$/.test(normalizedRequested))){
-      $('brAccessCustomCode').focus();
-      throw Error('Your code needs 12 to 64 letters or numbers after any GE prefix and dashes.');
+    const normalizedRequested=label.toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
+    if(!/^[A-Z0-9]{4,64}$/.test(normalizedRequested)||!/^[a-zA-Z0-9 -]{4,100}$/.test(label)){
+      $('brAccessLabel').focus();
+      throw Error('Use a code name with 4 to 64 letters or numbers. Spaces are allowed.');
     }
     if(!scopes.length){scopeBoxes()[0]?.focus();throw Error('Choose at least one permission.');}
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
@@ -3317,7 +3319,7 @@ const backroomVaultManagers=(()=>{
     return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
-      requested_code:$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim(),
+      requested_code:editingCodeId?'':label,
       // Checked GitHub playlists are SNAPSHOTTED on Save, not by a second Load button.
       playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths};
   }
@@ -3363,7 +3365,7 @@ const backroomVaultManagers=(()=>{
         assignedSongPaths=payload.track_paths.slice();
         accessPlaylistOptions();accessSongOptions();assignedSongsUI();
         accessStatus(isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
-          'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.');
+          'NAMED CODE SAVED AND VERIFIED IN VAULT · The code shown below is what guests enter.');
       }else{
         accessStatus('VAULT RESPONSE NOT VERIFIED · Stored name, scopes, playlist IDs or songs differ from the editor. Do not issue another code. Reconnect and inspect the saved record.');
       }
@@ -3541,10 +3543,10 @@ const backroomVaultManagers=(()=>{
       const accessRoot=$('brAccessSelect').closest('section[data-br-tab="access"]');
       const oldBar=accessRoot.querySelector('.brAccessTop');
       const bar=document.createElement('div');bar.className='brAccessSimpleBar';
-      const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODE';
+      const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODES';
       bar.append(selectLabel,$('brAccessSelect'));
       const nameLabel=$('brAccessLabel').closest('label');
-      nameLabel.querySelector('span').textContent='ACCESS CODE NAME';
+      nameLabel.querySelector('span').textContent='ACCESS CODE · WHAT YOUR GUEST ENTERS';
       bar.appendChild(nameLabel);
       const actions=document.createElement('div');actions.className='brAccessSimpleButtons';
       for(const [id,name] of [['brAccessNewPrimary','NEW'],['brAccessSavePrimary','SAVE'],
