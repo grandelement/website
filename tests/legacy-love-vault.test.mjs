@@ -14,7 +14,7 @@ const db={
    bind(...args){p=args;return x;},
    async first(){
     if(sql==='SELECT id FROM playlists LIMIT 1')return null;
-    if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions) LIMIT 1$/.test(sql)){
+    if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions|access_code_experience|fan_code_links) LIMIT 1$/.test(sql)){
       if(!schemaReady)throw Error('D1: no such table: access_codes');
       return null;
     }
@@ -100,7 +100,7 @@ assert.equal(r.status,401,'anonymous cannot seed or inspect code records');
 assert.equal(record,null);
 r=await request('/health');
 assert.equal(r.status,200,JSON.stringify(r.data));
-assert.equal(r.data.access_codes_ready,true,'public health confirms all four D1 tables');
+assert.equal(r.data.access_codes_ready,true,'public health confirms all required D1 access and fan-link tables');
 assert.equal(schemaBatches,1,'health safely initializes the schema exactly once');
 assert.equal(record,null,'health never creates or re-enables LOVE');
 r=await request(admin,undefined,true);
