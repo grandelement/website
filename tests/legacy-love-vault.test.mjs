@@ -19,6 +19,7 @@ const db={
       return null;
     }
     if(sql.includes('FROM access_code_policy'))return policy;
+    if(sql.includes('SELECT id,code_hash,revoked_at FROM access_codes WHERE id='))return record?.id===p[0]?{id:record.id,code_hash:record.code_hash,revoked_at:record.revoked_at}:null;
     if(sql.includes('SELECT id,scopes_json FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id,scopes_json:record.scopes_json}:null;
     if(sql.includes('SELECT id FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id}:null;
     if(sql.includes('FROM access_codes a')){
