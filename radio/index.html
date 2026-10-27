@@ -6285,20 +6285,21 @@ audio.addEventListener('pause',()=>{
   updateRadioStartupCue();
 });
 audio.addEventListener('error',()=>{
-  if(state.livePreparing){return;}
-  if(state.live){
+  // A hard media error (including BLITZ HTTP 503) is definitive evidence that
+  // this stream cannot play. Do not spend extra reconnect attempts on the
+  // same dead URL before offering the verified GE Radio 2 backup.
+  if(state.live||state.livePreparing){
     if(radio2.active){
-      setLiveStatus('RADIO 2 · audio file unavailable. Rechecking Bangers…');
+      setLiveStatus('RADIO 2 · audio file unavailable. Rechecking backup…');
       setTimeout(()=>radio2PlayCurrent(),1500);return;
     }
-    setLiveStatus('RADIO 1 · stream interrupted. Checking station…');
+    if(radio2.loading)return;
     if(document.hidden){
-      liveState.backgroundReconnectNeeded=true;
-      return;
+      liveState.backgroundReconnectNeeded=true;return;
     }
-    setStatus('RADIO stream connection interrupted. Reconnecting…');
-    setLiveStatus('RADIO • reconnecting to the station host…',true);
-    reconnectLiveStream();
+    clearLiveReconnect();clearRadioWatch();
+    radioTimedOut=true;
+    void switchToRadio2('radio1_hard_media_error');
     return;
   }
   // Never skip automatically on an error. Safari can report a transient media
@@ -8056,7 +8057,6 @@ $('reloadBtn').addEventListener('click',async()=>{
       sunLabReset?.addEventListener('click',()=>{if(!sunLabEditMode){setStatus('Choose an effect first.');return;}sunLab={...(SUN_MODE_DEFAULTS[sunLabEditMode]||SUN_LAB_DEFAULTS)};sunModeProfiles[sunLabEditMode]={...sunLab};sunEQCascadeHistory=[];saveSunModeProfiles();saveSunLab();applySunLabUI();setSunModeVisibility(sunLabEditMode);setStatus(modeLabel(sunLabEditMode)+' reset.');});
     }
   }
-  initSunLab();
   function currentDistanceKm(){return Math.max(0,Math.round(lerp(0,28000000,Math.pow(1-approach.distance,3.1))));}
   function currentPlanetZoom(){return lerp(.03,11.6,Math.pow(approach.distance,1.42));}
   function currentBackgroundZoom(){return lerp(1,1.22,Math.pow(approach.distance,1.18));}
@@ -8398,6 +8398,10 @@ Vector ${vector}. ${pair[1]}.`;
   const SUN_EQ_CASCADE_STEPS=7;
   let sunEQCascadeHistory=[];
   let sunEQCascadeTick=0;
+  // Initialize Sun Lab only AFTER the analyzer and aura variables exist.
+  // Earlier startup threw a TDZ ReferenceError on a fresh browser, aborting
+  // the rest of the Radio script (including window.GEGate).
+  initSunLab();
   function ensureEQ(container,count,barClass='ship-eq-bar'){if(!container)return;if(container.childElementCount!==count){container.innerHTML='';for(let i=0;i<count;i++){const b=document.createElement('span');b.className=barClass;container.appendChild(b);}}}
 
   // Non-invasive live analyser + Gate wet-effects bus.

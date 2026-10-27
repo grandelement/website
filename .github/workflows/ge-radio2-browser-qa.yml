@@ -27,5 +27,9 @@ jobs:
           google-chrome --version
       - name: Install browser automation client (CI only)
         run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Exercise branch radio HTML and ensure Gate boots before deployment
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-radio-static.log 2>&1 &
+          node tests/radio-gate-boot.test.mjs
       - name: Exercise live Radio click, real Radio2 track and advancing audio
         run: node tests/radio2-browser-smoke.mjs
