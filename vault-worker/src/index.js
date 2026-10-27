@@ -2174,6 +2174,29 @@ async function accessAdminChange(request,env){
     await audit(env,"admin","access.edit","access_code",codeId,{label,scopes,mode,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:codeId,action:"edit"});
   }
+  if(action==="rotate"){
+    // Owner-only. Replace a lost secret on the SAME record, preserving the
+    // stored label, scopes, playlist/song grants, counters and expiry.
+    const codeId=String(body.id||"").slice(0,100);
+    const existing=await env.VAULT_DB.prepare(
+      "SELECT * FROM access_codes WHERE id=? AND NOT EXISTS(SELECT 1 FROM access_code_deletions WHERE code_id=access_codes.id)"
+    ).bind(codeId).first();
+    if(!existing)return json({ok:false,error:"Access code not found."},404);
+    if(existing.revoked_at)return json({ok:false,error:"Revoked codes cannot be reset. Issue a new code."},409);
+    const bytes=crypto.getRandomValues(new Uint8Array(16));
+    const secret=Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+    const code="GE-"+secret.match(/.{4}/g).join("-");
+    const hash=await accessCodeHash(code,env);
+    const hint=secret.slice(-4);
+    const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
+    if(collision)return json({ok:false,error:"Could not generate a unique key. Try again."},409);
+    const updated=await env.VAULT_DB.prepare(
+      "UPDATE access_codes SET code_hash=?,code_hint=?,updated_at=? WHERE id=? AND code_hash=? AND revoked_at IS NULL"
+    ).bind(hash,hint,t,codeId,existing.code_hash).run();
+    if(!updated.meta?.changes)return json({ok:false,error:"Code changed during reset. Refresh before retrying."},409);
+    await audit(env,"admin","access.rotate","access_code",codeId,{});
+    return json({ok:true,id:codeId,action:"rotate",code,code_hint:hint});
+  }
   if(action==="activate"||action==="suspend"||action==="revoke"||action==="delete"){
     const codeId=String(body.id||"").slice(0,100);
     const existing=await env.VAULT_DB.prepare("SELECT * FROM access_codes WHERE id=? AND NOT EXISTS(SELECT 1 FROM access_code_deletions WHERE code_id=access_codes.id)").bind(codeId).first();
