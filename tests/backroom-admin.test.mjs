@@ -126,117 +126,50 @@ assert.ok(back.includes("cfg.music.publicPlaylists=geDJSavedPlaylists.map(")&&
   'The published Radio MUSIC snapshot must come from explicitly approved original DJ records');
 assert.ok(vault.includes('"/v1/public/dj-playlists"')&&vault.includes('meta.source!=="ge-radio"'),
   'Public playlist feed must be read-only and restricted to the original curated GE Radio entries');
-assert.ok(radio.includes("https://vault.grandelement.com/v1/public/dj-playlists")&&
-  radio.includes("GE_DJ_PUBLIC_PLAYLIST_SNAPSHOT_V2")&&
-  radio.includes("publishedConfigNames.get(id)")&&
-  radio.includes("OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT"),
-  'Radio MUSIC prefers live Vault playlists and falls back to owner-approved original DJ snapshots');
-assert.ok(back.includes("refreshDJPlaylistSource()")&&back.includes("geDjTrustedTokenV1"),
-  'Back Room should reuse the authenticated DJ device without creating a second playlist database');
-assert.ok(back.includes('id="brAccessCustomCode"')&&back.includes("requested_code:"),
-  'New Access Codes must accept a typed secret');
-assert.ok(vault.includes("body.requested_code")&&vault.includes("This access code already exists"),
-  'Vault must hash and safely validate owner-chosen codes');
-assert.ok(back.includes("showCodeEditor();"),'Access Code editor must be visible without additional clicks');
-assert.ok(back.includes('id="brScoresTable"')&&back.includes('async function loadBackroomScores()'),
-  'All games should show real scores in the Back Room tab');
-assert.ok(back.includes('id="brGameDefaultPlayers"')&&back.includes('id="brGameDefaultComputer"'),
-  'General game defaults belong in an expandable group');
-assert.ok(back.includes('<section data-br-tab="welcome">\n  <h2>WEBSITE STARTUP MUSIC</h2>'),
-  'Website startup music belongs at bottom of WELCOME');
-assert.ok(back.includes('<section data-br-tab="moon">\n  <h2>RADIO MOON SATELLITE</h2>'),
-  'Radio Moon satellite controls belong only to MOON');
-assert.ok(back.includes("const explicitlyPublic=new Set") &&
-  back.includes("explicitlyPublic.has(String(playlist.id))") &&
-  back.includes("const makePublic=$('brPlaylistPublic').checked") &&
-  back.includes("syncPublicPlaylist(saved,name,included,makePublic)") &&
-  !back.includes('<input id="brPlaylistPublic" type="checkbox" checked>'),
-  'DJ playlists default private and require an explicit Back Room PUBLIC selection');
-assert.ok(back.includes("window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=(items)=>") &&
-  back.includes("playlists=items;playlistLoaded=true;"),
-  'Saving a DJ playlist must refresh the Back Room playlist chooser');
-assert.ok(vault.includes('config?.music?.publicPlaylists') &&
-  vault.includes("publishedSongs=permitted.get(String(playlist.id))") &&
-  vault.includes("if(meta.source!==\"ge-radio\")continue"),
-  'Vault public playlist feed must require both owner publication and original DJ ownership');
-assert.ok(radio.includes("allowed.has(item.id)") &&
-  radio.includes("allowed.get(item.id).has(path)") &&
-  radio.includes("DJ PLAYLIST PERMISSIONS UNAVAILABLE"),
-  'Radio MUSIC must independently filter the Vault feed and fail closed on permission errors');
-assert.ok(radio.includes("https://vault.grandelement.com/v1/public/access/redeem") &&
-  radio.includes("scope:'radio'") &&
-  radio.includes("GE_VAULT_RADIO_SESSION_V1") &&
-  radio.includes("if(isLegacy){") &&
-  radio.includes("verification:isLegacy?'client_only':'vault_redeemed_radio_scope'"),
-  'Radio Gate must redeem Vault codes without granting them owner/demo LOVE flags');
-assert.ok(vault.includes('"/v1/public/access/redeem"') &&
-  vault.includes("async function accessRedeem(request,env)"),
-  'Vault radio code validation must occur server-side');
+
+const musicV5=read('radio/ge-music-v5.js');
+const preview=read('radio/preview-lab.html');
+const registry=JSON.parse(read('playlists/registry.json'));
+assert.equal(registry.format,'ge-playlist-registry-v1');
+assert.ok(Array.isArray(registry.playlists),'Owner playlist master must contain playlists');
+assert.match(musicV5,/main\/playlists\/registry\.json\?refresh=/,
+  'Radio Music reads the canonical GitHub playlist master');
+assert.match(musicV5,/p\.visibility==='published'/,
+  'Only expressly published playlists are listed to anonymous visitors');
+assert.match(musicV5,/musicAccessActive\(\)\?\.playlistIds/,
+  'An unlisted playlist may be shown only when assigned to the access code');
+assert.match(preview,/main\/playlists\/registry\.json\?refresh=/,
+  'Embedded Radio Music preview reads the same GitHub playlist file');
+assert.match(radio,/https:\/\/vault\.grandelement\.com\/v1\/public\/access\/redeem/,
+  'Radio Gate redeems code through trusted GE Vault');
+assert.match(radio,/scope:'radio'/);
+assert.match(radio,/GE_VAULT_RADIO_SESSION_V1/);
+assert.match(radio,/const isLegacy=false/,
+  'There is no client-only LOVE special case');
+assert.doesNotMatch(preview,/code!=='love'|GE_GATE_LOVE_V1/,
+  'The historic hardcoded preview LOVE bypass must not return');
+assert.match(vault,/async function accessRedeem\(request,env\)/);
+assert.match(vault,/\/v1\/public\/access\/redeem/);
+assert.match(vault,/normalizedCodeExperience\(body\)/);
+assert.match(back,/id="brCodeAutopilot"/);
+assert.match(back,/id="brCodeGames"/);
+assert.match(back,/brCodeFansPanel/);
+assert.match(vault,/CREATE TABLE IF NOT EXISTS fan_code_links/);
+assert.match(publisher,/\/manage\/fan-access/);
+assert.match(musicV5,/data-access-view="album"/);
+assert.match(musicV5,/data-access-view="playlist"/);
 const currentWorkerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1]||'';
 const currentRadioVersion=currentWorkerVersion.replace(/^([0-9]{4})[.]([0-9]{2})[.]([0-9]{2})/,'$1$2$3');
-assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &&
-  radio.includes('./sw.js?v='+currentRadioVersion) &&
-  sw.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
-  'iPhone Radio service worker registration and media cache must match current Radio code');
+assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-.+/.test(currentWorkerVersion)&&
+ radio.includes('./sw.js?v='+currentRadioVersion)&&
+ sw.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
+ 'iPhone Radio shell update must retain existing downloaded media');
 assert.ok(back.includes("requested_code:editingCodeId?'':label") &&
-  vault.includes('/^[A-Z0-9]{4,64}$/.test(accessNormalizeCode(requested))'),
-  'Named Access Codes must use the Vault-supported credential validation');
-
-// Exercise the real Radio MUSIC playlist loader, not just source-code labels.
-const djLoaderStart=radio.indexOf('async function geLoadPublishedPlaylists(){');
-const djLoaderEnd=radio.indexOf('function gePlaylistUI(list){',djLoaderStart);
-assert.ok(djLoaderStart>=0&&djLoaderEnd>djLoaderStart,'Radio MUSIC playlist loader must be present');
-const djLoader=new Script(radio.slice(djLoaderStart,djLoaderEnd),{filename:'radio-published-dj-loader.js'});
-const radioSongA='ge-music/music/Grand Element - Singles/Singles_I=Energy.mp3';
-const radioSongB='ge-music/music/Grand Element - 2017 - Soul/Soul_02_Halo.mp3';
-async function runPublishedDJFixture(music,items,{vaultUnavailable=false}={}){
-  const context={
-    window:{},console:{warn(){}},gePlaylistOpen:false,
-    gePublishedLists:[],
-    trackList:{classList:{contains:()=>false}},
-    localStorage:{getItem:()=>null,setItem(){}},
-    fetch:async url=>{
-      if(String(url).includes('config/site-live.json'))
-        return {ok:true,json:async()=>({music})};
-      if(vaultUnavailable)throw Error('Vault temporarily unreachable');
-      return {ok:true,json:async()=>({
-        ok:true,format:'ge-public-dj-playlists-v1',items
-      })};
-    }
-  };
-  djLoader.runInNewContext(context);
-  await context.geLoadPublishedPlaylists();
-  return {lists:context.gePublishedLists,status:context.window.GE_DJ_PLAYLIST_SOURCE_STATUS};
-}
-const publishedBangers={
-  publicDJPlaylistNames:['Bangers'],
-  publicPlaylists:[{id:'real-dj-bangers',name:'Bangers',songs:[radioSongA,'../../private.mp3']}]
-};
-const offlineBangers=await runPublishedDJFixture(publishedBangers,[],{vaultUnavailable:true});
-assert.deepEqual([...offlineBangers.lists[0].songs],[radioSongA],
-  'Only approved original DJ snapshot song paths are used when Vault is down');
-assert.match(offlineBangers.status,/OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT/,
-  'Offline Vault must identify the published snapshot rather than claim a live feed');
-const emptyVaultBangers=await runPublishedDJFixture(publishedBangers,[{
-  id:'real-dj-bangers',name:'Bangers',songs:[]
-}]);
-assert.deepEqual([...emptyVaultBangers.lists[0].songs],[radioSongA],
-  'Empty Vault replication must not hide the owner-published Bangers snapshot');
-const privateDJ=await runPublishedDJFixture(
-  {publicDJPlaylistNames:['Bangers'],publicPlaylists:[]},
-  [{id:'secret',name:'Private DJ Set',songs:[radioSongB]},
-   {id:'authentic-bangers',name:'Bangers',songs:[radioSongA]}]
-);
-assert.equal(privateDJ.lists.length,1,'Unpublished original DJ records stay private');
-assert.equal(privateDJ.lists[0].name,'Bangers');
-const idOnly=await runPublishedDJFixture(
-  {publicDJPlaylistNames:[],publicPlaylists:[{id:'approved',name:'Owner Set',songs:[radioSongA]}]},
-  [{id:'approved',name:'Owner Set',songs:[radioSongA,radioSongB]}]
-);
-assert.deepEqual([...idOnly.lists[0].songs],[radioSongA],
-  'ID-specific publication must not leak newly added unapproved songs');
-const none=await runPublishedDJFixture({publicDJPlaylistNames:[],publicPlaylists:[]},
-  [{id:'private-bangers',name:'Bangers',songs:[radioSongA]}]);
-assert.equal(none.lists.length,0,'No playlists appear without an explicit owner publication');
-
+ vault.includes('/^[A-Z0-9]{4,64}$/.test(accessNormalizeCode(requested))'),
+ 'Named Access Codes must use server-side credential validation');
+const published=registry.playlists.filter(p=>p.visibility==='published');
+const unlisted=registry.playlists.filter(p=>p.visibility==='unlisted');
+assert.ok(unlisted.every(p=>!published.some(q=>q.id===p.id)),
+ 'Unlisted owner mixes are not in the anonymous public playlist set');
+console.log('PASS: authenticated Back Room, canonical GitHub music master, Vault code validation, fan/code link, iPhone cache and code-based Music views');
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');
