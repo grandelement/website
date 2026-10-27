@@ -37,7 +37,7 @@ assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling direc
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
-assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='playlists'\|\|category==='moon'\)\s*\{\s*heading\.remove\(\)/);
+assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
 assert.ok(back.includes("category==='access'||category==='playlists'"),'Access Codes and Radio Playlists should open without a second accordion click');
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
 assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
@@ -176,9 +176,9 @@ assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-radio/.test(currentWorkerVersion) &
   radio.includes('./sw.js?v='+currentRadioVersion) &&
   sw.includes("const MEDIA_CACHE='ge-radio-media-v4'"),
   'iPhone Radio service worker registration and media cache must match current Radio code');
-assert.ok(back.includes("minlength=\"12\"") &&
-  back.includes("/^[a-zA-Z0-9-]{12,64}$/.test(requested)"),
-  'Custom Access Code editor must match the Vault minimum length');
+assert.ok(back.includes("requested_code:editingCodeId?'':label") &&
+  vault.includes('/^[A-Z0-9]{4,64}$/.test(accessNormalizeCode(requested))'),
+  'Named Access Codes must use the Vault-supported credential validation');
 
 // Exercise the real Radio MUSIC playlist loader, not just source-code labels.
 const djLoaderStart=radio.indexOf('async function geLoadPublishedPlaylists(){');
