@@ -3097,7 +3097,7 @@ const backroomVaultManagers=(()=>{
     requestAnimationFrame(()=>{
       $('brAccessEditor').scrollIntoView({behavior:'auto',block:'start'});
     });
-    $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
+    $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE':'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
     // Search text is a display name, never a four-letter secret such as the legacy LOVE Gate code.
     $('brAccessCustomCode').value='';
@@ -3105,11 +3105,8 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').closest('label').hidden=!!row;
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
-    if(row)$('brAccessKeyHelpText').textContent=
-      'Saved key ends in …'+row.code_hint+'. Tap SHOW SAVED ACCESS KEY to recover keys issued after the Vault upgrade. Original LOVE is recoverable as LOVE. If an older key cannot be retrieved, use RESET LOST KEY once; its name is not the secret.';
-    $('brAccessCustomHelp').textContent=row?
-      'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
-      'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
+    if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
+    $('brAccessCustomHelp').textContent='New codes are generated automatically unless a custom key is entered.';
     const scopes=row?row.scopes:['radio'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
@@ -3132,7 +3129,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
     // A code that currently grants RADIO must still be able to acquire MUSIC
     // or playlist permissions. Do not hide the only relevant controls.
-    $('brAccessMusicCategory').open=true;
+    $('brAccessMusicCategory').open=false;
     // Old playlist grants are expanded into explicit tracks for editing, so
     // removing a song actually removes its access instead of leaving an
     // unrestricted playlist ID entitlement in place.
@@ -3199,24 +3196,24 @@ const backroomVaultManagers=(()=>{
       return !q||hay.includes(q);
     });
     const sel=$('brAccessSelect');sel.replaceChildren();
-    if(!visibleCodes.some(x=>x.id===selectedCodeId))selectedCodeId=visibleCodes[0]?.id||'';
-    visibleCodes.forEach(row=>sel.appendChild(new Option(
-      row.label+' · …'+row.code_hint+' · '+statusCode(row),row.id
-    )));
+    if(selectedCodeId!=='__new__'&&!visibleCodes.some(x=>x.id===selectedCodeId))selectedCodeId=visibleCodes[0]?.id||'__new__';
+    visibleCodes.forEach(row=>sel.appendChild(new Option(row.label,row.id)));
+    sel.appendChild(new Option('+ NEW ACCESS CODE','__new__'));
     if(!visibleCodes.length){
       const note=!accessLoaded?'VAULT OFFLINE — RECONNECT OR REFRESH':
         q?'NO MATCH · '+codeRows.length+' SAVED · TAP SHOW ALL':'NO CODES SAVED';
       sel.appendChild(new Option(note,''));
     }
-    sel.disabled=!accessLoaded||!visibleCodes.length;
-    sel.value=selectedCodeId;
+    sel.disabled=!accessLoaded;
+    sel.value=selectedCodeId||'__new__';
     sel.size=1;
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
     $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':
       q?(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length+' MATCHES · '+codeRows.length+' SAVED':'0 MATCHES · '+codeRows.length+' SAVED'):
       (visibleCodes.length?(idx+1)+' OF '+codeRows.length+' SAVED':'0 SAVED');
     $('brAccessPrev').disabled=idx<=0;
-    $('brAccessQuickLoad').disabled=!selectedCodeId;
+    $('brAccessQuickLoad').disabled=!accessLoaded||!selectedCode();
+    $('brAccessDeletePrimary').disabled=!accessLoaded||!selectedCode()||savingCode;
     $('brAccessQuickEdit').disabled=!accessLoaded||!selectedCodeId||!!selectedCode()?.revoked;
     $('brAccessNext').disabled=idx<0||idx===visibleCodes.length-1;
     const selected=selectedCode(),host=$('brAccessList');host.replaceChildren();
@@ -3600,11 +3597,12 @@ const backroomVaultManagers=(()=>{
         $('brAccessSongChecklist'),$('brAccessSongs').closest('details'));
       musicSection.appendChild(songsSection);
       $('brAccessNewPrimary').addEventListener('click',()=>{
-        $('brAccessSearch').value='';selectedCodeId='';showCodeEditor('');
-        $('brAccessSelect').selectedIndex=-1;
+        $('brAccessSearch').value='';selectedCodeId='__new__';showCodeEditor('');
+        renderAccessCodes();
         note.hidden=true;
       });
       $('brAccessLoadPrimary').addEventListener('click',()=>{
+        if(selectedCodeId==='__new__'){showCodeEditor('');return;}
         const row=selectedCode();if(!row)return accessStatus('SELECT A SAVED CODE FIRST.');
         showCodeEditor(row.id);note.hidden=true;
       });
@@ -3615,7 +3613,7 @@ const backroomVaultManagers=(()=>{
       $('brAccessRevealKey').addEventListener('click',()=>void revealSelectedCode());
       $('brAccessReplaceKey').addEventListener('click',()=>void rotateSelectedCode());
       $('brAccessDeletePrimary').addEventListener('click',()=>{
-        if(!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
+        if(!accessLoaded||!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
         void codeAction('delete');
       });
       const gameDetails=document.createElement('details');gameDetails.className='brAccessCategory';
@@ -3743,7 +3741,14 @@ const backroomVaultManagers=(()=>{
         accessStatus('NEW CODE DRAFT · Review the label, permissions and playlists, then press SAVE NEW ACCESS CODE. Nothing has been issued yet.');
       });
       $('brAccessSelect').addEventListener('change',e=>{
-        selectedCodeId=e.target.value;renderAccessCodes();
+        selectedCodeId=e.target.value;
+        if(selectedCodeId==='__new__'){
+          $('brAccessSearch').value='';
+          showCodeEditor('');
+          renderAccessCodes();
+          return;
+        }
+        renderAccessCodes();
         if(selectedCode()&&!selectedCode().revoked)showCodeEditor(selectedCodeId);
         else showCodeBrowser();
       });
