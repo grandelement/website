@@ -305,7 +305,7 @@ async function mirrorEncryptedAccessCodes(env){
     updated_at:new Date().toISOString(),
     ciphertext:cipher
   };
-  const serialized=JSON.stringify(snapshot,null,2)+'\\n';
+  const serialized=JSON.stringify(snapshot,null,2)+'\n';
   const payload={message:'Back up encrypted GE Vault access-code records',
     content:utf8B64(serialized),branch};
   if(sha)payload.sha=sha;
