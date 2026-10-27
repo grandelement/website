@@ -383,9 +383,10 @@ test(radio.includes('id="contactLaunchBtn"') &&
      radio.includes('id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE') &&
      radio.includes("if(controller?.openCodeEntry)controller.openCodeEntry();") &&
      radio.includes("mailto:info@grandelement.com?subject=Grand%20Element%20Contact") &&
-     radio.includes("password: 'love'") &&
+     radio.includes('https://vault.grandelement.com/v1/public/access/redeem') &&
+     !radio.includes("password: 'love'") &&
      radio.includes("hardLimitSeconds: 2013"),
-     'CONTACT email, SUPPORT shopping, original LOVE test CODE, and 33:33 timing preserved');
+     'CONTACT email, SUPPORT shopping, Vault Gate CODE, and 33:33 timing preserved');
 test(radio.includes("buttons.prev.addEventListener('click'") &&
      radio.includes("buttons.next.addEventListener('click'") &&
      radio.includes("buttons.off.addEventListener('click'") &&
