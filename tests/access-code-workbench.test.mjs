@@ -61,3 +61,17 @@ assert.match(html,/row&&row.id===revealedKeyRecordId/,'same-record editor readba
 assert.doesNotMatch(html,/accessSongOptions\(\);assignedSongsUI\(\);accessModeUI\(\);\s*\$\('brAccessOneTime'\)\.hidden=true;/,
   'editor must not unconditionally hide the just-issued or rotated key');
 console.log('PASS: newly issued and reset keys remain visible across Vault readback and editor repaint');
+assert.match(html, /bar\.appendChild\(nameLabel\)/,
+  'the saved Code Name belongs beside the dropdown, not in a second editor');
+assert.match(html, /new Option\('\+ NEW ACCESS CODE','__new__'\)/,
+  'new codes must be created explicitly through the names dropdown');
+assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
+  'only SAVE LOAD DELETE should be visible as primary actions');
+assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
+assert.match(html, /musicSection\.querySelector\('summary'\)\.textContent='MUSIC · PLAYLISTS'/);
+assert.match(html, /songsSection\.append\(songSearch,songTools/);
+assert.match(html, /#brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel/,
+  'duplicate controls and diagnostics must not clutter the code editor');
+assert.match(html, /visibleCodes\.forEach\(row=>sel\.appendChild\(new Option\(row\.label,row\.id\)\)\)/,
+  'saved dropdown should display names, not confusing or duplicated key suffixes');
+console.log('PASS: simple saved code selector, single name field, SAVE LOAD DELETE, expandable Music and Access controls');
