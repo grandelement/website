@@ -3085,6 +3085,18 @@ margin:0 auto 7px!important}
 html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
 flex:0 0 auto!important;height:75px!important;min-height:75px!important;margin:4px auto 2px!important}}
 </style>
+<style id="ge-radio-quick-song-and-transparent-backgrounds-20261027">
+/* Floating quick picker retains the site's original track-title labels. */
+#geQuickSongPanel{position:fixed;z-index:26000;width:min(360px,calc(100vw - 16px));max-height:min(52dvh,440px);overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:8px;border:1px solid rgba(111,184,255,.85);border-radius:12px;background:rgba(3,15,29,.97);box-shadow:0 12px 32px rgba(0,0,0,.68);color:#effaff}
+#geQuickSongPanel[hidden]{display:none!important}
+#geQuickSongPanel .geQuickSongHeading{font-size:11px;font-weight:850;letter-spacing:.09em;text-align:center;color:#9dd9ff;padding:6px 8px 10px}
+#geQuickSongPanel .geQuickSongEmpty{padding:12px;text-align:center}
+#geQuickSongPanel .geQuickSongItem{display:block;box-sizing:border-box;width:100%;padding:11px 10px;margin:0 0 4px;background:rgba(33,86,122,.19);border:1px solid rgba(120,201,250,.23);border-radius:7px;text-align:left;color:#f2faff;font-size:13px;cursor:pointer;overflow-wrap:anywhere}
+#geQuickSongPanel .geQuickSongItem:hover,#geQuickSongPanel .geQuickSongItem:focus-visible,#geQuickSongPanel .geQuickSongItem[aria-current="true"]{background:rgba(42,132,178,.32);border-color:#6fb8ff}
+body.view-player #bgGroup .bg-row button,
+body.view-player #bgGroup #hudCombined,
+body.view-player #bgGroup #hudCombined[aria-pressed="true"]{background:transparent!important;background-image:none!important;backdrop-filter:none!important}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -6185,7 +6197,59 @@ $('legacyBtn').addEventListener('click',()=>{
     if(fallback) playURL(fallback,{record:state.shuffle,backgroundChange:true,userAction:true});
   }
 });
-titleBtn.addEventListener('click',()=>window.GEMusicV5?.open?.());
+/* Compact original-style quick song picker. Preserve catalog names and MUSIC editor. */
+const geQuickSongPanel=document.createElement('div');
+geQuickSongPanel.id='geQuickSongPanel';
+geQuickSongPanel.setAttribute('role','dialog');
+geQuickSongPanel.setAttribute('aria-label','Quick song selection');
+geQuickSongPanel.hidden=true;
+titleBtn.insertAdjacentElement('afterend',geQuickSongPanel);
+function geCloseQuickSongPanel(){
+  geQuickSongPanel.hidden=true;
+  titleBtn.setAttribute('aria-expanded','false');
+}
+function geOpenQuickSongPanel(){
+  const tracks=selectableSongs();
+  geQuickSongPanel.replaceChildren();
+  const heading=document.createElement('div');
+  heading.className='geQuickSongHeading';
+  heading.textContent='SELECT A SONG';
+  geQuickSongPanel.appendChild(heading);
+  if(!tracks.length){
+    const msg=document.createElement('div');
+    msg.className='geQuickSongEmpty';
+    msg.textContent='No songs available in the music library.';
+    geQuickSongPanel.appendChild(msg);
+  }
+  for(const url of tracks){
+    const item=document.createElement('button');
+    item.type='button';
+    item.className='geQuickSongItem';
+    item.textContent=displayTitle(url,!state.shuffle);
+    item.setAttribute('aria-label','Play '+item.textContent);
+    if(url===state.currentURL)item.setAttribute('aria-current','true');
+    item.addEventListener('click',()=>{
+      geCloseQuickSongPanel();
+      if(state.live||state.livePreparing)exitLiveMode('Personal song selected.');
+      void playURL(url,{record:state.shuffle,backgroundChange:true,userAction:true});
+    });
+    geQuickSongPanel.appendChild(item);
+  }
+  geQuickSongPanel.hidden=false;
+  titleBtn.setAttribute('aria-expanded','true');
+  const b=titleBtn.getBoundingClientRect();
+  geQuickSongPanel.style.top=Math.min(window.innerHeight-80,b.bottom+7)+'px';
+  geQuickSongPanel.style.left=Math.max(8,Math.min(window.innerWidth-296,b.left+b.width/2-148))+'px';
+}
+titleBtn.addEventListener('click',()=>{
+  if(geQuickSongPanel.hidden)geOpenQuickSongPanel();else geCloseQuickSongPanel();
+});
+document.addEventListener('click',event=>{
+  if(!geQuickSongPanel.hidden&&!geQuickSongPanel.contains(event.target)&&event.target!==titleBtn)geCloseQuickSongPanel();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!geQuickSongPanel.hidden){geCloseQuickSongPanel();titleBtn.focus();}
+});
 $('chooseSongsBtn')?.addEventListener('click',()=>window.GEMusicV5?.open?.());
 $('shareBtn').addEventListener('click',async()=>{
   const url=state.live?liveShareURL():await resolvedShareURL();
