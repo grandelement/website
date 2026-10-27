@@ -221,7 +221,7 @@ body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;
 <header><div><h1>GRAND ELEMENT · MUSIC</h1><small>ALBUMS · PLAYLISTS · MUSIC LIST</small></div><a class="button" href="./">RETURN TO RADIO</a></header>
 <main>
 <section class="card" id="musicBrowser">
-  <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">SELECT SONGS / MUSIC LIST · <span id="musicListCount">0</span></button></div>
+  <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">SELECT SONGS / MUSIC LIST</button></div>
   <div id="musicTransport" class="musicCompactTransport" hidden><span id="musicPlayingTitle" aria-live="polite"></span><button id="musicPause" type="button">PAUSE</button><button id="musicNext" type="button">NEXT</button></div>
   <div class="playlistTools" aria-label="Playlist save and load">
     <select id="savedPlaylistSelect" aria-label="Saved or public playlist"><option value="">CHOOSE A PLAYLIST TO LOAD</option></select>
@@ -387,7 +387,7 @@ function save(force=false){
 }
 function valid(t){if(!t||t.kind!=='song'||(t.duration_ms!=null&&(!Number.isFinite(Number(t.duration_ms))||Number(t.duration_ms)<0)))return false;
  try{const u=new URL(t.url,location.origin);return u.origin===location.origin&&/\/(?:website\/)?ge-music\/music\//.test(u.pathname)&&/\.(?:mp3|m4a|wav|ogg)$/i.test(u.pathname)}catch(_e){return false}}
-function label(t){return (t.album||'Archive')+' · '+String(t.title||'Unknown').replace(/^\d+\s*/,'')}
+function label(t){return String(t.title||'Unknown').replace(/^\d+\s*/,'')+' — '+(t.album||'Archive')}
 function element(tag,text,klass=''){const e=document.createElement(tag);if(text!=null)e.textContent=text;if(klass)e.className=klass;return e}
 function effectiveListeningSeconds(){
  if(!data.gateStartedAtMs)return data.used;
@@ -520,8 +520,7 @@ function renderMusicListRows(){
  selectedSongs.forEach((track,index)=>{
   const row=element('div',null,'musicListTrack');row.setAttribute('role','listitem');row.dataset.path=track.path;
   if(currentTrack?.url===track.url)row.classList.add('active');
-  const title=element('span',String(index+1)+'. '+String(track.title||'Untitled'),'songName');
-  title.appendChild(element('small',track.album||'Grand Element'));
+  const title=element('span',String(index+1)+'. '+String(track.title||'Untitled')+' — '+(track.album||'Grand Element'),'songName');
   const play=element('button',currentTrack?.url===track.url&&!audio.paused?'PAUSE':'PLAY');
   play.type='button';play.setAttribute('aria-label','Play or pause '+label(track));
   play.addEventListener('click',()=>playChosenInList(track));
@@ -591,7 +590,7 @@ function syncEditorCheckboxes(){
  });
 }
 function renderSelected(){
- $('musicListCount').textContent=String(selectedSongs.length);
+ // The public selector never displays playlist or catalog totals.
  renderMusicListRows();syncAlbumWholeCheck();syncEditorCheckboxes();
  document.querySelectorAll('input[data-ge-album-tile]').forEach(cb=>{
   const tracks=albums.get(cb.dataset.geAlbumTile)||[],selected=new Set(selectedSongs.map(t=>t.path));
@@ -635,7 +634,7 @@ function renderMusicListEditor(){
   whole.checked=!!tracks.length&&count===tracks.length;
   whole.indeterminate=count>0&&count<tracks.length;
   whole.addEventListener('change',()=>{setAlbumSelected(name,whole.checked);renderMusicListEditor()});
-  heading.append(whole,element('span',name+' · '+tracks.length+' songs'));
+  heading.append(whole,element('span',name));
   section.appendChild(heading);
   const songs=element('div',null,'musicListEditorSongs');
   for(const track of matches){
@@ -651,7 +650,7 @@ function renderMusicListEditor(){
      trackIndex=albumTracks.findIndex(t=>t.path===track.path);
      void startTrack(track);
    });
-   labelEl.append(cb,element('span',track.title||'Untitled'),play);
+   labelEl.append(cb,element('span',(track.title||'Untitled')+' — '+track.album),play);
    songs.appendChild(labelEl);
   }
   section.appendChild(songs);host.appendChild(section);
@@ -719,7 +718,7 @@ function loadMusicPlaylist(source){
  musicListSource=personal?'personal':'public';musicListSourceId=personal?id:'';
  const name=personal?playlist.name:playlist.name+' (My Copy)';
  $('playlistName').value=name;syncDeleteMusicPlaylist();
- musicNotice(selectedSongs.length?('Loaded '+playlist.name+' · '+selectedSongs.length+' songs'):'Playlist has no available music files.');
+ musicNotice(selectedSongs.length?('Loaded '+playlist.name):'Playlist has no available music files.');
  openMusicList(false);
 }
 function saveMusicPlaylist(){
@@ -761,8 +760,8 @@ $('albumSelectAll').addEventListener('change',event=>setAlbumSelected(selectedAl
 function showSongs(){
  const holder=$('songs');holder.replaceChildren();
  const q=$('search').value.toLowerCase(),tracks=currentBrowseTracks();
- for(const t of tracks.filter(t=>label(t).toLowerCase().includes(q))){
-  const row=element('div',null,'song'),title=element('div',String(t.title||'').replace(/^(\d{1,3})-/,'$1 '),'songTitle');
+ for(const t of tracks.filter(t=>(t.title+' '+t.album).toLowerCase().includes(q))){
+  const row=element('div',null,'song'),title=element('div',String(t.title||'').replace(/^(\d{1,3})-/,'$1 ')+' — '+(t.album||'Grand Element'),'songTitle');
   title.appendChild(element('small',Number(t.duration_ms)>0?fmt(t.duration_ms/1000):'Duration available when played'));
   const check=element('input');check.type='checkbox';check.checked=selectedSongs.some(x=>x.url===t.url);
   check.setAttribute('aria-label','Select '+label(t));check.addEventListener('change',()=>{
@@ -821,12 +820,12 @@ $('saveAlbumOffline').addEventListener('click',async()=>{
     const response=await fetch(url.href,{cache:'no-store'});
     if(!response.ok||response.type==='opaque')throw Error('Unavailable');
     await cache.put(url.href,response.clone());saved++;
-    musicNotice('Saving '+selectedAlbum+' offline · '+saved+'/'+tracks.length+' songs');
+    musicNotice('Saving '+selectedAlbum+' offline…');
    }catch(error){console.warn('Offline album song not stored:',track.path,error);}
   }
   musicNotice(saved===tracks.length?
    selectedAlbum+' saved on this device for offline playback.':
-   selectedAlbum+' · '+saved+'/'+tracks.length+' songs saved. Check storage and connection.');
+   selectedAlbum+' · Some songs could not be saved offline. Check storage and connection.');
  }catch(_e){musicNotice('Offline album save failed on this device.');}
  finally{button.disabled=false;}
 });
@@ -834,12 +833,12 @@ function showPublicPlaylists(){
  const wall=$('publicPlaylistWall');wall.replaceChildren();
  for(const [id,playlist] of publicPlaylists){
   const button=element('button',null,'albumTile');button.type='button';
-  button.append(element('strong',playlist.name),element('small','PUBLIC · '+playlist.tracks.length+' songs'));
+  button.append(element('strong',playlist.name),element('small','PUBLIC PLAYLIST'));
   button.addEventListener('click',()=>openPublicPlaylist(id));wall.appendChild(button);
  }
  for(const playlist of personalPlaylists){
   const button=element('button',null,'albumTile');button.type='button';
-  button.append(element('strong',playlist.name),element('small','MY PLAYLIST · '+playlist.songs.length+' songs'));
+  button.append(element('strong',playlist.name),element('small','MY PLAYLIST'));
   button.addEventListener('click',()=>{
    $('savedPlaylistSelect').value='p:'+playlist.id;
    loadMusicPlaylist('p:'+playlist.id);
@@ -853,7 +852,7 @@ function showAlbums(){
  for(const [name,list] of orderedAlbums()){
   const tile=element('div',null,'albumSelectTile');
   const button=element('button',null,'albumTile');button.type='button';
-  button.append(element('strong',name),element('small',list.length+' songs'));
+  button.append(element('strong',name),element('small','OPEN ALBUM'));
   button.addEventListener('click',()=>openAlbum(name));
   const labelEl=element('label');
   const check=element('input');check.type='checkbox';check.dataset.geAlbumTile=name;
@@ -966,7 +965,7 @@ $('geGateEnter').addEventListener('click',async()=>{
   gate.classList.add('unlocking');
   setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
   geRadioEmbedNotify('ge-radio-music-gate-clear');
-  musicNotice(receipt.restricted?'ACCESS VERIFIED · '+receipt.allowed.length+' ASSIGNED SONGS':'ACCESS VERIFIED · MUSIC UNLOCKED');
+  musicNotice(receipt.restricted?'ACCESS VERIFIED · ASSIGNED MUSIC':'ACCESS VERIFIED · MUSIC UNLOCKED');
   if(currentTrack&&audio.paused)void resume();
  }catch(error){musicNotice('ACCESS NOT VERIFIED · '+String(error.message||error))}
  finally{geMusicUnlockBusy=false;$('geGateEnter').disabled=false}
@@ -1020,7 +1019,7 @@ function displayCatalog(tracks,restore=false){
   else switchMusicBrowse(previousMode);
  }
  if(!$('musicListView').hidden){renderSelected();if(editingMusicList)renderMusicListEditor();}
- say(tracks.filter(valid).length+' songs available. Choose an album, playlist, or MUSIC LIST.');
+ say('Choose an album, playlist, or MUSIC LIST.');
  // Preserve direct entry from a website album planet.
  if(WEBSITE_ALBUM_REQUEST&&!websiteAlbumStarted){
   const match=[...albums.keys()].find(name=>name.toLowerCase()===WEBSITE_ALBUM_REQUEST.toLowerCase());
