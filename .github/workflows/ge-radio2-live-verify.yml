@@ -1,0 +1,60 @@
+name: GE Radio2 verify deployed site and playable backup
+on:
+  workflow_run:
+    workflows: ["pages build and deployment"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ge-radio2-live-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify deployed Radio frontend, Radio2 clock, and actual sound files
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.request, urllib.parse, urllib.error
+          HEAD={'User-Agent':'GrandElement-RadioProductionCheck/1.0','Accept':'text/html,application/json,audio/mpeg'}
+          def get(url,n=1000000):
+              req=urllib.request.Request(url,headers=HEAD)
+              with urllib.request.urlopen(req,timeout=20) as resp:
+                  return resp.status,resp.read(n),resp.headers.get('Content-Type','')
+          url='https://grandelement.com/radio/?verify-radio2-fallback=20261027'
+          html=None
+          for attempt in range(5):
+              try:
+                  status,body,mime=get(url)
+                  html=body.decode('utf-8','replace')
+                  if status==200 and "radio2ProgramKind(program)" in html and "6ffcaf4206e25c78" in html:break
+                  print('Radio page not at verified fallback revision yet; attempt',attempt+1,flush=True)
+              except Exception as err:print('Radio page check',attempt+1,str(err)[:180],flush=True)
+              if attempt==4:raise SystemExit('FAIL: production Radio page does not include approved 50-track backup failover.')
+              time.sleep(5)
+          print('PASS: actual production Radio frontend contains deployed backup logic',flush=True)
+          status,body,mime=get('https://ge-radio-sync.grandelement.workers.dev/v1/program')
+          data=json.loads(body)
+          p=data.get('program') or {}
+          tracks=p.get('tracks') or []
+          is_real_bangers=str(p.get('playlist_name') or '').lower()=='bangers'
+          is_existing_backup=(not p.get('playlist_name') and p.get('playlist_hash')=='6ffcaf4206e25c78' and len(tracks)==50)
+          if status!=200 or data.get('ok') is not True or not (is_real_bangers or is_existing_backup):
+              raise SystemExit('FAIL: Radio2 does not publish a verified Bangers or known backup clock.')
+          print('PASS: actual Radio2 clock reachable, playlist:', 'Bangers' if is_real_bangers else 'GE backup rotation', 'tracks:',len(tracks),flush=True)
+          first=tracks[0]
+          src=urllib.parse.urljoin('https://grandelement.com',first.get('url',''))
+          req=urllib.request.Request(src,headers={**HEAD,'Range':'bytes=0-8191'})
+          with urllib.request.urlopen(req,timeout=20) as r:
+              payload=r.read(8192)
+              if r.status not in (200,206) or len(payload)<512 or payload.startswith(b'<!DOCTYPE html'):
+                  raise SystemExit('FAIL: Radio2 first scheduled track is not playable audio.')
+              print('PASS: radio2 current rotation has real website audio bytes',len(payload),r.headers.get('Content-Type',''),flush=True)
+          print('RESULT: Site and source available; physical iPhone playback and owner Gate redemption still require user-side verification.',flush=True)
+          PY
