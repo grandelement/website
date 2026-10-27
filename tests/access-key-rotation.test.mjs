@@ -5,7 +5,7 @@ if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const source=await readFile(new URL('../vault-worker/src/index.js',import.meta.url),'utf8');
 const worker=(await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'))).default;
 const key='unit-test-only-hmac',owner='mock-owner-only';
-const hash=code=>createHmac('sha256',key).update('ge-access-v1:'+code.replace(/-/g,'').toUpperCase()).digest('hex');
+const hash=code=>createHmac('sha256',key).update('ge-access-v1:'+code.trim().toUpperCase().replace(/^GE[\\s-]+/,'').replace(/[\\s-]/g,'')).digest('hex');
 const oldCode='GE-ABCD-1234-DEAD-BEEF';
 const t=Math.floor(Date.now()/1000);
 const row={id:'access_xfiles',label:'Xfiles',code_hash:hash(oldCode),code_hint:'BEEF',
@@ -62,8 +62,10 @@ for(const field of ['id','label','scopes_json','duration_mode','expires_at','max
  assert.deepEqual(row[field],before[field],'rotation preserves '+field);
 }
 assert.equal(audits>=1,true);
+const newCode=r.result.code;
 r=await call(redeem,{code:oldCode,scope:'radio'});
 assert.equal(r.status,403,'old key no longer redeems');
-r=await call(redeem,{code:r.result?.code||'',scope:'radio'});
-assert.equal(r.status,403,'empty/incorrect code rejected');
+r=await call(redeem,{code:newCode,scope:'radio'});
+assert.equal(r.status,200,'new key redeems after rotation');
+assert.equal(r.result.ok,true);
 console.log('PASS: owner-only key reset, same record/permissions, invalidates old key, one-time new key returned');
