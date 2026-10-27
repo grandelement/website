@@ -552,12 +552,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  #backroomMain .backroomTabs button{font-size:clamp(11px,1vw,15px)!important;min-height:47px!important}
 }
 
-/* Access Codes: one editor, four buttons and a collapsible STATUS section */
+/* Access Codes: one selector, name, SAVE LOAD DELETE and expandable content. */
 #brPanel-access .brAccessTop{display:none!important}
 #brPanel-access .brAccessSimpleBar{display:grid;gap:10px;margin:6px 0 14px}
 #brPanel-access .brAccessSimpleBar>label{font-weight:850}
 #brPanel-access .brAccessSimpleBar>#brAccessSelect{width:100%;height:50px!important;min-height:50px!important;font-size:calc(17px * var(--scale))}
-#brPanel-access .brAccessSimpleButtons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#brPanel-access .brAccessSimpleButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 #brPanel-access .brAccessSimpleButtons button{min-height:48px;font-size:calc(12px * var(--scale));padding:8px 3px;font-weight:900}
 #brPanel-access #brAccessDeletePrimary{border-color:#986071}
 #brPanel-access #brAccessEditor{border:0;margin:4px 0 12px;padding:5px;background:transparent}
@@ -569,7 +569,25 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessStatusPanel .backroomCodeList{display:none!important}
 #brPanel-access #brAccessWorkbenchMessage:not([hidden]){border:1px solid #367e9b;padding:10px;border-radius:9px;font-weight:750;margin:0}
 #brPanel-access #brAccessEditor[hidden],#brPanel-access #brAccessWorkbenchMessage[hidden]{display:none!important}
-@media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Simplified Access Code UI: older controls remain mounted only for
+   compatibility; remove them from the actual owner-facing screen. */
+#brPanel-access .brAccessSimpleBar>label{display:block;margin:0;font-size:14px}
+#brPanel-access .brAccessSimpleBar>label>input{display:block;width:100%;margin-top:5px;min-height:50px;font-size:18px}
+#brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel,
+#brPanel-access #brAccessWorkbenchMessage,#brPanel-access #brAccessEditorTitle,
+#brPanel-access #brAccessCustomHelp,#brPanel-access #brAccessGameInfo,
+#brPanel-access #brAccessLoadPlaylists{display:none!important}
+#brPanel-access .brAccessSimpleBar>#brAccessStatus{margin:0;padding:6px 0;font-size:12px;line-height:1.35;min-height:0}
+#brPanel-access .brAccessSimpleBar .brAccessSimpleButtons{margin:0}
+#brPanel-access #brAccessEditor{margin:3px 0 8px!important;padding:0!important}
+#brPanel-access #brAccessEditor>.brAccessCategory{margin:9px 0;padding:10px}
+#brPanel-access #brAccessEditor>.brAccessCategory>summary{font-size:16px;padding:10px 5px}
+#brPanel-access #brAccessMusicCategory #brAccessPlaylistChoices{max-height:230px!important;overflow:auto}
+#brPanel-access #brAccessSongChecklist{max-height:35vh;overflow-y:auto}
+#brPanel-access #brAccessOneTime[hidden]{display:none!important}
+#brPanel-access .brAccessSimpleButtons button:disabled{opacity:.45}
+
+@media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* Keep actual issued access keys distinct from Back Room record names. */
 #brPanel-access .brAccessKeyHelp{padding:12px;margin:10px 0;border:1px solid #376783;border-radius:10px;background:#081c2e}
@@ -3527,9 +3545,12 @@ const backroomVaultManagers=(()=>{
       const bar=document.createElement('div');bar.className='brAccessSimpleBar';
       const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODE';
       bar.append(selectLabel,$('brAccessSelect'));
+      const nameLabel=$('brAccessLabel').closest('label');
+      nameLabel.querySelector('span').textContent='ACCESS CODE NAME';
+      bar.appendChild(nameLabel);
       const actions=document.createElement('div');actions.className='brAccessSimpleButtons';
-      for(const [id,name] of [['brAccessNewPrimary','NEW'],['brAccessLoadPrimary','LOAD'],
-        ['brAccessSavePrimary','SAVE'],['brAccessDeletePrimary','DELETE']]){
+      for(const [id,name] of [['brAccessNewPrimary','NEW'],['brAccessSavePrimary','SAVE'],
+        ['brAccessLoadPrimary','LOAD'],['brAccessDeletePrimary','DELETE']]){
         const b=document.createElement('button');b.type='button';b.id=id;b.textContent=name;
         if(name==='SAVE')b.classList.add('primary');
         actions.appendChild(b);
@@ -3550,6 +3571,34 @@ const backroomVaultManagers=(()=>{
         if(el&&!diag.contains(el))diag.appendChild(el);
       }
       accessRoot.appendChild(diag);
+      // One status message stays next to the three buttons.
+      bar.appendChild($('brAccessStatus'));
+      const editor=$('brAccessEditor');
+      const accessSection=editor.querySelector('details.brAccessCategory');
+      const musicSection=$('brAccessMusicCategory');
+      accessSection.querySelector('summary').textContent='ACCESS';
+      accessSection.open=false;
+      musicSection.querySelector('summary').textContent='MUSIC · PLAYLISTS';
+      musicSection.open=false;
+      const keySection=document.createElement('details');
+      keySection.className='brSourceDetails';
+      keySection.innerHTML='<summary>ACCESS KEY</summary>';
+      keySection.append($('brAccessCustomCode').closest('label'),$('brAccessCustomHelp'),$('brAccessKeyHelpPanel'));
+      accessSection.appendChild(keySection);
+      const expiration=Array.from(editor.querySelectorAll('details.brAccessCategory'))
+        .find(d=>d!==accessSection&&d!==musicSection);
+      if(expiration){
+        expiration.querySelector('summary').textContent='EXPIRATION & LIMITS';
+        expiration.open=false;
+        accessSection.appendChild(expiration);
+      }
+      const songsSection=document.createElement('details');
+      songsSection.className='brSourceDetails';
+      songsSection.innerHTML='<summary>INDIVIDUAL SONGS</summary>';
+      songsSection.append($('brAccessSongSearch').closest('label'),
+        $('brAccessAlbum').closest('.brAccessSongTools'),
+        $('brAccessSongChecklist'),$('brAccessSongs').closest('details'));
+      musicSection.appendChild(songsSection);
       $('brAccessNewPrimary').addEventListener('click',()=>{
         $('brAccessSearch').value='';selectedCodeId='';showCodeEditor('');
         $('brAccessSelect').selectedIndex=-1;
