@@ -2318,7 +2318,7 @@ async function accessMusicSession(request,env){
     row=await env.VAULT_DB.prepare(query+" WHERE a.code_hash=?").bind(hash).first();
   }else if(action==="verify"){
     const token=String(body.token||""),parts=token.split(".");
-    if(parts.length!==4||!/^access_[0-9a-f-]{36}$/.test(parts[0])||
+    if(parts.length!==4||!(parts[0]==="access_legacy_love_v1"||/^access_[0-9a-f-]{36}$/.test(parts[0]))||
        !/^[0-9]{10}$/.test(parts[1])||!/^[0-9a-f]{32}$/.test(parts[2])||
        !/^[0-9a-f]{64}$/.test(parts[3]))
       return json({ok:false,error:"Music session invalid."},403);
