@@ -1936,6 +1936,14 @@ async function adminFanAccess(request,env){
    recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
  }
  const body=await readBody(request);
+ if(body.action==="label"){
+  // Reuse the existing audit-logged Vault fan-label handler. Labels are
+  // administrator notes, never verified identities and never IP lookups.
+  const safeBody={anon_id:body.anon_id,display_name:body.display_name,notes:body.notes};
+  const req=new Request(request.url,{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(safeBody)});
+  return adminSetFanLabel(req,env);
+ }
  if(body.action!=="assign")return json({ok:false,error:"Unsupported fan assignment action."},400);
  const fanId=String(body.fan_id||""),codeId=String(body.code_id||"");
  if(!/^fan[-_][a-zA-Z0-9-]{6,100}$/.test(fanId))

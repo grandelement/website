@@ -24,7 +24,7 @@ One GE Studios Vault architecture, with the Back Room as the owner editor.
 - [ ] Confirm live owner Save -> Vault readback -> Radio Gate redeem -> Music queue on iPhone and desktop.
 - [ ] Confirm the accepted Track order and version matches the current GitHub playlist definition and the saved code's snapshot.
 - [ ] Confirm fan/code assignment survives reload, does not leak fan identities to public browsers, and owner labels are not represented as verified identities.
-- [ ] Connect owner fan-label edits from the Back Room subsection; existing Vault / DJ fan labeling remains operational.
+- [x] Back Room owner can select a recent anonymized visitor and save an owner label through the existing Vault fan-label handler (code complete; live device read/write unverified).
 - [ ] Authenticated customer accounts / explicit consent before automatic cross-device person-to-session linkage. A name or IP cannot establish identity.
 - [ ] Accurate online presence heartbeat if desired; current owner list is recent events within two minutes, not a live socket.
 - [ ] Optional time-limited abuse-control/IP restrictions with safeguards for shared or changing IPs, privacy notices, and appeal/unblock; do NOT use IP as a unique fan identity.

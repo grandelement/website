@@ -3667,10 +3667,18 @@ const backroomVaultManagers=(()=>{
       fanCode.setAttribute('aria-label','Code for selected fan');
       const fanSave=document.createElement('button');fanSave.type='button';fanSave.textContent='SAVE FAN CODE';
       const fanRecent=document.createElement('div');fanRecent.id='brCodeRecentFans';
+      const recentName=document.createElement('input');recentName.type='text';
+      recentName.id='brCodeRecentName';recentName.maxLength=200;
+      recentName.placeholder='Name or nickname for selected recent visitor';
+      recentName.setAttribute('aria-label','Owner label for selected recent visitor');
+      const labelRecent=document.createElement('button');labelRecent.type='button';
+      labelRecent.id='brCodeRecentLabel';labelRecent.textContent='LABEL SELECTED VISITOR';
+      let selectedRecentAnon='';
       const fanStatus=document.createElement('p');fanStatus.className='brCompactStatus';
       const fanNameLabel=document.createElement('label');fanNameLabel.textContent='SAVED FAN';fanNameLabel.appendChild(fanSelect);
       const fanCodeLabel=document.createElement('label');fanCodeLabel.textContent='ACCESS CODE';fanCodeLabel.appendChild(fanCode);
-      fanPanel.append(fanSummary,fanInfo,fanRefresh,fanNameLabel,fanCodeLabel,fanSave,fanRecent,fanStatus);
+      fanPanel.append(fanSummary,fanInfo,fanRefresh,fanNameLabel,fanCodeLabel,fanSave,
+        fanRecent,recentName,labelRecent,fanStatus);
       editor.after(fanPanel);
       let knownFans=[];
       function fanChoice(){
@@ -3693,19 +3701,48 @@ const backroomVaultManagers=(()=>{
             (f.display_name||'Unlabeled')+' · '+f.id.slice(0,16),f.id)));
           fanSelect.value=knownFans.some(f=>f.id===old)?old:'';
           fanChoice();fanRecent.replaceChildren();
+          selectedRecentAnon='';recentName.value='';
           const items=Array.isArray(body.recent)?body.recent:[];
           const heading=document.createElement('strong');heading.textContent='RECENT ACTIVITY · '+items.length;
           fanRecent.appendChild(heading);
           items.slice(0,40).forEach(f=>{
-            const line=document.createElement('p');line.className='brCompactStatus';
+            const line=document.createElement('button');line.type='button';
+            line.className='brCompactStatus';
             line.textContent=String(f.anon_id||'Visitor').slice(0,28)+' · '+
               new Date(Number(f.last_activity)*1000).toLocaleTimeString()+
               (f.fan_id?' · Labeled fan':' · Unlabeled');
+            line.addEventListener('click',()=>{
+              selectedRecentAnon=String(f.anon_id||'');
+              fanRecent.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===line)));
+              if(f.fan_id&&knownFans.some(row=>row.id===f.fan_id)){
+                fanSelect.value=f.fan_id;fanChoice();
+              }
+              fanStatus.textContent='SELECTED VISITOR · Enter an owner label, then LABEL SELECTED VISITOR.';
+            });
             fanRecent.appendChild(line);
           });
           fanStatus.textContent='VAULT READ · '+knownFans.length+' SAVED FANS · RECENT IS NOT VERIFIED ONLINE';
         }catch(e){fanStatus.textContent='FAN LINK NOT VERIFIED · '+String(e.message||e)}
       }
+      labelRecent.addEventListener('click',async()=>{
+        if(!selectedRecentAnon||!recentName.value.trim()||!authReady()){
+          fanStatus.textContent='CHOOSE A RECENT VISITOR AND ENTER A NAME FIRST.';return;
+        }
+        labelRecent.disabled=true;
+        try{
+          const response=await api('/manage/fan-access',{method:'POST',
+            body:JSON.stringify({action:'label',anon_id:selectedRecentAnon,
+              display_name:recentName.value.trim()})});
+          const body=await response.json();
+          if(!response.ok||body.ok!==true)throw Error(body.error||'Fan label not saved');
+          await refreshFanDirectory();
+          if(body.fan_id&&knownFans.some(f=>f.id===body.fan_id)){
+            fanSelect.value=body.fan_id;fanChoice();
+          }
+          fanStatus.textContent='FAN LABEL SAVED · Choose a code and SAVE FAN CODE to associate it.';
+        }catch(e){fanStatus.textContent='FAN LABEL NOT SAVED · '+String(e.message||e)}
+        finally{labelRecent.disabled=false}
+      });
       fanRefresh.addEventListener('click',()=>void refreshFanDirectory());
       fanPanel.addEventListener('toggle',()=>{if(fanPanel.open)void refreshFanDirectory()});
       fanSave.addEventListener('click',async()=>{
