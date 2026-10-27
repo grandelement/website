@@ -570,6 +570,16 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessWorkbenchMessage:not([hidden]){border:1px solid #367e9b;padding:10px;border-radius:9px;font-weight:750;margin:0}
 #brPanel-access #brAccessEditor[hidden],#brPanel-access #brAccessWorkbenchMessage[hidden]{display:none!important}
 @media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Keep actual issued access keys distinct from Back Room record names. */
+#brPanel-access .brAccessKeyHelp{padding:12px;margin:10px 0;border:1px solid #376783;border-radius:10px;background:#081c2e}
+#brPanel-access .brAccessKeyHelp[hidden]{display:none!important}
+#brPanel-access .brAccessKeyHelp strong{font-size:calc(12px * var(--scale))}
+#brPanel-access .brAccessKeyHelp p,#brPanel-access .brAccessKeyInstruction{font-size:calc(12px * var(--scale));color:#d0e9f7;line-height:1.45}
+#brPanel-access .brAccessKeyHelp button{min-height:44px;max-width:100%;white-space:normal;font-size:calc(11px * var(--scale))}
+#brPanel-access #brAccessOneTime:not([hidden]){display:grid!important;gap:9px;position:relative;border:2px solid #5bdcff;border-radius:12px;background:#05263b;margin:12px 0;padding:15px;overflow-wrap:anywhere}
+#brPanel-access #brAccessCodeValue{user-select:all;-webkit-user-select:all;font-size:clamp(17px,4vw,27px);line-height:1.4;color:#f4feff;overflow-wrap:anywhere}
+#brPanel-access #brAccessCopy{min-height:50px;font-weight:900}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -845,9 +855,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </details>
   <div id="brAccessEditor" class="brAccessPanel" hidden>
     <h3 id="brAccessEditorTitle">NEW ACCESS CODE</h3>
-    <label><span>OPTIONAL CUSTOM ACCESS CODE · 12–64 CHARACTERS</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Leave blank for a secure generated code"></label>
+    <label><span>RADIO ACCESS KEY (OPTIONAL · 12–64 CHARACTERS)</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Choose a 12+ character key, or generate one"></label>
     <p class="brAccessNotice" id="brAccessCustomHelp">Leave this blank to generate a secure code. The name above is only a label, not the access secret.</p>
-    <label><span>CODE NAME / DESCRIPTION</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <label><span>CODE NAME (FOR YOUR RECORDS ONLY)</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
+      <strong>ACTUAL RADIO ACCESS KEY</strong>
+      <p id="brAccessKeyHelpText"></p>
+      <button type="button" id="brAccessReplaceKey">LOST KEY? ISSUE REPLACEMENT</button>
+    </div>
     <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
     <div class="backroomPermissions">
       <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
@@ -904,7 +919,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 
   <div id="brAccessOneTime" class="backroomCodeReveal" hidden>
-    <b>NEW CODE — COPY NOW. IT WILL NOT BE SHOWN AGAIN.</b>
+    <b>THIS IS THE RADIO ACCESS KEY — COPY IT NOW</b>
+    <p class="brAccessKeyInstruction">Enter the complete key below into the Radio Gate, NOT the name you gave this record. For security, it cannot be retrieved after closing this page.</p>
     <output id="brAccessCodeValue"></output>
     <button type="button" id="brAccessCopy">COPY CODE</button>
   </div>
@@ -3058,7 +3074,9 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomCode').closest('label').hidden=!!row;
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
-    $('brAccessCustomCode').closest('label').hidden=!!row;
+    $('brAccessKeyHelpPanel').hidden=!row;
+    if(row)$('brAccessKeyHelpText').textContent=
+      'Saved key ends in …'+row.code_hint+'. The full key is not stored in readable form. The name '+row.label+' cannot open Radio. If the key was lost, issue a replacement and copy its new key.';
     $('brAccessCustomHelp').textContent=row?
       'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
       'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
@@ -3421,6 +3439,7 @@ const backroomVaultManagers=(()=>{
       note.setAttribute('role','status');note.setAttribute('aria-live','polite');
       bar.appendChild(note);
       oldBar.before(bar);
+      oldBar.before($('brAccessOneTime'));
       oldBar.before($('brAccessEditor'));
       const diag=document.createElement('details');diag.id='brAccessStatusPanel';
       const heading=document.createElement('summary');heading.textContent='STATUS / DIAGNOSTICS';
@@ -3444,6 +3463,7 @@ const backroomVaultManagers=(()=>{
         if($('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
         void saveCode(!!editingCodeId);
       });
+      $('brAccessReplaceKey').addEventListener('click',replaceSelectedCode);
       $('brAccessDeletePrimary').addEventListener('click',()=>{
         if(!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
         void codeAction('delete');
@@ -3572,7 +3592,11 @@ const backroomVaultManagers=(()=>{
         $('brAccessLabel').value=q;
         void saveCode(false);
       });
-      $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
+      $('brAccessSelect').addEventListener('change',e=>{
+        selectedCodeId=e.target.value;renderAccessCodes();
+        if(selectedCode()&&!selectedCode().revoked)showCodeEditor(selectedCodeId);
+        else showCodeBrowser();
+      });
       $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
       $('brAccessNext').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>=0&&i<visibleCodes.length-1){selectedCodeId=visibleCodes[i+1].id;renderAccessCodes();}});
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
