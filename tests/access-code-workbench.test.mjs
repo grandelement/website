@@ -47,3 +47,12 @@ assert.match(html,/id="brAccessRevealKey"/);
 assert.match(html,/action:'reveal',id:row.id/);
 assert.match(html,/revealedKeyRecordId/);
 console.log('PASS: owner can retrieve saved secret from same Back Room record without exposing it in the public code list');
+assert.match(html,/REVIEW NEW/,'search must not immediately issue another credential');
+assert.match(html,/NEW CODE DRAFT/,'new credentials require an explicit review and save');
+assert.doesNotMatch(html,/accessLoaded=false;codeRows=\[\];renderAccessCodes\(\)/,
+  'a login failure must not erase the previously loaded Access Codes list');
+assert.doesNotMatch(html,/accessLoaded=false;codeRows=\[\];legacyLoveAudit=null;renderAccessCodes\(\)/,
+  'a transient Vault read failure must not disguise saved Access Codes as deleted');
+assert.match(html,/Previously loaded codes are UNVERIFIED, not deleted/,
+  'stale records must be clearly marked rather than falsely reported missing');
+console.log('PASS: failed reads preserve prior Vault record visibility; search cannot silently create duplicate codes');
