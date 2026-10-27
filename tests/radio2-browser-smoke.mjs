@@ -55,7 +55,7 @@ try{
   await page.evaluate(()=>window.GEGate.openCodeEntry());
   await page.waitForSelector('#geGateWord',{visible:true,timeout:10000});
   await page.type('#geGateWord','LOVE');
-  const verify=page.waitForResponse(r=>r.url().includes('/v1/public/access/redeem'),{timeout:30000});
+  const verify=page.waitForResponse(r=>r.request().method()==='POST' && r.url().includes('/v1/public/access/redeem'),{timeout:30000});
   await page.click('#geGateEnter');
   const redemption=await verify;
   const redemptionData=await redemption.json().catch(()=>({}));
