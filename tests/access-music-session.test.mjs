@@ -76,11 +76,36 @@ assert.equal(result.status,403,'revoke must invalidate active sessions immediate
 row.revoked_at=null;
 row.scopes_json=JSON.stringify(['radio']);
 result=await call({action:'verify',token,track_path:song});
-assert.equal(result.status,403,'Radio-only codes cannot access Music');
+assert.equal(result.status,200,'Radio code explicitly assigned this song permits only its personal Music grant');
+result=await call({action:'verify',token,track_path:different});
+assert.equal(result.status,403,'Radio code song assignment cannot grant the whole catalog');
+row.track_paths_json='[]';
+result=await call({action:'verify',token,track_path:song});
+assert.equal(result.status,403,'Radio-only code with NO song assignments cannot use Music');
+row.track_paths_json=JSON.stringify([song]);
 row.scopes_json=JSON.stringify(['music']);
 policy.enabled=0;
 result=await call({action:'verify',token,track_path:song});
 assert.equal(result.status,403,'master switch must disable active Music sessions');
 policy.enabled=1;
-assert.equal(auditCount,1,'exactly one music redemption logged');
-console.log('PASS: scoped Music code redemption, authorized track, unauthorized track, tamper, use limit, revoke, scope isolation, master disable');
+assert.equal(auditCount,1,'exactly one Music redemption logged');
+// A single Radio Gate entry must carry the personal Music grant without
+// consuming another use when an owner assigned a playlist to that code.
+row.scopes_json=JSON.stringify(['radio']);
+row.use_count=0;row.first_used_at=null;row.expires_at=null;
+const gateReq=new Request('https://vault.grandelement.com/v1/public/access/redeem',{
+ method:'POST',headers:{'Content-Type':'application/json','Origin':'https://grandelement.com'},
+ body:JSON.stringify({code,scope:'radio'})
+});
+const gateResponse=await worker.fetch(gateReq,env);
+const gate=await gateResponse.json();
+assert.equal(gateResponse.status,200,JSON.stringify(gate));
+assert.equal(row.use_count,1,'Gate entry consumes exactly ONE code use');
+assert.deepEqual(gate.music_session.allowed_tracks,[song]);
+assert.equal(gate.music_session.restricted,true);
+result=await call({action:'verify',token:gate.music_session.token,track_path:song});
+assert.equal(result.status,200,'same Gate redemption authorizes saved personal song');
+result=await call({action:'verify',token:gate.music_session.token,track_path:different});
+assert.equal(result.status,403,'Gate Music token cannot play songs outside assignment');
+assert.equal(row.use_count,1,'song playback verification cannot consume a second use');
+console.log('PASS: Vault Gate grants exact radio-only assigned songs, shared Music token, no double use, revoked and missing assignments denied');
