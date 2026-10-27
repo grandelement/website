@@ -14737,6 +14737,50 @@ document.head.appendChild(sheet);
 </style>
 <script src="./radio/website-live.js?v=2"></script>
 <script src="./radio/ge-home-gate-stop.js?v=20261027-vault-scoped-gate-1"></script>
+<style id="ge-code-experience-presentation">
+/* Presentation preferences from a Vault-redeemed Website code.
+   Not a server-side Games entitlement or identity verification. */
+html.ge-code-hide-games #aboutPlayGameBtn,
+html.ge-code-hide-games #gameOptionsPanel,
+html.ge-code-hide-games #gamePrompt{display:none!important}
+html.ge-code-hide-autopilot #autopilotSpirit,
+html.ge-code-hide-autopilot #autopilotHUD{display:none!important}
+</style>
+<script id="ge-code-experience-presentation-script">
+(()=>{
+ 'use strict';
+ function policy(){
+  try{
+   const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+   if(!r||Number(r.until)<=Date.now()||!Array.isArray(r.scopes)||!r.scopes.includes('website'))return null;
+   if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')return null;
+   return r.experience||null;
+  }catch(_){return null;}
+ }
+ function apply(){
+  const p=policy(),games=!!p&&p.games_enabled===false,auto=!!p&&p.autopilot_enabled===false;
+  document.documentElement.classList.toggle('ge-code-hide-games',games);
+  document.documentElement.classList.toggle('ge-code-hide-autopilot',auto);
+  if(games&&document.body.classList.contains('game-mode-active'))
+    document.getElementById('gameExitTopBtn')?.click();
+  if(auto&&document.body.classList.contains('autopilot-active'))
+    document.getElementById('autopilotExitBtn')?.click();
+ }
+ document.addEventListener('click',e=>{
+  const p=policy();if(!p)return;
+  if(p.games_enabled===false&&e.target.closest('#aboutPlayGameBtn,#gameAcceptBtn,.geGameRow')){
+   e.preventDefault();e.stopImmediatePropagation();return;
+  }
+  if(p.autopilot_enabled===false&&e.target.closest('#autopilotSpirit')){
+   e.preventDefault();e.stopImmediatePropagation();
+  }
+ },true);
+ window.addEventListener('ge-access-experience-updated',apply);
+ window.addEventListener('pageshow',apply);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)apply()});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+})();
+</script>
 
 <style id="ge-per-game-background-controls-v1">
 .geBgPick{color:#f4fbff;border:1px solid rgba(115,215,255,.42);border-radius:12px;background:rgba(3,18,37,.93);padding:7px;margin:9px 0;max-width:440px}

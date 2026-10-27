@@ -888,7 +888,15 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
         <button type="button" id="brAccessReplaceKey">MAKE NAME THE GATE CODE</button>
       </div>
     </div>
-    <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
+    <details class="brAccessCategory" open><summary>WEBSITE · RADIO · ACCESS</summary>
+    <div class="brCodeExperience" style="display:grid;gap:8px;padding:8px;border:1px solid #31506c;border-radius:10px;margin-bottom:11px">
+      <strong>WEBSITE EXPERIENCE</strong>
+      <label class="check"><input id="brCodeGames" type="checkbox" checked><span>SHOW GAMES</span></label>
+      <label class="check"><input id="brCodeAutopilot" type="checkbox" checked><span>SHOW DREAM STATE / AUTOPILOT</span></label>
+      <strong>RADIO</strong>
+      <label><span>PERSONAL LISTENING PLAYLIST (OPTIONAL)</span><select id="brCodeRadioPlaylist"><option value="">Use individual song order</option></select></label>
+      <small>Radio 1 and Radio 2 remain shared broadcasts. This playlist opens in the individual Music player.</small>
+    </div>
     <div class="backroomPermissions">
       <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
@@ -3010,6 +3018,10 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
+    const radio=$('brCodeRadioPlaylist'),radioCurrent=radio.value;
+    radio.replaceChildren(new Option('Use individual song order',''));
+    for(const p of playlists)radio.appendChild(new Option(p.name,p.id));
+    radio.value=[...radio.options].some(x=>x.value===radioCurrent)?radioCurrent:'';
     const source=playlistLoaded?playlists:[];
     select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
     for(const p of source)select.appendChild(new Option(p.name,p.id));
@@ -3168,6 +3180,8 @@ const backroomVaultManagers=(()=>{
     if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
     $('brAccessCustomHelp').textContent='The name IS the Radio Gate code. Short names are easier to guess, so set appropriate permissions and use limits.';
     const scopes=row?row.scopes:['radio'];
+    $('brCodeGames').checked=row?.experience?.games_enabled!==false;
+    $('brCodeAutopilot').checked=row?.experience?.autopilot_enabled!==false;
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
     $('brAccessHours').value=row?.duration_seconds?Math.max(1,Math.round(row.duration_seconds/3600)):168;
@@ -3186,6 +3200,7 @@ const backroomVaultManagers=(()=>{
     accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
     appliedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
+    $('brCodeRadioPlaylist').value=row?.experience?.radio_playlist_id||'';
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
     // A code that currently grants RADIO must still be able to acquire MUSIC
     // or playlist permissions. Do not hide the only relevant controls.
@@ -3377,7 +3392,10 @@ const backroomVaultManagers=(()=>{
       activate_now:$('brAccessStartNow').checked,
       requested_code:editingCodeId?'':label,
       // Checked GitHub playlists are SNAPSHOTTED on Save, not by a second Load button.
-      playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths};
+      playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths,
+      experience:{games_enabled:$('brCodeGames').checked,
+        autopilot_enabled:$('brCodeAutopilot').checked,
+        radio_playlist_id:$('brCodeRadioPlaylist').value}};
   }
   async function saveCode(isEdit){
     if(savingCode)return;
@@ -3414,7 +3432,10 @@ const backroomVaultManagers=(()=>{
         sameSet(saved.playlist_ids,payload.playlist_ids)&&
         JSON.stringify(saved.track_paths||[])===JSON.stringify(payload.track_paths||[])&&
         Number(saved.max_uses||0)===Number(payload.max_uses||0)&&
-        saved.duration_mode===payload.duration_mode;
+        saved.duration_mode===payload.duration_mode&&
+        saved.experience?.games_enabled===payload.experience.games_enabled&&
+        saved.experience?.autopilot_enabled===payload.experience.autopilot_enabled&&
+        String(saved.experience?.radio_playlist_id||'')===payload.experience.radio_playlist_id;
       if(confirmed){
         appliedPlaylistIds=new Set(payload.playlist_ids);
         accessSelectedPlaylistIds=new Set(payload.playlist_ids);
@@ -3633,6 +3654,72 @@ const backroomVaultManagers=(()=>{
         if(el&&!diag.contains(el))diag.appendChild(el);
       }
       accessRoot.appendChild(diag);
+      // A private owner-only fan link to the SAME Vault code ID.
+      const fanPanel=document.createElement('details');
+      fanPanel.id='brCodeFansPanel';fanPanel.className='brSourceDetails';
+      const fanSummary=document.createElement('summary');fanSummary.textContent='FANS · SAVED / RECENT';
+      const fanInfo=document.createElement('p');fanInfo.className='brCompactStatus';
+      fanInfo.textContent='Owner labels and recent events do not verify a real-world identity or prove a live connection.';
+      const fanRefresh=document.createElement('button');fanRefresh.type='button';fanRefresh.textContent='REFRESH FANS';
+      const fanSelect=document.createElement('select');fanSelect.id='brCodeFanSelect';
+      fanSelect.setAttribute('aria-label','Saved fan');
+      const fanCode=document.createElement('select');fanCode.id='brCodeFanCode';
+      fanCode.setAttribute('aria-label','Code for selected fan');
+      const fanSave=document.createElement('button');fanSave.type='button';fanSave.textContent='SAVE FAN CODE';
+      const fanRecent=document.createElement('div');fanRecent.id='brCodeRecentFans';
+      const fanStatus=document.createElement('p');fanStatus.className='brCompactStatus';
+      const fanNameLabel=document.createElement('label');fanNameLabel.textContent='SAVED FAN';fanNameLabel.appendChild(fanSelect);
+      const fanCodeLabel=document.createElement('label');fanCodeLabel.textContent='ACCESS CODE';fanCodeLabel.appendChild(fanCode);
+      fanPanel.append(fanSummary,fanInfo,fanRefresh,fanNameLabel,fanCodeLabel,fanSave,fanRecent,fanStatus);
+      editor.after(fanPanel);
+      let knownFans=[];
+      function fanChoice(){
+        fanCode.replaceChildren(new Option('NO CODE ASSIGNED',''));
+        codeRows.forEach(c=>fanCode.appendChild(new Option(c.label,c.id)));
+        fanCode.value=knownFans.find(f=>f.id===fanSelect.value)?.code_id||'';
+      }
+      fanSelect.addEventListener('change',fanChoice);
+      async function refreshFanDirectory(){
+        if(!authReady()){fanStatus.textContent='SIGN IN REQUIRED';return;}
+        fanStatus.textContent='READING PRIVATE VAULT FAN RECORDS…';
+        try{
+          const response=await api('/manage/fan-access',{method:'GET'});
+          const body=await response.json();
+          if(!response.ok||body.ok!==true)throw Error(body.error||'Fan source unavailable');
+          knownFans=Array.isArray(body.fans)?body.fans:[];
+          const old=fanSelect.value;
+          fanSelect.replaceChildren(new Option('CHOOSE SAVED FAN',''));
+          knownFans.forEach(f=>fanSelect.appendChild(new Option(
+            (f.display_name||'Unlabeled')+' · '+f.id.slice(0,16),f.id)));
+          fanSelect.value=knownFans.some(f=>f.id===old)?old:'';
+          fanChoice();fanRecent.replaceChildren();
+          const items=Array.isArray(body.recent)?body.recent:[];
+          const heading=document.createElement('strong');heading.textContent='RECENT ACTIVITY · '+items.length;
+          fanRecent.appendChild(heading);
+          items.slice(0,40).forEach(f=>{
+            const line=document.createElement('p');line.className='brCompactStatus';
+            line.textContent=String(f.anon_id||'Visitor').slice(0,28)+' · '+
+              new Date(Number(f.last_activity)*1000).toLocaleTimeString()+
+              (f.fan_id?' · Labeled fan':' · Unlabeled');
+            fanRecent.appendChild(line);
+          });
+          fanStatus.textContent='VAULT READ · '+knownFans.length+' SAVED FANS · RECENT IS NOT VERIFIED ONLINE';
+        }catch(e){fanStatus.textContent='FAN LINK NOT VERIFIED · '+String(e.message||e)}
+      }
+      fanRefresh.addEventListener('click',()=>void refreshFanDirectory());
+      fanPanel.addEventListener('toggle',()=>{if(fanPanel.open)void refreshFanDirectory()});
+      fanSave.addEventListener('click',async()=>{
+        if(!fanSelect.value||!authReady()){fanStatus.textContent='SELECT A SAVED FAN';return;}
+        fanSave.disabled=true;
+        try{
+          const response=await api('/manage/fan-access',{method:'POST',
+            body:JSON.stringify({action:'assign',fan_id:fanSelect.value,code_id:fanCode.value})});
+          const body=await response.json();
+          if(!response.ok||body.ok!==true)throw Error(body.error||'Not saved');
+          await refreshFanDirectory();fanStatus.textContent='FAN CODE LINK SAVED IN GE VAULT';
+        }catch(e){fanStatus.textContent='NOT SAVED · '+String(e.message||e)}
+        finally{fanSave.disabled=false}
+      });
       // One status message stays next to the three buttons.
       bar.appendChild($('brAccessStatus'));
       const editor=$('brAccessEditor');

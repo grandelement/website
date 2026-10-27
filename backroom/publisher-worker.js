@@ -539,6 +539,21 @@ export default {
       return handleGithubPlaylists(request,env,cors);
     }
 
+    // Fan identities require the FULL Vault admin credential, not the
+    // narrower Access Codes bridge token. Only the owner may link records.
+    if(url.pathname==='/manage/fan-access'&&['GET','POST'].includes(request.method)){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
+      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Fan integration needs the full Vault admin token configured on Publisher.'},503,cors);
+      let body=null;
+      if(request.method==='POST'){
+        try{body=await request.json()}catch(_){return json({ok:false,error:'Invalid fan assignment request.'},400,cors)}
+        if(body?.action!=='assign')return json({ok:false,error:'Unknown fan assignment action.'},400,cors);
+      }
+      const upstream=await geVaultBridge(env,'/v1/admin/fan-access',request.method,body);
+      return json(upstream.data,upstream.status,cors);
+    }
     if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
       const isPlaylists=url.pathname==='/manage/playlists';

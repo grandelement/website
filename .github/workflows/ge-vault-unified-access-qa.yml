@@ -1,0 +1,29 @@
+name: GE Unified Vault Access Contract
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'backroom/publisher-worker.js'
+      - 'vault-worker/src/index.js'
+      - 'vault-worker/migrations/20261027_unified_access_experience.sql'
+      - 'radio/ge-music-v5.js'
+      - 'radio/index.html'
+      - 'radio/preview-lab.html'
+      - 'radio/sw.js'
+      - 'index.html'
+      - 'tests/ge-vault-unified-access.test.mjs'
+      - '.github/workflows/ge-vault-unified-access-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/ge-vault-unified-access.test.mjs

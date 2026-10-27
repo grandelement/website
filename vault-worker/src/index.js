@@ -1917,6 +1917,45 @@ async function adminSetFanLabel(request, env) {
   return json({ ok: true, anon_id: anonId, fan_id: fanId, display_name: displayName || "", notes: notes || "" });
 }
 
+// Owner-only fan/code directory. This records administrative assignments,
+// not authentication of an anonymous browser or proof of a person's identity.
+async function adminFanAccess(request,env){
+ if(!adminAuthorized(request,env))
+  return json({ok:false,error:"Full Vault owner authorization required."},401);
+ await ensureAccessCodeTables(env);
+ if(request.method==="GET"){
+  const [fans,recent]=await Promise.all([
+   env.VAULT_DB.prepare(
+    "SELECT f.id,f.display_name,f.last_seen_at,l.code_id,a.label AS code_label FROM fans f LEFT JOIN fan_code_links l ON l.fan_id=f.id LEFT JOIN access_codes a ON a.id=l.code_id ORDER BY f.last_seen_at DESC LIMIT 300"
+   ).all(),
+   env.VAULT_DB.prepare(
+    "SELECT anon_id,MAX(occurred_at) AS last_activity,MAX(fan_id) AS fan_id FROM fan_events WHERE occurred_at>=? AND anon_id IS NOT NULL GROUP BY anon_id ORDER BY last_activity DESC LIMIT 100"
+   ).bind(now()-120).all()
+  ]);
+  return json({ok:true,fans:fans.results||[],recent:recent.results||[],
+   recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
+ }
+ const body=await readBody(request);
+ if(body.action!=="assign")return json({ok:false,error:"Unsupported fan assignment action."},400);
+ const fanId=String(body.fan_id||""),codeId=String(body.code_id||"");
+ if(!/^fan[-_][a-zA-Z0-9-]{6,100}$/.test(fanId))
+  return json({ok:false,error:"Choose a saved fan identifier."},400);
+ const fan=await env.VAULT_DB.prepare("SELECT id FROM fans WHERE id=?").bind(fanId).first();
+ if(!fan)return json({ok:false,error:"Fan not found."},404);
+ if(codeId){
+  const code=await env.VAULT_DB.prepare(
+   "SELECT id FROM access_codes WHERE id=? AND enabled=1 AND revoked_at IS NULL"
+  ).bind(codeId).first();
+  if(!code)return json({ok:false,error:"Access code not available."},404);
+  await env.VAULT_DB.prepare(
+   "INSERT INTO fan_code_links(fan_id,code_id,assigned_at) VALUES(?,?,?) ON CONFLICT(fan_id) DO UPDATE SET code_id=excluded.code_id,assigned_at=excluded.assigned_at"
+  ).bind(fanId,codeId,now()).run();
+ }else{
+  await env.VAULT_DB.prepare("DELETE FROM fan_code_links WHERE fan_id=?").bind(fanId).run();
+ }
+ await audit(env,"admin","fan.code.assign","fan",fanId,{code_id:codeId||null});
+ return json({ok:true,fan_id:fanId,code_id:codeId});
+}
 async function adminExport(env) {
   const values = await env.VAULT_DB.prepare("SELECT * FROM vault_values ORDER BY kind,scope,key").all();
   const playlists = await listPlaylists(env);
@@ -1986,7 +2025,10 @@ function accessPublicRow(row) {
     expires_at:row.expires_at,activated_at:row.activated_at,first_used_at:row.first_used_at,
     max_uses:row.max_uses,use_count:row.use_count,enabled:!!row.enabled,
     revoked:!!row.revoked_at,created_at:row.created_at,updated_at:row.updated_at,
-    playlist_ids:JSON.parse(row.playlist_ids_json||"[]"),track_paths:JSON.parse(row.track_paths_json||"[]")
+    playlist_ids:JSON.parse(row.playlist_ids_json||"[]"),track_paths:JSON.parse(row.track_paths_json||"[]"),
+    experience:{games_enabled:row.experience_games_enabled!==0,
+      autopilot_enabled:row.experience_autopilot_enabled!==0,
+      radio_playlist_id:String(row.experience_radio_playlist_id||"")}
   };
 }
 // One-time migration on authenticated owner code-list request. An existing,
@@ -2003,7 +2045,9 @@ async function ensureAccessCodeTables(env){
     "SELECT id FROM access_code_policy LIMIT 1",
     "SELECT id FROM access_codes LIMIT 1",
     "SELECT code_id FROM access_code_content LIMIT 1",
-    "SELECT code_id FROM access_code_deletions LIMIT 1"
+    "SELECT code_id FROM access_code_deletions LIMIT 1",
+    "SELECT code_id FROM access_code_experience LIMIT 1",
+    "SELECT fan_id FROM fan_code_links LIMIT 1"
   ];
   let allPresent=true;
   for(const query of required){
@@ -2050,6 +2094,21 @@ async function ensureAccessCodeTables(env){
       code_id TEXT PRIMARY KEY,
       deleted_at INTEGER NOT NULL,
       FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS access_code_experience (
+      code_id TEXT PRIMARY KEY,
+      games_enabled INTEGER NOT NULL DEFAULT 1,
+      autopilot_enabled INTEGER NOT NULL DEFAULT 1,
+      radio_playlist_id TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS fan_code_links (
+      fan_id TEXT PRIMARY KEY,
+      code_id TEXT NOT NULL,
+      assigned_at INTEGER NOT NULL,
+      FOREIGN KEY(fan_id) REFERENCES fans(id) ON DELETE CASCADE,
+      FOREIGN KEY(code_id) REFERENCES access_codes(id)
     )`
   ];
   await env.VAULT_DB.batch(statements.map(statement=>env.VAULT_DB.prepare(statement)));
@@ -2091,6 +2150,21 @@ async function ensureLegacyLoveRecord(env){
   });
   return {id:codeId,created:true};
 }
+function normalizedCodeExperience(body){
+  if(!body||typeof body.experience!=="object"||body.experience===null)return null;
+  const x=body.experience;
+  const radio=String(x.radio_playlist_id||"").trim();
+  if(radio&&!/^[a-zA-Z0-9_-]{1,100}$/.test(radio))return {error:"Invalid personal Radio playlist."};
+  const permitted=Array.isArray(body.playlist_ids)?body.playlist_ids:[];
+  if(radio&&!permitted.includes(radio))return {error:"The Radio playlist must be assigned to this code."};
+  return {games_enabled:x.games_enabled!==false,autopilot_enabled:x.autopilot_enabled!==false,
+    radio_playlist_id:radio};
+}
+function codeExperienceStatement(env,codeId,x,t){
+  return env.VAULT_DB.prepare(
+    "INSERT INTO access_code_experience(code_id,games_enabled,autopilot_enabled,radio_playlist_id,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET games_enabled=excluded.games_enabled,autopilot_enabled=excluded.autopilot_enabled,radio_playlist_id=excluded.radio_playlist_id,updated_at=excluded.updated_at"
+  ).bind(codeId,x.games_enabled?1:0,x.autopilot_enabled?1:0,x.radio_playlist_id,t);
+}
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   await ensureAccessCodeTables(env);
@@ -2098,7 +2172,7 @@ async function accessAdminGet(request, env) {
   const loveHash=await accessCodeHash("LOVE",env);
   const [policy,rows,loveRecord]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
-    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
+    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
     env.VAULT_DB.prepare("SELECT a.id,a.enabled,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=? OR a.id=? ORDER BY CASE WHEN a.code_hash=? THEN 0 ELSE 1 END LIMIT 1").bind(loveHash,"access_legacy_love_v1",loveHash).first()
   ]);
   const items=(rows.results||[]).map(accessPublicRow);
@@ -2162,6 +2236,8 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments(body);
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    const experience=normalizedCodeExperience(body);
+    if(experience?.error)return json({ok:false,error:experience.error},400);
     // GitHub playlist IDs are references to the saved song snapshot only.
     // A reference without explicit tracks must not grant mutable blanket access.
     if(assignments.playlist_ids.some(x=>/^playlist_[a-z0-9]+$/i.test(x))&&!assignments.track_paths.length)
@@ -2193,7 +2269,8 @@ async function accessAdminChange(request,env){
       env.VAULT_DB.prepare("INSERT INTO access_code_content (code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)")
         .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
       env.VAULT_DB.prepare("INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?)")
-        .bind(newId,encryptedCode,t)
+        .bind(newId,encryptedCode,t),
+      ...(experience?[codeExperienceStatement(env,newId,experience,t)]:[])
     ]);
     await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hint,scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
@@ -2218,6 +2295,8 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments({...body,scopes});
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    const experience=normalizedCodeExperience(body);
+    if(experience?.error)return json({ok:false,error:experience.error},400);
     for(const playlistId of assignments.playlist_ids){
       if(/^playlist_[a-z0-9]+$/i.test(playlistId)){
         if(!assignments.track_paths.length)return json({ok:false,error:"Load the GitHub playlist songs before saving."},400);
@@ -2236,7 +2315,8 @@ async function accessAdminChange(request,env){
       env.VAULT_DB.prepare("UPDATE access_codes SET label=?,scopes_json=?,duration_mode=?,duration_seconds=?,fixed_expires_at=?,expires_at=?,max_uses=?,updated_at=? WHERE id=?")
         .bind(label,JSON.stringify(scopes),mode,seconds,fixed,expiry,maxUses,t,codeId),
       env.VAULT_DB.prepare("INSERT INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET playlist_ids_json=excluded.playlist_ids_json,track_paths_json=excluded.track_paths_json,updated_at=excluded.updated_at")
-        .bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
+        .bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
+      ...(experience?[codeExperienceStatement(env,codeId,experience,t)]:[])
     ]);
     await audit(env,"admin","access.edit","access_code",codeId,{label,scopes,mode,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:codeId,action:"edit"});
@@ -2385,7 +2465,7 @@ async function accessMusicSession(request,env){
     restricted:allowedPaths.length>0,track_count:allowedPaths.length
   });
   return json({ok:true,token:unsigned+"."+sig,session_expires_at:sessionExpires,
-    restricted:allowedPaths.length>0,allowed_tracks:allowedPaths});
+    restricted:allowedPaths.length>0,allowed_tracks:allowedPaths,playlist_ids:playlistIds});
 }
 
 async function accessRedeem(request,env){
@@ -2398,7 +2478,7 @@ async function accessRedeem(request,env){
   if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
   const hash=await accessCodeHash(body.code,env);
   if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
-  const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
+  const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
   if(!row||!row.enabled||row.revoked_at||row.deleted_at)return json({ok:false,error:"Invalid or expired code."},403);
   const scope=String(body.scope||"radio");
   const scopes=JSON.parse(row.scopes_json||"[]");
@@ -2442,11 +2522,14 @@ async function accessRedeem(request,env){
     const unsigned=row.id+"."+until+"."+nonce;
     const sig=await hmacHex("ge-music-session-v1:"+unsigned,env.VAULT_HASH_KEY);
     music_session={token:unsigned+"."+sig,session_expires_at:until,
-      restricted:track_paths.length>0,allowed_tracks:track_paths};
+      restricted:track_paths.length>0,allowed_tracks:track_paths,playlist_ids};
   }
   // A browser receipt is a convenience, not server-enforced paid-content access.
   return json({ok:true,scope,scopes,expires_at:expires||null,
     uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null,
+    experience:{games_enabled:row.experience_games_enabled!==0,
+      autopilot_enabled:row.experience_autopilot_enabled!==0,
+      radio_playlist_id:String(row.experience_radio_playlist_id||"")},
     ...(music_session?{music_session}:{})});
 }
 
@@ -2584,6 +2667,11 @@ export default {
         return json(await adminAnalytics(env, url), 200, cors);
       }
 
+      if(url.pathname==="/v1/admin/fan-access"&&["GET","POST"].includes(request.method)){
+        const response=await adminFanAccess(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
       if (url.pathname === "/v1/admin/fan-detail" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json(await adminFanDetail(env, url), 200, cors);

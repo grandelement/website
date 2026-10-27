@@ -5587,13 +5587,18 @@ function geInlineMusicShow(force=false){
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
- play:(input)=>{
+ play:(input,orderedPaths)=>{
   const path=canonicalSongPath(input);
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   geInlineMusicInit();
-  const play=geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack;
-  if(typeof play!=='function')return {ok:false,message:'Preview player is preparing. Tap PLAY again.'};
-  try{return play(path)?{ok:true}:{ok:false,message:'This recording cannot be previewed yet.'}}
+  const frame=geInlineMusicFrame?.contentWindow;
+  const queue=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
+  const play=typeof frame?.GEPlayLibraryQueue==='function'
+    ?()=>frame.GEPlayLibraryQueue(queue,path)
+    :typeof frame?.GEPlayLibraryTrack==='function'
+    ?()=>frame.GEPlayLibraryTrack(path):null;
+  if(!play)return {ok:false,message:'Preview player is preparing. Tap PLAY again.'};
+  try{return play()?{ok:true}:{ok:false,message:'This recording cannot be previewed yet.'}}
   catch(error){return {ok:false,message:'Could not start this song preview.'}}
  }
 };
@@ -10168,8 +10173,12 @@ Vector ${vector}. ${pair[1]}.`;
           const grantedScopes=Array.isArray(result.scopes)
             ?result.scopes.filter(scope=>['website','radio','music','albums','games'].includes(scope)):[];
           sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
-            scopes:grantedScopes,until:validUntil,verifiedFor:'radio'
+            scopes:grantedScopes,until:validUntil,verifiedFor:'radio',
+            experience:{games_enabled:result.experience?.games_enabled!==false,
+              autopilot_enabled:result.experience?.autopilot_enabled!==false,
+              radio_playlist_id:String(result.experience?.radio_playlist_id||'')}
           }));
+          try{window.dispatchEvent(new CustomEvent('ge-access-experience-updated'))}catch(_e){}
           // One Gate redemption now returns the SAME record's signed Music
           // grant and exact saved playlist/song snapshot. No second use is
           // consumed, and this does not change the shared BLITZ broadcast.
@@ -10177,7 +10186,9 @@ Vector ${vector}. ${pair[1]}.`;
           if(m&&typeof m.token==='string'&&Array.isArray(m.allowed_tracks)&&
              Number(m.session_expires_at)*1000>Date.now()){
             const receipt={token:m.token,until:Number(m.session_expires_at)*1000,
-              restricted:!!m.restricted,allowed:m.allowed_tracks};
+              restricted:!!m.restricted,allowed:m.allowed_tracks,
+              playlistIds:Array.isArray(m.playlist_ids)?m.playlist_ids:[],
+              radioPlaylistId:String(result.experience?.radio_playlist_id||'')};
             sessionStorage.setItem('GE_MUSIC_CODE_SESSION_V1',JSON.stringify(receipt));
             try{window.dispatchEvent(new CustomEvent('ge-vault-music-access-updated'))}catch(_e){}
             try{geInlineMusicFrame?.contentWindow?.postMessage({type:'ge-vault-music-access-updated'},location.origin)}catch(_e){}
@@ -10635,7 +10646,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261027-v53-vault-code-songs"></script>
+<script defer src="./ge-music-v5.js?v=20261027-v54-code-views"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
   const a=document.getElementById('player');

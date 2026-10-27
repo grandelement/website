@@ -894,6 +894,19 @@ function chooseTrack(t){
 }
 // PLAY in Radio's song-title / MUSIC popup starts exactly one chosen
 // preview in the background. The popup remains open for browsing.
+// The single personalized Music queue respects the owner's song order.
+window.GEPlayLibraryQueue=function(paths,startPath){
+ if(!Array.isArray(paths)||!paths.length)return false;
+ const unique=[...new Set(paths.map(cleanMusicPath).filter(Boolean))].slice(0,250);
+ const tracks=unique.map(path=>catalogTrackByPath.get(path)).filter(Boolean);
+ if(!tracks.length)return false;
+ const idx=tracks.findIndex(t=>cleanMusicPath(t.path)===cleanMusicPath(startPath));
+ if(idx<0)return false;
+ selectedAlbum=tracks[idx].album||'';
+ playingSelected=true;albumTracks=tracks;trackIndex=idx;
+ void startTrack(tracks[idx]);
+ return true;
+};
 window.GEPlayLibraryTrack=function(path){
  const key=cleanMusicPath(path);
  const track=catalogTrackByPath.get(key);
