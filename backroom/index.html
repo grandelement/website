@@ -3048,7 +3048,7 @@ const backroomVaultManagers=(()=>{
     const found=catalog.filter(x=>(!album||(x.album||'Other')===album)&&
       (x.track_title+' '+x.album).toLowerCase().includes(query)&&
       (view==='all'||assignedSongPaths.includes(x.track_path)));
-    host.hidden=view==='playlist';
+    host.hidden=view==='playlist';host.style.display=view==='playlist'?'none':'';
     $('brAccessOrderSection').open=view==='playlist';
     host.replaceChildren();
     const grouped=new Map();
@@ -3156,10 +3156,10 @@ const backroomVaultManagers=(()=>{
     });
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE':'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
-    // Search text is a display name, never a four-letter secret such as the legacy LOVE Gate code.
+    // New codes use their display name as the Gate credential; existing records keep their old key until explicitly changed.
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
-    $('brAccessCustomCode').closest('label').hidden=!!row;
+    $('brAccessCustomCode').closest('label').hidden=true;
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
@@ -3472,6 +3472,7 @@ const backroomVaultManagers=(()=>{
     const row=selectedCode();
     if(!row||row.id!==editingCodeId)return accessStatus('LOAD THE SAVED CODE BEFORE RESETTING ITS KEY.');
     if(savingCode)return;
+    if(row.id==='access_legacy_love_v1')return accessStatus('LOVE ALREADY USES THE CODE LOVE. NOTHING CHANGED.');
     if(!confirm('Make "'+row.label+'" the actual Radio Gate code? The OLD key will stop working immediately. Permissions, playlists and use counts stay unchanged.'))return;
     savingCode=true;
     const button=$('brAccessReplaceKey');button.disabled=true;
