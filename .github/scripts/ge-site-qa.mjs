@@ -187,7 +187,7 @@ allIn(radio,[
   "window.GEGateFX={setFadeProgress:gateFxProgress",
   "function ensureLiveEQ(){",
   "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
-  "if((gs.expired&&!authorized())||!state.live||!GATE_CONFIG.liveMetadataURL)return"
+  "if((gs.expired&&!authorized())||!state.live||radio2.active||!GATE_CONFIG.liveMetadataURL)return"
 ], 'LOVE developer-only Radio UI and quiet native-safe Gate');
 
 // Native iPhone playback takes priority over the separate Sun Lab tap.
@@ -300,9 +300,11 @@ test(!radio.includes("const escaped=name.replace(/[.*+?^$") ,
   'Album title matcher cannot inject a broken replacement string');
 
 test(radio.includes('const GE_RADIO2_DISABLED=false;') &&
-     radio.includes("String(program.playlist_name||'').toLowerCase()!=='bangers'") &&
+     radio.includes('const kind=radio2ProgramKind(program);') &&
+     radio.includes("if(name==='bangers')return 'bangers';") &&
+     radio.includes("program?.playlist_hash==='6ffcaf4206e25c78'") &&
      radio.includes('void retryRadio1Only(reason);'),
-     'Radio 2 failover is enabled only for validated Bangers and retries Radio 1 if backup is unavailable');
+     'Radio 2 plays published Bangers or only the verified 50-track fallback, while retaining bounded Radio 1 retries');
 allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'Radio fallback and guest music routing');
