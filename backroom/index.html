@@ -2293,7 +2293,7 @@ const backroomVaultManagers=(()=>{
   const accessStatus=text=>{
      status('brAccessStatus',text);
      const node=$('brAccessWorkbenchMessage');if(!node)return;
-     const show=/NOT SAVED|FAILED|NOT LOADED|UPDATED AND VERIFIED|SAVED AND VERIFIED|RESPONSE NOT VERIFIED|SIGN IN REQUIRED|CODE DELETED|UPDATE FAILED/i.test(String(text||''));
+     const show=/NOT SAVED|FAILED|NOT LOADED|UPDATED AND VERIFIED|SAVED AND VERIFIED|RESPONSE NOT VERIFIED|SIGN IN REQUIRED|CODE DELETE COMPLETED|CODE DELETED|UPDATE FAILED/i.test(String(text||''));
      node.hidden=!show;if(show)node.textContent=String(text||'');
    };
   const vaultIndicator=(state,details='')=>{
@@ -3056,6 +3056,8 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomCode').closest('label').hidden=!!row;
+    $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
+    $('brAccessCustomCode').closest('label').hidden=!!row;
     $('brAccessCustomHelp').textContent=row?
       'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
       'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
@@ -3302,7 +3304,7 @@ const backroomVaultManagers=(()=>{
     if(action==='revoke'&&!confirm('Permanently revoke '+row.label+'? This cannot be undone.'))return;
     try{
       await vaultAction('/manage/access-codes',{action,id:row.id});
-      if(action==='delete')selectedCodeId='';
+      if(action==='delete'){selectedCodeId='';showCodeBrowser();}
       await refreshCodes(selectedCodeId);
       accessStatus('CODE '+action.toUpperCase()+' COMPLETED.');
     }catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
@@ -3429,7 +3431,7 @@ const backroomVaultManagers=(()=>{
       }
       accessRoot.appendChild(diag);
       $('brAccessNewPrimary').addEventListener('click',()=>{
-        $('brAccessSearch').value='';showCodeEditor('');
+        $('brAccessSearch').value='';selectedCodeId='';showCodeEditor('');
         $('brAccessSelect').selectedIndex=-1;
         note.hidden=true;
       });
@@ -3442,7 +3444,7 @@ const backroomVaultManagers=(()=>{
         void saveCode(!!editingCodeId);
       });
       $('brAccessDeletePrimary').addEventListener('click',()=>{
-        if(!selectedCode())return accessStatus('SELECT A SAVED CODE FIRST.');
+        if(!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
         void codeAction('delete');
       });
       const gameDetails=document.createElement('details');gameDetails.className='brAccessCategory';
