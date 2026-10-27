@@ -12,6 +12,7 @@ const internalVault={async fetch(req){
  if(url.pathname==='/health')return Response.json({
    ok:true,storage:'READY',access_codes_ready:true
  });
+ assert.equal(req.redirect,'manual','Cloudflare Workers rejects redirect:error during Request construction');
  assert.equal(url.pathname,'/v1/admin/access-codes');
  assert.equal(req.headers.get('Authorization'),'Bearer SCOPED_INTERNAL_ONLY');
  adminReads++;

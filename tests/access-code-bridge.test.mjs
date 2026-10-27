@@ -32,6 +32,7 @@ globalThis.fetch=async (resource,init={})=>{
  const url=typeof resource==='string'?resource:resource.url;
  if(!url.startsWith('https://vault.grandelement.com/'))throw Error('unexpected upstream '+url);
  upstreamCalls++;
+ assert.equal(init.redirect,'manual','Do not construct Cloudflare Requests using unsupported redirect:error');
  const req=new Request(url,{method:init.method||'GET',headers:init.headers,
    ...(init.body?{body:init.body}:{})});
  return vault.fetch(req,vaultEnv);

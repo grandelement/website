@@ -261,7 +261,7 @@ async function geVaultBridge(env,path,method='GET',body=null){
     'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
     'GE Vault connection is not configured on the Back Room publisher.'}};
   const url='https://vault.grandelement.com'+path;
-  const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'error'};
+  const init={method,headers:{'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},redirect:'manual'};
   if(body!==null)init.body=JSON.stringify(body);
   try{
     // Production uses the Wrangler service binding. This bypasses the public
