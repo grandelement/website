@@ -2263,7 +2263,7 @@ const backroomVaultManagers=(()=>{
   let initialized=false,playlists=[],catalog=[],playlistTracks=[],playlistEditingId='',playlistLocked=false;
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
-  let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='';
+  let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
     const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;
@@ -3102,8 +3102,11 @@ const backroomVaultManagers=(()=>{
       String(row.code_hint||'').toUpperCase()==='LOVE'||
       /^LOVE(?:\s|·|$)/i.test(String(row.label||'')));
     const playlistNames=playlistLoaded?playlists.map(p=>p.name).join(', '):'NOT VERIFIED';
+    const loveState=legacyLoveAudit?.state?
+      legacyLoveAudit.state+' ('+(legacyLoveAudit.record_id||'NO RECORD ID')+')':
+      (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED LIST · D1 AUDIT UNAVAILABLE');
     host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S) · LOVE: '+
-      (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED ACTIVE LIST')+
+      loveState+
       ' · GITHUB PLAYLISTS: '+(playlistLoaded?playlists.length:'NOT CONNECTED')+
       ' ('+playlistNames+') · MUSIC CATALOG: '+catalog.length+' TRACK(S).';
   }
@@ -3181,6 +3184,7 @@ const backroomVaultManagers=(()=>{
       const codes=await vaultAction('/manage/access-codes');
       if(!Array.isArray(codes.items))throw Error('Vault returned no code list.');
       codeRows=codes.items;
+      legacyLoveAudit=codes.legacy_love||null;
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
@@ -3190,7 +3194,7 @@ const backroomVaultManagers=(()=>{
         ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
       return true;
     }catch(err){
-      accessLoaded=false;codeRows=[];renderAccessCodes();
+      accessLoaded=false;codeRows=[];legacyLoveAudit=null;renderAccessCodes();
       accessStatus('CODES NOT LOADED · '+String(err.message||err));
       return false;
     }
@@ -3356,7 +3360,8 @@ const backroomVaultManagers=(()=>{
       'Vault codes: '+(codesOk?'verified':'failed')+'; GitHub playlists: '+(listsOk?'verified':'failed'));
     accessStatus('SOURCE VERIFICATION · Vault codes: '+(codesOk?'READ '+codeRows.length:'FAILED')+
       ' · GitHub playlists: '+(listsOk?'READ '+playlists.length:'FAILED')+
-      ' · LOVE: '+(codesOk?(codeRows.some(r=>r.id==='access_legacy_love_v1'||String(r.code_hint||'').toUpperCase()==='LOVE')?'FOUND IN LIVE RESPONSE':'NOT FOUND IN LIVE RESPONSE'):'NOT CHECKED')+
+      ' · LOVE: '+(codesOk?(legacyLoveAudit?.state||
+         (codeRows.some(r=>r.id==='access_legacy_love_v1'||String(r.code_hint||'').toUpperCase()==='LOVE')?'VISIBLE':'NOT FOUND / AUDIT UNAVAILABLE')):'NOT CHECKED')+
       ' · Catalog: '+catalog.length+' tracks.');
     return verified;
   }
