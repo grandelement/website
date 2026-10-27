@@ -3171,7 +3171,7 @@ const backroomVaultManagers=(()=>{
     const q=String($('brAccessSearch').value||'').trim().toLowerCase();
     $('brAccessShowAll').hidden=!q;
     const exact=q&&codeRows.some(row=>String(row.label||'').trim().toLowerCase()===q);
-    $('brAccessQuickSave').textContent=!q?'NEW CODE':exact?'EDIT MATCH':'SAVE NEW';
+    $('brAccessQuickSave').textContent=!q?'NEW CODE':exact?'EDIT MATCH':'REVIEW NEW';
     visibleCodes=codeRows.filter(row=>{
       const hay=[row.label,row.code_hint,...(row.scopes||[]),...(row.playlist_ids||[]),
         ...(row.track_paths||[])].join(' ').toLowerCase();
@@ -3187,7 +3187,7 @@ const backroomVaultManagers=(()=>{
         q?'NO MATCH · '+codeRows.length+' SAVED · TAP SHOW ALL':'NO CODES SAVED';
       sel.appendChild(new Option(note,''));
     }
-    sel.disabled=!visibleCodes.length;
+    sel.disabled=!accessLoaded||!visibleCodes.length;
     sel.value=selectedCodeId;
     sel.size=1;
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
@@ -3196,10 +3196,10 @@ const backroomVaultManagers=(()=>{
       (visibleCodes.length?(idx+1)+' OF '+codeRows.length+' SAVED':'0 SAVED');
     $('brAccessPrev').disabled=idx<=0;
     $('brAccessQuickLoad').disabled=!selectedCodeId;
-    $('brAccessQuickEdit').disabled=!selectedCodeId||!!selectedCode()?.revoked;
+    $('brAccessQuickEdit').disabled=!accessLoaded||!selectedCodeId||!!selectedCode()?.revoked;
     $('brAccessNext').disabled=idx<0||idx===visibleCodes.length-1;
     const selected=selectedCode(),host=$('brAccessList');host.replaceChildren();
-    const disabled=!selected;
+    const disabled=!accessLoaded||!selected;
     $('brAccessEdit').disabled=disabled||!!selected?.revoked;
     $('brAccessToggle').disabled=disabled||!!selected?.revoked;
     $('brAccessRevoke').disabled=disabled||!!selected?.revoked;
@@ -3232,7 +3232,7 @@ const backroomVaultManagers=(()=>{
   }
   async function refreshCodes(preferId=''){
     if(!authReady()){
-      accessLoaded=false;codeRows=[];renderAccessCodes();
+      accessLoaded=false;renderAccessCodes();
       needsPublisherLogin();
       return false;
     }
@@ -3252,8 +3252,8 @@ const backroomVaultManagers=(()=>{
         ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
       return true;
     }catch(err){
-      accessLoaded=false;codeRows=[];legacyLoveAudit=null;renderAccessCodes();
-      accessStatus('CODES NOT LOADED · '+String(err.message||err));
+      accessLoaded=false;renderAccessCodes();
+      accessStatus('CODES NOT LOADED · '+String(err.message||err)+' · Previously loaded codes are UNVERIFIED, not deleted. Reconnect and refresh before editing.');
       return false;
     }
   }
@@ -3678,7 +3678,7 @@ const backroomVaultManagers=(()=>{
         // existing record was loaded or its editor kept an old name.
         if(editingCodeId||$('brAccessEditor').hidden)showCodeEditor();
         $('brAccessLabel').value=q;
-        void saveCode(false);
+        accessStatus('NEW CODE DRAFT · Review the label, permissions and playlists, then press SAVE NEW ACCESS CODE. Nothing has been issued yet.');
       });
       $('brAccessSelect').addEventListener('change',e=>{
         selectedCodeId=e.target.value;renderAccessCodes();
