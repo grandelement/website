@@ -8,6 +8,7 @@ let internalCalls=0,publicCalls=0,adminReads=0;
 const internalVault={async fetch(req){
  internalCalls++;
  assert.ok(req instanceof Request,'the internal binding forwards a Request');
+ assert.equal(req.redirect,'manual','Cloudflare Workers rejects redirect:error during Request construction');
  const url=new URL(req.url);
  if(url.pathname==='/health')return Response.json({
    ok:true,storage:'READY',access_codes_ready:true
