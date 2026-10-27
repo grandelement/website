@@ -861,7 +861,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
       <strong>ACTUAL RADIO ACCESS KEY</strong>
       <p id="brAccessKeyHelpText"></p>
-      <button type="button" id="brAccessReplaceKey">LOST KEY? ISSUE REPLACEMENT</button>
+      <button type="button" id="brAccessReplaceKey">RESET ACCESS KEY FOR THIS CODE</button>
     </div>
     <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
     <div class="backroomPermissions">
@@ -3076,7 +3076,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     if(row)$('brAccessKeyHelpText').textContent=
-      'Saved key ends in …'+row.code_hint+'. The full key is not stored in readable form. The name '+row.label+' cannot open Radio. If the key was lost, issue a replacement and copy its new key.';
+      'Saved key ends in …'+row.code_hint+'. The full key is not stored in readable form. The name '+row.label+' cannot open Radio. If the key was lost, RESET ACCESS KEY, then copy the new key.';
     $('brAccessCustomHelp').textContent=row?
       'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
       'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
@@ -3328,6 +3328,32 @@ const backroomVaultManagers=(()=>{
       accessStatus('CODE '+action.toUpperCase()+' COMPLETED.');
     }catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
   }
+  async function rotateSelectedCode(){
+    const row=selectedCode();
+    if(!row||row.id!==editingCodeId)return accessStatus('LOAD THE SAVED CODE BEFORE RESETTING ITS KEY.');
+    if(savingCode)return;
+    if(!confirm('Reset the ACCESS KEY for "'+row.label+'"? The old key will stop working immediately. Saved permissions, playlists and usage remain unchanged.'))return;
+    savingCode=true;
+    const button=$('brAccessReplaceKey');button.disabled=true;
+    try{
+      const result=await vaultAction('/manage/access-codes',{action:'rotate',id:row.id});
+      if(!result?.code||result.id!==row.id)throw Error('Vault did not return the new access key.');
+      // Present the key before ANY follow-up network call: once the rotation
+      // commits, this is the sole copy returned by the server.
+      $('brAccessCodeValue').textContent=result.code;
+      $('brAccessOneTime').hidden=false;
+      $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'});
+      const readable=await refreshCodes(row.id);
+      const saved=readable?codeRows.find(x=>x.id===row.id):null;
+      if(saved?.code_hint===result.code_hint){
+        showCodeEditor(row.id);
+        accessStatus('KEY RESET AND VERIFIED · COPY THE ACTUAL ACCESS KEY ABOVE.');
+      }else{
+        accessStatus('KEY RESET · Copy the new key above. Read-back was not verified; do not reset again.');
+      }
+    }catch(error){accessStatus('KEY RESET FAILED · '+String(error.message||error));}
+    finally{savingCode=false;button.disabled=false;}
+  }
   function replaceSelectedCode(){
     const old=selectedCode();
     if(!old)return accessStatus('SELECT A SAVED CODE FIRST.');
@@ -3463,7 +3489,7 @@ const backroomVaultManagers=(()=>{
         if($('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
         void saveCode(!!editingCodeId);
       });
-      $('brAccessReplaceKey').addEventListener('click',replaceSelectedCode);
+      $('brAccessReplaceKey').addEventListener('click',()=>void rotateSelectedCode());
       $('brAccessDeletePrimary').addEventListener('click',()=>{
         if(!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
         void codeAction('delete');
