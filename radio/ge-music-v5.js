@@ -407,7 +407,7 @@ function render(){
    recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'ge_github',song_count:p.songs.length});
    setView('vault:'+p.id);
   });
-  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No published GE playlists. The owner manages GE playlists in the Back Room.'));
+  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No published GE playlists are available yet.'));
   meta.textContent='GE PLAYLISTS';
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
