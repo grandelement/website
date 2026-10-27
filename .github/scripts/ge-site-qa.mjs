@@ -482,12 +482,16 @@ test(radio.includes('approvedAutoPaths.has(canonicalSongPath(url))') &&
      !radio.includes('GE_AUTO_SOURCE_COMMIT') &&
      backroom.includes('id="brMasterSongs"'),
      'Radio Player/Shuffle shares a path-based allowlist editable in Back Room');
-test(radio.includes('DJ PLAYLISTS') &&
-     radio.includes('MY PLAYLISTS') &&
-     radio.includes('GE_MUSIC_PERSONAL_PLAYLISTS_V1') &&
-     radio.includes("geInlineMusicFrame?.contentWindow?.GEPlayLibraryTrack") &&
-     load('radio/preview-lab.html').includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
-     'Listener MUSIC provides published and named personal playlists and single-song preview');
+const musicV5=load('radio/ge-music-v5.js');
+const musicPreview=load('radio/preview-lab.html');
+test(musicV5.includes("state.publicLists=data.playlists") &&
+     musicV5.includes("p.visibility==='published'") &&
+     musicV5.includes("readMine()") &&
+     musicV5.includes('data-access-view="playlist"') &&
+     radio.includes('GEPlayLibraryQueue') &&
+     musicPreview.includes('window.GEPlayLibraryQueue=function') &&
+     musicPreview.includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
+     'Listener MUSIC reads published GitHub playlists, preserves personal/device lists and previews the authorized listening queue');
 
 
 const radioShuffleHandler=radio.slice(radio.indexOf("('shuffleBtn').addEventListener('click'"),radio.indexOf("('legacyBtn').addEventListener('click'"));
