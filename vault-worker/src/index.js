@@ -2310,6 +2310,9 @@ async function accessMusicSession(request,env){
    LEFT JOIN access_code_deletions d ON d.code_id=a.id`;
   let row,sessionExpires=0;
   if(action==="redeem"){
+    // The original all-access LOVE code must also work on Music's session
+    // endpoint, not only the Radio Gate endpoint.
+    if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
     const hash=await accessCodeHash(body.code,env);
     if(!hash)return json({ok:false,error:"Invalid Music code."},403);
     row=await env.VAULT_DB.prepare(query+" WHERE a.code_hash=?").bind(hash).first();
