@@ -57,7 +57,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          wrangler d1 execute ge-studios-vault --remote --json --command="SELECT (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1') AS canonical_present, (SELECT COUNT(*) FROM access_codes WHERE code_hint='LOVE') AS love_hint_present, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND enabled=1 AND revoked_at IS NULL) AS canonical_enabled, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND revoked_at IS NOT NULL) AS canonical_revoked, (SELECT COUNT(*) FROM access_code_deletions WHERE code_id='access_legacy_love_v1') AS canonical_deleted, (SELECT COUNT(*) FROM access_code_content WHERE code_id='access_legacy_love_v1') AS canonical_content_present;" > "$RUNNER_TEMP/ge-love-reconciliation.json"
+          if ! wrangler d1 execute ge-studios-vault --config vault-worker/wrangler.jsonc --remote --json --command="SELECT (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1') AS canonical_present, (SELECT COUNT(*) FROM access_codes WHERE code_hint='LOVE') AS love_hint_present, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND enabled=1 AND revoked_at IS NULL) AS canonical_enabled, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND revoked_at IS NOT NULL) AS canonical_revoked, (SELECT COUNT(*) FROM access_code_deletions WHERE code_id='access_legacy_love_v1') AS canonical_deleted, (SELECT COUNT(*) FROM access_code_content WHERE code_id='access_legacy_love_v1') AS canonical_content_present;" > "$RUNNER_TEMP/ge-love-reconciliation.json"; then
+            python3 - <<'PYERR'
+import json,os,pathlib
+path=pathlib.Path(os.environ["RUNNER_TEMP"])/"ge-love-reconciliation.json"
+try:
+    report=json.loads(path.read_text())
+    err=report.get("error",report) if isinstance(report,dict) else report
+    if isinstance(err,dict):err=err.get("text") or err.get("message") or str(err.get("code","unknown"))
+    print("INCONCLUSIVE: Wrangler remote D1 read failed:",str(err)[:350])
+except Exception:
+    print("INCONCLUSIVE: Remote D1 query failed before returning a structured error.")
+PYERR
+            exit 1
+          fi
           python3 - <<'PY'
           import json,os,pathlib
           raw=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"ge-love-reconciliation.json").read_text())
