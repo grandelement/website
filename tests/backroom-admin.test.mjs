@@ -66,7 +66,7 @@ assert.match(vault,/accessAssignments/);
 assert.match(vault,/action==="edit"/);
 assert.match(vault,/action==="delete"/);
 assert.match(vault,/access_code_deletions/);
-assert.match(publisher,/\['issue','edit','activate','suspend','revoke','delete','master'\]/);
+assert.match(publisher,/\['issue','edit','reveal','rotate','activate','suspend','revoke','delete','master'\]/);
 assert.match(schema,/CREATE TABLE IF NOT EXISTS access_code_content/);
 assert.match(schema,/CREATE TABLE IF NOT EXISTS access_code_deletions/);
 assert.match(migration,/CREATE TABLE IF NOT EXISTS access_code_content/);
