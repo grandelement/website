@@ -882,8 +882,19 @@ async function startTrack(t){
  audio.playsInline=true;
  renderVolume();resetMediaSample();
  mediaSession(t);if(!$('albumView').hidden)showSongs();renderSelected();updateMusicTransport();say('Connecting…');
- try{await audio.play();musicNotice('')}
- catch(_e){musicNotice('Tap PLAY again to start this song on your device.');say('Tap PLAY to start this song on your device.')}
+ try{
+  await audio.play();
+  musicNotice('');
+  geRadioEmbedNotify('ge-radio-music-playback-started',{title:label(t)});
+ }catch(error){
+  const reason=String(error?.name||'PlaybackError').slice(0,80);
+  const detail=/NotAllowedError/.test(reason)
+    ?'iPhone blocked audio. Tap PLAY again.'
+    :'The recording could not start. Check the connection or song file.';
+  musicNotice(detail);
+  say(detail);
+  geRadioEmbedNotify('ge-radio-music-playback-error',{reason,message:detail});
+ }
 }
 function chooseTrack(t){
  if(currentTrack?.url===t.url&&!audio.paused){audio.pause();renderSelected();showSongs();return;}
