@@ -14,7 +14,7 @@ const db={
    bind(...args){p=args;return x;},
    async first(){
     if(sql==='SELECT id FROM playlists LIMIT 1')return null;
-    if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions|access_code_experience|fan_code_links) LIMIT 1$/.test(sql)){
+    if(/^SELECT (id|code_id|fan_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions|access_code_experience|fan_code_links) LIMIT 1$/.test(sql)){
       if(!schemaReady)throw Error('D1: no such table: access_codes');
       return null;
     }

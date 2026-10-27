@@ -110,10 +110,11 @@ assert.ok(back.includes('<section data-br-tab="playlists" id="brDJPlaylistEditor
 assert.ok(dj.includes("/control/playlists/save")&&dj.includes("/control/playlists")&&
   dj.includes("/control/custom-mix"),
   'Original DJ Booth playlist APIs are the shared master');
-assert.ok(back.includes("geDJApi('/control/playlists/save'")&&
-  back.includes("geDJApi('/control/playlists/delete'")&&
-  back.includes("geDJApi('/control/custom-mix'"),
-  'Back Room must save, delete and activate the real DJ records, not another playlist database');
+assert.ok(back.includes("'/manage/github-playlists'")&&
+  back.includes('accessPlaylistOptions()')&&
+  back.includes('renderPlaylistViewer()')&&
+  dj.includes("/control/playlists/save")&&dj.includes("/control/custom-mix"),
+  'Back Room uses the canonical GitHub playlist writer while the original BLITZ DJ controller and its records are preserved');
 assert.ok(back.includes("geDJApi('/control/library')")&&back.includes('id="brDJAlbumChoices"')&&
   back.includes('id="brDJSongChoices"'),
   'Back Room must show the original DJ library with album and per-song checkboxes');
