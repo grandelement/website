@@ -3162,6 +3162,9 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').closest('label').hidden=true;
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
+    const nameKey=String(row?.label||'').toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
+    $('brAccessReplaceKey').hidden=!row||row.id==='access_legacy_love_v1'||row.revoked||
+      nameKey.slice(-4)===String(row.code_hint||'').toUpperCase();
     if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
     $('brAccessCustomHelp').textContent='The name IS the Radio Gate code. Short names are easier to guess, so set appropriate permissions and use limits.';
     const scopes=row?row.scopes:['radio'];
@@ -3602,6 +3605,11 @@ const backroomVaultManagers=(()=>{
       const nameLabel=$('brAccessLabel').closest('label');
       nameLabel.querySelector('span').textContent='ACCESS CODE · WHAT YOUR GUEST ENTERS';
       bar.appendChild(nameLabel);
+      const useName=$('brAccessReplaceKey');
+      useName.textContent='MAKE THIS NAME THE GATE CODE';
+      useName.hidden=true;
+      useName.style.cssText='width:100%;min-height:42px;border:1px solid #5aabce;background:#103955;font-weight:800';
+      bar.appendChild(useName);
       const actions=document.createElement('div');actions.className='brAccessSimpleButtons';
       for(const [id,name] of [['brAccessNewPrimary','NEW'],['brAccessSavePrimary','SAVE'],
         ['brAccessLoadPrimary','LOAD'],['brAccessDeletePrimary','DELETE']]){
