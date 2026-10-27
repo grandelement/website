@@ -831,7 +831,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div class="brAccessPositionRow"><span id="brAccessPosition" class="sub">0 CODES</span><button type="button" id="brAccessShowAll" hidden>SHOW ALL SAVED CODES</button></div>
   </div>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
-  <div class="brAccessToolbar"><button type="button" class="primary" id="brAccessReconnect">RECONNECT AND VERIFY VAULT + PLAYLISTS</button></div>
+  <div class="brAccessToolbar"><button type="button" class="primary" id="brAccessReconnect">RECONNECT AND VERIFY VAULT + PLAYLISTS</button><button type="button" id="brAccessBackup">BACK UP ENCRYPTED CODES TO GITHUB</button></div>
   <div id="brAccessAudit" class="backroomInlineStatus" role="status">LIVE SOURCE AUDIT NOT RUN YET.</div>
   <div id="brAccessSaved" class="backroomCodeList" aria-label="Every saved Vault code with direct Edit actions"></div>
 
@@ -861,6 +861,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>RADIO ACCESS KEY (OPTIONAL · 12–64 CHARACTERS)</span><input id="brAccessCustomCode" type="text" minlength="12" maxlength="64" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Choose a 12+ character key, or generate one"></label>
     <p class="brAccessNotice" id="brAccessCustomHelp">Leave this blank to generate a secure code. The name above is only a label, not the access secret.</p>
     <label><span>CODE NAME (FOR YOUR RECORDS ONLY)</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Friend / Radio guest / Promo"></label>
+    <label><span>FAN BASE VAULT USER (OPTIONAL)</span>
+      <select id="brAccessFan" aria-label="Assign code to an existing private Vault fan"><option value="">No user assigned</option></select>
+    </label>
+    <p class="brAccessNotice" id="brAccessFanStatus">Loading existing private Fan Base Vault users…</p>
+    <button type="button" id="brAccessFanRefresh">REFRESH VAULT USERS</button>
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
       <strong>ACTUAL RADIO ACCESS KEY</strong>
       <p id="brAccessKeyHelpText"></p>
@@ -2305,6 +2310,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
+  let fanRows=[],fanLoaded=false;
   let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -2985,6 +2991,35 @@ const backroomVaultManagers=(()=>{
     return'Active';
   }
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
+  function renderAccessFanOptions(value=''){
+    const select=$('brAccessFan');
+    const chosen=String(value||select.value||'');
+    select.replaceChildren(new Option('No user assigned',''));
+    const seen=new Set();
+    for(const fan of fanRows){
+      const id=String(fan.id||'');if(!id||seen.has(id))continue;
+      seen.add(id);
+      select.appendChild(new Option((fan.name?fan.name+' · ':'')+id,id));
+    }
+    if(chosen&&!seen.has(chosen))
+      select.appendChild(new Option('Previously linked user · '+chosen,chosen));
+    select.value=chosen;
+    $('brAccessFanStatus').textContent=fanLoaded?
+      'Private Vault connected · '+fanRows.length+' existing users. Assigning a user does not change the access secret.':
+      'Fan list not verified. Existing code-to-user assignments are preserved; reconnect before changing a user.';
+  }
+  async function refreshAccessFans(){
+    try{
+      const response=await vaultAction('/manage/access-code-fans');
+      if(!Array.isArray(response.items))throw Error('Missing private fan records');
+      fanRows=response.items;fanLoaded=true;
+      renderAccessFanOptions();
+      return true;
+    }catch(error){
+      fanLoaded=false;renderAccessFanOptions();
+      return false;
+    }
+  }
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
     const source=playlistLoaded?playlists:[];
@@ -3108,6 +3143,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessIssue').hidden=!!row;
     $('brAccessSave').hidden=!row;
     assignedSongPaths=[...(row?.track_paths||[])];
+    renderAccessFanOptions(row?.fan_id||'');
     accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
     appliedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
@@ -3140,7 +3176,8 @@ const backroomVaultManagers=(()=>{
       const item=create('div','','backroomCodeEntry');
       item.appendChild(create('strong',row.label+' · …'+row.code_hint+' · '+statusCode(row)));
       item.appendChild(create('small','VAULT RECORD '+row.id+' · '+(row.scopes||[]).join(', ').toUpperCase()+
-        ' · '+(row.playlist_ids||[]).length+' playlist reference(s) · '+(row.track_paths||[]).length+' allowed song(s)'));
+        ' · '+(row.playlist_ids||[]).length+' playlist reference(s) · '+(row.track_paths||[]).length+' allowed song(s)'+
+        ' · USER '+(row.fan_id||'UNASSIGNED')));
       item.appendChild(btn(row.revoked?'REVOKED':'EDIT PERMISSIONS / PLAYLIST / SONGS',()=>{
         if(row.revoked){accessStatus('REVOKED · This record cannot be edited.');return;}
         $('brAccessSearch').value='';
@@ -3245,6 +3282,8 @@ const backroomVaultManagers=(()=>{
       if(!Array.isArray(codes.items))throw Error('Vault returned no code list.');
       codeRows=codes.items;
       legacyLoveAudit=codes.legacy_love||null;
+      // Fan read failure must never hide the already saved code list.
+      await refreshAccessFans();
       accessPlaylistOptions();
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
@@ -3298,7 +3337,7 @@ const backroomVaultManagers=(()=>{
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
     const assignments=selectedAccessAssignments();
-    return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
+    return {label,scopes,fan_id:$('brAccessFan').value||'',duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
       requested_code:$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim(),
@@ -3336,6 +3375,7 @@ const backroomVaultManagers=(()=>{
       const sameSet=(a,b)=>JSON.stringify([...new Set(a||[])].sort())===
         JSON.stringify([...new Set(b||[])].sort());
       const confirmed=!!saved&&saved.label===payload.label&&
+        String(saved.fan_id||'')===String(payload.fan_id||'')&&
         sameSet(saved.scopes,payload.scopes)&&
         sameSet(saved.playlist_ids,payload.playlist_ids)&&
         sameSet(saved.track_paths,payload.track_paths)&&
@@ -3346,8 +3386,11 @@ const backroomVaultManagers=(()=>{
         accessSelectedPlaylistIds=new Set(payload.playlist_ids);
         assignedSongPaths=payload.track_paths.slice();
         accessPlaylistOptions();accessSongOptions();assignedSongsUI();
-        accessStatus(isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
-          'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.');
+        const backup=data.backup_status==='VERIFIED'?
+          ' · ENCRYPTED GITHUB BACKUP VERIFIED '+String(data.backup_commit_sha||'').slice(0,12):
+          ' · GITHUB BACKUP PENDING: '+String(data.backup_error||'Backup was not verified');
+        accessStatus((isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
+          'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.')+backup);
       }else{
         accessStatus('VAULT RESPONSE NOT VERIFIED · Stored name, scopes, playlist IDs or songs differ from the editor. Do not issue another code. Reconnect and inspect the saved record.');
       }
@@ -3550,6 +3593,16 @@ const backroomVaultManagers=(()=>{
         if(el&&!diag.contains(el))diag.appendChild(el);
       }
       accessRoot.appendChild(diag);
+      $('brAccessBackup').addEventListener('click',async()=>{
+        if(!authReady())return accessStatus('Owner sign-in required.');
+        try{
+          accessStatus('Backing up existing Vault code records to encrypted GitHub history…');
+          const result=await vaultAction('/manage/access-codes',{action:'backup'});
+          if(result.backup_status!=='VERIFIED')throw Error('GitHub did not confirm encrypted backup.');
+          accessStatus('ENCRYPTED GITHUB BACKUP VERIFIED · Commit '+String(result.backup_commit_sha||'').slice(0,12)+' · Existing codes untouched.');
+        }catch(error){accessStatus('GITHUB BACKUP NOT VERIFIED · '+String(error?.message||error));}
+      });
+      $('brAccessFanRefresh').addEventListener('click',()=>void refreshAccessFans());
       $('brAccessNewPrimary').addEventListener('click',()=>{
         $('brAccessSearch').value='';selectedCodeId='';showCodeEditor('');
         $('brAccessSelect').selectedIndex=-1;
