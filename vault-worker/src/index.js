@@ -2057,11 +2057,20 @@ async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   await ensureAccessCodeTables(env);
   await ensureLegacyLoveRecord(env);
-  const [policy,rows]=await Promise.all([
+  const loveHash=await accessCodeHash("LOVE",env);
+  const [policy,rows,loveRecord]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
-    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all()
+    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
+    env.VAULT_DB.prepare("SELECT a.id,a.enabled,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=? OR a.id=? ORDER BY CASE WHEN a.code_hash=? THEN 0 ELSE 1 END LIMIT 1").bind(loveHash,"access_legacy_love_v1",loveHash).first()
   ]);
-  return json({ok:true,master_enabled:policy?.enabled!==0,items:(rows.results||[]).map(accessPublicRow)});
+  const items=(rows.results||[]).map(accessPublicRow);
+  const state=!loveRecord?"MISSING":loveRecord.deleted_at?"DELETED":
+    loveRecord.revoked_at?"REVOKED":!loveRecord.enabled?"SUSPENDED":"ACTIVE";
+  // Owner-authenticated response only. This is an audit of the actual D1
+  // record, not proof from a cached label or successful network response.
+  return json({ok:true,master_enabled:policy?.enabled!==0,items,
+    legacy_love:{state,record_id:loveRecord?.id||null,
+      visible:items.some(item=>item.id===loveRecord?.id)}});
 }
 async function accessAdminChange(request,env){
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
@@ -2090,6 +2099,10 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments(body);
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    // GitHub playlist IDs are references to the saved song snapshot only.
+    // A reference without explicit tracks must not grant mutable blanket access.
+    if(assignments.playlist_ids.some(x=>/^playlist_[a-z0-9]+$/i.test(x))&&!assignments.track_paths.length)
+      return json({ok:false,error:"Load the GitHub playlist songs before issuing this code."},400);
     const requested=String(body.requested_code||"").trim().toUpperCase();
     if(requested&&(!/^[A-Z0-9-]{12,64}$/.test(requested)||
         !/^[A-Z0-9]{12,64}$/.test(accessNormalizeCode(requested))))
@@ -2139,8 +2152,15 @@ async function accessAdminChange(request,env){
     const assignments=accessAssignments({...body,scopes});
     if(assignments.error)return json({ok:false,error:assignments.error},400);
     for(const playlistId of assignments.playlist_ids){
+      if(/^playlist_[a-z0-9]+$/i.test(playlistId)){
+        if(!assignments.track_paths.length)return json({ok:false,error:"Load the GitHub playlist songs before saving."},400);
+        // This is a reference to the GitHub playlist master, not a D1 grant.
+        // The immutable track snapshot is always the actual entitlement.
+        continue;
+      }
+      // Older D1 playlist references remain valid for backward compatibility.
       const match=await env.VAULT_DB.prepare("SELECT id FROM playlists WHERE id=?").bind(playlistId).first();
-      if(!match)return json({ok:false,error:"One assigned playlist no longer exists."},400);
+      if(!match)return json({ok:false,error:"One legacy D1 playlist no longer exists."},400);
     }
     // Editing never replaces the secret, clears existing usage, or restarts elapsed time.
     const expiry=mode==="fixed"?fixed:mode==="activation"&&existing.activated_at?existing.activated_at+seconds
@@ -2275,8 +2295,12 @@ async function accessRedeem(request,env){
   const playlist_ids=JSON.parse(row.playlist_ids_json||"[]"),track_paths=JSON.parse(row.track_paths_json||"[]");
   if(playlist_ids.length||track_paths.length){
     const playlistId=String(body.playlist_id||""),trackPath=String(body.track_path||"");
-    if(!(playlistId&&playlist_ids.includes(playlistId))&&!(trackPath&&track_paths.includes(trackPath)))
-      return json({ok:false,error:"This code is assigned to different music content."},403);
+    // A GitHub playlist reference cannot silently grant newly added tracks.
+    // When explicit track paths exist, they alone control entitlement.
+    const permitted=track_paths.length?
+      !!(trackPath&&track_paths.includes(trackPath)):
+      !!(playlistId&&playlist_ids.includes(playlistId));
+    if(!permitted)return json({ok:false,error:"This code is assigned to different music content."},403);
   }
   const t=now();
   const expiration=row.duration_mode==="fixed"?row.fixed_expires_at
