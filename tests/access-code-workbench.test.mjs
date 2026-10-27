@@ -56,3 +56,8 @@ assert.doesNotMatch(html,/accessLoaded=false;codeRows=\[\];legacyLoveAudit=null;
 assert.match(html,/Previously loaded codes are UNVERIFIED, not deleted/,
   'stale records must be clearly marked rather than falsely reported missing');
 console.log('PASS: failed reads preserve prior Vault record visibility; search cannot silently create duplicate codes');
+assert.match(html,/KEY ISSUED · SAVE THE ACCESS KEY/,'the issued secret must remain visible on failed readback');
+assert.match(html,/row&&row.id===revealedKeyRecordId/,'same-record editor readback must preserve the just-revealed key');
+assert.doesNotMatch(html,/accessSongOptions\(\);assignedSongsUI\(\);accessModeUI\(\);\s*\$\('brAccessOneTime'\)\.hidden=true;/,
+  'editor must not unconditionally hide the just-issued or rotated key');
+console.log('PASS: newly issued and reset keys remain visible across Vault readback and editor repaint');
