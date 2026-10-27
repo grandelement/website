@@ -1,0 +1,27 @@
+name: GE Vault Key Rotation Regression
+on:
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'backroom/index.html'
+      - 'tests/access-key-rotation.test.mjs'
+      - '.github/workflows/ge-access-key-rotation-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'backroom/index.html'
+      - 'tests/access-key-rotation.test.mjs'
+      - '.github/workflows/ge-access-key-rotation-qa.yml'
+permissions:
+  contents: read
+jobs:
+  owner-rotation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test owner-only key reset, preserved assignments and Radio redemption
+        run: node --experimental-default-type=module tests/access-key-rotation.test.mjs
+      - name: Test access-key UI contracts
+        run: node tests/access-code-workbench.test.mjs
