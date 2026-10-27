@@ -2335,10 +2335,14 @@ async function accessMusicSession(request,env){
   if(!row||!row.enabled||row.revoked_at||row.deleted_at)
     return json({ok:false,error:"Music access code inactive."},403);
   const scopes=JSON.parse(row.scopes_json||"[]");
-  if(!scopes.some(scope=>["music","albums","website"].includes(scope)))
-    return json({ok:false,error:"This code does not permit Music."},403);
   const playlistIds=JSON.parse(row.playlist_ids_json||"[]");
   const allowedPaths=[...new Set(JSON.parse(row.track_paths_json||"[]"))];
+  // A Radio-only code explicitly assigned tracks grants ONLY those songs in
+  // the personal Music player. It never opens unrestricted Music or changes
+  // the shared Radio 1/2 broadcast.
+  const allowsMusic=scopes.some(scope=>["music","albums","website"].includes(scope))||
+    (scopes.includes("radio")&&allowedPaths.length>0);
+  if(!allowsMusic)return json({ok:false,error:"This code does not permit Music."},403);
   // The old D1 playlist IDs are NOT the new GitHub IDs. Disallow mutable
   // playlist-only grants until explicitly converted to track paths by owner.
   if(playlistIds.length&&!allowedPaths.length)
@@ -2418,9 +2422,26 @@ async function accessRedeem(request,env){
   ).bind(t,expires,t,row.id,t).run();
   if(!update.meta?.changes)return json({ok:false,error:"Invalid or expired code."},403);
   await audit(env,"public","access.redeem","access_code",row.id,{scope});
-  // No long-lived auth cookie is issued here. Public applications must implement
-  // server-verified scoped entitlement before using this as a paid access gate.
-  return json({ok:true,scope,scopes,expires_at:expires||null,uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null});
+  // Issue one short-lived, signed personal Music session WITH the Radio Gate
+  // redemption. Do not redeem the same key twice: max_uses=1 must still work.
+  // The precise D1 track snapshot, never a mutable playlist label, governs
+  // personal playback. Radio-only codes without assigned songs grant no Music.
+  let music_session=null;
+  const permitsMusic=scopes.some(s=>["website","music","albums"].includes(s))||
+    (scopes.includes("radio")&&track_paths.length>0);
+  if(scope==="radio"&&permitsMusic&&!(playlist_ids.length&&!track_paths.length)){
+    const until=Math.min(t+3600,Number(expires||t+3600));
+    const random=crypto.getRandomValues(new Uint8Array(16));
+    const nonce=Array.from(random,b=>b.toString(16).padStart(2,"0")).join("");
+    const unsigned=row.id+"."+until+"."+nonce;
+    const sig=await hmacHex("ge-music-session-v1:"+unsigned,env.VAULT_HASH_KEY);
+    music_session={token:unsigned+"."+sig,session_expires_at:until,
+      restricted:track_paths.length>0,allowed_tracks:track_paths};
+  }
+  // A browser receipt is a convenience, not server-enforced paid-content access.
+  return json({ok:true,scope,scopes,expires_at:expires||null,
+    uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null,
+    ...(music_session?{music_session}:{})});
 }
 
 export default {
