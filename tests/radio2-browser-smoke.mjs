@@ -50,6 +50,8 @@ try{
   // End-to-end check, not a mock: the historic public LOVE code is already
   // documented as the original Radio Gate code. Verify D1 rejects/accepts
   // through the actual REST endpoint and the opened Gate UI.
+  console.log('Gate availability:',await page.evaluate(()=>typeof window.GEGate));
+  console.log('Page errors:',errors.slice(-8));
   await page.evaluate(()=>window.GEGate.openCodeEntry());
   await page.waitForSelector('#geGateWord',{visible:true,timeout:10000});
   await page.type('#geGateWord','LOVE');
