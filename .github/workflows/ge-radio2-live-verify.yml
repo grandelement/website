@@ -1,5 +1,9 @@
 name: GE Radio2 verify deployed site and playable backup
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-radio2-live-verify.yml'
   workflow_run:
     workflows: ["pages build and deployment"]
     types: [completed]
@@ -14,7 +18,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
