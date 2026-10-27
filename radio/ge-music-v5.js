@@ -162,6 +162,14 @@ function recordPlaylistInteraction(eventType,detail){
  try{void window.GEVault?.radio?.(eventType,detail)}catch(_e){}
 }
 function musicAccessActive(){
+ // Radio Gate may be unlocked AFTER this module initializes: read the latest
+ // signed Vault receipt, never an old LOVE flag or a code display label.
+ try{
+  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
+  if(saved&&typeof saved.token==='string'&&Number(saved.until)>Date.now()&&
+     Array.isArray(saved.allowed)&&typeof saved.restricted==='boolean'&&
+     (!state.musicAccess||saved.token!==state.musicAccess.token))state.musicAccess=saved;
+ }catch(_){}
  if(state.musicAccess&&Number(state.musicAccess.until)>Date.now())return state.musicAccess;
  if(state.musicAccess){state.musicAccess=null;try{sessionStorage.removeItem(musicSessionKey)}catch(_){}}
  return null;
@@ -366,6 +374,9 @@ function open(){
  document.body.style.setProperty('overflow','hidden','important');
  host.style.display='block';button.setAttribute('aria-expanded','true');
  window.GEMusicV5Bridge?.prepare?.();
+ const access=musicAccessActive();
+ if(access?.restricted)state.view='access-code';
+ musicAccessStatus();
  if(!state.loaded&&!state.loading){state.loading=true;void fetchCatalog()}
  void loadPublished();render();scroller.scrollTop=0;root.querySelector('[data-view="all"]').focus();
 }
@@ -386,6 +397,13 @@ root.querySelector('.musicCodeInput').addEventListener('keydown',event=>{
  if(event.key==='Enter'){event.preventDefault();void redeemMusicCode()}
 });
 musicAccessStatus();
+window.addEventListener('ge-vault-music-access-updated',()=>{
+ const access=musicAccessActive();
+ if(access?.restricted){
+  state.selected=new Set(access.allowed);saveSelected();state.view='access-code';
+ }
+ musicAccessStatus();if(state.open)render();
+});
 root.querySelector('[data-action=clear]').addEventListener('click',()=>{state.selected.clear();saveSelected();say('Selection cleared.');render()});
 root.querySelector('[data-action=save]').addEventListener('click',saveMine);
 document.addEventListener('keydown',event=>{if(!state.open)return;if(event.key==='Escape'){event.preventDefault();close()}});
