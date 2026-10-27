@@ -16,7 +16,7 @@ permissions:
 # Independent of older full Vault releases; this deploys only the already
 # existing Back Room Publisher Worker and never changes D1 data or Vault secrets.
 concurrency:
-  group: ge-backroom-private-vault-link
+  group: ge-studios-workers-production-deploy
   cancel-in-progress: false
 
 jobs:
@@ -62,6 +62,25 @@ jobs:
                   print('Publisher health attempt',attempt,'failed:',type(err).__name__,str(err)[:170],flush=True)
               if attempt==4:
                   raise SystemExit('FAIL: production Publisher-to-Vault bridge is not fully operational.')
+              time.sleep(3)
+          PY
+      - name: Verify live signed Publisher-to-Vault Access Codes listing
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.request
+          url='https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes'
+          headers={'User-Agent':'GrandElement-AccessCodesAudit/1.0','Accept':'application/json','Origin':'https://grandelement.com'}
+          for attempt in range(1,5):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=15) as resp:
+                      data=json.load(resp)
+                  print('Live Access Codes read:', {key:data.get(key) for key in ('ok','access_codes_readable','upstream_http_status','publisher_configured','vault_service_bound')},flush=True)
+                  if data.get('ok') is True and data.get('access_codes_readable') is True and data.get('upstream_http_status') == 200:
+                      print('PASS: PRODUCTION ACCESS CODES LIST READ THROUGH AUTHORIZED PUBLISHER.')
+                      break
+              except Exception as err:
+                  print('Access Codes probe failed:',type(err).__name__,str(err)[:180],flush=True)
+              if attempt==4: raise SystemExit('FAIL: the real private Access Codes list is NOT readable through the Publisher.')
               time.sleep(3)
           PY
       - name: Confirm deployment target

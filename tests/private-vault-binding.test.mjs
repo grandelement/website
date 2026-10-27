@@ -37,6 +37,13 @@ try{
  assert.equal(d.vault_reachable,true);
  assert.equal(d.vault_access_codes_ready,true);
  assert.equal(d.access_codes_bridge_configured,true);
+ // Prove health of the REAL, authorized list operation without exposing records.
+ r=await worker.fetch(request('/health?diagnose=access-codes'),env);
+ assert.equal(r.status,200,'authenticated Vault list must be readable through Publisher');
+ d=await r.json();
+ assert.equal(d.access_codes_readable,true);
+ assert.equal(d.upstream_http_status,200);
+ assert.equal('items' in d,false,'public health must never leak private codes');
  r=await worker.fetch(request('/manage/access-codes'),env);
  assert.equal(r.status,401,'anonymous users cannot list access codes');
  r=await worker.fetch(request('/login',{method:'POST',
@@ -50,7 +57,7 @@ try{
  d=await r.json();
  assert.equal(r.status,200,JSON.stringify(d));
  assert.deepEqual(d.items.map(x=>x.label),['LOVE · Original Radio Gate']);
- assert.equal(adminReads,1);
+ assert.equal(adminReads,2,'one health probe and one signed-in listing');
  assert.equal(publicCalls,0,'production Vault management must never use blocked public fetch');
  const withoutBinding={...env,GE_VAULT:undefined};
  r=await worker.fetch(request('/health'),withoutBinding);
