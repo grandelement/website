@@ -1,0 +1,33 @@
+name: GE Access Codes / Users / GitHub backup integration
+on:
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'vault-worker/migrations/20261021_access_codes.sql'
+      - 'backroom/publisher-worker.js'
+      - 'backroom/index.html'
+      - 'tests/access-code-user-github-backup.test.mjs'
+      - '.github/workflows/ge-access-code-integration-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify fan assignment and encrypted GitHub recovery integration
+        run: node tests/access-code-user-github-backup.test.mjs
+      - name: Verify existing saved-code editor and song assignments
+        run: |
+          node tests/access-code-workbench.test.mjs
+          node tests/access-code-playlist-save.test.mjs
+      - name: Verify no change to LOVE or existing Vault access rules
+        run: |
+          node tests/legacy-love-vault.test.mjs
+          node tests/access-music-session.test.mjs
+          node tests/private-vault-binding.test.mjs
