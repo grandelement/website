@@ -94,8 +94,9 @@ assert.ok(back.includes("const box=$('editorOpacityControls');box.hidden=false;"
 assert.ok(back.includes("doc.getElementById('about')?.classList.add('show')"),'About opacity preview must open the affected website panel');
 assert.ok(back.includes("doc.getElementById('geWelcome')?.classList.add('show')"),'Welcome opacity preview must open the affected website panel');
 assert.ok(!back.includes('id="brRadio2Check"'),'Remove confusing Radio 2 Bangers check control');
-assert.ok(back.includes('id="brDJPlaylistEditor"')&&back.includes('id="brDJPassword"'),
-  'Back Room should show original DJ playlist controls without changing the DJ Booth');
+assert.ok(back.includes('id="brDJPlaylistEditor"')&&back.includes('id="brPlaylistName"')&&
+  back.includes('/manage/github-playlists'),
+  'Back Room playlist editor must use the canonical GitHub registry without changing the live DJ Booth');
 assert.ok(!back.includes('id="brDJPlaylistFrame"')&&
   !dj.includes('const GE_DJ_PLAYLIST_ONLY='),
   'Do not modify or embed the original working DJ Booth');
