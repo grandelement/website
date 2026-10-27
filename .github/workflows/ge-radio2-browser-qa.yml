@@ -1,0 +1,31 @@
+name: GE Radio2 real browser playback smoke
+on:
+  pull_request:
+    paths:
+      - 'tests/radio2-browser-smoke.mjs'
+      - '.github/workflows/ge-radio2-browser-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/radio2-browser-smoke.mjs'
+      - '.github/workflows/ge-radio2-browser-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Chrome is available
+        run: |
+          which google-chrome
+          google-chrome --version
+      - name: Install browser automation client (CI only)
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Exercise live Radio click, real Radio2 track and advancing audio
+        run: node tests/radio2-browser-smoke.mjs
