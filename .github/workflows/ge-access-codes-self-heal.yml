@@ -15,7 +15,7 @@ permissions:
 # Isolated one-time Vault repair. Existing database and Worker name retained.
 # Does NOT call Cloudflare D1 management API (API token lacks D1 scope).
 concurrency:
-  group: ge-studios-access-codes-bound-d1-repair
+  group: ge-studios-workers-production-deploy
   cancel-in-progress: false
 
 jobs:
@@ -67,6 +67,42 @@ jobs:
             if attempt == 5:
               raise SystemExit('Live Vault Access Codes readiness not confirmed; inspect Cloudflare access rules and D1 binding.')
             time.sleep(5)
+          PY
+      - name: Verify live LOVE all-access scopes and signed Music-session track
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error, time
+          origin='https://vault.grandelement.com'
+          def post(path,payload):
+              req=urllib.request.Request(origin+path,data=json.dumps(payload).encode('utf-8'),
+                headers={'User-Agent':'GrandElement-AllAccessChainCheck/1.0',
+                         'Content-Type':'application/json','Origin':'https://grandelement.com'},
+                method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=18) as resp:
+                      return resp.status,json.load(resp)
+              except urllib.error.HTTPError as err:
+                  try: data=json.loads(err.read())
+                  except Exception:data={'error':'Non-JSON rejection'}
+                  return err.code,data
+          for scope in ('radio','music','albums','website','games'):
+              for attempt in range(4):
+                  code,result=post('/v1/public/access/redeem',{'code':'LOVE','scope':scope})
+                  if code==200 and result.get('ok') is True:
+                      print('PASS: original LOVE authorizes',scope,flush=True)
+                      break
+                  if attempt==3:raise SystemExit('FAIL: historic LOVE did not authorize '+scope+' (HTTP '+str(code)+')')
+                  time.sleep(3)
+          code,result=post('/v1/public/access/music-session',{'code':'LOVE','action':'redeem'})
+          if code!=200 or not result.get('token') or result.get('restricted') is not False:
+              raise SystemExit('FAIL: LOVE cannot redeem unrestricted Music session.')
+          code,result2=post('/v1/public/access/music-session',{
+              'action':'verify','token':result['token'],
+              'track_path':'ge-music/music/Grand Element - 2010 - Intergy/Intergy_02_Intergy.mp3'
+          })
+          if code!=200 or result2.get('authorized') is not True:
+              raise SystemExit('FAIL: LOVE signed Music token cannot authorize a real album track.')
+          print('PASS: original LOVE unlocks Music and its signed session authorizes tracks',flush=True)
           PY
       - name: Explain activation
         run: |
