@@ -122,6 +122,15 @@ r=await request(redeem,{code:'LOVE',scope:'albums'});
 assert.equal(r.status,200,'original LOVE grants Albums');
 r=await request(redeem,{code:'LOVE',scope:'games'});
 assert.equal(r.status,200,'original LOVE grants Games');
+r=await request('/v1/public/access/music-session',{action:'redeem',code:'LOVE'});
+assert.equal(r.status,200,'original LOVE opens an unrestricted Music session');
+assert.equal(r.data.restricted,false,'all-access code has no album or playlist restriction');
+const loveMusicToken=r.data.token;
+r=await request('/v1/public/access/music-session',{
+ action:'verify',token:loveMusicToken,track_path:'ge-music/music/Grand Element - 2024 - Fire/Fire_01.mp3'
+});
+assert.equal(r.status,200,'original LOVE legacy record ID verifies signed Music sessions');
+assert.equal(r.data.authorized,true,'Music access is real, not just a checkbox');
 r=await request(admin,{action:'reveal',id:'access_legacy_love_v1'},true);
 assert.equal(r.status,200,'owner can retrieve historic LOVE credential');
 assert.equal(r.data.code,'LOVE');
