@@ -12,6 +12,15 @@ try{
   page.on('pageerror',err=>errors.push(String(err?.message||err).slice(0,180)));
   await page.goto('https://grandelement.com/radio/?browser-qa=503-backup',{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForSelector('#liveBtn',{timeout:15000});
+  // Force the known primary-station outage, rather than relying on the
+  // intermittent live failure to be present during CI.
+  await page.setRequestInterception(true);
+  page.on('request',req=>{
+    if(req.url().includes('radio.grandelement.blitz.cloud/stream.mp3'))
+      void req.respond({status:503,contentType:'text/plain',body:'BLITZ unavailable'});
+    else void req.continue();
+  });
+  const start=Date.now();
   await page.click('#liveBtn');
   try{
     await page.waitForFunction(()=>{
@@ -29,6 +38,7 @@ try{
     }));
     throw new Error('Browser did not activate the real Radio2 fallback: '+JSON.stringify(debug)+' JS: '+JSON.stringify(errors.slice(-5)));
   }
+  if(Date.now()-start>40000)throw new Error('Radio2 fallback exceeded 40 seconds after primary 503');
   const initial=await page.$eval('#player',a=>({time:a.currentTime,source:a.currentSrc,paused:a.paused}));
   await new Promise(resolve=>setTimeout(resolve,5000));
   const after=await page.$eval('#player',a=>({time:a.currentTime,source:a.currentSrc,paused:a.paused,readyState:a.readyState}));
