@@ -1,0 +1,80 @@
+name: GE LOVE — read-only production reconciliation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-love-production-reconcile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the actual GitHub playlist master against the music manifest
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path(".")
+          registry=json.loads((root/"playlists/registry.json").read_text())
+          manifest=json.loads((root/"radio/manifest.json").read_text())
+          tracks=set(manifest["files"])
+          playlists=registry.get("playlists",[])
+          missing=[(p["name"],s) for p in playlists for s in p.get("songs",[]) if s not in tracks]
+          if missing:
+              raise SystemExit("FAIL: playlist registry points to missing manifest songs (no data modified).")
+          print("PASS: GitHub playlist registry readable; all assigned playlist songs appear in music manifest.")
+          print("Playlist count:",len(playlists))
+          PY
+      - name: Verify publisher reads the real authenticated Vault list through its private binding
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request
+          url="https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes"
+          request=urllib.request.Request(url,headers={"User-Agent":"GE-Safe-Reconciliation/1.0","Accept":"application/json","Origin":"https://grandelement.com"})
+          with urllib.request.urlopen(request,timeout=20) as response:
+              report=json.load(response)
+          if report.get("access_codes_readable") is not True or report.get("vault_service_bound") is not True:
+              raise SystemExit("FAIL: Publisher cannot prove live private Vault list access.")
+          print("PASS: production Publisher authenticates and reads the private Vault code list.")
+          PY
+      - name: Require existing Cloudflare read credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" && test -n "$CF_ACCOUNT" || { echo "::error::Cloudflare credentials unavailable. Production D1 record was NOT verified."; exit 1; }
+      - name: Install Wrangler client
+        run: npm install -g wrangler@4
+      - name: READ ONLY — establish true production LOVE record state
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler d1 execute ge-studios-vault --remote --json --command="SELECT (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1') AS canonical_present, (SELECT COUNT(*) FROM access_codes WHERE code_hint='LOVE') AS love_hint_present, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND enabled=1 AND revoked_at IS NULL) AS canonical_enabled, (SELECT COUNT(*) FROM access_codes WHERE id='access_legacy_love_v1' AND revoked_at IS NOT NULL) AS canonical_revoked, (SELECT COUNT(*) FROM access_code_deletions WHERE code_id='access_legacy_love_v1') AS canonical_deleted, (SELECT COUNT(*) FROM access_code_content WHERE code_id='access_legacy_love_v1') AS canonical_content_present;" > "$RUNNER_TEMP/ge-love-reconciliation.json"
+          python3 - <<'PY'
+          import json,os,pathlib
+          raw=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"ge-love-reconciliation.json").read_text())
+          batches=raw if isinstance(raw,list) else [raw]
+          results=[]
+          for batch in batches:
+              if isinstance(batch,dict):
+                  results.extend(batch.get("results",[]))
+          if not results:
+              raise SystemExit("INCONCLUSIVE: Remote D1 did not return a record. Do not claim LOVE was recovered.")
+          row=results[0]
+          state=("MISSING" if not row.get("canonical_present") else
+                 "DELETED" if row.get("canonical_deleted") else
+                 "REVOKED" if row.get("canonical_revoked") else
+                 "ACTIVE" if row.get("canonical_enabled") else "SUSPENDED")
+          print("Production D1 LOVE original:",state)
+          print("LOVE hint record exists:",bool(row.get("love_hint_present")))
+          print("LOVE content assignment record exists:",bool(row.get("canonical_content_present")))
+          print("READ ONLY: No UPDATE, INSERT, DELETE, migration, D1 reset, or test redemption performed.")
+          PY
