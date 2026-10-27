@@ -6285,20 +6285,21 @@ audio.addEventListener('pause',()=>{
   updateRadioStartupCue();
 });
 audio.addEventListener('error',()=>{
-  if(state.livePreparing){return;}
-  if(state.live){
+  // A hard media error (including BLITZ HTTP 503) is definitive evidence that
+  // this stream cannot play. Do not spend extra reconnect attempts on the
+  // same dead URL before offering the verified GE Radio 2 backup.
+  if(state.live||state.livePreparing){
     if(radio2.active){
-      setLiveStatus('RADIO 2 · audio file unavailable. Rechecking Bangers…');
+      setLiveStatus('RADIO 2 · audio file unavailable. Rechecking backup…');
       setTimeout(()=>radio2PlayCurrent(),1500);return;
     }
-    setLiveStatus('RADIO 1 · stream interrupted. Checking station…');
+    if(radio2.loading)return;
     if(document.hidden){
-      liveState.backgroundReconnectNeeded=true;
-      return;
+      liveState.backgroundReconnectNeeded=true;return;
     }
-    setStatus('RADIO stream connection interrupted. Reconnecting…');
-    setLiveStatus('RADIO • reconnecting to the station host…',true);
-    reconnectLiveStream();
+    clearLiveReconnect();clearRadioWatch();
+    radioTimedOut=true;
+    void switchToRadio2('radio1_hard_media_error');
     return;
   }
   // Never skip automatically on an error. Safari can report a transient media
