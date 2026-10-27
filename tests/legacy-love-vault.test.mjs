@@ -20,7 +20,7 @@ const db={
     }
     if(sql.includes('FROM access_code_policy'))return policy;
     if(sql.includes('SELECT id,code_hash,revoked_at FROM access_codes WHERE id='))return record?.id===p[0]?{id:record.id,code_hash:record.code_hash,revoked_at:record.revoked_at}:null;
-    if(sql.includes('SELECT id,scopes_json FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id,scopes_json:record.scopes_json}:null;
+    if(sql.includes('SELECT id,scopes_json,label FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id,scopes_json:record.scopes_json,label:record.label}:null;
     if(sql.includes('SELECT id FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id}:null;
     if(sql.includes('FROM access_codes a')){
       if(sql.includes('a.code_hash=?')&&!record?.code_hash)return null;
@@ -58,7 +58,7 @@ const db={
       return {meta:{changes:1}};
     }
     if(sql.includes('UPDATE access_codes SET scopes_json=')){
-      if(record?.id===p[4]&&record.code_hash===p[5]&&record.scopes_json===p[6]&&!record.revoked_at){
+      if(record?.id===p[4]&&record.code_hash===p[5]&&record.scopes_json===p[6]&&record.label===p[7]&&!record.revoked_at){
         record.scopes_json=p[0];if(record.label===p[1])record.label=p[2];
         record.updated_at=p[3];return {meta:{changes:1}};
       }
@@ -141,6 +141,11 @@ assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','gam
   'existing mis-imported Radio-only LOVE is upgraded in-place');
 assert.equal(r.data.items[0].label,'LOVE · Original All Access');
 assert.equal(migrationCount,1,'permission correction does not issue a second LOVE record');
+record.scopes_json=JSON.stringify(['radio']);
+r=await request(admin,undefined,true);
+assert.deepEqual(r.data.items[0].scopes,['radio'],
+  'after migration, a deliberate owner change back to Radio-only must be preserved');
+record.scopes_json=JSON.stringify(['website','radio','music','albums','games']);
 r=await request(redeem,{code:'ABCD',scope:'radio'});
 assert.equal(r.status,403,'other weak four-character codes never work');
 r=await request(admin,undefined,true);
