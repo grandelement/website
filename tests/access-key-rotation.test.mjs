@@ -18,7 +18,7 @@ let audits=0,encryptedSecret=null;
 const db={prepare(sql){
  let p=[];const o={bind(...args){p=args;return o;},
  async first(){
-   if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions) LIMIT 1$/.test(sql))return null;
+   if(/^SELECT (id|code_id) FROM (access_code_policy|access_codes|access_code_content|access_code_deletions|access_code_fans) LIMIT 1$/.test(sql))return null;
    if(sql.includes('SELECT * FROM access_codes WHERE id='))return row.id===p[0]?{...row}:null;
    if(sql.includes('SELECT id FROM access_codes WHERE code_hash='))return row.code_hash===p[0]?{id:row.id}:null;
    if(sql.includes('SELECT id,code_hash,revoked_at FROM access_codes WHERE id='))return row.id===p[0]?{id:row.id,code_hash:row.code_hash,revoked_at:row.revoked_at}:null;

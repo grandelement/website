@@ -255,7 +255,7 @@ async function geVaultBridge(env,path,method='GET',body=null){
   // Access Codes have a dedicated least-privilege bridge secret. Legacy
   // admin fallback exists for publishers that were configured previously.
   // GitHub remains the exclusive GE playlist master.
-  const accessPath=path==='/v1/admin/access-codes';
+  const accessPath=['/v1/admin/access-codes','/v1/admin/access-code-fans','/v1/admin/access-code-backup'].includes(path);
   const secret=String((accessPath&&env.VAULT_ACCESS_CODES_TOKEN)||env.VAULT_ADMIN_TOKEN||'').trim();
   if(!secret)return {status:503,data:{ok:false,error:accessPath?
     'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
@@ -281,6 +281,46 @@ async function geVaultBridge(env,path,method='GET',body=null){
   }
 }
 
+
+// Encrypted versioned recovery mirror. Never write raw secrets, fan identities,
+// or code hashes to the public repository. D1 remains the authoritative store.
+// A failed backup NEVER invalidates an already committed Vault code.
+const GITHUB_ACCESS_BACKUP_PATH='access-codes/private-vault-backup.enc.json';
+async function mirrorEncryptedAccessCodes(env){
+  const result=await geVaultBridge(env,'/v1/admin/access-code-backup');
+  const cipher=result.data?.ciphertext;
+  if(result.status!==200||result.data?.ok!==true||
+      result.data?.format!=='ge-access-codes-encrypted-backup-v1'||
+      !/^[A-Za-z0-9+/=]+\\.[A-Za-z0-9+/=]+$/.test(String(cipher||'')))
+    throw new Error('Vault encrypted backup export unavailable (HTTP '+result.status+').');
+  const branch=env.GITHUB_BRANCH||'main';
+  const path=GITHUB_ACCESS_BACKUP_PATH;
+  const current=await github(env,path+'?ref='+encodeURIComponent(branch));
+  let sha='';
+  if(current.status===200){const obj=await current.json();sha=String(obj.sha||'');}
+  else if(current.status!==404)throw new Error('GitHub encrypted backup read failed (HTTP '+current.status+').');
+  const snapshot={
+    format:'ge-access-codes-encrypted-backup-v1',
+    storage:'Cloudflare D1 encrypted recovery mirror',
+    updated_at:new Date().toISOString(),
+    ciphertext:cipher
+  };
+  const serialized=JSON.stringify(snapshot,null,2)+'\n';
+  const payload={message:'Back up encrypted GE Vault access-code records',
+    content:utf8B64(serialized),branch};
+  if(sha)payload.sha=sha;
+  const response=await github(env,path,{method:'PUT',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const written=await response.json().catch(()=>({}));
+  if(!response.ok||!written?.commit?.sha)
+    throw new Error('GitHub encrypted backup save failed (HTTP '+response.status+').');
+  const check=await github(env,path+'?ref='+encodeURIComponent(branch));
+  if(!check.ok)throw new Error('GitHub encrypted backup readback failed.');
+  const file=await check.json();
+  if(decodeGithubText(file.content||'')!==serialized)
+    throw new Error('GitHub encrypted backup readback mismatch.');
+  return {backup_status:'VERIFIED',backup_commit_sha:written.commit.sha};
+}
 
 // GitHub-only published/unlisted playlist registry. This path does not call
 // GE Vault, D1 or any Cloudflare data store. Authentication is the existing
@@ -539,6 +579,12 @@ export default {
       return handleGithubPlaylists(request,env,cors);
     }
 
+    if(url.pathname==='/manage/access-code-fans'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
+      const upstream=await geVaultBridge(env,'/v1/admin/access-code-fans');
+      return json(upstream.data,upstream.status,cors);
+    }
     if((url.pathname==='/manage/playlists'||url.pathname==='/manage/access-codes')&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
       const isPlaylists=url.pathname==='/manage/playlists';
@@ -573,12 +619,26 @@ export default {
         }
         return json({ok:false,error:'Unknown playlist action.'},400,cors);
       }
+      // Owner can back up existing records without reissuing or changing LOVE.
+      if(body.action==='backup'){
+        try{return json({ok:true,...await mirrorEncryptedAccessCodes(env)},200,cors)}
+        catch(error){return json({ok:false,error:String(error?.message||error)},502,cors)}
+      }
       // The Vault validates scope, limits, entropy, HMAC hashes and authorization.
       if(!['issue','edit','reveal','rotate','activate','suspend','revoke','delete','master'].includes(String(body.action||''))){
         return json({ok:false,error:'Unknown access-code action.'},400,cors);
       }
       const upstream=await geVaultBridge(env,'/v1/admin/access-codes','POST',body);
-      return json(upstream.data,upstream.status,cors);
+      if(upstream.status!==200||upstream.data?.ok!==true||body.action==='reveal')
+        return json(upstream.data,upstream.status,cors);
+      try{
+        return json({...upstream.data,...await mirrorEncryptedAccessCodes(env)},upstream.status,cors);
+      }catch(error){
+        // The Vault mutation already completed. Do not lie about its result or
+        // retry the issue action: doing so could mint a duplicate credential.
+        return json({...upstream.data,backup_status:'PENDING',
+          backup_error:String(error?.message||error)},upstream.status,cors);
+      }
     }
 
     if(url.pathname==='/publish'&&request.method==='POST'){
