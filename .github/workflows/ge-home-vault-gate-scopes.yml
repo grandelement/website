@@ -1,0 +1,31 @@
+name: GE Homepage Vault Gate scopes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-home-gate-stop.js'
+      - 'tests/home-gate-vault-scopes.test.mjs'
+      - '.github/workflows/ge-home-vault-gate-scopes.yml'
+  pull_request:
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-home-gate-stop.js'
+      - 'tests/home-gate-vault-scopes.test.mjs'
+      - '.github/workflows/ge-home-vault-gate-scopes.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-gate-scopes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm original LOVE local flag is not a homepage credential
+        run: node tests/home-gate-vault-scopes.test.mjs
