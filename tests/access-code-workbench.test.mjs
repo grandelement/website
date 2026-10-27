@@ -69,7 +69,7 @@ assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
 assert.match(html, /musicSection\.querySelector\('summary'\)\.textContent='MUSIC · PLAYLISTS'/);
-assert.match(html, /songsSection\.append\(songSearch,songTools/);
+assert.match(html, /songsSection\.append\(\$\('brAccessSongSearch'\)/);
 assert.match(html, /#brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel/,
   'duplicate controls and diagnostics must not clutter the code editor');
 assert.match(html, /visibleCodes\.forEach\(row=>sel\.appendChild\(new Option\(row\.label,row\.id\)\)\)/,
