@@ -3127,7 +3127,10 @@ const backroomVaultManagers=(()=>{
       assignedSongPaths=[...all];
     }
     accessSongOptions();assignedSongsUI();accessModeUI();
-    $('brAccessOneTime').hidden=true;
+    // Never hide a newly created or rotated key when readback reopens the SAME record.
+    // Moving to another record still clears the key at the start of this function.
+    $('brAccessOneTime').hidden=!(row&&row.id===revealedKeyRecordId&&
+      !!$('brAccessCodeValue').textContent);
   }
   function renderSavedCodeCards(){
     const host=$('brAccessSaved');host.replaceChildren();
@@ -3349,7 +3352,17 @@ const backroomVaultManagers=(()=>{
         accessStatus('VAULT RESPONSE NOT VERIFIED · Stored name, scopes, playlist IDs or songs differ from the editor. Do not issue another code. Reconnect and inspect the saved record.');
       }
       if(!isEdit){
+        // The Vault already returned an issued credential. Keep that exact key
+        // visible even if the subsequent list-read fails or selects another row.
+        revealedKeyRecordId=codeId;
+        $('brAccessCodeValue').textContent=data.code;
+        $('brAccessEditor').hidden=false;
         $('brAccessOneTime').hidden=false;
+        if(!saved){
+          $('brAccessEditorTitle').textContent='KEY ISSUED · SAVE THE ACCESS KEY · '+codeId;
+          $('brAccessIssue').hidden=true;
+          $('brAccessSave').hidden=true;
+        }
         $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'});
       }
     }catch(err){accessStatus('NOT SAVED · '+String(err.message||err));}
