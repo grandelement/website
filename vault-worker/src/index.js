@@ -125,6 +125,18 @@ async function encryptPrivate(value, env) {
   return bytesToB64(iv) + "." + bytesToB64(ciphertext);
 }
 
+async function decryptPrivate(payload, env) {
+  const [iv64, ciphertext64, extra] = String(payload || "").split(".");
+  if (!iv64 || !ciphertext64 || extra) throw new Error("Invalid encrypted Vault key.");
+  const keyBytes = b64ToBytes(env.VAULT_ENCRYPTION_KEY_B64);
+  if (keyBytes.length !== 32) throw new Error("Vault encryption key is not configured.");
+  const iv = b64ToBytes(iv64);
+  if (iv.length !== 12) throw new Error("Invalid encrypted Vault key IV.");
+  const key = await crypto.subtle.importKey("raw", keyBytes, {name:"AES-GCM"}, false, ["decrypt"]);
+  const plaintext = await crypto.subtle.decrypt({name:"AES-GCM",iv}, key, b64ToBytes(ciphertext64));
+  return decoder.decode(plaintext);
+}
+
 function cleanJson(value, fallback = {}) {
   if (value == null) return JSON.stringify(fallback);
   if (typeof value === "string") {
@@ -1954,6 +1966,16 @@ function accessAssignments(body) {
     return {error:"Song and playlist assignments require a music or radio permission."};
   return {playlist_ids,track_paths};
 }
+async function ensureAccessCodeSecretStorage(env) {
+  // Additive only; D1 keeps access secrets encrypted at rest. Existing
+  // one-way hashes remain valid, but they cannot be reversed.
+  await env.VAULT_DB.prepare(`CREATE TABLE IF NOT EXISTS access_code_secrets (
+    code_id TEXT PRIMARY KEY,
+    ciphertext TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+  )`).run();
+}
 function accessPublicRow(row) {
   if (!row) return null;
   return {
@@ -2037,19 +2059,33 @@ async function ensureAccessCodeTables(env){
 }
 async function ensureLegacyLoveRecord(env){
   const hash=await accessCodeHash("LOVE",env);
-  const existing=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
-  if(existing)return {id:existing.id,created:false};
+  const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json FROM access_codes WHERE code_hash=?").bind(hash).first();
+  const allScopes=JSON.stringify([...GE_ACCESS_SCOPES]);
+  if(existing){
+    // Correct the original mistaken Radio-only import, but never revive or
+    // replace a suspended, revoked, deleted or owner-customized record.
+    if(existing.id==="access_legacy_love_v1" &&
+       existing.scopes_json===JSON.stringify(["radio"])){
+      const upgraded=await env.VAULT_DB.prepare(
+        "UPDATE access_codes SET scopes_json=?,label=CASE WHEN label=? THEN ? ELSE label END,updated_at=? WHERE id=? AND code_hash=? AND scopes_json=? AND revoked_at IS NULL"
+      ).bind(allScopes,"LOVE · Original Radio Gate","LOVE · Original All Access",now(),
+        existing.id,hash,JSON.stringify(["radio"])).run();
+      if(upgraded.meta?.changes)
+        await audit(env,"system","access.legacy-love-all-access","access_code",existing.id,{});
+    }
+    return {id:existing.id,created:false};
+  }
   const t=now(),codeId="access_legacy_love_v1";
   await env.VAULT_DB.batch([
     env.VAULT_DB.prepare(
       "INSERT OR IGNORE INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(codeId,"LOVE · Original Radio Gate",hash,"LOVE",JSON.stringify(["radio"]),"none",0,null,null,t,0,0,1,null,t,t),
+    ).bind(codeId,"LOVE · Original All Access",hash,"LOVE",allScopes,"none",0,null,null,t,0,0,1,null,t,t),
     env.VAULT_DB.prepare(
       "INSERT OR IGNORE INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)"
     ).bind(codeId,"[]","[]",t)
   ]);
   await audit(env,"system","access.legacy-love-migrate","access_code",codeId,{
-    source:"original_radio_gate",scope:"radio",short_legacy_code:true
+    source:"original_all_access_code",scopes:[...GE_ACCESS_SCOPES],short_legacy_code:true
   });
   return {id:codeId,created:true};
 }
@@ -2082,6 +2118,31 @@ async function accessAdminChange(request,env){
     await env.VAULT_DB.prepare("INSERT INTO access_code_policy(id,enabled,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled,updated_at=excluded.updated_at").bind(enabled?1:0,t).run();
     await audit(env,"admin","access.master","access_policy","1",{enabled});
     return json({ok:true,master_enabled:enabled});
+  }
+  if(action==="reveal"){
+    const codeId=String(body.id||"").slice(0,100);
+    const existing=await env.VAULT_DB.prepare(
+      "SELECT id,code_hash,revoked_at FROM access_codes WHERE id=? AND NOT EXISTS(SELECT 1 FROM access_code_deletions WHERE code_id=access_codes.id)"
+    ).bind(codeId).first();
+    if(!existing)return json({ok:false,error:"Saved access code not found."},404);
+    if(existing.revoked_at)return json({ok:false,error:"Revoked access keys cannot be revealed."},409);
+    // Original LOVE is recoverable because its exact credential is already
+    // known and its HMAC is verified. Never guess other historical secrets.
+    const legacyHash=await accessCodeHash("LOVE",env);
+    if(codeId==="access_legacy_love_v1" && constantTimeEqual(existing.code_hash,legacyHash)){
+      await audit(env,"admin","access.reveal","access_code",codeId,{});
+      return json({ok:true,id:codeId,code:"LOVE",action:"reveal"});
+    }
+    await ensureAccessCodeSecretStorage(env);
+    const stored=await env.VAULT_DB.prepare("SELECT ciphertext FROM access_code_secrets WHERE code_id=?").bind(codeId).first();
+    if(!stored?.ciphertext)
+      return json({ok:false,error:"This older key was saved before encrypted recovery existed. Reset its key once to make it retrievable."},409);
+    const code=await decryptPrivate(stored.ciphertext,env);
+    const check=await accessCodeHash(code,env);
+    if(!check || !constantTimeEqual(check,existing.code_hash))
+      return json({ok:false,error:"Saved key does not match its Vault record. Do not use or reset it without review."},409);
+    await audit(env,"admin","access.reveal","access_code",codeId,{});
+    return json({ok:true,id:codeId,code,action:"reveal"});
   }
   if(action==="issue"){
     const label=String(body.label||"").trim().slice(0,100);
@@ -2121,12 +2182,16 @@ async function accessAdminChange(request,env){
     const activatedAt=activate?t:null;
     const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
     const newId=id("access");
+    await ensureAccessCodeSecretStorage(env);
+    const encryptedCode=await encryptPrivate(code,env);
     await env.VAULT_DB.batch([
       env.VAULT_DB.prepare(
         "INSERT INTO access_codes (id,label,code_hash,code_hint,scopes_json,duration_mode,duration_seconds,fixed_expires_at,expires_at,activated_at,max_uses,use_count,enabled,revoked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
       ).bind(newId,label,hash,hint,JSON.stringify(scopes),mode,seconds,fixed,expiry,activatedAt,maxUses,0,activate?1:0,null,t,t),
       env.VAULT_DB.prepare("INSERT INTO access_code_content (code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)")
-        .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
+        .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
+      env.VAULT_DB.prepare("INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?)")
+        .bind(newId,encryptedCode,t)
     ]);
     await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hint,scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
@@ -2190,10 +2255,19 @@ async function accessAdminChange(request,env){
     const hint=secret.slice(-4);
     const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
     if(collision)return json({ok:false,error:"Could not generate a unique key. Try again."},409);
-    const updated=await env.VAULT_DB.prepare(
-      "UPDATE access_codes SET code_hash=?,code_hint=?,updated_at=? WHERE id=? AND code_hash=? AND revoked_at IS NULL"
-    ).bind(hash,hint,t,codeId,existing.code_hash).run();
-    if(!updated.meta?.changes)return json({ok:false,error:"Code changed during reset. Refresh before retrying."},409);
+    await ensureAccessCodeSecretStorage(env);
+    const encryptedCode=await encryptPrivate(code,env);
+    const results=await env.VAULT_DB.batch([
+      env.VAULT_DB.prepare(
+        "UPDATE access_codes SET code_hash=?,code_hint=?,updated_at=? WHERE id=? AND code_hash=? AND revoked_at IS NULL"
+      ).bind(hash,hint,t,codeId,existing.code_hash),
+      // Only store encrypted plaintext when the matching hash was committed.
+      env.VAULT_DB.prepare(
+        "INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) SELECT id,?,? FROM access_codes WHERE id=? AND code_hash=? ON CONFLICT(code_id) DO UPDATE SET ciphertext=excluded.ciphertext,updated_at=excluded.updated_at"
+      ).bind(encryptedCode,t,codeId,hash)
+    ]);
+    if(!results[0]?.meta?.changes)
+      return json({ok:false,error:"Code changed during reset. Refresh before retrying."},409);
     await audit(env,"admin","access.rotate","access_code",codeId,{});
     return json({ok:true,id:codeId,action:"rotate",code,code_hint:hint});
   }
