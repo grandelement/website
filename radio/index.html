@@ -10170,6 +10170,18 @@ Vector ${vector}. ${pair[1]}.`;
           sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
             scopes:grantedScopes,until:validUntil,verifiedFor:'radio'
           }));
+          // One Gate redemption now returns the SAME record's signed Music
+          // grant and exact saved playlist/song snapshot. No second use is
+          // consumed, and this does not change the shared BLITZ broadcast.
+          const m=result.music_session;
+          if(m&&typeof m.token==='string'&&Array.isArray(m.allowed_tracks)&&
+             Number(m.session_expires_at)*1000>Date.now()){
+            const receipt={token:m.token,until:Number(m.session_expires_at)*1000,
+              restricted:!!m.restricted,allowed:m.allowed_tracks};
+            sessionStorage.setItem('GE_MUSIC_CODE_SESSION_V1',JSON.stringify(receipt));
+            try{window.dispatchEvent(new CustomEvent('ge-vault-music-access-updated'))}catch(_e){}
+            try{geInlineMusicFrame?.contentWindow?.postMessage({type:'ge-vault-music-access-updated'},location.origin)}catch(_e){}
+          }
         }catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
       }catch(_e){
         if(status)status.textContent='GE Vault cannot be reached. Try the code again online.';
