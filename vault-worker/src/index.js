@@ -2293,7 +2293,9 @@ async function accessRedeem(request,env){
   const scopes=JSON.parse(row.scopes_json||"[]");
   if(!scopes.includes(scope)&&!scopes.includes("website"))return json({ok:false,error:"Code does not permit this content."},403);
   const playlist_ids=JSON.parse(row.playlist_ids_json||"[]"),track_paths=JSON.parse(row.track_paths_json||"[]");
-  if(playlist_ids.length||track_paths.length){
+  // Playlist/song restrictions govern Music and Albums, not entry into the
+  // live Radio Gate, Games or Website with an independently granted scope.
+  if((scope==="music"||scope==="albums")&&(playlist_ids.length||track_paths.length)){
     const playlistId=String(body.playlist_id||""),trackPath=String(body.track_path||"");
     // A GitHub playlist reference cannot silently grant newly added tracks.
     // When explicit track paths exist, they alone control entitlement.
