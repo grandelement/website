@@ -3664,8 +3664,25 @@ const backroomVaultManagers=(()=>{
         showCodeEditor(row.id);note.hidden=true;
       });
       $('brAccessSavePrimary').addEventListener('click',()=>{
-        if($('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
-        void saveCode(!!editingCodeId);
+        const name=$('brAccessLabel').value.trim();
+        if(!name)return accessStatus('ENTER THE CODE THAT YOUR GUEST WILL USE.');
+        const match=codeRows.find(row=>String(row.label||'').trim().toLowerCase()===name.toLowerCase());
+        if(match&&match.id!==editingCodeId){
+          selectedCodeId=match.id;renderAccessCodes();showCodeEditor(match.id);
+          return accessStatus('EXISTING CODE LOADED · '+match.label+' · Review then SAVE to edit it.');
+        }
+        if($('brAccessEditor').hidden)showCodeEditor(match?.id||selectedCodeId);
+        const editing=!!editingCodeId&&String(selectedCode()?.label||'').trim().toLowerCase()===name.toLowerCase();
+        if(!editing){
+          // A different typed name always creates a new credential; never silently
+          // rename an existing record, replace its secret, or overwrite its songs.
+          editingCodeId='';
+          $('brAccessCustomCode').disabled=false;
+          $('brAccessIssue').hidden=false;
+          $('brAccessSave').hidden=true;
+          $('brAccessStartRow').hidden=false;
+        }
+        void saveCode(editing);
       });
       $('brAccessRevealKey').addEventListener('click',()=>void revealSelectedCode());
       $('brAccessReplaceKey').addEventListener('click',()=>void rotateSelectedCode());
