@@ -315,8 +315,12 @@ for (const [signature,guard,label] of [
   ['async function playURL(url,','if(!geOwnerDemoEnabled())','Radio actual library playback'],
   ['function resumeAudio(){','!geOwnerDemoEnabled()','Radio Play']
 ]) guarded(radio,signature,guard,label+' checks access');
-test(radio.includes('function openTrackPicker(){') && radio.includes('if(fullMusicPickerCatalog.length)renderTrackList();'),
-  'Guests can browse the full music catalog while actual playback remains access-controlled');
+const radioMusicV5=load('radio/ge-music-v5.js');
+new vm.Script(radioMusicV5,{filename:'radio/ge-music-v5.js'});
+test(radio.includes('ge-music-v5.js') && radioMusicV5.includes('async function fetchCatalog(){') &&
+  radioMusicV5.includes('function appendSong(parent,track){') &&
+  radioMusicV5.includes("action:'verify',token:access.token,track_path:track.path"),
+  'Guests can browse the published Radio Music catalog while playback remains code-controlled');
 for (const [signature,guard,label] of [
   ['async function startCurrent(){','if(!geHasOwnerMusicDemo())','Homepage Play'],
   ['function next(){','if(!geHasOwnerMusicDemo())','Homepage Next'],
