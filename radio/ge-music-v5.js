@@ -324,7 +324,7 @@ function chosenSongs(){
   if(state.accessPlaylistFilter){const p=state.assignedLists.find(x=>x.id===state.accessPlaylistFilter);
     if(p){const ids=new Set(p.songs);rows=rows.filter(t=>ids.has(t.path));}}
   return state.accessView==='album'
-    ?rows.slice().sort((a,b)=>rank(a.album)-rank(b.album)||a.number-b.number||a.title.localeCompare(b.title))
+    ?rows.slice().sort((a,b)=>rank(b.album)-rank(a.album)||a.number-b.number||a.title.localeCompare(b.title))
     :rows;
  }
  if(state.view.startsWith('album:'))return state.tracks.filter(t=>t.album===state.view.slice(6));

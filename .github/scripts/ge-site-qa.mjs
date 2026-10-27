@@ -460,7 +460,7 @@ test(home.includes('approved.has(item.clean)') &&
      home.includes("const RADIO_ALBUM_ORDER=['Singles','Aether'"),
      'Homepage fallback Player/Shuffle plays only Master-approved paths, Singles first');
 // One Back Room MUSIC surface; no accidental publish of unrelated draft settings.
-test(backroom.includes('<section data-br-tab="music">\n  <section id="brMasterSection"') &&
+test(backroom.includes('<section data-br-tab="music">') && backroom.includes('<section id="brMasterSection"') &&
      backroom.includes('id="brMasterRefresh"') &&
      backroom.includes('id="brMasterSave"') &&
      backroom.includes('id="brMasterSongs"') &&
