@@ -1201,7 +1201,6 @@ const PROFILE_KEY='GE_GAME_PLAYER_PROFILES_V1';
 const TOKEN_KEY='GE_BACKROOM_PUBLISH_SESSION_V1';
 const PRESET_KEY='GE_BACKROOM_PRESETS_V1';
 const API='https://ge-backroom-publisher.grandelement.workers.dev';
-const TEMP_PASS_HASH='cf3a76e30fcd7881e9202fda7785106684ea54abad2470dba3dd716ff3a7ab63';
 const gateFields={
  sequenceSpeed:['gateSequenceSpeed',.5,3,1.5],
  blurLeadSeconds:['gateBlurLeadSeconds',0,30,6],
@@ -1334,27 +1333,30 @@ const field=(id,v='')=>{if($(id))$(id).value=v??''};
 const checked=(id,v)=>{if($(id))$(id).checked=!!v};
 const clone=v=>JSON.parse(JSON.stringify(v));
 
-async function digest(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function token(){try{return sessionStorage.getItem(TOKEN_KEY)||''}catch(_e){return ''}}
 function setToken(v){try{v?sessionStorage.setItem(TOKEN_KEY,v):sessionStorage.removeItem(TOKEN_KEY)}catch(_e){}}
 async function api(path,opt={}){const {timeoutMs=8000,...requestOptions}=opt;const headers={'Content-Type':'application/json',...(requestOptions.headers||{})};if(token())headers.Authorization='Bearer '+token();const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),Math.min(30000,Math.max(1000,Number(timeoutMs)||8000)));try{return await fetch(API+path,{cache:'no-store',...requestOptions,headers,signal:controller.signal})}finally{clearTimeout(timeout)}}
 async function enterBackroom(){
   const pass=String($('gatePassword').value||'');
-  $('gateMessage').textContent='Checking…';
+  $('gateMessage').textContent='Checking private publisher…';
+  // Back Room is owner-only. Never unlock administrative UI using a
+  // hardcoded hash in public JavaScript or an offline password fallback.
   try{
     const h=await api('/health',{method:'GET'});const hd=await h.json().catch(()=>({}));
-    if(h.ok&&hd.configured){
-      const r=await api('/login',{method:'POST',body:JSON.stringify({password:pass})});const d=await r.json().catch(()=>({}));
-      if(r.ok&&d.token){setToken(d.token);serverAuthenticated=true;}
-      else if(await digest(pass)===TEMP_PASS_HASH){setToken('');serverAuthenticated=false;}
-      else{$('gateMessage').textContent='Incorrect password.';return}
-    }else{
-      if(await digest(pass)!==TEMP_PASS_HASH){$('gateMessage').textContent='Incorrect password.';return}
-      serverAuthenticated=false;
+    if(!h.ok||!hd.configured){
+      $('gateMessage').textContent='Private publisher is not ready. Back Room stays locked.';
+      return;
     }
+    const r=await api('/login',{method:'POST',body:JSON.stringify({password:pass})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||typeof d.token!=='string'||!d.token){
+      $('gateMessage').textContent='Private publisher sign-in failed.';
+      return;
+    }
+    setToken(d.token);serverAuthenticated=true;
   }catch(_e){
-    if(await digest(pass)!==TEMP_PASS_HASH){$('gateMessage').textContent='Incorrect password.';return}
-    serverAuthenticated=false;
+    $('gateMessage').textContent='Private publisher unavailable. Back Room stays locked; no local bypass.';
+    return;
   }
   $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');$('gatePassword').value='';
   await bootBackroom();
