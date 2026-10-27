@@ -3347,6 +3347,10 @@ const backroomVaultManagers=(()=>{
       const saved=readable?codeRows.find(x=>x.id===row.id):null;
       if(saved?.code_hint===result.code_hint){
         showCodeEditor(row.id);
+        // showCodeEditor scrolls to the editor. Afterwards bring the newly
+        // issued secret BACK into view so iPhone users cannot miss it.
+        requestAnimationFrame(()=>requestAnimationFrame(()=>
+          $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'})));
         accessStatus('KEY RESET AND VERIFIED · COPY THE ACTUAL ACCESS KEY ABOVE.');
       }else{
         accessStatus('KEY RESET · Copy the new key above. Read-back was not verified; do not reset again.');
