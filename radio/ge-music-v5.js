@@ -3,13 +3,21 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.4-20261027';
+const BUILD='GE-MUSIC-V5.5-20261027';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+// Match the GE site's established GOLF_PLANETS cover colors.
+const albumColors={'Aether':'#aeb7c5','Fire':'#ff7660','Spirit':'#64dbff','Soul':'#b5a0ff','Love':'#ff9bd5','Intergy':'#ffd184','Sessions II':'#87f6c9','Sessions I':'#f1f6ff','Live':'#7aaaff','Trio':'#d7efff','Fundamental Groove':'#89ffc2','Singles':'#c5e1e7'};
+function applyAlbumStyle(element,name){
+ const hex=albumColors[name]||'#addcf5';
+ element.style.borderLeft='4px solid '+hex;
+ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+ element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.24),rgba('+r+','+g+','+b+',.07))';
+}
 const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
@@ -64,6 +72,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .song label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow-wrap:anywhere;cursor:pointer}
 .song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#41d5ff}
 .song span{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.song .songLabel{flex:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
+.albumJump{min-width:0;width:100%;margin-top:7px;padding:8px 10px;min-height:40px;border:1px solid #4b91bd;border-radius:9px;background:#09243a;color:white;font-size:14px}
 .song button{flex:0 0 auto;min-width:45px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
 .song .reorder{min-width:38px;padding:4px 6px;font-size:19px}
 .albumPicker{display:flex;align-items:center;gap:9px;background:#0b3553;border:1px solid #376f95;border-radius:7px;padding:9px;margin:8px 0 5px}
@@ -83,10 +93,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.3</span></div><button class="close" type="button">CLOSE</button></div>
- <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="checked" aria-pressed="false">CHECKED SONGS</button><button type="button" data-view="playlist-order" aria-pressed="false">PLAYLIST ORDER</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
+ <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="checked" aria-pressed="false">CHECKED SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="playlist-order" aria-pressed="false">PLAYLIST ORDER</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song or album" aria-label="Search selected music"><select class="albumJump" aria-label="Jump directly to an album"><option value="">JUMP TO ALBUM</option></select>
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
- <div class="bottom"><span class="count">0 SELECTED</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button></div>
+ <div class="bottom"><span class="count">SELECTION</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button></div>
 </section>`;
 document.body.appendChild(host);
 const el=sel=>root.querySelector(sel),scroller=el('.scroll'),meta=el('.meta'),notice=el('.notice');
@@ -105,7 +115,7 @@ function details(path){
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
-function updateMeta(){meta.textContent=`${state.tracks.length} SONGS · ${new Set(state.tracks.map(x=>x.album)).size} ALBUMS · ${BUILD}`;el('.count').textContent=state.selected.size+' SELECTED'}
+function updateMeta(){meta.textContent='';el('.count').textContent='YOUR MUSIC SELECTION'}
 function elem(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
 async function fetchCatalog(){
  const all=[];
@@ -119,7 +129,12 @@ async function fetchCatalog(){
  }
  const unique=[...new Set(all)].map(details);
  unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
- state.tracks=unique;state.loaded=true;state.loading=false;updateMeta();render();
+ state.tracks=unique;state.loaded=true;state.loading=false;
+  const jump=el('.albumJump'),prior=jump.value;
+  jump.replaceChildren(new Option('JUMP TO ALBUM',''));
+  for(const album of albumOrder.filter(name=>unique.some(track=>track.album===name)))jump.add(new Option(album,album));
+  if(prior&&[...jump.options].some(option=>option.value===prior))jump.value=prior;
+  updateMeta();render();
  if(!unique.length)say('The published library could not be loaded. Check network and refresh.');
 }
 function readMine(){
@@ -185,7 +200,7 @@ function musicAccessActive(){
 function musicAccessStatus(){
  const access=musicAccessActive(),status=el('.musicCodeState');
  status.textContent=access?
-   ('CODE ACTIVE · '+(access.restricted?access.allowed.length+' AUTHORIZED SONGS':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):
+   ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):
    'No Music code active · Existing guest previews remain available.';
 }
 function clearMusicAccess(){
@@ -223,7 +238,7 @@ async function redeemMusicCode(){
    if(access.restricted){
      state.selected=new Set(allowed);saveSelected();void loadPublished();
      setView('access-code');
-     say('Music code verified · '+allowed.length+' authorized songs loaded.');
+     say('Music code verified · authorized music loaded.');
    }else{setView('all');say('Music code verified for the full music library.')}
  }catch(error){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
@@ -263,7 +278,10 @@ function appendSong(parent,track){
      playlist_id:(state.view.startsWith('vault:')||state.view.startsWith('local:'))?state.view.slice(state.view.indexOf(':')+1):''
    });
  });
- label.append(checkbox,elem('span','',track.title));
+ const songText=elem('span','songLabel',track.title+' — '+track.album);
+  songText.title=track.title+' — '+track.album;
+  label.append(checkbox,songText);
+  applyAlbumStyle(row,track.album);
  const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
  const access=musicAccessActive();
  if(access?.restricted&&!access.allowed.includes(track.path)){
@@ -299,9 +317,10 @@ function activeCategory(){
    state.view.startsWith('vault:')?'ge-playlists':
    state.view.startsWith('local:')?'user-playlists':state.view;
 }
-function card(parent,title,detail,action){
+function card(parent,title,detail,action,album=''){
  const b=elem('button','album');
  b.type='button';b.append(elem('b','',title),elem('small','countHint',detail));
+  if(album)applyAlbumStyle(b,album);
  b.addEventListener('click',action);parent.append(b);
 }
 function breadcrumb(label,back){
@@ -346,7 +365,7 @@ function albumSelectAll(parent,album,tracks){
    for(const path of paths)box.checked?state.selected.add(path):state.selected.delete(path);
    saveSelected();render();
  });
- label.append(box,elem('span','',album+' · '+count+'/'+paths.length+' CHECKED'));parent.append(label);
+ label.append(box,elem('span','',album+' · SELECT ALBUM'));applyAlbumStyle(label,album);parent.append(label);
 }
 function render(){
  if(!state.open)return;
@@ -362,33 +381,39 @@ function render(){
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
  notice.textContent=state.notice||state.playlistMessage;
  if(!state.loaded){scroller.append(elem('p','empty','Loading the published Grand Element catalog…'));return}
- if(state.view==='albums'){
+ if(state.view==='albums'&&term){
+  // Album-search returns individual matching song titles, not album-only cards.
+  const results=state.tracks.filter(filterTrack);
+  for(const track of results)appendSong(scroller,track);
+  if(!results.length)scroller.append(elem('p','empty','No songs match that search.'));
+  meta.textContent='SONG SEARCH';
+ }else if(state.view==='albums'){
   const names=[...new Set(state.tracks.map(t=>t.album))];
   for(const name of names){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
     const wrapper=elem('div');albumSelectAll(wrapper,name,rows);
-    card(wrapper,'OPEN '+name,rows.length+' SONGS',()=>setView('album:'+name));
+    card(wrapper,'OPEN '+name,'VIEW SONGS',()=>setView('album:'+name),name);
     scroller.append(wrapper);
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
-  meta.textContent=names.length+' ALBUMS · '+state.tracks.length+' PUBLISHED SONGS';
+  meta.textContent='ALBUMS';
  }else if(state.view==='ge-playlists'){
   scroller.append(elem('div','section','GE PLAYLISTS · GITHUB'));
   scroller.append(elem('p','empty',state.playlistMessage||'Checking GitHub…'));
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
-  for(const p of shown)card(scroller,p.name,p.songs.length+' SONGS',()=>{
+  for(const p of shown)card(scroller,p.name,'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();
    recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'ge_github',song_count:p.songs.length});
    setView('vault:'+p.id);
   });
   if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No published GE playlists. The owner manages GE playlists in the Back Room.'));
-  meta.textContent=state.publicLists.length+' PUBLISHED GE PLAYLISTS · '+state.tracks.length+' SONGS';
+  meta.textContent='GE PLAYLISTS';
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
-   card(scroller,p.name,p.songs.length+' SONGS',()=>{
+   card(scroller,p.name,'OPEN PLAYLIST',()=>{
      state.selected=new Set(p.songs);saveSelected();
      recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'user_local_device',song_count:p.songs.length});
      setView('local:'+p.id);
@@ -396,16 +421,16 @@ function render(){
   }
   if(!local.length)scroller.append(elem('p','empty','Check songs under ALL SONGS, then SAVE USER PLAYLIST. Saved only on this device until fan account synchronization is ready.'));
   else scroller.append(elem('p','empty','Saved on this device only. Permanent fan playlist and analytics syncing is not connected yet.'));
-  meta.textContent=local.length+' SAVED USER PLAYLISTS ON THIS DEVICE';
+  meta.textContent='USER PLAYLISTS';
  }else if(state.view==='access-code'&&state.accessView==='playlist'){
   breadcrumb('YOUR ASSIGNED PLAYLISTS','all');
   const allowed=new Set(musicAccessActive()?.allowed||[]);
   const named=state.assignedLists.filter(p=>p.songs.some(song=>allowed.has(song)));
-  for(const p of named)card(scroller,p.name,p.songs.filter(song=>allowed.has(song)).length+' AUTHORIZED SONGS',()=>{
+  for(const p of named)card(scroller,p.name,'OPEN PLAYLIST',()=>{
    state.accessView='order';state.accessPlaylistFilter=p.id;render();scroller.scrollTop=0;
   });
   if(!named.length)scroller.append(elem('p','empty','Your songs were selected individually. Choose MY ORDER.'));
-  meta.textContent=named.length+' ASSIGNED PLAYLISTS';
+  meta.textContent='ASSIGNED PLAYLISTS';
  }else{
   const chosen=chosenSongs();
   const shown=chosen.filter(filterTrack);
@@ -425,7 +450,7 @@ function render(){
    appendSong(scroller,t);
   }
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
-  meta.textContent=shown.length+' SHOWN · '+chosen.length+' IN SELECTION · '+state.tracks.length+' TOTAL SONGS';
+  meta.textContent='SONGS';
  }
  scroller.scrollTop=previous;
 }
@@ -456,6 +481,11 @@ function close(){
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').addEventListener('click',close);
 el('.search').addEventListener('input',event=>{state.term=event.target.value;render();scroller.scrollTop=0});
+el('.albumJump').addEventListener('change',event=>{
+ const album=event.target.value;
+ if(album)setView('album:'+album);
+ event.target.value='';
+});
 root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 root.querySelectorAll('[data-access-view]').forEach(b=>b.addEventListener('click',()=>{
  state.accessView=b.dataset.accessView;state.accessPlaylistFilter='';state.view='access-code';
