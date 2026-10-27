@@ -577,6 +577,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access .brAccessKeyHelp strong{font-size:calc(12px * var(--scale))}
 #brPanel-access .brAccessKeyHelp p,#brPanel-access .brAccessKeyInstruction{font-size:calc(12px * var(--scale));color:#d0e9f7;line-height:1.45}
 #brPanel-access .brAccessKeyHelp button{min-height:44px;max-width:100%;white-space:normal;font-size:calc(11px * var(--scale))}
+#brPanel-access .brAccessKeyActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media(max-width:450px){#brPanel-access .brAccessKeyActions{grid-template-columns:1fr}}
+#brPanel-access .brAccessKeyActions button{font-size:calc(12px * var(--scale))}
 #brPanel-access #brAccessOneTime:not([hidden]){display:grid!important;gap:9px;position:relative;border:2px solid #5bdcff;border-radius:12px;background:#05263b;margin:12px 0;padding:15px;overflow-wrap:anywhere}
 #brPanel-access #brAccessCodeValue{user-select:all;-webkit-user-select:all;font-size:clamp(17px,4vw,27px);line-height:1.4;color:#f4feff;overflow-wrap:anywhere}
 #brPanel-access #brAccessCopy{min-height:50px;font-weight:900}
@@ -861,7 +864,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
       <strong>ACTUAL RADIO ACCESS KEY</strong>
       <p id="brAccessKeyHelpText"></p>
-      <button type="button" id="brAccessReplaceKey">RESET ACCESS KEY FOR THIS CODE</button>
+      <div class="brAccessKeyActions">
+        <button type="button" id="brAccessRevealKey">SHOW SAVED ACCESS KEY</button>
+        <button type="button" id="brAccessReplaceKey">RESET LOST KEY</button>
+      </div>
     </div>
     <details class="brAccessCategory" open><summary>PERMISSIONS</summary>
     <div class="backroomPermissions">
@@ -2299,6 +2305,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
+  let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
     const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;
@@ -3060,6 +3067,11 @@ const backroomVaultManagers=(()=>{
   }
   function showCodeEditor(id=''){
     const row=codeRows.find(x=>String(x.id)===String(id))||null;
+    if((row?.id||'')!==revealedKeyRecordId){
+      $('brAccessOneTime').hidden=true;
+      $('brAccessCodeValue').textContent='';
+      revealedKeyRecordId='';
+    }
     if(row?.revoked){accessStatus('A revoked code cannot be edited. Create a new one.');return;}
     editingCodeId=row?.id||'';
     $('brAccessBrowse').hidden=false;
@@ -3076,7 +3088,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     if(row)$('brAccessKeyHelpText').textContent=
-      'Saved key ends in …'+row.code_hint+'. The full key is not stored in readable form. The name '+row.label+' cannot open Radio. If the key was lost, RESET ACCESS KEY, then copy the new key.';
+      'Saved key ends in …'+row.code_hint+'. Tap SHOW SAVED ACCESS KEY to recover keys issued after the Vault upgrade. Original LOVE is recoverable as LOVE. If an older key cannot be retrieved, use RESET LOST KEY once; its name is not the secret.';
     $('brAccessCustomHelp').textContent=row?
       'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
       'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
@@ -3308,6 +3320,7 @@ const backroomVaultManagers=(()=>{
       const codeId=data.id||editingCodeId;
       if(!codeId||(!isEdit&&!data.code))throw Error('Vault did not confirm a saved code and its one-time secret.');
       if(!isEdit){
+        revealedKeyRecordId=codeId;
         $('brAccessCodeValue').textContent=data.code;
         $('brAccessOneTime').hidden=false;
       }
@@ -3353,6 +3366,24 @@ const backroomVaultManagers=(()=>{
       accessStatus('CODE '+action.toUpperCase()+' COMPLETED.');
     }catch(err){accessStatus('UPDATE FAILED: '+String(err.message||err));}
   }
+  async function revealSelectedCode(){
+    const row=selectedCode();
+    if(!row||row.id!==editingCodeId)return accessStatus('LOAD A SAVED CODE TO SHOW ITS ACCESS KEY.');
+    if(savingCode)return;
+    savingCode=true;
+    const button=$('brAccessRevealKey');button.disabled=true;
+    try{
+      const response=await vaultAction('/manage/access-codes',{action:'reveal',id:row.id});
+      if(!response?.code||response.id!==row.id)throw Error('Vault did not return a matching saved access key.');
+      revealedKeyRecordId=row.id;
+      $('brAccessCodeValue').textContent=response.code;
+      $('brAccessOneTime').hidden=false;
+      $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'});
+      accessStatus('ACCESS KEY RETRIEVED · Copy it from the highlighted field.');
+    }catch(error){
+      accessStatus('ACCESS KEY NOT AVAILABLE · '+String(error.message||error));
+    }finally{savingCode=false;button.disabled=false;}
+  }
   async function rotateSelectedCode(){
     const row=selectedCode();
     if(!row||row.id!==editingCodeId)return accessStatus('LOAD THE SAVED CODE BEFORE RESETTING ITS KEY.');
@@ -3365,6 +3396,7 @@ const backroomVaultManagers=(()=>{
       if(!result?.code||result.id!==row.id)throw Error('Vault did not return the new access key.');
       // Present the key before ANY follow-up network call: once the rotation
       // commits, this is the sole copy returned by the server.
+      revealedKeyRecordId=row.id;
       $('brAccessCodeValue').textContent=result.code;
       $('brAccessOneTime').hidden=false;
       $('brAccessOneTime').scrollIntoView({behavior:'smooth',block:'center'});
@@ -3518,6 +3550,7 @@ const backroomVaultManagers=(()=>{
         if($('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
         void saveCode(!!editingCodeId);
       });
+      $('brAccessRevealKey').addEventListener('click',()=>void revealSelectedCode());
       $('brAccessReplaceKey').addEventListener('click',()=>void rotateSelectedCode());
       $('brAccessDeletePrimary').addEventListener('click',()=>{
         if(!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
