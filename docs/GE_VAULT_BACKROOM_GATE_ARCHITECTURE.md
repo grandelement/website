@@ -33,3 +33,81 @@ Rules:
 - `radio/ge-home-gate-stop.js` no longer uses the historical LOVE local flag; it honors only website/music/album scopes from the temporary receipt or the separate private local owner demo.
 - The Vault D1 access records and Back Room editor are implemented in `vault-worker/src/index.js` and `backroom/index.html`. Production table readiness, the saved LOVE record, editor readback and live Cloudflare deployment require independent production verification.
 - Temporary browser receipts are not signed authentication. The implementation must not present them as protected paid-content enforcement.
+
+
+## Access Code forensic path and verification contract
+
+Owner issue / edit / reveal / rotate:
+`backroom/index.html` -> authenticated
+`https://ge-backroom-publisher.grandelement.workers.dev/manage/access-codes`
+-> `backroom/publisher-worker.js` (owner session and action allowlist)
+-> private Cloudflare `GE_VAULT` service binding
+-> `vault-worker/src/index.js` `/v1/admin/access-codes`
+-> D1 `access_codes` + `access_code_content` + encrypted recoverable keys
+-> owner GET readback of the **same record ID and assignments**.
+
+Listener entry:
+`radio/index.html` CODE -> public Vault `/v1/public/access/redeem`
+-> D1 HMAC match + enabled / scope / expiry / usage / revocation checks
+-> Radio Gate client session. Website UI may receive a scoped receipt,
+but it is **not** a signed right to protected audio.
+
+Playlist assignment:
+GitHub `playlists/registry.json` (playlist catalog source)
+-> owner selects saved playlist -> the exact track paths are snapshotted
+into the D1 access-code content record -> Music-session verify checks the
+actual allowed track paths. Merely showing a playlist label is not proof of
+successful authorization or synchronized Bangers rotation.
+
+Visitor telemetry (independent of Gate):
+`ge-vault-client.js` -> Vault `/v1/public/event` -> D1 events.
+Codes must never be required just to collect events; a client send attempt
+is not proof of D1 persistence.
+
+### Source defects corrected on October 27, 2026
+
+- Publisher owner action allowlist omitted `reveal` and `rotate`,
+  so existing Back Room buttons were rejected before reaching the Vault.
+- A failed Back Room code-list GET previously set `codeRows=[]`,
+  which made existing codes appear gone in the interface. Old verified
+  in-memory rows now remain visible as **unverified**, without enabling saves.
+- An unmatched code-name search previously invoked `saveCode(false)`
+  immediately; now it opens an explicit draft pending a SAVE action.
+- Editor repaint previously unconditionally hid the newly issued or
+  rotated secret, even after a successful Vault write. A same-record
+  refresh now preserves the secret display; a failed readback must not
+  hide an issued key.
+
+### Required production proof — do not mark completed without evidence
+
+1. Confirm Vault `/health` reports `storage=READY` and
+   `access_codes_ready=true`.
+2. Confirm Publisher `/health` reports `configured`,
+   `vault_service_bound`, `vault_reachable`,
+   `vault_access_codes_ready` and `access_codes_bridge_configured`.
+3. Confirm Publisher `/health?diagnose=access-codes` reports
+   `access_codes_readable=true` and `upstream_http_status=200`.
+4. Through an authenticated Back Room session, retrieve the D1 list,
+   confirm the historic LOVE **code record** without confusing it with
+   the album, and reconcile earlier issued records without overwriting
+   or revoking any of them.
+5. Issue one controlled, new test code; capture its D1 ID and secret;
+   reload the page, load the *same ID* and verify scopes / expiry /
+   playlist IDs / exact tracks survive. Do not make a second code when
+   a readback fails.
+6. Verify owner-only reveal and rotate from Back Room, and anonymous
+   denial, then verify the rotated key belongs to the same D1 ID.
+7. Redeem the authorized test secret through the public Radio Gate and
+   verify the expected entitlement while an invalid/revoked secret is
+   rejected. For music restrictions, verify an allowed real track and
+   a denied unassigned track using the Music-session endpoint.
+8. Confirm a real page event and radio entry event reached D1 rather
+   than merely being queued in the browser.
+9. Confirm Cloudflare Pages/Workers have deployed the tested commit and
+   check the real iPhone/desktop experience; passing repository tests
+   **is not** a completed live deployment.
+
+**Preserve existing LOVE album, original LOVE access credential,
+fan/event data, Bangers playlist and all existing saved code IDs.
+Never erase or reconstruct production records merely because a client
+refresh fails.**
