@@ -1979,7 +1979,7 @@ async function ensureAccessCodeSecretStorage(env) {
 function accessPublicRow(row) {
   if (!row) return null;
   return {
-    id: row.id,label:row.label,code_hint:row.code_hint,
+    id: row.id,label:row.label,code_hint:row.code_hint,fan_id:row.fan_id||"",
     scopes:JSON.parse(row.scopes_json || "[]"),duration_mode:row.duration_mode,
     duration_seconds:row.duration_seconds,fixed_expires_at:row.fixed_expires_at,
     expires_at:row.expires_at,activated_at:row.activated_at,first_used_at:row.first_used_at,
@@ -2002,7 +2002,8 @@ async function ensureAccessCodeTables(env){
     "SELECT id FROM access_code_policy LIMIT 1",
     "SELECT id FROM access_codes LIMIT 1",
     "SELECT code_id FROM access_code_content LIMIT 1",
-    "SELECT code_id FROM access_code_deletions LIMIT 1"
+    "SELECT code_id FROM access_code_deletions LIMIT 1",
+    "SELECT code_id FROM access_code_fans LIMIT 1"
   ];
   let allPresent=true;
   for(const query of required){
@@ -2049,6 +2050,14 @@ async function ensureAccessCodeTables(env){
       code_id TEXT PRIMARY KEY,
       deleted_at INTEGER NOT NULL,
       FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
+    )`,
+    // Existing issued keys are never modified by this additive fan link table.
+    `CREATE TABLE IF NOT EXISTS access_code_fans (
+      code_id TEXT PRIMARY KEY,
+      fan_id TEXT,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE,
+      FOREIGN KEY (fan_id) REFERENCES fans(id) ON DELETE SET NULL
     )`
   ];
   await env.VAULT_DB.batch(statements.map(statement=>env.VAULT_DB.prepare(statement)));
@@ -2090,6 +2099,33 @@ async function ensureLegacyLoveRecord(env){
   });
   return {id:codeId,created:true};
 }
+// Private fan IDs and names are visible only to an owner-authenticated editor.
+// No email, phone, IP, or tracking data is returned through the access-code token.
+async function accessAdminFans(request,env){
+  if(!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401);
+  const rows=await env.VAULT_DB.prepare(
+    "SELECT id,display_name FROM fans ORDER BY last_seen_at DESC LIMIT 1000"
+  ).all();
+  return json({ok:true,items:(rows.results||[]).map(row=>({
+    id:String(row.id),name:String(row.display_name||"")
+  }))});
+}
+// The GitHub mirror receives only encrypted bytes, never plaintext code/user data.
+// D1 stays authoritative; this full encrypted snapshot is for recovery/versioning.
+async function accessAdminBackup(request,env){
+  if(!accessCodesAuthorized(request,env))return json({ok:false,error:"Unauthorized"},401);
+  await ensureAccessCodeTables(env);
+  await ensureAccessCodeSecretStorage(env);
+  const tables=["access_code_policy","access_codes","access_code_content",
+    "access_code_deletions","access_code_fans","access_code_secrets"];
+  const data={format:"ge-access-codes-d1-backup-v1",created_at:now(),tables:{}};
+  for(const table of tables){
+    const result=await env.VAULT_DB.prepare("SELECT * FROM "+table).all();
+    data.tables[table]=result.results||[];
+  }
+  return json({ok:true,format:"ge-access-codes-encrypted-backup-v1",
+    ciphertext:await encryptPrivate(JSON.stringify(data),env)});
+}
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   await ensureAccessCodeTables(env);
@@ -2097,7 +2133,7 @@ async function accessAdminGet(request, env) {
   const loveHash=await accessCodeHash("LOVE",env);
   const [policy,rows,loveRecord]=await Promise.all([
     env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first(),
-    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
+    env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,COALESCE(f.fan_id,'') AS fan_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_fans f ON f.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE d.code_id IS NULL ORDER BY a.created_at DESC LIMIT 500").all(),
     env.VAULT_DB.prepare("SELECT a.id,a.enabled,a.revoked_at,d.deleted_at FROM access_codes a LEFT JOIN access_code_deletions d ON d.code_id=a.id WHERE a.code_hash=? OR a.id=? ORDER BY CASE WHEN a.code_hash=? THEN 0 ELSE 1 END LIMIT 1").bind(loveHash,"access_legacy_love_v1",loveHash).first()
   ]);
   const items=(rows.results||[]).map(accessPublicRow);
@@ -2161,6 +2197,11 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments(body);
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    const fanId=String(body.fan_id||"").trim();
+    if(fanId&&!/^[a-zA-Z0-9_-]{1,100}$/.test(fanId))
+      return json({ok:false,error:"Invalid fan identifier."},400);
+    if(fanId&&!(await env.VAULT_DB.prepare("SELECT id FROM fans WHERE id=?").bind(fanId).first()))
+      return json({ok:false,error:"Fan not found in the private Vault. Create or select an existing fan first."},400);
     // GitHub playlist IDs are references to the saved song snapshot only.
     // A reference without explicit tracks must not grant mutable blanket access.
     if(assignments.playlist_ids.some(x=>/^playlist_[a-z0-9]+$/i.test(x))&&!assignments.track_paths.length)
@@ -2192,9 +2233,11 @@ async function accessAdminChange(request,env){
       env.VAULT_DB.prepare("INSERT INTO access_code_content (code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?)")
         .bind(newId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
       env.VAULT_DB.prepare("INSERT INTO access_code_secrets(code_id,ciphertext,updated_at) VALUES(?,?,?)")
-        .bind(newId,encryptedCode,t)
+        .bind(newId,encryptedCode,t),
+      env.VAULT_DB.prepare("INSERT INTO access_code_fans(code_id,fan_id,updated_at) VALUES(?,?,?)")
+        .bind(newId,fanId||null,t)
     ]);
-    await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
+    await audit(env,"admin","access.issue","access_code",newId,{label,scopes,mode,max_uses:maxUses,fan_id:fanId||null,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:newId,code,record:{id:newId,label,code_hint:hint,scopes,duration_mode:mode,activated_at:activatedAt,expires_at:expiry,max_uses:maxUses,use_count:0,enabled:activate,revoked:false}});
   }
   if(action==="edit"){
@@ -2217,6 +2260,11 @@ async function accessAdminChange(request,env){
     if(maxUses<0||maxUses>1000000)return json({ok:false,error:"Max uses must be 0 to 1,000,000."},400);
     const assignments=accessAssignments({...body,scopes});
     if(assignments.error)return json({ok:false,error:assignments.error},400);
+    const fanId=String(body.fan_id||"").trim();
+    if(fanId&&!/^[a-zA-Z0-9_-]{1,100}$/.test(fanId))
+      return json({ok:false,error:"Invalid fan identifier."},400);
+    if(fanId&&!(await env.VAULT_DB.prepare("SELECT id FROM fans WHERE id=?").bind(fanId).first()))
+      return json({ok:false,error:"Fan not found in the private Vault. Create or select an existing fan first."},400);
     for(const playlistId of assignments.playlist_ids){
       if(/^playlist_[a-z0-9]+$/i.test(playlistId)){
         if(!assignments.track_paths.length)return json({ok:false,error:"Load the GitHub playlist songs before saving."},400);
@@ -2235,9 +2283,11 @@ async function accessAdminChange(request,env){
       env.VAULT_DB.prepare("UPDATE access_codes SET label=?,scopes_json=?,duration_mode=?,duration_seconds=?,fixed_expires_at=?,expires_at=?,max_uses=?,updated_at=? WHERE id=?")
         .bind(label,JSON.stringify(scopes),mode,seconds,fixed,expiry,maxUses,t,codeId),
       env.VAULT_DB.prepare("INSERT INTO access_code_content(code_id,playlist_ids_json,track_paths_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(code_id) DO UPDATE SET playlist_ids_json=excluded.playlist_ids_json,track_paths_json=excluded.track_paths_json,updated_at=excluded.updated_at")
-        .bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t)
+        .bind(codeId,JSON.stringify(assignments.playlist_ids),JSON.stringify(assignments.track_paths),t),
+      env.VAULT_DB.prepare("INSERT INTO access_code_fans(code_id,fan_id,updated_at) VALUES(?,?,?) ON CONFLICT(code_id) DO UPDATE SET fan_id=excluded.fan_id,updated_at=excluded.updated_at")
+        .bind(codeId,fanId||null,t)
     ]);
-    await audit(env,"admin","access.edit","access_code",codeId,{label,scopes,mode,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
+    await audit(env,"admin","access.edit","access_code",codeId,{label,scopes,mode,fan_id:fanId||null,playlist_ids:assignments.playlist_ids,track_count:assignments.track_paths.length});
     return json({ok:true,id:codeId,action:"edit"});
   }
   if(action==="rotate"){
@@ -2499,6 +2549,16 @@ export default {
       }
       if (url.pathname === "/v1/public/access/redeem" && request.method === "POST") {
         const response=await accessRedeem(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if (url.pathname === "/v1/admin/access-code-fans" && request.method === "GET") {
+        const response=await accessAdminFans(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if (url.pathname === "/v1/admin/access-code-backup" && request.method === "GET") {
+        const response=await accessAdminBackup(request,env);
         Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
         return response;
       }
