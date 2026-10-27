@@ -27,14 +27,14 @@ console.log('PASS: Back Room Access Codes workbench syntax, load/save/delete bin
 const radioHtml=readFileSync('radio/index.html','utf8');
 assert.match(html,/id="brAccessKeyHelpPanel"/);
 assert.match(html,/id="brAccessReplaceKey"/);
-assert.match(html,/THIS IS THE RADIO ACCESS KEY/);
+assert.match(html,/THIS IS THE RADIO GATE CODE/);
 assert.match(html,/\$\('brAccessReplaceKey'\)\.addEventListener\('click',\(\)=>void rotateSelectedCode\(\)\)/);
 assert.match(html,/async function rotateSelectedCode\(\)/);
 assert.match(html,/action:'rotate',id:row.id/);
 assert.match(html,/KEY RESET AND VERIFIED/);
 assert.match(html,/if\(selectedCode\(\)&&!selectedCode\(\)\.revoked\)showCodeEditor\(selectedCodeId\)/);
-assert.match(radioHtml,/ACCESS KEY · NOT CODE NAME/);
-assert.match(radioHtml,/Enter the complete secret shown when issued, not its saved name/);
+assert.match(radioHtml,/Access code not accepted/);
+assert.match(radioHtml,/Enter the code assigned in the Back Room/);
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
 
 assert.match(html,/function selectedAccessAssignments\(\)/);
@@ -63,8 +63,14 @@ assert.doesNotMatch(html,/accessSongOptions\(\);assignedSongsUI\(\);accessModeUI
 console.log('PASS: newly issued and reset keys remain visible across Vault readback and editor repaint');
 assert.match(html, /bar\.appendChild\(nameLabel\)/,
   'the saved Code Name belongs beside the dropdown, not in a second editor');
-assert.match(html, /new Option\('\+ NEW ACCESS CODE','__new__'\)/,
-  'new codes must be created explicitly through the names dropdown');
+assert.doesNotMatch(html, /new Option\('\+ NEW ACCESS CODE','__new__'\)/,
+  'creation is the NEW button, not a fake choice inside saved names');
+assert.match(html,/requested_code:editingCodeId\?'':label/,
+  'newly issued code must use the entered name, not a random credential');
+for(const id of ['brAccessSongView','brMusicSongView','brAccessSaveAsPlaylist','brAccessNewPlaylistName'])
+  assert.ok(html.includes('id="'+id+'"'),'missing shared music control '+id);
+assert.match(html,/JSON.stringify\(saved.track_paths\|\|\[\]\)===JSON.stringify\(payload.track_paths\|\|\[\]\)/,
+  'Vault verification must preserve song order');
 assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
