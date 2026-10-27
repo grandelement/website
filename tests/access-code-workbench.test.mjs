@@ -42,3 +42,8 @@ assert.match(html,/const assignments=selectedAccessAssignments\(\)/);
 assert.match(html,/playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths/);
 assert.match(html,/Check playlists, then SAVE the access code/);
 console.log('PASS: checked GitHub playlist songs are included when the access code is saved');
+
+assert.match(html,/id="brAccessRevealKey"/);
+assert.match(html,/action:'reveal',id:row.id/);
+assert.match(html,/revealedKeyRecordId/);
+console.log('PASS: owner can retrieve saved secret from same Back Room record without exposing it in the public code list');

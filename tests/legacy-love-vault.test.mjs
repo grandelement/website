@@ -19,6 +19,8 @@ const db={
       return null;
     }
     if(sql.includes('FROM access_code_policy'))return policy;
+    if(sql.includes('SELECT id,code_hash,revoked_at FROM access_codes WHERE id='))return record?.id===p[0]?{id:record.id,code_hash:record.code_hash,revoked_at:record.revoked_at}:null;
+    if(sql.includes('SELECT id,scopes_json FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id,scopes_json:record.scopes_json}:null;
     if(sql.includes('SELECT id FROM access_codes WHERE code_hash='))return record?.code_hash===p[0]?{id:record.id}:null;
     if(sql.includes('FROM access_codes a')){
       if(sql.includes('a.code_hash=?')&&!record?.code_hash)return null;
@@ -54,6 +56,13 @@ const db={
     if(sql.includes('INSERT OR IGNORE INTO access_code_content')){
       if(!contentRow)contentRow={code_id:p[0],playlist_ids_json:p[1],track_paths_json:p[2]};
       return {meta:{changes:1}};
+    }
+    if(sql.includes('UPDATE access_codes SET scopes_json=')){
+      if(record?.id===p[4]&&record.code_hash===p[5]&&record.scopes_json===p[6]&&!record.revoked_at){
+        record.scopes_json=p[0];if(record.label===p[1])record.label=p[2];
+        record.updated_at=p[3];return {meta:{changes:1}};
+      }
+      return {meta:{changes:0}};
     }
     if(sql.includes('UPDATE access_codes SET use_count=')){
       if(!record.enabled||record.revoked_at||(record.max_uses>0&&record.use_count>=record.max_uses))
@@ -97,8 +106,8 @@ assert.equal(record,null,'health never creates or re-enables LOVE');
 r=await request(admin,undefined,true);
 assert.equal(r.status,200,JSON.stringify(r.data));
 assert.equal(r.data.items.length,1);
-assert.equal(r.data.items[0].label,'LOVE · Original Radio Gate');
-assert.deepEqual(r.data.items[0].scopes,['radio']);
+assert.equal(r.data.items[0].label,'LOVE · Original All Access');
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games']);
 assert.equal(record.code_hash,legacyHash,'LOVE hashed with private Vault secret');
 assert.equal(schemaReady,true,'missing D1 Access Codes tables must be created by authenticated GET');
 assert.equal(schemaBatches,1,'Access Codes schema migrated exactly once');
@@ -108,7 +117,21 @@ r=await request(redeem,{code:'LoVe',scope:'radio'});
 assert.equal(r.status,200,JSON.stringify(r.data));
 assert.equal(r.data.ok,true);
 r=await request(redeem,{code:'LOVE',scope:'music'});
-assert.equal(r.status,403,'LOVE cannot authorize Music');
+assert.equal(r.status,200,'original LOVE grants Music');
+r=await request(redeem,{code:'LOVE',scope:'albums'});
+assert.equal(r.status,200,'original LOVE grants Albums');
+r=await request(redeem,{code:'LOVE',scope:'games'});
+assert.equal(r.status,200,'original LOVE grants Games');
+r=await request(admin,{action:'reveal',id:'access_legacy_love_v1'},true);
+assert.equal(r.status,200,'owner can retrieve historic LOVE credential');
+assert.equal(r.data.code,'LOVE');
+record.scopes_json=JSON.stringify(['radio']);
+record.label='LOVE · Original Radio Gate';
+r=await request(admin,undefined,true);
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games'],
+  'existing mis-imported Radio-only LOVE is upgraded in-place');
+assert.equal(r.data.items[0].label,'LOVE · Original All Access');
+assert.equal(migrationCount,1,'permission correction does not issue a second LOVE record');
 r=await request(redeem,{code:'ABCD',scope:'radio'});
 assert.equal(r.status,403,'other weak four-character codes never work');
 r=await request(admin,undefined,true);
@@ -135,4 +158,4 @@ r=await request(admin,{action:'issue',label:'four-char unsafe',scopes:['radio'],
  duration_mode:'none',requested_code:'ABCD'},true);
 assert.equal(r.status,400,'new short codes remain disallowed');
 assert.ok(auditCount>=4);
-console.log('PASS: LOVE migrates once to Vault; radio works; other scopes/short codes blocked; suspend/reactivate/revoke persist');
+console.log('PASS: original LOVE credential stays active with all five scopes, owner-retrievable, and in-place migration preserves suspension/revocation');
