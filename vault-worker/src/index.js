@@ -1946,8 +1946,9 @@ async function accessCodeHash(raw, env) {
   const code = accessNormalizeCode(raw);
   // The original 32-hex codes remain valid; owner-chosen alphanumeric codes
   // use the same keyed HMAC and require a longer minimum for online safety.
-  // Existing short LOVE is the sole exception; newly issued codes require 12–64 characters.
-  if (code !== "LOVE" && !/^[A-Z0-9]{12,64}$/.test(code)) return null;
+  // Owner-chosen codes (TEST1, TEST2, LOVE) share the existing keyed hash namespace.
+  // Short codes are less secure; owners should limit their scopes and uses.
+  if (!/^[A-Z0-9]{4,64}$/.test(code)) return null;
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
 }
@@ -2166,9 +2167,9 @@ async function accessAdminChange(request,env){
     if(assignments.playlist_ids.some(x=>/^playlist_[a-z0-9]+$/i.test(x))&&!assignments.track_paths.length)
       return json({ok:false,error:"Load the GitHub playlist songs before issuing this code."},400);
     const requested=String(body.requested_code||"").trim().toUpperCase();
-    if(requested&&(!/^[A-Z0-9-]{12,64}$/.test(requested)||
-        !/^[A-Z0-9]{12,64}$/.test(accessNormalizeCode(requested))))
-      return json({ok:false,error:"Use 12–64 letters, numbers or dashes after the optional GE prefix."},400);
+    if(requested&&(!/^[A-Z0-9\s-]{4,100}$/.test(requested)||
+        !/^[A-Z0-9]{4,64}$/.test(accessNormalizeCode(requested))))
+      return json({ok:false,error:"Use 4–64 letters or numbers; spaces are allowed."},400);
     const codeBytes=crypto.getRandomValues(new Uint8Array(16));
     const hex=Array.from(codeBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
     const code=requested||("GE-"+hex.match(/.{4}/g).join("-"));
@@ -2178,7 +2179,7 @@ async function accessAdminChange(request,env){
     // existing access code with a different person's typed value.
     const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
     if(collision)return json({ok:false,error:"This access code already exists. Enter a different code."},409);
-    const hint=code.replace(/-/g,"").slice(-4);
+    const hint=accessNormalizeCode(code).slice(-4);
     const activate=body.activate_now!==false;
     const activatedAt=activate?t:null;
     const expiry=mode==="fixed"?fixed:mode==="activation"&&activate?t+seconds:null;
@@ -2249,13 +2250,18 @@ async function accessAdminChange(request,env){
     ).bind(codeId).first();
     if(!existing)return json({ok:false,error:"Access code not found."},404);
     if(existing.revoked_at)return json({ok:false,error:"Revoked codes cannot be reset. Issue a new code."},409);
+    const requested=String(body.requested_code||"").trim().toUpperCase();
+    if(requested&&(!/^[A-Z0-9\s-]{4,100}$/.test(requested)||
+        !/^[A-Z0-9]{4,64}$/.test(accessNormalizeCode(requested))))
+      return json({ok:false,error:"Use 4–64 letters or numbers; spaces are allowed."},400);
     const bytes=crypto.getRandomValues(new Uint8Array(16));
     const secret=Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
-    const code="GE-"+secret.match(/.{4}/g).join("-");
+    const code=requested||("GE-"+secret.match(/.{4}/g).join("-"));
     const hash=await accessCodeHash(code,env);
-    const hint=secret.slice(-4);
+    if(!hash)return json({ok:false,error:"Invalid replacement access code."},400);
+    const hint=accessNormalizeCode(code).slice(-4);
     const collision=await env.VAULT_DB.prepare("SELECT id FROM access_codes WHERE code_hash=?").bind(hash).first();
-    if(collision)return json({ok:false,error:"Could not generate a unique key. Try again."},409);
+    if(collision)return json({ok:false,error:"This access code already exists. Reveal or select the existing code instead."},409);
     await ensureAccessCodeSecretStorage(env);
     const encryptedCode=await encryptPrivate(code,env);
     const results=await env.VAULT_DB.batch([
