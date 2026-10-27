@@ -1,0 +1,31 @@
+name: GE Back Room Access Codes — real mobile browser initialization
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/index.html'
+      - 'tests/backroom-access-browser.test.mjs'
+      - '.github/workflows/ge-backroom-access-browser.yml'
+  pull_request:
+    paths:
+      - 'backroom/index.html'
+      - 'tests/backroom-access-browser.test.mjs'
+      - '.github/workflows/ge-backroom-access-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless Chrome client
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Exercise mobile Access Codes with a mocked private Vault list
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-backroom-browser.log 2>&1 &
+          node tests/backroom-access-browser.test.mjs
