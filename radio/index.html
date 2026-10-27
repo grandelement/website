@@ -5529,7 +5529,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261027-v56';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261027-v57-playback-status';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
@@ -5560,6 +5560,14 @@ function geInlineMusicInit(){
       geInlineMusicPaused=!!data.paused;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
       geInlineMusicSyncTransport();
+    }else if(data.type==='ge-radio-music-playback-error'){
+      geInlineMusicPaused=true;geInlineMusicSyncTransport();
+      window.GEMusicV5?.reportPlayback?.(String(data.message||'MUSIC playback failed.'));
+    }else if(data.type==='ge-radio-music-playback-started'){
+      geInlineMusicPaused=false;
+      if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
+      geInlineMusicSyncTransport();
+      window.GEMusicV5?.reportPlayback?.('PLAYING · '+geInlineMusicTitle);
     }else if(data.type==='ge-radio-music-gate'){
       geInlineMusicGateAutoOpened=!geInlineMusicPanel.classList.contains('ge-open');
       geInlineMusicPanel.classList.add('ge-gate-active');
