@@ -1,0 +1,46 @@
+name: GE Access Code → Radio Music chain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'radio/preview-lab.html'
+      - 'backroom/index.html'
+      - 'backroom/publisher-worker.js'
+      - 'playlists/registry.json'
+      - 'tests/access-music-session.test.mjs'
+      - 'tests/ge-access-code-radio-chain.test.mjs'
+      - '.github/workflows/ge-access-code-radio-chain.yml'
+  pull_request:
+    paths:
+      - 'vault-worker/src/index.js'
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'radio/preview-lab.html'
+      - 'backroom/index.html'
+      - 'backroom/publisher-worker.js'
+      - 'playlists/registry.json'
+      - 'tests/access-music-session.test.mjs'
+      - 'tests/ge-access-code-radio-chain.test.mjs'
+      - '.github/workflows/ge-access-code-radio-chain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify actual signed D1 Music entitlement and one-use Radio Gate redemption
+        run: node tests/access-music-session.test.mjs
+      - name: Trace saved Back Room playlists through the Radio Gate and both Music interfaces
+        run: node tests/ge-access-code-radio-chain.test.mjs
