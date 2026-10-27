@@ -15,7 +15,9 @@ for(const name of ['brAccessNewPrimary','brAccessLoadPrimary','brAccessSavePrima
 }
 assert.match(html,/\$\('brAccessDeletePrimary'\)\.addEventListener\('click'/);
 assert.match(html,/void codeAction\('delete'\)/);
-assert.match(html,/void saveCode\(!!editingCodeId\)/);
+assert.match(html,/void saveCode\(editing\)/);
+assert.match(html,/if\(!editing\)\{/,
+  'typing a different name must create a new Vault record, not rename an existing code');
 assert.match(html,/oldBar\.before\(\$\('brAccessEditor'\)\)/);
 assert.match(html,/diag\.appendChild\(el\)/);
 assert.match(html,/sel\.size=1/);
@@ -64,7 +66,7 @@ console.log('PASS: newly issued and reset keys remain visible across Vault readb
 assert.match(html, /bar\.appendChild\(nameLabel\)/,
   'the saved Code Name belongs beside the dropdown, not in a second editor');
 assert.doesNotMatch(html, /new Option\('\+ NEW ACCESS CODE','__new__'\)/,
-  'creation is the NEW button, not a fake choice inside saved names');
+  'new codes are created from the name field and SAVE, not a fake dropdown choice');
 assert.match(html,/requested_code:editingCodeId\?'':label/,
   'newly issued code must use the entered name, not a random credential');
 for(const id of ['brAccessSongView','brMusicSongView','brAccessSaveAsPlaylist','brAccessNewPlaylistName'])
