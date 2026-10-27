@@ -551,6 +551,24 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  #backroomMain .backroomTabs #brTabAccess{grid-column:auto!important}
  #backroomMain .backroomTabs button{font-size:clamp(11px,1vw,15px)!important;min-height:47px!important}
 }
+
+/* Access Codes: one editor, four buttons and a collapsible STATUS section */
+#brPanel-access .brAccessTop{display:none!important}
+#brPanel-access .brAccessSimpleBar{display:grid;gap:10px;margin:6px 0 14px}
+#brPanel-access .brAccessSimpleBar>label{font-weight:850}
+#brPanel-access .brAccessSimpleBar>#brAccessSelect{width:100%;height:50px!important;min-height:50px!important;font-size:calc(17px * var(--scale))}
+#brPanel-access .brAccessSimpleButtons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#brPanel-access .brAccessSimpleButtons button{min-height:48px;font-size:calc(12px * var(--scale));padding:8px 3px;font-weight:900}
+#brPanel-access #brAccessDeletePrimary{border-color:#986071}
+#brPanel-access #brAccessEditor{border:0;margin:4px 0 12px;padding:5px;background:transparent}
+#brPanel-access #brAccessEditor h3{font-size:calc(14px * var(--scale))}
+#brPanel-access #brAccessEditor .brAccessSongChecklist{max-height:38vh;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#brPanel-access #brAccessStatusPanel{margin-top:24px;border:1px solid #2b536d;border-radius:12px;padding:9px}
+#brPanel-access #brAccessStatusPanel>summary{cursor:pointer;font-weight:900;padding:10px 3px}
+#brPanel-access #brAccessStatusPanel .backroomCodeList{display:none!important}
+#brPanel-access #brAccessWorkbenchMessage:not([hidden]){border:1px solid #367e9b;padding:10px;border-radius:9px;font-weight:750;margin:0}
+#brPanel-access #brAccessEditor[hidden],#brPanel-access #brAccessWorkbenchMessage[hidden]{display:none!important}
+@media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -2272,7 +2290,12 @@ const backroomVaultManagers=(()=>{
     const b=create('button',caption);b.type='button';b.addEventListener('click',handler);return b;
   };
   const playlistStatus=text=>status('brPlaylistStatus',text);
-  const accessStatus=text=>status('brAccessStatus',text);
+  const accessStatus=text=>{
+     status('brAccessStatus',text);
+     const node=$('brAccessWorkbenchMessage');if(!node)return;
+     const show=/NOT SAVED|FAILED|NOT LOADED|UPDATED AND VERIFIED|SAVED AND VERIFIED|RESPONSE NOT VERIFIED|SIGN IN REQUIRED|CODE DELETED|UPDATE FAILED/i.test(String(text||''));
+     node.hidden=!show;if(show)node.textContent=String(text||'');
+   };
   const vaultIndicator=(state,details='')=>{
     const el=$('brVaultConnection');
     if(!el)return;
@@ -3032,6 +3055,7 @@ const backroomVaultManagers=(()=>{
     // Search text is a display name, never a four-letter secret such as the legacy LOVE Gate code.
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
+    $('brAccessCustomCode').closest('label').hidden=!!row;
     $('brAccessCustomHelp').textContent=row?
       'The existing secret cannot be revealed or replaced. You can edit its permissions and song assignments.':
       'The code name is not the secret. Leave this blank for a secure random access code, or type a separate 12–64-character secret.';
@@ -3132,7 +3156,7 @@ const backroomVaultManagers=(()=>{
     }
     sel.disabled=!visibleCodes.length;
     sel.value=selectedCodeId;
-    sel.size=Math.max(1,Math.min(5,visibleCodes.length||1));
+    sel.size=1;
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
     $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':
       q?(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length+' MATCHES · '+codeRows.length+' SAVED':'0 MATCHES · '+codeRows.length+' SAVED'):
@@ -3189,6 +3213,7 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
+      if(document.querySelector('#backroomTabs button[data-tab="access"]')?.getAttribute('aria-selected')==='true'&&$('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
       const lovePresent=codeRows.some(row=>row.id==='access_legacy_love_v1');
       accessStatus('VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
         ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
@@ -3375,6 +3400,58 @@ const backroomVaultManagers=(()=>{
   function init(){
     if(!initialized){
       initialized=true;
+      // Access Codes owner workbench: reuse the existing Vault-backed editor.
+      const accessRoot=$('brAccessSelect').closest('section[data-br-tab="access"]');
+      const oldBar=accessRoot.querySelector('.brAccessTop');
+      const bar=document.createElement('div');bar.className='brAccessSimpleBar';
+      const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODE';
+      bar.append(selectLabel,$('brAccessSelect'));
+      const actions=document.createElement('div');actions.className='brAccessSimpleButtons';
+      for(const [id,name] of [['brAccessNewPrimary','NEW'],['brAccessLoadPrimary','LOAD'],
+        ['brAccessSavePrimary','SAVE'],['brAccessDeletePrimary','DELETE']]){
+        const b=document.createElement('button');b.type='button';b.id=id;b.textContent=name;
+        if(name==='SAVE')b.classList.add('primary');
+        actions.appendChild(b);
+      }
+      bar.appendChild(actions);
+      const note=document.createElement('p');note.id='brAccessWorkbenchMessage';note.hidden=true;
+      note.setAttribute('role','status');note.setAttribute('aria-live','polite');
+      bar.appendChild(note);
+      oldBar.before(bar);
+      oldBar.before($('brAccessEditor'));
+      const diag=document.createElement('details');diag.id='brAccessStatusPanel';
+      const heading=document.createElement('summary');heading.textContent='STATUS / DIAGNOSTICS';
+      diag.appendChild(heading);
+      for(const el of [$('brAccessStatus'),$('brAccessReconnect').parentNode,
+        $('brAccessAudit'),$('brAccessSaved'),$('brAccessLegacyNotice'),
+        $('brAccessBrowse').parentNode]){
+        if(el&&!diag.contains(el))diag.appendChild(el);
+      }
+      accessRoot.appendChild(diag);
+      $('brAccessNewPrimary').addEventListener('click',()=>{
+        $('brAccessSearch').value='';showCodeEditor('');
+        $('brAccessSelect').selectedIndex=-1;
+        note.hidden=true;
+      });
+      $('brAccessLoadPrimary').addEventListener('click',()=>{
+        const row=selectedCode();if(!row)return accessStatus('SELECT A SAVED CODE FIRST.');
+        showCodeEditor(row.id);note.hidden=true;
+      });
+      $('brAccessSavePrimary').addEventListener('click',()=>{
+        if($('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
+        void saveCode(!!editingCodeId);
+      });
+      $('brAccessDeletePrimary').addEventListener('click',()=>{
+        if(!selectedCode())return accessStatus('SELECT A SAVED CODE FIRST.');
+        void codeAction('delete');
+      });
+      const gameDetails=document.createElement('details');gameDetails.className='brAccessCategory';
+      gameDetails.id='brAccessGameInfo';
+      const gameSummary=document.createElement('summary');gameSummary.textContent='GAMES';
+      const gameDescription=document.createElement('p');
+      gameDescription.textContent='GAMES currently grants all GE games. Individual game restrictions are not available in the Vault API; no individual selections have been saved.';
+      gameDetails.append(gameSummary,gameDescription);
+      $('brAccessMusicCategory').after(gameDetails);
       $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
       $('brAllSongsAlbum').addEventListener('change',()=>{
         $('brAllSongsChoices').scrollTop=0;
@@ -3492,10 +3569,7 @@ const backroomVaultManagers=(()=>{
         $('brAccessLabel').value=q;
         void saveCode(false);
       });
-      $('brAccessSelect').addEventListener('change',e=>{
-        selectedCodeId=e.target.value;renderAccessCodes();
-        if(selectedCode()&&!selectedCode().revoked)showCodeEditor(selectedCodeId);
-      });
+      $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
       $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
       $('brAccessNext').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>=0&&i<visibleCodes.length-1){selectedCodeId=visibleCodes[i+1].id;renderAccessCodes();}});
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
