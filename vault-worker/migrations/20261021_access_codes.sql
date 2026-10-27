@@ -44,3 +44,14 @@ CREATE TABLE IF NOT EXISTS access_code_deletions (
   deleted_at INTEGER NOT NULL,
   FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE
 );
+
+-- Each issued code may be linked to an existing private Fan Base Vault user.
+-- This is additive and never changes or reissues LOVE or any existing code.
+CREATE TABLE IF NOT EXISTS access_code_fans (
+  code_id TEXT PRIMARY KEY,
+  fan_id TEXT,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (code_id) REFERENCES access_codes(id) ON DELETE CASCADE,
+  FOREIGN KEY (fan_id) REFERENCES fans(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_access_code_fans_fan ON access_code_fans(fan_id);
