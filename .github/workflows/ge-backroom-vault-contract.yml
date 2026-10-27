@@ -1,0 +1,23 @@
+name: GE Access Codes Publisher Contract
+on:
+  pull_request:
+    paths:
+      - 'backroom/publisher-worker.js'
+      - 'tests/private-vault-binding.test.mjs'
+      - '.github/workflows/ge-backroom-vault-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backroom/publisher-worker.js'
+      - 'tests/private-vault-binding.test.mjs'
+      - '.github/workflows/ge-backroom-vault-contract.yml'
+permissions:
+  contents: read
+jobs:
+  verify-private-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test scoped authenticated Access Codes listing and privacy
+        run: node --experimental-default-type=module tests/private-vault-binding.test.mjs

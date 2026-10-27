@@ -453,6 +453,20 @@ export default {
     const configured=!!(env.BACKROOM_PASSWORD&&env.SESSION_SECRET&&(appReady||env.GITHUB_TOKEN));
 
     if(url.pathname==='/health'&&request.method==='GET'){
+      // Controlled live end-to-end diagnostic. No records, code names or secrets
+      // ever leave the Publisher. This tests the ACTUAL authenticated list
+      // handler rather than merely checking whether a Worker responds.
+      if(url.searchParams.get('diagnose')==='access-codes'){
+        const upstream=await geVaultBridge(env,'/v1/admin/access-codes');
+        const readable=upstream.status===200&&upstream.data?.ok===true&&
+          Array.isArray(upstream.data?.items);
+        return json({
+          ok:readable,access_codes_readable:readable,
+          upstream_http_status:upstream.status,
+          publisher_configured:configured,
+          vault_service_bound:!!env.GE_VAULT?.fetch
+        },readable?200:503,cors);
+      }
       let vaultProbe={bound:!!env.GE_VAULT?.fetch,reachable:false,access_codes_ready:false};
       if(vaultProbe.bound){
         try{
