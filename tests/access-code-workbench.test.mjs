@@ -23,3 +23,13 @@ assert.match(html,/scopeBoxes\(\)\.forEach\(box=>box\.checked=scopes\.includes\(
 assert.match(html,/appliedPlaylistIds=new Set\(row\?\.playlist_ids\|\|\[\]\)/);
 assert.match(html,/assignedSongPaths=\[\.\.\.\(row\?\.track_paths\|\|\[\]\)\]/);
 console.log('PASS: Back Room Access Codes workbench syntax, load/save/delete bindings, and saved playlist/song hydration');
+
+const radioHtml=readFileSync('radio/index.html','utf8');
+assert.match(html,/id="brAccessKeyHelpPanel"/);
+assert.match(html,/id="brAccessReplaceKey"/);
+assert.match(html,/THIS IS THE RADIO ACCESS KEY/);
+assert.match(html,/\$\('brAccessReplaceKey'\)\.addEventListener\('click',replaceSelectedCode\)/);
+assert.match(html,/if\(selectedCode\(\)&&!selectedCode\(\)\.revoked\)showCodeEditor\(selectedCodeId\)/);
+assert.match(radioHtml,/ACCESS KEY · NOT CODE NAME/);
+assert.match(radioHtml,/Enter the complete secret shown when issued, not its saved name/);
+console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
