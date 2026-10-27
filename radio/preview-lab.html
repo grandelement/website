@@ -1038,33 +1038,25 @@ function rebuildPublicPlaylists(){
  publicPlaylists=result;showPublicPlaylists();playlistOptions();
 }
 async function loadPublicPlaylists(){
- // Every platform reads the same owner-approved GE Vault playlist records.
- // A successfully loaded empty Vault means NO PLAYLISTS, not a reason to
- // resurrect old playlists from GitHub or the DJ local cache.
+ // Back Room MUSIC publishes to GitHub playlists/registry.json.
+ // The Radio MUSIC popup must use that SAME published playlist source.
+ // Unlisted playlists remain accessible only through a Vault-authorized
+ // access-code song snapshot; the original DJ Bangers queue is independent.
  try{
-   const response=await fetch('https://vault.grandelement.com/v1/public/music-playlists',{cache:'no-store'});
-   if(!response.ok)throw Error('GE Vault HTTP '+response.status);
-   const data=await response.json();
-   if(data?.ok!==true||data.format!=='ge-music-playlists-v1'||!Array.isArray(data.items))
-     throw Error('Invalid GE Vault playlist response');
-   publicPlaylistDefinitions=data.items.map(item=>({
-     id:String(item.id||''),name:String(item.name||''),songs:Array.isArray(item.songs)?item.songs:[]
-   })).filter(item=>item.id&&item.name);
-   rebuildPublicPlaylists();
-   return;
+  const response=await fetch(
+   'https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),
+   {cache:'no-store'});
+  if(!response.ok)throw Error('GE playlist registry HTTP '+response.status);
+  const data=await response.json();
+  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))
+   throw Error('Invalid published GE playlist registry');
+  publicPlaylistDefinitions=data.playlists.filter(p=>p&&p.visibility==='published'&&
+    typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
+   .map(p=>({id:p.id,name:p.name,songs:p.songs}));
  }catch(error){
-   console.warn('GE Vault public playlists unavailable; showing the last published website snapshot:',error);
- }
- // Temporary read-only fallback, never a second editable playlist library.
- // Keep previously published music playable during a Vault outage.
- try{
-   const response=await fetch('../config/site-live.json?public-playlists='+Date.now(),{cache:'no-store'});
-   if(!response.ok)throw Error('Published site settings unavailable');
-   const data=await response.json();
-   publicPlaylistDefinitions=Array.isArray(data.music?.publicPlaylists)?data.music.publicPlaylists:[];
- }catch(error){
-   console.warn('No published playlist snapshot available:',error);
-   publicPlaylistDefinitions=[];
+  console.warn('GE MUSIC published GitHub playlist list unavailable:',error);
+  publicPlaylistDefinitions=[];
+  musicNotice('Public playlists cannot be reached. Existing personal lists remain on this device.');
  }
  rebuildPublicPlaylists();
 }
