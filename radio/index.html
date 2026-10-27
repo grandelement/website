@@ -5529,7 +5529,19 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261027-v53';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261027-v56';
+  // Keep the preview document's licensed gate and transport while giving
+  // iOS its audio element in the TOP document. The same element and listeners
+  // survive DOM adoption; the separate Radio audio element is not touched.
+  geInlineMusicFrame.addEventListener('load',()=>{
+    try{
+      const previewAudio=geInlineMusicFrame.contentDocument?.getElementById('audio');
+      if(previewAudio&&previewAudio.ownerDocument!==document){
+        previewAudio.style.display='none';
+        document.body.appendChild(previewAudio);
+      }
+    }catch(error){console.warn('Preview audio stays in its own document',error);}
+  });
   geInlineMusicPanel.append(head,geInlineMusicFrame);
   document.body.append(geInlineMusicBackdrop,geInlineMusicPanel);
   window.addEventListener('message',event=>{
@@ -5603,6 +5615,13 @@ window.GEMusicV5Bridge={
  }
 };
 function geOpenMusicSelection(){window.GEMusicV5?.open?.();}
+// Prepare the same-origin preview player after the initial Radio page settles.
+// A listener's MUSIC tap should not have to wait for an iframe to start loading.
+if(typeof requestIdleCallback==='function'){
+  requestIdleCallback(()=>geInlineMusicInit(),{timeout:5000});
+}else{
+  setTimeout(()=>geInlineMusicInit(),4000);
+}
 
 function geOpenMyMusicStore(){
   // Play takes guests to the commerce/My Music entry, not a free file URL.
@@ -6860,7 +6879,7 @@ async function registerServiceWorker(){
     reflectButton(audit);
     if(audit.musicComplete){
       panel.style.display='none';
-      text.textContent=audit.cachedSongs+' songs saved offline. Any remaining files are optional.';
+      text.textContent='Offline music saved. Any remaining files are optional.';
     }
     return {plan,assets:plan.assets,audit};
   }
@@ -6936,7 +6955,7 @@ async function registerServiceWorker(){
       button.title=audit.missing.length
         ?audit.cachedSongs+' songs cached. '+audit.missingOptional+' optional backgrounds and '+(audit.missingStations+audit.missingShell)+' station or template items not needed to complete the music library.'
         :audit.cachedSongs+' songs cached on this device.';
-      button.setAttribute('aria-label','Offline Ready: '+audit.cachedSongs+' songs saved');
+      button.setAttribute('aria-label','Offline music ready');
       return;
     }
     button.removeAttribute('aria-label');
@@ -7200,7 +7219,7 @@ async function registerServiceWorker(){
       if(!quiet){
         renderProgress({
           percent:100,doneBytes:audit.totalBytes,totalBytes:audit.totalBytes,speed:0,eta:0,
-          line2:`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`
+          line2:'Offline music available on this device.'
         });
         setStatus('Offline library is current.');
       }
@@ -7248,7 +7267,7 @@ async function registerServiceWorker(){
             renderProgress({
               percent,doneBytes,totalBytes:lastKnownTotal,speed,
               eta:speed>0?remaining/speed:NaN,
-              line2:`${offlineAvailability.songs.size} of ${audit.totalSongs} songs available offline.`
+              line2:'Saving music for offline listening…'
             });
           }
         });
@@ -7294,7 +7313,7 @@ async function registerServiceWorker(){
       const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
       const remaining=Math.max(0,audit.totalBytes-doneBytes);
 
-      let line2=`${audit.cachedSongs} of ${audit.totalSongs} songs available offline.`;
+      let line2='Offline music is available on this device.';
       if(audit.missing.length){
         line2+=` ${audit.missing.length} file${audit.missing.length===1?'':'s'} still missing.`;
       }
@@ -7303,7 +7322,7 @@ async function registerServiceWorker(){
       }else if(failedFiles.length){
         line2+=' Could not save: '+failedFiles.slice(0,3).join('; ')+'.';
       }else if(wasAborted){
-        line2=`Stopped. ${audit.cachedSongs} of ${audit.totalSongs} songs are available offline. Tap Resume Offline later.`;
+        line2='Stopped. Some music is available offline. Tap Resume Offline later.';
       }
 
       renderProgress({
@@ -7318,7 +7337,7 @@ async function registerServiceWorker(){
       setStatus(
         audit.musicComplete
           ? 'All music is available offline.'
-          : `Partial offline library saved: ${audit.cachedSongs} of ${audit.totalSongs} songs.`
+          : 'Partial offline music library saved.'
       );
     }
 
@@ -10646,7 +10665,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261027-v54-code-views"></script>
+<script defer src="./ge-music-v5.js?v=20261027-v55-album-search-privacy"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
   const a=document.getElementById('player');
