@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.3-20261026';
+const BUILD='GE-MUSIC-V5.4-20261027';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -64,7 +64,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .song label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow-wrap:anywhere;cursor:pointer}
 .song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#41d5ff}
 .song span{min-width:0;overflow-wrap:anywhere;font-size:13px}
-.song button{flex:0 0 auto;min-width:64px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
+.song button{flex:0 0 auto;min-width:45px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
+.song .reorder{min-width:38px;padding:4px 6px;font-size:19px}
+.albumPicker{display:flex;align-items:center;gap:9px;background:#0b3553;border:1px solid #376f95;border-radius:7px;padding:9px;margin:8px 0 5px}
+.albumPicker input{width:21px;height:21px;accent-color:#41d5ff}
+.albumPicker span{font-weight:800;font-size:13px}
 .bottom{flex:0 0 auto;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 10px max(10px,env(safe-area-inset-bottom));background:#071f34;border-top:1px solid #45769b}
 .bottom .count{flex:1;font-size:12px;color:#afdfff}
 .bottom button{font-size:12px;min-height:36px}
@@ -79,7 +83,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.3</span></div><button class="close" type="button">CLOSE</button></div>
- <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
+ <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music categories"><button type="button" data-view="all" aria-pressed="true">ALL SONGS</button><button type="button" data-view="checked" aria-pressed="false">CHECKED SONGS</button><button type="button" data-view="playlist-order" aria-pressed="false">PLAYLIST ORDER</button><button type="button" data-view="albums" aria-pressed="false">ALBUMS</button><button type="button" data-view="ge-playlists" aria-pressed="false">GE PLAYLISTS</button><button type="button" data-view="user-playlists" aria-pressed="false">USER PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search selected music">
  <div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">0 SELECTED</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button><a href="../backroom/" style="color:#b8e9ff;font-size:11px">MANAGE GE PLAYLISTS</a></div>
@@ -247,6 +251,7 @@ function appendSong(parent,track){
  checkbox.addEventListener('change',()=>{
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
    saveSelected();updateMeta();
+   if(state.view==='checked'||state.view==='playlist-order')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
      control:'playlist_song_selection',choice:checkbox.checked?'add':'remove',
@@ -260,7 +265,22 @@ function appendSong(parent,track){
    play.disabled=true;play.title='Not authorized by the current Music code';
  }
  play.addEventListener('click',()=>playTrack(track));
- row.append(label,play);parent.appendChild(row);
+ row.append(label,play);
+ if(state.view==='playlist-order'){
+   const ordered=[...state.selected],index=ordered.indexOf(track.path);
+   const swap=other=>{
+     if(other<0||other>=ordered.length||index<0)return;
+     [ordered[index],ordered[other]]=[ordered[other],ordered[index]];
+     state.selected=new Set(ordered);saveSelected();render();
+     say('PLAYLIST ORDER UPDATED · SAVE USER PLAYLIST to save this order on this device.');
+   };
+   const up=elem('button','reorder','↑');up.type='button';up.disabled=index<=0;
+   up.setAttribute('aria-label','Move '+track.title+' up');up.addEventListener('click',()=>swap(index-1));
+   const down=elem('button','reorder','↓');down.type='button';down.disabled=index===ordered.length-1;
+   down.setAttribute('aria-label','Move '+track.title+' down');down.addEventListener('click',()=>swap(index+1));
+   row.append(up,down);
+ }
+ parent.appendChild(row);
 }
 // ONE music scroll surface. Category tabs stay pinned above it; selecting an
 // album or playlist replaces content inside the SAME scroll surface.
@@ -287,6 +307,11 @@ function breadcrumb(label,back){
  scroller.append(wrapper);
 }
 function chosenSongs(){
+ if(state.view==='checked'||state.view==='playlist-order'){
+   const lookup=new Map(state.tracks.map(t=>[t.path,t]));
+   return state.view==='playlist-order'?[...state.selected].map(path=>lookup.get(path)).filter(Boolean):
+     state.tracks.filter(t=>state.selected.has(t.path));
+ }
  if(state.view==='access-code'){
    const access=musicAccessActive();
    if(!access)return [];
@@ -301,6 +326,18 @@ function chosenSongs(){
   return(p?.songs||[]).map(path=>lookup.get(path)).filter(Boolean);
  }
  return state.view==='all'?state.tracks:[];
+}
+function albumSelectAll(parent,album,tracks){
+ const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
+ const paths=tracks.map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
+ box.checked=paths.length>0&&count===paths.length;
+ box.indeterminate=count>0&&count<paths.length;
+ box.setAttribute('aria-label','Check the entire album '+album);
+ box.addEventListener('change',()=>{
+   for(const path of paths)box.checked?state.selected.add(path):state.selected.delete(path);
+   saveSelected();render();
+ });
+ label.append(box,elem('span','',album+' · '+count+'/'+paths.length+' CHECKED'));parent.append(label);
 }
 function render(){
  if(!state.open)return;
@@ -317,7 +354,9 @@ function render(){
   for(const name of names){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
-    card(scroller,name,rows.length+' SONGS',()=>setView('album:'+name));
+    const wrapper=elem('div');albumSelectAll(wrapper,name,rows);
+    card(wrapper,'OPEN '+name,rows.length+' SONGS',()=>setView('album:'+name));
+    scroller.append(wrapper);
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
   meta.textContent=names.length+' ALBUMS · '+state.tracks.length+' PUBLISHED SONGS';
@@ -357,7 +396,10 @@ function render(){
   }
   let currentAlbum='';
   for(const t of shown){
-   if(state.view==='all'&&t.album!==currentAlbum){currentAlbum=t.album;scroller.append(elem('div','section',currentAlbum))}
+   if(state.view==='all'&&t.album!==currentAlbum){
+     currentAlbum=t.album;
+     albumSelectAll(scroller,currentAlbum,state.tracks.filter(row=>row.album===currentAlbum));
+   }
    appendSong(scroller,t);
   }
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
