@@ -511,5 +511,5 @@ root.querySelector('[data-action=save]').addEventListener('click',saveMine);
 document.addEventListener('keydown',event=>{if(!state.open)return;if(event.key==='Escape'){event.preventDefault();close()}});
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
-window.GEMusicV5={open,close,refresh:()=>{if(state.open)render()},build:BUILD,state:()=>({loaded:state.loaded,songs:state.tracks.length,playlists:state.publicLists.length,open:state.open})};
+window.GEMusicV5={open,close,refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),build:BUILD,state:()=>({loaded:state.loaded,open:state.open})};
 })();
