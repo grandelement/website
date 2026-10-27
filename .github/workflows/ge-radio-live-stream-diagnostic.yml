@@ -1,0 +1,44 @@
+name: GE Radio Live Stream Diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-radio-live-stream-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-station:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe Radio 1 audio and Radio 2 Bangers clock
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error, socket
+          checks=[
+            ('RADIO1','https://radio.grandelement.blitz.cloud/stream.mp3'),
+            ('RADIO2','https://ge-radio-sync.grandelement.workers.dev/v1/program')
+          ]
+          for name,url in checks:
+            try:
+              req=urllib.request.Request(url,headers={
+                'User-Agent':'GrandElement-RadioHealthAudit/1.0',
+                'Accept':'audio/mpeg,*/*' if name=='RADIO1' else 'application/json'
+              })
+              with urllib.request.urlopen(req,timeout=14) as resp:
+                status=resp.status
+                mime=resp.headers.get('Content-Type','')
+                sample=resp.read(512 if name=='RADIO1' else 100000)
+              if name=='RADIO2':
+                data=json.loads(sample.decode('utf-8','replace'))
+                program=data.get('program') or {}
+                tracks=program.get('tracks') or []
+                print(name,'HTTP',status,'MIME',mime,'playlist',program.get('playlist_name'),'track_count',len(tracks),flush=True)
+                if status!=200 or not tracks:print('WARNING: Radio 2 lacks verified scheduled tracks',flush=True)
+              else:
+                print(name,'HTTP',status,'MIME',mime,'bytes_received',len(sample),flush=True)
+                if status!=200 or not sample:print('WARNING: Radio 1 could not stream audio bytes',flush=True)
+            except Exception as e:
+              print(name,'FAILED',type(e).__name__,str(e)[:200],flush=True)
+          PY
