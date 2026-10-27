@@ -799,6 +799,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div class="brAccessPositionRow"><span id="brAccessPosition" class="sub">0 CODES</span><button type="button" id="brAccessShowAll" hidden>SHOW ALL SAVED CODES</button></div>
   </div>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
+  <div class="brAccessToolbar"><button type="button" class="primary" id="brAccessReconnect">RECONNECT AND VERIFY VAULT + PLAYLISTS</button></div>
+  <div id="brAccessAudit" class="backroomInlineStatus" role="status">LIVE SOURCE AUDIT NOT RUN YET.</div>
+  <div id="brAccessSaved" class="backroomCodeList" aria-label="Every saved Vault code with direct Edit actions"></div>
 
   <p class="brAccessNotice" id="brAccessLegacyNotice">The historic LOVE Radio Gate code is migrated into the same GE Vault access-code list. Select it to suspend, revoke, or replace it. A replacement must be issued before you retire LOVE.</p>
   <details class="brSourceDetails">
@@ -2368,7 +2371,7 @@ const backroomVaultManagers=(()=>{
       for(const album of [...new Set(catalog.map(song=>song.album||'Other'))])
         accessAlbum.appendChild(new Option(album,album));
       accessAlbum.value=[...accessAlbum.options].some(opt=>opt.value===chosen)?chosen:'';
-      renderCatalog();renderAllSongs();accessSongOptions();assignedSongsUI();/* Catalog loads separately; do not overwrite Vault status. */
+      renderCatalog();renderAllSongs();accessSongOptions();assignedSongsUI();updateSourceAudit();/* Catalog loads separately; do not overwrite Vault status. */
     }catch(err){status('brSongSelect','');playlistStatus('Track catalog unavailable: '+String(err.message||err));}
   }
   function renderCatalog(){
@@ -2916,6 +2919,7 @@ const backroomVaultManagers=(()=>{
   // One selected code and one editor: no repeated control rows or permanent open forms.
   const codeMaster=$('brAccessMaster');
   let selectedCodeId='',editingCodeId='',assignedSongPaths=[],visibleCodes=[],savingCode=false;
+  let appliedPlaylistIds=new Set();
   const scopeBoxes=()=>[...document.querySelectorAll('[name="brAccessScope"]')];
   function accessModeUI(){
     const mode=$('brAccessMode').value;
@@ -3020,7 +3024,9 @@ const backroomVaultManagers=(()=>{
     editingCodeId=row?.id||'';
     $('brAccessBrowse').hidden=false;
     $('brAccessEditor').hidden=false;
-    requestAnimationFrame(()=>$('brAccessLabel').focus({preventScroll:true}));
+    requestAnimationFrame(()=>{
+      $('brAccessEditor').scrollIntoView({behavior:'auto',block:'start'});
+    });
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE · …'+row.code_hint:'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
     // Search text is a display name, never a four-letter secret such as the legacy LOVE Gate code.
@@ -3046,10 +3052,12 @@ const backroomVaultManagers=(()=>{
     $('brAccessSave').hidden=!row;
     assignedSongPaths=[...(row?.track_paths||[])];
     accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
+    appliedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
-    $('brAccessMusicCategory').open=!!assignedSongPaths.length||!!accessSelectedPlaylistIds.size||
-      scopes.includes('music')||scopes.includes('albums');
+    // A code that currently grants RADIO must still be able to acquire MUSIC
+    // or playlist permissions. Do not hide the only relevant controls.
+    $('brAccessMusicCategory').open=true;
     // Old playlist grants are expanded into explicit tracks for editing, so
     // removing a song actually removes its access instead of leaving an
     // unrestricted playlist ID entitlement in place.
@@ -3063,6 +3071,41 @@ const backroomVaultManagers=(()=>{
     }
     accessSongOptions();assignedSongsUI();accessModeUI();
     $('brAccessOneTime').hidden=true;
+  }
+  function renderSavedCodeCards(){
+    const host=$('brAccessSaved');host.replaceChildren();
+    if(!accessLoaded)return;
+    if(!codeRows.length){host.appendChild(create('p','Vault returned an empty access-code list.','sub'));return;}
+    for(const row of codeRows){
+      const item=create('div','','backroomCodeEntry');
+      item.appendChild(create('strong',row.label+' · …'+row.code_hint+' · '+statusCode(row)));
+      item.appendChild(create('small','VAULT RECORD '+row.id+' · '+(row.scopes||[]).join(', ').toUpperCase()+
+        ' · '+(row.playlist_ids||[]).length+' playlist reference(s) · '+(row.track_paths||[]).length+' allowed song(s)'));
+      item.appendChild(btn(row.revoked?'REVOKED':'EDIT PERMISSIONS / PLAYLIST / SONGS',()=>{
+        if(row.revoked){accessStatus('REVOKED · This record cannot be edited.');return;}
+        $('brAccessSearch').value='';
+        selectedCodeId=row.id;
+        renderAccessCodes();
+        showCodeEditor(row.id);
+        accessStatus('EDITING EXISTING VAULT CODE · '+row.label+' · Changes are not saved until SAVE CHANGES and read-back verification.');
+      }));
+      host.appendChild(item);
+    }
+  }
+  function updateSourceAudit(){
+    const host=$('brAccessAudit');
+    if(!accessLoaded){
+      host.textContent='VAULT CODE LIST NOT VERIFIED. No code record has been reconstructed.';
+      return;
+    }
+    const love=codeRows.filter(row=>row.id==='access_legacy_love_v1'||
+      String(row.code_hint||'').toUpperCase()==='LOVE'||
+      /^LOVE(?:\s|·|$)/i.test(String(row.label||'')));
+    const playlistNames=playlistLoaded?playlists.map(p=>p.name).join(', '):'NOT VERIFIED';
+    host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S) · LOVE: '+
+      (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED ACTIVE LIST')+
+      ' · GITHUB PLAYLISTS: '+(playlistLoaded?playlists.length:'NOT CONNECTED')+
+      ' ('+playlistNames+') · MUSIC CATALOG: '+catalog.length+' TRACK(S).';
   }
   function renderAccessCodes(){
     const q=String($('brAccessSearch').value||'').trim().toLowerCase();
@@ -3105,6 +3148,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
       host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match for '+q+'. '+codeRows.length+' saved in Vault. Tap SHOW ALL to see them, or SAVE NEW to create this name.':'No saved access codes. Refresh to migrate existing LOVE into Vault.'));
+      renderSavedCodeCards();updateSourceAudit();
       return;
     }
     const wrapper=create('div','','backroomCodeEntry');
@@ -3124,6 +3168,7 @@ const backroomVaultManagers=(()=>{
     const songs=(selected.track_paths||[]).map(accessSongTitle);
     wrapper.appendChild(create('p','SONGS · '+(songs.length?songs.join(' / '):'No individual song restriction')));
     host.appendChild(wrapper);
+    renderSavedCodeCards();updateSourceAudit();
   }
   async function refreshCodes(preferId=''){
     if(!authReady()){
@@ -3169,9 +3214,9 @@ const backroomVaultManagers=(()=>{
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
       requested_code:$('brAccessCustomCode').disabled?'':$('brAccessCustomCode').value.trim(),
-      // The playlist selector is a bulk-checking preset, not a blanket
-      // entitlement: otherwise unchecked songs would still be accessible.
-      playlist_ids:[],
+      // Playlist IDs preserve which GitHub playlists were selected.
+      // Actual access is restricted by the immutable song-path snapshot.
+      playlist_ids:[...appliedPlaylistIds],
       track_paths:assignedSongPaths.slice()};
   }
   async function saveCode(isEdit){
@@ -3200,13 +3245,20 @@ const backroomVaultManagers=(()=>{
       $('brAccessSearch').value='';
       selectedCodeId=codeId;
       const refreshed=await refreshCodes(codeId);
-      const confirmed=refreshed&&codeRows.some(row=>String(row.id)===String(codeId));
+      const saved=refreshed?codeRows.find(row=>String(row.id)===String(codeId)):null;
+      const sameSet=(a,b)=>JSON.stringify([...new Set(a||[])].sort())===
+        JSON.stringify([...new Set(b||[])].sort());
+      const confirmed=!!saved&&saved.label===payload.label&&
+        sameSet(saved.scopes,payload.scopes)&&
+        sameSet(saved.playlist_ids,payload.playlist_ids)&&
+        sameSet(saved.track_paths,payload.track_paths)&&
+        Number(saved.max_uses||0)===Number(payload.max_uses||0)&&
+        saved.duration_mode===payload.duration_mode;
       if(confirmed){
         accessStatus(isEdit?'CODE UPDATED AND VERIFIED IN VAULT.':
           'CODE SAVED AND VERIFIED IN VAULT · Copy the generated secret below now.');
       }else{
-        accessStatus('VAULT ACCEPTED THE '+(isEdit?'UPDATE':'NEW CODE')+
-          ', BUT THE SAVED LIST COULD NOT BE VERIFIED. Do not press SAVE again; refresh the list.');
+        accessStatus('VAULT RESPONSE NOT VERIFIED · Stored name, scopes, playlist IDs or songs differ from the editor. Do not issue another code. Reconnect and inspect the saved record.');
       }
       if(!isEdit){
         $('brAccessOneTime').hidden=false;
@@ -3247,6 +3299,7 @@ const backroomVaultManagers=(()=>{
       $('brAccessHours').value=168;
     }
     $('brAccessMaxUses').value=old.max_uses||0;
+    appliedPlaylistIds=new Set(old.playlist_ids||[]);
     $('brAccessStartNow').checked=true;
     assignedSongPaths=[...(old.track_paths||[])];
     accessSelectedPlaylistIds=new Set(old.playlist_ids||[]);
@@ -3292,15 +3345,25 @@ const backroomVaultManagers=(()=>{
         '. The current BLITZ playlist has not been verified.';
     }finally{clearTimeout(timer);}
   }
+  async function reconnectAllSources(){
+    $('brAccessSearch').value='';
+    showCodeBrowser();
+    accessStatus('RECONNECTING · Reading private Vault codes and GitHub playlists independently…');
+    const [codesOk,listsOk]=await Promise.all([refreshCodes(),refreshPlaylists()]);
+    renderAccessCodes();updateSourceAudit();
+    const verified=codesOk&&listsOk;
+    vaultIndicator(verified?'CONNECTED':codesOk?'PARTIAL':'OFFLINE',
+      'Vault codes: '+(codesOk?'verified':'failed')+'; GitHub playlists: '+(listsOk?'verified':'failed'));
+    accessStatus('SOURCE VERIFICATION · Vault codes: '+(codesOk?'READ '+codeRows.length:'FAILED')+
+      ' · GitHub playlists: '+(listsOk?'READ '+playlists.length:'FAILED')+
+      ' · LOVE: '+(codesOk?(codeRows.some(r=>r.id==='access_legacy_love_v1'||String(r.code_hint||'').toUpperCase()==='LOVE')?'FOUND IN LIVE RESPONSE':'NOT FOUND IN LIVE RESPONSE'):'NOT CHECKED')+
+      ' · Catalog: '+catalog.length+' tracks.');
+    return verified;
+  }
   function openTab(tab){
     if(tab==='access'){
-      // The real code editor, including the expandable MUSIC section, must be
-      // reachable on first visit. Previously it was hidden until SAVE/LOAD,
-      // making Music and playlist choices appear missing or nonfunctional.
-      if($('brAccessEditor').hidden)showCodeEditor();
-      void refreshCodes();
-      if(!playlistLoaded)void refreshPlaylists();
-      else accessPlaylistOptions();
+      showCodeBrowser();
+      void reconnectAllSources();
     }
     if(tab==='music')void refreshPlaylists();
   }
@@ -3385,7 +3448,8 @@ const backroomVaultManagers=(()=>{
       $('brAccessOpenPlaylists').addEventListener('click',()=>{
         document.querySelector('#backroomTabs button[data-tab="music"]')?.click();
       });
-      $('brAccessRefresh').addEventListener('click',()=>void refreshCodes());
+      $('brAccessRefresh').addEventListener('click',()=>void reconnectAllSources());
+      $('brAccessReconnect').addEventListener('click',()=>void reconnectAllSources());
       $('brAccessNew').addEventListener('click',()=>showCodeEditor());
       $('brAccessEdit').addEventListener('click',()=>{if(selectedCode())showCodeEditor(selectedCodeId);});
       $('brAccessCancel').addEventListener('click',showCodeBrowser);
@@ -3423,7 +3487,10 @@ const backroomVaultManagers=(()=>{
         $('brAccessLabel').value=q;
         void saveCode(false);
       });
-      $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
+      $('brAccessSelect').addEventListener('change',e=>{
+        selectedCodeId=e.target.value;renderAccessCodes();
+        if(selectedCode()&&!selectedCode().revoked)showCodeEditor(selectedCodeId);
+      });
       $('brAccessPrev').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>0){selectedCodeId=visibleCodes[i-1].id;renderAccessCodes();}});
       $('brAccessNext').addEventListener('click',()=>{const i=visibleCodes.findIndex(x=>x.id===selectedCodeId);if(i>=0&&i<visibleCodes.length-1){selectedCodeId=visibleCodes[i+1].id;renderAccessCodes();}});
       $('brAccessToggle').addEventListener('click',()=>{const row=selectedCode();if(row)void codeAction(row.enabled?'suspend':'activate');});
@@ -3463,6 +3530,7 @@ const backroomVaultManagers=(()=>{
         }
         if(assignedSongPaths.length&&!confirm('Replace current assigned songs with the '+chosen.length+' selected playlist(s)?'))return;
         assignedSongPaths=paths;
+        appliedPlaylistIds=new Set(chosen.map(p=>p.id));
         // Persist actual authorized track paths rather than trusting a mutable
         // playlist ID that might later contain different songs.
         $('brAccessSongSearch').value='';
@@ -3483,7 +3551,11 @@ const backroomVaultManagers=(()=>{
           .forEach(x=>set.add(x.track_path));
         assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();
       });
-      $('brAccessClearSongs').addEventListener('click',()=>{assignedSongPaths=[];accessSongOptions();assignedSongsUI();});
+      $('brAccessClearSongs').addEventListener('click',()=>{
+        assignedSongPaths=[];appliedPlaylistIds.clear();
+        accessSelectedPlaylistIds.clear();accessPlaylistOptions();
+        accessSongOptions();assignedSongsUI();
+      });
       codeMaster.addEventListener('change',()=>void toggleMaster());
       $('brAccessCopy').addEventListener('click',async()=>{
         const code=$('brAccessCodeValue').textContent||'';
