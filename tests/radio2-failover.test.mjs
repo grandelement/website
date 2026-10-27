@@ -24,3 +24,12 @@ for(const [n,match] of [...radio.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>
   new Script(match[2],{filename:'radio-inline-'+n+'.js'});
 }
 console.log('PASS: exact 50-track backup is allowed without pretending to be Bangers; Gate, PLAY, metadata and radio script guards valid');
+
+const mediaErrorStart=radio.indexOf("audio.addEventListener('error',()=>{");
+const mediaErrorEnd=radio.indexOf("audio.addEventListener('pause'",mediaErrorStart);
+assert.ok(mediaErrorStart>=0,'media-error failover entry exists');
+const mediaErrorBody=radio.slice(mediaErrorStart,mediaErrorEnd>mediaErrorStart?mediaErrorEnd:mediaErrorStart+1600);
+assert.match(mediaErrorBody,/if\(state.live\|\|state.livePreparing\)/,'startup error is not ignored');
+assert.match(mediaErrorBody,/switchToRadio2\('radio1_hard_media_error'\)/,'hard error goes directly to backup');
+assert.doesNotMatch(mediaErrorBody,/reconnectLiveStream\(\)/,'hard error must not retry dead BLITZ endpoint');
+console.log('PASS: startup media failures skip obsolete Radio1 retries and start verified backup directly');
