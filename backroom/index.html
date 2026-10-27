@@ -423,6 +423,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #backroomMain .brVaultConnection{margin-top:5px;width:100%;min-height:26px;border:1px solid #2a536a;border-radius:8px;background:#061725;color:#addbea;font-size:calc(10px * var(--scale));font-weight:800;letter-spacing:.1em;cursor:pointer}
 #backroomMain .brVaultConnection[data-state="connected"]{border-color:#327d87;color:#adf4eb}
 #backroomMain .brVaultConnection[data-state="offline"],#backroomMain .brVaultConnection[data-state="sign-in"]{border-color:#a07555;color:#ffe0be}
+.brAccessPositionRow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#brAccessShowAll{min-height:36px;padding:6px 10px;font-size:calc(10px * var(--scale));font-weight:800}
+#brAccessShowAll[hidden]{display:none!important}
 .brSourceToolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(86px,23%);gap:9px;align-items:end}
 .brSourceToolbar label{margin:0;min-width:0}.brSourceToolbar select{width:100%;min-width:0;min-height:46px}
 .brSourceToolbar button,.brPlaylistPrimary button{min-height:46px!important;font-weight:850}
@@ -793,7 +796,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessQuickEdit">EDIT</button>
     </div>
     <select id="brAccessSelect" size="4" aria-label="Matching saved codes"></select>
-    <span id="brAccessPosition" class="sub">0 CODES</span>
+    <div class="brAccessPositionRow"><span id="brAccessPosition" class="sub">0 CODES</span><button type="button" id="brAccessShowAll" hidden>SHOW ALL SAVED CODES</button></div>
   </div>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
 
@@ -3063,6 +3066,9 @@ const backroomVaultManagers=(()=>{
   }
   function renderAccessCodes(){
     const q=String($('brAccessSearch').value||'').trim().toLowerCase();
+    $('brAccessShowAll').hidden=!q;
+    const exact=q&&codeRows.some(row=>String(row.label||'').trim().toLowerCase()===q);
+    $('brAccessQuickSave').textContent=!q?'NEW CODE':exact?'EDIT MATCH':'SAVE NEW';
     visibleCodes=codeRows.filter(row=>{
       const hay=[row.label,row.code_hint,...(row.scopes||[]),...(row.playlist_ids||[]),
         ...(row.track_paths||[])].join(' ').toLowerCase();
@@ -3075,14 +3081,16 @@ const backroomVaultManagers=(()=>{
     )));
     if(!visibleCodes.length){
       const note=!accessLoaded?'VAULT OFFLINE — RECONNECT OR REFRESH':
-        q?'NO CODES MATCH YOUR SEARCH':'NO CODES SAVED';
+        q?'NO MATCH · '+codeRows.length+' SAVED · TAP SHOW ALL':'NO CODES SAVED';
       sel.appendChild(new Option(note,''));
     }
     sel.disabled=!visibleCodes.length;
     sel.value=selectedCodeId;
     sel.size=Math.max(1,Math.min(5,visibleCodes.length||1));
     const idx=visibleCodes.findIndex(x=>x.id===selectedCodeId);
-    $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length:'0 OF 0');
+    $('brAccessPosition').textContent=!accessLoaded?'VAULT NOT CONNECTED':
+      q?(visibleCodes.length?(idx+1)+' OF '+visibleCodes.length+' MATCHES · '+codeRows.length+' SAVED':'0 MATCHES · '+codeRows.length+' SAVED'):
+      (visibleCodes.length?(idx+1)+' OF '+codeRows.length+' SAVED':'0 SAVED');
     $('brAccessPrev').disabled=idx<=0;
     $('brAccessQuickLoad').disabled=!selectedCodeId;
     $('brAccessQuickEdit').disabled=!selectedCodeId||!!selectedCode()?.revoked;
@@ -3096,7 +3104,7 @@ const backroomVaultManagers=(()=>{
     $('brAccessReplace').disabled=disabled;
     $('brAccessToggle').textContent=selected?.enabled?'SUSPEND':'ACTIVATE';
     if(!selected){
-      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match. SAVE NEW creates a Vault code with this name.':'No saved access codes. Refresh to migrate existing LOVE into Vault.'));
+      host.appendChild(create('p',!accessLoaded?'No code records loaded. Check the Vault connection message above.':q?'No saved match for '+q+'. '+codeRows.length+' saved in Vault. Tap SHOW ALL to see them, or SAVE NEW to create this name.':'No saved access codes. Refresh to migrate existing LOVE into Vault.'));
       return;
     }
     const wrapper=create('div','','backroomCodeEntry');
@@ -3132,8 +3140,9 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
+      const lovePresent=codeRows.some(row=>row.id==='access_legacy_love_v1');
       accessStatus('VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
-        ' · master '+(codeMaster.checked?'ON':'OFF')+'. LOVE is managed here alongside the others.');
+        ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
       return true;
     }catch(err){
       accessLoaded=false;codeRows=[];renderAccessCodes();
@@ -3187,6 +3196,9 @@ const backroomVaultManagers=(()=>{
         $('brAccessOneTime').hidden=false;
       }
       showCodeBrowser();
+      // An old name search must never hide the code just saved and verified.
+      $('brAccessSearch').value='';
+      selectedCodeId=codeId;
       const refreshed=await refreshCodes(codeId);
       const confirmed=refreshed&&codeRows.some(row=>String(row.id)===String(codeId));
       if(confirmed){
@@ -3379,7 +3391,12 @@ const backroomVaultManagers=(()=>{
       $('brAccessCancel').addEventListener('click',showCodeBrowser);
       $('brAccessIssue').addEventListener('click',()=>void saveCode(false));
       $('brAccessSave').addEventListener('click',()=>void saveCode(true));
-      $('brAccessSearch').addEventListener('input',()=>{renderAccessCodes();const q=$('brAccessSearch').value.trim();$('brAccessQuickSave').textContent=visibleCodes.length?'SAVE':'SAVE NEW';});
+      $('brAccessSearch').addEventListener('input',renderAccessCodes);
+      $('brAccessShowAll').addEventListener('click',()=>{
+        $('brAccessSearch').value='';
+        renderAccessCodes();
+        accessStatus('SHOWING ALL '+codeRows.length+' SAVED GE VAULT ACCESS CODES.');
+      });
       $('brAccessQuickLoad').addEventListener('click',async()=>{
         if(!accessLoaded){const ready=await refreshCodes();if(!ready)return;}
         const row=selectedCode();if(row)showCodeEditor(row.id);
@@ -3389,20 +3406,21 @@ const backroomVaultManagers=(()=>{
       $('brAccessQuickSave').addEventListener('click',async()=>{
         if(!accessLoaded&&authReady()){const ready=await refreshCodes();if(!ready)return;}
         const q=$('brAccessSearch').value.trim();
-        if(editingCodeId){void saveCode(true);return;}
-        const exact=codeRows.find(row=>String(row.label||'').toLowerCase()===q.toLowerCase());
-        if(exact){showCodeEditor(exact.id);accessStatus('Saved code found. Review permissions and press SAVE CHANGES.');return;}
         if(!accessLoaded||!authReady()){
           needsPublisherLogin();accessStatus('SIGN IN REQUIRED · Vault access is protected.');
           return;
         }
-        if($('brAccessEditor').hidden){
+        if(!q){
           showCodeEditor();
-          accessStatus('New code: '+(q||'enter a name')+'. Select permissions and press SAVE NEW ACCESS CODE.');
+          accessStatus('NEW CODE · Enter a name and choose permissions, then press SAVE NEW ACCESS CODE.');
           return;
         }
-        if(q&&!$('brAccessLabel').value.trim())$('brAccessLabel').value=q;
-        // The top SAVE NEW now executes the same validated Vault write as the editor SAVE.
+        const exact=codeRows.find(row=>String(row.label||'').trim().toLowerCase()===q.toLowerCase());
+        if(exact){showCodeEditor(exact.id);accessStatus('Saved code found. Review permissions and press SAVE CHANGES.');return;}
+        // A new name ALWAYS issues a new Vault code, even if a different
+        // existing record was loaded or its editor kept an old name.
+        if(editingCodeId||$('brAccessEditor').hidden)showCodeEditor();
+        $('brAccessLabel').value=q;
         void saveCode(false);
       });
       $('brAccessSelect').addEventListener('change',e=>{selectedCodeId=e.target.value;renderAccessCodes();});
