@@ -503,22 +503,25 @@ test(radio.includes("function geOpenContact(){")&&
      radio.includes("COPY EMAIL")&&
      radio.includes("('contactLaunchBtn')?.addEventListener('click',geOpenContact)"),
      'CONTACT displays a copyable address when mailto is unavailable');
-test(radio.includes("if(geRadioLocalTestAccess()||vaultRedeemBusy)return;")&&
-     radio.includes("if(controller?.openCodeEntry)controller.openCodeEntry();")&&
-     radio.includes("#bottomActions #offlineBtn:not([hidden])"),
-     'CODE accepts later owner access, showing offline tools only after owner unlock');
+// Modern Vault Radio and GE MUSIC V5 regression, not old DJ/LOVE-only UI.
+test(radio.includes("const isLegacy=false") &&
+     radio.includes("scope:'radio'") &&
+     radio.includes('GE_VAULT_SCOPED_ACCESS_V1') &&
+     radio.includes('GE_MUSIC_CODE_SESSION_V1') &&
+     radio.includes('https://vault.grandelement.com/v1/public/access/redeem'),
+     'CODE uses Vault verification with Radio and Music grants');
 const musicPicker=load('radio/preview-lab.html');
-test(musicPicker.includes("function playWholeAlbum(name)")&&
-     musicPicker.includes("'PLAY ALBUM','playAlbumTile'")&&
+test(musicPicker.includes('function playWholeAlbum(name)') &&
+     musicPicker.includes("'PLAY ALBUM','playAlbumTile'") &&
      musicPicker.includes("('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedAlbum))"),
-     'Whole albums play from the album browser');
-test(musicPicker.includes('id="saveAlbumOffline"')&&
-     musicPicker.includes("caches.open('ge-radio-media-v4')")&&
-     musicPicker.includes("if(!isAuthorized()){renderGate();return;}"),
-     'Owner offline album save reuses the media cache');
+     'Whole albums remain playable in the album browser');
+test(musicPicker.includes('id="saveAlbumOffline"') &&
+     musicPicker.includes("caches.open('ge-radio-media-v4')") &&
+     musicPicker.includes("if(!ownerPreview()){renderGate();return;}") &&
+     !musicPicker.includes("code!=='love'"),
+     'Only owner preview may download albums; public LOVE bypass is absent');
 test(load('docs/RADIO23-REPAIR-LEDGER.md').includes('BANGERS is **just a saved playlist**'),
-     'Radio 23 preserves BANGERS as one saved playlist');
-
+     'BANGERS remains a saved radio playlist');
 const homepagePWA=JSON.parse(load('manifest.webmanifest'));
 test(home.includes('href="./favicon-32x32.png"') &&
      home.includes('href="./favicon-16x16.png"') &&
@@ -530,32 +533,20 @@ test(home.includes('href="./favicon-32x32.png"') &&
      homepagePWA.icons.length>=2 &&
      homepagePWA.icons.every(icon=>fs.existsSync(icon.src.replace(/^\.\//,''))),
      'Homepage favicon and all PWA/Home Screen icons resolve to actual files');
-
-
-const vaultDJ=load('vault-worker/src/index.js');
-test(Array.isArray(liveSiteConfig.music?.publicDJPlaylistNames)&&
-     liveSiteConfig.music.publicDJPlaylistNames.length===1&&
-     liveSiteConfig.music.publicDJPlaylistNames[0]==='Bangers'&&
-     vaultDJ.includes('publishedByName')&&
-     vaultDJ.includes('if(meta.source!=="ge-radio")continue;')&&
-     radio.includes("publishedNames.has(String(item?.name||'').trim().toLowerCase())"),
-     'MUSIC reads only owner-approved Bangers from the existing original DJ Vault table');
-test(radio.includes("geTrackScroller")&&
-     radio.includes("trackList.scrollTop=priorPanelScroll")&&
-     radio.includes("scrollArea.scrollTop=priorSongScroll")&&
-     radio.includes("#trackList>#geTrackScroller")&&
-     radio.includes("html.ge-radio-ui #trackList.open{")&&
-     radio.includes("top:max(43px,calc(env(safe-area-inset-top) + 8px))"),
-     'iPhone MUSIC uses one native scrolling panel and preserves position below the status bar');
- test(radio.includes("OWNER-PUBLISHED ORIGINAL DJ SNAPSHOT")&&
-     radio.includes("publishedConfigNames.get(id)")&&
-     radio.includes("allowed.get(item.id).has(path)")&&
-     backroom.includes("cfg.music.publicDJPlaylistNames=visible?['Bangers']:[]"),
-     'Original DJ Bangers publication survives Vault replication lag without exposing private playlists');
-test(radio.includes('ge-radio-mobile-layout-scroll-20261023')&&
-     radio.includes('width:clamp(108px,17.3dvh,156px)')&&
-     radio.includes('<div id="radioCopyright">Copyright GE Studios and Grand Element. All rights reserved.</div>\n</main>') &&
-     radio.includes('#bottomActions #offlineBtn{display:none!important}'),
-     'Radio keeps a smaller EQ Sun and a non-overlapping footer while hiding pre-purchase tools');
-
+const djController=load('radio-backend/control-server.py');
+test(djController.includes('/control/playlists/save') &&
+     backroom.includes('/manage/github-playlists') &&
+     musicV5.includes("p.visibility==='published'") &&
+     musicV5.includes('state.assignedLists=data.playlists'),
+     'Original BLITZ DJ playback stays intact; owner playlists come from GitHub');
+test(radio.includes('ge-music-v5.js') &&
+     musicV5.includes('scroller.scrollTop=previous') &&
+     musicV5.includes("document.body.classList.add('ge-music-v5-open')") &&
+     musicV5.includes('data-access-view="album"') &&
+     musicV5.includes('data-access-view="playlist"'),
+     'MUSIC preserves scroll position and supports code album and playlist views');
+test(radio.includes('radioCopyright') &&
+     radio.includes('offlineBtn') &&
+     load('radio/sw.js').includes("const MEDIA_CACHE='ge-radio-media-v4'"),
+     'Radio retains copyright, offline tools and downloaded media');
 console.log('\nGE site static regression checks passed: '+passed);
