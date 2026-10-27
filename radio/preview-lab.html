@@ -343,7 +343,42 @@ window.addEventListener('ge-gate-settings-ready',()=>{
   if(!data.gateStartedAtMs&&!data.expired)loadPreviewGateTimes();
 });
 const gate=$('geGate'),sun=$('geGateSun');let gateShown=false;
-function isAuthorized(){try{return localStorage.getItem(OWNER_KEY)==='yes'||localStorage.getItem('GE_GATE_LOVE_V1')==='1'}catch(_e){return false}}
+// Vault is the only public Access Code authority. LOVE the album is unrelated.
+const GE_MUSIC_SESSION_KEY='GE_MUSIC_CODE_SESSION_V1';
+const GE_MUSIC_SESSION_ENDPOINT='https://vault.grandelement.com/v1/public/access/music-session';
+function ownerPreview(){try{return localStorage.getItem(OWNER_KEY)==='yes'}catch(_e){return false}}
+function musicSession(){
+ try{
+  const saved=JSON.parse(sessionStorage.getItem(GE_MUSIC_SESSION_KEY)||'null');
+  return saved&&typeof saved.token==='string'&&Number(saved.until)>Date.now()&&
+    typeof saved.restricted==='boolean'&&Array.isArray(saved.allowed)?saved:null;
+ }catch(_e){return null}
+}
+function isAuthorized(){return ownerPreview()||!!musicSession()}
+async function verifyMusicTrack(t){
+ if(ownerPreview())return true;
+ const grant=musicSession();
+ if(!grant)return true; // finite 33:33 guest preview
+ if(grant.restricted&&!grant.allowed.includes(t.path)){
+  musicNotice('This access code does not include this song.');return false;
+ }
+ try{
+  const response=await fetch(GE_MUSIC_SESSION_ENDPOINT,{method:'POST',
+   headers:{'Content-Type':'application/json'},cache:'no-store',
+   body:JSON.stringify({action:'verify',token:grant.token,track_path:t.path})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.authorized!==true){
+   musicNotice('Vault rejected this Music session. Enter a valid code again.');
+   sessionStorage.removeItem(GE_MUSIC_SESSION_KEY);renderGate();return false;
+  }
+  return true;
+ }catch(_e){musicNotice('Vault could not confirm song access. Retry when online.');return false}
+}
+window.addEventListener('message',event=>{
+ if(event.origin!==location.origin||event.source!==window.parent)return;
+ if(event.data?.type!=='ge-vault-music-access-updated')return;
+ if(musicSession()){window.GEAudioGain?.restore?.();renderGate();}
+});
 function fmt(t){t=Math.max(0,Math.floor(Number(t)||0));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 function say(message){$('status').textContent=message}
 function save(force=false){
@@ -745,7 +780,7 @@ function openAlbum(name){
  $('albumWall').hidden=true;$('publicPlaylistWall').hidden=true;$('musicListView').hidden=true;$('albumView').hidden=false;
  $('albumTitle').textContent=name;$('search').value='';
  showSongs();syncAlbumWholeCheck();
- $('saveAlbumOffline').hidden=!isAuthorized();
+ $('saveAlbumOffline').hidden=!ownerPreview();
 }
 function switchMusicBrowse(mode){
  browserMode=mode==='playlists'?'playlists':'albums';
@@ -772,7 +807,7 @@ function playWholeAlbum(name){
 }
 $('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedAlbum));
 $('saveAlbumOffline').addEventListener('click',async()=>{
- if(!isAuthorized()){renderGate();return;}
+ if(!ownerPreview()){renderGate();return;}
  const tracks=albums.get(selectedAlbum)||[];
  if(!tracks.length||!('caches' in window)){musicNotice('Offline album storage unavailable.');return;}
  const button=$('saveAlbumOffline');button.disabled=true;
@@ -834,6 +869,7 @@ function showAlbums(){
 }
 async function startTrack(t){
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
+ if(!(await verifyMusicTrack(t)))return;
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
  if(GE_RADIO_MUSIC_EMBED){
   // Synchronous, same-origin handoff retains iPhone's Play user gesture.
@@ -876,8 +912,9 @@ function nextTrack(){
  trackIndex++;void startTrack(albumTracks[trackIndex]);
 }
 async function resume(){
- if(isLocked()){renderGate();return;}
  if(!currentTrack){musicNotice('Choose a song to play.');return;}
+ if(!(await verifyMusicTrack(currentTrack)))return;
+ if(isLocked()){renderGate();return;}
  try{if(audio.paused)await audio.play()}catch(_e){musicNotice('Tap PLAY to resume on this device.')}
 }
 audio.addEventListener('ended',()=>{if(!data.expired)nextTrack()});
@@ -894,15 +931,32 @@ $('musicNext').addEventListener('click',nextTrack);
 $('search').addEventListener('input',showSongs);
 $('backAlbums').addEventListener('click',()=>switchMusicBrowse('albums'));
 function ownerUI(){renderGate();}
-$('geGateEnter').addEventListener('click',()=>{
- const code=$('geGateWord').value.trim().toLowerCase();
- if(code!=='love'){location.assign('../support/?section=music');return;}
- try{localStorage.setItem(OWNER_KEY,'yes')}catch(_e){}
- $('geGateWord').value='';window.GEAudioGain?.restore?.();ownerUI();audio.volume=baseVolume;
- $('saveAlbumOffline').hidden=!isAuthorized();
- gate.classList.add('unlocking');
- setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
- if(currentTrack&&audio.paused)void resume();
+let geMusicUnlockBusy=false;
+$('geGateEnter').addEventListener('click',async()=>{
+ const code=$('geGateWord').value.trim();
+ if(!code||geMusicUnlockBusy){musicNotice('Enter the complete access key.');return;}
+ geMusicUnlockBusy=true;$('geGateEnter').disabled=true;
+ try{
+  const response=await fetch(GE_MUSIC_SESSION_ENDPOINT,{method:'POST',
+   headers:{'Content-Type':'application/json'},cache:'no-store',
+   body:JSON.stringify({action:'redeem',code})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||result.ok!==true||!result.token)
+   throw Error(result.error||'Vault did not accept that access code.');
+  const receipt={token:result.token,until:Number(result.session_expires_at)*1000,
+   restricted:!!result.restricted,allowed:Array.isArray(result.allowed_tracks)?result.allowed_tracks:[]};
+  if(receipt.until<=Date.now())throw Error('This code has expired.');
+  sessionStorage.setItem(GE_MUSIC_SESSION_KEY,JSON.stringify(receipt));
+  $('geGateWord').value='';window.GEAudioGain?.restore?.();
+  ownerUI();audio.volume=baseVolume;
+  $('saveAlbumOffline').hidden=!ownerPreview();
+  gate.classList.add('unlocking');
+  setTimeout(()=>{gate.className='';gate.setAttribute('aria-hidden','true');gateShown=false;},4000);
+  geRadioEmbedNotify('ge-radio-music-gate-clear');
+  musicNotice(receipt.restricted?'ACCESS VERIFIED · '+receipt.allowed.length+' ASSIGNED SONGS':'ACCESS VERIFIED · MUSIC UNLOCKED');
+  if(currentTrack&&audio.paused)void resume();
+ }catch(error){musicNotice('ACCESS NOT VERIFIED · '+String(error.message||error))}
+ finally{geMusicUnlockBusy=false;$('geGateEnter').disabled=false}
 });
 $('geGateWord').addEventListener('keydown',e=>{if(e.key==='Enter')$('geGateEnter').click()});
 // Song-duration metadata can lag behind the GitHub music files. Load the
