@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify private service binding, owner authentication, and LOVE listing
         run: node --experimental-default-type=module tests/private-vault-binding.test.mjs
+      - name: Verify publisher and private fan playlist contracts
+        run: node tests/ge-unified-playlist-library.test.mjs
       - name: Check Cloudflare deployment credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -89,3 +91,18 @@ jobs:
           echo "Private service binding: GE_VAULT -> ge-studios-vault"
           echo "Access code database, original LOVE record and master playlists unchanged by this deployment."
           echo "Owner Safari test: Back Room -> Access Codes -> Refresh; or public Publisher /health readiness flags."
+
+      - name: Verify Fan Vault playlist list requires Back Room owner login
+        run: |
+          python3 - <<'PY'
+          import json, urllib.error, urllib.request
+          url='https://ge-backroom-publisher.grandelement.workers.dev/manage/fan-playlists'
+          try:
+              urllib.request.urlopen(urllib.request.Request(url,method='GET'),timeout=20)
+              raise SystemExit('SECURITY ERROR: private fan playlist administrator route was public.')
+          except urllib.error.HTTPError as err:
+              data=json.loads(err.read().decode('utf-8','replace'))
+              if err.code!=401 or data.get('ok') is not False:
+                  raise SystemExit(f'Fan publisher route not verified: HTTP {err.code}: {data}')
+              print('PASS: Fan Vault playlist owner route deployed with mandatory authentication.')
+          PY
