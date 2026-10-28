@@ -48,7 +48,8 @@ assert.doesNotMatch(music,/AUTHORIZED MUSIC · MY ORDER/,'access breadcrumb remo
 assert.match(music,/el\('\.gePlaylistBar'\)\.hidden=cat!=='playlists'&&!state\.arranging/,'playlist name LOAD SAVE hidden on SONGS tab');
 assert.match(music,/el\('\.arrangeBtn'\)\.addEventListener/,'Arrange button preserved');
 assert.match(music,/function activateDrag\(/,'drag reorder preserved');
-assert.match(music,/function moveSelected\(/,'reorder controls preserved');
+assert.match(music,/const up=elem\('button','reorder','↑'\)/,'move-up control preserved');
+assert.match(music,/const down=elem\('button','reorder','↓'\)/,'move-down control preserved');
 assert.match(music,/class="songFilter"/,'ALL SONGS filter preserved');
 assert.match(music,/data-tab="songs"/,'SONGS tab preserved');
 assert.match(music,/data-tab="playlists"/,'PLAYLISTS tab preserved');
