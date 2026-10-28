@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.0-20261028-LOAD-GE-USER-PLAYLISTS';
+const BUILD='GE-MUSIC-V7.1-20261028-ARRANGE-PLAY-OPENS-MUSIC-PLAYER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -204,7 +204,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
-   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone">DONE</button></div>
+   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
     <div class="arrangeLoad"><select class="arrangePlaylistSelect" aria-label="Load an existing playlist to arrange"><option value="">LOAD A SAVED PLAYLIST…</option></select><button type="button" class="arrangeLoadBtn">LOAD</button></div>
    <div class="arrangeCommands"><button type="button" class="arrangeSave">SAVE PLAYLIST</button><button type="button" class="arrangePlay">PLAY</button><button type="button" class="arrangeBuy buyBtn">BUY SELECTED</button></div>
@@ -252,6 +252,7 @@ function updateMeta(){
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
  el('.playSelected').disabled=count===0;
  el('.arrangePlay').disabled=count===0;
+ el('.arrangeDone').disabled=count===0;
  el('[data-action=save]').disabled=count===0;
 }
 function requestBuy(intent){
@@ -606,20 +607,20 @@ async function redeemMusicCode(){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
-async function playTrack(track,queueOverride){
+async function playTrack(track,queueOverride,showPlayer=false){
  // A code-restricted Music session can NEVER substitute the public Radio
  // scope or change the global Bangers broadcast. Verify every requested song.
  const access=musicAccessActive();
  const codePermitted=!!access&&(!access.restricted||access.allowed.includes(track.path));
  const testPermitted=testPurchasedPaths().has(track.path);
- if(access&&!codePermitted&&!testPermitted){say('THIS CODE DOES NOT INCLUDE THAT SONG.');return}
+ if(access&&!codePermitted&&!testPermitted){say('THIS CODE DOES NOT INCLUDE THAT SONG.');return false}
  if(window.GEGate?.isExpiredLocked?.()&&!codePermitted&&!testPermitted){
-  window.GEGate?.restore?.();say('33:33 COMPLETE · ENTER ACCESS CODE.');return;
+  window.GEGate?.restore?.();say('33:33 COMPLETE · ENTER ACCESS CODE.');return false;
  }
  if(codePermitted){
    try{await musicCodeRequest({action:'verify',token:access.token,track_path:track.path})}
    catch(error){
-     say('MUSIC CODE REJECTED · '+String(error.message||error));clearMusicAccess();return;
+     say('MUSIC CODE REJECTED · '+String(error.message||error));clearMusicAccess();return false;
    }
  }
  // Test purchases are a local owner-only player rehearsal, not Vault access.
@@ -628,23 +629,32 @@ async function playTrack(track,queueOverride){
  // not proof of paid-content delivery or a full-length song license.
  const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:
    state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
- const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue);
- if(outcome?.ok){say('Opening '+track.title+'.');return}
+ const playlistName=state.playlistDraftName.trim()||state.activePlaylist?.name||'MY MUSIC LIST';
+ const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName);
+ if(outcome?.ok){
+  if(showPlayer){
+   // Start the audio handoff before closing the chooser to preserve iPhone click activation.
+   close();
+   window.GEMusicV5Bridge?.showPlayer?.();
+  }else say('Opening '+track.title+'.');
+  return true;
+ }
  say(outcome?.message||'Music preview is loading. Tap PLAY again.');
+ return false;
 }
-async function playCheckedSongs(){
+async function playCheckedSongs(showPlayer=false){
  const tracks=selectedTracks();
- if(!tracks.length){say('Check at least one song to play.');return}
+ if(!tracks.length){say('Check at least one song to play.');return false}
  const inaccessible=musicAccessActive()?tracks.filter(t=>!canPlayTrack(t)):[];
  if(inaccessible.length){
   say(inaccessible.length+' CHECKED SONG'+(inaccessible.length===1?' NEEDS':'S NEED')+' ACCESS · Enter a GE code to play your selection.');
-  return;
+  return false;
  }
  // Preserve the exact checked-song order and prohibit mixing ungranted
  // selections into a restricted Vault or owner-test playlist.
  const queue=tracks.map(t=>t.path);
  recordPlaylistInteraction('control_change',{control:'music_play_checked',song_count:queue.length});
- await playTrack(tracks[0],queue);
+ return await playTrack(tracks[0],queue,showPlayer);
 }
 function isArrangeView(){return state.arranging&&(state.view==='checked'||state.view==='playlist-order')}
 function appendSong(parent,track){
@@ -1067,7 +1077,7 @@ function exitArrange(){
  state.arranging=false;state.view='checked';state.notice='';
  render();scroller.scrollTop=0;
 }
-el('.arrangeDone').addEventListener('click',exitArrange);
+el('.arrangeDone').addEventListener('click',()=>void playCheckedSongs(true));
 function loadSelectedPlaylistKey(key){
  if(!key){
   const msg=state.playlistsLoading?'Playlists are still loading.':
