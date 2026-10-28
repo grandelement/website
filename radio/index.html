@@ -4676,6 +4676,23 @@ function displayTitle(url,withNumber=false){
   const number = withNumber && item.track && item.album.toLowerCase()!=='singles' ? ` • ${String(item.track).padStart(2,'0')}` : '';
   return `${item.album}${number} • ${item.song}`;
 }
+// One title formula for Radio 1 metadata and Radio 2 program tracks.
+function radioDisplayMetadataTitle(raw,albumHint=''){
+  let title=String(raw||'').trim(),album=String(albumHint||'').trim();
+  if(!title)return album||'Grand Element Radio';
+  if(/^(?:grand element radio|ge station identification)$/i.test(title))return title;
+  const parts=title.match(/^(.+?)\s*[•|]\s*(.+)$/);
+  if(parts){if(!album)album=parts[1].trim();title=parts[2].trim()}
+  const start=album&&title.toLowerCase().startsWith(album.toLowerCase())?
+    title.slice(album.length).replace(/^[\s_-]+/,'').trim():'';
+  if(start)title=start;
+  const numbered=title.match(/^(\d{1,3})[\s_•-]+(.+)$/);
+  if(numbered){
+    const number=String(Number(numbered[1])).padStart(2,'0');
+    title=(state.shuffle?'':number+' ')+numbered[2].replace(/_+/g,' ').trim();
+  }
+  return album?album+' • '+title:title;
+}
 function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function shuffleArray(items){
   const copy=items.slice();
@@ -5942,7 +5959,7 @@ function radio2PlayCurrent(){
     radio2.index=slot.index;radio2.url=url;
     radio2.title=String(slot.track.title||'').trim();
     state.currentURL=url;
-    titleBtn.textContent=(slot.track.album?slot.track.album+' • ':'')+(radio2.title||'Grand Element Radio 2');
+    titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'Grand Element Radio 2',slot.track.album||'');
     refreshLoveButton();
     try{window.GEVault?.setTrackMetadata?.(audio,{
       track_id:slot.track.path||url,title:radio2.title,
@@ -6757,7 +6774,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
       const album=String(data.now.album||'').trim();
       const title=String(data.now.title||'').trim();
       const livePrefix=data.live_active?'LIVE • ':'';
-      return livePrefix+(album?album+' • '+title:title);
+      return livePrefix+radioDisplayMetadataTitle(title,album);
     }
     const source=sourceForStream(data);
     const candidates=[
@@ -6777,7 +6794,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     const stationName=String(CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio').trim().toLowerCase();
     for(const candidate of candidates){
       const value=metadataText(candidate);
-      if(value&&value.toLowerCase()!==stationName)return value;
+      if(value&&value.toLowerCase()!==stationName)return radioDisplayMetadataTitle(value);
     }
     return '';
   }
@@ -6786,7 +6803,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     title=String(title||'').trim();
     if(!title||(state.live!==true&&state.livePreparing!==true)||radio2.active)return;
     lastTitle=title;
-    titleBtn.textContent=title;
+    titleBtn.textContent=radioDisplayMetadataTitle(title);
     refreshLoveButton();
     try{
       window.GEVault?.setTrackMetadata?.(audio,{
@@ -6835,7 +6852,8 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   audio.addEventListener('playing',()=>{if(state.live||state.livePreparing)start();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&(state.live||state.livePreparing))void poll();});
   window.GELiveMetadata={poll,start,getTitle:()=>radio2.active?
-    ((radio2.program?.tracks?.[radio2.index]?.album||'')+' • '+(radio2.title||'')):lastTitle};
+    radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||''):
+    radioDisplayMetadataTitle(lastTitle)};
 })();
 
 
@@ -7116,6 +7134,8 @@ $('shuffleBtn').addEventListener('click',()=>{
   state.shuffle=!state.shuffle;
   if(state.live||state.livePreparing){
     syncModeButtons();
+    if(radio2.active)titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||'');
+    else if(window.GELiveMetadata?.getTitle?.())titleBtn.textContent=window.GELiveMetadata.getTitle();
     setStatus('Personal music shuffle '+(state.shuffle?'ON':'OFF')+' · Radio continues unchanged.');
     return;
   }
