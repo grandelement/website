@@ -55,24 +55,31 @@ requireText(radio,/GEPlayLibraryQueue\(queue,path,playlistName\)/,'Radio must ha
 requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show current queue');
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
-// Current October 28 user-approved behavior: verified audio, then whole-button
-// dimmer red lub-dub, one tap locks solid red until the connection drops.
-// Keep the previous heartbeat CSS in source for rollback, but guard the newest
-// end-of-head override so no later UI change silently restores the old effect.
-requireText(radio,/id="ge-radio-connected-red-dimmer-20261028"/,'approved RADIO red dimmer stylesheet missing');
-requireText(radio,/@keyframes geRadioRedDimmerLubDub/,'smooth two-beat red dimmer keyframes missing');
-requireText(radio,/animation:geRadioRedDimmerLubDub 6\\.7s ease-in-out infinite!important/,'approved heartbeat timing changed');
-requireText(radio,/\\.ge-radio-audible\\.ge-radio-pulse-ack/,'one-tap solid red state removed');
-requireText(radio,/document\\.body\\.classList\\.add\\('ge-radio-pulse-ack'\\)/,'listener tap must freeze pulse');
-requireText(radio,/if\\(!connected\\)document\\.body\\.classList\\.remove\\('ge-radio-pulse-ack'\\)/,'pulse acknowledgement must reset on disconnect');
-requireText(radio,/document\\.body\\.classList\\.toggle\\('ge-radio-audible'/,'connected state must come from audio');
-requireText(radio,/button\\.textContent=connected\\?'RADIO':''/,'do not show RADIO text before playback progress');
-requireText(radio,/pointer-events:none!important/,'not-connected RADIO placeholder must not intercept taps');
-requireText(radio,/prefers-reduced-motion:reduce/,'reduced motion settings must be honored');
-requireText(radio,/width:max-content!important/,'repair status banner width for possible re-enable');
-requireText(radio,/overflow-wrap:anywhere!important/,'status banner must word-wrap when enabled');
-requireText(radio,/body #liveStatus,body #liveStatus\\.show\\{[\\s\\S]*?display:none!important/,'status banner must remain temporarily hidden');
-requireText(radio,/function setLiveStatus\\(text,show=true\\)/,'Radio state and message code must not be deleted');
+// The approved heartbeat is a dimmer-like red fill and restrained outward
+// glow. It only appears after advancing native audio, and becomes steady red
+// on the listener's first tap. The status DOM and messages remain in place,
+// but the black banner is visually hidden until the user asks to restore it.
+const pulseStyleStart=radio.indexOf('<style id="ge-radio-connected-red-dimmer-20261028">');
+assert.ok(pulseStyleStart>=0,'REGRESSION: current connected-only RADIO dimmer stylesheet removed');
+const pulseStyleEnd=radio.indexOf('</style>',pulseStyleStart);
+assert.ok(pulseStyleEnd>pulseStyleStart,'REGRESSION: RADIO dimmer style not closed');
+const pulseStyle=radio.slice(pulseStyleStart,pulseStyleEnd);
+for(const text of [
+ '@keyframes geRadioRedDimmerLubDub',
+ 'animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important',
+ '.ge-radio-audible.ge-radio-pulse-ack',
+ 'pointer-events:none!important',
+ 'prefers-reduced-motion:reduce',
+ 'width:max-content!important',
+ 'overflow-wrap:anywhere!important',
+ 'body #liveStatus,body #liveStatus.show',
+ 'display:none!important'
+])assert.ok(pulseStyle.includes(text),'REGRESSION: missing approved RADIO behavior '+text);
+assert.ok(radio.includes("document.body.classList.toggle('ge-radio-audible'"),'REGRESSION: native audio-verified indicator missing');
+assert.ok(radio.includes("document.body.classList.add('ge-radio-pulse-ack')"),'REGRESSION: listener cannot stop pulse');
+assert.ok(radio.includes("if(!connected)document.body.classList.remove('ge-radio-pulse-ack')"),'REGRESSION: pulse does not reset on disconnect');
+assert.ok(radio.includes("button.textContent=connected?'RADIO':''"),'REGRESSION: RADIO appears before connection');
+assert.ok(radio.includes('function setLiveStatus(text,show=true)'), 'REGRESSION: underlying radio status handling deleted');
 requireText(radio,/115000/,'Radio 1 startup watchdog is too short');
 requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'extended Radio 1 startup notice missing');
 requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'long-running Radio 1 notice missing');
