@@ -4818,6 +4818,16 @@ async function loadFrozenAutoSongs(){
   }
 }
 function allowedCatalog(){
+  // Offline must use saved media URLs, not online manifest URLs or the live stream.
+  // This is restricted to existing owner/demo access pending verified paid entitlements.
+  if(offlinePlaybackMode() && geOwnerDemoEnabled()){
+    const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)).sort(orderedSort);
+    if(personalSongMode){
+      const chosen=saved.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
+      if(chosen.length)return chosen;
+    }
+    return saved;
+  }
   if(personalSongMode){
     // Only an explicit MUSIC selection can use new/re-uploaded current files.
     const chosen=selectableSongs().filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
@@ -7700,13 +7710,30 @@ async function registerServiceWorker(){
   });
 
   window.addEventListener('offline',()=>{
+    // Radio 1/2 streams cannot play without a connection. End live mode first
+    // so station reconnect timers do not overwrite a cached personal song.
+    if(state.live||state.livePreparing)exitLiveMode('Internet disconnected. Checking saved music.');
     rebuildQueue(state.currentURL);
-    if(state.currentURL && !isStationID(state.currentURL) && !offlineAvailability.songs.has(state.currentURL)){
-      const fallback=allowedCatalog()[0]||'';
-      if(fallback) playURL(fallback,{record:false,backgroundChange:false,userAction:false});
+    if(!geOwnerDemoEnabled()){
+      setStatus('Radio requires Internet. Offline songs require authorized access.');
+      return;
+    }
+    const saved=allowedCatalog();
+    if(!saved.length){
+      setStatus('No songs saved for offline listening on this device.');
+      return;
+    }
+    const currentIsCached=saved.includes(state.currentURL);
+    const fallback=currentIsCached?state.currentURL:saved[0];
+    if(fallback && (!currentIsCached || audio.paused)){
+      void playURL(fallback,{record:false,backgroundChange:false,userAction:false});
     }
   });
-  window.addEventListener('online',()=>rebuildQueue(state.currentURL));
+  window.addEventListener('online',()=>{
+    // Return to normal published catalog rules without automatically
+    // reconnecting RADIO or changing the song someone selected offline.
+    rebuildQueue(state.currentURL);
+  });
 
   (async()=>{
     try{
