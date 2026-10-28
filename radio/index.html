@@ -502,11 +502,16 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #geGateSun{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;box-shadow:0 0 6svh rgba(35,175,255,.72),0 0 15svh rgba(0,128,255,.54),0 0 28svh rgba(0,96,255,.34),0 0 40svh rgba(0,75,255,.16);transform:translate3d(calc(50vw + 62svh),0,0) scale(.84);transform-origin:center center;will-change:transform,opacity,filter}
 #geGatePanel{position:absolute;z-index:5;left:50%;top:62%;bottom:auto;transform:translate(-50%,18px);width:min(440px,88vw);max-width:88vw;padding:16px;border-radius:20px;border:1px solid rgba(94,205,255,.42);background:rgba(1,12,25,.78);box-shadow:0 14px 38px rgba(0,0,0,.48),0 0 24px rgba(34,161,255,.14);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);opacity:0;pointer-events:none;transition:opacity 1.5s ease,transform 1.5s ease;text-align:center}
 #geGate.centered #geGatePanel{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
-#geGateTitle{font-size:clamp(19px,4.4vw,25px);font-weight:850;letter-spacing:.035em;margin:0 0 7px;color:#fff}
-#geGateStatus{min-height:1.15em;margin:0 0 12px;font-size:clamp(13px,3.1vw,15px);color:#d9efff}
+#geGatePanelHeader{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;align-items:center;gap:4px;margin-bottom:12px}
+#geGateTitle{font-size:clamp(19px,4.4vw,25px);font-weight:850;letter-spacing:.035em;margin:0;color:#fff}
+#geGateBack{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;border-radius:9px;border:1px solid rgba(112,216,255,.72);background:rgba(5,39,68,.88);color:#f4fbff;font:800 23px/1 system-ui;cursor:pointer}
+#geGateBack:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#geGateStatus{min-height:0;margin:7px 0 0;font-size:clamp(12px,3vw,14px);line-height:1.35;color:#d9efff}
+#geGateStatus:empty{display:none}
 #geGateEntry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
 #geGateWord{width:100%;min-width:0;min-height:46px;border:1px solid rgba(91,202,255,.56);border-radius:12px;background:rgba(0,5,13,.78);color:#f4fbff;padding:9px 11px;text-align:center;font:700 17px/1.2 system-ui;outline:none;letter-spacing:.12em}
 #geGateWord:focus{border-color:rgba(114,229,255,.95);box-shadow:0 0 16px rgba(62,190,255,.24)}
+#geGateWord::placeholder{color:rgba(230,244,255,.65);font-weight:550;letter-spacing:.015em;opacity:1}
 #geGateEnter,#geGateHint,#geGateEmail,#geGateAccessSend{border:1px solid rgba(72,195,255,.60);border-radius:12px;background:rgba(7,45,75,.82);color:#f4fbff;font-weight:800}
 #geGateEnter{min-height:46px;padding:8px 16px}
 #geGateHint{margin:10px auto 0;min-height:38px;padding:7px 15px;font-size:14px}
@@ -3711,12 +3716,12 @@ html.ge-safari-desktop-request body.view-player:not(.iam-studio-open) #bgGroup .
   <div id="geGateWaves" aria-hidden="true"></div>
   <div id="geGateSunWrap" aria-hidden="true"><img id="geGateSun" alt=""></div>
   <section id="geGatePanel" aria-live="polite">
-    <div id="geGateTitle">The Inner Frequency</div>
-    <div id="geGateStatus">Enter your access code or choose Radio membership.</div>
+    <div id="geGatePanelHeader"><button id="geGateBack" type="button" aria-label="Back to Grand Element website" title="Back">←</button><div id="geGateTitle">The Inner Frequency</div><span aria-hidden="true"></span></div>
     <div id="geGateEntry">
-      <input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Full access key, not saved code name" placeholder="ACCESS KEY · NOT CODE NAME" inputmode="text">
+      <input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Enter access code" placeholder="Enter Code" inputmode="text">
       <button id="geGateEnter" type="button">ACCESS</button>
     </div>
+    <div id="geGateStatus" role="status" aria-live="polite"></div>
     <div id="geGateHelp">
       <a class="ge-gate-membership" href="../support/?section=radio&amp;flow=shop">RADIO MEMBERSHIP · $6 / MONTH</a>
       <a class="ge-gate-membership ge-gate-contact" href="mailto:access@grandelement.com?subject=Grand%20Element%20Access%20Request&amp;body=Please%20send%20me%20the%20Grand%20Element%20access%20code.">GET ACCESS BY EMAIL</a>
@@ -10627,7 +10632,7 @@ Vector ${vector}. ${pair[1]}.`;
   function showPanel(expired=false){
     gate.classList.add('centered');
     stopGateRipples();
-    if(status)status.textContent=expired?'Radio preview complete. Enter CODE or choose Radio membership.':'Enter CODE for access, or choose Radio membership.';
+    if(status)status.textContent='';
     const nextPreview=$('geGateNextPreview');if(nextPreview)nextPreview.hidden=!expired;
     updateHintUI();
   }
@@ -10836,7 +10841,7 @@ Vector ${vector}. ${pair[1]}.`;
     gate.style.setProperty('--ge-gate-dim',String(1-visible/100));
     if(sun){sun.src=absolute(CONFIG.LOGO_SRC);sun.style.transition='none';sun.style.transform=`translate3d(${gateSunOffscreenPx()}px,0,0) scale(.84)`;sun.style.opacity='1';sun.style.filter='';}
     if(panel){panel.style.removeProperty('opacity');panel.style.removeProperty('pointer-events');}
-    if(status)status.textContent='Enter your access code or choose Radio membership.';
+    if(status)status.textContent='';
     scheduleStages();
   }
 
@@ -11092,6 +11097,12 @@ Vector ${vector}. ${pair[1]}.`;
     },Math.max(250,gateSeconds(GATE_CONFIG.unlockSeconds)*1000));
   }
 
+  // Back leaves the access screen for the GE website; it never grants Radio
+  // access, restarts the finite preview, or changes the Gate deadline.
+  $('geGateBack')?.addEventListener('click',()=>{
+    syncListening();save(true);
+    location.assign('../');
+  });
   enter?.addEventListener('click',unlock);
   $('geGateNextPreview')?.addEventListener('click',()=>{
     try{audio.pause();}catch(_e){}
