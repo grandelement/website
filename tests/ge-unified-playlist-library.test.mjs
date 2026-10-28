@@ -34,7 +34,7 @@ assert.match(music,/GE_BACKROOM_PUBLISH_SESSION_V1/,'guests cannot write publish
 assert.match(music,/USER PLAYLIST SAVED/);
 assert.match(music,/active\.name\+' User'/,'GE playlist SAVE uses a User suffix');
 assert.match(music,/Listener SAVE never alters the Back Room GE publisher master/);
-assert.match(music,/workingKey\+':'+workingScope\(\)/,'working playlist persists per code/browser');
+assert.match(music,/workingKey\+':'\+workingScope\(\)/,'working playlist persists per code/browser');
 assert.match(music,/function restoreWorkingOrder\(\)/);
 assert.match(music,/if\(!restoreWorkingOrder\(\)\)/);
 
