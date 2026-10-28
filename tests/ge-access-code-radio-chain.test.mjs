@@ -29,6 +29,19 @@ assert.match(vault,/music_session=\{token:unsigned/,
 assert.match(radio,/const m=result.music_session/,
  'Radio Gate must consume its returned Music entitlement');
 assert.match(radio,/sessionStorage.setItem\('GE_MUSIC_CODE_SESSION_V1'/);
+assert.match(backroom,/id="brAccessDisplayName"/,'owner must have a separate, optional fan/access display name');
+assert.doesNotMatch(backroom,/if\(!existing&&\!displayName\)throw Error/,'listener name must remain optional for older or unnamed codes');
+assert.match(backroom,/display_name:displayName/,'existing GE Vault code name field is saved');
+assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
+ 'Radio Gate inherits the saved name from the correct Vault code');
+assert.match(radio,/codeFallback:String\(m.display_name\|\|''\).trim\(\)\?'':entered.slice\(0,80\)/,
+ 'Gate shows the exact locally entered key only when the owner leaves the name blank');
+assert.match(v5,/displayName\|\|access.codeFallback\|\|'ACCESS ACTIVE'/,
+ 'Radio Music header prefers owner name over unnamed-code fallback');
+assert.match(v5,/codeFallback:String\(data.display_name\|\|''\).trim\(\)\?'':code.slice\(0,80\)/,
+ 'Direct Music code redemption follows the same display priority');
+assert.match(radio,/v710-optional-fan-access-name/,'Radio uses the updated Music script');
+
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
 assert.match(v5,/action:'verify',token:access.token,track_path:track.path/,
