@@ -131,7 +131,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   min-width:0;max-width:128px;text-align:left;white-space:normal;
   text-wrap:balance;overflow-wrap:break-word;letter-spacing:0}
 .geCodeIdentity[hidden]{display:none!important}
-.geCodeIdentity::before{content:'ACTIVE · ';color:#d7adff;font-size:10px}
+.geCodeIdentity{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .header .brand{text-wrap:balance;overflow-wrap:normal}
 @media(max-width:420px){
  .header{gap:5px;padding:7px 8px}
@@ -586,7 +586,7 @@ function musicAccessStatus(){
  // Display the owner-selected fan/access name. If intentionally unnamed, use
  // only the exact credential this visitor entered in this browser session.
  // Neither the server's record label nor owner keys are used as a substitute.
- identity.textContent=access?String(access.displayName||access.codeFallback||'ACCESS ACTIVE').slice(0,80):'';
+ identity.textContent=access?String(access.displayName||'ACCESS ACTIVE').slice(0,80):'';
  el('.musicCodeClear').hidden=!access;
 }
 function clearMusicAccess(){
@@ -618,7 +618,7 @@ async function redeemMusicCode(){
    const access={token:String(data.token||''),until:Number(data.session_expires_at)*1000,
      restricted:!!data.restricted,allowed,playlistIds:Array.isArray(data.playlist_ids)?data.playlist_ids:[],
      displayName:String(data.display_name||'').trim().slice(0,80),
-     codeFallback:String(data.display_name||'').trim()?'':code.slice(0,80)};
+     };
    if(!access.token||access.until<=Date.now())throw Error('Music session not confirmed.');
    state.musicAccess=access;
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
