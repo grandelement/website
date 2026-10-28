@@ -3320,43 +3320,57 @@ body:not(.game-mode-active) .planet {
   body:not(.game-mode-active) .planet {width:30.8px!important;height:30.8px!important}
 }
 </style>
-<style id="ge-merch-flybys-v1">
-/* Two real storefront merchandise mockups passing through the normal GE
-   universe at approximately the gentle orbit/autopilot drift speed. */
+<style id="ge-merch-flybys-v2">
+/* Original GE storefront images clipped to merchandise outlines, not Souls. */
 #geMerchFlybys{position:fixed;inset:0;z-index:11;overflow:hidden;pointer-events:none;contain:layout style}
 .geMerchFlyby{
-  --ge-merch-size:clamp(48px,calc(var(--planet-size,44px) * 1.15),72px);
-  position:absolute;left:0;top:40%;width:var(--ge-merch-size);height:var(--ge-merch-size);
-  box-sizing:border-box;pointer-events:auto;cursor:pointer;
-  border:1px solid rgba(139,209,252,.45);border-radius:50%;
-  background:#f5f5f5;box-shadow:0 0 10px rgba(93,179,230,.24);
-  overflow:hidden;opacity:0;will-change:transform;
-  -webkit-tap-highlight-color:transparent;
-  animation:geMerchFlybyTransit 110s linear both infinite;
+ --ge-merch-size:clamp(80px,7.5vw,120px);
+ position:absolute;left:0;top:40%;width:var(--ge-merch-size);
+ display:block;box-sizing:border-box;pointer-events:auto;cursor:pointer;
+ border:0!important;border-radius:0!important;background:none!important;
+ box-shadow:none!important;overflow:visible;opacity:0;
+ outline-offset:3px;-webkit-tap-highlight-color:transparent;
+ animation:geMerchFlybyTransit 110s linear both infinite;will-change:transform,opacity
 }
-.geMerchFlyby img{
-  position:absolute;left:0;top:-50%;width:200%;height:200%;max-width:none;
-  display:block;object-fit:cover;pointer-events:none;
-  transition:transform .25s ease;
+.geMerchFlyby--shirt{top:37%;aspect-ratio:675/718;animation-delay:10s}
+.geMerchFlyby--hat{top:66%;aspect-ratio:665/506;animation-delay:20s}
+.geMerchFlyby .geMerchArt{
+ width:100%;height:100%;display:block;overflow:visible;pointer-events:none;
+ transform-origin:50% 50%;backface-visibility:visible;will-change:transform
 }
-.geMerchFlyby:hover img,.geMerchFlyby:focus-visible img{transform:scale(1.13);transform-origin:25% center}
-.geMerchFlyby--shirt{top:37%;animation-delay:10s}
-.geMerchFlyby--hat{top:66%;animation-delay:20s;animation-direction:normal}
+.geMerchFlyby--shirt .geMerchArt{animation:geMerchShirtTumble 27s ease-in-out infinite}
+.geMerchFlyby--hat .geMerchArt{animation:geMerchHatTumble 31s ease-in-out infinite;animation-delay:-5s}
+@keyframes geMerchShirtTumble{
+ 0%,100%{transform:translate3d(0,3px,0) rotate(-14deg) rotateY(-9deg)}
+ 50%{transform:translate3d(0,-5px,0) rotate(17deg) rotateY(9deg)}
+}
+@keyframes geMerchHatTumble{
+ 0%,100%{transform:translate3d(0,2px,0) rotate(16deg) rotateY(10deg)}
+ 50%{transform:translate3d(0,-5px,0) rotate(-18deg) rotateY(-12deg)}
+}
 @keyframes geMerchFlybyTransit{
-  0%{transform:translate3d(-130%,8vh,0);opacity:0}
-  2%{opacity:.96}
-  55%{opacity:.96}
-  59%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
-  100%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
+ 0%{transform:translate3d(-135%,8vh,0);opacity:0}
+ 3%{opacity:.98}
+ 54%{opacity:.98}
+ 59%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
+ 100%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
 }
+/* Early device detection already preserves Safari Request Desktop Website. */
+html.ge-mobile-device .geMerchFlyby{--ge-merch-size:clamp(70px,22vw,94px)}
+html.ge-desktop-device .geMerchFlyby{--ge-merch-size:clamp(82px,7.5vw,120px)}
+@media(max-width:700px){
+ html:not(.ge-desktop-device) .geMerchFlyby{--ge-merch-size:clamp(70px,22vw,94px)}
+}
+html.ge-safari-desktop-request .geMerchFlyby{--ge-merch-size:clamp(92px,8vw,118px)}
 body.game-mode-active #geMerchFlybys,
 body.blue-sun-pool-active #geMerchFlybys,
 body.marbles-game-active #geMerchFlybys,
 body.ge-body-race-active #geMerchFlybys{display:none!important}
 @media(prefers-reduced-motion:reduce){
- .geMerchFlyby{animation:none;opacity:.9;transform:none;position:fixed}
+ .geMerchFlyby{animation:none;opacity:.96;position:fixed;transform:none}
+ .geMerchFlyby .geMerchArt{animation:none}
  .geMerchFlyby--shirt{top:32%;left:auto;right:8px}
- .geMerchFlyby--hat{top:calc(32% + 64px);left:auto;right:8px}
+ .geMerchFlyby--hat{top:calc(32% + 100px);left:auto;right:8px}
 }
 </style>
 <style id="ge-main-universe-layer-radio-v1">
@@ -3905,13 +3919,20 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
   <!-- Planets -->
   <div class="planets" id="planets"></div>
 
-  <!-- Original images already published in the GE Merchandise storefront. -->
+
+  <!-- Same original store photos; only visible product silhouette passes through space. -->
   <div id="geMerchFlybys">
     <a class="geMerchFlyby geMerchFlyby--shirt" href="./support/?section=merch" aria-label="View Grand Element white T-shirt in Merchandise" data-merch-product="tee-white" title="GE WHITE T-SHIRT">
-      <img src="./support/assets/white-tee.png" alt="" decoding="async" loading="eager" draggable="false">
+      <svg class="geMerchArt" viewBox="0 0 675 718" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs><clipPath id="geMerchShirtSilhouette" clipPathUnits="userSpaceOnUse"><path d="M109,71 L96,85 L70,122 L0,238 L3,243 L5,242 L79,297 L101,320 L107,317 L112,322 L112,398 L98,714 L102,716 L441,711 L569,715 L570,675 L551,313 L554,311 L566,320 L576,315 L627,273 L632,265 L667,240 L670,241 L674,237 L672,220 L630,166 L627,169 L623,165 L593,115 L557,66 L529,50 L423,4 L410,2 L375,13 L333,16 L301,12 L289,13 L252,1 L156,43 Z"/></clipPath></defs>
+        <image href="./support/assets/white-tee.png" x="0" y="-239" width="1254" height="1254" clip-path="url(#geMerchShirtSilhouette)"/>
+      </svg>
     </a>
     <a class="geMerchFlyby geMerchFlyby--hat" href="./support/?section=merch" aria-label="View Grand Element blue trucker hat in Merchandise" data-merch-product="hat-blue" title="GE TRUCKER HAT">
-      <img src="./support/assets/hat-blue.png" alt="" decoding="async" loading="eager" draggable="false">
+      <svg class="geMerchArt" viewBox="0 0 665 506" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs><clipPath id="geMerchHatSilhouette" clipPathUnits="userSpaceOnUse"><path d="M626,134 L605,107 L585,87 L556,66 L498,39 L470,30 L429,23 L427,11 L412,2 L388,2 L377,9 L375,18 L308,26 L276,34 L239,48 L206,67 L176,95 L159,119 L148,142 L137,175 L116,294 L116,308 L119,313 L27,394 L2,419 L1,427 L5,432 L20,433 L31,441 L80,441 L213,473 L281,500 L303,504 L323,504 L375,492 L418,469 L473,423 L507,389 L510,379 L557,380 L568,376 L619,373 L624,368 L646,366 L652,369 L661,359 L663,352 L661,264 L652,208 L642,174 Z"/></clipPath></defs>
+        <image href="./support/assets/hat-blue.png" x="-565" y="-354" width="1254" height="1254" clip-path="url(#geMerchHatSilhouette)"/>
+      </svg>
     </a>
   </div>
 
