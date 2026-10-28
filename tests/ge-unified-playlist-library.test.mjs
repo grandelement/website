@@ -26,9 +26,15 @@ assert.doesNotMatch(allSongSelector,/access\.allowed\.map\(/,'playlist-first ass
 assert.doesNotMatch(allSongSelector,/if\(state\.accessPlaylistFilter\)/,'assigned playlist must not silently filter ALL SONGS');
 
 assert.match(music,/function saveSharedArrangement\(\)/);
-assert.match(music,/id=updating\?active\.id:''/,'owner edits maintain the same ID');
+assert.match(music,/const id=current\?active\.id:previous\?\.id\|\|''/,'user SAVE reuses the existing fan playlist ID');
 assert.match(music,/GE_BACKROOM_PUBLISH_SESSION_V1/,'guests cannot write publisher playlists');
-assert.match(music,/SAVED TO SHARED GE VAULT/);
+assert.match(music,/USER PLAYLIST SAVED/);
+assert.match(music,/active\.name\+' User'/,'GE playlist SAVE uses a User suffix');
+assert.match(music,/Listener SAVE never alters the Back Room GE publisher master/);
+assert.match(music,/workingKey\+':'+workingScope\(\)/,'working playlist persists per code/browser');
+assert.match(music,/function restoreWorkingOrder\(\)/);
+assert.match(music,/if\(!restoreWorkingOrder\(\)\)/);
+
 assert.match(music,/gePlaylistBar/);
 assert.match(music,/class="gePlaylistPicker"/);
 assert.match(music,/class="gePlaylistTabGE"/);
@@ -64,7 +70,7 @@ assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist s
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v76-catalog-order/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v78-user-save-working-order/);
 assert.match(music,/loadSelectedPlaylistKey\(key\)/);
 assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
 assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
@@ -94,7 +100,7 @@ assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/const AUDIO_LIMIT_SECONDS=2013/,'music remains on the existing 33:33 preview');
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v76-catalog-order/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v78-user-save-working-order/);
 assert.match(vault,/fanMusicBearer/);
 assert.match(vault,/ge-fan-playlists-v1:/);
 assert.match(vault,/\/v1\/public\/fan-playlists/);
