@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.6-20261028-CATALOG-ORDER-ON-ALL-SONGS';
+const BUILD='GE-MUSIC-V7.7-20261028-CATALOG-AND-FAN-SAVE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -368,24 +368,25 @@ async function loadFanPlaylists(){
 }
 async function saveFanArrangement(name,tracks){
  const active=state.activePlaylist;
- const updating=active?.source==='fan'&&name.toLowerCase()===active.name.toLowerCase();
- const collision=state.fanLists.some(p=>p.name.toLowerCase()===name.toLowerCase()&&(!updating||p.id!==active.id));
- if(collision){say('MY PLAYLIST NAME EXISTS · LOAD THE ORIGINAL TO EDIT.');render();return}
- state.savingShared=true;render();say('SAVING PERSONAL PLAYLIST TO PRIVATE GE VAULT…');
+ const previous=state.fanLists.find(p=>p.name.toLowerCase()===name.toLowerCase());
+ const current=active?.source==='fan'&&active.name.toLowerCase()===name.toLowerCase();
+ const id=current?active.id:previous?.id||'';
+ state.savingShared=true;render();say('SAVING '+name+' TO USER PLAYLISTS…');
  try{
-  const data=await fanVaultRequest('POST',{id:updating?active.id:'',
-   name,songs:tracks,anon_id:String(window.GEVault?.anonId||'').slice(0,120)});
+  const data=await fanVaultRequest('POST',{id,name,songs:tracks,
+   anon_id:String(window.GEVault?.anonId||'').slice(0,120)});
   const verified=await fanVaultRequest();
-  const row=(verified.items||[]).find(p=>p.id===data.id);
-  if(!row||row.name!==name||!Array.isArray(row.songs)||row.songs.join('|')!==tracks.join('|'))
-   throw Error('Vault save returned but the exact song order was not verified.');
+  const saved=(verified.items||[]).find(p=>p.id===data.id);
+  if(!saved||saved.name!==name||!Array.isArray(saved.songs)||saved.songs.join('\n')!==tracks.join('\n'))
+    throw Error('Vault save returned but the exact song order could not be verified.');
   state.fanLists=verified.items.map(p=>({id:p.id,name:p.name,songs:p.songs,source:'fan'}));
   state.activePlaylist={source:'fan',origin:'vault',id:data.id,name};
   state.playlistDraftName=name;
-  say('MY PLAYLIST SAVED IN GE FAN VAULT · '+name+' · '+tracks.length+' SONGS.');
+  saveSelected();
+  say('USER PLAYLIST SAVED · '+name+' · '+tracks.length+' SONGS · ORDER VERIFIED.');
   recordPlaylistInteraction('control_change',{control:'fan_playlist_save',
    playlist_id:data.id,song_count:tracks.length,storage:'GE_VAULT_D1'});
- }catch(error){say('FAN PLAYLIST NOT SAVED · '+String(error.message||error))}
+ }catch(error){say('USER PLAYLIST NOT SAVED · '+String(error.message||error))}
  finally{state.savingShared=false;render()}
 }
 const playlistPublisher='https://ge-backroom-publisher.grandelement.workers.dev';
@@ -421,48 +422,18 @@ async function ownerLoginAndSave(){
 }
 async function saveSharedArrangement(){
  if(state.savingShared)return;
- const active=state.activePlaylist,name=state.playlistDraftName.trim().slice(0,100);
+ const active=state.activePlaylist,typed=state.playlistDraftName.trim().slice(0,100);
  const tracks=[...state.selected].map(canonical);
- if(!name||!tracks.length){say('ENTER A PLAYLIST NAME AND SELECT SONGS.');render();return}
- if(tracks.some(p=>!p)||new Set(tracks).size!==tracks.length){say('INVALID SONGS · NOT SAVED.');render();return}
- const updating=active?.source==='ge'&&active?.origin==='github'&&name.toLowerCase()===active.name.toLowerCase();
- const id=updating?active.id:'';
- if(state.publicLists.some(p=>p.name.toLowerCase()===name.toLowerCase()&&p.id!==id)){
-  say('NAME ALREADY EXISTS IN GE VAULT · LOAD THAT PLAYLIST TO EDIT.');render();return;
+ if(!tracks.length||tracks.some(p=>!p)||new Set(tracks).size!==tracks.length){
+  say('SELECT VALID SONGS BEFORE SAVING.');render();return;
  }
- if(!updating){await saveFanArrangement(name,tracks);return}
- const token=publisherSession();
- if(!token){showOwnerSaveLogin();return}
- state.savingShared=true;render();
- say('SAVING '+name+' IN SHARED GE VAULT…');el('.arrangeNotice').textContent=state.notice;
- try{
-  const url=playlistPublisher+'/manage/github-playlists';
-  const headers={'Content-Type':'application/json',Authorization:'Bearer '+token};
-  const response=await fetch(url,{method:'POST',headers,cache:'no-store',
-   body:JSON.stringify({action:'save',playlist:{id,name,tracks:tracks.map(track_path=>({track_path})),
-    public:updating?active.visibility==='published':false}})});
-  const data=await response.json().catch(()=>({}));
-  if(response.status===401){try{sessionStorage.removeItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(_){}}
-  if(!response.ok||data.ok!==true||!data.commit_sha||!data.id)
-   throw Error(data.error||'Publisher did not confirm save');
-  const check=await fetch(url,{method:'GET',headers,cache:'no-store'});
-  const verified=await check.json().catch(()=>({}));
-  const row=Array.isArray(verified.items)?verified.items.find(p=>p.id===data.id):null;
-  const actual=(row?.tracks||[]).map(t=>canonical(t.track_path||t.path));
-  if(!check.ok||verified.ok!==true||row?.name!==name||actual.join('|')!==tracks.join('|'))
-   throw Error('GitHub save returned but updated song order was not verified.');
-  const visibility=updating?active.visibility||'unlisted':'unlisted';
-  state.activePlaylist={source:'ge',origin:'github',id:data.id,name,visibility};
-  state.playlistDraftName=name;
-  state.publicLists=state.publicLists.filter(p=>p.id!==data.id);
-  state.publicLists.push({id:data.id,name,songs:tracks,visibility,source:'github'});
-  hideOwnerSaveLogin();
-  say('SAVED TO SHARED GE VAULT · '+name+' · '+tracks.length+' SONGS · VERIFIED.');
-  recordPlaylistInteraction('control_change',{control:'shared_playlist_save',playlist_id:data.id,song_count:tracks.length});
- }catch(error){
-  say('SHARED SAVE NOT VERIFIED · '+String(error.message||error)+'. No local copy created.');
-  if(!publisherSession())showOwnerSaveLogin();
- }finally{state.savingShared=false;render()}
+ // Listener SAVE never alters the Back Room GE publisher master.
+ // A loaded Johnb with unchanged name becomes Johnb User, which subsequent
+ // SAVEs update in this fan's private Vault rather than creating duplicates.
+ const name=active?.source==='ge'&&(!typed||typed.toLowerCase()===active.name.toLowerCase())
+  ?(active.name+' User').slice(0,100):typed;
+ if(!name){say('ENTER A USER PLAYLIST NAME TO SAVE.');render();return}
+ await saveFanArrangement(name,tracks);
 }
 function saveArrangement(){
  state.playlistDraftName=el('.arrangeCurrentName').value.trim().slice(0,100);
@@ -705,7 +676,7 @@ function appendSong(parent,track){
      if(other<0||other>=ordered.length||index<0)return;
      [ordered[index],ordered[other]]=[ordered[other],ordered[index]];
      state.selected=new Set(ordered);saveSelected();render();
-     say('ORDER UPDATED · PRESS SAVE PLAYLIST TO UPDATE THE SHARED MASTER.');
+     say('ORDER UPDATED · SAVE TO KEEP YOUR USER PLAYLIST.');
    };
    const up=elem('button','reorder','↑');up.type='button';up.disabled=index<=0;
    up.setAttribute('aria-label','Move '+track.title+' up');up.addEventListener('click',()=>swap(index-1));
@@ -764,7 +735,7 @@ function finishDrag(commit=true){
   if(old.join('\n')!==next.join('\n')){
    state.selected=new Set(next);
    saveSelected();
-   say('ORDER UPDATED · SAVE PLAYLIST');
+   say('ORDER UPDATED · SAVE TO USER PLAYLIST');
   }
  }
  if(state.open)render();
@@ -935,14 +906,14 @@ function render(){
      current.value=state.playlistDraftName;
    const shared=state.activePlaylist?.source==='ge';
    el('.arrangeSource').textContent=shared?
-     'SHARED GE PLAYLIST · SAVE UPDATES SAME PLAYLIST EVERYWHERE':
-     'NEW GE PLAYLIST · SAVE CREATES ONE SHARED MASTER';
+     'GE ORIGINAL STAYS UNCHANGED · SAVE A USER VERSION':
+     'SAVE UPDATES YOUR PRIVATE USER PLAYLIST';
    el('.arrangeSave').textContent='SAVE';
    el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
 
    el('.arrangeBuy').disabled=!state.selected.size;
    el('.arrangeNotice').textContent=state.notice||
-    'SAVE writes the song selection and order to the shared GE playlist.';
+    'SAVE stores this order in USER PLAYLISTS, not in the GE master.';
  }
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
@@ -1086,7 +1057,7 @@ el('.arrangeBtn').addEventListener('click',()=>{
  if(state.view!=='playlist-order'){state.activePlaylist=null;state.playlistDraftName='';}
  state.view='checked';state.arranging=true;
  state.term='';el('.search').value='';
- say('Drag to reorder · SAVE PLAYLIST updates the shared GE master.');
+ say('Drag to reorder · SAVE keeps a user copy. GE master is unchanged.');
  render();scroller.scrollTop=0;
 });
 function exitArrange(){
@@ -1115,7 +1086,7 @@ function loadSelectedPlaylistKey(key){
  saveSelected();state.term='';el('.search').value='';
  state.view='playlist-order';state.arranging=true;
  recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:source,song_count:p.songs.length});
- say('Loaded '+p.name+' · Arrange and SAVE PLAYLIST to keep changes.');
+ say('Loaded '+p.name+' · Arrange freely. SAVE keeps a private user version.');
  render();scroller.scrollTop=0;
 }
 
