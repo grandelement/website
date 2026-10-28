@@ -33,7 +33,7 @@ assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(music,/if\(collections\.length\)select\.value=collections\[0\]\.key/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/UNLISTED · /);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v67-shared-playlist-save/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v67b-shared-code-visibility/);
 assert.match(radio,/sw\.js\?v=20261028-ge-playlists-unified-v66/);
 assert.match(sw,/const VERSION='2026\.10\.28-ge-playlists-unified-v66'/);
 for(const [name,html] of [['back',back],['radio',radio],['preview',preview]]){
