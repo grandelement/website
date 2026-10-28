@@ -875,6 +875,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 <section data-br-tab="fans" aria-label="Fans and recent visitor activity">
   <h2>FANS</h2>
   <div id="brFansHome"></div>
+  <section id="brFanPlaylistVault" style="margin-top:14px;padding:12px;border:1px solid #385e7e;border-radius:12px;background:#071d2e">
+    <h3>FAN PLAYLISTS · GE VAULT</h3>
+    <button type="button" id="brFanPlaylistsRefresh">REFRESH SAVED FAN PLAYLISTS</button>
+    <p id="brFanPlaylistsStatus" role="status">Sign in to Back Room to load fan playlists.</p>
+    <div id="brFanPlaylistsList"></div>
+  </section>
 </section>
 
 <section data-br-tab="access">
@@ -4248,6 +4254,39 @@ async function loadBackroomScores(){
 $('brScoresRefresh').addEventListener('click',()=>void loadBackroomScores());
 window.GE_BACKROOM_SHOW_SCORES=()=>{if(!brScoresLoaded)void loadBackroomScores();};
 
+async function refreshFanPlaylistVault(){
+ const host=$('brFanPlaylistsList'),status=$('brFanPlaylistsStatus');
+ host.replaceChildren();
+ const key=token();
+ if(!key){status.textContent='BACK ROOM OWNER SIGN-IN REQUIRED.';return}
+ status.textContent='CONNECTING TO PRIVATE GE VAULT…';
+ try{
+  const response=await api('/manage/fan-playlists',{method:'GET'});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||result.ok!==true||!Array.isArray(result.items))
+   throw Error(result.error||'Vault fan playlist list unavailable.');
+  status.textContent='GE VAULT · '+result.items.length+' SAVED FAN PLAYLISTS · Browser visitors are anonymous until separately linked.';
+  for(const p of result.items){
+   const item=document.createElement('details');
+   item.style.cssText='margin:8px 0;border:1px solid #345d7c;border-radius:9px;padding:8px';
+   const title=document.createElement('summary');
+   title.textContent=String(p.name||'Unnamed')+' · '+(Array.isArray(p.songs)?p.songs.length:0)+' SONGS';
+   item.append(title);
+   const source=document.createElement('p');
+   source.textContent='VISITOR ID (UNVERIFIED): '+String(p.anon_id||'not supplied')+
+    ' · PRIVATE OWNER REF '+String(p.owner_ref||'')+
+    ' · UPDATED '+(Number(p.updated_at)?new Date(Number(p.updated_at)*1000).toLocaleString():'unknown');
+   item.append(source);
+   const ol=document.createElement('ol');
+   for(const path of Array.isArray(p.songs)?p.songs:[]){
+    const li=document.createElement('li');li.textContent=String(path).split('/').pop()||'';
+    ol.append(li);
+   }
+   item.append(ol);host.append(item);
+  }
+ }catch(error){status.textContent='NOT LOADED · '+String(error.message||error)}
+}
+$('brFanPlaylistsRefresh').addEventListener('click',()=>void refreshFanPlaylistVault());
 async function bootBackroom(){
   // Migrate the old oversized 115% default once, then honor the slider setting.
   const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
