@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V6.5-20261028-VAULT-AND-GITHUB-PLAYLIST-READ';
+const BUILD='GE-MUSIC-V6.6-20261028-EDIT-NAMED-VAULT-PLAYLIST';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -21,7 +21,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -132,6 +132,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .arrangeTitle{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .arrangeTitle strong{font-size:clamp(14px,3.8vw,18px);font-weight:900;color:#e9faff;letter-spacing:.05em}
 .arrangeTitle button{min-height:35px;background:#176a9d;border-color:#a6e4ff}
+.arrangeCurrent{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 9px}
+.arrangeCurrent label{color:#d9f2ff;font-size:11px;font-weight:900;white-space:nowrap}
+.arrangeCurrent input{width:100%;min-width:0;min-height:40px;border:1px solid #5da7d8;border-radius:8px;background:#08283f;color:#fff;padding:7px 10px;font-size:16px;font-weight:750}
+.arrangeCurrent .arrangeSource{grid-column:1/-1;color:#afd8f3;font-size:10px;line-height:1.25}
 .arrangeLoad{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
 .arrangeLoad select{min-width:0;width:100%;background:#08283f;color:#fff;border:1px solid #5da7d8;border-radius:8px;padding:6px 8px;font-size:13px;min-height:38px}
 .arrangeLoad button{font-size:12px;min-height:38px}
@@ -161,12 +165,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.5</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.6</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="musicCodeTools"><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone">DONE</button></div>
-   <div class="arrangeLoad"><select class="arrangePlaylistSelect" aria-label="Load an existing playlist to arrange"><option value="">LOAD A SAVED PLAYLIST…</option></select><button type="button" class="arrangeLoadBtn">LOAD</button></div>
+   <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
+    <div class="arrangeLoad"><select class="arrangePlaylistSelect" aria-label="Load an existing playlist to arrange"><option value="">LOAD A SAVED PLAYLIST…</option></select><button type="button" class="arrangeLoadBtn">LOAD</button></div>
    <div class="arrangeCommands"><button type="button" class="arrangeSave">SAVE PLAYLIST</button><button type="button" class="arrangePlay">PLAY</button><button type="button" class="arrangeBuy buyBtn">BUY SELECTED</button></div>
    <div class="arrangeHint">Hold a song to drag, or use ↑ ↓. Save your order when finished.</div><div class="arrangeNotice" role="status" aria-live="polite"></div>
  </div>
@@ -282,7 +287,9 @@ function readMine(){
  catch(_){return[]}
 }
 function saveMine(stayInArrange=false){
- const name=prompt('Name this playlist (saved on this device):',state.activePlaylist?.source==='user'?state.activePlaylist.name:'My Playlist');if(name==null)return;
+ const name=stayInArrange?el('.arrangeCurrentName').value:
+   prompt('Name this playlist (saved on this device):',state.activePlaylist?.name||'My Playlist');
+ if(name==null)return;
  const clean=name.trim().slice(0,100);if(!clean||!state.selected.size){say('Select songs and enter a playlist name first.');return}
  const mine=readMine(),found=mine.find(x=>x.name.toLowerCase()===clean.toLowerCase());
  if(found&&!confirm('Overwrite your saved playlist "'+found.name+'" on this device?'))return;
@@ -292,10 +299,75 @@ function saveMine(stayInArrange=false){
    localStorage.setItem(myKey,JSON.stringify(updated));
    recordPlaylistInteraction('control_change',{control:'user_playlist_save',playlist_id:row.id,song_count:row.songs.length,storage:'local_device'});
    state.activePlaylist={source:'user',id:row.id,name:row.name};
-   say('Saved '+row.songs.length+' songs in order on THIS DEVICE ONLY. Fan account syncing is not connected.');
+   state.playlistDraftName=row.name;
+   say('SAVED ON THIS DEVICE ONLY · '+row.name+' · '+row.songs.length+' SONGS. GE Vault was not changed.');
    if(stayInArrange){render();}else setView('user-playlists')
  }
  catch(_){say('Could not save this playlist on this device.')}
+}
+
+function publisherSession(){
+ // Listener access codes never grant write rights to shared GitHub playlists.
+ try{return sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||''}catch(_){return ''}
+}
+async function saveSharedArrangement(){
+ const active=state.activePlaylist,name=state.playlistDraftName.trim().slice(0,100);
+ if(!active||active.source!=='ge'||active.origin!=='github')return;
+ if(!name||!state.selected.size){say('ENTER A PLAYLIST NAME AND SELECT SONGS.');render();return}
+ const existing=state.publicLists.find(p=>p.name.toLowerCase()===name.toLowerCase()&&p.id!==active.id);
+ if(existing){say('GE PLAYLIST NAME EXISTS · LOAD '+existing.name+' BEFORE EDITING IT.');render();return}
+ const changingName=name!==active.name;
+ const message=changingName?
+  'Create a NEW shared GE playlist called "'+name+'"? The original "'+active.name+'" remains unchanged.':
+  'Update shared GE playlist "'+active.name+'" with '+state.selected.size+' songs in this exact order?';
+ if(!confirm(message))return;
+ const token=publisherSession();
+ if(!token){say('BACK ROOM SIGN-IN REQUIRED TO UPDATE SHARED PLAYLISTS. No changes were sent.');render();return}
+ const tracks=[...state.selected].map(canonical);
+ if(tracks.some(p=>!p)||new Set(tracks).size!==tracks.length){say('INVALID SONG PATHS · NOTHING SAVED.');render();return}
+ const id=changingName?'':active.id;
+ state.savingShared=true;render();say('SAVING '+name+' TO GE GITHUB VAULT…');el('.arrangeNotice').textContent=state.notice;
+ try{
+  const api='https://ge-backroom-publisher.grandelement.workers.dev/manage/github-playlists';
+  const headers={'Content-Type':'application/json',Authorization:'Bearer '+token};
+  const response=await fetch(api,{method:'POST',headers,cache:'no-store',body:JSON.stringify({
+   action:'save',playlist:{id,name,tracks:tracks.map(track_path=>({track_path})),
+    public:active.visibility==='published'}
+  })});
+  const result=await response.json().catch(()=>({ok:false,error:'Invalid publisher reply'}));
+  if(response.status===401){try{sessionStorage.removeItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(_){}}
+  if(!response.ok||result.ok!==true||!result.commit_sha||!result.id)
+    throw Error(result.error||'Publisher HTTP '+response.status);
+  // Require authenticated readback of exact song order and name.
+  const checked=await fetch(api,{method:'GET',headers,cache:'no-store'});
+  const verified=await checked.json().catch(()=>({}));
+  const row=Array.isArray(verified.items)?verified.items.find(p=>p.id===result.id):null;
+  const actual=(row?.tracks||[]).map(t=>canonical(t.track_path||t.path));
+  if(!checked.ok||verified.ok!==true||actual.join('\n')!==tracks.join('\n')||row.name!==name)
+   throw Error('Commit returned, but saved name/order could not be verified. Check Back Room before saving again.');
+  state.activePlaylist={source:'ge',origin:'github',id:result.id,name,
+   visibility:active.visibility||'unlisted'};
+  state.playlistDraftName=name;
+  await loadPublished();
+  say('GE VAULT SAVED · '+name+' · '+tracks.length+' SONGS · ORDER VERIFIED.');
+ }catch(error){
+  say('GE VAULT NOT VERIFIED · '+String(error.message||error)+'. Device copy NOT created.');
+ }finally{
+  state.savingShared=false;render();
+ }
+}
+function saveArrangement(){
+ state.playlistDraftName=el('.arrangeCurrentName').value.trim().slice(0,100);
+ if(state.activePlaylist?.source==='ge'){
+  if(state.activePlaylist.origin==='github'&&publisherSession()){
+   void saveSharedArrangement();return;
+  }
+  const origin=state.activePlaylist.origin==='github'?'GitHub':'GE Vault';
+  if(!confirm('This '+origin+' playlist is shared. Saving without an active Back Room owner session creates a copy ON THIS DEVICE ONLY. The shared playlist will NOT be updated. Save device copy?')){
+   say('SHARED PLAYLIST UNCHANGED · SIGN IN TO BACK ROOM TO UPDATE GE VAULT.');render();return;
+  }
+ }
+ saveMine(true);
 }
 async function loadPublished(){
  if(state.playlistsLoading)return;
@@ -715,6 +787,17 @@ function render(){
  scroller.replaceChildren();updateMeta();
  if(state.arranging){
    el('.arrangeCount').textContent='ARRANGE · '+selectedTracks().length+' SONGS';
+   const current=el('.arrangeCurrentName');
+   if(document.activeElement!==current&&current.value!==state.playlistDraftName)
+     current.value=state.playlistDraftName;
+   const shared=state.activePlaylist?.source==='ge';
+   const canWrite=shared&&state.activePlaylist?.origin==='github'&&!!publisherSession();
+   el('.arrangeSource').textContent=canWrite?'GE VAULT · OWNER SIGNED IN · SAVES TO SHARED GITHUB':
+     shared?'SHARED GE PLAYLIST · SIGN IN TO BACK ROOM TO UPDATE VAULT':
+     state.activePlaylist?.source==='user'?'LOCAL PLAYLIST · SAVES ON THIS DEVICE':
+     'NEW PLAYLIST · SAVES ON THIS DEVICE';
+   el('.arrangeSave').textContent=canWrite?'SAVE TO VAULT':shared?'SAVE COPY':'SAVE PLAYLIST';
+   el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
    const select=el('.arrangePlaylistSelect'),prior=select.value;
    select.replaceChildren(new Option('LOAD A SAVED PLAYLIST…',''));
    const collections=[
@@ -723,10 +806,16 @@ function render(){
     ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
    ];
    for(const p of collections)select.add(new Option(p.label,p.key));
-   if([...select.options].some(o=>o.value===prior))select.value=prior;
+   const activeKey=state.activePlaylist?
+     (state.activePlaylist.source==='user'?'local:':'ge:')+state.activePlaylist.id:'';
+   if([...select.options].some(o=>o.value===activeKey))select.value=activeKey;
+   else if([...select.options].some(o=>o.value===prior))select.value=prior;
    else if(collections.length)select.value=collections[0].key;
    el('.arrangeBuy').disabled=!state.selected.size;
-   el('.arrangeNotice').textContent=state.notice||'Playlists saved here remain on this device until Vault sync is ready.';
+   el('.arrangeNotice').textContent=state.notice||(canWrite?
+     'Saves this exact song order to the shared GE GitHub playlist.':
+     shared?'SAVE COPY makes a device-only playlist. Shared GE Vault is unchanged.':
+     'Playlists saved here remain on this device until fan sync is ready.');
  }
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
@@ -762,7 +851,7 @@ function render(){
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of shown)card(scroller,p.name,p.visibility==='unlisted'?
     'UNLISTED · CODE REQUIRED TO PLAY':'OPEN PLAYLIST',()=>{
-   state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',id:p.id,name:p.name};
+   state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',origin:p.source||'github',visibility:p.visibility||'published',id:p.id,name:p.name};state.playlistDraftName=p.name;
    recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:p.source||'github',song_count:p.songs.length});
    setView('playlist-order');
   });
@@ -774,7 +863,7 @@ function render(){
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
    card(scroller,p.name,'OPEN PLAYLIST',()=>{
-     state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'user',id:p.id,name:p.name};
+     state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'user',id:p.id,name:p.name};state.playlistDraftName=p.name;
      recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'user_local_device',song_count:p.songs.length});
      setView('playlist-order');
    });
@@ -856,6 +945,7 @@ el('.search').addEventListener('input',event=>{
 el('.arrangeBtn').addEventListener('click',()=>{
  if(state.arranging){exitArrange();return}
  state.arrangeReturnView=state.view;
+ if(state.view!=='playlist-order'){state.activePlaylist=null;state.playlistDraftName='';}
  state.view='checked';state.arranging=true;
  state.term='';el('.search').value='';
  say('Drag to reorder · SAVE PLAYLIST keeps your new order on this device.');
@@ -880,14 +970,18 @@ el('.arrangeLoadBtn').addEventListener('click',()=>{
    source==='assigned'?state.assignedLists.find(p=>p.id===id):null;
  if(!p){say('That playlist is no longer available. Refresh playlists.');render();return}
  state.selected=new Set(p.songs.map(canonical).filter(Boolean));
- state.activePlaylist={source:source==='local'?'user':'ge',id:p.id,name:p.name};
+ state.activePlaylist={source:source==='local'?'user':'ge',
+  origin:source==='local'?'local':p.source||'github',
+  visibility:p.visibility||'published',id:p.id,name:p.name};
+ state.playlistDraftName=p.name;
  saveSelected();state.term='';el('.search').value='';
  state.view='playlist-order';state.arranging=true;
  recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:source,song_count:p.songs.length});
  say('Loaded '+p.name+' · Arrange and SAVE PLAYLIST to keep changes.');
  render();scroller.scrollTop=0;
 });
-el('.arrangeSave').addEventListener('click',()=>saveMine(true));
+el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
+el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.arrangeBuy').addEventListener('click',()=>{
  const tracks=selectedTracks();if(tracks.length)requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});
 });
