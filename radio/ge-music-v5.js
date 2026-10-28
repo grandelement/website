@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.3-20261028-CLEAN-SONGS-PANEL';
+const BUILD='GE-MUSIC-V7.4-20261028-PLAY-IN-MAIN-RADIO';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -635,9 +635,10 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName);
  if(outcome?.ok){
   if(showPlayer){
-   // Start the audio handoff before closing the chooser to preserve iPhone click activation.
+   // Use ONLY the existing main Radio player. The Gate/audio controller
+   // stays internal; do not open its separate album/playlist editor.
    close();
-   window.GEMusicV5Bridge?.showPlayer?.();
+   window.GEMusicV5Bridge?.showMainPlayer?.();
   }else say('Opening '+track.title+'.');
   return true;
  }
