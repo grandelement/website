@@ -7133,7 +7133,7 @@ async function registerServiceWorker(){
     const plan=await loadOfflinePlan();
     if(!plan) return null;
     const audit=await auditAssets(plan.assets,{copyExisting:true});
-    setEnabled(audit.cachedSongs>0);
+    // A scan must never reverse a user's explicit Offline OFF setting.
     currentAudit=audit;
     reflectButton(audit);
     if(audit.musicComplete){
@@ -7146,7 +7146,7 @@ async function registerServiceWorker(){
   async function scanExistingAssets(){
     const assets=await buildAssetList();
     const audit=await auditAssets(assets,{copyExisting:true});
-    setEnabled(audit.cachedSongs>0);
+    // Preserve the stored Offline ON/OFF preference while checking cached files.
     currentAudit=audit;
     reflectButton(audit);
     if(audit.musicComplete){
@@ -7210,7 +7210,7 @@ async function registerServiceWorker(){
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
     if(audit?.musicComplete){
-      button.textContent='Offline Ready';
+      button.textContent=enabled?'Offline Ready':'Enable Offline';
       button.title=audit.missing.length
         ?audit.cachedSongs+' songs cached. '+audit.missingOptional+' optional backgrounds and '+(audit.missingStations+audit.missingShell)+' station or template items not needed to complete the music library.'
         :audit.cachedSongs+' songs cached on this device.';
@@ -7472,7 +7472,7 @@ async function registerServiceWorker(){
     let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
 
     if(!audit.missingSongs){
-      setEnabled(audit.cachedSongs>0);
+      // Download scans cannot silently turn Offline back on after it was switched off.
       if(activePlan) await setOfflinePlanAutoResume(false);
       reflectButton(audit);
       if(!quiet){
@@ -7644,6 +7644,12 @@ async function registerServiceWorker(){
     // A complete music set is already done. Do not ask to resume the final
     // optional backgrounds / station clips / duplicated shell assets.
     if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
+      if(!isEnabled()){
+        setEnabled(true);
+        reflectButton(prepared.audit);
+        setStatus('Offline enabled. Existing downloaded music was kept.');
+        return;
+      }
       const keepFiles=confirm('Turn Offline off and KEEP the downloaded songs on this device?\n\nOK = Keep files\nCancel = More options');
       if(keepFiles){
         setEnabled(false);
