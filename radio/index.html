@@ -18,31 +18,36 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script id="ge-safari-request-website-mode">
-/* No GE default mode. Detect the visitor's device and honor Safari's native
-   Request Mobile Website / Request Desktop Website selection. Do not persist a
-   separate GE preference or change the mode when the screen rotates.
-   If a device cannot be identified, let responsive CSS handle its viewport. */
+/* Detect real phone-sized touch hardware before trusting Safari's
+   Macintosh-like user agent. iPhone Safari can advertise Macintosh
+   even while the visitor expects the normal mobile site.
+   An explicit GE view preference is only used when deliberately chosen. */
 (()=>{
   const ua=String(navigator.userAgent||'');
-  const safari=/AppleWebKit/i.test(ua)&&ua.includes('Safari/')&&
-    !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
   const mobileUA=/iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(ua);
   const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
-  const compactTouchMac=macUA&&Number(navigator.maxTouchPoints)>1&&
-    Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
-  const safariDesktopRequest=safari&&compactTouchMac;
+  const touch=Number(navigator.maxTouchPoints||0)>1;
+  const smallScreen=Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
+  const phoneHardware=touch&&smallScreen&&(mobileUA||macUA);
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
-  const layout=safariDesktopRequest?'desktop':
-    mobileUA?'mobile':desktopUA?'desktop':'';
+  let explicit='';
+  try{
+    const requested=new URLSearchParams(location.search).get('ge_view');
+    if(requested==='desktop'||requested==='mobile')explicit=requested;
+  }catch(_){}
+  const layout=explicit||(
+    phoneHardware?'mobile':mobileUA?'mobile':desktopUA?'desktop':'');
   const html=document.documentElement;
   if(layout){
     html.dataset.geDeviceLayout=layout;
-    html.classList.add(layout==='mobile'?'ge-mobile-device':'ge-desktop-device');
+    html.classList.toggle('ge-mobile-device',layout==='mobile');
+    html.classList.toggle('ge-desktop-device',layout==='desktop');
   }
-  if(!safariDesktopRequest)return;
-  html.classList.add('ge-safari-desktop-request');
-  const viewport=document.querySelector('meta[name="viewport"]');
-  if(viewport)viewport.content='width=1160,viewport-fit=cover';
+  if(layout==='desktop'&&explicit==='desktop'){
+    html.classList.add('ge-safari-desktop-request');
+    const viewport=document.querySelector('meta[name="viewport"]');
+    if(viewport)viewport.content='width=1160,viewport-fit=cover';
+  }
 })();
 </script>
 <!-- iPhone Radio: suppress accidental pinch/double-tap zoom while retaining one-finger MUSIC scrolling. -->
