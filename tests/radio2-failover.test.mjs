@@ -33,3 +33,21 @@ assert.match(mediaErrorBody,/if\(state.live\|\|state.livePreparing\)/,'startup e
 assert.match(mediaErrorBody,/switchToRadio2\('radio1_hard_media_error'\)/,'hard error goes directly to backup');
 assert.doesNotMatch(mediaErrorBody,/reconnectLiveStream\(\)/,'hard error must not retry dead BLITZ endpoint');
 console.log('PASS: startup media failures skip obsolete Radio1 retries and start verified backup directly');
+
+assert.match(radio,/RADIO 1 · CONNECTING…/,'Radio 1 must announce connection');
+assert.match(radio,/RADIO 2 · CONNECTING…/,'Radio 2 must announce failover connection');
+assert.match(radio,/RADIO 1 · CONNECTED/,'Radio 1 confirmation requires media progress');
+assert.match(radio,/RADIO 2 · CONNECTED/,'Radio 2 confirmation requires media progress');
+assert.match(radio,/RADIO 2 · TAP PLAY TO CONNECT/,'Safari blocked autoplay must show actionable instruction');
+assert.doesNotMatch(radio,/RADIO 2 READY · iPhone: tap PLAY/,'do not call Radio 2 connected before playback');
+assert.doesNotMatch(radio,/RADIO 2 · preparing backup rotation/,'no backup-rotation status');
+const progressStart=radio.indexOf("audio.addEventListener('timeupdate',()=>{");
+const progressEnd=radio.indexOf("audio.addEventListener('playing'",progressStart);
+assert.ok(progressStart>=0&&progressEnd>progressStart,'audio progress event observed');
+const progress=radio.slice(progressStart,progressEnd);
+assert.match(progress,/observedRadio2Progress=true;[\s\S]*?setLiveStatus\('RADIO 2 · CONNECTED'\)/);
+assert.match(progress,/observedRadio1Progress=true;[\s\S]*?setLiveStatus\('RADIO 1 · CONNECTED'\)/);
+assert.match(radio,/id="ge-radio-connection-indicator-v1"/,'connecting visual indicator retained');
+assert.match(radio,/id="ge-protected-radio-red-pulse-v1"/,'protected double-beat Radio heartbeat must remain');
+console.log('PASS: station statuses reflect connecting/connected actual audio and protected red heartbeat is intact');
+
