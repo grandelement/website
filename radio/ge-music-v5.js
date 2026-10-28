@@ -229,10 +229,8 @@ function selectedTracks(){
 function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
- el('.buySelected').disabled=count===0;
  el('.playSelected').disabled=count===0;
  el('.arrangePlay').disabled=count===0;
- el('.buySelected').title=count?'Add '+count+' checked song'+(count===1?'':'s')+' to the GE Support cart':'Check songs to prepare a purchase';
  el('[data-action=save]').disabled=count===0;
 }
 function requestBuy(intent){
@@ -274,14 +272,12 @@ function canPlayTrack(track){
 }
 function albumActions(album,tracks){
  const actions=elem('div','albumActions');
- if(tracks.length&&tracks.every(canPlayTrack)){
+ if(tracks.length){
    const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play full album '+album);
    play.addEventListener('click',()=>void playTrack(tracks[0],tracks.map(t=>t.path)));
    actions.append(play);
  }
- const buy=elem('button','buyBtn','BUY');buy.type='button';buy.setAttribute('aria-label','Buy album '+album);
- buy.addEventListener('click',()=>requestBuy({mode:'album',album}));
- actions.append(buy);
+
  return actions;
 }
 function elem(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
@@ -350,7 +346,7 @@ async function saveSharedArrangement(){
  const tracks=[...state.selected].map(canonical);
  if(!name||!tracks.length){say('ENTER A PLAYLIST NAME AND SELECT SONGS.');render();return}
  if(tracks.some(p=>!p)||new Set(tracks).size!==tracks.length){say('INVALID SONGS · NOT SAVED.');render();return}
- const updating=active?.source==='ge'&&active?.origin==='github';
+ const updating=active?.source==='ge'&&active?.origin==='github'&&name.toLowerCase()===active.name.toLowerCase();
  const id=updating?active.id:'';
  if(state.publicLists.some(p=>p.name.toLowerCase()===name.toLowerCase()&&p.id!==id)){
   say('NAME ALREADY EXISTS IN GE VAULT · LOAD THAT PLAYLIST TO EDIT.');render();return;
@@ -390,6 +386,7 @@ async function saveSharedArrangement(){
 }
 function saveArrangement(){
  state.playlistDraftName=el('.arrangeCurrentName').value.trim().slice(0,100);
+ if(!state.arranging){state.arranging=true;state.view='playlist-order';render()}
  void saveSharedArrangement();
 }
 async function loadPublished(){
@@ -538,7 +535,10 @@ async function playTrack(track,queueOverride){
  const access=musicAccessActive();
  const codePermitted=!!access&&(!access.restricted||access.allowed.includes(track.path));
  const testPermitted=testPurchasedPaths().has(track.path);
- if(!codePermitted&&!testPermitted){say('Enter a GE access code to unlock PLAY, or use BUY to visit the store.');return}
+ if(access&&!codePermitted&&!testPermitted){say('THIS CODE DOES NOT INCLUDE THAT SONG.');return}
+ if(window.GEGate?.isExpiredLocked?.()&&!codePermitted&&!testPermitted){
+  window.GEGate?.restore?.();say('33:33 COMPLETE · ENTER ACCESS CODE.');return;
+ }
  if(codePermitted){
    try{await musicCodeRequest({action:'verify',token:access.token,track_path:track.path})}
    catch(error){
@@ -558,7 +558,7 @@ async function playTrack(track,queueOverride){
 async function playCheckedSongs(){
  const tracks=selectedTracks();
  if(!tracks.length){say('Check at least one song to play.');return}
- const inaccessible=tracks.filter(t=>!canPlayTrack(t));
+ const inaccessible=musicAccessActive()?tracks.filter(t=>!canPlayTrack(t)):[];
  if(inaccessible.length){
   say(inaccessible.length+' CHECKED SONG'+(inaccessible.length===1?' NEEDS':'S NEED')+' ACCESS · Enter a GE code to play your selection.');
   return;
@@ -594,12 +594,9 @@ function appendSong(parent,track){
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
  const actions=elem('div','songActions');
- if(canPlayTrack(track)){
-   const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
-   play.addEventListener('click',()=>void playTrack(track));actions.append(play);
- }
- const buy=elem('button','buyBtn','BUY');buy.type='button';buy.setAttribute('aria-label','Buy '+track.title+' from '+track.album);
- buy.addEventListener('click',()=>requestBuy({mode:'tracks',paths:[track.path]}));actions.append(buy);
+ const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
+ play.addEventListener('click',()=>void playTrack(track));actions.append(play);
+
  row.append(label,actions);
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
@@ -813,6 +810,20 @@ function render(){
  el('.search').placeholder=cat==='songs'?'Find a song or album':'Find a playlist or checked song';
  const previous=scroller.scrollTop;
  el('.window').classList.toggle('arranging',state.arranging);
+ // Keep one playlist selector and editable name visible in every Music view.
+ const picker=el('.arrangePlaylistSelect'),priorKey=picker.value;
+ const collections=[
+  ...visibleSharedLists().map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
+  ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id})),
+  ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
+ ];
+ picker.replaceChildren(new Option('▾',''));
+ for(const p of collections)picker.add(new Option(p.label,p.key));
+ const activeKey=state.activePlaylist?(state.activePlaylist.source==='user'?'local:':'ge:')+state.activePlaylist.id:'';
+ picker.value=collections.some(p=>p.key===activeKey)?activeKey:collections.some(p=>p.key===priorKey)?priorKey:'';
+ const name=el('.arrangeCurrentName');
+ if(document.activeElement!==name&&name.value!==state.playlistDraftName)name.value=state.playlistDraftName;
+ el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
  scroller.replaceChildren();updateMeta();
  if(state.arranging){
    el('.arrangeCount').textContent='ARRANGE · '+selectedTracks().length+' SONGS';
@@ -825,26 +836,14 @@ function render(){
      'NEW GE PLAYLIST · SAVE CREATES ONE SHARED MASTER';
    el('.arrangeSave').textContent='SAVE PLAYLIST';
    el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
-   const select=el('.arrangePlaylistSelect'),prior=select.value;
-   select.replaceChildren(new Option('LOAD A SAVED PLAYLIST…',''));
-   const collections=[
-    ...visibleSharedLists().map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
-    ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id})),
-    ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
-   ];
-   for(const p of collections)select.add(new Option(p.label,p.key));
-   const activeKey=state.activePlaylist?
-     (state.activePlaylist.source==='user'?'local:':'ge:')+state.activePlaylist.id:'';
-   if([...select.options].some(o=>o.value===activeKey))select.value=activeKey;
-   else if([...select.options].some(o=>o.value===prior))select.value=prior;
-   else if(collections.length)select.value=collections[0].key;
+
    el('.arrangeBuy').disabled=!state.selected.size;
    el('.arrangeNotice').textContent=state.notice||
     'SAVE writes the song selection and order to the shared GE playlist.';
  }
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
- notice.textContent=state.arranging?'':(state.notice||(cat==='playlists'?state.playlistMessage:''));
+ notice.textContent=state.arranging?'':state.notice;
  const arrangeBtn=el('.arrangeBtn');
  arrangeBtn.hidden=false;
  arrangeBtn.textContent=state.arranging?'DONE':'ARRANGE';
@@ -870,7 +869,7 @@ function render(){
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
  }else if(state.view==='ge-playlists'){
-  scroller.append(elem('div','section','GE PLAYLISTS'));
+
   // Connection summary is already shown above the scroll area.
   // Do not waste scrolling space by repeating it as another full row.
   const shown=visibleSharedLists().filter(p=>!term||p.name.toLowerCase().includes(term));
@@ -881,8 +880,7 @@ function render(){
    setView('playlist-order');
   });
   if(!visibleSharedLists().length&&!state.playlistsLoading)scroller.append(elem('p','empty',
-   'NO GE PLAYLISTS RETRIEVED · '+state.playlistMessage+
-   '. Owner must sync genuine DJ Bangers into GitHub. No records were deleted.'));
+   'NO PLAYLISTS AVAILABLE. REFRESH OR ENTER AN ASSIGNED CODE.'));
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
@@ -1006,21 +1004,24 @@ el('.arrangeLoadBtn').addEventListener('click',()=>{
  render();scroller.scrollTop=0;
 });
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
+el('.accessToggle').addEventListener('click',()=>{
+ const panel=el('.musicCodeTools'),opened=panel.hidden;
+ panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
+ if(opened)el('.musicCodeInput').focus();
+});
+el('.clearSelected').addEventListener('click',()=>{
+ state.selected.clear();saveSelected();say('CHECKED SONGS CLEARED.');render();
+});
 el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.arrangeOwnerLogin').addEventListener('click',()=>void ownerLoginAndSave());
 el('.arrangeOwnerCancel').addEventListener('click',hideOwnerSaveLogin);
 el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
  if(event.key==='Enter'){event.preventDefault();void ownerLoginAndSave()}
 });
-el('.arrangeBuy').addEventListener('click',()=>{
- const tracks=selectedTracks();if(tracks.length)requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});
-});
+
 el('.playSelected').addEventListener('click',()=>void playCheckedSongs());
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs());
-el('.buySelected').addEventListener('click',()=>{
- const tracks=selectedTracks();if(!tracks.length)return;
- requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});
-});
+
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
