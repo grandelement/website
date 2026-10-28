@@ -3,20 +3,21 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.5-20261027';
+const BUILD='GE-MUSIC-V5.6-20261027-COVER-PALETTE-ONE-ROW';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
-// Match the GE site's established GOLF_PLANETS cover colors.
-const albumColors={'Aether':'#aeb7c5','Fire':'#ff7660','Spirit':'#64dbff','Soul':'#b5a0ff','Love':'#ff9bd5','Intergy':'#ffd184','Sessions II':'#87f6c9','Sessions I':'#f1f6ff','Live':'#7aaaff','Trio':'#d7efff','Fundamental Groove':'#89ffc2','Singles':'#c5e1e7'};
+// Representative hues visually checked against all 11 JPG covers in
+// ge-images/images. These are NOT the unrelated GOLF_PLANETS gameplay colors.
+const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#dbca64','Aether':'#bfc4cd','Singles':'#6e9bb5'};
 function applyAlbumStyle(element,name){
  const hex=albumColors[name]||'#addcf5';
  element.style.borderLeft='4px solid '+hex;
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
- element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.24),rgba('+r+','+g+','+b+',.07))';
+ element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
 const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
@@ -79,6 +80,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPicker{display:flex;align-items:center;gap:9px;background:#0b3553;border:1px solid #376f95;border-radius:7px;padding:9px;margin:8px 0 5px}
 .albumPicker input{width:21px;height:21px;accent-color:#41d5ff}
 .albumPicker span{font-weight:800;font-size:13px}
+.albumBrowseRow{display:flex;align-items:stretch;gap:0;min-height:49px;margin:0 0 8px;border:1px solid rgba(154,211,239,.55);border-radius:10px;overflow:hidden}
+.albumBrowseRow .albumPickerCompact{display:flex;align-items:center;justify-content:center;flex:0 0 44px;min-width:44px;max-width:44px;min-height:47px;padding:0 8px;margin:0;background:transparent!important;border:0!important;border-right:1px solid rgba(160,225,255,.25)!important;border-radius:0;cursor:pointer}
+.albumBrowseRow .albumPickerCompact input{width:21px;height:21px;flex:0 0 21px;margin:0;accent-color:#48baff}
+.albumBrowseRow .album{display:flex;align-items:center;justify-content:space-between;flex:1 1 0;min-width:0;min-height:47px;padding:7px 10px;gap:8px;margin:0;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important}
+.albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(13px,3.5vw,17px);line-height:1.15;overflow-wrap:break-word}
+.albumBrowseRow .album small{flex:0 0 auto;white-space:nowrap;font-size:clamp(10px,2.8vw,13px);font-weight:800;color:#b7e6ff}
+@media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:14px}.albumBrowseRow .album small{font-size:11px}}
 .bottom{flex:0 0 auto;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 10px max(10px,env(safe-area-inset-bottom));background:#071f34;border-top:1px solid #45769b}
 .bottom .count{flex:1;font-size:12px;color:#afdfff}
 .bottom button{font-size:12px;min-height:36px}
@@ -355,7 +363,7 @@ function chosenSongs(){
  }
  return state.view==='all'?state.tracks:[];
 }
-function albumSelectAll(parent,album,tracks){
+function albumSelectAll(parent,album,tracks,compact=false){
  const label=elem('label','albumPicker'),box=elem('input');box.type='checkbox';
  const paths=tracks.map(t=>t.path),count=paths.filter(p=>state.selected.has(p)).length;
  box.checked=paths.length>0&&count===paths.length;
@@ -365,7 +373,15 @@ function albumSelectAll(parent,album,tracks){
    for(const path of paths)box.checked?state.selected.add(path):state.selected.delete(path);
    saveSelected();render();
  });
- label.append(box,elem('span','',album+' · SELECT ALBUM'));applyAlbumStyle(label,album);parent.append(label);
+ if(compact){
+  label.classList.add('albumPickerCompact');
+  label.title='Select all songs on '+album;
+  label.append(box);
+ }else{
+  label.append(box,elem('span','',album+' · SELECT ALBUM'));
+  applyAlbumStyle(label,album);
+ }
+ parent.append(label);
 }
 function render(){
  if(!state.open)return;
@@ -392,8 +408,11 @@ function render(){
   for(const name of names){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
-    const wrapper=elem('div');albumSelectAll(wrapper,name,rows);
-    card(wrapper,'OPEN '+name,'VIEW SONGS',()=>setView('album:'+name),name);
+    // Single album row: independent select-all checkbox + VIEW SONGS action.
+    const wrapper=elem('div','albumBrowseRow');
+    applyAlbumStyle(wrapper,name);
+    albumSelectAll(wrapper,name,rows,true);
+    card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
     scroller.append(wrapper);
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
