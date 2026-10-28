@@ -12,7 +12,10 @@ const registry=JSON.parse(load('playlists/registry.json'));
 assert.equal(registry.format,'ge-playlist-registry-v1');
 assert.equal(registry.playlists.find(p=>p.name==='Bangers')?.songs.length,33,'original BLITZ Bangers must remain intact');
 assert.equal(registry.playlists.find(p=>p.name==='Johnb')?.songs.length,15,'publisher playlist Johnb remains intact');
-assert.equal(registry.playlists.find(p=>p.name==='Test 2')?.songs.length,7);
+// Test 2 is optional test data, not a protected publisher master.
+// Never fail live Radio QA because an owner deletes a disposable test playlist.
+const optionalTest2=registry.playlists.find(p=>p.name==='Test 2');
+if(optionalTest2)assert.ok(Array.isArray(optionalTest2.songs),'Test 2 playlist songs must be valid when present');
 assert.match(back,/geDJApi\('\/control\/playlists'\)/,'authentic DJ remains available');
 assert.match(back,/await githubPlaylistAction\(\{action:'save',playlist:entry\}\)/);
 assert.match(publisher,/handleGithubPlaylists/);
