@@ -6347,20 +6347,38 @@ function geRadioLocalTestAccess(){
   }catch(_e){return false}
 }
 function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
+function geRadioUtilityAllowed(feature){
+  if(geRadioLocalTestAccess())return true;
+  try{
+    const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    return !!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
+      Array.isArray(r.scopes)&&r.scopes.includes('radio')&&r.scopes.includes(feature);
+  }catch(_){return false}
+}
 function syncRadioOfflineAccessUI(){
   const localTest=geRadioLocalTestAccess();
-  document.body.classList.toggle('ge-offline-entitled',localTest);
-  for(const element of [$('offlineBtn'),$('reloadBtn'),$('sunLabBtn'),
-    document.querySelector('#shipStage [data-proxy="offlineBtn"]'),
-    document.querySelector('#shipStage [data-proxy="reloadBtn"]')]){
-    if(!element)continue;
-    element.hidden=!localTest;
-    element.setAttribute('aria-hidden',localTest?'false':'true');
-    element.tabIndex=localTest?0:-1;
-  }
+  const permissions={offline:geRadioUtilityAllowed('offline'),
+    reload:geRadioUtilityAllowed('reload'),legacy:geRadioUtilityAllowed('legacy')};
+  const hasUtilities=permissions.offline||permissions.reload||permissions.legacy;
+  document.body.classList.toggle('ge-offline-entitled',hasUtilities);
+  document.body.classList.toggle('ge-legacy-entitled',permissions.legacy);
+  document.body.classList.toggle('ge-radio-utility-entitled',hasUtilities);
+  const setUtility=(element,allowed)=>{
+    if(!element)return;
+    element.hidden=!allowed;
+    element.setAttribute('aria-hidden',allowed?'false':'true');
+    element.tabIndex=allowed?0:-1;
+  };
+  setUtility($('offlineBtn'),permissions.offline);
+  setUtility($('reloadBtn'),permissions.reload);
+  setUtility($('legacyBtn'),permissions.legacy);
+  setUtility($('sunLabBtn'),localTest);
+  setUtility(document.querySelector('#shipStage [data-proxy="offlineBtn"]'),permissions.offline);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
+  setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
-    $('accessLaunchBtn').setAttribute('aria-label',localTest?'Code active; local preview unlocked':'Enter your Inner Frequency access code');
+    $('accessLaunchBtn').setAttribute('aria-label',hasUtilities?'Verified access code':'Enter your Inner Frequency access code');
   }
   if(!localTest){
     const lab=$('sunLabPanel');
@@ -7165,7 +7183,7 @@ $('shuffleBtn').addEventListener('click',()=>{
   }
 });
 $('legacyBtn').addEventListener('click',()=>{
-  if(!geOwnerDemoEnabled()){geOpenMusicSelection();return;}
+  if(!geRadioUtilityAllowed('legacy')){geOpenMusicSelection();return;}
   if(state.live||state.livePreparing) exitLiveMode('RADIO ended. Library mode changed.');
   const anchor=!isStationID(state.currentURL)?state.currentURL:'';
   state.legacy=!state.legacy;
@@ -11372,7 +11390,7 @@ Vector ${vector}. ${pair[1]}.`;
           // Share *scoped*, temporary Vault validation with the homepage Gate.
           // This contains no secret code and grants no owner, DJ or offline rights.
           const grantedScopes=Array.isArray(result.scopes)
-            ?result.scopes.filter(scope=>['website','radio','music','albums','games'].includes(scope)):[];
+            ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload'].includes(scope)):[];
           sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
             scopes:grantedScopes,until:validUntil,verifiedFor:'radio',
             experience:{games_enabled:result.experience?.games_enabled!==false,
