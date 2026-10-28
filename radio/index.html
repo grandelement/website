@@ -6360,7 +6360,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261028-v74-main-player-only';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261028-v75-playlist-quick-main';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
@@ -6390,7 +6390,11 @@ function geInlineMusicInit(){
     }else if(data.type==='ge-radio-music-state'&&geInlineMusicActive){
       geInlineMusicPaused=!!data.paused;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
-      if(data.path)gePlaylistQuickPath=String(data.path);
+      if(data.path){
+        const songPath=String(data.path);
+        if(gePlaylistQuickQueue.length&&!gePlaylistQuickQueue.includes(songPath))gePlaylistQuickClear();
+        else gePlaylistQuickPath=songPath;
+      }
       geInlineMusicSyncTransport();
     }else if(data.type==='ge-radio-music-playback-error'){
       geInlineMusicPaused=true;geInlineMusicSyncTransport();
@@ -7066,6 +7070,7 @@ function geOpenQuickSongPanel(){
     item.setAttribute('aria-label','Play '+item.textContent);
     if(url===state.currentURL)item.setAttribute('aria-current','true');
     item.addEventListener('click',()=>{
+      gePlaylistQuickClear();
       geCloseQuickSongPanel();
       if(state.live||state.livePreparing)exitLiveMode('Personal song selected.');
       void playURL(url,{record:state.shuffle,backgroundChange:true,userAction:true});
@@ -11705,7 +11710,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261028-v74-main-player-only"></script>
+<script defer src="./ge-music-v5.js?v=20261028-v75-playlist-quick-main"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
