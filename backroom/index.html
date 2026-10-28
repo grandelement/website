@@ -459,7 +459,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .brPlaylistViewSong small{display:block;color:#9dbed1;margin-top:3px;font-size:calc(10px * var(--scale))}
 #brDJPlaylistSection{min-height:125px}
 #brPanel-playlists .brCompactStatus{margin:9px 0 4px}
-#brMusicPlaylistTools{margin:8px 0}
 
 /* MUSIC: one master inventory, one deliberate live save. */
 .brMasterToolbar{display:grid;grid-template-columns:minmax(76px,1fr) minmax(110px,1.45fr) auto;align-items:center;gap:8px;margin:3px 0 10px}
@@ -865,7 +864,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brPlaylistClearAll" type="button" aria-label="Clear all song selections" title="Uncheck every song" style="flex:0 0 auto;padding:6px 8px;min-height:34px;font-size:12px">CLEAR</button>
 </div>
 <div id="brAllSongsChoices" role="group" aria-label="Scroll through and check playlist songs" style="max-height:60vh;min-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px;border:1px solid #315776;border-radius:10px"></div>
-<details id="brMusicPlaylistTools" class="brSourceDetails" style="margin-top:10px"><summary>MORE OPTIONS</summary><label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC MUSIC (OFF = CODE ONLY IN MUSIC LIST)</span></label><button type="button" id="brPlaylistsRefresh">REFRESH FROM GITHUB</button></details>
+
 <div style="display:none !important" aria-hidden="true">
 <button type="button" id="brPlaylistLoad">LOAD</button><button type="button" id="brPlaylistDelete">DELETE</button><button type="button" id="brPlaylistsNew">NEW</button><select id="brPlaylistSelect"></select><input id="brPlaylistActive" type="checkbox" disabled>
 <div id="brDJAlbumChoices"></div><div id="brDJSongChoices"></div><input id="brPlaylistSearch" type="search"><select id="brSongSelect"></select><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount"></span><div id="brPlaylistTracks"></div>
@@ -2818,7 +2817,6 @@ const backroomVaultManagers=(()=>{
       // Combined playlists are a new unsaved mix. Never overwrite the originals.
       const nameIsOld=playlists.some(p=>p.name.trim().toLowerCase()===desiredName.toLowerCase());
       $('brPlaylistName').value=nameIsOld?'':desiredName;
-      $('brPlaylistPublic').checked=false;
       renderTrackList();renderDJAlbumChoices();hidePlaylistChoices();
       $('brAllSongsChoices').scrollTop=0;
       playlistStatus('COMBINED '+chosen.length+' PLAYLISTS · '+merged.length+' UNIQUE SONGS · TYPE A NEW NAME AND SAVE');
@@ -2908,7 +2906,6 @@ const backroomVaultManagers=(()=>{
     playlistEditingId=p.id;playlistTracks=p.tracks;playlistLocked=p.locked;
     $('brPlaylistName').value=p.name;$('brPlaylistActive').checked=p.active;
     playlistChoiceIds=p.id?new Set([p.id]):new Set();
-    $('brPlaylistPublic').checked=!!p.public;
     $('brPlaylistDelete').disabled=!p.id||p.locked;
     // Loading means showing the playlist's checked songs first, not retaining
     // an old search or midway scroll position from a previous playlist.
@@ -2923,7 +2920,7 @@ const backroomVaultManagers=(()=>{
     const chosen=playlistTracks.filter(t=>!t._excluded).map(t=>String(t.track_path||''));
     if(!prior)return !!name||chosen.length>0;
     let metadata={};try{metadata=JSON.parse(prior.metadata_json||'{}')}catch(_e){}
-    return name!==prior.name||!!$('brPlaylistPublic').checked!==(metadata.public===true)||
+    return name!==prior.name||
       JSON.stringify(chosen)!==JSON.stringify((prior.tracks||[]).map(t=>String(t.track_path||'')));
   }
   async function refreshPlaylists(){
@@ -2966,7 +2963,7 @@ const backroomVaultManagers=(()=>{
     const prior=playlists.find(p=>p.id===id);
     const entry={id,name,tracks:tracks.map(t=>({
       track_path:String(t.track_path||''),track_title:String(t.track_title||''),album:String(t.album||'')
-    })),public:!!$('brPlaylistPublic').checked,active:false,locked:false};
+    })),public:prior?playlistCopy(prior).public:false,active:false,locked:false};
     const pendingTracks=playlistTracks.map(t=>({...t}));
     const button=$('brPlaylistSave');button.disabled=true;playlistStatus('SAVING PLAYLIST TO GITHUB…');
     try{
@@ -2977,7 +2974,7 @@ const backroomVaultManagers=(()=>{
       const reloaded=await refreshPlaylists();
       if(!reloaded){
         playlistTracks=pendingTracks;
-        $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
+        $('brPlaylistName').value=name;
         renderTrackList();renderDJAlbumChoices();
         playlistStatus('GITHUB COMMIT CONFIRMED · REFRESH FAILED · '+result.commit_sha.slice(0,12));
         return;
@@ -2989,7 +2986,7 @@ const backroomVaultManagers=(()=>{
         JSON.stringify(savedTracks)===JSON.stringify(entry.tracks.map(t=>t.track_path));
       if(!correct){
         playlistEditingId=saved;playlistTracks=pendingTracks;
-        $('brPlaylistName').value=name;$('brPlaylistPublic').checked=entry.public;
+        $('brPlaylistName').value=name;
         renderTrackList();renderDJAlbumChoices();
         playlistStatus('GITHUB READBACK MISMATCH · Review before trying again. Commit '+result.commit_sha.slice(0,12));
         return;
@@ -4000,7 +3997,6 @@ const backroomVaultManagers=(()=>{
       gameDescription.textContent='GAMES currently grants all GE games. Individual game restrictions are not available in the Vault API; no individual selections have been saved.';
       gameDetails.append(gameSummary,gameDescription);
       $('brAccessMusicCategory').after(gameDetails);
-      $('brPlaylistsRefresh').addEventListener('click',()=>void refreshPlaylists());
       $('brAllSongsAlbum').addEventListener('change',()=>{
         $('brAllSongsChoices').scrollTop=0;
         renderAllSongs();
