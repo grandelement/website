@@ -6240,6 +6240,7 @@ function geInlineMusicHide(){
 function geInlineMusicStop(){
   geInlineMusicSend('stop');
   geInlineMusicActive=false;geInlineMusicPaused=true;geInlineMusicTitle='';
+  syncModeButtons();
 }
 function geInlineMusicBeforePlay(title){
   // Called synchronously by the same-origin album player's user-click handler.
@@ -6247,6 +6248,7 @@ function geInlineMusicBeforePlay(title){
   if(state.live||state.livePreparing)exitLiveMode('');
   else requestUserPause();
   geInlineMusicActive=true;geInlineMusicPaused=false;
+  state.shuffle=false;syncModeButtons();
   geInlineMusicTitle=String(title||'Grand Element Music').slice(0,180);
   geInlineMusicSyncTransport();
 }
@@ -6347,16 +6349,25 @@ function geInlineMusicShow(force=false){
   geInlineMusicPanel.classList.add('ge-open');
   if(!geInlineMusicPanel.classList.contains('ge-gate-active'))geInlineMusicPanel.querySelector('.geMusicModalHead button')?.focus();
 }
+function geShowMainPlaylistPlayer(){
+  // Never display the nested preview music editor after playlist PLAY.
+  // Preview audio and the licensed Gate remain active behind the main controls.
+  state.shuffle=false;syncModeButtons();
+  if(!geInlineMusicPanel?.classList.contains('ge-gate-active'))geInlineMusicHide();
+  document.body.classList.remove('hud-hidden');
+  $('titleBtn')?.scrollIntoView?.({block:'start',behavior:'auto'});
+}
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
- showPlayer:()=>geInlineMusicShow(true),
+ showMainPlayer:()=>geShowMainPlaylistPlayer(),
  play:(input,orderedPaths,playlistName='')=>{
   const path=canonicalSongPath(input);
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
   const queue=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
+  state.shuffle=false;syncModeButtons();
   const play=typeof frame?.GEPlayLibraryQueue==='function'
     ?()=>frame.GEPlayLibraryQueue(queue,path,playlistName)
     :typeof frame?.GEPlayLibraryTrack==='function'
@@ -6881,7 +6892,12 @@ $('liveBtn').addEventListener('click',()=>{
   void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
-  // SHUFFLE is not a shortcut to MUSIC and does not alter the live broadcast.
+  // An active playlist always follows its original order.
+  if(geInlineMusicActive){
+    state.shuffle=false;syncModeButtons();
+    setStatus('PLAYLIST · SHUFFLE OFF · SAVED ORDER');
+    return;
+  }
   state.shuffle=!state.shuffle;
   if(state.live||state.livePreparing){
     syncModeButtons();
