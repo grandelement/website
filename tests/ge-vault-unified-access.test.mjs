@@ -23,9 +23,11 @@ assert.match(vault,/adminFanAccess\(request,env\)/);
 assert.match(vault,/adminAuthorized\(request,env\)/);
 assert.match(publisher,/url.pathname==='\/manage\/fan-access'/);
 assert.match(publisher,/VAULT_ADMIN_TOKEN/);
-assert.match(back,/id="brCodeGames"/);
-assert.match(back,/id="brCodeAutopilot"/);
-assert.match(back,/id="brCodeRadioPlaylist"/);
+assert.doesNotMatch(back,/id="brCodeGames"|id="brCodeAutopilot"|id="brCodeRadioPlaylist"/,
+  'Access Code presentation options were intentionally removed from the interface');
+assert.match(back,/name="brAccessScope" value="radio"/);
+assert.match(back,/existing\?\.scopes\|\|replacementLegacyScopes/,
+  'Previously granted nonradio scope values are preserved on an edit');
 assert.match(back,/brCodeFansPanel/);
 assert.match(back,/code_id:fanCode.value/);
 assert.match(back,/id='brCodeRecentLabel'/);
