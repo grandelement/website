@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.8-20261027-CHECKED-SONG-DRAG-ORDER';
+const BUILD='GE-MUSIC-V5.9-20261027-CHECKED-BUY-ACCESS-COLORS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -54,12 +54,31 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .filterRow select[hidden]{display:none!important}
 .libraryAction{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .libraryAction button{font-size:12px;min-height:36px;padding:5px 9px}
-.musicCodeTools{margin-top:9px;border:1px solid #285b7d;border-radius:9px;padding:7px;background:#062238}
-.musicCodeTools summary{cursor:pointer;color:#aee9ff;font-size:12px;font-weight:800}
-.musicCodeRow{display:flex;align-items:center;gap:6px;margin-top:8px}
-.musicCodeRow input{min-width:0;flex:1;color:#fff;background:#031321;border:1px solid #4b91bd;border-radius:8px;padding:8px 9px;font-size:16px;min-height:41px}
-.musicCodeRow button{min-height:41px;font-size:12px}
-.musicCodeState{color:#abeaff;font-size:11px;margin-top:6px}
+.musicCodeTools{display:flex;align-items:center;gap:6px;margin-top:8px;border:1px solid #ae83e9;border-radius:9px;padding:6px;background:linear-gradient(95deg,#30174b,#171c40 75%);box-shadow:inset 0 0 0 1px rgba(220,174,255,.12)}
+.musicCodeTools label{color:#eddaff;font-size:11px;font-weight:900;letter-spacing:.035em;white-space:nowrap;flex:0 0 auto}
+.musicCodeTools input{min-width:0;flex:1 1 auto;width:0;color:#fff;background:#090e23;border:1px solid #ab7bda;border-radius:7px;padding:7px 8px;font-size:16px;min-height:38px}
+.musicCodeTools button{min-height:38px;font-size:11px;padding:6px 8px;border-color:#d0a0fb;background:#673a8c}
+.musicCodeTools .musicCodeClear{min-width:32px;padding:5px;font-size:18px}
+.musicCodeTools button[hidden],.musicCodeState[hidden]{display:none!important}
+.musicCodeState{color:#dfbaff;font-size:11px;margin-top:4px}
+.selectionBar{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:43px;margin-top:9px;padding:6px 8px;background:#092f42;border:1px solid #4b9ac2;border-radius:9px}
+.selectionBar strong{font-size:clamp(11px,3.1vw,14px);font-weight:900;color:#c5f2ff;white-space:nowrap}
+.selectionActions{display:flex;gap:6px;align-items:center}
+.selectionActions button{min-height:32px;font-size:12px;padding:5px 10px}
+.buyBtn{background:#80602a!important;border-color:#ecc576!important;color:#fff4d4!important}
+.buyBtn:disabled{opacity:.4}
+.selectionActions .buySelected{min-width:54px}
+.metaLine{min-height:0;margin-top:3px}
+.meta:empty{display:none}
+.albumCollectionHeading{display:flex;gap:6px;align-items:stretch;margin:8px 0 5px;border:1px solid #417b9f;border-radius:8px;overflow:hidden}
+.albumCollectionHeading .albumPicker{flex:1;min-width:0;margin:0;padding:8px 10px;border:0!important;background:transparent!important}
+.albumActions,.songActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}
+.albumActions{padding:3px}
+.albumActions button{min-height:36px;padding:5px 9px;font-size:12px}
+.songActions button{min-width:47px}
+.song.selectedSong{box-shadow:inset 0 0 0 1px rgba(200,231,255,.25)}
+@media(max-width:420px){.selectionActions button{font-size:11px;padding:5px 8px}.albumActions button{padding:5px 7px;font-size:11px}.songActions button{font-size:11px;min-width:43px;padding:6px}}
+
 .song button[disabled]{opacity:.48}
 .breadcrumb{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
 .breadcrumb strong{min-width:0;font-size:14px;overflow-wrap:anywhere}
@@ -70,9 +89,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:420px){.browse button{font-size:12px}.header .brand{font-size:13px}}
 .metaLine{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;min-height:32px}
 .meta{color:#addcf5;font-size:12px;min-width:0;flex:1;text-align:left}
-.arrangeBtn{min-height:30px;padding:4px 13px;font-size:12px;background:#135d91;border:1px solid #75cfff;color:#f4fbff}
+.arrangeBtn{min-height:32px;padding:5px 10px;font-size:12px;background:#135d91;border:1px solid #75cfff;color:#f4fbff}
 .arrangeBtn[aria-pressed="true"]{background:#187dba;border-color:#b9e9ff;box-shadow:0 0 9px rgba(52,176,245,.28)}
-.arrangeBtn[hidden],.notice:empty{display:none!important}
+.notice:empty{display:none!important}
 .notice{color:#c5efff;font-size:12px;margin-top:4px;min-height:0}
 .song.sortable{cursor:grab;user-select:none;-webkit-user-select:none;border:1px solid rgba(122,204,252,.20);border-radius:7px;margin:0 0 5px;touch-action:pan-y}
 .song.sortable .songLabel{user-select:none;-webkit-user-select:none;pointer-events:none}
@@ -114,9 +133,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.8</span></div><button class="close" type="button">CLOSE</button></div>
- <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="metaLine"><span class="meta" aria-live="polite">Loading published music…</span><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.9</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><div class="musicCodeTools"><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
+ <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="buySelected buyBtn" disabled>BUY</button></div></div><div class="metaLine"><span class="meta" aria-live="polite"></span></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">SELECTION</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button></div>
 </section>`;
@@ -137,7 +156,41 @@ function details(path){
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
-function updateMeta(){meta.textContent='';el('.count').textContent='YOUR MUSIC SELECTION'}
+function selectedTracks(){
+ const byPath=new Map(state.tracks.map(track=>[track.path,track]));
+ return [...state.selected].map(path=>byPath.get(path)).filter(Boolean);
+}
+function updateMeta(){
+ meta.textContent='';
+ const count=state.loaded?selectedTracks().length:state.selected.size;
+ el('.checkedCount').textContent='CHECKED SONGS · '+count;
+ el('.buySelected').disabled=count===0;
+ el('.buySelected').title=count?'Add '+count+' checked song'+(count===1?'':'s')+' to the GE Support cart':'Check songs to prepare a purchase';
+ el('.count').textContent='YOUR MUSIC SELECTION · '+count;
+}
+function requestBuy(intent){
+ if(!intent||!['album','tracks'].includes(intent.mode))return;
+ try{sessionStorage.setItem('GE_MUSIC_SHOP_SELECTION_V1',JSON.stringify({version:1,...intent}))}
+ catch(_){say('Unable to prepare the shopping selection on this device.');return}
+ recordPlaylistInteraction('control_change',{control:'music_buy_cart_open',kind:intent.mode,quantity:intent.paths?.length||1});
+ location.assign('../support/?section=music&flow=shop&ge_music_buy=1');
+}
+function canPlayTrack(track){
+ const access=musicAccessActive();
+ return !!access&&(!access.restricted||access.allowed.includes(track.path));
+}
+function albumActions(album,tracks){
+ const actions=elem('div','albumActions');
+ if(tracks.length&&tracks.every(canPlayTrack)){
+   const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play full album '+album);
+   play.addEventListener('click',()=>void playTrack(tracks[0],tracks.map(t=>t.path)));
+   actions.append(play);
+ }
+ const buy=elem('button','buyBtn','BUY');buy.type='button';buy.setAttribute('aria-label','Buy album '+album);
+ buy.addEventListener('click',()=>requestBuy({mode:'album',album}));
+ actions.append(buy);
+ return actions;
+}
 function elem(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
 async function fetchCatalog(){
  const all=[];
@@ -222,9 +275,10 @@ function musicAccessActive(){
 }
 function musicAccessStatus(){
  const access=musicAccessActive(),status=el('.musicCodeState');
+ status.hidden=!access;
  status.textContent=access?
-   ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):
-   'No Music code active · Existing guest previews remain available.';
+  ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):'';
+ el('.musicCodeClear').hidden=!access;
 }
 function clearMusicAccess(){
  state.musicAccess=null;
@@ -247,7 +301,7 @@ async function redeemMusicCode(){
  const code=el('.musicCodeInput').value.trim();
  if(!code){say('Enter the Music access code first.');return}
  state.redeemBusy=true;el('.musicCodeUnlock').disabled=true;
- el('.musicCodeState').textContent='Verifying code with GE Vault…';
+ el('.musicCodeState').hidden=false;el('.musicCodeState').textContent='Verifying code with GE Vault…';
  try{
    const data=await musicCodeRequest({action:'redeem',code});
    const allowed=Array.isArray(data.allowed_tracks)?
@@ -267,10 +321,11 @@ async function redeemMusicCode(){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
-async function playTrack(track){
+async function playTrack(track,queueOverride){
  // A code-restricted Music session can NEVER substitute the public Radio
  // scope or change the global Bangers broadcast. Verify every requested song.
  const access=musicAccessActive();
+ if(!access){say('Enter a GE access code to unlock PLAY, or choose BUY to visit the Support store.');return}
  if(access){
    if(access.restricted&&!access.allowed.includes(track.path)){
      say('This song is not included in your code.');return;
@@ -282,7 +337,8 @@ async function playTrack(track){
  }
  // Existing preview transport remains in charge; code verification alone is
  // not proof of paid-content delivery or a full-length song license.
- const queue=state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
+ const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:
+   state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
  const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue);
  if(outcome?.ok){say('Opening '+track.title+'.');return}
  say(outcome?.message||'Music preview is loading. Tap PLAY again.');
@@ -298,6 +354,7 @@ function appendSong(parent,track){
  checkbox.addEventListener('change',()=>{
    checkbox.checked?state.selected.add(track.path):state.selected.delete(track.path);
    saveSelected();updateMeta();
+   row.classList.toggle('selectedSong',checkbox.checked);
    if(state.view==='checked'||state.view==='playlist-order')render();
    recordPlaylistInteraction('control_change',{
      track_id:track.path,track_title:track.title,album:track.album,
@@ -308,14 +365,17 @@ function appendSong(parent,track){
  const songText=elem('span','songLabel',track.title+' — '+track.album);
   songText.title=track.title+' — '+track.album;
   label.append(checkbox,songText);
-  applyAlbumStyle(row,track.album);
- const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
- const access=musicAccessActive();
- if(access?.restricted&&!access.allowed.includes(track.path)){
-   play.disabled=true;play.title='Not authorized by the current Music code';
+ applyAlbumStyle(row,track.album);
+ checkbox.style.accentColor=albumColors[track.album]||'#41d5ff';
+ row.classList.toggle('selectedSong',checkbox.checked);
+ const actions=elem('div','songActions');
+ if(canPlayTrack(track)){
+   const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
+   play.addEventListener('click',()=>void playTrack(track));actions.append(play);
  }
- play.addEventListener('click',()=>playTrack(track));
- row.append(label,play);
+ const buy=elem('button','buyBtn','BUY');buy.type='button';buy.setAttribute('aria-label','Buy '+track.title+' from '+track.album);
+ buy.addEventListener('click',()=>requestBuy({mode:'tracks',paths:[track.path]}));actions.append(buy);
+ row.append(label,actions);
  if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
@@ -528,7 +588,7 @@ function render(){
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
  notice.textContent=state.notice||(cat==='playlists'?state.playlistMessage:'');
  const arrangeBtn=el('.arrangeBtn');
- arrangeBtn.hidden=!(state.view==='checked'||state.view==='playlist-order');
+ arrangeBtn.hidden=false;
  arrangeBtn.textContent=state.arranging?'DONE':'ARRANGE';
  arrangeBtn.setAttribute('aria-pressed',String(state.arranging));
  arrangeBtn.title=state.arranging?'Finish arranging':'Hold and drag a song row to reorder';
@@ -549,7 +609,7 @@ function render(){
     applyAlbumStyle(wrapper,name);
     albumSelectAll(wrapper,name,rows,true);
     card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
-    scroller.append(wrapper);
+    wrapper.append(albumActions(name,rows));scroller.append(wrapper);
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
   meta.textContent='ALBUMS';
@@ -590,7 +650,12 @@ function render(){
   const chosen=chosenSongs();
   const shown=chosen.filter(filterTrack);
   if(state.view==='access-code')breadcrumb(state.accessView==='album'?'AUTHORIZED MUSIC · ALBUM HISTORY':'AUTHORIZED MUSIC · MY ORDER','all');
-  if(state.view.startsWith('album:'))breadcrumb(state.view.slice(6),'albums');
+  if(state.view.startsWith('album:')){
+    const name=state.view.slice(6);breadcrumb(name,'albums');
+    const bar=elem('div','albumCollectionHeading');applyAlbumStyle(bar,name);
+    bar.append(elem('strong','',name),albumActions(name,state.tracks.filter(t=>t.album===name)));
+    scroller.append(bar);
+  }
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
    const isVault=state.view.startsWith('vault:');
    const p=isVault?state.publicLists.find(p=>p.id===state.view.slice(6)):readMine().find(p=>p.id===state.view.slice(6));
@@ -600,7 +665,10 @@ function render(){
   for(const t of shown){
    if(state.view==='all'&&t.album!==currentAlbum){
      currentAlbum=t.album;
-     albumSelectAll(scroller,currentAlbum,state.tracks.filter(row=>row.album===currentAlbum));
+     const group=elem('div','albumCollectionHeading'),tracks=state.tracks.filter(row=>row.album===currentAlbum);
+     applyAlbumStyle(group,currentAlbum);
+     albumSelectAll(group,currentAlbum,tracks);
+     group.append(albumActions(currentAlbum,tracks));scroller.append(group);
    }
    appendSong(scroller,t);
   }
@@ -640,11 +708,16 @@ el('.search').addEventListener('input',event=>{
  render();scroller.scrollTop=0;
 });
 el('.arrangeBtn').addEventListener('click',()=>{
- if(!(state.view==='checked'||state.view==='playlist-order'))return;
+ if(!state.selected.size){say('Check at least one song to arrange.');return}
+ if(!(state.view==='checked'||state.view==='playlist-order')){setView('checked');}
  state.arranging=!state.arranging;
  if(state.arranging){state.term='';el('.search').value='';}
  say(state.arranging?'Hold a song row to drag it. Use ↑ ↓ for small moves.':'Order kept in checked songs. SAVE USER PLAYLIST to keep the named playlist.');
  render();
+});
+el('.buySelected').addEventListener('click',()=>{
+ const tracks=selectedTracks();if(!tracks.length)return;
+ requestBuy({mode:'tracks',paths:tracks.map(t=>t.path)});
 });
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
