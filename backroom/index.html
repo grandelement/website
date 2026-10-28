@@ -2845,7 +2845,47 @@ const backroomVaultManagers=(()=>{
       });
       const name=create('span',p.name+' · '+(p.tracks||[]).length+' SONGS · '+(playlistCopy(p).public?'PUBLIC':'CODE ONLY'));
       name.style.cssText='display:block;margin:0;font-weight:750;font-size:15px;overflow-wrap:anywhere';
-      label.append(box,name);host.appendChild(label);
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:6px;border-bottom:1px solid #315674';
+      label.style.flex='1 1 auto';label.style.minWidth='0';
+      const publicLabel=document.createElement('label');
+      publicLabel.style.cssText='display:flex;flex:0 0 auto;align-items:center;gap:4px;font-size:11px;font-weight:850;padding:5px 6px;color:#d4f2ff';
+      const publicCheck=document.createElement('input');
+      publicCheck.type='checkbox';publicCheck.checked=!!playlistCopy(p).public;
+      publicCheck.setAttribute('aria-label','Public in GE Music: '+p.name);
+      const caption=document.createElement('span');caption.textContent='PUBLIC';
+      publicLabel.append(publicCheck,caption);
+      publicCheck.addEventListener('change',async()=>{
+        const next=publicCheck.checked,previous=!next;
+        if(!authReady()){
+          publicCheck.checked=previous;playlistStatus('BACK ROOM OWNER SIGN-IN REQUIRED');return;
+        }
+        if(next&&!confirm('Publish "'+p.name+'" to all GE Music listeners? This playlist name and songs will be publicly visible.')){
+          publicCheck.checked=previous;return;
+        }
+        const playlist=playlistCopy(p);
+        publicCheck.disabled=true;
+        playlistStatus('UPDATING GE PLAYLIST VISIBILITY · '+p.name+'…');
+        try{
+          const saved=await githubPlaylistAction({action:'save',playlist:{
+            id:playlist.id,name:playlist.name,tracks:playlist.tracks.map(t=>({
+              track_path:String(t.track_path||t.path||''),
+              track_title:String(t.track_title||t.title||''),
+              album:String(t.album||'')
+            })),public:next,active:playlist.active,locked:playlist.locked
+          }});
+          if(!saved?.commit_sha||!saved?.id)throw Error('GitHub did not confirm the visibility change');
+          if(!await refreshPlaylists())throw Error('Could not reload GitHub after saving');
+          const verify=playlists.find(x=>x.id===p.id);
+          if(!verify||playlistCopy(verify).public!==next)
+            throw Error('Saved visibility could not be verified');
+          playlistStatus('GE PLAYLIST '+p.name+' · '+(next?'PUBLIC':'CODE ONLY')+' · SAVED & VERIFIED');
+        }catch(error){
+          publicCheck.checked=previous;
+          playlistStatus('PUBLIC SETTING NOT VERIFIED · '+String(error.message||error));
+        }finally{publicCheck.disabled=false}
+      });
+      label.append(box,name);row.append(label,publicLabel);host.appendChild(row);
     }
     if(!filtered.length)host.appendChild(create('p','No matching saved playlist. Type a new name, check songs, then SAVE.','sub'));
     const count=create('div',playlistChoiceIds.size+' PICKED','sub');
