@@ -3719,6 +3719,19 @@ html.ge-safari-desktop-request body.view-player:not(.iam-studio-open) #bgGroup .
  display:flex!important;align-items:center!important;justify-content:center!important;
 }
 </style>
+<style id="ge-radio-connection-indicator-v1">
+/* Station connection indicator only. Never changes the protected RADIO heartbeat. */
+#liveStatus.show.ge-station-connecting::after{
+ content:"";display:inline-block;vertical-align:middle;
+ width:7px;height:7px;margin-left:8px;border-radius:50%;
+ background:#6cddff;box-shadow:0 0 8px rgba(66,194,255,.8);
+ animation:geStationConnectingBlink 1.1s ease-in-out infinite;
+}
+@keyframes geStationConnectingBlink{0%,100%{opacity:.22}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+ #liveStatus.show.ge-station-connecting::after{animation:none;opacity:1}
+}
+</style>
 <style id="ge-protected-radio-red-pulse-v1">
 /* PROTECTED GE RADIO IDENTITY — restored approved October 27 combination 3+4.
    Do NOT replace with a 1.04-second lub-dub or transparent/hollow button.
@@ -5578,6 +5591,9 @@ function setLiveStatus(text,show=true){
   if(liveState.statusTimer){clearTimeout(liveState.statusTimer);liveState.statusTimer=0;}
   el.textContent=text||'';
   el.classList.toggle('show',!!show&&!!text);
+  // The station indicator moves only while a connection is genuinely pending.
+  el.classList.toggle('ge-station-connecting',
+    !!show&&/\\b(?:CONNECTING|RECONNECTING|BUFFERING|RETRYING)\\b/.test(String(text||'')));
 }
 let radioWatchTimer=0,radioSlowTimer=0,radioWatchId=0,radioTimedOut=false,radioReconnectFailures=0;
 function clearRadioWatch(){
