@@ -5592,7 +5592,7 @@ function watchRadioConnection(){
   const token=++radioWatchId;
   radioSlowTimer=setTimeout(()=>{
     if(token!==radioWatchId||(!state.live&&!state.livePreparing)||observedRadio1Progress)return;
-    setLiveStatus('RADIO 1 · checking actual audio progress…');
+    setLiveStatus('RADIO 1 · CONNECTING…');
   },4200);
   radioWatchTimer=setTimeout(()=>{
     if(token!==radioWatchId||(!state.live&&!state.livePreparing)||radio2.active||radio2.loading)return;
@@ -5719,13 +5719,13 @@ function retryRadio1Only(reason){
  clearLiveReconnect();clearRadioWatch();
  radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
  if(geRadio1RetryAttempts>=3){
-  setLiveStatus('BLITZ OFFLINE · RETRIES STOPPED · TAP RADIO');
+  setLiveStatus('RADIO 1 · UNAVAILABLE · TAP RADIO TO RETRY');
   setStatus('Radio 1 could not connect. No alternate station selected.');
   return Promise.resolve();
  }
  geRadio1RetryAttempts++;
  const delay=Math.min(30000,3500*Math.pow(2,geRadio1RetryAttempts-1));
- setLiveStatus('BLITZ OFFLINE · RETRY '+geRadio1RetryAttempts+'/3 · '+Math.ceil(delay/1000)+'s');
+ setLiveStatus('RADIO 1 · RETRYING…');
  geRadio1RetryTimer=setTimeout(function(){
   geRadio1RetryTimer=0;
   if(!state.live||window.GEIAmStudio?.isRadioSuspended?.()||recentUserPause()||!liveState.wantedPlayback)return;
@@ -5778,7 +5778,7 @@ function radio2PlayCurrent(){
   if(!radio2.active||!state.live||window.GEIAmStudio?.isRadioSuspended?.())return;
   const slot=radio2Current();
   if(!slot||!radio2ValidTrack(slot.track)){
-    setLiveStatus('RADIO 2 UNAVAILABLE · backup song not verified.');return;
+    setLiveStatus('RADIO 2 · UNAVAILABLE');return;
   }
   const url=new URL(slot.track.url,location.origin).href;
   const changed=url!==radio2.url||radio2.index!==slot.index||audio.src!==url;
@@ -5823,9 +5823,9 @@ function radio2PlayCurrent(){
     let p;try{p=audio.play();}catch(error){p=Promise.reject(error);}
     if(p&&typeof p.catch==='function')p.catch(error=>{
       if(/NotAllowedError/i.test(String(error?.name||''))){
-        setLiveStatus('RADIO 2 READY · iPhone: tap PLAY to hear '+radio2Label()+'.');
+        setLiveStatus('RADIO 2 · TAP PLAY TO CONNECT');
       }else{
-        setLiveStatus('RADIO 2 · backup song unavailable. Checking next song…');
+        setLiveStatus('RADIO 2 · RECONNECTING…');
       }
     });
   }
@@ -5836,7 +5836,7 @@ async function switchToRadio2(reason='radio1_unavailable'){
   if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return;
   radio2.loading=true;const run=++radio2.run;
   clearLiveReconnect();clearRadioWatch();
-  setLiveStatus('RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2…');
+  setLiveStatus('RADIO 2 · CONNECTING…');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8500);
   try{
     const sent=Date.now();
@@ -5856,7 +5856,7 @@ async function switchToRadio2(reason='radio1_unavailable'){
     radio2.offset=Number.isFinite(offset)&&Math.abs(offset)<86400000?offset:0;
     radio2.active=true;radioTimedOut=false;radioReconnectFailures=0;
     state.livePreparing=false;state.live=true;syncModeButtons();
-    setLiveStatus('RADIO 2 · joining '+radio2Label()+'…');
+    setLiveStatus('RADIO 2 · CONNECTING…');
     try{window.GEVault?.radio?.('radio_failover',{
       from:'radio_1',to:'radio_2',reason,playlist_id:radio2Label()
     });}catch(_e){}
@@ -5865,7 +5865,7 @@ async function switchToRadio2(reason='radio1_unavailable'){
     if(run!==radio2.run)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
     const why=String(error?.message||'Connection failed').replace(/https?:\/\/[^/\s]+/g,'Radio 2').slice(0,100);
-    setLiveStatus('RADIO 2 NOT READY · '+why+' · retrying RADIO 1…');
+    setLiveStatus('RADIO 2 · UNAVAILABLE · RETRYING RADIO 1…');
     setStatus('Bangers backup unavailable; retrying the original BLITZ stream.');
     void retryRadio1Only(reason);
   }finally{
@@ -5919,22 +5919,22 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
           .finally(()=>{if(radioTapUnlockInFlight===unlocking)radioTapUnlockInFlight=null;});
       }catch(error){radioPlayFailure(error);}
     }
-    setLiveStatus('RADIO · connecting… please wait');
+    setLiveStatus(radio2.active||radio2.loading?'RADIO 2 · CONNECTING…':'RADIO 1 · CONNECTING…');
     return radioStartInFlight;
   }
   if(state.live&&!state.livePreparing&&!audio.paused&&
      (radio2.active?observedRadio2Progress:observedRadio1Progress)){
-    setLiveStatus(radio2.active?'RADIO 2 · '+radio2Label()+' audio advancing':'RADIO 1 · audio stream advancing');
+    setLiveStatus(radio2.active?'RADIO 2 · CONNECTED':'RADIO 1 · CONNECTED');
     return Promise.resolve();
   }
   const work=(async()=>{
     if(!state.live&&!state.livePreparing)return enterLiveMode({deferPlay});
     if(deferPlay)return;
     if(retryStalledRadio1 && !state.livePreparing){
-      setLiveStatus('RADIO 1 · reconnecting to BLITZ from a fresh stream…');
+      setLiveStatus('RADIO 1 · CONNECTING…');
       return resumeLiveAtEdge();
     }
-    if(radio2.loading){setLiveStatus('RADIO 2 · preparing backup…');return;}
+    if(radio2.loading){setLiveStatus('RADIO 2 · CONNECTING…');return;}
     if(radio2.active){radio2PlayCurrent();return;}
     if(radioTimedOut)return switchToRadio2('radio1_timeout');
     if(state.live&&!audio.paused&&!observedRadio1Progress)
@@ -5960,7 +5960,7 @@ async function resumeRadio(){
   state.userStarted=true;
   liveState.autoplayBlocked=false;
   if(radio2.loading){
-    setLiveStatus('RADIO 2 · preparing backup rotation…');return;
+    setLiveStatus('RADIO 2 · CONNECTING…');return;
   }
   if(radio2.active){
     radio2PlayCurrent();return;
@@ -5974,10 +5974,10 @@ async function resumeRadio(){
       audio.muted=false;
       audio.defaultMuted=false;
       audio.volume=desiredPlaybackVolume(state.currentURL);
-      setLiveStatus('RADIO • connecting to station…');
+      setLiveStatus('RADIO 1 · CONNECTING…');
       watchRadioConnection();
       await audio.play();
-      setLiveStatus('RADIO · checking audio output…');
+      setLiveStatus('RADIO 1 · CONNECTING…');
       setStatus('Grand Element Radio');
       return;
     }catch(error){
@@ -6004,7 +6004,7 @@ async function resumeLiveAtEdge(){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  setLiveStatus('RADIO • joining the current broadcast…',true);
+  setLiveStatus('RADIO 1 · CONNECTING…',true);
   setStatus('Returning to the current Grand Element Radio broadcast…');
   radioReconnectFailures=0;
   markRadio1Attempt();
@@ -6028,7 +6028,7 @@ async function resumeLiveAtEdge(){
     audio.src=freshLiveStreamURL();
     audio.load();
     await audio.play();
-    setLiveStatus('RADIO · checking audio output…');
+    setLiveStatus('RADIO 1 · CONNECTING…');
     setStatus('Grand Element Radio');
   }catch(error){
     radioPlayFailure(error);
@@ -6060,7 +6060,7 @@ async function enterLiveMode({deferPlay=false}={}){
   liveState.autoplayBlocked=false;
   state.livePreparing=true;
   syncModeButtons();
-  setLiveStatus('RADIO • connecting to the Grand Element station…',true);
+  setLiveStatus('RADIO 1 · CONNECTING…',true);
   setStatus('Connecting to Grand Element Radio…');
   if(!deferPlay)watchRadioConnection();
 
@@ -6112,7 +6112,7 @@ async function enterLiveMode({deferPlay=false}={}){
     state.live=true;
     syncModeButtons();
     window.GELiveVideo?.start?.();
-    setLiveStatus('RADIO · checking audio output…');
+    setLiveStatus('RADIO 1 · CONNECTING…');
     setStatus('Grand Element Radio');
   }catch(error){
     // The LIVE source is still selected and loaded. Some browsers, especially
@@ -6994,7 +6994,7 @@ audio.addEventListener('timeupdate',()=>{
   if(radio2.active){
     if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15&&!observedRadio2Progress){
       observedRadio2Progress=true;
-      setLiveStatus('RADIO 2 · '+radio2Label()+' audio advancing');
+      setLiveStatus('RADIO 2 · CONNECTED');
       setStatus('Grand Element Radio 2 · stream active');
       updateRadioStartupCue();
     }
@@ -7006,7 +7006,7 @@ audio.addEventListener('timeupdate',()=>{
     if(GE_RADIO2_DISABLED)clearRadio1Retry();
     if(first){
       clearRadioWatch();
-      setLiveStatus('RADIO 1 · audio stream advancing');
+      setLiveStatus('RADIO 1 · CONNECTED');
       setStatus('Grand Element Radio · stream active');
       updateRadioStartupCue();
     }
@@ -7036,21 +7036,21 @@ audio.addEventListener('playing',()=>{
     radioTimedOut=false;radioReconnectFailures=0;
     liveState.hasPlayed=true;liveState.everPlayed=true;
     if(state.livePreparing){state.livePreparing=false;state.live=true;syncModeButtons();}
-    setLiveStatus(radio2.active?'RADIO 2 · checking '+radio2Label()+' audio…':'RADIO 1 · checking stream audio…');
+    setLiveStatus(radio2.active?'RADIO 2 · CONNECTING…':'RADIO 1 · CONNECTING…');
     setStatus('Grand Element Radio · checking playback');
     updateRadioStartupCue();
   }
 });
 audio.addEventListener('waiting',()=>{
   if(state.live&&!audio.paused){
-    if(radio2.active){setLiveStatus('RADIO 2 · buffering '+radio2Label()+'…');}
-    else{setLiveStatus('RADIO 1 · buffering audio…');watchRadioConnection();}
+    if(radio2.active){setLiveStatus('RADIO 2 · BUFFERING…');}
+    else{setLiveStatus('RADIO 1 · BUFFERING…');watchRadioConnection();}
   }
 });
 audio.addEventListener('stalled',()=>{
   if(state.live&&!audio.paused){
-    if(radio2.active){setLiveStatus('RADIO 2 · track stalled. Checking clock…');}
-    else{setLiveStatus('RADIO 1 · stream stalled. Reconnecting…');watchRadioConnection();}
+    if(radio2.active){setLiveStatus('RADIO 2 · RECONNECTING…');}
+    else{setLiveStatus('RADIO 1 · RECONNECTING…');watchRadioConnection();}
   }
 });
 audio.addEventListener('play',()=>{
