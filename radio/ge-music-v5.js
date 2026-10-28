@@ -636,7 +636,8 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const baseline=entitlement?.restricted
   ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
   :state.tracks.map(t=>t.path);
- const custom=queue.length!==baseline.length||queue.some((path,index)=>path!==baseline[index]);
+ const custom=Array.isArray(queueOverride)&&queueOverride.length>0&&
+  (queue.length!==baseline.length||queue.some((path,index)=>path!==baseline[index]));
  const known=new Map(state.tracks.map(t=>[t.path,t]));
  const labels=queue.map(path=>{
   const song=known.get(path);
