@@ -292,7 +292,9 @@ function geRadioEmbedNotify(type,fields={}){
 function geRadioEmbedPlaybackState(){
  if(!GE_RADIO_MUSIC_EMBED)return;
  geRadioEmbedNotify('ge-radio-music-state',{
-  paused:audio.paused,title:currentTrack?label(currentTrack):''
+  paused:audio.paused,title:currentTrack?label(currentTrack):'',
+   path:currentTrack?cleanMusicPath(currentTrack.path||currentTrack.url):'',
+   index:trackIndex,total:albumTracks.length
  });
 }
 if(GE_RADIO_MUSIC_EMBED){
@@ -920,6 +922,15 @@ window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  selectedAlbum=tracks[idx].album||'';
  playingSelected=true;albumTracks=tracks;trackIndex=idx;
  void startTrack(tracks[idx]);
+ return true;
+};
+// Jump within the original playlist queue using the same licensed player.
+window.GEJumpLibraryQueue=function(index){
+ if(!playingSelected||!Number.isInteger(index)||index<0||index>=albumTracks.length)return false;
+ const track=albumTracks[index];
+ if(!track)return false;
+ trackIndex=index;
+ void startTrack(track);
  return true;
 };
 window.GEPlayLibraryTrack=function(path){
