@@ -16,6 +16,7 @@ let row={id:'access_15bb9a8b-6086-4cda-a6ad-8df0a26b358a',code_hash:hash,label:'
   duration_mode:'first_use',duration_seconds:86400,first_used_at:null,expires_at:null,
   max_uses:1,use_count:0};
 let policy={enabled:1},auditCount=0;
+let listenerName='John B';
 const db={
   prepare(sql){
     let params=[];
@@ -23,6 +24,7 @@ const db={
       bind(...args){params=args;return this;},
       async first(){
         if(sql.includes('FROM access_code_policy'))return {...policy};
+        if(sql.includes('FROM access_code_display_names'))return {display_name:listenerName};
         if(sql.includes('FROM access_codes a')){
           if((sql.includes('a.code_hash=?')&&params[0]===row.code_hash)||
              (sql.includes('a.id=?')&&params[0]===row.id))return {...row};
@@ -31,6 +33,8 @@ const db={
         throw Error('Unexpected SELECT: '+sql);
       },
       async run(){
+        if(sql.includes('CREATE TABLE IF NOT EXISTS access_code_display_names'))
+          return {meta:{changes:0}};
         if(sql.includes('UPDATE access_codes')){
           if(!row.enabled||row.revoked_at||row.deleted_at||row.use_count>=row.max_uses)return {meta:{changes:0}};
           row.use_count++;
@@ -57,6 +61,8 @@ assert.equal(result.status,200,JSON.stringify(result.json));
 assert.equal(result.json.ok,true);
 assert.equal(result.json.restricted,true);
 assert.deepEqual(result.json.allowed_tracks,[song]);
+assert.equal(result.json.display_name,'John B','listener identity must be separate from the access key');
+assert.notEqual(result.json.display_name,code,'no gate secret in listener name');
 assert.equal(row.use_count,1);
 const token=result.json.token;
 assert.equal(token.split('.').length,4);
@@ -103,6 +109,7 @@ assert.equal(gateResponse.status,200,JSON.stringify(gate));
 assert.equal(row.use_count,1,'Gate entry consumes exactly ONE code use');
 assert.deepEqual(gate.music_session.allowed_tracks,[song]);
 assert.equal(gate.music_session.restricted,true);
+assert.equal(gate.music_session.display_name,'John B','Gate receipt carries the same verified listener identity');
 result=await call({action:'verify',token:gate.music_session.token,track_path:song});
 assert.equal(result.status,200,'same Gate redemption authorizes saved personal song');
 result=await call({action:'verify',token:gate.music_session.token,track_path:different});
