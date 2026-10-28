@@ -3,10 +3,10 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.7-20261028-CATALOG-AND-FAN-SAVE';
+const BUILD='GE-MUSIC-V7.8-20261028-PER-CODE-WORKING-ORDER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
-const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
+const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
   testPurchaseKey='GE_MUSIC_TEST_PURCHASES_V1',
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
@@ -234,7 +234,36 @@ el('.tools').insertBefore(playlistBar,el('.notice'));
 // touch handler must not cancel scrolling through event retargeting.
 scroller.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
 scroller.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
-const saveSelected=()=>{try{localStorage.setItem(store,JSON.stringify([...state.selected]))}catch(_){}};
+function workingScope(){
+ // A signed session contains a stable internal code ID. Do not use IP
+ // addresses, plaintext access codes, or reusable bearer tokens as keys.
+ const id=String(musicAccessActive()?.token||'').split('.')[0];
+ return /^access_(?:[0-9a-f-]{36}|legacy_love_v1)$/.test(id)?id:'guest';
+}
+function preserveWorkingOrder(){
+ const p=state.activePlaylist;if(!p?.id)return;
+ const copy={v:1,id:p.id,source:p.source,origin:p.origin||'',
+  name:p.name,visibility:p.visibility||'published',songs:[...state.selected]};
+ try{localStorage.setItem(workingKey+':'+workingScope(),JSON.stringify(copy))}catch(_){}
+}
+function restoreWorkingOrder(){
+ let copy;
+ try{copy=JSON.parse(localStorage.getItem(workingKey+':'+workingScope())||'null')}catch(_){return false}
+ if(!copy||copy.v!==1||typeof copy.id!=='string'||!copy.id||
+  typeof copy.name!=='string'||!['ge','fan','user'].includes(copy.source)||
+  !Array.isArray(copy.songs))return false;
+ const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;
+ const rows=[...new Set(copy.songs.map(canonical).filter(path=>path&&(!allowed||allowed.has(path))))];
+ if(!rows.length)return false;
+ state.selected=new Set(rows);
+ state.activePlaylist={id:copy.id,source:copy.source,origin:copy.origin||'',
+  name:copy.name,visibility:copy.visibility||'published'};
+ state.playlistDraftName=copy.name;return true;
+}
+const saveSelected=()=>{
+ try{localStorage.setItem(store,JSON.stringify([...state.selected]))}catch(_){}
+ preserveWorkingOrder();
+};
 function canonical(input){const s=String(input||'').replace(/^\/+/, '');try{const path=s.startsWith('ge-music/music/')?decodeURIComponent(s):decodeURIComponent(new URL(s,location.href).pathname.replace(/^\/+/,''));return /^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(path)&&!path.includes('..')?path:''}catch(_){return ''}}
 function details(path){
  const pieces=path.split('/'),folder=pieces[2]||'',file=pieces.slice(3).join('/');
@@ -318,6 +347,7 @@ async function fetchCatalog(){
  const unique=[...new Set(all)].map(details);
  unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
  state.tracks=unique;state.loaded=true;state.loading=false;
+ if(!state.activePlaylist)restoreWorkingOrder();
   const filter=el('.songFilter'),prior=filter.value;
   filter.replaceChildren(new Option('ALL SONGS','all'),new Option('CHECKED SONGS','checked'),new Option('BROWSE ALBUMS','albums'));
   if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')filter.add(new Option('TEST PURCHASED MUSIC · LOCAL ONLY','test-purchases'));
@@ -572,10 +602,13 @@ async function redeemMusicCode(){
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
    el('.musicCodeInput').value='';musicAccessStatus();
    if(access.restricted){
-     state.selected=new Set(allowed);saveSelected();void loadPublished();
-     setView('access-code');
-     say('Music code verified · authorized music loaded.');
-   }else{setView('all');say('Music code verified for the full music library.')}
+     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(allowed)}
+     saveSelected();void loadPublished();setView('access-code');
+     say('Music code verified · ALL SONGS shown in the normal catalog order.');
+   }else{
+     if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName=''}
+     setView('all');say('Music code verified for the full library.');
+   }
  }catch(error){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
@@ -1023,6 +1056,7 @@ function open(){
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
  state.view='all';state.arranging=false;state.term='';
+ if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
  previousFocus=document.activeElement;oldBodyOverflow=document.body.style.overflow;
@@ -1195,8 +1229,9 @@ musicAccessStatus();
 window.addEventListener('ge-vault-music-access-updated',()=>{
  const access=musicAccessActive();
  if(access?.restricted){
-  state.selected=new Set(access.allowed);saveSelected();state.view='access-code';
-  state.accessView='order';state.accessPlaylistFilter=access.radioPlaylistId||'';void loadPublished();
+  if(!restoreWorkingOrder()){state.activePlaylist=null;state.playlistDraftName='';state.selected=new Set(access.allowed)}
+  saveSelected();state.view='access-code';
+  state.accessView='order';state.accessPlaylistFilter='';void loadPublished();
  }
  musicAccessStatus();if(state.open)render();
 });
