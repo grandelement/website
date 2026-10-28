@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.9-20261027-CHECKED-BUY-ACCESS-COLORS';
+const BUILD='GE-MUSIC-V5.9.1-20261027-UNIFORM-BLUE-CHECKS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -104,18 +104,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .section{padding:8px 7px;background:#0c3653;border-bottom:1px solid #4384ac;font-weight:850;margin:12px 0 5px}
 .song{display:flex;align-items:center;gap:9px;min-height:49px;padding:6px 4px;border-bottom:1px solid #203d53;touch-action:pan-y}
 .song label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow-wrap:anywhere;cursor:pointer}
-.song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#41d5ff}
+.song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#087eff}
 .song span{min-width:0;overflow-wrap:anywhere;font-size:13px}
 .song .songLabel{flex:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
 .albumJump{min-width:0;width:100%;margin-top:7px;padding:8px 10px;min-height:40px;border:1px solid #4b91bd;border-radius:9px;background:#09243a;color:white;font-size:14px}
 .song button{flex:0 0 auto;min-width:45px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
 .song .reorder{min-width:38px;padding:4px 6px;font-size:19px}
 .albumPicker{display:flex;align-items:center;gap:9px;background:#0b3553;border:1px solid #376f95;border-radius:7px;padding:9px;margin:8px 0 5px}
-.albumPicker input{width:21px;height:21px;accent-color:#41d5ff}
+.albumPicker input{width:21px;height:21px;accent-color:#087eff}
 .albumPicker span{font-weight:800;font-size:13px}
 .albumBrowseRow{display:flex;align-items:stretch;gap:0;min-height:49px;margin:0 0 8px;border:1px solid rgba(154,211,239,.55);border-radius:10px;overflow:hidden}
 .albumBrowseRow .albumPickerCompact{display:flex;align-items:center;justify-content:center;flex:0 0 44px;min-width:44px;max-width:44px;min-height:47px;padding:0 8px;margin:0;background:transparent!important;border:0!important;border-right:1px solid rgba(160,225,255,.25)!important;border-radius:0;cursor:pointer}
-.albumBrowseRow .albumPickerCompact input{width:21px;height:21px;flex:0 0 21px;margin:0;accent-color:#48baff}
+.albumBrowseRow .albumPickerCompact input{width:21px;height:21px;flex:0 0 21px;margin:0;accent-color:#087eff}
+.song input[type=checkbox]:checked,.albumPicker input:checked{outline:1.5px solid #e8f7ff;outline-offset:1px;border-radius:3px}
 .albumBrowseRow .album{display:flex;align-items:center;justify-content:space-between;flex:1 1 0;min-width:0;min-height:47px;padding:7px 10px;gap:8px;margin:0;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important}
 .albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(13px,3.5vw,17px);line-height:1.15;overflow-wrap:break-word}
 .albumBrowseRow .album small{flex:0 0 auto;white-space:nowrap;font-size:clamp(10px,2.8vw,13px);font-weight:800;color:#b7e6ff}
@@ -366,7 +367,6 @@ function appendSong(parent,track){
   songText.title=track.title+' — '+track.album;
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
- checkbox.style.accentColor=albumColors[track.album]||'#41d5ff';
  row.classList.toggle('selectedSong',checkbox.checked);
  const actions=elem('div','songActions');
  if(canPlayTrack(track)){
