@@ -151,8 +151,12 @@ assert.doesNotMatch(preview,/code!=='love'|GE_GATE_LOVE_V1/,
 assert.match(vault,/async function accessRedeem\(request,env\)/);
 assert.match(vault,/\/v1\/public\/access\/redeem/);
 assert.match(vault,/normalizedCodeExperience\(body\)/);
-assert.match(back,/id="brCodeAutopilot"/);
-assert.match(back,/id="brCodeGames"/);
+assert.doesNotMatch(back,/id="brCodeAutopilot"|id="brCodeGames"|id="brCodeRadioPlaylist"/,
+  'Red-crossed Access Code experience controls are removed, not hidden');
+assert.match(back,/name="brAccessScope" value="radio"/);
+assert.doesNotMatch(back,/name="brAccessScope" value="(?:website|music|albums|games)"/);
+assert.match(back,/existing\?\.experience\|\|replacementExperience/,
+  'Saved experience settings remain intact when editing existing codes');
 assert.match(back,/brCodeFansPanel/);
 assert.match(vault,/CREATE TABLE IF NOT EXISTS fan_code_links/);
 assert.match(publisher,/\/manage\/fan-access/);
