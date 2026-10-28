@@ -24,6 +24,15 @@ assert.match(music,/id=updating\?active\.id:''/,'owner edits maintain the same I
 assert.match(music,/GE_BACKROOM_PUBLISH_SESSION_V1/,'guests cannot write publisher playlists');
 assert.match(music,/SAVED TO SHARED GE VAULT/);
 assert.match(music,/gePlaylistBar/);
+assert.match(music,/class="gePlaylistPicker"/);
+assert.match(music,/class="gePlaylistTabGE"/);
+assert.match(music,/class="gePlaylistTabUser"/);
+assert.match(music,/function pickerRows\(\)/);
+assert.match(music,/function loadSelectedPlaylistKey\(key\)/);
+assert.match(music,/loadSelectedPlaylistKey\(key\)/);
+assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
+assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
+
 assert.match(music,/class="accessToggle"/);
 assert.match(music,/class="clearSelected"/);
 assert.match(music,/class="arrangeOwnerAuth"/);
@@ -38,7 +47,7 @@ assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/const AUDIO_LIMIT_SECONDS=2013/,'music remains on the existing 33:33 preview');
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v69-fan-vault-compact/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v70-ge-user-load-modal/);
 assert.match(vault,/fanMusicBearer/);
 assert.match(vault,/ge-fan-playlists-v1:/);
 assert.match(vault,/\/v1\/public\/fan-playlists/);
