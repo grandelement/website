@@ -6993,7 +6993,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261027-ge-vault-access-experience-v55',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261027-ge-radio-offline-reliability-v56',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -7757,11 +7757,68 @@ async function registerServiceWorker(){
     }catch(_e){}
   })();
 
+  // Read-only offline diagnostics. No network, no cache clearing and no
+  // entitlement changes. A true disconnected-playback test still requires
+  // disconnecting the device and opening Radio after the worker is installed.
+  async function diagnoseOffline(){
+    const report={
+      accessForOfflineControls:geRadioLocalTestAccess(),
+      offlineModeEnabled:isEnabled(),
+      browserOnline:navigator.onLine!==false,
+      cacheStorageAvailable:typeof caches!=='undefined',
+      serviceWorkerRegistered:false,
+      serviceWorkerControlling:!!navigator.serviceWorker?.controller,
+      cachedAppShell:false,
+      savedSongCount:offlineAvailability.songs.size,
+      expectedSongCount:currentAudit?.totalSongs??null,
+      catalogComplete:currentAudit?.musicComplete===true,
+      readableSampleSong:false,
+      readyToTestDisconnected:false,
+      warnings:[]
+    };
+    if(!report.cacheStorageAvailable){
+      report.warnings.push('Browser Cache Storage is unavailable.');
+      return report;
+    }
+    try{
+      const registration=await navigator.serviceWorker?.getRegistration?.('./');
+      report.serviceWorkerRegistered=!!registration?.active;
+    }catch(_e){}
+    if(!report.serviceWorkerRegistered)report.warnings.push('Radio service worker is not active.');
+    if(!report.serviceWorkerControlling)report.warnings.push('Reload Radio while online so the service worker controls this page.');
+    try{
+      const shell=await caches.match(absolute('./index.html'),{ignoreSearch:true});
+      report.cachedAppShell=!!shell&&shell.status===200&&
+        /text\/html/i.test(shell.headers.get('content-type')||'');
+    }catch(_e){}
+    if(!report.cachedAppShell)report.warnings.push('Radio offline HTML shell is not cached.');
+    if(report.savedSongCount){
+      try{
+        const sampleURL=offlineAvailability.songs.values().next().value;
+        const cached=await exactMatchInAnyCache(sampleURL);
+        if(cached?.response?.status===200){
+          const reader=cached.response.clone().body?.getReader();
+          if(reader){
+            try{
+              const first=await reader.read();
+              report.readableSampleSong=!first.done&&!!first.value?.byteLength;
+            }finally{try{await reader.cancel();}catch(_e){}}
+          }else report.readableSampleSong=true;
+        }
+      }catch(_e){}
+    }
+    if(!report.readableSampleSong)report.warnings.push('No saved song sample could be read.');
+    if(!report.catalogComplete)report.warnings.push('Not all currently expected music is saved.');
+    report.readyToTestDisconnected=report.serviceWorkerRegistered&&report.serviceWorkerControlling&&
+      report.cachedAppShell&&report.readableSampleSong&&report.catalogComplete;
+    return report;
+  }
   window.GEOffline={
     isActive:isEnabled,
     scan:scanExistingAssets,
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
     audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true}),
+    diagnose:diagnoseOffline,
     approvedPlan:()=>activePlan
   };
 })();
