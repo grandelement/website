@@ -192,3 +192,30 @@ Private reporting:
 - `GET /v1/admin/analytics?days=N` summarizes QR acquisition, geography, fan sessions and music usage.
 - The DJ backend proxies this report to its authenticated FANS dashboard.
 
+
+## GE Music LOAD / SAVE / Fan association contract (October 28, 2026)
+
+### Listener Music interface
+- Music has a **LOAD** button, not an inline native playlist-selection arrow.
+- LOAD opens a single dialog with **GE PLAYLISTS** and **USER PLAYLISTS** tabs. Selecting an item and pressing **LOAD SELECTED** replaces only the current working song selection/order; it does not delete saved playlists.
+- The main playlist row has one editable playlist name, LOAD, and SAVE.
+- **GE PLAYLISTS** includes owner-published GitHub playlist masters plus unlisted GE playlists explicitly authorized by the listener's Vault code. The GE playlist master remains `playlists/registry.json` with stable IDs. The Back Room exposes a PUBLIC checkbox per GE playlist. Unlisted in the Music UI **does not** make the publicly hosted GitHub registry confidential.
+- **USER PLAYLISTS** reads fan-owned private D1 playlists via `/v1/public/fan-playlists` with an unguessable per-browser bearer credential. Legacy device-only mixes may be offered distinctly for transition, never silently presented as synced.
+- SAVE updates an existing owner GE master only after authenticated Back Room authorization; otherwise SAVE creates/updates the listener's own private Fan Vault playlist. A new name creates a new fan playlist instead of overwriting the GE master. There is no implicit SAVE COPY.
+- Playlist labels/categories are not licensing or payment rights. Playback still uses the independently enforced Music Gate (33:33 guest preview and server-verified scoped entitlements).
+
+### Fan identity and access codes
+- The browser's `GEVault.anonId` is the first-party anonymous analytics identifier; `sessionId` represents a session. The fan-playlist record may include the anonymous ID to connect owner-visible events and records.
+- Saved fan records can be manually linked by the owner to a saved Vault access-code ID using `fan_code_links` via private `/v1/admin/fan-access` and Back Room `/manage/fan-access`. The Back Room Access editor contains a FANS category for this link. This is an administrative association, **not** independent verification that a code redeemer is that person.
+- The owner-only fan-playlist list should display its anonymous visitor ID, any verified-in-Vault saved fan association, and that fan's assigned code, without revealing bearer secrets or public IP addresses.
+- **IP address is not an account credential or reliable identity key.** IP changes, NAT, carrier routing and shared networks make linking on IP alone unsafe. IP/region observations remain analytics and investigative hints only.
+- The current anonymous browser credential can recover playlists **in the same browser** after the 33:33 Gate expires and the listener returns or enters a code. It does not by itself permit cross-device restoration. Durable fan-account recovery needs a verified sign-in or separate recovery credential and an authenticated account-to-playlist binding. Access codes may grant music permissions but must not expose another listener's saved playlists.
+- Do not state that a fan playlist is saved permanently until the private D1 POST and independent GET readback both succeed. Do not create silent device-only copies on Vault failure.
+- Back Room FANS owner routes must remain admin-protected. Never expose `VAULT_ADMIN_TOKEN`, publisher session secret, or private fan bearer tokens in public playlists.
+
+### Deployment coordination
+- Music UI code: `radio/ge-music-v5.js` (the filename is historical; BUILD identifies the current UI). Radio loads it through `radio/index.html`.
+- Master GE editor: `backroom/index.html` and owner Publisher Worker `backroom/publisher-worker.js`.
+- Fan playlists: `vault-worker/src/index.js`, private D1 `fan_music_playlists`, `/v1/public/fan-playlists`, owner-only `/v1/admin/fan-playlists`.
+- Regression: `tests/ge-unified-playlist-library.test.mjs` and Radio Music/Access Code chain tests.
+- Worker deployment and live endpoint results must be separately checked; passing static tests or successfully invoking Wrangler does not itself prove authenticated fan saving or cross-device recovery.
