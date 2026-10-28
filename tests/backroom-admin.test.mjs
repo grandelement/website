@@ -134,8 +134,8 @@ assert.equal(registry.format,'ge-playlist-registry-v1');
 assert.ok(Array.isArray(registry.playlists),'Owner playlist master must contain playlists');
 assert.match(musicV5,/main\/playlists\/registry\.json\?refresh=/,
   'Radio Music reads the canonical GitHub playlist master');
-assert.match(musicV5,/p\.visibility==='published'/,
-  'Only expressly published playlists are listed to anonymous visitors');
+assert.match(musicV5,/data\.playlists\.filter\(valid\)/,
+  'All canonical GitHub playlist names appear in the Music loader; playback remains code-gated');
 assert.match(musicV5,/musicAccessActive\(\)\?\.playlistIds/,
   'An unlisted playlist may be shown only when assigned to the access code');
 assert.match(preview,/main\/playlists\/registry\.json\?refresh=/,

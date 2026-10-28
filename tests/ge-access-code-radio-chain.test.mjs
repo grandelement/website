@@ -39,6 +39,8 @@ assert.doesNotMatch(preview,/code!=='love'|GE_GATE_LOVE_V1/,
  'preview player must not hardcode LOVE as the sole code');
 assert.match(preview,/main\/playlists\/registry.json\?refresh=/,
  'preview player and Radio Music must read the same published registry');
-assert.match(preview,/visibility==='published'/,
- 'unlisted owner lists must not appear publicly');
+assert.match(preview,/d\.playlists\.filter/,
+ 'GE Music preview loads the same GitHub playlist names, including unlisted entries');
+assert.match(preview,/UNLISTED · /,
+ 'unlisted tracks have a visible label rather than silently disappearing');
 console.log('PASS: Back Room GitHub registry -> D1 code assignment -> signed Radio Gate Music entitlement -> two Music interfaces, no LOVE hardcode');

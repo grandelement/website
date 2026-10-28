@@ -79,3 +79,14 @@ Requires authenticated Back Room bearer session:
 
 ## Current operational caution
 The first GitHub Actions publisher deployment with working deployment credentials uploaded `ge-backroom-publisher`, but the runner's verification HTTP call returned **403 Forbidden**. This means the Worker upload succeeded, **not** that authenticated playlist saves have been proven live. Investigate Cloudflare's workers.dev access/edge rule or runner restrictions using the public health page and authenticated owner test; do not falsely declare all connections complete.
+
+
+## 2026-10-28 owner-directed unified playlist loader and BLITZ migration
+
+- **Owner curated master:** GitHub \`playlists/registry.json\`, with stable IDs and exact song order. All existing records remain untouched unless the owner explicitly saves.
+- **BLITZ original DJ:** the real /control/playlists backend and optional signed-in device backup are independent until authenticated **SYNC ORIGINAL BLITZ PLAYLISTS** is run from Back Room → MUSIC. The source is read only; live Radio 1, Radio 2 and DJ queues are never changed by sync.
+- **Source-of-truth migration:** one way from actual DJ saved records into GitHub; preserve real track paths in order, verify every saved commit by fresh readback, skip missing/invalid tracks and never manufacture Bangers from \`radio/sync-playlist.json\` or the general station song allowlist. On name conflicts, owner approves updating the same GitHub ID; decline leaves the original untouched.
+- **Music loader:** GE MUSIC and the embedded Radio preview read the same GitHub registry and any owner-published historic Vault playlist entries. The default PLAYLISTS tab opens the GE collection instead of only device-local playlists; ARRANGE → LOAD defaults to a real available playlist and preserves the selected song sequence. No playlist name alone grants playback rights.
+- **Visibility change expressly requested by owner:** the public Music playlist browser and LOAD menu now show **all names** already present in the public GitHub registry. An \`unlisted\` entry is marked **UNLISTED · CODE REQUIRED TO PLAY**, but is no longer concealed from the selector. The GitHub JSON was already public. Do not mistake this for private storage or paid-content protection. Signed access code / media-delivery checks remain separate.
+- **Not completed solely by a code commit:** Bangers has not been proven imported until authenticated DJ source responds and fresh GitHub registry readback returns real Bangers ID, name, songs, and order. If DJ credentials are unavailable, report the source failure and preserve all data. There is no safe guessed/default Bangers playlist.
+- **Personal fan playlists:** public Radio SAVE of a user's ad hoc mix remains device-local until authenticated per-fan server storage is built; do not grant anonymous browsers owner GitHub write permissions. The permanent owner playlist master and personal fan lists are different authorization domains.

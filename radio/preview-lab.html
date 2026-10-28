@@ -695,7 +695,7 @@ function playlistOptions(){
  select.replaceChildren(new Option('CHOOSE A PLAYLIST TO LOAD',''));
  for(const p of publicPlaylistDefinitions){
   if(!p?.id||!p?.name||!Array.isArray(p.songs))continue;
-  select.appendChild(new Option('PUBLIC · '+p.name,'u:'+p.id));
+  select.appendChild(new Option((p.visibility==='unlisted'?'UNLISTED · ':'GE · ')+p.name,'u:'+p.id));
  }
  for(const p of personalPlaylists)select.appendChild(new Option('MY · '+p.name,'p:'+p.id));
  select.value=[...select.options].some(o=>o.value===current)?current:'';
@@ -1061,27 +1061,39 @@ function rebuildPublicPlaylists(){
  publicPlaylists=result;showPublicPlaylists();playlistOptions();
 }
 async function loadPublicPlaylists(){
- // Back Room MUSIC publishes to GitHub playlists/registry.json.
- // The Radio MUSIC popup must use that SAME published playlist source.
- // Unlisted playlists remain accessible only through a Vault-authorized
- // access-code song snapshot; the original DJ Bangers queue is independent.
- try{
-  const response=await fetch(
-   'https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),
-   {cache:'no-store'});
-  if(!response.ok)throw Error('GE playlist registry HTTP '+response.status);
-  const data=await response.json();
-  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))
-   throw Error('Invalid published GE playlist registry');
-  publicPlaylistDefinitions=data.playlists.filter(p=>p&&p.visibility==='published'&&
-    typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
-   .map(p=>({id:p.id,name:p.name,songs:p.songs}));
- }catch(error){
-  console.warn('GE MUSIC published GitHub playlist list unavailable:',error);
-  publicPlaylistDefinitions=[];
-  musicNotice('Public playlists cannot be reached. Existing personal lists remain on this device.');
+ // One visible GE library: canonical GitHub list plus already-published Vault
+ // originals. The original private BLITZ DJ remains independent until the
+ // owner syncs real saved paths into GitHub. Never guess a Bangers tracklist.
+ const readGithub=async()=>{
+  const r=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('GitHub playlist registry HTTP '+r.status);
+  const d=await r.json();
+  if(d?.format!=='ge-playlist-registry-v1'||!Array.isArray(d.playlists))throw Error('Invalid GitHub registry.');
+  return d.playlists.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs))
+   .map(p=>({id:p.id,name:p.name,songs:p.songs,visibility:p.visibility||'unlisted'}));
+ };
+ const readVault=async endpoint=>{
+  const r=await fetch('https://vault.grandelement.com'+endpoint,{cache:'no-store'});
+  if(!r.ok)throw Error('Vault '+endpoint+' HTTP '+r.status);
+  const d=await r.json();
+  if(!d?.ok||!Array.isArray(d.items))throw Error('Invalid Vault playlist response.');
+  return d.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs));
+ };
+ const results=await Promise.allSettled([
+  readGithub(),readVault('/v1/public/music-playlists'),readVault('/v1/public/dj-playlists')
+ ]);
+ const all=[],ids=new Set(),names=new Set(),problems=[];
+ for(const [i,res] of results.entries()){
+  if(res.status==='rejected'){problems.push((i?'Vault':'GitHub')+' unavailable');continue}
+  for(const p of res.value){
+   const name=p.name.trim().toLowerCase(),dup=name==='bangers'&&names.has('bangers');
+   if(ids.has(p.id)||dup)continue;
+   ids.add(p.id);names.add(name);all.push(p);
+  }
  }
+ publicPlaylistDefinitions=all;
  rebuildPublicPlaylists();
+ if(!all.length)musicNotice('No playlists loaded · '+problems.join(', ')+'. Owner must sync the authentic DJ Bangers into GitHub.');
 }
 async function loadCompleteMusicCatalog(){
  let durationTracks=[];

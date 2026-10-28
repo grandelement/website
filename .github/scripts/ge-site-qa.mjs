@@ -485,13 +485,13 @@ test(radio.includes('approvedAutoPaths.has(canonicalSongPath(url))') &&
 const musicV5=load('radio/ge-music-v5.js');
 const musicPreview=load('radio/preview-lab.html');
 test(musicV5.includes("state.publicLists=data.playlists") &&
-     musicV5.includes("p.visibility==='published'") &&
+     musicV5.includes("data.playlists.filter(valid)") &&
      musicV5.includes("readMine()") &&
      musicV5.includes('data-access-view="playlist"') &&
      radio.includes('GEPlayLibraryQueue') &&
      musicPreview.includes('window.GEPlayLibraryQueue=function') &&
      musicPreview.includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
-     'Listener MUSIC reads published GitHub playlists, preserves personal/device lists and previews the authorized listening queue');
+     'Listener MUSIC loads all GitHub names, labels unlisted mixes, preserves local lists, and gates authorized listening');
 
 
 const radioShuffleHandler=radio.slice(radio.indexOf("('shuffleBtn').addEventListener('click'"),radio.indexOf("('legacyBtn').addEventListener('click'"));
@@ -536,9 +536,9 @@ test(home.includes('href="./favicon-32x32.png"') &&
 const djController=load('radio-backend/control-server.py');
 test(djController.includes('/control/playlists/save') &&
      backroom.includes('/manage/github-playlists') &&
-     musicV5.includes("p.visibility==='published'") &&
+     musicV5.includes("data.playlists.filter(valid)") &&
      musicV5.includes('state.assignedLists=data.playlists'),
-     'Original BLITZ DJ playback stays intact; owner playlists come from GitHub');
+     'Original BLITZ DJ playback stays intact; owner playlist names load from GitHub');
 test(radio.includes('ge-music-v5.js') &&
      musicV5.includes('scroller.scrollTop=previous') &&
      musicV5.includes("document.body.classList.add('ge-music-v5-open')") &&

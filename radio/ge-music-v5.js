@@ -331,13 +331,16 @@ async function loadPublished(){
   const assigned=new Set(musicAccessActive()?.playlistIds||[]);
   const githubOk=github.status==='fulfilled';
   const data=githubOk?github.value:{playlists:[]};
-  state.publicLists=data.playlists.filter(p=>valid(p)&&p.visibility==='published')
-   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'github'})).filter(p=>p.songs.length);
+  // All saved GE names are visible in LOAD. Playback is still controlled by
+  // the code entitlement; unlisted items are tagged, not silently hidden.
+  state.publicLists=data.playlists.filter(valid)
+   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),
+    visibility:p.visibility||'unlisted',source:'github'})).filter(p=>p.songs.length);
   state.assignedLists=data.playlists.filter(p=>valid(p)&&assigned.has(p.id))
    .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'github'}));
   const countGitHub=state.publicLists.length;
   const recordedIds=new Set(state.publicLists.map(p=>p.id));
-  const recordedDJNames=new Set();
+  const recordedDJNames=new Set(state.publicLists.filter(p=>p.name.toLowerCase()==='bangers').map(()=>'bangers'));
   let vaultCount=0;
   for(const response of [vaultMusic,vaultDJ]){
    if(response.status!=='fulfilled')continue;
@@ -715,12 +718,13 @@ function render(){
    const select=el('.arrangePlaylistSelect'),prior=select.value;
    select.replaceChildren(new Option('LOAD A SAVED PLAYLIST…',''));
    const collections=[
-    ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id})),
     ...state.publicLists.map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
-    ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id}))
+    ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id})),
+    ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
    ];
    for(const p of collections)select.add(new Option(p.label,p.key));
    if([...select.options].some(o=>o.value===prior))select.value=prior;
+   else if(collections.length)select.value=collections[0].key;
    el('.arrangeBuy').disabled=!state.selected.size;
    el('.arrangeNotice').textContent=state.notice||'Playlists saved here remain on this device until Vault sync is ready.';
  }
@@ -756,12 +760,15 @@ function render(){
   // Connection summary is already shown above the scroll area.
   // Do not waste scrolling space by repeating it as another full row.
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
-  for(const p of shown)card(scroller,p.name,'OPEN PLAYLIST',()=>{
+  for(const p of shown)card(scroller,p.name,p.visibility==='unlisted'?
+    'UNLISTED · CODE REQUIRED TO PLAY':'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',id:p.id,name:p.name};
    recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:p.source||'github',song_count:p.songs.length});
    setView('playlist-order');
   });
-  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No public playlists were returned from GitHub or GE Vault. Bangers may still be in the protected BLITZ DJ backup. No playlists have been deleted.'));
+  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty',
+   'NO GE PLAYLISTS RETRIEVED · '+state.playlistMessage+
+   '. Owner must sync genuine DJ Bangers into GitHub. No records were deleted.'));
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
@@ -862,7 +869,11 @@ function exitArrange(){
 el('.arrangeDone').addEventListener('click',exitArrange);
 el('.arrangeLoadBtn').addEventListener('click',()=>{
  const key=el('.arrangePlaylistSelect').value;
- if(!key){say('Choose a playlist first.');render();return}
+ if(!key){
+  const msg=state.playlistsLoading?'Playlists are still loading.':
+    'NO SAVED PLAYLISTS AVAILABLE · '+state.playlistMessage;
+  say(msg);el('.arrangeNotice').textContent=msg;return;
+ }
  const [source,id]=key.split(':');
  const p=source==='local'?readMine().find(p=>p.id===id):
    source==='ge'?state.publicLists.find(p=>p.id===id):
@@ -891,7 +902,7 @@ el('.playlistFilter').addEventListener('change',event=>setView(event.target.valu
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
  if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
- else setView('user-playlists');
+ else setView('ge-playlists');
 }));
 root.querySelectorAll('[data-access-view]').forEach(b=>b.addEventListener('click',()=>{
  state.accessView=b.dataset.accessView;state.accessPlaylistFilter='';state.view='access-code';
