@@ -406,8 +406,8 @@ async function loadPublished(){
   const assigned=new Set(musicAccessActive()?.playlistIds||[]);
   const githubOk=github.status==='fulfilled';
   const data=githubOk?github.value:{playlists:[]};
-  // All saved GE names are visible in LOAD. Playback is still controlled by
-  // the code entitlement; unlisted items are tagged, not silently hidden.
+  // One shared playlist registry; UI only displays unlisted names for
+   // owner or assigned code. Names in a public GitHub JSON are not secret.
   state.publicLists=data.playlists.filter(valid)
    .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),
     visibility:p.visibility||'unlisted',source:'github'})).filter(p=>p.songs.length);
@@ -439,6 +439,12 @@ async function loadPublished(){
  }finally{state.playlistsLoading=false;if(state.open)render()}
 }
 
+function visibleSharedLists(){
+ // Unlisted playlists are not presented to unrelated listener codes.
+ // This is UI visibility; the public GitHub registry itself is not private.
+ const assigned=new Set(musicAccessActive()?.playlistIds||[]);
+ return state.publicLists.filter(p=>p.visibility==='published'||assigned.has(p.id)||!!publisherSession());
+}
 function recordPlaylistInteraction(eventType,detail){
  // Reuse the existing GE Fan Base Vault ledger. It supplies anonymous visitor
  // and session IDs and handles network identity privately server-side.
@@ -802,7 +808,7 @@ function render(){
    const select=el('.arrangePlaylistSelect'),prior=select.value;
    select.replaceChildren(new Option('LOAD A SAVED PLAYLIST…',''));
    const collections=[
-    ...state.publicLists.map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
+    ...visibleSharedLists().map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
     ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id})),
     ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
    ];
@@ -847,14 +853,14 @@ function render(){
   scroller.append(elem('div','section','GE PLAYLISTS'));
   // Connection summary is already shown above the scroll area.
   // Do not waste scrolling space by repeating it as another full row.
-  const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
+  const shown=visibleSharedLists().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of shown)card(scroller,p.name,p.visibility==='unlisted'?
     'UNLISTED · CODE REQUIRED TO PLAY':'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',origin:p.source||'github',visibility:p.visibility||'published',id:p.id,name:p.name};state.playlistDraftName=p.name;
    recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:p.source||'github',song_count:p.songs.length});
    setView('playlist-order');
   });
-  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty',
+  if(!visibleSharedLists().length&&!state.playlistsLoading)scroller.append(elem('p','empty',
    'NO GE PLAYLISTS RETRIEVED · '+state.playlistMessage+
    '. Owner must sync genuine DJ Bangers into GitHub. No records were deleted.'));
  }else if(state.view==='user-playlists'){
