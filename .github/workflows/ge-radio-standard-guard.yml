@@ -1,0 +1,49 @@
+name: GE Radio Protected Standard
+on:
+  push:
+    branches: [main]
+    paths:
+      - "radio/**"
+      - "playlists/**"
+      - "index.html"
+      - "ge-vault-client.js"
+      - "backroom/**"
+      - "vault-worker/**"
+      - "tests/ge-radio-standard-guard.test.mjs"
+      - "tests/ge-unified-playlist-library.test.mjs"
+      - "tests/ge-safari-layout-mode.test.mjs"
+      - "GE_RADIO_PROTECTED_STANDARD.md"
+      - ".github/workflows/ge-radio-standard-guard.yml"
+  pull_request:
+    paths:
+      - "radio/**"
+      - "playlists/**"
+      - "index.html"
+      - "backroom/**"
+      - "vault-worker/**"
+      - "tests/ge-radio-standard-guard.test.mjs"
+      - "tests/ge-unified-playlist-library.test.mjs"
+      - "tests/ge-safari-layout-mode.test.mjs"
+      - "GE_RADIO_PROTECTED_STANDARD.md"
+      - ".github/workflows/ge-radio-standard-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protect-ge-radio:
+    name: Preserve approved Radio + Music standard
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enforce approved features and protected playlists
+        run: node tests/ge-radio-standard-guard.test.mjs
+      - name: Verify Safari iPhone / desktop switching
+        run: node tests/ge-safari-layout-mode.test.mjs
+      - name: Verify GE / private fan playlist Vault wiring
+        run: node tests/ge-unified-playlist-library.test.mjs
