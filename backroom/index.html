@@ -573,7 +573,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access .brAccessSimpleBar>label>input{display:block;width:100%;margin-top:5px;min-height:50px;font-size:18px}
 #brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel,
 #brPanel-access #brAccessWorkbenchMessage,#brPanel-access #brAccessEditorTitle,
-#brPanel-access #brAccessCustomHelp,#brPanel-access #brAccessGameInfo,
+#brPanel-access #brAccessCustomHelp,
 #brPanel-access #brAccessLoadPlaylists{display:none!important}
 #brPanel-access .brAccessSimpleBar>#brAccessStatus{margin:0;padding:6px 0;font-size:12px;line-height:1.35;min-height:0}
 #brPanel-access .brAccessSimpleBar .brAccessSimpleButtons{margin:0}
@@ -934,20 +934,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       </div>
     </div>
     <details class="brAccessCategory" open><summary>WEBSITE · RADIO · ACCESS</summary>
-    <div class="brCodeExperience" style="display:grid;gap:8px;padding:8px;border:1px solid #31506c;border-radius:10px;margin-bottom:11px">
-      <strong>WEBSITE EXPERIENCE</strong>
-      <label class="check"><input id="brCodeGames" type="checkbox" checked><span>SHOW GAMES</span></label>
-      <label class="check"><input id="brCodeAutopilot" type="checkbox" checked><span>SHOW DREAM STATE / AUTOPILOT</span></label>
-      <strong>RADIO</strong>
-      <label><span>PERSONAL LISTENING PLAYLIST (OPTIONAL)</span><select id="brCodeRadioPlaylist"><option value="">Use individual song order</option></select></label>
-      <small>Radio 1 and Radio 2 remain shared broadcasts. This playlist opens in the individual Music player.</small>
-    </div>
     <div class="backroomPermissions">
-      <label class="check"><input type="checkbox" name="brAccessScope" value="website"><span>ENTIRE WEBSITE</span></label>
       <label class="check"><input type="checkbox" name="brAccessScope" value="radio" checked><span>RADIO</span></label>
-      <label class="check"><input type="checkbox" name="brAccessScope" value="music"><span>MUSIC</span></label>
-      <label class="check"><input type="checkbox" name="brAccessScope" value="albums"><span>ALBUMS</span></label>
-      <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     </details>
     <details class="brAccessCategory" id="brAccessFanCategory"><summary>FANS · LINK SAVED FAN TO THIS ACCESS CODE</summary>
@@ -3055,6 +3043,7 @@ const backroomVaultManagers=(()=>{
   // One selected code and one editor: no repeated control rows or permanent open forms.
   const codeMaster=$('brAccessMaster');
   let selectedCodeId='',editingCodeId='',assignedSongPaths=[],visibleCodes=[],savingCode=false;
+  let replacementLegacyScopes=[],replacementExperience=null;
   let appliedPlaylistIds=new Set();
   const scopeBoxes=()=>[...document.querySelectorAll('[name="brAccessScope"]')];
   function accessModeUI(){
@@ -3076,10 +3065,6 @@ const backroomVaultManagers=(()=>{
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    const radio=$('brCodeRadioPlaylist'),radioCurrent=radio.value;
-    radio.replaceChildren(new Option('Use individual song order',''));
-    for(const p of playlists)radio.appendChild(new Option(p.name,p.id));
-    radio.value=[...radio.options].some(x=>x.value===radioCurrent)?radioCurrent:'';
     const source=playlistLoaded?playlists:[];
     select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
     for(const p of source)select.appendChild(new Option(p.name,p.id));
@@ -3210,6 +3195,7 @@ const backroomVaultManagers=(()=>{
     editingCodeId='';
   }
   function showCodeEditor(id=''){
+    replacementLegacyScopes=[];replacementExperience=null;
     const row=codeRows.find(x=>String(x.id)===String(id))||null;
     if((row?.id||'')!==revealedKeyRecordId){
       $('brAccessOneTime').hidden=true;
@@ -3230,7 +3216,6 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
     $('brAccessCustomCode').closest('label').hidden=true;
-    $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     const nameKey=String(row?.label||'').toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
     // A 4-character suffix cannot prove that an old saved secret equals its name.
@@ -3241,8 +3226,6 @@ const backroomVaultManagers=(()=>{
       'Editing the name does NOT change the existing Radio key. Reveal or explicitly rotate the key.':
       'For NEW codes, the name becomes the Radio key after a confirmed Vault save.';
     const scopes=row?row.scopes:['radio'];
-    $('brCodeGames').checked=row?.experience?.games_enabled!==false;
-    $('brCodeAutopilot').checked=row?.experience?.autopilot_enabled!==false;
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
     $('brAccessHours').value=row?.duration_seconds?Math.max(1,Math.round(row.duration_seconds/3600)):168;
@@ -3261,7 +3244,6 @@ const backroomVaultManagers=(()=>{
     accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
     appliedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
-    $('brCodeRadioPlaylist').value=row?.experience?.radio_playlist_id||'';
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
     // A code that currently grants RADIO must still be able to acquire MUSIC
     // or playlist permissions. Do not hide the only relevant controls.
@@ -3450,7 +3432,13 @@ const backroomVaultManagers=(()=>{
   }
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
-    const scopes=scopeBoxes().filter(x=>x.checked).map(x=>x.value);
+    const existing=editingCodeId?codeRows.find(row=>row.id===editingCodeId):null;
+    // Preserve older hidden scopes on edit instead of revoking permissions by accident.
+    // New codes start with the one visible RADIO permission.
+    const scopes=[...new Set([
+      ...(existing?.scopes||replacementLegacyScopes).filter(scope=>scope!=='radio'),
+      ...scopeBoxes().filter(x=>x.checked).map(x=>x.value)
+    ])];
     if(!label){$('brAccessLabel').focus();throw Error('Enter a name for this code.');}
     const normalizedRequested=label.toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
     if(!/^[A-Z0-9]{4,64}$/.test(normalizedRequested)||!/^[a-zA-Z0-9 -]{4,100}$/.test(label)){
@@ -3468,9 +3456,12 @@ const backroomVaultManagers=(()=>{
       requested_code:editingCodeId?'':label,
       // Checked GitHub playlists are SNAPSHOTTED on Save, not by a second Load button.
       playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths,
-      experience:{games_enabled:$('brCodeGames').checked,
-        autopilot_enabled:$('brCodeAutopilot').checked,
-        radio_playlist_id:$('brCodeRadioPlaylist').value}};
+      // Removed experience controls do not overwrite previously saved settings.
+      experience:{
+        games_enabled:(existing?.experience||replacementExperience)?.games_enabled!==false,
+        autopilot_enabled:(existing?.experience||replacementExperience)?.autopilot_enabled!==false,
+        radio_playlist_id:String((existing?.experience||replacementExperience)?.radio_playlist_id||'')
+      }};
   }
   async function saveCode(isEdit){
     if(savingCode)return;
@@ -3512,6 +3503,7 @@ const backroomVaultManagers=(()=>{
         saved.experience?.autopilot_enabled===payload.experience.autopilot_enabled&&
         String(saved.experience?.radio_playlist_id||'')===payload.experience.radio_playlist_id;
       if(confirmed){
+        replacementLegacyScopes=[];replacementExperience=null;
         appliedPlaylistIds=new Set(payload.playlist_ids);
         accessSelectedPlaylistIds=new Set(payload.playlist_ids);
         assignedSongPaths=payload.track_paths.slice();
@@ -3604,6 +3596,8 @@ const backroomVaultManagers=(()=>{
     if(!old)return accessStatus('SELECT A SAVED CODE FIRST.');
     if(!confirm('Prepare a replacement for "'+old.label+'"? This will NOT disable the old code until you deliberately suspend or revoke it.'))return;
     showCodeEditor();
+    replacementLegacyScopes=(old.scopes||[]).filter(scope=>scope!=='radio');
+    replacementExperience=old.experience?{...old.experience}:null;
     // Copy every existing entitlement into a NEW Vault code without copying
     // the old secret; this is a deliberate new issue, never an edit to an
     // existing hashed code.
@@ -3990,13 +3984,6 @@ const backroomVaultManagers=(()=>{
         if(!accessLoaded||!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
         void codeAction('delete');
       });
-      const gameDetails=document.createElement('details');gameDetails.className='brAccessCategory';
-      gameDetails.id='brAccessGameInfo';
-      const gameSummary=document.createElement('summary');gameSummary.textContent='GAMES';
-      const gameDescription=document.createElement('p');
-      gameDescription.textContent='GAMES currently grants all GE games. Individual game restrictions are not available in the Vault API; no individual selections have been saved.';
-      gameDetails.append(gameSummary,gameDescription);
-      $('brAccessMusicCategory').after(gameDetails);
       $('brAllSongsAlbum').addEventListener('change',()=>{
         $('brAllSongsChoices').scrollTop=0;
         renderAllSongs();
