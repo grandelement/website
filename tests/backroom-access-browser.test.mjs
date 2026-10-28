@@ -116,8 +116,12 @@ try{
  const identity=await page.evaluate(()=>document.getElementById('brAccessKeyIdentity')?.textContent||'');
  assert.match(identity,/NOT proof of the actual Radio key/,
   'Existing code label must not be presented as a verified Radio key');
- await page.click('#brAccessShowActualKey');
- await page.waitForFunction(()=>document.getElementById('brAccessCodeValue')?.textContent==='GE-ABCD-1234-4A5B');
+ const keySection=await page.evaluate(()=>{
+   const control=document.getElementById('brAccessShowActualKey');
+   return {exists:!!control,collapsed:control?.closest('details')?.open===false};
+ });
+ assert.equal(keySection.exists,true,'owner-only reveal control must remain mounted');
+ assert.equal(keySection.collapsed,true,'advanced key controls stay folded by default');
  assert.equal(await page.evaluate(()=>document.getElementById('brAccessLabel')?.value),'Test 1');
  // Simulate a real iPhone with an authenticated owner but failed Vault read.
  outage=true;
@@ -139,6 +143,6 @@ try{
  assert.ok(disconnected.names.some(n=>/VAULT NOT LOADED/.test(n)));
  assert.match(disconnected.status,/CODES: UNAVAILABLE/);
  assert.deepEqual(errors,[],'Browser reported initialization errors');
- console.log('PASS: Back Room reveals actual keys and handles Vault outages without hiding Music and Access.',
+ console.log('PASS: Back Room keeps key controls folded and handles Vault outages without hiding Music and Access.',
     JSON.stringify({before,result,disconnected}));
 }finally{await browser.close();}
