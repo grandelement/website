@@ -196,6 +196,15 @@ body.view-player #liveStatus{width:min(900px,94vw)}
 .sunlab-checks input{accent-color:#4ec4ff;margin-top:2px}.sunlab-checktext{display:flex;flex-direction:column;gap:2px}.sunlab-checktext small{font-weight:500;opacity:.66;line-height:1.2}
 .sunlab-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
 .sunlab-mini{min-height:34px!important;padding:7px 10px!important;font-size:12px!important}
+.sunlab-purchase{padding:10px;border:1px solid rgba(226,181,97,.8);background:#092638;border-radius:10px;margin-top:8px;color:#ecf7ff}
+.sunlab-purchase strong{color:#ffe6ac;font-size:13px;letter-spacing:.04em}
+.sunlab-purchase p{font-size:12px;line-height:1.4;margin:6px 0;white-space:pre-line}
+.sunlab-purchase .sunlab-checkout-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.sunlab-purchase button{font-size:12px;min-height:37px;background:#20577e;border:1px solid #86bfff;border-radius:8px;color:white;padding:6px 10px}
+#sunLabSimPurchaseBtn{background:#624b22!important;border-color:#ebc873!important;color:#fff7e3!important}
+#sunLabPurchaseStage[hidden]{display:none!important}
+#sunLabPurchaseStatus{font-size:12px;color:#f6dba6;line-height:1.4}
+
 #sunLabBtn{white-space:nowrap}
 body.view-player #sunLabBtn{min-height:30px;padding:4px 7px;font-size:clamp(10px,1.45vw,13px);transform:none!important}
 @media(max-width:520px){.sunlab-panel{width:min(96vw,420px);padding:11px 10px 12px}}
@@ -4147,11 +4156,23 @@ html.ge-radio-ui body.view-player #musicGroup > button#geMusicV5Button[aria-expa
     </div>
     <div class="sunlab-actions">
       <button id="sunLabAllMusicTest" type="button" class="sunlab-mini" title="Test the 33-minute song preview player">ALL MUSIC · PREVIEW TEST</button>
+      <button id="sunLabSimPurchaseBtn" type="button" class="sunlab-mini" title="Rehearse checkout for the songs checked in MUSIC; no money or Vault grant">SIMULATE PURCHASE</button>
       <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
       <button id="qrWebsiteTestBtn" type="button" class="sunlab-mini">Test Website QR Intro</button>
       <button id="qrRadioTestBtn" type="button" class="sunlab-mini">Test Radio QR Intro</button>
       <button id="sunLabReset" type="button" class="sunlab-mini">Reset This Effect</button>
     </div>
+    <section id="sunLabPurchaseStage" class="sunlab-purchase" hidden aria-label="Simulated music purchase checkout">
+      <strong>TEST CHECKOUT · NO PAYMENT</strong>
+      <p id="sunLabPurchaseSummary" role="status">Choose songs in MUSIC first.</p>
+      <div id="sunLabPurchaseStatus" role="status" aria-live="polite"></div>
+      <div class="sunlab-checkout-actions">
+        <button id="sunLabSimConfirm" type="button" hidden>COMPLETE TEST PURCHASE</button>
+        <button id="sunLabSimView" type="button">VIEW TEST LIBRARY</button>
+        <button id="sunLabSimClear" type="button">CLEAR TEST ORDERS</button>
+        <button id="sunLabSimCancel" type="button">CLOSE TEST</button>
+      </div>
+    </section>
     <div class="sunlab-access-tools">
       <button id="sunLabResetCodes" type="button" class="sunlab-mini" title="Clear local test access only; keep downloaded music">RESET CODES</button>
       <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Erase local listener settings and offline downloads on this device">RESET SITE</button>
@@ -8791,7 +8812,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
   function resetLocalAccessCodes(){
     if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
-    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey,'GE_VAULT_RADIO_SESSION_V1'];
+    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1','GE_MUSIC_TEST_PURCHASES_V1',GATE_CONFIG.authKey,'GE_VAULT_RADIO_SESSION_V1'];
     for(const key of keys){
       if(!key)continue;
       try{localStorage.removeItem(key);}catch(_e){}
@@ -11406,7 +11427,254 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261027-v592-distinct-album-headings"></script>
+<script id="ge-sun-lab-local-purchase-rehearsal">
+(()=>{
+ 'use strict';
+ // No customer checkout, private wallet, real order, Vault session or payment
+ // entitlement is touched. This is an OWNER-ONLY client-side test scenario.
+ const byId=id=>document.getElementById(id);
+ const TEST_KEY='GE_MUSIC_TEST_PURCHASES_V1';
+ const CHECKED_KEY='GE_MUSIC_V3_SELECTION_20261024';
+ const stage=byId('sunLabPurchaseStage'),summary=byId('sunLabPurchaseSummary'),
+   info=byId('sunLabPurchaseStatus'),confirmBtn=byId('sunLabSimConfirm');
+ if(!stage||!byId('sunLabSimPurchaseBtn'))return;
+ let reviewed=null;
+ const owner=()=>{try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes'}catch(_){return false}};
+ const normal=v=>String(v||'').normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+ const cleanPath=value=>{
+   const p=String(value||'').replace(/^\/+/, '');
+   return /^ge-music\/music\/[^/]+\/.+\.(mp3|m4a|wav|ogg)$/i.test(p)&&!p.includes('..')?p:'';
+ };
+ const checked=()=>{
+  try{
+   const a=JSON.parse(localStorage.getItem(CHECKED_KEY)||'[]');
+   return Array.isArray(a)?[...new Set(a.map(cleanPath).filter(Boolean))]:[];
+  }catch(_){return []}
+ };
+ function readOrders(){
+  try{const a=JSON.parse(localStorage.getItem(TEST_KEY)||'[]');return Array.isArray(a)?a.filter(x=>x?.testOnly===true):[]}catch(_){return []}
+ }
+ const money=n=>'
+<script id="ge-background-audio-hardening">
+(()=>{
+  const a=document.getElementById('player');
+  if(!a)return;
+  const normal=()=>{
+    try{a.defaultPlaybackRate=1;}catch(_e){}
+    try{if(a.playbackRate!==1)a.playbackRate=1;}catch(_e){}
+    try{if('audioSession' in navigator)navigator.audioSession.type=document.body.classList.contains('iam-studio-open')?'play-and-record':'playback';}catch(_e){}
+  };
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)normal();});
+  window.addEventListener('pageshow',normal);
+  normal();
+})();
+</script>
+
+<script id="ge-floating-sun-interaction-v2">
+(function(){
+  var sun=document.getElementById('geFloatingSun');
+  if(!sun||sun.dataset.bound==='1')return;
+  sun.dataset.bound='1';
+
+  var x=0,y=0,scale=1,dragging=false,moved=false;
+  var sx=0,sy=0,ox=0,oy=0,lx=0,ly=0,lt=0,vx=0,vy=0;
+  var pinchDistance=0,pinchScale=1,raf=0;
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function apply(){
+    sun.dataset.x=String(x);sun.dataset.y=String(y);sun.dataset.scale=String(scale);
+    sun.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,0) scale('+scale.toFixed(3)+')';
+  }
+  function activity(){if(window.GEHUD&&window.GEHUD.sunActivity)window.GEHUD.sunActivity();}
+  function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}
+  function wrap(){
+    var left=Number(sun.dataset.baseLeft||0),top=Number(sun.dataset.baseTop||0);
+    var w=(Number(sun.dataset.baseWidth||sun.offsetWidth)||sun.offsetWidth)*scale;
+    var h=(Number(sun.dataset.baseHeight||sun.offsetHeight)||sun.offsetHeight)*scale;
+    var cx=left+x+w/2,cy=top+y+h/2,vw=window.innerWidth||0,vh=window.innerHeight||0;
+    if(cx<-w/2)x=(vw+w/2)-left-w/2;
+    else if(cx>vw+w/2)x=(-w/2)-left-w/2;
+    if(cy<-h/2)y=(vh+h/2)-top-h/2;
+    else if(cy>vh+h/2)y=(-h/2)-top-h/2;
+  }
+  function inertia(){
+    stop();
+    function step(){
+      x+=vx;y+=vy;vx*=.955;vy*=.955;wrap();apply();
+      if(Math.abs(vx)>.08||Math.abs(vy)>.08){activity();raf=requestAnimationFrame(step);}
+      else{raf=0;activity();}
+    }
+    if(Math.abs(vx)>.18||Math.abs(vy)>.18)raf=requestAnimationFrame(step);
+  }
+  function dist(t){
+    if(!t||t.length<2)return 0;
+    var dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+  function begin(px,py){
+    stop();dragging=true;moved=false;sx=px;sy=py;ox=x;oy=y;lx=px;ly=py;lt=Date.now();vx=vy=0;activity();
+  }
+  function move(px,py){
+    if(!dragging)return;
+    var now=Date.now(),dt=Math.max(8,now-lt);
+    var dx=px-sx,dy=py-sy;if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
+    x=ox+dx;y=oy+dy;vx=(px-lx)/(dt/16);vy=(py-ly)/(dt/16);lx=px;ly=py;lt=now;
+    wrap();apply();activity();
+  }
+  function end(){
+    if(!dragging)return;dragging=false;vx=clamp(vx,-7,7);vy=clamp(vy,-7,7);inertia();activity();
+  }
+
+  sun.addEventListener('pointerdown',function(e){
+    if(e.pointerType==='touch')return;
+    begin(e.clientX,e.clientY);sun.setPointerCapture&&sun.setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  sun.addEventListener('pointermove',function(e){
+    if(!dragging||e.pointerType==='touch')return;move(e.clientX,e.clientY);e.preventDefault();
+  });
+  sun.addEventListener('pointerup',function(e){
+    if(e.pointerType==='touch')return;
+    const tapped=dragging&&!moved;
+    end();
+    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+  });
+
+  sun.addEventListener('touchstart',function(e){
+    stop();
+    if(e.touches.length>=2){dragging=false;pinchDistance=dist(e.touches);pinchScale=scale;moved=true;activity();}
+    else if(e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);}
+    if(e.cancelable)e.preventDefault();
+  },{passive:false});
+  sun.addEventListener('touchmove',function(e){
+    if(e.touches.length>=2){
+      var d=dist(e.touches);
+      if(pinchDistance>0){scale=clamp(pinchScale*(d/pinchDistance),.35,3.2);moved=true;apply();activity();}
+    }else if(e.touches.length===1){move(e.touches[0].clientX,e.touches[0].clientY);}
+    if(e.cancelable)e.preventDefault();
+  },{passive:false});
+  sun.addEventListener('touchend',function(e){
+    if(e.touches&&e.touches.length===1){begin(e.touches[0].clientX,e.touches[0].clientY);return;}
+    const tapped=dragging&&!moved&&(!e.touches||e.touches.length===0);
+    pinchDistance=0;end();if(e.cancelable)e.preventDefault();
+    if(tapped)location.assign(document.getElementById('homeLink')?.href||'https://www.grandelement.com/');
+  },{passive:false});
+
+  sun.addEventListener('wheel',function(e){
+    scale=clamp(scale*(e.deltaY<0?1.08:.92),.35,3.2);moved=true;apply();activity();e.preventDefault();
+  },{passive:false});
+})();
+</script>
+<script id="ge-headphone-notice-handler">
+(function(){
+  var popup=document.getElementById('geHeadphoneNotice');
+  var ok=document.getElementById('geHeadphoneNoticeOK');
+  var lastFocus=null;
+  if(!popup||!ok)return;
+  function show(){
+    lastFocus=document.activeElement;
+    popup.hidden=false;
+    ok.focus();
+  }
+  function dismiss(){
+    popup.hidden=true;
+    if(lastFocus&&typeof lastFocus.focus==='function'){
+      try{lastFocus.focus()}catch(_e){}
+    }
+  }
+  // Cover the I AM entrance, headphone icon and listening-output option.
+  document.addEventListener('click',function(event){
+    var button=event.target&&event.target.closest&&event.target.closest('button');
+    if(!button)return;
+    if(button.id==='iamHeadphones'||button.id==='iamListenHeadphones'||
+       (button.getAttribute('data-value')==='headphones'&&
+        button.closest('[data-on-air-group="listen"]')))show();
+  });
+  ok.addEventListener('click',dismiss);
+  popup.addEventListener('click',function(event){if(event.target===popup)dismiss();});
+  document.addEventListener('keydown',function(event){
+    if(!popup.hidden&&event.key==='Escape'){event.preventDefault();dismiss();}
+  });
+})();
+</script>
+<script defer src="../ge-accessibility.js?v=20261023-about-language1"></script>
+</body>
+</html>+Number(n||0).toFixed(2);
+ function display(message){info.textContent=message}
+ function closeTest(){stage.hidden=true;reviewed=null;confirmBtn.hidden=true}
+ byId('sunLabSimPurchaseBtn').addEventListener('click',async()=>{
+  if(!owner())return;
+  stage.hidden=false;reviewed=null;confirmBtn.hidden=true;
+  const paths=checked();
+  if(!paths.length){summary.textContent='No songs selected. Open MUSIC, check songs, then return to Sun Lab.';display('No payment was made.');return}
+  summary.textContent='Checking '+paths.length+' selected tracks against the GE Support catalog…';display('');
+  try{
+   const response=await fetch('../support/catalog.json',{cache:'no-store'});
+   if(!response.ok)throw Error('Support catalog unavailable');
+   const catalog=await response.json();
+   if(!Array.isArray(catalog.music))throw Error('Invalid Support catalog');
+   const byAlbum=new Map(),missing=[];
+   for(const path of paths){
+    const parts=path.split('/'),folder=parts[2]||'',filename=parts.slice(3).join('/');
+    const albumName=folder.replace(/^Grand Element - [0-9]{4} - /,'').trim();
+    const album=catalog.music.find(a=>normal(a.title)===normal(albumName));
+    const track=album?.tracks?.find(t=>normal(t.file)===normal(filename));
+    if(!album||!track){missing.push(path);continue}
+    if(!byAlbum.has(album.id))byAlbum.set(album.id,{album,tracks:new Set()});
+    byAlbum.get(album.id).tracks.add(track.number);
+   }
+   if(missing.length){
+    summary.textContent=paths.length+' checked · '+missing.length+' not listed for sale';
+    display('Reconcile unmatched songs in the Support catalog before testing checkout. No purchase completed.');
+    return;
+   }
+   let total=0,albumCount=0,singleCount=0;
+   for(const {album,tracks} of byAlbum.values()){
+    if(tracks.size===album.tracks.length){total+=tracks.size;albumCount++}
+    else{total+=tracks.size*1.5;singleCount+=tracks.size}
+   }
+   reviewed={paths,subtotal:total,albumCount,singleCount};
+   summary.textContent=paths.length+' selected songs · '+albumCount+' complete album'+(albumCount===1?'':'s')+
+    ' · '+singleCount+' individual song'+(singleCount===1?'':'s')+'\nSUBTOTAL '+money(total)+' · Store preview pricing (taxes not included)';
+   display('Step 1: Review your selection. Step 2: Complete a TEST order. Step 3: Open TEST LIBRARY and check PLAY. Nothing will be charged.');
+   confirmBtn.hidden=false;
+  }catch(error){summary.textContent='Test checkout unavailable';display(String(error.message||error))}
+ });
+ confirmBtn.addEventListener('click',()=>{
+   if(!owner()||!reviewed)return;
+   if(checked().join('\n')!==reviewed.paths.join('\n')){
+     reviewed=null;confirmBtn.hidden=true;
+     display('Song selection changed. Tap SIMULATE PURCHASE to review the new selection.');return;
+   }
+   const previous=readOrders();
+   const record={version:1,testOnly:true,status:'SIMULATED_NOT_PAID',orderId:'SIM-'+Date.now().toString(36).toUpperCase(),
+     source:'sun-lab',at:Date.now(),paths:reviewed.paths,subtotal:reviewed.subtotal};
+   try{localStorage.setItem(TEST_KEY,JSON.stringify([...previous,record].slice(-100)))}
+   catch(_){display('Could not save this test order on the device.');return}
+   confirmBtn.hidden=true;
+   summary.textContent='TEST ORDER '+record.orderId+' · '+record.paths.length+' songs · '+money(record.subtotal);
+   display('TEST COMPLETE · Local simulated library updated. NO MONEY CHARGED · NO REAL ACCESS OR DOWNLOAD RIGHTS. Tap VIEW TEST LIBRARY to check the player.');
+   reviewed=null;
+   window.dispatchEvent(new Event('ge-music-demo-purchase-updated'));
+ });
+ byId('sunLabSimCancel').addEventListener('click',closeTest);
+ byId('sunLabSimView').addEventListener('click',()=>{
+   if(!owner())return;
+   closeTest();
+   const panel=byId('sunLabPanel');if(panel){panel.hidden=true;panel.classList.remove('show')}
+   byId('sunLabBtn')?.setAttribute('aria-pressed','false');
+   window.GEMusicV5?.showTestLibrary?.();
+ });
+ byId('sunLabSimClear').addEventListener('click',()=>{
+   if(!owner())return;
+   if(!confirm('Clear simulated Sun Lab test purchases from this device? No real purchases or Vault records are affected.'))return;
+   try{localStorage.removeItem(TEST_KEY)}catch(_){}
+   reviewed=null;confirmBtn.hidden=true;
+   summary.textContent='Test purchases cleared.';display('No real accounts or purchases were touched.');
+   window.dispatchEvent(new Event('ge-music-demo-purchase-updated'));
+ });
+})();
+</script>
+<script defer src="./ge-music-v5.js?v=20261028-v60-focused-arrange-purchase-sim"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
   const a=document.getElementById('player');
