@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.13-20261028-VERIFIED-NAME-ONLY';
+const BUILD='GE-MUSIC-V7.14-20261028-LEGACY-CATALOG-DISCOVERY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -11,6 +11,7 @@ const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+const LEGACY_ALBUMS=new Set(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
 // Representative hues visually checked against all 11 JPG covers in
 // ge-images/images. These are NOT the unrelated GOLF_PLANETS gameplay colors.
 const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#dbca64','Aether':'#bfc4cd','Singles':'#6e9bb5'};
@@ -21,7 +22,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -111,6 +112,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .song input[type=checkbox]{flex:0 0 auto;width:21px;height:21px;accent-color:#087eff}
 .song span{min-width:0;overflow-wrap:anywhere;font-size:13px}
 .song .songLabel{flex:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
+.legacyToggle{width:100%;margin:10px 0 7px;min-height:47px;background:#0d304d;border:1px solid #6a91ad;color:#eef8ff;letter-spacing:.05em;font-weight:850}
+.legacyHeading{margin-top:6px;color:#b7d9ed;font-size:12px;padding:5px 8px}
 .albumJump{min-width:0;width:100%;margin-top:7px;padding:8px 10px;min-height:40px;border:1px solid #4b91bd;border-radius:9px;background:#09243a;color:white;font-size:14px}
 .song button{flex:0 0 auto;min-width:45px;min-height:38px;background:#1165a5;border-color:#5cd9ff;font-size:13px}
 .song .reorder{min-width:38px;padding:4px 6px;font-size:19px}
@@ -358,6 +361,21 @@ async function fetchCatalog(){
    for(const item of rows){const path=canonical(key==='files'?item:item?.path);if(path)all.push(path)}
   }catch(error){console.warn('MUSIC V5 catalog source',file,error)}
  }
+ // Newly committed files enter MUSIC only. Radio/Shuffle approval is a
+ // separate owner-maintained path list (config/site-live.json).
+ try{
+  const response=await fetch(
+   'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
+   {cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
+  if(response.ok){
+   const data=await response.json();
+   if(Array.isArray(data.tree)&&!data.truncated)for(const item of data.tree){
+    if(item?.type!=='blob')continue;
+    const path=canonical(item.path);
+    if(path)all.push(path);
+   }
+  }
+ }catch(_){/* Keep the static manifest when discovery is unavailable. */}
  const unique=[...new Set(all)].map(details);
  unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
  state.tracks=unique;state.loaded=true;state.loading=false;
@@ -366,7 +384,7 @@ async function fetchCatalog(){
   filter.replaceChildren(new Option('ALL SONGS','all'),new Option('CHECKED SONGS','checked'),new Option('BROWSE ALBUMS','albums'));
   if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')filter.add(new Option('TEST PURCHASED MUSIC · LOCAL ONLY','test-purchases'));
 
-  for(const album of albumOrder.filter(name=>unique.some(track=>track.album===name)))
+  for(const album of albumOrder.filter(name=>!LEGACY_ALBUMS.has(name)&&unique.some(track=>track.album===name)))
     filter.add(new Option('ALBUM · '+album,'album:'+album));
   if(prior&&[...filter.options].some(option=>option.value===prior))filter.value=prior;
   updateMeta();render();
@@ -986,7 +1004,15 @@ function render(){
   if(!results.length)scroller.append(elem('p','empty','No songs match that search.'));
  }else if(state.view==='albums'){
   const names=[...new Set(state.tracks.map(t=>t.album))];
-  for(const name of names){
+  const current=names.filter(name=>!LEGACY_ALBUMS.has(name));
+  const earlier=names.filter(name=>LEGACY_ALBUMS.has(name));
+  const legacyButton=elem('button','legacyToggle',
+   state.showLegacyAlbums?'LEGACY · HIDE OLDER ALBUMS':'LEGACY · SHOW OLDER ALBUMS');
+  legacyButton.type='button';
+  legacyButton.setAttribute('aria-expanded',String(state.showLegacyAlbums));
+  legacyButton.addEventListener('click',()=>{state.showLegacyAlbums=!state.showLegacyAlbums;render()});
+  const shownNames=state.showLegacyAlbums?[...current,...earlier]:current;
+  for(const name of shownNames){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
     // Single album row: independent select-all checkbox + VIEW SONGS action.
@@ -996,7 +1022,12 @@ function render(){
     card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
     wrapper.append(albumActions(name,rows));scroller.append(wrapper);
   }
-  if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
+  if(earlier.length){
+   scroller.append(legacyButton);
+   if(state.showLegacyAlbums)scroller.append(elem('div','legacyHeading',
+    'LEGACY · EARLIER GRAND ELEMENT RECORDINGS · LIBRARY ONLY · NOT FOR SALE'));
+  }
+  if(!shownNames.length)scroller.append(elem('p','empty','No current albums found.'));
  }else if(state.view==='ge-playlists'){
 
   // Connection summary is already shown above the scroll area.
