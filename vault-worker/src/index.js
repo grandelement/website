@@ -2151,9 +2151,13 @@ function accessDisplayNameStatement(env,codeId,name,t){
  ).bind(codeId,name,t);
 }
 async function codeListenerDisplayName(env,codeId){
- await ensureAccessCodeDisplayNames(env);
- const row=await env.VAULT_DB.prepare("SELECT display_name FROM access_code_display_names WHERE code_id=?").bind(codeId).first();
- return cleanAccessDisplayName(row?.display_name)||'';
+ // A label lookup failure must never consume a one-use credential and then
+ // block playback. The safe fallback is an unnamed active session.
+ try{
+  await ensureAccessCodeDisplayNames(env);
+  const row=await env.VAULT_DB.prepare("SELECT display_name FROM access_code_display_names WHERE code_id=?").bind(codeId).first();
+  return cleanAccessDisplayName(row?.display_name)||'';
+ }catch(_){return ''}
 }
 function accessPublicRow(row) {
   if (!row) return null;
