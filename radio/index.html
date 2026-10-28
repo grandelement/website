@@ -539,9 +539,21 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 #geGateHelp.show{display:block}
 #geGateEmail{min-height:40px;padding:8px 16px}
 #geGate.wrong #geGateWord{animation:geGateNudge .34s ease}@keyframes geGateNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* Every Vault-verified Radio code runs the same Sun zoom/fade.
+   Use a keyframe sequence, not a transform transition that can be cancelled
+   by the Sun's previous inline entrance/positioning transitions on Safari. */
+@keyframes geGateAcceptedCodeZoom{
+  0%{transform:translate3d(0,0,0) scale(1);opacity:1;filter:brightness(1) saturate(1)}
+  36%{transform:translate3d(0,0,0) scale(2.25);opacity:.96;filter:brightness(1.28) saturate(1.15)}
+  100%{transform:translate3d(0,0,0) scale(7);opacity:0;filter:brightness(1.55) saturate(1.35)}
+}
+@keyframes geGateAcceptedCodeBackdrop{from{opacity:1}to{opacity:0}}
 #geGate.unlocking #geGatePanel{opacity:0!important;pointer-events:none!important;transform:translate(-50%,24px)!important}
 #geGate.unlocking #geGateWaves{opacity:0!important}
-#geGate.unlocking #geGateSun{transform:translate3d(0,0,0) scale(7)!important;opacity:0!important;filter:brightness(1.55) saturate(1.35);transition:transform var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1),opacity var(--ge-gate-unlock,6s) ease,filter var(--ge-gate-unlock,6s) ease!important}
+#geGate.unlocking #geGateBackdrop{animation:geGateAcceptedCodeBackdrop var(--ge-gate-unlock,6s) ease-in forwards!important}
+#geGate.unlocking #geGateSun{
+  animation:geGateAcceptedCodeZoom var(--ge-gate-unlock,6s) cubic-bezier(.18,.7,.16,1) both!important
+}
 #geGate.unlocking{background:rgba(0,0,0,0);transition:background var(--ge-gate-unlock,6s) ease}
 #geGateAccessForm{display:none;margin-top:12px;padding:14px 12px;border:1px solid rgba(94,205,255,.30);border-radius:14px;background:rgba(0,8,18,.62);text-align:center}
 #geGateAccessForm.show{display:block}
@@ -11370,6 +11382,40 @@ Vector ${vector}. ${pair[1]}.`;
     // checkout is preview-only; never claim an actual paid entitlement.
     location.assign('../support/?section=radio&flow=shop');
   }
+  // Do not tie the accepted-code animation to successful stream reconnection.
+  // This runs for EVERY code that successfully redeems the Radio scope in D1.
+  function startVerifiedCodeExit(){
+    const duration=Math.max(250,gateSeconds(GATE_CONFIG.unlockSeconds)*1000);
+    if(closeTimer)clearTimeout(closeTimer);
+    gate.classList.remove('unlocking','wrong');
+    gate.classList.add('open','centered');
+    gate.setAttribute('aria-hidden','false');
+    gate.style.setProperty('--ge-gate-unlock',(duration/1000)+'s');
+    if(sun){
+      sun.style.animation='none';
+      sun.style.transition='none';
+      sun.style.transform='translate3d(0,0,0) scale(1)';
+      sun.style.opacity='1';
+      sun.style.filter='';
+    }
+    // Safari needs a committed starting frame; after two frames the verified
+    // CSS keyframes animate both zoom and fade independently of audio state.
+    void gate.offsetWidth;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(!gate.classList.contains('open'))return;
+      if(sun)sun.style.removeProperty('animation');
+      gate.classList.add('unlocking');
+    }));
+    closeTimer=setTimeout(()=>{
+      gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');
+      gate.setAttribute('aria-hidden','true');
+      if(word)word.value='';
+      if(sun)for(const key of ['animation','transition','transform','opacity','filter'])
+        sun.style.removeProperty(key);
+      gate.style.removeProperty('--ge-gate-unlock');
+      closeTimer=0;
+    },duration+100);
+  }
   let vaultRedeemBusy=false;
   async function unlock(){
     // A Radio-only code holder may later enter a distinct owner code.
@@ -11453,10 +11499,12 @@ Vector ${vector}. ${pair[1]}.`;
 
     const wasExpired=!!gs.expired,restoreVolume=Math.max(.01,Math.min(1,Number(gs.baseVolume)||1));
     clearTimers();
-    window.GEGateFX?.reset?.();
     developerGatePreview=false;
-    window.GERadioSyncOfflineAccess?.();
     gs.active=false;gs.expired=false;gs.pausedAt=0;gs.reason='unlocked';save(true);
+    startVerifiedCodeExit();
+    // Audio recovery is independent. Failure must not cancel the accepted-code
+    // visual transition, nor change the newly verified entitlement.
+    try{window.GEGateFX?.reset?.();window.GERadioSyncOfflineAccess?.();}catch(_e){}
     // Temporary legacy-Gate event for owner analytics and later email alerts.
     // Do not send location, VPN, IP, password, payment claims, or identity.
     // This is client-reported and is NOT verified purchase/entitlement proof.
@@ -11491,16 +11539,9 @@ Vector ${vector}. ${pair[1]}.`;
     }
 
     $('geGateNextPreview').hidden=true;
-    gate.classList.remove('wrong','centered');gate.classList.add('open');
-    gate.style.setProperty('--ge-gate-unlock',`${gateSeconds(GATE_CONFIG.unlockSeconds)}s`);
-    if(sun){sun.style.transition='none';sun.style.transform='translate3d(0,0,0) scale(1)';sun.style.opacity='1';void sun.offsetWidth;}
-    requestAnimationFrame(()=>requestAnimationFrame(()=>gate.classList.add('unlocking')));
-    if(!wasPersonalStream&&(wasExpired||audio.paused)){audio.muted=false;audio.play().catch(()=>{});}
-
-    closeTimer=setTimeout(()=>{
-      gate.classList.remove('open','blurring','waves','sun-moving','centered','unlocking','wrong');gate.setAttribute('aria-hidden','true');
-      if(word)word.value='';if(sun){sun.style.removeProperty('transition');sun.style.removeProperty('transform');sun.style.removeProperty('opacity');sun.style.removeProperty('filter');}
-    },Math.max(250,gateSeconds(GATE_CONFIG.unlockSeconds)*1000));
+    if(!wasPersonalStream&&(wasExpired||audio.paused)){
+      try{audio.muted=false;void audio.play().catch(()=>{});}catch(_e){}
+    }
   }
 
   // Back leaves the access screen for the GE website; it never grants Radio
