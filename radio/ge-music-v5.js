@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V6.9-20261028-FAN-VAULT-PLAYLISTS';
+const BUILD='GE-MUSIC-V7.0-20261028-LOAD-GE-USER-PLAYLISTS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -129,12 +129,29 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .geHeaderActions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
 .accessToggle{min-height:36px;min-width:88px;padding:5px 6px;font-size:11px;background:#6f329d;border-color:#cc9df7;color:#fff}
 .accessToggle[aria-expanded=true]{background:#9250b8}
-.gePlaylistBar{display:grid;grid-template-columns:38px minmax(0,1fr) 56px 56px;gap:5px;margin:8px 0 0;align-items:center}
-.gePlaylistBar select{width:100%;min-width:0;height:42px;padding:3px 0;border-radius:8px;border:1px solid #579fd4;background:#093754;color:#fff;text-align:center;font-size:16px}
+.gePlaylistBar{display:grid;grid-template-columns:minmax(0,1fr) 76px 76px;gap:6px;margin:8px 0 0;align-items:center}
+.arrangeLoad select{display:none!important}
 .gePlaylistBar input{width:100%;min-width:0;height:42px;padding:6px 8px;border-radius:8px;border:1px solid #579fd4;background:#061d30;color:#fff;font-size:16px}
 .gePlaylistBar button{height:42px;min-width:0;padding:5px 3px;font-size:11px}
 .gePlaylistBar .arrangeSave{background:#176ca5;border-color:#9ee3ff}
-@media(max-width:400px){.header .brand{font-size:12px;letter-spacing:.02em}.header .close{min-width:65px;padding:5px 7px;font-size:12px}.gePlaylistBar{grid-template-columns:35px minmax(0,1fr) 51px 51px;gap:3px}}
+.gePlaylistBar .arrangeLoadBtn{background:#104b74;border-color:#71bdec}
+.gePlaylistBar .arrangeCurrentName{min-width:0;width:100%;height:42px;padding:6px 9px;border-radius:8px;border:1px solid #579fd4;background:#061d30;color:#fff;font-size:16px}
+.gePlaylistPicker[hidden]{display:none!important}
+.gePlaylistPicker{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,8,16,.83)}
+.gePlaylistDialog{display:flex;flex-direction:column;gap:9px;width:min(550px,100%);max-height:min(84dvh,730px);padding:13px;border:2px solid #6bc5f4;border-radius:13px;background:#07233a;color:#f3fbff;box-shadow:0 20px 60px #000e}
+.gePlaylistDialogHead{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.gePlaylistDialogHead strong{font-size:17px}
+.gePlaylistDialogHead button{min-height:35px;min-width:42px}
+.gePlaylistTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.gePlaylistTabs button{min-height:43px;font-size:13px;padding:5px}
+.gePlaylistTabs button[aria-pressed=true]{background:#1674af;border-color:#a7ebff}
+.gePlaylistItems{min-height:130px;max-height:57dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;display:flex;flex-direction:column;gap:7px}
+.gePlaylistItems button{min-height:51px;text-align:left;padding:9px 12px;border-radius:9px;background:#0b3856;border-color:#548eae;font-size:15px}
+.gePlaylistItems button[aria-pressed=true]{background:#175a85;border:2px solid #adf0ff}
+.gePlaylistItems small{display:block;color:#b6dcef;font-size:11px}
+.gePlaylistItems .empty{font-size:13px;padding:12px}
+.gePlaylistConfirm{min-height:45px;background:#176faa;border-color:#b6eaff}
+@media(max-width:400px){.header .brand{font-size:12px;letter-spacing:.02em}.header .close{min-width:65px;padding:5px 7px;font-size:12px}.gePlaylistBar{grid-template-columns:minmax(0,1fr) 60px 60px;gap:4px}}
 .window.arranging .arrangeCurrent,.window.arranging .arrangeLoad,.window.arranging .arrangeCommands{display:none!important}
 .playlistActionsBar button{font-size:clamp(11px,3.2vw,13px);min-height:36px;padding:6px 11px}
 .playlistActionsBar [data-action=clear]{background:#092a43;border-color:#559dcb}
@@ -195,6 +212,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
    <div class="arrangeHint">Hold a song to drag, or use ↑ ↓. Save your order when finished.</div><div class="arrangeNotice" role="status" aria-live="polite"></div>
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
+ <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
  <div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="playSelected" disabled>PLAY</button></div></div>
 
 </section>`;
@@ -205,7 +223,10 @@ const savedSelector=el('.arrangePlaylistSelect'),nameField=el('.arrangeCurrentNa
 const loadButton=el('.arrangeLoadBtn'),saveButton=el('.arrangeSave');
 savedSelector.setAttribute('aria-label','Choose saved playlist');
 nameField.placeholder='Playlist name';saveButton.textContent='SAVE';
-playlistBar.append(savedSelector,nameField,loadButton,saveButton);
+// Keep the old select in the hidden arrange dock as a compatibility input,
+ // but present the saved records only in LOAD's two-category dialog.
+savedSelector.closest('.arrangeLoad').insertBefore(savedSelector,loadButton);
+playlistBar.append(nameField,loadButton,saveButton);
 el('.tools').insertBefore(playlistBar,el('.notice'));
 // Keep native iOS scrolling within this Shadow DOM. The old Radio document
 // touch handler must not cancel scrolling through event retargeting.
@@ -1047,8 +1068,7 @@ function exitArrange(){
  render();scroller.scrollTop=0;
 }
 el('.arrangeDone').addEventListener('click',exitArrange);
-el('.arrangeLoadBtn').addEventListener('click',()=>{
- const key=el('.arrangePlaylistSelect').value;
+function loadSelectedPlaylistKey(key){
  if(!key){
   const msg=state.playlistsLoading?'Playlists are still loading.':
     'NO SAVED PLAYLISTS AVAILABLE · '+state.playlistMessage;
@@ -1070,7 +1090,77 @@ el('.arrangeLoadBtn').addEventListener('click',()=>{
  recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:source,song_count:p.songs.length});
  say('Loaded '+p.name+' · Arrange and SAVE PLAYLIST to keep changes.');
  render();scroller.scrollTop=0;
+}
+
+let playlistPickerCategory='ge',playlistPickerSelected='';
+function pickerRows(){
+ const ge=visibleSharedLists().map(p=>({key:'ge:'+p.id,name:p.name,count:p.songs.length,
+  note:p.visibility==='published'?'GE PUBLISHED PLAYLIST':'GE PLAYLIST · AUTHORIZED CODE'}));
+ for(const p of state.assignedLists)if(!ge.some(row=>row.key==='ge:'+p.id))
+  ge.push({key:'assigned:'+p.id,name:p.name,count:p.songs.length,note:'ASSIGNED GE PLAYLIST'});
+ const users=state.fanLists.map(p=>({key:'fan:'+p.id,name:p.name,count:p.songs.length,note:'SAVED IN YOUR PRIVATE GE VAULT'}));
+ // Older device-only playlists remain accessible until users migrate them.
+ for(const p of readMine())users.push({key:'local:'+p.id,name:p.name,count:p.songs.length,note:'OLDER DEVICE-ONLY PLAYLIST'});
+ return playlistPickerCategory==='ge'?ge:users;
+}
+function renderPlaylistPicker(){
+ if(el('.gePlaylistPicker').hidden)return;
+ const isGE=playlistPickerCategory==='ge';
+ el('.gePlaylistTabGE').setAttribute('aria-pressed',String(isGE));
+ el('.gePlaylistTabUser').setAttribute('aria-pressed',String(!isGE));
+ const host=el('.gePlaylistItems');host.replaceChildren();
+ const rows=pickerRows();
+ for(const p of rows){
+  const button=elem('button','',p.name);button.type='button';
+  button.setAttribute('aria-pressed',String(p.key===playlistPickerSelected));
+  const label=elem('small','',p.note+' · '+p.count+' SONGS');
+  button.append(label);
+  button.addEventListener('click',()=>{
+   playlistPickerSelected=p.key;
+   renderPlaylistPicker();
+  });
+  host.append(button);
+ }
+ if(!rows.length)host.append(elem('p','empty',isGE?
+  'No GE playlists are currently public or assigned to this access code.':
+  'No personal playlists saved in this fan library yet.'));
+ el('.gePlaylistConfirm').disabled=!rows.some(p=>p.key===playlistPickerSelected);
+ el('.gePlaylistPickerStatus').textContent=playlistPickerCategory==='ge'?
+  'Published and authorized GE playlists':'Your private GE Vault playlists and older device-only mixes';
+}
+function closePlaylistPicker(){
+ el('.gePlaylistPicker').hidden=true;
+ playlistPickerSelected='';
+ el('.arrangeLoadBtn').focus();
+}
+async function openPlaylistPicker(){
+ playlistPickerCategory='ge';playlistPickerSelected='';
+ el('.gePlaylistPicker').hidden=false;
+ renderPlaylistPicker();
+ el('.gePlaylistTabGE').focus();
+ // Refresh the exact same backing records each time LOAD is opened.
+ await Promise.allSettled([loadPublished(),loadFanPlaylists()]);
+ if(!el('.gePlaylistPicker').hidden)renderPlaylistPicker();
+}
+el('.arrangeLoadBtn').addEventListener('click',()=>void openPlaylistPicker());
+el('.gePlaylistTabGE').addEventListener('click',()=>{
+ playlistPickerCategory='ge';playlistPickerSelected='';renderPlaylistPicker();
 });
+el('.gePlaylistTabUser').addEventListener('click',()=>{
+ playlistPickerCategory='user';playlistPickerSelected='';renderPlaylistPicker();
+});
+el('.gePlaylistPickerClose').addEventListener('click',closePlaylistPicker);
+el('.gePlaylistConfirm').addEventListener('click',()=>{
+ const rows=pickerRows();
+ if(!rows.some(p=>p.key===playlistPickerSelected))return;
+ const key=playlistPickerSelected;
+ closePlaylistPicker();
+ loadSelectedPlaylistKey(key);
+});
+el('.gePlaylistPicker').addEventListener('click',event=>{
+ if(event.target===el('.gePlaylistPicker'))closePlaylistPicker();
+});
+
 el('.arrangeCurrentName').addEventListener('input',event=>{state.playlistDraftName=event.target.value;});
 el('.accessToggle').addEventListener('click',()=>{
  const panel=el('.musicCodeTools'),opened=panel.hidden;
@@ -1123,7 +1213,12 @@ root.querySelector('[data-action=save]').addEventListener('click',()=>{
  say('EDIT PLAYLIST NAME AND PRESS SAVE TO UPDATE THE SHARED MASTER.');
  el('.arrangeNotice').textContent=state.notice;
 });
-document.addEventListener('keydown',event=>{if(!state.open)return;if(event.key==='Escape'){event.preventDefault();close()}});
+document.addEventListener('keydown',event=>{
+ if(!state.open||event.key!=='Escape')return;
+ event.preventDefault();
+ if(!el('.gePlaylistPicker').hidden){closePlaylistPicker();return}
+ close();
+});
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
 window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
