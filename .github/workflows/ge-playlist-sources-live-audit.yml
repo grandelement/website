@@ -46,4 +46,25 @@ jobs:
           results={key:check(key,url) for key,url in urls.items()}
           print('RESULT: authentic public Bangers record available:',results['github'] or results['vault_dj'] or results['vault_music'])
           print('This job never reads private DJ or fan records and never saves, deletes or imports playlists.')
+          # Exact machine-readable PUBLIC Bangers source. Both Vault endpoints
+          # must agree on the same original DJ ID and ordered 33 song paths.
+          def get_public(endpoint):
+            req=urllib.request.Request(endpoint,headers={'User-Agent':'GrandElementPlaylistPublicAudit/1.0','Accept':'application/json'})
+            with urllib.request.urlopen(req,timeout=18) as response:
+              return json.load(response)
+          dj=get_public(urls['vault_dj'])
+          music=get_public(urls['vault_music'])
+          a=[p for p in dj.get('items',[]) if str(p.get('name','')).lower()=='bangers']
+          b=[p for p in music.get('items',[]) if str(p.get('name','')).lower()=='bangers']
+          if len(a)!=1 or len(b)!=1 or str(a[0].get('id'))!=str(b[0].get('id')) or a[0].get('songs')!=b[0].get('songs'):
+            raise SystemExit('The two published Vault Bangers records do not match; do not import.')
+          songs=a[0].get('songs')
+          if not isinstance(songs,list) or len(songs)<3 or len(songs)>500 or len(set(songs))!=len(songs) or any(
+            not isinstance(p,str) or not p.startswith('ge-music/music/') or '..' in p or
+            not p.lower().endswith(('.mp3','.m4a','.wav','.ogg','.flac')) for p in songs):
+            raise SystemExit('Invalid authentic Bangers paths; do not import.')
+          print('BANGERS_ORIGINAL_SOURCE_JSON='+json.dumps(
+            {'id':str(a[0]['id']),'name':str(a[0]['name']),'songs':songs},
+            separators=(',',':')),flush=True)
+          print('BANGERS_SOURCE_CROSSCHECK: PASS',flush=True)
           PY
