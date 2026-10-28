@@ -3323,6 +3323,9 @@ body.view-ship #bgFitBackdrop,body.ge-live-video #bgFitBackdrop,body.ge-bg-hidde
     align-items:center!important;column-gap:clamp(7px,.65vw,13px)!important;
     width:calc(100vw - 40px)!important;max-width:1560px!important;
     min-height:48px!important;align-self:center!important;
+    /* The flex parent is capped at 980px. Center this wider strip on the
+       viewport midpoint, not its parent's left edge (Firefox zoom safe). */
+    left:50%!important;transform:translateX(-50%)!important;
     margin:8px auto 0!important;
     padding:0!important;border:0!important;background:transparent!important;
   }
@@ -3973,7 +3976,7 @@ body.view-ship #bgFitBackdrop,body.ge-live-video #bgFitBackdrop,body.ge-bg-hidde
       <input type="checkbox" id="hudAutoHide" aria-label="Automatically hide controls" checked>
       <span>Hide Text</span>
     </div>
-      <button id="bgFitFull" type="button" aria-pressed="false" title="Fit whole background picture">FIT</button>
+      <button id="bgFitFull" type="button" aria-pressed="false" title="Currently FULL; click to FIT the whole background picture" aria-label="Background FULL; switch to FIT">FULL</button>
     </div>
   </section>
 
@@ -6925,10 +6928,12 @@ window.addEventListener('online',()=>{
     document.body.classList.toggle('ge-bg-fit',bg.fit);
     document.body.classList.toggle('ge-bg-hidden',bg.off);
     if(buttons.fit){
-      buttons.fit.textContent=bg.fit?'FULL':'FIT';
+      // Label shows the CURRENT view, not the action that clicking will take.
+      // FULL fills the frame; FIT contains the complete image with matching sides.
+      buttons.fit.textContent=bg.fit?'FIT':'FULL';
       buttons.fit.setAttribute('aria-pressed',bg.fit?'true':'false');
-      buttons.fit.title=bg.fit?'Return to screen-filling background':'Show the entire background picture';
-      buttons.fit.setAttribute('aria-label',buttons.fit.title);
+      buttons.fit.title=bg.fit?'Currently FIT; click for FULL screen-filling view':'Currently FULL; click to FIT the whole background picture';
+      buttons.fit.setAttribute('aria-label',bg.fit?'Background FIT; switch to FULL':'Background FULL; switch to FIT');
     }
   }
   function focalFor(filename){
