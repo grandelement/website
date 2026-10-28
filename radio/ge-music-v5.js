@@ -870,4 +870,13 @@ window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 window.addEventListener('ge-music-demo-purchase-updated',()=>{if(state.open)render()});
+// A Vault-verified checkout can return the visitor directly to their MUSIC
+// selection. This flag never grants access; only a signed Vault session does.
+try{
+ if(sessionStorage.getItem('GE_MUSIC_OPEN_AFTER_ACCESS_V1')==='1'){
+  sessionStorage.removeItem('GE_MUSIC_OPEN_AFTER_ACCESS_V1');
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',open,{once:true});
+  else open();
+ }
+}catch(_){}
 })();
