@@ -925,8 +925,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
     <p class="brAccessNotice" id="brAccessCustomHelp">The name entered above is the actual Radio Gate code.</p>
     <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
-    <label><span>LISTENER NAME · SHOWN TO THE LEFT OF ACCESS CODE IN MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
-    <p id="brAccessDisplayNameHelp" class="brAccessNotice">The listener sees this name, not the private access key. Keep it short and readable.</p>
+    <label><span>FAN / ACCESS NAME · SHOWN AT TOP OF MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
+    <p id="brAccessDisplayNameHelp" class="brAccessNotice">Optional. This name appears at the top of Radio Music instead of the access code. If blank, the exact code the guest entered is shown for that browser session. Use the same name as the saved fan when appropriate; fan records are linked by ID, not name alone.</p>
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
       <strong>RADIO GATE CODE</strong>
       <p id="brAccessKeyHelpText"></p>
@@ -3437,7 +3437,6 @@ const backroomVaultManagers=(()=>{
     const label=$('brAccessLabel').value.trim();
     const displayName=$('brAccessDisplayName').value.trim().replace(/\s+/g,' ');
     const existing=editingCodeId?codeRows.find(row=>row.id===editingCodeId):null;
-    if(!existing&&!displayName)throw Error('Enter a listener name for the new access code.');
     if(displayName.length>80||/[\u0000-\u001f<>]/.test(displayName))throw Error('Use a shorter listener name without special brackets.');
     // Preserve older hidden scopes on edit instead of revoking permissions by accident.
     // New codes start with the one visible RADIO permission.
@@ -3797,6 +3796,15 @@ const backroomVaultManagers=(()=>{
           accessFanMessage.textContent=unique.size+' SAVED FANS · FROM GE VAULT';
         }catch(error){accessFanMessage.textContent='FANS NOT LOADED · '+String(error.message||error)}
       }
+      // Reuse the saved fan's label as a suggestion, never as proof of identity.
+      // The existing fan-to-code link remains an explicit owner action by fan ID.
+      accessFanSelect.addEventListener('change',()=>{
+        const option=accessFanSelect.selectedOptions?.[0];
+        const name=String(option?.textContent||'').split(' · ')[0].trim();
+        const field=$('brAccessDisplayName');
+        if(accessFanSelect.value&&name&&name!=='Unlabeled'&&!field.value.trim())
+          field.value=name.slice(0,80);
+      });
       $('brAccessFanLinkRefresh').addEventListener('click',()=>void refreshAccessFanLinks());
       $('brAccessFanCategory').addEventListener('toggle',()=>{
         if($('brAccessFanCategory').open)void refreshAccessFanLinks();
