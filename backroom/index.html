@@ -855,10 +855,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </div>
 
 <div class="backroomInlineStatus" id="brPlaylistStatus" role="status" aria-live="polite">Loading GitHub playlists…</div>
-<div class="brPlaylistSync" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
- <button type="button" id="brImportBangers">SYNC ORIGINAL BLITZ PLAYLISTS</button>
- <small>Copies authenticated DJ playlists, including Bangers, into the shared GitHub list. Original Radio and DJ stay untouched.</small>
-</div>
 <input id="brAllSongsSearch" type="search" placeholder="Search all songs" aria-label="Search the full music checklist" style="width:100%;min-height:43px;font-size:16px;margin:8px 0">
 <label><span>VIEW SONGS</span><select id="brMusicSongView"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="playlist">PLAYLIST ORDER</option></select></label>
 <div id="brPlaylistSongFilters" style="display:flex;align-items:center;gap:5px;margin:3px 0 9px">
@@ -869,7 +865,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brPlaylistClearAll" type="button" aria-label="Clear all song selections" title="Uncheck every song" style="flex:0 0 auto;padding:6px 8px;min-height:34px;font-size:12px">CLEAR</button>
 </div>
 <div id="brAllSongsChoices" role="group" aria-label="Scroll through and check playlist songs" style="max-height:60vh;min-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px;border:1px solid #315776;border-radius:10px"></div>
-<details id="brMusicPlaylistTools" class="brSourceDetails" style="margin-top:10px"><summary>MORE OPTIONS</summary><label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC GE MUSIC (THE GITHUB FILE IS PUBLIC EVEN WHEN UNCHECKED)</span></label><button type="button" id="brPlaylistsRefresh">REFRESH FROM GITHUB</button></details>
+<details id="brMusicPlaylistTools" class="brSourceDetails" style="margin-top:10px"><summary>MORE OPTIONS</summary><label class="check"><input id="brPlaylistPublic" type="checkbox"><span>SHOW IN PUBLIC MUSIC (OFF = CODE ONLY IN MUSIC LIST)</span></label><button type="button" id="brPlaylistsRefresh">REFRESH FROM GITHUB</button></details>
 <div style="display:none !important" aria-hidden="true">
 <button type="button" id="brPlaylistLoad">LOAD</button><button type="button" id="brPlaylistDelete">DELETE</button><button type="button" id="brPlaylistsNew">NEW</button><select id="brPlaylistSelect"></select><input id="brPlaylistActive" type="checkbox" disabled>
 <div id="brDJAlbumChoices"></div><div id="brDJSongChoices"></div><input id="brPlaylistSearch" type="search"><select id="brSongSelect"></select><button type="button" id="brAddSong">ADD SONG</button><span id="brPlaylistTrackCount"></span><div id="brPlaylistTracks"></div>
@@ -2832,7 +2828,7 @@ const backroomVaultManagers=(()=>{
         const count=host.querySelector('[data-ge-picked]');
         if(count)count.textContent=playlistChoiceIds.size+' PICKED';
       });
-      const name=create('span',p.name+' · '+(p.tracks||[]).length+' SONGS');
+      const name=create('span',p.name+' · '+(p.tracks||[]).length+' SONGS · '+(playlistCopy(p).public?'PUBLIC':'CODE ONLY'));
       name.style.cssText='display:block;margin:0;font-weight:750;font-size:15px;overflow-wrap:anywhere';
       label.append(box,name);host.appendChild(label);
     }
@@ -2866,74 +2862,6 @@ const backroomVaultManagers=(()=>{
     renderPlaylistChooser();renderTrackList();renderDJAlbumChoices();
     $('brAllSongsChoices').scrollTop=0;
   }
-  async function importBangersFromDJ(){
-    // One-way copy of the AUTHENTIC original DJ playlist records into the
-    // shared GitHub registry. Never change BLITZ's live playing rotation.
-    if(!authReady()||!playlistLoaded)
-      return playlistStatus('SIGN IN AND REFRESH GITHUB PLAYLISTS FIRST.');
-    if(playlistHasUnsavedEdits()&&!confirm(
-      'Unsaved edits are not included in DJ sync. Continue without saving that draft?'))return;
-    const button=$('brImportBangers');button.disabled=true;
-    playlistStatus('READING ORIGINAL BLITZ DJ PLAYLISTS…');
-    try{
-      let rows=[],source='authenticated original DJ';
-      try{
-        const d=await geDJApi('/control/playlists');
-        if(!Array.isArray(d.items)||!d.items.length)throw Error('DJ returned no saved playlists.');
-        rows=d.items;
-      }catch(remoteError){
-        let backup=null;
-        try{backup=JSON.parse(localStorage.getItem('geRadioPlaylistBackup')||'null')}catch(_e){}
-        if(backup?.format!=='ge-radio-playlists-v1'||!Array.isArray(backup.items))
-          throw Error('DJ NOT CONNECTED · '+String(remoteError.message||remoteError)+
-            '. Sign into GE DJ Booth on this browser. Nothing was changed.');
-        rows=backup.items;source='DJ device backup';
-      }
-      let known=(await githubPlaylistAction()).items;
-      if(!Array.isArray(known))throw Error('GitHub list could not be verified.');
-      const invalid=[],conflicts=[];let imported=0,matched=0;
-      for(const original of rows){
-        const name=String(original?.name||'').trim().slice(0,100);
-        const paths=Array.isArray(original?.paths)?original.paths.map(String):[];
-        if(!name||paths.length<1||paths.length>500||
-           paths.some(p=>!/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg|flac)$/i.test(p)||p.includes('..'))||
-           new Set(paths).size!==paths.length||
-           paths.some(p=>!catalog.some(t=>t.track_path===p))){
-          invalid.push(name||'(unnamed)');continue;
-        }
-        const old=known.find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase());
-        if(old){
-          const oldPaths=(old.tracks||[]).map(t=>String(t.track_path||''));
-          if(JSON.stringify(oldPaths)===JSON.stringify(paths)){matched++;continue;}
-          if(!confirm('BLITZ playlist "'+name+'" has a different track order in GitHub. Update that SAME GitHub playlist from the verified DJ source? The original DJ will not change.')){
-            conflicts.push(name);continue;
-          }
-        }
-        const publicBangers=name.toLowerCase()==='bangers'&&
-          (cfg?.music?.publicDJPlaylistNames||[]).some(n=>String(n).trim().toLowerCase()==='bangers');
-        let oldMeta={};try{oldMeta=JSON.parse(old?.metadata_json||'{}')}catch(_e){}
-        const entry={id:old?.id||'',name,
-          public:old?oldMeta.public===true:publicBangers,tracks:paths.map(path=>{
-          const t=catalog.find(song=>song.track_path===path);
-          return {track_path:path,track_title:t.track_title,album:t.album||''};
-        })};
-        const saved=await githubPlaylistAction({action:'save',playlist:entry});
-        if(!saved.commit_sha||!saved.id)throw Error('GitHub did not commit '+name+'.');
-        const fresh=await githubPlaylistAction();
-        const row=(fresh.items||[]).find(p=>p.id===saved.id);
-        if(!row||row.name!==name||
-           JSON.stringify((row.tracks||[]).map(t=>t.track_path))!==JSON.stringify(paths))
-          throw Error('Readback of '+name+' did not match DJ source. Originals preserved.');
-        known=fresh.items;imported++;
-      }
-      await refreshPlaylists();
-      playlistStatus(source.toUpperCase()+' → GITHUB · '+imported+' IMPORTED · '+matched+
-        ' MATCHED'+(conflicts.length?' · CONFLICTS NOT OVERWRITTEN: '+conflicts.join(', '):'')+
-        (invalid.length?' · INVALID/MISSING TRACKS SKIPPED: '+invalid.join(', '):'')+
-        ' · ORIGINAL RADIO AND DJ UNCHANGED');
-    }catch(e){playlistStatus('DJ → GITHUB SYNC UNVERIFIED · '+String(e.message||e));}
-    finally{button.disabled=false}
-  }
   function playlistHasUnsavedEdits(){
     const prior=playlists.find(p=>p.id===playlistEditingId);
     const name=$('brPlaylistName').value.trim();
@@ -2958,7 +2886,7 @@ const backroomVaultManagers=(()=>{
       renderPlaylistViewer();renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
       const msg='GITHUB · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':'');
       playlistStatus(msg+(!playlists.some(p=>String(p.name).trim().toLowerCase()==='bangers')?
-        ' · BANGERS NOT IN GITHUB · USE SYNC ORIGINAL BLITZ PLAYLISTS':''));
+        ' · BANGERS NOT FOUND IN SHARED LIBRARY':''));
       $('brDJPlaylistStatus').textContent=msg;return true;
     }catch(e){
       playlistLoaded=false;
@@ -4028,7 +3956,6 @@ const backroomVaultManagers=(()=>{
         editPlaylist(p.id);
         playlistStatus('LOADED · '+p.name+' · '+(p.tracks||[]).length+' SONGS');
       });
-      $('brImportBangers').addEventListener('click',importBangersFromDJ);
       $('brPlaylistSelect').addEventListener('change',e=>editPlaylist(e.target.value));
       $('brViewPlaylistSelect').addEventListener('change',e=>{
         selectedViewPlaylistId=e.target.value;
