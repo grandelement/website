@@ -140,9 +140,9 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 </div>
 <div class="payopt" id="myMusicAccess" style="margin-bottom:18px;padding:16px;border:1px solid #4b92b5;border-radius:14px;background:#071b2f">
 <h3 style="margin:0 0 5px">MY MUSIC · YOUR LIBRARY</h3>
-<p class="muted" style="margin:0 0 10px">Have a library access code? Enter it here to restore your music when purchase verification is connected. For now, the temporary owner demo code opens only the test library.</p>
+<p class="muted" style="margin:0 0 10px">Already have a GE access code? Enter it here. LOVE is the Grand Element free pass when verified by GE Vault. No payment is needed for the authorized music.</p>
 <div style="display:flex;flex-wrap:wrap;gap:8px"><input id="myMusicCode" type="password" autocomplete="off" placeholder="Music access code" aria-label="Music library access code" style="flex:1 1 150px;min-height:43px;background:#061627;color:#fff;border:1px solid #488aa9;border-radius:8px;padding:8px"><button type="button" id="myMusicUnlock" class="primary">OPEN MY MUSIC</button></div>
-<p id="myMusicStatus" class="tiny" role="status">Purchased-music codes are not yet active. No real payments or downloads are enabled.</p>
+<p id="myMusicStatus" class="tiny" role="status">GE Vault verifies access. Live purchase checkout and private downloads are not connected yet.</p>
 <button id="gePreviewChoose" type="button" class="outline" style="display:inline-flex;margin-top:8px">PREVIEW MUSIC · 33:33</button>
 </div>
 <div class="sectionIntro" id="musicIntro"><div><h2>THE MUSIC</h2><p>Tap an album cover to choose songs.</p></div><button class="outline sectionClose" type="button" data-close-section>CLOSE ×</button></div>
@@ -195,7 +195,7 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 </aside>
 <div id="checkoutLayer" role="dialog" aria-modal="true" aria-label="Checkout" aria-hidden="true"><div class="checkout">
 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2>CHECKOUT</h2><button class="outline" type="button" id="closeCheckout">Close ×</button></div>
-<p class="note"><strong>Preview only.</strong> No live payment endpoint is connected. Please do not send Bitcoin to an address from a screenshot or to a BTCPay demo store.</p>
+<p class="note"><strong>Checkout preview.</strong> LOVE can remove the payment step after GE Vault verification. Live payments and private deliveries are not connected. Do not send funds to any demo payment address.</p>
 <label for="checkoutEmail">Email for receipts and download access (future checkout)</label><input id="checkoutEmail" type="email" placeholder="name@example.com" autocomplete="email">
 <div class="payopt" style="margin-top:12px">
 <strong>DIGITAL DELIVERY · CHOOSE YOUR FORMAT</strong>
@@ -213,6 +213,16 @@ body,.product,.details,.trackrow,.albumRows,.sectionIntro,.muted,.note{word-brea
 </select>
 <p class="tiny" id="checkoutDeliveryStatus" role="status">Selection saved for this device. No download can be delivered until the payment processor, masters, and private storage are connected.</p>
 </div>
+<section id="geFreePassCheckout" class="payopt" style="margin:12px 0;border:1px solid #ad82de;background:linear-gradient(110deg,#27133f,#101f3a);padding:14px">
+<strong>HAVE A GE ACCESS CODE? SKIP PAYMENT</strong>
+<p class="muted" style="margin:6px 0">Enter LOVE at the last step to use your Grand Element free pass. GE Vault must verify it first.</p>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<input id="geFreePassCode" type="password" autocomplete="off" spellcheck="false" placeholder="ACCESS CODE" aria-label="Free pass access code" style="flex:1 1 140px;min-width:0;min-height:43px;padding:8px;border:1px solid #b588e1;background:#08132a;border-radius:8px;color:white;font-size:16px">
+<button id="geFreePassApply" type="button" class="primary" style="min-height:43px;background:#70439d;border:1px solid #d7b7f4">APPLY CODE</button>
+</div>
+<p id="geFreePassStatus" class="tiny" role="status" aria-live="polite">No free pass applied. Checkout is a preview until payments and delivery are connected.</p>
+<button id="geFreePassReturn" class="primary" type="button" hidden>OPEN MY UNLOCKED MUSIC</button>
+</section>
 <h3>PAYMENT METHODS</h3>
 <div class="payopt">
   <strong>BITCOIN · GRAND ELEMENT AQUA</strong>
@@ -339,18 +349,58 @@ function updateAlbumPreviewQueue(){
  updatePreviewMeter();
 }
 
-function openOwnerMusic(code){
-  // UI demo ONLY. Never treat a browser code as a payment or catalog entitlement.
-  if(String(code||'').trim().toLowerCase()==='love'){
-    try{localStorage.setItem('GE_PLAYER_OWNER_DEMO_V1','yes')}catch(_e){}
-    location.assign('../radio/preview-lab.html#my-music');
-    return;
-  }
-  get('myMusicStatus').textContent='That is not a demo code. Purchased-library code verification is not connected yet.';
+/* GE Vault authorizes the free-pass. A typed string by itself grants nothing.
+   Do not set the local OWNER_DEMO switch: public codes never confer admin tools. */
+let geFreePassSession=null,geFreePassBusy=false;
+const geFreePassMusicKey='GE_MUSIC_CODE_SESSION_V1';
+async function verifyFreePass(raw){
+ const code=String(raw||'').trim();
+ if(!code)throw Error('Enter your GE access code.');
+ const response=await fetch('https://vault.grandelement.com/v1/public/access/redeem',{
+  method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+  body:JSON.stringify({code,scope:'radio'})
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||data.ok!==true)throw Error(String(data.error||'GE Vault did not accept that code.'));
+ const m=data.music_session,until=Number(m?.session_expires_at)*1000;
+ if(!m||typeof m.token!=='string'||!m.token||!Number.isFinite(until)||until<=Date.now())
+  throw Error('This code does not currently grant a music session.');
+ const receipt={token:m.token,until,restricted:!!m.restricted,
+   allowed:Array.isArray(m.allowed_tracks)?m.allowed_tracks:[],
+   playlistIds:Array.isArray(m.playlist_ids)?m.playlist_ids:[]};
+ try{
+  sessionStorage.setItem(geFreePassMusicKey,JSON.stringify(receipt));
+  const radioUntil=Number(data.expires_at)>0?Math.min(Number(data.expires_at)*1000,until):until;
+  sessionStorage.setItem('GE_VAULT_RADIO_SESSION_V1',String(radioUntil));
+  sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+   scopes:Array.isArray(data.scopes)?data.scopes:[],
+   until:radioUntil,verifiedFor:'radio'
+  }));
+ }catch(_){}
+ window.dispatchEvent(new Event('ge-vault-music-access-updated'));
+ const isLove=code.replace(/[\s-]/g,'').toUpperCase()==='LOVE';
+ const allScopes=['website','radio','music','albums','games'].every(x=>Array.isArray(data.scopes)&&data.scopes.includes(x));
+ return {receipt,freePass:isLove&&allScopes&&!receipt.restricted,scopes:data.scopes||[]};
 }
-get('myMusicUnlock').addEventListener('click',()=>openOwnerMusic(get('myMusicCode').value));
+function openAuthorizedMusic(){
+ try{sessionStorage.setItem('GE_MUSIC_OPEN_AFTER_ACCESS_V1','1')}catch(_){}
+ location.assign('../radio/');
+}
+async function openOwnerMusic(code){
+ const status=get('myMusicStatus'),button=get('myMusicUnlock');
+ if(geFreePassBusy)return;
+ geFreePassBusy=true;button.disabled=true;status.textContent='Verifying with GE Vault…';
+ try{
+  const result=await verifyFreePass(code);
+  status.textContent=result.freePass?'LOVE VERIFIED · Full music access · No payment required.':
+   'GE code verified · Your assigned music is available.';
+  openAuthorizedMusic();
+ }catch(error){status.textContent=String(error.message||error)}
+ finally{geFreePassBusy=false;button.disabled=false}
+}
+get('myMusicUnlock').addEventListener('click',()=>void openOwnerMusic(get('myMusicCode').value));
 get('myMusicCode').addEventListener('keydown',event=>{
-  if(event.key==='Enter'){event.preventDefault();openOwnerMusic(get('myMusicCode').value)}
+  if(event.key==='Enter'){event.preventDefault();void openOwnerMusic(get('myMusicCode').value)}
 });
 get('checkoutMyMusic').addEventListener('click',()=>{
   get('checkoutLayer').classList.remove('open');
@@ -358,6 +408,33 @@ get('checkoutMyMusic').addEventListener('click',()=>{
   setSection('music');
   get('myMusicCode').focus();
 });
+const geFreePassInput=get('geFreePassCode'),geFreePassStatus=get('geFreePassStatus');
+function applyFreePassStatus(){
+ const active=geFreePassSession&&geFreePassSession.until>Date.now();
+ get('geFreePassReturn').hidden=!active;
+ if(active){
+  const subtotal=state.cart.reduce((n,x)=>n+Number(x.qty||0)*Number(x.price||0),0);
+  geFreePassStatus.textContent='LOVE ACCEPTED BY GE VAULT · '+money(subtotal)+' cart subtotal waived → $0.00 to pay. Music and Radio are unlocked for this signed session. Merchandise, bookings and private downloads are NOT fulfilled by this preview.';
+  get('payCrypto').disabled=true;
+ }else if(geFreePassSession)geFreePassSession=null;
+}
+get('geFreePassApply').addEventListener('click',async()=>{
+ const btn=get('geFreePassApply');
+ if(geFreePassBusy)return;
+ geFreePassBusy=true;btn.disabled=true;
+ geFreePassStatus.textContent='Checking free pass with GE Vault…';
+ try{
+  const verified=await verifyFreePass(geFreePassInput.value);
+  if(!verified.freePass)throw Error('This code is valid but is not the unrestricted LOVE free pass. Your assigned music is available through MY MUSIC.');
+  geFreePassSession={until:verified.receipt.until};
+  geFreePassInput.value='';
+  applyFreePassStatus();
+  try{void window.GEVault?.radio?.('control_change',{control:'love_free_pass_checkout',item_count:state.cart.length})}catch(_){}
+ }catch(error){geFreePassStatus.textContent=String(error.message||error);geFreePassSession=null;get('geFreePassReturn').hidden=true}
+ finally{geFreePassBusy=false;btn.disabled=false}
+});
+geFreePassInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();get('geFreePassApply').click()}});
+get('geFreePassReturn').addEventListener('click',openAuthorizedMusic);
 const digitalFormat=get("checkoutFormat"),digitalDelivery=get("checkoutDelivery");
 for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDelivery,"ge_support_delivery_v1"]]){
   try{const saved=localStorage.getItem(key);if(saved&&[...field.options].some(x=>x.value===saved))field.value=saved}catch(_e){}
@@ -390,7 +467,7 @@ get("cartTotal").textContent=money(state.cart.reduce((sum,x)=>sum+x.qty*x.price,
 function openCart(){get("shade").classList.add("show");get("cartPanel").classList.add("open");get("cartPanel").setAttribute("aria-hidden","false");get("closeCart").focus()}
 function closeCart(){get("shade").classList.remove("show");get("cartPanel").classList.remove("open");get("cartPanel").setAttribute("aria-hidden","true")}
 get("openCart").addEventListener("click",openCart);get("closeCart").addEventListener("click",closeCart);get("shade").addEventListener("click",closeCart);
-get("showCheckout").addEventListener("click",()=>{closeCart();get("checkoutLayer").classList.add("open");get("checkoutLayer").setAttribute("aria-hidden","false");get("closeCheckout").focus();checkCryptoReady()});
+get("showCheckout").addEventListener("click",()=>{closeCart();get("checkoutLayer").classList.add("open");get("checkoutLayer").setAttribute("aria-hidden","false");get("closeCheckout").focus();if(geFreePassSession?.until>Date.now())applyFreePassStatus();else checkCryptoReady()});
 
 let activeCryptoBase=null;
 async function checkCryptoReady(){
@@ -406,13 +483,14 @@ async function checkCryptoReady(){
     const u=new URL(base);if(u.protocol!=="https:")throw Error("Secure HTTPS checkout required.");
     const health=await fetch(u.origin+"/health",{cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Payment server not ready");return r.json()});
     if(health.ready!==true||!Array.isArray(health.paymentMethods)||health.paymentMethods.length<2)throw Error("Bitcoin and Lightning have not completed payment verification.");
-    activeCryptoBase=u.origin;btn.disabled=false;
+    activeCryptoBase=u.origin;btn.disabled=!!(geFreePassSession?.until>Date.now());
     get("btcState").textContent="Available";get("lightningState").textContent="Available";
     status.textContent="A secure BTCPay invoice will show the verified Bitcoin and Lightning options before payment.";
   }catch(e){status.textContent=e.message||"Payments are not connected.";btn.disabled=true}
 }
 get("payCrypto").addEventListener("click",async()=>{
   const btn=get("payCrypto"),status=get("cryptoCheckoutStatus");
+  if(geFreePassSession?.until>Date.now()){status.textContent='LOVE already waived the checkout payment. Use OPEN MY UNLOCKED MUSIC.';return}
   if(!activeCryptoBase)return;
   const email=get("checkoutEmail").value.trim();
   if(!/^\S+@\S+\.\S+$/.test(email)){get("checkoutEmail").focus();status.textContent="Enter a valid email for your receipt.";return}
