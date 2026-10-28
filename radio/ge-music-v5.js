@@ -380,7 +380,7 @@ async function loadPublished(){
  const valid=p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs);
  const toList=(rows,source)=>rows.filter(valid).map(p=>({
   id:String(p.id),name:String(p.name).trim(),
-  songs:[...new Set(p.songs.map(canonical).filter(Boolean))],source
+  songs:[...new Set(p.songs.map(canonical).filter(Boolean))],source,visibility:'published'
  })).filter(p=>p.id&&p.name&&p.songs.length);
  async function publicVaultList(endpoint,source){
   // These are public, explicitly published records ONLY. No private fan
