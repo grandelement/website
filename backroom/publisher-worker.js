@@ -541,6 +541,14 @@ export default {
 
     // Fan identities require the FULL Vault admin credential, not the
     // narrower Access Codes bridge token. Only the owner may link records.
+    if(url.pathname==='/manage/fan-playlists'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Back Room owner sign-in required.'},401,cors);
+      if(!String(env.VAULT_ADMIN_TOKEN||'').trim())
+        return json({ok:false,error:'Full Vault administrator token is not configured on publisher.'},503,cors);
+      const upstream=await geVaultBridge(env,'/v1/admin/fan-playlists');
+      return json(upstream.data,upstream.status,cors);
+    }
     if(url.pathname==='/manage/fan-access'&&['GET','POST'].includes(request.method)){
       if(!(await verifySession(env,bearer(request))))
         return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
