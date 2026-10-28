@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.27-ge-vault-access-experience-v55';
+const VERSION='2026.10.27-ge-radio-offline-reliability-v56';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -117,18 +117,21 @@ async function rangeFromCache(request,response){
   const match=/bytes=(\d+)-(\d+)?/.exec(range);
   if(!match) return response;
 
-  const buffer=await response.arrayBuffer();
+  // Blob.slice serves only the requested range without constructing a second
+  // full-song ArrayBuffer in the service-worker JavaScript heap on iPhones.
+  const blob=await response.blob();
+  const total=blob.size;
   const start=Number(match[1]);
-  const end=match[2] ? Math.min(Number(match[2]),buffer.byteLength-1) : buffer.byteLength-1;
-  if(start>=buffer.byteLength || end<start){
-    return new Response(null,{status:416,headers:{'Content-Range':`bytes */${buffer.byteLength}`}});
+  const end=match[2] ? Math.min(Number(match[2]),total-1) : total-1;
+  if(start>=total || end<start){
+    return new Response(null,{status:416,headers:{'Content-Range':`bytes */${total}`}});
   }
 
   const headers=new Headers(response.headers);
-  headers.set('Content-Range',`bytes ${start}-${end}/${buffer.byteLength}`);
+  headers.set('Content-Range',`bytes ${start}-${end}/${total}`);
   headers.set('Accept-Ranges','bytes');
   headers.set('Content-Length',String(end-start+1));
-  return new Response(buffer.slice(start,end+1),{status:206,statusText:'Partial Content',headers});
+  return new Response(blob.slice(start,end+1),{status:206,statusText:'Partial Content',headers});
 }
 
 async function offlineNavigationFallback(){
@@ -220,7 +223,10 @@ async function mediaResponse(request){
   try{
     const fresh=await fetch(request,{cache:'no-store'});
     if(fresh.ok){
-      if(fresh.status===200 && request.method==='GET'){
+      if(fresh.status===200 && request.method==='GET' &&
+         /^\/ge-music\/(?:music|clips)\//i.test(url.pathname)){
+        // Save audio, not every decorative JPG/GIF. Radio visuals can otherwise
+        // fill the browser cache before deliberate offline music downloads.
         const cache=await caches.open(MEDIA_CACHE);
         cache.put(request.url,fresh.clone()).catch(()=>{});
       }
