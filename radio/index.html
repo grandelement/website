@@ -3939,6 +3939,14 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup #liveStatus.
   line-height:1.3!important;max-width:100%!important;
 }
 </style>
+<style id="ge-verified-access-player-controls-20261028">
+/* Existing buttons only. No separate player, no guest control until verified. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #legacyBtn:not([hidden]){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ grid-area:auto!important;grid-row:auto!important;min-height:38px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #legacyBtn[hidden]{display:none!important}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -6352,7 +6360,7 @@ function geRadioUtilityAllowed(feature){
   try{
     const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     return !!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
-      Array.isArray(r.scopes)&&r.scopes.includes('radio')&&r.scopes.includes(feature);
+      Array.isArray(r.scopes)&&(r.scopes.includes('radio')||r.scopes.includes('website'))&&r.scopes.includes(feature);
   }catch(_){return false}
 }
 function syncRadioOfflineAccessUI(){
@@ -6385,7 +6393,13 @@ function syncRadioOfflineAccessUI(){
     if(lab){lab.hidden=true;lab.classList.remove('show');}
   }
 }
+// Keep all three existing control buttons, moving Legacy alongside the
+// bottom utilities rather than adding another player or duplicate button.
+const utilityBar=$('bottomActions'),legacyUtility=$('legacyBtn');
+if(utilityBar&&legacyUtility)utilityBar.insertBefore(legacyUtility,$('shareBtn'));
 window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI;
+window.addEventListener('ge-access-experience-updated',syncRadioOfflineAccessUI);
+setInterval(syncRadioOfflineAccessUI,60000); // expire client controls when a code expires
 syncRadioOfflineAccessUI();
 
 let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
@@ -7237,7 +7251,12 @@ function geOpenQuickSongPanel(){
   geQuickSongPanel.scrollTop=0;
   titleBtn.setAttribute('aria-expanded','true');
   const b=titleBtn.getBoundingClientRect();
-  geQuickSongPanel.style.top=Math.min(window.innerHeight-80,b.bottom+7)+'px';
+  const vh=window.innerHeight,below=vh-b.bottom-14;
+  const preferredHeight=Math.min(440,Math.round(vh*.52));
+  const above=below<Math.min(190,preferredHeight)&&b.top>below;
+  const top=above?Math.max(8,b.top-preferredHeight-7):Math.max(8,b.bottom+7);
+  geQuickSongPanel.style.top=top+'px';
+  geQuickSongPanel.style.maxHeight=Math.max(95,Math.min(preferredHeight,above?b.top-16:vh-top-14))+'px';
   geQuickSongPanel.style.left=Math.max(8,Math.min(window.innerWidth-296,b.left+b.width/2-148))+'px';
 }
 // Protect vertical movement inside quick-song menu from page-level touch guards.
