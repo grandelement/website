@@ -7224,7 +7224,7 @@ async function registerServiceWorker(){
       button.title=audit.missing.length
         ?audit.cachedSongs+' songs cached. '+audit.missingOptional+' optional backgrounds and '+(audit.missingStations+audit.missingShell)+' station or template items not needed to complete the music library.'
         :audit.cachedSongs+' songs cached on this device.';
-      button.setAttribute('aria-label','Offline music ready');
+      button.setAttribute('aria-label',enabled?'Offline music ready':'Enable offline mode using saved music');
       return;
     }
     button.removeAttribute('aria-label');
@@ -7618,12 +7618,14 @@ async function registerServiceWorker(){
   }
 
   async function remove(){
+    // Clear the saved plan before deleting the cache, or clearOfflinePlan()
+    // would recreate an empty media cache immediately after removal.
+    await clearOfflinePlan();
     await caches.delete(CONFIG.OFFLINE_CACHE);
     offlineAvailability.songs.clear();
     offlineAvailability.stations.clear();
     saveOfflineAvailability();
     localStorage.removeItem(CONFIG.OFFLINE_KEY);
-    await clearOfflinePlan();
     currentAudit={missing:[],cachedSongs:0,totalSongs:0,musicComplete:false,requiredReady:false,complete:false};
     button.classList.remove('active','downloading');
     button.textContent='Go Offline';
@@ -7716,6 +7718,10 @@ async function registerServiceWorker(){
     rebuildQueue(state.currentURL);
     if(!geOwnerDemoEnabled()){
       setStatus('Radio requires Internet. Offline songs require authorized access.');
+      return;
+    }
+    if(!isEnabled()){
+      setStatus('Offline mode is off. Saved files remain on this device.');
       return;
     }
     const saved=allowedCatalog();
