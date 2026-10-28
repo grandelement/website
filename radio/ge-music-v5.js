@@ -893,7 +893,7 @@ function render(){
    el('.arrangeSource').textContent=shared?
      'SHARED GE PLAYLIST · SAVE UPDATES SAME PLAYLIST EVERYWHERE':
      'NEW GE PLAYLIST · SAVE CREATES ONE SHARED MASTER';
-   el('.arrangeSave').textContent='SAVE PLAYLIST';
+   el('.arrangeSave').textContent='SAVE';
    el('.arrangeSave').disabled=state.savingShared||!state.selected.size;
 
    el('.arrangeBuy').disabled=!state.selected.size;
