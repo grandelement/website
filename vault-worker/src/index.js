@@ -1010,11 +1010,23 @@ async function adminFanMusicPlaylists(request,env){
  if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
  await ensureFanMusicPlaylistTable(env);
  const rows=await env.VAULT_DB.prepare(
-  "SELECT id,owner_hash,anon_id,name,songs_json,created_at,updated_at FROM fan_music_playlists ORDER BY updated_at DESC LIMIT 500"
+  `SELECT p.id,p.owner_hash,p.anon_id,p.name,p.songs_json,p.created_at,p.updated_at,
+   f.id AS fan_id,f.display_name AS fan_name,l.code_id,a.label AS code_label
+   FROM fan_music_playlists p
+   LEFT JOIN fans f ON f.id=(
+     SELECT e.fan_id FROM fan_events e
+     WHERE e.anon_id=p.anon_id AND e.fan_id IS NOT NULL AND e.fan_id<>''
+     ORDER BY e.occurred_at DESC LIMIT 1
+   )
+   LEFT JOIN fan_code_links l ON l.fan_id=f.id
+   LEFT JOIN access_codes a ON a.id=l.code_id
+   ORDER BY p.updated_at DESC LIMIT 500`
  ).all();
  return json({ok:true,storage:"GE_VAULT_D1",items:(rows.results||[]).map(p=>({
   id:p.id,owner_ref:String(p.owner_hash||"").slice(0,12),
-  anon_id:p.anon_id,name:p.name,songs:JSON.parse(p.songs_json||"[]"),
+  anon_id:p.anon_id,fan_id:p.fan_id||null,fan_name:p.fan_name||null,
+  linked_code_id:p.code_id||null,linked_code_label:p.code_label||null,
+  name:p.name,songs:JSON.parse(p.songs_json||"[]"),
   created_at:p.created_at,updated_at:p.updated_at
  }))});
 }
