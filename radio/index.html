@@ -3811,6 +3811,25 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveB
   }
 }
 </style>
+<style id="ge-playlist-quick-main-style">
+/* Playlist reference belongs to the existing RADIO player, not to an iframe. */
+#gePlaylistQuick[hidden],#gePlaylistQuickSongs[hidden]{display:none!important}
+#gePlaylistQuick{position:relative;z-index:40;width:min(760px,92vw);margin:3px auto 7px;display:block}
+#gePlaylistQuickToggle{display:block;width:100%;min-height:35px;padding:5px 12px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.72)!important;background:rgba(252,253,255,.80)!important;
+  color:#101923!important;font-size:clamp(12px,3.4vw,15px);font-weight:800;text-align:center;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gePlaylistQuickSongs{position:absolute;z-index:100;left:0;right:0;top:calc(100% + 4px);max-height:min(50dvh,430px);
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:5px;
+  background:rgba(247,251,255,.96);border:1px solid rgba(9,32,54,.55);border-radius:10px;
+  box-shadow:0 12px 26px rgba(0,0,0,.55)}
+#gePlaylistQuickSongs button{display:block;width:100%;min-height:38px;padding:8px 11px;
+  margin:0 0 3px;background:rgba(255,255,255,.78)!important;border:1px solid #bbc8d4!important;
+  border-radius:7px!important;color:#142434!important;text-align:left;font-size:14px;
+  white-space:normal;overflow-wrap:anywhere;line-height:1.25}
+#gePlaylistQuickSongs button[aria-current="true"]{background:#d7ebfa!important;
+  border-color:#386996!important;font-weight:850}
+</style>
 </head>
 <body>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
@@ -4074,6 +4093,10 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveB
     <div class="tag">music to set your soul free</div>
   </header>
 
+  <div id="gePlaylistQuick" hidden>
+    <button type="button" id="gePlaylistQuickToggle" aria-expanded="false" aria-controls="gePlaylistQuickSongs" title="Show current playlist">PLAYLIST</button>
+    <div id="gePlaylistQuickSongs" hidden role="group" aria-label="Songs in the current playlist"></div>
+  </div>
   <button id="titleBtn" type="button" aria-expanded="false">Loading music…</button>
   <!-- One listener's native audio is routed through a local GainNode when they
        press PLAY. The BLITZ broadcast is unchanged and allows CORS. -->
@@ -6217,6 +6240,67 @@ syncRadioOfflineAccessUI();
 
 let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
 let geInlineMusicActive=false,geInlineMusicPaused=true,geInlineMusicTitle='';
+let gePlaylistQuickQueue=[],gePlaylistQuickLabels=[],gePlaylistQuickPath='',gePlaylistQuickName='';
+function gePlaylistQuickDismiss(){
+ const pane=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
+ if(pane)pane.hidden=true;
+ if(button)button.setAttribute('aria-expanded','false');
+}
+function gePlaylistQuickClear(){
+ gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
+ gePlaylistQuickDismiss();
+ const strip=$('gePlaylistQuick');if(strip)strip.hidden=true;
+}
+function gePlaylistQuickUpdate(){
+ const container=$('gePlaylistQuickSongs');
+ if(!container||container.hidden)return;
+ for(const item of container.querySelectorAll('[data-playlist-index]')){
+  const i=Number(item.dataset.playlistIndex);
+  const active=gePlaylistQuickQueue[i]===gePlaylistQuickPath;
+  item.setAttribute('aria-current',active?'true':'false');
+ }
+}
+function gePlaylistQuickSet(playlist,paths,details){
+ const custom=!!details?.custom&&paths.length>0;
+ if(!custom){gePlaylistQuickClear();return;}
+ gePlaylistQuickQueue=paths.slice();
+ gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
+ gePlaylistQuickName=String(playlist||'CURRENT PLAYLIST').trim().slice(0,100)||'CURRENT PLAYLIST';
+ gePlaylistQuickPath=paths[0]||'';
+ const strip=$('gePlaylistQuick'),toggle=$('gePlaylistQuickToggle'),list=$('gePlaylistQuickSongs');
+ if(!strip||!toggle||!list)return;
+ toggle.textContent=gePlaylistQuickName+' · '+paths.length+' SONGS ▾';
+ toggle.setAttribute('aria-label','Show songs in '+gePlaylistQuickName);
+ list.replaceChildren();
+ gePlaylistQuickQueue.forEach((path,i)=>{
+  const b=document.createElement('button');
+  b.type='button';b.dataset.playlistIndex=String(i);
+  b.textContent=(i+1)+'. '+gePlaylistQuickLabels[i];
+  b.setAttribute('aria-current',i===0?'true':'false');
+  b.addEventListener('click',()=>{
+   const frame=geInlineMusicFrame?.contentWindow;
+   // A direct same-origin call preserves the iPhone user gesture.
+   if(typeof frame?.GEJumpLibraryQueue==='function'&&frame.GEJumpLibraryQueue(i)){
+    gePlaylistQuickPath=path;gePlaylistQuickUpdate();gePlaylistQuickDismiss();
+   }
+  });
+  list.append(b);
+ });
+ gePlaylistQuickDismiss();strip.hidden=false;
+}
+$('gePlaylistQuickToggle')?.addEventListener('click',()=>{
+ const list=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
+ if(!list||!button)return;
+ const open=list.hidden;list.hidden=!open;button.setAttribute('aria-expanded',String(open));
+ if(open)gePlaylistQuickUpdate();
+});
+document.addEventListener('click',event=>{
+ const strip=$('gePlaylistQuick');
+ if(strip&&!strip.hidden&&!strip.contains(event.target))gePlaylistQuickDismiss();
+});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!$('gePlaylistQuickSongs')?.hidden)gePlaylistQuickDismiss();
+});
 let geInlineMusicGateAutoOpened=false;
 function geInlineMusicSend(action){
   if(!geInlineMusicFrame?.contentWindow)return;
@@ -6224,6 +6308,7 @@ function geInlineMusicSend(action){
 }
 function geInlineMusicSyncTransport(){
   if(!geInlineMusicActive)return;
+  gePlaylistQuickUpdate();
   if(geInlineMusicTitle)titleBtn.textContent=geInlineMusicTitle;
   const playButton=$('playBtn');
   if(playButton)playButton.textContent=geInlineMusicPaused?'Play':'Pause';
@@ -6238,6 +6323,7 @@ function geInlineMusicHide(){
 
 }
 function geInlineMusicStop(){
+  gePlaylistQuickClear();
   geInlineMusicSend('stop');
   geInlineMusicActive=false;geInlineMusicPaused=true;geInlineMusicTitle='';
   syncModeButtons();
@@ -6304,6 +6390,7 @@ function geInlineMusicInit(){
     }else if(data.type==='ge-radio-music-state'&&geInlineMusicActive){
       geInlineMusicPaused=!!data.paused;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
+      if(data.path)gePlaylistQuickPath=String(data.path);
       geInlineMusicSyncTransport();
     }else if(data.type==='ge-radio-music-playback-error'){
       geInlineMusicPaused=true;geInlineMusicSyncTransport();
@@ -6361,7 +6448,7 @@ window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPau
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
  showMainPlayer:()=>geShowMainPlaylistPlayer(),
- play:(input,orderedPaths,playlistName='')=>{
+ play:(input,orderedPaths,playlistName='',playlistDetails=null)=>{
   const path=canonicalSongPath(input);
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   geInlineMusicInit();
@@ -6372,9 +6459,11 @@ window.GEMusicV5Bridge={
   // requested playlist queue and is the exact regression being repaired.
   if(typeof frame?.GEPlayLibraryQueue!=='function')
     return {ok:false,message:'Playlist engine is preparing. Tap PLAY again.'};
-  try{return frame.GEPlayLibraryQueue(queue,path,playlistName)?
-    {ok:true}:{ok:false,message:'The complete playlist cannot be previewed yet.'}}
-  catch(error){return {ok:false,message:'Could not start this song preview.'}}
+  try{
+   const ok=frame.GEPlayLibraryQueue(queue,path,playlistName);
+   if(ok)gePlaylistQuickSet(playlistName,queue,playlistDetails);
+   return ok?{ok:true}:{ok:false,message:'The complete playlist cannot be previewed yet.'};
+  }catch(error){return {ok:false,message:'Could not start this song preview.'}}
  }
 };
 function geOpenMusicSelection(){window.GEMusicV5?.open?.();}
