@@ -48,6 +48,8 @@ const progress=radio.slice(progressStart,progressEnd);
 assert.match(progress,/observedRadio2Progress=true;[\s\S]*?setLiveStatus\('RADIO 2 · CONNECTED'\)/);
 assert.match(progress,/observedRadio1Progress=true;[\s\S]*?setLiveStatus\('RADIO 1 · CONNECTED'\)/);
 assert.match(radio,/id="ge-radio-connection-indicator-v1"/,'connecting visual indicator retained');
-assert.match(radio,/id="ge-protected-radio-red-pulse-v1"/,'protected double-beat Radio heartbeat must remain');
-console.log('PASS: station statuses reflect connecting/connected actual audio and protected red heartbeat is intact');
+assert.match(radio,/id="ge-radio-audible-only-heartbeat-v2"/,'verified-audio-only RADIO heartbeat must remain');
+assert.match(radio,/geRadioContainedHeartbeat67/,'contained double-beat cycle must remain');
+assert.match(radio,/115000/,'cold Radio 1 must not fall back after 10 seconds');
+console.log('PASS: station statuses reflect connecting/connected actual audio and audible-only contained red heartbeat is intact');
 
