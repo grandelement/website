@@ -21,12 +21,19 @@ assert.match(music,/state\.playlistDraftName=p\.name/);
 assert.match(music,/GE_BACKROOM_PUBLISH_SESSION_V1/);
 assert.match(music,/GE VAULT SAVED/);
 assert.match(music,/saveSharedArrangement/);
+assert.match(music,/function visibleSharedLists\(\)/);
+assert.match(music,/class="arrangeOwnerAuth"/);
+assert.match(music,/ownerLoginAndSave/);
+assert.match(music,/id=updating\?active\.id:''/);
+assert.doesNotMatch(music,/SAVE COPY/);
+assert.doesNotMatch(music,/function saveMine\(/);
+
 assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(music,/if\(collections\.length\)select\.value=collections\[0\]\.key/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/UNLISTED · /);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v66-named-vault-save/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v67-shared-playlist-save/);
 assert.match(radio,/sw\.js\?v=20261028-ge-playlists-unified-v66/);
 assert.match(sw,/const VERSION='2026\.10\.28-ge-playlists-unified-v66'/);
 for(const [name,html] of [['back',back],['radio',radio],['preview',preview]]){
