@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.9.1-20261027-UNIFORM-BLUE-CHECKS';
+const BUILD='GE-MUSIC-V5.9.2-20261027-DISTINCT-ALBUM-HEADINGS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -15,7 +15,8 @@ const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Se
 const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#dbca64','Aether':'#bfc4cd','Singles':'#6e9bb5'};
 function applyAlbumStyle(element,name){
  const hex=albumColors[name]||'#addcf5';
- element.style.borderLeft='4px solid '+hex;
+ element.style.setProperty('--ge-album-accent',hex);
+ element.style.borderLeft='5px solid '+hex;
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
@@ -70,8 +71,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .selectionActions .buySelected{min-width:54px}
 .metaLine{min-height:0;margin-top:3px}
 .meta:empty{display:none}
-.albumCollectionHeading{display:flex;gap:6px;align-items:stretch;margin:8px 0 5px;border:1px solid #417b9f;border-radius:8px;overflow:hidden}
+.albumCollectionHeading{display:flex;gap:6px;align-items:stretch;margin:14px 0 7px;border:1px solid #6e9ab2;border-radius:9px;overflow:hidden;min-height:60px;box-shadow:0 2px 9px rgba(0,0,0,.18)}
 .albumCollectionHeading .albumPicker{flex:1;min-width:0;margin:0;padding:8px 10px;border:0!important;background:transparent!important}
+.albumCollectionHeading .albumText{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.albumCollectionHeading .albumTitle{display:inline-block;max-width:100%;font-size:clamp(18px,4.6vw,21px);font-weight:950;letter-spacing:.045em;line-height:1.15;color:#fff;text-shadow:0 1px 2px #001523;border-bottom:2px solid var(--ge-album-accent,#76cfff);padding-bottom:2px}
+.albumCollectionHeading .albumSelectHint{font-size:10px;font-weight:850;letter-spacing:.12em;line-height:1.2;color:#ccedff}
+.albumCollectionHeading .albumViewTitle{flex:1;min-width:0;align-self:center;padding:9px 11px;color:#fff;font-size:clamp(18px,4.6vw,21px);font-weight:950;letter-spacing:.045em;text-shadow:0 1px 2px #001523}
+
 .albumActions,.songActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}
 .albumActions{padding:3px}
 .albumActions button{min-height:36px;padding:5px 9px;font-size:12px}
@@ -118,9 +124,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumBrowseRow .albumPickerCompact input{width:21px;height:21px;flex:0 0 21px;margin:0;accent-color:#087eff}
 .song input[type=checkbox]:checked,.albumPicker input:checked{outline:1.5px solid #e8f7ff;outline-offset:1px;border-radius:3px}
 .albumBrowseRow .album{display:flex;align-items:center;justify-content:space-between;flex:1 1 0;min-width:0;min-height:47px;padding:7px 10px;gap:8px;margin:0;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important}
-.albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(13px,3.5vw,17px);line-height:1.15;overflow-wrap:break-word}
+.albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(17px,4vw,20px);font-weight:950;letter-spacing:.03em;line-height:1.15;overflow-wrap:break-word;color:#fff;text-shadow:0 1px 2px #061626}
 .albumBrowseRow .album small{flex:0 0 auto;white-space:nowrap;font-size:clamp(10px,2.8vw,13px);font-weight:800;color:#b7e6ff}
-@media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:14px}.albumBrowseRow .album small{font-size:11px}}
+@media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:17px}.albumBrowseRow .album small{font-size:10px}.albumCollectionHeading .albumPicker{padding:8px 7px}.albumCollectionHeading .albumTitle{font-size:19px}}
 .bottom{flex:0 0 auto;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 10px max(10px,env(safe-area-inset-bottom));background:#071f34;border-top:1px solid #45769b}
 .bottom .count{flex:1;font-size:12px;color:#afdfff}
 .bottom button{font-size:12px;min-height:36px}
@@ -134,7 +140,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.9</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.9.2</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><div class="musicCodeTools"><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="buySelected buyBtn" disabled>BUY</button></div></div><div class="metaLine"><span class="meta" aria-live="polite"></span></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
@@ -563,7 +569,9 @@ function albumSelectAll(parent,album,tracks,compact=false){
   label.title='Select all songs on '+album;
   label.append(box);
  }else{
-  label.append(box,elem('span','',album+' · SELECT ALBUM'));
+  const albumText=elem('span','albumText');
+  albumText.append(elem('span','albumTitle',album),elem('span','albumSelectHint','SELECT ALBUM'));
+  label.append(box,albumText);
   applyAlbumStyle(label,album);
  }
  parent.append(label);
@@ -653,7 +661,7 @@ function render(){
   if(state.view.startsWith('album:')){
     const name=state.view.slice(6);breadcrumb(name,'albums');
     const bar=elem('div','albumCollectionHeading');applyAlbumStyle(bar,name);
-    bar.append(elem('strong','',name),albumActions(name,state.tracks.filter(t=>t.album===name)));
+    bar.append(elem('strong','albumViewTitle',name),albumActions(name,state.tracks.filter(t=>t.album===name)));
     scroller.append(bar);
   }
   if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
