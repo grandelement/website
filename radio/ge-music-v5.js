@@ -824,11 +824,11 @@ el('.arrangeLoadBtn').addEventListener('click',()=>{
 });
 el('.arrangeSave').addEventListener('click',()=>saveMine(true));
 el('.arrangeBuy').addEventListener('click',()=>{
- const tracks=selectedTracks();if(tracks.length)requestBuy({mode:'tracks',paths:tracks.map(t=>t.path)});
+ const tracks=selectedTracks();if(tracks.length)requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});
 });
 el('.buySelected').addEventListener('click',()=>{
  const tracks=selectedTracks();if(!tracks.length)return;
- requestBuy({mode:'tracks',paths:tracks.map(t=>t.path)});
+ requestBuy({mode:'tracks',paths:tracks.map(t=>t.path),express:true});
 });
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
@@ -857,7 +857,7 @@ window.addEventListener('ge-vault-music-access-updated',()=>{
  musicAccessStatus();if(state.open)render();
 });
 root.querySelector('[data-action=clear]').addEventListener('click',()=>{state.selected.clear();saveSelected();say('Selection cleared.');render()});
-root.querySelector('[data-action=save]').addEventListener('click',saveMine);
+root.querySelector('[data-action=save]').addEventListener('click',()=>saveMine(false));
 document.addEventListener('keydown',event=>{if(!state.open)return;if(event.key==='Escape'){event.preventDefault();close()}});
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
