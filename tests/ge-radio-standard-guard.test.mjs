@@ -55,16 +55,24 @@ requireText(radio,/GEPlayLibraryQueue\(queue,path,playlistName\)/,'Radio must ha
 requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show current queue');
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
-// October 28 current contract: blank until actual native audio progress,
-// then a single contained 6.7s heartbeat. The October 27 always-red rule is obsolete.
-requireText(radio,/id="ge-radio-audible-only-heartbeat-v2"/,'connected-only RADIO style removed');
-requireText(radio,/@keyframes geRadioContainedHeartbeat67/,'single contained heartbeat missing');
-requireText(radio,/\.ge-radio-audible/,'no audio-verified RADIO cue state');
-requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'no dynamic audio-verified RADIO gating');
-requireText(radio,/button\.textContent=connected\?'RADIO':''/,'RADIO text must stay blank before audio');
-requireText(radio,/background:transparent!important/,'blank startup placeholder missing');
-requireText(radio,/overflow:hidden!important/,'RADIO effect must be clipped inside button');
-requireText(radio,/animation:geRadioContainedHeartbeat67 6\.7s linear infinite!important/,'6.7-second heartbeat changed');
+// Current October 28 user-approved behavior: verified audio, then whole-button
+// dimmer red lub-dub, one tap locks solid red until the connection drops.
+// Keep the previous heartbeat CSS in source for rollback, but guard the newest
+// end-of-head override so no later UI change silently restores the old effect.
+requireText(radio,/id="ge-radio-connected-red-dimmer-20261028"/,'approved RADIO red dimmer stylesheet missing');
+requireText(radio,/@keyframes geRadioRedDimmerLubDub/,'smooth two-beat red dimmer keyframes missing');
+requireText(radio,/animation:geRadioRedDimmerLubDub 6\\.7s ease-in-out infinite!important/,'approved heartbeat timing changed');
+requireText(radio,/\\.ge-radio-audible\\.ge-radio-pulse-ack/,'one-tap solid red state removed');
+requireText(radio,/document\\.body\\.classList\\.add\\('ge-radio-pulse-ack'\\)/,'listener tap must freeze pulse');
+requireText(radio,/if\\(!connected\\)document\\.body\\.classList\\.remove\\('ge-radio-pulse-ack'\\)/,'pulse acknowledgement must reset on disconnect');
+requireText(radio,/document\\.body\\.classList\\.toggle\\('ge-radio-audible'/,'connected state must come from audio');
+requireText(radio,/button\\.textContent=connected\\?'RADIO':''/,'do not show RADIO text before playback progress');
+requireText(radio,/pointer-events:none!important/,'not-connected RADIO placeholder must not intercept taps');
+requireText(radio,/prefers-reduced-motion:reduce/,'reduced motion settings must be honored');
+requireText(radio,/width:max-content!important/,'repair status banner width for possible re-enable');
+requireText(radio,/overflow-wrap:anywhere!important/,'status banner must word-wrap when enabled');
+requireText(radio,/body #liveStatus,body #liveStatus\\.show\\{[\\s\\S]*?display:none!important/,'status banner must remain temporarily hidden');
+requireText(radio,/function setLiveStatus\\(text,show=true\\)/,'Radio state and message code must not be deleted');
 requireText(radio,/115000/,'Radio 1 startup watchdog is too short');
 requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'extended Radio 1 startup notice missing');
 requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'long-running Radio 1 notice missing');
@@ -90,4 +98,4 @@ new Script(player.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1]||'',{filenam
 requireText(sw,/const MEDIA_CACHE='ge-radio-media-v4'/,'Do not erase or rename cached listener audio');
 requireText(sw,/ge-radio-shell-\$\{VERSION\}/,'Service Worker UI cache rotation missing');
 assert.ok(read('GE_RADIO_PROTECTED_STANDARD.md').includes('## Mandatory Music interface'),'Protected standard document missing');
-console.log('PASS GE RADIO PROTECTED STANDARD: catalog, playlists, controls, bounded Radio1 warmup, post-audio contained heartbeat, Safari, Gate and cache');
+console.log('PASS GE RADIO PROTECTED STANDARD: catalog, playlists, controls, bounded Radio1 warmup, verified connected red dimmer, hidden status, Safari, Gate and cache');
