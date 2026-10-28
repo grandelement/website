@@ -1009,6 +1009,7 @@ async function fanMusicEndpoint(request,env){
 async function adminFanMusicPlaylists(request,env){
  if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
  await ensureFanMusicPlaylistTable(env);
+ await ensureAccessCodeTables(env);
  const rows=await env.VAULT_DB.prepare(
   `SELECT p.id,p.owner_hash,p.anon_id,p.name,p.songs_json,p.created_at,p.updated_at,
    f.id AS fan_id,f.display_name AS fan_name,l.code_id,a.label AS code_label
