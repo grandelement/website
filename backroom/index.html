@@ -925,6 +925,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label hidden><span>ADVANCED RADIO KEY</span><input id="brAccessCustomCode" type="text" autocomplete="off"></label>
     <p class="brAccessNotice" id="brAccessCustomHelp">The name entered above is the actual Radio Gate code.</p>
     <label><span>ACCESS CODE · WHAT YOUR GUEST ENTERS</span><input id="brAccessLabel" type="text" maxlength="100" placeholder="Example: FRIEND or TEST 4" autocomplete="off" spellcheck="false"></label>
+    <label><span>LISTENER NAME · SHOWN TO THE LEFT OF ACCESS CODE IN MUSIC</span><input id="brAccessDisplayName" type="text" maxlength="80" placeholder="Example: John B" autocomplete="off" spellcheck="false" aria-describedby="brAccessDisplayNameHelp"></label>
+    <p id="brAccessDisplayNameHelp" class="brAccessNotice">The listener sees this name, not the private access key. Keep it short and readable.</p>
     <div id="brAccessKeyHelpPanel" class="brAccessKeyHelp" hidden>
       <strong>RADIO GATE CODE</strong>
       <p id="brAccessKeyHelpText"></p>
@@ -3212,6 +3214,7 @@ const backroomVaultManagers=(()=>{
     });
     $('brAccessEditorTitle').textContent=row?'EDIT ACCESS CODE':'NEW ACCESS CODE';
     $('brAccessLabel').value=row?.label||(!row?$('brAccessSearch').value.trim():'');
+    $('brAccessDisplayName').value=row?.display_name||'';
     // New codes use their display name as the Gate credential; existing records keep their old key until explicitly changed.
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=!!row;
@@ -3271,7 +3274,7 @@ const backroomVaultManagers=(()=>{
     if(!codeRows.length){host.appendChild(create('p','Vault returned an empty access-code list.','sub'));return;}
     for(const row of codeRows){
       const item=create('div','','backroomCodeEntry');
-      item.appendChild(create('strong',row.label+' · …'+row.code_hint+' · '+statusCode(row)));
+      item.appendChild(create('strong',(row.display_name?row.display_name+' · ':'')+row.label+' · …'+row.code_hint+' · '+statusCode(row)));
       item.appendChild(create('small','VAULT RECORD '+row.id+' · '+(row.scopes||[]).join(', ').toUpperCase()+
         ' · '+(row.playlist_ids||[]).length+' playlist reference(s) · '+(row.track_paths||[]).length+' allowed song(s)'));
       item.appendChild(btn(row.revoked?'REVOKED':'EDIT PERMISSIONS / PLAYLIST / SONGS',()=>{
@@ -3432,7 +3435,10 @@ const backroomVaultManagers=(()=>{
   }
   function codePayload(){
     const label=$('brAccessLabel').value.trim();
+    const displayName=$('brAccessDisplayName').value.trim().replace(/\s+/g,' ');
     const existing=editingCodeId?codeRows.find(row=>row.id===editingCodeId):null;
+    if(!existing&&!displayName)throw Error('Enter a listener name for the new access code.');
+    if(displayName.length>80||/[\u0000-\u001f<>]/.test(displayName))throw Error('Use a shorter listener name without special brackets.');
     // Preserve older hidden scopes on edit instead of revoking permissions by accident.
     // New codes start with the one visible RADIO permission.
     const scopes=[...new Set([
@@ -3450,7 +3456,7 @@ const backroomVaultManagers=(()=>{
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
     const assignments=selectedAccessAssignments();
-    return {label,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
+    return {label,display_name:displayName,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
       activate_now:$('brAccessStartNow').checked,
       requested_code:editingCodeId?'':label,
@@ -3494,6 +3500,7 @@ const backroomVaultManagers=(()=>{
       const sameSet=(a,b)=>JSON.stringify([...new Set(a||[])].sort())===
         JSON.stringify([...new Set(b||[])].sort());
       const confirmed=!!saved&&saved.label===payload.label&&
+        String(saved.display_name||'')===payload.display_name&&
         sameSet(saved.scopes,payload.scopes)&&
         sameSet(saved.playlist_ids,payload.playlist_ids)&&
         JSON.stringify(saved.track_paths||[])===JSON.stringify(payload.track_paths||[])&&
@@ -3602,6 +3609,7 @@ const backroomVaultManagers=(()=>{
     // the old secret; this is a deliberate new issue, never an edit to an
     // existing hashed code.
     $('brAccessLabel').value='Replacement for '+old.label;
+    $('brAccessDisplayName').value=old.display_name||'';
     $('brAccessCustomCode').value='';
     $('brAccessCustomCode').disabled=false;
     scopeBoxes().forEach(box=>box.checked=(old.scopes||[]).includes(box.value));
