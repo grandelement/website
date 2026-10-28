@@ -8,16 +8,22 @@ const iphone='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit
 const iphoneDesktop='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
 const android='Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0 Mobile Safari/537.36';
 const mac='Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
-function detect(source,ua,width,height,touchPoints){
+function detect(source,ua,width,height,touchPoints,search=''){
   const classes=new Set();
   const viewport={content:'width=device-width,initial-scale=1,viewport-fit=cover'};
   const html={
     dataset:{},
-    classList:{add:name=>classes.add(name),contains:name=>classes.has(name)}
+    classList:{
+      add:name=>classes.add(name),
+      contains:name=>classes.has(name),
+      toggle:(name,on)=>on?classes.add(name):classes.delete(name)
+    }
   };
   const context=createContext({
     navigator:{userAgent:ua,maxTouchPoints:touchPoints},
     screen:{width,height},
+    location:{search},
+    URLSearchParams,
     document:{documentElement:html,querySelector:selector=>selector==='meta[name="viewport"]'?viewport:null}
   });
   new Script(source).runInContext(context);
@@ -34,16 +40,24 @@ for(const page of pages){
  assert.ok(phone.classes.has('ge-mobile-device'));
  assert.ok(!phone.classes.has('ge-safari-desktop-request'));
  assert.match(phone.viewport,/device-width/);
- const desktop=detect(js,iphoneDesktop,390,844,5);
- assert.equal(desktop.mode,'desktop',page+' Safari manual desktop');
+ // Macintosh UA alone does not justify desktop mode on a physical iPhone.
+ // On Safari it can be caused by a default site setting, not deliberate choice.
+ const macLikePhone=detect(js,iphoneDesktop,390,844,5);
+ assert.equal(macLikePhone.mode,'mobile',page+' compact touchscreen uses mobile by default');
+ assert.ok(macLikePhone.classes.has('ge-mobile-device'));
+ assert.ok(!macLikePhone.classes.has('ge-safari-desktop-request'));
+ assert.match(macLikePhone.viewport,/device-width/);
+ // Orientation never changes the physical-device classification.
+ assert.equal(detect(js,iphoneDesktop,844,390,5).mode,'mobile');
+ assert.equal(detect(js,iphone,844,390,5).mode,'mobile');
+ // Deliberate site view selection remains possible without guessing Safari UI intent.
+ const desktop=detect(js,iphoneDesktop,390,844,5,'?ge_view=desktop');
+ assert.equal(desktop.mode,'desktop',page+' explicit desktop override');
  assert.ok(desktop.classes.has('ge-safari-desktop-request'));
  assert.equal(desktop.viewport,'width=1160,viewport-fit=cover');
- // Rotation alone must never change the chosen Safari desktop mode.
- assert.equal(detect(js,iphoneDesktop,844,390,5).mode,'desktop');
- assert.equal(detect(js,iphone,844,390,5).mode,'mobile');
- // Safari user switch back presents mobile UA again.
+ assert.equal(detect(js,iphoneDesktop,390,844,5,'?ge_view=mobile').mode,'mobile');
  assert.equal(detect(js,iphone,390,844,5).mode,'mobile');
  assert.equal(detect(js,android,412,915,5).mode,'mobile');
  assert.equal(detect(js,mac,1440,900,0).mode,'desktop');
 }
-console.log('PASS: GE homepage + Radio mobile auto-detection and Safari explicit desktop/mobile override');
+console.log('PASS: GE homepage + Radio mobile auto-detection and explicit desktop/mobile override without false-positive desktop UA');
