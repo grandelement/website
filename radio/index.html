@@ -6000,8 +6000,12 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
     if(radio2.loading){setLiveStatus('RADIO 2 · CONNECTING…');return;}
     if(radio2.active){radio2PlayCurrent();return;}
     if(radioTimedOut)return switchToRadio2('radio1_timeout');
-    if(state.live&&!audio.paused&&!observedRadio1Progress)
-      return resumeLiveAtEdge();
+    if(state.live&&!audio.paused&&!observedRadio1Progress){
+      // A second PLAY tap during cold startup must never reset the same stream.
+      // Let the original Radio 1 request and its single watchdog continue.
+      setLiveStatus('RADIO 1 · CONNECTING…');
+      return;
+    }
     return resumeRadio();
   })();
   // The radio source remains BLITZ only; give failed connections a bounded
@@ -6030,9 +6034,9 @@ async function resumeRadio(){
   }
   if(radioTimedOut){radioReconnectFailures=0;void switchToRadio2('radio1_timeout');return;}
 
-  // If RADIO has never actually produced audio on this page, the stream is already
-  // prepared at the live edge. Play that prepared source directly so one tap works.
-  if(!liveState.hasPlayed && !liveState.needsFreshEdge){
+  // Until real forward-time progress occurs, keep the SAME prepared stream.
+  // Repeated iPhone PLAY taps may unlock audio, but must not reload Radio 1.
+  if(!observedRadio1Progress && !liveState.needsFreshEdge){
     try{
       audio.muted=false;
       audio.defaultMuted=false;
