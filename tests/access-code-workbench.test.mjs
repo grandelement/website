@@ -10,9 +10,11 @@ for(const [index,match] of scripts.entries()){
 }
 for(const name of ['brAccessNewPrimary','brAccessLoadPrimary','brAccessSavePrimary',
   'brAccessDeletePrimary','brAccessSimpleBar','brAccessStatusPanel',
-  'brAccessWorkbenchMessage','brAccessGameInfo','brAccessMusicCategory']){
+  'brAccessWorkbenchMessage','brAccessMusicCategory']){
   assert.ok(html.includes(name),'Missing simplified Access Codes control '+name);
 }
+assert.doesNotMatch(html,/id="brAccessGameInfo"|id="brCodeGames"|id="brCodeAutopilot"|id="brCodeRadioPlaylist"/);
+assert.match(html,/name="brAccessScope" value="radio"/);
 assert.match(html,/\$\('brAccessDeletePrimary'\)\.addEventListener\('click'/);
 assert.match(html,/void codeAction\('delete'\)/);
 assert.match(html,/void saveCode\(editing\)/);
