@@ -55,17 +55,22 @@ requireText(radio,/GEPlayLibraryQueue\(queue,path,playlistName\)/,'Radio must ha
 requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show current queue');
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
-requireText(radio,/id="ge-protected-radio-red-pulse-v1"/,'RADIO inactive red fill/pulse protection removed');
-requireText(radio,/@keyframes geRadioProtectedDoubleBeat67/,'Approved RADIO two-beat heartbeat removed');
-requireText(radio,/@keyframes geRadioProtectedOuterWave67/,'Approved RADIO slow outward glow removed');
-requireText(radio,/geRadioProtectedDoubleBeat67 6\.7s linear infinite!important/,'RADIO pulse cycle no longer 6.7 seconds');
-requireText(radio,/geRadioProtectedOuterWave67 6\.7s linear infinite!important/,'RADIO expanding glow cycle no longer 6.7 seconds');
-requireText(radio,/background:linear-gradient\(115deg,#8b1533 0%,#d5254a 53%,#9f1539 100%\)!important/,'RADIO button is not protected with a solid red center');
-requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO red heartbeat lost');
+// October 28 current contract: blank until actual native audio progress,
+// then a single contained 6.7s heartbeat. The October 27 always-red rule is obsolete.
+requireText(radio,/id="ge-radio-audible-only-heartbeat-v2"/,'connected-only RADIO style removed');
+requireText(radio,/@keyframes geRadioContainedHeartbeat67/,'single contained heartbeat missing');
+requireText(radio,/\.ge-radio-audible/,'no audio-verified RADIO cue state');
+requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'no dynamic audio-verified RADIO gating');
+requireText(radio,/button\.textContent=connected\?'RADIO':''/,'RADIO text must stay blank before audio');
+requireText(radio,/background:transparent!important/,'blank startup placeholder missing');
+requireText(radio,/overflow:hidden!important/,'RADIO effect must be clipped inside button');
+requireText(radio,/animation:geRadioContainedHeartbeat67 6\.7s linear infinite!important/,'6.7-second heartbeat changed');
+requireText(radio,/115000/,'Radio 1 startup watchdog is too short');
+requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'extended Radio 1 startup notice missing');
+requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'long-running Radio 1 notice missing');
+requireNot(radio,/id="ge-protected-radio-red-pulse-v1"/,'obsolete always-red heartbeat stylesheet restored');
+requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO indicator must follow audio state');
 
-requireText(radio,/#liveBtn\[aria-pressed="false"\]/,'RADIO must remain visibly red outside live mode');
-requireText(radio,/geRadioLubDub/,'RADIO live heartbeat removed');
-requireText(radio,/radio-start-cue/,'RADIO startup glow removed');
 requireText(radio,/id="geMusicV5Button"/,'Music open control must remain in Radio');
 requireText(radio,/id="geGate"/,'Music Gate must remain');
 requireText(player,/AUDIO_LIMIT_SECONDS=2013/,'33:33 preview timer changed unexpectedly');
@@ -85,4 +90,4 @@ new Script(player.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1]||'',{filenam
 requireText(sw,/const MEDIA_CACHE='ge-radio-media-v4'/,'Do not erase or rename cached listener audio');
 requireText(sw,/ge-radio-shell-\$\{VERSION\}/,'Service Worker UI cache rotation missing');
 assert.ok(read('GE_RADIO_PROTECTED_STANDARD.md').includes('## Mandatory Music interface'),'Protected standard document missing');
-console.log('PASS GE RADIO PROTECTED STANDARD: full catalog, Bangers/Johnb, both tabs, drag+arrows, Music launch, red RADIO, Safari, Gate, media cache');
+console.log('PASS GE RADIO PROTECTED STANDARD: catalog, playlists, controls, bounded Radio1 warmup, post-audio contained heartbeat, Safari, Gate and cache');
