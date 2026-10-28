@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V6.2-20261028-CLEAN-MUSIC-CONTROLS';
+const BUILD='GE-MUSIC-V6.3-20261028-BIG-ALBUM-HEADINGS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -70,10 +70,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .selectionActions .buySelected{min-width:54px}
 .albumCollectionHeading{display:flex;gap:6px;align-items:stretch;margin:14px 0 7px;border:1px solid #6e9ab2;border-radius:9px;overflow:hidden;min-height:60px;box-shadow:0 2px 9px rgba(0,0,0,.18)}
 .albumCollectionHeading .albumPicker{flex:1;min-width:0;margin:0;padding:8px 10px;border:0!important;background:transparent!important}
-.albumCollectionHeading .albumText{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
-.albumCollectionHeading .albumTitle{display:inline-block;max-width:100%;font-size:clamp(18px,4.6vw,21px);font-weight:950;letter-spacing:.045em;line-height:1.15;color:#fff;text-shadow:0 1px 2px #001523;border-bottom:2px solid var(--ge-album-accent,#76cfff);padding-bottom:2px}
-.albumCollectionHeading .albumSelectHint{font-size:10px;font-weight:850;letter-spacing:.12em;line-height:1.2;color:#ccedff}
-.albumCollectionHeading .albumViewTitle{flex:1;min-width:0;align-self:center;padding:9px 11px;color:#fff;font-size:clamp(18px,4.6vw,21px);font-weight:950;letter-spacing:.045em;text-shadow:0 1px 2px #001523}
+.albumCollectionHeading .albumText{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.albumCollectionHeading .albumTitle{display:block;max-width:100%;font-size:clamp(25px,7vw,30px);font-weight:950;letter-spacing:.02em;line-height:1.1;color:#fff;text-shadow:0 2px 3px rgba(0,12,24,.8);overflow-wrap:anywhere}
+.albumCollectionHeading .albumViewTitle{flex:1;min-width:0;align-self:center;padding:9px 11px;color:#fff;font-size:clamp(25px,7vw,30px);font-weight:950;letter-spacing:.02em;line-height:1.1;text-shadow:0 2px 3px rgba(0,12,24,.8);overflow-wrap:anywhere}
 
 .albumActions,.songActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}
 .albumActions{padding:3px}
@@ -119,9 +118,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumBrowseRow .albumPickerCompact input{width:21px;height:21px;flex:0 0 21px;margin:0;accent-color:#087eff}
 .song input[type=checkbox]:checked,.albumPicker input:checked{outline:1.5px solid #e8f7ff;outline-offset:1px;border-radius:3px}
 .albumBrowseRow .album{display:flex;align-items:center;justify-content:space-between;flex:1 1 0;min-width:0;min-height:47px;padding:7px 10px;gap:8px;margin:0;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important}
-.albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(17px,4vw,20px);font-weight:950;letter-spacing:.03em;line-height:1.15;overflow-wrap:break-word;color:#fff;text-shadow:0 1px 2px #061626}
+.albumBrowseRow .album b{flex:1;min-width:0;text-align:left;font-size:clamp(20px,5.6vw,24px);font-weight:950;letter-spacing:.02em;line-height:1.12;overflow-wrap:anywhere;color:#fff;text-shadow:0 2px 3px #061626}
 .albumBrowseRow .album small{flex:0 0 auto;white-space:nowrap;font-size:clamp(10px,2.8vw,13px);font-weight:800;color:#b7e6ff}
-@media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:17px}.albumBrowseRow .album small{font-size:10px}.albumCollectionHeading .albumPicker{padding:8px 7px}.albumCollectionHeading .albumTitle{font-size:19px}}
+@media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:21px}.albumBrowseRow .album small{font-size:10px}.albumCollectionHeading .albumPicker{padding:8px 7px}.albumCollectionHeading .albumTitle{font-size:27px}}
 .playlistActionsBar{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .playlistActionsBar button{font-size:clamp(11px,3.2vw,13px);min-height:36px;padding:6px 11px}
 .playlistActionsBar [data-action=clear]{background:#092a43;border-color:#559dcb}
@@ -159,7 +158,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.2</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.3</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="musicCodeTools"><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="buySelected buyBtn" disabled>BUY</button></div></div><div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -627,7 +626,7 @@ function albumSelectAll(parent,album,tracks,compact=false){
   label.append(box);
  }else{
   const albumText=elem('span','albumText');
-  albumText.append(elem('span','albumTitle',album),elem('span','albumSelectHint','SELECT ALBUM'));
+  albumText.append(elem('span','albumTitle',album));
   label.append(box,albumText);
   applyAlbumStyle(label,album);
  }
