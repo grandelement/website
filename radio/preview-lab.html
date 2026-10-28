@@ -908,8 +908,9 @@ function chooseTrack(t){
 window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  if(!Array.isArray(paths)||!paths.length)return false;
  const unique=[...new Set(paths.map(cleanMusicPath).filter(Boolean))].slice(0,250);
- const tracks=unique.map(path=>catalogTrackByPath.get(path)).filter(Boolean);
- if(!tracks.length)return false;
+ const tracks=unique.map(path=>catalogTrackByPath.get(path));
+ // Never pretend the playlist is intact when a recording is missing.
+ if(!tracks.length||tracks.some(track=>!track))return false;
  const idx=tracks.findIndex(t=>cleanMusicPath(t.path)===cleanMusicPath(startPath));
  if(idx<0)return false;
  // Use this iframe ONLY for protected playback and Gate timing.
