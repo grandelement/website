@@ -19,7 +19,7 @@ assert.match(music,/state\.publicLists=data\.playlists\.filter\(valid\)/);
 assert.match(music,/id="geArrangeCurrentName"/);
 assert.match(music,/state\.playlistDraftName=p\.name/);
 assert.match(music,/GE_BACKROOM_PUBLISH_SESSION_V1/);
-assert.match(music,/GE VAULT SAVED/);
+assert.match(music,/SAVED TO SHARED GE VAULT/);
 assert.match(music,/saveSharedArrangement/);
 assert.match(music,/function visibleSharedLists\(\)/);
 assert.match(music,/class="arrangeOwnerAuth"/);
@@ -27,13 +27,21 @@ assert.match(music,/ownerLoginAndSave/);
 assert.match(music,/id=updating\?active\.id:''/);
 assert.doesNotMatch(music,/SAVE COPY/);
 assert.doesNotMatch(music,/function saveMine\(/);
+assert.match(music,/class="accessToggle"/);
+assert.match(music,/class="clearSelected"/);
+assert.match(music,/gePlaylistBar/);
+assert.match(music,/fanVaultEndpoint/);
+assert.match(music,/saveFanArrangement/);
+assert.doesNotMatch(music,/class="buySelected buyBtn"/);
+assert.doesNotMatch(music,/const buy=elem\('button','buyBtn'/);
+
 
 assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
-assert.match(music,/if\(collections\.length\)select\.value=collections\[0\]\.key/);
+assert.match(music,/picker\.replaceChildren\(new Option\('▾',''\)\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/UNLISTED · /);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v67b-shared-code-visibility/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v69-fan-vault-compact/);
 assert.match(radio,/sw\.js\?v=20261028-ge-playlists-unified-v66/);
 assert.match(sw,/const VERSION='2026\.10\.28-ge-playlists-unified-v66'/);
 for(const [name,html] of [['back',back],['radio',radio],['preview',preview]]){
