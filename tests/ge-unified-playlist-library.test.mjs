@@ -41,7 +41,7 @@ assert.match(radio,/frame\.GEJumpLibraryQueue\(i\)/,'song tap jumps through exis
 assert.match(radio,/gePlaylistQuickSet\(playlistName,queue,playlistDetails\)/);
 assert.match(preview,/window\.GEJumpLibraryQueue=function\(index\)/);
 assert.match(preview,/path:currentTrack\?cleanMusicPath/);
-assert.match(music,/custom=queue\.length!==baseline\.length/);
+assert.match(music,/custom=Array\.isArray\(queueOverride\)&&queueOverride\.length>0&&/,'single song playback must not open a playlist quick strip');
 assert.match(music,/\{custom,labels\}/);
 
 assert.match(radio,/if\(geInlineMusicActive\)\{\s*state\.shuffle=false;syncModeButtons\(\)/);
