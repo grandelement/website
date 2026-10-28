@@ -406,6 +406,7 @@ async function saveSharedArrangement(){
  if(state.publicLists.some(p=>p.name.toLowerCase()===name.toLowerCase()&&p.id!==id)){
   say('NAME ALREADY EXISTS IN GE VAULT · LOAD THAT PLAYLIST TO EDIT.');render();return;
  }
+ if(!updating){await saveFanArrangement(name,tracks);return}
  const token=publisherSession();
  if(!token){showOwnerSaveLogin();return}
  state.savingShared=true;render();
@@ -869,12 +870,15 @@ function render(){
  const picker=el('.arrangePlaylistSelect'),priorKey=picker.value;
  const collections=[
   ...visibleSharedLists().map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
+  ...state.fanLists.map(p=>({label:'MY · '+p.name,key:'fan:'+p.id})),
   ...state.assignedLists.filter(p=>!state.publicLists.some(x=>x.id===p.id)).map(p=>({label:'CODE · '+p.name,key:'assigned:'+p.id})),
   ...readMine().map(p=>({label:'MY · '+p.name,key:'local:'+p.id}))
  ];
  picker.replaceChildren(new Option('▾',''));
  for(const p of collections)picker.add(new Option(p.label,p.key));
- const activeKey=state.activePlaylist?(state.activePlaylist.source==='user'?'local:':'ge:')+state.activePlaylist.id:'';
+ const activeKey=state.activePlaylist?(
+  state.activePlaylist.source==='fan'?'fan:':state.activePlaylist.source==='user'?'local:':'ge:'
+ )+state.activePlaylist.id:'';
  picker.value=collections.some(p=>p.key===activeKey)?activeKey:collections.some(p=>p.key===priorKey)?priorKey:'';
  const name=el('.arrangeCurrentName');
  if(document.activeElement!==name&&name.value!==state.playlistDraftName)name.value=state.playlistDraftName;
@@ -928,6 +932,14 @@ function render(){
   // Connection summary is already shown above the scroll area.
   // Do not waste scrolling space by repeating it as another full row.
   const shown=visibleSharedLists().filter(p=>!term||p.name.toLowerCase().includes(term));
+  for(const personal of state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term))){
+   card(scroller,personal.name,'MY PLAYLIST',()=>{
+    state.selected=new Set(personal.songs);saveSelected();
+    state.activePlaylist={source:'fan',origin:'vault',id:personal.id,name:personal.name};
+    state.playlistDraftName=personal.name;
+    setView('playlist-order');
+   });
+  }
   for(const p of shown)card(scroller,p.name,p.visibility==='unlisted'?
     'UNLISTED · CODE REQUIRED TO PLAY':'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',origin:p.source||'github',visibility:p.visibility||'published',id:p.id,name:p.name};state.playlistDraftName=p.name;
@@ -1006,7 +1018,7 @@ function open(){
  }
  musicAccessStatus();
  if(!state.loaded&&!state.loading){state.loading=true;void fetchCatalog()}
- void loadPublished();render();scroller.scrollTop=0;root.querySelector('[data-tab="'+activeCategory()+'"]').focus();
+ void loadPublished();void loadFanPlaylists();render();scroller.scrollTop=0;root.querySelector('[data-tab="'+activeCategory()+'"]').focus();
 }
 function close(){
  if(!state.open)return;
@@ -1044,12 +1056,13 @@ el('.arrangeLoadBtn').addEventListener('click',()=>{
  }
  const [source,id]=key.split(':');
  const p=source==='local'?readMine().find(p=>p.id===id):
+   source==='fan'?state.fanLists.find(p=>p.id===id):
    source==='ge'?state.publicLists.find(p=>p.id===id):
    source==='assigned'?state.assignedLists.find(p=>p.id===id):null;
  if(!p){say('That playlist is no longer available. Refresh playlists.');render();return}
  state.selected=new Set(p.songs.map(canonical).filter(Boolean));
- state.activePlaylist={source:source==='local'?'user':'ge',
-  origin:source==='local'?'local':p.source||'github',
+ state.activePlaylist={source:source==='local'?'user':source==='fan'?'fan':'ge',
+  origin:source==='local'?'local':source==='fan'?'vault':p.source||'github',
   visibility:p.visibility||'published',id:p.id,name:p.name};
  state.playlistDraftName=p.name;
  saveSelected();state.term='';el('.search').value='';
