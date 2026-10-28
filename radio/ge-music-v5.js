@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.4-20261028-PLAY-IN-MAIN-RADIO';
+const BUILD='GE-MUSIC-V7.5-20261028-QUICK-PLAYLIST-MAIN-RADIO';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -632,7 +632,17 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const queue=Array.isArray(queueOverride)&&queueOverride.length?queueOverride:
    state.view==='access-code'?chosenSongs().map(t=>t.path):[track.path];
  const playlistName=state.playlistDraftName.trim()||state.activePlaylist?.name||'MY MUSIC LIST';
- const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName);
+ const entitlement=musicAccessActive();
+ const baseline=entitlement?.restricted
+  ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
+  :state.tracks.map(t=>t.path);
+ const custom=queue.length!==baseline.length||queue.some((path,index)=>path!==baseline[index]);
+ const known=new Map(state.tracks.map(t=>[t.path,t]));
+ const labels=queue.map(path=>{
+  const song=known.get(path);
+  return song?song.title+' — '+song.album:path.split('/').pop().replace(/\.(mp3|m4a|ogg|wav)$/i,'');
+ });
+ const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels});
  if(outcome?.ok){
   if(showPlayer){
    // Use ONLY the existing main Radio player. The Gate/audio controller
