@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.8-20261028-PER-CODE-WORKING-ORDER';
+const BUILD='GE-MUSIC-V7.9-20261028-NAMED-ACCESS-BALANCED-HEADER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -126,7 +126,21 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumBrowseRow .album small{flex:0 0 auto;white-space:nowrap;font-size:clamp(10px,2.8vw,13px);font-weight:800;color:#b7e6ff}
 @media(max-width:420px){.albumBrowseRow .album{padding:6px 7px;gap:5px}.albumBrowseRow .album b{font-size:21px}.albumBrowseRow .album small{font-size:10px}.albumCollectionHeading .albumPicker{padding:8px 7px}.albumCollectionHeading .albumTitle{font-size:27px}}
 .playlistActionsBar{display:none!important}
-.geHeaderActions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.geHeaderActions{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0}
+.geCodeIdentity{font-size:12px;font-weight:850;line-height:1.13;color:#fff;
+  min-width:0;max-width:128px;text-align:left;white-space:normal;
+  text-wrap:balance;overflow-wrap:break-word;letter-spacing:0}
+.geCodeIdentity[hidden]{display:none!important}
+.geCodeIdentity::before{content:'ACTIVE · ';color:#d7adff;font-size:10px}
+.header .brand{text-wrap:balance;overflow-wrap:normal}
+@media(max-width:420px){
+ .header{gap:5px;padding:7px 8px}
+ .geHeaderActions{gap:4px}
+ .geCodeIdentity{max-width:79px;font-size:10px;line-height:1.12}
+ .accessToggle{min-width:76px!important;font-size:10px!important;padding:5px 4px!important}
+ .header .close{min-width:58px!important;padding:5px 5px!important;font-size:11px!important}
+ .header .brand{font-size:11px!important;max-width:100px}
+}
 .accessToggle{min-height:36px;min-width:88px;padding:5px 6px;font-size:11px;background:#6f329d;border-color:#cc9df7;color:#fff}
 .accessToggle[aria-expanded=true]{background:#9250b8}
 .gePlaylistBar{display:grid;grid-template-columns:minmax(0,1fr) 76px 76px;gap:6px;margin:8px 0 0;align-items:center}
@@ -202,7 +216,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC</div><div class="geHeaderActions"><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -567,6 +581,11 @@ function musicAccessStatus(){
  status.hidden=!access;
  status.textContent=access?
   ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):'';
+ const identity=el('.geCodeIdentity');
+ identity.hidden=!access;
+ // Only a separately configured listener display name is presented.
+ // Never print the credential, owner-only label or access token.
+ identity.textContent=access?String(access.displayName||'ACCESS ACTIVE').slice(0,80):'';
  el('.musicCodeClear').hidden=!access;
 }
 function clearMusicAccess(){
@@ -596,7 +615,8 @@ async function redeemMusicCode(){
    const allowed=Array.isArray(data.allowed_tracks)?
      [...new Set(data.allowed_tracks.map(canonical).filter(Boolean))]:[];
    const access={token:String(data.token||''),until:Number(data.session_expires_at)*1000,
-     restricted:!!data.restricted,allowed,playlistIds:Array.isArray(data.playlist_ids)?data.playlist_ids:[]};
+     restricted:!!data.restricted,allowed,playlistIds:Array.isArray(data.playlist_ids)?data.playlist_ids:[],
+     displayName:String(data.display_name||'').slice(0,80)};
    if(!access.token||access.until<=Date.now())throw Error('Music session not confirmed.');
    state.musicAccess=access;
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
