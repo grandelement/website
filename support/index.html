@@ -508,11 +508,17 @@ function consumeMusicBuyIntent(data){
   sessionStorage.removeItem('GE_MUSIC_SHOP_SELECTION_V1');
  }catch(_e){}
  if(!intent||intent.version!==1)return false;
+ const finish=()=>{
+   // Express mode opens the existing CHECKOUT REVIEW, never charges money.
+   // Payment processors/delivery remain disconnected per checkout-config.json.
+   if(intent.express===true)get('showCheckout').click();
+   return true;
+ };
  if(intent.mode==='album'){
   const album=data.music.find(a=>normPreview(a.title)===normPreview(intent.album));
   if(!album)return false;
   addFullAlbum(album);
-  return true;
+  return finish();
  }
  if(intent.mode!=='tracks'||!Array.isArray(intent.paths))return false;
  const grouped=new Map();
@@ -544,7 +550,7 @@ function consumeMusicBuyIntent(data){
   }
  }
  save();openCart();
- return true;
+ return finish();
 }
 function makeMusic(album){
 const card=el("article","product");card.id=album.id;const coverBtn=el("button","albumCoverBtn");coverBtn.type="button";coverBtn.setAttribute("aria-label","View "+album.title+" album and tracks");const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";coverBtn.append(cover);coverBtn.addEventListener("click",()=>openAlbum(album));card.append(coverBtn);const d=el("div","details");
