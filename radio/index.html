@@ -6177,7 +6177,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261028-v66-playlist-library';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261028-v71-playlist-player';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
@@ -6255,14 +6255,15 @@ function geInlineMusicShow(force=false){
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
- play:(input,orderedPaths)=>{
+ showPlayer:()=>geInlineMusicShow(true),
+ play:(input,orderedPaths,playlistName='')=>{
   const path=canonicalSongPath(input);
   if(!path)return {ok:false,message:'This song is not in the published music catalog.'};
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
   const queue=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
   const play=typeof frame?.GEPlayLibraryQueue==='function'
-    ?()=>frame.GEPlayLibraryQueue(queue,path)
+    ?()=>frame.GEPlayLibraryQueue(queue,path,playlistName)
     :typeof frame?.GEPlayLibraryTrack==='function'
     ?()=>frame.GEPlayLibraryTrack(path):null;
   if(!play)return {ok:false,message:'Preview player is preparing. Tap PLAY again.'};
@@ -11504,7 +11505,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261028-v70-ge-user-load-modal"></script>
+<script defer src="./ge-music-v5.js?v=20261028-v71-arrange-play-opens-player"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
