@@ -3720,33 +3720,82 @@ html.ge-safari-desktop-request body.view-player:not(.iam-studio-open) #bgGroup .
 }
 </style>
 <style id="ge-protected-radio-red-pulse-v1">
-/* BASELINE SAFEGUARD: RADIO is red even when selected songs have made live mode
-   inactive. Never depend on aria-pressed=true to display the RADIO identity.
-   Existing live/station startup and lub-dub animations remain authoritative. */
-#musicGroup #liveBtn[aria-pressed="false"]:not(.radio-start-cue),
-#shipStage button[data-proxy="liveBtn"][aria-pressed="false"]:not(.radio-start-cue){
- background:linear-gradient(115deg,rgba(136,14,34,.96),rgba(193,32,58,.96))!important;
- border-color:rgba(255,101,127,.95)!important;
- color:#fff!important;
- box-shadow:inset 0 0 12px rgba(255,139,151,.13),0 0 19px rgba(235,27,60,.34)!important;
- position:relative!important;
- overflow:visible!important;
+/* PROTECTED GE RADIO IDENTITY — restored approved October 27 combination 3+4.
+   Do NOT replace with a 1.04-second lub-dub or transparent/hollow button.
+   Two quick red beats, then one slower outward red glow, 6.7-second cycle.
+   The center remains FILLED and the button itself never grows/moves.
+   Applies to Radio and its Ship proxy in ready, live and local-song modes.
+   MUSIC is a separate control and must never override this styling. */
+@keyframes geRadioProtectedDoubleBeat67{
+  0%,2%,11%,17%,100%{
+    box-shadow:inset 0 0 13px rgba(255,139,162,.22),
+      0 0 12px rgba(236,30,75,.30);
+  }
+  4%{
+    box-shadow:inset 0 0 19px rgba(255,181,194,.43),
+      0 0 24px rgba(255,62,103,.72),
+      0 0 42px rgba(255,41,84,.30);
+  }
+  13%{
+    box-shadow:inset 0 0 21px rgba(255,180,195,.46),
+      0 0 28px rgba(255,69,111,.85),
+      0 0 48px rgba(255,29,83,.34);
+  }
+  31%,52%{
+    box-shadow:inset 0 0 14px rgba(255,158,175,.24),
+      0 0 19px rgba(252,43,87,.36);
+  }
 }
-#musicGroup #liveBtn[aria-pressed="false"]:not(.radio-start-cue)::after,
+@keyframes geRadioProtectedOuterWave67{
+  0%,2%,8%,11%,17%,100%{opacity:.10;transform:scale(.99)}
+  4%{opacity:.82;transform:scale(1.016)}
+  13%{opacity:.98;transform:scale(1.032)}
+  24%{opacity:.32;transform:scale(1.045)}
+  31%{opacity:.70;transform:scale(1.07)}
+  56%{opacity:0;transform:scale(1.27)}
+  78%{opacity:0;transform:scale(1.27)}
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn[aria-pressed="true"],
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn[aria-pressed="false"],
+#shipStage button[data-proxy="liveBtn"],
+#shipStage button[data-proxy="liveBtn"][aria-pressed="true"],
+#shipStage button[data-proxy="liveBtn"][aria-pressed="false"]{
+  background:linear-gradient(115deg,#8b1533 0%,#d5254a 53%,#9f1539 100%)!important;
+  background-image:linear-gradient(115deg,#8b1533 0%,#d5254a 53%,#9f1539 100%)!important;
+  border-color:#ff819b!important;
+  color:#fff!important;
+  opacity:1!important;
+  position:relative!important;
+  overflow:visible!important;
+  transform:none!important;
+  filter:none!important;
+  animation:geRadioProtectedDoubleBeat67 6.7s linear infinite!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn::after,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn[aria-pressed="false"]:not(.radio-start-cue)::after,
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn[aria-pressed="true"]::after,
+#shipStage button[data-proxy="liveBtn"]::after,
 #shipStage button[data-proxy="liveBtn"][aria-pressed="false"]:not(.radio-start-cue)::after{
- content:"";position:absolute;inset:-5px;border-radius:inherit;pointer-events:none;
- box-shadow:0 0 15px rgba(255,62,96,.55),0 0 28px rgba(220,23,63,.26);
- animation:geProtectedRadioIdlePulse 4.4s ease-in-out infinite;
-}
-@keyframes geProtectedRadioIdlePulse{
- 0%,100%{opacity:.1;transform:scale(.995)}
- 55%{opacity:.95;transform:scale(1.018)}
+  content:""!important;
+  position:absolute!important;
+  inset:-7px!important;
+  display:block!important;
+  border-radius:inherit!important;
+  pointer-events:none!important;
+  box-shadow:0 0 15px 5px rgba(255,87,123,.70),
+    0 0 36px 12px rgba(241,28,76,.48),
+    0 0 65px 21px rgba(207,12,63,.22)!important;
+  animation:geRadioProtectedOuterWave67 6.7s linear infinite!important;
+  transform-origin:center center!important;
 }
 @media(prefers-reduced-motion:reduce){
- #musicGroup #liveBtn[aria-pressed="false"]:not(.radio-start-cue)::after,
- #shipStage button[data-proxy="liveBtn"][aria-pressed="false"]:not(.radio-start-cue)::after{
-  animation:none!important;opacity:.65!important;transform:none!important;
- }
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn,
+  #shipStage button[data-proxy="liveBtn"]{animation:none!important}
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button#liveBtn::after,
+  #shipStage button[data-proxy="liveBtn"]::after{
+    animation:none!important;opacity:.5!important;transform:none!important
+  }
 }
 </style>
 </head>
