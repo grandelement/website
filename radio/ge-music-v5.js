@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V5.7-20261027-UNIFIED-SONGS-PLAYLISTS';
+const BUILD='GE-MUSIC-V5.8-20261027-CHECKED-SONG-DRAG-ORDER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -19,7 +19,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,arranging:false,notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -68,8 +68,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .empty{font-size:13px;line-height:1.45}
 .scroll{scrollbar-width:thin}
 @media(max-width:420px){.browse button{font-size:12px}.header .brand{font-size:13px}}
-.meta{color:#addcf5;font-size:12px;min-height:17px;margin-top:7px}
-.notice{color:#c5efff;font-size:12px;min-height:18px;margin-top:5px}
+.metaLine{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;min-height:32px}
+.meta{color:#addcf5;font-size:12px;min-width:0;flex:1;text-align:left}
+.arrangeBtn{min-height:30px;padding:4px 13px;font-size:12px;background:#135d91;border:1px solid #75cfff;color:#f4fbff}
+.arrangeBtn[aria-pressed="true"]{background:#187dba;border-color:#b9e9ff;box-shadow:0 0 9px rgba(52,176,245,.28)}
+.arrangeBtn[hidden],.notice:empty{display:none!important}
+.notice{color:#c5efff;font-size:12px;margin-top:4px;min-height:0}
+.song.sortable{cursor:grab;user-select:none;-webkit-user-select:none;border:1px solid rgba(122,204,252,.20);border-radius:7px;margin:0 0 5px;touch-action:pan-y}
+.song.sortable .songLabel{user-select:none;-webkit-user-select:none;pointer-events:none}
+.song.sortable .songInfo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
+.song.draggingSong{position:relative;z-index:15;cursor:grabbing;border:1px solid #b1e7ff;box-shadow:0 0 0 2px rgba(65,181,250,.55),0 7px 20px rgba(0,0,0,.65);filter:brightness(1.15);transform:scale(1.012)}
+@media(max-width:420px){.song.sortable{gap:4px}.song .reorder{min-width:30px;padding:4px 3px;font-size:18px}.song .songInfo{gap:6px}}
 .scroll{display:block;flex:1 1 0px;height:0;min-height:0;min-width:0;overflow-y:scroll;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:11px 10px 40px;scroll-behavior:auto;position:relative}
 .album{display:flex;width:100%;justify-content:space-between;gap:10px;min-height:52px;margin:0 0 7px;background:linear-gradient(110deg,#0c3b66,#071e32);border:1px solid #4384b0}
 .album b{min-width:0;overflow-wrap:anywhere;text-align:left}.album small{color:#a3dbff;flex:0 0 auto}
@@ -107,7 +116,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V5.3</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="libraryAction"><strong>CHOOSE MUSIC</strong><button type="button" class="geV5Refresh" aria-label="Refresh GitHub GE playlists">REFRESH PLAYLISTS</button></div><details class="musicCodeTools"><summary>HAVE A GE ACCESS CODE? ENTER IT HERE</summary><div class="musicCodeRow"><input class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="GE Access Code" aria-label="Enter your GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button">CLEAR CODE</button></div><div class="musicCodeState" role="status" aria-live="polite">Code grants are verified privately against GE Vault.</div></details><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="meta" aria-live="polite">Loading published music…</div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="metaLine"><span class="meta" aria-live="polite">Loading published music…</span><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="bottom"><span class="count">SELECTION</span><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE USER PLAYLIST</button></div>
 </section>`;
@@ -278,8 +287,12 @@ async function playTrack(track){
  if(outcome?.ok){say('Opening '+track.title+'.');return}
  say(outcome?.message||'Music preview is loading. Tap PLAY again.');
 }
+function isArrangeView(){return state.arranging&&(state.view==='checked'||state.view==='playlist-order')}
 function appendSong(parent,track){
- const row=elem('div','song'),label=elem('label'),checkbox=elem('input');
+ const sorting=isArrangeView();
+ const row=elem('div','song'),label=elem(sorting?'div':'label',sorting?'songInfo':''),checkbox=elem('input');
+ if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
+  row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
  checkbox.setAttribute('aria-label','Select '+track.title);
  checkbox.addEventListener('change',()=>{
@@ -303,13 +316,13 @@ function appendSong(parent,track){
  }
  play.addEventListener('click',()=>playTrack(track));
  row.append(label,play);
- if(state.view==='playlist-order'){
+ if(sorting){
    const ordered=[...state.selected],index=ordered.indexOf(track.path);
    const swap=other=>{
      if(other<0||other>=ordered.length||index<0)return;
      [ordered[index],ordered[other]]=[ordered[other],ordered[index]];
      state.selected=new Set(ordered);saveSelected();render();
-     say('PLAYLIST ORDER UPDATED · SAVE USER PLAYLIST to save this order on this device.');
+     say('ORDER UPDATED · SAVE USER PLAYLIST to keep this order on this device.');
    };
    const up=elem('button','reorder','↑');up.type='button';up.disabled=index<=0;
    up.setAttribute('aria-label','Move '+track.title+' up');up.addEventListener('click',()=>swap(index-1));
@@ -322,7 +335,9 @@ function appendSong(parent,track){
 // ONE music scroll surface. Category tabs stay pinned above it; selecting an
 // album or playlist replaces content inside the SAME scroll surface.
 function setView(view){
- state.view=view;state.term='';el('.search').value='';
+ if(dragSession)finishDrag(false);
+ state.view=view;state.arranging=view==='playlist-order';
+ state.term='';el('.search').value='';
  render();scroller.scrollTop=0;
 }
 function activeCategory(){
@@ -345,8 +360,7 @@ function breadcrumb(label,back){
 function chosenSongs(){
  if(state.view==='checked'||state.view==='playlist-order'){
    const lookup=new Map(state.tracks.map(t=>[t.path,t]));
-   return state.view==='playlist-order'?[...state.selected].map(path=>lookup.get(path)).filter(Boolean):
-     state.tracks.filter(t=>state.selected.has(t.path));
+   return [...state.selected].map(path=>lookup.get(path)).filter(Boolean);
  }
  if(state.view==='access-code'){
   const access=musicAccessActive();if(!access)return [];
@@ -405,7 +419,12 @@ function render(){
  scroller.replaceChildren();updateMeta();
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
- notice.textContent=state.notice||state.playlistMessage;
+ notice.textContent=state.notice||(cat==='playlists'?state.playlistMessage:'');
+ const arrangeBtn=el('.arrangeBtn');
+ arrangeBtn.hidden=!(state.view==='checked'||state.view==='playlist-order');
+ arrangeBtn.textContent=state.arranging?'DONE':'ARRANGE';
+ arrangeBtn.setAttribute('aria-pressed',String(state.arranging));
+ arrangeBtn.title=state.arranging?'Finish arranging':'Hold and drag a song row to reorder';
  if(!state.loaded){scroller.append(elem('p','empty','Loading the published Grand Element catalog…'));return}
  if(state.view==='albums'&&term){
   // Album-search returns individual matching song titles, not album-only cards.
@@ -479,7 +498,7 @@ function render(){
    appendSong(scroller,t);
   }
   if(!shown.length)scroller.append(elem('p','empty','No tracks match your selection. The album and playlist records have not been changed.'));
-  meta.textContent=state.view==='playlist-order'?'CHECKED SONGS · ARRANGE':state.view==='checked'?'CHECKED SONGS':'SONGS';
+  meta.textContent=state.view==='playlist-order'?(state.activePlaylist?.name||'CHECKED SONGS'):state.view==='checked'?'CHECKED SONGS':'SONGS';
  }
  scroller.scrollTop=previous;
 }
@@ -509,7 +528,17 @@ function close(){
 }
 root.querySelector('.backdrop').addEventListener('click',close);
 el('.close').addEventListener('click',close);
-el('.search').addEventListener('input',event=>{state.term=event.target.value;render();scroller.scrollTop=0});
+el('.search').addEventListener('input',event=>{
+ state.term=event.target.value;if(state.term)state.arranging=false;
+ render();scroller.scrollTop=0;
+});
+el('.arrangeBtn').addEventListener('click',()=>{
+ if(!(state.view==='checked'||state.view==='playlist-order'))return;
+ state.arranging=!state.arranging;
+ if(state.arranging){state.term='';el('.search').value='';}
+ say(state.arranging?'Hold a song row to drag it. Use ↑ ↓ for small moves.':'Order kept in checked songs. SAVE USER PLAYLIST to keep the named playlist.');
+ render();
+});
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
