@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.9-20261028-NAMED-ACCESS-BALANCED-HEADER';
+const BUILD='GE-MUSIC-V7.4-20261028-ACCESS-FAN-NAME-FALLBACK';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -583,9 +583,10 @@ function musicAccessStatus(){
   ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):'';
  const identity=el('.geCodeIdentity');
  identity.hidden=!access;
- // Only a separately configured listener display name is presented.
- // Never print the credential, owner-only label or access token.
- identity.textContent=access?String(access.displayName||'ACCESS ACTIVE').slice(0,80):'';
+ // Display the owner-selected fan/access name. If intentionally unnamed, use
+ // only the exact credential this visitor entered in this browser session.
+ // Neither the server's record label nor owner keys are used as a substitute.
+ identity.textContent=access?String(access.displayName||access.codeFallback||'ACCESS ACTIVE').slice(0,80):'';
  el('.musicCodeClear').hidden=!access;
 }
 function clearMusicAccess(){
@@ -616,7 +617,8 @@ async function redeemMusicCode(){
      [...new Set(data.allowed_tracks.map(canonical).filter(Boolean))]:[];
    const access={token:String(data.token||''),until:Number(data.session_expires_at)*1000,
      restricted:!!data.restricted,allowed,playlistIds:Array.isArray(data.playlist_ids)?data.playlist_ids:[],
-     displayName:String(data.display_name||'').slice(0,80)};
+     displayName:String(data.display_name||'').trim().slice(0,80),
+     codeFallback:String(data.display_name||'').trim()?'':code.slice(0,80)};
    if(!access.token||access.until<=Date.now())throw Error('Music session not confirmed.');
    state.musicAccess=access;
    try{sessionStorage.setItem(musicSessionKey,JSON.stringify(access))}catch(_){}
