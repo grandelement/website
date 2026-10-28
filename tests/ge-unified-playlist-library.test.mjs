@@ -82,7 +82,7 @@ assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist s
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v79-named-access-header/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v713-verified-listener-name/);
 assert.match(music,/loadSelectedPlaylistKey\(key\)/);
 assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
 assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
@@ -112,7 +112,7 @@ assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/const AUDIO_LIMIT_SECONDS=2013/,'music remains on the existing 33:33 preview');
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v79-named-access-header/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v713-verified-listener-name/);
 assert.match(vault,/fanMusicBearer/);
 assert.match(vault,/ge-fan-playlists-v1:/);
 assert.match(vault,/\/v1\/public\/fan-playlists/);
