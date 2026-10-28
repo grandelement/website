@@ -6368,12 +6368,12 @@ window.GEMusicV5Bridge={
   const frame=geInlineMusicFrame?.contentWindow;
   const queue=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
   state.shuffle=false;syncModeButtons();
-  const play=typeof frame?.GEPlayLibraryQueue==='function'
-    ?()=>frame.GEPlayLibraryQueue(queue,path,playlistName)
-    :typeof frame?.GEPlayLibraryTrack==='function'
-    ?()=>frame.GEPlayLibraryTrack(path):null;
-  if(!play)return {ok:false,message:'Preview player is preparing. Tap PLAY again.'};
-  try{return play()?{ok:true}:{ok:false,message:'This recording cannot be previewed yet.'}}
+  // Do not fall back to GEPlayLibraryTrack: that silently loses the
+  // requested playlist queue and is the exact regression being repaired.
+  if(typeof frame?.GEPlayLibraryQueue!=='function')
+    return {ok:false,message:'Playlist engine is preparing. Tap PLAY again.'};
+  try{return frame.GEPlayLibraryQueue(queue,path,playlistName)?
+    {ok:true}:{ok:false,message:'The complete playlist cannot be previewed yet.'}}
   catch(error){return {ok:false,message:'Could not start this song preview.'}}
  }
 };
