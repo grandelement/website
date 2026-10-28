@@ -130,7 +130,7 @@ test(radio.includes('await saveOfflinePlan(prepared.assets,{autoResume:false});'
 allIn(radio,[
   "if(audit?.musicComplete){",
   "if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete)",
-  "button.textContent='Offline Ready'",
+  "button.textContent=enabled?'Offline Ready':'Enable Offline'",
   "button.textContent=audit?.missingSongs>0?'Resume '+audit.missingSongs+' Songs':'Finish Offline'",
   "id=\"sunLabResetCodes\"",
   "function resetLocalAccessCodes(){",
