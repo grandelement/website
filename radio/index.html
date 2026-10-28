@@ -18,19 +18,26 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script id="ge-safari-request-website-mode">
-/* Safari chooses and remembers Mobile or Desktop Website. GE follows that
-   browser request without introducing a site-level toggle or local override.
-   On iPhone, Safari's Desktop request identifies as Macintosh, while the
-   CSS viewport can otherwise remain phone-sized. */
+/* Default to responsive Mobile on phones. Safari's own Request Desktop Website
+   has priority, and Request Mobile Website restores the standard phone layout.
+   No GE preference is stored and rotating the phone does not change modes.
+   Safari's iPhone desktop request advertises a Macintosh user agent; its
+   physical touch screen remains phone sized. */
 (()=>{
   const ua=String(navigator.userAgent||'');
-  const safari=/AppleWebKit/i.test(ua)&&/Safari\//i.test(ua)&&
+  const safari=/AppleWebKit/i.test(ua)&&/Safari\\//i.test(ua)&&
     !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
-  const desktopUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
-  const touch=Number(navigator.maxTouchPoints)>1;
-  const smallScreen=Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
-  if(!(safari&&desktopUA&&touch&&smallScreen))return;
-  document.documentElement.classList.add('ge-safari-desktop-request');
+  const mobileUA=/iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(ua);
+  const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
+  const compactTouchMac=macUA&&Number(navigator.maxTouchPoints)>1&&
+    Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
+  const safariDesktopRequest=safari&&compactTouchMac;
+  const layout=safariDesktopRequest?'desktop':mobileUA?'mobile':'desktop';
+  const html=document.documentElement;
+  html.dataset.geDeviceLayout=layout;
+  html.classList.add(layout==='mobile'?'ge-mobile-device':'ge-desktop-device');
+  if(!safariDesktopRequest)return;
+  html.classList.add('ge-safari-desktop-request');
   const viewport=document.querySelector('meta[name="viewport"]');
   if(viewport)viewport.content='width=1160,viewport-fit=cover';
 })();
