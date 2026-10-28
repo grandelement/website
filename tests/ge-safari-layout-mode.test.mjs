@@ -48,6 +48,8 @@ for(const page of pages){
  assert.equal(manualMobile.mode,'mobile');
  assert.match(manualMobile.viewport,/device-width/);
  assert.equal(detect(js,android,412,915,5).mode,'mobile');
+ assert.equal(detect(js,iphoneDesktop,820,1180,5).mode,'mobile',page+' iPad-style Mac UA is touch tablet');
+ assert.equal(detect(js,iphoneDesktop,1440,900,0).mode,'desktop',page+' actual desktop has no touch points');
  assert.equal(detect(js,mac,1440,900,0).mode,'desktop');
 }
 console.log('PASS: homepage + Radio recognize actual phones, do not widen iPhone viewport, respect explicit GE view override');
