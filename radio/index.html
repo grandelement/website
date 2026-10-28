@@ -29,6 +29,10 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
   const touch=Number(navigator.maxTouchPoints||0)>1;
   const smallScreen=Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
   const phoneHardware=touch&&smallScreen&&(mobileUA||macUA);
+  // Safari on iPad can also report a Macintosh UA; touch and tablet-sized
+  // physical screen dimensions distinguish it from a normal desktop Mac.
+  const tabletHardware=touch&&macUA&&
+    Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=1100;
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
   let explicit='';
   try{
@@ -36,7 +40,7 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
     if(requested==='desktop'||requested==='mobile')explicit=requested;
   }catch(_){}
   const layout=explicit||(
-    phoneHardware?'mobile':mobileUA?'mobile':desktopUA?'desktop':'');
+    (phoneHardware||tabletHardware)?'mobile':mobileUA?'mobile':desktopUA?'desktop':'');
   const html=document.documentElement;
   if(layout){
     html.dataset.geDeviceLayout=layout;
