@@ -93,7 +93,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .arrangeBtn{min-height:32px;padding:5px 10px;font-size:12px;background:#135d91;border:1px solid #75cfff;color:#f4fbff}
 .arrangeBtn[aria-pressed="true"]{background:#187dba;border-color:#b9e9ff;box-shadow:0 0 9px rgba(52,176,245,.28)}
 .notice:empty{display:none!important}
-.notice{color:#c5efff;font-size:12px;margin-top:4px;min-height:0}
+.notice{color:#c5efff;font-size:11px;line-height:16px;margin-top:3px;min-height:0;max-height:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
 .song.sortable{cursor:grab;user-select:none;-webkit-user-select:none;border:1px solid rgba(122,204,252,.20);border-radius:7px;margin:0 0 5px;touch-action:pan-y}
 .song.sortable .songLabel{user-select:none;-webkit-user-select:none;pointer-events:none}
 .song.sortable .songInfo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden}
@@ -502,7 +502,7 @@ function finishDrag(commit=true){
   if(old.join('\n')!==next.join('\n')){
    state.selected=new Set(next);
    saveSelected();
-   say('SONG ORDER UPDATED · SAVE USER PLAYLIST to keep it as a named playlist.');
+   say('ORDER UPDATED · SAVE PLAYLIST');
   }
  }
  if(state.open)render();
