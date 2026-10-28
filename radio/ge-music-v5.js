@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.5-20261028-QUICK-PLAYLIST-MAIN-RADIO';
+const BUILD='GE-MUSIC-V7.6-20261028-CATALOG-ORDER-ON-ALL-SONGS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -856,13 +856,12 @@ function chosenSongs(){
  if(state.view==='test-purchases')return state.tracks.filter(t=>testPurchasedPaths().has(t.path));
  if(state.view==='access-code'){
   const access=musicAccessActive();if(!access)return [];
-  const byPath=new Map(state.tracks.map(t=>[t.path,t]));
-  let rows=access.restricted?access.allowed.map(path=>byPath.get(path)).filter(Boolean):state.tracks;
-  if(state.accessPlaylistFilter){const p=state.assignedLists.find(x=>x.id===state.accessPlaylistFilter);
-    if(p){const ids=new Set(p.songs);rows=rows.filter(t=>ids.has(t.path));}}
-  return state.accessView==='album'
-    ?rows.slice().sort((a,b)=>rank(b.album)-rank(a.album)||a.number-b.number||a.title.localeCompare(b.title))
-    :rows;
+  // In ALL SONGS use the canonical album/track catalog order. Never use the
+  // access code's assigned track insertion order, which can be playlist-first.
+  // A separately loaded playlist still uses the explicit selected-song order.
+  if(!access.restricted)return state.tracks;
+  const allowed=new Set(access.allowed);
+  return state.tracks.filter(track=>allowed.has(track.path));
  }
  if(state.view.startsWith('album:'))return state.tracks.filter(t=>t.album===state.view.slice(6));
  if(state.view.startsWith('vault:')||state.view.startsWith('local:')){
