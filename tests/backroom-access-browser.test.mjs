@@ -104,14 +104,18 @@ try{
    accessVisible:document.querySelector('#brAccessEditor details.brAccessCategory').open,
    hasGames:!!document.getElementById('brCodeGames'),
    hasAutopilot:!!document.getElementById('brCodeAutopilot'),
+   hasPersonalPlaylist:!!document.getElementById('brCodeRadioPlaylist'),
+   radioPermission:!!document.querySelector('[name="brAccessScope"][value="radio"]'),
    playlistChoice:!!document.getElementById('brAccessPlaylistChoices'),
    errors:[]
  }));
  assert.equal(result.name,'Test 1');
  assert.equal(result.musicVisible,true);
  assert.equal(result.accessVisible,true);
- assert.equal(result.hasGames,true);
- assert.equal(result.hasAutopilot,true);
+ assert.equal(result.hasGames,false,'crossed-out SHOW GAMES row must not exist');
+ assert.equal(result.hasAutopilot,false,'crossed-out AUTOPILOT row must not exist');
+ assert.equal(result.hasPersonalPlaylist,false,'crossed-out personal playlist field must not exist');
+ assert.equal(result.radioPermission,true,'RADIO permission remains');
  assert.equal(result.playlistChoice,true);
  const identity=await page.evaluate(()=>document.getElementById('brAccessKeyIdentity')?.textContent||'');
  assert.match(identity,/NOT proof of the actual Radio key/,
