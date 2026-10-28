@@ -3,10 +3,10 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V6.8-20261028-COMPACT-WORKSPACE';
+const BUILD='GE-MUSIC-V6.9-20261028-FAN-VAULT-PLAYLISTS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
-const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
+const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
   testPurchaseKey='GE_MUSIC_TEST_PURCHASES_V1',
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
@@ -21,7 +21,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -309,6 +309,61 @@ function readMine(){
  catch(_){return[]}
 }
 
+
+const fanVaultEndpoint='https://vault.grandelement.com/v1/public/fan-playlists';
+function fanVaultKey(){
+ try{
+  let key=localStorage.getItem(fanPlaylistKey)||'';
+  if(/^gefp_[a-f0-9]{64}$/.test(key))return key;
+  const bytes=crypto.getRandomValues(new Uint8Array(32));
+  key='gefp_'+Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  localStorage.setItem(fanPlaylistKey,key);return key;
+ }catch(_){return ''}
+}
+async function fanVaultRequest(method='GET',body=null){
+ const key=fanVaultKey();if(!key)throw Error('Cannot establish a secure fan library key in this browser.');
+ const response=await fetch(fanVaultEndpoint,{method,cache:'no-store',
+  headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+  ...(body?{body:JSON.stringify(body)}:{})});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||data.ok!==true)throw Error(data.error||'Fan Vault HTTP '+response.status);
+ return data;
+}
+async function loadFanPlaylists(){
+ try{
+  const data=await fanVaultRequest();
+  state.fanLists=(data.items||[]).filter(p=>p&&typeof p.id==='string'&&
+   typeof p.name==='string'&&Array.isArray(p.songs)).map(p=>({
+    id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'fan'
+   }));
+  if(state.open)render();
+ }catch(_){
+  // Never imply that an unavailable Vault is empty or delete cached records.
+  if(state.open)say('FAN VAULT OFFLINE · SAVED PLAYLISTS UNVERIFIED.');
+ }
+}
+async function saveFanArrangement(name,tracks){
+ const active=state.activePlaylist;
+ const updating=active?.source==='fan'&&name.toLowerCase()===active.name.toLowerCase();
+ const collision=state.fanLists.some(p=>p.name.toLowerCase()===name.toLowerCase()&&(!updating||p.id!==active.id));
+ if(collision){say('MY PLAYLIST NAME EXISTS · LOAD THE ORIGINAL TO EDIT.');render();return}
+ state.savingShared=true;render();say('SAVING PERSONAL PLAYLIST TO PRIVATE GE VAULT…');
+ try{
+  const data=await fanVaultRequest('POST',{id:updating?active.id:'',
+   name,songs:tracks,anon_id:String(window.GEVault?.anonId||'').slice(0,120)});
+  const verified=await fanVaultRequest();
+  const row=(verified.items||[]).find(p=>p.id===data.id);
+  if(!row||row.name!==name||!Array.isArray(row.songs)||row.songs.join('|')!==tracks.join('|'))
+   throw Error('Vault save returned but the exact song order was not verified.');
+  state.fanLists=verified.items.map(p=>({id:p.id,name:p.name,songs:p.songs,source:'fan'}));
+  state.activePlaylist={source:'fan',origin:'vault',id:data.id,name};
+  state.playlistDraftName=name;
+  say('MY PLAYLIST SAVED IN GE FAN VAULT · '+name+' · '+tracks.length+' SONGS.');
+  recordPlaylistInteraction('control_change',{control:'fan_playlist_save',
+   playlist_id:data.id,song_count:tracks.length,storage:'GE_VAULT_D1'});
+ }catch(error){say('FAN PLAYLIST NOT SAVED · '+String(error.message||error))}
+ finally{state.savingShared=false;render()}
+}
 const playlistPublisher='https://ge-backroom-publisher.grandelement.workers.dev';
 function publisherSession(){
  // Guest access codes never authorize editing or saving shared playlists.
