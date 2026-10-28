@@ -633,7 +633,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="publish" id="publishLive" type="button">PUBLISH LIVE</button>
   </div>
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
-  <button id="brVaultConnection" class="brVaultConnection" type="button" aria-live="polite" data-state="checking" title="Shows the active connection. Tap when SIGN IN appears.">VAULT · CHECKING</button>
+  <button id="brVaultConnection" class="brVaultConnection" type="button" aria-live="polite" data-state="checking" title="Check GE Vault access codes and GitHub playlists">VAULT · RECONNECT</button>
+  <div id="brVaultCounts" role="status" aria-live="polite" style="font-size:11px;text-align:center;margin:3px 0 0;color:#addbea" hidden></div>
 </header>
 
 <nav id="backroomTabs" class="backroomTabs" role="tablist" aria-label="Back Room sections">
@@ -846,7 +847,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessQuickLoad">LOAD</button>
       <button type="button" id="brAccessQuickEdit">EDIT</button>
     </div>
-    <select id="brAccessSelect" size="4" aria-label="Matching saved codes"></select>
+    <select id="brAccessSelect" size="4" aria-label="Matching saved codes"><option value="">NOT LOADED · TAP VAULT TO RECONNECT</option></select>
     <div class="brAccessPositionRow"><span id="brAccessPosition" class="sub">0 CODES</span><button type="button" id="brAccessShowAll" hidden>SHOW ALL SAVED CODES</button></div>
   </div>
   <div class="backroomInlineStatus" id="brAccessStatus" role="status">CONNECTING TO PRIVATE VAULT…</div>
@@ -3593,21 +3594,39 @@ const backroomVaultManagers=(()=>{
         '. The current BLITZ playlist has not been verified.';
     }finally{clearTimeout(timer);}
   }
+  let reconnectInProgress=false;
   async function reconnectAllSources(){
+    if(reconnectInProgress)return false;
+    const summary=$('brVaultCounts');
+    if(!authReady()){
+      needsPublisherLogin();
+      summary.hidden=false;
+      summary.textContent='CODES: NOT CHECKED · PLAYLISTS: NOT CHECKED · SIGN IN REQUIRED';
+      return false;
+    }
+    reconnectInProgress=true;
+    vaultIndicator('CHECKING','Checking the private GE Vault and GitHub playlist source.');
+    const button=$('brVaultConnection');
+    button.disabled=true;
     $('brAccessSearch').value='';
-    showCodeBrowser();
-    accessStatus('RECONNECTING · Reading private Vault codes and GitHub playlists independently…');
-    const [codesOk,listsOk]=await Promise.all([refreshCodes(),refreshPlaylists()]);
-    renderAccessCodes();updateSourceAudit();
-    const verified=codesOk&&listsOk;
-    vaultIndicator(verified?'CONNECTED':codesOk?'PARTIAL':'OFFLINE',
-      'Vault codes: '+(codesOk?'verified':'failed')+'; GitHub playlists: '+(listsOk?'verified':'failed'));
-    accessStatus('SOURCE VERIFICATION · Vault codes: '+(codesOk?'READ '+codeRows.length:'FAILED')+
-      ' · GitHub playlists: '+(listsOk?'READ '+playlists.length:'FAILED')+
-      ' · LOVE: '+(codesOk?(legacyLoveAudit?.state||
-         (codeRows.some(r=>r.id==='access_legacy_love_v1'||String(r.code_hint||'').toUpperCase()==='LOVE')?'VISIBLE':'NOT FOUND / AUDIT UNAVAILABLE')):'NOT CHECKED')+
-      ' · Catalog: '+catalog.length+' tracks.');
-    return verified;
+    accessStatus('CHECKING PRIVATE ACCESS CODES AND GITHUB PLAYLISTS…');
+    try{
+      const [codesOk,listsOk]=await Promise.all([refreshCodes(),refreshPlaylists()]);
+      renderAccessCodes();updateSourceAudit();
+      const verified=codesOk&&listsOk;
+      const codesText=codesOk?'CODES: '+codeRows.length:'CODES: UNAVAILABLE';
+      const playlistsText=listsOk?'PLAYLISTS: '+playlists.length:'PLAYLISTS: UNAVAILABLE';
+      const checkedAt='CHECKED '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+      summary.hidden=false;
+      summary.textContent=codesText+' · '+playlistsText+' · '+checkedAt;
+      vaultIndicator(verified?'CONNECTED':(codesOk||listsOk)?'PARTIAL':'OFFLINE',
+        codesText+'; '+playlistsText+'. Tap to reconnect.');
+      accessStatus(codesText+' · '+playlistsText+(verified?' · VERIFIED':' · NOT ALL SOURCES CONNECTED'));
+      return verified;
+    }finally{
+      reconnectInProgress=false;
+      button.disabled=false;
+    }
   }
   function openTab(tab){
     if(tab==='access'){
@@ -3852,12 +3871,7 @@ const backroomVaultManagers=(()=>{
         $('brAllSongsChoices').scrollTop=0;
         playlistStatus('ALL '+catalog.length+' SONGS CHECKED · Press SAVE to keep the change.');
       });
-      $('brVaultConnection').addEventListener('click',()=>{
-        if(!serverAuthenticated||!token()){lock();return}
-        const tab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
-        if(tab==='access')void refreshCodes();
-        else void refreshPlaylists();
-      });
+      $('brVaultConnection').addEventListener('click',()=>void reconnectAllSources());
 
       $('brPlaylistsNew').addEventListener('click',()=>editPlaylist(''));
       // The iPhone does not reliably expose datalist choices on tap, so use
