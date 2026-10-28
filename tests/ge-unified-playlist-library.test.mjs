@@ -39,6 +39,15 @@ assert.match(music,/function restoreWorkingOrder\(\)/);
 assert.match(music,/if\(!restoreWorkingOrder\(\)\)/);
 
 assert.match(music,/gePlaylistBar/);
+assert.match(music,/class="geCodeIdentity"/,'Music header shows a separate listener name');
+assert.match(music,/access\.displayName/,'Music must use only the signed session display name');
+assert.match(back,/id="brAccessDisplayName"/,'Back Room owner can name the listener');
+assert.match(back,/display_name:displayName/,'Back Room submits the distinct display name');
+assert.match(vault,/access_code_display_names/,'Vault stores names separately from secrets');
+assert.match(vault,/display_name:await codeListenerDisplayName\(env,row\.id\)/,'Radio Gate passes verified name');
+assert.match(radio,/displayName:String\(m\.display_name/,'Radio carries name into Music receipt');
+assert.match(radio,/ge-balanced-readable-text-20261028/,'Radio centered status uses balanced wrapping');
+
 assert.match(music,/class="gePlaylistPicker"/);
 assert.match(music,/class="gePlaylistTabGE"/);
 assert.match(music,/class="gePlaylistTabUser"/);
@@ -73,7 +82,7 @@ assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist s
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v78-user-save-working-order/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v79-named-access-header/);
 assert.match(music,/loadSelectedPlaylistKey\(key\)/);
 assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
 assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
@@ -103,7 +112,7 @@ assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/const AUDIO_LIMIT_SECONDS=2013/,'music remains on the existing 33:33 preview');
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v78-user-save-working-order/);
+assert.match(radio,/ge-music-v5\.js\?v=20261028-v79-named-access-header/);
 assert.match(vault,/fanMusicBearer/);
 assert.match(vault,/ge-fan-playlists-v1:/);
 assert.match(vault,/\/v1\/public\/fan-playlists/);
