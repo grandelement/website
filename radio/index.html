@@ -3296,7 +3296,9 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCom
   filter:blur(75px) brightness(.65) saturate(1.18);
   transform:scale(1.035);opacity:0;transition:opacity .3s ease;
 }
-@media (orientation:landscape){
+/* FULL / FIT is a desktop mouse/trackpad control only. On mobile,
+   including phone landscape, the background remains automatic. */
+@media (min-width:820px) and (orientation:landscape) and (hover:hover) and (pointer:fine){
   html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgFitFull{
     display:flex!important;align-items:center!important;justify-content:center!important;
     font-weight:850!important;
@@ -3314,6 +3316,13 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup .bg-row #hudCom
   }
 }
 body.view-ship #bgFitBackdrop,body.ge-live-video #bgFitBackdrop,body.ge-bg-hidden #bgFitBackdrop{opacity:0!important}
+/* Explicit mobile/touch override wins against generic button display rules,
+   including phone landscape and touch-screen tablets. */
+@media (max-width:819px), (hover:none), (pointer:coarse){
+  html.ge-radio-ui body.view-player #bgGroup .bg-row #bgFitFull{
+    display:none!important;
+  }
+}
 /* Desktop with room: use the whole viewport, not the former 740px band.
    The groups remain native DOM parents so all existing listeners still work. */
 @media (min-width:1100px) and (orientation:landscape) and (hover:hover) and (pointer:fine){
