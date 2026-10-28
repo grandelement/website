@@ -34,7 +34,7 @@ assert.match(backroom,/if\(!existing&&\!displayName\)throw Error/,'new access co
 assert.match(backroom,/display_name:displayName/,'existing GE Vault code name field is saved');
 assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
  'Radio Gate inherits the saved name from the correct Vault code');
-assert.match(radio,/v713-verified-listener-name/,'Radio uses the updated Music script');
+assert.match(radio,/v714-legacy-discovery/,'Radio uses the updated Music script');
 
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
