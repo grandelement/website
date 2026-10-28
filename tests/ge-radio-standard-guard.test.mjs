@@ -13,6 +13,9 @@ const sw=read('radio/sw.js');
 const catalog=JSON.parse(read('radio/track-durations.json'));
 const manifest=JSON.parse(read('radio/manifest.json'));
 const registry=JSON.parse(read('playlists/registry.json'));
+const storeCatalog=JSON.parse(read('support/catalog.json'));
+const siteConfig=JSON.parse(read('config/site-live.json'));
+
 const requireText=(src,exp,what)=>assert.match(src,exp,'REGRESSION: '+what);
 const requireNot=(src,exp,what)=>assert.doesNotMatch(src,exp,'REGRESSION: '+what);
 
@@ -22,6 +25,33 @@ assert.ok(Array.isArray(manifest.files)&&manifest.files.length>=90,'Music manife
 assert.ok(catalog.tracks.some(x=>String(x.path).startsWith('ge-music/music/')),'Actual songs missing');
 assert.equal(registry.playlists.find(p=>p.name==='Bangers')?.songs.length,33,'Bangers 33-song master changed without approval');
 assert.equal(registry.playlists.find(p=>p.name==='Johnb')?.songs.length,15,'Johnb 15-song master changed without approval');
+const legacyAlbums=['Fundamental Groove','Trio','Live!','Sessions I','Sessions II'];
+for(const album of legacyAlbums)
+ assert.ok(!storeCatalog.music.some(a=>a.title===album),'Legacy album improperly on sale: '+album);
+const approved=new Set(siteConfig.music.radioMasterSongPaths);
+for(const added of [
+ 'ge-music/music/Grand Element - 2010 - Intergy/Intergy_01_Stay In Union.mp3',
+ 'ge-music/music/Grand Element - 2011 - Love/Love_04_Love.mp3',
+ 'ge-music/music/Grand Element - 2021 - Spirit/Spirit_04_Celestial Dance.mp3'
+])assert.ok(!approved.has(added),'New library-only song automatically approved for Radio: '+added);
+requireText(music,/LEGACY_ALBUMS=new Set/,'Legacy album classification removed');
+requireText(music,/className='legacyToggle'|elem\('button','legacyToggle'/,'Legacy album reveal control missing');
+requireText(music,/showLegacyAlbums/,'Legacy albums no longer collapse');
+requireText(music,/api\.github\.com\/repos\/grandelement\/website\/git\/trees\/main/,'Committed music discovery missing');
+requireText(radio,/function radioDisplayMetadataTitle\(/,'Live Radio title parser missing');
+// Extract only the standalone formatter so both Shuffle states can be checked.
+const fnStart=radio.indexOf('function radioDisplayMetadataTitle(');
+const fnEnd=radio.indexOf('function randomInt(',fnStart);
+assert.ok(fnStart>=0&&fnEnd>fnStart,'Radio metadata formatter cannot be extracted');
+const testState={shuffle:false};
+const formatTitle=new Function('state',radio.slice(fnStart,fnEnd)+'return radioDisplayMetadataTitle;')(testState);
+assert.equal(formatTitle('10 Prelude','Intergy'),'Intergy • 10 Prelude');
+assert.equal(formatTitle('Intergy • 10 Prelude'),'Intergy • 10 Prelude');
+testState.shuffle=true;
+assert.equal(formatTitle('10 Prelude','Intergy'),'Intergy • Prelude');
+assert.equal(formatTitle('Intergy • 10 Prelude'),'Intergy • Prelude');
+assert.equal(formatTitle('04 Celestial Dance','Spirit'),'Spirit • Celestial Dance');
+
 
 requireText(radio,/id="geMusicV5Button"/,'MUSIC launch button removed from Radio');
 requireText(radio,/id="liveBtn"/,'RADIO mode button removed');
