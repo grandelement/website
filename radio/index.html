@@ -7481,6 +7481,13 @@ async function registerServiceWorker(){
     const assets=prepared?.assets || await buildAssetList();
     let audit=prepared?.audit || await auditAssets(assets,{copyExisting:true});
 
+    if(audit.totalSongs===0){
+      setStatus('No downloadable songs found. Connect online and refresh the library first.');
+      panel.style.display='block';
+      text.textContent='Offline download cannot start until a song catalog is available.';
+      reflectButton(audit);
+      return {added:0,failed:0,total:0,complete:false,musicComplete:false};
+    }
     if(!audit.missingSongs){
       // Download scans cannot silently turn Offline back on after it was switched off.
       if(activePlan) await setOfflinePlanAutoResume(false);
@@ -7603,11 +7610,14 @@ async function registerServiceWorker(){
         line2
       });
 
-      setStatus(
-        audit.musicComplete
-          ? 'All music is available offline.'
-          : 'Partial offline music library saved.'
-      );
+      if(audit.musicComplete){
+        const check=await diagnoseOffline();
+        setStatus(check.readyToTestDisconnected
+          ? 'Offline music and app cache verified. Disconnect and reopen Radio for a final playback test.'
+          : 'Music saved. Offline setup needs attention: '+(check.warnings[0]||'verify the app cache while online.'));
+      }else{
+        setStatus('Partial offline music library saved. Resume download to finish.');
+      }
     }
 
     return {
