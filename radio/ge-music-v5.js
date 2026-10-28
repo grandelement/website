@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.2-20261028-RESTORE-TABS-ARRANGE';
+const BUILD='GE-MUSIC-V7.3-20261028-CLEAN-SONGS-PANEL';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -130,6 +130,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .accessToggle{min-height:36px;min-width:88px;padding:5px 6px;font-size:11px;background:#6f329d;border-color:#cc9df7;color:#fff}
 .accessToggle[aria-expanded=true]{background:#9250b8}
 .gePlaylistBar{display:grid;grid-template-columns:minmax(0,1fr) 76px 76px;gap:6px;margin:8px 0 0;align-items:center}
+.gePlaylistBar[hidden]{display:none!important}
 .arrangeLoad select{display:none!important}
 .gePlaylistBar input{width:100%;min-width:0;height:42px;padding:6px 8px;border-radius:8px;border:1px solid #579fd4;background:#061d30;color:#fff;font-size:16px}
 .gePlaylistBar button{height:42px;min-width:0;padding:5px 3px;font-size:11px}
@@ -178,7 +179,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .arrangeDock .arrangeNotice{font-size:11px;color:#ffe3a0;line-height:1.3}
 .window.arranging{top:max(2px,env(safe-area-inset-top));bottom:2px;width:min(940px,calc(100vw - 6px));max-height:calc(100dvh - 4px);border-radius:9px}
 .window.arranging .tools{display:block!important;padding:6px 8px}
-.window.arranging .tools>.search,.window.arranging .tools>.filterRow,.window.arranging .tools>.accessViews{display:none!important}
+.window.arranging .tools>.search,.window.arranging .tools>.filterRow{display:none!important}
 .window.arranging .tools>.browse{display:grid!important;margin-top:5px!important}
 .window.arranging .selectionBar{display:flex!important}
 .window.arranging .arrangeDock{display:flex;flex-direction:column}
@@ -203,7 +204,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC</div><div class="geHeaderActions"><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
@@ -885,10 +886,8 @@ function albumSelectAll(parent,album,tracks,compact=false){
 function render(){
  if(!state.open)return;
  const cat=activeCategory();
- const access=musicAccessActive(),views=el('.accessViews');
- views.hidden=!(state.view==='access-code'&&access?.restricted);
- views.style.display=views.hidden?'none':'flex';
- root.querySelectorAll('[data-access-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.accessView===state.accessView)));
+ const access=musicAccessActive();
+ // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
  root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===cat)));
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
@@ -898,7 +897,9 @@ function render(){
  el('.search').placeholder=cat==='songs'?'Find a song or album':'Find a playlist or checked song';
  const previous=scroller.scrollTop;
  el('.window').classList.toggle('arranging',state.arranging);
- // Keep one playlist selector and editable name visible in every Music view.
+ // Playlist editor appears under PLAYLISTS (and in ARRANGE), not SONGS.
+ el('.gePlaylistBar').hidden=cat!=='playlists'&&!state.arranging;
+ // The playlist selector remains available as internal input to LOAD.
  const picker=el('.arrangePlaylistSelect'),priorKey=picker.value;
  const collections=[
   ...visibleSharedLists().map(p=>({label:'GE · '+p.name,key:'ge:'+p.id})),
@@ -1007,7 +1008,7 @@ function render(){
     scroller.append(elem('div','section','TEST PURCHASES · NOT PAID · THIS DEVICE ONLY'));
     if(!shown.length)scroller.append(elem('p','empty','No simulated purchases yet. Use SIMULATE PURCHASE in owner Sun Lab.'));
   }
-  if(state.view==='access-code')breadcrumb(state.accessView==='album'?'AUTHORIZED MUSIC · ALBUM HISTORY':'AUTHORIZED MUSIC · MY ORDER','all');
+
   if(state.view.startsWith('album:')){
     const name=state.view.slice(6);breadcrumb(name,'albums');
     const bar=elem('div','albumCollectionHeading');applyAlbumStyle(bar,name);
@@ -1202,10 +1203,7 @@ root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
  else setView('ge-playlists');
 }));
-root.querySelectorAll('[data-access-view]').forEach(b=>b.addEventListener('click',()=>{
- state.accessView=b.dataset.accessView;state.accessPlaylistFilter='';state.view='access-code';
- render();scroller.scrollTop=0;
-}));
+
 root.querySelector('.musicCodeUnlock').addEventListener('click',()=>void redeemMusicCode());
 root.querySelector('.musicCodeClear').addEventListener('click',clearMusicAccess);
 root.querySelector('.musicCodeInput').addEventListener('keydown',event=>{
