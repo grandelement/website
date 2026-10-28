@@ -495,6 +495,57 @@ get("albumBuyAll").addEventListener("click",()=>{
 get("albumAddSelected").addEventListener("click",()=>{
  if(previewMode){updateAlbumPreviewQueue();closeAlbum();get('gePreviewMeter').scrollIntoView({block:'start',behavior:'smooth'});return}
  const album=state.activeAlbum,tracks=selectedTracks();if(!album||!tracks.length)return;if(tracks.length===album.tracks.length){addFullAlbum(album);return}if(state.cart.some(x=>x.id===album.id)){alert("Complete album is already in your cart.");return}for(const t of tracks){const id=album.id+"-track-"+t.number;if(!state.cart.some(x=>x.id===id))state.cart.push({key:id+"||",id,title:album.title+" — "+t.title,price:1.5,qty:1})}save();openCart()});
+/* Music V5.9 BUY carries checked paths to the existing Support shopping cart.
+   Only this catalog determines album/track IDs and prices. The cart is a
+   preview until verified production payments and private delivery are enabled.
+   The intent is NEVER a receipt, entitlement, or downloadable master. */
+function consumeMusicBuyIntent(data){
+ const url=new URL(location.href);
+ if(url.searchParams.get('ge_music_buy')!=='1')return false;
+ let intent=null;
+ try{
+  intent=JSON.parse(sessionStorage.getItem('GE_MUSIC_SHOP_SELECTION_V1')||'null');
+  sessionStorage.removeItem('GE_MUSIC_SHOP_SELECTION_V1');
+ }catch(_e){}
+ if(!intent||intent.version!==1)return false;
+ if(intent.mode==='album'){
+  const album=data.music.find(a=>normPreview(a.title)===normPreview(intent.album));
+  if(!album)return false;
+  addFullAlbum(album);
+  return true;
+ }
+ if(intent.mode!=='tracks'||!Array.isArray(intent.paths))return false;
+ const grouped=new Map();
+ for(const value of intent.paths.slice(0,250)){
+  const path=String(value||'');
+  if(!path.startsWith('ge-music/music/')||path.includes('..'))continue;
+  const parts=path.split('/'),folder=parts[2]||'';
+  const name=folder.replace(/^Grand Element - (?:[0-9]{4} - )?/i,'').trim();
+  const album=data.music.find(a=>normPreview(a.title)===normPreview(name));
+  if(!album)continue;
+  const filename=parts.slice(3).join('/');
+  const track=album.tracks.find(t=>trackKey(album.title,t.file)===trackKey(album.title,filename));
+  if(!track)continue;
+  if(!grouped.has(album.id))grouped.set(album.id,{album,tracks:new Map()});
+  grouped.get(album.id).tracks.set(track.number,track);
+ }
+ if(!grouped.size)return false;
+ for(const {album,tracks} of grouped.values()){
+  if(tracks.size===album.tracks.length){
+   // A complete album replaces duplicate single-track cart entries.
+   addFullAlbum(album);
+   continue;
+  }
+  if(state.cart.some(x=>x.id===album.id))continue;
+  for(const track of tracks.values()){
+   const id=album.id+'-track-'+track.number;
+   if(state.cart.some(x=>x.id===id))continue;
+   state.cart.push({key:id+'||',id,title:album.title+' — '+track.title,price:1.5,qty:1});
+  }
+ }
+ save();openCart();
+ return true;
+}
 function makeMusic(album){
 const card=el("article","product");card.id=album.id;const coverBtn=el("button","albumCoverBtn");coverBtn.type="button";coverBtn.setAttribute("aria-label","View "+album.title+" album and tracks");const cover=el("img","thumb");cover.src=album.cover;cover.alt=album.title+" cover";cover.loading="lazy";coverBtn.append(cover);coverBtn.addEventListener("click",()=>openAlbum(album));card.append(coverBtn);const d=el("div","details");
 const b=getBio(album);
@@ -553,6 +604,10 @@ updatePreviewMeter();
 const music=get("musicGallery"),merch=get("merchGallery");
 data.music.forEach(item=>music.append(makeMusic(item)));data.merch.forEach(item=>merch.append(makeMerch(item)));
 const u=new URL(location.href),requested=(u.searchParams.get("album")||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+if(u.searchParams.get('ge_music_buy')==='1'){
+  setSection('music');
+  if(consumeMusicBuyIntent(data))return;
+}
 if(requested){const album=data.music.find(x=>x.title.toLowerCase().replace(/[^a-z0-9]+/g,"")===requested);if(album){openAlbum(album);return}}
 setSection(u.searchParams.get("section")||"home");
 updatePreviewMeter();
