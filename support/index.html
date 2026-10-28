@@ -251,6 +251,10 @@ const money=n=>"$"+Number(n||0).toFixed(2);
 const el=(tag,cls,content)=>{const o=document.createElement(tag);if(cls)o.className=cls;if(content!==undefined)o.textContent=content;return o};
 const get=id=>document.getElementById(id);
 const state={catalog:null,cart:[],bios:{},activeAlbum:null};
+// Pre-Intergy GE recordings are LEGACY listening-only; not sale inventory.
+const LEGACY_SALE_IDS=new Set(['album-fundamental-groove','album-trio','album-live','album-sessions-i','album-sessions-ii']);
+const legacySaleItem=id=>[...LEGACY_SALE_IDS].some(k=>id===k||id.startsWith(k+'-track-'));
+
 
 /* PREVIEW is a distinct selection mode from shopping; no checkbox or preview
    duration can authorize a purchase. All entitlements remain server-side work. */
@@ -445,7 +449,7 @@ for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDeliver
 }
 try{
   const raw=JSON.parse(localStorage.getItem("ge_support_cart_v1")||"[]");
-  if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&x.id!=="radio-forever"&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100);
+  if(Array.isArray(raw))state.cart=raw.filter(x=>x&&typeof x.id==="string"&&x.id!=="radio-forever"&&!legacySaleItem(x.id)&&Number.isFinite(x.price)&&x.price>=0&&Number.isInteger(x.qty)&&x.qty>0).slice(0,100);
 }catch(_){}
 function save(){try{localStorage.setItem("ge_support_cart_v1",JSON.stringify(state.cart))}catch(_){} renderCart()}
 function closeAlbum(){const open=!get("albumDetail").hidden;get("albumDetail").hidden=true;get("musicGallery").hidden=false;get("musicIntro").hidden=false;state.activeAlbum=null;const u=new URL(location.href);u.searchParams.delete("album");history.replaceState(null,"",u);if(open&&!get("section-music").hidden)get("musicIntro").scrollIntoView({block:"start",behavior:"smooth"})}
@@ -454,7 +458,7 @@ document.querySelectorAll("[data-section]").forEach(b=>b.addEventListener("click
 document.querySelectorAll("[data-close-section]").forEach(b=>b.addEventListener("click",()=>setSection("home")));
 get("albumBack").addEventListener("click",closeAlbum);
 get("albumClose").addEventListener("click",closeAlbum);
-function add(item){const key=[item.id,item.fit||"",item.size||""].join("|");const old=state.cart.find(x=>x.key===key);if(old)old.qty=Math.min(99,old.qty+(item.qty||1));else state.cart.push(Object.assign({key,qty:1},item));save();openCart()}
+function add(item){if(legacySaleItem(String(item?.id||"")))return;const key=[item.id,item.fit||"",item.size||""].join("|");const old=state.cart.find(x=>x.key===key);if(old)old.qty=Math.min(99,old.qty+(item.qty||1));else state.cart.push(Object.assign({key,qty:1},item));save();openCart()}
 function removeAt(idx){state.cart.splice(idx,1);save()}
 function renderCart(){
 const body=get("cartBody");body.replaceChildren();
