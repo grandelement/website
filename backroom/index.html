@@ -951,7 +951,16 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <label class="check"><input type="checkbox" name="brAccessScope" value="games"><span>GAMES</span></label>
     </div>
     </details>
-    <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS &amp; SONGS</summary>
+    <details class="brAccessCategory" id="brAccessFanCategory"><summary>FANS · LINK SAVED FAN TO THIS ACCESS CODE</summary>
+     <p class="brAccessNotice">Assign an existing Vault fan record to this access code. This association does not authenticate a visitor by name or IP address.</p>
+     <label><span>SAVED FAN</span><select id="brAccessFanLinkSelect"><option value="">CHOOSE A SAVED FAN</option></select></label>
+     <div class="brAccessSongTools">
+       <button type="button" id="brAccessFanLinkRefresh">LOAD SAVED FANS</button>
+       <button type="button" class="primary" id="brAccessFanLinkSave">LINK TO CURRENT CODE</button>
+     </div>
+     <p class="brAccessNotice" id="brAccessFanLinkStatus" role="status">Load or save an access code first.</p>
+   </details>
+   <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS &amp; SONGS</summary>
     <p class="brAccessNotice" id="brAccessPlaylistNotice">Loading GE playlists from GitHub…</p>
     <div id="brAccessPlaylistChoices" role="group" aria-label="Select saved GE playlists to grant" class="brAccessSongChecklist" style="max-height:190px;min-height:55px"></div>
     <div class="brAccessSongTools">
@@ -3731,6 +3740,45 @@ const backroomVaultManagers=(()=>{
       // Resolve the editor before building fan controls: referencing this
       // const before initialization aborts the entire Access Codes startup.
       const editor=$('brAccessEditor');
+      const accessFanSelect=$('brAccessFanLinkSelect'),accessFanMessage=$('brAccessFanLinkStatus');
+      async function refreshAccessFanLinks(){
+        if(!authReady()){accessFanMessage.textContent='BACK ROOM SIGN-IN REQUIRED';return}
+        accessFanMessage.textContent='LOADING SAVED FANS FROM PRIVATE VAULT…';
+        try{
+          const response=await api('/manage/fan-access',{method:'GET'});
+          const body=await response.json();
+          if(!response.ok||body.ok!==true||!Array.isArray(body.fans))
+            throw Error(body.error||'Fan directory unavailable');
+          const old=accessFanSelect.value,unique=new Map();
+          for(const fan of body.fans)if(fan.id&&!unique.has(fan.id))unique.set(fan.id,fan);
+          accessFanSelect.replaceChildren(new Option('CHOOSE A SAVED FAN',''));
+          for(const fan of unique.values())accessFanSelect.add(new Option(
+            (fan.display_name||'Unlabeled')+' · '+fan.id.slice(0,16),fan.id));
+          if(unique.has(old))accessFanSelect.value=old;
+          accessFanMessage.textContent=unique.size+' SAVED FANS · FROM GE VAULT';
+        }catch(error){accessFanMessage.textContent='FANS NOT LOADED · '+String(error.message||error)}
+      }
+      $('brAccessFanLinkRefresh').addEventListener('click',()=>void refreshAccessFanLinks());
+      $('brAccessFanCategory').addEventListener('toggle',()=>{
+        if($('brAccessFanCategory').open)void refreshAccessFanLinks();
+      });
+      $('brAccessFanLinkSave').addEventListener('click',async()=>{
+        const fanId=accessFanSelect.value,codeId=editingCodeId||selectedCodeId;
+        if(!fanId||!codeId||!codeRows.some(c=>c.id===codeId)){
+          accessFanMessage.textContent='LOAD OR SAVE THE CODE AND SELECT A SAVED FAN FIRST.';return;
+        }
+        if(!authReady()){accessFanMessage.textContent='BACK ROOM SIGN-IN REQUIRED.';return}
+        const button=$('brAccessFanLinkSave');button.disabled=true;
+        try{
+          const response=await api('/manage/fan-access',{method:'POST',
+            body:JSON.stringify({action:'assign',fan_id:fanId,code_id:codeId})});
+          const body=await response.json();
+          if(!response.ok||body.ok!==true)throw Error(body.error||'Vault link not saved');
+          accessFanMessage.textContent='FAN AND ACCESS CODE LINK SAVED IN GE VAULT';
+        }catch(error){accessFanMessage.textContent='FAN LINK NOT SAVED · '+String(error.message||error)}
+        finally{button.disabled=false}
+      });
+
       // A private owner-only fan link to the SAME Vault code ID.
       const fanPanel=document.createElement('details');
       fanPanel.id='brCodeFansPanel';fanPanel.className='brSourceDetails';
