@@ -54,6 +54,11 @@ assert.match(vault,/\/v1\/public\/fan-playlists/);
 assert.match(vault,/\/v1\/admin\/fan-playlists/);
 assert.match(publisher,/\/manage\/fan-playlists/);
 assert.match(back,/brFanPlaylistsRefresh/);
+assert.match(back,/id="brAccessFanCategory"/);
+assert.match(back,/brAccessFanLinkSave/);
+assert.match(back,/Public in GE Music:/);
+assert.match(back,/PUBLIC SETTING NOT VERIFIED/);
+
 for(const [name,html] of [['back',back],['radio',radio],['preview',preview]]){
  for(const [i,m] of [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].entries()){
   if(/src=|application\/json/i.test(m[1]))continue;
