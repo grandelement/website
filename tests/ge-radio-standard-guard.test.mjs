@@ -56,6 +56,13 @@ requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show cur
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
 requireText(radio,/id="ge-protected-radio-red-pulse-v1"/,'RADIO inactive red fill/pulse protection removed');
+requireText(radio,/@keyframes geRadioProtectedDoubleBeat67/,'Approved RADIO two-beat heartbeat removed');
+requireText(radio,/@keyframes geRadioProtectedOuterWave67/,'Approved RADIO slow outward glow removed');
+requireText(radio,/geRadioProtectedDoubleBeat67 6\.7s linear infinite!important/,'RADIO pulse cycle no longer 6.7 seconds');
+requireText(radio,/geRadioProtectedOuterWave67 6\.7s linear infinite!important/,'RADIO expanding glow cycle no longer 6.7 seconds');
+requireText(radio,/background:linear-gradient\(115deg,#8b1533 0%,#d5254a 53%,#9f1539 100%\)!important/,'RADIO button is not protected with a solid red center');
+requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO red heartbeat lost');
+
 requireText(radio,/#liveBtn\[aria-pressed="false"\]/,'RADIO must remain visibly red outside live mode');
 requireText(radio,/geRadioLubDub/,'RADIO live heartbeat removed');
 requireText(radio,/radio-start-cue/,'RADIO startup glow removed');
