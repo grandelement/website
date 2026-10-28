@@ -18,7 +18,7 @@ for(const [i,s]of inlineScripts.entries()){
   if(/src=|application\/json/.test(s[1]))continue;
   new Script(s[2],{filename:'backroom-inline-'+i+'.js'});
 }
-const tabs=['welcome','about','universe','games','radio','playlists','access','moon','gate','scores','presets'];
+const tabs=['welcome','about','universe','games','radio','playlists','access','fans','moon','gate','scores','presets'];
 const dj=read('radio/ge-dj.html');
 const radio=read('radio/index.html');
 const sw=read('radio/sw.js');
@@ -31,14 +31,14 @@ assert.ok(back.includes('data-tab="moon"'),'Radio Moon must have its own tab');
 assert.ok(back.includes('grid-template-columns:repeat(28,minmax(0,1fr))!important'),
   'Four tabs in first row and seven in second row should fit without scrolling');
 assert.ok(back.includes('button:nth-child(-n+4){grid-column:span 7!important}'), 'Four first-row tabs');
-assert.ok(back.includes('button:nth-child(n+5){grid-column:span 4!important}'), 'Seven second-row tabs');
+assert.ok(back.includes('button:nth-child(n+5){grid-column:span 7!important}'), 'Four buttons per row including FANS');
 assert.ok(back.includes('button[data-tab="radio"][aria-selected="true"]'), 'RADIO highlights when active');
 assert.ok(!back.includes('Swipe the tabs sideways'),'No sideways-scrolling directions should remain');
 assert.ok(!back.includes('Make changes here. SAVE keeps your working copy'),'Redundant intro must be removed');
 assert.ok(!back.includes('<summary>SETTINGS</summary>'),'Settings must not consume its own text row');
 assert.match(back,/aria-label="Back Room settings" title="Back Room settings"/);
-assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
-assert.ok(back.includes("category==='access'||category==='playlists'"),'Access Codes and Radio Playlists should open without a second accordion click');
+assert.match(back,/if\(category==='gate'\|\|category==='welcome'\|\|category==='about'\|\|category==='access'\|\|category==='fans'\|\|category==='playlists'\|\|category==='moon'\|\|category==='music'\)\s*\{\s*heading\.remove\(\)/);
+assert.ok(back.includes("category==='access'||category==='fans'||category==='playlists'"),'Access Codes and Fans open directly without a second accordion click');
 assert.ok(back.includes('const setStatus=t=>'),'Save and Publish feedback must remain wired');
 assert.ok(back.includes("if(initial==='home'||initial==='content')initial='welcome'"),'Old saved HOME and CONTENT tabs must migrate to WELCOME');
 assert.ok(back.includes("const categories=['welcome','about','universe'"),'WELCOME and ABOUT should replace CONTENT');
@@ -172,4 +172,24 @@ const unlisted=registry.playlists.filter(p=>p.visibility==='unlisted');
 assert.ok(unlisted.every(p=>!published.some(q=>q.id===p.id)),
  'Unlisted owner mixes are not in the anonymous public playlist set');
 console.log('PASS: authenticated Back Room, canonical GitHub music master, Vault code validation, fan/code link, iPhone cache and code-based Music views');
+assert.ok(back.includes('id="brTabFans"')&&back.includes('data-br-tab="fans"')&&
+  back.includes("const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans'"),
+  'FANS must be a separate top navigation tab alongside ACCESS CODES');
+assert.ok(back.includes("$('brFansHome').appendChild(fanPanel)")&&
+  back.includes("if(tab==='fans')"),
+  'Fans editor must be mounted only in its new tab and refresh on selection');
+for(const selector of [
+  '#brPanel-access #brAccessReplaceKey',
+  '#brPanel-access #brAccessShowActualKey',
+  '#brPanel-access #brAccessKeyIdentity',
+  '#brPanel-access #brAccessPlaylistNotice',
+  '#brPanel-access .brAccessPrivateKeyDetails',
+  '#brPanel-access .brAccessViewSongsLabel',
+  '#brPanel-access .brAccessSaveAsPlaylistTools',
+  '#brPanel-access #brAccessOneTime:not([hidden]){display:none!important}'
+])assert.ok(back.includes(selector),'Obsolete Access Codes row must be hidden: '+selector);
+assert.ok(back.includes('id="brAccessPlaylistChoices"')&&
+  back.includes('id="brAccessSongChecklist"')&&back.includes('id="brAccessOrderSection"'),
+  'Removing display clutter must preserve playlist selection and ordered individual songs');
+console.log('PASS: Fans separated into top tab; crossed-out Access rows hidden without deleting Vault controls');
 console.log('PASS Back Room DJ playlist source, game defaults, scores, Moon and Welcome tabs, manually issued codes and syntax');

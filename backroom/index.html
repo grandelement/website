@@ -382,7 +382,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 /* Twelve-column mobile-safe two-row Back Room navigation. */
 #backroomMain .backroomTabs{grid-template-columns:repeat(28,minmax(0,1fr))!important}
 #backroomMain .backroomTabs button:nth-child(-n+4){grid-column:span 7!important}
-#backroomMain .backroomTabs button:nth-child(n+5){grid-column:span 4!important}
+#backroomMain .backroomTabs button:nth-child(n+5){grid-column:span 7!important}
 #backroomMain .backroomTabs button[data-tab="radio"]{border-color:#4e91c0}
 #backroomMain .backroomTabs button[data-tab="radio"][aria-selected="true"]{background:#1685b7!important;border:2px solid #a8eeff!important;box-shadow:0 0 0 2px rgba(50,165,235,.35),0 0 18px rgba(22,142,217,.45)!important}
 #brDJPlaylistFrame{display:block;width:100%;height:clamp(650px,82vh,1060px);border:1px solid #2b668a;border-radius:10px;background:#020711;margin:10px 0}
@@ -547,9 +547,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-music #brMusicRadioMaster{background:#051b2b;padding:10px;border:1px solid #2a5878;border-radius:10px}
 #brPanel-music #brMusicRadioMaster > summary{cursor:pointer;font-size:13px;font-weight:850;color:#b3eaff}
 @media(min-width:750px){
- #backroomMain .backroomTabs{grid-template-columns:repeat(11,minmax(0,1fr))!important;gap:5px!important}
- #backroomMain .backroomTabs #brTabAccess{grid-column:auto!important}
- #backroomMain .backroomTabs button{font-size:clamp(11px,1vw,15px)!important;min-height:47px!important}
+ #backroomMain .backroomTabs{grid-template-columns:repeat(12,minmax(0,1fr))!important;gap:5px!important}
+ #backroomMain .backroomTabs button{grid-column:auto!important;font-size:clamp(11px,1vw,15px)!important;min-height:47px!important}
 }
 
 /* Access Codes: one selector, name, SAVE LOAD DELETE and expandable content. */
@@ -600,6 +599,27 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 @media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
+/* Access Codes visual cleanup requested by owner, without mutating Vault records.
+   Existing secret/key actions stay mounted for compatibility but aren't shown. */
+#brPanel-access #brAccessReplaceKey,
+#brPanel-access #brAccessShowActualKey,
+#brPanel-access #brAccessKeyIdentity,
+#brPanel-access #brAccessOneTime,
+#brPanel-access #brAccessPlaylistNotice,
+#brPanel-access #brAccessKeyHelpPanel,
+#brPanel-access .brAccessPrivateKeyDetails,
+#brPanel-access .brAccessViewSongsLabel,
+#brPanel-access .brAccessSaveAsPlaylistTools {display:none!important}
+#brPanel-access .brAccessSimpleBar #brAccessStatus{
+  border:0!important;background:transparent!important;padding:2px 0!important;
+  font-size:11px!important;min-height:0!important;box-shadow:none!important
+}
+#brPanel-fans #brFansHome{padding:12px 6px}
+#brPanel-fans #brCodeFansPanel{display:block;margin:0;padding:16px;border:1px solid #2b536d;border-radius:14px}
+#brPanel-fans #brCodeFansPanel>summary{font-size:18px;font-weight:800;margin-bottom:10px}
+#brPanel-fans #brCodeFansPanel label{display:block;margin:12px 0}
+#brPanel-fans #brCodeFansPanel select,#brPanel-fans #brCodeFansPanel input{width:100%;max-width:100%}
+
 /* Keep actual issued access keys distinct from Back Room record names. */
 #brPanel-access .brAccessKeyHelp{padding:12px;margin:10px 0;border:1px solid #376783;border-radius:10px;background:#081c2e}
 #brPanel-access .brAccessKeyHelp[hidden]{display:none!important}
@@ -612,6 +632,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessOneTime:not([hidden]){display:grid!important;gap:9px;position:relative;border:2px solid #5bdcff;border-radius:12px;background:#05263b;margin:12px 0;padding:15px;overflow-wrap:anywhere}
 #brPanel-access #brAccessCodeValue{user-select:all;-webkit-user-select:all;font-size:clamp(17px,4vw,27px);line-height:1.4;color:#f4feff;overflow-wrap:anywhere}
 #brPanel-access #brAccessCopy{min-height:50px;font-weight:900}
+/* This specific override also defeats the older !important revealed-key panel rule. */
+#brPanel-access #brAccessOneTime:not([hidden]){display:none!important}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -658,6 +680,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <button id="brTabMoon" type="button" role="tab" data-tab="moon" aria-selected="false">MOON</button>
   <button id="brTabGate" type="button" role="tab" data-tab="gate" aria-selected="false">GATE</button>
   <button id="brTabAccess" type="button" role="tab" data-tab="access" aria-selected="false">ACCESS CODES</button>
+  <button id="brTabFans" type="button" role="tab" data-tab="fans" aria-selected="false">FANS</button>
   <button id="brTabScores" type="button" role="tab" data-tab="scores" aria-selected="false">SCORES</button>
   <button id="brTabPresets" type="button" role="tab" data-tab="presets" aria-selected="false">PRESETS</button>
   <button id="brTabPlaylists" type="button" role="tab" data-tab="playlists" aria-selected="false" hidden aria-hidden="true" tabindex="-1">PLAYLISTS</button>
@@ -849,6 +872,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 </div>
 </section>
 
+<section data-br-tab="fans" aria-label="Fans and recent visitor activity">
+  <h2>FANS</h2>
+  <div id="brFansHome"></div>
+</section>
+
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
   <div class="brAccessTop">
@@ -938,12 +966,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <button type="button" id="brAccessClearSongs">CLEAR</button>
       <span id="brAccessSongCount">0 selected</span>
     </div>
-    <label><span>VIEW SONGS</span><select id="brAccessSongView"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="playlist">PLAYLIST ORDER</option></select></label>
+    <label class="brAccessViewSongsLabel"><span>VIEW SONGS</span><select id="brAccessSongView"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="playlist">PLAYLIST ORDER</option></select></label>
     <div id="brAccessSongChecklist" class="brAccessSongChecklist" aria-label="Scroll through all songs with checkboxes"></div>
     <details class="brSourceDetails" id="brAccessOrderSection"><summary>PLAYLIST ORDER · ARRANGE SELECTED SONGS</summary>
       <div id="brAccessSongs" class="brAccessAssignedSongs" aria-label="Assigned individual songs"></div>
     </details>
-    <div class="brAccessSongTools"><input id="brAccessNewPlaylistName" type="text" maxlength="100" placeholder="New playlist name" aria-label="New playlist name" style="flex:1;min-width:150px"><button type="button" id="brAccessSaveAsPlaylist">SAVE AS PLAYLIST</button></div>
+    <div class="brAccessSongTools brAccessSaveAsPlaylistTools"><input id="brAccessNewPlaylistName" type="text" maxlength="100" placeholder="New playlist name" aria-label="New playlist name" style="flex:1;min-width:150px"><button type="button" id="brAccessSaveAsPlaylist">SAVE AS PLAYLIST</button></div>
     </details>
     <details class="brAccessCategory"><summary>EXPIRATION &amp; LIMITS</summary>
     <label><span>EXPIRES</span><select id="brAccessMode">
@@ -1066,7 +1094,7 @@ window.GE_BACKROOM_SHOW_MUSIC=function(){
 };
 function installBackroomTabs(){
   const nav=$('backroomTabs'),tabButtons=[...nav.querySelectorAll('button[data-tab]:not([hidden])')];
-  const categories=['welcome','about','universe','games','music','radio','moon','gate','access','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
+  const categories=['welcome','about','universe','games','music','radio','moon','gate','access','fans','scores','presets'],panelCategories=[...categories,'playlists'],panels=new Map();
   const sections=[...document.querySelectorAll('#backroomMain > section[data-br-tab]')];
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
@@ -1081,7 +1109,7 @@ function installBackroomTabs(){
     const heading=section.querySelector(':scope > h2');if(!heading)continue;
     // The GATE tab contains a single settings section: no duplicate section
     // heading or '+' gate to click through. Display its fields immediately.
-    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='playlists'||category==='moon'||category==='music'){
+    if(category==='gate'||category==='welcome'||category==='about'||category==='access'||category==='fans'||category==='playlists'||category==='moon'||category==='music'){
       heading.remove();
       section.classList.add('brDirectSection');
       continue;
@@ -3677,6 +3705,10 @@ const backroomVaultManagers=(()=>{
       void reconnectAllSources();
     }
     if(tab==='music')void refreshPlaylists();
+    if(tab==='fans'){
+      const fan=$('brCodeFansPanel');
+      if(fan){fan.open=false;fan.open=true;}
+    }
   }
   function init(){
     if(!initialized){
@@ -3688,7 +3720,7 @@ const backroomVaultManagers=(()=>{
       const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODES';
       bar.append(selectLabel,$('brAccessSelect'));
       const nameLabel=$('brAccessLabel').closest('label');
-      nameLabel.querySelector('span').textContent='ACCESS CODE NAME (EXISTING RADIO KEY MAY DIFFER)';
+      nameLabel.querySelector('span').textContent='ACCESS CODE NAME';
       bar.appendChild(nameLabel);
       const keyIdentity=document.createElement('p');
       keyIdentity.id='brAccessKeyIdentity';keyIdentity.setAttribute('role','status');
@@ -3754,7 +3786,8 @@ const backroomVaultManagers=(()=>{
       const fanCodeLabel=document.createElement('label');fanCodeLabel.textContent='ACCESS CODE';fanCodeLabel.appendChild(fanCode);
       fanPanel.append(fanSummary,fanInfo,fanRefresh,fanNameLabel,fanCodeLabel,fanSave,
         fanRecent,recentName,labelRecent,fanStatus);
-      editor.after(fanPanel);
+      $('brFansHome').appendChild(fanPanel);
+      fanPanel.open=false;
       let knownFans=[];
       function fanChoice(){
         fanCode.replaceChildren(new Option('NO CODE ASSIGNED',''));
@@ -3841,7 +3874,7 @@ const backroomVaultManagers=(()=>{
       musicSection.querySelector('summary').textContent='MUSIC · PLAYLISTS';
       musicSection.open=false;
       const keySection=document.createElement('details');
-      keySection.className='brSourceDetails';
+      keySection.className='brSourceDetails brAccessPrivateKeyDetails';
       keySection.innerHTML='<summary>ACCESS KEY</summary>';
       keySection.append($('brAccessCustomCode').closest('label'),$('brAccessCustomHelp'),$('brAccessKeyHelpPanel'));
       accessSection.appendChild(keySection);
