@@ -52,6 +52,8 @@ for(const [name,html] of [['back',back],['radio',radio],['preview',preview]]){
  }
 }
 new Script(music,{filename:'radio/ge-music-v5.js'});
-new Script(vault.replace(/export default\s*\{/,'return {'),{filename:'vault-worker/src/index.js'});
-new Script(publisher.replace(/export default\s*\{/,'return {'),{filename:'backroom/publisher-worker.js'});
+new Function(vault.replace(/export default\s*\{/,'return {'));
+
+new Function(publisher.replace(/export default\s*\{/,'return {'));
+
 console.log('PASS unified GE playlists: authentic Bangers, owner master, private fan Vault, compact UI, 33:33 Gate');
