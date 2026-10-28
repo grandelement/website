@@ -1,0 +1,33 @@
+name: GE Music V6 simulated purchase browser smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'radio/index.html'
+      - 'radio/ge-music-v5.js'
+      - 'radio/ge-purchase-demo.js'
+      - 'support/catalog.json'
+      - 'tests/ge-music-demo-flow.test.mjs'
+      - '.github/workflows/ge-music-demo-browser-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check browser available
+        run: |
+          which google-chrome
+          google-chrome --version
+      - name: Install browser test dependency
+        run: npm install --no-save --ignore-scripts puppeteer-core@24
+      - name: Run selected songs to delivery end-to-end DEMO
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/ge-music-demo-http.log 2>&1 &
+          node tests/ge-music-demo-flow.test.mjs
