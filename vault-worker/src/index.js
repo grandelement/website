@@ -2092,7 +2092,9 @@ async function adminExport(env) {
 
 
 /* All Radio Gate codes live in D1, including migrated legacy LOVE. */
-const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games"]);
+// Offline, Legacy and Reload are optional owner-selected controls, not
+// independent entry grants. Radio Gate must still validate a radio/website scope.
+const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload"]);
 function accessNormalizeCode(raw) {
   // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
   // prefix when followed by a separator, not from owner codes like GENTLE123.
