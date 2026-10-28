@@ -586,6 +586,17 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessSongChecklist{max-height:35vh;overflow-y:auto}
 #brPanel-access #brAccessOneTime[hidden]{display:none!important}
 #brPanel-access .brAccessSimpleButtons button:disabled{opacity:.45}
+#brPanel-access .brAccessSimpleBar #brAccessShowActualKey{
+  width:100%;min-height:42px;background:#102d46;border:1px solid #4f90b1;
+  font-weight:800;font-size:14px
+}
+#brPanel-access .brAccessSimpleBar #brAccessKeyIdentity{
+  margin:0;font-size:12px;color:#bcdae9;line-height:1.4
+}
+#brPanel-access .brAccessSimpleBar #brAccessStatus{
+  display:block!important;white-space:normal;overflow-wrap:anywhere;
+}
+#brPanel-access #brAccessEditor[hidden]{display:none!important}
 
 @media(max-width:450px){#brPanel-access .brAccessSimpleButtons{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
@@ -3178,10 +3189,13 @@ const backroomVaultManagers=(()=>{
     $('brAccessGameInfo').open=!!row?.scopes?.includes('games');
     $('brAccessKeyHelpPanel').hidden=!row;
     const nameKey=String(row?.label||'').toUpperCase().replace(/^GE[\s-]+/,'').replace(/[\s-]/g,'');
-    $('brAccessReplaceKey').hidden=!row||row.id==='access_legacy_love_v1'||row.revoked||
-      nameKey.slice(-4)===String(row.code_hint||'').toUpperCase();
-    if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. Use SHOW SAVED ACCESS KEY to copy it.';
-    $('brAccessCustomHelp').textContent='The name IS the Radio Gate code. Short names are easier to guess, so set appropriate permissions and use limits.';
+    // A 4-character suffix cannot prove that an old saved secret equals its name.
+    // Never rotate automatically; the button requires explicit confirmation.
+    $('brAccessReplaceKey').hidden=!row||row.id==='access_legacy_love_v1'||row.revoked;
+    if(row)$('brAccessKeyHelpText').textContent='Saved key ends in …'+row.code_hint+'. The name is only a label until the actual secret is verified. Use SHOW SAVED ACCESS KEY.';
+    $('brAccessCustomHelp').textContent=row?
+      'Editing the name does NOT change the existing Radio key. Reveal or explicitly rotate the key.':
+      'For NEW codes, the name becomes the Radio key after a confirmed Vault save.';
     const scopes=row?row.scopes:['radio'];
     $('brCodeGames').checked=row?.experience?.games_enabled!==false;
     $('brCodeAutopilot').checked=row?.experience?.autopilot_enabled!==false;
@@ -3279,7 +3293,7 @@ const backroomVaultManagers=(()=>{
 
     // Saved-code dropdown contains only actual saved codes; NEW is a separate action.
     if(!visibleCodes.length){
-      const note=!accessLoaded?'VAULT OFFLINE — RECONNECT OR REFRESH':
+      const note=!accessLoaded?'VAULT NOT LOADED · PRESS RECONNECT':
         q?'NO MATCH · '+codeRows.length+' SAVED · TAP SHOW ALL':'NO CODES SAVED';
       sel.appendChild(new Option(note,''));
     }
@@ -3293,6 +3307,16 @@ const backroomVaultManagers=(()=>{
     $('brAccessPrev').disabled=idx<=0;
     $('brAccessQuickLoad').disabled=!accessLoaded||!selectedCode();
     $('brAccessDeletePrimary').disabled=!accessLoaded||!selectedCode()||savingCode;
+    const showKey=$('brAccessShowActualKey'),keyStatus=$('brAccessKeyIdentity');
+    if(showKey)showKey.disabled=!accessLoaded||!selectedCode()||savingCode;
+    if(keyStatus){
+      const record=selectedCode();
+      keyStatus.textContent=!accessLoaded?
+        'Saved codes have NOT been loaded. Do not create or reset a code. Reconnect to Vault.':
+        record?'Saved name: '+record.label+' · Key ending: …'+record.code_hint+
+          '. The saved name is NOT proof of the actual Radio key. Tap SHOW ACTUAL RADIO KEY.':
+        'No matching saved code. Create a new one only after verifying the Vault list.';
+    }
     $('brAccessQuickEdit').disabled=!accessLoaded||!selectedCodeId||!!selectedCode()?.revoked;
     $('brAccessNext').disabled=idx<0||idx===visibleCodes.length-1;
     const selected=selectedCode(),host=$('brAccessList');host.replaceChildren();
@@ -3343,7 +3367,11 @@ const backroomVaultManagers=(()=>{
       accessLoaded=true;codeMaster.checked=codes.master_enabled!==false;
       if(preferId)selectedCodeId=preferId;
       renderAccessCodes();
-      if(document.querySelector('#backroomTabs button[data-tab="access"]')?.getAttribute('aria-selected')==='true'&&$('brAccessEditor').hidden)showCodeEditor(selectedCodeId);
+      if(document.querySelector('#backroomTabs button[data-tab="access"]')?.getAttribute('aria-selected')==='true'){
+        const unsavedName=$('brAccessLabel').value.trim();
+        // Do not overwrite a new unsaved draft while loading the actual records.
+        if(!editingCodeId&&!unsavedName&&selectedCode())showCodeEditor(selectedCodeId);
+      }
       const lovePresent=codeRows.some(row=>row.id==='access_legacy_love_v1');
       accessStatus('VAULT CONNECTED · '+codeRows.length+' managed code'+(codeRows.length===1?'':'s')+
         ' · master '+(codeMaster.checked?'ON':'OFF')+' · LOVE '+(lovePresent?'FOUND':'NOT LISTED')+'.');
@@ -3611,8 +3639,15 @@ const backroomVaultManagers=(()=>{
     $('brAccessSearch').value='';
     accessStatus('CHECKING PRIVATE ACCESS CODES AND GITHUB PLAYLISTS…');
     try{
-      const [codesOk,listsOk]=await Promise.all([refreshCodes(),refreshPlaylists()]);
-      renderAccessCodes();updateSourceAudit();
+      // One failed or malformed source must not strand VAULT in CHECKING.
+      const results=await Promise.allSettled([refreshCodes(),refreshPlaylists()]);
+      const codesOk=results[0].status==='fulfilled'&&results[0].value===true;
+      const listsOk=results[1].status==='fulfilled'&&results[1].value===true;
+      const failures=results.filter(r=>r.status==='rejected').map(r=>String(r.reason?.message||r.reason));
+      if(failures.length)accessStatus('CONNECTION ERROR · '+failures.join(' · '));
+      try{renderAccessCodes();updateSourceAudit()}catch(e){
+        accessStatus('DISPLAY ERROR · '+String(e.message||e));
+      }
       const verified=codesOk&&listsOk;
       const codesText=codesOk?'CODES: '+codeRows.length:'CODES: UNAVAILABLE';
       const playlistsText=listsOk?'PLAYLISTS: '+playlists.length:'PLAYLISTS: UNAVAILABLE';
@@ -3621,8 +3656,14 @@ const backroomVaultManagers=(()=>{
       summary.textContent=codesText+' · '+playlistsText+' · '+checkedAt;
       vaultIndicator(verified?'CONNECTED':(codesOk||listsOk)?'PARTIAL':'OFFLINE',
         codesText+'; '+playlistsText+'. Tap to reconnect.');
-      accessStatus(codesText+' · '+playlistsText+(verified?' · VERIFIED':' · NOT ALL SOURCES CONNECTED'));
+      accessStatus(codesText+' · '+playlistsText+
+        (verified?' · VERIFIED':' · NOT ALL SOURCES CONNECTED · TAP VAULT TO RETRY'));
       return verified;
+    }catch(error){
+      vaultIndicator('ERROR','Connection check failed: '+String(error.message||error));
+      accessStatus('VAULT CHECK FAILED · '+String(error.message||error)+'. Existing codes were not deleted.');
+      summary.hidden=false;summary.textContent='CONNECTION FAILED · TAP VAULT TO RETRY';
+      return false;
     }finally{
       reconnectInProgress=false;
       button.disabled=false;
@@ -3630,7 +3671,9 @@ const backroomVaultManagers=(()=>{
   }
   function openTab(tab){
     if(tab==='access'){
-      showCodeBrowser();
+      // Always expose Music and Access details, even when an API read fails.
+      // A failed read must not present an empty dropdown as the whole editor.
+      if($('brAccessEditor').hidden)showCodeEditor(accessLoaded?selectedCodeId:'');
       void reconnectAllSources();
     }
     if(tab==='music')void refreshPlaylists();
@@ -3645,8 +3688,16 @@ const backroomVaultManagers=(()=>{
       const selectLabel=document.createElement('label');selectLabel.htmlFor='brAccessSelect';selectLabel.textContent='SAVED ACCESS CODES';
       bar.append(selectLabel,$('brAccessSelect'));
       const nameLabel=$('brAccessLabel').closest('label');
-      nameLabel.querySelector('span').textContent='ACCESS CODE · WHAT YOUR GUEST ENTERS';
+      nameLabel.querySelector('span').textContent='ACCESS CODE NAME (EXISTING RADIO KEY MAY DIFFER)';
       bar.appendChild(nameLabel);
+      const keyIdentity=document.createElement('p');
+      keyIdentity.id='brAccessKeyIdentity';keyIdentity.setAttribute('role','status');
+      keyIdentity.textContent='Load saved codes from Vault to identify their actual Radio keys.';
+      bar.appendChild(keyIdentity);
+      const revealInBar=document.createElement('button');
+      revealInBar.id='brAccessShowActualKey';revealInBar.type='button';
+      revealInBar.textContent='SHOW ACTUAL RADIO KEY';revealInBar.disabled=true;
+      bar.appendChild(revealInBar);
       const useName=$('brAccessReplaceKey');
       useName.textContent='MAKE THIS NAME THE GATE CODE';
       useName.hidden=true;
@@ -3840,6 +3891,12 @@ const backroomVaultManagers=(()=>{
         void saveCode(editing);
       });
       $('brAccessRevealKey').addEventListener('click',()=>void revealSelectedCode());
+      $('brAccessShowActualKey').addEventListener('click',()=>{
+        const row=selectedCode();
+        if(!accessLoaded||!row)return accessStatus('VAULT NOT LOADED · RECONNECT FIRST.');
+        showCodeEditor(row.id);
+        void revealSelectedCode();
+      });
       $('brAccessReplaceKey').addEventListener('click',()=>void rotateSelectedCode());
       $('brAccessDeletePrimary').addEventListener('click',()=>{
         if(!accessLoaded||!selectedCode()||!$('brAccessSelect').value)return accessStatus('SELECT A SAVED CODE FIRST.');
@@ -4070,7 +4127,7 @@ const backroomVaultManagers=(()=>{
       window.GE_BACKROOM_TAB_SELECTED=openTab;
       void loadCatalog();
       accessModeUI();editPlaylist('');accessPlaylistOptions();accessSongOptions();assignedSongsUI();renderAccessCodes();
-      showCodeBrowser();
+      showCodeEditor('');
     }
     playlistLoaded=false;accessLoaded=false;
     const current=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;

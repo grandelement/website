@@ -35,8 +35,11 @@ assert.match(html,/async function rotateSelectedCode\(\)/);
 assert.match(html,/action:'rotate',id:row.id/);
 assert.match(html,/KEY RESET AND VERIFIED/);
 assert.match(html,/if\(selectedCode\(\)&&!selectedCode\(\)\.revoked\)showCodeEditor\(selectedCodeId\)/);
-assert.match(radioHtml,/Access code not accepted/);
-assert.match(radioHtml,/Enter the code assigned in the Back Room/);
+assert.match(radioHtml,/Vault did not accept this key/);
+assert.match(radioHtml,/A saved code NAME is not necessarily the actual RADIO KEY/);
+assert.match(html,/id='brAccessShowActualKey'/);
+assert.match(html,/VAULT CHECK FAILED/);
+assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\)\]\)/);
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
 
 assert.match(html,/function selectedAccessAssignments\(\)/);

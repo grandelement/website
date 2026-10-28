@@ -10979,7 +10979,20 @@ Vector ${vector}. ${pair[1]}.`;
         });
         const result=await response.json().catch(()=>({}));
         if(!response.ok||result.ok!==true){
-          if(status)status.textContent='Access code not accepted. Enter the code assigned in the Back Room. Older saved records may still have a different key until updated.';
+          if(status){
+            const reason=String(result.error||'');
+            status.textContent=response.status===429?
+              'Too many attempts. Wait before trying this code again.':
+              response.status>=500?
+              'GE Vault is unavailable (HTTP '+response.status+'). The code was not verified. Do not create another code.':
+              /does not permit/i.test(reason)?
+              'That key exists but does not authorize Radio. Check its Radio permission in the Back Room.':
+              /usage limit/i.test(reason)?
+              'This key has reached its use limit. Check the existing record in the Back Room.':
+              /disabled/i.test(reason)?
+              'Access Codes are currently disabled in the Vault.':
+              'Vault did not accept this key. A saved code NAME is not necessarily the actual RADIO KEY. In the Back Room select the record and tap SHOW ACTUAL RADIO KEY. Existing records were not removed.';
+          }
           return;
         }
         const expires=Number(result.expires_at)||0;
