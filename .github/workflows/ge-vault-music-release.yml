@@ -25,6 +25,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test real Vault Worker handler with mocked D1
         run: node --experimental-default-type=module tests/access-music-session.test.mjs
+      - name: Verify shared publisher versus private fan playlist contracts
+        run: node tests/ge-unified-playlist-library.test.mjs
   release:
     name: Deploy tested Vault Worker
     needs: verify
@@ -74,4 +76,20 @@ jobs:
               if attempt==6:
                   raise SystemExit(f'Vault music-session route not confirmed: HTTP {status}: {str(body)[:250]}')
               time.sleep(4)
+          PY
+
+      - name: Confirm public fan-playlist endpoint rejects anonymous requests
+        run: |
+          python3 - <<'PY'
+          import json, urllib.error, urllib.request
+          url='https://vault.grandelement.com/v1/public/fan-playlists'
+          try:
+              urllib.request.urlopen(urllib.request.Request(
+                  url,headers={'Origin':'https://grandelement.com'},method='GET'),timeout=20)
+              raise SystemExit('SECURITY ERROR: private fan playlists were readable without a bearer credential.')
+          except urllib.error.HTTPError as err:
+              data=json.loads(err.read().decode('utf-8','replace'))
+              if err.code!=401 or data.get('ok') is not False:
+                  raise SystemExit(f'Fan Vault route not authenticated: HTTP {err.code}: {data}')
+              print('PASS: private GE Fan Vault playlist endpoint is deployed and requires bearer key.')
           PY
