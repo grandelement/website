@@ -332,6 +332,113 @@ function appendSong(parent,track){
  }
  parent.appendChild(row);
 }
+
+/* CHECKED SONG ORDER: hold an entire row (not its checkbox or PLAY)
+   for 280ms on touch; click-and-drag on desktop. Reuses the existing selection
+   Set and saveSelected(), never duplicates tracks or writes a playlist remotely. */
+let dragSession=null;
+function sortableRow(target){
+ if(!state.open||!isArrangeView()||state.term||!(target instanceof Element))return null;
+ if(target.closest('button,input,select,textarea,a'))return null;
+ const row=target.closest('.song.sortable');
+ return row&&scroller.contains(row)?row:null;
+}
+function activateDrag(session){
+ if(dragSession!==session||!session.row.isConnected)return;
+ session.active=true;
+ session.row.classList.add('draggingSong');
+ session.row.setAttribute('aria-grabbed','true');
+}
+function repositionDraggedRow(y){
+ const session=dragSession;if(!session?.active)return;
+ const row=session.row;
+ const others=[...scroller.querySelectorAll('.song.sortable')].filter(el=>el!==row);
+ const before=others.find(el=>y<el.getBoundingClientRect().top+el.getBoundingClientRect().height/2);
+ if(before){if(row.nextSibling!==before)scroller.insertBefore(row,before)}
+ else if(others.length&&row!==others[others.length-1])scroller.append(row);
+}
+function autoScrollDrag(){
+ const session=dragSession;if(!session?.active)return;
+ const rect=scroller.getBoundingClientRect(),edge=Math.min(60,rect.height*.18);
+ let step=0;
+ if(session.y<rect.top+edge)step=-Math.min(18,4+(rect.top+edge-session.y)*.24);
+ else if(session.y>rect.bottom-edge)step=Math.min(18,4+(session.y-(rect.bottom-edge))*.24);
+ if(step){scroller.scrollTop+=step;repositionDraggedRow(session.y)}
+ session.frame=requestAnimationFrame(autoScrollDrag);
+}
+function finishDrag(commit=true){
+ const session=dragSession;if(!session)return;
+ dragSession=null;
+ if(session.timer)clearTimeout(session.timer);
+ if(session.frame)cancelAnimationFrame(session.frame);
+ session.row.classList.remove('draggingSong');
+ session.row.removeAttribute('aria-grabbed');
+ if(!session.active)return;
+ if(commit){
+  const rows=[...scroller.querySelectorAll('.song.sortable')].map(row=>row.dataset.songPath).filter(Boolean);
+  const seen=new Set(rows),leftover=[...state.selected].filter(path=>!seen.has(path));
+  const old=[...state.selected],next=[...rows,...leftover];
+  if(old.join('\n')!==next.join('\n')){
+   state.selected=new Set(next);
+   saveSelected();
+   say('SONG ORDER UPDATED · SAVE USER PLAYLIST to keep it as a named playlist.');
+  }
+ }
+ if(state.open)render();
+}
+scroller.addEventListener('touchstart',event=>{
+ if(event.touches.length!==1)return;
+ const row=sortableRow(event.target);if(!row)return;
+ if(dragSession)finishDrag(false);
+ const t=event.touches[0];
+ const session={kind:'touch',row,id:t.identifier,x:t.clientX,y:t.clientY,startY:t.clientY,active:false,timer:0,frame:0};
+ dragSession=session;
+ session.timer=setTimeout(()=>{
+  if(dragSession!==session)return;
+  activateDrag(session);
+  session.frame=requestAnimationFrame(autoScrollDrag);
+ },280);
+},{passive:true});
+scroller.addEventListener('touchmove',event=>{
+ const session=dragSession;if(session?.kind!=='touch')return;
+ const t=[...event.touches].find(t=>t.identifier===session.id);
+ if(!t)return;
+ session.y=t.clientY;
+ if(!session.active){
+  if(Math.abs(t.clientY-session.startY)>9||Math.abs(t.clientX-session.x)>9)finishDrag(false);
+  return;
+ }
+ if(event.cancelable)event.preventDefault();
+ event.stopPropagation();
+ repositionDraggedRow(t.clientY);
+},{passive:false});
+scroller.addEventListener('touchend',event=>{
+ const session=dragSession;if(session?.kind!=='touch')return;
+ if([...event.changedTouches].some(t=>t.identifier===session.id))finishDrag();
+});
+scroller.addEventListener('touchcancel',()=>{if(dragSession?.kind==='touch')finishDrag(false)});
+scroller.addEventListener('contextmenu',event=>{
+ if(isArrangeView()&&event.target.closest('.song.sortable'))event.preventDefault();
+});
+scroller.addEventListener('mousedown',event=>{
+ if(event.button!==0)return;
+ const row=sortableRow(event.target);if(!row)return;
+ if(dragSession)finishDrag(false);
+ dragSession={kind:'mouse',row,x:event.clientX,y:event.clientY,startY:event.clientY,active:false,timer:0,frame:0};
+});
+document.addEventListener('mousemove',event=>{
+ const session=dragSession;if(session?.kind!=='mouse')return;
+ session.y=event.clientY;
+ if(!session.active){
+  if(Math.hypot(event.clientX-session.x,event.clientY-session.startY)<6)return;
+  activateDrag(session);
+  session.frame=requestAnimationFrame(autoScrollDrag);
+ }
+ event.preventDefault();
+ repositionDraggedRow(event.clientY);
+});
+document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDrag()});
+
 // ONE music scroll surface. Category tabs stay pinned above it; selecting an
 // album or playlist replaces content inside the SAME scroll surface.
 function setView(view){
