@@ -446,6 +446,39 @@ def read_custom_playlists():
         data["items"] = []
     return data
 
+def playlist_recovery_candidates():
+    """Read-only recovery from saved BLITZ files. Never replace the Vault.
+
+    A missing/empty Vault playlist result is NOT evidence that the local
+    Bangers playlist or its separately maintained backup was deleted.
+    """
+    recovered = []
+    seen = set()
+    for path in (CUSTOM_PLAYLISTS, CUSTOM_PLAYLISTS_BACKUP):
+        try:
+            data = read_json(path, None)
+            rows = data.get("items", []) if isinstance(data, dict) else []
+            for item in rows:
+                if not isinstance(item, dict):
+                    continue
+                identity = str(item.get("id") or "").strip()
+                name = str(item.get("name") or "").strip()
+                paths = item.get("paths", [])
+                if not identity or not name or not isinstance(paths, list) or not paths:
+                    continue
+                key = (identity, name.casefold())
+                if key in seen:
+                    continue
+                seen.add(key)
+                row = dict(item)
+                row["recovery_only"] = True
+                row["recovered_from"] = path.name
+                recovered.append(row)
+        except Exception as exc:
+            print(f"GE Radio playlist recovery read failed: {path.name}: {exc}", flush=True)
+    return recovered
+
+
 def write_custom_playlists(data):
     write_json(CUSTOM_PLAYLISTS, data)
     write_json(CUSTOM_PLAYLISTS_BACKUP, data)
@@ -3343,11 +3376,31 @@ class Handler(BaseHTTPRequestHandler):
                     vault_error = str(exc)
             if not isinstance(data, dict):
                 data = read_custom_playlists()
+            items = list(data.get("items", []))
+            recovered = []
+            # Keep the archived DJ Bangers recoverable even while an empty or
+            # partially migrated Vault is returned. This GET never writes.
+            known_ids = {str(x.get("id") or "") for x in items if isinstance(x, dict)}
+            known_names = {str(x.get("name") or "").strip().casefold() for x in items if isinstance(x, dict)}
+            for candidate in playlist_recovery_candidates():
+                # No silent resurrection of arbitrary intentionally deleted
+                # playlists: only the specifically requested Bangers recovery.
+                if str(candidate.get("name") or "").strip().casefold() != "bangers":
+                    continue
+                if str(candidate.get("id") or "") in known_ids or "bangers" in known_names:
+                    continue
+                items.append(candidate)
+                recovered.append(candidate)
+                known_ids.add(str(candidate.get("id") or ""))
+                known_names.add("bangers")
             self.json_response({
-                "items": data.get("items", []),
+                "items": items,
                 "vault_configured": vault_configured(),
                 "vault_source": bool(vault_configured() and not vault_error),
                 "vault_error": vault_error,
+                "recovery_read_only": bool(recovered),
+                "recovery_count": len(recovered),
+                "recovery_message": "Recovered Bangers from BLITZ local/backup; owner must confirm and save to Vault." if recovered else "",
             })
             return
 
