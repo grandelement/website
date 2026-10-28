@@ -23,7 +23,7 @@ Only change the subsystem requested, with the smallest diff possible. Before edi
 - Preserved controls are NOT removed as a side effect of another change. No duplicate BUY buttons inside Music; store/gate/payment flows are separate.
 
 ## Mandatory Radio behaviors
-- RADIO is visibly red, not a hollow/transparent control, even after switching to local playlist mode. While radio is active/starting, keep the existing lub-dub and startup red pulses and state cues.
+- RADIO is visibly **solid red in every mode** (ready, active, and after local-song playback). Its APPROVED October 27 treatment is two quick red heartbeat pulses followed by one larger/slower outward glow that expands and fades, repeating approximately **every 6.7 seconds**. The button itself stays still; do not substitute the older 1.04-second-only lub-dub, a single-beat pulse, or a hollow red border. The final protected selector is `#ge-protected-radio-red-pulse-v1` in `radio/index.html`, with `geRadioProtectedDoubleBeat67` and `geRadioProtectedOuterWave67`. MUSIC is a different button and may not restyle RADIO.
 - Preserve Radio 1 primary and Radio 2 backup, their verified failover, BLITZ Bangers default, title, progress, transport, shuffle, clock and visualizer effects.
 - Do not change the Blue Sun, planets, I AM studio, background selectors, responsive positioning, Ship controls, or screen rotation when editing the Music dialog.
 - Preserve the existing radio preview Gate (33:33, 2013 seconds), verified access scopes and fan permissions. UI hiding is not an authorization mechanism.
