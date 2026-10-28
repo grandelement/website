@@ -3830,6 +3830,86 @@ body.view-player.portrait-player:not(.iam-studio-open) #liveStatus.show{
   white-space:normal!important;
 }
 </style>
+<style id="ge-radio-connected-red-dimmer-20261028">
+/* GE RADIO: no visual RADIO switch until native audio has confirmed advancing
+   stream time. This preserves its grid position and the underlying station
+   controls, and never pretends that a buffering stream has connected. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup #liveBtn,
+body #shipStage button[data-proxy="liveBtn"]{
+  opacity:0!important;pointer-events:none!important;
+  background:transparent!important;border-color:transparent!important;
+  color:transparent!important;box-shadow:none!important;
+  transition:opacity .65s ease!important;
+  position:relative!important;isolation:isolate!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup #liveBtn,
+body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]{
+  opacity:1!important;pointer-events:auto!important;
+  background:transparent!important;border-color:rgba(255,99,133,.60)!important;
+  color:#fff!important;overflow:visible!important;contain:none!important;
+  animation:none!important;box-shadow:none!important;
+}
+@keyframes geRadioRedDimmerLubDub{
+  0%,100%{opacity:0}
+  6%{opacity:.08}
+  18%{opacity:.40}
+  28%{opacity:1}
+  37%{opacity:.28}
+  44%{opacity:.15}
+  53%{opacity:.78}
+  63%{opacity:.27}
+  76%{opacity:.035}
+  90%{opacity:0}
+}
+/* A single layer lights the entire button like a red dimmer, with a gentle
+   outer glow. No scaling, flashes, concentric rings, or layout shifts. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup #liveBtn::before,
+body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]::before{
+  content:""!important;display:block!important;position:absolute!important;
+  z-index:-1!important;inset:-1px!important;pointer-events:none!important;
+  border-radius:inherit!important;
+  background:linear-gradient(180deg,#f0395d,#c71e42 55%,#89132d)!important;
+  box-shadow:0 0 10px 3px rgba(245,38,82,.68),
+             0 0 27px 7px rgba(213,20,63,.37),
+             inset 0 0 12px rgba(255,169,187,.30)!important;
+  transform:none!important;
+  animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup #liveBtn::after,
+body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]::after{
+  content:none!important;display:none!important;animation:none!important;
+}
+/* The first actual tap acknowledges the connection: keep album-red ON without
+   another heartbeat until the station disconnects. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible.ge-radio-pulse-ack #musicGroup #liveBtn::before,
+body.ge-radio-audible.ge-radio-pulse-ack #shipStage button[data-proxy="liveBtn"]::before{
+  animation:none!important;opacity:1!important;
+  box-shadow:0 0 9px 2px rgba(205,35,76,.30),
+             inset 0 0 10px rgba(255,176,192,.22)!important;
+}
+@media(prefers-reduced-motion:reduce){
+ html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup #liveBtn::before,
+ body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]::before{
+   animation:none!important;opacity:1!important;
+ }
+}
+/* Repair the old status layout before temporarily hiding the visual status.
+   Keep setLiveStatus(), its state, and assistive messaging intact. */
+body.view-player:not(.iam-studio-open) #musicGroup #liveStatus.show,
+body.view-player:not(.iam-studio-open) #liveStatus.show{
+  box-sizing:border-box!important;display:inline-block!important;
+  width:max-content!important;max-width:calc(100vw - 24px)!important;
+  min-width:0!important;justify-self:center!important;
+  padding:6px 10px!important;margin:3px auto!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+  word-break:normal!important;overflow:visible!important;
+  text-overflow:clip!important;line-height:1.3!important;
+}
+/* Temporarily hide the status bar without deleting radio state handling. */
+body #liveStatus,body #liveStatus.show{
+  display:none!important;
+}
+</style>
 <style id="ge-playlist-quick-main-style">
 /* Playlist reference belongs to the existing RADIO player, not to an iframe. */
 #gePlaylistQuick[hidden],#gePlaylistQuickSongs[hidden]{display:none!important}
@@ -5691,11 +5771,12 @@ function radioPlayFailure(error){
   updateRadioStartupCue();
 }
 function updateRadioStartupCue(){
-  // Never light the RADIO heartbeat for loading, a readyState change or a
-  // "playing" event alone. Require time progress from the one native player.
+  // Never illuminate RADIO on a mere load or 'playing' event.
+  // Only time progress from the actual native audio player confirms station.
   const connected=(state.live||state.livePreparing)&&!audio.paused&&
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
   document.body.classList.toggle('ge-radio-audible',!!connected);
+  if(!connected)document.body.classList.remove('ge-radio-pulse-ack');
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
@@ -7008,8 +7089,10 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
-  // The Radio button is never an OFF toggle. Multiple taps cannot interrupt
-  // an already playing stream or start concurrent live-edge reconnections.
+  // After connection the first listener tap stops the heartbeat visually,
+  // but never turns off or disrupts the stream.
+  if(document.body.classList.contains('ge-radio-audible'))
+    document.body.classList.add('ge-radio-pulse-ack');
   void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
