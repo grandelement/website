@@ -40,7 +40,7 @@ assert.match(v5,/displayName\|\|access.codeFallback\|\|'ACCESS ACTIVE'/,
  'Radio Music header prefers owner name over unnamed-code fallback');
 assert.match(v5,/codeFallback:String\(data.display_name\|\|''\).trim\(\)\?'':code.slice\(0,80\)/,
  'Direct Music code redemption follows the same display priority');
-assert.match(radio,/v710-optional-fan-access-name/,'Radio uses the updated Music script');
+assert.match(radio,/v712-optional-access-name/,'Radio uses the updated Music script');
 
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
