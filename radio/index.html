@@ -17,6 +17,24 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script id="ge-safari-request-website-mode">
+/* Safari chooses and remembers Mobile or Desktop Website. GE follows that
+   browser request without introducing a site-level toggle or local override.
+   On iPhone, Safari's Desktop request identifies as Macintosh, while the
+   CSS viewport can otherwise remain phone-sized. */
+(()=>{
+  const ua=String(navigator.userAgent||'');
+  const safari=/AppleWebKit/i.test(ua)&&/Safari\//i.test(ua)&&
+    !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+  const desktopUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
+  const touch=Number(navigator.maxTouchPoints)>1;
+  const smallScreen=Math.min(Number(screen.width)||9999,Number(screen.height)||9999)<=600;
+  if(!(safari&&desktopUA&&touch&&smallScreen))return;
+  document.documentElement.classList.add('ge-safari-desktop-request');
+  const viewport=document.querySelector('meta[name="viewport"]');
+  if(viewport)viewport.content='width=1160,viewport-fit=cover';
+})();
+</script>
 <!-- iPhone Radio: suppress accidental pinch/double-tap zoom while retaining one-finger MUSIC scrolling. -->
 <style id="ge-radio-iphone-zoom-guard">
 @media (pointer:coarse) {html.ge-radio-ui,html.ge-radio-ui body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}}
@@ -3647,6 +3665,43 @@ html.ge-radio-ui body.view-player #musicGroup > button#geMusicV5Button[aria-expa
   background-image:linear-gradient(115deg,#1675c7,#33a9f0,#1876c7)!important;
   border-color:#dcf5ff!important;
   box-shadow:0 0 19px rgba(36,171,255,.74)!important;
+}
+</style>
+<script id="ge-safari-desktop-style-compatibility">
+/* Run only when iPhone Safari has been explicitly switched to Desktop Website.
+   Safari still reports coarse touch and may retain portrait orientation. Copy
+   the EXISTING desktop media blocks, preserving their cascade and styling,
+   while allowing them to apply to this virtual desktop viewport. */
+(()=>{
+ if(!document.documentElement.classList.contains('ge-safari-desktop-request'))return;
+ const nativeStyles=Array.from(document.head.querySelectorAll('style'));
+ for(const original of nativeStyles){
+  let rules;
+  try{rules=Array.from(original.sheet?.cssRules||[])}catch(_){continue}
+  const matched=[];
+  for(const rule of rules){
+   if(rule.type!==CSSRule.MEDIA_RULE)continue;
+   const source=String(rule.conditionText||rule.media?.mediaText||'');
+   if(!/\(hover\s*:\s*hover\)/i.test(source)||!/\(pointer\s*:\s*fine\)/i.test(source))continue;
+   const media=source
+     .replace(/\(hover\s*:\s*hover\)/gi,'(hover:none)')
+     .replace(/\(pointer\s*:\s*fine\)/gi,'(pointer:coarse)')
+     .replace(/\(orientation\s*:\s*landscape\)/gi,'(min-width:820px)');
+   matched.push('@media '+media+' {'+Array.from(rule.cssRules).map(item=>item.cssText).join('\n')+'}');
+  }
+  if(!matched.length)continue;
+  const mirror=document.createElement('style');
+  mirror.dataset.geSafariDesktopRules='1';
+  mirror.textContent=matched.join('\n');
+  original.after(mirror);
+ }
+})();
+</script>
+<style id="ge-safari-desktop-request-final-overrides">
+/* The mobile touch-specific hide must not suppress desktop FULL / FIT after
+   Safari has requested the desktop layout. Ordinary mobile keeps it hidden. */
+html.ge-safari-desktop-request body.view-player:not(.iam-studio-open) #bgGroup .bg-row #bgFitFull {
+ display:flex!important;align-items:center!important;justify-content:center!important;
 }
 </style>
 </head>
