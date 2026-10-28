@@ -923,6 +923,102 @@ async function saveMusicAssetReceipt(request,env){
  ).bind(id,album,title,name,key,mime,bytes,t,t,JSON.stringify({source:"ge-backroom-album-upload",private:true})).run();
  return json({ok:true,id,status:"staged",private:true},200);
 }
+// FAN MUSIC PLAYLISTS — a private, account-independent Vault namespace.
+// An unpredictable browser credential identifies an anonymous fan library.
+// It cannot edit GE publisher playlists or other fans' playlists. Browser keys
+// are NOT named fan accounts; account linking requires separate verification.
+async function ensureFanMusicPlaylistTable(env){
+ await env.VAULT_DB.prepare(`CREATE TABLE IF NOT EXISTS fan_music_playlists (
+  id TEXT PRIMARY KEY,
+  owner_hash TEXT NOT NULL,
+  anon_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  songs_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+ )`).run();
+ await env.VAULT_DB.prepare(
+  "CREATE INDEX IF NOT EXISTS idx_fan_music_owner ON fan_music_playlists(owner_hash,updated_at)"
+ ).run();
+}
+function fanMusicBearer(request){
+ const value=String(request.headers.get("Authorization")||"");
+ const token=value.replace(/^Bearer\s+/i,"").trim();
+ return /^gefp_[a-f0-9]{64}$/.test(token)?token:"";
+}
+function fanMusicSongs(list){
+ if(!Array.isArray(list)||!list.length||list.length>250)return null;
+ const songs=list.map(String);
+ if(songs.some(p=>p.length>600||!/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i.test(p)||p.includes("..")))
+  return null;
+ return new Set(songs).size===songs.length?songs:null;
+}
+async function fanMusicEndpoint(request,env){
+ const token=fanMusicBearer(request);
+ if(!token)return json({ok:false,error:"Fan playlist library key required."},401);
+ if(!String(env.VAULT_HASH_KEY||"").trim())
+  return json({ok:false,error:"Vault fan playlist signing is unavailable."},503);
+ const owner=await hmacHex("ge-fan-playlists-v1:"+token,env.VAULT_HASH_KEY);
+ await ensureFanMusicPlaylistTable(env);
+ const db=env.VAULT_DB;
+ if(request.method==="GET"){
+  const rows=await db.prepare(
+   "SELECT id,name,songs_json,updated_at FROM fan_music_playlists WHERE owner_hash=? ORDER BY updated_at DESC LIMIT 50"
+  ).bind(owner).all();
+  return json({ok:true,storage:"GE_VAULT_D1",items:(rows.results||[]).map(p=>({
+   id:p.id,name:p.name,songs:JSON.parse(p.songs_json||"[]"),updated_at:p.updated_at
+  }))});
+ }
+ if(request.method!=="POST")return json({ok:false,error:"Method not allowed."},405);
+ if(Number(request.headers.get("content-length")||0)>80000)
+  return json({ok:false,error:"Playlist request too large."},413);
+ const body=await readBody(request);
+ const name=String(body.name||"").trim(),songs=fanMusicSongs(body.songs);
+ const existingId=String(body.id||"").trim();
+ const anonId=String(body.anon_id||"").trim().slice(0,120);
+ if(!name||name.length>100||/[\u0000-\u001f]/.test(name))
+  return json({ok:false,error:"Choose a playlist name up to 100 characters."},400);
+ if(!songs)return json({ok:false,error:"Select 1–250 valid GE songs in order."},400);
+ if(existingId&&!/^fanpl_[0-9a-f-]{36}$/.test(existingId))
+  return json({ok:false,error:"Invalid fan playlist ID."},400);
+ const existing=existingId?await db.prepare(
+  "SELECT id FROM fan_music_playlists WHERE id=? AND owner_hash=?"
+ ).bind(existingId,owner).first():null;
+ if(existingId&&!existing)return json({ok:false,error:"Playlist not found in this fan library."},404);
+ const collision=await db.prepare(
+  "SELECT id FROM fan_music_playlists WHERE owner_hash=? AND lower(name)=lower(?) AND id<>? LIMIT 1"
+ ).bind(owner,name,existingId||"").first();
+ if(collision)return json({ok:false,error:"That playlist name already exists in this fan library."},409);
+ const count=await db.prepare("SELECT COUNT(*) AS count FROM fan_music_playlists WHERE owner_hash=?").bind(owner).first();
+ if(!existingId&&Number(count?.count||0)>=50)
+  return json({ok:false,error:"This fan library has reached the 50-playlist limit."},409);
+ const playlistId=existingId||id("fanpl"),t=now();
+ if(existingId){
+  await db.prepare(
+   "UPDATE fan_music_playlists SET name=?,songs_json=?,updated_at=? WHERE id=? AND owner_hash=?"
+  ).bind(name,JSON.stringify(songs),t,playlistId,owner).run();
+ }else{
+  await db.prepare(
+   "INSERT INTO fan_music_playlists(id,owner_hash,anon_id,name,songs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)"
+  ).bind(playlistId,owner,anonId,name,JSON.stringify(songs),t,t).run();
+ }
+ await audit(env,"fan","fan.music_playlist_save","fan_music_playlist",playlistId,
+  {song_count:songs.length,anon_id:anonId});
+ return json({ok:true,id:playlistId,name,songs,updated_at:t,storage:"GE_VAULT_D1"});
+}
+async function adminFanMusicPlaylists(request,env){
+ if(!adminAuthorized(request,env))return json({ok:false,error:"Owner authorization required."},401);
+ await ensureFanMusicPlaylistTable(env);
+ const rows=await env.VAULT_DB.prepare(
+  "SELECT id,owner_hash,anon_id,name,songs_json,created_at,updated_at FROM fan_music_playlists ORDER BY updated_at DESC LIMIT 500"
+ ).all();
+ return json({ok:true,storage:"GE_VAULT_D1",items:(rows.results||[]).map(p=>({
+  id:p.id,owner_ref:String(p.owner_hash||"").slice(0,12),
+  anon_id:p.anon_id,name:p.name,songs:JSON.parse(p.songs_json||"[]"),
+  created_at:p.created_at,updated_at:p.updated_at
+ }))});
+}
+
 async function listPublicMusicPlaylists(env){
   const rows=await env.VAULT_DB.prepare(
     "SELECT id,name,updated_at,metadata_json FROM playlists ORDER BY updated_at DESC LIMIT 200"
@@ -2739,6 +2835,17 @@ export default {
 
       if(url.pathname==="/v1/admin/music-assets"&&request.method==="POST"){
         const response=await saveMusicAssetReceipt(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+
+      if(url.pathname==="/v1/public/fan-playlists"&&["GET","POST"].includes(request.method)){
+        const response=await fanMusicEndpoint(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if(url.pathname==="/v1/admin/fan-playlists"&&request.method==="GET"){
+        const response=await adminFanMusicPlaylists(request,env);
         Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
         return response;
       }
