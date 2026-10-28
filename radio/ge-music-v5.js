@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V6.4-20261028-CHECKED-FOOTER-PLAY';
+const BUILD='GE-MUSIC-V6.5-20261028-VAULT-AND-GITHUB-PLAYLIST-READ';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',
@@ -161,7 +161,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.4</span></div><button class="close" type="button">CLOSE</button></div>
+ <div class="header"><div class="brand">GRAND ELEMENT · MUSIC<span class="build">SINGLE SCROLL · MUSIC V6.5</span></div><button class="close" type="button">CLOSE</button></div>
  <div class="tools"><div class="musicCodeTools"><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="accessViews" hidden style="margin-top:9px;display:none;gap:6px;flex-wrap:wrap"><button type="button" data-access-view="order">MY ORDER</button><button type="button" data-access-view="album">BY ALBUM</button><button type="button" data-access-view="playlist">PLAYLISTS</button></div><div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -299,24 +299,65 @@ function saveMine(stayInArrange=false){
 }
 async function loadPublished(){
  if(state.playlistsLoading)return;
- state.playlistsLoading=true;state.playlistMessage='LOADING GITHUB PLAYLIST MASTER…';
+ state.playlistsLoading=true;
+ state.playlistMessage='CHECKING GITHUB AND GE VAULT PLAYLISTS…';
  if(state.open)render();
- try{
-  const response=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('GitHub HTTP '+response.status);
+ const valid=p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs);
+ const toList=(rows,source)=>rows.filter(valid).map(p=>({
+  id:String(p.id),name:String(p.name).trim(),
+  songs:[...new Set(p.songs.map(canonical).filter(Boolean))],source
+ })).filter(p=>p.id&&p.name&&p.songs.length);
+ async function publicVaultList(endpoint,source){
+  // These are public, explicitly published records ONLY. No private fan
+  // playlists, DJ keys or access tokens ever enter this unauthenticated UI.
+  const response=await fetch('https://vault.grandelement.com'+endpoint,{cache:'no-store'});
+  if(!response.ok)throw Error('Vault '+source+' HTTP '+response.status);
   const data=await response.json();
-  if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))
-    throw Error('Invalid GitHub playlist format');
-  const valid=p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&Array.isArray(p.songs);
-  state.publicLists=data.playlists.filter(p=>valid(p)&&p.visibility==='published')
-   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)})).filter(p=>p.songs.length);
+  if(data?.ok!==true||!Array.isArray(data.items))throw Error('Invalid Vault '+source+' response');
+  return toList(data.items,source);
+ }
+ const [github,vaultMusic,vaultDJ]=await Promise.allSettled([
+  (async()=>{
+   const response=await fetch('https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json?refresh='+Date.now(),{cache:'no-store'});
+   if(!response.ok)throw Error('GitHub HTTP '+response.status);
+   const data=await response.json();
+   if(data?.format!=='ge-playlist-registry-v1'||!Array.isArray(data.playlists))throw Error('Invalid GitHub playlist format');
+   return data;
+  })(),
+  publicVaultList('/v1/public/music-playlists','vault-music'),
+  publicVaultList('/v1/public/dj-playlists','vault-dj')
+ ]);
+ try{
   const assigned=new Set(musicAccessActive()?.playlistIds||[]);
+  const githubOk=github.status==='fulfilled';
+  const data=githubOk?github.value:{playlists:[]};
+  state.publicLists=data.playlists.filter(p=>valid(p)&&p.visibility==='published')
+   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'github'})).filter(p=>p.songs.length);
   state.assignedLists=data.playlists.filter(p=>valid(p)&&assigned.has(p.id))
-   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean)}));
-  state.playlistMessage='GITHUB CONNECTED · '+state.publicLists.length+' PUBLISHED PLAYLIST'+(state.publicLists.length===1?'':'S');
- }catch(error){
-  state.publicLists=[];state.assignedLists=[];
-  state.playlistMessage='GITHUB PLAYLIST FILE UNAVAILABLE · '+String(error.message||error);
+   .map(p=>({id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'github'}));
+  const countGitHub=state.publicLists.length;
+  const recordedIds=new Set(state.publicLists.map(p=>p.id));
+  const recordedDJNames=new Set();
+  let vaultCount=0;
+  for(const response of [vaultMusic,vaultDJ]){
+   if(response.status!=='fulfilled')continue;
+   for(const p of response.value){
+    // The same Bangers may be exposed by both published Vault endpoints.
+    // Keep its real ID and exact song ordering instead of creating a new mix.
+    if(recordedIds.has(p.id)||(p.name.toLowerCase()==='bangers'&&recordedDJNames.has('bangers')))continue;
+    recordedIds.add(p.id);
+    if(p.name.toLowerCase()==='bangers')recordedDJNames.add('bangers');
+    state.publicLists.push(p);vaultCount++;
+    if(assigned.has(p.id)&&!state.assignedLists.some(x=>x.id===p.id))state.assignedLists.push(p);
+   }
+  }
+  const parts=['GITHUB '+(githubOk?countGitHub:'UNAVAILABLE'),'VAULT '+vaultCount];
+  const vaultOnline=vaultMusic.status==='fulfilled'||vaultDJ.status==='fulfilled';
+  if(!vaultOnline)parts[1]='VAULT UNAVAILABLE';
+  if(!githubOk&&vaultOnline)parts.push('GITHUB ERROR');
+  if(githubOk&&!vaultOnline)parts.push('VAULT CONNECTION ERROR');
+  if(vaultOnline&&vaultCount===0)parts.push('NO PUBLISHED VAULT PLAYLISTS');
+  state.playlistMessage=parts.join(' · ');
  }finally{state.playlistsLoading=false;if(state.open)render()}
 }
 
@@ -711,15 +752,16 @@ function render(){
   }
   if(!scroller.children.length)scroller.append(elem('p','empty','No albums match that search.'));
  }else if(state.view==='ge-playlists'){
-  scroller.append(elem('div','section','GE PLAYLISTS · GITHUB'));
-  scroller.append(elem('p','empty',state.playlistMessage||'Checking GitHub…'));
+  scroller.append(elem('div','section','GE PLAYLISTS'));
+  // Connection summary is already shown above the scroll area.
+  // Do not waste scrolling space by repeating it as another full row.
   const shown=state.publicLists.filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of shown)card(scroller,p.name,'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',id:p.id,name:p.name};
-   recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'ge_github',song_count:p.songs.length});
+   recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:p.source||'github',song_count:p.songs.length});
    setView('playlist-order');
   });
-  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No published GE playlists are available yet.'));
+  if(!state.publicLists.length&&!state.playlistsLoading)scroller.append(elem('p','empty','No public playlists were returned from GitHub or GE Vault. Bangers may still be in the protected BLITZ DJ backup. No playlists have been deleted.'));
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
