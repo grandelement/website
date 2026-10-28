@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.1-20261028-ARRANGE-PLAY-OPENS-MUSIC-PLAYER';
+const BUILD='GE-MUSIC-V7.2-20261028-RESTORE-TABS-ARRANGE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',
@@ -178,8 +178,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .arrangeDock .arrangeNotice{font-size:11px;color:#ffe3a0;line-height:1.3}
 .window.arranging{top:max(2px,env(safe-area-inset-top));bottom:2px;width:min(940px,calc(100vw - 6px));max-height:calc(100dvh - 4px);border-radius:9px}
 .window.arranging .tools{display:block!important;padding:6px 8px}
-.window.arranging .tools>.browse,.window.arranging .tools>.search,.window.arranging .tools>.filterRow,.window.arranging .tools>.accessViews{display:none!important}
-.window.arranging .selectionBar{display:none!important}
+.window.arranging .tools>.search,.window.arranging .tools>.filterRow,.window.arranging .tools>.accessViews{display:none!important}
+.window.arranging .tools>.browse{display:grid!important;margin-top:5px!important}
+.window.arranging .selectionBar{display:flex!important}
 .window.arranging .arrangeDock{display:flex;flex-direction:column}
 .window.arranging .header{padding:6px 10px;min-height:44px}
 .window.arranging .header .build{display:none}
@@ -1036,6 +1037,10 @@ function render(){
 let previousFocus=null,oldBodyOverflow='';
 function open(){
  if(state.open)return;
+ // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
+ // controls behind a prior Arrange session; selected songs remain untouched.
+ state.view='all';state.arranging=false;state.term='';
+ el('.search').value='';
  state.open=true;state.notice='';
  previousFocus=document.activeElement;oldBodyOverflow=document.body.style.overflow;
  document.body.classList.add('ge-music-v5-open');
