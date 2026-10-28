@@ -30,17 +30,11 @@ assert.match(radio,/const m=result.music_session/,
  'Radio Gate must consume its returned Music entitlement');
 assert.match(radio,/sessionStorage.setItem\('GE_MUSIC_CODE_SESSION_V1'/);
 assert.match(backroom,/id="brAccessDisplayName"/,'owner must have a separate, optional fan/access display name');
-assert.doesNotMatch(backroom,/if\(!existing&&\!displayName\)throw Error/,'listener name must remain optional for older or unnamed codes');
+assert.match(backroom,/if\(!existing&&\!displayName\)throw Error/,'new access codes require a listener name');
 assert.match(backroom,/display_name:displayName/,'existing GE Vault code name field is saved');
 assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
  'Radio Gate inherits the saved name from the correct Vault code');
-assert.match(radio,/codeFallback:String\(m.display_name\|\|''\).trim\(\)\?'':entered.slice\(0,80\)/,
- 'Gate shows the exact locally entered key only when the owner leaves the name blank');
-assert.match(v5,/displayName\|\|access.codeFallback\|\|'ACCESS ACTIVE'/,
- 'Radio Music header prefers owner name over unnamed-code fallback');
-assert.match(v5,/codeFallback:String\(data.display_name\|\|''\).trim\(\)\?'':code.slice\(0,80\)/,
- 'Direct Music code redemption follows the same display priority');
-assert.match(radio,/v712-optional-access-name/,'Radio uses the updated Music script');
+assert.match(radio,/v713-verified-listener-name/,'Radio uses the updated Music script');
 
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
@@ -57,3 +51,6 @@ assert.match(preview,/d\.playlists\.filter/,
 assert.match(preview,/UNLISTED · /,
  'unlisted tracks have a visible label rather than silently disappearing');
 console.log('PASS: Back Room GitHub registry -> D1 code assignment -> signed Radio Gate Music entitlement -> two Music interfaces, no LOVE hardcode');
+
+assert.doesNotMatch(v5,/access\.codeFallback|codeFallback:String/,'never show a visitor\'s private access key as a name');
+assert.doesNotMatch(radio,/codeFallback:String/,'Gate must not store the private access key for display');
