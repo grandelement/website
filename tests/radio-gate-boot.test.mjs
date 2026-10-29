@@ -38,5 +38,24 @@ try{
     if(wrong.length)throw new Error('iPhone Radio off-center at '+width+'px: '+JSON.stringify({wrong,viewport:rects.viewport}));
     console.log('PASS: iPhone Radio controls centered and unclipped at '+width+'px');
   }
+  // Safari Request Desktop Website changes the user agent to Macintosh.
+  // On physical iPhone hardware the Radio still MUST use the mobile viewport.
+  await phone.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15');
+  await phone.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:3});
+  await phone.goto('http://127.0.0.1:8765/radio/?ge_view=auto',{waitUntil:'domcontentloaded',timeout:30000});
+  const safari=await phone.evaluate(()=>({
+    mode:document.documentElement.dataset.geDeviceLayout,
+    width:document.documentElement.clientWidth,
+    meta:document.querySelector('meta[name="viewport"]')?.content,
+    center:(()=>{
+      const r=document.querySelector('#musicGroup')?.getBoundingClientRect();
+      return r?(r.left+r.right)/2:null;
+    })()
+  }));
+  if(safari.mode!=='mobile' || Math.abs(safari.width-390)>2 ||
+     !safari.meta?.includes('width=390') ||
+     safari.center===null || Math.abs(safari.center-safari.width/2)>2)
+    throw new Error('Safari Macintosh UA on iPhone escaped mobile mode: '+JSON.stringify(safari));
+  console.log('PASS: iPhone Safari Macintosh desktop-style UA still opens correctly centered mobile Radio');
   await phone.close();
 }finally{await browser.close();}
