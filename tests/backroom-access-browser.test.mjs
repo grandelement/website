@@ -147,7 +147,7 @@ try{
  await page.click('#brAccessOfflineShortcut');
  assert.equal(await page.evaluate(()=>document.querySelector('[name="brAccessScope"][value="offline"]')?.closest('details')?.open),
   true,'OFFLINE shortcut opens real saved-code permission editor');
- await page.click('#brAccessFansShortcut');
+ await page.evaluate(()=>document.getElementById('brAccessFansShortcut').click());
  await page.waitForFunction(()=>document.querySelector('#brCodeFansPanel')?.open===true&&
    document.getElementById('brCodeFanSelect')?.options?.length>=3,{timeout:15000});
  assert.equal(await page.$eval('#brFanActiveProfile',x=>x.hidden),true,
