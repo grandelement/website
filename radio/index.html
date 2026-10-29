@@ -8618,6 +8618,12 @@ async function registerServiceWorker(){
         }
       }
     }
+    // A concurrent service-worker request may re-open a deleted GE media
+    // cache. Re-check once before reporting deletion as complete.
+    for(const name of await caches.keys()){
+      if(/^ge-radio-media(?:-|$)|^ge-backgrounds(?:-|$)/.test(name))
+        await caches.delete(name);
+    }
     offlineAvailability.songs.clear();
     offlineAvailability.stations.clear();
     saveOfflineAvailability();
