@@ -31,7 +31,16 @@ try{
  await page.setRequestInterception(true);
  page.on('request',r=>{
   if(r.url().includes('/v1/public/access/music-session')){
-   void r.respond({status:200,contentType:'application/json',
+   // Cross-origin Vault checks also require browser CORS preflight. Without
+   // these headers the test itself makes verification fail and pauses audio.
+   const headers={
+    'Access-Control-Allow-Origin':'*',
+    'Access-Control-Allow-Methods':'POST, OPTIONS',
+    'Access-Control-Allow-Headers':'Content-Type',
+    'Cache-Control':'no-store'
+   };
+   if(r.method()==='OPTIONS')void r.respond({status:204,headers});
+   else void r.respond({status:200,headers,contentType:'application/json',
     body:JSON.stringify({ok:true,authorized:true})});
   }else if(r.url().startsWith('https://api.github.com/repos/grandelement/website/git/trees/')){
    void r.respond({status:503,contentType:'application/json',body:'{}'});
