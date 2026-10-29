@@ -884,6 +884,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 
 <section data-br-tab="access">
   <h2>ACCESS CODES</h2>
+  <div id="brAccessOwnerTools" class="brAccessTopActions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <button type="button" id="brAccessFansShortcut">FANS</button>
+    <button type="button" id="brAccessOfflineShortcut">OFFLINE</button>
+  </div>
   <div class="brAccessTop">
     <label><span>FIND SAVED CODE / NAME A NEW CODE</span><input id="brAccessSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Search codes or give a new code a name"></label>
     <div class="brAccessTopActions">
@@ -3832,7 +3836,7 @@ const backroomVaultManagers=(()=>{
       // A private owner-only fan link to the SAME Vault code ID.
       const fanPanel=document.createElement('details');
       fanPanel.id='brCodeFansPanel';fanPanel.className='brSourceDetails';
-      const fanSummary=document.createElement('summary');fanSummary.textContent='FANS · SAVED / RECENT';
+      const fanSummary=document.createElement('summary');fanSummary.textContent='FANS · GE VAULT PROFILES';
       const fanInfo=document.createElement('p');fanInfo.className='brCompactStatus';
       fanInfo.textContent='Owner labels and recent events do not verify a real-world identity or prove a live connection.';
       const fanRefresh=document.createElement('button');fanRefresh.type='button';fanRefresh.textContent='REFRESH FANS';
@@ -3841,6 +3845,16 @@ const backroomVaultManagers=(()=>{
       const fanCode=document.createElement('select');fanCode.id='brCodeFanCode';
       fanCode.setAttribute('aria-label','Code for selected fan');
       const fanSave=document.createElement('button');fanSave.type='button';fanSave.textContent='SAVE FAN CODE';
+      const fanSearch=document.createElement('input');fanSearch.id='brFanProfileSearch';fanSearch.type='text';
+      fanSearch.maxLength=80;fanSearch.placeholder='Search saved fan or name a new profile';
+      fanSearch.autocomplete='off';fanSearch.setAttribute('aria-label','Find or name a fan profile');
+      const fanLoad=document.createElement('button');fanLoad.type='button';fanLoad.textContent='LOAD';
+      const fanCreate=document.createElement('button');fanCreate.type='button';fanCreate.textContent='NEW / SAVE';
+      const fanClose=document.createElement('button');fanClose.type='button';fanClose.textContent='CLOSE PROFILE';
+      const fanProfile=document.createElement('section');fanProfile.id='brFanActiveProfile';fanProfile.hidden=true;
+      const fanTitle=document.createElement('h3');fanTitle.textContent='FAN PROFILE';
+      const fanAccessEdit=document.createElement('button');fanAccessEdit.type='button';
+      fanAccessEdit.textContent='EDIT ACCESS SETTINGS';
       const fanRecent=document.createElement('div');fanRecent.id='brCodeRecentFans';
       const recentName=document.createElement('input');recentName.type='text';
       recentName.id='brCodeRecentName';recentName.maxLength=200;
@@ -3852,17 +3866,86 @@ const backroomVaultManagers=(()=>{
       const fanStatus=document.createElement('p');fanStatus.className='brCompactStatus';
       const fanNameLabel=document.createElement('label');fanNameLabel.textContent='SAVED FAN';fanNameLabel.appendChild(fanSelect);
       const fanCodeLabel=document.createElement('label');fanCodeLabel.textContent='ACCESS CODE';fanCodeLabel.appendChild(fanCode);
-      fanPanel.append(fanSummary,fanInfo,fanRefresh,fanNameLabel,fanCodeLabel,fanSave,
-        fanRecent,recentName,labelRecent,fanStatus);
+      const fanActions=document.createElement('div');fanActions.className='brAccessTopActions';
+      fanActions.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0';
+      fanActions.append(fanLoad,fanCreate,fanClose);
+      fanProfile.append(fanTitle,fanCodeLabel,fanSave,fanAccessEdit);
+      const recentDetails=document.createElement('details');recentDetails.className='brSourceDetails';
+      const recentSummary=document.createElement('summary');recentSummary.textContent='RECENT VISITORS · OPTIONAL';
+      recentDetails.append(recentSummary,fanRecent,recentName,labelRecent);
+      fanPanel.append(fanSummary,fanInfo,fanRefresh,fanSearch,fanActions,fanNameLabel,fanProfile,recentDetails,fanStatus);
       $('brFansHome').appendChild(fanPanel);
       fanPanel.open=false;
-      let knownFans=[];
+      let knownFans=[],activeFanProfileId='';
       function fanChoice(){
         fanCode.replaceChildren(new Option('NO CODE ASSIGNED',''));
         codeRows.forEach(c=>fanCode.appendChild(new Option(c.label,c.id)));
         fanCode.value=knownFans.find(f=>f.id===fanSelect.value)?.code_id||'';
       }
-      fanSelect.addEventListener('change',fanChoice);
+      function showFanProfile(id){
+        const fan=knownFans.find(row=>row.id===id);
+        // Until a real saved Vault ID is loaded, show NO stale settings.
+        activeFanProfileId=fan?.id||'';
+        fanProfile.hidden=!fan;
+        $('brFanPlaylistVault').hidden=!!fan;
+        fanTitle.textContent=fan?'FAN · '+(fan.display_name||fan.id):'FAN PROFILE';
+        if(fan){
+          fanSelect.value=fan.id;fanChoice();fanSearch.value=fan.display_name||'';
+          fanStatus.textContent='VAULT PROFILE LOADED · '+fan.id;
+        }else{
+          fanCode.value='';fanStatus.textContent='NO FAN PROFILE LOADED';
+        }
+      }
+      fanSelect.addEventListener('change',()=>{
+        showFanProfile('');
+      });
+      fanSearch.addEventListener('input',()=>{
+        showFanProfile('');
+        const q=fanSearch.value.toLowerCase().trim();
+        const previous=fanSelect.value;
+        fanSelect.replaceChildren(new Option('CHOOSE SAVED FAN',''));
+        for(const row of knownFans.filter(row=>
+          !q||String(row.display_name||'').toLowerCase().includes(q)))
+          fanSelect.add(new Option((row.display_name||'Unlabeled')+' · '+row.id.slice(0,16),row.id));
+        fanSelect.value=[...fanSelect.options].some(o=>o.value===previous)?previous:'';
+      });
+      fanLoad.addEventListener('click',()=>{
+        const q=fanSearch.value.trim();
+        const matches=knownFans.filter(row=>String(row.display_name||'').trim().toLowerCase()===q.toLowerCase());
+        const chosen=fanSelect.value||(matches.length===1?matches[0].id:'');
+        if(!chosen){fanStatus.textContent='CHOOSE AN EXISTING FAN FROM THE LIST OR PRESS NEW / SAVE.';return}
+        showFanProfile(chosen);
+      });
+      fanClose.addEventListener('click',()=>{
+        showFanProfile('');fanSearch.value='';fanSelect.value='';
+        $('brFanPlaylistVault').hidden=false;
+      });
+      fanCreate.addEventListener('click',async()=>{
+        const name=fanSearch.value.trim();
+        if(!name||!authReady()){fanStatus.textContent='SIGN IN AND ENTER A FAN NAME FIRST.';return}
+        fanCreate.disabled=true;
+        try{
+          const response=await api('/manage/fan-access',{method:'POST',
+            body:JSON.stringify({action:'create',display_name:name})});
+          const data=await response.json();
+          if(!response.ok||data.ok!==true)throw Error(data.error||'Profile not saved');
+          await refreshFanDirectory();
+          showFanProfile(data.fan_id);
+          fanStatus.textContent='NEW FAN PROFILE SAVED IN GE VAULT · '+data.fan_id;
+        }catch(e){fanStatus.textContent='FAN PROFILE NOT SAVED · '+String(e.message||e)}
+        finally{fanCreate.disabled=false}
+      });
+      fanAccessEdit.addEventListener('click',()=>{
+        const fan=knownFans.find(f=>f.id===activeFanProfileId);
+        if(!fan)return;
+        if(!fanCode.value||!codeRows.some(c=>c.id===fanCode.value)){
+          fanStatus.textContent='ASSIGN A SAVED ACCESS CODE TO THIS FAN FIRST.';return;
+        }
+        selectedCodeId=fanCode.value;
+        renderAccessCodes();
+        showCodeEditor(fanCode.value);
+        $('brTabAccess').click();
+      });
       async function refreshFanDirectory(){
         if(!authReady()){fanStatus.textContent='SIGN IN REQUIRED';return;}
         fanStatus.textContent='READING PRIVATE VAULT FAN RECORDS…';
@@ -3877,6 +3960,7 @@ const backroomVaultManagers=(()=>{
             (f.display_name||'Unlabeled')+' · '+f.id.slice(0,16),f.id)));
           fanSelect.value=knownFans.some(f=>f.id===old)?old:'';
           fanChoice();fanRecent.replaceChildren();
+          if(activeFanProfileId)showFanProfile(activeFanProfileId);
           selectedRecentAnon='';recentName.value='';
           const items=Array.isArray(body.recent)?body.recent:[];
           const heading=document.createElement('strong');heading.textContent='RECENT ACTIVITY · '+items.length;
@@ -3922,16 +4006,38 @@ const backroomVaultManagers=(()=>{
       fanRefresh.addEventListener('click',()=>void refreshFanDirectory());
       fanPanel.addEventListener('toggle',()=>{if(fanPanel.open)void refreshFanDirectory()});
       fanSave.addEventListener('click',async()=>{
-        if(!fanSelect.value||!authReady()){fanStatus.textContent='SELECT A SAVED FAN';return;}
+        if(!activeFanProfileId||!authReady()){fanStatus.textContent='LOAD A SAVED FAN PROFILE FIRST';return;}
         fanSave.disabled=true;
         try{
           const response=await api('/manage/fan-access',{method:'POST',
-            body:JSON.stringify({action:'assign',fan_id:fanSelect.value,code_id:fanCode.value})});
+            body:JSON.stringify({action:'assign',fan_id:activeFanProfileId,code_id:fanCode.value})});
           const body=await response.json();
           if(!response.ok||body.ok!==true)throw Error(body.error||'Not saved');
           await refreshFanDirectory();fanStatus.textContent='FAN CODE LINK SAVED IN GE VAULT';
         }catch(e){fanStatus.textContent='NOT SAVED · '+String(e.message||e)}
         finally{fanSave.disabled=false}
+      });
+      // ACCESS shortcuts use the existing Vault-backed FANS and OFFLINE editor.
+      // Never duplicate a second profile or permission store in page state.
+      $('brAccessFansShortcut').addEventListener('click',()=>{
+        $('brTabFans').click();
+        fanPanel.open=true;
+        fanSearch.focus();
+      });
+      $('brAccessOfflineShortcut').addEventListener('click',()=>{
+        if($('brAccessEditor').hidden){
+          const loaded=selectedCode();
+          if(!loaded){
+            accessStatus('LOAD AN ACCESS CODE TO SET ITS OFFLINE PERMISSION.');return;
+          }
+          showCodeEditor(loaded.id);
+        }
+        const scope=editor.querySelector('[name="brAccessScope"][value="offline"]');
+        const section=scope?.closest('details');
+        if(section)section.open=true;
+        scope?.scrollIntoView({block:'center',behavior:'smooth'});
+        scope?.focus();
+        accessStatus('OFFLINE PERMISSION FOR THIS CODE · Save changes to persist in GE Vault.');
       });
       // One status message stays next to the three buttons.
       bar.appendChild($('brAccessStatus'));
