@@ -303,15 +303,9 @@ if(GE_RADIO_MUSIC_EMBED){
   if(event.source!==window.parent||event.origin!==location.origin)return;
   const msg=event.data;
   if(!msg||msg.type!=='ge-radio-music-control')return;
-  if(msg.action==='stop'){
-   audio.pause();stopCounting();currentTrack=null;albumTracks=[];trackIndex=-1;
-   updateMusicTransport();geRadioEmbedPlaybackState();
-  }else if(msg.action==='toggle'){
-   if(audio.paused)void resume();else audio.pause();
-  }else if(msg.action==='next')nextTrack();
-  else if(msg.action==='previous'&&trackIndex>0){
-   trackIndex--;void startTrack(albumTracks[trackIndex]);
-  }
+  // The same controller also serves the main Radio buttons through a
+  // synchronous call. postMessage is retained only for older listeners.
+  window.GEControlMusicQueue?.(msg.action);
  });
 }
 
@@ -870,7 +864,10 @@ function showAlbums(){
 }
 async function startTrack(t){
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
- if(musicSession()&&!ownerPreview()&&!(await verifyMusicTrack(t)))return;
+ const grant=musicSession();
+ if(grant&&!ownerPreview()&&grant.restricted&&!grant.allowed.includes(t.path)){
+  musicNotice('This code does not include the selected song.');return;
+ }
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
  if(GE_RADIO_MUSIC_EMBED){
   // Synchronous, same-origin handoff retains iPhone's Play user gesture.
@@ -885,7 +882,18 @@ async function startTrack(t){
  renderVolume();resetMediaSample();
  mediaSession(t);if(!$('albumView').hidden)showSongs();renderSelected();updateMusicTransport();say('Connecting…');
  try{
-  await audio.play();
+  // Safari requires play() in the original user's gesture. Do not await Vault
+  // verification first: the code was already redeemed for this session.
+  const started=audio.play();
+  if(grant&&!ownerPreview()){
+   void verifyMusicTrack(t).then(ok=>{
+    if(!ok&&currentTrack===t){
+     audio.pause();
+     geRadioEmbedNotify('ge-radio-music-playback-error',{message:'Vault could not verify Music access.'});
+    }
+   }).catch(()=>{if(currentTrack===t)audio.pause()});
+  }
+  await started;
   musicNotice('');
   geRadioEmbedNotify('ge-radio-music-playback-started',{title:label(t)});
  }catch(error){
@@ -910,9 +918,10 @@ function chooseTrack(t){
 window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  if(!Array.isArray(paths)||!paths.length)return false;
  const unique=[...new Set(paths.map(cleanMusicPath).filter(Boolean))].slice(0,250);
- const tracks=unique.map(path=>catalogTrackByPath.get(path));
- // Never pretend the playlist is intact when a recording is missing.
- if(!tracks.length||tracks.some(track=>!track))return false;
+ // If the embedded catalog is still loading, a validated local song path can
+ // start immediately from the same MUSIC catalog instead of a dead PLAY button.
+ const tracks=unique.map(path=>catalogTrackByPath.get(path)||trackFromMusicPath(path));
+ if(!tracks.length||tracks.some(track=>!valid(track)))return false;
  const idx=tracks.findIndex(t=>cleanMusicPath(t.path)===cleanMusicPath(startPath));
  if(idx<0)return false;
  // Use this iframe ONLY for protected playback and Gate timing.
@@ -935,8 +944,8 @@ window.GEJumpLibraryQueue=function(index){
 };
 window.GEPlayLibraryTrack=function(path){
  const key=cleanMusicPath(path);
- const track=catalogTrackByPath.get(key);
- if(!track)return false;
+ const track=key&&(catalogTrackByPath.get(key)||trackFromMusicPath(key));
+ if(!track||!valid(track))return false;
  if(isLocked()){renderGate();return true;}
  selectedAlbum=track.album||'';
  playingSelected=false;
@@ -947,16 +956,53 @@ window.GEPlayLibraryTrack=function(path){
 function nextTrack(){
  if(isLocked()){renderGate();return;}
  if(!albumTracks.length||trackIndex<0){say('Choose a song first.');return;}
- if(trackIndex+1>=albumTracks.length){audio.pause();say('End of list. Choose another song, album, or playlist.');return;}
- trackIndex++;void startTrack(albumTracks[trackIndex]);
+ if(trackIndex+1>=albumTracks.length&&!playingSelected){
+  audio.pause();say('End of list. Choose another song, album, or playlist.');return;
+ }
+ // A checked-song queue is cyclic. With one checked song, replay that song.
+ trackIndex=(trackIndex+1)%albumTracks.length;
+ void startTrack(albumTracks[trackIndex]);
+}
+function previousTrack(){
+ if(isLocked()){renderGate();return;}
+ if(!albumTracks.length||trackIndex<0)return;
+ trackIndex=(trackIndex-1+albumTracks.length)%albumTracks.length;
+ void startTrack(albumTracks[trackIndex]);
 }
 async function resume(){
  if(!currentTrack){musicNotice('Choose a song to play.');return;}
- if(musicSession()&&!ownerPreview()&&!(await verifyMusicTrack(currentTrack)))return;
+ const grant=musicSession();
+ if(grant&&!ownerPreview()){
+  if(grant.restricted&&!grant.allowed.includes(currentTrack.path)){
+   musicNotice('This code does not include this song.');return;
+  }
+ }
  if(isLocked()){renderGate();return;}
- try{if(audio.paused)await audio.play()}catch(_e){musicNotice('Tap PLAY to resume on this device.')}
+ // Begin in the click handler; revalidate the signed receipt in parallel.
+ try{
+  const playing=audio.paused?audio.play():Promise.resolve();
+  if(grant&&!ownerPreview()){
+   const target=currentTrack;
+   void verifyMusicTrack(target).then(ok=>{
+    if(!ok&&target===currentTrack)audio.pause();
+   }).catch(()=>{if(target===currentTrack)audio.pause()});
+  }
+  await playing;
+ }catch(_e){musicNotice('Tap PLAY to resume on this device.')}
 }
-audio.addEventListener('ended',()=>{if(!data.expired)nextTrack()});
+window.GEControlMusicQueue=function(action){
+ if(action==='stop'){
+  audio.pause();stopCounting();currentTrack=null;albumTracks=[];trackIndex=-1;
+  playingSelected=false;updateMusicTransport();geRadioEmbedPlaybackState();return true;
+ }
+ if(action==='toggle'){
+  if(audio.paused)void resume();else audio.pause();return true;
+ }
+ if(action==='next'){nextTrack();return true}
+ if(action==='previous'){previousTrack();return true}
+ return false;
+};
+audio.addEventListener('ended',()=>{if(!isLocked())nextTrack()});
 function updateMusicTransport(){
  const panel=$('musicTransport');panel.hidden=!currentTrack;
  if(!currentTrack)return;
