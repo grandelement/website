@@ -12,6 +12,10 @@ try{
  await page.setViewport({width:390,height:844,isMobile:true,deviceScaleFactor:2});
  const errors=[];
  let outage=false;
+ const savedFans=[
+   {id:'fan_aaaaaaa1',display_name:'Fan One',code_id:'access_test1',code_label:'Test 1'},
+   {id:'fan_bbbbbbb2',display_name:'Fan Two',code_id:'access_legacy_love_v1',code_label:'LOVE'}
+ ];
  page.on('pageerror',e=>errors.push(String(e?.stack||e)));
  await page.evaluateOnNewDocument(()=>{
    sessionStorage.setItem('GE_BACKROOM_PUBLISH_SESSION_V1','mock-signed-publisher-session');
@@ -56,7 +60,18 @@ try{
         track_title:'Smoke',album:'Fire'}]}
    ]};
    else if(route==='/presets')data={ok:true,presets:[]};
-   else if(route==='/manage/fan-access')data={ok:true,fans:[],recent:[]};
+   else if(route==='/manage/fan-access'&&req.method()==='POST'){
+     const body=JSON.parse(req.postData()||'{}');
+     if(body.action==='create'){
+       const fan={id:'fan_ccccccc3',display_name:body.display_name,code_id:null,code_label:null};
+       savedFans.push(fan);data={ok:true,fan_id:fan.id,display_name:fan.display_name,verified_identity:false};
+     }else if(body.action==='assign'){
+       const fan=savedFans.find(f=>f.id===body.fan_id);
+       if(fan)fan.code_id=body.code_id;
+       data={ok:true,fan_id:body.fan_id,code_id:body.code_id};
+     }else{status=400;data={ok:false,error:'Unexpected fan write'};}
+   }
+   else if(route==='/manage/fan-access')data={ok:true,fans:savedFans,recent:[]};
    else{status=404;data={ok:false,error:'Unmocked route: '+route};}
    void req.respond({status,contentType:'application/json',
      headers:{'Access-Control-Allow-Origin':'*',
@@ -128,6 +143,45 @@ try{
  // The owner may have opened the parent ACCESS panel. Secret retrieval is
  // covered by backend unit tests, not an automated click on a hidden UI control.
  assert.equal(await page.evaluate(()=>document.getElementById('brAccessLabel')?.value),'Test 1');
+ assert.equal(await page.$eval('#brAccessOfflineShortcut',b=>b.textContent),'OFFLINE');
+ await page.click('#brAccessOfflineShortcut');
+ assert.equal(await page.evaluate(()=>document.querySelector('[name="brAccessScope"][value="offline"]')?.closest('details')?.open),
+  true,'OFFLINE shortcut opens real saved-code permission editor');
+ await page.click('#brAccessFansShortcut');
+ await page.waitForFunction(()=>document.querySelector('#brCodeFansPanel')?.open===true&&
+   document.getElementById('brCodeFanSelect')?.options?.length>=3,{timeout:15000});
+ assert.equal(await page.$eval('#brFanActiveProfile',x=>x.hidden),true,
+  'Fan settings must stay concealed until a specific Vault profile is loaded');
+ await page.type('#brFanProfileSearch','Fan One');
+ await page.waitForFunction(()=>document.getElementById('brCodeFanSelect').options.length===2);
+ await page.select('#brCodeFanSelect','fan_aaaaaaa1');
+ await page.evaluate(()=>{
+   const panel=document.querySelector('#brCodeFansPanel');
+   [...panel.querySelectorAll('button')].find(x=>x.textContent==='LOAD').click();
+ });
+ await page.waitForFunction(()=>document.querySelector('#brFanActiveProfile')?.hidden===false);
+ const loaded=await page.evaluate(()=>({
+   title:document.querySelector('#brFanActiveProfile h3')?.textContent,
+   code:document.querySelector('#brCodeFanCode')?.value,
+   unrelatedVault:document.querySelector('#brFanPlaylistVault')?.hidden
+ }));
+ assert.match(loaded.title,/Fan One/);
+ assert.equal(loaded.code,'access_test1');
+ assert.equal(loaded.unrelatedVault,true,'All-fan playlist list must hide during single-profile view');
+ await page.evaluate(()=>{
+   const panel=document.querySelector('#brCodeFansPanel');
+   [...panel.querySelectorAll('button')].find(x=>x.textContent==='CLOSE PROFILE').click();
+ });
+ assert.equal(await page.$eval('#brFanActiveProfile',x=>x.hidden),true);
+ await page.type('#brFanProfileSearch','Fan Three');
+ await page.evaluate(()=>{
+   const panel=document.querySelector('#brCodeFansPanel');
+   [...panel.querySelectorAll('button')].find(x=>x.textContent==='NEW / SAVE').click();
+ });
+ await page.waitForFunction(()=>document.querySelector('#brFanActiveProfile h3')?.textContent?.includes('Fan Three'),{timeout:15000});
+ assert.equal(await page.$eval('#brCodeFanCode',x=>x.value),'',
+  'A new fan profile cannot inherit another fan access code');
+ console.log('PASS: ACCESS OFFLINE shortcut and Vault-backed FANS profile search/load/new/close stay isolated.');
  // Simulate a real iPhone with an authenticated owner but failed Vault read.
  outage=true;
  await page.reload({waitUntil:'domcontentloaded',timeout:45000});
