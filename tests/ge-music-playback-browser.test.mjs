@@ -120,5 +120,35 @@ try{
  const after=await source();
  if(!after.song.includes('Polaris')||after.calls<=before.calls)
   throw Error('One checked song did not repeat on ended: '+JSON.stringify({before,after}));
+ // Offline permissions are Vault scopes, never owner-demo-only. The exact
+ // name and storage contents are local to this test browser, not a fan's device.
+ const cacheCheck=await page.evaluate(async()=>{
+  const temporary='ge-radio-media-v3';
+  const background='ge-backgrounds-v1';
+  const shell='ge-radio-shell-qa-protected';
+  const unrelated='qa-unrelated-app-cache';
+  const musicURL=new URL('/ge-music/music/qa-offline.mp3',location.origin).href;
+  const bgURL=new URL('/ge-images/img/qa-offline.gif',location.origin).href;
+  const shellURL=new URL('/radio/index.html',location.origin).href;
+  await (await caches.open(temporary)).put(musicURL,new Response('test-song'));
+  await (await caches.open(background)).put(bgURL,new Response('test-image'));
+  const site=await caches.open(shell);
+  await site.put(shellURL,new Response('test-shell'));
+  await site.put(musicURL,new Response('test-old-shell-song'));
+  await (await caches.open(unrelated)).put('/untouched',new Response('unrelated'));
+  const removed=await window.GEOffline?.remove?.({silent:true});
+  const names=await caches.keys();
+  return {
+   removed,names,
+   shellOK:!!(await (await caches.open(shell)).match(shellURL)),
+   songPurged:!(await (await caches.open(shell)).match(musicURL)),
+   unrelatedOK:!!(await (await caches.open(unrelated)).match('/untouched'))
+  };
+ });
+ if(cacheCheck.removed!==true||cacheCheck.names.includes('ge-radio-media-v3')||
+    cacheCheck.names.includes('ge-backgrounds-v1')||!cacheCheck.shellOK||
+    !cacheCheck.songPurged||!cacheCheck.unrelatedOK)
+   throw Error('Offline remove did not completely purge GE assets while preserving app shell and other caches: '+JSON.stringify(cacheCheck));
+ console.log('PASS: confirmed OFFLINE removal purges old song/background caches but leaves app shell and other apps intact.');
  console.log('PASS: iPhone SONG rows use title only; row PLAY closes MUSIC, starts tapped song, loops checked queue, and one selected song repeats.');
 }finally{await browser.close()}
