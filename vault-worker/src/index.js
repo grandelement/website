@@ -2045,6 +2045,19 @@ async function adminFanAccess(request,env){
    recent_window_seconds:120,identity_note:"Online is recent recorded activity, not a verified live connection or real-world identity."});
  }
  const body=await readBody(request);
+ if(body.action==="create"){
+  // Owner-created named profile; not evidence of a verified site visitor.
+  // Same display name may be saved more than once with a distinct Vault ID.
+  const name=String(body.display_name||"").trim().replace(/\s+/g," ");
+  if(!name||name.length>80||/[<>\u0000-\u001f]/.test(name))
+   return json({ok:false,error:"Enter a fan profile name of 1 to 80 characters."},400);
+  const fanId=await upsertFan(env,{
+   display_name:name,consent_analytics:false,consent_contact:false,
+   metadata:{source:"backroom_owner_profile",identity_verified:false}
+  },{country:null,region:null,city:null,timezone:null});
+  await audit(env,"admin","fan.profile.create","fan",fanId,{owner_created:true});
+  return json({ok:true,fan_id:fanId,display_name:name,verified_identity:false},201);
+ }
  if(body.action==="label"){
   // Reuse the existing audit-logged Vault fan-label handler. Labels are
   // administrator notes, never verified identities and never IP lookups.
