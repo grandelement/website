@@ -3235,7 +3235,10 @@ const backroomVaultManagers=(()=>{
     $('brAccessCustomHelp').textContent=row?
       'Editing the name does NOT change the existing Radio key. Reveal or explicitly rotate the key.':
       'For NEW codes, the name becomes the Radio key after a confirmed Vault save.';
-    const scopes=row?row.scopes:['radio'];
+    // For a NEW owner-created access code, show all four visible utility
+    // permissions checked by default. Existing saved Vault permissions always
+    // win on LOAD and are never silently expanded or overwritten.
+    const scopes=row?row.scopes:['radio','offline','legacy','reload'];
     scopeBoxes().forEach(box=>box.checked=scopes.includes(box.value));
     $('brAccessMode').value=row?.duration_mode||'first_use';
     $('brAccessHours').value=row?.duration_seconds?Math.max(1,Math.round(row.duration_seconds/3600)):168;
