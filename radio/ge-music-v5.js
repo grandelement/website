@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.14-20261028-LEGACY-CATALOG-DISCOVERY';
+const BUILD='GE-MUSIC-V7.15-20261029-CLICK-PLAY-LOOP';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -344,7 +344,7 @@ function albumActions(album,tracks){
  const actions=elem('div','albumActions');
  if(tracks.length){
    const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play full album '+album);
-   play.addEventListener('click',()=>void playTrack(tracks[0],tracks.map(t=>t.path)));
+   play.addEventListener('click',()=>void playTrack(tracks[0],tracks.map(t=>t.path),true));
    actions.append(play);
  }
 
@@ -663,12 +663,10 @@ async function playTrack(track,queueOverride,showPlayer=false){
  if(window.GEGate?.isExpiredLocked?.()&&!codePermitted&&!testPermitted){
   window.GEGate?.restore?.();say('33:33 COMPLETE · ENTER ACCESS CODE.');return false;
  }
- if(codePermitted){
-   try{await musicCodeRequest({action:'verify',token:access.token,track_path:track.path})}
-   catch(error){
-     say('MUSIC CODE REJECTED · '+String(error.message||error));clearMusicAccess();return false;
-   }
- }
+ // This receipt was signed by Vault when the listener entered the code.
+ // The preview transport verifies the song against Vault separately.
+ // Never await a network request BEFORE the click-to-play handoff: iPhone
+ // Safari loses the transient audio gesture, making all PLAY buttons inert.
  // Test purchases are a local owner-only player rehearsal, not Vault access.
 
  // Existing preview transport remains in charge; code verification alone is
@@ -680,8 +678,9 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const baseline=entitlement?.restricted
   ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
   :state.tracks.map(t=>t.path);
- const custom=Array.isArray(queueOverride)&&queueOverride.length>0&&
-  (queue.length!==baseline.length||queue.some((path,index)=>path!==baseline[index]));
+ const custom=Array.isArray(queueOverride)&&queueOverride.length>0;
+ // Any explicitly selected checked-song queue is the listener's current playlist,
+ // even when every song in the library happens to be checked.
  const known=new Map(state.tracks.map(t=>[t.path,t]));
  const labels=queue.map(path=>{
   const song=known.get(path);
@@ -700,7 +699,16 @@ async function playTrack(track,queueOverride,showPlayer=false){
  say(outcome?.message||'Music preview is loading. Tap PLAY again.');
  return false;
 }
-async function playCheckedSongs(showPlayer=false){
+function checkedQueueStartingAt(track){
+ // Preserve the CHECKED playlist order, beginning at the song whose PLAY was tapped.
+ // An unchecked clicked song goes first without silently changing checkboxes.
+ const checked=selectedTracks().map(t=>t.path);
+ if(!checked.length)return [track.path];
+ const index=checked.indexOf(track.path);
+ return index>=0?[...checked.slice(index),...checked.slice(0,index)]:
+  [track.path,...checked];
+}
+async function playCheckedSongs(showPlayer=true){
  const tracks=selectedTracks();
  if(!tracks.length){say('Check at least one song to play.');return false}
  const inaccessible=musicAccessActive()?tracks.filter(t=>!canPlayTrack(t)):[];
@@ -733,14 +741,16 @@ function appendSong(parent,track){
      playlist_id:(state.view.startsWith('vault:')||state.view.startsWith('local:'))?state.view.slice(state.view.indexOf(':')+1):''
    });
  });
- const songText=elem('span','songLabel',track.title+' — '+track.album);
-  songText.title=track.title+' — '+track.album;
+ const songText=elem('span','songLabel',track.title);
+  // This SONGS list is already grouped under the album header. Keep the
+  // album in metadata, player labels, playlists, and all other displays.
+  songText.title=track.title;
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
  const actions=elem('div','songActions');
  const play=elem('button','','PLAY');play.type='button';play.setAttribute('aria-label','Play '+track.title);
- play.addEventListener('click',()=>void playTrack(track));actions.append(play);
+ play.addEventListener('click',()=>void playTrack(track,checkedQueueStartingAt(track),true));actions.append(play);
 
  row.append(label,actions);
  if(sorting){
@@ -1262,8 +1272,8 @@ el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
  if(event.key==='Enter'){event.preventDefault();void ownerLoginAndSave()}
 });
 
-el('.playSelected').addEventListener('click',()=>void playCheckedSongs());
-el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs());
+el('.playSelected').addEventListener('click',()=>void playCheckedSongs(true));
+el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
