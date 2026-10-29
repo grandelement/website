@@ -8637,6 +8637,19 @@ async function registerServiceWorker(){
       return;
     }
 
+    // OFF always works, including a partially downloaded library. Ask before
+    // deleting anything. Keeping downloaded media is the safe default.
+    if(isEnabled()){
+      if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
+      if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
+        await remove();
+      }else{
+        setEnabled(false);button.textContent='Go Offline';
+        setStatus('Offline off. Existing downloaded songs were kept.');
+      }
+      return;
+    }
+
     // Refresh from caches, but never remove music to reinitialize download.
     let prepared;
     try{
@@ -8649,25 +8662,12 @@ async function registerServiceWorker(){
       return;
     }
 
-    // A complete music set is already done. Do not ask to resume the final
-    // optional backgrounds / station clips / duplicated shell assets.
+    // A complete saved music set needs no re-download. If enabled again,
+    // use the verified existing cache; do not duplicate the same MP3 files.
     if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
-      if(!isEnabled()){
-        setEnabled(true);
-        reflectButton(prepared.audit);
-        setStatus('Offline enabled. Existing downloaded music was kept.');
-        return;
-      }
-      const keepFiles=confirm('Turn Offline off and KEEP the downloaded songs on this device?\n\nOK = Keep files\nCancel = More options');
-      if(keepFiles){
-        setEnabled(false);
-        button.classList.remove('active');
-        button.textContent='Go Offline';
-        setStatus('Offline mode is off. Downloaded files were kept.');
-        return;
-      }
-      const deleteFiles=confirm('Delete ALL downloaded offline songs and backgrounds from this device?');
-      if(deleteFiles) await remove();
+      setEnabled(true);
+      reflectButton(prepared.audit);
+      setStatus('OFFLINE enabled. All existing music was reused without downloading it again.');
       return;
     }
 
