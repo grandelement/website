@@ -12,6 +12,22 @@ const path='ge-music/music/Grand Element - 2026 - Aether/Aether_02-Polaris.mp3';
 try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:3});
  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1');
+ await page.evaluateOnNewDocument(()=>{
+  const play=HTMLMediaElement.prototype.play,pause=HTMLMediaElement.prototype.pause;
+  const trace=entry=>{
+   (window.__geAudioTrace||(window.__geAudioTrace=[])).push({at:Date.now(),...entry});
+  };
+  HTMLMediaElement.prototype.play=function(...args){
+   trace({action:'play',src:this.src,paused:this.paused,ready:this.readyState,where:location.pathname,stack:Error().stack?.slice(0,450)});
+   const result=play.apply(this,args);
+   Promise.resolve(result).catch(error=>trace({action:'play-rejected',name:error?.name,message:error?.message,src:this.src,where:location.pathname}));
+   return result;
+  };
+  HTMLMediaElement.prototype.pause=function(...args){
+   trace({action:'pause',src:this.src,paused:this.paused,where:location.pathname,stack:Error().stack?.slice(0,600)});
+   return pause.apply(this,args);
+  };
+ });
  await page.setRequestInterception(true);
  page.on('request',r=>{
   if(r.url().includes('/v1/public/access/music-session')){
@@ -55,7 +71,10 @@ try{
    return {src:audio?.src,time:audio?.currentTime,paused:audio?.paused,
     error:audio?.error?.message,ready:audio?.readyState,
     radioTitle:document.querySelector('#titleBtn')?.textContent,
-    frameStatus:document.querySelector('#geInlineMusicFrame')?.contentWindow?.document?.getElementById('status')?.textContent
+    frameStatus:document.querySelector('#geInlineMusicFrame')?.contentWindow?.document?.getElementById('status')?.textContent,
+    parentTrace:(window.__geAudioTrace||[]).slice(-14),
+    frameTrace:(document.querySelector('#geInlineMusicFrame')?.contentWindow?.__geAudioTrace||[]).slice(-14),
+    previewActive:window.GEInlineMusic?.active?.()
    };
   });
   throw Error('Real Polaris MP3 did not advance: '+JSON.stringify(status));
