@@ -557,7 +557,7 @@ export default {
       let body=null;
       if(request.method==='POST'){
         try{body=await request.json()}catch(_){return json({ok:false,error:'Invalid fan assignment request.'},400,cors)}
-        if(!['assign','label'].includes(body?.action))return json({ok:false,error:'Unknown fan assignment action.'},400,cors);
+        if(!['assign','label','create'].includes(body?.action))return json({ok:false,error:'Unknown fan assignment action.'},400,cors);
       }
       const upstream=await geVaultBridge(env,'/v1/admin/fan-access',request.method,body);
       return json(upstream.data,upstream.status,cors);
