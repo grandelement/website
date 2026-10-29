@@ -4790,9 +4790,13 @@ function displayTitle(url,withNumber=false){
 }
 // One title formula for Radio 1 metadata and Radio 2 program tracks.
 function radioDisplayMetadataTitle(raw,albumHint=''){
+  // Match the original Album • 02 • Song display in ALBUM mode,
+  // or Album • Song in SHUFFLE mode, on Radio 1 and Radio 2 alike.
+  // Existing dot-delimited metadata must not become a duplicate album.
   let title=String(raw||'').trim(),album=String(albumHint||'').trim();
   if(!title)return album||'Grand Element Radio';
   if(/^(?:grand element radio|ge station identification)$/i.test(title))return title;
+  title=title.replace(/^Grand Element\s*[-–—]\s*/i,'').trim();
   const parts=title.match(/^(.+?)\s*[•|]\s*(.+)$/);
   if(parts){if(!album)album=parts[1].trim();title=parts[2].trim()}
   const start=album&&title.toLowerCase().startsWith(album.toLowerCase())?
@@ -4801,7 +4805,7 @@ function radioDisplayMetadataTitle(raw,albumHint=''){
   const numbered=title.match(/^(\d{1,3})[\s_•-]+(.+)$/);
   if(numbered){
     const number=String(Number(numbered[1])).padStart(2,'0');
-    title=(state.shuffle?'':number+' ')+numbered[2].replace(/_+/g,' ').trim();
+    title=(state.shuffle?'':number+' • ')+numbered[2].replace(/_+/g,' ').trim();
   }
   return album?album+' • '+title:title;
 }
@@ -5637,7 +5641,14 @@ function rebuildQueue(anchor=state.currentURL){
   return anchor;
 }
 function syncModeButtons(){
-  setPressed($('shuffleBtn'),state.shuffle);
+  const toggle=$('shuffleBtn');
+  setPressed(toggle,state.shuffle);
+  if(toggle){
+    // This button names the NEXT mode, not the currently active mode.
+    toggle.textContent=state.shuffle?'ALBUM':'SHUFFLE';
+    toggle.setAttribute('aria-label',state.shuffle?'Switch to album order':'Switch to shuffle order');
+    toggle.title=state.shuffle?'Currently SHUFFLE; tap for ALBUM':'Currently ALBUM; tap for SHUFFLE';
+  }
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
@@ -7275,7 +7286,7 @@ $('shuffleBtn').addEventListener('click',()=>{
     syncModeButtons();
     if(radio2.active)titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||'');
     else if(window.GELiveMetadata?.getTitle?.())titleBtn.textContent=window.GELiveMetadata.getTitle();
-    setStatus('Personal music shuffle '+(state.shuffle?'ON':'OFF')+' · Radio continues unchanged.');
+    setStatus('Personal music '+(state.shuffle?'SHUFFLE':'ALBUM')+' order · Radio continues unchanged.');
     return;
   }
   if(!geOwnerDemoEnabled()){
@@ -7361,6 +7372,10 @@ function geOpenQuickSongPanel(){
   geQuickSongPanel.hidden=false;
   geQuickSongPanel.scrollTop=0;
   titleBtn.setAttribute('aria-expanded','true');
+  // Restore the original title-tap scroll picker, centered on the current
+  // song instead of opening at the top every time.
+  const selected=geQuickSongPanel.querySelector('[aria-current="true"]');
+  if(selected)requestAnimationFrame(()=>selected.scrollIntoView({block:'nearest',behavior:'instant'}));
   const b=titleBtn.getBoundingClientRect();
   const vh=window.innerHeight,below=vh-b.bottom-14;
   const preferredHeight=Math.min(440,Math.round(vh*.52));
