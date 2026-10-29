@@ -7375,7 +7375,7 @@ function geOpenQuickSongPanel(){
   // Restore the original title-tap scroll picker, centered on the current
   // song instead of opening at the top every time.
   const selected=geQuickSongPanel.querySelector('[aria-current="true"]');
-  if(selected)requestAnimationFrame(()=>selected.scrollIntoView({block:'nearest',behavior:'instant'}));
+  if(selected)requestAnimationFrame(()=>selected.scrollIntoView({block:'nearest',behavior:'auto'}));
   const b=titleBtn.getBoundingClientRect();
   const vh=window.innerHeight,below=vh-b.bottom-14;
   const preferredHeight=Math.min(440,Math.round(vh*.52));
@@ -8595,10 +8595,29 @@ async function registerServiceWorker(){
   }
 
   async function remove(){
-    // Clear the saved plan before deleting the cache, or clearOfflinePlan()
-    // would recreate an empty media cache immediately after removal.
+    // A deliberate confirmed deletion removes GE offline media from ALL
+    // generations, not only today's media-v4 cache. Leave the app shell
+    // installed and never touch other websites' caches or Vault settings.
+    abortController?.abort();
     await clearOfflinePlan();
-    await caches.delete(CONFIG.OFFLINE_CACHE);
+    const names=await caches.keys();
+    for(const name of names){
+      if(/^ge-radio-media(?:-|$)|^ge-backgrounds(?:-|$)/.test(name)){
+        await caches.delete(name);continue;
+      }
+      // Earlier builds also cached MP3s and full-size backgrounds in shell
+      // or custom GE caches. Remove those assets without erasing the UI shell.
+      if(!/^ge-radio-|^ge-background/.test(name))continue;
+      const cache=await caches.open(name);
+      for(const request of await cache.keys()){
+        let pathname='';
+        try{pathname=decodeURIComponent(new URL(request.url).pathname)}catch(_){}
+        if(/^\/(?:ge-music\/|ge-images\/img\/)/i.test(pathname) &&
+           /\.(?:mp3|m4a|ogg|wav|gif|png|jpe?g|webp)$/i.test(pathname)){
+          await cache.delete(request);
+        }
+      }
+    }
     offlineAvailability.songs.clear();
     offlineAvailability.stations.clear();
     saveOfflineAvailability();
@@ -8611,7 +8630,7 @@ async function registerServiceWorker(){
   }
 
   button.addEventListener('click',async()=>{
-    if(!geRadioLocalTestAccess())return; // Future production: verify membership server-side.
+    if(!geRadioUtilityAllowed('offline'))return; // Honor verified Vault offline scope.
     if(button.classList.contains('downloading')){
       abortController?.abort();
       await setOfflinePlanAutoResume(false);
@@ -8796,6 +8815,11 @@ async function registerServiceWorker(){
     updateMissing:(options={})=>cacheMissingAssets({quiet:false,reason:'manual',...options}),
     audit:async()=>auditAssets(await buildAssetList(),{copyExisting:true}),
     diagnose:diagnoseOffline,
+    remove:async({silent=false}={})=>{
+      if(!geRadioUtilityAllowed('offline')&&!silent)return false;
+      if(!silent&&!confirm('Remove ALL saved GE Radio offline songs and backgrounds on THIS device? This cannot be undone.'))return false;
+      await remove();return true;
+    },
     approvedPlan:()=>activePlan
   };
 })();
