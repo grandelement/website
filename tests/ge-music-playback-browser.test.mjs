@@ -68,8 +68,26 @@ try{
  await clickRow('Polaris');
  await page.waitForFunction(()=>!window.GEMusicV5.state().open,{timeout:10000});
  let state=await source();
- if(!state.song.includes('Polaris')||!state.title.includes('Polaris')||!state.queue.includes('2 SONGS'))
-  throw Error('Clicking Polaris did not close MUSIC and start checked queue: '+JSON.stringify(state));
+ if(!state.song.includes('Polaris')||!state.title.includes('Aether • 02 • Polaris')||!state.queue.includes('2 SONGS'))
+  throw Error('Clicking Polaris did not close MUSIC and start dotted-title checked queue: '+JSON.stringify(state));
+ const modes=await page.evaluate(()=>{
+  const prior=state.shuffle;
+  state.shuffle=false;const album=radioDisplayMetadataTitle('Aether • 02-Polaris');
+  state.shuffle=true;const shuffle=radioDisplayMetadataTitle('Aether • 02-Polaris');
+  state.shuffle=prior;syncModeButtons();
+  return {album,shuffle,modeButton:document.getElementById('shuffleBtn')?.textContent};
+ });
+ if(modes.album!=='Aether • 02 • Polaris'||modes.shuffle!=='Aether • Polaris'||
+    modes.modeButton!=='SHUFFLE')
+  throw Error('Radio dotted metadata or SHUFFLE/ALBUM mode switch regressed: '+JSON.stringify(modes));
+ await page.click('#titleBtn');
+ const picker=await page.evaluate(()=>({
+  visible:document.getElementById('geQuickSongPanel')?.hidden===false,
+  choices:document.querySelectorAll('#geQuickSongPanel button').length
+ }));
+ if(!picker.visible||picker.choices<2)
+  throw Error('Radio title no longer opens scrollable song picker: '+JSON.stringify(picker));
+ await page.click('#titleBtn');
  // Forward and backward stay inside the checked queue, even after its end.
  await page.click('#nextBtn');
  state=await source();
