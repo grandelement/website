@@ -6572,8 +6572,14 @@ document.addEventListener('keydown',event=>{
 });
 let geInlineMusicGateAutoOpened=false;
 function geInlineMusicSend(action){
-  if(!geInlineMusicFrame?.contentWindow)return;
-  geInlineMusicFrame.contentWindow.postMessage({type:'ge-radio-music-control',action},location.origin);
+  const frame=geInlineMusicFrame?.contentWindow;
+  if(!frame)return;
+  // Direct same-origin transport keeps iPhone Safari's user activation for
+  // PLAY/PAUSE/NEXT/PREV. postMessage runs later and loses the audio gesture.
+  try{
+    if(typeof frame.GEControlMusicQueue==='function'&&frame.GEControlMusicQueue(action))return;
+  }catch(error){console.warn('Personal Music transport handoff',error)}
+  frame.postMessage({type:'ge-radio-music-control',action},location.origin);
 }
 function geInlineMusicSyncTransport(){
   if(!geInlineMusicActive)return;
