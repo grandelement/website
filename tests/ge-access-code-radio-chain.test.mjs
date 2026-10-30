@@ -33,7 +33,7 @@ assert.match(radio,/const m=result.music_session/,
  'Radio Gate must consume its returned Music entitlement');
 assert.match(radio,/sessionStorage.setItem\('GE_MUSIC_CODE_SESSION_V1'/);
 assert.match(backroom,/id="brAccessDisplayName"/,'owner must have a separate, optional fan/access display name');
-assert.match(backroom,/if\(!existing&&\!displayName\)throw Error/,'new access codes require a listener name');
+assert.match(backroom,/if\(displayName.length>80/,'optional listener name is length-validated');
 assert.match(backroom,/display_name:displayName/,'existing GE Vault code name field is saved');
 assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
  'Radio Gate inherits the saved name from the correct Vault code');
