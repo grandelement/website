@@ -179,7 +179,7 @@ allIn(radio,[
   "function geRadioLocalTestAccess(){",
   "window.GERadioSyncOfflineAccess=syncRadioOfflineAccessUI",
   "if(show&&!geRadioLocalTestAccess())return",
-  "if(!geRadioLocalTestAccess())return; // Future production",
+  "function geRadioUtilityAllowed(feature){",
   "body:not(.ge-offline-entitled) #sunLabBtn",
   "body:not(.ge-offline-entitled) #offlineBtn",
   "#radioPreviewClock{display:none!important}",
@@ -188,7 +188,7 @@ allIn(radio,[
   "function ensureLiveEQ(){",
   "const missingSongFiles=audit.missing.filter(item=>item.type==='song');",
   "if((gs.expired&&!authorized())||!state.live||radio2.active||!GATE_CONFIG.liveMetadataURL)return"
-], 'LOVE developer-only Radio UI and quiet native-safe Gate');
+], 'Vault-scoped Radio utilities and quiet native-safe Gate');
 
 // Native iPhone playback takes priority over the separate Sun Lab tap.
 // A successful play()/playing event is NOT evidence that the MP3 is audible.
