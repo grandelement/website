@@ -107,7 +107,7 @@ r=await request(admin,undefined,true);
 assert.equal(r.status,200,JSON.stringify(r.data));
 assert.equal(r.data.items.length,1);
 assert.equal(r.data.items[0].label,'LOVE · Original All Access');
-assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games']);
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload']);
 assert.equal(record.code_hash,legacyHash,'LOVE hashed with private Vault secret');
 assert.equal(schemaReady,true,'missing D1 Access Codes tables must be created by authenticated GET');
 assert.equal(schemaBatches,1,'Access Codes schema migrated exactly once');
@@ -137,7 +137,7 @@ assert.equal(r.data.code,'LOVE');
 record.scopes_json=JSON.stringify(['radio']);
 record.label='LOVE · Original Radio Gate';
 r=await request(admin,undefined,true);
-assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games'],
+assert.deepEqual(r.data.items[0].scopes,['website','radio','music','albums','games','offline','legacy','reload'],
   'existing mis-imported Radio-only LOVE is upgraded in-place');
 assert.equal(r.data.items[0].label,'LOVE · Original All Access');
 assert.equal(migrationCount,1,'permission correction does not issue a second LOVE record');
@@ -172,4 +172,4 @@ r=await request(admin,{action:'issue',label:'three-char invalid',scopes:['radio'
  duration_mode:'none',requested_code:'ABC'},true);
 assert.equal(r.status,400,'codes shorter than four characters remain disallowed');
 assert.ok(auditCount>=4);
-console.log('PASS: original LOVE credential stays active with all five scopes, owner-retrievable, and in-place migration preserves suspension/revocation');
+console.log('PASS: original LOVE credential stays active with all currently supported scopes, owner-retrievable, and in-place migration preserves suspension/revocation');
