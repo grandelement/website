@@ -60,3 +60,28 @@ jobs:
           wrangler deploy --config backroom/wrangler.toml
           echo "Deployed publisher with private GE_VAULT service binding to ge-studios-vault."
           echo "Workers uploaded. Real owner/browser redemption still requires validation."
+      - name: Verify production Vault and protected Back Room
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error
+          def health(url):
+              with urllib.request.urlopen(url, timeout=15) as response:
+                  return json.load(response)
+          vault=health('https://vault.grandelement.com/health')
+          if vault.get('ok') is not True or vault.get('storage') != 'READY' or vault.get('access_codes_ready') is not True:
+              raise SystemExit('Vault deployment incomplete or access-code D1 tables unavailable: '+str(vault))
+          print('PASS: production Vault and Access Codes D1 ready')
+          back=health('https://ge-backroom-publisher.grandelement.workers.dev/health')
+          if back.get('ok') is not True or back.get('configured') is not True or back.get('playlist_storage') != 'GITHUB' or back.get('github_playlists_endpoint') is not True:
+              raise SystemExit('Back Room production configuration unavailable: '+str(back))
+          print('PASS: Back Room publisher and GitHub playlist endpoint ready')
+          for path in ('/manage/github-playlists','/manage/fan-access'):
+              url='https://ge-backroom-publisher.grandelement.workers.dev'+path
+              try:
+                  with urllib.request.urlopen(url, timeout=15) as r:
+                      raise SystemExit('SECURITY ERROR: '+path+' returned '+str(r.status)+' without owner authorization')
+              except urllib.error.HTTPError as error:
+                  if error.code != 401:
+                      raise SystemExit('SECURITY ERROR: '+path+' returned '+str(error.code)+' instead of 401')
+          print('PASS: private management routes reject anonymous callers')
+          PY
