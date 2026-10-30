@@ -20,8 +20,11 @@ new Script(v5,{filename:'radio/ge-music-v5.js'});
 assert.match(backroom,/\/manage\/github-playlists/);
 assert.match(publisher,/GITHUB_PLAYLISTS_PATH='playlists\/registry.json'/);
 assert.equal(registry.format,'ge-playlist-registry-v1');
-assert.ok(registry.playlists.some(p=>p.name==='Test 2'&&p.visibility==='unlisted'),
- 'preserve Test 2 as an unlisted owner playlist, not a public playlist');
+// Test 2 is an access code, not a required publisher playlist.
+assert.equal(registry.playlists.find(p=>p.name==='Bangers')?.songs.length,33,
+ 'preserve the original 33-song Bangers master');
+assert.equal(registry.playlists.find(p=>p.name==='Johnb')?.songs.length,15,
+ 'preserve the existing Johnb master');
 assert.match(vault,/\(scopes.includes\("radio"\)\&\&allowedPaths.length>0\)/,
  'radio codes with explicit assigned tracks may access only those tracks');
 assert.match(vault,/music_session=\{token:unsigned/,
