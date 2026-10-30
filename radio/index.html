@@ -3062,7 +3062,11 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #sunEQFog{inset:-36%!imp
 }
 /* Hide pre-purchase download controls. Offline library management belongs in MY MUSIC
    once actual purchased-music entitlements exist; local owner-demo != purchase. */
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn{display:none!important}
+/* RELOAD remains available only after a server-verified reload scope.
+   The JS hidden attribute decides entitlement; never unconditionally hide it. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn[hidden]{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #reloadBtn:not([hidden]){display:flex!important;align-items:center!important;justify-content:center!important;grid-area:2/1/3/2!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn[hidden]{display:none!important}
 /* Offline remains available to an explicitly unlocked local owner/demo only.
    The hidden attribute still controls visibility for other listeners. */
 html.ge-radio-ui body.view-player.ge-offline-entitled:not(.iam-studio-open) #bottomActions #offlineBtn:not([hidden]){
@@ -4055,6 +4059,75 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #legacyBt
   }
 }
 </style>
+<style id="ge-radio-ios-safari-visible-viewport-20261029">
+/* Browser chrome is not page space. Keep iPhone text and allowed utility
+   buttons reachable when Safari expands its address or bottom toolbars. */
+@media (orientation:portrait) and (max-width:700px){
+  html.ge-radio-ui:has(body.view-player.portrait-player:not(.iam-studio-open)){
+    scroll-padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
+    padding-bottom:calc(22px + env(safe-area-inset-bottom))!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) .wrap > footer,
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) .wrap > #radioCopyright{
+    display:block!important;visibility:visible!important;position:static!important;
+    flex:0 0 auto!important;width:100%!important;
+    margin:2px auto!important;padding:0 3px!important;
+    line-height:1.25!important;text-align:center!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
+    gap:clamp(2px,.4dvh,4px)!important;
+    padding-top:5px!important;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom))!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap{
+    width:clamp(96px,14.8dvh,132px)!important;height:clamp(96px,14.8dvh,132px)!important;
+    margin-bottom:5px!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow{
+    flex:0 0 auto!important;min-height:60px!important;height:62px!important;
+    margin:2px auto!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchBtn{
+    width:62px!important;height:62px!important;min-height:62px!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #bgGroup{
+    margin-top:2px!important;margin-bottom:0!important;padding:5px!important;gap:4px!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+    margin-top:3px!important;margin-bottom:2px!important;padding:4px!important;gap:4px!important;
+  }
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > button,
+  html.ge-radio-ui.ge-safari-browser-compact body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > .bc-btn{
+    min-height:36px!important;
+  }
+}
+/* Explicit hidden wins over the earlier legacy grid-placement rules.
+   An expired or limited code must not show unauthorized controls. */
+html.ge-radio-ui body.view-player #bottomActions #reloadBtn[hidden],
+html.ge-radio-ui body.view-player #bottomActions #offlineBtn[hidden],
+html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
+  display:none!important;
+}
+</style>
+<script id="ge-radio-ios-visible-viewport">
+(()=>{
+  const root=document.documentElement;
+  function adapt(){
+    const standalone=window.matchMedia?.('(display-mode: standalone)').matches===true||
+      navigator.standalone===true;
+    const portrait=window.matchMedia?.('(orientation: portrait) and (max-width:700px)').matches===true;
+    const height=Math.round(window.visualViewport?.height||window.innerHeight||0);
+    root.classList.toggle('ge-safari-browser-compact',!standalone&&portrait&&height>0&&height<820);
+  }
+  adapt();
+  window.visualViewport?.addEventListener('resize',adapt,{passive:true});
+  window.addEventListener('resize',adapt,{passive:true});
+  window.addEventListener('orientationchange',adapt,{passive:true});
+  window.addEventListener('pageshow',adapt,{passive:true});
+})();
+</script>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
