@@ -3797,7 +3797,7 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
 }
 </style>
 <style id="ge-home-radio-ui-v1">
-/* Homepage has one station stream. Visitors cannot manually skip its songs. */
+/* Homepage plays BLITZ Radio 1 only. Visitors cannot manually skip songs. */
 /* The GRAND ELEMENT RADIO link replaces the original mini-player Play position.
    Bright iridescent call-to-action without adding text to the Blue Sun. */
 #mini #geHomeRadioLink{
@@ -3834,6 +3834,35 @@ body:not(.game-mode-active) .moon.radio-live-reactive::after{transform:scale(cal
     rgba(207,172,255,.20) 58%,rgba(255,255,255,0) 72%,transparent 85%);
   transform:translateX(-145%);
   animation:geHomeRadioIridescentSweep 5s ease-in-out infinite;
+}
+/* Keep the Radio button dark like its neighbors until the BLITZ stream
+   actually advances. Only a verified connection starts the red heartbeat. */
+#mini #geHomeRadioLink{
+  background:rgba(9,30,49,.55)!important;
+  border-color:rgba(97,185,233,.47)!important;
+  color:#f5f7fa!important;
+  box-shadow:none!important;text-shadow:none!important;
+  animation:none!important;
+}
+#mini #geHomeRadioLink::before{
+  content:none!important;display:none!important;animation:none!important;
+}
+@keyframes geHomeBlitzConnectedBeat{
+  0%,100%{box-shadow:0 0 2px rgba(220,25,66,.12);filter:brightness(.7)}
+  19%{box-shadow:0 0 13px rgba(220,25,66,.45);filter:brightness(1)}
+  28%{box-shadow:0 0 22px rgba(245,28,78,.75);filter:brightness(1.35)}
+  39%{box-shadow:0 0 10px rgba(220,25,66,.3);filter:brightness(.8)}
+  55%{box-shadow:0 0 17px rgba(235,31,73,.62);filter:brightness(1.15)}
+  76%{box-shadow:0 0 4px rgba(220,25,66,.16);filter:brightness(.74)}
+}
+body.ge-home-radio-connected #mini #geHomeRadioLink{
+  background:linear-gradient(180deg,#d42c4d,#a41430)!important;
+  border-color:rgba(255,99,133,.92)!important;
+  color:#fff!important;
+  animation:geHomeBlitzConnectedBeat 6.7s ease-in-out infinite!important;
+}
+@media(prefers-reduced-motion:reduce){
+  body.ge-home-radio-connected #mini #geHomeRadioLink{animation:none!important;filter:none!important}
 }
 #mini #geHomeRadioLink:hover{
   transform:translateY(-1px) scale(1.025);
@@ -14831,7 +14860,7 @@ document.head.appendChild(sheet);
 #geCourseMode .geCourseBoard{background-color:#010713!important}
 #geCourseMode.geGolfShapedCourse .geGolfFloor{fill:rgba(3,20,36,.46)!important}
 </style>
-<script src="./radio/website-live.js?v=2"></script>
+<script src="./radio/website-live.js?v=3"></script>
 <script src="./radio/ge-home-gate-stop.js?v=20261027-vault-scoped-gate-1"></script>
 <style id="ge-code-experience-presentation">
 /* Presentation preferences from a Vault-redeemed Website code.

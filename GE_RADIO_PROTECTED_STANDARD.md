@@ -1,6 +1,6 @@
 # GE RADIO / MUSIC — PROTECTED WORKING STANDARD
 Status: protected baseline established 2026-10-28
-Scope: Grand Element home, Radio 1 / Radio 2, GE Music library, playlists, Gate and Back Room integration.
+Scope: Grand Element home, public BLITZ Radio 1, stored Radio 2 infrastructure, GE Music library, playlists, Gate and Back Room integration.
 
 ## Change control — read before every edit
 This file is a feature preservation contract, not permission to redesign the interface.
@@ -8,8 +8,8 @@ Only change the subsystem requested, with the smallest diff possible. Before edi
 1. Retrieve CURRENT main commit and existing source, compare to last working changes. A parallel GE Vault or Back Room thread may have made newer updates.
 2. Record existing controls/features touched by the change. Keep their selectors, behavior, state transitions and existing saved data.
 3. Make one focused change. Do not modify or re-create published playlists, access codes, fan records or radio media unless explicitly requested.
-4. Run `node tests/ge-radio-standard-guard.test.mjs` and the existing GE Radio Music / Access / Safari tests. Fail means BLOCK deployment or revert only the offending change.
-5. Verify both mobile Safari and desktop, RADIO placeholder before audio / verified connected red dimmer heartbeat with one-tap solid acknowledgement, Music SONGS and PLAYLISTS, loaded playlist ordering, each play control, and Gate enforcement.
+4. Run `node tests/ge-radio-standard-guard.test.mjs` and the current Radio1-only, Music / Access / Safari tests. Fail means BLOCK deployment or revert only the offending change.
+5. Verify mobile Safari and desktop, visible neutral RADIO before verified playback / red double-beat only after progress, reconnect taps, Music SONGS and PLAYLISTS, loaded order, each play control, and Gate enforcement.
 6. Do not describe a live deployment or end-to-end success until the actual production workflow and browser verification succeed.
 
 ## Mandatory Music interface
@@ -22,13 +22,14 @@ Only change the subsystem requested, with the smallest diff possible. Before edi
 - Footer CLEAR, ARRANGE and PLAY controls remain accessible, including when arranging. ACCESS CODE toggle stays purple and collapsible.
 - Preserved controls are NOT removed as a side effect of another change. No duplicate BUY buttons inside Music; store/gate/payment flows are separate.
 
-## Mandatory Radio behaviors
-- **Updated October 28 visual requirement (latest instruction supersedes the earlier contained-only heartbeat):** Before verified forward progress of the native Radio 1/2 audio, the RADIO button location is a transparent empty slot without text, color, outline, or glow. It does not block unrelated transport. On verified audible progress, the same RADIO button fades into view and the **entire button** breathes red with a smooth two-beat dimmer envelope (0 to 10 on first beat, back down, a smaller second rise, and a smooth decline to zero). Use the existing Fire-era red album palette and a restrained outward red glow; do not scale or flash adjacent controls. On the first listener tap **after connection**, stop the animation and leave a steady red RADIO button. Reset the acknowledgement when connection is lost. Honor reduced-motion preferences. Implemented in `#ge-radio-connected-red-dimmer-20261028` and `updateRadioStartupCue` in `radio/index.html` without removing older styles or connection logic.
-- **Connection message visibility:** Keep `setLiveStatus()` and Radio 1 / Radio 2 connecting, connected, retry and failure states intact for diagnostics and future UI. The former black `#liveStatus` banner is **temporarily hidden** on screen. Its underlying wrap and content-sized width CSS must be corrected and preserved so it can be re-enabled without stretching across the player. Do not replace it with the obsolete backup-rotation message. A connection can take the existing time windows; do not shorten the watchdog or replace authentic Radio 2 with a random playlist.
-
-- Preserve Radio 1 primary and Radio 2 backup, their verified failover, BLITZ Bangers default, title, progress, transport, shuffle, clock and visualizer effects.
-- Do not change the Blue Sun, planets, I AM studio, background selectors, responsive positioning, Ship controls, or screen rotation when editing the Music dialog.
-- Preserve the existing radio preview Gate (33:33, 2013 seconds), verified access scopes and fan permissions. UI hiding is not an authorization mechanism.
+## Mandatory Radio behaviors (owner revision 2026-10-30)
+- **BLITZ Radio 1 is the only public station.** Radio 2 is disabled in the listener, including error handling and retries. Do not substitute scheduled Radio 2 tracks or a personal playlist for the BLITZ stream. Preserve the old backup service configuration without activating it.
+- **Connect as soon as visitors arrive.** The main homepage and Radio page both attempt Radio 1 automatically. Some browsers, particularly iPhone Safari, require a real tap for unmuted audio; when blocked, leave the same Radio 1 source ready and allow direct RADIO or PLAY retries. Never claim that a browser can be forced to allow audible autoplay.
+- **RADIO visible while connecting:** The original RADIO button and its Ship proxy always display RADIO with the same dark and light text/border treatment as other controls. Never leave a transparent, blocked, or unclickable empty slot. Repeated taps can retry the same BLITZ stream; do not start a second source.
+- **Connected heartbeat:** Only verified forward audio progress of the native BLITZ stream changes the RADIO button to red with the smooth two-beat 6.7-second heartbeat. Retain the Fire red palette, minimal outward glow, no scale change or adjacent animation, and reduced-motion support. The heartbeat persists while connected and resets on lost progress, pause or reconnect.
+- **Connection diagnostics:** Keep `setLiveStatus()`, connecting, connected, retry and failure state messages intact, although the old black `#liveStatus` banner stays hidden. Its sizing and text wrapping remain correct for later reactivation. Keep the 115-second Radio 1 connection watchdog without shortening its existing cold-start window.
+- Preserve Radio 1 title, progress, transport, shuffle, clock, visualizers, Bangers playlists, and Gate. Keep the Blue Sun, planets, I AM studio, responsive positioning, Ship controls, and screen rotation unchanged.
+- Preserve the existing radio preview Gate (33:33, 2013 seconds), verified access scopes and fan permissions. UI hiding is not authorization.
 
 ## Mobile / Safari
 - An ordinary iPhone Safari Mobile Website request uses responsive mobile viewport and controls. Safari's explicit Request Desktop Website or Mobile Website is the browser's choice; never silently force desktop on a normal iPhone UA.
@@ -44,7 +45,7 @@ Only change the subsystem requested, with the smallest diff possible. Before edi
 
 ## Verification and rollback
 - CI standard guard: `tests/ge-radio-standard-guard.test.mjs`; scheduled / push workflow: `.github/workflows/ge-radio-standard-guard.yml`.
-- Existing coverage includes `tests/ge-unified-playlist-library.test.mjs`, `tests/ge-safari-layout-mode.test.mjs`, access-code Radio chain, Radio1/2 playback and website regression checks.
+- Existing coverage includes `tests/ge-unified-playlist-library.test.mjs`, `tests/ge-safari-layout-mode.test.mjs`, access-code Radio chain, Radio1-only playback and website regression checks.
 - The last pre-V7.1 interface checkpoint was `fd2b9fda16ed`; it is a comparison/rollback reference, not permission to revert newer Vault work.
 - If a regression is discovered, fix the broken UI behavior with a targeted commit. Do not reset the entire repository, replace the playlist registry, delete access codes or overwrite parallel-thread work.
 - Require this CI check for pull requests in GitHub repository Rulesets/branch protection to hard-block merges. Automated checks alone do NOT prevent direct pushes to main until this setting is enabled by a repository administrator.

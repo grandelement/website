@@ -85,36 +85,43 @@ requireText(radio,/GEPlayLibraryQueue\(queue,path,playlistName\)/,'Radio must ha
 requireText(player,/selectedSongs=tracks\.slice\(\)/,'Music player must show current queue');
 requireText(player,/openMusicList\(false\)/,'Music player must open the arranged list');
 
-// The approved heartbeat is a dimmer-like red fill and restrained outward
-// glow. It only appears after advancing native audio, and becomes steady red
-// on the listener's first tap. The status DOM and messages remain in place,
-// but the black banner is visually hidden until the user asks to restore it.
+// Owner revision 2026-10-30: BLITZ Radio 1 exclusively, auto-attempt on
+// arrival, visible neutral RADIO control until real forward audio progress.
 const pulseStyleStart=radio.indexOf('<style id="ge-radio-connected-red-dimmer-20261028">');
-assert.ok(pulseStyleStart>=0,'REGRESSION: current connected-only RADIO dimmer stylesheet removed');
+assert.ok(pulseStyleStart>=0,'REGRESSION: connected-only red dimmer stylesheet removed');
 const pulseStyleEnd=radio.indexOf('</style>',pulseStyleStart);
 assert.ok(pulseStyleEnd>pulseStyleStart,'REGRESSION: RADIO dimmer style not closed');
 const pulseStyle=radio.slice(pulseStyleStart,pulseStyleEnd);
 for(const text of [
  '@keyframes geRadioRedDimmerLubDub',
  'animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important',
- '.ge-radio-audible.ge-radio-pulse-ack',
- 'pointer-events:none!important',
+ 'opacity:1!important;pointer-events:auto!important',
+ 'background:rgba(9,30,49,.55)!important',
+ 'border-color:rgba(97,185,233,.47)!important',
  'prefers-reduced-motion:reduce',
  'width:max-content!important',
  'overflow-wrap:anywhere!important',
  'body #liveStatus,body #liveStatus.show',
  'display:none!important'
 ])assert.ok(pulseStyle.includes(text),'REGRESSION: missing approved RADIO behavior '+text);
-assert.ok(radio.includes("document.body.classList.toggle('ge-radio-audible'"),'REGRESSION: native audio-verified indicator missing');
-assert.ok(radio.includes("document.body.classList.add('ge-radio-pulse-ack')"),'REGRESSION: listener cannot stop pulse');
-assert.ok(radio.includes("if(!connected)document.body.classList.remove('ge-radio-pulse-ack')"),'REGRESSION: pulse does not reset on disconnect');
-assert.ok(radio.includes("button.textContent=connected?'RADIO':''"),'REGRESSION: RADIO appears before connection');
-assert.ok(radio.includes('function setLiveStatus(text,show=true)'), 'REGRESSION: underlying radio status handling deleted');
-requireText(radio,/115000/,'Radio 1 startup watchdog is too short');
-requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'extended Radio 1 startup notice missing');
-requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'long-running Radio 1 notice missing');
-requireNot(radio,/id="ge-protected-radio-red-pulse-v1"/,'obsolete always-red heartbeat stylesheet restored');
-requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO indicator must follow audio state');
+requireText(radio,/const GE_RADIO2_DISABLED=true/,'Radio 2 must remain disabled for all public listeners');
+requireText(radio,/if\(GE_RADIO2_DISABLED\)return retryRadio1Only\(reason\)/,'Radio 2 failover bypass removed');
+requireText(radio,/void requestRadioStart\(\{deferPlay:qrArrival\}\)/,'Radio must try BLITZ on page arrival');
+requireText(home,/website-live\.js\?v=3/,'Homepage must load automatic BLITZ controller');
+const homeRadio=read('radio/website-live.js');
+requireText(homeRadio,/if\(allowed\(\)\)start\(\)/,'Homepage must attempt original BLITZ station on arrival');
+requireText(homeRadio,/STREAM='https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3'/,'Homepage stream must remain BLITZ');
+requireText(home,/ge-home-radio-connected/,'Homepage heartbeat only after verified stream');
+requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'Radio heartbeat not tied to actual player');
+requireText(radio,/button\.textContent='RADIO'/,'RADIO text must always be visible, even when reconnecting');
+requireNot(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/,'Successful Radio tap must not permanently stop heartbeat');
+requireText(radio,/Date\.now\(\)-lastRadio1Progress>8000/,'RADIO tap must retry a stalled primary');
+requireText(radio,/function setLiveStatus\(text,show=true\)/,'Underlying live status removed');
+requireText(radio,/115000/,'Radio 1 watchdog shortened');
+requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'Long startup message removed');
+requireText(radio,/RADIO 1 · STILL CONNECTING · AUDIO WILL START WHEN READY/,'Radio 1 warm-up window removed');
+requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO button state removed');
+requireNot(radio,/id="ge-protected-radio-red-pulse-v1"/,'Old always-red style restored');
 
 // First paint must use the saved Radio layout before deferred scripts
 // style the MUSIC button or accessibility-fit desktop more than once.
@@ -171,4 +178,4 @@ new Script(player.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1]||'',{filenam
 requireText(sw,/const MEDIA_CACHE='ge-radio-media-v4'/,'Do not erase or rename cached listener audio');
 requireText(sw,/ge-radio-shell-\$\{VERSION\}/,'Service Worker UI cache rotation missing');
 assert.ok(read('GE_RADIO_PROTECTED_STANDARD.md').includes('## Mandatory Music interface'),'Protected standard document missing');
-console.log('PASS GE RADIO PROTECTED STANDARD: catalog, playlists, controls, bounded Radio1 warmup, verified connected red dimmer, hidden status, Safari, Gate and cache');
+console.log('PASS GE RADIO PROTECTED STANDARD: BLITZ Radio1 only, visible neutral retry, auto-attempt, progress-verified red heartbeat, music, Safari, Gate and cache');

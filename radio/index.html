@@ -3890,16 +3890,24 @@ body.view-player.portrait-player:not(.iam-studio-open) #liveStatus.show{
 }
 </style>
 <style id="ge-radio-connected-red-dimmer-20261028">
-/* GE RADIO: no visual RADIO switch until native audio has confirmed advancing
-   stream time. This preserves its grid position and the underlying station
-   controls, and never pretends that a buffering stream has connected. */
+/* Radio 1 only. The RADIO control stays visible and clickable while the
+   BLITZ stream loads. The red double heartbeat requires verified audio progress. */
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup #liveBtn,
 body #shipStage button[data-proxy="liveBtn"]{
-  opacity:0!important;pointer-events:none!important;
-  background:transparent!important;border-color:transparent!important;
-  color:transparent!important;box-shadow:none!important;
-  transition:opacity .65s ease!important;
+  opacity:1!important;pointer-events:auto!important;
+  color:#fff!important;
+  transition:background-color .3s ease,border-color .3s ease!important;
   position:relative!important;isolation:isolate!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open):not(.ge-radio-audible) #musicGroup button#liveBtn,
+body:not(.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
+  opacity:1!important;pointer-events:auto!important;
+  background:rgba(9,30,49,.55)!important;
+  background-image:none!important;
+  border-color:rgba(97,185,233,.47)!important;
+  color:#fff!important;text-shadow:none!important;
+  box-shadow:none!important;animation:none!important;outline:none!important;
+  backdrop-filter:blur(7px) saturate(1.15)!important;
 }
 html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup #liveBtn,
 body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]{
@@ -5886,7 +5894,7 @@ function syncModeButtons(){
   setPressed($('legacyBtn'),state.legacy);
   const liveButton=$('liveBtn');
   setPressed(liveButton,state.live||state.livePreparing);
-  // updateRadioStartupCue renders RADIO only when stream progress is verified.
+  // RADIO remains visible during startup; red heartbeat requires verified progress.
   updateRadioStartupCue?.();
 }
 function rememberRecent(url){
@@ -6165,8 +6173,8 @@ function updateRadioStartupCue(){
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
-    button.textContent=connected?'RADIO':'';
-    button.setAttribute('aria-label',connected?'Radio connected':'Connect to Grand Element Radio');
+    button.textContent='RADIO';
+    button.setAttribute('aria-label',connected?'BLITZ Radio 1 connected':'Connect or retry BLITZ Radio 1');
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!connected));
   }
   const shipPlayButton=$('shipPlay');
@@ -6236,10 +6244,9 @@ function clearLiveReconnect(){
   if(liveState.reconnectTimer){clearTimeout(liveState.reconnectTimer);liveState.reconnectTimer=0;}
 }
 
-// RADIO 1 remains first. Only on a confirmed playback failure do we probe
-// RADIO 2. The backup is accepted only when its server publishes a validated
-// Bangers program; otherwise retry the primary instead of substituting songs.
-const GE_RADIO2_DISABLED=true; // Radio 2 disconnected by owner: BLITZ Radio 1 only.
+// Owner-directed public playback: BLITZ Radio 1 exclusively. Old Radio 2
+// infrastructure remains intact but is never selected by this public player.
+const GE_RADIO2_DISABLED=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
 function retryRadio1Only(reason){
  if(!state.live&&!state.livePreparing)return Promise.resolve();
@@ -6416,7 +6423,8 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   // Previously radioTimedOut forced subsequent taps back into unavailable
   // Radio 2 instead of opening a new Radio 1 connection.
   const retryStalledRadio1=!!(userGesture&&!radio2.active&&!observedRadio1Progress&&
-    (radioTimedOut||geRadio1RetryAttempts>0||radio2.loading));
+    (radioTimedOut||geRadio1RetryAttempts>0||radio2.loading||
+     ((state.live||state.livePreparing)&&Date.now()-lastRadio1Progress>8000)));
   if(retryStalledRadio1){
     clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
     radioTimedOut=false;radioReconnectFailures=0;
@@ -6430,7 +6438,7 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
     return Promise.resolve();
   }
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
-  if(userGesture)liveState.wantedPlayback=true;
+  if(userGesture||(!state.live&&!deferPlay))liveState.wantedPlayback=true;
   if(radioStartInFlight){
     // Safari can leave automatic play pending until a real gesture.
     // Let ONE trusted tap call play() on the EXISTING audio element;
@@ -7530,10 +7538,8 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
-  // After connection the first listener tap stops the heartbeat visually,
-  // but never turns off or disrupts the stream.
-  if(document.body.classList.contains('ge-radio-audible'))
-    document.body.classList.add('ge-radio-pulse-ack');
+  // Keep the heartbeat active after connection; while disconnected
+  // every press can retry the original BLITZ station.
   void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
