@@ -47,7 +47,7 @@ assert.match(v5,/state.assignedLists/);
 assert.match(v5,/state.view==='access-code'/);
 assert.match(v5,/const allowed=new Set\(access.allowed\)/);
 assert.match(v5,/state.accessView==='playlist'/);
-assert.match(v5,/GEMusicV5Bridge\?\.play\?\.\(track.path,queue\)/);
+assert.match(v5,/GEMusicV5Bridge\?\.play\?\.\(track.path,queue,playlistName,\{custom,labels\}\)/);
 assert.match(preview,/window.GEPlayLibraryQueue=function/);
 assert.match(home,/ge-code-hide-autopilot/);
 assert.match(home,/ge-code-hide-games/);
