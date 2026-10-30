@@ -275,7 +275,7 @@ function updateHealth(callback){
    text("helperStatus","HELPER RESPONDS, BUT RCLONE OR GOOGLE DRIVE CONFIG IS MISSING.");
    text("mp3Status","Drive connection needs repair before uploading.");
   }else{
-   text("helperStatus","IMAC HELPER CONNECTED · Google Drive ready"+
+   text("helperStatus","IMAC HELPER CONNECTED · RCLONE CONFIG FOUND · Drive sign-in not yet verified"+
      (data.helper_version?" · Helper v"+data.helper_version:""));
    text("mp3Status",encoderAvailable?
     "ENCODER DETECTED · "+encoderName+" · Actual conversion NOT YET VERIFIED by this check. Use TEST MP3 CONVERSION.":

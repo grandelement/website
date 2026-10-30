@@ -90,6 +90,9 @@ function init(){
   ghead.appendChild(auth);google.appendChild(ghead);
   /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
   var studioConnection=node("div","geStudioDriveConnection");
+  /* First-time helper recovery is downloadable directly from this Google tab. */
+  move(by("geDriveRepairDownload"),studioConnection);
+  move(by("geDriveRepairInstructions"),studioConnection);
   var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
   move(by("reconnectDriveAuth"),studioConnection);
   var helper=by("helperStatus");move(helper,studioConnection);
