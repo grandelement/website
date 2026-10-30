@@ -76,7 +76,7 @@ assert.doesNotMatch(radio,/frame\.GEPlayLibraryTrack\(path\)/);
 const mainQueue=preview.slice(preview.indexOf('window.GEPlayLibraryQueue=function'),preview.indexOf('window.GEPlayLibraryTrack=function'));
 assert.ok(mainQueue.length>100,'Playlist queue handler must exist');
 assert.match(mainQueue,/albumTracks=tracks;trackIndex=idx/);
-assert.match(mainQueue,/tracks\.some\(track=>!track\)/);
+assert.match(mainQueue,/tracks\.some\(track=>!valid\(track\)\)/);
 assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist screen on PLAY');
 
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
