@@ -224,13 +224,14 @@ test(coordinator.includes("if(userGesture&&audio.paused") &&
 const startCue=radio.slice(radio.indexOf('function updateRadioStartupCue(){'),
                            radio.indexOf('function liveStreamConfigured(){'));
 test(startCue.includes('observedRadio2Progress:observedRadio1Progress') &&
-     startCue.includes("button.classList.toggle('radio-start-cue',cue)"),
-     'Startup pulse stays until actual forward audio progress');
-test(radio.includes('geRadioSingleArrivalPulse 6.7s') &&
+     startCue.includes("document.body.classList.toggle('ge-radio-audible',!!connected)") &&
+     startCue.includes("button.textContent=connected?'RADIO':''"),
+     'Connected RADIO indicator requires genuine advancing audio');
+test(radio.includes('geRadioRedDimmerLubDub 6.7s') &&
      radio.includes('grid-column:3 / span 2!important') &&
      radio.indexOf('id="shuffleBtn" aria-pressed="true">Shuffle</button>')<
        radio.indexOf('id="liveBtn" aria-pressed="true">RADIO</button>'),
-     'RADIO is centered and uses one slow glow-and-flash cycle');
+     'RADIO is centered and uses its approved verified-audio red dimmer');
 const recovery=radio.slice(radio.indexOf('function watchRadioConnection(){'),
                             radio.indexOf('function radioPlayFailure('));
 test(recovery.includes('if(radioWatchTimer&&!radioTimedOut)return;'),
