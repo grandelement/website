@@ -678,7 +678,7 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const baseline=entitlement?.restricted
   ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
   :state.tracks.map(t=>t.path);
- const custom=Array.isArray(queueOverride)&&queueOverride.length>0;
+ const custom=Array.isArray(queueOverride)&&queueOverride.length>0&&queue.length>1;
  // Any explicitly selected checked-song queue is the listener's current playlist,
  // even when every song in the library happens to be checked.
  const known=new Map(state.tracks.map(t=>[t.path,t]));
