@@ -94,6 +94,7 @@ function init(){
   var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
   move(by("reconnectDriveAuth"),studioConnection);
   move(by("geDesktopReconnectDownload"),studioConnection);
+  move(by("geDesktopReconnectInfo"),studioConnection);
   move(by("geDriveRepairDownload"),studioConnection);
   move(by("geDriveRepairInstructions"),studioConnection);
   var helper=by("helperStatus");move(helper,studioConnection);
