@@ -55,6 +55,12 @@ for(const id of ['brPlaylistSave','brPlaylistDelete','brPlaylistSearch','brPlayl
   'brAccessCopy','save','publishLive','reset','lockBackroom']){
   assert.ok(back.includes('id="'+id+'"'),'Missing Back Room control: '+id);
 }
+assert.match(back,/<input type="checkbox" id="brAccessSelectAll"[^>]*>/,
+ 'ACCESS must show a global SELECT ALL SHOWN checkbox');
+assert.match(back,/selectAll\.indeterminate=numberSelected>0/,
+ 'ACCESS SELECT ALL must show partial selection');
+assert.match(back,/brAccessSelectAll'\)\.addEventListener\('change'/,
+ 'ACCESS SELECT ALL must check and uncheck shown songs');
 assert.match(back,/backroomVaultManagers\.init\(\)/);
 assert.ok(back.includes("if(name!=='access'&&name!=='games')toggle?.click()"),'Game sections should use the + expansion while Access Code input is directly visible');
 assert.match(back,/function renderAccessCodes/);
