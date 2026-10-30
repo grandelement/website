@@ -52,7 +52,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .browse button[aria-pressed=true]{background:#1378c5;border-color:#b5f2ff;color:white;box-shadow:inset 0 0 10px #2b99e9}
 .browse{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .browse button{font-size:clamp(13px,3.5vw,17px);min-height:43px}
-.filterRow{display:grid;grid-template-columns:1fr;gap:5px;margin:7px 0 0}
+.filterRow{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:7px 0 0}
+.filterRow select.songFilter{width:auto;min-width:0;flex:1 1 160px}
+.filterRow select.playlistFilter{flex:1 1 100%}
+.filterRow .songSelectAll{display:flex;flex:0 0 auto;align-items:center;gap:6px;min-height:42px;
+ padding:5px 8px;border:1px solid #5898c7;border-radius:8px;background:#10314d;
+ color:#eaffff;font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
+.filterRow .songSelectAll[hidden]{display:none!important}
+.filterRow .songSelectAll input{width:18px;height:18px;min-width:18px;margin:0;accent-color:#48baff}
 .filterRow select{width:100%;min-width:0;min-height:42px;padding:8px 10px;border:1px solid #5898c7;border-radius:9px;background:#10314d;color:#ecfaff;font-size:clamp(13px,3.5vw,16px);font-weight:750}
 .filterRow select[hidden]{display:none!important}
 .musicCodeTools{display:flex;align-items:center;gap:6px;margin-top:0;border:1px solid #ae83e9;border-radius:9px;padding:6px;background:linear-gradient(95deg,#30174b,#171c40 75%);box-shadow:inset 0 0 0 1px rgba(220,174,255,.12)}
@@ -221,7 +228,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand">GRAND ELEMENT · MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
@@ -956,6 +963,14 @@ function render(){
  root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===cat)));
  const songFilter=el('.songFilter'),playlistFilter=el('.playlistFilter');
  songFilter.hidden=cat!=='songs';playlistFilter.hidden=cat!=='playlists';
+ const allLabel=el('.songSelectAll'),allCheck=el('.selectAllSongs');
+ allLabel.hidden=cat!=='songs';
+ const allAccess=musicAccessActive(),allowed=allAccess?.restricted?new Set(allAccess.allowed):null;
+ const allTracks=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ const allCount=allTracks.filter(t=>state.selected.has(t.path)).length;
+ allCheck.disabled=!state.loaded||!allTracks.length;
+ allCheck.checked=allTracks.length>0&&allCount===allTracks.length;
+ allCheck.indeterminate=allCount>0&&allCount<allTracks.length;
  const songView=state.view==='access-code'?'all':state.view;
  songFilter.value=[...songFilter.options].some(o=>o.value===songView)?songView:'all';
  playlistFilter.value=state.view==='ge-playlists'?'ge-playlists':state.view==='user-playlists'?'user-playlists':'playlist-order';
@@ -1276,6 +1291,17 @@ el('.playSelected').addEventListener('click',()=>void playCheckedSongs(true));
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
+el('.selectAllSongs').addEventListener('change',event=>{
+ const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;
+ const rows=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
+ if(!state.loaded||!rows.length)return;
+ for(const track of rows){
+  if(event.target.checked)state.selected.add(track.path);
+  else state.selected.delete(track.path);
+ }
+ saveSelected();say(event.target.checked?'ALL AVAILABLE SONGS SELECTED.':'ALL AVAILABLE SONGS UNCHECKED.');
+ render();
+});
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
