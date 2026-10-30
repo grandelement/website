@@ -255,6 +255,10 @@ function updateHealth(callback){
   helperOnline=!err&&!!data.rclone_ready;
   encoderAvailable=helperOnline&&!!data.mp3_available;
   helperVersion=Number(data.helper_version||0);
+  // No repeated downloads once the local helper supports one-click reconnect.
+  var repair=el("geDriveRepairDownload"),notice=el("geDriveRepairInstructions");
+  if(repair)repair.style.display=helperVersion>=8?"none":"block";
+  if(notice)notice.style.display=helperVersion>=8?"none":"block";
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
   allFilesAvailable=helperOnline&&!!data.all_app_files_available;

@@ -91,10 +91,11 @@ function init(){
   /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
   var studioConnection=node("div","geStudioDriveConnection");
   /* First-time helper recovery is downloadable directly from this Google tab. */
-  move(by("geDriveRepairDownload"),studioConnection);
-  move(by("geDriveRepairInstructions"),studioConnection);
   var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
   move(by("reconnectDriveAuth"),studioConnection);
+  move(by("geDesktopReconnectDownload"),studioConnection);
+  move(by("geDriveRepairDownload"),studioConnection);
+  move(by("geDriveRepairInstructions"),studioConnection);
   var helper=by("helperStatus");move(helper,studioConnection);
   move(by("driveAuthStatus"),studioConnection);
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
