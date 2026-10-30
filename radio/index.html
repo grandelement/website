@@ -4130,8 +4130,13 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
     // One coordinate system follows the *visible* Safari frame as its bars
     // rise or fall; never enable document scrolling to recover bottom buttons.
     root.classList.toggle('ge-radio-iphone-locked',portrait);
-    if(portrait&&height>0)root.style.setProperty('--ge-radio-visible-h',height+'px');
-    else root.style.removeProperty('--ge-radio-visible-h');
+    if(portrait&&height>0){
+      root.style.setProperty('--ge-radio-visible-h',height+'px');
+      root.style.setProperty('--ge-radio-visible-top',Math.max(0,Math.round(vv?.offsetTop||0))+'px');
+    }else{
+      root.style.removeProperty('--ge-radio-visible-h');
+      root.style.removeProperty('--ge-radio-visible-top');
+    }
     root.classList.toggle('ge-safari-browser-compact',!standalone&&portrait&&height>0&&height<820);
   }
   adapt();
@@ -4156,7 +4161,7 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
     touch-action:pan-x pan-y;
   }
   html.ge-radio-ui.ge-radio-iphone-locked body.view-player.portrait-player:not(.iam-studio-open){
-    position:fixed!important;inset:0 auto auto 0!important;
+    position:fixed!important;inset:var(--ge-radio-visible-top,0px) auto auto 0!important;
     width:100%!important;height:var(--ge-radio-visible-h,100dvh)!important;
     min-height:0!important;max-height:var(--ge-radio-visible-h,100dvh)!important;
     overflow:hidden!important;overscroll-behavior:none!important;
@@ -4179,7 +4184,7 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
   }
   html.ge-radio-ui.ge-radio-iphone-locked body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap{
     flex:0 0 auto!important;
-    width:clamp(170px,23dvh,214px)!important;height:clamp(170px,23dvh,214px)!important;
+    width:clamp(170px,23svh,214px)!important;height:clamp(170px,23svh,214px)!important;
     max-width:214px!important;max-height:none!important;min-height:170px!important;
     overflow:visible!important;margin:0 auto 10px!important;
   }
