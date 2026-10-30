@@ -323,6 +323,15 @@ function fitViewport(){
   if(!radio)return;
   const root=A.documentElement,body=A.body,wrap=find('main.wrap');
   const shouldFit=body.classList.contains('view-player')&&!body.classList.contains('iam-studio-open');
+  // The iPhone Radio view is now anchored to Safari's live visible viewport.
+  // The old iterative mobile fitter must NOT switch it to scrolling, shrink
+  // the EQ Sun, or move the middle and lower border locks after button presses.
+  if(root.classList.contains('ge-radio-iphone-locked')){
+    root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
+    root.style.removeProperty('--ge-fit-sun');
+    root.style.removeProperty('--ge-fit-iam');
+    return;
+  }
   if(!shouldFit||!wrap){
     root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
     root.style.removeProperty('--ge-fit-sun');
