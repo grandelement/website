@@ -2107,7 +2107,7 @@ async function adminExport(env) {
 /* All Radio Gate codes live in D1, including migrated legacy LOVE. */
 // Offline, Legacy and Reload are optional owner-selected controls, not
 // independent entry grants. Radio Gate must still validate a radio/website scope.
-const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload"]);
+const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload","iam"]);
 function accessNormalizeCode(raw) {
   // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
   // prefix when followed by a separator, not from owner codes like GENTLE123.
@@ -2278,7 +2278,8 @@ async function ensureAccessCodeTables(env){
 async function ensureLegacyLoveRecord(env){
   const hash=await accessCodeHash("LOVE",env);
   const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json,label FROM access_codes WHERE code_hash=?").bind(hash).first();
-  const allScopes=JSON.stringify([...GE_ACCESS_SCOPES]);
+  // New I AM is opt-in. Do not turn it on for the historical LOVE record.
+  const allScopes=JSON.stringify([...GE_ACCESS_SCOPES].filter(scope=>scope!=="iam"));
   if(existing){
     // Correct the original mistaken Radio-only import, but never revive or
     // replace a suspended, revoked, deleted or owner-customized record.
@@ -2694,7 +2695,12 @@ async function accessRedeem(request,env){
       display_name:await codeListenerDisplayName(env,row.id)};
   }
   // A browser receipt is a convenience, not server-enforced paid-content access.
+  // The authentic historic LOVE record alone restores SUN LAB. This is
+  // server-verified, never inferred from the code text in browser JavaScript.
+  const sunLabAuthorized=scope==="radio"&&row.id==="access_legacy_love_v1"&&
+    accessNormalizeCode(body.code)==="LOVE";
   return json({ok:true,scope,scopes,expires_at:expires||null,
+    capabilities:{sun_lab:sunLabAuthorized},
     uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null,
     experience:{games_enabled:row.experience_games_enabled!==0,
       autopilot_enabled:row.experience_autopilot_enabled!==0,
