@@ -4254,6 +4254,11 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
     display:none!important;
   }
 }
+/* A default-off IAM is hidden in desktop, mobile and Ship player views. */
+html.ge-radio-ui body #iamLaunchRow[hidden]{display:none!important}
+html.ge-radio-ui body.ge-sunlab-entitled #bottomActions #sunLabBtn:not([hidden]){
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
 /* The Blue Sun EQ should never be disabled as a side effect of hiding IAM. */
 </style>
 </head>
@@ -6730,9 +6735,10 @@ function syncRadioOfflineAccessUI(){
   const permissions={offline:geRadioUtilityAllowed('offline'),
     reload:geRadioUtilityAllowed('reload'),legacy:geRadioUtilityAllowed('legacy'),
     iam:geRadioIAMAllowed(),sunLab:geRadioSunLabAllowed()};
-  const hasUtilities=permissions.offline||permissions.reload||permissions.legacy;
+  const hasUtilities=permissions.offline||permissions.reload||permissions.legacy||permissions.sunLab;
   document.body.classList.toggle('ge-offline-entitled',hasUtilities);
   document.body.classList.toggle('ge-legacy-entitled',permissions.legacy);
+  document.body.classList.toggle('ge-sunlab-entitled',permissions.sunLab);
   document.body.classList.toggle('ge-radio-utility-entitled',hasUtilities);
   const setUtility=(element,allowed)=>{
     if(!element)return;
