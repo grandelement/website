@@ -329,6 +329,15 @@ function fitViewport(){
     root.style.removeProperty('--ge-fit-iam');
     return;
   }
+  // Desktop has a complete CSS viewport-locked layout. The mobile iterative
+  // fitter's delayed 0/300/1600ms passes must not repeatedly resize it.
+  if(window.matchMedia('(min-width:820px) and (hover:hover) and (pointer:fine)').matches &&
+     !zoomEnabled && (window.visualViewport?.scale||1)<=1.15){
+    root.classList.remove('ge-access-overflow','ge-radio-iam-midpoint');
+    root.style.removeProperty('--ge-fit-sun');
+    root.style.removeProperty('--ge-fit-iam');
+    return;
+  }
   const h=Math.round(window.visualViewport?.height||innerHeight);
   const w=Math.round(window.visualViewport?.width||innerWidth);
   const portrait=window.matchMedia('(orientation:portrait)').matches;
