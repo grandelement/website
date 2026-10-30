@@ -136,6 +136,22 @@ requireText(radio,/setUtility\(\$\('offlineBtn'\),permissions.offline\)/,'Offlin
 requireText(radio,/setUtility\(\$\('reloadBtn'\),permissions.reload\)/,'Reload must require verified Vault scope');
 requireText(radio,/#bottomActions #reloadBtn:not\(\[hidden\]\)\{display:flex!important/,'Verified Reload must be visible');
 requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
+// Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
+requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
+requireText(radio,/ge-radio-iphone-locked/,'Safari visual viewport lock removed');
+requireText(radio,/--ge-radio-visible-h/,'Safari height-to-layout binding removed');
+requireText(radio,/#geDesktopUtilityStrip\{/,'Bottom utilities must anchor to the frame');
+requireText(radio,/bottom:calc\(39px \+ env\(safe-area-inset-bottom\)\)/,'Bottom utility dimension must use safe inset');
+requireText(radio,/#iamLaunchRow\[hidden\]/,'IAM defaults off until a code grants it');
+requireText(radio,/sunLab:result\.capabilities\?\.sun_lab===true/,'Sun Lab must use authenticated Vault capability');
+requireText(radio,/permissions\.iam,?/,'IAM must be checked before display');
+requireText(radio,/geRadioSunLabAllowed/,'LOVE Sun Lab permission must be independently checked');
+const vaultAccess=read('vault-worker/src/index.js');
+requireText(vaultAccess,/capabilities:\{sun_lab:sunLabAuthorized\}/,'Original LOVE Sun Lab grant must originate in Vault');
+requireText(vaultAccess,/"reload","iam"\]/,'I AM must be an independently opt-in Vault scope');
+const backroomAccess=read('backroom/index.html');
+requireText(backroomAccess,/name="brAccessScope" value="iam"/,'Back Room IAM scope selector missing');
+requireText(music,/class="selectAllSongs"/,'Music select all must remain available');
 requireText(radio,/id="geMusicV5Button"/,'Music open control must remain in Radio');
 requireText(radio,/id="geGate"/,'Music Gate must remain');
 requireText(player,/AUDIO_LIMIT_SECONDS=2013/,'33:33 preview timer changed unexpectedly');
