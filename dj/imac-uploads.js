@@ -210,6 +210,42 @@ function fileChanged(kind,input){
  progress(0);
  status(pendingMessage(kind));
 }
+
+var reconnectPoll=0,reconnectBusy=false;
+function reconnectMessage(value){text("driveAuthStatus",value)}
+function stopReconnect(){
+ if(reconnectPoll){w.clearInterval(reconnectPoll);reconnectPoll=0}
+ reconnectBusy=false;if(el("reconnectDriveAuth"))el("reconnectDriveAuth").disabled=false;
+}
+function pollReconnect(){
+ var q=request("GET","/drive/reconnect/status",null,function(err,result){
+  if(err){stopReconnect();reconnectMessage("GOOGLE SIGN IN STATUS UNAVAILABLE · "+linkError(err));return}
+  var state=result.state||{},phase=String(state.phase||"");
+  reconnectMessage(String(state.detail||"Waiting for Google sign-in…"));
+  if(phase==="complete"){stopReconnect();updateHealth(function(e){if(!e)displayLibrary(activeKind)})}
+  else if(phase==="error"||phase==="idle")stopReconnect();
+ });q.send();
+}
+function reconnectGoogle(){
+ if(busy){reconnectMessage("FINISH THE CURRENT UPLOAD FIRST.");return}
+ if(reconnectBusy)return;
+ reconnectMessage("CHECKING LOCAL IMAC HELPER…");
+ updateHealth(function(err,result){
+  if(err){reconnectMessage("LOCAL HELPER UNAVAILABLE · "+linkError(err));return}
+  if(Number(result.helper_version||0)<8||!result.drive_reconnect_available){
+   reconnectMessage("ONE-TIME IMAC HELPER UPDATE REQUIRED · The local uploader is older than v8. Update it once to make this button reconnect Google Drive. No music or playlists need resetting.");
+   return;
+  }
+  if(!w.confirm("Reconnect GE Studios Google Drive? Google sign-in will open on this iMac. No music files will be changed."))return;
+  reconnectBusy=true;el("reconnectDriveAuth").disabled=true;
+  reconnectMessage("STARTING GOOGLE SIGN IN ON THIS IMAC…");
+  var req=request("POST","/drive/reconnect","{}",function(error,data){
+   if(error){stopReconnect();reconnectMessage("GOOGLE SIGN IN COULD NOT START · "+linkError(error));return}
+   reconnectMessage(String(data.detail||"Complete sign-in in the iMac browser."));
+   reconnectPoll=w.setInterval(pollReconnect,2500);pollReconnect();
+  });req.send();
+ });
+}
 function updateHealth(callback){
  if(inCheck){if(callback)wait(function(){updateHealth(callback)},500);return}
  inCheck=true;
@@ -520,6 +556,7 @@ function init(){
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
+ if(el("reconnectDriveAuth"))el("reconnectDriveAuth").onclick=reconnectGoogle;
  el("convertDraft").checked=false;el("convertFinal").checked=false;
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");

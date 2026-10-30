@@ -39,6 +39,8 @@ LIMIT = 4 * 1024 * 1024 * 1024  # 4 GiB, transmitted in bounded chunks
 CHUNK = 1024 * 1024
 JOBS = {}
 GUARD = threading.Lock()
+# Only the fixed GEStudios OAuth command is permitted on this Mac.
+DRIVE_RECONNECT = {"phase": "idle", "detail": "Google sign-in not started.", "started_at": 0}
 PY3 = sys.version_info[0] >= 3
 
 def as_text(s):
@@ -314,6 +316,58 @@ def inspect_drive_quota():
         status["reason"] = "Could not complete the Google Drive remote check."
         return status
 
+
+def reconnect_set(phase, detail):
+    with GUARD:
+        DRIVE_RECONNECT["phase"] = phase
+        DRIVE_RECONNECT["detail"] = detail
+
+def reconnect_google_worker():
+    # Output may contain private OAuth data. Never return it to the webpage.
+    try:
+        command = [RCLONE, "--config", CONFIG, "--auto-confirm",
+                   "config", "reconnect", "GEStudios:"]
+        process = subprocess.Popen(command, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        def drain():
+            process.communicate()
+        watcher = threading.Thread(target=drain)
+        watcher.daemon = True
+        watcher.start()
+        watcher.join(300)
+        if watcher.is_alive():
+            try:
+                process.terminate()
+            except Exception:
+                pass
+            reconnect_set("error", "Google sign-in timed out. Existing music is unchanged.")
+            return
+        if process.returncode:
+            reconnect_set("error", "Google sign-in did not finish. Check the iMac browser.")
+            return
+        if not inspect_drive_quota().get("drive_accessible"):
+            reconnect_set("error", "Google sign-in finished but Drive verification failed.")
+            return
+        reconnect_set("complete", "GOOGLE DRIVE CONNECTED. You can retry your upload.")
+    except Exception:
+        reconnect_set("error", "Google sign-in could not start. Existing music is unchanged.")
+
+def reconnect_google_start(handler):
+    if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
+        return handler.response(503, {"ok": False, "error": "rclone or GEStudios config missing."})
+    with GUARD:
+        if DRIVE_RECONNECT["phase"] == "running":
+            return handler.response(409, {"ok": False, "error": "Google sign-in is already running."})
+        if any(x.get("phase") not in ("complete", "error") for x in JOBS.values()):
+            return handler.response(409, {"ok": False, "error": "Finish the current upload first."})
+        DRIVE_RECONNECT.update({"phase": "running",
+                                "detail": "Google sign-in is opening in the iMac browser.",
+                                "started_at": int(time.time())})
+    thread = threading.Thread(target=reconnect_google_worker)
+    thread.daemon = True
+    thread.start()
+    return handler.response(202, {"ok": True, "detail": "Complete sign-in in your iMac browser."})
+
 class ThreadingServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -358,12 +412,17 @@ class Handler(BaseHTTPRequestHandler):
         target = urlparse(self.path)
         if target.path == "/check":
             return self.response(200, inspect_drive_quota())
+        if target.path == "/drive/reconnect/status":
+            with GUARD:
+                state = dict(DRIVE_RECONNECT)
+            return self.response(200, {"ok": True, "state": state})
         if target.path == "/health":
             return self.response(200, {"ok": True, "rclone_ready": os.path.isfile(RCLONE) and os.path.isfile(CONFIG),
                                        "mp3_available": bool(find_ffmpeg() or find_lame()),
                                        "mp3_converter": "FFmpeg" if find_ffmpeg() else ("LAME (WAV/AIFF)" if find_lame() else "not installed"),
                                        "backend": "Google Drive via local rclone",
-                                       "helper_version": 7, "delete_available": True,
+                                       "helper_version": 8, "drive_reconnect_available": True,
+                                        "delete_available": True,
                                        "session_uploads": True, "all_app_files_available": True,
                                        "all_app_files_scope": "drive.file (app-created files only)",
                                        "trash_empty_requires_full_drive_scope": True,
@@ -471,6 +530,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/delete":
             return self.delete_file()
+        if parsed.path == "/drive/reconnect":
+            # No HTTP-provided shell arguments or credentials are accepted.
+            return reconnect_google_start(self)
         if parsed.path != "/upload":
             return self.response(404, {"ok": False, "error": "Not found"})
         if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):

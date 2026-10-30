@@ -80,7 +80,7 @@ function init(){
  mixer.appendChild(mx);effects.appendChild(fx);
  help(radio,"Studio","Choose Soundflower (2ch), press CONNECT STUDIO AUDIO, verify left and right meters, then connect Radio 1 only when needed. GO LIVE is always a separate deliberate action.");
  diagnostics(radio,"Studio",["connection","liveState","liveReadiness","liveStatus","meterStatus","leftDb","rightDb","trustedStatus"]);
-  /* Google: connection checks only. Obsolete installer and repair actions removed. */
+  /* Google: read-only checks and explicit local Google OAuth repair. */
   var ghead=node("div","geGoogleIntro");
   var auth=node("div","geAuthPanel");
   var check=node("button",null,"CHECK CONNECTION");check.type="button";
@@ -91,7 +91,9 @@ function init(){
   /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
   var studioConnection=node("div","geStudioDriveConnection");
   var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
+  move(by("reconnectDriveAuth"),studioConnection);
   var helper=by("helperStatus");move(helper,studioConnection);
+  move(by("driveAuthStatus"),studioConnection);
   var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
   google.insertBefore(studioConnection,drive);
   var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE DRIVE";
