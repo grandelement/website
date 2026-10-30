@@ -50,6 +50,8 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
   html.dataset.geDevicePreference=preference;
   html.classList.toggle('ge-mobile-device',layout==='mobile');
   html.classList.toggle('ge-desktop-device',layout==='desktop');
+  // Apply final Radio selectors before the first paint, not in the late accessibility callback.
+  html.classList.add('ge-radio-ui');
   // Virtual desktop rendering is an OPT-IN, never a Safari user-agent guess.
   const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
@@ -150,6 +152,8 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none}
 *::-webkit-scrollbar{display:none}
 html,body{min-height:100%;margin:0;background:#000;color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none}
+/* Keep the player and Ship controls unpainted until their saved layout, labels and sizing have settled. */
+body.ge-radio-initializing > .wrap,body.ge-radio-initializing #shipStage,body.ge-radio-initializing #viewToggle{visibility:hidden!important}
 html{min-height:100svh}
 body{min-height:100svh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:manipulation}
 #bgImage{
@@ -4053,7 +4057,27 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #legacyBt
 }
 </style>
 </head>
-<body>
+<body class="ge-radio-initializing">
+<script id="ge-radio-first-paint-mode">
+/* Set the saved player/Ship mode before layout. The full controller takes over later. */
+(()=>{
+  let mode='ship';
+  try{const saved=localStorage.getItem('GE_RADIO_LANDSCAPE_VIEW_V2');
+    if(saved==='player'||saved==='ship')mode=saved;
+  }catch(_){}
+  if(matchMedia('(orientation: portrait)').matches){
+    document.body.classList.add('view-player','portrait-player');
+  }else{
+    document.body.classList.add(mode==='ship'?'view-ship':'view-player');
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    // Deferred accessibility labels and its initial fit execute before the reveal.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      document.body.classList.remove('ge-radio-initializing');
+    }));
+  },{once:true});
+})();
+</script>
 <div id="geGate" aria-hidden="true" aria-label="Grand Element inner gate">
   <div id="geGateBackdrop"></div>
   <div id="geGateWaves" aria-hidden="true"></div>
