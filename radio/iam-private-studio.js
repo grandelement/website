@@ -1227,6 +1227,8 @@ async function leave(){
  mode("record");say("Private I AM session closed.");
 }
 async function enter(){
+ // Visible control and entry point share one verified opt-in IAM grant.
+ if(window.GERadioIAMAllowed?.()!==true)return;
  if(!canAccessIAmCatalog()){routeToMyMusic();return;}
  if(open)return;
  oldMuted=audio.muted;oldMediaVolume=Number.isFinite(Number(audio.volume))?Number(audio.volume):1;
