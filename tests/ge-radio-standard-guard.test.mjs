@@ -121,7 +121,7 @@ requireText(radio,/#shipStage button\[data-proxy="liveBtn"\]/,'Ship RADIO indica
 const accessClient=read('ge-accessibility.js');
 requireText(radio,/id="ge-radio-first-paint-mode"/,'Prepaint Radio view selection removed');
 requireText(radio,/class="ge-radio-initializing"/,'Radio initial-layout lock removed');
-requireText(radio,/html\.classList\.add\('ge-radio-ui'\)/,'Radio styles not ready before first paint');
+requireText(radio,/id="ge-radio-first-style"/,'Radio styles not ready before first paint');
 requireText(radio,/document\.body\.classList\.remove\('ge-radio-initializing'\)/,'Radio initial-layout lock never released');
 requireText(accessClient,/min-width:820px.*hover:hover.*pointer:fine/,'Desktop fit must not repeatedly recompute mobile sizes');
 requireText(music,/class="selectAllSongs" type="checkbox"/,'Global SONGS select-all checkbox removed');
