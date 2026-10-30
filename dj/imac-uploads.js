@@ -233,7 +233,7 @@ function reconnectGoogle(){
  updateHealth(function(err,result){
   if(err){reconnectMessage("LOCAL HELPER UNAVAILABLE · "+linkError(err));return}
   if(Number(result.helper_version||0)<8||!result.drive_reconnect_available){
-   reconnectMessage("ONE-TIME IMAC HELPER UPDATE REQUIRED · The local uploader is older than v8. Update it once to make this button reconnect Google Drive. No music or playlists need resetting.");
+   reconnectMessage("LOCAL HELPER UPDATE NEEDED. Press FIX GOOGLE DRIVE · OFFLINE REPAIR APP on the GOOGLE tab. Open the downloaded offline repair app. Then press RECONNECT GOOGLE LOGIN. No music or playlists need resetting.");
    return;
   }
   if(!w.confirm("Reconnect GE Studios Google Drive? Google sign-in will open on this iMac. No music files will be changed."))return;
