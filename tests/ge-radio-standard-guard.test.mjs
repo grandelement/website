@@ -127,6 +127,15 @@ requireText(accessClient,/min-width:820px.*hover:hover.*pointer:fine/,'Desktop f
 requireText(music,/class="selectAllSongs" type="checkbox"/,'Global SONGS select-all checkbox removed');
 requireText(music,/allCheck\.indeterminate=/,'Partial SONGS selection state removed');
 requireText(music,/el\('\.selectAllSongs'\)\.addEventListener\('change'/,'Global SONGS select-all behavior missing');
+requireText(radio,/id="ge-radio-ios-visible-viewport"/,'iPhone Safari toolbar height detection removed');
+requireText(radio,/ge-safari-browser-compact/,'Dynamic Safari compact layout removed');
+requireText(radio,/id="radioCopyright"/,'Copyright footer removed');
+requireText(radio,/id="reloadBtn" hidden/,'Reload button removed');
+requireText(radio,/id="offlineBtn" hidden/,'Offline button removed');
+requireText(radio,/setUtility\(\$\('offlineBtn'\),permissions.offline\)/,'Offline must require verified Vault scope');
+requireText(radio,/setUtility\(\$\('reloadBtn'\),permissions.reload\)/,'Reload must require verified Vault scope');
+requireText(radio,/#bottomActions #reloadBtn:not\(\[hidden\]\)\{display:flex!important/,'Verified Reload must be visible');
+requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
 requireText(radio,/id="geMusicV5Button"/,'Music open control must remain in Radio');
 requireText(radio,/id="geGate"/,'Music Gate must remain');
 requireText(player,/AUDIO_LIMIT_SECONDS=2013/,'33:33 preview timer changed unexpectedly');
