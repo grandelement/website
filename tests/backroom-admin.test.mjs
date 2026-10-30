@@ -160,8 +160,13 @@ assert.match(back,/existing\?\.experience\|\|replacementExperience/,
 assert.match(back,/brCodeFansPanel/);
 assert.match(vault,/CREATE TABLE IF NOT EXISTS fan_code_links/);
 assert.match(publisher,/\/manage\/fan-access/);
-assert.match(musicV5,/data-access-view="album"/);
-assert.match(musicV5,/data-access-view="playlist"/);
+// Access-code Music now uses the same SONGS / PLAYLISTS workspace and filter row.
+assert.match(musicV5,/data-tab="songs"/);
+assert.match(musicV5,/data-tab="playlists"/);
+assert.match(musicV5,/class="songFilter"/);
+assert.match(musicV5,/class="playlistFilter"/);
+assert.match(musicV5,/state.view==='access-code'/);
+assert.match(musicV5,/const allowed=new Set\(access.allowed\)/);
 const currentWorkerVersion=/const VERSION='([^']+)'/.exec(sw)?.[1]||'';
 const currentRadioVersion=currentWorkerVersion.replace(/^([0-9]{4})[.]([0-9]{2})[.]([0-9]{2})/,'$1$2$3');
 assert.ok(/^20[0-9]{2}[.][0-9]{2}[.][0-9]{2}-.+/.test(currentWorkerVersion)&&
