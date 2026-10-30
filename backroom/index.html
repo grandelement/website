@@ -973,7 +973,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
       <select id="brAccessAlbum" aria-label="Filter access-code songs by album" style="min-width:130px;flex:1 1 140px;max-width:100%;font-size:14px">
         <option value="">ALL ALBUMS</option>
       </select>
-      <button type="button" id="brAccessSelectAll">SELECT ALL SHOWN</button>
+      <label class="check brAccessToggleAll"><input type="checkbox" id="brAccessSelectAll" aria-label="Select or unselect all shown songs"><span>SELECT ALL SHOWN</span></label>
       <button type="button" id="brAccessClearSongs">CLEAR</button>
       <span id="brAccessSongCount">0 selected</span>
     </div>
@@ -3112,6 +3112,10 @@ const backroomVaultManagers=(()=>{
     const found=catalog.filter(x=>(!album||(x.album||'Other')===album)&&
       (x.track_title+' '+x.album).toLowerCase().includes(query)&&
       (view==='all'||assignedSongPaths.includes(x.track_path)));
+    const selectAll=$('brAccessSelectAll'),numberSelected=found.filter(x=>assignedSongPaths.includes(x.track_path)).length;
+    selectAll.disabled=view==='playlist'||!found.length;
+    selectAll.checked=found.length>0&&numberSelected===found.length;
+    selectAll.indeterminate=numberSelected>0&&numberSelected<found.length;
     host.hidden=view==='playlist';host.style.display=view==='playlist'?'none':'';
     $('brAccessOrderSection').open=view==='playlist';
     host.replaceChildren();
@@ -4286,13 +4290,15 @@ const backroomVaultManagers=(()=>{
         accessStatus('LOADED '+chosen.length+' GITHUB PLAYLIST'+(chosen.length===1?'':'S')+
           ' · '+paths.length+' SONGS · SAVE CODE TO APPLY');
       });
-      $('brAccessSelectAll').addEventListener('click',()=>{
+      $('brAccessSelectAll').addEventListener('change',event=>{
         const q=$('brAccessSongSearch').value.trim().toLowerCase(),album=$('brAccessAlbum').value;
-        const set=new Set(assignedSongPaths);
-        catalog.filter(x=>(!album||(x.album||'Other')===album)&&
-          (x.track_title+' '+x.album).toLowerCase().includes(q))
-          .forEach(x=>set.add(x.track_path));
-        assignedSongPaths=[...set];accessSongOptions();assignedSongsUI();
+        const view=$('brAccessSongView').value;
+        const shown=catalog.filter(x=>(!album||(x.album||'Other')===album)&&
+          (x.track_title+' '+x.album).toLowerCase().includes(q)&&
+          (view==='all'||assignedSongPaths.includes(x.track_path)));
+        const selected=new Set(assignedSongPaths);
+        for(const song of shown)event.target.checked?selected.add(song.track_path):selected.delete(song.track_path);
+        assignedSongPaths=[...selected];accessSongOptions();assignedSongsUI();
       });
       $('brAccessClearSongs').addEventListener('click',()=>{
         assignedSongPaths=[];appliedPlaylistIds.clear();
