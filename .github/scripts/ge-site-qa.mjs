@@ -239,10 +239,11 @@ test(recovery.includes('if(radioWatchTimer&&!radioTimedOut)return;'),
 
 const playingEvent=radio.slice(radio.indexOf("audio.addEventListener('playing',()=>{\n  if(state.live||state.livePreparing){"),
                                 radio.indexOf("audio.addEventListener('waiting',()=>{"));
-test(playingEvent.includes('checking stream audio') &&
+test(playingEvent.includes('checking playback') &&
      !playingEvent.includes("setStatus('Grand Element Radio is playing.')") &&
-     radio.includes("setLiveStatus('RADIO 1 · audio stream advancing')"),
-     'Radio displays checking until stream time advances');
+     radio.includes("observedRadio1Progress") &&
+     radio.includes("setLiveStatus('RADIO 1 · CONNECTED')"),
+     'Radio stays connecting until native audio progress verifies playback');
 
 const gateFxSource=radio.slice(radio.indexOf('function createGateFxGraph(ctx){'),radio.indexOf('window.GEGateFX={'));
 test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) &&
