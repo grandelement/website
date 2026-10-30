@@ -4125,11 +4125,18 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
     const standalone=window.matchMedia?.('(display-mode: standalone)').matches===true||
       navigator.standalone===true;
     const portrait=window.matchMedia?.('(orientation: portrait) and (max-width:700px)').matches===true;
-    const height=Math.round(window.visualViewport?.height||window.innerHeight||0);
+    const vv=window.visualViewport;
+    const height=Math.round(vv?.height||window.innerHeight||0);
+    // One coordinate system follows the *visible* Safari frame as its bars
+    // rise or fall; never enable document scrolling to recover bottom buttons.
+    root.classList.toggle('ge-radio-iphone-locked',portrait);
+    if(portrait&&height>0)root.style.setProperty('--ge-radio-visible-h',height+'px');
+    else root.style.removeProperty('--ge-radio-visible-h');
     root.classList.toggle('ge-safari-browser-compact',!standalone&&portrait&&height>0&&height<820);
   }
   adapt();
   window.visualViewport?.addEventListener('resize',adapt,{passive:true});
+  window.visualViewport?.addEventListener('scroll',adapt,{passive:true});
   window.addEventListener('resize',adapt,{passive:true});
   window.addEventListener('orientationchange',adapt,{passive:true});
   window.addEventListener('pageshow',adapt,{passive:true});
@@ -4442,7 +4449,7 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
   </div>
   <div id="radioPreviewClock" role="timer" aria-label="Radio free listening time remaining" hidden>RADIO · 33:33 READY</div>
 
-  <div id="iamLaunchRow">
+  <div id="iamLaunchRow" hidden aria-hidden="true">
     <button id="iamLaunchBtn" type="button" aria-expanded="false">I AM</button>
   </div>
 
@@ -6582,10 +6589,33 @@ function geRadioUtilityAllowed(feature){
       Array.isArray(r.scopes)&&(r.scopes.includes('radio')||r.scopes.includes('website'))&&r.scopes.includes(feature);
   }catch(_){return false}
 }
+// The original LOVE grant comes from an authenticated Vault redemption,
+// never from typing the word LOVE or a locally guessed listener identity.
+function geRadioSunLabAllowed(){
+  if(geRadioLocalTestAccess())return true;
+  try{
+    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    return !!receipt&&receipt.verifiedFor==='radio'&&
+      Number(receipt.until)>Date.now()&&receipt.sunLab===true;
+  }catch(_){return false}
+}
+// I AM is opt-in even for local demos and historic LOVE. A saved code with
+// the 'iam' permission is required before the button can become available.
+function geRadioIAMAllowed(){
+  try{
+    const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+    return !!receipt&&receipt.verifiedFor==='radio'&&
+      Number(receipt.until)>Date.now()&&
+      Array.isArray(receipt.scopes)&&receipt.scopes.includes('iam')&&
+      (receipt.scopes.includes('radio')||receipt.scopes.includes('website'));
+  }catch(_){return false}
+}
+window.GERadioIAMAllowed=geRadioIAMAllowed;
 function syncRadioOfflineAccessUI(){
   const localTest=geRadioLocalTestAccess();
   const permissions={offline:geRadioUtilityAllowed('offline'),
-    reload:geRadioUtilityAllowed('reload'),legacy:geRadioUtilityAllowed('legacy')};
+    reload:geRadioUtilityAllowed('reload'),legacy:geRadioUtilityAllowed('legacy'),
+    iam:geRadioIAMAllowed(),sunLab:geRadioSunLabAllowed()};
   const hasUtilities=permissions.offline||permissions.reload||permissions.legacy;
   document.body.classList.toggle('ge-offline-entitled',hasUtilities);
   document.body.classList.toggle('ge-legacy-entitled',permissions.legacy);
@@ -6599,7 +6629,11 @@ function syncRadioOfflineAccessUI(){
   setUtility($('offlineBtn'),permissions.offline);
   setUtility($('reloadBtn'),permissions.reload);
   setUtility($('legacyBtn'),permissions.legacy);
-  setUtility($('sunLabBtn'),localTest);
+  setUtility($('sunLabBtn'),permissions.sunLab);
+  setUtility($('iamLaunchRow'),permissions.iam);
+  // A previously opened I AM studio never persists after a permission loss.
+  if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
+    $('iamExitBtn')?.click();
   setUtility(document.querySelector('#shipStage [data-proxy="offlineBtn"]'),permissions.offline);
   setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
@@ -6607,7 +6641,7 @@ function syncRadioOfflineAccessUI(){
     $('accessLaunchBtn').hidden=false;
     $('accessLaunchBtn').setAttribute('aria-label',hasUtilities?'Verified access code':'Enter your Inner Frequency access code');
   }
-  if(!localTest){
+  if(!permissions.sunLab){
     const lab=$('sunLabPanel');
     if(lab){lab.hidden=true;lab.classList.remove('show');}
   }
@@ -9312,7 +9346,7 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
   function syncAll(){syncBackground();syncTitle();syncProxyStates();syncTransport();updateRadarBlips();updateEQ();updateApproachUI();if(document.body.classList.contains('view-ship'))void window.GEResumeLiveEQ?.();}
   document.querySelectorAll('#shipStage [data-proxy]').forEach(button=>button.addEventListener('click',()=>{const source=$(button.dataset.proxy);source?.click();setTimeout(syncProxyStates,0);}));
-  $('shipSunLabBtn')?.addEventListener('click',()=>{if(geRadioLocalTestAccess())$('sunLabBtn')?.click();});
+  $('shipSunLabBtn')?.addEventListener('click',()=>{if(geRadioSunLabAllowed())$('sunLabBtn')?.click();});
   $('shipGateTestBtn')?.addEventListener('click',()=>{if(geRadioLocalTestAccess())$('gateTestBtn')?.click();});
   shipTitle?.addEventListener('click',()=>titleBtn.click());shipPrev?.addEventListener('click',()=>previousTrack(true));shipNext?.addEventListener('click',()=>nextTrack(true));shipPlay?.addEventListener('click',()=>{state.userStarted=true;if(audio.paused){if(state.live||state.livePreparing)void requestRadioStart({userGesture:true});else resumeAudio();}else requestUserPause();});
   autoPilotBtn?.addEventListener('click',()=>{autopilot=!autopilot;autopilotReason='manual';setPressed(autoPilotBtn,autopilot);if(autopilot)document.body.classList.remove('hud-hidden');});
@@ -9401,7 +9435,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     setStatus(modeLabel(mode)+' active.');
   }
   function setPanelVisible(show){
-    if(show&&!geRadioLocalTestAccess())return;
+    if(show&&!geRadioSunLabAllowed())return;
     if(!sunLabPanel)return;
     const on=!!show;
     sunLabPanel.hidden=!on;
@@ -9538,7 +9572,7 @@ $('reloadBtn').addEventListener('click',async()=>{
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
-      sunLabBtn.addEventListener('click',()=>{if(!geRadioLocalTestAccess())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
@@ -11705,9 +11739,10 @@ Vector ${vector}. ${pair[1]}.`;
           // Share *scoped*, temporary Vault validation with the homepage Gate.
           // This contains no secret code and grants no owner, DJ or offline rights.
           const grantedScopes=Array.isArray(result.scopes)
-            ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload'].includes(scope)):[];
+            ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload','iam'].includes(scope)):[];
           sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
             scopes:grantedScopes,until:validUntil,verifiedFor:'radio',
+            sunLab:result.capabilities?.sun_lab===true,
             experience:{games_enabled:result.experience?.games_enabled!==false,
               autopilot_enabled:result.experience?.autopilot_enabled!==false,
               radio_playlist_id:String(result.experience?.radio_playlist_id||'')}
