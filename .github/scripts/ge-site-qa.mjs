@@ -205,8 +205,9 @@ const primaryWatch=radio.slice(radio.indexOf('function watchRadioConnection(){')
 test(primaryWatch.includes('if(observedRadio1Progress)return;') &&
      !primaryWatch.includes('if(!audio.paused&&audio.readyState>=3)return;') &&
      primaryWatch.includes("switchToRadio2('radio1_timeout')") &&
+     radio.includes('if(GE_RADIO2_DISABLED)return retryRadio1Only(reason);') &&
      primaryWatch.includes("!liveState.wantedPlayback"),
-     'Radio 1 falls back when readyState is positive but audio does not advance');
+     'Radio 1 retries BLITZ when media time does not advance, never Radio 2');
 const radioButton=radio.slice(radio.indexOf("$('liveBtn').addEventListener('click',()=>{"),
                              radio.indexOf("$('shuffleBtn').addEventListener('click',()=>{"));
 test(radioButton.includes("void requestRadioStart({userGesture:true});") &&
@@ -227,8 +228,10 @@ const startCue=radio.slice(radio.indexOf('function updateRadioStartupCue(){'),
                            radio.indexOf('function liveStreamConfigured(){'));
 test(startCue.includes('observedRadio2Progress:observedRadio1Progress') &&
      startCue.includes("document.body.classList.toggle('ge-radio-audible',!!connected)") &&
-     startCue.includes("button.textContent=connected?'RADIO':''"),
-     'Connected RADIO indicator requires genuine advancing audio');
+     startCue.includes("button.textContent='RADIO';") &&
+     radio.includes('opacity:1!important;pointer-events:auto!important') &&
+     radio.includes('background:rgba(9,30,49,.55)!important'),
+     'RADIO remains visible for retries; only verified BLITZ progress triggers the red heartbeat');
 test(radio.includes('geRadioRedDimmerLubDub 6.7s') &&
      radio.includes('grid-column:3 / span 2!important') &&
      radio.indexOf('id="shuffleBtn" aria-pressed="true">Shuffle</button>')<
@@ -303,15 +306,13 @@ test(radio.indexOf('id="shipAlbumPlanetLayer"')<radio.indexOf('id="shipPlanetLay
 test(!radio.includes("const escaped=name.replace(/[.*+?^$") ,
   'Album title matcher cannot inject a broken replacement string');
 
-test(/const GE_RADIO2_DISABLED=(?:true|false);/.test(radio) &&
-     radio.includes('const kind=radio2ProgramKind(program);') &&
-     radio.includes("if(name==='bangers')return 'bangers';") &&
-     radio.includes("program?.playlist_hash==='6ffcaf4206e25c78'") &&
-     radio.includes('void retryRadio1Only(reason);'),
-     'Radio 2 respects owner enabled/disabled setting and validates Bangers or the 50-track backup');
-allIn(radio,['RADIO 1 UNAVAILABLE — SWITCHING TO RADIO 2','switchToRadio2',
+test(radio.includes('const GE_RADIO2_DISABLED=true;') &&
+     radio.includes('if(GE_RADIO2_DISABLED)return retryRadio1Only(reason);') &&
+     radio.includes('const kind=radio2ProgramKind(program);'),
+     'Radio 2 infrastructure is preserved but cannot activate for public listeners');
+allIn(radio,['retryRadio1Only(reason)','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
-  'Radio fallback and guest music routing');
+  'BLITZ-only retries and normal guest music routing');
 for (const [signature,guard,label] of [
   ['function nextTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Next'],
   ['function previousTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Previous'],
