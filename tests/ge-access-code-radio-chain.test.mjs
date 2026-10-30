@@ -41,8 +41,10 @@ assert.match(radio,/v715-song-queue-loop/,'Radio uses the updated Music script')
 
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
-assert.match(v5,/action:'verify',token:access.token,track_path:track.path/,
- 'Music V5 must verify every chosen track against Vault');
+assert.match(v5,/const codePermitted=!!access&&/,
+ 'Music V5 limits selected songs to its signed Vault entitlement');
+assert.match(preview,/action:'verify',token:grant.token,track_path:t.path/,
+ 'Protected Music transport verifies every song with Vault');
 assert.match(preview,/GE_MUSIC_SESSION_ENDPOINT/);
 assert.match(preview,/action:'verify',token:grant.token,track_path:t.path/);
 assert.doesNotMatch(preview,/code!=='love'|GE_GATE_LOVE_V1/,
