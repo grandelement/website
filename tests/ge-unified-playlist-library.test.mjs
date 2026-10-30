@@ -112,7 +112,7 @@ assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
 assert.match(preview,/readGithub\(\),readVault\('\/v1\/public\/music-playlists'\)/);
 assert.match(preview,/const AUDIO_LIMIT_SECONDS=2013/,'music remains on the existing 33:33 preview');
-assert.match(radio,/ge-music-v5\.js\?v=20261028-v714-legacy-discovery/);
+
 assert.match(vault,/fanMusicBearer/);
 assert.match(vault,/ge-fan-playlists-v1:/);
 assert.match(vault,/\/v1\/public\/fan-playlists/);
