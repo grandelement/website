@@ -41,7 +41,9 @@ try{
     filenamePreset:!!by('geFilenamePresets'),
     diagnosticsInStatus:!!by('geGoogleStatusView')?.contains(by('geDiagnostics')),
     link:document.querySelector('#geDriveQuickLinks a')?.href||'',
-    pageOverflow:document.documentElement.scrollHeight-window.innerHeight
+    pageOverflow:document.documentElement.scrollHeight-window.innerHeight,
+    documentScroll:getComputedStyle(document.documentElement).overflowY,
+    bodyScroll:getComputedStyle(document.body).overflowY
    };
  });
  assert.deepEqual(ui.tabs,['FILES','METADATA','STATUS']);
@@ -50,6 +52,8 @@ try{
  assert.ok(ui.repairInStatus,'Google repair must not be at the bottom of FILES');
  assert.ok(ui.diagnosticsInStatus,'Troubleshooting must be in STATUS');
  assert.ok(ui.folder?.shown,'Files tab should start open');
+ assert.equal(ui.bodyScroll,'hidden','Google mode must not scroll the whole webpage');
+ assert.equal(ui.documentScroll,'hidden','Google mode must lock document scrolling');
  await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[1].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleMetadataView')).display!=='none');
  assert.ok(await page.$('#geUploadSaveSettings'),'Metadata save missing');
