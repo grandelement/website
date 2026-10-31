@@ -138,8 +138,14 @@ requireText(radio,/id="ge-radio-ios-visible-viewport"/,'iPhone Safari toolbar he
 requireText(radio,/ge-safari-browser-compact/,'Dynamic Safari compact layout removed');
 requireText(radio,/id="radioCopyright"/,'Copyright footer removed');
 requireText(radio,/id="reloadBtn" hidden/,'Reload button removed');
-requireText(radio,/id="offlineBtn" hidden/,'Offline button removed');
-requireText(radio,/setUtility\(\$\('offlineBtn'\),permissions.offline\)/,'Offline must require verified Vault scope');
+requireText(radio,/id="offlineBtn" type="button"/,'Permanent OFFLINE button missing');
+requireNot(radio,/id="offlineBtn" hidden/,'OFFLINE must not start hidden');
+requireText(radio,/offlineButton\.hidden=false/,'OFFLINE must remain visible when the Gate is locked');
+requireText(radio,/offlineButton\.setAttribute\('aria-disabled',String\(!permissions.offline\)\)/,'OFFLINE locked state must follow verified Vault permission');
+requireText(radio,/if\(!geRadioUtilityAllowed\('offline'\)\)\{/,'OFFLINE actions must require verified Vault permission');
+requireText(radio,/window.GEGate\.openCodeEntry\(\)/,'Locked OFFLINE button must offer CODE entry');
+requireText(radio,/ge-radio-offline-always-visible-20261031/,'Always-visible OFFLINE layout missing');
+requireText(radio,/shipOffline\.hidden=false/,'Ship OFFLINE control must remain visible');
 requireText(radio,/setUtility\(\$\('reloadBtn'\),permissions.reload\)/,'Reload must require verified Vault scope');
 requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
 assert.ok(radio.includes("((feature==='offline'||feature==='reload')&&r.sunLab===true)"),'Verified original LOVE must restore its Offline and Reload tools');
