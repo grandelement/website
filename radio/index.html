@@ -4406,6 +4406,22 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
   }
 }
 </style>
+<style id="ge-radio-music-same-height-20261031">
+/* MATCH all three second-row buttons. Blue MUSIC remains blue, not larger.
+   Its old 48px min-height previously stretched the transport row on iPhones. */
+@media (orientation:portrait) and (max-width:700px){
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #shuffleBtn,
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #liveBtn,
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button{
+    box-sizing:border-box!important;
+    height:clamp(36px,5.4dvh,46px)!important;
+    min-height:clamp(36px,5.4dvh,46px)!important;
+    max-height:clamp(36px,5.4dvh,46px)!important;
+    margin:0!important;padding:3px 5px!important;
+    align-self:stretch!important;
+  }
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -6314,7 +6330,8 @@ function updateRadioStartupCue(){
   // audio player must advance before we show a live signal.
   const playing=(state.live||state.livePreparing)&&!audio.paused&&
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
-  const connected=!!(playing||((state.live||state.livePreparing)&&liveState.signalReady));
+  // Host-side signal proof does not mean Safari is playing audible radio.
+  const connected=!!(playing&&!audio.muted);
   document.body.classList.toggle('ge-radio-audible',!!connected);
   // Keep acknowledgment after a voluntary pause, but only show steady red
   // after actual forward progress confirmed the Radio 1 signal.
@@ -6400,7 +6417,7 @@ function verifyRadio1Signal(){
          (!state.live&&!state.livePreparing))return false;
       // Valid server signal, not a local playback or purchase entitlement.
       liveState.signalReady=true;
-      liveState.hadVerifiedStream=true;
+      // Host MP3 bytes alone do not prove native playback or audible sound.
       updateRadioStartupCue();
       showRadioWakeLink(false);
       setLiveStatus('RADIO 1 · SIGNAL READY');
@@ -6757,8 +6774,9 @@ async function resumeRadio(){
     try{
       // Automated retries must stay silent. Safari can reject an unmuted
       // programmatic play() after reload and never verify the signal.
-      audio.muted=!liveState.userActivated;
-      audio.defaultMuted=!liveState.userActivated;
+      // Never resume silently when the browser could allow audible playback.
+      audio.muted=false;
+      audio.defaultMuted=false;
       audio.volume=desiredPlaybackVolume(state.currentURL);
       setLiveStatus('RADIO 1 · CONNECTING…');
       watchRadioConnection();
@@ -6808,8 +6826,9 @@ async function resumeLiveAtEdge(){
     audio.crossOrigin='anonymous';
     audio.autoplay=false;
     audio.preload='auto';
-    audio.muted=!liveState.userActivated;
-    audio.defaultMuted=!liveState.userActivated;
+    // Retry audible Radio 1 on capable browsers. Safari can block until a tap.
+    audio.muted=false;
+    audio.defaultMuted=false;
     audio.volume=desiredPlaybackVolume(state.currentURL);
     audio.src=freshLiveStreamURL();
     audio.load();
@@ -6870,10 +6889,11 @@ async function enterLiveMode({deferPlay=false}={}){
   audio.autoplay=false;
   audio.preload='auto';
   audio.crossOrigin='anonymous';
-  // Start muted on page load. Safari may permit muted autoplay so the user
-  // sees verified stream progress without hearing anything until they tap.
-  audio.muted=!liveState.userActivated;
-  audio.defaultMuted=!liveState.userActivated;
+  // Owner revision: ATTEMPT AUDIBLE Radio 1 playback immediately on arrival.
+  // Safari may reject unmuted autoplay; then the same prepared stream uses
+  // one trusted RADIO or PLAY tap. Do not fake success with muted playback.
+  audio.muted=false;
+  audio.defaultMuted=false;
   audio.setAttribute('playsinline','');
   audio.volume=desiredPlaybackVolume(state.currentURL);
   audio.src=freshLiveStreamURL();
@@ -7789,7 +7809,7 @@ const playBtn=$('playBtn'),playerSeek=$('playerSeek');
 function syncMainTransport(){
   // Show the true live transport state. For personal songs, PLAY opens music choice.
   if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
-  if(playBtn)playBtn.textContent=(state.live||state.livePreparing||geOwnerDemoEnabled())?(audio.paused?'Play':'Pause'):'Play';
+  if(playBtn)playBtn.textContent=(state.live||state.livePreparing||geOwnerDemoEnabled())?((audio.paused||audio.muted)?'Play':'Pause'):'Play';
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
@@ -7801,7 +7821,7 @@ playBtn?.addEventListener('click',()=>{
   // personal-song PLAY opens the user's music selection instead of the store.
   if(!geOwnerDemoEnabled()){
     if(state.live||state.livePreparing){
-      if(audio.paused)void requestRadioStart({userGesture:true});
+      if(audio.paused||audio.muted)void requestRadioStart({userGesture:true});
       else requestUserPause();
     }else geOpenMusicSelection();
     return;
@@ -8518,7 +8538,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-radio-one-tap-compact-v80',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-audible-start-equal-music-v81',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){

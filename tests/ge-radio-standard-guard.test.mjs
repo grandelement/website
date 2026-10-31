@@ -135,7 +135,10 @@ requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'Radio
 requireText(radio,/button\.textContent='RADIO'/,'RADIO text must always be visible, even when reconnecting');
 requireText(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/,'First listener RADIO tap must acknowledge the heartbeat');
 requireText(radio,/liveState\.hadVerifiedStream=true/,'Radio connection must require forward-time progress');
-requireText(radio,/audio\.muted=!liveState\.userActivated/,'Radio page must start silently before user plays');
+requireText(radio,/Owner revision: ATTEMPT AUDIBLE Radio 1 playback immediately on arrival/,'Radio no longer attempts audible autoplay');
+requireText(radio,/audio\.muted=false;\s*audio\.defaultMuted=false;[\s\S]*?audio\.src=freshLiveStreamURL\(\)/,'Initial Radio 1 stream must be unmuted');
+requireText(radio,/const connected=!!\(playing&&!audio\.muted\)/,'RADIO heartbeat must not reflect muted signal probes');
+requireText(radio,/audio\.paused\|\|audio\.muted/,'Native PLAY must unlock a still-muted stream');
 requireText(radio,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
 requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
 requireText(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Only a genuinely stalled active Radio 1 stream may restart');
@@ -180,7 +183,9 @@ assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must 
 requireText(radio,/id="ge-radio-no-extra-row-20261031"/,'Whole visible buffering bar and empty grid row must be gone');
 requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
 requireText(radio,/grid-area:2\/1\/3\/2!important/,'Sun Lab must replace the retired RELOAD position');
-requireText(radio,/ge-radio-one-tap-compact-v80/,'Current iPhone UI shell not refreshed');
+requireText(radio,/ge-radio-no-extra-row-20261031/,'Removed Radio status bar returned');
+requireText(radio,/id="ge-radio-music-same-height-20261031"/,'MUSIC equal-size portrait override removed');
+requireText(radio,/20261031-audible-start-equal-music-v81/,'Current iPhone UI shell not refreshed');
 requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
 requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
