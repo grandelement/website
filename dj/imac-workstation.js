@@ -185,7 +185,11 @@ function init(){
   var statusDetails=diagnostic;
   if(statusDetails) {
     statusDetails.open=true;
-    move(studioConnection,statusDetails);
+    // Place FIX GOOGLE DRIVE immediately under STATUS rather than below
+    // the long device diagnostics, so it is visible without scrolling.
+    var summary=statusDetails.querySelector("summary");
+    if(summary)statusDetails.insertBefore(studioConnection,summary.nextSibling);
+    else move(studioConnection,statusDetails);
     move(extra,statusDetails);
     move(statusDetails,statusView);
   } else {

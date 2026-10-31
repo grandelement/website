@@ -115,14 +115,27 @@ try{
  await page.evaluate(()=>window.dispatchEvent(new Event('resize')));
  const small=await page.evaluate(()=>{
   const box=document.getElementById('geGoogleStatusView');
-  const bottom=document.getElementById('checkLocalHelperInStatus');
-  box.scrollTop=box.scrollHeight;
-  const r=box.getBoundingClientRect(),b=bottom.getBoundingClientRect();
-  return {scroll:box.scrollTop,visible:box.clientHeight,buttonVisible:b.top>=r.top&&b.bottom<=r.bottom,
-   dockTop:document.querySelector('.geBottomDock').getBoundingClientRect().top,
-   panelBottom:document.getElementById('geTabGoogle').getBoundingClientRect().bottom};
+  const dockTop=document.querySelector('.geBottomDock').getBoundingClientRect().top;
+  const panelBottom=document.getElementById('geTabGoogle').getBoundingClientRect().bottom;
+  const inside=(node)=>{
+   const r=box.getBoundingClientRect(),b=node.getBoundingClientRect();
+   return b.top>=r.top-2&&b.bottom<=r.bottom+2;
+  };
+  box.scrollTop=0;
+  const repair=document.getElementById('reconnectDriveAuth');
+  const repairVisibleOnOpen=inside(repair);
+  const local=document.getElementById('checkLocalHelperInStatus');
+  local.scrollIntoView({block:'center'});
+  const localVisibleAfterScroll=inside(local),middleScroll=box.scrollTop;
+  const advanced=document.getElementById('geDriveExtras');
+  advanced.scrollIntoView({block:'end'});
+  return {scroll:box.scrollTop,middleScroll,visible:box.clientHeight,
+   repairVisibleOnOpen,localVisibleAfterScroll,advancedVisibleAfterScroll:inside(advanced.querySelector('summary')),
+   dockTop,panelBottom};
  });
- assert.ok(small.buttonVisible,'Status controls must be reachable on a 2007 iMac-sized browser: '+JSON.stringify(small));
+ assert.ok(small.repairVisibleOnOpen,'FIX GOOGLE DRIVE must be immediately visible on STATUS: '+JSON.stringify(small));
+ assert.ok(small.localVisibleAfterScroll,'CHECK LOCAL HELPER must be reachable inside STATUS: '+JSON.stringify(small));
+ assert.ok(small.advancedVisibleAfterScroll,'Advanced troubleshooting must be reachable inside STATUS: '+JSON.stringify(small));
  assert.ok(small.panelBottom<=small.dockTop+2,'Google content is behind bottom dock: '+JSON.stringify(small));
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
  assert.equal(severe.length,0,'Unexpected script error: '+severe.join(' | '));
