@@ -59,14 +59,24 @@ try{
  await page.waitForFunction(()=>window.GEMusicV5.state().loaded&&
   typeof document.querySelector('#geInlineMusicFrame')?.contentWindow?.GEPlayLibraryQueue==='function',
   {timeout:20000});
- const handle=await page.evaluateHandle(()=>{
-  const root=document.querySelector('#geMusicV5Host').shadowRoot;
-  const row=[...root.querySelectorAll('.song')].find(r=>r.querySelector('.songLabel')?.textContent==='Polaris');
-  return row?.querySelector('.songActions button')||null;
+ // The MUSIC panel re-renders rows while the catalog finishes loading.
+ // Clicking a Puppeteer handle captured before the render is a detached-node
+ // error, not a failure of real audio playback. Locate and click atomically.
+ await page.waitForFunction(()=>{
+  const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
+  return !![...(root?.querySelectorAll('.song')||[])].find(r=>
+   r.querySelector('.songLabel')?.textContent==='Polaris' &&
+   r.querySelector('.songActions button'));
+ },{timeout:20000});
+ const clicked=await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
+  const row=[...(root?.querySelectorAll('.song')||[])].find(r=>
+    r.querySelector('.songLabel')?.textContent==='Polaris');
+  const btn=row?.querySelector('.songActions button');
+  if(!btn)return false;
+  btn.click();return true;
  });
- const button=handle.asElement();
- if(!button)throw Error('Polaris PLAY button missing');
- await button.click();
+ if(!clicked)throw Error('Polaris PLAY button missing after catalog render');
  await page.waitForFunction(()=>!window.GEMusicV5.state().open&&document.getElementById('audio')?.src.includes('Polaris'),
   {timeout:10000});
  try{
