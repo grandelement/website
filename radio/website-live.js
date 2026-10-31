@@ -41,9 +41,9 @@ function media(){
 }
 function allowed(){return !document.body.classList.contains('ge-broadcast-background')}
 function freshURL(){
- var url=new URL(STREAM);
- url.searchParams.set('_ge_live_edge',String(Date.now()));
- return url.href;
+ // Keep the canonical Icecast mount untouched. attempt() already replaces
+ // the audio src and calls load() to establish a fresh live connection.
+ return STREAM;
 }
 function attempt(nonce){
  if(nonce!==run||!wants||!allowed()||document.hidden&&audio&&!audio.paused)return;

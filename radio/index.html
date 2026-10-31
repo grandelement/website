@@ -6207,16 +6207,11 @@ const geListenerPreviewCheck=Promise.resolve(false);
 window.GEListenerPreview={available:()=>false,active:()=>false};
 let radioTryCanonicalStream=false;
 function freshLiveStreamURL(){
-  const target=new URL(CONFIG.LIVE_STREAM_URL,location.href);
-  // Some Icecast reverse proxies accept the exact MP3 mount but reject a
-  // cache-busting query. After a failed connection, test the SAME station's
-  // canonical mount once before declaring BLITZ unreachable.
-  if(radioTryCanonicalStream){
-    radioTryCanonicalStream=false;
-    return target.href;
-  }
-  target.searchParams.set('_ge_live_edge',String(Date.now()));
-  return target.href;
+  // Always request the exact BLITZ Icecast mount. A cache-busting query can
+  // cause some streaming proxies to reject the URL with HTTP 503.
+  // Reassigning src and calling load() already opens a fresh audio request.
+  radioTryCanonicalStream=false;
+  return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;
 }
 
 function liveShareURL(){
@@ -6717,8 +6712,13 @@ function geRadioUtilityAllowed(feature){
   if(geRadioLocalTestAccess())return true;
   try{
     const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
-    return !!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
-      Array.isArray(r.scopes)&&(r.scopes.includes('radio')||r.scopes.includes('website'))&&r.scopes.includes(feature);
+    const verified=!!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
+      Array.isArray(r.scopes)&&(r.scopes.includes('radio')||r.scopes.includes('website'));
+    // The Vault grants sunLab only to the verified original LOVE record.
+    // That original all-access grant also restores OFFLINE and RELOAD.
+    // Other codes continue to require their explicit Vault scopes.
+    return verified&&(r.scopes.includes(feature)||
+      ((feature==='offline'||feature==='reload')&&r.sunLab===true));
   }catch(_){return false}
 }
 // The original LOVE grant comes from an authenticated Vault redemption,

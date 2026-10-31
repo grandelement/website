@@ -141,6 +141,11 @@ requireText(radio,/id="reloadBtn" hidden/,'Reload button removed');
 requireText(radio,/id="offlineBtn" hidden/,'Offline button removed');
 requireText(radio,/setUtility\(\$\('offlineBtn'\),permissions.offline\)/,'Offline must require verified Vault scope');
 requireText(radio,/setUtility\(\$\('reloadBtn'\),permissions.reload\)/,'Reload must require verified Vault scope');
+requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
+requireText(radio,/((feature==='offline'||feature==='reload')&&r.sunLab===true)/,'Verified original LOVE must restore its Offline and Reload tools');
+requireText(radio,/function freshLiveStreamURL(){[sS]*?return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;/,'Radio must request the canonical BLITZ mount');
+requireText(homeRadio,/function freshURL(){[sS]*?return STREAM;/,'Homepage must request the canonical BLITZ mount');
+requireNot(radio,/searchParams.set('_ge_live_edge'/,'Radio mount must not have proxy-breaking cache-busting query');
 requireText(radio,/#bottomActions #reloadBtn:not\(\[hidden\]\)\{display:flex!important/,'Verified Reload must be visible');
 requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
