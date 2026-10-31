@@ -240,7 +240,21 @@ function init(){
 
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
  var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
- function select(index){for(var j=0;j<tabs.length;j++){tabs[j][1].style.display=j===index?"block":"none";nav.children[j].className=j===index?"selected":""}try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}w.scrollTo(0,0)}
+ function select(index){
+  for(var j=0;j<tabs.length;j++){
+    tabs[j][1].style.display=j===index?"block":"none";
+    nav.children[j].className=j===index?"selected":"";
+  }
+  if(index===3){
+    d.documentElement.classList.add("geImacGoogleActive");
+    d.body.classList.add("geImacGoogleActive");
+  }else{
+    d.documentElement.classList.remove("geImacGoogleActive");
+    d.body.classList.remove("geImacGoogleActive");
+  }
+  try{w.sessionStorage.setItem("geImacTab",String(index))}catch(e){}
+  w.scrollTo(0,0);
+}
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k);if(k===3&&w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
  var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
