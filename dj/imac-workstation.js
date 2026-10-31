@@ -121,6 +121,10 @@ function init(){
   for(var ui=0;ui<targets.length;ui++)(function(info){
     var button=node("button","geUploadTarget",info[1]);button.type="button";
     button.setAttribute("data-upload-kind",info[0]);
+    var selectedTab=by(info[2]);
+    var active=!!(selectedTab&&selectedTab.className.indexOf("geSelectedTab")>=0);
+    if(active)button.className="geUploadTarget geSelectedTarget";
+    button.setAttribute("aria-pressed",active?"true":"false");
     button.onclick=function(){var tab=by(info[2]);if(tab)tab.click()};
     destinations.appendChild(button);
   })(targets[ui]);
