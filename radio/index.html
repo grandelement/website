@@ -6265,11 +6265,25 @@ let geListenerPreviewReady=false;
 const geListenerPreviewCheck=Promise.resolve(false);
 window.GEListenerPreview={available:()=>false,active:()=>false};
 let radioTryCanonicalStream=false;
+const GE_RADIO_NATIVE_HLS_URL='https://radio.grandelement.blitz.cloud/hls/radio.m3u8';
+function geRadioNativeHLSAvailable(){
+  // The GE DJ iPhone monitor already uses this exact BLITZ HLS path.
+  // Safari on iPhone has native HLS support; other browsers keep MP3.
+  const ua=String(navigator.userAgent||'');
+  const ios=/iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  if(!ios||!audio?.canPlayType)return false;
+  return !!(audio.canPlayType('application/vnd.apple.mpegurl') ||
+    audio.canPlayType('application/x-mpegURL') ||
+    audio.canPlayType('audio/mpegurl'));
+}
 function freshLiveStreamURL(){
-  // Always request the exact BLITZ Icecast mount. A cache-busting query can
-  // cause some streaming proxies to reject the URL with HTTP 503.
-  // Reassigning src and calling load() already opens a fresh audio request.
+  // Use the SAME BLITZ Radio 1 feed as GE DJ on native-HLS iOS.
+  // No Radio 2, playlist switch, gate bypass, or new audio element.
+  // Do not append cache-busting queries; the stream request is reopened
+  // by resetting src and calling load() on the existing audio element.
   radioTryCanonicalStream=false;
+  if(geRadioNativeHLSAvailable())return GE_RADIO_NATIVE_HLS_URL;
   return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;
 }
 
