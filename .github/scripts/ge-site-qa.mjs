@@ -493,7 +493,7 @@ const musicPreview=load('radio/preview-lab.html');
 test(musicV5.includes("state.publicLists=data.playlists") &&
      musicV5.includes("data.playlists.filter(valid)") &&
      musicV5.includes("readMine()") &&
-     musicV5.includes('data-access-view="playlist"') &&
+     musicV5.includes('data-tab="playlists"') &&
      radio.includes('GEPlayLibraryQueue') &&
      musicPreview.includes('window.GEPlayLibraryQueue=function') &&
      musicPreview.includes("const MUSIC_ALBUM_ORDER=['Singles','Aether'"),
