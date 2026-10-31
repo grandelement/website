@@ -47,3 +47,40 @@ jobs:
         run: node tests/ge-radio-standard-guard.test.mjs
       - name: Verify GE / private fan playlist Vault wiring
         run: node tests/ge-unified-playlist-library.test.mjs
+      - name: Inspect live BLITZ gateway and audio mounts (read-only, advisory)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error, socket
+          host="radio.grandelement.blitz.cloud"
+          try:
+              infos=socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)
+              print("BLITZ DNS RESOLVED",len(infos),"records",flush=True)
+          except Exception as e:
+              print("BLITZ DNS FAILED",type(e).__name__,str(e)[:200],flush=True)
+              raise SystemExit(0)
+          results={}
+          for key,path in [("GATEWAY","/healthz"),("AUTOMATION","/dj-cue.mp3"),("PUBLIC_STREAM","/stream.mp3")]:
+              req=urllib.request.Request("https://"+host+path,headers={
+                  "User-Agent":"GrandElement-Live-Audio-HealthCheck/1.0",
+                  "Accept":"audio/mpeg,*/*"
+              })
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as resp:
+                      content=resp.read(512)
+                      mime=resp.headers.get("Content-Type","")
+                      results[key]=(resp.status==200 and len(content)>0 and
+                          (key=="GATEWAY" or "audio/" in mime.lower()))
+                      print(key,"HTTP",resp.status,"MIME",mime,"BYTES",len(content),
+                            "GOOD" if results[key] else "FAILED",flush=True)
+              except urllib.error.HTTPError as e:
+                  results[key]=False
+                  print(key,"HTTP",e.code,"FAILED",flush=True)
+              except Exception as e:
+                  results[key]=False
+                  print(key,"ERROR",type(e).__name__,str(e)[:170],flush=True)
+          if not results.get("GATEWAY"):print("ROOT: BLITZ public gateway/platform unavailable.",flush=True)
+          elif not results.get("AUTOMATION"):print("ROOT: BLITZ gateway online, but Icecast/Liquidsoap automation mount absent. Check playlist.m3u and backend logs.",flush=True)
+          elif not results.get("PUBLIC_STREAM"):print("ROOT: automation online, but FFmpeg master mixer or public mount absent.",flush=True)
+          else:print("PUBLIC MP3 RESPONSE REACHABLE; investigate browser playback and CORS.",flush=True)
+          PY
