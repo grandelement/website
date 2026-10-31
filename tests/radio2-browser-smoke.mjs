@@ -81,5 +81,30 @@ try{
  await page.waitForFunction(()=>document.querySelector('#geGate')?.getAttribute('aria-hidden')==='false',{timeout:8000});
  assert.equal(await page.evaluate(()=>document.querySelector('#geGate')?.classList.contains('open')),true,
   'Locked OFFLINE must open the existing CODE entry');
- console.log('PASS: BLITZ stays Radio1 only; OFFLINE stays visible and opens CODE without a Vault entitlement.');
+ // The actual historic LOVE record is verified in the Vault unit test.
+ // Simulate its returned scoped receipt here to verify responsive placement.
+ const sunLab=await page.evaluate(()=>{
+  sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+   scopes:['website','radio','music','albums','games','offline','reload'],
+   until:Date.now()+3600000,verifiedFor:'radio',sunLab:true
+  }));
+  window.GERadioSyncOfflineAccess?.();
+  const dimensions=id=>{
+   const element=document.getElementById(id),rect=element.getBoundingClientRect();
+   return {hidden:element.hidden,top:rect.top,left:rect.left,right:rect.right,width:rect.width};
+  };
+  return {sun:dimensions('sunLabBtn'),support:dimensions('bottomActions')&&(()=>{
+   const r=document.querySelector('#bottomActions > .bc-btn').getBoundingClientRect();
+   return {top:r.top,left:r.left,right:r.right,width:r.width}})(),
+   offline:dimensions('offlineBtn')};
+ });
+ assert.equal(sunLab.sun.hidden,false,'Verified LOVE must show SUN LAB');
+ assert.ok(sunLab.sun.width>0,'SUN LAB must have a clickable width');
+ assert.ok(Math.abs(sunLab.sun.top-sunLab.support.top)<5 &&
+           Math.abs(sunLab.sun.top-sunLab.offline.top)<5,
+  'SUN LAB, SUPPORT, OFFLINE must be on the same row');
+ assert.ok(sunLab.sun.right<=sunLab.support.left+2 &&
+           sunLab.support.right<=sunLab.offline.left+2,
+  'SUN LAB must be left of SUPPORT, and OFFLINE must be right');
+ console.log('PASS: BLITZ Radio1 only, guest OFFLINE code entry and verified LOVE SUN LAB placement.');
 }finally{await browser.close();}
