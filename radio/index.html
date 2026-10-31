@@ -9804,7 +9804,9 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
   function resetLocalAccessCodes(){
     if(!confirm('Clear local owner/test access codes on this device? Downloaded songs and offline caches will be kept.'))return;
-    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey,'GE_VAULT_RADIO_SESSION_V1'];
+    const keys=['GE_PLAYER_OWNER_DEMO_V1','GE_PLAYER_3333_TEST_V1',GATE_CONFIG.authKey,
+      'GE_VAULT_RADIO_SESSION_V1','GE_VAULT_SCOPED_ACCESS_V1',
+      'GE_MUSIC_CODE_SESSION_V1','GE_VAULT_RADIO_DEVICE_SESSION_V1'];
     for(const key of keys){
       if(!key)continue;
       try{localStorage.removeItem(key);}catch(_e){}
@@ -11947,6 +11949,86 @@ Vector ${vector}. ${pair[1]}.`;
     },duration+100);
   }
   let vaultRedeemBusy=false;
+  const GE_RADIO_DEVICE_SESSION_KEY='GE_VAULT_RADIO_DEVICE_SESSION_V1';
+  function geRememberedDeviceId(){
+    const id=String(window.GEVault?.anonId||'');
+    return /^visitor-[a-z0-9-]{16,100}$/i.test(id)?id:'';
+  }
+  function applyVaultRadioGrant(result){
+    if(result?.ok!==true)return false;
+    const expires=Number(result.expires_at)||0;
+    const validUntil=expires>0?expires*1000:(Date.now()+60*60*1000);
+    if(validUntil<=Date.now())return false;
+    const grantedScopes=Array.isArray(result.scopes)
+      ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload','iam'].includes(scope)):[];
+    if(!grantedScopes.includes('radio')&&!grantedScopes.includes('website'))return false;
+    try{
+      sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));
+      sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
+        scopes:grantedScopes,until:validUntil,verifiedFor:'radio',
+        sunLab:result.capabilities?.sun_lab===true,
+        experience:{games_enabled:result.experience?.games_enabled!==false,
+          autopilot_enabled:result.experience?.autopilot_enabled!==false,
+          radio_playlist_id:String(result.experience?.radio_playlist_id||'')}
+      }));
+      const m=result.music_session;
+      if(m&&typeof m.token==='string'&&Array.isArray(m.allowed_tracks)&&
+         Number(m.session_expires_at)*1000>Date.now()){
+        const receipt={token:m.token,until:Number(m.session_expires_at)*1000,
+          restricted:!!m.restricted,allowed:m.allowed_tracks,
+          playlistIds:Array.isArray(m.playlist_ids)?m.playlist_ids:[],
+          radioPlaylistId:String(result.experience?.radio_playlist_id||''),
+          displayName:String(m.display_name||'').trim().slice(0,80)};
+        sessionStorage.setItem('GE_MUSIC_CODE_SESSION_V1',JSON.stringify(receipt));
+        try{window.dispatchEvent(new CustomEvent('ge-vault-music-access-updated'))}catch(_e){}
+        try{geInlineMusicFrame?.contentWindow?.postMessage({type:'ge-vault-music-access-updated'},location.origin)}catch(_e){}
+      }else{
+        sessionStorage.removeItem('GE_MUSIC_CODE_SESSION_V1');
+      }
+      const device=result.device_session;
+      if(device?.token&&Number(device.expires_at)>Date.now()/1000&&geRememberedDeviceId()){
+        // Signed, revocable device bearer token, not the original code.
+        localStorage.setItem(GE_RADIO_DEVICE_SESSION_KEY,JSON.stringify({
+          token:device.token,device_id:geRememberedDeviceId(),until:Number(device.expires_at)*1000
+        }));
+      }
+      try{window.dispatchEvent(new CustomEvent('ge-access-experience-updated'))}catch(_e){}
+      return true;
+    }catch(_e){return false}
+  }
+  let deviceRestoreInFlight=null;
+  function restoreRememberedRadioDevice(){
+    if(deviceRestoreInFlight)return deviceRestoreInFlight;
+    let saved=null;
+    try{saved=JSON.parse(localStorage.getItem(GE_RADIO_DEVICE_SESSION_KEY)||'null')}catch(_e){}
+    const deviceId=geRememberedDeviceId();
+    if(!saved?.token||!deviceId||saved.device_id!==deviceId||
+       Number(saved.until)<=Date.now()){
+      try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY)}catch(_e){}
+      return Promise.resolve(false);
+    }
+    const job=(async()=>{
+      try{
+        const response=await fetch('https://vault.grandelement.com/v1/public/access/device/restore',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          cache:'no-store',body:JSON.stringify({token:saved.token,device_id:deviceId})
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||result.ok!==true){
+          if(response.status===403||response.status===401){
+            try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY)}catch(_e){}
+          }
+          return false;
+        }
+        const success=applyVaultRadioGrant(result);
+        if(success){window.GEGate?.restore?.();window.GERadioSyncOfflineAccess?.();}
+        return success;
+      }catch(_e){return false} // Offline or Vault outage preserves device token.
+    })().finally(()=>{if(deviceRestoreInFlight===job)deviceRestoreInFlight=null});
+    deviceRestoreInFlight=job;
+    return job;
+  }
+  window.GERestoreRadioDevice=restoreRememberedRadioDevice;
   async function unlock(){
     // A Radio-only code holder may later enter a distinct owner code.
     if(vaultRedeemBusy)return;
@@ -11961,7 +12043,7 @@ Vector ${vector}. ${pair[1]}.`;
       try{
         const response=await fetch('https://vault.grandelement.com/v1/public/access/redeem',{
           method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({code:entered,scope:'radio'}),cache:'no-store'
+          body:JSON.stringify({code:entered,scope:'radio',device_id:geRememberedDeviceId()}),cache:'no-store'
         });
         const result=await response.json().catch(()=>({}));
         if(!response.ok||result.ok!==true){
@@ -11981,44 +12063,11 @@ Vector ${vector}. ${pair[1]}.`;
           }
           return;
         }
-        const expires=Number(result.expires_at)||0;
-        const validUntil=expires>0?expires*1000:(Date.now()+60*60*1000);
-        if(validUntil<=Date.now()){
-          if(status)status.textContent='This GE Access Code has expired.';
+        if(!applyVaultRadioGrant(result)){
+          if(status)status.textContent='This browser could not verify or save the GE Radio session.';
           return;
         }
-        // A Radio-only session is not an owner account, a paid entitlement,
-        // a DJ permission, or a right to offline downloads.
-        try{
-          sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));
-          // Share *scoped*, temporary Vault validation with the homepage Gate.
-          // This contains no secret code and grants no owner, DJ or offline rights.
-          const grantedScopes=Array.isArray(result.scopes)
-            ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload','iam'].includes(scope)):[];
-          sessionStorage.setItem('GE_VAULT_SCOPED_ACCESS_V1',JSON.stringify({
-            scopes:grantedScopes,until:validUntil,verifiedFor:'radio',
-            sunLab:result.capabilities?.sun_lab===true,
-            experience:{games_enabled:result.experience?.games_enabled!==false,
-              autopilot_enabled:result.experience?.autopilot_enabled!==false,
-              radio_playlist_id:String(result.experience?.radio_playlist_id||'')}
-          }));
-          try{window.dispatchEvent(new CustomEvent('ge-access-experience-updated'))}catch(_e){}
-          // One Gate redemption now returns the SAME record's signed Music
-          // grant and exact saved playlist/song snapshot. No second use is
-          // consumed, and this does not change the shared BLITZ broadcast.
-          const m=result.music_session;
-          if(m&&typeof m.token==='string'&&Array.isArray(m.allowed_tracks)&&
-             Number(m.session_expires_at)*1000>Date.now()){
-            const receipt={token:m.token,until:Number(m.session_expires_at)*1000,
-              restricted:!!m.restricted,allowed:m.allowed_tracks,
-              playlistIds:Array.isArray(m.playlist_ids)?m.playlist_ids:[],
-              radioPlaylistId:String(result.experience?.radio_playlist_id||''),
-              displayName:String(m.display_name||'').trim().slice(0,80)};
-            sessionStorage.setItem('GE_MUSIC_CODE_SESSION_V1',JSON.stringify(receipt));
-            try{window.dispatchEvent(new CustomEvent('ge-vault-music-access-updated'))}catch(_e){}
-            try{geInlineMusicFrame?.contentWindow?.postMessage({type:'ge-vault-music-access-updated'},location.origin)}catch(_e){}
-          }
-        }catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
+      }catch(_e){if(status)status.textContent='This browser cannot retain the Radio session.';return;}
       }catch(_e){
         if(status)status.textContent='GE Vault cannot be reached. Try the code again online.';
         return;
@@ -12369,6 +12418,9 @@ gateTestBtn?.addEventListener('click',()=>{
   // must never prevent iPhone listeners from getting the live station.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
   void requestRadioStart({deferPlay:qrArrival});
+  // Recheck a signed, revocable Vault grant from this browser after every
+  // reload, including VPN changes. No code or password is stored.
+  void window.GERestoreRadioDevice?.();
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
