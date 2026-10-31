@@ -4666,10 +4666,10 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
-    <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/wake-radio"
+    <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
        rel="external" hidden
-       aria-label="Wake Radio 1 in your browser and return to Grand Element">
-       WAKE RADIO · RECONNECT
+       aria-label="BLITZ Radio hosting status">
+       BLITZ RADIO
     </a>
     <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
     <button id="geMusicV5Button" type="button" aria-controls="geMusicV5Host" aria-expanded="false" data-ge-music-build="GE-MUSIC-V5-20261024">MUSIC</button>
@@ -6400,20 +6400,28 @@ function clearLiveReconnect(){
 // infrastructure remains intact but is never selected by this public player.
 const GE_RADIO2_DISABLED=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
-const GE_BLITZ_VISITOR_WAKE_URL='https://radio.grandelement.blitz.cloud/wake-radio';
-const GE_BLITZ_VISITOR_WAKE_KEY='GE_BLITZ_VISITOR_WAKE_RECENT_V1';
-function browserWakeOnRadioTap(){
-  // A genuine listener tap initiates top-level navigation; automated audio
-  // retries alone cannot wake an app sleeping at the BLITZ edge.
-  if(navigator.onLine===false||observedRadio1Progress||radio2.active||
-     !(radioTimedOut||geRadio1RetryAttempts>0))return false;
+// The live BLITZ /wake-radio route still returns 404. Never redirect a
+// listener to that broken route. Their RADIO tap always retries MP3 here.
+function browserWakeOnRadioTap(){return false}
+let geBlitzVisitorWakeAttempted=false;
+function wakeBlitzFromPageVisit(){
+  // A REAL visitor's browser navigation to the BLITZ application is different
+  // from a scripted MP3/health request, which the host refuses while sleeping.
+  // One best-effort iframe navigation per page visit, not a background monitor.
+  // BLITZ may block third-party framing, so stream retries remain essential.
+  if(geBlitzVisitorWakeAttempted||navigator.onLine===false)return;
+  geBlitzVisitorWakeAttempted=true;
   try{
-    const last=Number(sessionStorage.getItem(GE_BLITZ_VISITOR_WAKE_KEY))||0;
-    if(Date.now()-last<120000)return false; // avoid looping after return
-    sessionStorage.setItem(GE_BLITZ_VISITOR_WAKE_KEY,String(Date.now()));
+    const frame=document.createElement('iframe');
+    frame.setAttribute('aria-hidden','true');
+    frame.setAttribute('tabindex','-1');
+    frame.title='Radio host activation';
+    frame.referrerPolicy='no-referrer';
+    frame.style.cssText='position:absolute;width:0;height:0;border:0;opacity:0;pointer-events:none';
+    document.body.appendChild(frame);
+    frame.src='https://radio.grandelement.blitz.cloud/';
+    setTimeout(()=>frame.remove(),25000);
   }catch(_e){}
-  location.assign(GE_BLITZ_VISITOR_WAKE_URL);
-  return true;
 }
 function showRadioWakeLink(show){
  // No redundant connection bar. RADIO itself shows verified signal state.
@@ -12515,6 +12523,9 @@ gateTestBtn?.addEventListener('click',()=>{
   syncModeButtons();
   refreshLoveButton();
   registerServiceWorker();
+  // Listener arrival may wake a sleeping host via an actual browser iframe
+  // navigation. Keep the MP3 connection automatic, without a button press.
+  wakeBlitzFromPageVisit();
   // Start the Radio connection IMMEDIATELY. Library scans and cache audits
   // must never prevent iPhone listeners from getting the live station.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
