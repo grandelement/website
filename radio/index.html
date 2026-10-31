@@ -4274,6 +4274,22 @@ html.ge-radio-ui body.ge-sunlab-entitled #bottomActions #sunLabBtn:not([hidden])
 }
 /* The Blue Sun EQ should never be disabled as a side effect of hiding IAM. */
 </style>
+<style id="ge-radio-browser-wake-v1">
+/* BLITZ confirms audio and programmatic requests cannot wake a sleeping app.
+   Show a genuine browser-navigation link only after Radio 1 actually fails. */
+html.ge-radio-ui #geRadioWakeLink[hidden]{display:none!important}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup #geRadioWakeLink:not([hidden]){
+  grid-column:1/-1!important;display:flex!important;align-items:center!important;
+  justify-content:center!important;box-sizing:border-box!important;
+  width:min(740px,100%)!important;min-height:36px!important;
+  margin:3px auto!important;padding:7px 9px!important;
+  border-radius:10px!important;border:1px solid rgba(99,189,238,.7)!important;
+  color:#f1fbff!important;background:rgba(8,39,70,.88)!important;
+  text-align:center!important;text-decoration:none!important;
+  font-size:clamp(10px,2.7vw,13px)!important;line-height:1.2!important;
+  font-weight:800!important;
+}
+</style>
 <style id="ge-radio-offline-always-visible-20261031">
 /* OFFLINE is always shown. Authentication still controls its real functions. */
 html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn{
@@ -4612,6 +4628,11 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
+    <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
+       target="_blank" rel="noopener noreferrer" hidden
+       aria-label="Open BLITZ in a browser tab to wake Radio 1">
+       WAKE RADIO · OPEN BLITZ, THEN RETURN AND TAP RADIO
+    </a>
     <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
     <button id="geMusicV5Button" type="button" aria-controls="geMusicV5Host" aria-expanded="false" data-ge-music-build="GE-MUSIC-V5-20261024">MUSIC</button>
     <button id="loveBtn" type="button" aria-pressed="false" title="Save this song as a favorite on this device and register it in GE Vault">♡ LOVE</button>
@@ -6281,6 +6302,10 @@ function clearLiveReconnect(){
 // infrastructure remains intact but is never selected by this public player.
 const GE_RADIO2_DISABLED=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
+function showRadioWakeLink(show){
+ const link=$('geRadioWakeLink');
+ if(link)link.hidden=!show;
+}
 function retryRadio1Only(reason){
  if(!state.live&&!state.livePreparing)return Promise.resolve();
  if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return Promise.resolve();
@@ -6290,6 +6315,9 @@ function retryRadio1Only(reason){
  // Retry only Radio 1 with a capped delay, while playback is wanted.
  geRadio1RetryAttempts=Math.min(8,geRadio1RetryAttempts+1);
  const delay=Math.min(30000,3500*Math.pow(2,geRadio1RetryAttempts-1));
+ // Network retry remains automatic, but only a real browser visit can wake
+ // BLITZ when the provider reports that the app is sleeping.
+ showRadioWakeLink(true);
  setLiveStatus('RADIO 1 · RETRYING…');
  geRadio1RetryTimer=setTimeout(function(){
   geRadio1RetryTimer=0;
@@ -7763,6 +7791,7 @@ audio.addEventListener('timeupdate',()=>{
     const first=!observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();
     if(GE_RADIO2_DISABLED)clearRadio1Retry();
+    showRadioWakeLink(false);
     if(first){
       clearRadioWatch();
       setLiveStatus('RADIO 1 · CONNECTED');
