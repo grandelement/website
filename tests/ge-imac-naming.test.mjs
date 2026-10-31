@@ -65,4 +65,14 @@ assert.ok(workstationSource.includes('move(studioConnection,statusDetails)'),'Re
 assert.ok(workstationSource.includes('"FILES",filesView],["METADATA",metadataView],["STATUS",statusView]'));
 assert.ok(workstationSource.includes('showResult("COMPLETE",source)'));
 assert.ok(!workstationSource.includes('move(diagnostic,settingsView)'));
+assert.ok(!html.includes('href="http://127.0.0.1:8765/health"'),'Direct local health navigation must be removed');
+assert.ok(html.includes('id="checkLocalHelperInStatus"'),'Local health must use a secure page-origin check button');
+assert.ok(uploadsSource.includes('GOOGLE SIGN-IN NOT VERIFIED'),'Local helper health does not verify Drive OAuth');
+assert.ok(helper.includes('return self.headers.get("Origin", "") in ORIGINS'),'Origin security remains enforced');
+assert.ok(workstationSource.includes('fitGoogleToWindow()'),'Layout must measure the actual available viewport');
+assert.ok(workstationSource.includes('if(available<260)'),'Short-window fallback must restore scrolling');
+const style=fs.readFileSync('dj/imac-workstation.css','utf8');
+assert.ok(style.includes('#geTabGoogle #geGoogleStatusView{'),'Independent STATUS panel styling is required');
+assert.ok(style.includes('overflow-y:auto!important'),'STATUS must remain scrollable');
+
 console.log('PASS GE iMac naming, Radio, rename, metadata and STATUS layout');

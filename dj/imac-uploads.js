@@ -680,6 +680,17 @@ function init(){
  if(el("retryHelper"))el("retryHelper").onclick=function(){
   updateHealth(function(err){if(!err)displayLibrary(activeKind)});
  };
+ if(el("checkLocalHelperInStatus"))el("checkLocalHelperInStatus").onclick=function(){
+  text("checkLocalHelperResult","CHECKING…");
+  // Browser address-bar navigation has no Origin header and is deliberately denied.
+  // This check instead uses the approved grandelement.com page origin.
+  updateHealth(function(err,data){
+   if(err)text("checkLocalHelperResult","HELPER CHECK FAILED · "+linkError(err));
+   else text("checkLocalHelperResult","HELPER V"+String(data.helper_version||"?")+
+       " RESPONDING · "+(data.rclone_ready?"DRIVE CONFIG FOUND":"DRIVE CONFIG MISSING")+
+       " · GOOGLE SIGN-IN NOT VERIFIED");
+  });
+ };
  if(el("reconnectDriveAuth"))el("reconnectDriveAuth").onclick=reconnectGoogle;
  el("convertDraft").checked=false;el("convertFinal").checked=false;
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");

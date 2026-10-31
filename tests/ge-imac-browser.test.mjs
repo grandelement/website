@@ -52,8 +52,8 @@ try{
  assert.ok(ui.repairInStatus,'Google repair must not be at the bottom of FILES');
  assert.ok(ui.diagnosticsInStatus,'Troubleshooting must be in STATUS');
  assert.ok(ui.folder?.shown,'Files tab should start open');
- assert.equal(ui.bodyScroll,'hidden','Google mode must not scroll the whole webpage');
- assert.equal(ui.documentScroll,'hidden','Google mode must lock document scrolling');
+ assert.equal(ui.bodyScroll,'hidden','Google mode must not scroll the whole webpage at normal window sizes');
+ assert.equal(ui.documentScroll,'hidden','Google mode must lock document scrolling at normal window sizes');
  await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[1].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleMetadataView')).display!=='none');
  assert.ok(await page.$('#geUploadSaveSettings'),'Metadata save missing');
@@ -93,6 +93,37 @@ try{
  await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[2].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleStatusView')).display!=='none');
  assert.ok(await page.$('#reconnectDriveAuth'),'Fix Google Drive missing');
+ assert.ok(await page.$('#checkLocalHelperInStatus'),'Local health must be tested through page origin');
+ // Firefox must be allowed to scroll *inside* STATUS, while the page remains fixed.
+ const scrollTest=await page.evaluate(()=>{
+  const box=document.getElementById('geGoogleStatusView'),nested=document.getElementById('geDiagnostics');
+  const bottom=document.getElementById('checkLocalHelperInStatus');
+  box.scrollTop=box.scrollHeight;
+  const r=box.getBoundingClientRect(),b=bottom.getBoundingClientRect();
+  return {overflow:getComputedStyle(box).overflowY,
+    fullHeight:box.scrollHeight,visibleHeight:box.clientHeight,
+    bottomButtonVisible:b.top>=r.top&&b.bottom<=r.bottom,
+    nestedOverflow:getComputedStyle(nested).overflowY,
+    scrolled:box.scrollTop};
+ });
+ assert.equal(scrollTest.overflow,'auto','STATUS must independently scroll');
+ assert.ok(scrollTest.visibleHeight>=90,'STATUS viewport must have space for tools');
+ assert.ok(scrollTest.bottomButtonVisible,
+   'Bottom diagnostics remain inaccessible even after scrolling: '+JSON.stringify(scrollTest));
+ assert.ok(scrollTest.nestedOverflow!=='hidden','Nested diagnostics are still clipped');
+ await page.setViewport({width:1024,height:700});
+ await page.evaluate(()=>window.dispatchEvent(new Event('resize')));
+ const small=await page.evaluate(()=>{
+  const box=document.getElementById('geGoogleStatusView');
+  const bottom=document.getElementById('checkLocalHelperInStatus');
+  box.scrollTop=box.scrollHeight;
+  const r=box.getBoundingClientRect(),b=bottom.getBoundingClientRect();
+  return {scroll:box.scrollTop,visible:box.clientHeight,buttonVisible:b.top>=r.top&&b.bottom<=r.bottom,
+   dockTop:document.querySelector('.geBottomDock').getBoundingClientRect().top,
+   panelBottom:document.getElementById('geTabGoogle').getBoundingClientRect().bottom};
+ });
+ assert.ok(small.buttonVisible,'Status controls must be reachable on a 2007 iMac-sized browser: '+JSON.stringify(small));
+ assert.ok(small.panelBottom<=small.dockTop+2,'Google content is behind bottom dock: '+JSON.stringify(small));
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
  assert.equal(severe.length,0,'Unexpected script error: '+severe.join(' | '));
  console.log('PASS GE DJ Booth iMac V10 browser DOM tabs and STATUS layout',JSON.stringify(ui));

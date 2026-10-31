@@ -54,6 +54,7 @@ function init(){
   stripTitle.textContent=showing&&headline?headline.textContent:"UPLOAD · READY";
   stripStatus.textContent=showing&&detail?detail.textContent:"No transfer in progress";
   uploadStrip.className=showing?"geUploadStrip active":"geUploadStrip";
+  if(nav&&google&&google.style.display!=="none")fitGoogleToWindow();
  }
  syncUploadStrip();
  if(w.setInterval)w.setInterval(syncUploadStrip,1200);
@@ -240,14 +241,34 @@ function init(){
 
  var nav=node("nav","geBottomDock");nav.setAttribute("aria-label","iMac workstation sections");
  var tabs=[["STUDIO",studio],["MIXER",mixer],["EFFECTS",effects],["GOOGLE",google]];
+ function fitGoogleToWindow(){
+  if(!nav||google.style.display==="none")return;
+  // Reserve the actual bottom dock space, rather than a guessed 150px.
+  // This also handles a taller upload progress bar or resized Firefox.
+  var top=google.getBoundingClientRect().top;
+  var dockTop=nav.getBoundingClientRect().top;
+  var available=Math.floor(dockTop-top-7);
+  if(available<260){
+    // Never strand controls off-screen on a short Firefox window.
+    // Permit emergency page scrolling if the viewport is too small.
+    d.documentElement.classList.remove("geImacGoogleActive");
+    d.body.classList.remove("geImacGoogleActive");
+    google.style.height="420px";
+  }else{
+    d.documentElement.classList.add("geImacGoogleActive");
+    d.body.classList.add("geImacGoogleActive");
+    var height=available+"px";
+    if(google.style.height!==height)google.style.height=height;
+  }
+  google.style.minHeight="0";
+ }
  function select(index){
   for(var j=0;j<tabs.length;j++){
     tabs[j][1].style.display=j===index?"block":"none";
     nav.children[j].className=j===index?"selected":"";
   }
   if(index===3){
-    d.documentElement.classList.add("geImacGoogleActive");
-    d.body.classList.add("geImacGoogleActive");
+    fitGoogleToWindow();
   }else{
     d.documentElement.classList.remove("geImacGoogleActive");
     d.body.classList.remove("geImacGoogleActive");
@@ -257,6 +278,7 @@ function init(){
 }
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k);if(k===3&&w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
+ w.addEventListener("resize",fitGoogleToWindow,false);
  var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
  /* Connection report, login repair and its advanced tools now share STATUS. */
  /* Keep upload failure banner inside Google, not covering Studio/Mixer. */
