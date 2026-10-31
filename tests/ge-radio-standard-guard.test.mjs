@@ -105,6 +105,13 @@ for(const text of [
  'display:none!important'
 ])assert.ok(pulseStyle.includes(text),'REGRESSION: missing approved RADIO behavior '+text);
 requireText(radio,/const GE_RADIO2_DISABLED=true/,'Radio 2 must remain disabled for all public listeners');
+const radioBackend=read('radio-backend/start-radio.sh');
+requireText(radioBackend,/location = \/wake-radio \{/,'BLITZ listener wake and return route missing');
+requireText(radioBackend,/return 302 https:\/\/grandelement\.com\/radio\/\?radio=1&ge_blitz_return=1/,'BLITZ must return a real listener to Radio');
+requireText(radio,/const GE_BLITZ_VISITOR_WAKE_URL='https:\/\/radio\.grandelement\.blitz\.cloud\/wake-radio'/,'Radio must navigate to BLITZ wake route');
+requireText(radio,/if\(browserWakeOnRadioTap\(\)\)return/,'Failed listener RADIO tap must wake BLITZ through browser navigation');
+requireText(radio,/Date\.now\(\)-last<120000/,'Visitor wake must avoid return-loop');
+
 requireText(radio,/if\(GE_RADIO2_DISABLED\)return retryRadio1Only\(reason\)/,'Radio 2 failover bypass removed');
 requireText(radio,/void requestRadioStart\(\{deferPlay:qrArrival\}\)/,'Radio must try BLITZ on page arrival');
 requireText(home,/website-live\.js\?v=3/,'Homepage must load automatic BLITZ controller');
