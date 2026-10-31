@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 const read=path=>readFileSync(path,'utf8');
+const support=read('support/index.html');
 const vault=read('vault-worker/src/index.js'),back=read('backroom/index.html'),
  publisher=read('backroom/publisher-worker.js'),radio=read('radio/index.html'),
  v5=read('radio/ge-music-v5.js'),preview=read('radio/preview-lab.html'),
  home=read('index.html'),schema=read('vault-worker/migrations/20261027_unified_access_experience.sql');
-for(const [name,html] of [['backroom',back],['radio',radio],['preview',preview],['home',home]]){
+for(const [name,html] of [['backroom',back],['radio',radio],['preview',preview],['home',home],['store',support]]){
  for(const [i,m] of [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].entries()){
   if(/src=|application\/json/i.test(m[1]))continue;
   new Script(m[2],{filename:name+':inline:'+i});
@@ -52,4 +53,8 @@ assert.match(preview,/window.GEPlayLibraryQueue=function/);
 assert.match(home,/ge-code-hide-autopilot/);
 assert.match(home,/ge-code-hide-games/);
 assert.doesNotMatch(home,/VAULT_ADMIN_TOKEN\s*=/);
+assert.match(vault,/accessRestoreDevice\(request,env\)/,'Vault must recheck remembered device against active D1 code');
+assert.match(vault,/ge-access-device-v1/,'Remembered token must be HMAC signed');
+assert.match(radio,/restoreRememberedRadioDevice\(/,'Radio must restore scoped access from a signed grant');
+assert.match(support,/restoreRememberedFreePass\(/,'Store must restore signed LOVE free-pass preview');
 console.log('PASS: unified owner code settings, D1 fan-code association, Radio access receipt, personal music views, Website presentation, and script syntax');
