@@ -322,9 +322,10 @@ for (const [signature,guard,label] of [
 ]) guarded(radio,signature,guard,label+' checks access');
 const radioMusicV5=load('radio/ge-music-v5.js');
 new vm.Script(radioMusicV5,{filename:'radio/ge-music-v5.js'});
+const liveMusicTransport=load('radio/preview-lab.html');
 test(radio.includes('ge-music-v5.js') && radioMusicV5.includes('async function fetchCatalog(){') &&
   radioMusicV5.includes('function appendSong(parent,track){') &&
-  radioMusicV5.includes("action:'verify',token:access.token,track_path:track.path"),
+  liveMusicTransport.includes("action:'verify',token:grant.token,track_path:t.path"),
   'Guests can browse the published Radio Music catalog while playback remains code-controlled');
 for (const [signature,guard,label] of [
   ['async function startCurrent(){','if(!geHasOwnerMusicDemo())','Homepage Play'],
