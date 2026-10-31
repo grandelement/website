@@ -58,6 +58,8 @@ try{
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleMetadataView')).display!=='none');
  assert.ok(await page.$('#geUploadSaveSettings'),'Metadata save missing');
  assert.ok(await page.$('#geUploadCoverFile'),'Cover art selector missing');
+ // Artwork is attached to FINAL products, not automatic on DRAFT.
+ await page.click('.gePresetMode[data-mode="final"]');
  await page.waitForFunction(()=>document.querySelectorAll('#geAlbumCoverPicker .geAlbumCoverTile').length===5,{timeout:6000});
  const fireSelector='#geAlbumCoverPicker .geAlbumCoverTile[title="Use Fire artwork from GE Studios GitHub"]';
  await page.waitForFunction(selector=>{
