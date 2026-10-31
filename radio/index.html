@@ -6175,6 +6175,7 @@ function stationURL(){
 const liveState={
   userActivated:false,
   hadVerifiedStream:false,
+  signalReady:false,
   returnURL:'',
   returnTime:0,
   reconnectTimer:0,
@@ -6244,8 +6245,10 @@ function watchRadioConnection(){
     if(observedRadio1Progress)return;
     // A "playing" event alone is not audible progress. Retry the single
     // BLITZ stream if its playback time does not advance.
-    // Safari may remain paused even after the visitor requested PLAY and the
-    // stream connection failed. Intentional pause is tracked separately.
+    // A verified MP3 signal is ready even when Safari blocks silent autoplay.
+    // Do not discard that real ready signal merely because playback has not
+    // advanced before the listener's first tap.
+    if(liveState.signalReady&&!liveState.userActivated){clearRadioWatch();return}
     if(document.hidden||recentUserPause()||!liveState.wantedPlayback)return;
     radioTimedOut=true;state.livePreparing=false;state.live=true;
     radioTryCanonicalStream=true;
@@ -6266,10 +6269,12 @@ function radioPlayFailure(error){
   updateRadioStartupCue();
 }
 function updateRadioStartupCue(){
-  // Never illuminate RADIO on a mere load or 'playing' event.
-  // Only time progress from the actual native audio player confirms station.
-  const connected=(state.live||state.livePreparing)&&!audio.paused&&
+  // Do not light RADIO for a mere "loading" event or HTTP 200 HTML.
+  // The actual BLITZ MP3 response must deliver audio bytes, or the native
+  // audio player must advance before we show a live signal.
+  const playing=(state.live||state.livePreparing)&&!audio.paused&&
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
+  const connected=!!(playing||((state.live||state.livePreparing)&&liveState.signalReady));
   document.body.classList.toggle('ge-radio-audible',!!connected);
   // Keep acknowledgment after a voluntary pause, but only show steady red
   // after actual forward progress confirmed the Radio 1 signal.
@@ -6294,6 +6299,7 @@ let lastRadio1Progress=Date.now(),lastRadio1Time=NaN,observedRadio1Progress=fals
 let lastRadio2Time=NaN,observedRadio2Progress=false;
 function markRadio1Attempt(){
   lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;
+  liveState.signalReady=false;
   updateRadioStartupCue();
 }
 // iPhone Safari does not implement a reliable HTMLAudioElement volume ramp.
@@ -6324,12 +6330,45 @@ function geRadioNativeHLSAvailable(){
 }
 function freshLiveStreamURL(){
   // The public Icecast MP3 mount is the canonical Radio 1 endpoint on ALL
-  // devices. The BLITZ HLS encoder is optional and can fail independently:
-  // selecting it only on iPhone caused a blank Radio after reload when the
-  // main MP3 mount remained the intended broadcast. No Radio 2 fallback.
-  // Refresh the native audio element for each genuine new connection.
+  // devices. The optional HLS encoder may fail independently of the live MP3.
   radioTryCanonicalStream=false;
   return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;
+}
+// iOS can prohibit even muted <audio> autoplay. In that case check the
+// station directly on page load, but do NOT claim an active signal until
+// its public MP3 endpoint supplies actual audio bytes. Abort immediately
+// after proof so this is not a second ongoing listener or an uptime monitor.
+let geRadioSignalProbeId=0;
+function verifyRadio1Signal(){
+  const probeId=++geRadioSignalProbeId;
+  if(navigator.onLine===false||!liveStreamConfigured()||
+     window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve(false);
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  const task=(async()=>{
+    try{
+      const response=await fetch(CONFIG.LIVE_STREAM_URL,{
+        cache:'no-store',mode:'cors',signal:controller.signal,
+        headers:{Accept:'audio/mpeg'}
+      });
+      if(response.status!==200||!/audio\/(?:mpeg|mp3)/i.test(response.headers.get('content-type')||'')||
+         !response.body?.getReader)return false;
+      const reader=response.body.getReader();
+      const first=await reader.read();
+      if(first.done||!first.value||first.value.byteLength<4||
+         geRadioSignalProbeId!==probeId||
+         (!state.live&&!state.livePreparing))return false;
+      // Valid server signal, not a local playback or purchase entitlement.
+      liveState.signalReady=true;
+      liveState.hadVerifiedStream=true;
+      updateRadioStartupCue();
+      showRadioWakeLink(false);
+      setLiveStatus('RADIO 1 · SIGNAL READY');
+      return true;
+    }catch(_e){return false}
+    finally{clearTimeout(timeout);controller.abort()}
+  })();
+  return task;
 }
 
 function liveShareURL(){
@@ -6386,7 +6425,8 @@ function retryRadio1Only(reason){
  if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return Promise.resolve();
  if(geRadio1RetryTimer)return Promise.resolve();
  clearLiveReconnect();clearRadioWatch();
- liveState.hadVerifiedStream=false;updateRadioStartupCue();
+ geRadioSignalProbeId++;
+ liveState.signalReady=false;liveState.hadVerifiedStream=false;updateRadioStartupCue();
  radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
  // Retry only Radio 1 with a capped delay, while playback is wanted.
  geRadio1RetryAttempts=Math.min(8,geRadio1RetryAttempts+1);
@@ -6703,6 +6743,7 @@ async function resumeLiveAtEdge(){
     audio.volume=desiredPlaybackVolume(state.currentURL);
     audio.src=freshLiveStreamURL();
     audio.load();
+    void verifyRadio1Signal();
     await audio.play();
     setLiveStatus('RADIO 1 · CONNECTING…');
     setStatus('Grand Element Radio');
@@ -6767,6 +6808,7 @@ async function enterLiveMode({deferPlay=false}={}){
   audio.volume=desiredPlaybackVolume(state.currentURL);
   audio.src=freshLiveStreamURL();
   audio.load();
+  void verifyRadio1Signal();
 
   // QR arrival: prepare a SINGLE Radio audio element without playing it
   // behind the 3.5s stars / 1.7s fade / 6s flyby introduction.
