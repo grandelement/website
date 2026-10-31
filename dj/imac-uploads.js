@@ -226,21 +226,29 @@ function pollReconnect(){
   else if(phase==="error"||phase==="idle")stopReconnect();
  });q.send();
 }
+function downloadOfflineRepair(){
+ var link=el("geDriveRepairDownload");
+ if(!link){reconnectMessage("OFFLINE REPAIR DOWNLOAD IS UNAVAILABLE.");return}
+ reconnectMessage("FIRST SETUP: Open the ZIP in Downloads. Control-click GE Studios OFFLINE Repair.app, choose Open, then Update. Return here and press FIX GOOGLE DRIVE again.");
+ // Download only; Firefox cannot install software on macOS.
+ w.location.href=link.href;
+}
 function reconnectGoogle(){
  if(busy){reconnectMessage("FINISH THE CURRENT UPLOAD FIRST.");return}
  if(reconnectBusy)return;
- reconnectMessage("CHECKING LOCAL IMAC HELPER…");
+ // Existing Helper V3 lacks the local reconnect endpoint.
+ if(helperVersion>0&&helperVersion<8){downloadOfflineRepair();return}
+ reconnectMessage("CHECKING GOOGLE DRIVE CONNECTION…");
  updateHealth(function(err,result){
-  if(err){reconnectMessage("LOCAL HELPER UNAVAILABLE · "+linkError(err));return}
+  if(err){reconnectMessage("IMAC HELPER NOT RESPONDING. See ADVANCED for checks.");return}
   if(Number(result.helper_version||0)<8||!result.drive_reconnect_available){
-   reconnectMessage("LOCAL HELPER UPDATE NEEDED. Press FIX GOOGLE DRIVE · OFFLINE REPAIR APP on the GOOGLE tab. Open the downloaded offline repair app. Then press RECONNECT GOOGLE LOGIN. No music or playlists need resetting.");
-   return;
+   downloadOfflineRepair();return;
   }
-  if(!w.confirm("Reconnect GE Studios Google Drive? Google sign-in will open on this iMac. No music files will be changed."))return;
+  if(!w.confirm("Reconnect Google Drive? Google sign-in may open on this iMac. No music files will be changed."))return;
   reconnectBusy=true;el("reconnectDriveAuth").disabled=true;
-  reconnectMessage("STARTING GOOGLE SIGN IN ON THIS IMAC…");
+  reconnectMessage("STARTING GOOGLE SIGN-IN…");
   var req=request("POST","/drive/reconnect","{}",function(error,data){
-   if(error){stopReconnect();reconnectMessage("GOOGLE SIGN IN COULD NOT START · "+linkError(error));return}
+   if(error){stopReconnect();reconnectMessage("GOOGLE SIGN-IN COULD NOT START · "+linkError(error));return}
    reconnectMessage(String(data.detail||"Complete sign-in in the iMac browser."));
    reconnectPoll=w.setInterval(pollReconnect,2500);pollReconnect();
   });req.send();
@@ -255,10 +263,10 @@ function updateHealth(callback){
   helperOnline=!err&&!!data.rclone_ready;
   encoderAvailable=helperOnline&&!!data.mp3_available;
   helperVersion=Number(data.helper_version||0);
-  // No repeated downloads once the local helper supports one-click reconnect.
-  var repair=el("geDriveRepairDownload"),notice=el("geDriveRepairInstructions");
-  if(repair)repair.style.display=helperVersion>=8?"none":"block";
-  if(notice)notice.style.display=helperVersion>=8?"none":"block";
+  // FIX changes from a one-time installer to direct Google sign-in.
+  var primary=el("reconnectDriveAuth");if(primary)primary.textContent="FIX GOOGLE DRIVE";
+  var repair=el("geDriveRepairDownload");
+  if(repair)repair.style.display=helperVersion>=8?"none":"inline-block";
   encoderName=encoderAvailable?String(data.mp3_converter||"MP3 encoder"):"";
   deleteAvailable=helperOnline&&!!data.delete_available;
   allFilesAvailable=helperOnline&&!!data.all_app_files_available;
@@ -279,8 +287,9 @@ function updateHealth(callback){
    text("helperStatus","HELPER RESPONDS, BUT RCLONE OR GOOGLE DRIVE CONFIG IS MISSING.");
    text("mp3Status","Drive connection needs repair before uploading.");
   }else{
-   text("helperStatus","IMAC HELPER CONNECTED · RCLONE CONFIG FOUND · Drive sign-in not yet verified"+
-     (data.helper_version?" · Helper v"+data.helper_version:""));
+   text("helperStatus",helperVersion<8?
+     "HELPER V"+helperVersion+" RUNNING · ONE-TIME UPDATE REQUIRED · Google Drive sign-in not verified":
+     "HELPER V"+helperVersion+" RUNNING · Google Drive authorization requires a separate check");
    text("mp3Status",encoderAvailable?
     "ENCODER DETECTED · "+encoderName+" · Actual conversion NOT YET VERIFIED by this check. Use TEST MP3 CONVERSION.":
     "NO MP3 ENCODER DETECTED · Original-file uploads can still work. Do not select MP3 conversion.");
@@ -576,8 +585,8 @@ function init(){
   updateHealth(function(err){
    if(!err&&helperOnline&&!wasOnline)displayLibrary(activeKind);
    text("autoCheckStatus",helperOnline?
-    "AUTOMATIC CHECK · iMac uploader detected · Ready for selected music files.":
-    "AUTOMATIC CHECK · iMac uploader still unreachable. Use ONE-CLICK LOCAL HELPER TEST to tell whether it is running.");
+    "AUTOMATIC CHECK · Local helper responds; Google Drive sign-in not verified by this check.":
+    "AUTOMATIC CHECK · Local helper unreachable. Open ADVANCED for connection checks.");
   });
  },20000);
 }

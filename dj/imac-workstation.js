@@ -80,26 +80,30 @@ function init(){
  mixer.appendChild(mx);effects.appendChild(fx);
  help(radio,"Studio","Choose Soundflower (2ch), press CONNECT STUDIO AUDIO, verify left and right meters, then connect Radio 1 only when needed. GO LIVE is always a separate deliberate action.");
  diagnostics(radio,"Studio",["connection","liveState","liveReadiness","liveStatus","meterStatus","leftDb","rightDb","trustedStatus"]);
-  /* Google: read-only checks and explicit local Google OAuth repair. */
+  /* One Google FIX button. Alternate tools belong in collapsed ADVANCED. */
   var ghead=node("div","geGoogleIntro");
   var auth=node("div","geAuthPanel");
   var check=node("button",null,"CHECK CONNECTION");check.type="button";
   check.onclick=function(){var b=by("retryHelper");if(b)b.click();var x=by("runStudioChecks");if(x)x.click()};
   auth.appendChild(check);
   diagnostics(auth,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
-  ghead.appendChild(auth);google.appendChild(ghead);
-  /* All Google Drive status, uploads, trash, and file tools belong exclusively on GOOGLE. */
+  ghead.appendChild(auth);
   var studioConnection=node("div","geStudioDriveConnection");
-  /* First-time helper recovery is downloadable directly from this Google tab. */
-  var originalRetry=by("retryHelper");if(originalRetry){move(originalRetry,studioConnection);originalRetry.textContent="CHECK GOOGLE DRIVE";}
-  move(by("reconnectDriveAuth"),studioConnection);
-  move(by("geDesktopReconnectDownload"),studioConnection);
-  move(by("geDesktopReconnectInfo"),studioConnection);
-  move(by("geDriveRepairDownload"),studioConnection);
-  move(by("geDriveRepairInstructions"),studioConnection);
-  var helper=by("helperStatus");move(helper,studioConnection);
+  var repairRow=node("div","geGooglePrimaryActions");
+  move(by("reconnectDriveAuth"),repairRow);
+  studioConnection.appendChild(repairRow);
+  move(by("helperStatus"),studioConnection);
   move(by("driveAuthStatus"),studioConnection);
-  var autoCheck=by("autoCheckStatus");move(autoCheck,studioConnection);
+  var advanced=node("details","geDriveRepairMore");
+  advanced.appendChild(node("summary",null,"ADVANCED · CHECK / DESKTOP BACKUP / INSTRUCTIONS"));
+  var oldCheck=by("retryHelper");if(oldCheck){oldCheck.textContent="CHECK GOOGLE DRIVE";move(oldCheck,advanced);}
+  move(by("geDriveRepairInstructions"),advanced);
+  move(by("geDesktopReconnectDownload"),advanced);
+  move(by("geDesktopReconnectInfo"),advanced);
+  move(by("geDriveRepairDownload"),advanced);
+  move(by("autoCheckStatus"),advanced);
+  advanced.appendChild(ghead);
+  studioConnection.appendChild(advanced);
   google.insertBefore(studioConnection,drive);
   var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE DRIVE";
   /* Frequently used Google Trash shortcut stays visible above the upload form. */
