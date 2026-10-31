@@ -162,12 +162,9 @@ function conversionModeLabel(mode){
 function selectedLabel(kind){
  var files=chosen[kind],count=files.length,n=0;
  for(var i=0;i<count;i++)n+=files[i].size||0;
- text(kind+"Selection",!count?
-  "NO TRACKS SELECTED · Browse to choose one or several tracks.":
-  count+" track"+(count===1?"":"s")+" selected · "+fmtSize(n)+" · "+
-  (count<=3?files.map(function(f){return f.name}).join(" | "):
-  files[0].name+" and "+(count-1)+" more")+
-  " · NOTHING HAS BEEN UPLOADED YET");
+ text(kind+"Selection",!count?"":count+" SELECTED · "+fmtSize(n)+" · "+
+  (count<=2?files.map(function(f){return f.name}).join(" | "):
+   files[0].name+" + "+(count-1)+" more"));
 }
 function setBusy(flag){
  busy=!!flag;
@@ -190,10 +187,8 @@ function resetOldUploadDisplay(){
 }
 function pendingMessage(kind){
  var count=chosen[kind].length;
- if(!count)return "READY · Choose files to upload. Nothing is uploading.";
- var mode=conversionMode(kind);
- return "READY TO UPLOAD · "+count+" "+nameOf(kind)+" file"+(count===1?"":"s")+
-  " · "+conversionModeLabel(mode)+" · PRESS UPLOAD TO START.";
+ if(!count)return "READY";
+ return nameOf(kind).toUpperCase()+" · "+count+" SELECTED · "+conversionModeLabel(conversionMode(kind));
 }
 function fileChanged(kind,input){
  if(busy)return;
@@ -275,10 +270,8 @@ function updateHealth(callback){
    (autostart?"Mac auto-start configuration found. Restart watchdog state not directly verified.":"LOCAL HELPER RUNNING · No automatic startup configuration detected. One-time setup available below."):
    "IMAC HELPER OFFLINE · Browser cannot restart a stopped local program. Install the one-time macOS auto-restart service below.");
   var sessionsReady=helperOnline&&!!data.session_uploads;
-  text("sessionHelperStatus",sessionsReady?
-   "SESSIONS READY · Archives and project files can upload to GE Studios/Sessions.":
-   helperOnline?"SESSIONS NEED UPDATED HELPER · Existing helper supports only Drafts and Finals.":
-   "SESSION DRIVE OFFLINE · Use RECONNECT DRIVE to check the uploader.");
+  text("sessionHelperStatus",sessionsReady?"SESSIONS READY":
+   helperOnline?"SESSIONS · HELPER V8 REQUIRED":"SESSIONS · DRIVE OFFLINE");
   if(err){
    text("helperStatus",linkError(err));
    text("mp3Status","MP3 CONVERSION CANNOT BE VERIFIED · The local upload helper isn't responding. "+
@@ -301,25 +294,30 @@ function clear(node){while(node&&node.firstChild)node.removeChild(node.firstChil
 function selectFolder(kind){
  var lookup={draft:"draftUploadCard",final:"finalUploadCard",session:"sessionUploadCard"};
  for(var k in lookup)if(lookup.hasOwnProperty(k)){
-  var card=el(lookup[k]);if(card)card.style.display=k===kind?"block":"none";
+  var card=el(lookup[k]);if(card)card.style.display=k===kind?"flex":"none";
   var tab=el(k==="draft"?"listDrafts":k==="final"?"listFinals":"listSessions");
   if(tab)tab.className=k===kind?"geSelectedTab":"";
  }
  var allTab=el("listAll");if(allTab)allTab.className=kind==="all"?"geSelectedTab":"";
+ var targets=d.querySelectorAll(".geUploadTarget");
+ for(var i=0;i<targets.length;i++){
+  var selected=targets[i].getAttribute("data-upload-kind")===kind;
+  targets[i].className=selected?"geUploadTarget geSelectedTarget":"geUploadTarget";
+  targets[i].setAttribute("aria-pressed",selected?"true":"false");
+ }
  var note=el("geAllFilesLimit");if(note)note.style.display=kind==="all"?"block":"none";
 }
 function displayLibrary(kind){
  activeKind=kind;selectFolder(kind);
  var token=++listGeneration,area=el("musicLibrary");
- text("libraryTitle",kind==="all"?"ALL GE FILES · Available to this uploader":
-  "GOOGLE DRIVE · GE Studios / "+nameOf(kind));
+ text("libraryTitle",kind==="all"?"ALL GE FILES":"GE STUDIOS / "+nameOf(kind).toUpperCase());
  text("libraryStatus","LOADING "+nameOf(kind).toUpperCase()+" FROM GOOGLE DRIVE…");
  if(area)clear(area);
  if(kind==="all"&&!allFilesAvailable){
-  text("libraryStatus","ALL GE FILES requires a newer iMac helper. Google Drive itself is available now.");
+  text("libraryStatus","ALL GE FILES · Helper V8 required.");
   if(area){
    var message=d.createElement("p");
-   message.textContent="Use COMPLETE GOOGLE DRIVE to browse everything. The current iMac helper cannot list every folder yet.";
+   message.textContent="Open COMPLETE GOOGLE DRIVE for all files.";
    area.appendChild(message);
   }
   return;
@@ -574,7 +572,7 @@ function init(){
  selectedLabel("draft");selectedLabel("final");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
- status("READY · SELECT FILES → CHOOSE MP3 OR ORIGINAL → PRESS UPLOAD. FILE SELECTION NEVER UPLOADS.");
+ status("READY");
  updateHealth(function(err){if(!err)displayLibrary("draft")});
  // The old iMac can lose its manually started uploader while Firefox stays
  // open. Automatically recheck every 20 seconds with no Terminal commands or

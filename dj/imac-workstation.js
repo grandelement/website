@@ -80,71 +80,95 @@ function init(){
  mixer.appendChild(mx);effects.appendChild(fx);
  help(radio,"Studio","Choose Soundflower (2ch), press CONNECT STUDIO AUDIO, verify left and right meters, then connect Radio 1 only when needed. GO LIVE is always a separate deliberate action.");
  diagnostics(radio,"Studio",["connection","liveState","liveReadiness","liveStatus","meterStatus","leftDb","rightDb","trustedStatus"]);
-  /* One Google FIX button. Alternate tools belong in collapsed ADVANCED. */
-  var ghead=node("div","geGoogleIntro");
-  var auth=node("div","geAuthPanel");
-  var check=node("button",null,"CHECK CONNECTION");check.type="button";
-  check.onclick=function(){var b=by("retryHelper");if(b)b.click();var x=by("runStudioChecks");if(x)x.click()};
-  auth.appendChild(check);
-  diagnostics(auth,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
-  ghead.appendChild(auth);
+
+  /* GE GOOGLE: usable controls first; no redundant introductory paragraphs. */
+  var driveTitle=drive.querySelector("h2");
+  if(driveTitle)driveTitle.textContent="GOOGLE DRIVE";
+  var driveTop=node("div","geDriveTop"),driveQuick=node("div","geDriveQuickLinks");
+  if(driveTitle)move(driveTitle,driveTop);
+  var sourceActions=drive.querySelector(".geMainActions");
+  if(sourceActions){
+    var sourceLinks=sourceActions.querySelectorAll("a");
+    for(var qi=0;qi<sourceLinks.length;qi++){
+      var link=sourceLinks[qi];
+      if(/COMPLETE GOOGLE DRIVE|EMPTY DRIVE TRASH|RELEASE STUDIO/i.test(link.textContent||""))move(link,driveQuick);
+    }
+  }
+  move(by("driveQuotaStatus"),driveTop);
+  driveTop.appendChild(driveQuick);
+  drive.insertBefore(driveTop,drive.firstChild);
+  /* Keep only actionable labels and live statuses on the working surface. */
+  var paragraphs=drive.querySelectorAll("p");
+  for(var pi=paragraphs.length-1;pi>=0;pi--){
+    var para=paragraphs[pi];
+    if(para.id==="libraryHelp")para.parentNode.removeChild(para);
+    else if(!para.id&&/EMPTY DRIVE TRASH opens|MANUAL UPLOAD:|For a whole session including samples:/i.test(para.textContent||""))
+      para.parentNode.removeChild(para);
+  }
+  /* Destination buttons are always visible, independent of the folder browser. */
+  var draftCard=by("draftUploadCard"),finalCard=by("finalUploadCard"),sessionCard=by("sessionUploadCard");
+  var addTitle=null,oldNodes=Array.prototype.slice.call(drive.children);
+  for(var di=0;di<oldNodes.length;di++)
+    if(oldNodes[di].tagName==="H3"&&/ADD FILES/i.test(oldNodes[di].textContent||"")){addTitle=oldNodes[di];break}
+  var uploadSection=node("div","geUploadSection");
+  var destinations=node("div","geUploadDestinations");
+  destinations.appendChild(node("strong","geUploadSectionLabel","ADD FILES"));
+  var targets=[
+    ["draft","UPLOAD TO DRAFTS","listDrafts"],
+    ["final","UPLOAD TO FINALS","listFinals"],
+    ["session","UPLOAD SESSION","listSessions"]
+  ];
+  for(var ui=0;ui<targets.length;ui++)(function(info){
+    var button=node("button","geUploadTarget",info[1]);button.type="button";
+    button.setAttribute("data-upload-kind",info[0]);
+    button.onclick=function(){var tab=by(info[2]);if(tab)tab.click()};
+    destinations.appendChild(button);
+  })(targets[ui]);
+  uploadSection.appendChild(destinations);
+  move(draftCard,uploadSection);move(finalCard,uploadSection);move(sessionCard,uploadSection);
+  if(addTitle)addTitle.parentNode.removeChild(addTitle);
+  drive.insertBefore(uploadSection,driveTop.nextSibling);
+  /* Folder tabs + REFRESH occupy the same single row. */
+  var library=by("musicLibraryPanel"),folderTabs=library&&library.querySelector(".geFolderTabs");
+  var driveRefresh=node("button","geRefreshDriveFiles","REFRESH");driveRefresh.type="button";
+  driveRefresh.title="Refresh the current Drive file list";
+  driveRefresh.onclick=function(){if(w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};
+  if(folderTabs)folderTabs.appendChild(driveRefresh);
+  if(library)drive.insertBefore(library,uploadSection.nextSibling);
+  /* Top progress monitor is already persistent. Hide only the duplicate bottom bar. */
+  var secondaryBar=by("uploadBar");
+  if(secondaryBar&&secondaryBar.parentNode)secondaryBar.parentNode.className+=" geSecondaryUploadBar";
+  /* Google settings are below the working file list. */
+  var extra=node("details","geDriveExtras");
+  extra.appendChild(node("summary",null,"GOOGLE SETTINGS · TROUBLESHOOTING"));
+  drive.appendChild(extra);
+  var leftovers=Array.prototype.slice.call(drive.children);
+  for(var ei=0;ei<leftovers.length;ei++){
+    var child=leftovers[ei];
+    if(child!==extra&&child!==driveTop&&child!==uploadSection&&child!==library&&child.className==="geMainActions")
+      move(child,extra);
+  }
+  /* FIX GOOGLE DRIVE remains available but belongs AFTER Google settings. */
   var studioConnection=node("div","geStudioDriveConnection");
   var repairRow=node("div","geGooglePrimaryActions");
-  move(by("reconnectDriveAuth"),repairRow);
-  studioConnection.appendChild(repairRow);
-  move(by("helperStatus"),studioConnection);
-  move(by("driveAuthStatus"),studioConnection);
+  move(by("reconnectDriveAuth"),repairRow);studioConnection.appendChild(repairRow);
+  move(by("helperStatus"),studioConnection);move(by("driveAuthStatus"),studioConnection);
   var advanced=node("details","geDriveRepairMore");
-  advanced.appendChild(node("summary",null,"ADVANCED · CHECK / DESKTOP BACKUP / INSTRUCTIONS"));
-  var oldCheck=by("retryHelper");if(oldCheck){oldCheck.textContent="CHECK GOOGLE DRIVE";move(oldCheck,advanced);}
+  advanced.appendChild(node("summary",null,"ADVANCED · CONNECTION / DESKTOP BACKUP"));
+  var oldCheck=by("retryHelper");
+  if(oldCheck){oldCheck.textContent="CHECK GOOGLE DRIVE";move(oldCheck,advanced)}
   move(by("geDriveRepairInstructions"),advanced);
   move(by("geDesktopReconnectDownload"),advanced);
   move(by("geDesktopReconnectInfo"),advanced);
-  move(by("geDriveRepairDownload"),advanced);
-  move(by("autoCheckStatus"),advanced);
-  advanced.appendChild(ghead);
-  studioConnection.appendChild(advanced);
-  google.insertBefore(studioConnection,drive);
-  var studioDriveTitle=drive.querySelector("h2");if(studioDriveTitle)studioDriveTitle.textContent="GOOGLE DRIVE";
-  /* Frequently used Google Trash shortcut stays visible above the upload form. */
-  var trashLink=drive.querySelector('a[href="https://drive.google.com/drive/u/0/trash"]');
-  if(trashLink){
-    var quick=node("div","geTrashQuickAction");
-    quick.appendChild(trashLink);
-    var draftCard=by("draftUploadCard");
-    var heading=draftCard&&draftCard.previousElementSibling;
-    drive.insertBefore(quick,heading&&heading.tagName==="H3"?heading:draftCard);
-  }
-  /* Keep files plainly visible; only rarely used settings may collapse. */
-  var firstCard=by("draftUploadCard");
-  var library=by("musicLibraryPanel");
-  if(firstCard&&library){
-    var addTitle=null,childrenBefore=Array.prototype.slice.call(drive.children);
-    for(var ai=0;ai<childrenBefore.length;ai++){
-      if(childrenBefore[ai].tagName==="H3"&&/ADD FILES/i.test(childrenBefore[ai].textContent||"")){addTitle=childrenBefore[ai];break}
-    }
-    var addHelp=addTitle&&addTitle.nextElementSibling;
-    if(addTitle)drive.insertBefore(addTitle,library);
-    if(addHelp&&addHelp.tagName==="P")drive.insertBefore(addHelp,library);
-    var cards=["draftUploadCard","finalUploadCard","sessionUploadCard"];
-    for(var ci=0;ci<cards.length;ci++){
-      var card=by(cards[ci]);if(card)drive.insertBefore(card,library);
-    }
-    var extra=node("details","geDriveExtras");
-    var extraLabel=node("summary",null,"GOOGLE SETTINGS · TROUBLESHOOTING");
-    extra.appendChild(extraLabel);
-    drive.insertBefore(extra,library.nextSibling);
-    var driveChildren=Array.prototype.slice.call(drive.children);
-    for(var di=0;di<driveChildren.length;di++){
-      var child=driveChildren[di];
-      if(child!==extra&&child!==library&&child.className!=="geTrashQuickAction"&&child!==firstCard&&child.id!=="finalUploadCard"&&child.id!=="sessionUploadCard"&&child.tagName!=="H2"&&child.tagName!=="H3"&&child.tagName!=="P"&&child.className==="geMainActions")move(child,extra);
-    }
-  }
-  /* The Drive file list stays open on GOOGLE, never tucked into Settings. */
-  var driveRefresh=node("button","geRefreshDriveFiles","REFRESH GOOGLE FILES");driveRefresh.type="button";
-  driveRefresh.onclick=function(){if(w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles();};
-  if(library)drive.insertBefore(driveRefresh,library);
-  /* A distance-readable result remains visible after upload completion. */
+  move(by("geDriveRepairDownload"),advanced);move(by("autoCheckStatus"),advanced);
+  var ghead=node("div","geGoogleIntro"),auth=node("div","geAuthPanel");
+  var check=node("button",null,"CHECK CONNECTION");check.type="button";
+  check.onclick=function(){if(oldCheck)oldCheck.click();var x=by("runStudioChecks");if(x)x.click()};
+  auth.appendChild(check);
+  diagnostics(auth,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
+  ghead.appendChild(auth);advanced.appendChild(ghead);studioConnection.appendChild(advanced);
+  drive.appendChild(studioConnection);
+    /* A distance-readable result remains visible after upload completion. */
   var bigResult=node("div","geUploadBigResult");
   bigResult.setAttribute("role","status");
   bigResult.setAttribute("aria-live","polite");
@@ -182,12 +206,7 @@ function init(){
  advancedBody.appendChild(statusBtn);
  /* Keep upload failure banner inside Google, not covering Studio/Mixer. */
  var monitor=by("geUploadMonitor");if(monitor){monitor.className+=" geCompactUploadMonitor"}
- /* Remove repeated verbose explanations from default view without deleting them. */
- var sections=drive.querySelectorAll("p.small");
- for(i=0;i<sections.length;i++){var para=sections[i];if(para.id||para.parentNode.className.indexOf("geUploadCard")>=0||/MANUAL UPLOAD/.test(para.textContent||""))continue;
-  var wrap=node("details","geHelp geContextHelp"),summary=node("summary",null,"? HELP · "+(para.textContent||"Google Drive").slice(0,45)+"…");
-  para.parentNode.insertBefore(wrap,para);wrap.appendChild(summary);wrap.appendChild(para);
- }
+
 }
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
 })(window,document);
