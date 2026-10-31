@@ -54,6 +54,21 @@ jobs:
               except Exception as e:
                   outcomes[name]=False
                   print(name,'FAILED',type(e).__name__,str(e)[:180],flush=True)
+          # Verify the optional listener wake-and-return route, without
+          # following its redirect away from the radio backend.
+          if outcomes.get('gateway'):
+              class NoFollow(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self,req,fp,code,msg,headers,newurl):return None
+              try:
+                  req=urllib.request.Request('https://'+host+'/wake-radio',headers={'Accept':'text/html'})
+                  with urllib.request.build_opener(NoFollow()).open(req,timeout=9) as resp:
+                      print('WAKE ROUTE',resp.status,'NO REDIRECT',flush=True)
+              except urllib.error.HTTPError as e:
+                  location=e.headers.get('Location','')
+                  print('WAKE ROUTE HTTP',e.code,'redirect_to_GE',e.code==302 and
+                        location.startswith('https://grandelement.com/radio/'),flush=True)
+              except Exception as e:
+                  print('WAKE ROUTE unavailable',type(e).__name__,flush=True)
           print('PLATFORM NOTE: a sleeping BLITZ app rejects automated stream/health requests. A genuine browser navigation must wake it or the app must be always-on.',flush=True)
           if not outcomes['gateway']:
               print('DIAGNOSIS: BLITZ gateway or platform is unavailable; website changes cannot restart it.',flush=True)
