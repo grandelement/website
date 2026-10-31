@@ -8,7 +8,7 @@ const browser=await puppeteer.launch({
  args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']
 });
 const page=await browser.newPage();
-const path='ge-music/music/Grand Element - 2026 - Aether/Aether_02-Polaris.mp3';
+const path='ge-music/music/Grand Element - 2026 - Aether/Aether_02-Gravity.mp3';
 try{
  await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:3});
  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1');
@@ -65,19 +65,19 @@ try{
  await page.waitForFunction(()=>{
   const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
   return !![...(root?.querySelectorAll('.song')||[])].find(r=>
-   r.querySelector('.songLabel')?.textContent==='Polaris' &&
+   r.querySelector('.songLabel')?.textContent==='Gravity' &&
    r.querySelector('.songActions button'));
  },{timeout:20000});
  const clicked=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
   const row=[...(root?.querySelectorAll('.song')||[])].find(r=>
-    r.querySelector('.songLabel')?.textContent==='Polaris');
+    r.querySelector('.songLabel')?.textContent==='Gravity');
   const btn=row?.querySelector('.songActions button');
   if(!btn)return false;
   btn.click();return true;
  });
- if(!clicked)throw Error('Polaris PLAY button missing after catalog render');
- await page.waitForFunction(()=>!window.GEMusicV5.state().open&&document.getElementById('audio')?.src.includes('Polaris'),
+ if(!clicked)throw Error('Gravity PLAY button missing after catalog render');
+ await page.waitForFunction(()=>!window.GEMusicV5.state().open&&document.getElementById('audio')?.src.includes('Gravity'),
   {timeout:10000});
  try{
   await page.waitForFunction(()=>{
@@ -96,11 +96,11 @@ try{
     previewActive:window.GEInlineMusic?.active?.()
    };
   });
-  throw Error('Real Polaris MP3 did not advance: '+JSON.stringify(status));
+  throw Error('Real Gravity MP3 did not advance: '+JSON.stringify(status));
  }
  await page.click('#playBtn');
  await page.waitForFunction(()=>document.getElementById('audio')?.paused===true,{timeout:5000});
  await page.click('#playBtn');
  await page.waitForFunction(()=>document.getElementById('audio')?.paused===false,{timeout:5000});
- console.log('PASS: real Polaris MP3 decoded and advanced after MUSIC PLAY; main Radio PLAY paused and resumed the personal song.');
+ console.log('PASS: real Gravity MP3 decoded and advanced after MUSIC PLAY; main Radio PLAY paused and resumed the personal song.');
 }finally{await browser.close()}
