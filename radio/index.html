@@ -4274,6 +4274,44 @@ html.ge-radio-ui body.ge-sunlab-entitled #bottomActions #sunLabBtn:not([hidden])
 }
 /* The Blue Sun EQ should never be disabled as a side effect of hiding IAM. */
 </style>
+<style id="ge-radio-offline-always-visible-20261031">
+/* OFFLINE is always shown. Authentication still controls its real functions. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  min-width:0!important;min-height:36px!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn.ge-offline-locked{
+  opacity:.7!important;border-color:rgba(120,158,180,.55)!important;
+  background:rgba(10,26,42,.6)!important;box-shadow:none!important;
+}
+/* Phone: CODE CONTACT SHARE, then RELOAD SUPPORT OFFLINE (Reload only if granted). */
+@media (orientation:portrait) and (max-width:700px){
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #accessLaunchBtn:not([hidden]){grid-area:1/1/2/2!important}
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #contactLaunchBtn{grid-area:1/2/2/3!important}
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #shareBtn{grid-area:1/3/2/4!important}
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #reloadBtn:not([hidden]){grid-area:2/1/3/2!important}
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > .bc-btn{grid-area:2/2/3/3!important}
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #offlineBtn{
+    display:flex!important;grid-area:2/3/3/4!important;min-height:36px!important;
+  }
+}
+/* Landscape Ship proxy has the same code-lock behavior. */
+@media (orientation:landscape){
+  html.ge-radio-ui body.view-ship #shipOwnerActions{
+    position:absolute!important;z-index:12!important;left:22.2%!important;
+    top:92%!important;width:55.7%!important;height:5.8%!important;
+    display:flex!important;align-items:stretch!important;justify-content:center!important;
+  }
+  html.ge-radio-ui body.view-ship #shipOwnerActions [data-proxy="offlineBtn"]{
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;
+    min-width:100px!important;max-width:190px!important;
+  }
+  html.ge-radio-ui body.view-ship #shipOwnerActions [data-proxy="offlineBtn"].ge-offline-locked{opacity:.7!important}
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -4497,7 +4535,7 @@ html.ge-radio-ui body.ge-sunlab-entitled #bottomActions #sunLabBtn:not([hidden])
   <div id="shipOwnerActions">
     <button id="shipSunLabBtn" type="button" hidden>SUN LAB</button>
     <button id="shipGateTestBtn" type="button" hidden>TEST GATE</button>
-    <button data-proxy="offlineBtn" hidden>Go Offline</button>
+    <button data-proxy="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
     <button data-proxy="reloadBtn" hidden>Reload Library</button>
   </div>
 
@@ -4734,7 +4772,7 @@ html.ge-radio-ui body.ge-sunlab-entitled #bottomActions #sunLabBtn:not([hidden])
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
     <button id="reloadBtn" hidden>Reload Library</button>
-    <button id="offlineBtn" hidden>Go Offline</button>
+    <button id="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
@@ -6759,7 +6797,19 @@ function syncRadioOfflineAccessUI(){
     element.setAttribute('aria-hidden',allowed?'false':'true');
     element.tabIndex=allowed?0:-1;
   };
-  setUtility($('offlineBtn'),permissions.offline);
+  // Always display OFFLINE. Vault permission still guards actual downloads.
+  const offlineButton=$('offlineBtn');
+  if(offlineButton){
+    offlineButton.hidden=false;
+    offlineButton.tabIndex=0;
+    offlineButton.classList.toggle('ge-offline-locked',!permissions.offline);
+    offlineButton.setAttribute('aria-disabled',String(!permissions.offline));
+    offlineButton.setAttribute('aria-label',permissions.offline?
+      'Manage downloaded offline music':'Offline locked. Enter an access code');
+    offlineButton.title=permissions.offline?'Manage offline music':'Enter an access code to unlock OFFLINE';
+    if(!permissions.offline)offlineButton.textContent='OFFLINE';
+    else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
+  }
   setUtility($('reloadBtn'),permissions.reload);
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
@@ -6767,7 +6817,16 @@ function syncRadioOfflineAccessUI(){
   // A previously opened I AM studio never persists after a permission loss.
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
     $('iamExitBtn')?.click();
-  setUtility(document.querySelector('#shipStage [data-proxy="offlineBtn"]'),permissions.offline);
+  const shipOffline=document.querySelector('#shipStage [data-proxy="offlineBtn"]');
+  if(shipOffline){
+    shipOffline.hidden=false;
+    shipOffline.tabIndex=0;
+    shipOffline.classList.toggle('ge-offline-locked',!permissions.offline);
+    shipOffline.setAttribute('aria-disabled',String(!permissions.offline));
+    shipOffline.setAttribute('aria-label',permissions.offline?
+      'Manage offline music':'Offline locked. Enter an access code');
+    shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
+  }
   setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
@@ -8904,7 +8963,13 @@ async function registerServiceWorker(){
   }
 
   button.addEventListener('click',async()=>{
-    if(!geRadioUtilityAllowed('offline'))return; // Honor verified Vault offline scope.
+    if(!geRadioUtilityAllowed('offline')){
+      // Locked button opens the existing CODE gate. It cannot start downloads.
+      setStatus('OFFLINE is locked. Enter an access code with offline permission.');
+      if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();
+      else $('accessLaunchBtn')?.click();
+      return;
+    }
     if(button.classList.contains('downloading')){
       abortController?.abort();
       await setOfflinePlanAutoResume(false);
