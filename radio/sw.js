@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.10.30-radio1-only-visible-retry-v78';
+const VERSION='2026.10.31-radio1-mp3-love-sunlab-v79';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
