@@ -357,12 +357,56 @@ function updateAlbumPreviewQueue(){
    Do not set the local OWNER_DEMO switch: public codes never confer admin tools. */
 let geFreePassSession=null,geFreePassBusy=false;
 const geFreePassMusicKey='GE_MUSIC_CODE_SESSION_V1';
+const geDeviceGrantKey='GE_VAULT_RADIO_DEVICE_SESSION_V1';
+function geCheckoutDeviceId(){try{return String(localStorage.getItem('GE_VAULT_ANON_V1')||'')}catch(_e){return ''}}
+function geStoreRememberedGrant(data){
+ const grant=data?.device_session,device=geCheckoutDeviceId();
+ if(!grant?.token||!/^visitor-[a-z0-9-]{16,100}$/i.test(device))return;
+ try{localStorage.setItem(geDeviceGrantKey,JSON.stringify({
+   token:grant.token,device_id:device,until:Number(grant.expires_at)*1000
+ }))}catch(_e){}
+}
+async function restoreRememberedFreePass(){
+ let stored=null;
+ try{stored=JSON.parse(localStorage.getItem(geDeviceGrantKey)||'null')}catch(_e){}
+ const device=geCheckoutDeviceId();
+ if(!stored?.token||stored.device_id!==device||Number(stored.until)<=Date.now())return;
+ try{
+  const response=await fetch('https://vault.grandelement.com/v1/public/access/device/restore',{
+   method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+   body:JSON.stringify({token:stored.token,device_id:device})
+  });
+  if(response.status===403){localStorage.removeItem(geDeviceGrantKey);return}
+  if(!response.ok)return;
+  const data=await response.json();
+  if(data.ok!==true)return;
+  geStoreRememberedGrant(data);
+  geStoreRememberedGrant(data);
+  const m=data.music_session,until=Number(m?.session_expires_at)*1000;
+  if(m?.token&&until>Date.now()){
+   sessionStorage.setItem(geFreePassMusicKey,JSON.stringify({
+    token:m.token,until,restricted:!!m.restricted,
+    allowed:Array.isArray(m.allowed_tracks)?m.allowed_tracks:[],
+    playlistIds:Array.isArray(m.playlist_ids)?m.playlist_ids:[]
+   }));
+   window.dispatchEvent(new Event('ge-vault-music-access-updated'));
+  }
+  const allScopes=['website','radio','music','albums','games']
+   .every(scope=>Array.isArray(data.scopes)&&data.scopes.includes(scope));
+  if(data.capabilities?.sun_lab===true&&allScopes&&!m?.restricted&&until>Date.now()){
+   geFreePassSession={until};
+   applyFreePassStatus();
+   get('myMusicStatus').textContent='LOVE verified on this browser · Full music access. No payment required for this preview.';
+  }
+ }catch(_e){}
+}
+
 async function verifyFreePass(raw){
  const code=String(raw||'').trim();
  if(!code)throw Error('Enter your GE access code.');
  const response=await fetch('https://vault.grandelement.com/v1/public/access/redeem',{
   method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
-  body:JSON.stringify({code,scope:'radio'})
+  body:JSON.stringify({code,scope:'radio',device_id:geCheckoutDeviceId()})
  });
  const data=await response.json().catch(()=>({}));
  if(!response.ok||data.ok!==true)throw Error(String(data.error||'GE Vault did not accept that code.'));
@@ -438,6 +482,8 @@ get('geFreePassApply').addEventListener('click',async()=>{
  finally{geFreePassBusy=false;btn.disabled=false}
 });
 geFreePassInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();get('geFreePassApply').click()}});
+// Remembered LOVE is verified by Vault, never a locally assumed purchase.
+void restoreRememberedFreePass();
 get('geFreePassReturn').addEventListener('click',openAuthorizedMusic);
 const digitalFormat=get("checkoutFormat"),digitalDelivery=get("checkoutDelivery");
 for(const [field,key] of [[digitalFormat,"ge_support_format_v1"],[digitalDelivery,"ge_support_delivery_v1"]]){
