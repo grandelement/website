@@ -33,6 +33,9 @@ try{
  assert.equal(first.opacity,'1','RADIO must be visible before connection');
  assert.equal(first.events,'auto','RADIO must be clickable before connection');
  assert.equal(first.connected,false,'Failed BLITZ must not show connected heartbeat');
+ // Simulate a listener who already completed the browser wake step.
+ // The connected-state regression still verifies direct Radio 1 retries.
+ await page.evaluate(()=>sessionStorage.setItem('GE_BLITZ_VISITOR_WAKE_RECENT_V1',String(Date.now())));
  await page.click('#liveBtn');
  await new Promise(resolve=>setTimeout(resolve,2500));
  const after=await page.evaluate(()=>({
@@ -54,9 +57,10 @@ try{
      display:getComputedStyle(a).display,top:box.top,bottom:box.bottom,width:box.width}:null;
  });
  assert.ok(wakeLink,'BLITZ wake link must exist for sleeping-app recovery');
- assert.equal(wakeLink.href,'https://radio.grandelement.blitz.cloud/');
- assert.equal(wakeLink.target,'_blank','Wake link must open an actual browser tab');
+ assert.equal(wakeLink.href,'https://radio.grandelement.blitz.cloud/wake-radio');
+ assert.equal(wakeLink.target,'','Wake link must use the listener\'s real browser tab');
  assert.equal(wakeLink.hidden,false,'Failed BLITZ connection must expose the wake link');
+ assert.equal(await page.evaluate(()=>typeof browserWakeOnRadioTap),'function','Listener RADIO click must support a real browser wake visit');
  assert.notEqual(wakeLink.display,'none','Wake link must be visibly reachable');
  // OFFLINE is discoverable without a code, but only a Vault-verified scope
  // may start a download. The locked button must open the existing CODE gate.
