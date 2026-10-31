@@ -4628,10 +4628,10 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
     <div id="liveStatus" role="status" aria-live="polite"></div>
-    <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/"
-       target="_blank" rel="noopener noreferrer" hidden
-       aria-label="Open BLITZ in a browser tab to wake Radio 1">
-       WAKE RADIO · OPEN BLITZ, THEN RETURN AND TAP RADIO
+    <a id="geRadioWakeLink" href="https://radio.grandelement.blitz.cloud/wake-radio"
+       rel="external" hidden
+       aria-label="Wake Radio 1 in your browser and return to Grand Element">
+       WAKE RADIO · RECONNECT
     </a>
     <button id="chooseSongsBtn" type="button" aria-label="Choose songs for your playlist">SONGS</button>
     <button id="geMusicV5Button" type="button" aria-controls="geMusicV5Host" aria-expanded="false" data-ge-music-build="GE-MUSIC-V5-20261024">MUSIC</button>
@@ -6316,6 +6316,21 @@ function clearLiveReconnect(){
 // infrastructure remains intact but is never selected by this public player.
 const GE_RADIO2_DISABLED=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
+const GE_BLITZ_VISITOR_WAKE_URL='https://radio.grandelement.blitz.cloud/wake-radio';
+const GE_BLITZ_VISITOR_WAKE_KEY='GE_BLITZ_VISITOR_WAKE_RECENT_V1';
+function browserWakeOnRadioTap(){
+  // A genuine listener tap initiates top-level navigation; automated audio
+  // retries alone cannot wake an app sleeping at the BLITZ edge.
+  if(navigator.onLine===false||observedRadio1Progress||radio2.active||
+     !(radioTimedOut||geRadio1RetryAttempts>0))return false;
+  try{
+    const last=Number(sessionStorage.getItem(GE_BLITZ_VISITOR_WAKE_KEY))||0;
+    if(Date.now()-last<120000)return false; // avoid looping after return
+    sessionStorage.setItem(GE_BLITZ_VISITOR_WAKE_KEY,String(Date.now()));
+  }catch(_e){}
+  location.assign(GE_BLITZ_VISITOR_WAKE_URL);
+  return true;
+}
 function showRadioWakeLink(show){
  const link=$('geRadioWakeLink');
  if(link)link.hidden=!show;
@@ -7639,8 +7654,9 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
-  // Keep the heartbeat active after connection; while disconnected
-  // every press can retry the original BLITZ station.
+  // On a failed connection, a real visitor tap wakes the BLITZ container
+  // through browser navigation. The BLITZ /wake-radio route returns here.
+  if(browserWakeOnRadioTap())return;
   void requestRadioStart({userGesture:true});
 });
 $('shuffleBtn').addEventListener('click',()=>{
