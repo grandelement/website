@@ -139,6 +139,14 @@ http {
     location = /healthz { default_type text/plain; return 200 "GE Radio gateway OK\n"; }
     location = / { default_type text/plain; return 200 "Grand Element Radio is online.\n"; }
 
+    # A real listener browser visit wakes a sleeping BLITZ app; once Nginx
+    # starts, this URL returns them to the GE Radio player automatically.
+    # The endpoint never wakes the app through a synthetic monitor request.
+    location = /wake-radio {
+      add_header Cache-Control "no-store" always;
+      return 302 https://grandelement.com/radio/?radio=1&ge_blitz_return=1;
+    }
+
     # Private per-listener 33:33 guest preview. FFmpeg reverb/fade affects only
     # this one listener and never the shared 24/7 Icecast broadcast.
     location = /listener-preview.mp3 {
