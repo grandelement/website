@@ -2637,6 +2637,81 @@ async function accessMusicSession(request,env){
     display_name:displayName});
 }
 
+// A device is one browser's random, opt-in visitor ID, not an IP address,
+// VPN location, fingerprint, billing identity or independently trusted fan ID.
+// The signed token is a revocable bearer grant, never proof of payment.
+function accessCleanDeviceId(value){
+  const id=String(value||'').trim();
+  return /^visitor-[a-z0-9-]{16,100}$/i.test(id)?id:'';
+}
+async function accessDeviceGrant(env,row,deviceId,codeExpiry){
+  if(!deviceId)return null;
+  const t=now(),until=Math.min(t+30*86400,Number(codeExpiry||t+30*86400));
+  if(until<=t)return null;
+  const nonce=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
+  const payload=["v1",row.id,until,deviceId,nonce].join(".");
+  const signature=await hmacHex("ge-access-device-v1:"+payload,env.VAULT_HASH_KEY);
+  return {token:payload+"."+signature,expires_at:until};
+}
+async function accessRestoreDevice(request,env){
+  const body=await readBody(request),deviceId=accessCleanDeviceId(body.device_id);
+  const token=String(body.token||"");
+  const parts=token.split(".");
+  if(!deviceId||parts.length!==6||parts[0]!=="v1"||
+     parts[3]!==deviceId||!/^[a-f0-9]{24}$/.test(parts[4])||
+     !/^[a-f0-9]{64}$/.test(parts[5]))
+    return json({ok:false,error:"Remembered device is invalid."},403);
+  const expiresToken=Number(parts[2]);
+  if(!Number.isSafeInteger(expiresToken)||expiresToken<=now())
+    return json({ok:false,error:"Remembered device session expired."},403);
+  const unsigned=parts.slice(0,5).join(".");
+  const expected=await hmacHex("ge-access-device-v1:"+unsigned,env.VAULT_HASH_KEY);
+  // Equal-length HMAC digests. Do not trust the browser's saved scopes.
+  let mismatch=0;
+  for(let i=0;i<expected.length;i++)mismatch|=expected.charCodeAt(i)^parts[5].charCodeAt(i);
+  if(mismatch!==0)return json({ok:false,error:"Remembered device is invalid."},403);
+  const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
+  if(policy?.enabled===0)return json({ok:false,error:"Access codes disabled."},403);
+  const row=await env.VAULT_DB.prepare(
+    "SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE a.id=?"
+  ).bind(parts[1]).first();
+  if(!row||!row.enabled||row.revoked_at||row.deleted_at)
+    return json({ok:false,error:"Access revoked."},403);
+  const t=now(),expiration=row.duration_mode==="fixed"?row.fixed_expires_at:
+    row.duration_mode==="activation"?row.expires_at:
+    row.duration_mode==="first_use"?row.expires_at:null;
+  if(expiration&&Number(expiration)<=t)return json({ok:false,error:"Access expired."},403);
+  const scopes=JSON.parse(row.scopes_json||"[]");
+  if(!scopes.includes("radio")&&!scopes.includes("website"))
+    return json({ok:false,error:"Radio permission revoked."},403);
+  const playlist_ids=JSON.parse(row.playlist_ids_json||"[]");
+  const track_paths=JSON.parse(row.track_paths_json||"[]");
+  let music_session=null;
+  if((scopes.some(scope=>["website","music","albums"].includes(scope))||
+      (scopes.includes("radio")&&track_paths.length>0))&&
+     !(playlist_ids.length&&!track_paths.length)){
+    const until=Math.min(t+3600,Number(expiration||t+3600));
+    const nonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+    const unsigned=row.id+"."+until+"."+nonce;
+    const sig=await hmacHex("ge-music-session-v1:"+unsigned,env.VAULT_HASH_KEY);
+    music_session={token:unsigned+"."+sig,session_expires_at:until,
+      restricted:track_paths.length>0,allowed_tracks:track_paths,playlist_ids,
+      display_name:await codeListenerDisplayName(env,row.id)};
+  }
+  const device_session=await accessDeviceGrant(env,row,deviceId,expiration);
+  await audit(env,"public","access.device-restored","access_code",row.id,{
+    anon_id:deviceId,scope:"radio"
+  });
+  return json({ok:true,scope:"radio",scopes,expires_at:expiration||null,
+    capabilities:{sun_lab:row.id==="access_legacy_love_v1"},
+    experience:{games_enabled:row.experience_games_enabled!==0,
+      autopilot_enabled:row.experience_autopilot_enabled!==0,
+      radio_playlist_id:String(row.experience_radio_playlist_id||"")},
+    ...(music_session?{music_session}:{}),
+    ...(device_session?{device_session}:{})
+  });
+}
+
 async function accessRedeem(request,env){
   const policy=await env.VAULT_DB.prepare("SELECT enabled FROM access_code_policy WHERE id=1").first();
   if(policy?.enabled===0)return json({ok:false,error:"Access codes are disabled."},403);
@@ -2676,7 +2751,10 @@ async function accessRedeem(request,env){
     "UPDATE access_codes SET use_count=use_count+1,first_used_at=COALESCE(first_used_at,?),expires_at=COALESCE(expires_at,?),updated_at=? WHERE id=? AND enabled=1 AND revoked_at IS NULL AND (max_uses=0 OR use_count<max_uses) AND (expires_at IS NULL OR expires_at>?)"
   ).bind(t,expires,t,row.id,t).run();
   if(!update.meta?.changes)return json({ok:false,error:"Invalid or expired code."},403);
-  await audit(env,"public","access.redeem","access_code",row.id,{scope});
+  const deviceId=accessCleanDeviceId(body.device_id);
+  await audit(env,"public","access.redeem","access_code",row.id,{
+    scope,...(deviceId?{anon_id:deviceId}:{})
+  });
   // Issue one short-lived, signed personal Music session WITH the Radio Gate
   // redemption. Do not redeem the same key twice: max_uses=1 must still work.
   // The precise D1 track snapshot, never a mutable playlist label, governs
@@ -2699,8 +2777,11 @@ async function accessRedeem(request,env){
   // server-verified, never inferred from the code text in browser JavaScript.
   const sunLabAuthorized=scope==="radio"&&row.id==="access_legacy_love_v1"&&
     accessNormalizeCode(body.code)==="LOVE";
+  const device_session=scope==="radio"
+    ?await accessDeviceGrant(env,row,deviceId,expires):null;
   return json({ok:true,scope,scopes,expires_at:expires||null,
     capabilities:{sun_lab:sunLabAuthorized},
+    ...(device_session?{device_session}:{}),
     uses_remaining:row.max_uses>0?Math.max(0,row.max_uses-row.use_count-1):null,
     experience:{games_enabled:row.experience_games_enabled!==0,
       autopilot_enabled:row.experience_autopilot_enabled!==0,
@@ -2758,6 +2839,11 @@ export default {
 
       if (url.pathname === "/v1/public/access/music-session" && request.method === "POST") {
         const response=await accessMusicSession(request,env);
+        Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
+        return response;
+      }
+      if (url.pathname === "/v1/public/access/device/restore" && request.method === "POST") {
+        const response=await accessRestoreDevice(request,env);
         Object.entries(cors).forEach(([k,v])=>response.headers.set(k,v));
         return response;
       }
