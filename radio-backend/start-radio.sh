@@ -159,6 +159,17 @@ http {
       add_header Cache-Control "no-store" always;
       add_header X-Accel-Buffering "no" always;
     }
+    # Shared FFT of the ACTUAL BLITZ public master broadcast, for Safari
+    # where MediaElementSource cannot inspect Icecast. Never alters playback.
+    location = /eq/spectrum.json {
+      proxy_pass http://127.0.0.1:8096/spectrum.json;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_buffering off; proxy_cache off; proxy_connect_timeout 1s;
+      proxy_read_timeout 3s;
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cache-Control "no-store" always;
+    }
     location = /stream.mp3 {
       proxy_pass http://127.0.0.1:8000/stream.mp3; proxy_http_version 1.1;
       proxy_set_header Host $host; proxy_set_header Connection "";
@@ -308,7 +319,7 @@ sys.exit(1)
 PYHTTP
 }
 
-NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MASTER_PID=""; HLS_PID=""; PREVIEW_PID=""
+NGINX_PID=""; CONTROL_PID=""; WATCHER_PID=""; ICECAST_PID=""; LIQUIDSOAP_PID=""; MASTER_PID=""; HLS_PID=""; PREVIEW_PID=""; SPECTRUM_PID=""
 
 start_nginx(){
   if pid_alive "$NGINX_PID"; then return 0; fi
@@ -327,6 +338,12 @@ start_preview(){
   echo "GE Radio: starting listener-isolated preview processor..."
   python3 /app/personal-preview.py & PREVIEW_PID=$!
   wait_port 8091 8
+}
+start_spectrum(){
+  if pid_alive "$SPECTRUM_PID"; then return 0; fi
+  echo "GE Radio: starting low-priority master stream frequency sampler..."
+  nice -n 10 python3 /app/spectrum-server.py & SPECTRUM_PID=$!
+  sleep .2; pid_alive "$SPECTRUM_PID"
 }
 start_watcher(){
   if pid_alive "$WATCHER_PID"; then return 0; fi
@@ -395,7 +412,7 @@ start_audio_stack(){
 
 shutdown(){
   echo "GE Radio: shutting down..."; stop_hls; stop_audio
-  for p in "$CONTROL_PID" "$WATCHER_PID" "$PREVIEW_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
+  for p in "$CONTROL_PID" "$WATCHER_PID" "$PREVIEW_PID" "$SPECTRUM_PID" "$NGINX_PID"; do if pid_alive "$p"; then kill "$p" 2>/dev/null || true; fi; done
   wait 2>/dev/null || true
 }
 trap shutdown EXIT INT TERM
@@ -404,6 +421,7 @@ start_nginx || { echo "GE Radio: gateway failed to start."; exit 1; }
 start_control || echo "GE Radio: control service startup warning; supervisor will retry."
 start_watcher
 start_preview || echo "GE Radio: individual preview processor not ready; retrying soon."
+start_spectrum || echo "GE Radio: optional FFT spectrum not ready; retrying soon."
 
 echo "GE Radio: gateway online; waiting for library playlist in background."
 while true; do
@@ -411,6 +429,7 @@ while true; do
   if ! pid_alive "$CONTROL_PID"; then start_control || true; fi
   if ! pid_alive "$WATCHER_PID"; then start_watcher || true; fi
   if ! pid_alive "$PREVIEW_PID"; then start_preview || true; fi
+  if ! pid_alive "$SPECTRUM_PID"; then start_spectrum || true; fi
   if [ -s /app/runtime/playlist.m3u ]; then
     if ! pid_alive "$ICECAST_PID" || ! pid_alive "$LIQUIDSOAP_PID" || ! pid_alive "$MASTER_PID"; then
       echo "GE Radio: radio backbone missing; restarting audio stack."

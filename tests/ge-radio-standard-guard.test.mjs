@@ -106,6 +106,17 @@ for(const text of [
 ])assert.ok(pulseStyle.includes(text),'REGRESSION: missing approved RADIO behavior '+text);
 requireText(radio,/const GE_RADIO2_DISABLED=true/,'Radio 2 must remain disabled for all public listeners');
 const radioBackend=read('radio-backend/start-radio.sh');
+const spectrumServer=read('radio-backend/spectrum-server.py');
+const radioDocker=read('Dockerfile.radio');
+// iPhone uses real Radio 1 FFT without creating a second HTMLAudioElement.
+requireText(radio,/async function pollBlitzSpectrum\(\)/,'iPhone BLITZ FFT poll removed');
+requireText(radio,/https:\/\/radio\.grandelement\.blitz\.cloud\/eq\/spectrum\.json/,'Real BLITZ spectrum endpoint removed');
+requireText(radio,/if\(GE_IOS_AUDIO\)\{[\s\S]*?void pollBlitzSpectrum\(\)/,'Safari spectrum path removed');
+requireText(radioBackend,/location = \/eq\/spectrum\.json \{/,'Nginx spectrum proxy removed');
+requireText(radioBackend,/start_spectrum\(\)/,'Optional spectrum supervisor removed');
+requireText(radioDocker,/radio-backend\/spectrum-server\.py/,'BLITZ build omitted spectrum server');
+requireText(spectrumServer,/\/stream\.mp3/,'Spectrum must analyze actual BLITZ master');
+requireText(spectrumServer,/def fft_spectrum\(/,'Real audio FFT removed');
 requireText(radioBackend,/location = \/wake-radio \{/,'BLITZ listener wake and return route missing');
 requireText(radioBackend,/return 302 https:\/\/grandelement\.com\/radio\/\?radio=1&ge_blitz_return=1/,'BLITZ must return a real listener to Radio');
 requireText(radio,/function wakeBlitzFromPageVisit\(\)/,'Radio must attempt a visitor browser navigation on arrival');
