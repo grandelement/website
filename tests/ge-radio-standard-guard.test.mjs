@@ -121,7 +121,11 @@ requireText(homeRadio,/STREAM='https:\/\/radio\.grandelement\.blitz\.cloud\/stre
 requireText(home,/ge-home-radio-connected/,'Homepage heartbeat only after verified stream');
 requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'Radio heartbeat not tied to actual player');
 requireText(radio,/button\.textContent='RADIO'/,'RADIO text must always be visible, even when reconnecting');
-requireNot(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/,'Successful Radio tap must not permanently stop heartbeat');
+requireText(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/,'First listener RADIO tap must acknowledge the heartbeat');
+requireText(radio,/liveState\.hadVerifiedStream=true/,'Radio connection must require forward-time progress');
+requireText(radio,/audio\.muted=!liveState\.userActivated/,'Radio page must start silently before user plays');
+requireText(radio,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
+requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
 requireText(radio,/Date\.now\(\)-lastRadio1Progress>8000/,'RADIO tap must retry a stalled primary');
 requireText(radio,/function setLiveStatus\(text,show=true\)/,'Underlying live status removed');
 requireText(radio,/115000/,'Radio 1 watchdog shortened');
