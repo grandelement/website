@@ -4366,6 +4366,46 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
   html.ge-radio-ui body.view-ship #shipOwnerActions [data-proxy="offlineBtn"].ge-offline-locked{opacity:.7!important}
 }
 </style>
+<style id="ge-radio-no-extra-row-20261031">
+/* Owner revision: the old connection/status bubble is NOT a player row.
+   Keep its text available to screen readers, but remove the entire visible
+   bar, border, padding and grid footprint. RADIO itself is the indicator. */
+html.ge-radio-ui body.view-player #musicGroup > #liveStatus,
+html.ge-radio-ui body.view-player #musicGroup > #liveStatus.show,
+html.ge-radio-ui body.view-ship #musicGroup > #liveStatus.show {
+  position:absolute!important;display:block!important;
+  width:1px!important;height:1px!important;min-width:0!important;
+  min-height:0!important;max-width:1px!important;max-height:1px!important;
+  margin:0!important;padding:0!important;border:0!important;
+  clip-path:inset(50%)!important;overflow:hidden!important;
+  white-space:nowrap!important;grid-area:auto!important;
+  opacity:0!important;pointer-events:none!important;
+}
+/* RELOAD stays coded, but is removed from all visible control layouts.
+   The authorized SUN LAB control uses the same former slot. */
+html.ge-radio-ui body #bottomActions #reloadBtn,
+html.ge-radio-ui body #bottomActions #reloadBtn:not([hidden]),
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
+  display:none!important;position:absolute!important;width:0!important;
+  height:0!important;margin:0!important;padding:0!important;
+  border:0!important;pointer-events:none!important;
+}
+@media (orientation:portrait) and (max-width:700px){
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(38px,auto))!important;
+  }
+  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #sunLabBtn:not([hidden]){
+    grid-area:2/1/3/2!important;display:flex!important;align-items:center!important;
+    justify-content:center!important;min-width:0!important;min-height:36px!important;
+  }
+}
+@media (orientation:landscape) and (max-width:819px){
+  html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #sunLabBtn:not([hidden]){
+    grid-area:2/1/3/2!important;display:flex!important;
+  }
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -6602,6 +6642,26 @@ setInterval(()=>{
 // Media Session play. Repeated taps reuse the same pending request; one iPhone
 // audio element remains the sole playback device.
 let radioStartInFlight=null,radioTapUnlockInFlight=null;
+// Safari must receive play() in the FIRST actual button-click task.
+// Waiting for a reconnect Promise can consume the user's activation, so the
+// first RADIO or PLAY tap unlocks the existing native player immediately.
+// Keep the Gate and the currently selected BLITZ/preview source intact.
+function activateRadioOnUserGesture(){
+  if(!(state.live||state.livePreparing)||!(audio.currentSrc||audio.src)
+      ||window.GEGate?.isExpiredLocked?.()
+      ||window.GEIAmStudio?.isRadioSuspended?.())return;
+  liveState.userActivated=true;
+  audio.muted=false;audio.defaultMuted=false;
+  audio.volume=desiredPlaybackVolume(state.currentURL);
+  if(!audio.paused||radioTapUnlockInFlight)return;
+  try{
+    const unlocking=Promise.resolve(audio.play());
+    radioTapUnlockInFlight=unlocking;
+    void unlocking.catch(error=>{
+      if(String(error?.name||'')!=='AbortError')radioPlayFailure(error);
+    }).finally(()=>{if(radioTapUnlockInFlight===unlocking)radioTapUnlockInFlight=null;});
+  }catch(error){radioPlayFailure(error);}
+}
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
   // A fresh human RADIO tap must try the original BLITZ stream again, even
   // when Radio 2's clock endpoint is down or the earlier watchdog timed out.
@@ -6609,7 +6669,8 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   // Radio 2 instead of opening a new Radio 1 connection.
   const retryStalledRadio1=!!(userGesture&&!radio2.active&&!observedRadio1Progress&&
     (radioTimedOut||geRadio1RetryAttempts>0||radio2.loading||
-     ((state.live||state.livePreparing)&&Date.now()-lastRadio1Progress>8000)));
+     ((state.live||state.livePreparing)&&!audio.paused&&
+       Date.now()-lastRadio1Progress>20000)));
   if(retryStalledRadio1){
     clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
     radioTimedOut=false;radioReconnectFailures=0;
@@ -6624,6 +6685,7 @@ function requestRadioStart({deferPlay=false,userGesture=false}={}){
   }
   if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
   if(userGesture||(!state.live&&!deferPlay))liveState.wantedPlayback=true;
+  if(userGesture)activateRadioOnUserGesture();
   if(radioStartInFlight){
     // Safari can leave automatic play pending until a real gesture.
     // Let ONE trusted tap call play() on the EXISTING audio element;
@@ -6971,7 +7033,8 @@ function syncRadioOfflineAccessUI(){
     if(!permissions.offline)offlineButton.textContent='OFFLINE';
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
-  setUtility($('reloadBtn'),permissions.reload);
+  // Reload remains implemented but its owner-facing button is intentionally hidden.
+  setUtility($('reloadBtn'),false);
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -6988,7 +7051,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
@@ -8455,7 +8518,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-radio1-mp3-love-sunlab-v79',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-radio-one-tap-compact-v80',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){

@@ -138,7 +138,9 @@ requireText(radio,/liveState\.hadVerifiedStream=true/,'Radio connection must req
 requireText(radio,/audio\.muted=!liveState\.userActivated/,'Radio page must start silently before user plays');
 requireText(radio,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio must stay solid red on voluntary pause');
 requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
-requireText(radio,/Date\.now\(\)-lastRadio1Progress>8000/,'RADIO tap must retry a stalled primary');
+requireText(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Only a genuinely stalled active Radio 1 stream may restart');
+requireText(radio,/function activateRadioOnUserGesture\(\)/,'First iPhone RADIO tap must unlock native playback synchronously');
+requireText(radio,/if\(userGesture\)activateRadioOnUserGesture\(\)/,'First-tap unlock is not wired to Radio and PLAY');
 requireText(radio,/function setLiveStatus\(text,show=true\)/,'Underlying live status removed');
 requireText(radio,/115000/,'Radio 1 watchdog shortened');
 requireText(radio,/RADIO 1 · STARTING · PLEASE KEEP THIS PAGE OPEN/,'Long startup message removed');
@@ -169,13 +171,16 @@ requireText(radio,/if\(!geRadioUtilityAllowed\('offline'\)\)\{/,'OFFLINE actions
 requireText(radio,/window.GEGate\.openCodeEntry\(\)/,'Locked OFFLINE button must offer CODE entry');
 requireText(radio,/ge-radio-offline-always-visible-20261031/,'Always-visible OFFLINE layout missing');
 requireText(radio,/shipOffline\.hidden=false/,'Ship OFFLINE control must remain visible');
-requireText(radio,/setUtility\(\$\('reloadBtn'\),permissions.reload\)/,'Reload must require verified Vault scope');
+requireText(radio,/setUtility\(\$\('reloadBtn'\),false\)/,'Reload control must remain hidden until re-enabled by owner');
 requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
 assert.ok(radio.includes("((feature==='offline'||feature==='reload')&&r.sunLab===true)"),'Verified original LOVE must restore its Offline and Reload tools');
 assert.ok(radio.includes('return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;'),'Radio must request the canonical BLITZ mount');
 assert.ok(homeRadio.includes('return STREAM;'),'Homepage must request the canonical BLITZ mount');
 assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must not have proxy-breaking cache-busting query');
-requireText(radio,/#bottomActions #reloadBtn:not\(\[hidden\]\)\{display:flex!important/,'Verified Reload must be visible');
+requireText(radio,/id="ge-radio-no-extra-row-20261031"/,'Whole visible buffering bar and empty grid row must be gone');
+requireText(radio,/#musicGroup > #liveStatus\.show/,'Status is available to assistive tools without a visible row');
+requireText(radio,/grid-area:2\/1\/3\/2!important/,'Sun Lab must replace the retired RELOAD position');
+requireText(radio,/ge-radio-one-tap-compact-v80/,'Current iPhone UI shell not refreshed');
 requireText(radio,/#bottomActions #offlineBtn\[hidden\]/,'Unauthorized Offline button must remain hidden');
 // Preserve the one-frame iPhone Radio contract and the rebuilt EQ space.
 requireText(radio,/id="ge-radio-iphone-border-anchors-v1"/,'iPhone border-lock stylesheet removed');
