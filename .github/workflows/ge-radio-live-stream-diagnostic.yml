@@ -1,4 +1,5 @@
-# Diagnostics re-run: 2026-10-29, verify BLITZ Radio 1 health and Radio 2 program without changing station behavior.
+# Read-only BLITZ Radio 1 production diagnostics.
+# Trigger on update to this file or run manually; never deploy/restart a station.
 name: GE Radio Live Stream Diagnostic
 on:
   push:
@@ -13,33 +14,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe Radio 1 audio and Radio 2 Bangers clock
+      - name: Verify BLITZ gateway, automation cue and public audio
         run: |
           python3 - <<'PY'
-          import json, urllib.request, urllib.error, socket
-          checks=[
-            ('RADIO1','https://radio.grandelement.blitz.cloud/stream.mp3'),
-            ('RADIO2','https://ge-radio-sync.grandelement.workers.dev/v1/program')
+          import socket, urllib.request, urllib.error, sys
+          host='radio.grandelement.blitz.cloud'
+          try:
+              addresses=sorted({p[4][0] for p in socket.getaddrinfo(host,443,type=socket.SOCK_STREAM)})
+              print('BLITZ DNS: resolved',len(addresses),'address(es)',flush=True)
+          except Exception as e:
+              print('BLITZ DNS FAILED:',type(e).__name__,str(e)[:180],flush=True)
+              raise SystemExit(1)
+          paths=[
+            ('gateway','/healthz',False),
+            ('automation','/dj-cue.mp3',True),
+            ('public_radio','/stream.mp3',True)
           ]
-          for name,url in checks:
-            try:
+          outcomes={}
+          for name,path,audio in paths:
+              url='https://'+host+path
               req=urllib.request.Request(url,headers={
-                'User-Agent':'GrandElement-RadioHealthAudit/1.0',
-                'Accept':'audio/mpeg,*/*' if name=='RADIO1' else 'application/json'
+                'User-Agent':'GrandElement-ReadOnly-Radio1-Diagnostic/2.0',
+                'Accept':'audio/mpeg,*/*' if audio else 'text/plain,*/*'
               })
-              with urllib.request.urlopen(req,timeout=14) as resp:
-                status=resp.status
-                mime=resp.headers.get('Content-Type','')
-                sample=resp.read(512 if name=='RADIO1' else 100000)
-              if name=='RADIO2':
-                data=json.loads(sample.decode('utf-8','replace'))
-                program=data.get('program') or {}
-                tracks=program.get('tracks') or []
-                print(name,'HTTP',status,'MIME',mime,'program_keys',list(program.keys()),'program_format',program.get('format'),'playlist',program.get('playlist_name'),'id',program.get('playlist_id'),'track_count',len(tracks),'top_keys',list(data.keys()),flush=True)
-                if status!=200 or not tracks:print('WARNING: Radio 2 lacks verified scheduled tracks',flush=True)
-              else:
-                print(name,'HTTP',status,'MIME',mime,'bytes_received',len(sample),flush=True)
-                if status!=200 or not sample:print('WARNING: Radio 1 could not stream audio bytes',flush=True)
-            except Exception as e:
-              print(name,'FAILED',type(e).__name__,str(e)[:200],flush=True)
+              try:
+                  with urllib.request.urlopen(req,timeout=16) as response:
+                      status=response.status
+                      mime=response.headers.get('Content-Type','')
+                      payload=response.read(512)
+                  good=status==200 and bool(payload) and (not audio or ('audio' in mime.lower() or payload[:3]==b'ID3' or payload[:2]==b'\\xff\\xfb'))
+                  outcomes[name]=good
+                  print(name,'HTTP',status,'type',mime,'bytes',len(payload),'OK' if good else 'NO AUDIO',flush=True)
+              except urllib.error.HTTPError as e:
+                  outcomes[name]=False
+                  print(name,'HTTP',e.code,'type',e.headers.get('Content-Type',''),'FAILED',flush=True)
+              except Exception as e:
+                  outcomes[name]=False
+                  print(name,'FAILED',type(e).__name__,str(e)[:180],flush=True)
+          if not outcomes['gateway']:
+              print('DIAGNOSIS: BLITZ gateway or platform is unavailable; website changes cannot restart it.',flush=True)
+          elif not outcomes['automation']:
+              print('DIAGNOSIS: gateway is up but automation cue is missing. Check playlist.m3u, Icecast, Liquidsoap and library watcher inside BLITZ.',flush=True)
+          elif not outcomes['public_radio']:
+              print('DIAGNOSIS: automation cue is up but public mixer/stream is not. Check FFmpeg master, Icecast stream.mp3 mount and resource limits.',flush=True)
+          else:
+              print('DIAGNOSIS: public MP3 bytes reached GitHub runner. Investigate iPhone playback, CORS and browser behavior.',flush=True)
+          if not outcomes['public_radio']:sys.exit(1)
           PY
