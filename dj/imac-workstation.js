@@ -106,7 +106,7 @@ function init(){
       para.parentNode.removeChild(para);
   }
   /* Destination buttons are always visible, independent of the folder browser. */
-  var draftCard=by("draftUploadCard"),finalCard=by("finalUploadCard"),sessionCard=by("sessionUploadCard");
+  var draftCard=by("draftUploadCard"),finalCard=by("finalUploadCard"),radioCard=by("radioUploadCard"),sessionCard=by("sessionUploadCard");
   var addTitle=null,oldNodes=Array.prototype.slice.call(drive.children);
   for(var di=0;di<oldNodes.length;di++)
     if(oldNodes[di].tagName==="H3"&&/ADD FILES/i.test(oldNodes[di].textContent||"")){addTitle=oldNodes[di];break}
@@ -116,6 +116,7 @@ function init(){
   var targets=[
     ["draft","UPLOAD TO DRAFTS","listDrafts"],
     ["final","UPLOAD TO FINALS","listFinals"],
+    ["radio","UPLOAD RADIO","listRadio"],
     ["session","UPLOAD SESSION","listSessions"]
   ];
   for(var ui=0;ui<targets.length;ui++)(function(info){
@@ -129,7 +130,7 @@ function init(){
     destinations.appendChild(button);
   })(targets[ui]);
   uploadSection.appendChild(destinations);
-  move(draftCard,uploadSection);move(finalCard,uploadSection);move(sessionCard,uploadSection);
+  move(draftCard,uploadSection);move(finalCard,uploadSection);move(radioCard,uploadSection);move(sessionCard,uploadSection);move(by("geUploadNameQuick"),uploadSection);
   if(addTitle)addTitle.parentNode.removeChild(addTitle);
   drive.insertBefore(uploadSection,driveTop.nextSibling);
   /* Folder tabs + REFRESH occupy the same single row. */
@@ -172,28 +173,67 @@ function init(){
   diagnostics(auth,"Google",["helperStatus","driveQuotaStatus","libraryStatus","uploadResults","uploadIssues","mp3Status","autoRepairState"]);
   ghead.appendChild(auth);advanced.appendChild(ghead);studioConnection.appendChild(advanced);
   drive.appendChild(studioConnection);
-    /* A distance-readable result remains visible after upload completion. */
+  /* Upload above tabbed, viewport-contained workspace. */
+  var tabsBar=node("div","geGoogleWorkTabs"),views=node("div","geGoogleViews");
+  var filesView=node("section","geGoogleView"),metadataView=node("section","geGoogleView"),statusView=node("section","geGoogleView");
+  filesView.id="geGoogleFilesView";metadataView.id="geGoogleMetadataView";statusView.id="geGoogleStatusView";
+  move(driveTop,filesView);move(library,filesView);
+  move(by("geUploadMetadataPanel"),metadataView);
+  /* No redundant Google Settings block beneath the upload controls.
+     Everything repair/connection related is inside STATUS TROUBLESHOOTING. */
+  var statusDetails=diagnostic;
+  if(statusDetails) {
+    statusDetails.open=true;
+    move(studioConnection,statusDetails);
+    move(extra,statusDetails);
+    move(statusDetails,statusView);
+  } else {
+    move(studioConnection,statusView);
+    move(extra,statusView);
+  }
+  var viewSet=[["FILES",filesView],["METADATA",metadataView],["STATUS",statusView]];
+  function openGoogleView(index){
+    for(var j=0;j<viewSet.length;j++){
+      viewSet[j][1].style.display=j===index?"block":"none";
+      tabsBar.children[j].className=j===index?"geGoogleWorkActive":"";
+      tabsBar.children[j].setAttribute("aria-selected",j===index?"true":"false");
+    }
+    try{w.sessionStorage.setItem("geImacGoogleView",String(index))}catch(ignore){}
+  }
+  for(var vi=0;vi<viewSet.length;vi++)(function(i){
+    var button=node("button",null,viewSet[i][0]);button.type="button";
+    button.setAttribute("role","tab");button.onclick=function(){openGoogleView(i)};
+    tabsBar.appendChild(button);views.appendChild(viewSet[i][1]);
+  })(vi);
+  drive.insertBefore(tabsBar,uploadSection.nextSibling);
+  drive.insertBefore(views,tabsBar.nextSibling);
+  var initialView=0;try{initialView=Number(w.sessionStorage.getItem("geImacGoogleView")||0)}catch(ignore){}
+  if(initialView<0||initialView>2)initialView=0;
+  openGoogleView(initialView);
+  /* A distance-readable result remains visible after upload completion. */
   var bigResult=node("div","geUploadBigResult");
   bigResult.setAttribute("role","status");
   bigResult.setAttribute("aria-live","polite");
   bigResult.style.display="none";
   uploadStrip.parentNode.insertBefore(bigResult,uploadStrip.nextSibling);
-  var lastResult="";
+  var lastResult="",resultTimer=0;
+  function showResult(message,source){
+    if(source===lastResult)return;
+    lastResult=source;bigResult.textContent=message;bigResult.style.display="block";
+    if(resultTimer)w.clearTimeout(resultTimer);
+    resultTimer=w.setTimeout(function(){bigResult.style.display="none";resultTimer=0},4800);
+  }
   function syncBigResult(){
     var result=by("uploadResults"),message=result?result.textContent:"";
-    var line=by("geUploadMonitorHeadline");
-    var lineText=line?line.textContent:"";
-    var source=message+" "+lineText+" "+stripTitle.textContent;
-    if(/QUEUE FINISHED|UPLOAD COMPLETE|ALL FILES UPLOADED/i.test(source)&&!/failed[^0-9]*[1-9]|ERROR|FAILED[^0-9]*[1-9]/i.test(source)){
-      bigResult.textContent="COMPLETE";
-      bigResult.style.display="block";
-      lastResult=source;
+    var line=by("geUploadMonitorHeadline"),lineText=line?line.textContent:"";
+    var source=message+" "+lineText;
+    if(/QUEUE FINISHED|UPLOAD COMPLETE|ALL FILES UPLOADED/i.test(source)&&
+       !/failed[^0-9]*[1-9]|ERROR|FAILED[^0-9]*[1-9]/i.test(source)){
+      showResult("COMPLETE",source);
     }else if(/UPLOAD NOT CONFIRMED|UPLOAD FAILED/i.test(source)){
-      bigResult.textContent="UPLOAD FAILED";
-      bigResult.style.display="block";
-      lastResult=source;
+      showResult("UPLOAD FAILED",source);
     }else if(/STARTING|SENDING TO IMAC|UPLOADING|TRACK [0-9]+\\//i.test(source)&&source!==lastResult){
-      bigResult.style.display="none";
+      bigResult.style.display="none";lastResult="";
     }
   }
   if(w.setInterval)w.setInterval(syncBigResult,1200);
@@ -204,10 +244,7 @@ function init(){
  for(i=0;i<tabs.length;i++)(function(k){var b=node("button",null,tabs[k][0]);b.type="button";b.onclick=function(){select(k);if(k===3&&w.GEImacUploads&&w.GEImacUploads.refreshFiles)w.GEImacUploads.refreshFiles()};nav.appendChild(b)})(i);
  d.body.appendChild(nav);
  var requestedGoogle=/(?:[?&])tab=google(?:&|$)/i.test(w.location.search||'');select(requestedGoogle?3:0);
- /* Keep the original diagnostics as a separate collapsible section under Google. */
- move(diagnostic,google);
- var statusBtn=node("button",null,"FULL CONNECTION REPORT");statusBtn.type="button";statusBtn.onclick=function(){select(3);diagnostic.open=true;var b=by("runStudioChecks");if(b)b.click();diagnostic.scrollIntoView()};
- advancedBody.appendChild(statusBtn);
+ /* Connection report, login repair and its advanced tools now share STATUS. */
  /* Keep upload failure banner inside Google, not covering Studio/Mixer. */
  var monitor=by("geUploadMonitor");if(monitor){monitor.className+=" geCompactUploadMonitor"}
 

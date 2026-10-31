@@ -1,0 +1,51 @@
+name: GE iMac Upload V10 quality checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dj/imac.html'
+      - 'dj/imac-uploads.js'
+      - 'dj/imac-workstation.js'
+      - 'dj/imac-workstation.css'
+      - 'dj/imac-upload-settings.js'
+      - 'dj/ge-upload-helper.py'
+      - 'dj/GE_Studios_iMac_Offline_Repair.zip'
+      - 'tests/ge-imac-naming.test.mjs'
+      - '.github/workflows/ge-imac-upload-qa.yml'
+  pull_request:
+    paths:
+      - 'dj/**'
+      - 'tests/ge-imac-naming.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check naming presets and original upload operations
+        run: node tests/ge-imac-naming.test.mjs
+      - name: Validate Python helper and offline El Capitan app package
+        run: |
+          python3 -m py_compile dj/ge-upload-helper.py
+          python3 - <<'PY'
+          import zipfile,os,plistlib
+          path='dj/GE_Studios_iMac_Offline_Repair.zip'
+          with zipfile.ZipFile(path,'r') as z:
+              assert z.testzip() is None
+              exe='GE Studios OFFLINE Repair.app/Contents/MacOS/ge-offline-repair'
+              script=z.read(exe)
+              assert b'curl' in script and b'helper_version' in script
+              assert z.getinfo(exe).external_attr >> 16 & 0o111
+              plist=plistlib.loads(z.read('GE Studios OFFLINE Repair.app/Contents/Info.plist'))
+              assert plist['LSMinimumSystemVersion']=='10.11'
+              assert plist['CFBundleExecutable']=='ge-offline-repair'
+              helper=z.read('GE Studios OFFLINE Repair.app/Contents/Resources/ge-upload-helper.py')
+              assert helper==open('dj/ge-upload-helper.py','rb').read()
+          print('PASS Offline V10 package and executable')
+          PY
