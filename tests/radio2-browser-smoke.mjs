@@ -57,10 +57,11 @@ try{
      display:getComputedStyle(a).display,top:box.top,bottom:box.bottom,width:box.width}:null;
  });
  assert.ok(wakeLink,'BLITZ wake link must exist for sleeping-app recovery');
- assert.equal(wakeLink.href,'https://radio.grandelement.blitz.cloud/wake-radio');
+ assert.equal(wakeLink.href,'https://radio.grandelement.blitz.cloud/');
  assert.equal(wakeLink.target,'','Wake link must use the listener\'s real browser tab');
  assert.equal(wakeLink.hidden,true,'Connecting UI must not add a second wake/status bar');
- assert.equal(await page.evaluate(()=>typeof browserWakeOnRadioTap),'function','Listener RADIO click must support a real browser wake visit');
+ assert.equal(await page.evaluate(()=>browserWakeOnRadioTap()),false,'RADIO tap must not redirect to un-deployed 404 wake route');
+ assert.equal(await page.evaluate(()=>typeof wakeBlitzFromPageVisit),'function','Radio page must attempt a browser-based wake on load');
  assert.equal(wakeLink.display,'none','Connection status must stay inside RADIO button');
  // OFFLINE is discoverable without a code, but only a Vault-verified scope
  // may start a download. The locked button must open the existing CODE gate.
