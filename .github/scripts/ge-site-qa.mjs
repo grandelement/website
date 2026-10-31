@@ -548,9 +548,11 @@ test(djController.includes('/control/playlists/save') &&
 test(radio.includes('ge-music-v5.js') &&
      musicV5.includes('scroller.scrollTop=previous') &&
      musicV5.includes("document.body.classList.add('ge-music-v5-open')") &&
-     musicV5.includes('data-access-view="album"') &&
-     musicV5.includes('data-access-view="playlist"'),
-     'MUSIC preserves scroll position and supports code album and playlist views');
+     musicV5.includes('data-tab="songs"') &&
+     musicV5.includes('data-tab="playlists"') &&
+     musicV5.includes('class="songFilter"') &&
+     musicV5.includes('class="playlistFilter"'),
+     'MUSIC preserves scroll position and supports SONGS and PLAYLISTS views');
 test(radio.includes('radioCopyright') &&
      radio.includes('offlineBtn') &&
      load('radio/sw.js').includes("const MEDIA_CACHE='ge-radio-media-v4'"),
