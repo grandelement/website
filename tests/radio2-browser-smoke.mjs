@@ -47,6 +47,17 @@ try{
  assert.equal(after.connected,false,'Red heartbeat must not start without audio progress');
  assert.equal(backup,0,'Radio 2 program must never be fetched');
  assert.ok(primary>0,'BLITZ Radio 1 must attempt to connect on page arrival');
+ const wakeLink=await page.evaluate(()=>{
+   const a=document.querySelector('#geRadioWakeLink');
+   const box=a?.getBoundingClientRect();
+   return a?{hidden:a.hidden,href:a.href,target:a.target,
+     display:getComputedStyle(a).display,top:box.top,bottom:box.bottom,width:box.width}:null;
+ });
+ assert.ok(wakeLink,'BLITZ wake link must exist for sleeping-app recovery');
+ assert.equal(wakeLink.href,'https://radio.grandelement.blitz.cloud/');
+ assert.equal(wakeLink.target,'_blank','Wake link must open an actual browser tab');
+ assert.equal(wakeLink.hidden,false,'Failed BLITZ connection must expose the wake link');
+ assert.notEqual(wakeLink.display,'none','Wake link must be visibly reachable');
  // OFFLINE is discoverable without a code, but only a Vault-verified scope
  // may start a download. The locked button must open the existing CODE gate.
  await page.waitForFunction(()=>document.querySelector('#offlineBtn')?.getAttribute('aria-disabled')==='true',{timeout:12000});
