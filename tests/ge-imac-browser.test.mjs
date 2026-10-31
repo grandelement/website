@@ -127,7 +127,7 @@ try{
   const local=document.getElementById('checkLocalHelperInStatus');
   local.scrollIntoView({block:'center'});
   const localVisibleAfterScroll=inside(local),middleScroll=box.scrollTop;
-  const advanced=document.getElementById('geDriveExtras');
+  const advanced=document.querySelector('#geGoogleStatusView .geDriveExtras');
   advanced.scrollIntoView({block:'end'});
   return {scroll:box.scrollTop,middleScroll,visible:box.clientHeight,
    repairVisibleOnOpen,localVisibleAfterScroll,advancedVisibleAfterScroll:inside(advanced.querySelector('summary')),
