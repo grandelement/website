@@ -6323,12 +6323,12 @@ function geRadioNativeHLSAvailable(){
     audio.canPlayType('audio/mpegurl'));
 }
 function freshLiveStreamURL(){
-  // Use the SAME BLITZ Radio 1 feed as GE DJ on native-HLS iOS.
-  // No Radio 2, playlist switch, gate bypass, or new audio element.
-  // Do not append cache-busting queries; the stream request is reopened
-  // by resetting src and calling load() on the existing audio element.
+  // The public Icecast MP3 mount is the canonical Radio 1 endpoint on ALL
+  // devices. The BLITZ HLS encoder is optional and can fail independently:
+  // selecting it only on iPhone caused a blank Radio after reload when the
+  // main MP3 mount remained the intended broadcast. No Radio 2 fallback.
+  // Refresh the native audio element for each genuine new connection.
   radioTryCanonicalStream=false;
-  if(geRadioNativeHLSAvailable())return GE_RADIO_NATIVE_HLS_URL;
   return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;
 }
 
@@ -6645,8 +6645,10 @@ async function resumeRadio(){
   // Repeated iPhone PLAY taps may unlock audio, but must not reload Radio 1.
   if(!observedRadio1Progress && !liveState.needsFreshEdge){
     try{
-      audio.muted=false;
-      audio.defaultMuted=false;
+      // Automated retries must stay silent. Safari can reject an unmuted
+      // programmatic play() after reload and never verify the signal.
+      audio.muted=!liveState.userActivated;
+      audio.defaultMuted=!liveState.userActivated;
       audio.volume=desiredPlaybackVolume(state.currentURL);
       setLiveStatus('RADIO 1 · CONNECTING…');
       watchRadioConnection();
@@ -6696,8 +6698,8 @@ async function resumeLiveAtEdge(){
     audio.crossOrigin='anonymous';
     audio.autoplay=false;
     audio.preload='auto';
-    audio.muted=false;
-    audio.defaultMuted=false;
+    audio.muted=!liveState.userActivated;
+    audio.defaultMuted=!liveState.userActivated;
     audio.volume=desiredPlaybackVolume(state.currentURL);
     audio.src=freshLiveStreamURL();
     audio.load();
