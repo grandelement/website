@@ -20,12 +20,19 @@ try{
    void req.continue();
  });
  await page.goto('http://127.0.0.1:8765/dj/imac.html?tab=google',{waitUntil:'domcontentloaded',timeout:45000});
- await page.waitForFunction(()=>document.querySelectorAll('#geGoogleWorkTabs button').length===3,{timeout:12000});
+ await page.waitForFunction(()=>document.querySelectorAll('.geGoogleWorkTabs button').length===3,{timeout:12000}).catch(async e=>{
+  console.error('DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>({
+    errors:document.body?.textContent?.slice(0,700),
+    scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
+    docks:[...document.querySelectorAll('[class*=geGoogle]')].slice(0,15).map(x=>({class:x.className,id:x.id}))
+  })),errors));
+  throw e;
+ });
  let ui=await page.evaluate(()=>{
    const by=id=>document.getElementById(id);
-   const box=id=>{const x=by(id);return x?{top:Math.round(x.getBoundingClientRect().top),
+   const box=id=>{const x=by(id)||document.querySelector("."+id);return x?{top:Math.round(x.getBoundingClientRect().top),
     height:Math.round(x.getBoundingClientRect().height),shown:getComputedStyle(x).display!=='none'}:null};
-   return {tabs:[...document.querySelectorAll('#geGoogleWorkTabs button')].map(b=>b.textContent),
+   return {tabs:[...document.querySelectorAll('.geGoogleWorkTabs button')].map(b=>b.textContent),
     upload:box('geUploadSection'),complete:box('geUploadBigResult'),
     folder:box('geGoogleFilesView'),metadata:box('geGoogleMetadataView'),
     status:box('geGoogleStatusView'),
@@ -43,11 +50,11 @@ try{
  assert.ok(ui.repairInStatus,'Google repair must not be at the bottom of FILES');
  assert.ok(ui.diagnosticsInStatus,'Troubleshooting must be in STATUS');
  assert.ok(ui.folder?.shown,'Files tab should start open');
- await page.evaluate(()=>document.querySelectorAll('#geGoogleWorkTabs button')[1].click());
+ await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[1].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleMetadataView')).display!=='none');
  assert.ok(await page.$('#geUploadSaveSettings'),'Metadata save missing');
  assert.ok(await page.$('#geUploadCoverFile'),'Cover art selector missing');
- await page.evaluate(()=>document.querySelectorAll('#geGoogleWorkTabs button')[2].click());
+ await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[2].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleStatusView')).display!=='none');
  assert.ok(await page.$('#reconnectDriveAuth'),'Fix Google Drive missing');
  const severe=errors.filter(e=>!/Failed to fetch|NetworkError/i.test(e));
