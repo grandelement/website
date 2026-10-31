@@ -3863,6 +3863,18 @@ body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]::after{
   animation:geRadioContainedHeartbeat67 6.7s linear infinite!important;
   opacity:0;
 }
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-verified.ge-radio-pulse-ack #musicGroup #liveBtn,
+body.ge-radio-verified.ge-radio-pulse-ack #shipStage button[data-proxy="liveBtn"]{
+  background:linear-gradient(180deg,#d42c4d,#a41430)!important;
+  border-color:rgba(255,99,133,.92)!important;color:#fff!important;
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-verified.ge-radio-pulse-ack #musicGroup #liveBtn::before,
+body.ge-radio-verified.ge-radio-pulse-ack #shipStage button[data-proxy="liveBtn"]::before{
+  content:""!important;display:block!important;animation:none!important;opacity:1!important;
+  position:absolute!important;inset:-1px!important;z-index:-1!important;
+  border-radius:inherit!important;pointer-events:none!important;
+  background:linear-gradient(180deg,#d42c4d,#a41430)!important;
+}
 @media(prefers-reduced-motion:reduce){
   html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-audible #musicGroup button#liveBtn::after,
   body.ge-radio-audible #shipStage button[data-proxy="liveBtn"]::after{animation:none!important;opacity:.14!important}
@@ -4289,6 +4301,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup #geRadioWake
   font-size:clamp(10px,2.7vw,13px)!important;line-height:1.2!important;
   font-weight:800!important;
 }
+html.ge-radio-ui #geRadioWakeLink{display:none!important}
 </style>
 <style id="ge-radio-offline-always-visible-20261031">
 /* OFFLINE is always shown. Authentication still controls its real functions. */
@@ -5031,7 +5044,10 @@ const qrRadioTestBtn = $('qrRadioTestBtn');
 // Versioned URL prevents an old/broken cached image from masking the real logo.
 if($('geLogo')) $('geLogo').src=absolute(CONFIG.LOGO_SRC);
 
-function setStatus(text){ statusEl.textContent = text || ''; }
+function setStatus(text){
+  const value=String(text||'');
+  statusEl.textContent=/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback)$/i.test(value)?'':value;
+}
 function setPressed(button,on){ if(button) button.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 function absolute(path){ return new URL(path, location.href).href; }
 function fileName(url){ return decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || ''); }
@@ -6132,6 +6148,8 @@ function stationURL(){
 }
 
 const liveState={
+  userActivated:false,
+  hadVerifiedStream:false,
   returnURL:'',
   returnTime:0,
   reconnectTimer:0,
@@ -6228,7 +6246,9 @@ function updateRadioStartupCue(){
   const connected=(state.live||state.livePreparing)&&!audio.paused&&
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
   document.body.classList.toggle('ge-radio-audible',!!connected);
-  if(!connected)document.body.classList.remove('ge-radio-pulse-ack');
+  // Keep acknowledgment after a voluntary pause, but only show steady red
+  // after actual forward progress confirmed the Radio 1 signal.
+  document.body.classList.toggle('ge-radio-verified',!!liveState.hadVerifiedStream);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.remove('radio-start-cue');
@@ -6332,14 +6352,16 @@ function browserWakeOnRadioTap(){
   return true;
 }
 function showRadioWakeLink(show){
+ // No redundant connection bar. RADIO itself shows verified signal state.
  const link=$('geRadioWakeLink');
- if(link)link.hidden=!show;
+ if(link)link.hidden=true;
 }
 function retryRadio1Only(reason){
  if(!state.live&&!state.livePreparing)return Promise.resolve();
  if(window.GEIAmStudio?.isRadioSuspended?.()||navigator.onLine===false)return Promise.resolve();
  if(geRadio1RetryTimer)return Promise.resolve();
  clearLiveReconnect();clearRadioWatch();
+ liveState.hadVerifiedStream=false;updateRadioStartupCue();
  radioTimedOut=true;state.livePreparing=false;state.live=true;syncModeButtons();
  // Retry only Radio 1 with a capped delay, while playback is wanted.
  geRadio1RetryAttempts=Math.min(8,geRadio1RetryAttempts+1);
@@ -6710,8 +6732,11 @@ async function enterLiveMode({deferPlay=false}={}){
   audio.autoplay=false;
   audio.preload='auto';
   audio.crossOrigin='anonymous';
-  audio.muted=false;
-  audio.defaultMuted=false;
+  // Start muted on page load. Safari may permit muted autoplay so the user
+  // sees verified stream progress without hearing anything until they tap.
+  audio.muted=!liveState.userActivated;
+  audio.defaultMuted=!liveState.userActivated;
+  audio.setAttribute('playsinline','');
   audio.volume=desiredPlaybackVolume(state.currentURL);
   audio.src=freshLiveStreamURL();
   audio.load();
@@ -6764,6 +6789,8 @@ function exitLiveMode(message='RADIO ended.'){
   clearLiveReconnect();
   state.live=false;
   state.livePreparing=false;
+  liveState.hadVerifiedStream=false;
+  document.body.classList.remove('ge-radio-pulse-ack','ge-radio-verified');
   window.GELiveVideo?.stop?.();
   liveState.hasPlayed=false;
   liveState.needsFreshEdge=false;
@@ -7654,8 +7681,12 @@ playerSeek?.addEventListener('input',()=>{
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
   state.userStarted=true;
-  // On a failed connection, a real visitor tap wakes the BLITZ container
-  // through browser navigation. The BLITZ /wake-radio route returns here.
+  liveState.userActivated=true;
+  // One acknowledgment per page visit. Once the signal is verified, the
+  // button stays solid red even if playback is deliberately paused.
+  document.body.classList.add('ge-radio-pulse-ack');
+  audio.muted=false;audio.defaultMuted=false;
+  updateRadioStartupCue();
   if(browserWakeOnRadioTap())return;
   void requestRadioStart({userGesture:true});
 });
@@ -7820,6 +7851,7 @@ audio.addEventListener('timeupdate',()=>{
   if(Number.isFinite(lastRadio1Time)&&t>lastRadio1Time+.15){
     const first=!observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();
+    liveState.hadVerifiedStream=true;updateRadioStartupCue();
     if(GE_RADIO2_DISABLED)clearRadio1Retry();
     showRadioWakeLink(false);
     if(first){
@@ -11842,7 +11874,8 @@ Vector ${vector}. ${pair[1]}.`;
     save(true);
   }
   function countableNow(){
-    if(audio.paused||audio.ended||!gateAudioFlowing||authorized()||gs.active||gs.expired)return false;
+    // A muted connection probe is not listening time.
+    if(audio.paused||audio.muted||audio.ended||!gateAudioFlowing||authorized()||gs.active||gs.expired)return false;
     // Only live Radio 1 / Radio 2 consumes this Radio allowance.
     // The separate 33:33 music selection has its own independent clock.
     return !!state.live;
