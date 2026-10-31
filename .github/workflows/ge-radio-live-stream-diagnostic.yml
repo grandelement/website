@@ -47,7 +47,10 @@ jobs:
                   print(name,'HTTP',status,'type',mime,'bytes',len(payload),'OK' if good else 'NO AUDIO',flush=True)
               except urllib.error.HTTPError as e:
                   outcomes[name]=False
-                  print(name,'HTTP',e.code,'type',e.headers.get('Content-Type',''),'FAILED',flush=True)
+                  detail=e.read(350).decode('utf-8','replace')
+                  # Only the public error payload; never send credentials or audio.
+                  print(name,'HTTP',e.code,'type',e.headers.get('Content-Type',''),
+                        'public_error',repr(detail[:250]),'FAILED',flush=True)
               except Exception as e:
                   outcomes[name]=False
                   print(name,'FAILED',type(e).__name__,str(e)[:180],flush=True)
