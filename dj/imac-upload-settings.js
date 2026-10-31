@@ -5,6 +5,13 @@
 (function(w,d){
 "use strict";
 var KEY="GE_IMAC_UPLOAD_PRESET_V1";
+// The selectable album images are actual files in GitHub: grandelement/website,
+// ge-images/images/. The website serves these files on the SAME origin as DJ.
+var ALBUM_COVERS=[{"album":"Aether","path":"/ge-images/images/Grand%20Element%20-%20Aether.jpg"},{"album":"Fire","path":"/ge-images/images/Grand%20Element%20-%20Fire.jpg"},{"album":"Fundamental Groove","path":"/ge-images/images/Grand%20Element%20-%20Fundamental%20Groove.jpg"},{"album":"Intergy","path":"/ge-images/images/Grand%20Element%20-%20Intergy.jpg"},{"album":"Live","path":"/ge-images/images/Grand%20Element%20-%20Live.jpg"},{"album":"Love","path":"/ge-images/images/Grand%20Element%20-%20Love.jpg"},{"album":"Sessions I","path":"/ge-images/images/Grand%20Element%20-%20Sessions%20I.jpg"},{"album":"Sessions II","path":"/ge-images/images/Grand%20Element%20-%20Sessions%20II.jpg"},{"album":"Soul","path":"/ge-images/images/Grand%20Element%20-%20Soul.jpg"},{"album":"Spirit","path":"/ge-images/images/Grand%20Element%20-%20Spirit.jpg"},{"album":"Trio","path":"/ge-images/images/Grand%20Element%20-%20Trio.jpg"}];
+function albumByPath(path){
+ for(var i=0;i<ALBUM_COVERS.length;i++)if(ALBUM_COVERS[i].path===path)return ALBUM_COVERS[i];
+ return null;
+}
 var fields=[
  ["title","TITLE","Original filename"],["artist","ARTIST","Grand Element"],
  ["album","ALBUM","Album"],["genre","GENRE","Genre"],
@@ -17,7 +24,7 @@ function make(tag,klass,text){var x=d.createElement(tag);if(klass)x.className=kl
 function add(parent,child){parent.appendChild(child);return child}
 function defaults(){
  var f={};for(var i=0;i<fields.length;i++)f[fields[i][0]]={enabled:false,auto:fields[i][0]==="title"||fields[i][0]==="artist"||fields[i][0]==="date",value:""};
- return {version:2,mode:"draft",revision:"01",order:"date,track,title",coverEnabled:false,filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
+ return {version:3,mode:"draft",revision:"01",order:"date,track,title",coverEnabled:false,coverPath:"",filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
 }
 function normal(p){
  var o=defaults();if(!p||typeof p!=="object")return o;
@@ -25,6 +32,8 @@ function normal(p){
  if(["draft","radio","final","custom"].indexOf(p.mode)>=0)o.mode=p.mode;
  o.revision=String(p.revision||"01").replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12)||"01";
  o.coverEnabled=!!p.coverEnabled;
+ // A saved cover always points to one of the verified GitHub album files.
+ o.coverPath=albumByPath(p.coverPath)?p.coverPath:"";
  o.order=String(p.order||o.order).slice(0,100);
  o.embed=!!p.embed;
  for(var i=0;i<fields.length;i++){
@@ -39,7 +48,7 @@ function normal(p){
 function savedRead(){
  try{return normal(JSON.parse(w.localStorage.getItem(KEY)||"null"))}catch(e){return defaults()}
 }
-var saved=savedRead(),draft=normal(saved),dirty=false,selectedCover=null;
+var saved=savedRead(),draft=normal(saved),dirty=false,selectedCover=null,coverPage=0;
 function setStatus(s){var node=el("geUploadSettingsStatus");if(node)node.textContent=s}
 function baseName(file){return String(file&&file.name||"Untitled").replace(/\.[^.]+$/,"")}
 function extension(file){var m=/\.[^.]+$/.exec(String(file&&file.name||""));return m?m[0]:""}
@@ -95,7 +104,8 @@ function validate(file,p){
   if(!val("album",file,p).trim())return "ALBUM REQUIRED · Set an album in METADATA.";
   if(!val("track",file,p).trim())return "TRACK REQUIRED · Enter the track number.";
  }
- if(p.coverEnabled&&p.mode==="final"&&!selectedCover)return "COVER ART REQUIRED · Select JPEG/PNG in METADATA.";
+ if(p.coverEnabled&&p.mode==="final"&&!selectedCover&&!albumByPath(p.coverPath))
+  return "COVER ART REQUIRED · Choose a GitHub album cover in METADATA.";
  return "";
 }
 function tagsFor(file,p){
@@ -202,14 +212,69 @@ function init(){
  orderValue.type="text";orderValue.value=draft.order;
  orderValue.placeholder="date,track,title";orderValue.maxLength=100;
  orderValue.oninput=function(){draft.order=orderValue.value;changed()};
+ // The album artwork picker uses existing GitHub album images. No file upload
+ // or GitHub authentication is needed to browse. Exactly one selected artwork.
+ var picker=add(panel,make("section","geAlbumCoverPicker"));
+ picker.id="geAlbumCoverPicker";
+ var pickerTop=add(picker,make("div","geAlbumCoverHeader"));
+ add(pickerTop,make("strong",null,"GITHUB ALBUM COVERS"));
+ var albumLabel=add(pickerTop,make("span","geAlbumCoverSelected",""));
+ albumLabel.id="geAlbumCoverSelected";
+ var pager=add(pickerTop,make("span","geAlbumCoverPager"));
+ var previous=add(pager,make("button","geAlbumCoverNav","PREV"));
+ previous.type="button";
+ var pageLabel=add(pager,make("span","geAlbumPageCount",""));
+ var next=add(pager,make("button","geAlbumCoverNav","NEXT"));
+ next.type="button";
+ var tiles=add(picker,make("div","geAlbumCoverTiles"));
+ var perPage=(w.innerWidth||1200)<650?3:5;
+ function drawCovers(){
+  tiles.textContent="";
+  var count=Math.ceil(ALBUM_COVERS.length/perPage);
+  coverPage=Math.max(0,Math.min(count-1,coverPage));
+  pageLabel.textContent=(coverPage+1)+"/"+count;
+  previous.disabled=coverPage===0;next.disabled=coverPage>=count-1;
+  var selected=albumByPath(draft.coverPath);
+  albumLabel.textContent=selected?"SELECTED: "+selected.album:
+    selectedCover?"SELECTED: CUSTOM COVER":"NO COVER SELECTED";
+  for(var ci=coverPage*perPage;ci<Math.min(ALBUM_COVERS.length,(coverPage+1)*perPage);ci++)(function(item){
+    var tile=add(tiles,make("button","geAlbumCoverTile",""));
+    tile.type="button";
+    if(draft.coverPath===item.path)tile.className+=" geAlbumCoverActive";
+    tile.setAttribute("aria-pressed",draft.coverPath===item.path?"true":"false");
+    tile.title="Use "+item.album+" artwork from GE Studios GitHub";
+    var thumb=add(tile,make("img","geAlbumCoverThumb"));
+    thumb.src=item.path;thumb.alt="Grand Element "+item.album+" album cover";
+    add(tile,make("span","geAlbumCoverTitle",item.album));
+    tile.onclick=function(){
+      draft.coverPath=item.path;draft.coverEnabled=true;selectedCover=null;
+      var c=el("geUploadCoverFile");if(c)try{c.value=""}catch(ignore){}
+      var checked=el("geUploadCoverEnabled");if(checked)checked.checked=true;
+      var a=draft.fields.album;
+      a.enabled=true;a.auto=false;a.value=item.album;
+      var albumInput=el("geTagalbumValue"),auto=el("geTagalbumAuto"),enabled=el("geTagalbumEnable");
+      if(albumInput){albumInput.disabled=false;albumInput.value=item.album}
+      if(auto)auto.checked=false;if(enabled)enabled.checked=true;
+      drawCovers();changed();
+    };
+  })(ALBUM_COVERS[ci]);
+ }
+ previous.onclick=function(){coverPage--;drawCovers()};
+ next.onclick=function(){coverPage++;drawCovers()};
+ drawCovers();
  var foot=add(panel,make("div","geMetadataFoot"));
  checkLine(foot,"geUploadCoverEnabled","ATTACH COVER IN FINAL MP3",draft.coverEnabled,function(b){draft.coverEnabled=b});
  var coverLabel=add(foot,make("label","geCoverLabel","COVER JPG/PNG"));
  var coverFile=add(coverLabel,make("input"));coverFile.type="file";coverFile.id="geUploadCoverFile";
- coverFile.accept="image/jpeg,image/png";coverFile.onchange=function(){selectedCover=coverFile.files&&coverFile.files[0]||null;preview()};
+ coverFile.accept="image/jpeg,image/png";
+ coverFile.onchange=function(){
+  selectedCover=coverFile.files&&coverFile.files[0]||null;
+  if(selectedCover){draft.coverPath="";drawCovers();changed()}
+  else drawCovers();
+ };
  checkLine(foot,"geUploadWriteTags","EMBED CHECKED TAGS",draft.embed,function(b){draft.embed=b});
  var metaText=add(foot,make("span","geMetadataExample",""));metaText.id="geMetadataExample";
- add(panel,make("p","geMetadataNotice","RADIO matches the published Album_Track_Title format. A missing album or track must be entered. Artwork and embedded tags require Helper V10 and FFmpeg. Originals stay unchanged."));
+ add(panel,make("p","geMetadataNotice","Choose album artwork above. The selected cover and album name save with the preset. FINALS embeds the image in MP3 using Helper V10 and FFmpeg; originals stay unchanged."));
  saveButton.onclick=function(){
   try{
    w.localStorage.setItem(KEY,JSON.stringify(draft));
@@ -220,7 +285,7 @@ function init(){
   }catch(e){setStatus("NOT SAVED · Local storage unavailable. Nothing applied.")}
  };
  restore.onclick=function(){
-  draft=normal(saved);dirty=false;
+  draft=normal(saved);dirty=false;selectedCover=null;coverPage=0;
   var root=panel.parentNode;
   if(quick.parentNode)quick.parentNode.removeChild(quick);
   if(panel.parentNode)panel.parentNode.removeChild(panel);
@@ -234,9 +299,15 @@ function init(){
 w.GEImacUploadSettings={
   nameFor:function(file){return nameFor(file,saved)},
   validate:function(file){return validate(file,saved)},
-  coverFor:function(){return saved.coverEnabled&&saved.mode==="final"?selectedCover:null},
+  coverFor:function(){
+   if(!saved.coverEnabled||saved.mode!=="final")return null;
+   if(selectedCover)return selectedCover;
+   var album=albumByPath(saved.coverPath);
+   return album?{url:album.path,type:"image/jpeg",name:"Grand Element - "+album.album+".jpg"}:null;
+  },
+  albumCovers:function(){return ALBUM_COVERS.slice(0)},
   tagsFor:function(file){return tagsFor(file,saved)},
-  preview:preview,hasUnsaved:unsaved,settings:active,version:2,
+  preview:preview,hasUnsaved:unsaved,settings:active,version:3,
   refreshPreview:preview
 };
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();

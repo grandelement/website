@@ -551,16 +551,49 @@ function uploadNext(kind,mode){
  req.send();
  }
  var cover=kind==="final"&&w.GEImacUploadSettings?w.GEImacUploadSettings.coverFor():null;
- if(cover){
-  var art=request("POST","/cover",cover,function(err,data){
-    if(err||!data.cover_token){
-      failed++;finished++;
-      issue("COVER: "+linkError(err||new Error("Cover was not received")));
-      stopBatch(kind,"COVER NOT ATTACHED · Upload cancelled");return;
+ function coverFailed(message){
+  failed++;finished++;issue("COVER: "+message);
+  stopBatch(kind,"COVER NOT ATTACHED · Upload cancelled · "+message);
+ }
+ function stageCover(blob){
+  if(!blob||!blob.size||blob.size>8*1024*1024){
+   coverFailed("Selected cover is empty or larger than 8 MB.");return;
+  }
+  var art=request("POST","/cover",blob,function(err,data){
+   if(err||!data.cover_token){
+    coverFailed(linkError(err||new Error("Cover was not received")));return;
+   }
+   path+="&cover="+encodeURIComponent(data.cover_token);
+   sendAudioUpload();
+  });
+  art.send();
+ }
+ if(cover&&cover.url){
+  // Same-origin image file served from Grand Element's GitHub repository.
+  // Never request remote GitHub APIs, raw tokens or cross-origin artwork.
+  var verified=w.GEImacUploadSettings&&w.GEImacUploadSettings.albumCovers&&
+    w.GEImacUploadSettings.albumCovers(),allowed=false;
+  for(var ai=0;verified&&ai<verified.length;ai++)
+   if(verified[ai].path===cover.url){allowed=true;break}
+  if(!allowed){coverFailed("Album artwork is not in the verified GE GitHub catalog.");return}
+  var imageReq=new XMLHttpRequest();
+  try{
+   imageReq.open("GET",cover.url,true);
+   imageReq.responseType="blob";imageReq.timeout=30000;
+   imageReq.onload=function(){
+    if(imageReq.status!==200||!imageReq.response||!imageReq.response.size){
+     coverFailed("Could not load the selected GitHub album cover.");return;
     }
-    path+="&cover="+encodeURIComponent(data.cover_token);
-    sendAudioUpload();
-  });art.send();
+    var binary=imageReq.response;
+    if(binary.type!=="image/jpeg")binary=new Blob([binary],{type:"image/jpeg"});
+    stageCover(binary);
+   };
+   imageReq.onerror=function(){coverFailed("Cannot reach the album image on the GE website.")};
+   imageReq.ontimeout=function(){coverFailed("Album artwork download timed out.")};
+   imageReq.send();
+  }catch(e){coverFailed("Firefox could not open the album artwork: "+String(e.message||e))}
+ }else if(cover){
+  stageCover(cover);
  }else sendAudioUpload();
 }
 function pollJob(kind,mode,item,number,started,id){

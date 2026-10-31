@@ -58,6 +58,36 @@ try{
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleMetadataView')).display!=='none');
  assert.ok(await page.$('#geUploadSaveSettings'),'Metadata save missing');
  assert.ok(await page.$('#geUploadCoverFile'),'Cover art selector missing');
+ await page.waitForFunction(()=>document.querySelectorAll('#geAlbumCoverPicker .geAlbumCoverTile').length===5,{timeout:6000});
+ const fireSelector='#geAlbumCoverPicker .geAlbumCoverTile[title="Use Fire artwork from GE Studios GitHub"]';
+ await page.waitForFunction(selector=>{
+  const image=document.querySelector(selector+' img');
+  return !!image&&image.complete&&image.naturalWidth>0;
+ },{timeout:9000},fireSelector);
+ await page.click(fireSelector);
+ const album=await page.evaluate(()=>{
+  const s=window.GEImacUploadSettings;
+  return {album:document.getElementById('geTagalbumValue').value,
+    current:document.getElementById('geAlbumCoverSelected').textContent,
+    storedBeforeSave:s.settings().coverPath,
+    selected:document.querySelector('.geAlbumCoverTile.geAlbumCoverActive')?.title||'',
+    coverCount:s.albumCovers().length
+  };
+ });
+ assert.equal(album.album,'Fire','Selecting album image must fill Album metadata');
+ assert.equal(album.current,'SELECTED: Fire');
+ assert.equal(album.coverCount,11);
+ assert.equal(album.storedBeforeSave,'','Album choice must only become active after SAVE SETTINGS');
+ await page.click('#geUploadSaveSettings');
+ const savedCover=await page.evaluate(()=>{
+   const prefs=window.GEImacUploadSettings;
+   return {cover:prefs.coverFor(),album:prefs.settings().fields.album.value,
+     status:document.getElementById('geUploadSettingsStatus').textContent};
+ });
+ assert.equal(savedCover.cover.name,'Grand Element - Fire.jpg');
+ assert.equal(savedCover.album,'Fire');
+ assert.ok(savedCover.cover.url.startsWith('/ge-images/images/Grand%20Element'));
+ assert.ok(savedCover.status.includes('SAVED ON THIS IMAC'));
  await page.evaluate(()=>document.querySelectorAll('.geGoogleWorkTabs button')[2].click());
  await page.waitForFunction(()=>getComputedStyle(document.getElementById('geGoogleStatusView')).display!=='none');
  assert.ok(await page.$('#reconnectDriveAuth'),'Fix Google Drive missing');
