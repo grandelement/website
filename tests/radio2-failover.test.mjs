@@ -11,7 +11,7 @@ assert.match(radio,/if\(GE_RADIO2_DISABLED\)return retryRadio1Only\(reason\)/,'A
 assert.match(radio,/LIVE_STREAM_URL:\s*'https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3'/,'Radio 1 original stream changed');
 assert.match(radio,/void requestRadioStart\(\{deferPlay:qrArrival\}\)/,'Radio page must initiate connection on arrival');
 assert.match(radio,/button\.textContent='RADIO'/,'Radio button must remain visible while connecting');
-assert.match(radio,/Date\.now\(\)-lastRadio1Progress>8000/,'Listeners must be able to retry stalled BLITZ');
+assert.match(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Listeners must be able to retry stalled BLITZ');
 assert.match(radio,/observedRadio1Progress=true/,'Heartbeat must wait for real forward progress');
 assert.match(control,/if\(allowed\(\)\)start\(\)/,'Homepage must start attempting BLITZ automatically');
 assert.match(home,/ge-home-radio-connected/,'Homepage connected heartbeat missing');
