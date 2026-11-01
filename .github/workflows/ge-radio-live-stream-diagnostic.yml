@@ -80,3 +80,40 @@ jobs:
               print('DIAGNOSIS: public MP3 bytes reached GitHub runner. Investigate iPhone playback, CORS and browser behavior.',flush=True)
           if not outcomes['public_radio']:sys.exit(1)
           PY
+      - name: Check Sun Lab FFT signal on live BLITZ gateway
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.error, urllib.request, sys
+          url='https://radio.grandelement.blitz.cloud/eq/spectrum.json'
+          request=urllib.request.Request(url,headers={
+            'User-Agent':'GE-Sun-Lab-ReadOnly-FFT-Check/1.0',
+            'Origin':'https://grandelement.com',
+            'Accept':'application/json'
+          })
+          try:
+              with urllib.request.urlopen(request,timeout=12) as response:
+                  raw=response.read(30000)
+                  mime=response.headers.get('Content-Type','')
+                  cors=response.headers.get('Access-Control-Allow-Origin','')
+                  print('SUN LAB ENDPOINT:',response.status,'MIME:',mime,'CORS:',cors,'BYTES:',len(raw),flush=True)
+                  payload=json.loads(raw)
+              bins=payload.get('bins',[])
+              fresh=abs(int(time.time()*1000)-int(payload.get('updated_ms') or 0))<2500
+              valid=(isinstance(bins,list) and len(bins)==256 and
+                     any(isinstance(x,(float,int)) and x>1 for x in bins))
+              ready=payload.get('ready') is True
+              good=ready and fresh and valid and cors in ('*','https://grandelement.com')
+              print('SUN LAB SIGNAL:', 'LIVE' if good else 'UNAVAILABLE',
+                    'READY:',ready,'FRESH:',fresh,'BINS:',len(bins) if isinstance(bins,list) else None,
+                    'NONZERO:',valid,flush=True)
+              if not good:
+                  print('DIAGNOSIS: Website Safari EQ cannot receive valid fresh frequency data; check BLITZ backend deployment and spectrum-server service.',flush=True)
+                  sys.exit(1)
+          except urllib.error.HTTPError as error:
+              print('SUN LAB ENDPOINT: HTTP',error.code,'FAILED: BLITZ server route not deployed or unavailable.',flush=True)
+              sys.exit(1)
+          except Exception as error:
+              print('SUN LAB FFT FAILED:',type(error).__name__,str(error)[:200],flush=True)
+              sys.exit(1)
+          PY
