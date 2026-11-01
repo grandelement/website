@@ -11859,7 +11859,12 @@ Vector ${vector}. ${pair[1]}.`;
   // Vault-verified Radio guests never inherit owner/DJ/demo/offline privileges.
   // Radio Gate access is exclusively checked by GE Vault; old local LOVE
   // flags or owner demo states must not survive suspension/revocation.
-  function authorized(){return vaultRadioSessionValid()&&!developerGatePreview;}
+  function authorized(){
+    // A previously Vault-verified offline device grant must continue to
+    // authorize only local saved music after this tab/session is closed.
+    return !developerGatePreview&&
+      (vaultRadioSessionValid()||(offlinePlaybackMode()&&geOfflineDeviceGrantValid()));
+  }
   function save(force=false){
     if(window.GE_RESET_SITE_IN_PROGRESS)return;
     const now=Date.now();if(!force&&now-lastSave<4000)return;lastSave=now;
