@@ -143,6 +143,11 @@ requireText(radio,/ge-radio-verified\.ge-radio-pulse-ack/,'Acknowledged Radio mu
 requireText(radio,/function restoreRememberedRadioDevice\(/,'Verified device restoration must run after reload');
 requireText(radio,/Date\.now\(\)-lastRadio1Progress>20000/,'Only a genuinely stalled active Radio 1 stream may restart');
 requireText(radio,/function activateRadioOnUserGesture\(\)/,'First iPhone RADIO tap must unlock native playback synchronously');
+requireText(radio,/if\(userGesture&&\(state\.live\|\|state\.livePreparing\)&&!radio2\.active\)/,'First Safari tap must bypass async stream reset');
+requireText(radio,/if\(userGesture\)activateRadioOnUserGesture\(\);\s*return Promise\.resolve\(\)/,'First Safari tap must not re-enter async resumeLiveAtEdge');
+requireText(radio,/audio\.src=freshLiveStreamURL\(\);audio\.load\(\);\s*watchRadioConnection\(\)/,'Stalled stream must be reloaded synchronously on user gesture');
+requireText(radio,/function confirmRadio1ForwardTime\(t\)/,'Real Radio progress monitor missing');
+requireText(radio,/confirmRadio1ForwardTime\(Number\(audio\.currentTime\)\)/,'Safari currentTime fallback missing');
 requireText(radio,/if\(userGesture\)activateRadioOnUserGesture\(\)/,'First-tap unlock is not wired to Radio and PLAY');
 requireText(radio,/function setLiveStatus\(text,show=true\)/,'Underlying live status removed');
 requireText(radio,/115000/,'Radio 1 watchdog shortened');

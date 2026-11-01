@@ -6663,23 +6663,58 @@ let radioStartInFlight=null,radioTapUnlockInFlight=null;
 // Waiting for a reconnect Promise can consume the user's activation, so the
 // first RADIO or PLAY tap unlocks the existing native player immediately.
 // Keep the Gate and the currently selected BLITZ/preview source intact.
+let radioTapUnlockStartedAt=0;
 function activateRadioOnUserGesture(){
-  if(!(state.live||state.livePreparing)||!(audio.currentSrc||audio.src)
-      ||window.GEGate?.isExpiredLocked?.()
-      ||window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(!(state.live||state.livePreparing)||
+      window.GEGate?.isExpiredLocked?.()||
+      window.GEIAmStudio?.isRadioSuspended?.())return false;
   liveState.userActivated=true;
+  liveState.wantedPlayback=true;
   audio.muted=false;audio.defaultMuted=false;
   audio.volume=desiredPlaybackVolume(state.currentURL);
-  if(!audio.paused||radioTapUnlockInFlight)return;
+  // Safari requires both selecting the source AND calling play() while the
+  // first trusted tap is active. A following asynchronous resumeLiveAtEdge()
+  // used to tear down this stream, aborting play and requiring another tap.
+  const missing=!(audio.currentSrc||audio.src);
+  const failed=!!audio.error;
+  const stale=(!observedRadio1Progress &&
+    (radioTimedOut || (geRadio1RetryAttempts>0&&audio.paused) ||
+     (!audio.paused&&Date.now()-lastRadio1Progress>20000)));
+  if(missing||failed||stale){
+    clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
+    radioTimedOut=false;radioReconnectFailures=0;
+    state.livePreparing=false;state.live=true;
+    liveState.needsFreshEdge=false;
+    markRadio1Attempt();
+    audio.src=freshLiveStreamURL();audio.load();
+    watchRadioConnection();
+    syncModeButtons();
+  }
+  if(!audio.paused&&!missing&&!failed&&!stale)return true;
+  // An old pending play() should never permanently consume every later tap.
+  if(radioTapUnlockInFlight&&
+     performance.now()-radioTapUnlockStartedAt<5000)return true;
   try{
     const unlocking=Promise.resolve(audio.play());
     radioTapUnlockInFlight=unlocking;
+    radioTapUnlockStartedAt=performance.now();
     void unlocking.catch(error=>{
       if(String(error?.name||'')!=='AbortError')radioPlayFailure(error);
     }).finally(()=>{if(radioTapUnlockInFlight===unlocking)radioTapUnlockInFlight=null;});
-  }catch(error){radioPlayFailure(error);}
+    return true;
+  }catch(error){radioPlayFailure(error);return false;}
 }
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
+  // On iPhone, a trusted tap MUST NOT enter the asynchronous reconnection
+  // worker after native play(). That would cancel playback's user activation.
+  if(userGesture&&(state.live||state.livePreparing)&&!radio2.active){
+    if(window.GEGate?.isExpiredLocked?.()){
+      window.GEGate?.restore?.();return Promise.resolve();
+    }
+    if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
+    if(userGesture)activateRadioOnUserGesture();
+    return Promise.resolve();
+  }
   // A fresh human RADIO tap must try the original BLITZ stream again, even
   // when Radio 2's clock endpoint is down or the earlier watchdog timed out.
   // Previously radioTimedOut forced subsequent taps back into unavailable
@@ -6843,12 +6878,9 @@ async function resumeLiveAtEdge(){
 }
 async function enterLiveMode({deferPlay=false}={}){
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
-  // Await private-preview availability briefly before choosing the audio
-  // URL. This is essential on iOS: audio.volume is not a reliable fade.
-  if(!window.GEGate?.isAuthorized?.()){
-    await Promise.race([geListenerPreviewCheck,
-      new Promise(resolve=>setTimeout(resolve,1800))]);
-  }
+  // The legacy separate preview source is disabled. Do not await a lookup
+  // before selecting BLITZ's MP3 and calling play(): Safari would lose the
+  // trusted tap during that await.
   if(state.live||state.livePreparing)return;
   if(navigator.onLine===false){
     setStatus('RADIO requires an Internet connection.');
@@ -8031,6 +8063,14 @@ audio.addEventListener('timeupdate',()=>{
     }
     lastRadio2Time=t;return;
   }
+  confirmRadio1ForwardTime(t);
+});
+// Safari sometimes advances an Icecast player's currentTime without sending
+// reliable "timeupdate" events. Sample that SAME native player's clock as a
+// fallback. A static clock or an HTTP 200 alone never triggers a red heartbeat.
+function confirmRadio1ForwardTime(t){
+  if(!state.live||audio.paused||audio.muted||radio2.active||radio2.loading||
+     !Number.isFinite(t))return;
   if(Number.isFinite(lastRadio1Time)&&t>lastRadio1Time+.15){
     const first=!observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();
@@ -8045,7 +8085,11 @@ audio.addEventListener('timeupdate',()=>{
     }
   }
   lastRadio1Time=t;
-});
+}
+setInterval(()=>{
+  if(state.live&&!audio.paused&&!document.hidden&&!radio2.active)
+    confirmRadio1ForwardTime(Number(audio.currentTime));
+},900);
 setInterval(()=>{
   // ReadyState alone cannot prove a live MP3 stream is progressing. Only
   // apply this watch after actual time progress was observed, and never
