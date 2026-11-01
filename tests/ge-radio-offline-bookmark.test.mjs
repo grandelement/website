@@ -42,7 +42,7 @@ async function checkWorker(script,workerURL,scope,bookmark,expectedStatus){
       match:async req=>saved.get(normalized(req,scope))?.clone()||null,
       keys:async()=>[]
     },
-    URL,Response,Headers,Request,console,Date,Promise,
+    URL,Response,Headers,Request,AbortController,console,Date,Promise,
     setTimeout:()=>1,clearTimeout:()=>{},
     fetch:async()=>{throw new TypeError('offline')}
   };
