@@ -38,7 +38,8 @@ plistlib.writePlist({
     "Label": "com.grandelement.geuploads",
     "ProgramArguments": ["/usr/bin/python", helper],
     "RunAtLoad": True,
-    "KeepAlive": False,
+    "KeepAlive": True,
+    "ThrottleInterval": 30,
     "StandardOutPath": "/tmp/ge-studios-uploads.log",
     "StandardErrorPath": "/tmp/ge-studios-uploads-error.log",
 }, filename)
@@ -48,7 +49,7 @@ launchctl unload "$PLIST" >/dev/null 2>&1 || true
 launchctl load -w "$PLIST"
 echo ""
 echo "GE STUDIOS UPLOAD HELPER INSTALLED."
-echo "Starts automatically when you log in to this iMac."
+echo "Starts at login and automatically restarts if it stops (30-second throttle)."
 echo "Open https://grandelement.com/dj/imac.html in Firefox."
 echo "Use UPLOAD DRAFT or UPLOAD FINAL; conversion is optional."
 echo "If there is a problem, see /tmp/ge-studios-uploads-error.log"

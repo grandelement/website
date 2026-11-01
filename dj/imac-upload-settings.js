@@ -136,9 +136,25 @@ function preview(){
 }
 function changed(){
  dirty=JSON.stringify(draft)!==JSON.stringify(saved);
- if(dirty)setStatus("UNSAVED CHANGES · Press SAVE SETTINGS to apply.");
+ if(dirty)setStatus("UNSAVED CHANGES · UPLOAD will save these settings first, or press SAVE SETTINGS now.");
  else setStatus("SAVED ON THIS IMAC · VAULT NOT SYNCED");
  preview();
+}
+// The explicit UPLOAD command saves the displayed filename and tags first.
+// The checked localStorage readback prevents an unconfirmed preset upload.
+function savePending(){
+ if(!dirty)return true;
+ try{
+  w.localStorage.setItem(KEY,JSON.stringify(draft));
+  var check=normal(JSON.parse(w.localStorage.getItem(KEY)||"null"));
+  if(JSON.stringify(check)!==JSON.stringify(draft))throw Error("Read-back mismatch");
+  saved=check;draft=normal(saved);dirty=false;
+  setStatus("SAVED ON THIS IMAC · VAULT NOT SYNCED");preview();
+  return true;
+ }catch(e){
+  setStatus("NOT SAVED · Local browser storage unavailable. No upload started.");
+  return false;
+ }
 }
 function checkLine(parent,id,title,checked,callback){
  var label=add(parent,make("label","gePresetCheck"));
@@ -275,15 +291,7 @@ function init(){
  checkLine(foot,"geUploadWriteTags","EMBED CHECKED TAGS",draft.embed,function(b){draft.embed=b});
  var metaText=add(foot,make("span","geMetadataExample",""));metaText.id="geMetadataExample";
  add(panel,make("p","geMetadataNotice","Choose album artwork above. The selected cover and album name save with the preset. FINALS embeds the image in MP3 using Helper V10 and FFmpeg; originals stay unchanged."));
- saveButton.onclick=function(){
-  try{
-   w.localStorage.setItem(KEY,JSON.stringify(draft));
-   var confirmed=normal(JSON.parse(w.localStorage.getItem(KEY)||"null"));
-   if(JSON.stringify(confirmed)!==JSON.stringify(draft))throw Error("Read-back mismatch");
-   saved=confirmed;draft=normal(saved);dirty=false;
-   setStatus("SAVED ON THIS IMAC · VAULT NOT SYNCED");preview();
-  }catch(e){setStatus("NOT SAVED · Local storage unavailable. Nothing applied.")}
- };
+ saveButton.onclick=function(){savePending()};
  restore.onclick=function(){
   draft=normal(saved);dirty=false;selectedCover=null;coverPage=0;
   var root=panel.parentNode;
@@ -307,7 +315,8 @@ w.GEImacUploadSettings={
   },
   albumCovers:function(){return ALBUM_COVERS.slice(0)},
   tagsFor:function(file){return tagsFor(file,saved)},
-  preview:preview,hasUnsaved:unsaved,settings:active,version:3,
+  preview:preview,hasUnsaved:unsaved,savePending:savePending,
+  pendingMode:function(){return draft.mode},settings:active,version:3,
   refreshPreview:preview
 };
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();

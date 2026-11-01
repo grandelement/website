@@ -75,4 +75,8 @@ const style=fs.readFileSync('dj/imac-workstation.css','utf8');
 assert.ok(style.includes('#geTabGoogle #geGoogleStatusView{'),'Independent STATUS panel styling is required');
 assert.ok(style.includes('overflow-y:auto!important'),'STATUS must remain scrollable');
 
-console.log('PASS GE iMac naming, Radio, rename, metadata and STATUS layout');
+assert.match(settingsSource,/function savePending\(\)/,'Explicit upload must save pending metadata safely');
+assert.match(uploadsSource,/preset\.hasUnsaved\(\).*preset\.savePending\(\)/,'Upload requires a verified metadata save');
+assert.match(uploadsSource,/monitorStart\(kind,total\)/,'Upload banner only follows preflight validation');
+assert.doesNotMatch(uploadsSource,/monitorError\("UPLOAD NOT STARTED · SAVE SETTINGS in METADATA first/,'No false red upload error for unsaved metadata');
+console.log('PASS GE iMac naming, Radio, rename, restart-safe upload preflight and STATUS layout');

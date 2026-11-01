@@ -451,27 +451,37 @@ function checkSelected(kind,mode){
 function uploadChosen(kind){
  if(busy){status("An upload is already running in this tab.");return}
  if(!chosen[kind].length){status("BROWSE FIRST · Choose one or several "+nameOf(kind)+" tracks.");return}
+ // A preflight failure never transferred audio; do not show a red UPLOAD ERROR.
+ resetOldUploadDisplay();
  var mode=conversionMode(kind),convert=mode==="320";
- monitorStart(kind,chosen[kind].length);
  status("CHECKING IMAC HELPER before starting "+nameOf(kind)+" upload…");
  updateHealth(function(err,data){
   if(err||!data.rclone_ready){
-   monitorError("NO FILES UPLOADED · "+(err?linkError(err):"Drive is not ready on this Mac.")+
-     " Files remain selected for retry.");
+   status("UPLOAD NOT STARTED · "+(err?linkError(err):"Drive configuration unavailable on this Mac.")+
+     " No audio was sent. The selected files remain on this Mac.");
    return;
   }
   if(helperVersion<10||!data.filename_options_v2){
-   monitorError("UPLOAD NOT STARTED · UPDATE TO HELPER V10 TO PRESERVE YOUR SELECTED FILENAME. Open STATUS and press FIX GOOGLE DRIVE.");
+   status("UPLOAD NOT STARTED · HELPER V10 REQUIRED. Open STATUS to repair the iMac helper.");
    return;
   }
-  if(w.GEImacUploadSettings&&w.GEImacUploadSettings.hasUnsaved()){
-   monitorError("UPLOAD NOT STARTED · SAVE SETTINGS in METADATA first.");
-   return;
+  var preset=w.GEImacUploadSettings;
+  if(kind!=="session"&&preset){
+   var format=preset.pendingMode?preset.pendingMode():"";
+   if(format&&format!==kind&&format!=="custom"&&
+      !w.confirm("DESTINATION: "+nameOf(kind).toUpperCase()+
+       "\nFILENAME FORMAT: "+format.toUpperCase()+
+       "\n\nUse this different filename format? Cancel to choose the matching format in METADATA.")){
+      status("UPLOAD NOT STARTED · Choose the matching filename format in METADATA.");return;
+   }
+   // One explicit upload click can safely save the pending filename settings.
+   if(preset.hasUnsaved()&&(!preset.savePending||!preset.savePending())){
+    status("UPLOAD NOT STARTED · METADATA cannot be saved in this Firefox. No audio sent.");
+    return;
+   }
   }
   if(convert&&!encoderAvailable){
-   monitorError("NO FILES UPLOADED · MP3 conversion is not ready. "+
-    "No compatible encoder was detected on this iMac."+
-    " Files remain selected; Original Format remains available.");return;
+   status("UPLOAD NOT STARTED · MP3 conversion is unavailable. Select original format or repair the encoder.");return;
   }
   var invalid=checkSelected(kind,mode);
   if(!invalid&&kind!=="session"&&w.GEImacUploadSettings){
@@ -479,10 +489,11 @@ function uploadChosen(kind){
       invalid=w.GEImacUploadSettings.validate(chosen[kind][si]);if(invalid)break;
     }
   }
-  if(invalid){monitorError("NO FILES UPLOADED · "+invalid);return}
+  if(invalid){status("UPLOAD NOT STARTED · "+invalid);return}
   issueLines=[];text("uploadIssues","");
   queue=chosen[kind].slice(0);current=null;
   total=queue.length;finished=0;succeeded=0;failed=0;
+  monitorStart(kind,total);
   setBusy(true);progress(null);
   status("STARTING "+total+" "+nameOf(kind).toUpperCase()+
    " TRACK"+(total===1?"":"S")+" · "+conversionModeLabel(mode));
@@ -697,6 +708,14 @@ function init(){
  selectFolder("draft");
  setBusy(false);progress(0);
  status("READY");
+ // Firefox may restore a previously failed page from back-forward cache.
+ // Never resurrect a stale red banner when no upload is running.
+ w.addEventListener("pageshow",function(e){
+  if(e.persisted&&!busy){
+   resetOldUploadDisplay();
+   status("READY · Upload helper status is shown separately in STATUS.");
+  }
+ },false);
  if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
  updateHealth(function(err){if(!err)displayLibrary("draft")});
  // The old iMac can lose its manually started uploader while Firefox stays
