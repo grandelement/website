@@ -9,6 +9,7 @@ const must=(source,regex,reason)=>assert.match(source,regex,'OFFLINE REGRESSION:
 must(radio,/async function ensureOfflineLaunchAssets\(\)/,'offline shell saver missing');
 must(radio,/await ensureOfflineLaunchAssets\(\)/,'songs downloaded without saving application shell');
 must(radio,/offlineLaunchReady\?'Offline Ready':'Finish Offline Setup'/,'music-only cache must not claim Ready');
+must(radio,/if\(!offlineLaunchReady\)\{[\s\S]*?await ensureOfflineLaunchAssets\(\)/,'Finish Offline Setup must repair the app and keep music enabled');
 must(radio,/if\(!offlinePlaybackMode\(\)\)void requestRadioStart/,'cold offline opens must not dial live BLITZ');
 must(radio,/if\(offlinePlaybackMode\(\) && geRadioUtilityAllowed\('offline'\)/,'saved offline catalog ignores Vault scope');
 must(radio,/GE_OFFLINE_DEVICE_GRANT_KEY/,'saved rights lost on tab close');
