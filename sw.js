@@ -70,7 +70,13 @@ async function navigation(request){
     if(pathname==='/radio'||pathname==='/radio/'||pathname==='/radio/index.html'){
       const page=await fromAnyCache(new URL('/radio/index.html',HOME).href)||
         await fromAnyCache(new URL('/radio/',HOME).href);
-      if(page)return page;
+      if(page){
+        // /radio lacks a trailing slash, so relative JavaScript, styles and
+        // music URLs would point to / instead of /radio/. Redirect locally
+        // into the saved /radio/ page; no network or download is required.
+        if(pathname==='/radio')return Response.redirect(new URL('/radio/',HOME).href,302);
+        return page;
+      }
     }
     if(pathname===HOME.pathname||pathname===HOME_INDEX.pathname){
       const base=await fromAnyCache(HOME.href)||await fromAnyCache(HOME_INDEX.href);

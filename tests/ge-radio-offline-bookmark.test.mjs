@@ -54,10 +54,15 @@ async function checkWorker(script,workerURL,scope,bookmark,expectedStatus){
   assert.ok(output,'worker did not respond to offline bookmark '+bookmark);
   const response=await output;
   assert.equal(response.status,expectedStatus,'offline bookmark status '+bookmark);
-  assert.match(await response.text(),/Grand Element Radio/);
+  if(expectedStatus===302){
+    assert.equal(response.headers.get('location'),'https://grandelement.com/radio/',
+      'offline URL must redirect locally for correct relative asset URLs');
+  }else assert.match(await response.text(),/Grand Element Radio/);
 }
 await checkWorker(sw,'https://grandelement.com/radio/sw.js',
   'https://grandelement.com/radio/','https://grandelement.com/radio/',200);
 await checkWorker(home,'https://grandelement.com/sw.js',
-  'https://grandelement.com/','https://grandelement.com/radio',200);
+  'https://grandelement.com/','https://grandelement.com/radio',302);
+await checkWorker(home,'https://grandelement.com/sw.js',
+  'https://grandelement.com/','https://grandelement.com/radio/',200);
 console.log('PASS GE Radio offline bookmark: /radio, /radio/, protected downloaded shell and saved rights');
