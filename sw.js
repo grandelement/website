@@ -65,6 +65,13 @@ async function navigation(request){
     const saved=await fromAnyCache(request);
     if(saved)return saved;
     const pathname=new URL(request.url).pathname;
+    // Bare /radio bookmarks cannot enter the child /radio/ worker scope
+    // without a network redirect. Serve the cached Radio application directly.
+    if(pathname==='/radio'||pathname==='/radio/'||pathname==='/radio/index.html'){
+      const page=await fromAnyCache(new URL('/radio/index.html',HOME).href)||
+        await fromAnyCache(new URL('/radio/',HOME).href);
+      if(page)return page;
+    }
     if(pathname===HOME.pathname||pathname===HOME_INDEX.pathname){
       const base=await fromAnyCache(HOME.href)||await fromAnyCache(HOME_INDEX.href);
       if(base)return base;

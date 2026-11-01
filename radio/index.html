@@ -8538,7 +8538,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-audible-start-equal-music-v81',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261031-offline-bookmark-v82',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -8561,7 +8561,52 @@ async function registerServiceWorker(){
   let abortController=null;
   let currentAudit=null;
   let activePlan=null;
+  let offlineLaunchReady=false;
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
+  // These must survive next to the songs in this browser's Cache Storage.
+  const OFFLINE_LAUNCH_FILES=[
+    './index.html','./manifest.webmanifest','./ge-music-v5.js',
+    './iam-private-studio.js','./ge-gate-audio.js','./ge-gate-settings.js',
+    './ge-purchase-demo.js','../ge-vault-client.js',
+    '../ge-accessibility.js','../ge-accessibility.css',
+    './manifest.json','./track-durations.json','../config/site-live.json',
+    './cockpit-landscape.png'
+  ];
+  async function verifyOfflineLaunchAssets(){
+    let workerReady=false;
+    try{workerReady=!!(await navigator.serviceWorker?.getRegistration?.('./'))?.active}catch(_e){}
+    let saved=true;
+    for(const file of OFFLINE_LAUNCH_FILES){
+      try{
+        const hit=await caches.match(absolute(file),{ignoreSearch:true});
+        if(!hit?.ok){saved=false;break;}
+      }catch(_e){saved=false;break}
+    }
+    offlineLaunchReady=workerReady&&saved;
+    return offlineLaunchReady;
+  }
+  async function ensureOfflineLaunchAssets(){
+    if(navigator.onLine===false)return verifyOfflineLaunchAssets();
+    try{await registerServiceWorker()}catch(_e){}
+    // Register the root handler for the bare /radio bookmark (no slash), and
+    // homepage bookmarks; the /radio/ worker remains the more-specific owner.
+    try{await navigator.serviceWorker?.register?.('../sw.js',{scope:'/',updateViaCache:'none'})}catch(_e){}
+    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
+    for(const file of OFFLINE_LAUNCH_FILES){
+      const url=absolute(file);
+      try{
+        if((await caches.match(url,{ignoreSearch:true}))?.ok)continue;
+        const response=await fetch(url,{cache:'no-store',headers:{'X-GE-Offline':'1'}});
+        if(!response.ok)continue;
+        if(file==='./index.html'){
+          const body=await response.clone().text();
+          if(!body.includes('<!doctype html')||!body.includes('id="shipStage"')||!body.includes('id="player"'))continue;
+        }
+        await cache.put(url,response);
+      }catch(_e){}
+    }
+    return verifyOfflineLaunchAssets();
+  }
 
   const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire','Aether'];
   const LEGACY_DOWNLOAD_ORDER=['Fundamental Groove','Trio','Live','Sessions I','Sessions II'];
@@ -8688,6 +8733,7 @@ async function registerServiceWorker(){
     const plan=await loadOfflinePlan();
     if(!plan) return null;
     const audit=await auditAssets(plan.assets,{copyExisting:true});
+    await verifyOfflineLaunchAssets();
     // A scan must never reverse a user's explicit Offline OFF setting.
     currentAudit=audit;
     reflectButton(audit);
@@ -8701,6 +8747,7 @@ async function registerServiceWorker(){
   async function scanExistingAssets(){
     const assets=await buildAssetList();
     const audit=await auditAssets(assets,{copyExisting:true});
+    await verifyOfflineLaunchAssets();
     // Preserve the stored Offline ON/OFF preference while checking cached files.
     currentAudit=audit;
     reflectButton(audit);
@@ -8765,7 +8812,7 @@ async function registerServiceWorker(){
     button.classList.toggle('active',enabled);
     if(button.classList.contains('downloading')) return;
     if(audit?.musicComplete){
-      button.textContent=enabled?'Offline Ready':'Enable Offline';
+      button.textContent=enabled?(offlineLaunchReady?'Offline Ready':'Finish Offline Setup'):'Enable Offline';
       button.title=audit.missing.length
         ?audit.cachedSongs+' songs cached. '+audit.missingOptional+' optional backgrounds and '+(audit.missingStations+audit.missingShell)+' station or template items not needed to complete the music library.'
         :audit.cachedSongs+' songs cached on this device.';
@@ -9034,6 +9081,9 @@ async function registerServiceWorker(){
       return {added:0,failed:0,total:0,complete:false,musicComplete:false};
     }
     if(!audit.missingSongs){
+      // A complete song cache is not a complete offline website.
+      if(navigator.onLine!==false)await ensureOfflineLaunchAssets();
+      else await verifyOfflineLaunchAssets();
       // Download scans cannot silently turn Offline back on after it was switched off.
       if(activePlan) await setOfflinePlanAutoResume(false);
       reflectButton(audit);
@@ -9062,6 +9112,8 @@ async function registerServiceWorker(){
     let lastKnownTotal=audit.totalBytes;
     let baseBytes=audit.existingBytes;
 
+    // Save the app before large songs can exhaust iPhone browser storage.
+    await ensureOfflineLaunchAssets();
     // A Resume N Songs click fetches only these N missing SONGS.
     // Do not re-fetch screenshots, animation GIFs, shell files, or station
     // IDs just because they aren't in the manually approved download list.
@@ -9119,6 +9171,7 @@ async function registerServiceWorker(){
     abortController=null;
 
     audit=await auditAssets(assets,{copyExisting:false});
+    await verifyOfflineLaunchAssets();
     setEnabled(audit.cachedSongs>0);
     reflectButton(audit);
 
@@ -9255,9 +9308,13 @@ async function registerServiceWorker(){
     // A complete saved music set needs no re-download. If enabled again,
     // use the verified existing cache; do not duplicate the same MP3 files.
     if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
+      // Reuse the songs; repair only app files and worker if necessary.
+      await ensureOfflineLaunchAssets();
       setEnabled(true);
       reflectButton(prepared.audit);
-      setStatus('OFFLINE enabled. All existing music was reused without downloading it again.');
+      setStatus(offlineLaunchReady
+        ?'OFFLINE READY · player and saved songs verified in this browser.'
+        :'Songs saved; webpage not yet ready offline. Stay online and tap Finish Offline Setup.');
       return;
     }
 
@@ -9378,6 +9435,7 @@ async function registerServiceWorker(){
         /text\/html/i.test(shell.headers.get('content-type')||'');
     }catch(_e){}
     if(!report.cachedAppShell)report.warnings.push('Radio offline HTML shell is not cached.');
+    if(!(await verifyOfflineLaunchAssets()))report.warnings.push('Some Radio page files or its service worker are missing. Finish Offline Setup while online.');
     if(report.savedSongCount){
       try{
         const sampleURL=offlineAvailability.songs.values().next().value;
@@ -9395,7 +9453,8 @@ async function registerServiceWorker(){
     }
     if(!report.readableSampleSong)report.warnings.push('No saved song sample could be read.');
     if(!report.catalogComplete)report.warnings.push('Not all currently expected music is saved.');
-    report.readyToTestDisconnected=report.serviceWorkerRegistered&&report.serviceWorkerControlling&&
+    // The active worker serves bookmarks even if it did not control this tab.
+    report.readyToTestDisconnected=report.serviceWorkerRegistered&&offlineLaunchReady&&
       report.cachedAppShell&&report.readableSampleSong&&report.catalogComplete;
     return report;
   }
