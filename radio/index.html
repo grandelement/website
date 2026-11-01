@@ -9306,6 +9306,20 @@ async function registerServiceWorker(){
     // OFF always works, including a partially downloaded library. Ask before
     // deleting anything. Keeping downloaded media is the safe default.
     if(isEnabled()){
+      // "Finish Offline Setup" repairs only the missing website shell, never
+      // turns the user's working downloaded library off or re-downloads songs.
+      if(!offlineLaunchReady){
+        if(navigator.onLine===false){
+          setStatus('Saved songs are on this device. Connect online once to finish storing the Radio webpage.');
+          return;
+        }
+        await ensureOfflineLaunchAssets();
+        reflectButton(currentAudit);
+        setStatus(offlineLaunchReady
+          ?'OFFLINE READY · saved Radio webpage and music verified.'
+          :'Radio webpage is not fully stored yet. Saved music was preserved.');
+        return;
+      }
       if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
       if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
         await remove();
