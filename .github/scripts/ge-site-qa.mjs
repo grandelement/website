@@ -314,10 +314,10 @@ allIn(radio,['retryRadio1Only(reason)','switchToRadio2',
   'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
   'BLITZ-only retries and normal guest music routing');
 for (const [signature,guard,label] of [
-  ['function nextTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Next'],
-  ['function previousTrack(userAction=false){','if(!geOwnerDemoEnabled())','Radio Previous'],
-  ['async function advanceFromEnded(){','if(!geOwnerDemoEnabled())','Radio automatic next'],
-  ['async function playURL(url,','if(!geOwnerDemoEnabled())','Radio actual library playback'],
+  ['function nextTrack(userAction=false){','!geOwnerDemoEnabled()','Radio Next'],
+  ['function previousTrack(userAction=false){','!geOwnerDemoEnabled()','Radio Previous'],
+  ['async function advanceFromEnded(){','!geOwnerDemoEnabled()','Radio automatic next'],
+  ['async function playURL(url,','!geOwnerDemoEnabled()','Radio actual library playback'],
   ['function resumeAudio(){','!geOwnerDemoEnabled()','Radio Play']
 ]) guarded(radio,signature,guard,label+' checks access');
 const radioMusicV5=load('radio/ge-music-v5.js');
