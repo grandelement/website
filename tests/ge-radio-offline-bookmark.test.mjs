@@ -14,7 +14,7 @@ must(radio,/if\(offlinePlaybackMode\(\) && geRadioUtilityAllowed\('offline'\)/,'
 must(radio,/GE_OFFLINE_DEVICE_GRANT_KEY/,'saved rights lost on tab close');
 must(radio,/device\?\.token&&Number\(device\.expires_at\)/,'offline claim not bound to accepted device grant');
 must(radio,/window\.GEOffline\?\.isActive\?\.\(\)/,'downloaded song player does not honor offline mode');
-must(radio,/register\('\.\.\/sw\.js',\{scope:'\/'/,'root bookmark worker registration missing');
+must(radio,/register\?\.\('\.\.\/sw\.js',\{scope:'\/'/,'root bookmark worker registration missing');
 must(home,/pathname==='\/radio'/,'bare /radio bookmark fallback missing');
 
 const validHTML='<!doctype html><html><head><title>Grand Element Radio</title></head><body id="shipStage"><audio id="player"></audio></body></html>';
