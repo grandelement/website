@@ -6015,7 +6015,7 @@ async function loadFrozenAutoSongs(){
 function allowedCatalog(){
   // Offline must use saved media URLs, not online manifest URLs or the live stream.
   // This is restricted to existing owner/demo access pending verified paid entitlements.
-  if(offlinePlaybackMode() && geOwnerDemoEnabled()){
+  if(offlinePlaybackMode() && geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
     const saved=[...offlineAvailability.songs].filter(url=>canonicalSongPath(url)).sort(orderedSort);
     if(personalSongMode){
       const chosen=saved.filter(url=>selectedSongURLs.has(canonicalSongPath(url)));
@@ -6989,8 +6989,24 @@ function geRadioLocalTestAccess(){
   }catch(_e){return false}
 }
 function geOwnerDemoEnabled(){return geRadioLocalTestAccess();}
+const GE_OFFLINE_DEVICE_GRANT_KEY='GE_VAULT_OFFLINE_DEVICE_GRANT_V1';
+// The one browser may play its own downloaded songs while disconnected under
+// a previously Vault-verified, still-unexpired device grant. No other scope
+// is granted here and no access code is cached.
+function geOfflineDeviceGrantValid(){
+  if(!offlinePlaybackMode())return false;
+  try{
+    const grant=JSON.parse(localStorage.getItem(GE_OFFLINE_DEVICE_GRANT_KEY)||'null');
+    const device=JSON.parse(localStorage.getItem('GE_VAULT_RADIO_DEVICE_SESSION_V1')||'null');
+    const id=String(window.GEVault?.anonId||'');
+    return !!id&&grant?.offline===true&&grant.device_id===id&&
+      device?.device_id===id&&typeof device.token==='string'&&device.token.length>20&&
+      Number(grant.until)>Date.now()&&Number(device.until)>Date.now();
+  }catch(_){return false}
+}
 function geRadioUtilityAllowed(feature){
   if(geRadioLocalTestAccess())return true;
+  if(feature==='offline'&&geOfflineDeviceGrantValid())return true;
   try{
     const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     const verified=!!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
@@ -7343,7 +7359,7 @@ function geOpenMyMusicStore(){
   location.assign('../support/?section=music&flow=player');
 }
 async function resumePlayerAfterLive(){
-  if(!geOwnerDemoEnabled()){geOpenMyMusicStore();return;}
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){geOpenMyMusicStore();return;}
   let target=liveState.returnURL;
   if(!target || !allowedCatalog().includes(target)){
     target=state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0]||'');
@@ -7603,7 +7619,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   if(window.GEIAmStudio?.isRadioSuspended?.())return;
   // The actual licensed library is not yet hosted privately. This guard
   // closes UI bypasses, including controls used during a live Radio session.
-  if(!geOwnerDemoEnabled()){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     else setStatus('Select a 33:33 preview playlist or visit My Music.');
     return;
@@ -7664,7 +7680,8 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   }
 }
 function resumeAudio(){
-  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()){geOpenMyMusicStore();return;}
+  if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()&&
+    !(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){geOpenMyMusicStore();return;}
   state.userStarted=true;
   // Retry the SAME selected song if the media element lost its file;
   // a connection failure must never consume or skip a track.
@@ -7687,7 +7704,7 @@ function selectNaturalNext(){
 }
 async function advanceFromEnded(){
   if(state.live){reconnectLiveStream();return;}
-  if(!geOwnerDemoEnabled())return;
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()))return;
   if(isStationID(state.currentURL) && state.pendingAfterStation){
     const pending=state.pendingAfterStation;
     state.pendingAfterStation=null;
@@ -7710,7 +7727,7 @@ async function advanceFromEnded(){
   await playURL(next.url,{record:next.record,backgroundChange:true});
 }
 function nextTrack(userAction=false){
-  if(!geOwnerDemoEnabled()){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return; // Also covers lock-screen next, ended and background control paths.
   }
@@ -7720,7 +7737,7 @@ function nextTrack(userAction=false){
   playURL(next.url,{record:next.record,backgroundChange:true,userAction});
 }
 function previousTrack(userAction=false){
-  if(!geOwnerDemoEnabled()){
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return;
   }
@@ -7817,6 +7834,12 @@ function syncMainTransport(){
   }
 }
 playBtn?.addEventListener('click',()=>{
+  // A reopened offline bookmark must play its downloaded selection, not
+  // open the online Music store or try an unavailable Radio stream.
+  if(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
+    if(audio.paused)resumeAudio();else requestUserPause();
+    return;
+  }
   // Keep the transport visible and usable. Radio uses this same audio element;
   // personal-song PLAY opens the user's music selection instead of the store.
   if(!geOwnerDemoEnabled()){
@@ -9359,8 +9382,8 @@ async function registerServiceWorker(){
     // so station reconnect timers do not overwrite a cached personal song.
     if(state.live||state.livePreparing)exitLiveMode('Internet disconnected. Checking saved music.');
     rebuildQueue(state.currentURL);
-    if(!geOwnerDemoEnabled()){
-      setStatus('Radio requires Internet. Offline songs require authorized access.');
+    if(!geRadioUtilityAllowed('offline')){
+      setStatus('Internet disconnected. This device needs verified offline access.');
       return;
     }
     if(!isEnabled()){
@@ -12285,6 +12308,12 @@ Vector ${vector}. ${pair[1]}.`;
         localStorage.setItem(GE_RADIO_DEVICE_SESSION_KEY,JSON.stringify({
           token:device.token,device_id:geRememberedDeviceId(),until:Number(device.expires_at)*1000
         }));
+        // Save only this verified device's offline permission, not the key.
+        if(grantedScopes.includes('offline')||result.capabilities?.sun_lab===true)
+          localStorage.setItem(GE_OFFLINE_DEVICE_GRANT_KEY,JSON.stringify({
+            device_id:geRememberedDeviceId(),offline:true,until:Number(device.expires_at)*1000
+          }));
+        else localStorage.removeItem(GE_OFFLINE_DEVICE_GRANT_KEY);
       }
       try{window.dispatchEvent(new CustomEvent('ge-access-experience-updated'))}catch(_e){}
       return true;
@@ -12298,7 +12327,7 @@ Vector ${vector}. ${pair[1]}.`;
     const deviceId=geRememberedDeviceId();
     if(!saved?.token||!deviceId||saved.device_id!==deviceId||
        Number(saved.until)<=Date.now()){
-      try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY)}catch(_e){}
+      try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY);localStorage.removeItem(GE_OFFLINE_DEVICE_GRANT_KEY)}catch(_e){}
       return Promise.resolve(false);
     }
     const job=(async()=>{
@@ -12310,7 +12339,7 @@ Vector ${vector}. ${pair[1]}.`;
         const result=await response.json().catch(()=>({}));
         if(!response.ok||result.ok!==true){
           if(response.status===403||response.status===401){
-            try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY)}catch(_e){}
+            try{localStorage.removeItem(GE_RADIO_DEVICE_SESSION_KEY);localStorage.removeItem(GE_OFFLINE_DEVICE_GRANT_KEY)}catch(_e){}
           }
           return false;
         }
@@ -12709,11 +12738,11 @@ gateTestBtn?.addEventListener('click',()=>{
   registerServiceWorker();
   // Listener arrival may wake a sleeping host via an actual browser iframe
   // navigation. Keep the MP3 connection automatic, without a button press.
-  wakeBlitzFromPageVisit();
-  // Start the Radio connection IMMEDIATELY. Library scans and cache audits
-  // must never prevent iPhone listeners from getting the live station.
+  if(!offlinePlaybackMode())wakeBlitzFromPageVisit();
+  // An offline bookmark must open the cached music, never dial live BLITZ.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  void requestRadioStart({deferPlay:qrArrival});
+  if(!offlinePlaybackMode())void requestRadioStart({deferPlay:qrArrival});
+  else setStatus('OFFLINE · loading saved Grand Element songs');
   // Recheck a signed, revocable Vault grant from this browser after every
   // reload, including VPN changes. No code or password is stored.
   void window.GERestoreRadioDevice?.();
