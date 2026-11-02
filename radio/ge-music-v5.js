@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.15-20261029-CLICK-PLAY-LOOP';
+const BUILD='GE-MUSIC-V7.17-20261101-COMPACT-HEADER';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -223,10 +223,40 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playlist input{width:100%;min-height:42px;border-radius:9px;border:1px solid #5caccf;background:#05192a;color:#fff;padding:8px;margin-bottom:8px}
 .empty{color:#c0ddef;padding:18px 7px}
 @media(max-width:420px){.window{border-radius:11px}.brand{font-size:13px}.tools{padding:8px}.song{gap:5px}.song span{font-size:12px}.playlistActionsBar{gap:6px}.playlistActionsBar button{font-size:12px;padding:6px 9px}}
+/* MUSIC is the sole visible brand label. Never show impending session/Gate
+   timing. Keep the owner-assigned access name and verified Vault behavior. */
+.header{gap:6px;min-height:53px;padding:6px 10px}
+.header .brand{flex:0 0 auto;white-space:nowrap;max-width:none!important;
+ font-size:clamp(20px,5.2vw,24px)!important;font-weight:950;line-height:1.05;letter-spacing:.065em}
+.geHeaderActions{flex:0 1 auto;margin-left:auto;gap:5px;justify-content:flex-end}
+.geCodeIdentity{min-width:0;max-width:115px;font-size:11px;line-height:1.15;
+ white-space:nowrap;text-overflow:ellipsis;overflow:hidden;
+ -webkit-line-clamp:unset;display:block}
+.geCodeIdentity[hidden]{display:none!important}
+.header .accessToggle{min-width:82px!important;min-height:34px;
+ padding:5px 7px!important;font-size:11px!important}
+.header .close{min-width:62px!important;min-height:34px;
+ padding:5px 7px!important;font-size:11px!important}
+.tools{padding-top:7px}
+.tools .browse{margin-top:4px}
+@media(max-width:420px){
+ .header{gap:4px;padding:6px 8px;min-height:51px}
+ .header .brand{font-size:20px!important}
+ .geHeaderActions{gap:4px}
+ .geCodeIdentity{max-width:85px;font-size:10px}
+ .header .accessToggle{min-width:76px!important;padding:5px 5px!important;font-size:10px!important}
+ .header .close{min-width:57px!important;padding:5px 5px!important;font-size:10px!important}
+}
+@media(max-width:350px){
+ .geCodeIdentity{max-width:65px;font-size:9px}
+ .header .brand{font-size:18px!important}
+ .header .accessToggle{min-width:70px!important}
+ .header .close{min-width:52px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
- <div class="header"><div class="brand">GRAND ELEMENT · MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
+ <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
@@ -603,9 +633,11 @@ function musicAccessActive(){
 }
 function musicAccessStatus(){
  const access=musicAccessActive(),status=el('.musicCodeState');
- status.hidden=!access;
- status.textContent=access?
-  ('CODE ACTIVE · '+(access.restricted?'AUTHORIZED MUSIC':'ALL MUSIC')+' · EXPIRES '+new Date(access.until).toLocaleTimeString()):'';
+ // Do not advertise a forthcoming gate or the active token expiry in Music.
+ // Server-validated timeouts and the 33:33 Gate remain enforced unchanged.
+ // Verification failures still use this status field while a code is entered.
+ status.hidden=true;
+ status.textContent='';
  const identity=el('.geCodeIdentity');
  identity.hidden=!access;
  // Display the owner-selected fan/access name. If intentionally unnamed, use
