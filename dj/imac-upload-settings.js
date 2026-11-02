@@ -174,7 +174,7 @@ function init(){
   button.onclick=function(){
    draft.mode=mode;
    if(mode==="final"){
-    draft.embed=true;draft.coverEnabled=true;
+    // Respect explicit tag and artwork choices when changing the file name format.
     ["title","artist","album","date","track"].forEach(function(key){draft.fields[key].enabled=true});
    }
    var embedBox=el("geUploadWriteTags");if(embedBox)embedBox.checked=draft.embed;
