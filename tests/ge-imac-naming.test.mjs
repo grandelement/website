@@ -78,5 +78,7 @@ assert.ok(style.includes('overflow-y:auto!important'),'STATUS must remain scroll
 assert.match(settingsSource,/function savePending\(\)/,'Explicit upload must save pending metadata safely');
 assert.match(uploadsSource,/preset\.hasUnsaved\(\).*preset\.savePending\(\)/,'Upload requires a verified metadata save');
 assert.match(uploadsSource,/monitorStart\(kind,total\)/,'Upload banner only follows preflight validation');
+assert.match(uploadsSource,/Never send a large original recording/,'Original tagged AIFF must have preflight');
+assert.match(uploadsSource,/uncheck EMBED CHECKED TAGS/,'FFmpeg preflight must explain how to upload unchanged original');
 assert.doesNotMatch(uploadsSource,/monitorError\("UPLOAD NOT STARTED · SAVE SETTINGS in METADATA first/,'No false red upload error for unsaved metadata');
 console.log('PASS GE iMac naming, Radio, rename, restart-safe upload preflight and STATUS layout');
