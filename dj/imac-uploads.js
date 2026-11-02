@@ -6,6 +6,7 @@
 "use strict";
 var LOCAL="http://127.0.0.1:8765";
 var chosen={draft:[],final:[],radio:[],session:[]}, activeKind="draft";
+var audioKinds=["draft","final","radio"];
 var helperOnline=false, encoderAvailable=false, encoderName="", deleteAvailable=false, allFilesAvailable=false, editFilesAvailable=false;
 var helperVersion=0;
 var busy=false, inCheck=false, queue=[], current=null, total=0, finished=0, succeeded=0, failed=0;
@@ -162,6 +163,19 @@ function selectedLabel(kind){
   (count<=2?files.map(function(f){return f.name}).join(" | "):
    files[0].name+" + "+(count-1)+" more"));
 }
+function syncAudioFiles(files){
+ // Same authorized File objects can be uploaded to any audio destination.
+ for(var ai=0;ai<audioKinds.length;ai++){
+  var k=audioKinds[ai];chosen[k]=files.slice(0);selectedLabel(k);
+ }
+ if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
+ setBusy(busy);
+}
+function placeAudioChooser(kind){
+ if(kind!=="draft"&&kind!=="final"&&kind!=="radio")return;
+ var input=el("fileDraft"),zone=el("drop"+kind.charAt(0).toUpperCase()+kind.slice(1));
+ if(input&&zone&&input.parentNode!==zone)zone.appendChild(input);
+}
 function setBusy(flag){
  busy=!!flag;
  ["fileDraft","fileFinal","fileRadio","fileSession","convertDraft","convertFinal","convertRadio","uploadDraft","uploadFinal","uploadRadio","uploadSession"].forEach(function(id){
@@ -192,13 +206,14 @@ function fileChanged(kind,input){
  resetOldUploadDisplay();
  var files=input.files||[],result=[];
  for(var i=0;i<files.length;i++)result.push(files[i]);
- chosen[kind]=result;
- if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
- // Keep the chooser's visible selection synchronized with the pending batch.
- // Clearing input.value made Firefox display "No files selected" while tracks
- // remained queued in memory, an especially confusing experience on El Capitan.
- selectedLabel(kind);
- el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":kind==="radio"?"uploadRadio":"uploadSession").disabled=!result.length;
+ if(kind==="session"){
+  chosen.session=result;selectedLabel("session");
+  if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
+ }else{
+  syncAudioFiles(result);
+  kind=(activeKind==="final"||activeKind==="radio")?activeKind:"draft";
+ }
+ setBusy(false);
  issueLines=[];text("uploadIssues","");
  progress(0);
  status(pendingMessage(kind));
@@ -291,6 +306,7 @@ function updateHealth(callback){
 }
 function clear(node){while(node&&node.firstChild)node.removeChild(node.firstChild)}
 function selectFolder(kind){
+ placeAudioChooser(kind);
  var lookup={draft:"draftUploadCard",final:"finalUploadCard",radio:"radioUploadCard",session:"sessionUploadCard"};
  for(var k in lookup)if(lookup.hasOwnProperty(k)){
   var card=el(lookup[k]);if(card)card.style.display=k===kind?"flex":"none";
@@ -526,13 +542,16 @@ function uploadChosen(kind){
  });
 }
 function removeChosen(kind,file){
- var saved=chosen[kind];
- for(var i=0;i<saved.length;i++){if(saved[i]===file){saved.splice(i,1);break}}
- if(!saved.length){
-  var input=el(kind==="draft"?"fileDraft":kind==="final"?"fileFinal":kind==="radio"?"fileRadio":"fileSession");
+ var kinds=kind==="session"?["session"]:audioKinds;
+ for(var ki=0;ki<kinds.length;ki++){
+  var group=kinds[ki],saved=chosen[group];
+  for(var i=0;i<saved.length;i++){if(saved[i]===file){saved.splice(i,1);break}}
+  selectedLabel(group);
+ }
+ if(!chosen[kind].length){
+  var input=el(kind==="session"?"fileSession":"fileDraft");
   if(input)try{input.value=""}catch(ignore){}
  }
- selectedLabel(kind);
  if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
 }
 function stopBatch(kind,message){
@@ -684,18 +703,29 @@ function installDrop(kind){
    return;
   }
   resetOldUploadDisplay();
-  chosen[kind]=files;selectedLabel(kind);
-  if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
-  el(kind==="draft"?"uploadDraft":kind==="final"?"uploadFinal":kind==="radio"?"uploadRadio":"uploadSession").disabled=false;
+  if(kind==="session"){
+   chosen.session=files;selectedLabel("session");
+   if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
+  }else{
+   var chooser=el("fileDraft");
+   if(chooser)try{chooser.value=""}catch(ignore){}
+   syncAudioFiles(files);
+  }
+  setBusy(false);
   issueLines=[];text("uploadIssues","");
   status(pendingMessage(kind));
  });
 }
 function init(){
  if(!el("fileDraft")||!el("fileFinal")||!el("fileRadio")||!el("fileSession"))return;
+ // An apparent filename restored by Firefox must not be mistaken for authorized
+ // File objects. On a new page load, choose again; switching tabs does not reload.
+ ["fileDraft","fileFinal","fileRadio","fileSession"].forEach(function(id){
+  var input=el(id);if(input)try{input.value=""}catch(ignore){}
+ });
+ el("fileFinal").style.display="none";
+ el("fileRadio").style.display="none";
  el("fileDraft").onchange=function(){fileChanged("draft",this)};
- el("fileFinal").onchange=function(){fileChanged("final",this)};
- el("fileRadio").onchange=function(){fileChanged("radio",this)};
  el("fileSession").onchange=function(){fileChanged("session",this)};
  el("uploadDraft").onclick=function(){uploadChosen("draft")};
  el("uploadFinal").onclick=function(){uploadChosen("final")};
@@ -729,16 +759,21 @@ function init(){
  };
  if(el("reconnectDriveAuth"))el("reconnectDriveAuth").onclick=reconnectGoogle;
  el("convertDraft").checked=false;el("convertFinal").checked=false;
- selectedLabel("draft");selectedLabel("final");selectedLabel("session");
+ selectedLabel("draft");selectedLabel("final");selectedLabel("radio");selectedLabel("session");
  selectFolder("draft");
  setBusy(false);progress(0);
- status("READY");
- // Firefox may restore a previously failed page from back-forward cache.
- // Never resurrect a stale red banner when no upload is running.
+ status("READY · Choose a song once for Drafts, Finals or Radio.");
+ // Firefox can restore a painted filename without the real file after Back.
  w.addEventListener("pageshow",function(e){
   if(e.persisted&&!busy){
+   var input=el("fileDraft");
+   if(input&&(!input.files||!input.files.length)){
+    try{input.value=""}catch(ignore){}
+    syncAudioFiles([]);
+   }
    resetOldUploadDisplay();
-   status("READY · Upload helper status is shown separately in STATUS.");
+   status(chosen.draft.length?"READY · "+chosen.draft.length+" SONG(S) SELECTED":
+    "READY · Choose a song once for Drafts, Finals or Radio.");
   }
  },false);
  if(w.GEImacUploadSettings)w.GEImacUploadSettings.refreshPreview();
