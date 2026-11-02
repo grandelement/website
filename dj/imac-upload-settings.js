@@ -186,6 +186,9 @@ function init(){
     // Respect explicit tag and artwork choices when changing the file name format.
     ["title","artist","album","date","track"].forEach(function(key){draft.fields[key].enabled=true});
    }
+   var revOn=el("geRevisionEnabled"),revField=el("geDraftRevision");
+   if(revOn)revOn.checked=!!(draft.mode==="custom"&&draft.revisionEnabled);
+   if(revField)revField.disabled=!(draft.mode==="custom"&&draft.revisionEnabled);
    var embedBox=el("geUploadWriteTags");if(embedBox)embedBox.checked=draft.embed;
    var coverBox=el("geUploadCoverEnabled");if(coverBox)coverBox.checked=draft.coverEnabled;
    var buttons=modes.querySelectorAll("button");
@@ -252,11 +255,11 @@ function init(){
  // REV is an optional suffix for the CUSTOM pre-final filename only.
  var rev=add(quick,make("label","geRevisionLabel"));
  var revToggle=add(rev,make("input"));revToggle.type="checkbox";
- revToggle.id="geRevisionEnabled";revToggle.checked=draft.revisionEnabled;
+ revToggle.id="geRevisionEnabled";revToggle.checked=draft.mode==="custom"&&draft.revisionEnabled;
  add(rev,make("span",null,"REV"));
  var revInput=add(rev,make("input"));revInput.type="text";revInput.id="geDraftRevision";
  revInput.maxLength=12;revInput.value=draft.revision;revInput.placeholder="02";
- revInput.disabled=!draft.revisionEnabled;revInput.setAttribute("aria-label","Optional revision suffix");
+ revInput.disabled=!(draft.mode==="custom"&&draft.revisionEnabled);revInput.setAttribute("aria-label","Optional revision suffix");
  revToggle.onchange=function(){
   draft.revisionEnabled=!!revToggle.checked;revInput.disabled=!draft.revisionEnabled;
   if(draft.revisionEnabled){
@@ -274,7 +277,8 @@ function init(){
  var fn=checkLine(inline,"geFileDate","DATE",draft.filename.date,function(b){draft.filename.date=b;chooseCustom()});
  var ft=checkLine(inline,"geFileTime","TIME",draft.filename.time,function(b){draft.filename.time=b;chooseCustom();var sc=el("geFileSeconds");if(sc)sc.disabled=!b});
  var fs=checkLine(inline,"geFileSeconds","SECONDS",draft.filename.seconds,function(b){draft.filename.seconds=b;chooseCustom()});fs.disabled=!draft.filename.time;
- checkLine(inline,"geFileTitle","SONG NAME",draft.filename.title,function(b){draft.filename.title=b;chooseCustom()});
+ // The song title is mandatory in Draft and Custom filenames.
+ add(inline,make("span","geFixedSongName","SONG NAME · ALWAYS"));
  var quickSave=add(quick,make("button","geQuickSave","SAVE FORMAT"));
  quickSave.type="button";quickSave.onclick=function(){var b=el("geUploadSaveSettings");if(b)b.click()};
  add(quick,make("span","geUploadNamePreview","")).id="geUploadNamePreview";
