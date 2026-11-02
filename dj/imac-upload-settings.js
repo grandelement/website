@@ -24,13 +24,18 @@ function make(tag,klass,text){var x=d.createElement(tag);if(klass)x.className=kl
 function add(parent,child){parent.appendChild(child);return child}
 function defaults(){
  var f={};for(var i=0;i<fields.length;i++)f[fields[i][0]]={enabled:false,auto:fields[i][0]==="title"||fields[i][0]==="artist"||fields[i][0]==="date",value:""};
- return {version:3,mode:"draft",revision:"01",order:"date,track,title",coverEnabled:false,coverPath:"",filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
+ f.track.enabled=true;f.track.auto=false;f.track.value="01";
+ return {version:4,mode:"draft",revision:"",revisionEnabled:false,order:"track,title,revision",coverEnabled:false,coverPath:"",filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
 }
 function normal(p){
  var o=defaults();if(!p||typeof p!=="object")return o;
  if(p.filename){for(var k in o.filename)if(o.filename.hasOwnProperty(k))o.filename[k]=!!p.filename[k]}
  if(["draft","radio","final","custom"].indexOf(p.mode)>=0)o.mode=p.mode;
- o.revision=String(p.revision||"01").replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12)||"01";
+ // On the original iMac page, REV was being used as the TRACK number.
+ // Migrate that saved value once; a new optional revision starts blank.
+ var legacy=Number(p.version||0)<4;
+ o.revision=legacy?"":String(p.revision===undefined?"":p.revision).replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12);
+ o.revisionEnabled=!legacy&&!!p.revisionEnabled;
  o.coverEnabled=!!p.coverEnabled;
  // A saved cover always points to one of the verified GitHub album files.
  o.coverPath=albumByPath(p.coverPath)?p.coverPath:"";
@@ -42,6 +47,11 @@ function normal(p){
   o.fields[name].enabled=!!item.enabled;
   o.fields[name].auto=!!item.auto;
   o.fields[name].value=String(item.value||"").slice(0,180);
+ }
+ if(legacy&&(o.mode==="draft"||o.mode==="custom")&&
+     (!p.fields||!p.fields.track||p.fields.track.auto||!String(p.fields.track.value||"").trim())){
+  var oldTrack=String(p.revision||"01").replace(/[^0-9]/g,"").slice(0,6)||"01";
+  o.fields.track.auto=false;o.fields.track.value=oldTrack;
  }
  return o;
 }
@@ -63,7 +73,7 @@ function autoVal(key,file){
  if(key==="title")return part.title;
  if(key==="artist")return "Grand Element";
  if(key==="album")return part.album;
- if(key==="track")return part.track;
+ if(key==="track")return part.track||"01";
  if(key==="date")return String(new Date().getFullYear());
  return "";
 }
@@ -79,22 +89,18 @@ function nameFor(file,p){
  var track=clean(val("track",file,p))||"01";
  var year=clean(val("date",file,p))||String(now.getFullYear());
  var stem="";
- if(p.mode==="draft")stem=day+" - "+clean(p.revision||"01")+" - "+title;
+ if(p.mode==="draft")stem=track+" - "+title;
  else if(p.mode==="radio")stem=album+"_"+track+"_"+title;
  else if(p.mode==="final")stem="Grand Element - "+year+" - "+album+" - "+track+" - "+title;
  else {
-   var pieces={date:day,time:pad(now.getHours())+"-"+pad(now.getMinutes()),
-     seconds:pad(now.getSeconds()),title:title,album:album,
-     year:year,artist:"Grand Element",track:track,revision:clean(p.revision||"01")};
-   var order=String(p.order||"date,track,title").toLowerCase().split(",");
-   var parts=[];
-   for(var oi=0;oi<order.length;oi++){
-    var field=order[oi].replace(/\s/g,"");
-    if(pieces[field]&&(field!=="date"||n.date)&&(field!=="time"||n.time)&&
-       (field!=="seconds"||n.seconds)&&(field!=="title"||n.title))
-      parts.push(pieces[field]);
-   }
-   stem=parts.join(" - ")||title;
+   // Custom pre-final order is fixed: TRACK, SONG, optional additions,
+   // optional REVISION last. Never put date or revision before track.
+   var parts=[track,title];
+   if(n.date)parts.push(day);
+   if(n.time)parts.push(pad(now.getHours())+"-"+pad(now.getMinutes()));
+   if(n.seconds)parts.push(pad(now.getSeconds()));
+   if(p.revisionEnabled&&clean(p.revision))parts.push("Rev "+clean(p.revision));
+   stem=parts.join(" - ");
  }
  return clean(stem)+extension(file);
 }
@@ -126,6 +132,9 @@ function fileForPreview(){
 }
 function preview(){
  var file=fileForPreview(),label=el("geUploadNamePreview");
+ var trackInput=el("geFilenameTrack");
+ if(trackInput&&d.activeElement!==trackInput)
+  trackInput.value=val("track",file||{name:"Song.aif"},draft)||"01";
  if(label)label.textContent=(file?"FILE: ":"EXAMPLE: ")+nameFor(file||{name:"Song.aif"},draft)+(dirty?" · UNSAVED":"");
  var sample=el("geMetadataExample");
  if(sample){
@@ -185,11 +194,54 @@ function init(){
   };
   if(draft.mode===mode)button.className+=" gePresetSelected";
  });
- var rev=add(quick,make("label","geRevisionLabel","REV"));
- var revInput=add(rev,make("input"));revInput.type="text";revInput.id="geDraftRevision";
- revInput.maxLength=12;revInput.value=draft.revision;revInput.oninput=function(){
-   draft.revision=revInput.value.replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12);changed();
+ // TRACK replaces the old misleading REV 05 control.
+ // Text input preserves leading zeros; up/down buttons and mouse wheel step it.
+ var trackWrap=add(quick,make("label","geTrackLabel","TRACK"));
+ quick.insertBefore(trackWrap,modes);
+ var trackDown=add(trackWrap,make("button","geTrackStep","−"));
+ trackDown.type="button";trackDown.title="Previous track";
+ var trackInput=add(trackWrap,make("input"));trackInput.type="text";
+ trackInput.id="geFilenameTrack";trackInput.maxLength=6;
+ trackInput.setAttribute("inputmode","numeric");trackInput.setAttribute("aria-label","Track number");
+ trackInput.value=val("track",fileForPreview()||{name:"Song.aif"},draft)||"01";
+ var trackUp=add(trackWrap,make("button","geTrackStep","+"));
+ trackUp.type="button";trackUp.title="Next track";
+ function setTrack(raw){
+  var value=String(raw||"").replace(/[^0-9]/g,"").slice(0,6);
+  draft.fields.track.auto=false;draft.fields.track.value=value;
+  var metadata=el("geTagtrackValue"),auto=el("geTagtrackAuto");
+  if(metadata){metadata.disabled=false;metadata.value=value}
+  if(auto)auto.checked=false;
+  trackInput.value=value;
+  changed();
+ }
+ function stepTrack(amount){
+  var current=String(trackInput.value||"01").replace(/[^0-9]/g,"")||"01";
+  var width=Math.max(2,Math.min(6,current.length));
+  var value=Math.max(1,Math.min(999999,Number(current)+amount));
+  var digits=String(value);while(digits.length<width)digits="0"+digits;
+  setTrack(digits);
+ }
+ trackDown.onclick=function(){stepTrack(-1)};
+ trackUp.onclick=function(){stepTrack(1)};
+ trackInput.oninput=function(){setTrack(trackInput.value)};
+ trackInput.onkeydown=function(e){
+  e=e||w.event;
+  var code=e.keyCode||e.which;
+  if(code===38||code===40){if(e.preventDefault)e.preventDefault();stepTrack(code===38?1:-1)}
  };
+ if(trackInput.addEventListener){
+  trackInput.addEventListener("wheel",function(e){
+   if(d.activeElement!==trackInput)return;
+   if(e.preventDefault)e.preventDefault();
+   stepTrack(e.deltaY<0?1:-1);
+  },false);
+  trackInput.addEventListener("DOMMouseScroll",function(e){
+   if(d.activeElement!==trackInput)return;
+   if(e.preventDefault)e.preventDefault();
+   stepTrack(e.detail<0?1:-1);
+  },false);
+ }
  function chooseCustom(){
   draft.mode="custom";
   var buttons=modes.querySelectorAll("button");
@@ -197,6 +249,27 @@ function init(){
     buttons[ci].className=buttons[ci].getAttribute("data-mode")==="custom"?"gePresetMode gePresetSelected":"gePresetMode";
   }
  }
+ // REV is an optional suffix for the CUSTOM pre-final filename only.
+ var rev=add(quick,make("label","geRevisionLabel"));
+ var revToggle=add(rev,make("input"));revToggle.type="checkbox";
+ revToggle.id="geRevisionEnabled";revToggle.checked=draft.revisionEnabled;
+ add(rev,make("span",null,"REV"));
+ var revInput=add(rev,make("input"));revInput.type="text";revInput.id="geDraftRevision";
+ revInput.maxLength=12;revInput.value=draft.revision;revInput.placeholder="02";
+ revInput.disabled=!draft.revisionEnabled;revInput.setAttribute("aria-label","Optional revision suffix");
+ revToggle.onchange=function(){
+  draft.revisionEnabled=!!revToggle.checked;revInput.disabled=!draft.revisionEnabled;
+  if(draft.revisionEnabled){
+   if(!draft.revision){draft.revision="01";revInput.value="01"}
+   chooseCustom();
+  }
+  changed();
+ };
+ revInput.oninput=function(){
+  draft.revision=revInput.value.replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12);
+  if(draft.revisionEnabled)chooseCustom();
+  changed();
+ };
  var inline=add(quick,make("div","gePresetQuickChecks"));
  var fn=checkLine(inline,"geFileDate","DATE",draft.filename.date,function(b){draft.filename.date=b;chooseCustom()});
  var ft=checkLine(inline,"geFileTime","TIME",draft.filename.time,function(b){draft.filename.time=b;chooseCustom();var sc=el("geFileSeconds");if(sc)sc.disabled=!b});
@@ -227,11 +300,8 @@ function init(){
   input.disabled=draft.fields[key].auto;
   input.oninput=function(){draft.fields[key].value=input.value;changed()};
  })(fields[i][0],fields[i][1],fields[i][2]);
- var orderRow=add(panel,make("label","geCustomOrderLabel","CUSTOM ORDER"));
- var orderValue=add(orderRow,make("input"));orderValue.id="geCustomOrder";
- orderValue.type="text";orderValue.value=draft.order;
- orderValue.placeholder="date,track,title";orderValue.maxLength=100;
- orderValue.oninput=function(){draft.order=orderValue.value;changed()};
+ add(panel,make("p","geCustomOrderLabel",
+  "CUSTOM PRE-FINAL ORDER: TRACK · SONG NAME · optional DATE/TIME · optional REV at end."));
  // The album artwork picker uses existing GitHub album images. No file upload
  // or GitHub authentication is needed to browse. Exactly one selected artwork.
  var picker=add(panel,make("section","geAlbumCoverPicker"));
@@ -318,7 +388,7 @@ w.GEImacUploadSettings={
   albumCovers:function(){return ALBUM_COVERS.slice(0)},
   tagsFor:function(file){return tagsFor(file,saved)},
   preview:preview,hasUnsaved:unsaved,savePending:savePending,
-  pendingMode:function(){return draft.mode},settings:active,version:3,
+  pendingMode:function(){return draft.mode},settings:active,version:4,
   refreshPreview:preview
 };
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
