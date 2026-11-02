@@ -13,7 +13,7 @@ new vm.Script(uploadsSource);
 new vm.Script(workstationSource);
 
 function preset(mode,overrides={},options={}){
- const storage={getItem(){return JSON.stringify({...options,mode,revision:'02',
+ const storage={getItem(){return JSON.stringify({...options,mode,revision:options.revision===undefined?'02':options.revision,
   fields:{title:{enabled:true,auto:true,value:''},artist:{enabled:true,auto:true,value:''},
    album:{enabled:true,auto:true,value:''},track:{enabled:true,auto:true,value:''},
    date:{enabled:true,auto:true,value:''},...overrides}});}};
@@ -23,7 +23,17 @@ function preset(mode,overrides={},options={}){
  return window.GEImacUploadSettings;
 }
 const song={name:'Intergy_02_Intergy.mp3'};
-assert.match(preset('draft').nameFor(song),/^\d{4}-\d{2}-\d{2} - 02 - Intergy\.mp3$/);
+assert.equal(preset('draft').nameFor(song),'02 - Intergy.mp3');
+const legacyDraft=preset('draft',{}, {version:3,revision:'05'});
+assert.equal(legacyDraft.nameFor({name:'Blueberry.aif'}),'05 - Blueberry.aif','Old REV 05 migrates to TRACK 05');
+const customPreFinal=preset('custom',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:4,revision:'02',revisionEnabled:true});
+assert.equal(customPreFinal.nameFor({name:'Blueberry.aif'}),'05 - Blueberry - Rev 02.aif');
+const customNoRevision=preset('custom',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:4,revision:'02',revisionEnabled:false});
+assert.equal(customNoRevision.nameFor({name:'Blueberry.aif'}),'05 - Blueberry.aif');
 assert.equal(preset('radio').nameFor(song),'Intergy_02_Intergy.mp3');
 assert.equal(preset('final').nameFor(song),
  'Grand Element - '+new Date().getFullYear()+' - Intergy - 02 - Intergy.mp3');
@@ -89,4 +99,10 @@ assert.match(uploadsSource,/try\{input\.value=""\}/,'Fresh page loads must clear
 assert.match(settingsSource,/geMetadataTopOptions/,'Tag and album art controls must be at top of Metadata');
 assert.match(style,/#geTabGoogle #geGoogleMetadataView\{overflow-y:auto;/,'Metadata view must scroll if needed');
 assert.doesNotMatch(settingsSource,/draft\.embed=true;draft\.coverEnabled=true/,'Switching to Final format must respect user choices');
+assert.match(settingsSource,/geFilenameTrack/,'TRACK replaces old REV control');
+assert.match(settingsSource,/trackDown.onclick=function/,'Track number can decrement');
+assert.match(settingsSource,/trackUp.onclick=function/,'Track number can increment');
+assert.match(settingsSource,/trackInput.oninput=function/,'Typing track must immediately update preview');
+assert.match(settingsSource,/draft\.revisionEnabled/,'Custom revision is optional');
+assert.match(settingsSource,/parts\.push\("Rev "\+clean\(p\.revision\)\)/,'Custom revision is appended last');
 console.log('PASS GE iMac naming, Radio, rename, restart-safe upload preflight and STATUS layout');
