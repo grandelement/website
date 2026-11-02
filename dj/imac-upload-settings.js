@@ -234,15 +234,14 @@ function init(){
   if(code===38||code===40){if(e.preventDefault)e.preventDefault();stepTrack(code===38?1:-1)}
  };
  if(trackInput.addEventListener){
-  trackInput.addEventListener("wheel",function(e){
-   if(d.activeElement!==trackInput)return;
+  // Wheel while hovering over TRACK changes the number, without scrolling
+  // the whole page. Use only one event type so legacy Firefox never double-steps.
+  var wheelEvent=("onwheel" in trackInput)?"wheel":"DOMMouseScroll";
+  trackInput.addEventListener(wheelEvent,function(e){
+   var delta=wheelEvent==="wheel"?e.deltaY:e.detail;
+   if(!delta)return;
    if(e.preventDefault)e.preventDefault();
-   stepTrack(e.deltaY<0?1:-1);
-  },false);
-  trackInput.addEventListener("DOMMouseScroll",function(e){
-   if(d.activeElement!==trackInput)return;
-   if(e.preventDefault)e.preventDefault();
-   stepTrack(e.detail<0?1:-1);
+   stepTrack(delta<0?1:-1);
   },false);
  }
  function chooseCustom(){
