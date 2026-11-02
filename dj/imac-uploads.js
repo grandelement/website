@@ -490,6 +490,31 @@ function uploadChosen(kind){
     }
   }
   if(invalid){status("UPLOAD NOT STARTED · "+invalid);return}
+  // Never send a large original recording just to discover that FFmpeg is missing.
+  // Preserve the selected metadata preset; never silently drop requested tags.
+  if(kind!=="session"&&encoderName.indexOf("FFmpeg")<0&&preset){
+   for(var pi=0;pi<chosen[kind].length;pi++){
+    var pendingFile=chosen[kind][pi],isMp3=/\.mp3$/i.test(pendingFile.name||"");
+    var tags=preset.tagsFor?preset.tagsFor(pendingFile):{},hasTags=false;
+    for(var tagName in tags)if(tags.hasOwnProperty(tagName)){hasTags=true;break}
+    if(hasTags&&(mode==="original"||isMp3)){
+     status("UPLOAD NOT STARTED · This iMac needs FFmpeg to embed selected tags into original audio. "+
+      "In METADATA, uncheck EMBED CHECKED TAGS to upload the unchanged original AIFF/WAV/MP3, "+
+      "or install FFmpeg for embedded tags. No audio sent.");
+     return;
+    }
+    if(mode==="320"&&hasTags&&(tags.composer||tags.copyright||tags.album_artist)){
+     status("UPLOAD NOT STARTED · Selected composer/copyright tags require FFmpeg. "+
+      "Turn off those embedded tags or install FFmpeg. No audio sent.");
+     return;
+    }
+   }
+   if(kind==="final"&&preset.coverFor&&preset.coverFor()){
+    status("UPLOAD NOT STARTED · Embedded cover art needs FFmpeg. "+
+     "Turn off cover art in METADATA or install FFmpeg. No audio sent.");
+    return;
+   }
+  }
   issueLines=[];text("uploadIssues","");
   queue=chosen[kind].slice(0);current=null;
   total=queue.length;finished=0;succeeded=0;failed=0;
