@@ -207,6 +207,10 @@ function init(){
  add(quick,make("span","geUploadNamePreview","")).id="geUploadNamePreview";
  var head=add(panel,make("div","geMetadataHead"));
  add(head,make("strong",null,"METADATA · NAMING & TAGS"));
+ // These switches must remain visible even when the older iMac cannot scroll.
+ var topOptions=add(head,make("div","geMetadataTopOptions"));
+ checkLine(topOptions,"geUploadWriteTags","EMBED CHECKED TAGS",draft.embed,function(b){draft.embed=b});
+ checkLine(topOptions,"geUploadCoverEnabled","ATTACH COVER IN FINAL MP3",draft.coverEnabled,function(b){draft.coverEnabled=b});
  var saveButton=add(head,make("button",null,"SAVE SETTINGS"));saveButton.type="button";saveButton.id="geUploadSaveSettings";
  var restore=add(head,make("button","geSettingsRestore","RESTORE SAVED"));restore.type="button";
  var notice=add(head,make("span","geUploadSettingsStatus",""));notice.id="geUploadSettingsStatus";
@@ -279,7 +283,6 @@ function init(){
  next.onclick=function(){coverPage++;drawCovers()};
  drawCovers();
  var foot=add(panel,make("div","geMetadataFoot"));
- checkLine(foot,"geUploadCoverEnabled","ATTACH COVER IN FINAL MP3",draft.coverEnabled,function(b){draft.coverEnabled=b});
  var coverLabel=add(foot,make("label","geCoverLabel","COVER JPG/PNG"));
  var coverFile=add(coverLabel,make("input"));coverFile.type="file";coverFile.id="geUploadCoverFile";
  coverFile.accept="image/jpeg,image/png";
@@ -288,7 +291,6 @@ function init(){
   if(selectedCover){draft.coverPath="";drawCovers();changed()}
   else drawCovers();
  };
- checkLine(foot,"geUploadWriteTags","EMBED CHECKED TAGS",draft.embed,function(b){draft.embed=b});
  var metaText=add(foot,make("span","geMetadataExample",""));metaText.id="geMetadataExample";
  add(panel,make("p","geMetadataNotice","Choose album artwork above. The selected cover and album name save with the preset. FINALS embeds the image in MP3 using Helper V10 and FFmpeg; originals stay unchanged."));
  saveButton.onclick=function(){savePending()};
