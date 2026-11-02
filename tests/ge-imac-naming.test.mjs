@@ -81,4 +81,12 @@ assert.match(uploadsSource,/monitorStart\(kind,total\)/,'Upload banner only foll
 assert.match(uploadsSource,/Never send a large original recording/,'Original tagged AIFF must have preflight');
 assert.match(uploadsSource,/uncheck EMBED CHECKED TAGS/,'FFmpeg preflight must explain how to upload unchanged original');
 assert.doesNotMatch(uploadsSource,/monitorError\("UPLOAD NOT STARTED · SAVE SETTINGS in METADATA first/,'No false red upload error for unsaved metadata');
+assert.match(uploadsSource,/audioKinds=\["draft","final","radio"\]/,'One shared audio selection must span Drafts, Finals and Radio');
+assert.match(uploadsSource,/function placeAudioChooser\(kind\)/,'The real native file input must follow the selected destination');
+assert.match(uploadsSource,/zone\.appendChild\(input\)/,'Moving rather than copying file input preserves browser File access');
+assert.match(uploadsSource,/syncAudioFiles\(result\)/,'Audio selection must populate all audio destinations');
+assert.match(uploadsSource,/try\{input\.value=""\}/,'Fresh page loads must clear false restored file names');
+assert.match(settingsSource,/geMetadataTopOptions/,'Tag and album art controls must be at top of Metadata');
+assert.match(style,/#geTabGoogle #geGoogleMetadataView\{overflow-y:auto;/,'Metadata view must scroll if needed');
+assert.doesNotMatch(settingsSource,/draft\.embed=true;draft\.coverEnabled=true/,'Switching to Final format must respect user choices');
 console.log('PASS GE iMac naming, Radio, rename, restart-safe upload preflight and STATUS layout');
