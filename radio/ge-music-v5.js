@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.17-20261101-COMPACT-HEADER';
+const BUILD='GE-MUSIC-V7.18-20261103-BULK-BUY-PLAY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -79,7 +79,29 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:365px){.selectionBar{padding-left:5px;padding-right:5px;gap:3px}.selectionBar strong{font-size:9px}.selectionActions{gap:3px}.selectionActions button{font-size:10px;padding:5px 5px;min-height:34px}}
 .buyBtn{background:#80602a!important;border-color:#ecc576!important;color:#fff4d4!important}
 .buyBtn:disabled{opacity:.4}
-.selectionActions .buySelected{min-width:45px}
+.selectionActions .buySelected{min-width:62px;min-height:48px;font-size:13px;background:linear-gradient(125deg,#5f4215,#a87d2d)!important;border-color:#efc978!important}
+.selectionActions .playSelected{
+  position:relative;isolation:isolate;overflow:hidden;min-width:80px;min-height:48px;
+  font-size:clamp(14px,3.7vw,18px);letter-spacing:.06em;font-weight:950;
+  border:2px solid #d0f6ff;background:linear-gradient(120deg,#0874c7,#16a5ea,#0867bc);
+  box-shadow:0 0 13px rgba(68,191,255,.55),inset 0 0 10px rgba(210,249,255,.2)
+}
+.selectionActions .playSelected:not(:disabled)::after{
+  content:"";pointer-events:none;position:absolute;inset:-90% -50%;
+  background:linear-gradient(112deg,transparent 35%,rgba(255,255,255,.08) 43%,rgba(255,255,255,.72) 50%,rgba(255,255,255,.10) 57%,transparent 65%);
+  transform:translateX(-90%) rotate(9deg);animation:geMusicPlaySparkle 5.2s ease-in-out infinite
+}
+@keyframes geMusicPlaySparkle{0%,20%{transform:translateX(-90%) rotate(9deg)}50%,100%{transform:translateX(90%) rotate(9deg)}}
+@media(max-width:520px){
+ .selectionBar{flex-wrap:wrap;gap:5px;padding:7px 8px max(8px,env(safe-area-inset-bottom))}
+ .selectionBar strong{flex:0 0 100%;font-size:12px}
+ .selectionActions{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .selectionActions button{min-width:0!important;min-height:46px!important;padding:5px 4px!important;font-size:12px}
+ .selectionActions .playSelected{font-size:16px!important}
+ .selectionActions .buySelected{font-size:15px!important}
+}
+@media(prefers-reduced-motion:reduce){.selectionActions .playSelected::after{animation:none!important;display:none!important}}
+
 .albumCollectionHeading{display:flex;gap:6px;align-items:stretch;margin:14px 0 7px;border:1px solid #6e9ab2;border-radius:9px;overflow:hidden;min-height:60px;box-shadow:0 2px 9px rgba(0,0,0,.18)}
 .albumCollectionHeading .albumPicker{flex:1;min-width:0;margin:0;padding:8px 10px;border:0!important;background:transparent!important}
 .albumCollectionHeading .albumText{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
@@ -269,7 +291,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="playSelected" disabled>PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -336,6 +358,8 @@ function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
  el('.playSelected').disabled=count===0;
+  el('.buySelected').disabled=count===0;
+  el('.buySelected').setAttribute('aria-label','Review purchase of '+count+' checked song'+(count===1?'':'s'));
  el('.arrangePlay').disabled=count===0;
  el('.arrangeDone').disabled=count===0;
  el('[data-action=save]').disabled=count===0;
@@ -1320,6 +1344,12 @@ el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
 });
 
 el('.playSelected').addEventListener('click',()=>void playCheckedSongs(true));
+el('.buySelected').addEventListener('click',()=>{
+  const tracks=selectedTracks();
+  if(!tracks.length){say('Check at least one song to buy.');return;}
+  // Express is a checkout REVIEW only until real verified payments are enabled.
+  requestBuy({mode:'tracks',paths:tracks.map(track=>track.path),express:true});
+});
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
