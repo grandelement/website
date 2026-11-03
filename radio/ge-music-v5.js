@@ -275,6 +275,17 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .header .accessToggle{min-width:70px!important}
  .header .close{min-width:52px!important}
 }
+
+.albumPlanetGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:4px 0 12px}
+.albumPlanetGrid .albumBrowseRow{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:3px;margin:0;min-width:0;padding:6px;border:1px solid rgba(155,209,240,.5);border-radius:14px;background:radial-gradient(circle at 50% 15%,rgba(22,104,160,.23),#061523 76%);overflow:hidden}
+.albumPlanetGrid .albumPickerCompact{grid-column:1;grid-row:1;align-self:start;min-height:30px;min-width:0;max-width:none;background:transparent;border:0;padding:3px}
+.albumPlanetGrid .albumPickerCompact input{width:22px;height:22px;accent-color:#0a9aff}
+.albumPlanetGrid .album{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;width:100%;min-height:104px;padding:5px 1px;background:transparent;border:0;box-shadow:none}
+.albumPlanetGrid .album::before{content:"";display:block;width:clamp(42px,12vw,74px);height:clamp(42px,12vw,74px);border-radius:50%;background:radial-gradient(circle at 33% 28%,#d0efff 0%,#47c0ff 9%,#0069b8 34%,#042f68 64%,#000b24 100%);box-shadow:0 0 12px rgba(74,181,255,.5),inset -10px -8px 14px #001126;flex:0 0 auto}
+.albumPlanetGrid .album b{font-size:clamp(12px,3.3vw,17px);text-align:center;line-height:1.2;overflow-wrap:anywhere}
+.albumPlanetGrid .album small{font-size:10px}
+.albumPlanetGrid .albumActions{display:none}
+.selectionActions .playSelected:not(:disabled){background:rgba(255,255,255,.035)!important;border:1.5px solid rgba(245,251,255,.8)!important;box-shadow:0 0 11px rgba(245,251,255,.55),inset 0 0 12px rgba(255,255,255,.08)!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1084,6 +1095,7 @@ function render(){
   for(const track of results)appendSong(scroller,track);
   if(!results.length)scroller.append(elem('p','empty','No songs match that search.'));
  }else if(state.view==='albums'){
+  const grid=elem('div','albumPlanetGrid');scroller.append(grid);
   const names=[...new Set(state.tracks.map(t=>t.album))];
   const current=names.filter(name=>!LEGACY_ALBUMS.has(name));
   const earlier=names.filter(name=>LEGACY_ALBUMS.has(name));
@@ -1101,7 +1113,7 @@ function render(){
     applyAlbumStyle(wrapper,name);
     albumSelectAll(wrapper,name,rows,true);
     card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
-    wrapper.append(albumActions(name,rows));scroller.append(wrapper);
+    wrapper.append(albumActions(name,rows));grid.append(wrapper);
   }
   if(earlier.length){
    scroller.append(legacyButton);
@@ -1189,7 +1201,7 @@ function open(){
  if(state.open)return;
  // Reopening Music restores SONGS/PLAYLISTS. Never hide the user's browsing
  // controls behind a prior Arrange session; selected songs remain untouched.
- state.view='all';state.arranging=false;state.term='';
+ state.view='albums';state.arranging=false;state.term='';
  if(!state.activePlaylist)restoreWorkingOrder();
  el('.search').value='';
  state.open=true;state.notice='';
@@ -1403,6 +1415,15 @@ document.addEventListener('keydown',event=>{
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
 window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
+ playAll:()=>{
+  const access=musicAccessActive();
+  if(!access){open();say('Enter your Music access code to play the library.');return false}
+  if(!state.loaded){open();say('Loading the music library. Tap PLAY again when loaded.');return false}
+  const tracks=access.restricted?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
+  if(!tracks.length){open();say('No songs are available for this code.');return false}
+  const first=tracks[Math.floor(Math.random()*tracks.length)];
+  return playTrack(first,tracks.map(t=>t.path),true);
+ },
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 window.addEventListener('ge-music-demo-purchase-updated',()=>{if(state.open)render()});
