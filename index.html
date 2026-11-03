@@ -15116,7 +15116,7 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
  }
  function preload(album){
   album=String(album||'').trim();if(!album||loading)return;
-  loading=true;frame.src=source(album);
+  loading=true;ready=false;frame.src=source(album);
  }
  function cancel(){
   shell.hidden=true;shell.classList.remove('gated');pendingAlbum='';
@@ -15139,7 +15139,11 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
   // loading, its PLAY ALBUM button is available for the required iOS tap.
   return true;
  }
- frame.addEventListener('load',()=>{ready=false;});
+ frame.addEventListener('load',()=>{
+  // The child may report catalog-ready before iframe's load event; never
+  // erase that ready flag or Safari loses its one-tap album playback.
+  try{ready=ready||frame.contentWindow?.GE_WEBSITE_ALBUM_CATALOG_READY===true}catch(_e){}
+ });
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
   const payload=event.data||{};
