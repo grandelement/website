@@ -89,6 +89,15 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <!-- iPhone Radio: suppress accidental pinch/double-tap zoom while retaining one-finger MUSIC scrolling. -->
 <style id="ge-radio-iphone-zoom-guard">
 @media (pointer:coarse) {html.ge-radio-ui,html.ge-radio-ui body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}}
+
+/* Mode switch is neutral in both states; its label alone communicates the choice. */
+#shuffleBtn[aria-pressed="true"],#shuffleBtn[aria-pressed="false"],
+#shipStage [data-proxy="shuffleBtn"][aria-pressed="true"],
+#shipStage [data-proxy="shuffleBtn"][aria-pressed="false"]{
+  outline:none!important;box-shadow:none!important;
+  background:transparent!important;background-image:none!important;
+  border-color:rgba(140,200,225,.5)!important;
+}
 </style>
 <script>
 (function(){
@@ -6087,7 +6096,8 @@ function rebuildQueue(anchor=state.currentURL){
 }
 function syncModeButtons(){
   const toggle=$('shuffleBtn');
-  setPressed(toggle,state.shuffle);
+  // Shuffle and Album are mode choices, not illuminated toggle indicators.
+  setPressed(toggle,false);
   if(toggle){
     // This button names the NEXT mode, not the currently active mode.
     toggle.textContent=state.shuffle?'ALBUM':'SHUFFLE';
@@ -7838,6 +7848,7 @@ async function advanceFromEnded(){
   await playURL(next.url,{record:next.record,backgroundChange:true});
 }
 function nextTrack(userAction=false){
+  if(geInlineMusicActive){geInlineMusicSend('next');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return; // Also covers lock-screen next, ended and background control paths.
@@ -7848,6 +7859,7 @@ function nextTrack(userAction=false){
   playURL(next.url,{record:next.record,backgroundChange:true,userAction});
 }
 function previousTrack(userAction=false){
+  if(geInlineMusicActive){geInlineMusicSend('previous');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return;
@@ -7951,17 +7963,20 @@ playBtn?.addEventListener('click',()=>{
     if(audio.paused)resumeAudio();else requestUserPause();
     return;
   }
-  // Keep the transport visible and usable. Radio uses this same audio element;
-  // personal-song PLAY opens the user's music selection instead of the store.
+  // An already loaded personal queue always gets ordinary PLAY/PAUSE,
+  // including owner sessions. Never redirect its transport to the Music picker.
+  if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
   if(!geOwnerDemoEnabled()){
     if(state.live||state.livePreparing){
       if(audio.paused||audio.muted)void requestRadioStart({userGesture:true});
       else requestUserPause();
-    }else if(geInlineMusicActive)geInlineMusicSend('toggle');
-    else window.GEMusicV5?.playAll?.();
+    }else window.GEMusicV5?.playAll?.();
     return;
   }
   state.userStarted=true;
+  if(!state.live&&!state.livePreparing&&!state.currentURL&&!audio.src){
+    window.GEMusicV5?.playAll?.();return;
+  }
   if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
     void requestRadioStart({userGesture:true});return;
   }
