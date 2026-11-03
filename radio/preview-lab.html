@@ -990,13 +990,15 @@ async function startTrack(t){
 }
 function chooseTrack(t){
  if(currentTrack?.url===t.url&&!audio.paused){audio.pause();renderSelected();showSongs();return;}
- playingSelected=false;albumTracks=(albums.get(selectedAlbum)||[]).slice();
+ playingSelected=false;geMusicQueueShuffle=false;albumTracks=(albums.get(selectedAlbum)||[]).slice();
  trackIndex=albumTracks.findIndex(x=>x.url===t.url);
  void startTrack(t);
 }
 // PLAY in Radio's song-title / MUSIC popup starts exactly one chosen
 // preview in the background. The popup remains open for browsing.
 // The single personalized Music queue respects the owner's song order.
+let geMusicQueueShuffle=false;
+window.GESetMusicQueueShuffle=function(enabled){geMusicQueueShuffle=!!enabled;return true};
 window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  if(!Array.isArray(paths)||!paths.length)return false;
  const unique=[...new Set(paths.map(cleanMusicPath).filter(Boolean))].slice(0,250);
@@ -1042,7 +1044,11 @@ function nextTrack(){
   audio.pause();say('End of list. Choose another song, album, or playlist.');return;
  }
  // A checked-song queue is cyclic. With one checked song, replay that song.
- trackIndex=(trackIndex+1)%albumTracks.length;
+ if(geMusicQueueShuffle&&albumTracks.length>1){
+  let next=trackIndex;
+  while(next===trackIndex)next=Math.floor(Math.random()*albumTracks.length);
+  trackIndex=next;
+ }else trackIndex=(trackIndex+1)%albumTracks.length;
  void startTrack(albumTracks[trackIndex]);
 }
 function previousTrack(){
