@@ -865,6 +865,12 @@ $('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedA
 window.GEPlayWebsiteAlbum=function(albumName){
  const found=[...albums.keys()].find(name=>name.toLowerCase()===String(albumName||'').trim().toLowerCase());
  if(!found)return false;
+ if(GE_SITE_MUSIC_EMBED){
+  const purchase=$('geGatePurchase');
+  const u=new URL('../support/',location.href);
+  u.searchParams.set('section','music');u.searchParams.set('flow','shop');u.searchParams.set('album',found);
+  purchase.textContent='BUY / EXPLORE THIS ALBUM';purchase.href=u.href;
+ }
  openAlbum(found);playWholeAlbum(found);return true;
 };
 $('saveAlbumOffline').addEventListener('click',async()=>{
@@ -1149,6 +1155,7 @@ function displayCatalog(tracks,restore=false){
   renderSelected();
  }
  catalogTrackByPath=new Map(tracks.filter(valid).map(t=>[cleanMusicPath(t.path),t]).filter(([path])=>path));
+ window.GE_WEBSITE_ALBUM_CATALOG_READY=albums.size>0;
  rebuildPublicPlaylists();showAlbums();
  if(pendingMusicPlaylist){
    const wanted=pendingMusicPlaylist;pendingMusicPlaylist='';
