@@ -15,8 +15,33 @@ if(!audio||!play)return;
 var STREAM='https://radio.grandelement.blitz.cloud/stream.mp3';
 var wants=false,mode='idle',run=0,seen=false,lastTime=NaN,lastAdvance=0;
 var watchdog=0,retryTimer=0,retries=0,waitingGesture=false;
+var signalReady=false,signalProbeInFlight=false,lastSignalProbeAt=0;
 function text(t){if(status)status.textContent=t}
 function visibleConnected(on){document.body.classList.toggle('ge-home-radio-connected',!!on)}
+function setSignalReady(on){
+ signalReady=!!on&&wants;
+ document.body.classList.toggle('ge-home-radio-ready',signalReady);
+ if(label)label.setAttribute('aria-label',signalReady?
+  'Grand Element Radio signal ready. Open the radio player':
+  'Open the Grand Element Radio player');
+}
+async function probeSignal(){
+ if(!wants||signalReady||signalProbeInFlight||!allowed()||navigator.onLine===false)return;
+ if(Date.now()-lastSignalProbeAt<14000)return;
+ const nonce=run;lastSignalProbeAt=Date.now();signalProbeInFlight=true;
+ const controller=new AbortController();
+ const timeout=setTimeout(function(){controller.abort()},10000);
+ try{
+  const response=await fetch(STREAM,{cache:'no-store',mode:'cors',signal:controller.signal,headers:{Accept:'audio/mpeg'}});
+  const type=(response.headers.get('content-type')||'').toLowerCase();
+  if(response.status!==200||!(type.startsWith('audio/mpeg')||type.startsWith('audio/mp3'))||
+     !response.body?.getReader)return;
+  const chunk=await response.body.getReader().read();
+  if(chunk.done||!chunk.value||chunk.value.byteLength<4||nonce!==run||!wants)return;
+  setSignalReady(true);
+  if(waitingGesture)text('RADIO SIGNAL READY · TAP PLAY TO LISTEN');
+ }catch(e){}finally{clearTimeout(timeout);controller.abort();signalProbeInFlight=false}
+}
 function clearPending(){
  if(watchdog){clearTimeout(watchdog);watchdog=0}
  if(retryTimer){clearTimeout(retryTimer);retryTimer=0}
@@ -47,7 +72,7 @@ function freshURL(){
 }
 function attempt(nonce){
  if(nonce!==run||!wants||!allowed()||document.hidden&&audio&&!audio.paused)return;
- clearPending();mode='radio1';seen=false;lastTime=NaN;lastAdvance=Date.now();visibleConnected(false);
+ clearPending();mode='radio1';seen=false;lastTime=NaN;lastAdvance=Date.now();visibleConnected(false);setSignalReady(false);
  waitingGesture=false;display();
  text(retries?'RADIO · RECONNECTING TO BLITZ ('+retries+')…':'RADIO · CONNECTING TO BLITZ…');
  try{
@@ -55,6 +80,7 @@ function attempt(nonce){
   audio.removeAttribute('crossorigin');
   audio.autoplay=false;audio.preload='auto';audio.muted=false;
   audio.src=freshURL();audio.load();
+  void probeSignal();
   media();
   var promise=audio.play();
   if(promise&&typeof promise.catch==='function')promise.catch(function(error){
@@ -72,7 +98,7 @@ function attempt(nonce){
  }catch(e){failed(nonce)}
 }
 function failed(nonce){
- visibleConnected(false);
+ visibleConnected(false);setSignalReady(false);
  // 'error', play() rejection and watchdog can fire together in older Safari.
  // Schedule at most one retry for each failed stream attempt.
  if(nonce!==run||!wants||waitingGesture||retryTimer)return;
@@ -106,25 +132,28 @@ function start(){
  var nonce=++run;wants=true;retries=0;attempt(nonce);
 }
 function pause(){
- wants=false;run++;clearPending();visibleConnected(false);
+ wants=false;run++;clearPending();visibleConnected(false);setSignalReady(false);
  try{audio.pause()}catch(e){}
  text('GRAND ELEMENT RADIO · PAUSED');display();
 }
 function stop(){
  wants=false;run++;clearPending();
- mode='idle';seen=false;waitingGesture=false;retries=0;visibleConnected(false);
+ mode='idle';seen=false;waitingGesture=false;retries=0;visibleConnected(false);setSignalReady(false);
  try{audio.pause();audio.removeAttribute('src');audio.load()}catch(e){}
  text('GRAND ELEMENT RADIO · STOPPED');display();
  try{if('mediaSession' in navigator)navigator.mediaSession.playbackState='none'}catch(e){}
 }
 audio.addEventListener('playing',function(){if(wants){media();display()}});
+audio.addEventListener('canplay',function(){
+ if(wants&&audio.currentSrc&&audio.currentSrc.includes('/stream.mp3'))setSignalReady(true);
+});
 audio.addEventListener('pause',function(){visibleConnected(false)});
 audio.addEventListener('timeupdate',function(){
  if(!wants||audio.paused)return;
  var t=Number(audio.currentTime);
  if(!isFinite(t))return;
  if(isFinite(lastTime)&&t>lastTime+.08){
-  seen=true;lastAdvance=Date.now();retries=0;visibleConnected(true);
+  seen=true;lastAdvance=Date.now();retries=0;setSignalReady(true);visibleConnected(true);
   if(watchdog){clearTimeout(watchdog);watchdog=0}
   text('GRAND ELEMENT RADIO · LIVE ON BLITZ');
  }
@@ -177,7 +206,11 @@ display();
 if(allowed())start();
 // If Safari blocks unmuted autoplay, the next real interaction can unlock
 // the prepared native audio element. STOP or PAUSE still disable this intent.
-function gestureRetry(){if(wants&&waitingGesture&&allowed())start();}
+function gestureRetry(){
+ if(!wants||!allowed())return;
+ if(waitingGesture)start();
+ if(!signalReady)void probeSignal();
+}
 document.addEventListener('pointerdown',gestureRetry,true);
 document.addEventListener('touchstart',gestureRetry,true);
 document.addEventListener('keydown',gestureRetry,true);
