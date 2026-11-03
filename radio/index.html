@@ -6487,7 +6487,15 @@ function geRetryRadioSignalOnInteraction(){
   if(!(state.live||state.livePreparing)||liveState.signalReady||observedRadio1Progress||
      navigator.onLine===false||window.GEIAmStudio?.isRadioSuspended?.())return;
   if(Date.now()-geLastInteractionProbeAt<15000)return;
+  if(window.GEGate?.isExpiredLocked?.())return;
   geLastInteractionProbeAt=Date.now();
+  // A failed preloaded stream needs a fresh source, not just another HTTP probe.
+  // Do not interrupt an already playing listener or trigger audible autoplay.
+  if((radioTimedOut||audio.error)&&!radioStartInFlight&&audio.paused){
+    clearRadio1Retry();clearRadioWatch();radioTimedOut=false;
+    markRadio1Attempt();
+    audio.src=freshLiveStreamURL();audio.load();
+  }
   void verifyRadio1Signal();
 }
 document.addEventListener('pointerdown',geRetryRadioSignalOnInteraction,{passive:true});
@@ -8134,6 +8142,13 @@ audio.addEventListener('timeupdate',()=>{
     lastRadio2Time=t;return;
   }
   confirmRadio1ForwardTime(t);
+});
+// Safari can decode actual MP3 data while blocking autoplay. This is a
+// valid ready-to-play signal, separate from proof that sound is audible.
+audio.addEventListener('canplay',()=>{
+  if(!(state.live||state.livePreparing)||radio2.active||audio.error)return;
+  if(!String(audio.currentSrc||audio.src||'').startsWith(String(CONFIG.LIVE_STREAM_URL||'')))return;
+  liveState.signalReady=true;updateRadioStartupCue();
 });
 // Safari sometimes advances an Icecast player's currentTime without sending
 // reliable "timeupdate" events. Sample that SAME native player's clock as a
