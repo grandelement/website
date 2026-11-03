@@ -3365,28 +3365,36 @@ body:not(.game-mode-active) .planet {
 #geMerchFlybys{position:fixed;inset:0;z-index:11;overflow:hidden;pointer-events:none;contain:layout style}
 .geMerchFlyby{
  --ge-merch-size:clamp(80px,7.5vw,120px);
- position:absolute;left:0;top:40%;width:var(--ge-merch-size);
+ position:absolute;left:0;top:40%;width:calc(var(--ge-merch-size) * var(--ge-merch-factor,1));
  display:block;box-sizing:border-box;pointer-events:auto;cursor:pointer;
  border:0!important;border-radius:0!important;background:none!important;
  box-shadow:none!important;overflow:visible;opacity:0;
  outline-offset:3px;-webkit-tap-highlight-color:transparent;
  animation:geMerchFlybyTransit 110s linear both infinite;will-change:transform,opacity
 }
-.geMerchFlyby--shirt{top:37%;aspect-ratio:675/718;animation-delay:10s}
-.geMerchFlyby--hat{top:66%;aspect-ratio:665/506;animation-delay:20s}
+.geMerchFlyby--shirt{top:37%;aspect-ratio:675/718;animation-delay:10s;--ge-merch-factor:.5}
+.geMerchFlyby--hat{top:66%;aspect-ratio:665/506;animation-delay:20s;--ge-merch-factor:.75}
 .geMerchFlyby .geMerchArt{
  width:100%;height:100%;display:block;overflow:visible;pointer-events:none;
  transform-origin:50% 50%;backface-visibility:visible;will-change:transform
 }
-.geMerchFlyby--shirt .geMerchArt{animation:geMerchShirtTumble 27s ease-in-out infinite}
-.geMerchFlyby--hat .geMerchArt{animation:geMerchHatTumble 31s ease-in-out infinite;animation-delay:-5s}
+.geMerchFlyby--shirt .geMerchArt{animation:geMerchShirtTumble 64s linear infinite}
+.geMerchFlyby--hat .geMerchArt{animation:geMerchHatTumble 72s linear infinite;animation-delay:-8s}
+/* Slight 3D roll with a full readable 360° pitch-free rotation.
+   Each image reaches an upright position every orbit, rather than shaking. */
 @keyframes geMerchShirtTumble{
- 0%,100%{transform:translate3d(0,3px,0) rotate(-14deg) rotateY(-9deg)}
- 50%{transform:translate3d(0,-5px,0) rotate(17deg) rotateY(9deg)}
+  0%{transform:translate3d(0,2px,0) rotate(-25deg) rotateY(-4deg)}
+  25%{transform:translate3d(0,-3px,0) rotate(65deg) rotateY(6deg)}
+  50%{transform:translate3d(0,2px,0) rotate(155deg) rotateY(3deg)}
+  75%{transform:translate3d(0,-2px,0) rotate(245deg) rotateY(-5deg)}
+  100%{transform:translate3d(0,2px,0) rotate(335deg) rotateY(-4deg)}
 }
 @keyframes geMerchHatTumble{
- 0%,100%{transform:translate3d(0,2px,0) rotate(16deg) rotateY(10deg)}
- 50%{transform:translate3d(0,-5px,0) rotate(-18deg) rotateY(-12deg)}
+  0%{transform:translate3d(0,2px,0) rotate(16deg) rotateY(5deg)}
+  25%{transform:translate3d(0,-4px,0) rotate(106deg) rotateY(-7deg)}
+  50%{transform:translate3d(0,2px,0) rotate(196deg) rotateY(-3deg)}
+  75%{transform:translate3d(0,-2px,0) rotate(286deg) rotateY(5deg)}
+  100%{transform:translate3d(0,2px,0) rotate(376deg) rotateY(5deg)}
 }
 @keyframes geMerchFlybyTransit{
  0%{transform:translate3d(-135%,8vh,0);opacity:0}
