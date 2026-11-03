@@ -348,14 +348,28 @@ let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=
 const WEBSITE_ALBUM_REQUEST=String(new URLSearchParams(location.search).get('album')||'').trim();
 const WEBSITE_ALBUM_AUTOSTART=new URLSearchParams(location.search).get('start')!=='0';
 let websiteAlbumStarted=false;
-if(GE_SITE_MUSIC_EMBED){
- const purchase=$('geGatePurchase'),album=WEBSITE_ALBUM_REQUEST;
- if(album){
-  purchase.textContent='BUY / EXPLORE THIS ALBUM';
+function geSiteAlbumPurchase(name){
+ if(!GE_SITE_MUSIC_EMBED)return;
+ const album=String(name||'').trim(),purchase=$('geGatePurchase');
+ // Existing official album purchase links from the homepage's original catalog.
+ const bandcamp={
+  fire:'fire',spirit:'spirit',soul:'soul',love:'love',intergy:'intergy',
+  'sessions ii':'sessions-ii','sessions i':'sessions-i',
+  live:'live','live!':'live',trio:'trio'
+ }[album.toLowerCase()];
+ if(bandcamp){
+  purchase.textContent='BUY ALBUM ON BANDCAMP';
+  purchase.href='https://grandelement.bandcamp.com/album/'+bandcamp;
+  purchase.target='_blank';purchase.rel='noopener noreferrer';
+ }else{
   const u=new URL('../support/',location.href);
-  u.searchParams.set('section','music');u.searchParams.set('flow','shop');u.searchParams.set('album',album);
-  purchase.href=u.href;
+  u.searchParams.set('section','music');u.searchParams.set('album',album);
+  purchase.textContent='VIEW ALBUM IN MUSIC STORE';
+  purchase.href=u.href;purchase.target='_top';purchase.rel='';
  }
+}
+if(GE_SITE_MUSIC_EMBED){
+ geSiteAlbumPurchase(WEBSITE_ALBUM_REQUEST);
  $('geSitePreviewRemaining').hidden=false;
 }
 let publicPlaylistDefinitions=[],publicPlaylists=new Map(),selectedPlaylistId='',browserMode='albums',catalogTrackByPath=new Map();
@@ -477,7 +491,8 @@ function renderGate(){
  gate.classList.toggle('centered',used>=CENTER_AT||data.expired);
  const progress=Math.max(0,Math.min(1,(used-SUN_AT)/Math.max(.1,ENTRANCE_SECONDS)));
  sun.style.transform='translate3d('+((innerWidth*.5+innerHeight*.62)*(1-progress)).toFixed(1)+'px,0,0) scale('+(0.84+0.16*progress).toFixed(3)+')';
- $('geGateStatus').textContent=data.expired?'33:33 listening complete. Enter an access code or explore music.':
+ $('geGateStatus').textContent=data.expired?
+    (GE_SITE_MUSIC_EMBED?'33:33 complete. Enter an access code or purchase this album.':'33:33 listening complete. Enter an access code or explore music.'):
    used>=FADE_AT?'Preview ending. The final '+FADE_SECONDS+' seconds fade to silence.':
    'Enter an access code or explore music.';
 }
@@ -865,12 +880,7 @@ $('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedA
 window.GEPlayWebsiteAlbum=function(albumName){
  const found=[...albums.keys()].find(name=>name.toLowerCase()===String(albumName||'').trim().toLowerCase());
  if(!found)return false;
- if(GE_SITE_MUSIC_EMBED){
-  const purchase=$('geGatePurchase');
-  const u=new URL('../support/',location.href);
-  u.searchParams.set('section','music');u.searchParams.set('flow','shop');u.searchParams.set('album',found);
-  purchase.textContent='BUY / EXPLORE THIS ALBUM';purchase.href=u.href;
- }
+ geSiteAlbumPurchase(found);
  openAlbum(found);playWholeAlbum(found);return true;
 };
 $('saveAlbumOffline').addEventListener('click',async()=>{
