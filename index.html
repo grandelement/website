@@ -3924,6 +3924,40 @@ body.ge-home-radio-connected #mini #geHomeRadioLink{
 </style>
 
 <link rel="stylesheet" href="./ge-accessibility.css?v=20261025-language-close2">
+<style id="ge-home-inline-album-player-v1">
+/* One website-embedded copy of the existing 33:33 music player.
+   Underlying universe stays visible; the real Gate expands to full screen. */
+#geSiteAlbumPlayer[hidden]{display:none!important}
+#geSiteAlbumPlayer{
+ position:fixed;z-index:2147482000;bottom:max(11px,env(safe-area-inset-bottom));
+ right:12px;width:min(520px,calc(100vw - 24px));max-height:83dvh;
+ border:1px solid #589ac3;border-radius:16px;background:#041628;
+ color:#e5f8ff;box-shadow:0 12px 55px #000c;
+ overflow:hidden;display:flex;flex-direction:column;
+}
+.geSiteAlbumHeader{
+ display:flex;align-items:center;justify-content:space-between;gap:8px;
+ padding:8px 10px;border-bottom:1px solid #2e5b7c;min-height:45px;
+}
+.geSiteAlbumHeader strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 14px system-ui}
+.geSiteAlbumHeader button{
+ width:43px;height:43px;min-width:43px;min-height:43px;
+ border:1px solid #6cbce7;border-radius:10px;background:#0d3453;color:#fff;
+ font-size:24px;cursor:pointer
+}
+#geSiteAlbumFrame{display:block;flex:1 1 auto;width:100%;height:min(385px,65dvh);min-height:250px;border:0;background:transparent}
+#geSiteAlbumPlayer.gated{inset:0;right:0;bottom:0;width:100vw;height:100dvh;max-height:none;border:0;border-radius:0;background:#000}
+#geSiteAlbumPlayer.gated #geSiteAlbumFrame{width:100%;height:100%;min-height:100dvh}
+#geSiteAlbumPlayer.gated .geSiteAlbumHeader{
+ position:absolute;z-index:2;top:max(5px,env(safe-area-inset-top));right:8px;
+ border:0;padding:0;background:transparent
+}
+#geSiteAlbumPlayer.gated .geSiteAlbumHeader strong{display:none}
+@media(max-width:700px){
+ #geSiteAlbumPlayer{bottom:max(8px,env(safe-area-inset-bottom));right:6px;width:calc(100vw - 12px);max-height:72dvh}
+ #geSiteAlbumFrame{height:min(385px,61dvh);min-height:240px}
+}
+</style>
 <style id="ge-balanced-copy-20261028">
 /* Centered explanatory copy may wrap at phrase boundaries.
    Do not touch fixed-width game scoreboards, orbit captions, or the
@@ -3943,6 +3977,16 @@ body.ge-home-radio-connected #mini #geHomeRadioLink{
   <canvas id="fx"></canvas>
   <canvas id="fxFront" aria-hidden="true"></canvas>
   <div class="layer-hiddentext" id="phrases"></div>
+
+  <!-- Album playback remains on this homepage. This frame reuses the sole
+       Music preview counter, gate and private GE Vault Access Code verifier. -->
+  <section id="geSiteAlbumPlayer" role="dialog" aria-label="Grand Element album music player" hidden>
+    <div class="geSiteAlbumHeader">
+      <strong id="geSiteAlbumName">GRAND ELEMENT · ALBUM</strong>
+      <button id="geSiteAlbumClose" type="button" aria-label="Close album player">×</button>
+    </div>
+    <iframe id="geSiteAlbumFrame" title="Grand Element album tracks and music access" allow="autoplay" referrerpolicy="same-origin"></iframe>
+  </section>
 
   <!-- Sun + Moon -->
   <div class="sunWrap" id="sunWrap">
@@ -5229,6 +5273,7 @@ addEventListener('orientationchange',()=>{
     const n=notes[key]||{year:'ARCHIVE',energy:'Source',bio:geArchiveFoundation};
     cover.src=alb.cover;cover.alt=alb.title;currentAlbumTitle=alb.title||'';title.textContent=alb.title;
     if(kicker) kicker.textContent='ENERGY AWAKENING';
+    window.GE_SITE_ALBUM_PLAYER?.preload?.(alb.musicTitle||alb.title);
     meta.textContent=String(n.tagline||n.energy||'Source').toUpperCase()+' · GRAND\u00A0ELEMENT · '+n.year;
     bio.textContent='';
     if(bonus)bonus.hidden=key!=='intergy';
@@ -5868,6 +5913,8 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
     try{return localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes'}catch(_e){return false}
   }
   function geOpenMusicPreview(){
+    // Fallback only when no album was chosen; the album planet opens
+    // the existing gated Music player as a homepage overlay.
     location.assign(new URL('radio/preview-lab.html',location.href).href);
   }
   async function startCurrent(){
@@ -5981,7 +6028,10 @@ window.GE_HOME_RADIO_MODE=true; // Website player is the live radio, not an inde
     },
     selectTrackNumber:(n)=>selectTrackNumberWithinCurrentAlbum(n),
     playAlbum:(albumTitle)=>{
-      if(!geHasOwnerMusicDemo()){geOpenMusicPreview();return false;}
+      if(window.GE_SITE_ALBUM_PLAYER?.open?.(albumTitle))return true;
+      // Only use the existing private owner-demo path if the embedded
+      // player could not start; guests never bypass the 33:33 Gate.
+      if(!geHasOwnerMusicDemo())return false;
       const key=normAlbumName(albumTitle);if(!key||!PLAYLIST.length)return false;
       const matches=PLAYLIST.map((it,idx)=>({it,idx})).filter(x=>normAlbumName(x.it.album)===key).sort((a,b)=>(a.it.trackNum||9999)-(b.it.trackNum||9999));
       if(!matches.length)return false;markUserMusicChoice();setShuffleMode(false);pIndex=matches[0].idx;startCurrent();return true;
@@ -15049,6 +15099,70 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
 })();
 </script>
 <script defer src="./ge-accessibility.js?v=20261025-language-close2"></script>
+<script id="ge-home-inline-album-player-controller-v1">
+(() => {
+ const shell=document.getElementById('geSiteAlbumPlayer');
+ const frame=document.getElementById('geSiteAlbumFrame');
+ const heading=document.getElementById('geSiteAlbumName');
+ const closeButton=document.getElementById('geSiteAlbumClose');
+ if(!shell||!frame||!heading||!closeButton)return;
+ let loading=false,ready=false,gated=false,pendingAlbum='';
+ function source(album){
+  const url=new URL('./radio/preview-lab.html',location.href);
+  url.searchParams.set('embed','website');
+  url.searchParams.set('album',album);
+  url.searchParams.set('start','0'); // no autoplay before the visitor presses PLAY
+  return url.href;
+ }
+ function preload(album){
+  album=String(album||'').trim();if(!album||loading)return;
+  loading=true;frame.src=source(album);
+ }
+ function cancel(){
+  shell.hidden=true;shell.classList.remove('gated');pendingAlbum='';
+  try{frame.contentWindow?.GEControlMusicQueue?.('stop')}catch(_e){}
+ }
+ function play(album){
+  album=String(album||'').trim();if(!album)return false;
+  if(!loading)preload(album);
+  shell.hidden=false;shell.classList.toggle('gated',gated);
+  heading.textContent=album;
+  pendingAlbum=album;
+  // Do not mix the live BLITZ broadcast with independent album preview.
+  try{document.getElementById('geHomeStop')?.click()}catch(_e){}
+  try{document.getElementById('gePlayer')?.pause()}catch(_e){}
+  // IPhone: this direct child call executes in the real PLAY user gesture.
+  if(ready){
+   try{if(frame.contentWindow?.GEPlayWebsiteAlbum?.(album)){pendingAlbum='';return true}}catch(_e){}
+  }
+  // The album browser is already inside this panel. If the catalog was still
+  // loading, its PLAY ALBUM button is available for the required iOS tap.
+  return true;
+ }
+ frame.addEventListener('load',()=>{ready=false;});
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
+  const payload=event.data||{};
+  if(payload.type==='ge-site-album-ready'){
+   ready=true;
+   // Do NOT auto-play after the async load: Safari must receive an actual tap.
+   if(pendingAlbum)heading.textContent=pendingAlbum+' · TAP PLAY ALBUM';
+   return;
+  }
+  if(payload.type==='ge-radio-music-gate'){
+   gated=true;if(!shell.hidden)shell.classList.add('gated');
+  }else if(payload.type==='ge-radio-music-gate-clear'){
+   gated=false;shell.classList.remove('gated');
+  }else if(payload.type==='ge-radio-music-playback-started'){
+   pendingAlbum='';
+  }else if(payload.type==='ge-radio-music-playback-error'){
+   if(!shell.hidden)heading.textContent=pendingAlbum||heading.textContent;
+  }
+ });
+ closeButton.addEventListener('click',cancel);
+ window.GE_SITE_ALBUM_PLAYER={preload,open:play,close:cancel};
+})();
+</script>
 <script id="ge-merch-flybys-analytics-v1">
 (() => {
   // Analytics are opportunistic: never block opening the GE merchandise store.
