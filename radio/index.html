@@ -4422,6 +4422,53 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
   }
 }
 </style>
+<style id="ge-radio-ready-and-mobile-picker-20261103">
+/* Verified BLITZ signal before Play: heartbeat. Audible connection keeps its established style. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-signal-ready:not(.ge-radio-audible) #musicGroup button#liveBtn,
+body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]{
+ background:linear-gradient(180deg,#bd2b4b,#82182f)!important;border-color:rgba(255,124,158,.94)!important;
+ color:#fff!important;box-shadow:0 0 12px rgba(227,31,78,.3)!important;
+ outline:1px solid rgba(255,133,163,.55)!important;animation:none!important;
+ position:relative!important;isolation:isolate!important;overflow:visible!important
+}
+html.ge-radio-ui body.view-player:not(.iam-studio-open).ge-radio-signal-ready:not(.ge-radio-audible) #musicGroup button#liveBtn::before,
+body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="liveBtn"]::before{
+ content:""!important;display:block!important;position:absolute!important;inset:-1px!important;
+ z-index:-1!important;border-radius:inherit!important;pointer-events:none!important;
+ background:linear-gradient(180deg,#f0395d,#c71e42 55%,#89132d)!important;
+ box-shadow:0 0 10px 3px rgba(245,38,82,.61),0 0 25px 6px rgba(213,20,63,.3)!important;
+ animation:geRadioRedDimmerLubDub 6.7s ease-in-out infinite!important
+}
+#gePlaylistQuick{max-width:min(570px,calc(100vw - 20px))!important}
+#gePlaylistQuickToggle{
+ box-sizing:border-box!important;display:block!important;max-width:100%!important;
+ min-height:44px!important;height:auto!important;white-space:normal!important;
+ text-wrap:balance!important;overflow-wrap:anywhere!important;word-break:normal!important;
+ overflow:visible!important;text-overflow:clip!important;line-height:1.24!important;
+ padding:8px 14px!important;background:rgba(8,28,47,.62)!important;
+ color:#f0faff!important;border:1px solid rgba(127,210,252,.76)!important;
+ backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important
+}
+#gePlaylistQuickSongs{
+ box-sizing:border-box!important;max-height:min(48dvh,420px)!important;
+ overflow-y:scroll!important;overflow-x:hidden!important;
+ touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;
+ overscroll-behavior:contain!important;pointer-events:auto!important;
+ background:rgba(5,22,38,.95)!important;border:1px solid rgba(94,173,222,.72)!important;padding:8px!important
+}
+#gePlaylistQuickSongs button{
+ background:rgba(15,48,74,.76)!important;color:#f1faff!important;
+ border:1px solid rgba(112,187,233,.30)!important;min-height:46px!important;
+ white-space:normal!important;overflow-wrap:anywhere!important
+}
+#gePlaylistQuickSongs button[aria-current="true"]{
+ background:rgba(29,98,138,.82)!important;border-color:#86cfff!important
+}
+@media(prefers-reduced-motion:reduce){
+ body.ge-radio-signal-ready #liveBtn::before,
+ body.ge-radio-signal-ready #shipStage button[data-proxy="liveBtn"]::before{animation:none!important;opacity:1!important}
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -6332,20 +6379,25 @@ function updateRadioStartupCue(){
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
   // Host-side signal proof does not mean Safari is playing audible radio.
   const connected=!!(playing&&!audio.muted);
+  const signalReady=!!((state.live||state.livePreparing)&&
+    (liveState.signalReady||observedRadio1Progress||(radio2.active&&observedRadio2Progress))&&
+    !radioTimedOut&&!audio.error);
+  document.body.classList.toggle('ge-radio-signal-ready',signalReady);
   document.body.classList.toggle('ge-radio-audible',!!connected);
   // Keep acknowledgment after a voluntary pause, but only show steady red
   // after actual forward progress confirmed the Radio 1 signal.
   document.body.classList.toggle('ge-radio-verified',!!liveState.hadVerifiedStream);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
-    button.classList.remove('radio-start-cue');
+    button.classList.toggle('radio-start-cue',signalReady&&!connected);
     button.textContent='RADIO';
-    button.setAttribute('aria-label',connected?'BLITZ Radio 1 connected':'Connect or retry BLITZ Radio 1');
-    button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!connected));
+    button.setAttribute('aria-label',connected?'BLITZ Radio 1 playing':
+      signalReady?'BLITZ Radio 1 signal ready, tap Play to listen':'Connect or retry BLITZ Radio 1');
+    button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
   }
   const shipPlayButton=$('shipPlay');
   if(shipPlayButton){
-    shipPlayButton.classList.remove('radio-play-start-cue');
+    shipPlayButton.classList.toggle('radio-play-start-cue',signalReady&&audio.paused);
     shipPlayButton.setAttribute('aria-label',audio.paused?'Play':'Pause');
   }
 }
@@ -6428,6 +6480,20 @@ function verifyRadio1Signal(){
   return task;
 }
 
+// A normal touch or keypress rechecks a stalled connection without auto-playing audio.
+// Safari requires a direct Play tap for audible sound, so only probe the public MP3 here.
+let geLastInteractionProbeAt=0;
+function geRetryRadioSignalOnInteraction(){
+  if(!(state.live||state.livePreparing)||liveState.signalReady||observedRadio1Progress||
+     navigator.onLine===false||window.GEIAmStudio?.isRadioSuspended?.())return;
+  if(Date.now()-geLastInteractionProbeAt<15000)return;
+  geLastInteractionProbeAt=Date.now();
+  void verifyRadio1Signal();
+}
+document.addEventListener('pointerdown',geRetryRadioSignalOnInteraction,{passive:true});
+document.addEventListener('touchstart',geRetryRadioSignalOnInteraction,{passive:true});
+document.addEventListener('keydown',geRetryRadioSignalOnInteraction);
+window.addEventListener('online',geRetryRadioSignalOnInteraction);
 function liveShareURL(){
   const target=new URL('./',location.href);
   target.searchParams.set(CONFIG.LIVE_SHARE_PARAM||'live','1');
@@ -7188,6 +7254,10 @@ function gePlaylistQuickSet(playlist,paths,details){
   list.append(b);
  });
  gePlaylistQuickDismiss();strip.hidden=false;
+}
+// Prevent document-level gesture controls from swallowing iPhone list scrolling.
+for(const type of ['touchstart','touchmove','wheel']){
+ $('gePlaylistQuickSongs')?.addEventListener(type,event=>event.stopPropagation(),{passive:true});
 }
 $('gePlaylistQuickToggle')?.addEventListener('click',()=>{
  const list=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
@@ -12736,7 +12806,7 @@ document.addEventListener('touchmove',function(event){
   // geMusicV3Host name blocked every swipe inside V5 on iPhone.
   const path=typeof event.composedPath==='function'?event.composedPath():[];
   if(path.some(node=>node?.id==='geMusicV5Host'||node?.id==='geMusicV4Host'))return;
-  if(event.target?.closest?.('#geMusicV5Host,#geInlineMusicPanel,.wrap,.sunlab-panel,#geGate,#geOnAirIntro,#geHeadphoneNotice,input[type="range"],textarea,[contenteditable="true"]'))return;
+  if(event.target?.closest?.('#geMusicV5Host,#geInlineMusicPanel,#gePlaylistQuickSongs,#geQuickSongPanel,.wrap,.sunlab-panel,#geGate,#geOnAirIntro,#geHeadphoneNotice,input[type="range"],textarea,[contenteditable="true"]'))return;
   if(event.cancelable)event.preventDefault();
 },{passive:false});
 
@@ -12912,7 +12982,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261101-v717-compact-music"></script>
+<script defer src="./ge-music-v5.js?v=20261103-v718-bulk-buy-play"></script>
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
