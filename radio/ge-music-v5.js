@@ -727,7 +727,7 @@ async function redeemMusicCode(){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
-async function playTrack(track,queueOverride,showPlayer=false){
+async function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
  // A code-restricted Music session can NEVER substitute the public Radio
  // scope or change the global Bangers broadcast. Verify every requested song.
  const access=musicAccessActive();
@@ -752,7 +752,7 @@ async function playTrack(track,queueOverride,showPlayer=false){
  const baseline=entitlement?.restricted
   ?entitlement.allowed.filter(p=>state.tracks.some(t=>t.path===p))
   :state.tracks.map(t=>t.path);
- const custom=Array.isArray(queueOverride)&&queueOverride.length>0&&queue.length>1;
+ const custom=!shuffleAll&&Array.isArray(queueOverride)&&queueOverride.length>0&&queue.length>1;
  // Any explicitly selected checked-song queue is the listener's current playlist,
  // even when every song in the library happens to be checked.
  const known=new Map(state.tracks.map(t=>[t.path,t]));
@@ -1422,7 +1422,7 @@ window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
   const tracks=access.restricted?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
   if(!tracks.length){open();say('No songs are available for this code.');return false}
   const first=tracks[Math.floor(Math.random()*tracks.length)];
-  return playTrack(first,tracks.map(t=>t.path),true);
+  return playTrack(first,tracks.map(t=>t.path),true,true);
  },
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
