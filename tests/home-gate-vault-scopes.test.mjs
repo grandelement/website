@@ -4,6 +4,28 @@ import {runInNewContext} from 'node:vm';
 
 const home=readFileSync(new URL('../radio/ge-home-gate-stop.js',import.meta.url),'utf8');
 const radio=readFileSync(new URL('../radio/index.html',import.meta.url),'utf8');
+const website=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const albumPlayer=readFileSync(new URL('../radio/preview-lab.html',import.meta.url),'utf8');
+
+assert.match(website,/id="geSiteAlbumPlayer"/,'Main universe contains an inline album player');
+assert.match(website,/window\.GE_SITE_ALBUM_PLAYER\?\.open\?\.\(albumTitle\)/,
+ 'Album planets open the on-site preview rather than the standalone music page');
+assert.match(website,/window\.GE_SITE_ALBUM_PLAYER\?\.preload\?\.\(alb\.musicTitle\|\|alb\.title\)/,
+ 'Album preloads at planet tap to preserve iOS Safari user activation');
+assert.match(albumPlayer,/const AUDIO_LIMIT_SECONDS=2013;/,'On-site album preview retains the one 33:33 clock');
+assert.match(albumPlayer,/const STORE_KEY='GE_PLAYER_LISTENING_V2_3333'/,
+ 'The on-site player shares the existing listening state, not a second free trial');
+assert.match(albumPlayer,/GE_SITE_MUSIC_EMBED=GE_EMBED_MODE==='website'/,
+ 'Same embedded gate is available on homepage');
+assert.match(albumPlayer,/window\.GEPlayWebsiteAlbum=function\(albumName\)/,
+ 'The album starts from the parent click without a second navigation');
+assert.match(albumPlayer,/id="musicPrevious"/,'Album player has a previous track button');
+assert.match(albumPlayer,/id="musicNext"/,'Album player has a next track button');
+assert.match(albumPlayer,/GE_MUSIC_SESSION_ENDPOINT='https:\/\/vault\.grandelement\.com\/v1\/public\/access\/music-session'/,
+ 'Access codes continue through the original Vault endpoint');
+assert.match(albumPlayer,/BUY ALBUM ON BANDCAMP/,'Only existing published album sale pages are used');
+assert.match(website,/--ge-merch-factor:\.5/,'Shirt flyby remains half size');
+assert.match(website,/--ge-merch-factor:\.75/,'Hat flyby remains 25% smaller');
 
 assert.doesNotMatch(home,/GE_GATE_LOVE_V1/,'homepage never trusts the historic LOVE local flag');
 assert.match(home,/GE_VAULT_SCOPED_ACCESS_V1/,'homepage reads the Vault-scoped receipt');
