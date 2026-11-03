@@ -34,6 +34,27 @@ const customNoRevision=preset('custom',{
  track:{enabled:true,auto:false,value:'05'}
 },{version:4,revision:'02',revisionEnabled:false});
 assert.equal(customNoRevision.nameFor({name:'Blueberry.aif'}),'05 - Blueberry.aif');
+const customWithoutTrack=preset('custom',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:5,trackEnabled:false,revision:'02',revisionEnabled:true});
+assert.equal(customWithoutTrack.nameFor({name:'Blueberry.aif'}),'Blueberry - Rev 02.aif',
+ 'CUSTOM can omit the track and retain the revision suffix');
+const customWithoutEither=preset('custom',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:5,trackEnabled:false,revision:'02',revisionEnabled:false});
+assert.equal(customWithoutEither.nameFor({name:'Blueberry.aif'}),'Blueberry.aif',
+ 'CUSTOM can omit both track and revision');
+const draftSavedWithCustomOff=preset('draft',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:5,trackEnabled:false});
+assert.equal(draftSavedWithCustomOff.nameFor({name:'Blueberry.aif'}),'05 - Blueberry.aif',
+ 'Custom-only track switch must not remove track from Drafts');
+const radioSavedWithCustomOff=preset('radio',{
+ track:{enabled:true,auto:false,value:'05'}
+},{version:5,trackEnabled:false});
+assert.equal(radioSavedWithCustomOff.nameFor({name:'Blueberry.aif'}),'ALBUM_05_Blueberry.aif',
+ 'Custom-only track switch must not affect Radio');
+
 assert.equal(preset('radio').nameFor(song),'Intergy_02_Intergy.mp3');
 assert.equal(preset('final').nameFor(song),
  'Grand Element - '+new Date().getFullYear()+' - Intergy - 02 - Intergy.mp3');
@@ -100,6 +121,12 @@ assert.match(settingsSource,/geMetadataTopOptions/,'Tag and album art controls m
 assert.match(style,/#geTabGoogle #geGoogleMetadataView\{overflow-y:auto;/,'Metadata view must scroll if needed');
 assert.doesNotMatch(settingsSource,/draft\.embed=true;draft\.coverEnabled=true/,'Switching to Final format must respect user choices');
 assert.match(settingsSource,/geFilenameTrack/,'TRACK replaces old REV control');
+assert.match(settingsSource,/geCustomTrackEnabled/,'Custom TRACK checkbox is present');
+assert.match(settingsSource,/trackToggle\.disabled=!custom/,'TRACK toggle only changes Custom format');
+assert.match(settingsSource,/quick\.appendChild\(filenameRight\)/,'TRACK and REV controls live on right');
+assert.match(settingsSource,/draft\.trackEnabled=!!trackToggle\.checked/,'Custom TRACK checkbox updates saved preference');
+assert.match(settingsSource,/if\(p\.trackEnabled!==false\)parts\.push\(track\)/,'Custom filenames respect TRACK on/off');
+
 assert.match(settingsSource,/trackDown.onclick=function/,'Track number can decrement');
 assert.match(settingsSource,/trackUp.onclick=function/,'Track number can increment');
 assert.match(settingsSource,/trackInput.oninput=function/,'Typing track must immediately update preview');
