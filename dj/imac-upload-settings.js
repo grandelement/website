@@ -25,7 +25,7 @@ function add(parent,child){parent.appendChild(child);return child}
 function defaults(){
  var f={};for(var i=0;i<fields.length;i++)f[fields[i][0]]={enabled:false,auto:fields[i][0]==="title"||fields[i][0]==="artist"||fields[i][0]==="date",value:""};
  f.track.enabled=true;f.track.auto=false;f.track.value="01";
- return {version:4,mode:"draft",revision:"",revisionEnabled:false,order:"track,title,revision",coverEnabled:false,coverPath:"",filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
+ return {version:5,mode:"draft",trackEnabled:true,revision:"",revisionEnabled:false,order:"track,title,revision",coverEnabled:false,coverPath:"",filename:{date:false,time:false,seconds:false,title:true},embed:false,fields:f};
 }
 function normal(p){
  var o=defaults();if(!p||typeof p!=="object")return o;
@@ -36,6 +36,8 @@ function normal(p){
  var legacy=Number(p.version||0)<4;
  o.revision=legacy?"":String(p.revision===undefined?"":p.revision).replace(/[^0-9a-zA-Z_-]/g,"").slice(0,12);
  o.revisionEnabled=!legacy&&!!p.revisionEnabled;
+ // Existing presets keep their track, unless Custom explicitly disables it.
+ o.trackEnabled=p.trackEnabled!==false;
  o.coverEnabled=!!p.coverEnabled;
  // A saved cover always points to one of the verified GitHub album files.
  o.coverPath=albumByPath(p.coverPath)?p.coverPath:"";
@@ -95,7 +97,9 @@ function nameFor(file,p){
  else {
    // Custom pre-final order is fixed: TRACK, SONG, optional additions,
    // optional REVISION last. Never put date or revision before track.
-   var parts=[track,title];
+   var parts=[];
+   if(p.trackEnabled!==false)parts.push(track);
+   parts.push(title);
    if(n.date)parts.push(day);
    if(n.time)parts.push(pad(now.getHours())+"-"+pad(now.getMinutes()));
    if(n.seconds)parts.push(pad(now.getSeconds()));
@@ -189,6 +193,7 @@ function init(){
    var revOn=el("geRevisionEnabled"),revField=el("geDraftRevision");
    if(revOn)revOn.checked=!!(draft.mode==="custom"&&draft.revisionEnabled);
    if(revField)revField.disabled=!(draft.mode==="custom"&&draft.revisionEnabled);
+   refreshTrackCheck();
    var embedBox=el("geUploadWriteTags");if(embedBox)embedBox.checked=draft.embed;
    var coverBox=el("geUploadCoverEnabled");if(coverBox)coverBox.checked=draft.coverEnabled;
    var buttons=modes.querySelectorAll("button");
@@ -197,10 +202,13 @@ function init(){
   };
   if(draft.mode===mode)button.className+=" gePresetSelected";
  });
- // TRACK replaces the old misleading REV 05 control.
- // Text input preserves leading zeros; up/down buttons and mouse wheel step it.
- var trackWrap=add(quick,make("label","geTrackLabel","TRACK"));
- quick.insertBefore(trackWrap,modes);
+ // TRACK/REV live together on the right; only Custom can exclude TRACK.
+ var filenameRight=add(quick,make("div","geFilenameRightControls"));
+ var trackWrap=add(filenameRight,make("div","geTrackLabel"));
+ var trackToggle=add(trackWrap,make("input"));trackToggle.type="checkbox";
+ trackToggle.id="geCustomTrackEnabled";
+ trackToggle.setAttribute("aria-label","Include track number in custom filename");
+ add(trackWrap,make("span",null,"TRACK"));
  var trackDown=add(trackWrap,make("button","geTrackStep","−"));
  trackDown.type="button";trackDown.title="Previous track";
  var trackInput=add(trackWrap,make("input"));trackInput.type="text";
@@ -209,6 +217,17 @@ function init(){
  trackInput.value=val("track",fileForPreview()||{name:"Song.aif"},draft)||"01";
  var trackUp=add(trackWrap,make("button","geTrackStep","+"));
  trackUp.type="button";trackUp.title="Next track";
+ function refreshTrackCheck(){
+  var custom=draft.mode==="custom",include=!custom||draft.trackEnabled;
+  trackToggle.checked=include;trackToggle.disabled=!custom;
+  trackDown.disabled=!include;trackUp.disabled=!include;trackInput.disabled=!include;
+  trackWrap.className=include?"geTrackLabel":"geTrackLabel geTrackExcluded";
+ }
+ trackToggle.onchange=function(){
+  if(draft.mode!=="custom"){refreshTrackCheck();return}
+  draft.trackEnabled=!!trackToggle.checked;
+  refreshTrackCheck();changed();
+ };
  function setTrack(raw){
   var value=String(raw||"").replace(/[^0-9]/g,"").slice(0,6);
   draft.fields.track.auto=false;draft.fields.track.value=value;
@@ -246,13 +265,14 @@ function init(){
  }
  function chooseCustom(){
   draft.mode="custom";
+  refreshTrackCheck();
   var buttons=modes.querySelectorAll("button");
   for(var ci=0;ci<buttons.length;ci++){
     buttons[ci].className=buttons[ci].getAttribute("data-mode")==="custom"?"gePresetMode gePresetSelected":"gePresetMode";
   }
  }
  // REV is an optional suffix for the CUSTOM pre-final filename only.
- var rev=add(quick,make("label","geRevisionLabel"));
+ var rev=add(filenameRight,make("label","geRevisionLabel"));
  var revToggle=add(rev,make("input"));revToggle.type="checkbox";
  revToggle.id="geRevisionEnabled";revToggle.checked=draft.mode==="custom"&&draft.revisionEnabled;
  add(rev,make("span",null,"REV"));
@@ -280,6 +300,9 @@ function init(){
  add(inline,make("span","geFixedSongName","SONG NAME · ALWAYS"));
  var quickSave=add(quick,make("button","geQuickSave","SAVE FORMAT"));
  quickSave.type="button";quickSave.onclick=function(){var b=el("geUploadSaveSettings");if(b)b.click()};
+ // After preset options and Save, keep the TRACK and REV controls together.
+ quick.appendChild(filenameRight);
+ refreshTrackCheck();
  add(quick,make("span","geUploadNamePreview","")).id="geUploadNamePreview";
  var head=add(panel,make("div","geMetadataHead"));
  add(head,make("strong",null,"METADATA · NAMING & TAGS"));
@@ -391,7 +414,7 @@ w.GEImacUploadSettings={
   albumCovers:function(){return ALBUM_COVERS.slice(0)},
   tagsFor:function(file){return tagsFor(file,saved)},
   preview:preview,hasUnsaved:unsaved,savePending:savePending,
-  pendingMode:function(){return draft.mode},settings:active,version:4,
+  pendingMode:function(){return draft.mode},settings:active,version:5,
   refreshPreview:preview
 };
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",init);else init();
