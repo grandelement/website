@@ -214,6 +214,34 @@ body.ge-radio-music-embedded #musicBrowser{border-radius:0!important}
 }
 body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;pointer-events:none!important}
 
+/* Same 33:33 Vault-protected player, displayed inside the website's universe. */
+body.ge-site-music-embedded{background:transparent;min-height:0;overflow:hidden}
+body.ge-site-music-embedded>header{display:none!important}
+body.ge-site-music-embedded>main{max-width:none;padding:0;margin:0}
+body.ge-site-music-embedded #musicBrowser{background:rgba(2,16,32,.96);border:0;border-radius:0;padding:7px 10px}
+body.ge-site-music-embedded .musicTopBar,
+body.ge-site-music-embedded .playlistTools,
+body.ge-site-music-embedded #playlistName,
+body.ge-site-music-embedded .musicBrowseTabs,
+body.ge-site-music-embedded #albumWall,
+body.ge-site-music-embedded #publicPlaylistWall,
+body.ge-site-music-embedded #musicListView,
+body.ge-site-music-embedded #albumView .albumHeader button,
+body.ge-site-music-embedded #albumView .albumBulk label,
+body.ge-site-music-embedded #albumView #saveAlbumOffline,
+body.ge-site-music-embedded #albumView #search{display:none!important}
+body.ge-site-music-embedded #musicTransport{display:flex;gap:6px;flex-wrap:wrap;justify-content:space-between;margin:0 0 9px;padding:8px;border:1px solid #366889}
+body.ge-site-music-embedded #musicTransport[hidden]{display:none!important}
+body.ge-site-music-embedded #musicTransport span{flex:1 1 100%;font-size:12px}
+body.ge-site-music-embedded #musicTransport button{flex:1 1 auto;min-height:40px}
+body.ge-site-music-embedded #albumView .albumHeader{margin:8px 0}
+body.ge-site-music-embedded #albumView .albumHeader strong{font-size:16px}
+body.ge-site-music-embedded #albumView .albumBulk{margin:5px 0}
+body.ge-site-music-embedded #albumView #songs{max-height:190px;overflow-y:auto;overscroll-behavior:contain}
+body.ge-site-music-embedded #albumView .song{padding:5px 2px}
+body.ge-site-music-embedded #albumView .song button{min-height:36px}
+body.ge-site-music-embedded:has(#geGate.open)>main{visibility:hidden!important;pointer-events:none!important}
+body.ge-site-music-embedded #geSitePreviewRemaining{display:block;text-align:center;font-size:11px;color:#a8d6ec;padding:3px 5px}
 </style>
 <link rel="stylesheet" href="../ge-accessibility.css?v=20261022-a11y3">
 </head>
@@ -222,7 +250,8 @@ body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;
 <main>
 <section class="card" id="musicBrowser">
   <div class="musicTopBar"><h2>CHOOSE MUSIC</h2><button id="musicListBtn" type="button">SELECT SONGS / MUSIC LIST</button></div>
-  <div id="musicTransport" class="musicCompactTransport" hidden><span id="musicPlayingTitle" aria-live="polite"></span><button id="musicPause" type="button">PAUSE</button><button id="musicNext" type="button">NEXT</button></div>
+  <div id="musicTransport" class="musicCompactTransport" hidden><span id="musicPlayingTitle" aria-live="polite"></span><button id="musicPrevious" type="button">PREV</button><button id="musicPause" type="button">PAUSE</button><button id="musicNext" type="button">NEXT</button></div>
+  <div id="geSitePreviewRemaining" hidden>FREE LISTENING · 33:33</div>
   <div class="playlistTools" aria-label="Playlist save and load">
     <select id="savedPlaylistSelect" aria-label="Saved or public playlist"><option value="">CHOOSE A PLAYLIST TO LOAD</option></select>
     <button id="playlistLoadBtn" type="button">LOAD</button>
@@ -269,7 +298,7 @@ body.ge-radio-music-embedded:has(#geGate.open)>main{visibility:hidden!important;
     <div id="geGateTitle">The Inner Frequency</div>
     <div id="geGateStatus">Your free music preview is ending. Enter an access code or explore music.</div>
     <div id="geGateEntry"><input id="geGateWord" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Access code" placeholder="CODE"><button id="geGateEnter" type="button">ACCESS</button></div>
-    <div id="geGateHelp"><a class="button" href="../support/?section=music">EXPLORE MUSIC</a></div>
+    <div id="geGateHelp"><a id="geGatePurchase" class="button" href="../support/?section=music">EXPLORE MUSIC</a></div>
   </section>
 </div>
 <script src="./ge-gate-settings.js?v=20261017-gate-backroom-v1"></script>
@@ -283,21 +312,25 @@ const STORE_KEY='GE_PLAYER_LISTENING_V2_3333', OWNER_KEY='GE_PLAYER_OWNER_DEMO_V
 const $=id=>document.getElementById(id);
 const audio=$('audio');
 
-const GE_RADIO_MUSIC_EMBED=new URLSearchParams(location.search).get('embed')==='radio'&&window.parent!==window;
+const GE_EMBED_MODE=new URLSearchParams(location.search).get('embed');
+const GE_RADIO_MUSIC_EMBED=GE_EMBED_MODE==='radio'&&window.parent!==window;
+const GE_SITE_MUSIC_EMBED=GE_EMBED_MODE==='website'&&window.parent!==window;
+const GE_ANY_MUSIC_EMBED=GE_RADIO_MUSIC_EMBED||GE_SITE_MUSIC_EMBED;
 if(GE_RADIO_MUSIC_EMBED)document.body.classList.add('ge-radio-music-embedded');
+if(GE_SITE_MUSIC_EMBED)document.body.classList.add('ge-site-music-embedded');
 function geRadioEmbedNotify(type,fields={}){
- if(!GE_RADIO_MUSIC_EMBED)return;
+ if(!GE_ANY_MUSIC_EMBED)return;
  try{window.parent.postMessage({type,...fields},location.origin)}catch(_e){}
 }
 function geRadioEmbedPlaybackState(){
- if(!GE_RADIO_MUSIC_EMBED)return;
+ if(!GE_ANY_MUSIC_EMBED)return;
  geRadioEmbedNotify('ge-radio-music-state',{
   paused:audio.paused,title:currentTrack?label(currentTrack):'',
    path:currentTrack?cleanMusicPath(currentTrack.path||currentTrack.url):'',
    index:trackIndex,total:albumTracks.length
  });
 }
-if(GE_RADIO_MUSIC_EMBED){
+if(GE_ANY_MUSIC_EMBED){
  for(const name of ['playing','pause','ended','error'])audio.addEventListener(name,geRadioEmbedPlaybackState);
  window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.origin!==location.origin)return;
@@ -313,7 +346,18 @@ let albums=new Map(),selectedAlbum='',albumTracks=[],trackIndex=-1,currentTrack=
 // Website planet PLAY passes its album in the URL. Honor it without adding a
 // second player or bypassing the ordinary 33:33 music Gate.
 const WEBSITE_ALBUM_REQUEST=String(new URLSearchParams(location.search).get('album')||'').trim();
+const WEBSITE_ALBUM_AUTOSTART=new URLSearchParams(location.search).get('start')!=='0';
 let websiteAlbumStarted=false;
+if(GE_SITE_MUSIC_EMBED){
+ const purchase=$('geGatePurchase'),album=WEBSITE_ALBUM_REQUEST;
+ if(album){
+  purchase.textContent='BUY / EXPLORE THIS ALBUM';
+  const u=new URL('../support/',location.href);
+  u.searchParams.set('section','music');u.searchParams.set('flow','shop');u.searchParams.set('album',album);
+  purchase.href=u.href;
+ }
+ $('geSitePreviewRemaining').hidden=false;
+}
 let publicPlaylistDefinitions=[],publicPlaylists=new Map(),selectedPlaylistId='',browserMode='albums',catalogTrackByPath=new Map();
 let playingProgress=false,awaitingData=false,lastMedia=NaN,lastWall=performance.now();
 let data={used:0,expired:false,gateStartedAtMs:0,gateAtSeconds:0},saveAt=0,baseVolume=1;
@@ -455,6 +499,12 @@ function isLocked(){
 }
 function isCounting(){return !data.gateStartedAtMs&&!isAuthorized()&&!!currentTrack&&!audio.paused&&!audio.ended&&!awaitingData&&!audio.seeking&&audio.readyState>=2&&playingProgress&&!data.expired;}
 function syncListening(){
+ const indicator=$('geSitePreviewRemaining');
+ if(indicator&&!indicator.hidden){
+  const left=Math.max(0,Math.ceil(AUDIO_LIMIT_SECONDS-effectiveListeningSeconds()));
+  indicator.textContent=isAuthorized()?'ACCESS VERIFIED · MUSIC UNLOCKED':
+   'FREE LISTENING · '+String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0')+' LEFT';
+ }
  const wall=performance.now(),media=Number(audio.currentTime);
  if(isCounting()&&Number.isFinite(media)&&Number.isFinite(lastMedia)){
    const actual=media-lastMedia,wallSeconds=Math.max(0,(wall-lastWall)/1000);
@@ -812,6 +862,11 @@ function playWholeAlbum(name){
  void startTrack(albumTracks[0]);
 }
 $('playBrowserCollection').addEventListener('click',()=>playWholeAlbum(selectedAlbum));
+window.GEPlayWebsiteAlbum=function(albumName){
+ const found=[...albums.keys()].find(name=>name.toLowerCase()===String(albumName||'').trim().toLowerCase());
+ if(!found)return false;
+ openAlbum(found);playWholeAlbum(found);return true;
+};
 $('saveAlbumOffline').addEventListener('click',async()=>{
  if(!ownerPreview()){renderGate();return;}
  const tracks=albums.get(selectedAlbum)||[];
@@ -1023,6 +1078,7 @@ function updateMusicTransport(){
 audio.addEventListener('playing',()=>{renderSelected();if(!$('albumView').hidden)showSongs();updateMusicTransport()});
 audio.addEventListener('pause',()=>{renderSelected();if(!$('albumView').hidden)showSongs();updateMusicTransport()});
 $('musicPause').addEventListener('click',()=>{if(audio.paused)void resume();else audio.pause()});
+$('musicPrevious').addEventListener('click',previousTrack);
 $('musicNext').addEventListener('click',nextTrack);
 $('search').addEventListener('input',showSongs);
 $('backAlbums').addEventListener('click',()=>switchMusicBrowse('albums'));
@@ -1110,10 +1166,11 @@ function displayCatalog(tracks,restore=false){
   if(match){
    websiteAlbumStarted=true;openAlbum(match);
    const songs=albums.get(match)||[];
-   if(songs.length){
+   if(songs.length&&WEBSITE_ALBUM_AUTOSTART){
     playingSelected=false;albumTracks=songs.slice();trackIndex=0;
     void startTrack(songs[0]);
    }
+   if(GE_SITE_MUSIC_EMBED)geRadioEmbedNotify('ge-site-album-ready',{album:match,track_count:songs.length});
   }
  }
 }
