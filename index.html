@@ -4145,6 +4145,14 @@ body.ge-home-radio-ready #mini #geHomeRadioLink{
         <label class="autoSunPatternRow"><span>SUN PATTERN SIZE</span><input id="autopilotSunPatternSize" type="range" min="50" max="200" step="5" value="100"><output id="autopilotSunPatternSizeValue">100%</output></label>
         <label class="autoSunPatternRow"><span>SUN REACTION</span><input id="autopilotSunPatternEnergy" type="range" min="25" max="200" step="5" value="100"><output id="autopilotSunPatternEnergyValue">100%</output></label>
       </div>
+      <fieldset id="geResonanceLab" style="border:1px solid rgba(123,208,255,.45);border-radius:12px;padding:12px;margin:14px 0 0">
+        <legend style="padding:0 8px;color:#b9e9ff;font-weight:800;letter-spacing:.1em">GE RESONANCE · SUN LAB</legend>
+        <label class="autoSunPatternRow"><span>VISUAL MODE</span><select id="geResonanceMode" aria-label="Audio reactive visual mode"><option value="ambient">AMBIENT</option><option value="immersive">IMMERSIVE</option><option value="off">OFF</option></select></label>
+        <label class="autoSunPatternRow"><span>BASS RESPONSE</span><input id="geResonanceBass" type="range" min="0" max="100" step="5" value="55"><output id="geResonanceBassValue">55%</output></label>
+        <label class="autoSunPatternRow"><span>AETHER INTENSITY</span><input id="geResonanceField" type="range" min="0" max="100" step="5" value="48"><output id="geResonanceFieldValue">48%</output></label>
+        <label class="autoSunPatternRow"><span>WINDOW GLOW</span><input id="geResonanceGlow" type="range" min="0" max="100" step="5" value="45"><output id="geResonanceGlowValue">45%</output></label>
+        <p class="autoHint">Settings are saved on this device. Frequency-linked effects will activate when the player provides analyzable audio.</p>
+      </fieldset>
       <p class="autoHint" style="margin-top:16px">Tap outside this window to close.</p>
     </div>
   </div>
@@ -15219,6 +15227,51 @@ body.ge-body-race-active #geBodyCourseBackdrop.geShown{display:block}
       try{window.GEVault?.track?.('merch_flyby_click',{product_id});}catch(_error){}
     });
   }
+})();
+</script>
+<style id="ge-resonance-lab-controls-v1">
+#geResonanceLab .autoSunPatternRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:9px 0}
+#geResonanceLab .autoSunPatternRow>span{flex:1 1 130px}
+#geResonanceLab input[type=range]{flex:2 1 130px;min-width:100px;accent-color:#69c8ff}
+#geResonanceLab output{min-width:43px;text-align:right}
+#geResonanceMode{background:#081b31;color:#ecfaff;border:1px solid #69bce8;border-radius:8px;padding:8px}
+body.ge-resonance-ambient:not(.game-mode-active) .sunWrap{filter:drop-shadow(0 0 calc(var(--ge-resonance-glow,45) * .24px) rgba(93,191,255,.55))}
+body.ge-resonance-immersive:not(.game-mode-active) .sunWrap{filter:drop-shadow(0 0 calc(var(--ge-resonance-glow,45) * .45px) rgba(93,191,255,.85))}
+@media(prefers-reduced-motion:reduce){body.ge-resonance-ambient .sunWrap,body.ge-resonance-immersive .sunWrap{filter:none}}
+</style>
+<script id="ge-resonance-lab-controls-v1">
+(()=>{
+ const key='GE_RESONANCE_SUN_LAB_V1';
+ const defaults={mode:'ambient',bass:55,field:48,glow:45};
+ let saved={};
+ try{saved=JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_){}
+ const config={...defaults,...saved};
+ const validMode=new Set(['off','ambient','immersive']);
+ if(!validMode.has(config.mode))config.mode='ambient';
+ const clamp=(v,d)=>Number.isFinite(Number(v))?Math.max(0,Math.min(100,Number(v))):d;
+ for(const name of ['bass','field','glow'])config[name]=clamp(config[name],defaults[name]);
+ function apply(){
+  document.body.classList.toggle('ge-resonance-ambient',config.mode==='ambient');
+  document.body.classList.toggle('ge-resonance-immersive',config.mode==='immersive');
+  document.body.style.setProperty('--ge-resonance-glow',String(config.glow));
+  document.body.style.setProperty('--ge-resonance-bass',String(config.bass));
+  document.body.style.setProperty('--ge-resonance-field',String(config.field));
+  window.GEResonanceSettings={...config};
+  document.dispatchEvent(new CustomEvent('ge-resonance-settings',{detail:{...config}}));
+ }
+ function save(){try{localStorage.setItem(key,JSON.stringify(config))}catch(_){}apply()}
+ const mode=document.getElementById('geResonanceMode');
+ if(mode){mode.value=config.mode;mode.addEventListener('change',()=>{config.mode=validMode.has(mode.value)?mode.value:'ambient';save()})}
+ for(const name of ['bass','field','glow']){
+  const cap=name[0].toUpperCase()+name.slice(1);
+  const input=document.getElementById('geResonance'+cap);
+  const output=document.getElementById('geResonance'+cap+'Value');
+  if(!input)continue;
+  input.value=String(config[name]);
+  if(output)output.textContent=config[name]+'%';
+  input.addEventListener('input',()=>{config[name]=clamp(input.value,defaults[name]);if(output)output.textContent=config[name]+'%';save()});
+ }
+ apply();
 })();
 </script>
 </body>
