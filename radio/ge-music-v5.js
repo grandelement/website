@@ -1550,14 +1550,15 @@ document.addEventListener('keydown',event=>{
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
 window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
- playAll:()=>{
+ playAll:(direction='play')=>{
   const access=musicAccessActive();
   if(!access){open();say('Enter your Music access code to play the library.');return false}
   if(!state.loaded){open();say('Loading the music library. Tap PLAY again when loaded.');return false}
   const tracks=access.restricted?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
   if(!tracks.length){open();say('No songs are available for this code.');return false}
-  const first=tracks[Math.floor(Math.random()*tracks.length)];
-  return playTrack(first,tracks.map(t=>t.path),true,true);
+  const index=direction==='previous'?tracks.length-1:
+   direction==='next'?Math.min(1,tracks.length-1):Math.floor(Math.random()*tracks.length);
+  return playTrack(tracks[index],tracks.map(t=>t.path),true,true);
  },
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
