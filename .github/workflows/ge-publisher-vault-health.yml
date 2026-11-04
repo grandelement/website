@@ -1,0 +1,63 @@
+name: GE Back Room and LOVE Vault live health
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ge-publisher-vault-health.yml'
+permissions:
+  contents: read
+jobs:
+  verify-live-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check publisher reachability and actual Vault access-code bridge (read only)
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request,urllib.error,time,sys
+          probes=[
+            ('publisher','https://ge-backroom-publisher.grandelement.workers.dev/health'),
+            ('vault','https://vault.grandelement.com/health'),
+            ('publisher_vault_bridge','https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes')
+          ]
+          status={}
+          for name,url in probes:
+            req=urllib.request.Request(url,headers={
+              'User-Agent':'GE-Studios-Publisher-Vault-Diagnostic/1.0',
+              'Origin':'https://www.grandelement.com',
+              'Accept':'application/json'})
+            start=time.monotonic()
+            try:
+              with urllib.request.urlopen(req,timeout=10) as response:
+                code=response.status
+                cors=response.headers.get('Access-Control-Allow-Origin','')
+                body=response.read(10000).decode('utf-8','replace')
+                try:
+                  data=json.loads(body)
+                except ValueError:
+                  data={'non_json':True}
+                safe={k:data.get(k) for k in (
+                  'ok','configured','storage','access_codes_ready','publisher_configured',
+                  'vault_service_bound','vault_reachable','vault_access_codes_ready',
+                  'access_codes_readable','upstream_http_status','non_json'
+                ) if k in data}
+                status[name]={'http':code,'cors':cors,'data':safe}
+            except urllib.error.HTTPError as e:
+              try: err=json.loads(e.read(5000).decode('utf-8','replace'))
+              except Exception: err={}
+              status[name]={'http':e.code,'data':{k:err.get(k) for k in ('ok','configured','storage','access_codes_ready','upstream_http_status') if k in err}}
+            except Exception as e:
+              status[name]={'transport_error':type(e).__name__,'message':str(e)[:160]}
+            print(name,json.dumps(status[name],sort_keys=True),'elapsed_s',round(time.monotonic()-start,1),flush=True)
+          ok=lambda n:status.get(n,{}).get('http')==200 and status[n].get('data',{}).get('ok') is True
+          configured=status.get('publisher',{}).get('data',{}).get('configured') is True
+          access=status.get('vault',{}).get('data',{}).get('access_codes_ready') is True
+          bridge=status.get('publisher_vault_bridge',{}).get('data',{}).get('access_codes_readable') is True
+          if not ok('publisher'):print('BLOCKER: Private publisher health unreachable or unhealthy.')
+          elif not configured:print('BLOCKER: Publisher secrets/configuration incomplete.')
+          if not ok('vault') or not access:print('BLOCKER: Vault or its D1 access-code tables unhealthy.')
+          if not ok('publisher_vault_bridge') or not bridge:print('BLOCKER: Publisher cannot read access-code data through Vault admin bridge.')
+          if not (ok('publisher') and configured and ok('vault') and access and ok('publisher_vault_bridge') and bridge):sys.exit(1)
+          print('PASS: Publisher, Vault and authenticated publisher-to-Vault bridge online. Login credentials and LOVE code values were NOT tested or modified.')
+          PY
