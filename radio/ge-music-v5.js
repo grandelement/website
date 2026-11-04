@@ -451,6 +451,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 }
 
+
+@media(min-width:1024px) and (min-height:600px) and (pointer:fine){
+ .window .browse{display:none!important}
+ .window .tools{display:flex!important;flex-wrap:wrap;gap:8px 14px;align-items:center}
+ .window .tools>.search{order:1;flex:1 1 340px;width:auto!important;margin:0!important;min-height:46px}
+ .window .tools>.filterRow{order:2;display:flex!important;flex:1 1 460px;align-items:center;margin:0!important;gap:9px}
+ .window .tools>.filterRow .songFilter{flex:1 1 180px;min-height:46px}
+ .window .tools>.filterRow .songSelectAll{flex:0 0 auto;white-space:nowrap}
+ .window .tools>.filterRow .legacyToggle{width:auto!important;min-width:105px;min-height:43px!important;margin:0!important;padding:7px 12px;font-size:12px;border-radius:9px}
+ .window .tools>.notice{order:3;flex:1 1 100%}
+ .window .gePlaylistBar{display:none!important}
+ .window .selectionBar{display:flex!important;flex-wrap:wrap;gap:8px 14px!important}
+ .window .selectionBar .quickPlaylistRow{order:-2;flex:1 1 100%;width:100%;margin-bottom:4px}
+ .window .selectionBar .checkedCount{flex:1 1 160px}
+ .albumPlanetGrid .albumCover{width:116px!important;height:116px!important;border-radius:11px!important;object-fit:cover!important;box-shadow:0 0 0 1px rgba(171,227,255,.5),0 0 20px rgba(51,153,239,.3)!important}
+ .albumPlanetGrid .album{min-height:160px!important}
+ .albumPlanetGrid .albumBrowseRow{min-height:195px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1309,9 +1327,15 @@ function render(){
    scroller.append(expanded);
   }
   if(earlier.length){
-   scroller.append(legacyButton);
-   if(state.showLegacyAlbums)scroller.append(elem('div','legacyHeading',
-    'LEGACY · EARLIER GRAND ELEMENT RECORDINGS · LIBRARY ONLY · NOT FOR SALE'));
+   const desktopUnified=window.matchMedia('(min-width:1024px) and (min-height:600px) and (pointer:fine)').matches;
+   if(desktopUnified){
+    legacyButton.textContent=state.showLegacyAlbums?'LEGACY · HIDE':'LEGACY · SHOW';
+    el('.filterRow').append(legacyButton);
+   }else{
+    scroller.append(legacyButton);
+    if(state.showLegacyAlbums)scroller.append(elem('div','legacyHeading',
+     'LEGACY · EARLIER GRAND ELEMENT RECORDINGS · LIBRARY ONLY · NOT FOR SALE'));
+   }
   }
   if(!shownNames.length)scroller.append(elem('p','empty','No current albums found.'));
  }else if(state.view==='ge-playlists'){
