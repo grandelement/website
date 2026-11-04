@@ -4515,6 +4515,52 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
  box-shadow:0 0 12px rgba(255,255,255,.65),0 0 22px rgba(167,221,255,.45)!important;
 }
 </style>
+<style id="ge-sunlab-viewport-safety-v1">
+/* Audit repair: every Sun Lab section remains reachable at any desktop size.
+   Keep primary actions fixed while scrolling the effect settings. */
+.sunlab-panel.show{
+ display:flex!important;flex-direction:column!important;
+ box-sizing:border-box!important;overflow:hidden!important;
+ max-width:calc(100vw - 12px)!important;
+ max-height:calc(100dvh - 12px)!important;
+}
+.sunlab-panel .sunlab-title{
+ position:relative!important;flex:0 0 auto!important;
+ display:flex!important;align-items:center!important;justify-content:space-between!important;
+ min-height:43px!important;z-index:2!important;
+}
+.ge-sunlab-header-actions{display:flex;gap:7px;flex:0 0 auto;align-items:center}
+#sunLabClose,#sunLabSave{
+ display:inline-flex!important;align-items:center;justify-content:center;
+ min-height:38px!important;min-width:68px!important;
+ padding:7px 11px!important;white-space:nowrap!important;
+ border-radius:10px!important;font-size:12px!important;
+}
+#sunLabSave{background:#d9f1ff!important;color:#09253c!important;border:1px solid white!important;font-weight:900!important}
+.sunlab-panel .sunlab-sub,.sunlab-panel .sunlab-modebar,.sunlab-panel .sunlab-modehint,.sunlab-panel #sunEQSourceStatus{flex:0 0 auto!important}
+.sunlab-panel #sunLabGrid{
+ flex:1 1 auto!important;min-height:40px!important;
+ overflow-y:auto!important;overflow-x:hidden!important;
+ overscroll-behavior:contain!important;
+}
+.sunlab-panel .sunlab-actions,.sunlab-panel .sunlab-access-tools{
+ flex:0 0 auto!important;max-height:90px!important;
+ overflow-y:auto!important;overflow-x:auto!important;
+}
+@media(min-width:1024px) and (pointer:fine){
+ .sunlab-panel.show{
+  left:auto!important;right:16px!important;top:12px!important;bottom:auto!important;
+  transform:none!important;width:min(440px,calc(100vw - 32px))!important;
+  height:min(720px,calc(100dvh - 24px))!important;
+  max-height:calc(100dvh - 24px)!important;
+  border-radius:16px!important;
+ }
+}
+@media(max-width:520px){
+ .ge-sunlab-header-actions{gap:4px}
+ #sunLabClose,#sunLabSave{min-width:60px!important;padding:6px 8px!important}
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -4997,7 +5043,7 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
   <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
     <div class="sunlab-title">
       <h3>Sun Lab</h3>
-      <button id="sunLabClose" type="button" class="sunlab-mini">Close</button>
+      <div class="ge-sunlab-header-actions"><button id="sunLabSave" type="button" class="sunlab-mini" title="Save the current Sun Lab settings on this device">SAVE</button><button id="sunLabClose" type="button" class="sunlab-mini">CLOSE ✕</button></div>
     </div>
     <p class="sunlab-sub">Choose an effect first. Its own controls will appear below. Each effect remembers its own settings.</p>
     <div id="sunLabModeBar" class="sunlab-modebar" aria-label="Sun EQ effect modes">
@@ -10312,6 +10358,11 @@ $('reloadBtn').addEventListener('click',async()=>{
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
       sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      $('sunLabSave')?.addEventListener('click',()=>{
+        saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
+        const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE';},1800);}
+        setStatus('Sun Lab settings saved on this device for desktop and mobile layouts.');
+      });
       sunLabClose?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       sunLabHide?.addEventListener('click',()=>{saveCurrentSunMode();setPanelVisible(false);});
       $('sunLabResetCodes')?.addEventListener('click',resetLocalAccessCodes);
