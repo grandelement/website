@@ -82,7 +82,7 @@ assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist s
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
-assert.match(radio,/ge-music-v5\.js\?v=20261104-v726-square-albums-player-handoff/);
+assert.match(radio,/ge-music-v5\.js\?v=20261104-v727-guest-play-gate-only/);
 assert.match(music,/loadSelectedPlaylistKey\(key\)/);
 assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
 assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
