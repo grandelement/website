@@ -75,7 +75,7 @@ requireText(music,/\.albumPlanetGrid \.albumBrowseRow \.albumPickerCompact\{[\s\
 requireText(music,/window\.GEMusicV5Bridge\?\.showMainPlayer\?\.\(\)/,'Music PLAY must return to the primary Radio player');
 requireText(music,/data-tab="songs"/,'SONGS tab removed');
 requireText(music,/data-tab="playlists"/,'PLAYLISTS tab removed');
-requireText(music,/state\.view='all';state\.arranging=false;state\.term='';/,'Reopen Music must restore SONGS without deleting selection');
+requireText(music,/state\.view='albums';state\.arranging=false;state\.term='';/,'Reopen Music must restore SONGS album browser without deleting selection');
 requireText(music,/\.window\.arranging \.tools>\.browse\{display:grid!important/,'SONGS/PLAYLISTS tabs hidden during Arrange');
 requireNot(music,/\.window\.arranging \.tools>\.browse[^\n]*display:none!important/,'Do not hide Music workspaces in Arrange');
 requireText(music,/\.window\.arranging \.selectionBar\{display:flex!important/,'CLEAR/ARRANGE/PLAY footer hidden when arranging');
