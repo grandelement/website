@@ -37,7 +37,7 @@ assert.match(backroom,/if\(displayName.length>80/,'optional listener name is len
 assert.match(backroom,/display_name:displayName/,'existing GE Vault code name field is saved');
 assert.match(vault,/display_name:await codeListenerDisplayName\(env,row.id\)/,
  'Radio Gate inherits the saved name from the correct Vault code');
-assert.match(radio,/ge-music-v5\.js\?v=20261104-v726-square-albums-player-handoff/,'Radio uses the updated Music script');
+assert.match(radio,/ge-music-v5\.js\?v=20261104-v727-guest-play-gate-only/,'Radio uses the updated Music script');
 
 assert.match(v5,/musicAccessActive\(\)/);
 assert.match(v5,/state.view='access-code'/);
