@@ -7670,12 +7670,13 @@ if(typeof requestIdleCallback==='function'){
   setTimeout(()=>geInlineMusicInit(),4000);
 }
 
-function geOpenMyMusicStore(){
-  // Play takes guests to the commerce/My Music entry, not a free file URL.
-  location.assign('../support/?section=music&flow=player');
-}
 async function resumePlayerAfterLive(){
-  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){geOpenMyMusicStore();return;}
+  // An ordinary guest can listen through the existing 33:33 preview.
+  // Returning from BLITZ must not send PLAY to commerce.
+  if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+    window.GEMusicV5?.playAll?.();
+    return;
+  }
   let target=liveState.returnURL;
   if(!target || !allowedCatalog().includes(target)){
     target=state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0]||'');
@@ -7997,7 +7998,13 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
 }
 function resumeAudio(){
   if(!state.live&&!state.livePreparing&&!geOwnerDemoEnabled()&&
-    !(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){geOpenMyMusicStore();return;}
+    !(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
+    // The main and compact PLAY controls share the same 33:33 guest preview.
+    // Keep an active personal queue in its existing player; never navigate.
+    if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
+    window.GEMusicV5?.playAll?.();
+    return;
+  }
   state.userStarted=true;
   // Retry the SAME selected song if the media element lost its file;
   // a connection failure must never consume or skip a track.
