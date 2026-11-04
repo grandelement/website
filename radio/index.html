@@ -4617,6 +4617,44 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
  #sunLabPanel .sunlab-actions,#sunLabPanel .sunlab-access-tools{max-height:55px!important}
 }
 </style>
+<style id="ge-sunlab-mobile-eq-priority-20261104">
+/* Phone: reserve most of Sun Lab for EQ controls. Testing and reset utilities
+   are secondary, accessible only when expanded. Header remains accessible. */
+@media(max-width:819px), (pointer:coarse){
+ #sunLabPanel.show{
+  display:flex!important;flex-direction:column!important;
+  overflow:hidden!important;min-height:0!important;
+  padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
+ }
+ #sunLabPanel .sunlab-title{flex:0 0 auto!important}
+ #sunLabPanel .sunlab-modebar{flex:0 0 auto!important}
+ #sunLabPanel #sunLabGrid{
+  flex:1 1 auto!important;min-height:110px!important;
+  max-height:none!important;overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+ }
+ #sunLabPanel .sunlab-actions,
+ #sunLabPanel .sunlab-access-tools{
+  display:none!important;
+ }
+ #sunLabPanel.ge-sunlab-advanced-open .sunlab-actions,
+ #sunLabPanel.ge-sunlab-advanced-open .sunlab-access-tools{
+  display:flex!important;flex:0 0 auto!important;
+  max-height:22dvh!important;overflow-y:auto!important;
+ }
+ #sunLabPanel #sunLabAdvancedToggle{
+  flex:0 0 auto!important;display:block!important;
+  width:100%!important;min-height:35px!important;
+  margin-top:5px!important;white-space:normal!important;
+  border:1px solid rgba(123,208,255,.55)!important;
+  border-radius:9px!important;background:rgba(6,24,42,.92)!important;
+  color:#d7f3ff!important;font-size:12px!important;font-weight:800!important;
+ }
+}
+@media(min-width:820px) and (pointer:fine){
+ #sunLabAdvancedToggle{display:none!important}
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -5151,6 +5189,8 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
       <div class="sunlab-row"><label for="slOuterGlowStrength">Outer Glow Strength</label><output id="slOuterGlowStrengthVal"></output><input id="slOuterGlowStrength" type="range" min="0" max="220" step="1" value="185"><small>Controls the strength of the soft outer glow.</small></div>
       <div class="sunlab-row"><label for="slOuterGlowHue">Outer Glow Color</label><output id="slOuterGlowHueVal"></output><input id="slOuterGlowHue" type="range" min="0" max="360" step="1" value="188"><small>Changes the color of the outer glow independently.</small></div>
     </div>
+    <button id="sunLabAdvancedToggle" type="button" aria-expanded="false" aria-controls="sunLabAdvancedTools">TESTING & RESET TOOLS ▾</button>
+    <div id="sunLabAdvancedTools" style="display:contents">
     <div class="sunlab-actions">
       <button id="sunLabAllMusicTest" type="button" class="sunlab-mini" title="Test the 33-minute song preview player">ALL MUSIC · PREVIEW TEST</button>
       <button id="gateTestBtn" type="button" class="sunlab-mini">Test Gate</button>
@@ -5163,6 +5203,7 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
       <button id="sunLabResetSite" type="button" class="sunlab-mini" title="Erase local listener settings and offline downloads on this device">RESET SITE</button>
       <span>RESET CODES keeps downloads. RESET SITE deletes offline music and local settings.</span>
     </div>
+    </div><!-- sunLabAdvancedTools -->
   </section>
   <div id="status" role="status" aria-live="polite"></div>
   <footer>Much Love!!</footer>
@@ -10399,6 +10440,16 @@ $('reloadBtn').addEventListener('click',async()=>{
     location.reload();
   }
   function initSunLab(){
+    const advancedToggle=$('sunLabAdvancedToggle');
+    if(advancedToggle&&!advancedToggle.dataset.bound){
+      advancedToggle.dataset.bound='1';
+      advancedToggle.addEventListener('click',()=>{
+        const open=!sunLabPanel.classList.contains('ge-sunlab-advanced-open');
+        sunLabPanel.classList.toggle('ge-sunlab-advanced-open',open);
+        advancedToggle.setAttribute('aria-expanded',String(open));
+        advancedToggle.textContent=open?'HIDE TESTING & RESET TOOLS ▴':'TESTING & RESET TOOLS ▾';
+      });
+    }
     const hadSavedSun=!!localStorage.getItem(SUN_LAB_KEY);
     loadSunLab();loadSunModeProfiles();
     if(!hadSavedSun){
