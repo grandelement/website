@@ -287,6 +287,38 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPlanetGrid .albumActions{display:none}
 .selectionActions .playSelected:not(:disabled){background:rgba(255,255,255,.035)!important;border:1.5px solid rgba(245,251,255,.8)!important;box-shadow:0 0 11px rgba(245,251,255,.55),inset 0 0 12px rgba(255,255,255,.08)!important}
 
+/* Continuous polished silver PLAY with traveling rim lights. */
+.selectionActions .playSelected:not(:disabled){
+ color:#172a3a!important;
+ border:2px solid #f4f8fc!important;
+ background:linear-gradient(155deg,#fff 0%,#d4dce4 17%,#8799aa 35%,#f8fbff 52%,#aebbc8 72%,#f7fafc 100%)!important;
+ background-size:220% 220%!important;
+ text-shadow:0 1px 0 rgba(255,255,255,.8)!important;
+ box-shadow:inset 0 2px 2px rgba(255,255,255,.9),inset 0 -3px 5px rgba(45,60,78,.35),0 0 8px rgba(238,249,255,.6),0 0 18px rgba(190,224,255,.32)!important;
+ animation:geSilverMetalFlow 3.6s linear infinite,geSilverRimPulse 2.4s ease-in-out infinite!important;
+}
+.selectionActions .playSelected:not(:disabled)::before{
+ content:"";pointer-events:none;position:absolute;inset:-2px;border-radius:inherit;
+ background:conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,0) 60deg,#fff 83deg,rgba(170,227,255,.95) 94deg,transparent 112deg,transparent 190deg,#fff 212deg,rgba(190,235,255,.9) 224deg,transparent 242deg,transparent 360deg);
+ animation:geSilverOrbit 3.2s linear infinite;
+ opacity:.9;
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+ -webkit-mask-composite:xor;mask-composite:exclude;
+ padding:2px;
+}
+.selectionActions .playSelected:not(:disabled)::after{
+ content:"";pointer-events:none;position:absolute;inset:-65% -65%;
+ background:linear-gradient(108deg,transparent 40%,rgba(255,255,255,.12) 45%,rgba(255,255,255,.95) 50%,rgba(255,255,255,.12) 55%,transparent 60%);
+ animation:geSilverSweep 2.8s linear infinite!important;
+}
+@keyframes geSilverMetalFlow{0%{background-position:0% 0%}100%{background-position:100% 100%}}
+@keyframes geSilverRimPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.1)}}
+@keyframes geSilverOrbit{to{transform:rotate(360deg)}}
+@keyframes geSilverSweep{0%{transform:translateX(-115%) rotate(8deg)}100%{transform:translateX(115%) rotate(8deg)}}
+@media(prefers-reduced-motion:reduce){
+ .selectionActions .playSelected:not(:disabled),.selectionActions .playSelected:not(:disabled)::before,.selectionActions .playSelected:not(:disabled)::after{animation:none!important}
+}
+
 /* Desktop is a separate responsive layout, not a stretched phone interface. */
 .albumPlanetGrid .album::before{display:none!important}
 .albumPlanetGrid .albumCover{display:block;width:clamp(66px,17vw,118px);height:clamp(66px,17vw,118px);object-fit:cover;border-radius:10px;box-shadow:0 0 14px rgba(105,196,255,.35);flex:0 0 auto}
