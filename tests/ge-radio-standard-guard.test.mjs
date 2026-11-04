@@ -56,6 +56,13 @@ assert.equal(formatTitle('04 Celestial Dance','Spirit'),'Spirit • Celestial Da
 requireText(radio,/id="geMusicV5Button"/,'MUSIC launch button removed from Radio');
 requireText(radio,/id="liveBtn"/,'RADIO mode button removed');
 requireText(radio,/id="chooseSongsBtn"/,'Original Radio SONGS control removed');
+// The title-tap quick selector must remain a viewport-centered, independently
+// scrollable dialog. The previous title-relative placement clipped on iPhone.
+requireText(radio,/#geQuickSongPanel\{[\s\S]*?left:50%!important;top:50%!important/,'Radio quick-song picker must stay viewport-centered');
+requireText(radio,/document\.body\.append\(geQuickSongBackdrop,geQuickSongPanel\)/,'Song picker must not be inside the clipped Radio dashboard');
+requireText(radio,/#geQuickSongPanel\{[\s\S]*?overflow-y:auto!important;overflow-x:hidden!important/,'Song picker vertical scrolling removed');
+requireText(radio,/geQuickSongPanel\.setPointerCapture\(/,'Desktop mouse drag scrolling removed');
+requireText(radio,/geQuickSongBackdrop\.addEventListener\('click',geCloseQuickSongPanel\)/,'Song picker backdrop dismissal removed');
 requireText(music,/data-tab="songs"/,'SONGS tab removed');
 requireText(music,/data-tab="playlists"/,'PLAYLISTS tab removed');
 requireText(music,/state\.view='all';state\.arranging=false;state\.term='';/,'Reopen Music must restore SONGS without deleting selection');
