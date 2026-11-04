@@ -387,6 +387,70 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .selectionBar .quickPlaylistRow{flex:1 1 100%}
 }
 @media(min-width:1400px){.albumPlanetGrid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+
+/* GE DESKTOP CONTROL ROOM v1. Mobile selectors are intentionally untouched.
+   Desktop artwork, album picker, playlists, checkout and fan access share
+   their existing event handlers, storage, and authorization. */
+@media (min-width:1024px) and (min-height:600px) and (pointer:fine){
+ .backdrop{
+  background:radial-gradient(ellipse at 48% 7%,rgba(20,100,175,.26),transparent 47%),rgba(0,5,15,.78);
+  backdrop-filter:blur(13px);
+ }
+ .window{
+  width:min(1480px,calc(100vw - 72px))!important;
+  top:clamp(24px,4vh,58px)!important;bottom:clamp(24px,4vh,58px)!important;
+  max-height:none!important;
+  border:1px solid rgba(153,226,255,.76)!important;
+  border-radius:22px!important;
+  box-shadow:0 0 0 1px rgba(40,120,200,.26),0 35px 120px rgba(0,0,0,.85),0 0 52px rgba(12,115,205,.19)!important;
+  background:linear-gradient(135deg,rgba(8,33,58,.98),rgba(3,13,30,.98) 55%,rgba(9,33,55,.98))!important;
+ }
+ .window::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:inherit;
+  background:linear-gradient(120deg,transparent 12%,rgba(144,219,255,.035) 28%,transparent 46%);
+ }
+ .header,.tools,.scroll,.selectionBar{position:relative;z-index:1}
+ .header{padding:17px 26px!important;background:linear-gradient(95deg,rgba(5,59,104,.9),rgba(11,35,68,.92))!important;border-bottom:1px solid rgba(128,206,255,.34)}
+ .brand{font-size:25px!important;letter-spacing:.09em!important;text-shadow:0 0 16px rgba(113,203,255,.45)}
+ .tools{padding:16px 26px 12px!important;display:grid!important;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px 16px;align-items:center}
+ .tools .browse{margin-top:0!important}
+ .scroll{padding:18px 26px 36px!important;min-height:0;overflow-y:auto!important}
+ .albumPlanetGrid{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:13px!important;align-items:stretch}
+ .albumPlanetGrid .albumBrowseRow{
+  min-height:176px!important;padding:11px!important;gap:4px!important;
+  border-radius:15px!important;border:1px solid rgba(126,196,245,.33)!important;
+  background:linear-gradient(145deg,rgba(24,65,105,.58),rgba(7,21,39,.84))!important;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+ }
+ .albumPlanetGrid .albumBrowseRow:hover{
+  transform:translateY(-3px);border-color:rgba(177,231,255,.8)!important;
+  box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 15px rgba(51,159,235,.19);
+ }
+ .albumPlanetGrid .album{min-height:148px!important;gap:9px!important}
+ .albumPlanetGrid .albumCover{width:96px!important;height:96px!important;border-radius:50%!important;box-shadow:0 0 0 2px rgba(160,223,255,.5),0 0 21px rgba(51,153,239,.35)!important}
+ .albumPlanetGrid .album b{font-size:16px!important;line-height:1.18!important}
+ .albumPlanetGrid .album small{font-size:10px!important;letter-spacing:.07em}
+ .albumPlanetGrid .albumPickerCompact{max-width:25px!important}
+ .albumPlanetGrid .albumPickerCompact input{width:20px!important;height:20px!important}
+ .expandedAlbumSongs{padding:18px!important;border-radius:15px!important;box-shadow:inset 0 0 25px rgba(15,90,150,.16)}
+ .selectionBar{
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:10px 20px!important;
+  align-items:center;padding:12px 26px 15px!important;
+  background:linear-gradient(95deg,rgba(8,36,63,.98),rgba(7,22,43,.98))!important;
+  border-top:1px solid rgba(145,220,255,.48)!important;
+ }
+ .quickPlaylistRow{grid-column:1 / -1;max-width:none!important}
+ .quickPlaylistRow input{font-size:15px!important;min-height:42px!important;padding:9px 14px!important}
+ .quickPlaylistRow button{font-size:13px!important;min-height:42px!important;min-width:82px!important}
+ .selectionBar .checkedCount{font-size:14px!important;letter-spacing:.06em}
+ .selectionBar .selectionActions{display:flex!important;gap:10px!important}
+ .selectionActions button{min-height:46px!important;min-width:94px!important;padding:10px 17px!important;font-size:15px!important}
+ .selectionActions .playSelected{min-width:145px!important}
+}
+@media (min-width:1024px) and (max-width:1280px) and (pointer:fine){
+ .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+}
+
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
