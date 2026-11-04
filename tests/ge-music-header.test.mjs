@@ -21,9 +21,9 @@ assert.match(music,/Number\(data\.session_expires_at\)\*1000/,
   'Signed session expiry should still be stored');
 assert.match(music,/musicSessionEndpoint='https:\/\/vault\.grandelement\.com\/v1\/public\/access\/music-session'/,
   'Vault verification endpoint must remain intact');
-assert.match(radio,/ge-music-v5\.js\?v=20261101-v717-compact-music/,
+assert.match(radio,/ge-music-v5\.js\?v=20261104-v726-square-albums-player-handoff/,
   'Radio must load new Music UI');
-assert.match(worker,/2026\.11\.01-music-compact-top-v84/,
+assert.match(worker,/const VERSION='2026\.11\.04-square-album-playback-v86'/,
   'Radio application shell must be versioned for Safari');
 assert.match(worker,/MEDIA_CACHE='ge-radio-media-v4'/,
   'Existing offline songs must not be erased');
