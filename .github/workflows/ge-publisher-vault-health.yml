@@ -19,7 +19,9 @@ jobs:
           probes=[
             ('publisher','https://ge-backroom-publisher.grandelement.workers.dev/health'),
             ('vault','https://vault.grandelement.com/health'),
-            ('publisher_vault_bridge','https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes')
+            ('publisher_vault_bridge','https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes'),
+            ('control_github','https://api.github.com/repos/grandelement/website'),
+            ('control_blitz','https://radio.grandelement.blitz.cloud/healthz')
           ]
           status={}
           for name,url in probes:
@@ -46,7 +48,7 @@ jobs:
             except urllib.error.HTTPError as e:
               try: err=json.loads(e.read(5000).decode('utf-8','replace'))
               except Exception: err={}
-              status[name]={'http':e.code,'data':{k:err.get(k) for k in ('ok','configured','storage','access_codes_ready','upstream_http_status') if k in err}}
+              status[name]={'http':e.code,'server':e.headers.get('server',''),'cf_ray_present':bool(e.headers.get('cf-ray')),'retry_after':e.headers.get('retry-after',''),'mime':e.headers.get('content-type',''),'data':{k:err.get(k) for k in ('ok','configured','storage','access_codes_ready','upstream_http_status') if k in err}}
             except Exception as e:
               status[name]={'transport_error':type(e).__name__,'message':str(e)[:160]}
             print(name,json.dumps(status[name],sort_keys=True),'elapsed_s',round(time.monotonic()-start,1),flush=True)
