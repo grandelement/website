@@ -143,7 +143,7 @@ requireText(radio,/function browserWakeOnRadioTap\(\)\{return false\}/,'Un-deplo
 
 requireText(radio,/if\(GE_RADIO2_DISABLED\)return retryRadio1Only\(reason\)/,'Radio 2 failover bypass removed');
 requireText(radio,/void requestRadioStart\(\{deferPlay:qrArrival\}\)/,'Radio must try BLITZ on page arrival');
-requireText(home,/website-live\.js\?v=3/,'Homepage must load automatic BLITZ controller');
+requireText(home,/radio\/website-live\.js\?v=\d{8}-[\w-]+/,'Homepage must load automatic BLITZ controller');
 const homeRadio=read('radio/website-live.js');
 requireText(homeRadio,/if\(allowed\(\)\)start\(\)/,'Homepage must attempt original BLITZ station on arrival');
 requireText(homeRadio,/STREAM='https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3'/,'Homepage stream must remain BLITZ');
