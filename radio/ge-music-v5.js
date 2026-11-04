@@ -22,7 +22,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:true,expandedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -340,6 +340,53 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .selectionActions button{font-size:14px;min-height:44px;padding:8px 14px}
 }
 @media(min-width:1400px){.albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+/* Responsive album picker and fan playlist controls. */
+.albumPlanetGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}
+.albumPlanetGrid .albumBrowseRow{grid-template-columns:22px minmax(0,1fr);min-width:0;min-height:0;padding:5px;gap:0;border-radius:10px}
+.albumPlanetGrid .albumPickerCompact{grid-column:1;grid-row:1;align-self:start;min-width:0!important;max-width:22px!important;padding:2px 0!important}
+.albumPlanetGrid .albumPickerCompact input{width:17px!important;height:17px!important}
+.albumPlanetGrid .album{grid-column:2;grid-row:1;min-width:0;min-height:98px;gap:3px;padding:2px!important}
+.albumPlanetGrid .albumCover{width:clamp(35px,9vw,62px);height:clamp(35px,9vw,62px);border-radius:50%;object-fit:cover}
+.albumPlanetGrid .album b{font-size:clamp(10px,2.8vw,14px);line-height:1.1;overflow-wrap:anywhere}
+.albumPlanetGrid .album small{font-size:9px;white-space:normal;text-align:center}
+.albumPlanetGrid .album[aria-expanded="true"]{box-shadow:inset 0 0 0 2px #a5ecff,0 0 13px rgba(93,201,255,.55)!important;border-radius:9px!important;background:rgba(33,128,190,.35)!important}
+.expandedAlbumSongs{margin:8px 0 20px;padding:8px;border:1px solid #78c9fa;border-radius:10px;background:#081c2d;min-width:0}
+.expandedAlbumHeading{display:block;font-size:14px;padding:5px 4px 10px;color:#d8f3ff}
+.quickPlaylistRow{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 100%}
+.quickPlaylistRow input{flex:1 1 0;min-width:0;border:1px solid #6dbbe9;border-radius:8px;background:#081e30;color:#fff;padding:7px 9px;min-height:36px;font-size:13px}
+.quickPlaylistRow button{min-height:36px;min-width:56px;padding:5px 8px;font-size:12px}
+.selectionBar{flex-wrap:wrap;min-width:0;gap:6px;padding:7px 9px max(8px,env(safe-area-inset-bottom))}
+.selectionBar .checkedCount{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.selectionBar .selectionActions{flex:0 0 auto;min-width:0}
+@media(max-width:600px){
+ .window{top:max(4px,env(safe-area-inset-top));bottom:max(4px,env(safe-area-inset-bottom));max-height:none;width:calc(100vw - 8px);border-radius:12px}
+ .selectionBar{gap:5px}.selectionBar .quickPlaylistRow{width:100%}
+ .selectionBar .checkedCount{flex:1 1 100%;font-size:11px}
+ .selectionBar .selectionActions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ .selectionActions button{min-width:0!important;padding:5px!important}
+ .selectionActions .arrangeBtn{display:none!important}
+}
+@media(max-height:520px) and (orientation:landscape){
+ .window{top:2px;bottom:2px;max-height:none;width:calc(100vw - 12px)}
+ .header{padding:3px 9px;min-height:34px}.tools{padding:3px 7px}.tools .browse{margin-top:1px}
+ .scroll{padding:5px 8px 12px;min-height:0}
+ .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+ .albumPlanetGrid .album{min-height:68px}
+ .albumPlanetGrid .albumCover{width:38px;height:38px}
+ .selectionBar{padding:4px 7px;gap:4px}
+ .quickPlaylistRow input,.quickPlaylistRow button{min-height:29px}
+ .selectionActions button{min-height:29px!important}
+}
+@media(min-width:900px) and (min-height:580px){
+ .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+ .albumPlanetGrid .albumBrowseRow{min-height:125px;padding:8px;grid-template-columns:26px minmax(0,1fr)}
+ .albumPlanetGrid .album{min-height:120px}
+ .albumPlanetGrid .albumCover{width:75px;height:75px}
+ .albumPlanetGrid .album b{font-size:16px}
+ .selectionBar .quickPlaylistRow{flex:1 1 100%}
+}
+@media(min-width:1400px){.albumPlanetGrid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -356,7 +403,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false">ARRANGE</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -1137,8 +1184,11 @@ function render(){
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
  notice.textContent=state.arranging?'':state.notice;
+ const quickName=el('.quickPlaylistName');
+ if(document.activeElement!==quickName&&quickName.value!==state.playlistDraftName)quickName.value=state.playlistDraftName;
+ el('.quickPlaylistSave').disabled=state.savingShared||!state.selected.size;
  const arrangeBtn=el('.arrangeBtn');
- arrangeBtn.hidden=false;
+ arrangeBtn.hidden=true;
  arrangeBtn.textContent=state.arranging?'DONE':'ARRANGE';
  arrangeBtn.setAttribute('aria-pressed',String(state.arranging));
  arrangeBtn.title=state.arranging?'Finish arranging':'Hold and drag a song row to reorder';
@@ -1166,7 +1216,16 @@ function render(){
     const wrapper=elem('div','albumBrowseRow');
     applyAlbumStyle(wrapper,name);
     albumSelectAll(wrapper,name,rows,true);
-    card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
+    const albumButton=elem('button','album','');
+    albumButton.type='button';
+    albumButton.setAttribute('aria-expanded',String(state.expandedAlbum===name));
+    albumButton.append(elem('b','',name),elem('small','countHint','VIEW SONGS'));
+    albumButton.addEventListener('click',()=>{
+      state.expandedAlbum=state.expandedAlbum===name?'':name;
+      render();
+      if(state.expandedAlbum)el('.expandedAlbumSongs')?.scrollIntoView({block:'nearest',behavior:'auto'});
+    });
+    wrapper.append(albumButton);
     const tile=wrapper.querySelector('.album');
     if(tile){
       const cover=document.createElement('img');
@@ -1178,6 +1237,12 @@ function render(){
       tile.prepend(cover);
     }
     wrapper.append(albumActions(name,rows));grid.append(wrapper);
+  }
+  if(state.expandedAlbum){
+   const expanded=elem('div','expandedAlbumSongs');
+   expanded.append(elem('strong','expandedAlbumHeading',state.expandedAlbum+' · SELECT TRACKS'));
+   for(const track of state.tracks.filter(t=>t.album===state.expandedAlbum))appendSong(expanded,track);
+   scroller.append(expanded);
   }
   if(earlier.length){
    scroller.append(legacyButton);
@@ -1413,6 +1478,12 @@ el('.clearSelected').addEventListener('click',()=>{
  state.selected.clear();saveSelected();say('CHECKED SONGS CLEARED.');render();
 });
 el('.arrangeSave').addEventListener('click',saveArrangement);
+el('.quickPlaylistName').addEventListener('input',event=>{state.playlistDraftName=event.target.value.slice(0,100)});
+el('.quickPlaylistLoad').addEventListener('click',()=>void openPlaylistPicker());
+el('.quickPlaylistSave').addEventListener('click',()=>{
+ state.playlistDraftName=el('.quickPlaylistName').value.trim().slice(0,100);
+ void saveSharedArrangement();
+});
 el('.arrangeOwnerLogin').addEventListener('click',()=>void ownerLoginAndSave());
 el('.arrangeOwnerCancel').addEventListener('click',hideOwnerSaveLogin);
 el('.arrangeOwnerPassword').addEventListener('keydown',event=>{
