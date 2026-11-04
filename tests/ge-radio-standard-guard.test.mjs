@@ -63,6 +63,16 @@ requireText(radio,/document\.body\.append\(geQuickSongBackdrop,geQuickSongPanel\
 requireText(radio,/#geQuickSongPanel\{[\s\S]*?overflow-y:auto!important;overflow-x:hidden!important/,'Song picker vertical scrolling removed');
 requireText(radio,/geQuickSongPanel\.setPointerCapture\(/,'Desktop mouse drag scrolling removed');
 requireText(radio,/geQuickSongBackdrop\.addEventListener\('click',geCloseQuickSongPanel\)/,'Song picker backdrop dismissal removed');
+
+// Music library repair: song text is a real PLAY action, album checkbox is
+// independent, and each published cover fills an actual square jacket card.
+requireText(music,/songText\.addEventListener\('click',\(\)=>void playTrack\(track,checkedQueueStartingAt\(track\),true\)\)/,'Tapping a song name must start main player playback');
+requireText(music,/const row=elem\('div','song'\),label=elem\('div','songInfo'\),checkbox=elem\('input'\)/,'Song title PLAY and checkbox must remain independent controls');
+requireText(music,/\.albumPlanetGrid \.albumBrowseRow\{[\s\S]*?aspect-ratio:1\/1!important/,'Square album cover cards removed');
+requireText(music,/\.albumPlanetGrid \.albumBrowseRow \.albumCover\{[\s\S]*?width:100%!important;height:100%!important/,'Full-sized actual album cover artwork removed');
+requireText(music,/\.albumPlanetGrid \.albumBrowseRow \.album b\{[\s\S]*?bottom:0!important/,'Album names must remain overlaid at the bottom');
+requireText(music,/\.albumPlanetGrid \.albumBrowseRow \.albumPickerCompact\{[\s\S]*?top:7px!important;left:7px!important/,'Album checkbox must stay top left');
+requireText(music,/window\.GEMusicV5Bridge\?\.showMainPlayer\?\.\(\)/,'Music PLAY must return to the primary Radio player');
 requireText(music,/data-tab="songs"/,'SONGS tab removed');
 requireText(music,/data-tab="playlists"/,'PLAYLISTS tab removed');
 requireText(music,/state\.view='all';state\.arranging=false;state\.term='';/,'Reopen Music must restore SONGS without deleting selection');
