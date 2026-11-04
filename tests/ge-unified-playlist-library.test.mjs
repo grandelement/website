@@ -65,11 +65,11 @@ assert.match(radio,/frame\.GEJumpLibraryQueue\(i\)/,'song tap jumps through exis
 assert.match(radio,/gePlaylistQuickSet\(playlistName,queue,playlistDetails\)/);
 assert.match(preview,/window\.GEJumpLibraryQueue=function\(index\)/);
 assert.match(preview,/path:currentTrack\?cleanMusicPath/);
-assert.match(music,/custom=Array\.isArray\(queueOverride\)&&queueOverride\.length>0&&/,'single song playback must not open a playlist quick strip');
+assert.match(music,/const custom=!shuffleAll&&Array\.isArray\(queueOverride\)&&queueOverride\.length>0&&queue\.length>1/,'single song playback must not open a playlist quick strip');
 assert.match(music,/\{custom,labels\}/);
 
-assert.match(radio,/if\(geInlineMusicActive\)\{\s*state\.shuffle=false;syncModeButtons\(\)/);
-assert.match(radio,/state\.shuffle=false;syncModeButtons\(\);/);
+assert.match(radio,/state\.shuffle=!playlistDetails\?\.custom;syncModeButtons\(\)/,'Custom playlists must retain exact order by disabling shuffle');
+assert.match(radio,/if\(ok\)frame\.GESetMusicQueueShuffle\?\.\(state\.shuffle\)/,'Transport must carry chosen queue shuffle state');
 assert.doesNotMatch(radio,/showPlayer:\(\)=>geInlineMusicShow/);
 assert.doesNotMatch(music,/GEMusicV5Bridge\?\.showPlayer\?\.\(\)/);
 assert.doesNotMatch(radio,/frame\.GEPlayLibraryTrack\(path\)/);
@@ -82,7 +82,7 @@ assert.doesNotMatch(mainQueue,/openMusicList\(/,'Do not open a nested playlist s
 assert.match(preview,/window\.GEPlayLibraryQueue=function\(paths,startPath,playlistName=''/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
 assert.match(preview,/selectedSongs=tracks\.slice\(\)/);
-assert.match(radio,/ge-music-v5\.js\?v=20261101-v717-compact-music/);
+assert.match(radio,/ge-music-v5\.js\?v=20261104-v726-square-albums-player-handoff/);
 assert.match(music,/loadSelectedPlaylistKey\(key\)/);
 assert.match(music,/playlistBar\.append\(nameField,loadButton,saveButton\)/);
 assert.doesNotMatch(music,/playlistBar\.append\(savedSelector/);
@@ -106,7 +106,7 @@ assert.match(music,/saveFanArrangement/);
 assert.match(music,/loadFanPlaylists/);
 assert.doesNotMatch(music,/SAVE COPY/);
 assert.doesNotMatch(music,/function saveMine\(/);
-assert.doesNotMatch(music,/class="buySelected buyBtn"/);
+assert.match(music,/class="buySelected buyBtn"/,'Owner-requested single BUY action remains in MUSIC footer');
 assert.doesNotMatch(music,/const buy=elem\('button','buyBtn'/);
 assert.match(music,/UNLISTED · CODE REQUIRED TO PLAY/);
 assert.match(music,/else setView\('ge-playlists'\)/);
