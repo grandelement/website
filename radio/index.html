@@ -3188,7 +3188,22 @@ flex:0 0 auto!important;height:75px!important;min-height:75px!important;margin:4
 </style>
 <style id="ge-radio-quick-song-and-transparent-backgrounds-20261027">
 /* Floating quick picker retains the site's original track-title labels. */
-#geQuickSongPanel{position:fixed;z-index:26000;width:min(360px,calc(100vw - 16px));max-height:min(52dvh,440px);overflow-y:scroll!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;overscroll-behavior:contain!important;box-sizing:border-box;padding:8px;border:1px solid rgba(111,184,255,.85);border-radius:12px;background:rgba(3,15,29,.97);box-shadow:0 12px 32px rgba(0,0,0,.68);color:#effaff}
+/* Restore September's viewport-centered modal scroll behavior, keeping current song rows. */
+#geQuickSongBackdrop[hidden]{display:none!important}
+#geQuickSongBackdrop{position:fixed;inset:0;z-index:25999;background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+#geQuickSongPanel{
+  position:fixed!important;z-index:26000!important;left:50%!important;top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(760px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;
+  height:auto;max-height:min(72dvh,620px)!important;box-sizing:border-box;
+  overflow-y:auto!important;overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;touch-action:pan-y!important;
+  padding:8px 8px 18px;border:1px solid rgba(111,184,255,.85);border-radius:15px;
+  background:rgba(3,15,29,.97);box-shadow:0 18px 60px rgba(0,0,0,.68);color:#effaff;
+  scrollbar-width:thin;cursor:grab;
+}
+#geQuickSongPanel.drag-scrolling{cursor:grabbing;user-select:none}
+#geQuickSongPanel .geQuickSongHeading{position:sticky;top:-8px;z-index:1;background:rgba(3,15,29,.97)}
 #geQuickSongPanel[hidden]{display:none!important}
 #geQuickSongPanel .geQuickSongHeading{font-size:11px;font-weight:850;letter-spacing:.09em;text-align:center;color:#9dd9ff;padding:6px 8px 10px}
 #geQuickSongPanel .geQuickSongEmpty{padding:12px;text-align:center}
@@ -8245,9 +8260,16 @@ geQuickSongPanel.id='geQuickSongPanel';
 geQuickSongPanel.setAttribute('role','dialog');
 geQuickSongPanel.setAttribute('aria-label','Quick song selection');
 geQuickSongPanel.hidden=true;
-titleBtn.insertAdjacentElement('afterend',geQuickSongPanel);
+geQuickSongPanel.tabIndex=0;
+geQuickSongPanel.setAttribute('aria-modal','true');
+const geQuickSongBackdrop=document.createElement('div');
+geQuickSongBackdrop.id='geQuickSongBackdrop';
+geQuickSongBackdrop.hidden=true;
+// Keep the dialog outside the fixed, clipped Radio dashboard on iPhone.
+document.body.append(geQuickSongBackdrop,geQuickSongPanel);
 function geCloseQuickSongPanel(){
   geQuickSongPanel.hidden=true;
+  geQuickSongBackdrop.hidden=true;
   titleBtn.setAttribute('aria-expanded','false');
 }
 function geOpenQuickSongPanel(){
@@ -8286,26 +8308,63 @@ function geOpenQuickSongPanel(){
     });
     geQuickSongPanel.appendChild(item);
   }
+  geQuickSongBackdrop.hidden=false;
   geQuickSongPanel.hidden=false;
   geQuickSongPanel.scrollTop=0;
   titleBtn.setAttribute('aria-expanded','true');
-  // Restore the original title-tap scroll picker, centered on the current
-  // song instead of opening at the top every time.
+  // Keep the current track visible without scrolling the locked Radio page.
   const selected=geQuickSongPanel.querySelector('[aria-current="true"]');
-  if(selected)requestAnimationFrame(()=>selected.scrollIntoView({block:'nearest',behavior:'auto'}));
-  const b=titleBtn.getBoundingClientRect();
-  const vh=window.innerHeight,below=vh-b.bottom-14;
-  const preferredHeight=Math.min(440,Math.round(vh*.52));
-  const above=below<Math.min(190,preferredHeight)&&b.top>below;
-  const top=above?Math.max(8,b.top-preferredHeight-7):Math.max(8,b.bottom+7);
-  geQuickSongPanel.style.top=top+'px';
-  geQuickSongPanel.style.maxHeight=Math.max(95,Math.min(preferredHeight,above?b.top-16:vh-top-14))+'px';
-  geQuickSongPanel.style.left=Math.max(8,Math.min(window.innerWidth-296,b.left+b.width/2-148))+'px';
+  if(selected)requestAnimationFrame(()=>{
+    if(geQuickSongPanel.hidden)return;
+    const listRect=geQuickSongPanel.getBoundingClientRect();
+    const itemRect=selected.getBoundingClientRect();
+    geQuickSongPanel.scrollTop+=itemRect.top-listRect.top-(geQuickSongPanel.clientHeight-itemRect.height)/2;
+  });
 }
 // Protect vertical movement inside quick-song menu from page-level touch guards.
 geQuickSongPanel.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
 geQuickSongPanel.addEventListener('touchmove',event=>event.stopPropagation(),{passive:true});
 geQuickSongPanel.addEventListener('wheel',event=>event.stopPropagation(),{passive:true});
+// Allow old desktop mice to grab and drag the list while preserving normal clicks.
+let geQuickSongMouseDrag=null;
+let geQuickSongSuppressClick=false;
+geQuickSongPanel.addEventListener('pointerdown',event=>{
+  if(event.pointerType!=='mouse'||event.button!==0)return;
+  geQuickSongMouseDrag={id:event.pointerId,y:event.clientY,scroll:geQuickSongPanel.scrollTop,moved:false};
+});
+geQuickSongPanel.addEventListener('pointermove',event=>{
+  const drag=geQuickSongMouseDrag;
+  if(!drag||event.pointerId!==drag.id)return;
+  const distance=event.clientY-drag.y;
+  if(!drag.moved&&Math.abs(distance)<5)return;
+  if(!drag.moved){
+    drag.moved=true;
+    geQuickSongPanel.classList.add('drag-scrolling');
+    try{geQuickSongPanel.setPointerCapture(event.pointerId);}catch(_e){}
+  }
+  geQuickSongPanel.scrollTop=drag.scroll-distance;
+  event.preventDefault();
+});
+function geQuickSongEndMouseDrag(event){
+  const drag=geQuickSongMouseDrag;
+  if(!drag||event.pointerId!==drag.id)return;
+  geQuickSongMouseDrag=null;
+  geQuickSongPanel.classList.remove('drag-scrolling');
+  try{if(geQuickSongPanel.hasPointerCapture(event.pointerId))geQuickSongPanel.releasePointerCapture(event.pointerId);}catch(_e){}
+  if(drag.moved){
+    geQuickSongSuppressClick=true;
+    setTimeout(()=>{geQuickSongSuppressClick=false;},0);
+  }
+}
+geQuickSongPanel.addEventListener('pointerup',geQuickSongEndMouseDrag);
+geQuickSongPanel.addEventListener('pointercancel',geQuickSongEndMouseDrag);
+geQuickSongPanel.addEventListener('click',event=>{
+  if(!geQuickSongSuppressClick)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  geQuickSongSuppressClick=false;
+},true);
+geQuickSongBackdrop.addEventListener('click',geCloseQuickSongPanel);
 titleBtn.addEventListener('click',()=>{
   if(geQuickSongPanel.hidden)geOpenQuickSongPanel();else geCloseQuickSongPanel();
 });
