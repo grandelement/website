@@ -45,18 +45,41 @@ try{
  await page.waitForFunction(()=>window.GEMusicV5.state().loaded&&
   typeof document.querySelector('#geInlineMusicFrame')?.contentWindow?.GEPlayLibraryQueue==='function',
   {timeout:20000});
+ // The SONGS default is the square album grid. Check real jacket art and
+ // independent top-left album checkbox, then expand the album to reach songs.
+ const coverCheck=await page.evaluate(()=>{
+  const root=document.querySelector('#geMusicV5Host').shadowRoot;
+  const album=[...root.querySelectorAll('.albumBrowseRow')]
+    .find(row=>row.querySelector('.album b')?.textContent==='Aether');
+  if(!album)throw Error('Aether album card missing');
+  const a=album.getBoundingClientRect();
+  const check=album.querySelector('.albumPickerCompact input')?.getBoundingClientRect();
+  const img=album.querySelector('img.albumCover');
+  const style=img&&getComputedStyle(img);
+  if(!img||!check)throw Error('Album artwork or checkbox missing');
+  const okArt=img.src.includes('Grand%20Element%20-%20Aether.jpg')&&style.objectFit==='cover';
+  const okSquare=Math.abs(a.width-a.height)<3;
+  const okCheckbox=check.left>=a.left&&check.top>=a.top&&check.left<a.left+42&&check.top<a.top+42;
+  album.querySelector('button.album').click();
+  return {okArt,okSquare,okCheckbox,width:a.width,height:a.height};
+ });
+ if(!coverCheck.okArt||!coverCheck.okSquare||!coverCheck.okCheckbox)
+  throw Error('Album card is not square artwork with aligned checkbox: '+JSON.stringify(coverCheck));
+ await page.waitForFunction(()=>document.querySelector('#geMusicV5Host').shadowRoot.querySelectorAll('.song').length>0,{timeout:10000});
  const rows=await page.evaluate(()=>{
   const root=document.querySelector('#geMusicV5Host')?.shadowRoot;
   return [...(root?.querySelectorAll('.song')||[])].map(row=>row.querySelector('.songLabel')?.textContent||'');
  });
  if(!rows.includes('Polaris')||!rows.includes('The Journey'))
   throw Error('Aether song titles missing or include redundant album suffix: '+JSON.stringify(rows.slice(0,12)));
- const clickRow=async name=>page.evaluate(name=>{
+ const clickRow=async (name,titleTap=false)=>page.evaluate(({name,titleTap})=>{
   const root=document.querySelector('#geMusicV5Host').shadowRoot;
   const row=[...root.querySelectorAll('.song')].find(r=>r.querySelector('.songLabel')?.textContent===name);
   if(!row)throw Error('Cannot find '+name);
-  row.querySelector('.songActions button').click();
- },name);
+  const action=titleTap?row.querySelector('.songTitlePlay'):row.querySelector('.songActions button');
+  if(!action)throw Error('Missing song playback action');
+  action.click();
+ },{name,titleTap});
  const source=()=>page.evaluate(()=>({
   open:window.GEMusicV5.state().open,
   song:document.getElementById('audio')?.getAttribute('src')||
@@ -65,7 +88,7 @@ try{
   queue:document.querySelector('#gePlaylistQuickToggle')?.textContent||'',
   calls:document.querySelector('#geInlineMusicFrame')?.contentWindow?.__geTestPlayCalls||0
  }));
- await clickRow('Polaris');
+ await clickRow('Polaris',true);
  await page.waitForFunction(()=>!window.GEMusicV5.state().open,{timeout:10000});
  let state=await source();
  if(!state.song.includes('Polaris')||!state.title.includes('Aether • 02 • Polaris')||!state.queue.includes('2 SONGS'))
@@ -87,7 +110,7 @@ try{
  }));
  if(!picker.visible||picker.choices<2)
   throw Error('Radio title no longer opens scrollable song picker: '+JSON.stringify(picker));
- await page.click('#titleBtn');
+ await page.keyboard.press('Escape');
  // Forward and backward stay inside the checked queue, even after its end.
  await page.click('#nextBtn');
  state=await source();
@@ -150,5 +173,5 @@ try{
     !cacheCheck.songPurged||!cacheCheck.unrelatedOK)
    throw Error('Offline remove did not completely purge GE assets while preserving app shell and other caches: '+JSON.stringify(cacheCheck));
  console.log('PASS: confirmed OFFLINE removal purges old song/background caches but leaves app shell and other apps intact.');
- console.log('PASS: iPhone SONG rows use title only; row PLAY closes MUSIC, starts tapped song, loops checked queue, and one selected song repeats.');
+ console.log('PASS: square real-cover album cards, aligned checkboxes, song title and PLAY controls start main player, checked queue cycles and repeats.');
 }finally{await browser.close()}
