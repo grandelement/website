@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.18-20261103-BULK-BUY-PLAY';
+const BUILD='GE-MUSIC-V7.19-20261104-ALBUM-ART-SONG-PLAY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -474,6 +474,72 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .selectionActions .playSelected:not(:disabled)::before{animation-duration:var(--ge-play-orbit,3.2s)!important;animation-delay:var(--ge-play-orbit-delay,0s)!important}
 .selectionActions .playSelected:not(:disabled)::after{animation-duration:var(--ge-play-sweep,2.8s)!important;animation-delay:var(--ge-play-sweep-delay,0s)!important;opacity:var(--ge-play-opacity,.8)!important}
 }
+
+/* Music album cover cards: real full-bleed square jacket art, title at bottom.
+   The album checkbox remains independent of the VIEW SONGS button. */
+.albumPlanetGrid .albumBrowseRow{
+ display:block!important;position:relative!important;aspect-ratio:1/1!important;
+ width:100%!important;height:auto!important;min-height:0!important;
+ padding:0!important;overflow:hidden!important;border-radius:11px!important;
+ border-left:1px solid rgba(171,227,255,.5)!important;
+ background:#0b2338!important;
+}
+.albumPlanetGrid .albumBrowseRow .album{
+ display:block!important;position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;min-height:0!important;
+ padding:0!important;margin:0!important;gap:0!important;
+ background:transparent!important;border:0!important;border-radius:0!important;
+ box-shadow:none!important;overflow:hidden!important;
+}
+.albumPlanetGrid .albumBrowseRow .albumCover{
+ display:block!important;position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;max-width:none!important;
+ max-height:none!important;object-fit:cover!important;border-radius:0!important;
+ box-shadow:none!important;filter:none!important;
+}
+.albumPlanetGrid .albumBrowseRow .albumCover[hidden]{display:none!important}
+.albumPlanetGrid .albumBrowseRow .album::before{display:none!important}
+.albumPlanetGrid .albumBrowseRow .album b{
+ position:absolute!important;z-index:1!important;left:0!important;right:0!important;bottom:0!important;
+ display:block!important;min-width:0!important;width:100%!important;
+ padding:17px 4px 8px!important;margin:0!important;
+ color:white!important;text-align:center!important;font-size:clamp(11px,3vw,17px)!important;
+ line-height:1.12!important;font-weight:900!important;letter-spacing:0!important;
+ overflow-wrap:anywhere!important;white-space:normal!important;
+ text-shadow:0 1px 3px #000,0 1px 6px #000!important;
+ background:linear-gradient(0deg,rgba(0,8,18,.96),rgba(0,8,18,.76) 66%,transparent)!important;
+}
+.albumPlanetGrid .albumBrowseRow .album small{display:none!important}
+.albumPlanetGrid .albumBrowseRow .albumPickerCompact{
+ position:absolute!important;z-index:4!important;top:7px!important;left:7px!important;
+ grid-column:auto!important;grid-row:auto!important;display:flex!important;
+ align-items:center!important;justify-content:center!important;
+ width:30px!important;height:30px!important;min-width:30px!important;max-width:30px!important;
+ min-height:30px!important;max-height:30px!important;margin:0!important;padding:0!important;
+ border:1px solid rgba(220,244,255,.9)!important;border-radius:6px!important;
+ background:rgba(0,15,29,.82)!important;
+}
+.albumPlanetGrid .albumBrowseRow .albumPickerCompact input{
+ display:block!important;position:static!important;flex:0 0 auto!important;
+ width:21px!important;height:21px!important;min-width:21px!important;
+ margin:0!important;accent-color:#168fff!important;
+}
+.song .songInfo{display:flex;align-items:center;gap:9px;flex:1 1 auto;min-width:0}
+.song .songTitlePlay{
+ display:block!important;flex:1 1 auto!important;min-width:0!important;min-height:36px!important;
+ padding:5px 2px!important;margin:0!important;text-align:left!important;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ color:#f3faff!important;font:inherit!important;font-weight:750!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;cursor:pointer!important;
+ touch-action:manipulation!important;
+}
+.song .songTitlePlay:focus-visible{outline:2px solid #d3f5ff!important;outline-offset:2px}
+.song.sortable .songTitlePlay{pointer-events:none!important}
+@media(min-width:900px){
+ .albumPlanetGrid .albumBrowseRow .album b{font-size:clamp(13px,1.15vw,20px)!important;padding:22px 7px 10px!important}
+ .albumPlanetGrid .albumBrowseRow .albumPickerCompact{width:33px!important;height:33px!important;min-width:33px!important;max-width:33px!important}
+}
+
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1000,7 +1066,7 @@ async function playCheckedSongs(showPlayer=true){
 function isArrangeView(){return state.arranging&&(state.view==='checked'||state.view==='playlist-order')}
 function appendSong(parent,track){
  const sorting=isArrangeView();
- const row=elem('div','song'),label=elem(sorting?'div':'label',sorting?'songInfo':''),checkbox=elem('input');
+ const row=elem('div','song'),label=elem('div','songInfo'),checkbox=elem('input');
  if(sorting){row.classList.add('sortable');row.dataset.songPath=track.path;
   row.title='Hold and slide this song to reorder, or use ↑ ↓';}
  checkbox.type='checkbox';checkbox.checked=state.selected.has(track.path);
@@ -1016,10 +1082,13 @@ function appendSong(parent,track){
      playlist_id:(state.view.startsWith('vault:')||state.view.startsWith('local:'))?state.view.slice(state.view.indexOf(':')+1):''
    });
  });
- const songText=elem('span','songLabel',track.title);
-  // This SONGS list is already grouped under the album header. Keep the
-  // album in metadata, player labels, playlists, and all other displays.
-  songText.title=track.title;
+ const songText=elem('button','songLabel songTitlePlay',track.title);
+  // The checkbox changes selection; touching the song title starts that
+  // song in the main player. Keep both actions independent on iPhone.
+  songText.type='button';
+  songText.title='Play '+track.title;
+  songText.setAttribute('aria-label','Play '+track.title+' in the main player');
+  songText.addEventListener('click',()=>void playTrack(track,checkedQueueStartingAt(track),true));
   label.append(checkbox,songText);
  applyAlbumStyle(row,track.album);
  row.classList.toggle('selectedSong',checkbox.checked);
@@ -1319,6 +1388,7 @@ function render(){
     const albumButton=elem('button','album','');
     albumButton.type='button';
     albumButton.setAttribute('aria-expanded',String(state.expandedAlbum===name));
+    albumButton.setAttribute('aria-label','View songs on '+name+' album');
     albumButton.append(elem('b','',name),elem('small','countHint','VIEW SONGS'));
     albumButton.addEventListener('click',()=>{
       state.expandedAlbum=state.expandedAlbum===name?'':name;
