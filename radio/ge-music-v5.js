@@ -289,7 +289,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 /* Desktop is a separate responsive layout, not a stretched phone interface. */
 .albumPlanetGrid .album::before{display:none!important}
-.albumPlanetGrid .albumCover{display:block;width:clamp(66px,17vw,118px);height:clamp(66px,17vw,118px);object-fit:cover;border-radius:50%;box-shadow:0 0 14px rgba(105,196,255,.35);flex:0 0 auto}
+.albumPlanetGrid .albumCover{display:block;width:clamp(66px,17vw,118px);height:clamp(66px,17vw,118px);object-fit:cover;border-radius:10px;box-shadow:0 0 14px rgba(105,196,255,.35);flex:0 0 auto}
 .albumPlanetGrid .albumCover[hidden]{display:none!important}
 .albumPlanetGrid .albumBrowseRow{grid-template-columns:30px minmax(0,1fr)}
 .albumPlanetGrid .album{min-height:145px}
