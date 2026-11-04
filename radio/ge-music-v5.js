@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.19-20261104-ALBUM-ART-SONG-PLAY';
+const BUILD='GE-MUSIC-V7.20-20261104-GUEST-PLAY-GATE-ONLY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1727,14 +1727,25 @@ button.addEventListener('click',event=>{event.preventDefault();event.stopPropaga
 button.dataset.geMusicBuild=BUILD;
 window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
  playAll:(direction='play')=>{
+  // PLAY never demands a code or redirects a guest before the real 33:33 Gate.
+  // Vault receipts still restrict assigned songs and the preview player
+  // enforces the exact 2013-second listening limit.
   const access=musicAccessActive();
-  if(!access){open();say('Enter your Music access code to play the library.');return false}
-  if(!state.loaded){open();say('Loading the music library. Tap PLAY again when loaded.');return false}
-  const tracks=access.restricted?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
-  if(!tracks.length){open();say('No songs are available for this code.');return false}
+  if(window.GEGate?.isExpiredLocked?.()&&!access){
+    window.GEGate?.restore?.();
+    say('33:33 COMPLETE · ENTER ACCESS CODE.');
+    return false;
+  }
+  if(!state.loaded){open();say('Loading songs. Tap PLAY again when the library is ready.');return false}
+  const permitted=access?.restricted
+   ?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
+  const checked=selectedTracks().filter(t=>permitted.some(p=>p.path===t.path));
+  // Prioritize checked songs (and their saved order), not a random recording.
+  const tracks=checked.length?checked:permitted;
+  if(!tracks.length){open();say('No playable songs are in the library.');return false}
   const index=direction==='previous'?tracks.length-1:
-   direction==='next'?Math.min(1,tracks.length-1):Math.floor(Math.random()*tracks.length);
-  return playTrack(tracks[index],tracks.map(t=>t.path),true,true);
+   direction==='next'?Math.min(1,tracks.length-1):0;
+  return playTrack(tracks[index],tracks.map(t=>t.path),true,checked.length===0);
  },
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
