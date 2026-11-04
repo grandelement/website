@@ -469,6 +469,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .albumPlanetGrid .album{min-height:160px!important}
  .albumPlanetGrid .albumBrowseRow{min-height:195px!important}
 }
+@media(prefers-reduced-motion:no-preference){
+.selectionActions .playSelected:not(:disabled){animation-duration:var(--ge-play-flow,3.6s),var(--ge-play-pulse,2.4s)!important}
+.selectionActions .playSelected:not(:disabled)::before{animation-duration:var(--ge-play-orbit,3.2s)!important;animation-delay:var(--ge-play-orbit-delay,0s)!important}
+.selectionActions .playSelected:not(:disabled)::after{animation-duration:var(--ge-play-sweep,2.8s)!important;animation-delay:var(--ge-play-sweep-delay,0s)!important;opacity:var(--ge-play-opacity,.8)!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -489,6 +494,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 </section>`;
 document.body.appendChild(host);
+function randomizePlayGlow(){
+ if(!state.open||document.hidden||window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+ const b=root.querySelector('.playSelected');if(!b)return;
+ const rnd=(lo,hi)=>(lo+Math.random()*(hi-lo)).toFixed(2);
+ for(const [k,v] of Object.entries({
+ '--ge-play-flow':rnd(3.2,6.9)+'s','--ge-play-pulse':rnd(1.9,4.8)+'s',
+ '--ge-play-orbit':rnd(2.8,7.1)+'s','--ge-play-sweep':rnd(3.0,8.5)+'s',
+ '--ge-play-orbit-delay':'-'+rnd(0,4)+'s','--ge-play-sweep-delay':'-'+rnd(0,5)+'s',
+ '--ge-play-opacity':rnd(.4,.95)
+ }))b.style.setProperty(k,v);
+}
+setInterval(randomizePlayGlow,5700);
+
 const el=sel=>root.querySelector(sel),scroller=el('.scroll'),notice=el('.notice');
 const playlistBar=document.createElement('div');playlistBar.className='gePlaylistBar';
 const savedSelector=el('.arrangePlaylistSelect'),nameField=el('.arrangeCurrentName');
