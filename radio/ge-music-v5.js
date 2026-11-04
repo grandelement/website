@@ -286,6 +286,28 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPlanetGrid .album small{font-size:10px}
 .albumPlanetGrid .albumActions{display:none}
 .selectionActions .playSelected:not(:disabled){background:rgba(255,255,255,.035)!important;border:1.5px solid rgba(245,251,255,.8)!important;box-shadow:0 0 11px rgba(245,251,255,.55),inset 0 0 12px rgba(255,255,255,.08)!important}
+
+/* Desktop is a separate responsive layout, not a stretched phone interface. */
+.albumPlanetGrid .album::before{display:none!important}
+.albumPlanetGrid .albumCover{display:block;width:clamp(66px,17vw,118px);height:clamp(66px,17vw,118px);object-fit:cover;border-radius:50%;box-shadow:0 0 14px rgba(105,196,255,.35);flex:0 0 auto}
+.albumPlanetGrid .albumCover[hidden]{display:none!important}
+.albumPlanetGrid .albumBrowseRow{grid-template-columns:30px minmax(0,1fr)}
+.albumPlanetGrid .album{min-height:145px}
+@media(min-width:900px) and (min-height:580px){
+ .window{width:min(1320px,calc(100vw - 64px));max-height:calc(100dvh - 72px);top:36px;bottom:36px;border-radius:18px}
+ .header{padding:13px 20px}.brand{font-size:24px}
+ .tools{padding:12px 18px}.scroll{padding:18px 20px 30px}
+ .albumPlanetGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+ .albumPlanetGrid .albumBrowseRow{min-height:215px;padding:12px;grid-template-columns:28px minmax(0,1fr)}
+ .albumPlanetGrid .album{min-height:188px;gap:9px}
+ .albumPlanetGrid .albumCover{width:118px;height:118px}
+ .albumPlanetGrid .album b{font-size:18px}
+ .albumPlanetGrid .album small{font-size:12px}
+ .selectionBar{padding:12px 20px;min-height:65px}
+ .selectionBar strong{font-size:15px}
+ .selectionActions button{font-size:14px;min-height:44px;padding:8px 14px}
+}
+@media(min-width:1400px){.albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1113,6 +1135,16 @@ function render(){
     applyAlbumStyle(wrapper,name);
     albumSelectAll(wrapper,name,rows,true);
     card(wrapper,name,'VIEW SONGS',()=>setView('album:'+name));
+    const tile=wrapper.querySelector('.album');
+    if(tile){
+      const cover=document.createElement('img');
+      cover.className='albumCover';
+      cover.src=new URL('../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg',location.href).href;
+      cover.alt=name+' album cover';
+      cover.loading='lazy';
+      cover.onerror=()=>{cover.hidden=true};
+      tile.prepend(cover);
+    }
     wrapper.append(albumActions(name,rows));grid.append(wrapper);
   }
   if(earlier.length){
