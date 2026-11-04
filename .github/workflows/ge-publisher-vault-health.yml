@@ -49,7 +49,7 @@ jobs:
               raw=e.read(5000).decode('utf-8','replace')
               try: err=json.loads(raw)
               except Exception: err={}
-              status[name]={'http':e.code,'server':e.headers.get('server',''),'cf_ray_present':bool(e.headers.get('cf-ray')),'retry_after':e.headers.get('retry-after',''),'mime':e.headers.get('content-type',''),'error_keys':list(err.keys())[:10],'error_message':str(err.get('error',err.get('message','')))[:160],'data':{k:err.get(k) for k in ('ok','configured','storage','access_codes_ready','upstream_http_status') if k in err}}
+              status[name]={'http':e.code,'server':e.headers.get('server',''),'cf_ray_present':bool(e.headers.get('cf-ray')),'retry_after':e.headers.get('retry-after',''),'mime':e.headers.get('content-type',''),'error_code':str(err.get('error_code',''))[:64],'error_name':str(err.get('error_name',''))[:100],'error_category':str(err.get('error_category',''))[:100],'error_title':str(err.get('title',''))[:100],'error_detail':str(err.get('detail',''))[:200],'data':{k:err.get(k) for k in ('ok','configured','storage','access_codes_ready','upstream_http_status') if k in err}}
             except Exception as e:
               status[name]={'transport_error':type(e).__name__,'message':str(e)[:160]}
             print(name,json.dumps(status[name],sort_keys=True),'elapsed_s',round(time.monotonic()-start,1),flush=True)
