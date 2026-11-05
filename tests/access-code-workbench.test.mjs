@@ -41,14 +41,14 @@ assert.match(radioHtml,/Vault did not accept this key/);
 assert.match(radioHtml,/A saved code NAME is not necessarily the actual RADIO KEY/);
 assert.match(html,/id='brAccessShowActualKey'/);
 assert.match(html,/VAULT CHECK FAILED/);
-assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\)\]\)/);
+assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\),refreshVaultAccessPlaylists\(\)\]\)/);
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
 
 assert.match(html,/function selectedAccessAssignments\(\)/);
 assert.match(html,/const assignments=selectedAccessAssignments\(\)/);
 assert.match(html,/playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths/);
-assert.match(html,/Check playlists, then SAVE the access code/);
-console.log('PASS: checked GitHub playlist songs are included when the access code is saved');
+assert.match(html,/CHECKED = ALLOWED · UNCHECKED = DENIED · SAVE to apply/);
+console.log('PASS: checked live Vault playlists snapshot authorized songs on Access Code SAVE');
 
 assert.match(html,/id="brAccessRevealKey"/);
 assert.match(html,/action:'reveal',id:row.id/);
@@ -81,7 +81,7 @@ assert.match(html,/JSON.stringify\(saved.track_paths\|\|\[\]\)===JSON.stringify\
 assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
-assert.match(html, /musicSection\.querySelector\('summary'\)\.textContent='MUSIC · PLAYLISTS'/);
+assert.match(html, /musicSection\.querySelector\('\.brAccessPlaylistSummary > span'\)\.textContent='MUSIC · PLAYLISTS'/);\nassert.doesNotMatch(html,/musicSection\.querySelector\('summary'\)\.textContent=/,\n  'retitling the category must not delete the refresh button');\nassert.match(html,/id="brAccessPlaylistRefresh"/);\nassert.match(html,/id="brAccessPlaylistAll" checked/);\nassert.match(html,/async function refreshVaultAccessPlaylists\(\)/);\nassert.match(html,/vaultAction\('\/manage\/access-playlists'\)/);
 assert.match(html, /songsSection\.append\(\$\('brAccessSongSearch'\)/);
 assert.match(html, /#brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel/,
   'duplicate controls and diagnostics must not clutter the code editor');
