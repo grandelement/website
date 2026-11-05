@@ -667,6 +667,21 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessCopy{min-height:50px;font-weight:900}
 /* This specific override also defeats the older !important revealed-key panel rule. */
 #brPanel-access #brAccessOneTime:not([hidden]){display:none!important}
+
+/* Final mobile/desktop Access Codes checklist override; after legacy styles. */
+#brPanel-access #brAccessMusicCategory #brAccessPlaylistChoices{
+  display:grid!important;max-height:min(65vh,680px)!important;
+  min-height:55px!important;gap:5px!important;
+  overflow-y:auto!important;touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important
+}
+#brPanel-access #brAccessMusicCategory #brAccessPlaylistChoices .brAccessPlaylistRow{
+  display:flex!important;min-height:51px!important;align-items:center!important;
+  gap:10px!important;padding:9px 10px!important;
+}
+#brPanel-access #brAccessMusicCategory>.brAccessPlaylistSummary{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+}
 </style></head>
 <body>
 <div id="lockScreen">
@@ -3154,7 +3169,7 @@ const backroomVaultManagers=(()=>{
     for(const p of source)select.appendChild(new Option(p.name,p.id));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
-    const host=$('brAccessPlaylistChoices');host.replaceChildren();
+    const host=$('brAccessPlaylistChoices'),priorScroll=host.scrollTop;host.replaceChildren();
     if(!accessVaultLoaded){
       host.appendChild(create('p','LIVE VAULT NOT CONNECTED · Press REFRESH above. Saved codes and DJ playlists remain intact.','sub'));
       $('brAccessPlaylistNotice').textContent='WAITING FOR LIVE VAULT · Playlist assignments cannot change until verified.';
@@ -3180,6 +3195,7 @@ const backroomVaultManagers=(()=>{
       const sourceTag=create('small',p.source==='VAULT'?'VAULT':'GITHUB LEGACY');
       label.append(box,title,sourceTag);host.appendChild(label);
     }
+    host.scrollTop=priorScroll;
   }
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
