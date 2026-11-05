@@ -84,6 +84,26 @@ jobs:
               time.sleep(4)
           PY
 
+      - name: Confirm new batched fan analytics endpoint validates without writing
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request,urllib.error
+          url='https://vault.grandelement.com/v1/public/events'
+          req=urllib.request.Request(url,method='POST',headers={
+            'Content-Type':'application/json','Origin':'https://grandelement.com'
+          },data=b'{"events":[]}')
+          try:
+            with urllib.request.urlopen(req,timeout=15) as resp:
+              raise SystemExit('SECURITY ERROR: an empty event batch returned success')
+          except urllib.error.HTTPError as err:
+            raw=err.read(2000)
+            try:data=json.loads(raw.decode('utf-8'))
+            except (ValueError,UnicodeDecodeError):data={}
+            if err.code!=400 or data.get('ok') is not False:
+              raise SystemExit(f'Batch route not ready: HTTP {err.code}; safe_error={data.get("error","non-json")}')
+          print('PASS: Live new Vault batch route rejects invalid events and does not write anything.')
+          PY
+
       - name: Confirm public fan-playlist endpoint rejects anonymous requests
         run: |
           python3 - <<'PY'
@@ -94,8 +114,13 @@ jobs:
                   url,headers={'Origin':'https://grandelement.com'},method='GET'),timeout=20)
               raise SystemExit('SECURITY ERROR: private fan playlists were readable without a bearer credential.')
           except urllib.error.HTTPError as err:
-              data=json.loads(err.read().decode('utf-8','replace'))
-              if err.code!=401 or data.get('ok') is not False:
-                  raise SystemExit(f'Fan Vault route not authenticated: HTTP {err.code}: {data}')
-              print('PASS: private GE Fan Vault playlist endpoint is deployed and requires bearer key.')
+              raw=err.read(1200)
+              try: data=json.loads(raw.decode('utf-8','replace'))
+              except (ValueError,UnicodeDecodeError): data={}
+              # Cloudflare Access may itself deny an unauthenticated visitor
+              # with 403 HTML before the Worker runs. Both 401 and 403
+              # correctly prevent disclosure; reject 429/5xx as outages.
+              if err.code not in (401,403) or data.get('ok') is True:
+                  raise SystemExit(f'Fan Vault route not confirmed private: HTTP {err.code}: {str(data)[:180]}')
+              print('PASS: private GE Fan Vault playlist endpoint denies anonymous requests: HTTP',err.code)
           PY
