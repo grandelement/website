@@ -6678,6 +6678,7 @@ function markRadio1Attempt(){
   lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;
   liveState.signalReady=false;
   updateRadioStartupCue();
+  if(typeof syncMainTransport==='function')syncMainTransport();
 }
 // iPhone Safari does not implement a reliable HTMLAudioElement volume ramp.
 // When the isolated backend exists, begin guest playback on a unique native
@@ -7021,7 +7022,9 @@ function activateRadioOnUserGesture(){
   const failed=!!audio.error;
   const stale=(!observedRadio1Progress &&
     (radioTimedOut || (geRadio1RetryAttempts>0&&audio.paused) ||
-     (!audio.paused&&Date.now()-lastRadio1Progress>20000)));
+     // A real second tap must be able to replace a stalled, already-"playing"
+     // iPhone audio request, rather than treating an empty stream as connected.
+     (!audio.paused&&Date.now()-lastRadio1Progress>8000)));
   if(missing||failed||stale){
     clearRadio1Retry();resetRadio2();clearLiveReconnect();clearRadioWatch();
     radioTimedOut=false;radioReconnectFailures=0;
@@ -8213,10 +8216,20 @@ async function resolvedShareURL(){
 $('prevBtn').addEventListener('click',()=>previousTrack(true));
 $('nextBtn').addEventListener('click',()=>nextTrack(true));
 const playBtn=$('playBtn'),playerSeek=$('playerSeek');
+function radioTransportConfirmed(){
+  // Safari's audio.paused=false includes a pending silent Icecast request.
+  // PAUSE means the radio clock has actually advanced, matching heartbeat.
+  return !!((state.live||state.livePreparing) && !audio.paused && !audio.muted &&
+    (radio2.active?observedRadio2Progress:observedRadio1Progress));
+}
 function syncMainTransport(){
-  // Show the true live transport state. For personal songs, PLAY opens music choice.
+  // A station connection attempt is not playing sound. Never show PAUSE
+  // on first load until the same forward-time evidence lights RADIO.
   if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
-  if(playBtn)playBtn.textContent=(state.live||state.livePreparing||geOwnerDemoEnabled())?((audio.paused||audio.muted)?'Play':'Pause'):'Play';
+  const isRadio=state.live||state.livePreparing;
+  if(playBtn)playBtn.textContent=isRadio
+    ? (radioTransportConfirmed()?'Pause':'Play')
+    : (geOwnerDemoEnabled()?(audio.paused||audio.muted?'Play':'Pause'):'Play');
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
@@ -8235,7 +8248,9 @@ playBtn?.addEventListener('click',()=>{
   if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
   if(!geOwnerDemoEnabled()){
     if(state.live||state.livePreparing){
-      if(audio.paused||audio.muted)void requestRadioStart({userGesture:true});
+      // The first radio PLAY tap should connect even if iOS reports
+      // paused=false while no MP3 frames have progressed.
+      if(!radioTransportConfirmed())void requestRadioStart({userGesture:true});
       else requestUserPause();
     }else window.GEMusicV5?.playAll?.();
     return;
@@ -8244,8 +8259,10 @@ playBtn?.addEventListener('click',()=>{
   if(!state.live&&!state.livePreparing&&!state.currentURL&&!audio.src){
     window.GEMusicV5?.playAll?.();return;
   }
-  if(state.livePreparing||((state.live||state.livePreparing)&&radioTimedOut)){
-    void requestRadioStart({userGesture:true});return;
+  if(state.live||state.livePreparing){
+    if(!radioTransportConfirmed())void requestRadioStart({userGesture:true});
+    else requestUserPause();
+    return;
   }
   if(audio.paused)resumeAudio();else requestUserPause();
 });
@@ -8472,6 +8489,7 @@ audio.addEventListener('timeupdate',()=>{
   if(radio2.active){
     if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15&&!observedRadio2Progress){
       observedRadio2Progress=true;
+      syncMainTransport();
       setLiveStatus('RADIO 2 · CONNECTED');
       setStatus('Grand Element Radio 2 · stream active');
       updateRadioStartupCue();
@@ -8497,6 +8515,7 @@ function confirmRadio1ForwardTime(t){
     const first=!observedRadio1Progress;
     observedRadio1Progress=true;lastRadio1Progress=Date.now();
     liveState.hadVerifiedStream=true;updateRadioStartupCue();
+    if(first)syncMainTransport();
     if(GE_RADIO2_DISABLED)clearRadio1Retry();
     showRadioWakeLink(false);
     if(first){
