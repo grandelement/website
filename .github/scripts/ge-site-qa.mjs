@@ -258,9 +258,13 @@ test(!/fxDelay|fxFeedback|delayGain|createDelay\(|delayTime/.test(gateFxSource) 
   gateFxSource.includes('fxWet.gain.setTargetAtTime(wet,now,.10)') &&
   radio.includes('window.GEAudioGain?.syncProgress?.(safe)') &&
   radio.includes('window.GEAudioGain?.scheduleGate?.(gs.wavesAt,gs.fadeAt,gs.expireAt,GATE_CONFIG.reverbMax)') &&
-  !radio.includes("audio.removeAttribute('crossorigin')") &&
-  radio.includes("audio.crossOrigin='anonymous'"),
-  'Single-source Gate audio, water-to-cutoff reverb and configurable 33-second fade remain');
+  // BLITZ currently returns HTTP 503 when Origin is present. Native Radio
+  // deliberately removes crossorigin; same-origin songs still use Web Audio.
+  radio.includes('function prepareNativeRadio1Audio(){') &&
+  radio.includes("audio.removeAttribute('crossorigin')") &&
+  radio.includes("audio.crossOrigin='anonymous'") &&
+  load('radio/ge-gate-audio.js').includes("main.dataset.geRadioNativeNoCors==='1'"),
+  'Single-source Gate audio, native BLITZ CORS workaround and local-song reverb remain');
 
 test(!radio.includes("if(entered!==String(GATE_CONFIG.password||'').trim().toLowerCase()){wrongWord();return;}") ||
  radio.includes("location.assign('../support/?section=radio&flow=shop');"),
