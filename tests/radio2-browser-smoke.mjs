@@ -56,6 +56,22 @@ try{
  assert.equal(after.connected,false,'Red heartbeat must not start without audio progress');
  assert.equal(backup,0,'Radio 2 program must never be fetched');
  assert.ok(primary>0,'BLITZ Radio 1 must attempt to connect on page arrival');
+ // The main PLAY button no longer retries the live Radio source: it invokes
+ // ALL songs in the existing licensed music player, even during BLITZ startup.
+ const playRoute=await page.evaluate(()=>{
+   const music=window.GEMusicV5;
+   if(!music?.playAll)return {loaded:false};
+   const original=music.playAll;
+   let route='';
+   try{
+     music.playAll=mode=>{route=mode;return true;};
+     document.querySelector('#playBtn').click();
+   }finally{music.playAll=original;}
+   return {loaded:true,route,label:document.querySelector('#playBtn')?.textContent?.trim()};
+ });
+ assert.equal(playRoute.loaded,true,'Music library controller must initialize on page load');
+ assert.equal(playRoute.route,'all','Main PLAY must launch all available songs, not retry BLITZ');
+ assert.equal(playRoute.label,'Play','Main PLAY may not report PAUSE for unverified Radio');
  const wakeLink=await page.evaluate(()=>{
    const a=document.querySelector('#geRadioWakeLink');
    const box=a?.getBoundingClientRect();
@@ -119,5 +135,11 @@ try{
  assert.ok(sunLab.sun.right<=sunLab.support.left+2 &&
            sunLab.support.right<=sunLab.offline.left+2,
   'SUN LAB must be left of SUPPORT, and OFFLINE must be right');
- console.log('PASS: BLITZ Radio1 only, guest OFFLINE code entry and verified LOVE SUN LAB placement.');
+ const songTitle=await page.evaluate(()=>{
+   window.GEInlineMusic?.beforePlay?.('FIRE · SOUL');
+   return document.querySelector('#titleBtn')?.textContent?.trim();
+ });
+ assert.equal(songTitle,'FIRE · SOUL',
+   'When a song begins the actual Album / Song title must appear above PLAY');
+ console.log('PASS: Main PLAY ALL and track title, Radio 1 separation, guest OFFLINE and SUN LAB placement.');
 }finally{await browser.close();}
