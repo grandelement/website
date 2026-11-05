@@ -1027,7 +1027,7 @@ async function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
   const song=known.get(path);
   return song?song.title+' — '+song.album:path.split('/').pop().replace(/\.(mp3|m4a|ogg|wav)$/i,'');
  });
- const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels});
+ const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels,allLibrary:!!shuffleAll});
  if(outcome?.ok){
   if(showPlayer){
    // Use ONLY the existing main Radio player. The Gate/audio controller
@@ -1725,7 +1725,15 @@ document.addEventListener('keydown',event=>{
 });
 button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();state.open?close():open()});
 button.dataset.geMusicBuild=BUILD;
-window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
+function preloadCatalog(){
+  // Prepare the static catalog before the first main PLAY tap.
+  // Never open a purchase screen, start audio or bypass the existing Gate.
+  if(!state.loaded&&!state.loading){
+    state.loading=true;
+    void fetchCatalog();
+  }
+}
+window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibrary,
  playAll:(direction='play')=>{
   // PLAY never demands a code or redirects a guest before the real 33:33 Gate.
   // Vault receipts still restrict assigned songs and the preview player
@@ -1736,11 +1744,17 @@ window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
     say('33:33 COMPLETE · ENTER ACCESS CODE.');
     return false;
   }
-  if(!state.loaded){open();say('Loading songs. Tap PLAY again when the library is ready.');return false}
+  if(!state.loaded){
+    preloadCatalog();
+    say('Loading songs. Tap PLAY when the library is ready.');
+    return false;
+  }
   const permitted=access?.restricted
    ?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
-  const checked=selectedTracks().filter(t=>permitted.some(p=>p.path===t.path));
-  // Prioritize checked songs (and their saved order), not a random recording.
+  const checked=direction==='all'?[]:
+   selectedTracks().filter(t=>permitted.some(p=>p.path===t.path));
+  // Main PLAY means ALL permitted songs. Explicit playlist operations still
+  // honor the checked song order and the verified Vault access scope.
   const tracks=checked.length?checked:permitted;
   if(!tracks.length){open();say('No playable songs are in the library.');return false}
   const index=direction==='previous'?tracks.length-1:
@@ -1749,6 +1763,9 @@ window.GEMusicV5={open,close,showTestLibrary:openTestLibrary,
  },
  refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
+// Load at startup rather than making the listener press PLAY twice while
+// the library downloads its manifest and initializes the music queue.
+preloadCatalog();
 window.addEventListener('ge-music-demo-purchase-updated',()=>{if(state.open)render()});
 // A Vault-verified checkout can return the visitor directly to their MUSIC
 // selection. This flag never grants access; only a signed Vault session does.
