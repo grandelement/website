@@ -670,6 +670,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="topControls">
     <button class="primary" id="viewWebsite" type="button">VIEW WEBSITE</button>
     <button class="primary" id="save" type="button">SAVE DRAFT</button>
+    <button id="exportGithubConfig" type="button" title="Export public settings for GitHub without Cloudflare">EXPORT GITHUB</button>
     <button class="publish" id="publishLive" type="button">PUBLISH LIVE</button>
   </div>
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
@@ -1480,10 +1481,34 @@ $('gateEnter').onclick=safeEnterBackroom;$('gatePassword').addEventListener('key
 function applyText(v){const n=Math.max(75,Math.min(160,Number(v)||90));document.documentElement.style.setProperty('--scale',n/100);$('backroomTextSize').value=n;$('backroomTextSizeValue').textContent=n+'%';localStorage.setItem(TEXT_KEY,String(n))}
 $('backroomTextSize').addEventListener('input',()=>applyText($('backroomTextSize').value));
 
-async function repoLive(){const r=await fetch('../config/site-live.json?'+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Could not load website settings');return r.json()}
+async async function repoLive(){
+  const cacheKey='GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1';
+  try{
+    const r=await fetch('../config/site-live.json?'+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw Error('Published settings unavailable');
+    const data=await r.json();
+    if(!data||typeof data!=='object')throw Error('Invalid published settings');
+    try{localStorage.setItem(cacheKey,JSON.stringify(data))}catch(_e){}
+    return data;
+  }catch(error){
+    try{const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');if(cached&&typeof cached==='object')return cached}catch(_e){}
+    throw error;
+  }
+}
 function localDraft(){try{return JSON.parse(localStorage.getItem(WORK_KEY)||'null')}catch(_e){return null}}
 function saveDraft(){collect();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));dirty=false;setStatus('WEBSITE DRAFT SAVED ON THIS DEVICE · Not a Vault playlist or access-code save.')}
 function mark(){dirty=true;setStatus('UNSAVED CHANGES')}
+$('exportGithubConfig').addEventListener('click',()=>{
+  collect();
+  const exportConfig=clone(cfg);
+  exportConfig.mode='live';
+  const blob=new Blob([JSON.stringify(exportConfig,null,2)+'\\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');link.href=url;link.download='site-live.json';
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  setStatus('GITHUB CONFIG EXPORTED · Upload site-live.json to config/site-live.json in the GitHub repository to publish without Cloudflare.');
+});
 
 function currentSoulNames(){
   return Array.from({length:6},(_,i)=>String($('soulName'+(i+1))?.value||('Soul '+(i+1))).trim().slice(0,18));
@@ -4623,11 +4648,11 @@ async function bootBackroom(){
   improveBackroomLabels();
   cfg=localDraft()||await repoLive();populate();await loadMusic();
   window.GE_BACKROOM_MASTER_READY=true;
-  await brMasterLoadPublished();
+  if(serverAuthenticated)await brMasterLoadPublished();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
   if(selectedTab==='scores')void loadBackroomScores();
-  backroomVaultManagers.init();
+  if(serverAuthenticated)backroomVaultManagers.init();
   if(serverAuthenticated){
     await refreshPresets();
     setStatus('SIGNED IN · READY TO EDIT AND PUBLISH');
