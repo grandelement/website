@@ -10,6 +10,10 @@ const radio=read('radio/index.html');
 const home=read('index.html');
 const player=read('radio/preview-lab.html');
 const sw=read('radio/sw.js');
+// BLITZ native stream fallback: the host currently returns HTTP 503 when
+// an Origin header is present, even though no-Origin MP3 requests are 200.
+const gateAudio=read('radio/ge-gate-audio.js');
+
 const catalog=JSON.parse(read('radio/track-durations.json'));
 const manifest=JSON.parse(read('radio/manifest.json'));
 const registry=JSON.parse(read('playlists/registry.json'));
@@ -149,6 +153,21 @@ requireText(homeRadio,/if\(allowed\(\)\)start\(\)/,'Homepage must attempt origin
 requireText(homeRadio,/STREAM='https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3'/,'Homepage stream must remain BLITZ');
 requireText(home,/ge-home-radio-connected/,'Homepage heartbeat only after verified stream');
 requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'Radio heartbeat not tied to actual player');
+requireText(radio,/function radioTransportConfirmed\(\)/,'PLAY/Pause must use verified stream progress');
+requireText(radio,/isRadio\s*\?\s*\(radioTransportConfirmed\(\)\?'Pause':'Play'\)/,
+  'Radio must say PLAY until native time progress is confirmed');
+requireText(radio,/if\(!radioTransportConfirmed\(\)\)void requestRadioStart\(\{userGesture:true\}\)/,
+  'A tap on a stalled iPhone player must retry Radio, not pause it');
+requireText(radio,/function prepareNativeRadio1Audio\(\)/,'Radio 1 native no-CORS setup missing');
+requireText(radio,/audio\.removeAttribute\('crossorigin'\)/,
+  'BLITZ Origin-header 503 workaround missing from Radio player');
+requireText(radio,/audio\.dataset\.geRadioNativeNoCors='1'/,
+  'Native Radio flag not preserved across iPhone retries');
+requireText(radio,/if\(audio\.dataset\.geRadioNativeNoCors==='1'\)return Promise\.resolve\(false\)/,
+  'Do not send failing cross-origin signal probes to BLITZ');
+requireText(gateAudio,/if\(main\.dataset\.geRadioNativeNoCors==='1'\|\|/,
+  'Web Audio must never silence a non-CORS live BLITZ stream');
+
 requireText(radio,/button\.textContent='RADIO'/,'RADIO text must always be visible, even when reconnecting');
 requireText(radio,/document\.body\.classList\.add\('ge-radio-pulse-ack'\)/,'First listener RADIO tap must acknowledge the heartbeat');
 requireText(radio,/liveState\.hadVerifiedStream=true/,'Radio connection must require forward-time progress');
