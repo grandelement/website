@@ -645,10 +645,9 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="lockCard">
     <div class="blueSun" aria-hidden="true"></div>
     <div class="lockSub">BACK ROOM</div>
-    <button id="gateLocal" type="button">OPEN BACK ROOM</button>
-    <p class="lockMsg">Public website editing works without Cloudflare. The Fan Base Vault remains separately secured.</p>
-    <label><span>PRIVATE VAULT PASSWORD</span><input id="gatePassword" type="password" autocomplete="current-password"></label>
-    <button id="gateEnter" type="button">PRIVATE SERVICES SIGN-IN</button>
+    <p class="lockMsg">OWNER ACCESS ONLY · Sign in to manage GE Studios.</p>
+    <label><span>BACK ROOM PASSWORD</span><input id="gatePassword" type="password" autocomplete="current-password"></label>
+    <button id="gateEnter" type="button">UNLOCK BACK ROOM</button>
     <div id="gateMessage" class="lockMsg"></div>
   </div>
 </div>
@@ -1425,33 +1424,24 @@ async function enterBackroom(){
   try{
     const h=await api('/health',{method:'GET'});const hd=await h.json().catch(()=>({}));
     if(!h.ok||!hd.configured){
-      $('gateMessage').textContent=h.status===429||h.status===503?'Cloudflare publisher limit reached. Use OPEN LOCAL EDITOR to save drafts until service returns.':'Private publisher is not ready. Use OPEN LOCAL EDITOR for public settings.';
+      $('gateMessage').textContent=h.status===429||h.status===503?'Back Room sign-in temporarily unavailable. Access remains locked.':'Back Room sign-in unavailable. Access remains locked.';
       return;
     }
     const r=await api('/login',{method:'POST',body:JSON.stringify({password:pass})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||typeof d.token!=='string'||!d.token){
-      $('gateMessage').textContent=r.status===429||r.status===503?'Publisher rate limit reached. Use OPEN LOCAL EDITOR.':'Publisher sign-in failed. Check password, or use OPEN LOCAL EDITOR.';
+      $('gateMessage').textContent=r.status===429||r.status===503?'Sign-in service temporarily unavailable. Access remains locked.':'Incorrect password or sign-in failed.';
       return;
     }
     setToken(d.token);serverAuthenticated=true;
   }catch(_e){
-    $('gateMessage').textContent='Cloudflare publisher unavailable. Use OPEN LOCAL EDITOR to work without publishing.';
+    $('gateMessage').textContent='Sign-in service unavailable. Access remains locked.';
     return;
   }
   $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');$('gatePassword').value='';
   await bootBackroom();
 }
-async function openLocalEditor(){
-  // Offline-safe public configuration editor only. Never create a publisher token.
-  serverAuthenticated=false;setToken('');
-  $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');
-  $('gatePassword').value='';
-  try{await bootBackroom();setStatus('GITHUB BACK ROOM · Public editing works without Cloudflare. Enter a GitHub token under Settings to publish.');}
-  catch(error){setStatus('LOCAL EDITOR · Could not load the public configuration. Check connection and reload.');}
-}
-$('gateLocal').addEventListener('click',()=>void openLocalEditor());
-function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
+async function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
 async function restorePublisherSession(){
   // A genuine publisher session can be reused until its server expiry.
   // Never store the owner password or mistake the legacy local login for admin access.
@@ -4781,7 +4771,7 @@ async function bootBackroom(){
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 // No automatic Cloudflare request when opening the public Back Room.
-$('gateLocal').focus();
+$('gatePassword').focus();
 })();
 </script>
 </body>
