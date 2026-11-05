@@ -7727,7 +7727,10 @@ window.GEMusicV5Bridge={
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
   const queue=Array.isArray(orderedPaths)?orderedPaths.map(canonicalSongPath).filter(Boolean):[path];
-  state.shuffle=!playlistDetails?.custom;syncModeButtons();
+  // Album/Shuffle stays the user's choice when playing the entire library.
+  // Custom checked playlists still retain their specific ordered queue.
+  if(!playlistDetails?.allLibrary)state.shuffle=!playlistDetails?.custom;
+  syncModeButtons();
   // Do not fall back to GEPlayLibraryTrack: that silently loses the
   // requested playlist queue and is the exact regression being repaired.
   if(typeof frame?.GEPlayLibraryQueue!=='function')
@@ -7741,13 +7744,12 @@ window.GEMusicV5Bridge={
  }
 };
 function geOpenMusicSelection(){window.GEMusicV5?.open?.();}
-// Prepare the same-origin preview player after the initial Radio page settles.
-// A listener's MUSIC tap should not have to wait for an iframe to start loading.
-if(typeof requestIdleCallback==='function'){
-  requestIdleCallback(()=>geInlineMusicInit(),{timeout:5000});
-}else{
-  setTimeout(()=>geInlineMusicInit(),4000);
-}
+// The main PLAY control must be usable immediately after the Radio opens.
+// Warm the protected preview player at page initialization, not 4–5 seconds
+// after first paint. Loading it does NOT start audio or grant Music access.
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',geInlineMusicInit,{once:true});
+}else geInlineMusicInit();
 
 async function resumePlayerAfterLive(){
   // An ordinary guest can listen through the existing 33:33 preview.
@@ -8131,7 +8133,7 @@ async function advanceFromEnded(){
 }
 function nextTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('next');return;}
-  if(userAction&&!state.live&&!state.livePreparing){window.GEMusicV5?.playAll?.('next');return;}
+  if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('next');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return; // Also covers lock-screen next, ended and background control paths.
@@ -8143,7 +8145,7 @@ function nextTrack(userAction=false){
 }
 function previousTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('previous');return;}
-  if(userAction&&!state.live&&!state.livePreparing){window.GEMusicV5?.playAll?.('previous');return;}
+  if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('previous');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)geOpenMusicSelection();
     return;
@@ -8232,53 +8234,69 @@ $('nextBtn').addEventListener('click',()=>nextTrack(true));
 const playBtn=$('playBtn'),playerSeek=$('playerSeek');
 function radioTransportConfirmed(){
   // Safari's audio.paused=false includes a pending silent Icecast request.
-  // PAUSE means the radio clock has actually advanced, matching heartbeat.
+  // Only advancing media time proves live Radio connectivity/heartbeat.
   return !!((state.live||state.livePreparing) && !audio.paused && !audio.muted &&
     (radio2.active?observedRadio2Progress:observedRadio1Progress));
 }
 function syncMainTransport(){
-  // A station connection attempt is not playing sound. Never show PAUSE
-  // on first load until the same forward-time evidence lights RADIO.
+  // The center PLAY button controls SONGS, never the separate RADIO source.
+  // Its PAUSE label belongs only to music playback actually in progress.
   if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
-  const isRadio=state.live||state.livePreparing;
-  if(playBtn)playBtn.textContent=isRadio
-    ? (radioTransportConfirmed()?'Pause':'Play')
-    : (geOwnerDemoEnabled()?(audio.paused||audio.muted?'Play':'Pause'):'Play');
+  const radioSelected=state.live||state.livePreparing;
+  if(playBtn)playBtn.textContent=radioSelected?'Play':
+    (geOwnerDemoEnabled()?(audio.paused||audio.muted?'Play':'Pause'):'Play');
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
     playerSeek.value=playerSeek.disabled?'0':String(Math.max(0,Math.min(1000,t/d*1000)));
   }
 }
+function startMainMusicLibrary(direction='all'){
+  // The library is the default PLAY source, irrespective of whether BLITZ
+  // is trying to connect on page arrival. RADIO has its own button.
+  const music=window.GEMusicV5;
+  if(!music?.playAll){
+    titleBtn.textContent='Music player loading · tap Play again';
+    setStatus('Preparing the Grand Element song library.');
+    return false;
+  }
+  const started=music.playAll(direction);
+  if(!started){
+    titleBtn.textContent=music.state?.().loaded
+      ?'Music player preparing · tap Play again'
+      :'Loading songs · tap Play when ready';
+    setStatus('Music is loading. Your playlists and downloaded songs were not changed.');
+  }
+  return !!started;
+}
 playBtn?.addEventListener('click',()=>{
-  // A reopened offline bookmark must play its downloaded selection, not
-  // open the online Music store or try an unavailable Radio stream.
-  if(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
-    if(audio.paused)resumeAudio();else requestUserPause();
-    return;
-  }
-  // An already loaded personal queue always gets ordinary PLAY/PAUSE,
-  // including owner sessions. Never redirect its transport to the Music picker.
-  if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
-  if(!geOwnerDemoEnabled()){
-    if(state.live||state.livePreparing){
-      // The first radio PLAY tap should connect even if iOS reports
-      // paused=false while no MP3 frames have progressed.
-      if(!radioTransportConfirmed())void requestRadioStart({userGesture:true});
-      else requestUserPause();
-    }else window.GEMusicV5?.playAll?.();
-    return;
-  }
   state.userStarted=true;
-  if(!state.live&&!state.livePreparing&&!state.currentURL&&!audio.src){
-    window.GEMusicV5?.playAll?.();return;
-  }
-  if(state.live||state.livePreparing){
-    if(!radioTransportConfirmed())void requestRadioStart({userGesture:true});
-    else requestUserPause();
+  // A running personalized song queue retains true PLAY/PAUSE behavior.
+  if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
+  // Offline on a verified device plays the EXISTING saved song cache directly.
+  // It never dials BLITZ or deletes music when the connection disappears.
+  if(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.()){
+    if(state.live||state.livePreparing)exitLiveMode('');
+    const saved=allowedCatalog();
+    if(!saved.length){
+      titleBtn.textContent='No saved songs found';
+      setStatus('Offline song library is empty. Connect online to save songs.');
+      return;
+    }
+    if(state.currentURL&&saved.includes(state.currentURL)&&!audio.paused&&!audio.error){
+      requestUserPause();return;
+    }
+    if(state.currentURL&&saved.includes(state.currentURL)&&audio.paused&&!audio.error){
+      resumeAudio();return;
+    }
+    const first=state.shuffle?saved[Math.floor(Math.random()*saved.length)]:saved[0];
+    void playURL(first,{record:state.shuffle,backgroundChange:true,userAction:true});
     return;
   }
-  if(audio.paused)resumeAudio();else requestUserPause();
+  // First tap begins ALL accessible songs under the existing 33:33 preview
+  // or a verified Music receipt. The current title and subsequent tracks
+  // are handed back to the main Radio controls by GEInlineMusic.
+  startMainMusicLibrary('all');
 });
 playerSeek?.addEventListener('input',()=>{
   if(!geOwnerDemoEnabled())return;
