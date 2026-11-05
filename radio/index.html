@@ -4719,6 +4719,7 @@ html body #shipStage [data-proxy="legacyBtn"] {
 }
 #geOfflineDecision #geOfflineResume{background:#085b83!important;border-color:#38b6f6!important}
 #geOfflineDecision #geOfflineRestart{background:#392029!important;border-color:#d07b7b!important}
+#geOfflineDecision button[hidden]{display:none!important}
 #geOfflineDecision button:focus-visible{outline:3px solid #a1e9ff!important;outline-offset:2px!important}
 </style>
 </head>
@@ -9440,6 +9441,7 @@ async function registerServiceWorker(){
     if(dialog.parentElement!==document.body)document.body.appendChild(dialog);
     const previousFocus=document.activeElement;
     const controller=new AbortController();
+    let activeController=controller;
     let working=true;
     let finished=false;
     let success=false;
@@ -9471,7 +9473,7 @@ async function registerServiceWorker(){
         finished=true;teardown();resolve(success);
       };
       const handleClose=()=>{
-        if(working)controller.abort();
+        if(working)activeController.abort();
         finish();
       };
       const handleKeys=event=>{
@@ -9487,7 +9489,6 @@ async function registerServiceWorker(){
         activeController=nextController;
         void perform(nextController);
       };
-      let activeController=controller;
       const perform=async active=>{
         let ready=false;
         let thrown='';
@@ -10037,23 +10038,20 @@ async function registerServiceWorker(){
         const choice=await askIncompleteOfflineChoice(currentAudit,{setupOnly:true});
         if(choice==='cancel')return;
         if(choice==='setup'){
-          if(navigator.onLine===false){
-            await finishOfflineSetupWithDialog();
-            return;
-          }
           await finishOfflineSetupWithDialog();
           return;
         }
         requestedRestart=choice==='restart';
-      }else if(!requestedRestart){
-      if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
-      if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
-        await remove();
       }else{
-        setEnabled(false);button.textContent='Go Offline';
-        setStatus('Offline off. Existing downloaded songs were kept.');
+        if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
+        if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
+          await remove();
+        }else{
+          setEnabled(false);button.textContent='Go Offline';
+          setStatus('Offline off. Existing downloaded songs were kept.');
+        }
+        return;
       }
-      return;
     }
 
     // Refresh from caches, but never remove music to reinitialize download.
@@ -10070,22 +10068,22 @@ async function registerServiceWorker(){
 
     // A complete saved music set needs no re-download. If enabled again,
     // use the verified existing cache; do not duplicate the same MP3 files.
-    if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
+    if(!requestedRestart && (prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete)){
       // Reuse the songs; repair only app files and worker if necessary.
-      await ensureOfflineLaunchAssets();
+      if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
       setEnabled(true);
       reflectButton(prepared.audit);
       setStatus(offlineLaunchReady
         ?'OFFLINE READY · player and saved songs verified in this browser.'
-        :'Songs saved; webpage not yet ready offline. Stay online and tap Finish Offline Setup.');
+        :'Songs saved; webpage not yet ready offline. Tap Finish Offline Setup to see details.');
       return;
     }
 
     // Resume is one of three explicit choices, not the Offline OFF switch.
     // Existing saved songs remain untouched unless DELETE AND START OVER is
     // confirmed on a second tap inside the choice panel.
-    let choice='new';
-    if(prepared.audit.missingSongs>0 && (isEnabled() || prepared.audit.cachedSongs>0)){
+    let choice=requestedRestart?'restart':'new';
+    if(!requestedRestart && prepared.audit.missingSongs>0 && (isEnabled() || prepared.audit.cachedSongs>0)){
       choice=await askIncompleteOfflineChoice(prepared.audit);
       if(choice==='cancel'){reflectButton(prepared.audit);return;}
     }
