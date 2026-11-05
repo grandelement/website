@@ -6,6 +6,7 @@ on:
     paths:
       - 'vault-worker/src/index.js'
       - 'tests/access-music-session.test.mjs'
+      - 'tests/ge-vault-event-batch.test.mjs'
       - '.github/workflows/ge-vault-music-release.yml'
   workflow_dispatch:
 
@@ -25,6 +26,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test real Vault Worker handler with mocked D1
         run: node --experimental-default-type=module tests/access-music-session.test.mjs
+      - name: Verify batched analytics leave access-code and payment paths untouched
+        run: node --experimental-default-type=module tests/ge-vault-event-batch.test.mjs
       - name: Verify shared publisher versus private fan playlist contracts
         run: node tests/ge-unified-playlist-library.test.mjs
   release:
