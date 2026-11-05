@@ -15,7 +15,9 @@
   const OWNER_UX_KEY='GE_OWNER_UX_MODE_V1';
   const SCORE_MIGRATION_KEY='GE_VAULT_SCORES_MIGRATED_V1';
   const RIGHTS_URL='/ge-music/ascap-work-ids.json';
-  const MEDIA_PROGRESS_MS=30000;
+  // Preserve cumulative listening, pause, stop and completion analytics while
+  // spacing progress snapshots to 90 seconds (3x fewer Worker requests).
+  const MEDIA_PROGRESS_MS=90000;
   const rightsByTitle=new Map();
 
   function normalizeWorkTitle(value){
