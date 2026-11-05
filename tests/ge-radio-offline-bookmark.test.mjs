@@ -7,6 +7,19 @@ const sw=readFileSync('radio/sw.js','utf8');
 const home=readFileSync('sw.js','utf8');
 const must=(source,regex,reason)=>assert.match(source,regex,'OFFLINE REGRESSION: '+reason);
 must(radio,/async function ensureOfflineLaunchAssets\(\)/,'offline shell saver missing');
+
+must(radio,/id="geOfflineDecision"[^>]*role="dialog"/,'offline recovery choice dialog missing');
+must(radio,/if\(isEnabled\(\) && !\(currentAudit\?\.missingSongs>0\)\)/,
+  'partial Resume action mistakenly enters Offline OFF/Setup path');
+must(radio,/choice=await askIncompleteOfflineChoice\(prepared\.audit\)/,
+  'Resume, Start Over and Cancel choices missing for incomplete songs');
+must(radio,/choice==='restart'[\s\S]*?await remove\(\);[\s\S]*?prepared=await scanExistingAssets\(\)/,
+  'confirmed Start Over must clear only saved GE media and rebuild the song plan');
+must(radio,/if\(button\.classList\.contains\('downloading'\)\)\{[\s\S]*?abortController\?\.abort\(\)/,
+  'Stop Download must abort ongoing downloads without deleting saved songs');
+must(radio,/audit=await auditAssets\(assets,\{copyExisting:true\}\)/,
+  'download completion must recognize songs already saved in older GE caches');
+
 must(radio,/await ensureOfflineLaunchAssets\(\)/,'songs downloaded without saving application shell');
 must(radio,/offlineLaunchReady\?'Offline Ready':'Finish Offline Setup'/,'music-only cache must not claim Ready');
 must(radio,/if\(!offlineLaunchReady\)\{[\s\S]*?await ensureOfflineLaunchAssets\(\)/,'Finish Offline Setup must repair the app and keep music enabled');
