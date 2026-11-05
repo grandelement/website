@@ -9084,6 +9084,7 @@ async function registerServiceWorker(){
   // Report each file and bound service-worker waits so iPhone users do not
   // experience a silent, apparently dead "Finish Offline Setup" button.
   async function ensureOfflineLaunchAssets({onProgress=()=>{},signal=null}={}){
+    lastOfflineSetupReport=null;
     const failures=[];
     const progress=(stage,completed=0,total=OFFLINE_LAUNCH_FILES.length)=>
       onProgress({stage,completed,total,failures:failures.slice()});
@@ -10112,7 +10113,7 @@ async function registerServiceWorker(){
         return;
       }
       setStatus('Starting a clean download of '+prepared.audit.totalSongs+' songs.');
-    }else if(!prepared.audit.cachedSongs){
+    }else if(!prepared.audit.cachedSongs && choice!=='restart'){
       // Only the FIRST download needs the original speed/size confirmation.
       // An existing partial-download Resume must start without a second prompt.
       const estimate=await showPreDownloadEstimate(prepared);
