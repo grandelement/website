@@ -40,7 +40,10 @@ assert(Array.isArray(manifest.files)&&manifest.files.length>0,'Music manifest mu
 assert(Array.isArray(approved)&&approved.length>0,'Published Radio Master cannot be empty');
 assert.equal(new Set(approved).size,approved.length,'Radio Master duplicates found');
 for(const path of approved)assert(manifest.files.includes(path),'Radio Master song missing: '+path);
-assert(backroom.includes('id="gateLocal"'),'Cloudflare-independent Back Room entry missing');
+assert(!backroom.includes('id="gateLocal"'),'PUBLIC BACK ROOM BYPASS MUST NOT EXIST');
+assert(!backroom.includes('openLocalEditor'),'Local editor bypass must be removed');
+assert(backroom.includes('id="gatePassword"'),'Owner password gate missing');
+assert(backroom.includes('id="gateEnter"'),'Owner sign-in missing');
 assert(backroom.includes('id="publishLive" type="button">PUBLISH GITHUB'),'GitHub publishing is not primary');
 assert(backroom.includes('id="legacyPublishLive"'),'Legacy publisher fallback missing');
 assert(backroom.includes("const GE_GITHUB_PUBLIC_FIELDS="),'Public-field whitelist missing');
