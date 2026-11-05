@@ -958,11 +958,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
      <p class="brAccessNotice" id="brAccessFanLinkStatus" role="status">Load or save an access code first.</p>
    </details>
    <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS &amp; SONGS</summary>
-    <p class="brAccessNotice" id="brAccessPlaylistNotice">Loading GE playlists from GitHub…</p>
+    <p class="brAccessNotice" id="brAccessPlaylistNotice">Loading current GE Vault playlists…</p>
     <div id="brAccessPlaylistChoices" role="group" aria-label="Select saved GE playlists to grant" class="brAccessSongChecklist" style="max-height:190px;min-height:55px"></div>
     <div class="brAccessSongTools">
       <button type="button" class="primary" id="brAccessLoadPlaylists">LOAD CHECKED PLAYLISTS</button>
-      <button type="button" id="brAccessPlaylistRefresh">REFRESH GITHUB LIST</button>
+      <button type="button" id="brAccessPlaylistRefresh">REFRESH VAULT + GITHUB</button>
     </div>
     <div hidden aria-hidden="true">
       <button type="button" id="brAccessOpenPlaylists">OPEN PLAYLISTS</button>
@@ -2388,6 +2388,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
+  let accessVaultPlaylists=[],accessVaultLoaded=false;
   let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -3073,21 +3074,49 @@ const backroomVaultManagers=(()=>{
     return'Active';
   }
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
+  // Access Codes reads live GE Vault DJ playlists first. GitHub-only historic
+  // assignments stay visible, but never overwrite a live Vault playlist.
+  function accessPlaylistSource(){
+    const vault=accessVaultLoaded?accessVaultPlaylists:[];
+    const github=playlistLoaded?playlists:[];
+    const ids=new Set(vault.map(p=>String(p.id)));
+    const names=new Set(vault.map(p=>String(p.name).trim().toLowerCase()));
+    return vault.concat(github.filter(p=>!ids.has(String(p.id))&&
+      (!names.has(String(p.name).trim().toLowerCase())||accessSelectedPlaylistIds.has(p.id))));
+  }
+  async function refreshVaultAccessPlaylists(){
+    try{
+      const result=await vaultAction('/manage/playlists');
+      if(!Array.isArray(result.items))throw Error('Vault did not return a playlist list.');
+      accessVaultPlaylists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string').map(p=>({
+        ...p,source:'VAULT',tracks:Array.isArray(p.tracks)?p.tracks.slice()
+          .sort((a,b)=>(Number(a.position)||0)-(Number(b.position)||0)):[]
+      }));
+      accessVaultLoaded=true;accessPlaylistOptions();renderAccessCodes();
+      return true;
+    }catch(error){
+      accessVaultLoaded=false;accessVaultPlaylists=[];accessPlaylistOptions();
+      accessStatus('LIVE VAULT PLAYLISTS NOT LOADED · '+String(error.message||error)+
+        ' · Existing access codes and DJ playlists are unchanged.');
+      return false;
+    }
+  }
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
-    const source=playlistLoaded?playlists:[];
-    select.replaceChildren(new Option('GITHUB PLAYLIST · ASSIGN SONGS',''));
+    const source=accessPlaylistSource();
+    select.replaceChildren(new Option('GE PLAYLIST · ASSIGN SONGS',''));
     for(const p of source)select.appendChild(new Option(p.name,p.id));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
     const host=$('brAccessPlaylistChoices');host.replaceChildren();
-    if(!playlistLoaded){
-      host.appendChild(create('p','GitHub playlists not connected yet. Press REFRESH GITHUB LIST.','sub'));
-      $('brAccessPlaylistNotice').textContent='GITHUB PLAYLISTS · NOT LOADED';
+    if(!accessVaultLoaded&&!playlistLoaded){
+      host.appendChild(create('p','GE playlists not connected. Press REFRESH VAULT + GITHUB.','sub'));
+      $('brAccessPlaylistNotice').textContent='GE PLAYLISTS · NOT LOADED';
       return;
     }
-    $('brAccessPlaylistNotice').textContent='GITHUB CONNECTED · '+source.length+
-      ' SAVED GE PLAYLIST'+(source.length===1?'':'S')+' · Check playlists, then SAVE the access code. Songs are included automatically.';
+    $('brAccessPlaylistNotice').textContent=(accessVaultLoaded?'LIVE VAULT':'GITHUB FALLBACK')+
+      ' · '+source.length+' SAVED GE PLAYLIST'+(source.length===1?'':'S')+
+      ' · Check playlists, then SAVE the access code. Songs are included automatically.';
     if(!source.length){
       host.appendChild(create('p','No GE playlists saved yet. Create one in MUSIC first.','sub'));
       return;
@@ -3146,8 +3175,8 @@ const backroomVaultManagers=(()=>{
     const name=$('brAccessNewPlaylistName').value.trim();
     if(!name)return accessStatus('NAME THE NEW PLAYLIST FIRST.');
     if(!assignedSongPaths.length)return accessStatus('CHECK SONGS BEFORE SAVING A PLAYLIST.');
-    if(!playlistLoaded)return accessStatus('GITHUB PLAYLISTS NOT CONNECTED. REFRESH FIRST.');
-    if(playlists.some(p=>p.name.trim().toLowerCase()===name.toLowerCase()))
+    if(!accessVaultLoaded&&!playlistLoaded)return accessStatus('GE PLAYLISTS NOT CONNECTED. REFRESH FIRST.');
+    if(accessPlaylistSource().some(p=>p.name.trim().toLowerCase()===name.toLowerCase()))
       return accessStatus('PLAYLIST NAME EXISTS. PICK A DIFFERENT NAME; EXISTING PLAYLISTS WILL NOT BE OVERWRITTEN.');
     if(!authReady())return accessStatus('SIGN IN TO SAVE TO GITHUB.');
     const entry={id:'',name,tracks:assignedSongPaths.map(path=>{
@@ -3272,7 +3301,7 @@ const backroomVaultManagers=(()=>{
     if(row?.playlist_ids?.length){
       const all=new Set(assignedSongPaths);
       for(const id of row.playlist_ids){
-        const playlist=playlists.find(p=>p.id===id);
+        const playlist=accessPlaylistSource().find(p=>p.id===id);
         for(const track of playlist?.tracks||[])if(track.track_path)all.add(track.track_path);
       }
       assignedSongPaths=[...all];
@@ -3312,13 +3341,14 @@ const backroomVaultManagers=(()=>{
     const love=codeRows.filter(row=>row.id==='access_legacy_love_v1'||
       String(row.code_hint||'').toUpperCase()==='LOVE'||
       /^LOVE(?:\s|·|$)/i.test(String(row.label||'')));
-    const playlistNames=playlistLoaded?playlists.map(p=>p.name).join(', '):'NOT VERIFIED';
+    const playlistNames=accessPlaylistSource().map(p=>p.name).join(', ')||'NOT VERIFIED';
     const loveState=legacyLoveAudit?.state?
       legacyLoveAudit.state+' ('+(legacyLoveAudit.record_id||'NO RECORD ID')+')':
       (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED LIST · D1 AUDIT UNAVAILABLE');
     host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S) · LOVE: '+
       loveState+
-      ' · GITHUB PLAYLISTS: '+(playlistLoaded?playlists.length:'NOT CONNECTED')+
+      ' · LIVE VAULT PLAYLISTS: '+(accessVaultLoaded?accessVaultPlaylists.length:'NOT CONNECTED')+
+      ' · GITHUB FALLBACK: '+(playlistLoaded?playlists.length:'NOT CONNECTED')+
       ' ('+playlistNames+') · MUSIC CATALOG: '+catalog.length+' TRACK(S).';
   }
   function renderAccessCodes(){
@@ -3388,7 +3418,7 @@ const backroomVaultManagers=(()=>{
     wrapper.appendChild(create('small',meta));
     wrapper.appendChild(create('p','PERMISSIONS · '+(selected.scopes||[]).join(' · ').toUpperCase()));
     const names=(selected.playlist_ids||[]).map(id=>
-      playlists.find(p=>p.id===id)?.name||id);
+      accessPlaylistSource().find(p=>p.id===id)?.name||id);
     wrapper.appendChild(create('p','PLAYLIST · '+(names.length?names.join(', '):'No playlist restriction')));
     const songs=(selected.track_paths||[]).map(accessSongTitle);
     wrapper.appendChild(create('p','SONGS · '+(songs.length?songs.join(' / '):'No individual song restriction')));
@@ -3432,12 +3462,13 @@ const backroomVaultManagers=(()=>{
     const changed=selected.length!==previous.length||
       selected.some(id=>!appliedPlaylistIds.has(id));
     if(!changed)return {playlist_ids:previous,track_paths:assignedSongPaths.slice()};
-    if(!playlistLoaded)throw Error('Refresh GE playlists before saving changed playlist selections.');
-    const source=playlists.filter(p=>selected.includes(p.id));
-    if(source.length!==selected.length)throw Error('A checked playlist is no longer saved in GitHub. Refresh playlists.');
+    if(!accessVaultLoaded&&!playlistLoaded)throw Error('Refresh GE playlists before saving changed playlist selections.');
+    const available=accessPlaylistSource();
+    const source=available.filter(p=>selected.includes(p.id));
+    if(source.length!==selected.length)throw Error('A checked playlist is missing from loaded GE playlists. Refresh Vault + GitHub.');
     // Preserve individually checked songs, but remove paths provided ONLY by
     // old playlist choices. A new selection always snapshots exact tracks.
-    const oldPlaylistSongs=new Set(playlists.filter(p=>appliedPlaylistIds.has(p.id))
+    const oldPlaylistSongs=new Set(available.filter(p=>appliedPlaylistIds.has(p.id))
       .flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean)));
     const manual=assignedSongPaths.filter(path=>!oldPlaylistSongs.has(path));
     const chosen=source.flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean));
@@ -3700,21 +3731,23 @@ const backroomVaultManagers=(()=>{
     accessStatus('CHECKING PRIVATE ACCESS CODES AND GITHUB PLAYLISTS…');
     try{
       // One failed or malformed source must not strand VAULT in CHECKING.
-      const results=await Promise.allSettled([refreshCodes(),refreshPlaylists()]);
+      const results=await Promise.allSettled([refreshCodes(),refreshPlaylists(),refreshVaultAccessPlaylists()]);
       const codesOk=results[0].status==='fulfilled'&&results[0].value===true;
       const listsOk=results[1].status==='fulfilled'&&results[1].value===true;
+      const vaultListsOk=results[2].status==='fulfilled'&&results[2].value===true;
       const failures=results.filter(r=>r.status==='rejected').map(r=>String(r.reason?.message||r.reason));
       if(failures.length)accessStatus('CONNECTION ERROR · '+failures.join(' · '));
       try{renderAccessCodes();updateSourceAudit()}catch(e){
         accessStatus('DISPLAY ERROR · '+String(e.message||e));
       }
-      const verified=codesOk&&listsOk;
+      const verified=codesOk&&vaultListsOk;
       const codesText=codesOk?'CODES: '+codeRows.length:'CODES: UNAVAILABLE';
-      const playlistsText=listsOk?'PLAYLISTS: '+playlists.length:'PLAYLISTS: UNAVAILABLE';
+      const playlistsText='VAULT PLAYLISTS: '+(vaultListsOk?accessVaultPlaylists.length:'UNAVAILABLE')+
+        ' · GITHUB: '+(listsOk?playlists.length:'UNAVAILABLE');
       const checkedAt='CHECKED '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
       summary.hidden=false;
       summary.textContent=codesText+' · '+playlistsText+' · '+checkedAt;
-      vaultIndicator(verified?'CONNECTED':(codesOk||listsOk)?'PARTIAL':'OFFLINE',
+      vaultIndicator(verified?'CONNECTED':(codesOk||listsOk||vaultListsOk)?'PARTIAL':'OFFLINE',
         codesText+'; '+playlistsText+'. Tap to reconnect.');
       accessStatus(codesText+' · '+playlistsText+
         (verified?' · VERIFIED':' · NOT ALL SOURCES CONNECTED · TAP VAULT TO RETRY'));
@@ -4248,7 +4281,7 @@ const backroomVaultManagers=(()=>{
       $('brAccessPlaylist').addEventListener('change',()=>{
         const id=$('brAccessPlaylist').value;
         if(!id)return;
-        const playlist=playlists.find(p=>p.id===id);
+        const playlist=accessPlaylistSource().find(p=>p.id===id);
         if(!playlist){accessStatus('Playlist unavailable · LOAD GITHUB PLAYLISTS.');return;}
         assignedSongPaths=[...new Set((playlist.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean))];
         accessSongOptions();assignedSongsUI();
@@ -4261,10 +4294,10 @@ const backroomVaultManagers=(()=>{
           if(checkbox.value==='music'&&checkbox.checked)$('brAccessMusicCategory').open=true;
         });
       }
-      $('brAccessPlaylistRefresh').addEventListener('click',()=>void refreshPlaylists());
+      $('brAccessPlaylistRefresh').addEventListener('click',()=>void Promise.all([refreshVaultAccessPlaylists(),refreshPlaylists()]));
       $('brAccessLoadPlaylists').addEventListener('click',()=>{
-        const chosen=playlists.filter(p=>accessSelectedPlaylistIds.has(p.id));
-        if(!playlistLoaded){accessStatus('NOT LOADED · Refresh GitHub playlists first.');return;}
+        const chosen=accessPlaylistSource().filter(p=>accessSelectedPlaylistIds.has(p.id));
+        if(!accessVaultLoaded&&!playlistLoaded){accessStatus('NOT LOADED · Refresh GE playlists first.');return;}
         if(!chosen.length){accessStatus('CHECK ONE OR MORE GE PLAYLISTS FIRST');return;}
         const paths=[...new Set(chosen.flatMap(p=>(p.tracks||[]).map(t=>String(t.track_path||'')).filter(Boolean)))];
         const missing=paths.filter(path=>!catalog.some(song=>song.track_path===path));
@@ -4317,7 +4350,7 @@ const backroomVaultManagers=(()=>{
         catch(_e){accessStatus('Copy is unavailable here. Select the code above to copy manually.');}
       });
       // Original BLITZ snapshots never replace permanent Vault records.
-      window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{accessPlaylistOptions();renderAccessCodes();};
+      window.GE_BACKROOM_DJ_PLAYLISTS_UPDATED=()=>{void refreshVaultAccessPlaylists();};
       window.GE_BACKROOM_DJ_SOURCE_LOADED=(items,library)=>{
         if(Array.isArray(library)&&library.length){
           // The canonical website manifest is the primary catalog. A DJ
