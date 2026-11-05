@@ -38,6 +38,16 @@
   // entrance. Doing so without user activation can suspend iPhone playback.
   function arm(){
     if(blocked||gateLocked())return false;
+    // BLITZ currently returns HTTP 503 to Origin-bearing requests.
+    // Its native no-CORS playback MUST NOT be attached to MediaElementSource:
+    // Web Audio requires CORS for foreign media and would turn the Radio silent.
+    // Let the native Gate volume / hard-stop fallback handle Radio 1 instead.
+    const radioSource=String(main.currentSrc||main.src||'');
+    if(main.dataset.geRadioNativeNoCors==='1'||
+       /^https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3(?:[?#]|$)/i.test(radioSource)){
+      lastError='Radio 1 uses native playback while BLITZ CORS is unavailable';
+      return false;
+    }
     if(!AudioContextType){lastError='Web Audio unavailable';return false;}
     if(!ctx){
       try{
