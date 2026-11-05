@@ -84,7 +84,9 @@ assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCE
 assert.match(html, /musicSection\.querySelector\('\.brAccessPlaylistSummary > span'\)\.textContent='MUSIC · PLAYLISTS'/);
 assert.doesNotMatch(html,/musicSection\.querySelector\('summary'\)\.textContent=/,
   'retitling the category must not delete the refresh button');
-assert.match(html,/id="brAccessPlaylistRefresh"/);
+assert.doesNotMatch(html,/id="brAccessPlaylistRefresh"/,'playlist list must load automatically without a refresh button');
+assert.match(html,/if\(tab==='access'\)[\s\S]*?void reconnectAllSources\(\)/,'opening Access Codes must automatically request Vault playlists');
+assert.match(html,/refreshVaultAccessPlaylists\(\)/,'automatic load must include the live DJ Vault list');
 assert.match(html,/id="brAccessPlaylistAll" checked/);
 assert.match(html,/async function refreshVaultAccessPlaylists\(\)/);
 assert.match(html,/vaultAction\('\/manage\/access-playlists'\)/);
