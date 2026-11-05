@@ -1764,6 +1764,21 @@ body.nine-planet-active.nine-six-pocket #blueSunPoolPocket{display:none!importan
   }
   window.GE_SITE_MODE=mode;
   window.GE_SITE_CONFIG=(cfg&&typeof cfg==='object')?cfg:{version:1,mode:repoMode};
+  // Apply the same published settings in live, test and Back Room preview modes.
+  const merch=window.GE_SITE_CONFIG.merchandise||{};
+  const clamp=(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback;
+  const size=clamp(merch.size,25,250,100)/100;
+  const speed=clamp(merch.speed,25,400,100)/100;
+  const rotation=clamp(merch.rotation,0,400,100)/100;
+  const root=document.documentElement;
+  root.style.setProperty('--ge-merch-scale',String(size));
+  root.style.setProperty('--ge-merch-transit',(110/speed)+'s');
+  root.style.setProperty('--ge-merch-spin',rotation?48/rotation+'s':'0s');
+  root.style.setProperty('--ge-merch-hat-spin',rotation?54/rotation+'s':'0s');
+  root.style.setProperty('--ge-merch-direction',merch.direction==='reverse'?'reverse':'normal');
+  root.classList.toggle('ge-merch-hidden',Number(merch.quantity)===0);
+  root.classList.toggle('ge-merch-hat-only',Number(merch.quantity)===1);
+  if(rotation===0)root.classList.add('ge-merch-no-spin');
 })();
 </script>
 <script src="./ge-vault-client.js?v=20261105-listener-safe-batch-v1"></script>
@@ -3410,6 +3425,13 @@ html.ge-desktop-device .geMerchFlyby{--ge-merch-size:clamp(82px,7.5vw,120px)}
  html:not(.ge-desktop-device) .geMerchFlyby{--ge-merch-size:clamp(70px,22vw,94px)}
 }
 html.ge-safari-desktop-request .geMerchFlyby{--ge-merch-size:clamp(92px,8vw,118px)}
+/* Published Back Room merchandise controls; defaults preserve the current motion. */
+.geMerchFlyby{width:calc(var(--ge-merch-size) * var(--ge-merch-factor,1) * var(--ge-merch-scale,1));animation-duration:var(--ge-merch-transit,110s)}
+.geMerchFlyby .geMerchArt{animation-duration:var(--ge-merch-spin,48s);animation-direction:var(--ge-merch-direction,normal)}
+.geMerchFlyby--hat .geMerchArt{animation-duration:var(--ge-merch-hat-spin,54s)}
+html.ge-merch-no-spin .geMerchFlyby .geMerchArt{animation:none!important}
+html.ge-merch-hidden #geMerchFlybys{display:none!important}
+html.ge-merch-hat-only .geMerchFlyby--shirt{display:none!important}
 body.game-mode-active #geMerchFlybys,
 body.blue-sun-pool-active #geMerchFlybys,
 body.marbles-game-active #geMerchFlybys,
