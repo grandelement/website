@@ -6,11 +6,11 @@ const vm=require('node:vm');
 const assert=require('node:assert/strict');
 
 const read=path=>fs.readFileSync(path,'utf8');
-const htmlFiles=['index.html','backroom/index.html','radio/ge-dj.html'];
+const htmlFiles=['index.html','backroom/index.html','radio/index.html','radio/ge-dj.html'];
 const scripts=[
   'ge-vault-client.js','ge-dream.js','ge-accessibility.js',
   'radio/website-live.js','radio/ge-home-gate-stop.js',
-  'radio/ge-imac-studio.js','radio/ge-vault-drilldown.js','sw.js'
+  'radio/ge-imac-studio.js','radio/ge-vault-drilldown.js','sw.js','radio/sw.js'
 ];
 let checked=0;
 for(const path of [...scripts]){
@@ -32,6 +32,10 @@ const backroom=read('backroom/index.html');
 const home=read('index.html');
 const vault=read('ge-vault-client.js');
 const dj=read('radio/ge-dj.html');
+const radio=read('radio/index.html');
+const siteSW=read('sw.js');
+const radioSW=read('radio/sw.js');
+const continuity=JSON.parse(read('operations/service-register.json'));
 const published=JSON.parse(read('config/site-live.json'));
 const manifest=JSON.parse(read('radio/manifest.json'));
 const approved=published?.music?.radioMasterSongPaths;
@@ -71,5 +75,22 @@ assert(vault.includes("SCORE_RETRY_AFTER_KEY"),'Vault score outage cooldown miss
 assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in bounded batches');
 assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
 assert(home.includes('20261105-score-backoff-v2'),'Website must load latest Vault client');
+assert(siteSW.includes('GE_SITE_SHELL_V3_CONTINUITY_20261105'),'New continuity cache key missing');
+for(const file of ['ge-vault-client.js','config/site-live.json','radio/manifest.json','radio/ge-home-gate-stop.js','ge-dream.js'])
+  assert(siteSW.includes('./'+file),'Public offline core asset missing: '+file);
+assert(siteSW.includes("relative.startsWith('backroom/')"),'Owner Back Room must not be served from public offline cache');
+assert(siteSW.includes('response.status>=500'),'Hosting outage cache fallback missing');
+assert(radio.includes('GE_RADIO_AUTO_CATALOG_CHECK_V1'),'Radio must throttle optional external GitHub catalog API');
+assert(radio.includes('Date.now()-lastChecked<6*60*60*1000'),'Radio catalog API throttle changed');
+assert(radio.includes('loadMusicManifest('),'Radio must retain static music manifest fallback');
+assert(radioSW.includes('const MEDIA_CACHE='),'Downloaded radio media preservation missing');
+assert(continuity.schemaVersion===1&&continuity.designRules.baseWebsiteRequiresBackend===false,
+  'Ten-year continuity service register schema invalid');
+assert(continuity.designRules.neverChangeBankingOrAutopayWithoutExplicitOwnerAuthorization===true,
+  'Automated banking must require explicit authorization');
+assert(Array.isArray(continuity.serviceRegister)&&continuity.serviceRegister.length>=10,
+  'Continuity service dependency inventory missing');
+assert(!JSON.stringify(continuity).includes('secret_key'),'Continuity file must not contain secrets');
 
-console.log('PASS:',checked,'JavaScript scripts parsed;',approved.length,'Radio Master tracks verified; GitHub public publisher and Vault protections checked.');
+
+console.log('PASS:',checked,'JavaScript scripts parsed;',approved.length,'Radio Master tracks verified; offline fallback, owner protection and service continuity checked.');
