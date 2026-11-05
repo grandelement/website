@@ -2,11 +2,11 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V2_LOCAL_BRAND_ART';
+const SITE_SHELL='GE_SITE_SHELL_V3_CONTINUITY_20261105';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
-const SHELL=['./','./index.html','./radio/website-live.js','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
+const SHELL=['./','./index.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
 async function fromAnyCache(request){
   return (await caches.match(request,{ignoreSearch:true}))||null;
@@ -59,6 +59,10 @@ async function navigation(request){
       // Fresh HTML on every online visit; retain the last valid offline copy.
       const cache=await caches.open(SITE_SHELL);
       await cache.put(request.url,response.clone());
+    }else if(response.status>=500){
+      // A hosting outage must not replace a previously working homepage.
+      const saved=await fromAnyCache(request);
+      if(saved)return saved;
     }
     return response;
   }catch(_e){
@@ -96,6 +100,11 @@ async function asset(request,url){
   }
   try{
     const response=await fetch(request);
+    if(response.status>=500){
+      // Serve previously cached public assets when the host has an outage.
+      const saved=await fromAnyCache(request);
+      if(saved)return saved;
+    }
     if(response.ok&&response.status===200&&url.origin===HOME.origin&&
       /\.(js|css|json|webmanifest|png|jpe?g|webp|gif|svg|ico)$/i.test(url.pathname)){
       const cache=await caches.open(SITE_SHELL);
@@ -115,6 +124,12 @@ function eventlessPut(cache,request,response){
 self.addEventListener('fetch',event=>{
   const req=event.request,url=new URL(req.url);
   if(req.method!=='GET'||!acceptableAsset(url))return;
+  // Never retain or serve an owner-only Back Room page from public offline cache.
+  if(url.origin===HOME.origin){
+    const relative=url.pathname.startsWith(HOME.pathname)
+      ?url.pathname.slice(HOME.pathname.length):'';
+    if(relative==='backroom'||relative.startsWith('backroom/'))return;
+  }
   if(req.mode==='navigate'){
     event.respondWith(navigation(req));return;
   }
