@@ -98,5 +98,9 @@ function choose(to){
 }
 blitz.onclick=function(){choose("blitz");};
 ge.onclick=function(){choose("ge");};
-refresh();w.setInterval(refresh,7500);
+// Owner's idle switch panel must not use the common Workers request budget
+// every 7.5s while unattended. Switch POST responses update immediately.
+refresh();
+w.setInterval(function(){if(!d.hidden)refresh();},30000);
+d.addEventListener("visibilitychange",function(){if(!d.hidden)refresh();});
 })(window,document);
