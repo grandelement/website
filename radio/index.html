@@ -9060,40 +9060,107 @@ async function registerServiceWorker(){
     './manifest.json','./track-durations.json','../config/site-live.json',
     './cockpit-landscape.png'
   ];
-  async function verifyOfflineLaunchAssets(){
+  let lastOfflineSetupReport=null;
+  async function inspectOfflineLaunchAssets(){
     let workerReady=false;
-    try{workerReady=!!(await navigator.serviceWorker?.getRegistration?.('./'))?.active}catch(_e){}
-    let saved=true;
+    let workerError='';
+    try{workerReady=!!(await navigator.serviceWorker?.getRegistration?.('./'))?.active}
+    catch(error){workerError=String(error?.message||error)}
+    const missing=[];
     for(const file of OFFLINE_LAUNCH_FILES){
       try{
         const hit=await caches.match(absolute(file),{ignoreSearch:true});
-        if(!hit?.ok){saved=false;break;}
-      }catch(_e){saved=false;break}
+        if(!hit?.ok)missing.push(file);
+      }catch(error){missing.push(file)}
     }
-    offlineLaunchReady=workerReady&&saved;
-    return offlineLaunchReady;
+    offlineLaunchReady=workerReady&&missing.length===0;
+    return {ready:offlineLaunchReady,workerReady,workerError,missing};
   }
-  async function ensureOfflineLaunchAssets(){
-    if(navigator.onLine===false)return verifyOfflineLaunchAssets();
-    try{await registerServiceWorker()}catch(_e){}
-    // Register the root handler for the bare /radio bookmark (no slash), and
-    // homepage bookmarks; the /radio/ worker remains the more-specific owner.
-    try{await navigator.serviceWorker?.register?.('../sw.js',{scope:'/',updateViaCache:'none'})}catch(_e){}
-    const cache=await caches.open(CONFIG.OFFLINE_CACHE);
-    for(const file of OFFLINE_LAUNCH_FILES){
-      const url=absolute(file);
-      try{
-        if((await caches.match(url,{ignoreSearch:true}))?.ok)continue;
-        const response=await fetch(url,{cache:'no-store',headers:{'X-GE-Offline':'1'}});
-        if(!response.ok)continue;
-        if(file==='./index.html'){
-          const body=await response.clone().text();
-          if(!body.includes('<!doctype html')||!body.includes('id="shipStage"')||!body.includes('id="player"'))continue;
-        }
-        await cache.put(url,response);
-      }catch(_e){}
+  async function verifyOfflineLaunchAssets(){
+    return (await inspectOfflineLaunchAssets()).ready;
+  }
+  // Cache the small Radio webpage without deleting a single downloaded song.
+  // Report each file and bound service-worker waits so iPhone users do not
+  // experience a silent, apparently dead "Finish Offline Setup" button.
+  async function ensureOfflineLaunchAssets({onProgress=()=>{},signal=null}={}){
+    const failures=[];
+    const progress=(stage,completed=0,total=OFFLINE_LAUNCH_FILES.length)=>
+      onProgress({stage,completed,total,failures:failures.slice()});
+    if(navigator.onLine===false){
+      progress('Connect to the internet to finish saving the Radio webpage.');
+      return verifyOfflineLaunchAssets();
     }
-    return verifyOfflineLaunchAssets();
+    const bounded=async(promise,ms,label)=>{
+      let timer;
+      try{
+        return await Promise.race([
+          Promise.resolve(promise),
+          new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(label+' timed out')),ms)})
+        ]);
+      }finally{clearTimeout(timer)}
+    };
+    progress('Connecting the offline player…');
+    if(signal?.aborted)return false;
+    try{
+      const registration=await bounded(registerServiceWorker(),9000,'Radio service worker');
+      if(!registration)failures.push('Radio service worker could not start');
+    }catch(error){failures.push('Radio service worker: '+String(error?.message||error))}
+    if(signal?.aborted)return false;
+    // Root fallback is optional and must not block the /radio/ offline setup.
+    try{
+      await bounded(navigator.serviceWorker?.register?.('../sw.js',{scope:'/',updateViaCache:'none'}),6000,'Home bookmark registration');
+    }catch(error){failures.push('Home bookmark: '+String(error?.message||error))}
+    if(signal?.aborted)return false;
+
+    let cache;
+    try{cache=await caches.open(CONFIG.OFFLINE_CACHE)}
+    catch(error){
+      failures.push('Browser storage: '+String(error?.message||error));
+      lastOfflineSetupReport={ready:false,workerReady:false,missing:OFFLINE_LAUNCH_FILES.slice(),failures};
+      progress('Browser storage could not be opened.');
+      return false;
+    }
+    let complete=0;
+    for(const file of OFFLINE_LAUNCH_FILES){
+      if(signal?.aborted)break;
+      const url=absolute(file);
+      progress('Saving offline webpage file '+(complete+1)+' of '+OFFLINE_LAUNCH_FILES.length+'…',complete);
+      try{
+        const exists=await caches.match(url,{ignoreSearch:true});
+        if(!exists?.ok){
+          const controller=new AbortController();
+          const cancel=()=>controller.abort();
+          let timeout=0;
+          if(signal)signal.addEventListener('abort',cancel,{once:true});
+          try{
+            timeout=setTimeout(()=>controller.abort(),18000);
+            const response=await fetch(url,{
+              cache:'no-store',
+              signal:controller.signal,
+              headers:{'X-GE-Offline':'1'}
+            });
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            if(file==='./index.html'){
+              const body=await response.clone().text();
+              if(!body.includes('<!doctype html')||!body.includes('id="shipStage"')||!body.includes('id="player"'))
+                throw new Error('Invalid Radio webpage');
+            }
+            await cache.put(url,response);
+          }finally{
+            clearTimeout(timeout);
+            if(signal)signal.removeEventListener('abort',cancel);
+          }
+        }
+      }catch(error){
+        if(signal?.aborted)break;
+        failures.push(file.replace(/^\.\.\//,'').replace(/^\.\//,'')+': '+String(error?.message||error).slice(0,110));
+      }
+      complete++;
+      progress('Checked '+complete+' of '+OFFLINE_LAUNCH_FILES.length+' offline webpage files.',complete);
+    }
+    const checked=await inspectOfflineLaunchAssets();
+    lastOfflineSetupReport={...checked,failures,aborted:!!signal?.aborted};
+    return checked.ready;
   }
 
   const CORE_DOWNLOAD_ORDER=['Intergy','Love','Soul','Spirit','Fire','Aether'];
@@ -9294,7 +9361,7 @@ async function registerServiceWorker(){
 
   // An incomplete download needs three clear choices. An OFFLINE-enabled
   // button must never be routed to "turn off" while it says "Resume N Songs".
-  function askIncompleteOfflineChoice(audit){
+  function askIncompleteOfflineChoice(audit,{setupOnly=false}={}){
     const dialog=$('geOfflineDecision');
     const title=$('geOfflineDecisionTitle');
     const detail=$('geOfflineDecisionDetail');
@@ -9308,9 +9375,11 @@ async function registerServiceWorker(){
     const total=Math.max(0,Number(audit?.totalSongs)||0);
     const missing=Math.max(0,Number(audit?.missingSongs)||0);
     const lastFocus=document.activeElement;
-    title.textContent='Offline Downloads';
-    detail.textContent=saved+' of '+total+' songs saved on this device.\n'+missing+' songs still need downloading.';
-    resume.textContent='RESUME '+missing+' SONG'+(missing===1?'':'S');
+    title.textContent=setupOnly?'Finish Offline Setup':'Offline Downloads';
+    detail.textContent=setupOnly
+      ?saved+' of '+total+' songs saved on this device.\nThe offline Radio webpage needs repair. The music will be kept.'
+      :saved+' of '+total+' songs saved on this device.\n'+missing+' songs still need downloading.';
+    resume.textContent=setupOnly?'FINISH SETUP':'RESUME '+missing+' SONG'+(missing===1?'':'S');
     restart.textContent='START OVER';
     cancel.textContent='CANCEL';
     return new Promise(resolve=>{
@@ -9329,14 +9398,14 @@ async function registerServiceWorker(){
       const onClick=event=>{
         const action=event.target.closest('button[data-ge-offline-choice]')?.dataset.geOfflineChoice;
         if(action==='cancel')return close('cancel');
-        if(action==='resume')return close('resume');
+        if(action==='resume')return close(setupOnly?'setup':'resume');
         if(action!=='restart')return;
         if(!restartArmed){
           restartArmed=true;
           title.textContent='Delete Saved Music?';
           detail.textContent='Start Over will delete '+saved+' saved song'+(saved===1?'':'s')+' and any saved offline backgrounds from THIS device, then download the complete music library again.\nThis cannot be undone. Your access codes and purchases are not deleted.';
           restart.textContent='DELETE AND START OVER';
-          resume.textContent='KEEP SONGS AND RESUME';
+          resume.textContent=setupOnly?'KEEP SONGS AND FINISH SETUP':'KEEP SONGS AND RESUME';
           restart.focus();
           return;
         }
@@ -9355,6 +9424,109 @@ async function registerServiceWorker(){
       document.addEventListener('keydown',onKeydown,true);
       dialog.hidden=false;
       resume.focus();
+    });
+  }
+
+  // An always-visible setup dialog replaces silent background repair and
+  // the out-of-view Radio status line. It stays open to explain success/failure.
+  async function finishOfflineSetupWithDialog(){
+    const dialog=$('geOfflineDecision');
+    const title=$('geOfflineDecisionTitle');
+    const detail=$('geOfflineDecisionDetail');
+    const primary=$('geOfflineResume');
+    const restart=$('geOfflineRestart');
+    const close=$('geOfflineCancel');
+    if(!dialog||!title||!detail||!primary||!restart||!close)return false;
+    if(dialog.parentElement!==document.body)document.body.appendChild(dialog);
+    const previousFocus=document.activeElement;
+    const controller=new AbortController();
+    let working=true;
+    let finished=false;
+    let success=false;
+    title.textContent='Finishing Offline Setup';
+    detail.textContent='Checking the saved Radio webpage…\nYour saved music will not be deleted.';
+    primary.hidden=true;
+    restart.hidden=true;
+    close.textContent='STOP SETUP';
+    dialog.hidden=false;
+    close.focus();
+    const update=info=>{
+      if(!dialog.hidden && working){
+        detail.textContent=info.stage+'\n'+info.completed+' of '+info.total+' files checked.\nYour downloaded songs are being kept.';
+      }
+    };
+    return new Promise(resolve=>{
+      const teardown=()=>{
+        dialog.hidden=true;
+        close.removeEventListener('click',handleClose);
+        primary.removeEventListener('click',handleRetry);
+        document.removeEventListener('keydown',handleKeys,true);
+        primary.hidden=false;
+        restart.hidden=false;
+        primary.disabled=false;
+        try{previousFocus?.focus?.()}catch(_e){}
+      };
+      const finish=()=>{
+        if(finished)return;
+        finished=true;teardown();resolve(success);
+      };
+      const handleClose=()=>{
+        if(working)controller.abort();
+        finish();
+      };
+      const handleKeys=event=>{
+        if(event.key==='Escape'){event.preventDefault();handleClose()}
+      };
+      const handleRetry=()=>{
+        if(working)return;
+        working=true;
+        primary.hidden=true;
+        close.textContent='STOP SETUP';
+        detail.textContent='Trying the missing offline webpage files again…';
+        const nextController=new AbortController();
+        activeController=nextController;
+        void perform(nextController);
+      };
+      let activeController=controller;
+      const perform=async active=>{
+        let ready=false;
+        let thrown='';
+        try{
+          ready=await ensureOfflineLaunchAssets({signal:active.signal,onProgress:update});
+        }catch(error){thrown=String(error?.message||error)}
+        if(finished)return;
+        working=false;
+        const report=lastOfflineSetupReport || await inspectOfflineLaunchAssets();
+        success=!!ready;
+        if(ready){
+          title.textContent='Offline Setup Complete';
+          detail.textContent='The Radio webpage and '+(currentAudit?.cachedSongs||0)+' saved songs are available in this browser.\nFor final verification, switch off Wi-Fi and cellular data, then reopen Radio.';
+          setStatus('OFFLINE READY · Radio webpage and saved songs verified.');
+        }else if(active.signal.aborted){
+          title.textContent='Offline Setup Stopped';
+          detail.textContent='Setup stopped. Previously saved songs and files were kept.';
+        }else{
+          title.textContent='Offline Setup Incomplete';
+          const missing=report.missing?.length||0;
+          const worker=report.workerReady?'':'The offline service worker is not active.\n';
+          const reasons=[...new Set(report.failures||[])].slice(0,3).join('\n');
+          detail.textContent=worker+missing+' required webpage file'+(missing===1?'':'s')+' still missing.'+
+            (reasons?'\n'+reasons:'')+
+            (thrown?'\n'+thrown:'')+
+            '\nYour saved songs were kept. Tap TRY AGAIN while online.';
+          setStatus('Offline webpage incomplete. Saved songs were kept.');
+        }
+        reflectButton(currentAudit);
+        close.textContent='CLOSE';
+        primary.textContent='TRY AGAIN';
+        primary.hidden=ready || !!active.signal.aborted;
+        primary.disabled=ready;
+        if(!primary.hidden)primary.focus();else close.focus();
+      };
+      close.addEventListener('click',handleClose);
+      primary.addEventListener('click',handleRetry);
+      document.addEventListener('keydown',handleKeys,true);
+      void perform(controller);
     });
   }
 
@@ -9857,24 +10029,23 @@ async function registerServiceWorker(){
       return;
     }
 
-    // A partial download is a RESUME action even when Offline is enabled.
-    // The old branch mistakenly treated a "Resume 10 Songs" tap as OFF/SETUP.
-    // Only a complete library takes the normal Offline On/Off path.
+    // Partial music resumes; complete music with a missing webpage offers
+    // Finish Setup / Start Over / Cancel, then a visible repair/diagnostic view.
+    let requestedRestart=false;
     if(isEnabled() && !(currentAudit?.missingSongs>0)){
-      // "Finish Offline Setup" repairs only the missing website shell, never
-      // turns the user's working downloaded library off or re-downloads songs.
       if(!offlineLaunchReady){
-        if(navigator.onLine===false){
-          setStatus('Saved songs are on this device. Connect online once to finish storing the Radio webpage.');
+        const choice=await askIncompleteOfflineChoice(currentAudit,{setupOnly:true});
+        if(choice==='cancel')return;
+        if(choice==='setup'){
+          if(navigator.onLine===false){
+            await finishOfflineSetupWithDialog();
+            return;
+          }
+          await finishOfflineSetupWithDialog();
           return;
         }
-        await ensureOfflineLaunchAssets();
-        reflectButton(currentAudit);
-        setStatus(offlineLaunchReady
-          ?'OFFLINE READY · saved Radio webpage and music verified.'
-          :'Radio webpage is not fully stored yet. Saved music was preserved.');
-        return;
-      }
+        requestedRestart=choice==='restart';
+      }else if(!requestedRestart){
       if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
       if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
         await remove();
