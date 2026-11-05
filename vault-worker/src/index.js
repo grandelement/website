@@ -719,8 +719,8 @@ function allowedPublicEventType(value) {
   return allowed.has(type) ? type : "";
 }
 
-async function ingestPublicFanEvent(request, env) {
-  const body = await readBody(request);
+async function ingestPublicFanEvent(request, env, providedBody = null, providedVisitor = null, rateChecked = false) {
+  const body = providedBody || await readBody(request);
   const eventType = allowedPublicEventType(body.event_type);
   if (!eventType) return json({ ok: false, error: "Unsupported event type." }, 400);
 
@@ -733,12 +733,12 @@ async function ingestPublicFanEvent(request, env) {
     return json({ ok: false, error: "Unsupported surface." }, 400);
   }
 
-  const visitor = await visitorIdentity(request, env);
+  const visitor = providedVisitor || await visitorIdentity(request, env);
   const t = now();
 
   // Abuse ceiling for anonymous browser telemetry. This is intentionally high
   // enough for real media events but blocks runaway loops and scripted floods.
-  if (visitor.ip_hash) {
+  if (visitor.ip_hash && !rateChecked) {
     const recent = await env.VAULT_DB.prepare(
       "SELECT COUNT(*) AS n FROM fan_events WHERE ip_hash=? AND occurred_at>?"
     ).bind(visitor.ip_hash, t - 60).first();
@@ -768,11 +768,14 @@ async function ingestPublicFanEvent(request, env) {
     }
   } catch {}
 
-  const eventId = id("event");
+  const eventId = /^ev-[a-z0-9-]{12,90}$/i.test(String(body.client_event_id || ""))
+    ? "event-" + String(body.client_event_id)
+    : id("event");
   await env.VAULT_DB.prepare(
     `INSERT INTO fan_events
       (id,occurred_at,fan_id,anon_id,session_id,surface,event_type,page_url,page_path,track_id,track_title,album,playlist_id,share_target,referrer,utm_source,utm_medium,utm_campaign,utm_content,utm_term,ip_hash,ip_ciphertext,user_agent,language,country,region,city,timezone,cf_colo,cf_asn,cf_as_org,metadata_json)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO NOTHING`
   ).bind(
     eventId,
     t,
@@ -809,6 +812,49 @@ async function ingestPublicFanEvent(request, env) {
   ).run();
 
   return json({ ok: true, id: eventId }, 201);
+}
+
+
+/* Fan analytics are optional to playback. One request safely stores up to 25
+   ordinary GE events, using the same validation and D1 table as single events.
+   This endpoint never grants access, changes a code, or touches payments. */
+async function ingestPublicFanEventBatch(request, env) {
+  const payload = await readBody(request);
+  const events = payload?.events;
+  if (!Array.isArray(events) || events.length < 1 || events.length > 25)
+    return json({ ok: false, error: "Provide 1–25 fan events." }, 400);
+  let batchAnon = "", batchSession = "";
+  const ids = new Set();
+  for (const event of events) {
+    if (!event || typeof event !== "object" || Array.isArray(event) ||
+        !allowedPublicEventType(event.event_type) || !safeAnonId(event.anon_id) ||
+        !["website","radio","ship","studio","dj"].includes(
+          safeText(event.surface || "website",40).toLowerCase()))
+      return json({ ok:false, error:"Invalid fan event in batch." }, 400);
+    if (typeof event.client_event_id !== "string" ||
+        !/^ev-[a-z0-9-]{12,90}$/i.test(event.client_event_id) ||
+        ids.has(event.client_event_id))
+      return json({ ok:false, error:"Each batch event needs a unique client event ID." }, 400);
+    ids.add(event.client_event_id);
+    const anon = safeAnonId(event.anon_id), sess = safeSessionId(event.session_id);
+    if (!batchAnon) batchAnon = anon;
+    if (!batchSession) batchSession = sess;
+    if (anon !== batchAnon || sess !== batchSession)
+      return json({ ok:false, error:"One fan session per event batch." }, 400);
+  }
+  const visitor = await visitorIdentity(request,env);
+  if (visitor.ip_hash) {
+    const recent = await env.VAULT_DB.prepare(
+      "SELECT COUNT(*) AS n FROM fan_events WHERE ip_hash=? AND occurred_at>?"
+    ).bind(visitor.ip_hash,now()-60).first();
+    if (Number(recent?.n || 0) + events.length > 180)
+      return json({ ok:false, error:"Event rate limit reached." }, 429);
+  }
+  for (const event of events) {
+    const result = await ingestPublicFanEvent(request,env,event,visitor,true);
+    if (!result.ok) return result;
+  }
+  return json({ ok:true, accepted:events.length },201);
 }
 
 async function saveStationPerformance(request, env) {
@@ -2870,6 +2916,12 @@ export default {
       if (url.pathname === "/v1/public/game-scores" && request.method === "POST") {
         const response = await savePublicGameScore(request, env);
         Object.entries(cors).forEach(([k, v]) => response.headers.set(k, v));
+        return response;
+      }
+
+      if (url.pathname === "/v1/public/events" && request.method === "POST") {
+        const response = await ingestPublicFanEventBatch(request,env);
+        Object.entries(cors).forEach(([k,v]) => response.headers.set(k,v));
         return response;
       }
 
