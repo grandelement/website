@@ -5198,7 +5198,7 @@ html body #shipStage [data-proxy="legacyBtn"] {
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
   <div id="offlinePanel">
     <div id="offlineBarTrack"><div id="offlineBar"></div></div>
-    <div id="offlineText"></div>
+    <div id="offlineText" role="status" aria-live="polite"></div>
   </div>
   <div id="geOfflineDecision" role="dialog" aria-modal="true" aria-labelledby="geOfflineDecisionTitle" aria-describedby="geOfflineDecisionDetail" hidden>
     <div class="ge-offline-choice-card">
@@ -9302,6 +9302,8 @@ async function registerServiceWorker(){
     const restart=$('geOfflineRestart');
     const cancel=$('geOfflineCancel');
     if(!dialog||!title||!detail||!resume||!restart||!cancel)return Promise.resolve('cancel');
+    // Keep the phone dialog above the locked-height Radio layout.
+    if(dialog.parentElement!==document.body)document.body.appendChild(dialog);
     const saved=Math.max(0,Number(audit?.cachedSongs)||0);
     const total=Math.max(0,Number(audit?.totalSongs)||0);
     const missing=Math.max(0,Number(audit?.missingSongs)||0);
@@ -9332,7 +9334,7 @@ async function registerServiceWorker(){
         if(!restartArmed){
           restartArmed=true;
           title.textContent='Delete Saved Music?';
-          detail.textContent='Start Over will delete '+saved+' saved song'+(saved===1?'':'s')+' from THIS device, then download the complete music library again.\nThis cannot be undone. Your access codes and purchases are not deleted.';
+          detail.textContent='Start Over will delete '+saved+' saved song'+(saved===1?'':'s')+' and any saved offline backgrounds from THIS device, then download the complete music library again.\nThis cannot be undone. Your access codes and purchases are not deleted.';
           restart.textContent='DELETE AND START OVER';
           resume.textContent='KEEP SONGS AND RESUME';
           restart.focus();
@@ -9652,6 +9654,15 @@ async function registerServiceWorker(){
     abortController=new AbortController();
     button.classList.add('downloading');
     button.textContent='Stop Download';
+    if(!quiet){
+      const remaining=remainingBytes(audit);
+      renderProgress({
+        percent:audit.totalBytes>0?audit.existingBytes/audit.totalBytes*100:0,
+        doneBytes:audit.existingBytes,totalBytes:audit.totalBytes,
+        speed:initialSpeed,eta:initialSpeed>0?remaining/initialSpeed:NaN,
+        line2:'Preparing the offline player. Downloading missing songs next…'
+      });
+    }
 
     const cache=await caches.open(CONFIG.OFFLINE_CACHE);
     const started=performance.now();
@@ -9672,6 +9683,16 @@ async function registerServiceWorker(){
     const missingSongFiles=audit.missing.filter(item=>item.type==='song');
     for(const item of missingSongFiles){
       if(abortController.signal.aborted) break;
+      // iOS Cache Storage cannot report bytes until a full song is saved.
+      // Always display which song is being downloaded before that wait.
+      if(!quiet){
+        renderProgress({
+          percent:lastKnownTotal>0?(baseBytes+downloadedBytes)/lastKnownTotal*100:0,
+          doneBytes:baseBytes+downloadedBytes,totalBytes:lastKnownTotal,
+          speed:initialSpeed,eta:NaN,
+          line2:'Downloading song '+(completedFiles+failed+1)+' of '+missingSongFiles.length+'…'
+        });
+      }
 
       let currentExpected=item.size||0;
       try{
@@ -9722,7 +9743,8 @@ async function registerServiceWorker(){
     button.classList.remove('downloading');
     abortController=null;
 
-    audit=await auditAssets(assets,{copyExisting:false});
+    // Count songs saved in earlier GE cache generations as genuinely saved.
+    audit=await auditAssets(assets,{copyExisting:true});
     await verifyOfflineLaunchAssets();
     setEnabled(audit.cachedSongs>0);
     reflectButton(audit);
@@ -9819,18 +9841,19 @@ async function registerServiceWorker(){
   }
 
   button.addEventListener('click',async()=>{
+    // A user can always stop an ongoing download, even if access changes.
+    if(button.classList.contains('downloading')){
+      abortController?.abort();
+      panel.style.display='block';
+      text.textContent='Stopping the download. Songs already saved will be kept.';
+      try{await setOfflinePlanAutoResume(false)}catch(_e){}
+      return;
+    }
     if(!geRadioUtilityAllowed('offline')){
       // Locked button opens the existing CODE gate. It cannot start downloads.
       setStatus('OFFLINE is locked. Enter an access code with offline permission.');
       if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();
       else $('accessLaunchBtn')?.click();
-      return;
-    }
-    if(button.classList.contains('downloading')){
-      abortController?.abort();
-      panel.style.display='block';
-      text.textContent='Stopping the download. Songs already saved will be kept.';
-      await setOfflinePlanAutoResume(false);
       return;
     }
 
