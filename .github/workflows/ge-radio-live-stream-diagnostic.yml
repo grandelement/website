@@ -80,33 +80,49 @@ jobs:
               print('DIAGNOSIS: public MP3 bytes reached GitHub runner. Investigate iPhone playback, CORS and browser behavior.',flush=True)
           if not outcomes['public_radio']:sys.exit(1)
           PY
-      - name: Inspect MP3 and HLS browser access for iPhone Safari
+      - name: Compare generic, Safari, and cross-origin MP3 requests
         if: always()
         run: |
           python3 - <<'PY'
-          import urllib.request, urllib.error
-          origin='https://grandelement.com'
+          import urllib.request, urllib.error, time
           base='https://radio.grandelement.blitz.cloud'
-          for label,path in [('MP3','/stream.mp3'),('HLS','/hls/radio.m3u8')]:
-              request=urllib.request.Request(base+path,headers={
-                  'Origin':origin,
-                  'Accept':'audio/mpeg,*/*' if label=='MP3' else 'application/vnd.apple.mpegurl,*/*',
-                  'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
-              })
+          origin='https://grandelement.com'
+          ios='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+          variants=[
+            ('generic',{'Accept':'audio/mpeg,*/*'}),
+            ('origin_only',{'Accept':'audio/mpeg,*/*','Origin':origin}),
+            ('iphone_only',{'Accept':'audio/mpeg,*/*','User-Agent':ios}),
+            ('iphone_origin',{'Accept':'audio/mpeg,*/*','User-Agent':ios,'Origin':origin}),
+          ]
+          for label,headers in variants:
+              req=urllib.request.Request(base+'/stream.mp3',headers=headers)
               try:
-                  with urllib.request.urlopen(request,timeout=14) as response:
-                      mime=response.headers.get('Content-Type','')
-                      cors=response.headers.get('Access-Control-Allow-Origin','')
-                      credentials=response.headers.get('Access-Control-Allow-Credentials','')
+                  with urllib.request.urlopen(req,timeout=12) as response:
                       data=response.read(256)
-                      print(label,'HTTP',response.status,'MIME',mime,'CORS',repr(cors),
-                            'CREDENTIALS',repr(credentials),'BYTES',len(data),
-                            'BROWSER_CORS_OK',cors in ('*',origin),flush=True)
-              except urllib.error.HTTPError as error:
-                  print(label,'HTTP',error.code,'MIME',error.headers.get('Content-Type',''),
-                        'CORS',repr(error.headers.get('Access-Control-Allow-Origin','')),flush=True)
-              except Exception as error:
-                  print(label,'ERROR',type(error).__name__,str(error)[:180],flush=True)
+                      print('MP3',label,'HTTP',response.status,'MIME',
+                        response.headers.get('Content-Type',''),'CORS',
+                        repr(response.headers.get('Access-Control-Allow-Origin','')),
+                        'bytes',len(data),flush=True)
+              except urllib.error.HTTPError as e:
+                  print('MP3',label,'HTTP',e.code,'MIME',
+                    e.headers.get('Content-Type',''),'CORS',
+                    repr(e.headers.get('Access-Control-Allow-Origin','')),flush=True)
+              except Exception as e:
+                  print('MP3',label,'ERROR',type(e).__name__,str(e)[:140],flush=True)
+              time.sleep(.4)
+          for path in ['/hls/radio.m3u8','/control/public-now','/healthz']:
+              req=urllib.request.Request(base+path,headers={'Origin':origin,'User-Agent':ios})
+              try:
+                  with urllib.request.urlopen(req,timeout=12) as response:
+                      data=response.read(256)
+                      print(path,'HTTP',response.status,'MIME',
+                        response.headers.get('Content-Type',''),'CORS',
+                        repr(response.headers.get('Access-Control-Allow-Origin','')),
+                        'bytes',len(data),flush=True)
+              except urllib.error.HTTPError as e:
+                  print(path,'HTTP',e.code,'MIME',e.headers.get('Content-Type',''),flush=True)
+              except Exception as e:
+                  print(path,'ERROR',type(e).__name__,str(e)[:140],flush=True)
           PY
       - name: Check Sun Lab FFT signal on live BLITZ gateway
         if: always()
