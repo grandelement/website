@@ -133,12 +133,12 @@ assert.equal(opened,0,'Unavailable main Radio transport never redirects to the M
 // Protected previews emit numbered album titles, so the visible Radio title
 // must still lose its album number immediately when SHUFFLE is chosen.
 const displayStart=radio.indexOf('function geInlineMusicDisplayTitle(){');
-const displayEnd=radio.indexOf('\\nfunction geInlineMusicSyncTransport(){',displayStart);
+const displayEnd=radio.indexOf('\nfunction geInlineMusicSyncTransport(){',displayStart);
 assert.ok(displayStart>=0&&displayEnd>displayStart,'Shuffle title formatter missing');
 const displaySource=radio.slice(displayStart,displayEnd);
 const titleFor=(shuffle,path,title)=>new Function(
  'state','canonicalSongPath','geInlineMusicCurrentPath','displayTitle','geInlineMusicTitle',
- displaySource+'\\nreturn geInlineMusicDisplayTitle();'
+ displaySource+'\nreturn geInlineMusicDisplayTitle();'
 )({shuffle},p=>p,path,(p,numbered)=>'Intergy'+(numbered?' • 02':'')+' • Be Free',title);
 const numbered='Intergy • 02 • Be Free';
 assert.equal(titleFor(false,'ge-music/music/Grand Element - 2007 - Intergy/Intergy_02_Be Free.mp3',numbered),
@@ -147,15 +147,15 @@ assert.equal(titleFor(true,'ge-music/music/Grand Element - 2007 - Intergy/Interg
  'Intergy • Be Free','Shuffle must immediately hide the album track number');
 assert.equal(titleFor(true,'',numbered),'Intergy • Be Free',
  'Shuffle must hide the number even before a track path arrives');
-assert.match(radio,/geInlineMusicSyncTransport\\(\\); \/\/ Refresh Album/,
+assert.match(radio,/geInlineMusicSyncTransport\(\); \/\/ Refresh Album/,
  'Shuffle must refresh the main Radio title without waiting for another song');
-assert.match(radio,/window\\.addEventListener\\('ge-music-catalog-ready',geRetryPendingMainMusic\\)/,
+assert.match(radio,/window\.addEventListener\('ge-music-catalog-ready',geRetryPendingMainMusic\)/,
  'First PLAY must resume when the asynchronous music catalog is available');
-assert.match(radio,/geInlineMusicFrame\\.addEventListener\\('load',[\\s\\S]*?geRetryPendingMainMusic\\(\\)/,
+assert.match(radio,/geInlineMusicFrame\.addEventListener\('load',[\s\S]*?geRetryPendingMainMusic\(\)/,
  'First PLAY must resume when the protected preview iframe loads');
-assert.match(music,/function playTrack\\(track,queueOverride,showPlayer=false,shuffleAll=false\\)/,
+assert.match(music,/function playTrack\(track,queueOverride,showPlayer=false,shuffleAll=false\)/,
  'First PLAY must return its actual synchronous success or failure');
-assert.doesNotMatch(music,/async function playTrack\\(/,
+assert.doesNotMatch(music,/async function playTrack\(/,
  'A rejected first PLAY must not be mistaken for a truthy Promise');
 
 console.log('PASS: guest PLAY, saved song order, no forced code/store redirect, restricted receipt, expired 33:33 Gate, native transport.');
