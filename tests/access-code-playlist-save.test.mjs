@@ -49,7 +49,7 @@ const oldBangers={id:'9dfb10c5eb5d',name:'Bangers',tracks:bangersTracks.slice(0,
 const liveBangers={...oldBangers,tracks:bangersTracks};
 const env={accessVaultLoaded:true,accessVaultPlaylists:[liveBangers],
   playlistLoaded:true,playlists:[oldBangers,{id:'older',name:'Historic Mix',tracks:songs.map(track_path=>({track_path}))}],
-  accessSelectedPlaylistIds:new Set()};
+  accessSelectedPlaylistIds:new Set(['older'])};
 const available=runInNewContext(sourceScript+'\naccessPlaylistSource()',env);
 assert.equal(available.find(p=>p.id==='9dfb10c5eb5d').tracks.length,41);
 assert.ok(available.some(p=>p.id==='older'),'GitHub-only historic assignments are retained');
