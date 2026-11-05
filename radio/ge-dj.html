@@ -8053,18 +8053,28 @@ function applyBoardFastMeters(items){
  }
  if(videoChanged){renderKnownDeviceMixer();renderBoardVideoWall()}
 }
+// Remote meter is a visual aid. Do not spend a Cloudflare invocation on every
+// 120ms animation tick. Local audio processing and on-air paths are unchanged.
+let geBoardMeterLastSentAt=0,geBoardMeterPauseUntil=0;
 async function pushBoardFastMeter(){
  if((!key&&!djTrustedId)||boardFastMeterBusy)return;
+ const now=Date.now();
+ const meterActive=!!(micAirOn||lineAirOn||radioMonitorOn||geTrackLive(micStream));
+ const minimumGap=document.hidden?5000:(meterActive?850:5000);
+ if(now<geBoardMeterPauseUntil||now-geBoardMeterLastSentAt<minimumGap)return;
+ geBoardMeterLastSentAt=now;
  boardFastMeterBusy=true;
  try{
    const r=await api('/control/board/meter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({board_id:GE_BOARD_ID,mic_peak:Number(micInputPct||0),mic_connected:geTrackLive(micStream)})});
+   if(!r.ok&&(r.status===429||r.status>=500))geBoardMeterPauseUntil=Date.now()+60000;
    if(r.ok){const d=await r.json().catch(function(){return {}});if(d&&d.ok)applyBoardFastMeters(d.items||[])}
- }catch(e){}finally{boardFastMeterBusy=false}
+ }catch(e){geBoardMeterPauseUntil=Date.now()+60000}
+ finally{boardFastMeterBusy=false}
 }
 function startBoardFastMeterBus(){
  if(boardFastMeterTimer)clearInterval(boardFastMeterTimer);
  pushBoardFastMeter();
- boardFastMeterTimer=setInterval(pushBoardFastMeter,120)
+ boardFastMeterTimer=setInterval(pushBoardFastMeter,250)
 }
 async function geBoardHeartbeat(){
  if((!key&&!djTrustedId)||boardHeartbeatBusy)return;
