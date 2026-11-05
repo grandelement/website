@@ -9533,6 +9533,49 @@ async function registerServiceWorker(){
     });
   }
 
+  // A stale/expired entitlement must produce a visible explanation instead
+  // of silently sending a message to the hidden Radio status line.
+  async function showOfflineAccessNotice(){
+    const dialog=$('geOfflineDecision');
+    const title=$('geOfflineDecisionTitle');
+    const detail=$('geOfflineDecisionDetail');
+    const openCode=$('geOfflineResume');
+    const restart=$('geOfflineRestart');
+    const close=$('geOfflineCancel');
+    if(!dialog||!title||!detail||!openCode||!restart||!close)return;
+    if(dialog.parentElement!==document.body)document.body.appendChild(dialog);
+    const previousFocus=document.activeElement;
+    title.textContent='Offline Access Required';
+    detail.textContent='Offline permission is not currently verified on this device. Your previously downloaded music has not been deleted.\nEnter an access code with Offline permission.';
+    openCode.textContent='ENTER CODE';
+    restart.hidden=true;
+    close.textContent='CLOSE';
+    dialog.hidden=false;
+    await new Promise(resolve=>{
+      const done=action=>{
+        dialog.hidden=true;
+        openCode.removeEventListener('click',chooseCode);
+        close.removeEventListener('click',chooseClose);
+        document.removeEventListener('keydown',escape,true);
+        restart.hidden=false;
+        try{previousFocus?.focus?.()}catch(_e){}
+        resolve(action);
+      };
+      const chooseCode=()=>done('code');
+      const chooseClose=()=>done('close');
+      const escape=event=>{if(event.key==='Escape'){event.preventDefault();done('close')}};
+      openCode.addEventListener('click',chooseCode);
+      close.addEventListener('click',chooseClose);
+      document.addEventListener('keydown',escape,true);
+      openCode.focus();
+    }).then(action=>{
+      if(action==='code'){
+        if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();
+        else $('accessLaunchBtn')?.click();
+      }
+    });
+  }
+
   // The offline Music library is complete when every *song* is cached.
   // Missing optional backgrounds, extra station IDs or duplicated shell URLs
   // must not ask someone to re-download the same music on every visit.
@@ -10025,10 +10068,8 @@ async function registerServiceWorker(){
       return;
     }
     if(!geRadioUtilityAllowed('offline')){
-      // Locked button opens the existing CODE gate. It cannot start downloads.
-      setStatus('OFFLINE is locked. Enter an access code with offline permission.');
-      if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();
-      else $('accessLaunchBtn')?.click();
+      // A stale Vault grant is reported visibly, without touching saved songs.
+      await showOfflineAccessNotice();
       return;
     }
 
