@@ -5552,11 +5552,15 @@ function urlToRepoPath(url){
 async function fetchRepositoryTree(){
   const target=new URL(CONFIG.GITHUB_TREE_API);
   target.searchParams.set('_ge_reload',String(Date.now()));
-  const response=await fetch(target.href,{cache:'no-store'});
-  if(!response.ok) throw new Error(`GitHub tree ${response.status}`);
-  const data=await response.json();
-  if(!data || !Array.isArray(data.tree)) throw new Error('GitHub tree response was incomplete');
-  return data.tree;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),8000);
+  try{
+    const response=await fetch(target.href,{cache:'no-store',signal:controller.signal});
+    if(!response.ok)throw new Error('GitHub tree '+response.status);
+    const data=await response.json();
+    if(!data||!Array.isArray(data.tree))throw new Error('GitHub tree response incomplete');
+    return data.tree;
+  }finally{clearTimeout(timeout)}
 }
 function libraryFromRepositoryTree(tree){
   const audioItems=[];
@@ -13700,8 +13704,15 @@ gateTestBtn?.addEventListener('click',()=>{
   // refresh only; it never starts, stops, or switches radio audio.
   void (async()=>{
     if(offlinePlaybackMode())return;
+    // The published static manifest is authoritative for normal listening.
+    // GitHub's public API is a nonessential freshness check, not a boot requirement.
+    const catalogCheckKey='GE_RADIO_AUTO_CATALOG_CHECK_V1';
+    let lastChecked=0;
+    try{lastChecked=Number(localStorage.getItem(catalogCheckKey))||0}catch(_e){}
+    if(state.catalog.length&&Date.now()-lastChecked<6*60*60*1000)return;
     try{
       const tree=await fetchRepositoryTree();
+      try{localStorage.setItem(catalogCheckKey,String(Date.now()))}catch(_e){}
       const library=libraryFromRepositoryTree(tree);
       const freshCatalog=library.catalog;
       if(!freshCatalog.length)return;
