@@ -42,8 +42,14 @@ try{
   text:document.querySelector('#liveBtn')?.textContent,
   status:document.querySelector('#liveStatus')?.textContent||'',
   src:document.querySelector('#player')?.currentSrc||document.querySelector('#player')?.src,
-  connected:document.body.classList.contains('ge-radio-audible')
+  connected:document.body.classList.contains('ge-radio-audible'),
+  playText:document.querySelector('#playBtn')?.textContent?.trim(),
+  nativeNoCors:!document.querySelector('#player')?.hasAttribute('crossorigin'),
+  nativeMode:document.querySelector('#player')?.dataset?.geRadioNativeNoCors
  }));
+ assert.equal(after.playText,'Play','Failed BLITZ must not falsely start on PAUSE');
+ assert.equal(after.nativeNoCors,true,'BLITZ MP3 must not send Origin from crossorigin audio');
+ assert.equal(after.nativeMode,'1','BLITZ must use native no-CORS mode');
  assert.ok(!/RADIO 2/.test(after.status),'Radio 2 must not be selected after primary outage');
  assert.ok(!after.src||after.src.includes('radio.grandelement.blitz.cloud/stream.mp3'),
   'Radio 2 or local songs replaced BLITZ');
