@@ -28,13 +28,13 @@ const parsed=music.match(/ playAll:\(direction='play'\)=>\{([\s\S]*?)\n \},\n re
 assert.ok(parsed,'Expected public MUSIC playAll entry point not found');
 const playBody=parsed[1];
 const builder=new Function(
- 'musicAccessActive','window','open','say','state','selectedTracks','playTrack','direction',
+ 'musicAccessActive','window','open','say','state','selectedTracks','playTrack','preloadCatalog','direction',
  playBody
 );
 const makeTrack=name=>({path:'ge-music/music/Grand Element - 2026 - Aether/'+name+'.mp3',title:name,album:'Aether'});
 const a=makeTrack('Aether_01_The Journey'),b=makeTrack('Aether_02-Polaris'),c=makeTrack('Aether_03-Daydream');
 const all=[a,b,c];
-let opened=0,notes=[],played=[],gateRestores=0;
+let opened=0,preloaded=0,notes=[],played=[],gateRestores=0;
 let access=null,selection=[b,a],expired=false;
 const state={loaded:true,tracks:all};
 const windowStub={GEGate:{isExpiredLocked:()=>expired,restore:()=>{gateRestores++}}};
@@ -43,7 +43,7 @@ const run=(direction='play')=>builder(
  ()=>selection,(track,queue,show,shuffle)=>{
    played.push({path:track.path,queue,show,shuffle});
    return true;
- },direction
+ },()=>{preloaded++},direction
 );
 assert.equal(run(),true,'Guest pressing PLAY must start playback with no Vault code');
 assert.deepEqual(played[0].queue,[b.path,a.path],'Checked queue order must be unchanged');
@@ -72,7 +72,13 @@ assert.ok(notes.at(-1).includes('33:33'),'Show the correct expiry reason');
 
 expired=false;state.loaded=false;
 assert.equal(run(),false,'Catalog not loaded yet cannot start playback');
-assert.equal(opened,1,'Loading may open the MUSIC library but may not redirect to shopping');
+assert.equal(opened,0,'Loading songs must not unnecessarily open the MUSIC editor');
+assert.equal(preloaded,1,'Loading PLAY should request catalog preparation');
+state.loaded=true;
+selection=[b];
+assert.equal(run('all'),true,'The main PLAY button must play all available songs');
+assert.deepEqual(played.at(-1).queue,[a.path,b.path,c.path],
+ 'Main PLAY ALL must not silently reduce the library to previously checked songs');
 
 // Execute the native resumeAudio guest branch as an additional routing check.
 const start=radio.indexOf('function resumeAudio(){');
