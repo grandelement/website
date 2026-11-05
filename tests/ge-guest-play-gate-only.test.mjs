@@ -113,13 +113,13 @@ let nativePlay=0,nativeToggle=0;
 let personal=false;
 const nativeResume=new Function(
  'state','geOwnerDemoEnabled','offlinePlaybackMode','geRadioUtilityAllowed',
- 'window','geInlineMusicActive','geInlineMusicSend',
+ 'window','geInlineMusicActive','geInlineMusicSend','startMainMusicLibrary',
  resumeSource+'\nreturn resumeAudio;'
 );
 const playWindow={GEMusicV5:{playAll:()=>{nativePlay++}}};
-nativeResume({live:false,livePreparing:false},()=>false,()=>false,()=>false,playWindow,false,()=>{})();
+nativeResume({live:false,livePreparing:false},()=>false,()=>false,()=>false,playWindow,false,()=>{},(mode)=>{assert.equal(mode,'all');nativePlay++})();
 assert.equal(nativePlay,1,'Native guest PLAY must use preview, not commerce');
-nativeResume({live:false,livePreparing:false},()=>false,()=>false,()=>false,playWindow,true,()=>{nativeToggle++})();
+nativeResume({live:false,livePreparing:false},()=>false,()=>false,()=>false,playWindow,true,()=>{nativeToggle++},()=>{nativePlay++})();
 assert.equal(nativeToggle,1,'Native PLAY must toggle existing personal song');
 assert.equal(nativePlay,1,'Toggling personal music must not replace its queue');
 
