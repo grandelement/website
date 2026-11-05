@@ -1766,7 +1766,7 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
   // Main PLAY means ALL permitted songs. Explicit playlist operations still
   // honor the checked song order and the verified Vault access scope.
   const tracks=checked.length?checked:permitted;
-  if(!tracks.length){open();say('No playable songs are in the library.');return false}
+  if(!tracks.length){say('No playable songs are in the library.');return false}
   const index=direction==='previous'?tracks.length-1:
    direction==='next'?Math.min(1,tracks.length-1):0;
   return playTrack(tracks[index],tracks.map(t=>t.path),true,checked.length===0);
