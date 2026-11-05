@@ -79,9 +79,15 @@ try{
   'OFFLINE must fit within the iPhone viewport');
  assert.equal(offline.locked,'true','Guest OFFLINE must remain locked');
  await page.click('#offlineBtn',{timeout:12000});
+ // Locked Offline now explains the missing entitlement without deleting files.
+ // Its ENTER CODE choice opens the same existing Gate code-entry dialog.
+ await page.waitForFunction(()=>document.querySelector('#geOfflineDecision')?.hidden===false,{timeout:8000});
+ assert.equal(await page.evaluate(()=>document.querySelector('#geOfflineDecisionTitle')?.textContent),'Offline Access Required',
+  'Locked OFFLINE must show visible permission feedback');
+ await page.click('#geOfflineResume',{timeout:8000});
  await page.waitForFunction(()=>document.querySelector('#geGate')?.getAttribute('aria-hidden')==='false',{timeout:8000});
  assert.equal(await page.evaluate(()=>document.querySelector('#geGate')?.classList.contains('open')),true,
-  'Locked OFFLINE must open the existing CODE entry');
+  'ENTER CODE must open the existing code entry');
  // The actual historic LOVE record is verified in the Vault unit test.
  // Simulate its returned scoped receipt here to verify responsive placement.
  const sunLab=await page.evaluate(()=>{
