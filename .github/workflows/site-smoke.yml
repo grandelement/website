@@ -1,0 +1,64 @@
+name: GE website smoke checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'backroom/index.html'
+      - 'radio/**.js'
+      - 'radio/**.html'
+      - 'radio/manifest.json'
+      - 'config/site-live.json'
+      - 'ge-vault-client.js'
+      - 'ge-dream.js'
+      - 'ge-accessibility.js'
+      - 'sw.js'
+      - 'tests/smoke.cjs'
+      - '.github/workflows/site-smoke.yml'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'backroom/index.html'
+      - 'radio/**.js'
+      - 'radio/**.html'
+      - 'radio/manifest.json'
+      - 'config/site-live.json'
+      - 'ge-vault-client.js'
+      - 'ge-dream.js'
+      - 'ge-accessibility.js'
+      - 'sw.js'
+      - 'tests/smoke.cjs'
+      - '.github/workflows/site-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            index.html
+            backroom/index.html
+            radio/ge-dj.html
+            radio/website-live.js
+            radio/ge-home-gate-stop.js
+            radio/ge-imac-studio.js
+            radio/ge-vault-drilldown.js
+            ge-vault-client.js
+            ge-dream.js
+            ge-accessibility.js
+            sw.js
+            config/site-live.json
+            radio/manifest.json
+            tests/smoke.cjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript, publishing safeguards and Radio Master
+        run: node tests/smoke.cjs
