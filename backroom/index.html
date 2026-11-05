@@ -1006,7 +1006,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
      </div>
      <p class="brAccessNotice" id="brAccessFanLinkStatus" role="status">Load or save an access code first.</p>
    </details>
-   <details class="brAccessCategory" id="brAccessMusicCategory"><summary class="brAccessPlaylistSummary"><span>MUSIC · PLAYLISTS &amp; SONGS</span><button type="button" id="brAccessPlaylistRefresh" aria-label="Refresh live Vault playlists">REFRESH</button></summary>
+   <details class="brAccessCategory" id="brAccessMusicCategory"><summary class="brAccessPlaylistSummary"><span>MUSIC · PLAYLISTS</span></summary>
     <div class="brAccessPlaylistSelectRow">
       <label class="check"><input type="checkbox" id="brAccessPlaylistAll" checked aria-label="Allow all playlists"><span>ALL PLAYLISTS</span></label>
       <span id="brAccessPlaylistCount" role="status" aria-live="polite">Loading…</span>
@@ -3124,15 +3124,14 @@ const backroomVaultManagers=(()=>{
     return'Active';
   }
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
-  // Access Codes reads live GE Vault DJ playlists first. GitHub-only historic
-  // assignments stay visible, but never overwrite a live Vault playlist.
+  // Automatically list every live DJ Vault playlist. Retain older
+  // GitHub-only references ONLY if this saved access code already grants them.
   function accessPlaylistSource(){
     const vault=accessVaultLoaded?accessVaultPlaylists:[];
-    const github=playlistLoaded?playlists:[];
     const ids=new Set(vault.map(p=>String(p.id)));
-    const names=new Set(vault.map(p=>String(p.name).trim().toLowerCase()));
-    return vault.concat(github.filter(p=>!ids.has(String(p.id))&&
-      (!names.has(String(p.name).trim().toLowerCase())||accessSelectedPlaylistIds.has(p.id))));
+    const legacy=playlistLoaded?playlists.filter(p=>
+      accessSelectedPlaylistIds.has(String(p.id))&&!ids.has(String(p.id))):[];
+    return vault.concat(legacy);
   }
   async function refreshVaultAccessPlaylists(){
     try{
@@ -3154,7 +3153,7 @@ const backroomVaultManagers=(()=>{
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
     const source=accessPlaylistSource();
-    // New codes default to ALL after a real Vault read; saved codes keep their grants.
+    // New codes default to ALL after automatic Vault load; saved codes retain their grants.
     if(accessDefaultsPending&&accessVaultLoaded){
       accessSelectedPlaylistIds=new Set(source.map(p=>p.id));
       accessDefaultsPending=false;
@@ -3171,8 +3170,8 @@ const backroomVaultManagers=(()=>{
     select.disabled=!source.length;
     const host=$('brAccessPlaylistChoices'),priorScroll=host.scrollTop;host.replaceChildren();
     if(!accessVaultLoaded){
-      host.appendChild(create('p','LIVE VAULT NOT CONNECTED · Press REFRESH above. Saved codes and DJ playlists remain intact.','sub'));
-      $('brAccessPlaylistNotice').textContent='WAITING FOR LIVE VAULT · Playlist assignments cannot change until verified.';
+      host.appendChild(create('p','LOADING LIVE DJ PLAYLISTS… This list loads automatically.','sub'));
+      $('brAccessPlaylistNotice').textContent='LIVE DJ VAULT · CONNECTING AUTOMATICALLY';
       return;
     }
     $('brAccessPlaylistNotice').textContent='LIVE VAULT · '+accessVaultPlaylists.length+
@@ -3828,8 +3827,8 @@ const backroomVaultManagers=(()=>{
   }
   function openTab(tab){
     if(tab==='access'){
-      // Always expose Music and Access details, even when an API read fails.
-      // A failed read must not present an empty dropdown as the whole editor.
+      // Connect to the complete Vault playlist list automatically upon opening Access Codes.
+      // A failed read must never erase prior saved grants.
       if($('brAccessEditor').hidden)showCodeEditor(accessLoaded?selectedCodeId:'');
       void reconnectAllSources();
     }
@@ -4358,11 +4357,6 @@ const backroomVaultManagers=(()=>{
           if(checkbox.value==='music'&&checkbox.checked)$('brAccessMusicCategory').open=true;
         });
       }
-      $('brAccessPlaylistRefresh').addEventListener('click',event=>{
-        event.preventDefault();event.stopPropagation();
-        $('brAccessMusicCategory').open=true;
-        void Promise.all([refreshVaultAccessPlaylists(),refreshPlaylists()]);
-      });
       $('brAccessPlaylistAll').addEventListener('change',event=>{
         if(!accessVaultLoaded){event.target.checked=false;return;}
         const source=accessPlaylistSource();
@@ -4450,7 +4444,7 @@ const backroomVaultManagers=(()=>{
     if(!authReady())vaultIndicator('SIGN IN','The Vault requires your private owner session.');
     openTab(current);
     // Connect on Back Room open as well, not just when the user finds PLAYLISTS.
-    if(authReady()&&current!=='playlists'&&current!=='access')void refreshPlaylists();
+    if(authReady()&&current!=='playlists'&&current!=='access')void Promise.all([refreshVaultAccessPlaylists(),refreshPlaylists()]);
   }
   return{init};
 })();
