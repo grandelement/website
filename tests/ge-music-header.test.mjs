@@ -23,7 +23,7 @@ assert.match(music,/musicSessionEndpoint='https:\/\/vault\.grandelement\.com\/v1
   'Vault verification endpoint must remain intact');
 assert.match(radio,/ge-music-v5\.js\?v=20261104-v727-guest-play-gate-only/,
   'Radio must load new Music UI');
-assert.match(worker,/const VERSION='2026\.11\.04-play-gate-only-v87'/,
+assert.match(worker,/const VERSION='2026\.11\.05-listener-safe-batch-v88'/,
   'Radio application shell must be versioned for Safari');
 assert.match(worker,/MEDIA_CACHE='ge-radio-media-v4'/,
   'Existing offline songs must not be erased');
