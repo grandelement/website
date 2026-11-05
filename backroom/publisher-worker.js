@@ -255,7 +255,7 @@ async function geVaultBridge(env,path,method='GET',body=null){
   // Access Codes have a dedicated least-privilege bridge secret. Legacy
   // admin fallback exists for publishers that were configured previously.
   // GitHub remains the exclusive GE playlist master.
-  const accessPath=path==='/v1/admin/access-codes';
+  const accessPath=path==='/v1/admin/access-codes'||path==='/v1/admin/access-playlists';
   const secret=String((accessPath&&env.VAULT_ACCESS_CODES_TOKEN)||env.VAULT_ADMIN_TOKEN||'').trim();
   if(!secret)return {status:503,data:{ok:false,error:accessPath?
     'Access Codes bridge is not configured on the Back Room publisher. Deploy/configure VAULT_ACCESS_CODES_TOKEN on both Workers.':
@@ -534,6 +534,15 @@ export default {
       }
     }
 
+
+    // Read-only DJ playlist bridge for Access Codes. Uses the same least-privilege
+    // credential as Access Codes; it never needs the broader Vault admin token.
+    if(url.pathname==='/manage/access-playlists'&&request.method==='GET'){
+      if(!(await verifySession(env,bearer(request))))
+        return json({ok:false,error:'Sign in to the Back Room again.'},401,cors);
+      const upstream=await geVaultBridge(env,'/v1/admin/access-playlists');
+      return json(upstream.data,upstream.status,cors);
+    }
 
     if(url.pathname==='/manage/github-playlists'&&['GET','POST'].includes(request.method)){
       return handleGithubPlaylists(request,env,cors);
