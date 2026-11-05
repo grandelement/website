@@ -9083,7 +9083,8 @@ async function registerServiceWorker(){
   // Cache the small Radio webpage without deleting a single downloaded song.
   // Report each file and bound service-worker waits so iPhone users do not
   // experience a silent, apparently dead "Finish Offline Setup" button.
-  async function ensureOfflineLaunchAssets({onProgress=()=>{},signal=null}={}){
+  async function ensureOfflineLaunchAssets(){
+    const {onProgress=()=>{},signal=null}=arguments[0]||{};
     lastOfflineSetupReport=null;
     const failures=[];
     const progress=(stage,completed=0,total=OFFLINE_LAUNCH_FILES.length)=>
@@ -10069,15 +10070,17 @@ async function registerServiceWorker(){
 
     // A complete saved music set needs no re-download. If enabled again,
     // use the verified existing cache; do not duplicate the same MP3 files.
-    if(!requestedRestart && (prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete)){
-      // Reuse the songs; repair only app files and worker if necessary.
-      if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
-      setEnabled(true);
-      reflectButton(prepared.audit);
-      setStatus(offlineLaunchReady
-        ?'OFFLINE READY · player and saved songs verified in this browser.'
-        :'Songs saved; webpage not yet ready offline. Tap Finish Offline Setup to see details.');
-      return;
+    if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
+      if(!requestedRestart){
+        // Reuse the songs; repair only app files and worker if necessary.
+        if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
+        setEnabled(true);
+        reflectButton(prepared.audit);
+        setStatus(offlineLaunchReady
+          ?'OFFLINE READY · player and saved songs verified in this browser.'
+          :'Songs saved; webpage not yet ready offline. Tap Finish Offline Setup to see details.');
+        return;
+      }
     }
 
     // Resume is one of three explicit choices, not the Offline OFF switch.
@@ -10113,12 +10116,14 @@ async function registerServiceWorker(){
         return;
       }
       setStatus('Starting a clean download of '+prepared.audit.totalSongs+' songs.');
-    }else if(!prepared.audit.cachedSongs && choice!=='restart'){
-      // Only the FIRST download needs the original speed/size confirmation.
-      // An existing partial-download Resume must start without a second prompt.
-      const estimate=await showPreDownloadEstimate(prepared);
-      if(!estimate.approved){reflectButton(prepared.audit);return;}
-      initialSpeed=estimate.speed;
+    }else if(!prepared.audit.cachedSongs){
+      // Only the first download needs a size/speed confirmation. Start Over
+      // was already confirmed explicitly before removing older music.
+      if(choice!=='restart'){
+        const estimate=await showPreDownloadEstimate(prepared);
+        if(!estimate.approved){reflectButton(prepared.audit);return;}
+        initialSpeed=estimate.speed;
+      }
     }
     try{
       // A failed plan write must not abort the actual song download or
