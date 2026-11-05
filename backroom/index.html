@@ -645,10 +645,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   <div class="lockCard">
     <div class="blueSun" aria-hidden="true"></div>
     <div class="lockSub">BACK ROOM</div>
-    <label><span>PASSWORD</span><input id="gatePassword" type="password" autocomplete="current-password"></label>
-    <button id="gateEnter" type="button">ENTER BACK ROOM</button>
-    <button id="gateLocal" type="button">OPEN LOCAL EDITOR</button>
-    <p class="lockMsg">Cloudflare unavailable? Local editing works without signing in. Publishing and private Vault controls remain locked.</p>
+    <button id="gateLocal" type="button">OPEN BACK ROOM</button>
+    <p class="lockMsg">Public website editing works without Cloudflare. The Fan Base Vault remains separately secured.</p>
+    <label><span>PRIVATE VAULT PASSWORD</span><input id="gatePassword" type="password" autocomplete="current-password"></label>
+    <button id="gateEnter" type="button">PRIVATE SERVICES SIGN-IN</button>
     <div id="gateMessage" class="lockMsg"></div>
   </div>
 </div>
@@ -663,6 +663,10 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
         <div class="grid">
           <label><span>TEXT SIZE <b id="backroomTextSizeValue">90%</b></span><input id="backroomTextSize" type="range" min="75" max="160" step="5" value="90"></label>
           <div class="actions"><button id="reset" type="button">RESET</button><button id="lockBackroom" type="button">LOCK BACK ROOM</button></div>
+          <label><span>GITHUB PUBLISH TOKEN (fine-grained: Contents read/write for GE website only)</span>
+            <input id="brGithubToken" type="password" autocomplete="off" spellcheck="false" placeholder="Enter only to publish"></label>
+          <div class="actions"><button id="legacyPublishLive" type="button">LEGACY CLOUDFLARE PUBLISH</button></div>
+          <p class="sub">The GitHub token is cleared after each attempt and never saved. Private Vault and live DJ controls stay separate.</p>
         </div>
       </div>
     </details>
@@ -671,7 +675,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <button class="primary" id="viewWebsite" type="button">VIEW WEBSITE</button>
     <button class="primary" id="save" type="button">SAVE DRAFT</button>
     <button id="exportGithubConfig" type="button" title="Export public settings for GitHub without Cloudflare">EXPORT GITHUB</button>
-    <button class="publish" id="publishLive" type="button">PUBLISH LIVE</button>
+    <button class="publish" id="publishLive" type="button">PUBLISH GITHUB</button>
   </div>
   <div id="status" class="status" role="status" aria-live="polite" hidden>Loading…</div>
   <button id="brVaultConnection" class="brVaultConnection" type="button" aria-live="polite" data-state="checking" title="Check GE Vault access codes and GitHub playlists">VAULT · RECONNECT</button>
@@ -1303,6 +1307,7 @@ function renderGateTimingSummary(){
  if(summary)summary.textContent='Full Gate: '+visual.toFixed(1)+'s approach + '+t.graceSeconds+'s centered hold + '+t.fadeSeconds+'s fade. Reverb rises over '+waterToSilence.toFixed(1)+'s from water to silence. The 33:33 listening cutoff remains fixed.';
 }
 const numberIds=['SOUL_MAX_ACTIVE','SOUL_SPAWN_MIN_SEC','SOUL_SPAWN_MAX_SEC','SHIP_APPEAR_MIN_SEC','SHIP_APPEAR_MAX_SEC','MINI_SHIP_APPEAR_MIN_SEC','MINI_SHIP_APPEAR_MAX_SEC','METEOR_SHOWER_MIN_SEC','METEOR_SHOWER_MAX_SEC','AUTOPILOT_SPIRIT_RETURN_MIN_SEC','AUTOPILOT_SPIRIT_RETURN_MAX_SEC'];
+let publisherBase=null;
 let cfg=null,dirty=false,editorTarget='',dragCleanup=null,serverAuthenticated=false,presets=[],editorStartCfg=null,editorActiveText=null,editorSavedRange=null,editorEnabled=false;
 // The only DJ playlist authority is the BLITZ controller. This is a
 // password-free view of its saved playlist names/paths, not another database.
@@ -1442,7 +1447,7 @@ async function openLocalEditor(){
   serverAuthenticated=false;setToken('');
   $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');
   $('gatePassword').value='';
-  try{await bootBackroom();setStatus('LOCAL EDITOR · Save drafts on this device. Publishing and private Vault access require the publisher.');}
+  try{await bootBackroom();setStatus('GITHUB BACK ROOM · Public editing works without Cloudflare. Enter a GitHub token under Settings to publish.');}
   catch(error){setStatus('LOCAL EDITOR · Could not load the public configuration. Check connection and reload.');}
 }
 $('gateLocal').addEventListener('click',()=>void openLocalEditor());
@@ -1829,7 +1834,11 @@ function collect(){
     distanceDesktop:bounded('radioMoonDistanceDesktop',.5,5,2.2),
     distanceMobile:bounded('radioMoonDistanceMobile',.5,5,1.1)
   };
-  const song=$('firstTrackSelect').selectedOptions[0];if(song?.value){cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''}}else delete cfg.music.firstTrack;
+  const song=$('firstTrackSelect').selectedOptions[0];
+  if(song?.value&&/^ge-music\/music\/.+\.(?:mp3|m4a|ogg|wav)$/i.test(song.value)){
+    cfg.music.firstTrack={path:song.value,album:song.dataset.album||'',trackNum:Number(song.dataset.track)||0,titleContains:song.dataset.title||''};
+  }else if(song?.value===''){delete cfg.music.firstTrack}
+  // A failed manifest must never overwrite the approved first track.
   return cfg;
 }
 document.querySelectorAll('#aboutToolbar [data-cmd]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -2012,7 +2021,87 @@ async function loadMusic(){
   }catch(_e){$('firstTrackSelect').innerHTML='<option>Music list unavailable</option>'}
 }
 
-async function publish(){
+
+const GE_GITHUB_CONFIG_API='https://api.github.com/repos/grandelement/website/contents/config/site-live.json';
+const GE_GITHUB_PUBLIC_FIELDS=['welcome','about','visual','albums','easySettings','merchandise','games','gateTiming','radioMoon'];
+function geGithubDecode(base64){
+ const bytes=Uint8Array.from(atob(String(base64||'').replace(/\s/g,'')),ch=>ch.charCodeAt(0));
+ return new TextDecoder().decode(bytes);
+}
+function geGithubEncode(str){
+ const bytes=new TextEncoder().encode(String(str)),chunks=[];
+ for(let i=0;i<bytes.length;i+=8192)chunks.push(String.fromCharCode(...bytes.subarray(i,i+8192)));
+ return btoa(chunks.join(''));
+}
+function geGithubSame(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+async function geGithubCommit(prepare,message){
+ const control=$('brGithubToken'),secret=String(control?.value||'').trim();
+ if(!secret)throw Error('Enter a fine-grained GitHub token in Back Room Settings (repository: grandelement/website, Contents: read/write).');
+ try{
+  const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+secret,'X-GitHub-Api-Version':'2022-11-28'};
+  const get=await fetch(GE_GITHUB_CONFIG_API+'?ref=main',{headers,cache:'no-store',mode:'cors',credentials:'omit'});
+  const src=await get.json().catch(()=>({}));
+  if(!get.ok||!src.sha||typeof src.content!=='string')
+    throw Error(get.status===401?'GitHub token invalid or expired.':get.status===403?'GitHub access denied or rate limited.':'Could not load GitHub settings (HTTP '+get.status+').');
+  const remote=JSON.parse(geGithubDecode(src.content));
+  if(!Array.isArray(remote?.music?.radioMasterSongPaths)||!remote.music.radioMasterSongPaths.length)
+    throw Error('Published Radio Master list is missing. No changes were made.');
+  const next=prepare(remote);
+  if(!next||typeof next!=='object')throw Error('No valid public settings were prepared.');
+  next.mode='live';
+  if(!Array.isArray(next?.music?.radioMasterSongPaths)||!next.music.radioMasterSongPaths.length)
+    throw Error('Radio Master list would be empty. Publishing blocked.');
+  if(geGithubSame(next,remote))return {unchanged:true};
+  const put=await fetch(GE_GITHUB_CONFIG_API,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},
+   body:JSON.stringify({message,content:geGithubEncode(JSON.stringify(next,null,2)+'\n'),sha:src.sha,branch:'main'}),
+   cache:'no-store',mode:'cors',credentials:'omit'});
+  const done=await put.json().catch(()=>({}));
+  if(!put.ok||!done.commit?.sha){
+   if(put.status===409||put.status===422)throw Error('GitHub settings changed during publishing. Reload current settings; the update was not applied.');
+   throw Error('GitHub rejected publication (HTTP '+put.status+'): '+String(done.message||''));
+  }
+  publisherBase=clone(next);
+  return {commit:done.commit.sha};
+ }finally{if(control)control.value='';} // Never retain personal access tokens.
+}
+async function publishGithub(){
+ const btn=$('publishLive');if(btn.disabled)return;
+ collect();
+ const base=publisherBase;
+ if(!base){setStatus('GITHUB PUBLISH BLOCKED · Published settings not loaded. Saved drafts are unchanged.');return}
+ const changed=GE_GITHUB_PUBLIC_FIELDS.filter(key=>!geGithubSame(cfg[key],base[key]));
+ const changedMusic=['startupEnabled','firstTrack'].filter(key=>!geGithubSame(cfg.music?.[key],base.music?.[key]));
+ if(!changed.length&&!changedMusic.length){setStatus('GITHUB · No public settings changed. Private Vault and DJ playlists are separate.');return}
+ const names=[...changed,...changedMusic.map(key=>'music.'+key)];
+ if(!confirm('PUBLISH PUBLIC SETTINGS TO GITHUB?\n\nChanged: '+names.join(', ')+
+  '\n\nPrivate Vault, live DJ playlists and approved Radio Master songs will NOT change.'))return;
+ btn.disabled=true;setStatus('GITHUB · Reading latest public configuration…');
+ try{
+  const result=await geGithubCommit(remote=>{
+   for(const key of changed){
+    if(!geGithubSame(remote[key],base[key]))
+      throw Error('CONFLICT · '+key+' changed on GitHub. Reload and review before publishing.');
+   }
+   for(const key of changedMusic){
+    if(!geGithubSame(remote.music?.[key],base.music?.[key]))
+      throw Error('CONFLICT · music.'+key+' changed on GitHub. Reload and review before publishing.');
+   }
+   const next=clone(remote);
+   for(const key of changed)next[key]=clone(cfg[key]);
+   next.music={...(remote.music||{})};
+   for(const key of changedMusic){
+    if(Object.prototype.hasOwnProperty.call(cfg.music||{},key))next.music[key]=clone(cfg.music[key]);
+    else delete next.music[key];
+   }
+   return next;
+  },'Back Room: publish public settings directly to GitHub');
+  if(result.unchanged)setStatus('GITHUB · All changed public settings already match.');
+  else{saveDraft();setStatus('PUBLISHED TO GITHUB · '+result.commit.slice(0,10)+' · Private Vault and DJ records unchanged.')}
+ }catch(error){setStatus('GITHUB PUBLISH FAILED · '+String(error.message||error))}
+ finally{btn.disabled=false;}
+}
+
+async function publishViaCloudflare(){
   // Refresh the authoritative DJ Booth playlist records BEFORE freezing the
   // public snapshot. A name-only approval (e.g. Bangers) cannot play songs.
   const djPlaylistNames=(cfg?.music?.publicDJPlaylistNames||[])
@@ -2041,7 +2130,8 @@ async function publish(){
   catch(e){setStatus(String(e.message||e))}
   finally{$('publishLive').disabled=false}
 }
-$('publishLive').onclick=publish;
+$('publishLive').onclick=publishGithub;
+$('legacyPublishLive').onclick=publishViaCloudflare;
 
 function addGuides(doc){
   const s=doc.createElement('style');s.id='geBackroomGuides';s.textContent=`body:before,body:after{content:"";position:fixed;z-index:2147483640;pointer-events:none;background:rgba(110,220,255,.48)}body:before{left:50%;top:0;bottom:0;width:1px}body:after{top:50%;left:0;right:0;height:1px}.ge-guide-edge{position:fixed;inset:5%;border:1px dashed rgba(110,220,255,.45);z-index:2147483639;pointer-events:none}.ge-editing-item{outline:2px solid #7de9ff!important;box-shadow:0 0 22px #36bfff!important;touch-action:none!important}.ge-editing-item .label{opacity:1!important;display:block!important;position:absolute!important;left:50%!important;top:calc(100% + 5px)!important;transform:translateX(-50%)!important;background:rgba(0,8,18,.86)!important;color:#fff!important;border:1px solid rgba(105,220,255,.75)!important;border-radius:999px!important;padding:3px 7px!important;font:900 11px/1.2 system-ui,sans-serif!important;white-space:nowrap!important;pointer-events:none!important;text-shadow:0 1px 4px #000!important}.ge-screen-editable{outline:1px dashed rgba(160,230,255,.55)!important;outline-offset:3px!important;cursor:text!important;user-select:text!important;-webkit-user-select:text!important;touch-action:auto!important}.ge-window-move{position:absolute!important;left:8px!important;top:8px!important;z-index:2147483646!important;padding:5px 8px!important;border:1px solid #8ee9ff!important;border-radius:999px!important;background:rgba(2,18,32,.94)!important;color:#fff!important;font:900 10px/1 system-ui,sans-serif!important;cursor:move!important;touch-action:none!important}.ge-window-resize{position:absolute!important;z-index:2147483646!important;background:rgba(2,18,32,.94)!important;border:2px solid #8ee9ff!important;box-shadow:0 0 12px rgba(80,200,255,.65)!important;touch-action:none!important}
@@ -4646,9 +4736,12 @@ async function bootBackroom(){
   }
   applyText(savedText||90);
   improveBackroomLabels();
-  cfg=localDraft()||await repoLive();populate();await loadMusic();
+  publisherBase=await repoLive().catch(()=>null);
+  cfg=localDraft()||publisherBase;
+  if(!cfg)throw Error('No cached draft or published public settings are available');
+  populate();await loadMusic();
   window.GE_BACKROOM_MASTER_READY=true;
-  if(serverAuthenticated)await brMasterLoadPublished();
+  await brMasterLoadPublished();
   if(geDJPlaylistReady)syncDJSavedPlaylistsToPublic();
   const selectedTab=document.querySelector('#backroomTabs button[aria-selected="true"]')?.dataset.tab;
   if(selectedTab==='scores')void loadBackroomScores();
