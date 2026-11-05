@@ -41,14 +41,14 @@ assert.match(radioHtml,/Vault did not accept this key/);
 assert.match(radioHtml,/A saved code NAME is not necessarily the actual RADIO KEY/);
 assert.match(html,/id='brAccessShowActualKey'/);
 assert.match(html,/VAULT CHECK FAILED/);
-assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\)\]\)/);
+assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\),refreshDJAccessPlaylists\(\)\]\)/);
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
 
 assert.match(html,/function selectedAccessAssignments\(\)/);
 assert.match(html,/const assignments=selectedAccessAssignments\(\)/);
 assert.match(html,/playlist_ids:assignments.playlist_ids,track_paths:assignments.track_paths/);
-assert.match(html,/Check playlists, then SAVE the access code/);
-console.log('PASS: checked GitHub playlist songs are included when the access code is saved');
+assert.match(html,/CHECKED = ALLOWED · UNCHECKED = DENIED · SAVE CODE TO APPLY/);
+console.log('PASS: checked original DJ playlist songs are included when the access code is saved');
 
 assert.match(html,/id="brAccessRevealKey"/);
 assert.match(html,/action:'reveal',id:row.id/);

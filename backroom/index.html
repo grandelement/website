@@ -3100,30 +3100,18 @@ const backroomVaultManagers=(()=>{
     accessPlaylistOptions();renderAccessCodes();
   }
   async function refreshDJAccessPlaylists(){
-    let originalError='';
     try{
-      // The EXACT reader used by the BLITZ DJ Booth, through the existing
-      // authenticated DJ proxy. It includes the original DJ recovery list.
+      // Use the EXACT original DJ Booth playlist reader, not a second store.
       const saved=await geDJApi('/control/playlists');
       if(!Array.isArray(saved?.items))throw Error('Original DJ returned an invalid playlist list.');
       applyDJAccessPlaylists(saved.items,
         saved.vault_source?'ORIGINAL DJ BOOTH · VAULT':'ORIGINAL DJ BOOTH · LIVE/RECOVERY',
         saved.vault_error?'DJ Vault: '+String(saved.vault_error):'');
       return true;
-    }catch(error){originalError=String(error.message||error);}
-    try{
-      // Same D1 table and /v1/playlists reader used by the DJ backend.
-      // An authenticated publisher session may read it even on a browser
-      // where the separate DJ Booth key has not been entered.
-      const shared=await vaultAction('/manage/playlists');
-      if(!Array.isArray(shared?.items))throw Error('GE Vault did not return DJ playlists.');
-      applyDJAccessPlaylists(shared.items,'DJ PRIMARY VAULT · SHARED SOURCE',
-        'Original DJ proxy not confirmed: '+originalError+
-        ' · DJ-only recovered/local playlists may require DJ sign-in.');
-      return true;
     }catch(error){
       accessDJLoaded=false;accessDJPlaylists=[];accessDJSource='';
-      accessDJError='Original DJ: '+originalError+' · Publisher Vault: '+String(error.message||error);
+      accessDJError='ORIGINAL DJ BOOTH NOT CONNECTED · '+String(error.message||error)+
+        ' · Sign in to the original DJ Booth to load its playlists.';
       accessPlaylistOptions();
       return false;
     }
