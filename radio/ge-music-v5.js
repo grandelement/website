@@ -692,6 +692,24 @@ function albumActions(album,tracks){
 function elem(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
 async function fetchCatalog(){
  const all=[];
+ const publishCatalog=(paths,final=false)=>{
+  const unique=[...new Set(paths)].map(details);
+  unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
+  state.tracks=unique;state.loaded=unique.length>0;state.loading=!state.loaded&&!final;
+  if(!state.activePlaylist)restoreWorkingOrder();
+  const filter=el('.songFilter'),prior=filter.value;
+  filter.replaceChildren(new Option('ALL SONGS','all'),new Option('CHECKED SONGS','checked'),new Option('BROWSE ALBUMS','albums'));
+  if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')filter.add(new Option('TEST PURCHASED MUSIC · LOCAL ONLY','test-purchases'));
+  for(const album of albumOrder.filter(name=>!LEGACY_ALBUMS.has(name)&&unique.some(track=>track.album===name)))
+   filter.add(new Option('ALBUM · '+album,'album:'+album));
+  if(prior&&[...filter.options].some(option=>option.value===prior))filter.value=prior;
+  updateMeta();render();
+  if(unique.length){
+   try{window.dispatchEvent(new CustomEvent('ge-music-catalog-ready',{detail:{count:unique.length}}))}catch(_){}
+  }else if(final)say('The published library could not be loaded. Check network and refresh.');
+ };
+ // First use the published, same-origin manifest so Radio PLAY works quickly
+ // even if GitHub's optional tree API is slow or temporarily unavailable.
  for(const [file,key] of [['./manifest.json','files'],['./track-durations.json','tracks']]){
   try{
    const response=await fetch(file+'?musicv3='+BUILD,{cache:'no-store'});
@@ -700,34 +718,26 @@ async function fetchCatalog(){
    for(const item of rows){const path=canonical(key==='files'?item:item?.path);if(path)all.push(path)}
   }catch(error){console.warn('MUSIC V5 catalog source',file,error)}
  }
- // Newly committed files enter MUSIC only. Radio/Shuffle approval is a
- // separate owner-maintained path list (config/site-live.json).
+ if(all.length)publishCatalog(all);
+ // Discover newly uploaded recordings in the background without holding
+ // the entire published song list hostage to GitHub's remote response.
+ // New paths join MUSIC only; Radio Bangers/master approval stays separate.
  try{
   const response=await fetch(
    'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
    {cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
   if(response.ok){
    const data=await response.json();
+   const previousCount=new Set(all).size;
    if(Array.isArray(data.tree)&&!data.truncated)for(const item of data.tree){
     if(item?.type!=='blob')continue;
     const path=canonical(item.path);
     if(path)all.push(path);
    }
+   if(new Set(all).size!==previousCount || !state.loaded)publishCatalog(all,true);
   }
  }catch(_){/* Keep the static manifest when discovery is unavailable. */}
- const unique=[...new Set(all)].map(details);
- unique.sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
- state.tracks=unique;state.loaded=true;state.loading=false;
- if(!state.activePlaylist)restoreWorkingOrder();
-  const filter=el('.songFilter'),prior=filter.value;
-  filter.replaceChildren(new Option('ALL SONGS','all'),new Option('CHECKED SONGS','checked'),new Option('BROWSE ALBUMS','albums'));
-  if(localStorage.getItem('GE_PLAYER_OWNER_DEMO_V1')==='yes')filter.add(new Option('TEST PURCHASED MUSIC · LOCAL ONLY','test-purchases'));
-
-  for(const album of albumOrder.filter(name=>!LEGACY_ALBUMS.has(name)&&unique.some(track=>track.album===name)))
-    filter.add(new Option('ALBUM · '+album,'album:'+album));
-  if(prior&&[...filter.options].some(option=>option.value===prior))filter.value=prior;
-  updateMeta();render();
- if(!unique.length)say('The published library could not be loaded. Check network and refresh.');
+ if(!state.loaded)publishCatalog(all,true);
 }
 function readMine(){
  try{const rows=JSON.parse(localStorage.getItem(myKey)||'[]');return Array.isArray(rows)?rows.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.songs)).slice(0,100):[]}
