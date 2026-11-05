@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {Script} from 'node:vm';
+
+const client=readFileSync('ge-vault-client.js','utf8');
+const radio=readFileSync('radio/index.html','utf8');
+const home=readFileSync('index.html','utf8');
+const worker=readFileSync('vault-worker/src/index.js','utf8');
+const sw=readFileSync('radio/sw.js','utf8');
+new Script(client,{filename:'ge-vault-client.js'});
+assert.match(client,/GE_EVENT_BATCH_URL=BASE\+'\/v1\/public\/events'/,'Telemetry batch URL missing');
+assert.match(client,/GE_EVENT_BATCH_SIZE=25,GE_EVENT_MAX_PENDING=400/,'Batch size/queue bounds missing');
+assert.match(client,/GE_EVENT_FLUSH_MS=600000/,'Listener quota-safe telemetry interval missing');
+assert.match(client,/geEventCooldownUntil=Date\.now\(\)\+GE_EVENT_FLUSH_MS/,'Failure backoff missing');
+assert.match(client,/if\(geEventBusy\|\|!geEventQueue\.length\)return false/,'Duplicate flush suppression missing');
+assert.match(client,/geBeaconEventQueue\(\)/,'Pagehide telemetry best-effort missing');
+assert.match(client,/localStorage\.setItem\(GE_EVENT_QUEUE_KEY,JSON\.stringify\(geEventQueue\)\)/,'Offline telemetry buffer missing');
+assert.match(client,/MEDIA_PROGRESS_MS=600000/,'Reduce frequent progress polling');
+assert.match(home,/ge-vault-client\.js\?v=20261105-listener-safe-batch-v1/,'Homepage must load fresh batching client');
+assert.match(radio,/ge-vault-client\.js\?v=20261105-listener-safe-batch-v1/,'Radio must load fresh batching client');
+assert.match(worker,/url\.pathname === "\/v1\/public\/events"/,'Vault batch route must exist');
+assert.match(sw,/const MEDIA_CACHE='ge-radio-media-v4'/,'Offline listener music cache must remain preserved');
+assert.match(radio,/const GE_RADIO2_DISABLED=true/,'Primary BLITZ-only public configuration must not change');
+assert.match(radio,/hardLimitSeconds: 2013/,'Radio 33:33 Gate must be unchanged');
+assert.match(readFileSync('radio/preview-lab.html','utf8'),/const AUDIO_LIMIT_SECONDS=2013/,'Music preview 33:33 limit must remain unchanged');
+console.log('PASS: listener-safe buffered analytics, anti-1027 circuit breaker, preserved 33:33 Gate, BLITZ-only radio and offline music.');
