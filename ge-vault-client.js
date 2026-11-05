@@ -17,7 +17,7 @@
   const RIGHTS_URL='/ge-music/ascap-work-ids.json';
   // Preserve cumulative listening, pause, stop and completion analytics while
   // spacing progress snapshots to 90 seconds (3x fewer Worker requests).
-  const MEDIA_PROGRESS_MS=90000;
+  const MEDIA_PROGRESS_MS=600000; // 10-minute snapshot; final totals still sent on pause/stop/complete.
   const rightsByTitle=new Map();
 
   function normalizeWorkTitle(value){
@@ -204,14 +204,101 @@
   function mergeMetadata(baseMeta,dataMeta){
     return {...(baseMeta||{}),...(dataMeta&&typeof dataMeta==='object'?dataMeta:{})};
   }
-  function sendEvent(payload,{beacon=false}={}){
-    const body=JSON.stringify(payload);
+  // Nonessential fan telemetry never blocks songs, access, or navigation.
+  // Keep a bounded device-side queue during Worker quota outages, and send
+  // up to 25 events in one request after the Vault batch endpoint is deployed.
+  const GE_EVENT_BATCH_URL=BASE+'/v1/public/events';
+  const GE_EVENT_QUEUE_KEY='GE_VAULT_PENDING_EVENT_BATCH_V1';
+  const GE_EVENT_TYPES=new Set([
+    "page_view","session_start","session_end","qr_scan",
+    "radio_open","radio_play","radio_pause","radio_stop","radio_live",
+    "track_start","track_pause","track_resume","track_progress","track_complete","track_stop","track_skip","track_seek",
+    "audio_play","audio_pause","audio_end",
+    "share_open","share_complete","share_copy","share_track","track_share",
+    "download","offline_enable","offline_disable",
+    "ship_open","ship_arrival","gate_open","gate_unlock","access_request",
+    "soul_reflection","soul_reflection_open","soul_reflection_place","comment_submit",
+    "playlist_view","background_change","button_click","control_change","form_submit","internal_link","external_link",
+    "game_start","game_complete"
+  ]);
+  const GE_EVENT_BATCH_SIZE=25,GE_EVENT_MAX_PENDING=400;
+  const GE_EVENT_FLUSH_MS=600000; // 10 minutes; pagehide sends immediately.
+  let geEventQueue=[],geEventFlushTimer=0,geEventBusy=false,geEventCooldownUntil=0;
+  try{
+    const saved=JSON.parse(localStorage.getItem(GE_EVENT_QUEUE_KEY)||'[]');
+    if(Array.isArray(saved))geEventQueue=saved.filter(e=>
+      e&&e.anon_id===anonId&&GE_EVENT_TYPES.has(String(e.event_type||''))&&
+      /^ev-[a-z0-9-]{12,90}$/i.test(String(e.client_event_id||''))
+    ).slice(-GE_EVENT_MAX_PENDING);
+  }catch(_e){}
+  function gePersistEventQueue(){
+    try{localStorage.setItem(GE_EVENT_QUEUE_KEY,JSON.stringify(geEventQueue));}catch(_e){}
+  }
+  function geEventBatch(){
+    if(!geEventQueue.length)return [];
+    const first=geEventQueue[0];
+    return geEventQueue.filter(e=>e.anon_id===first.anon_id&&
+      e.session_id===first.session_id).slice(0,GE_EVENT_BATCH_SIZE);
+  }
+  function geScheduleEventFlush(delay=GE_EVENT_FLUSH_MS,force=false){
+    if(geEventFlushTimer&&!force)return;
+    if(geEventFlushTimer)clearTimeout(geEventFlushTimer);
+    geEventFlushTimer=setTimeout(()=>{
+      geEventFlushTimer=0;void geFlushEventQueue();
+    },Math.max(1000,delay));
+  }
+  async function geFlushEventQueue(){
+    if(geEventBusy||!geEventQueue.length)return false;
+    if(Date.now()<geEventCooldownUntil){
+      geScheduleEventFlush(geEventCooldownUntil-Date.now());return false;
+    }
+    if(navigator.onLine===false){geScheduleEventFlush(GE_EVENT_FLUSH_MS);return false}
+    const batch=geEventBatch();
+    if(!batch.length)return false;
+    geEventBusy=true;
     try{
-      if(beacon&&navigator.sendBeacon){
-        return navigator.sendBeacon(EVENT_URL,new Blob([body],{type:'application/json'}));
-      }
-    }catch(_e){}
-    return fetch(EVENT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true,credentials:'omit',cache:'no-store'}).catch(()=>null);
+      const response=await fetch(GE_EVENT_BATCH_URL,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        credentials:'omit',cache:'no-store',
+        body:JSON.stringify({events:batch})
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||data.ok!==true||data.accepted!==batch.length)
+        throw Error('Vault batch temporarily unavailable');
+      const sent=new Set(batch.map(e=>e.client_event_id));
+      geEventQueue=geEventQueue.filter(e=>!sent.has(e.client_event_id));
+      gePersistEventQueue();
+      if(geEventQueue.length)geScheduleEventFlush(1500,true);
+      return true;
+    }catch(_error){
+      // One failed request gets a 10-minute circuit breaker. Never make a
+      // 1027 outage worse by retrying every click or blocking the player.
+      geEventCooldownUntil=Date.now()+GE_EVENT_FLUSH_MS;
+      geScheduleEventFlush(GE_EVENT_FLUSH_MS,true);
+      return false;
+    }finally{geEventBusy=false}
+  }
+  function geBeaconEventQueue(){
+    if(!geEventQueue.length||!navigator.sendBeacon||
+       Date.now()<geEventCooldownUntil)return false;
+    try{
+      // Keep the queue until an acknowledged POST succeeds on a future visit.
+      // Client event IDs make this beacon replay idempotent in Vault.
+      const batch=geEventBatch();
+      return navigator.sendBeacon(GE_EVENT_BATCH_URL,
+        new Blob([JSON.stringify({events:batch})],{type:'application/json'}));
+    }catch(_e){return false}
+  }
+  function sendEvent(payload,{beacon=false}={}){
+    if(!GE_EVENT_TYPES.has(String(payload?.event_type||'')))
+      return Promise.resolve(false); // The old endpoint rejected these too.
+    geEventQueue.push({...payload,client_event_id:randomId('ev')});
+    if(geEventQueue.length>GE_EVENT_MAX_PENDING)
+      geEventQueue.splice(0,geEventQueue.length-GE_EVENT_MAX_PENDING);
+    gePersistEventQueue();
+    if(geEventQueue.length>=GE_EVENT_BATCH_SIZE)geScheduleEventFlush(1000,true);
+    else if(!beacon)geScheduleEventFlush();
+    return Promise.resolve(true);
   }
 
   function makePayload(surface,eventType,data={}){
@@ -632,8 +719,15 @@
     });
     if(surface==='radio')sendEvent(makePayload('radio','radio_stop',{reason:'pagehide'}),{beacon:true});
     trackExit(surface,{metadata:{reason:'pagehide'}});
+    geBeaconEventQueue();
   },{once:true});
 
+  // Retry queued fan analytics on a future session, never during playback.
+  if(geEventQueue.length)geScheduleEventFlush(15000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)geBeaconEventQueue();
+    else if(geEventQueue.length)geScheduleEventFlush(10000);
+  });
   // Observable interaction tracking. Never records form contents or typed text.
   document.addEventListener('click',e=>{
     const el=e.target&&e.target.closest?e.target.closest('button,a,[role="button"],[data-ge-event]'):null;
