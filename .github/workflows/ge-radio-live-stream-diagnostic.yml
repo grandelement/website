@@ -80,6 +80,34 @@ jobs:
               print('DIAGNOSIS: public MP3 bytes reached GitHub runner. Investigate iPhone playback, CORS and browser behavior.',flush=True)
           if not outcomes['public_radio']:sys.exit(1)
           PY
+      - name: Inspect MP3 and HLS browser access for iPhone Safari
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error
+          origin='https://grandelement.com'
+          base='https://radio.grandelement.blitz.cloud'
+          for label,path in [('MP3','/stream.mp3'),('HLS','/hls/radio.m3u8')]:
+              request=urllib.request.Request(base+path,headers={
+                  'Origin':origin,
+                  'Accept':'audio/mpeg,*/*' if label=='MP3' else 'application/vnd.apple.mpegurl,*/*',
+                  'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+              })
+              try:
+                  with urllib.request.urlopen(request,timeout=14) as response:
+                      mime=response.headers.get('Content-Type','')
+                      cors=response.headers.get('Access-Control-Allow-Origin','')
+                      credentials=response.headers.get('Access-Control-Allow-Credentials','')
+                      data=response.read(256)
+                      print(label,'HTTP',response.status,'MIME',mime,'CORS',repr(cors),
+                            'CREDENTIALS',repr(credentials),'BYTES',len(data),
+                            'BROWSER_CORS_OK',cors in ('*',origin),flush=True)
+              except urllib.error.HTTPError as error:
+                  print(label,'HTTP',error.code,'MIME',error.headers.get('Content-Type',''),
+                        'CORS',repr(error.headers.get('Access-Control-Allow-Origin','')),flush=True)
+              except Exception as error:
+                  print(label,'ERROR',type(error).__name__,str(error)[:180],flush=True)
+          PY
       - name: Check Sun Lab FFT signal on live BLITZ gateway
         if: always()
         run: |
