@@ -311,8 +311,11 @@ test(radio.includes('const GE_RADIO2_DISABLED=true;') &&
      radio.includes('const kind=radio2ProgramKind(program);'),
      'Radio 2 infrastructure is preserved but cannot activate for public listeners');
 allIn(radio,['retryRadio1Only(reason)','switchToRadio2',
-  'function geOpenMyMusicStore(){','function geOpenMusicSelection(){'],
-  'BLITZ-only retries and normal guest music routing');
+  'window.GEMusicV5?.playAll?.()','function geOpenMusicSelection(){'],
+  'BLITZ-only retries and guest preview PLAY routing');
+test(!radio.includes('function geOpenMyMusicStore(){') &&
+  radio.includes("if(geInlineMusicActive){geInlineMusicSend('toggle');return;}"),
+  'Guest PLAY must never redirect to checkout before the 33:33 Gate');
 for (const [signature,guard,label] of [
   ['function nextTrack(userAction=false){','!geOwnerDemoEnabled()','Radio Next'],
   ['function previousTrack(userAction=false){','!geOwnerDemoEnabled()','Radio Previous'],
