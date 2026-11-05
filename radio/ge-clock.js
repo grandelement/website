@@ -238,10 +238,20 @@ aGe.addEventListener("loadedmetadata",function(){pendingSeek=true;syncGe();});
 aGe.addEventListener("canplay",function(){if(playing)nowRender();});
 aGe.addEventListener("error",function(){status("GE RADIO track failed to load · maintaining available audio");});
 aBlitz.addEventListener("error",function(){status("Blitz stream unavailable · retrying");});
+// A paused or background Clock must not spend the shared Cloudflare free
+// Worker allowance polling every 7.5 seconds all day. Keep fast station
+// checks only for an actively playing, visible listener.
+var geLastIdleStatePoll=Date.now();
 pollState();pollProgram();
-w.setInterval(pollState,7500);
-w.setInterval(pollProgram,30000);
-w.setInterval(pollBlitzNow,15000);
+w.setInterval(function(){
+ if(d.hidden)return;
+ if(playing){pollState();return;}
+ if(Date.now()-geLastIdleStatePoll>=60000){
+  geLastIdleStatePoll=Date.now();pollState();
+ }
+},7500);
+w.setInterval(function(){if(!d.hidden&&playing)pollProgram();},30000);
+w.setInterval(function(){if(!d.hidden)pollBlitzNow();},15000);
 w.setInterval(function(){if(playing)nowRender();},500);
 w.setInterval(function(){if(playing&&program)syncGe();},4500);
 w.setInterval(function(){
