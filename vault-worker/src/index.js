@@ -3015,6 +3015,25 @@ export default {
         return json({ok:true,format:"ge-public-dj-playlists-v1",items:await listPublicDJPlaylists(env)},200,cors);
       }
 
+      // Only the Back Room Access Codes editor can list these private DJ
+      // playlist titles/ordered tracks through its authenticated bridge.
+      // This GET never writes, deletes, or publishes any playlist.
+      if (url.pathname === "/v1/admin/access-playlists" && request.method === "GET") {
+        if (!accessCodesAuthorized(request, env))
+          return json({ok:false,error:"Unauthorized"},401,cors);
+        const stored=await listPlaylists(env);
+        return json({ok:true,source:"GE_VAULT_D1",items:stored.map(p=>({
+          id:String(p.id||""),name:String(p.name||""),
+          updated_at:Number(p.updated_at)||0,
+          tracks:(p.tracks||[]).map(t=>({
+            position:Number(t.position)||0,
+            track_path:String(t.track_path||""),
+            track_title:String(t.track_title||""),
+            album:String(t.album||"")
+          }))
+        }))},200,cors);
+      }
+
       if (url.pathname === "/v1/playlists" && request.method === "GET") {
         if (!adminAuthorized(request, env)) return json({ ok: false, error: "Unauthorized" }, 401, cors);
         return json({ ok: true, items: await listPlaylists(env) }, 200, cors);
