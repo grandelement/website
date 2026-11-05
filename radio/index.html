@@ -6712,6 +6712,16 @@ function freshLiveStreamURL(){
   radioTryCanonicalStream=false;
   return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;
 }
+function prepareNativeRadio1Audio(){
+  // Production probe Nov 5: BLITZ MP3 serves HTTP 200 without Origin but
+  // returns HTTP 503 when a browser sends Origin (CORS anonymous mode).
+  // Native media playback without crossorigin does not send that Origin.
+  // Never route this cross-origin media into MediaElementAudioSourceNode:
+  // an unauthenticated cross-origin source would be silence in Web Audio.
+  audio.removeAttribute('crossorigin');
+  audio.dataset.geRadioNativeNoCors='1';
+}
+
 // iOS can prohibit even muted <audio> autoplay. In that case check the
 // station directly on page load, but do NOT claim an active signal until
 // its public MP3 endpoint supplies actual audio bytes. Abort immediately
@@ -6719,6 +6729,9 @@ function freshLiveStreamURL(){
 let geRadioSignalProbeId=0;
 function verifyRadio1Signal(){
   const probeId=++geRadioSignalProbeId;
+  // A fetch() probe always sends Origin to this cross-origin host and BLITZ
+  // currently returns 503 for it. Trust only native canplay/time progress.
+  if(audio.dataset.geRadioNativeNoCors==='1')return Promise.resolve(false);
   if(navigator.onLine===false||!liveStreamConfigured()||
      window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve(false);
   const controller=new AbortController();
@@ -7201,9 +7214,8 @@ async function resumeLiveAtEdge(){
     audio.removeAttribute('src');
     audio.load();
     liveState.internalReset=false;
-    // Keep listener-side Web Audio connected across Radio 1 reconnects.
-    // The existing station stream supports cross-origin media requests.
-    audio.crossOrigin='anonymous';
+    // Avoid BLITZ's 503 response to Origin while preserving native iPhone audio.
+    prepareNativeRadio1Audio();
     audio.autoplay=false;
     audio.preload='auto';
     // Retry audible Radio 1 on capable browsers. Safari can block until a tap.
@@ -7261,11 +7273,11 @@ async function enterLiveMode({deferPlay=false}={}){
   titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
   updateCurrentRow();
   setLiveMediaSession();
-  // Prepare the live stream without autoplay; Gate uses CORS Web Audio.
-  // A real user tap can then play exactly as it does in the DJ listener.
+  // Prepare BLITZ as native audio. Its platform currently rejects
+  // cross-origin media requests with 503; the gate's native fallback remains.
   audio.autoplay=false;
   audio.preload='auto';
-  audio.crossOrigin='anonymous';
+  prepareNativeRadio1Audio();
   // Owner revision: ATTEMPT AUDIBLE Radio 1 playback immediately on arrival.
   // Safari may reject unmuted autoplay; then the same prepared stream uses
   // one trusted RADIO or PLAY tap. Do not fake success with muted playback.
@@ -7804,7 +7816,7 @@ function reconnectLiveStream(){
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
-      audio.crossOrigin='anonymous';
+      prepareNativeRadio1Audio();
       audio.src=freshLiveStreamURL();
       audio.load();
       await audio.play();
@@ -8027,8 +8039,9 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
     void window.GEResumeLiveEQ?.();
   }
   try{
-    // A single native audio element serves songs and Radio. The optional
-    // WebAudio/Sun Lab diagnostic never takes ownership of the audible path.
+    // Local same-origin songs may use Web Audio. Radio 1's cross-origin
+    // native-only rule is reset here when selecting a local recording.
+    delete audio.dataset.geRadioNativeNoCors;
     audio.crossOrigin='anonymous';
     audio.muted=false;
     audio.defaultMuted=false;
