@@ -404,6 +404,41 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  .brPlaylistTrack.excluded{opacity:.45;text-decoration:line-through}
  .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 
+
+/* Access Codes: live Vault playlist grant checklist, single-line refresh header */
+#brPanel-access #brAccessMusicCategory>.brAccessPlaylistSummary{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:12px!important;min-height:62px!important;padding:8px 12px!important;list-style:none!important}
+#brPanel-access #brAccessMusicCategory>.brAccessPlaylistSummary>span{flex:1;min-width:0}
+#brPanel-access #brAccessPlaylistRefresh{
+  flex:0 0 auto!important;width:auto!important;min-width:92px!important;
+  min-height:42px!important;font-size:13px!important;padding:7px 12px!important}
+#brPanel-access .brAccessPlaylistSelectRow{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+  gap:7px;padding:9px 10px;border:1px solid #35718d;border-radius:8px;
+  margin:8px 0;background:#102a3e}
+#brPanel-access .brAccessPlaylistSelectRow label{margin:0;font-size:14px;font-weight:900}
+#brPanel-access #brAccessPlaylistCount{color:#c0e7f6;font-size:12px;font-weight:750}
+#brPanel-access #brAccessPlaylistAll,
+#brPanel-access .brAccessPlaylistRow input{width:21px;height:21px;flex:0 0 21px;accent-color:#70c9ef}
+#brPanel-access #brAccessMusicCategory #brAccessPlaylistChoices{
+  display:grid!important;gap:5px!important;min-height:48px!important;
+  max-height:min(57vh,660px)!important;overflow-y:auto!important;
+  touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#brPanel-access .brAccessPlaylistRow{
+  display:flex!important;gap:10px!important;align-items:center!important;
+  min-height:51px!important;padding:9px 10px!important;margin:0!important;
+  border:1px solid #30566d;border-radius:8px;background:#092033;
+  color:#e8f7fe;font-size:14px}
+#brPanel-access .brAccessPlaylistRow span{flex:1;min-width:0;overflow-wrap:anywhere}
+#brPanel-access .brAccessPlaylistRow small{color:#93c9dd;font-size:10px;flex:0 0 auto}
+#brPanel-access #brAccessPlaylistNotice{
+  display:block!important;margin:8px 0!important;font-size:12px!important;
+  color:#a9cbdc!important;line-height:1.45!important;overflow-wrap:anywhere}
+@media(max-width:440px){
+ #brPanel-access #brAccessMusicCategory>.brAccessPlaylistSummary{gap:8px!important;padding:8px 7px!important;font-size:14px!important}
+ #brPanel-access #brAccessPlaylistRefresh{min-width:78px!important;padding:6px 8px!important;font-size:11px!important}
+ #brPanel-access .brAccessPlaylistRow small{font-size:9px}}
 </style>
 <style id="br-access-compact-ui">
 #brPanel-access .brAccessTop{display:grid;gap:8px;margin-bottom:10px}
@@ -604,7 +639,6 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brPanel-access #brAccessShowActualKey,
 #brPanel-access #brAccessKeyIdentity,
 #brPanel-access #brAccessOneTime,
-#brPanel-access #brAccessPlaylistNotice,
 #brPanel-access #brAccessKeyHelpPanel,
 #brPanel-access .brAccessPrivateKeyDetails,
 #brPanel-access .brAccessViewSongsLabel,
@@ -957,13 +991,14 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
      </div>
      <p class="brAccessNotice" id="brAccessFanLinkStatus" role="status">Load or save an access code first.</p>
    </details>
-   <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS &amp; SONGS</summary>
-    <p class="brAccessNotice" id="brAccessPlaylistNotice">Loading current GE Vault playlists…</p>
-    <div id="brAccessPlaylistChoices" role="group" aria-label="Select saved GE playlists to grant" class="brAccessSongChecklist" style="max-height:190px;min-height:55px"></div>
-    <div class="brAccessSongTools">
-      <button type="button" class="primary" id="brAccessLoadPlaylists">LOAD CHECKED PLAYLISTS</button>
-      <button type="button" id="brAccessPlaylistRefresh">REFRESH VAULT + GITHUB</button>
+   <details class="brAccessCategory" id="brAccessMusicCategory"><summary class="brAccessPlaylistSummary"><span>MUSIC · PLAYLISTS &amp; SONGS</span><button type="button" id="brAccessPlaylistRefresh" aria-label="Refresh live Vault playlists">REFRESH</button></summary>
+    <div class="brAccessPlaylistSelectRow">
+      <label class="check"><input type="checkbox" id="brAccessPlaylistAll" checked aria-label="Allow all playlists"><span>ALL PLAYLISTS</span></label>
+      <span id="brAccessPlaylistCount" role="status" aria-live="polite">Loading…</span>
     </div>
+    <div id="brAccessPlaylistChoices" role="group" aria-label="Select GE Vault playlists to allow" class="brAccessSongChecklist"></div>
+    <p class="brAccessNotice" id="brAccessPlaylistNotice" role="status">Loading live GE Vault playlists…</p>
+    <button type="button" class="primary" id="brAccessLoadPlaylists" hidden>LOAD CHECKED PLAYLISTS</button>
     <div hidden aria-hidden="true">
       <button type="button" id="brAccessOpenPlaylists">OPEN PLAYLISTS</button>
       <select id="brAccessPlaylist"><option value="">CHOOSE A PLAYLIST</option></select>
@@ -2388,7 +2423,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
-  let accessVaultPlaylists=[],accessVaultLoaded=false;
+  let accessVaultPlaylists=[],accessVaultLoaded=false,accessDefaultsPending=false;
   let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -3086,7 +3121,7 @@ const backroomVaultManagers=(()=>{
   }
   async function refreshVaultAccessPlaylists(){
     try{
-      const result=await vaultAction('/manage/playlists');
+      const result=await vaultAction('/manage/access-playlists');
       if(!Array.isArray(result.items))throw Error('Vault did not return a playlist list.');
       accessVaultPlaylists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string').map(p=>({
         ...p,source:'VAULT',tracks:Array.isArray(p.tracks)?p.tracks.slice()
@@ -3104,35 +3139,46 @@ const backroomVaultManagers=(()=>{
   function accessPlaylistOptions(){
     const select=$('brAccessPlaylist'),current=select.value;
     const source=accessPlaylistSource();
+    // New codes default to ALL after a real Vault read; saved codes keep their grants.
+    if(accessDefaultsPending&&accessVaultLoaded){
+      accessSelectedPlaylistIds=new Set(source.map(p=>p.id));
+      accessDefaultsPending=false;
+    }
+    const all=$('brAccessPlaylistAll');
+    const checkedCount=source.filter(p=>accessSelectedPlaylistIds.has(p.id)).length;
+    all.checked=source.length>0&&checkedCount===source.length;
+    all.indeterminate=checkedCount>0&&checkedCount<source.length;
+    all.disabled=!accessVaultLoaded||!source.length;
+    $('brAccessPlaylistCount').textContent=checkedCount+' / '+source.length+' ALLOWED';
     select.replaceChildren(new Option('GE PLAYLIST · ASSIGN SONGS',''));
     for(const p of source)select.appendChild(new Option(p.name,p.id));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
     const host=$('brAccessPlaylistChoices');host.replaceChildren();
-    if(!accessVaultLoaded&&!playlistLoaded){
-      host.appendChild(create('p','GE playlists not connected. Press REFRESH VAULT + GITHUB.','sub'));
-      $('brAccessPlaylistNotice').textContent='GE PLAYLISTS · NOT LOADED';
+    if(!accessVaultLoaded){
+      host.appendChild(create('p','LIVE VAULT NOT CONNECTED · Press REFRESH above. Saved codes and DJ playlists remain intact.','sub'));
+      $('brAccessPlaylistNotice').textContent='WAITING FOR LIVE VAULT · Playlist assignments cannot change until verified.';
       return;
     }
-    $('brAccessPlaylistNotice').textContent=(accessVaultLoaded?'LIVE VAULT':'GITHUB FALLBACK')+
-      ' · '+source.length+' SAVED GE PLAYLIST'+(source.length===1?'':'S')+
-      ' · Check playlists, then SAVE the access code. Songs are included automatically.';
+    $('brAccessPlaylistNotice').textContent='LIVE VAULT · '+accessVaultPlaylists.length+
+      ' DJ PLAYLIST'+(accessVaultPlaylists.length===1?'':'S')+
+      ' · CHECKED = ALLOWED · UNCHECKED = DENIED · SAVE to apply.';
     if(!source.length){
       host.appendChild(create('p','No GE playlists saved yet. Create one in MUSIC first.','sub'));
       return;
     }
     for(const p of source){
-      const label=create('label','','check');
-      label.style.cssText='display:flex;align-items:center;gap:9px;margin:3px 0;min-height:43px';
+      const label=create('label','','check brAccessPlaylistRow');
       const box=document.createElement('input');box.type='checkbox';
       box.checked=accessSelectedPlaylistIds.has(p.id);
-      box.setAttribute('aria-label','Grant songs from '+p.name);
+      box.setAttribute('aria-label','Allow playlist '+p.name);
       box.addEventListener('change',()=>{
         box.checked?accessSelectedPlaylistIds.add(p.id):accessSelectedPlaylistIds.delete(p.id);
+        accessPlaylistOptions();
       });
-      const title=create('span',p.name+' · '+(p.tracks||[]).length+' songs');
-      title.style.cssText='display:block;margin:0;font-size:14px';
-      label.append(box,title);host.appendChild(label);
+      const title=create('span',p.name+' · '+(p.tracks||[]).length+' SONGS');
+      const sourceTag=create('small',p.source==='VAULT'?'VAULT':'GITHUB LEGACY');
+      label.append(box,title,sourceTag);host.appendChild(label);
     }
   }
   function accessSongOptions(){
@@ -3289,12 +3335,13 @@ const backroomVaultManagers=(()=>{
     $('brAccessSave').hidden=!row;
     assignedSongPaths=[...(row?.track_paths||[])];
     accessSelectedPlaylistIds=new Set(row?.playlist_ids||[]);
+    accessDefaultsPending=!row;
     appliedPlaylistIds=new Set(row?.playlist_ids||[]);
     accessPlaylistOptions();
     $('brAccessPlaylist').value=row?.playlist_ids?.[0]||'';
     // A code that currently grants RADIO must still be able to acquire MUSIC
     // or playlist permissions. Do not hide the only relevant controls.
-    $('brAccessMusicCategory').open=false;
+    $('brAccessMusicCategory').open=true;
     // Old playlist grants are expanded into explicit tracks for editing, so
     // removing a song actually removes its access instead of leaving an
     // unrestricted playlist ID entitlement in place.
@@ -3462,7 +3509,7 @@ const backroomVaultManagers=(()=>{
     const changed=selected.length!==previous.length||
       selected.some(id=>!appliedPlaylistIds.has(id));
     if(!changed)return {playlist_ids:previous,track_paths:assignedSongPaths.slice()};
-    if(!accessVaultLoaded&&!playlistLoaded)throw Error('Refresh GE playlists before saving changed playlist selections.');
+    if(!accessVaultLoaded)throw Error('Live GE Vault playlists are not connected. Refresh before changing permissions.');
     const available=accessPlaylistSource();
     const source=available.filter(p=>selected.includes(p.id));
     if(source.length!==selected.length)throw Error('A checked playlist is missing from loaded GE playlists. Refresh Vault + GitHub.');
@@ -3500,6 +3547,7 @@ const backroomVaultManagers=(()=>{
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
+    if(!existing&&!accessVaultLoaded)throw Error('Live GE Vault playlists must load before creating an access code.');
     const assignments=selectedAccessAssignments();
     return {label,display_name:displayName,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
@@ -4294,7 +4342,18 @@ const backroomVaultManagers=(()=>{
           if(checkbox.value==='music'&&checkbox.checked)$('brAccessMusicCategory').open=true;
         });
       }
-      $('brAccessPlaylistRefresh').addEventListener('click',()=>void Promise.all([refreshVaultAccessPlaylists(),refreshPlaylists()]));
+      $('brAccessPlaylistRefresh').addEventListener('click',event=>{
+        event.preventDefault();event.stopPropagation();
+        $('brAccessMusicCategory').open=true;
+        void Promise.all([refreshVaultAccessPlaylists(),refreshPlaylists()]);
+      });
+      $('brAccessPlaylistAll').addEventListener('change',event=>{
+        if(!accessVaultLoaded){event.target.checked=false;return;}
+        const source=accessPlaylistSource();
+        accessSelectedPlaylistIds=new Set(event.target.checked?source.map(p=>p.id):[]);
+        accessDefaultsPending=false;
+        accessPlaylistOptions();
+      });
       $('brAccessLoadPlaylists').addEventListener('click',()=>{
         const chosen=accessPlaylistSource().filter(p=>accessSelectedPlaylistIds.has(p.id));
         if(!accessVaultLoaded&&!playlistLoaded){accessStatus('NOT LOADED · Refresh GE playlists first.');return;}
