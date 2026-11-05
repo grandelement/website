@@ -66,9 +66,10 @@ assert.match(radio,/gePlaylistQuickSet\(playlistName,queue,playlistDetails\)/);
 assert.match(preview,/window\.GEJumpLibraryQueue=function\(index\)/);
 assert.match(preview,/path:currentTrack\?cleanMusicPath/);
 assert.match(music,/const custom=!shuffleAll&&Array\.isArray\(queueOverride\)&&queueOverride\.length>0&&queue\.length>1/,'single song playback must not open a playlist quick strip');
-assert.match(music,/\{custom,labels\}/);
+assert.match(music,/\{custom,labels,allLibrary:!!shuffleAll\}/);
 
-assert.match(radio,/state\.shuffle=!playlistDetails\?\.custom;syncModeButtons\(\)/,'Custom playlists must retain exact order by disabling shuffle');
+assert.match(radio,/if\(!playlistDetails\?\.allLibrary\)state\.shuffle=!playlistDetails\?\.custom;/,
+ 'Custom playlists retain exact order, but Play All honors the chosen Album or Shuffle mode');
 assert.match(radio,/if\(ok\)frame\.GESetMusicQueueShuffle\?\.\(state\.shuffle\)/,'Transport must carry chosen queue shuffle state');
 assert.doesNotMatch(radio,/showPlayer:\(\)=>geInlineMusicShow/);
 assert.doesNotMatch(music,/GEMusicV5Bridge\?\.showPlayer\?\.\(\)/);
