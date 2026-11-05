@@ -223,7 +223,11 @@
   ]);
   const GE_EVENT_BATCH_SIZE=25,GE_EVENT_MAX_PENDING=400;
   const GE_EVENT_FLUSH_MS=600000; // 10 minutes; pagehide sends immediately.
+  const GE_EVENT_COOLDOWN_KEY='GE_VAULT_EVENT_RETRY_AFTER_V1';
   let geEventQueue=[],geEventFlushTimer=0,geEventBusy=false,geEventCooldownUntil=0;
+  // Persist retry cooldown across reloads so an unavailable Vault does not
+  // consume one Cloudflare Worker invocation on every visitor refresh.
+  try{geEventCooldownUntil=Number(localStorage.getItem(GE_EVENT_COOLDOWN_KEY))||0}catch(_e){}
   try{
     const saved=JSON.parse(localStorage.getItem(GE_EVENT_QUEUE_KEY)||'[]');
     if(Array.isArray(saved))geEventQueue=saved.filter(e=>
@@ -268,12 +272,15 @@
       const sent=new Set(batch.map(e=>e.client_event_id));
       geEventQueue=geEventQueue.filter(e=>!sent.has(e.client_event_id));
       gePersistEventQueue();
+      geEventCooldownUntil=0;
+      try{localStorage.removeItem(GE_EVENT_COOLDOWN_KEY)}catch(_e){}
       if(geEventQueue.length)geScheduleEventFlush(1500,true);
       return true;
     }catch(_error){
       // One failed request gets a 10-minute circuit breaker. Never make a
       // 1027 outage worse by retrying every click or blocking the player.
       geEventCooldownUntil=Date.now()+GE_EVENT_FLUSH_MS;
+      try{localStorage.setItem(GE_EVENT_COOLDOWN_KEY,String(geEventCooldownUntil))}catch(_e){}
       geScheduleEventFlush(GE_EVENT_FLUSH_MS,true);
       return false;
     }finally{geEventBusy=false}
