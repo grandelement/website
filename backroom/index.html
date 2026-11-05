@@ -1971,42 +1971,32 @@ async function brMasterLoadPublished(force=false){
 }
 async function brMasterSavePublished(){
  if(brMasterBusy||!brMasterLoaded)return;
- if(!serverAuthenticated||!token()){
-  brMasterMessage('SIGN IN REQUIRED · CONNECT TO THE PRIVATE BACK ROOM PUBLISHER');
-  return;
- }
  const selected=[...new Set(cfg.music?.radioMasterSongPaths||[])].filter(p=>brMasterCatalog.includes(p)).sort();
- if(!selected.length){
-  brMasterMessage('NOT SAVED · RADIO / SHUFFLE MASTER CANNOT BE EMPTY');
+ if(!selected.length){brMasterMessage('NOT SAVED · Radio / Shuffle Master cannot be empty');return}
+ if(!brMasterDirty){brMasterMessage('ALREADY SAVED · '+selected.length+' SONGS');return}
+ if(!$('brGithubToken').value.trim()){
+  brMasterMessage('GITHUB TOKEN REQUIRED · Enter a fine-grained token in Back Room Settings (Contents: write).');
   return;
  }
- if(!brMasterDirty){
-  brMasterMessage('ALREADY SAVED · '+selected.length+' SONGS');
-  return;
- }
+ if(!confirm('PUBLISH '+selected.length+' APPROVED RADIO / SHUFFLE SONGS TO GITHUB?\n\nOther public settings, DJ playlists and private Vault records will not change.'))return;
  brMasterBusy=true;$('brMasterSave').disabled=true;
- brMasterMessage('SAVING MASTER…');
+ brMasterMessage('SAVING RADIO MASTER DIRECTLY TO GITHUB…');
  try{
-  // Re-read the live config: this dedicated SAVE never publishes the user's
-  // other unsaved Back Room edits or overwrites Bangers/playlists.
-  const live=await repoLive();
-  if(brMasterSignature(live?.music?.radioMasterSongPaths)!==brMasterSavedSignature){
-   throw Error('MASTER CHANGED ELSEWHERE · LOAD AGAIN BEFORE SAVING');
-  }
-  const published={...live,music:{...(live.music||{}),
+  const result=await geGithubCommit(remote=>{
+   if(brMasterSignature(remote?.music?.radioMasterSongPaths)!==brMasterSavedSignature)
+     throw Error('MASTER CHANGED ON GITHUB · Reload Master before saving');
+   return {...remote,music:{...(remote.music||{}),
     radioMasterSongPaths:selected,
-    radioMasterRevision:(Number(live.music?.radioMasterRevision)||0)+1}};
-  const response=await api('/publish',{method:'POST',body:JSON.stringify({config:published}),timeoutMs:25000});
-  const reply=await response.json().catch(()=>({}));
-  if(!response.ok||reply.ok!==true||!reply.commit)
-   throw Error(reply.error||'Publisher did not confirm a GitHub commit');
+    radioMasterRevision:(Number(remote.music?.radioMasterRevision)||0)+1}};
+  },'Back Room: save approved Radio and Shuffle Master directly to GitHub');
   brMasterSavedSignature=brMasterSignature(selected);
-  brMasterLastCommit=reply.commit;brMasterDirty=false;
-  cfg.music.radioMasterSongPaths=selected;brMasterRender();
-  brMasterMessage('SAVED LIVE · '+selected.length+' SONGS · '+String(reply.commit).slice(0,10));
- }catch(error){
-  brMasterMessage('NOT SAVED · '+String(error.message||error));
- }finally{brMasterBusy=false;$('brMasterSave').disabled=false;}
+  brMasterLastCommit=result.commit||'';
+  brMasterDirty=false;
+  cfg.music.radioMasterSongPaths=selected;
+  brMasterRender();
+  brMasterMessage((result.unchanged?'ALREADY LIVE':'SAVED TO GITHUB')+' · '+selected.length+' SONGS'+(result.commit?' · '+result.commit.slice(0,10):''));
+ }catch(error){brMasterMessage('NOT SAVED · '+String(error.message||error))}
+ finally{brMasterBusy=false;$('brMasterSave').disabled=false}
 }
 $('brMasterRefresh').addEventListener('click',()=>void brMasterLoadPublished());
 $('brMasterSave').addEventListener('click',()=>void brMasterSavePublished());
@@ -2038,7 +2028,7 @@ async function geGithubCommit(prepare,message){
  const control=$('brGithubToken'),secret=String(control?.value||'').trim();
  if(!secret)throw Error('Enter a fine-grained GitHub token in Back Room Settings (repository: grandelement/website, Contents: read/write).');
  try{
-  const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+secret,'X-GitHub-Api-Version':'2022-11-28'};
+  const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+secret};
   const get=await fetch(GE_GITHUB_CONFIG_API+'?ref=main',{headers,cache:'no-store',mode:'cors',credentials:'omit'});
   const src=await get.json().catch(()=>({}));
   if(!get.ok||!src.sha||typeof src.content!=='string')
