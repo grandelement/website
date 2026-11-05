@@ -1481,7 +1481,7 @@ $('gateEnter').onclick=safeEnterBackroom;$('gatePassword').addEventListener('key
 function applyText(v){const n=Math.max(75,Math.min(160,Number(v)||90));document.documentElement.style.setProperty('--scale',n/100);$('backroomTextSize').value=n;$('backroomTextSizeValue').textContent=n+'%';localStorage.setItem(TEXT_KEY,String(n))}
 $('backroomTextSize').addEventListener('input',()=>applyText($('backroomTextSize').value));
 
-async async function repoLive(){
+async function repoLive(){
   const cacheKey='GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1';
   try{
     const r=await fetch('../config/site-live.json?'+Date.now(),{cache:'no-store'});
@@ -1808,9 +1808,9 @@ function collect(){
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
-  const bounded=(id,min,max,def)=>Math.max(min,Math.min(max,Number($(id).value)||def));
-  cfg.merchandise={...(cfg.merchandise||{}),size:bounded('brMerchSize',25,250,100),
-    speed:bounded('brMerchSpeed',25,400,100),rotation:Math.max(0,Math.min(400,Number($('brMerchRotation').value)||0)),
+  const merchBounded=(id,min,max,def)=>Math.max(min,Math.min(max,Number($(id).value)||def));
+  cfg.merchandise={...(cfg.merchandise||{}),size:merchBounded('brMerchSize',25,250,100),
+    speed:merchBounded('brMerchSpeed',25,400,100),rotation:Math.max(0,Math.min(400,Number($('brMerchRotation').value)||0)),
     direction:$('brMerchDirection').value==='reverse'?'reverse':'normal',quantity:Number($('brMerchQuantity').value)};
   cfg.games={...(cfg.games||{}),
     points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked,
