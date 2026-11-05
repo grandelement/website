@@ -1761,7 +1761,7 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
   }
   const permitted=access?.restricted
    ?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
-  const checked=direction==='all'?[]:
+  const checked=['all','next','previous'].includes(direction)?[]:
    selectedTracks().filter(t=>permitted.some(p=>p.path===t.path));
   // Main PLAY means ALL permitted songs. Explicit playlist operations still
   // honor the checked song order and the verified Vault access scope.
