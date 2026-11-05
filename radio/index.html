@@ -4692,6 +4692,35 @@ html body #shipStage [data-proxy="legacyBtn"] {
   pointer-events:none!important;
 }
 </style>
+
+<style id="ge-offline-download-choices-v1">
+/* The mobile offline choice panel is explicit: resume, erase/restart, or cancel. */
+#geOfflineDecision[hidden]{display:none!important}
+#geOfflineDecision{
+  position:fixed!important;inset:0!important;z-index:1000300!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)!important;
+  background:rgba(0,5,14,.90)!important;overscroll-behavior:contain!important;
+}
+#geOfflineDecision .ge-offline-choice-card{
+  box-sizing:border-box;width:min(430px,100%);max-height:100%;overflow-y:auto;
+  border:1px solid #70bce5;border-radius:17px;background:#071827;
+  color:#eefaff;box-shadow:0 16px 50px rgba(0,0,0,.65);
+  padding:20px 16px;text-align:center;
+}
+#geOfflineDecision h2{font-size:21px!important;margin:0 0 12px!important;line-height:1.2!important;color:#fff!important}
+#geOfflineDecision p{font-size:15px!important;line-height:1.5!important;white-space:pre-line!important;margin:0 0 18px!important;color:#d2e8f5!important}
+#geOfflineDecision .ge-offline-choice-actions{display:grid;gap:10px}
+#geOfflineDecision button{
+  display:block!important;width:100%!important;min-height:49px!important;padding:10px!important;
+  border-radius:10px!important;border:1px solid #598dad!important;
+  background:#102638!important;color:#fff!important;font:750 15px/1.25 system-ui,sans-serif!important;
+  white-space:normal!important;cursor:pointer;
+}
+#geOfflineDecision #geOfflineResume{background:#085b83!important;border-color:#38b6f6!important}
+#geOfflineDecision #geOfflineRestart{background:#392029!important;border-color:#d07b7b!important}
+#geOfflineDecision button:focus-visible{outline:3px solid #a1e9ff!important;outline-offset:2px!important}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -5170,6 +5199,17 @@ html body #shipStage [data-proxy="legacyBtn"] {
   <div id="offlinePanel">
     <div id="offlineBarTrack"><div id="offlineBar"></div></div>
     <div id="offlineText"></div>
+  </div>
+  <div id="geOfflineDecision" role="dialog" aria-modal="true" aria-labelledby="geOfflineDecisionTitle" aria-describedby="geOfflineDecisionDetail" hidden>
+    <div class="ge-offline-choice-card">
+      <h2 id="geOfflineDecisionTitle">Offline Downloads</h2>
+      <p id="geOfflineDecisionDetail"></p>
+      <div class="ge-offline-choice-actions">
+        <button id="geOfflineResume" type="button" data-ge-offline-choice="resume">RESUME MISSING SONGS</button>
+        <button id="geOfflineRestart" type="button" data-ge-offline-choice="restart">START OVER</button>
+        <button id="geOfflineCancel" type="button" data-ge-offline-choice="cancel">CANCEL</button>
+      </div>
+    </div>
   </div>
   <section id="sunLabPanel" class="sunlab-panel" aria-label="Sun effect tuning panel" hidden>
     <div class="sunlab-title">
@@ -9252,6 +9292,70 @@ async function registerServiceWorker(){
     button.classList.toggle('active',on);
   }
 
+  // An incomplete download needs three clear choices. An OFFLINE-enabled
+  // button must never be routed to "turn off" while it says "Resume N Songs".
+  function askIncompleteOfflineChoice(audit){
+    const dialog=$('geOfflineDecision');
+    const title=$('geOfflineDecisionTitle');
+    const detail=$('geOfflineDecisionDetail');
+    const resume=$('geOfflineResume');
+    const restart=$('geOfflineRestart');
+    const cancel=$('geOfflineCancel');
+    if(!dialog||!title||!detail||!resume||!restart||!cancel)return Promise.resolve('cancel');
+    const saved=Math.max(0,Number(audit?.cachedSongs)||0);
+    const total=Math.max(0,Number(audit?.totalSongs)||0);
+    const missing=Math.max(0,Number(audit?.missingSongs)||0);
+    const lastFocus=document.activeElement;
+    title.textContent='Offline Downloads';
+    detail.textContent=saved+' of '+total+' songs saved on this device.\n'+missing+' songs still need downloading.';
+    resume.textContent='RESUME '+missing+' SONG'+(missing===1?'':'S');
+    restart.textContent='START OVER';
+    cancel.textContent='CANCEL';
+    return new Promise(resolve=>{
+      let settled=false;
+      let restartArmed=false;
+      const controls=[resume,restart,cancel];
+      const close=choice=>{
+        if(settled)return;
+        settled=true;
+        dialog.hidden=true;
+        dialog.removeEventListener('click',onClick);
+        document.removeEventListener('keydown',onKeydown,true);
+        try{lastFocus?.focus?.()}catch(_e){}
+        resolve(choice);
+      };
+      const onClick=event=>{
+        const action=event.target.closest('button[data-ge-offline-choice]')?.dataset.geOfflineChoice;
+        if(action==='cancel')return close('cancel');
+        if(action==='resume')return close('resume');
+        if(action!=='restart')return;
+        if(!restartArmed){
+          restartArmed=true;
+          title.textContent='Delete Saved Music?';
+          detail.textContent='Start Over will delete '+saved+' saved song'+(saved===1?'':'s')+' from THIS device, then download the complete music library again.\nThis cannot be undone. Your access codes and purchases are not deleted.';
+          restart.textContent='DELETE AND START OVER';
+          resume.textContent='KEEP SONGS AND RESUME';
+          restart.focus();
+          return;
+        }
+        close('restart');
+      };
+      const onKeydown=event=>{
+        if(dialog.hidden)return;
+        if(event.key==='Escape'){event.preventDefault();close('cancel');return;}
+        if(event.key==='Tab'){
+          const first=controls[0],last=controls[controls.length-1];
+          if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+          else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+        }
+      };
+      dialog.addEventListener('click',onClick);
+      document.addEventListener('keydown',onKeydown,true);
+      dialog.hidden=false;
+      resume.focus();
+    });
+  }
+
   // The offline Music library is complete when every *song* is cached.
   // Missing optional backgrounds, extra station IDs or duplicated shell URLs
   // must not ask someone to re-download the same music on every visit.
@@ -9724,13 +9828,16 @@ async function registerServiceWorker(){
     }
     if(button.classList.contains('downloading')){
       abortController?.abort();
+      panel.style.display='block';
+      text.textContent='Stopping the download. Songs already saved will be kept.';
       await setOfflinePlanAutoResume(false);
       return;
     }
 
-    // OFF always works, including a partially downloaded library. Ask before
-    // deleting anything. Keeping downloaded media is the safe default.
-    if(isEnabled()){
+    // A partial download is a RESUME action even when Offline is enabled.
+    // The old branch mistakenly treated a "Resume 10 Songs" tap as OFF/SETUP.
+    // Only a complete library takes the normal Offline On/Off path.
+    if(isEnabled() && !(currentAudit?.missingSongs>0)){
       // "Finish Offline Setup" repairs only the missing website shell, never
       // turns the user's working downloaded library off or re-downloads songs.
       if(!offlineLaunchReady){
@@ -9780,10 +9887,42 @@ async function registerServiceWorker(){
       return;
     }
 
-    // RESUME is already an explicit listener request: no second native
-    // confirm (which flashes white on installed iOS PWAs), and no speed test.
+    // Resume is one of three explicit choices, not the Offline OFF switch.
+    // Existing saved songs remain untouched unless DELETE AND START OVER is
+    // confirmed on a second tap inside the choice panel.
+    let choice='new';
+    if(prepared.audit.missingSongs>0 && (isEnabled() || prepared.audit.cachedSongs>0)){
+      choice=await askIncompleteOfflineChoice(prepared.audit);
+      if(choice==='cancel'){reflectButton(prepared.audit);return;}
+    }
     let initialSpeed=0;
-    if(!prepared.audit.cachedSongs){
+    if(choice==='restart'){
+      if(navigator.onLine===false){
+        panel.style.display='block';
+        text.textContent='Connect to the internet before starting over. Existing downloads were kept.';
+        return;
+      }
+      try{
+        button.disabled=true;
+        await remove();
+        prepared=await scanExistingAssets(); // Rebuild from the current catalog, not the old saved plan.
+      }catch(error){
+        panel.style.display='block';
+        text.textContent='Could not reset offline files: '+String(error?.message||error);
+        setStatus('Start Over was interrupted. Check saved downloads before trying again.');
+        return;
+      }finally{
+        button.disabled=false;
+      }
+      if(prepared.audit.totalSongs===0){
+        panel.style.display='block';
+        text.textContent='The library is unavailable. Connect online and reload Radio to retry.';
+        return;
+      }
+      setStatus('Starting a clean download of '+prepared.audit.totalSongs+' songs.');
+    }else if(!prepared.audit.cachedSongs){
+      // Only the FIRST download needs the original speed/size confirmation.
+      // An existing partial-download Resume must start without a second prompt.
       const estimate=await showPreDownloadEstimate(prepared);
       if(!estimate.approved){reflectButton(prepared.audit);return;}
       initialSpeed=estimate.speed;
@@ -9795,7 +9934,7 @@ async function registerServiceWorker(){
       catch(error){console.warn('Offline plan metadata not saved:',error);}
       const result=await cacheMissingAssets({
         quiet:false,
-        reason:isEnabled()?'resume':'manual',
+        reason:choice==='restart'?'restart':choice==='resume'?'resume':'manual',
         prepared,
         initialSpeed
       });
