@@ -153,11 +153,21 @@ requireText(homeRadio,/if\(allowed\(\)\)start\(\)/,'Homepage must attempt origin
 requireText(homeRadio,/STREAM='https:\/\/radio\.grandelement\.blitz\.cloud\/stream\.mp3'/,'Homepage stream must remain BLITZ');
 requireText(home,/ge-home-radio-connected/,'Homepage heartbeat only after verified stream');
 requireText(radio,/document\.body\.classList\.toggle\('ge-radio-audible'/,'Radio heartbeat not tied to actual player');
-requireText(radio,/function radioTransportConfirmed\(\)/,'PLAY/Pause must use verified stream progress');
-requireText(radio,/isRadio\s*\?\s*\(radioTransportConfirmed\(\)\?'Pause':'Play'\)/,
-  'Radio must say PLAY until native time progress is confirmed');
-requireText(radio,/if\(!radioTransportConfirmed\(\)\)void requestRadioStart\(\{userGesture:true\}\)/,
-  'A tap on a stalled iPhone player must retry Radio, not pause it');
+requireText(radio,/function radioTransportConfirmed\(\)/,'Radio signal uses verified forward-time progress');
+requireText(radio,/if\(playBtn\)playBtn\.textContent=radioSelected\?'Play'/,
+  'Main PLAY does not misrepresent live Radio as its own music PAUSE');
+requireText(radio,/function startMainMusicLibrary\(direction='all'\)/,
+  'Main PLAY must start the song library independently of Radio');
+requireText(radio,/startMainMusicLibrary\('all'\)/,
+  'One main PLAY tap must choose all accessible songs');
+requireText(radio,/if\(geInlineMusicActive\)\{geInlineMusicSend\('toggle'\);return;\}/,
+  'Music PLAY/PAUSE must retain an active personalized queue');
+requireText(radio,/function geInlineMusicBeforePlay\(title\)\{/,
+  'Song playback must hand its actual title to the main Radio controls');
+requireText(music,/const checked=direction==='all'\?\[\]:/,
+  'Main Play All cannot collapse to an old checked-song subset');
+requireText(music,/preloadCatalog\(\);/,
+  'Song catalog must begin loading before the first main PLAY tap');
 requireText(radio,/function prepareNativeRadio1Audio\(\)/,'Radio 1 native no-CORS setup missing');
 requireText(radio,/audio\.removeAttribute\('crossorigin'\)/,
   'BLITZ Origin-header 503 workaround missing from Radio player');
