@@ -1004,7 +1004,9 @@ async function redeemMusicCode(){
    clearMusicAccess();say('MUSIC CODE NOT ACTIVE · '+String(error.message||error));
  }finally{state.redeemBusy=false;el('.musicCodeUnlock').disabled=false}
 }
-async function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
+function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
+ // Return the actual bridge result synchronously. A Promise previously
+ // looked successful to Radio even when the iframe was not ready.
  // A code-restricted Music session can NEVER substitute the public Radio
  // scope or change the global Bangers broadcast. Verify every requested song.
  const access=musicAccessActive();
