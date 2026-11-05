@@ -998,7 +998,26 @@ function chooseTrack(t){
 // preview in the background. The popup remains open for browsing.
 // The single personalized Music queue respects the owner's song order.
 let geMusicQueueShuffle=false;
-window.GESetMusicQueueShuffle=function(enabled){geMusicQueueShuffle=!!enabled;return true};
+let geShuffleVisitOrder=[],geShuffleVisitPos=-1;
+function geRebuildShuffleVisitOrder(first=trackIndex){
+ // Play every recording in this approved queue ONCE before reshuffling.
+ // Keep the current recording first, so changing modes never cuts it off.
+ if(first<0||first>=albumTracks.length){
+  geShuffleVisitOrder=[];geShuffleVisitPos=-1;return;
+ }
+ const rest=albumTracks.map((_,i)=>i).filter(i=>i!==first);
+ for(let i=rest.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [rest[i],rest[j]]=[rest[j],rest[i]];
+ }
+ geShuffleVisitOrder=[first,...rest];geShuffleVisitPos=0;
+}
+window.GESetMusicQueueShuffle=function(enabled){
+ geMusicQueueShuffle=!!enabled;
+ if(geMusicQueueShuffle)geRebuildShuffleVisitOrder();
+ else{geShuffleVisitOrder=[];geShuffleVisitPos=-1;}
+ return true;
+};
 window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  if(!Array.isArray(paths)||!paths.length)return false;
  const unique=[...new Set(paths.map(cleanMusicPath).filter(Boolean))].slice(0,250);
@@ -1014,6 +1033,8 @@ window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  selectedSongs=tracks.slice();
  selectedAlbum=tracks[idx].album||'';
  playingSelected=true;albumTracks=tracks;trackIndex=idx;
+ if(geMusicQueueShuffle)geRebuildShuffleVisitOrder(idx);
+ else{geShuffleVisitOrder=[];geShuffleVisitPos=-1;}
  void startTrack(tracks[idx]);
  return true;
 };
@@ -1023,6 +1044,7 @@ window.GEJumpLibraryQueue=function(index){
  const track=albumTracks[index];
  if(!track)return false;
  trackIndex=index;
+ if(geMusicQueueShuffle)geRebuildShuffleVisitOrder(index);
  void startTrack(track);
  return true;
 };
@@ -1034,6 +1056,7 @@ window.GEPlayLibraryTrack=function(path){
  selectedAlbum=track.album||'';
  playingSelected=false;
  albumTracks=[track];trackIndex=0;
+ geShuffleVisitOrder=[];geShuffleVisitPos=-1;
  void startTrack(track);
  return true;
 };
@@ -1043,18 +1066,28 @@ function nextTrack(){
  if(trackIndex+1>=albumTracks.length&&!playingSelected){
   audio.pause();say('End of list. Choose another song, album, or playlist.');return;
  }
- // A checked-song queue is cyclic. With one checked song, replay that song.
+ // An all-song SHUFFLE makes one complete pass before reshuffling.
+ // Prev follows the actual shuffled history instead of album-index order.
  if(geMusicQueueShuffle&&albumTracks.length>1){
-  let next=trackIndex;
-  while(next===trackIndex)next=Math.floor(Math.random()*albumTracks.length);
-  trackIndex=next;
+  if(geShuffleVisitOrder.length!==albumTracks.length||geShuffleVisitPos<0)
+   geRebuildShuffleVisitOrder(trackIndex);
+  if(geShuffleVisitPos>=geShuffleVisitOrder.length-1)
+   geRebuildShuffleVisitOrder(trackIndex);
+  geShuffleVisitPos=Math.min(geShuffleVisitOrder.length-1,geShuffleVisitPos+1);
+  trackIndex=geShuffleVisitOrder[geShuffleVisitPos];
  }else trackIndex=(trackIndex+1)%albumTracks.length;
  void startTrack(albumTracks[trackIndex]);
 }
 function previousTrack(){
  if(isLocked()){renderGate();return;}
  if(!albumTracks.length||trackIndex<0)return;
- trackIndex=(trackIndex-1+albumTracks.length)%albumTracks.length;
+ if(geMusicQueueShuffle&&geShuffleVisitPos>0&&
+    geShuffleVisitOrder.length===albumTracks.length){
+  geShuffleVisitPos--;
+  trackIndex=geShuffleVisitOrder[geShuffleVisitPos];
+ }else if(!geMusicQueueShuffle){
+  trackIndex=(trackIndex-1+albumTracks.length)%albumTracks.length;
+ }
  void startTrack(albumTracks[trackIndex]);
 }
 async function resume(){
@@ -1081,7 +1114,8 @@ async function resume(){
 window.GEControlMusicQueue=function(action){
  if(action==='stop'){
   audio.pause();stopCounting();currentTrack=null;albumTracks=[];trackIndex=-1;
-  playingSelected=false;updateMusicTransport();geRadioEmbedPlaybackState();return true;
+  playingSelected=false;geShuffleVisitOrder=[];geShuffleVisitPos=-1;
+  updateMusicTransport();geRadioEmbedPlaybackState();return true;
  }
  if(action==='toggle'){
   if(audio.paused)void resume();else audio.pause();return true;
