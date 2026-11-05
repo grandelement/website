@@ -1510,16 +1510,44 @@ async function repoLive(){
 function localDraft(){try{return JSON.parse(localStorage.getItem(WORK_KEY)||'null')}catch(_e){return null}}
 function saveDraft(){collect();localStorage.setItem(WORK_KEY,JSON.stringify(cfg));dirty=false;setStatus('WEBSITE DRAFT SAVED ON THIS DEVICE · Not a Vault playlist or access-code save.')}
 function mark(){dirty=true;setStatus('UNSAVED CHANGES')}
-$('exportGithubConfig').addEventListener('click',()=>{
+$('exportGithubConfig').addEventListener('click',async()=>{
+  // Never export a stale complete configuration: doing so could erase Radio
+  // approvals, DJ playlists or settings saved from another device.
   collect();
-  const exportConfig=clone(cfg);
-  exportConfig.mode='live';
-  const blob=new Blob([JSON.stringify(exportConfig,null,2)+'\n'],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const link=document.createElement('a');link.href=url;link.download='site-live.json';
-  document.body.append(link);link.click();link.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
-  setStatus('GITHUB CONFIG EXPORTED · Upload site-live.json to config/site-live.json in the GitHub repository to publish without Cloudflare.');
+  if(!publisherBase){
+    setStatus('EXPORT BLOCKED · Published configuration unavailable. Your local draft is unchanged.');
+    return;
+  }
+  const original=publisherBase;
+  const keys=GE_GITHUB_PUBLIC_FIELDS.filter(key=>!geGithubSame(cfg[key],original[key]));
+  const musicKeys=['startupEnabled','firstTrack'].filter(key=>!geGithubSame(cfg.music?.[key],original.music?.[key]));
+  try{
+    // Re-read GitHub-hosted public config before constructing a safe export.
+    const response=await fetch('../config/site-live.json?review='+Date.now(),{cache:'no-store'});
+    if(!response.ok)throw Error('Published config unavailable');
+    const current=await response.json();
+    if(!Array.isArray(current?.music?.radioMasterSongPaths)||!current.music.radioMasterSongPaths.length)
+      throw Error('Radio Master list unavailable');
+    for(const key of keys)if(!geGithubSame(current[key],original[key]))
+      throw Error('Conflicting update to '+key+'; reload before exporting');
+    for(const key of musicKeys)if(!geGithubSame(current.music?.[key],original.music?.[key]))
+      throw Error('Conflicting music update; reload before exporting');
+    const merged=clone(current);
+    for(const key of keys)merged[key]=clone(cfg[key]);
+    merged.music={...(current.music||{})};
+    for(const key of musicKeys){
+      if(Object.prototype.hasOwnProperty.call(cfg.music||{},key))merged.music[key]=clone(cfg.music[key]);
+      else delete merged.music[key];
+    }
+    merged.mode='live';
+    const blob=new Blob([JSON.stringify(merged,null,2)+'\n'],{type:'application/json'});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='site-live.json';document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    setStatus('SAFE GITHUB EXPORT · Review before upload. Vault, DJ playlists and Radio Master preserved.');
+  }catch(error){
+    setStatus('EXPORT BLOCKED · '+String(error.message||error)+' · Draft unchanged.');
+  }
 });
 
 function currentSoulNames(){
