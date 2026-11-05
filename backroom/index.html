@@ -1475,7 +1475,14 @@ async function safeEnterBackroom(){
   if(button.disabled)return;
   button.disabled=true;
   message.textContent='Checking access…';
-  try{await enterBackroom();}
+  try{
+    // Only contact Cloudflare when PRIVATE SERVICES SIGN-IN is selected.
+    // An existing session is checked on demand, not on every public edit.
+    if(!$('gatePassword').value.trim()&&token()){
+      if(await restorePublisherSession())return;
+    }
+    await enterBackroom();
+  }
   catch(err){
     console.error('Back Room entry error:',err);
     message.textContent='Back Room could not open. Please retry. If this continues, the site needs repair.';
@@ -4745,7 +4752,8 @@ async function bootBackroom(){
   }
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-void restorePublisherSession().then(restored=>{if(!restored)$('gatePassword').focus()});
+// No automatic Cloudflare request when opening the public Back Room.
+$('gateLocal').focus();
 })();
 </script>
 </body>
