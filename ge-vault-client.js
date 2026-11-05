@@ -641,35 +641,74 @@
   function cacheScores(rows){
     try{localStorage.setItem(SCORE_KEY,JSON.stringify(rankScores(rows.filter(scoreIsCurrent)).slice(0,250)));}catch(_e){}
   }
+  // Unavailable Vault service must never trigger 100 score writes on each visit.
+  // Keep every unsent score on the visitor's device and retry in small batches.
+  const SCORE_RETRY_AFTER_KEY='GE_VAULT_SCORE_RETRY_AFTER_V1';
+  const SCORE_UPLOADED_IDS_KEY='GE_VAULT_LEGACY_SCORE_UPLOADED_IDS_V1';
+  const SCORE_MIGRATION_AT_KEY='GE_VAULT_LEGACY_SCORE_LAST_ATTEMPT_V1';
+  const SCORE_RETRY_MS=600000;
+  let scoreSyncActive=false;
+  function scoreRetryAfter(){
+    try{return Number(localStorage.getItem(SCORE_RETRY_AFTER_KEY))||0}catch(_e){return 0}
+  }
+  function scoreBackoff(){
+    try{localStorage.setItem(SCORE_RETRY_AFTER_KEY,String(Date.now()+SCORE_RETRY_MS))}catch(_e){}
+  }
   async function postScore(record){
     if(!record||!record.id||!scoreIsCurrent(record))return false;
+    if(navigator.onLine===false||Date.now()<scoreRetryAfter())return false;
     try{
-      const r=await fetch(SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...record,anon_id:anonId}),keepalive:true,credentials:'omit',cache:'no-store'});
-      return r.ok;
-    }catch(_e){return false;}
+      const r=await fetch(SCORE_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({...record,anon_id:anonId}),keepalive:true,credentials:'omit',cache:'no-store'});
+      if(!r.ok){scoreBackoff();return false}
+      return true;
+    }catch(_e){scoreBackoff();return false}
   }
   async function syncGameScores(){
     const local=localScores();
-    let migrated=false;
-    try{migrated=localStorage.getItem(SCORE_MIGRATION_KEY)==='1';}catch(_e){}
-    if(!migrated&&local.length){
-      let ok=true;
-      for(const row of local.slice(0,100)){if(!(await postScore(row)))ok=false;}
-      if(ok)try{localStorage.setItem(SCORE_MIGRATION_KEY,'1');}catch(_e){}
-    }
+    if(scoreSyncActive||navigator.onLine===false||Date.now()<scoreRetryAfter())return local;
+    scoreSyncActive=true;
     try{
+      let migrated=false;
+      try{migrated=localStorage.getItem(SCORE_MIGRATION_KEY)==='1'}catch(_e){}
+      if(!migrated&&local.length){
+        let uploaded=new Set();
+        let lastAttempt=0;
+        try{
+          const saved=JSON.parse(localStorage.getItem(SCORE_UPLOADED_IDS_KEY)||'[]');
+          if(Array.isArray(saved))uploaded=new Set(saved.map(String));
+          lastAttempt=Number(localStorage.getItem(SCORE_MIGRATION_AT_KEY))||0;
+        }catch(_e){}
+        const pending=local.filter(row=>!uploaded.has(String(row.id)));
+        if(pending.length&&Date.now()-lastAttempt>=60000){
+          try{localStorage.setItem(SCORE_MIGRATION_AT_KEY,String(Date.now()))}catch(_e){}
+          for(const row of pending.slice(0,10)){
+            if(!(await postScore(row)))break; // On outage stop, keep remaining scores locally.
+            uploaded.add(String(row.id));
+          }
+          try{localStorage.setItem(SCORE_UPLOADED_IDS_KEY,JSON.stringify([...uploaded]))}catch(_e){}
+        }
+        if(local.every(row=>uploaded.has(String(row.id)))){
+          try{
+            localStorage.setItem(SCORE_MIGRATION_KEY,'1');
+            localStorage.removeItem(SCORE_UPLOADED_IDS_KEY);
+          }catch(_e){}
+        }
+      }
+      if(Date.now()<scoreRetryAfter())return local;
       const r=await fetch(SCORE_URL+'?limit=250',{cache:'no-store',credentials:'omit'});
-      if(!r.ok)return local;
+      if(!r.ok){scoreBackoff();return local}
       const d=await r.json();
       const remote=Array.isArray(d.items)?d.items:[];
       const map=new Map();
-      remote.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id)map.set(String(x.id),x);});
-      local.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id&&!map.has(String(x.id)))map.set(String(x.id),x);});
+      remote.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id)map.set(String(x.id),x)});
+      local.filter(scoreIsCurrent).forEach(x=>{if(x&&x.id&&!map.has(String(x.id)))map.set(String(x.id),x)});
       const merged=rankScores([...map.values()]);
       cacheScores(merged);
       global.dispatchEvent(new CustomEvent('ge-vault-scores-updated',{detail:{count:merged.length}}));
       return merged;
-    }catch(_e){return local;}
+    }catch(_e){scoreBackoff();return local}
+    finally{scoreSyncActive=false}
   }
 
   global.GE_SCORE_ENDPOINT=SCORE_URL;
