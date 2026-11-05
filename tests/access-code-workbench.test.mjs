@@ -81,7 +81,13 @@ assert.match(html,/JSON.stringify\(saved.track_paths\|\|\[\]\)===JSON.stringify\
 assert.match(html, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
   'only SAVE LOAD DELETE should be visible as primary actions');
 assert.match(html, /accessSection\.querySelector\('summary'\)\.textContent='ACCESS'/);
-assert.match(html, /musicSection\.querySelector\('\.brAccessPlaylistSummary > span'\)\.textContent='MUSIC · PLAYLISTS'/);\nassert.doesNotMatch(html,/musicSection\.querySelector\('summary'\)\.textContent=/,\n  'retitling the category must not delete the refresh button');\nassert.match(html,/id="brAccessPlaylistRefresh"/);\nassert.match(html,/id="brAccessPlaylistAll" checked/);\nassert.match(html,/async function refreshVaultAccessPlaylists\(\)/);\nassert.match(html,/vaultAction\('\/manage\/access-playlists'\)/);
+assert.match(html, /musicSection\.querySelector\('\.brAccessPlaylistSummary > span'\)\.textContent='MUSIC · PLAYLISTS'/);
+assert.doesNotMatch(html,/musicSection\.querySelector\('summary'\)\.textContent=/,
+  'retitling the category must not delete the refresh button');
+assert.match(html,/id="brAccessPlaylistRefresh"/);
+assert.match(html,/id="brAccessPlaylistAll" checked/);
+assert.match(html,/async function refreshVaultAccessPlaylists\(\)/);
+assert.match(html,/vaultAction\('\/manage\/access-playlists'\)/);
 assert.match(html, /songsSection\.append\(\$\('brAccessSongSearch'\)/);
 assert.match(html, /#brPanel-access #brAccessNewPrimary,#brPanel-access #brAccessStatusPanel/,
   'duplicate controls and diagnostics must not clutter the code editor');
