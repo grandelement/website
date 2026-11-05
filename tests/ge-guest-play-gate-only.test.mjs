@@ -80,6 +80,30 @@ assert.equal(run('all'),true,'The main PLAY button must play all available songs
 assert.deepEqual(played.at(-1).queue,[a.path,b.path,c.path],
  'Main PLAY ALL must not silently reduce the library to previously checked songs');
 
+selection=[b];
+assert.equal(run('next'),true,'Next can initialize the full shuffled song library');
+assert.deepEqual(played.at(-1).queue,[a.path,b.path,c.path],
+ 'Initial Next must ignore previously checked songs and use the entire allowed catalog');
+assert.equal(run('previous'),true,'Previous can initialize the complete song library');
+assert.deepEqual(played.at(-1).queue,[a.path,b.path,c.path],
+ 'Initial Previous must not route into a checked playlist');
+
+// All transport controls remain on the Radio page. Only an actual Music
+// selection or the licensed preview Gate may open the separate Music UI.
+const nextSource=radio.slice(radio.indexOf('function nextTrack(userAction=false)'),
+ radio.indexOf('function previousTrack(userAction=false)'));
+const prevSource=radio.slice(radio.indexOf('function previousTrack(userAction=false)'),
+ radio.indexOf('async function loadMusicManifest(',radio.indexOf('function previousTrack(userAction=false)')));
+assert.ok(nextSource.length>0&&prevSource.length>0,'Native Next/Previous handlers must exist');
+assert.doesNotMatch(nextSource,/geOpenMusicSelection/,'NEXT must never open MUSIC');
+assert.doesNotMatch(prevSource,/geOpenMusicSelection/,'PREVIOUS must never open MUSIC');
+assert.match(radio,/startMainMusicLibrary\('all'\)/,'Radio PLAY must start the whole library');
+assert.match(radio,/function geInlineMusicSend\(action\)/,'Existing personal queue transport must remain');
+assert.match(preview,/geRebuildShuffleVisitOrder\(trackIndex\)/,
+ 'The protected player must navigate a shuffled all-song queue');
+assert.match(preview,/window\.GEControlMusicQueue=function\(action\)/,
+ 'Play, Next and Previous must navigate the protected song queue directly');
+
 // Execute the native resumeAudio guest branch as an additional routing check.
 const start=radio.indexOf('function resumeAudio(){');
 const end=radio.indexOf('\nfunction selectNaturalNext(',start);
