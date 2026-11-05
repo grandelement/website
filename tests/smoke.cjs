@@ -48,6 +48,8 @@ const whitelist=backroom.match(/const GE_GITHUB_PUBLIC_FIELDS=(\[[^\]]+\])/);
 assert(whitelist&&!/['"](?:music|vault|accessCodes|fanRecords)['"]/.test(whitelist[1]),'Unsafe public publisher whitelist');
 assert(backroom.includes("radioMasterSongPaths:selected"),'Radio Master GitHub save missing');
 assert(backroom.includes('publisherBase=await repoLive()'),'Published-base conflict guard missing');
+assert(!backroom.includes('void restorePublisherSession().then'),'Opening public Back Room must not call Cloudflare automatically');
+assert(backroom.includes('if(await restorePublisherSession())return'),'Private session resume must remain available on demand');
 assert(!backroom.includes('async async function'),'Duplicate async regression detected');
 assert(backroom.includes('GE_BACKROOM_PUBLIC_CONFIG_CACHE_V1'),'Published config fallback missing');
 assert(backroom.includes("if(serverAuthenticated)backroomVaultManagers.init()"),'Private Vault must not auto-initialize for local editor');
