@@ -8018,8 +8018,8 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   // The actual licensed library is not yet hosted privately. This guard
   // closes UI bypasses, including controls used during a live Radio session.
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
-    if(userAction)geOpenMusicSelection();
-    else setStatus('Select a 33:33 preview playlist or visit My Music.');
+    if(userAction)startMainMusicLibrary('all');
+    else setStatus('Press PLAY for the shuffled Grand Element song library.');
     return;
   }
   if(!url) return;
@@ -8084,7 +8084,7 @@ function resumeAudio(){
     // The main and compact PLAY controls share the same 33:33 guest preview.
     // Keep an active personal queue in its existing player; never navigate.
     if(geInlineMusicActive){geInlineMusicSend('toggle');return;}
-    window.GEMusicV5?.playAll?.();
+    startMainMusicLibrary('all');
     return;
   }
   state.userStarted=true;
@@ -8135,8 +8135,8 @@ function nextTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('next');return;}
   if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('next');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
-    if(userAction)geOpenMusicSelection();
-    return; // Also covers lock-screen next, ended and background control paths.
+    if(userAction)startMainMusicLibrary('next');
+    return; // Lock-screen actions use the same protected music queue.
   }
   if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Manual playback selected.');
   state.pendingAfterStation=null;
@@ -8147,7 +8147,7 @@ function previousTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('previous');return;}
   if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('previous');return;}
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
-    if(userAction)geOpenMusicSelection();
+    if(userAction)startMainMusicLibrary('previous');
     return;
   }
   if(state.live||state.livePreparing) exitLiveMode('LIVE ended. Manual playback selected.');
@@ -8293,9 +8293,9 @@ playBtn?.addEventListener('click',()=>{
     void playURL(first,{record:state.shuffle,backgroundChange:true,userAction:true});
     return;
   }
-  // First tap begins ALL accessible songs under the existing 33:33 preview
-  // or a verified Music receipt. The current title and subsequent tracks
-  // are handed back to the main Radio controls by GEInlineMusic.
+  // PLAY starts the complete permitted song library in the protected shuffle
+  // player, independent of the MUSIC selector. NEXT/PREV use that same queue.
+  // The existing 33:33 preview and verified Music access remain enforced.
   startMainMusicLibrary('all');
 });
 playerSeek?.addEventListener('input',()=>{
