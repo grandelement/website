@@ -404,6 +404,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  .brPlaylistTrack.excluded{opacity:.45;text-decoration:line-through}
  .editorOpacityControls{position:absolute;z-index:20;top:65px;right:12px;display:grid;gap:8px;padding:10px;background:rgba(0,10,22,.94);border:1px solid #3b6880;border-radius:10px;color:#eaf2ff;font-size:12px}.editorOpacityControls[hidden]{display:none}.editorOpacityControls label{display:grid;gap:5px}.editorOpacityControls input{width:190px}
 
+
+/* Clear, scannable labels across every Back Room tab. */
+.brReadableLabel{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 7px;line-height:1.3;min-height:22px}
+.brReadableLabel strong{font-size:1.12em;font-weight:1000;letter-spacing:.035em;color:#fff}
+.brReadableLabel small{font-size:.9em;font-weight:650;color:#a8cce2}
+.brMerchHelp{font-size:12px;color:#b4d9ec;margin:8px 0}
 </style>
 <style id="br-access-compact-ui">
 #brPanel-access .brAccessTop{display:grid;gap:8px;margin-bottom:10px}
@@ -797,6 +803,20 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <label><span>Autopilot return minimum</span><input id="AUTOPILOT_SPIRIT_RETURN_MIN_SEC" type="number" min="1"></label>
     <label><span>Autopilot return maximum</span><input id="AUTOPILOT_SPIRIT_RETURN_MAX_SEC" type="number" min="1"></label>
   </div>
+</section>
+
+
+<section data-br-tab="universe" id="brMerchControls">
+  <h2>MERCHANDISE</h2>
+  <p>Control the shirt and hat floating through space. Changes take effect after PUBLISH.</p>
+  <div class="grid">
+    <label><span>MERCHANDISE size (%)</span><input id="brMerchSize" type="number" min="25" max="250" step="5" value="100"></label>
+    <label><span>MERCHANDISE speed (%)</span><input id="brMerchSpeed" type="number" min="25" max="400" step="5" value="100"></label>
+    <label><span>MERCHANDISE rotation (%)</span><input id="brMerchRotation" type="number" min="0" max="400" step="5" value="100"></label>
+    <label><span>MERCHANDISE direction</span><select id="brMerchDirection"><option value="normal">CLOCKWISE</option><option value="reverse">COUNTERCLOCKWISE</option></select></label>
+    <label><span>MERCHANDISE quantity</span><select id="brMerchQuantity"><option value="2">BOTH ITEMS</option><option value="1">HAT ONLY</option><option value="0">HIDE BOTH</option></select></label>
+  </div>
+  <p class="brMerchHelp">100% is normal. The hat is already 25% smaller than its original size.</p>
 </section>
 
 <section data-br-tab="games">
@@ -1708,6 +1728,10 @@ function populate(){
   field('welcomeOpacity',cfg.visual.welcome.panelOpacity);$('welcomeOpacityValue').textContent=cfg.visual.welcome.panelOpacity+'%';
   {const rawAbout=cfg.about?.html||(introArrayToHtml(cfg.about?.intro||[]));const shownAbout=Number(cfg.about?.richTextVersion)>=2?rawAbout:migrateLegacyAboutHtml(rawAbout);$('aboutIntro').innerHTML=cleanAboutHtml(shownAbout)}field('aboutOpacity',cfg.visual.about.panelOpacity);$('aboutOpacityValue').textContent=cfg.visual.about.panelOpacity+'%';
   field('planetLayout',cfg.albums.layout);numberIds.forEach(id=>field(id,cfg.easySettings?.[id]??''));
+  const merch=cfg.merchandise||{};
+  field('brMerchSize',merch.size??100);field('brMerchSpeed',merch.speed??100);
+  field('brMerchRotation',merch.rotation??100);field('brMerchDirection',merch.direction==='reverse'?'reverse':'normal');
+  field('brMerchQuantity',merch.quantity??2);
   for(const [id,key] of Object.entries({gamePoints:'points',gamePockets:'pockets',gamePlanets:'planets',gameGolf:'golf',gameGravity:'gravity',gameBody:'body',gameFlight:'flight'})){
     checked(id,cfg.games?.[key]!==false);
   }
@@ -1748,6 +1772,10 @@ function collect(){
   cfg.albums=cfg.albums||{};cfg.albums.layout=$('planetLayout').value;cfg.albums.visible=[];cfg.albums.bios=cfg.albums.bios||{};
   $('albums').querySelectorAll('.album').forEach(box=>{const n=box.dataset.album,k=albumKey(n);if(box.querySelector('.albumVisible').checked)cfg.albums.visible.push(n);cfg.albums.bios[k]={year:box.querySelector('.year').value.trim(),energy:box.querySelector('.energy').value.trim(),bio:box.querySelector('.bio').value.trim()}});
   cfg.easySettings=cfg.easySettings||{};numberIds.forEach(id=>cfg.easySettings[id]=Number($(id).value)||0);
+  const bounded=(id,min,max,def)=>Math.max(min,Math.min(max,Number($(id).value)||def));
+  cfg.merchandise={...(cfg.merchandise||{}),size:bounded('brMerchSize',25,250,100),
+    speed:bounded('brMerchSpeed',25,400,100),rotation:Math.max(0,Math.min(400,Number($('brMerchRotation').value)||0)),
+    direction:$('brMerchDirection').value==='reverse'?'reverse':'normal',quantity:Number($('brMerchQuantity').value)};
   cfg.games={...(cfg.games||{}),
     points:$('gamePoints').checked,pockets:$('gamePockets').checked,planets:$('gamePlanets').checked,
     golf:$('gameGolf').checked,gravity:$('gameGravity').checked,body:$('gameBody').checked,flight:$('gameFlight').checked,
@@ -4557,6 +4585,20 @@ async function refreshFanPlaylistVault(){
  }catch(error){status.textContent='NOT LOADED · '+String(error.message||error)}
 }
 $('brFanPlaylistsRefresh').addEventListener('click',()=>void refreshFanPlaylistVault());
+function improveBackroomLabels(){
+  // Only format setting labels; do not alter their underlying input IDs or values.
+  const keywords=['MINI BODY','AUTOPILOT','MERCHANDISE','METEOR','SOUL','BODY','PLANET','RADIO','MOON','GATE','WELCOME','ABOUT','MUSIC','GAME','FAN','SCORE','PRESET','DEFAULT','MAXIMUM','MINIMUM','CONTACT','TITLE','MESSAGE','ARRANGEMENT','SAVED','TEXT','PLAYER','ACCESS','SHUFFLE'];
+  document.querySelectorAll('main label > span:not(.brReadableLabel)').forEach(span=>{
+    if(span.querySelector('input,select,textarea,button,b,strong,small')||span.closest('.check,.brGameOptionRow,.aboutToolbar'))return;
+    const text=span.textContent.trim();if(!text||text.length>90)return;
+    const keyword=keywords.find(word=>text.toUpperCase()===word||text.toUpperCase().startsWith(word+' '));
+    const words=text.split(/\\s+/);const lead=keyword||words[0].toUpperCase();
+    const rest=text.slice(keyword?keyword.length:words[0].length).trim();
+    span.textContent='';span.classList.add('brReadableLabel');
+    const strong=document.createElement('strong');strong.textContent=lead;span.append(strong);
+    if(rest){const small=document.createElement('small');small.textContent='· '+rest;span.append(small)}
+  });
+}
 async function bootBackroom(){
   // Migrate the old oversized 115% default once, then honor the slider setting.
   const compactKey='GE_BACKROOM_COMPACT_TEXT_DEFAULT_V1';
@@ -4567,6 +4609,7 @@ async function bootBackroom(){
     localStorage.setItem(TEXT_KEY,savedText);
   }
   applyText(savedText||90);
+  improveBackroomLabels();
   cfg=localDraft()||await repoLive();populate();await loadMusic();
   window.GE_BACKROOM_MASTER_READY=true;
   await brMasterLoadPublished();
