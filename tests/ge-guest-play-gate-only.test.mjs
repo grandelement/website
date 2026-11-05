@@ -123,4 +123,9 @@ nativeResume({live:false,livePreparing:false},()=>false,()=>false,()=>false,play
 assert.equal(nativeToggle,1,'Native PLAY must toggle existing personal song');
 assert.equal(nativePlay,1,'Toggling personal music must not replace its queue');
 
+state.loaded=true;state.tracks=[];selection=[];
+assert.equal(run('all'),false,'An unavailable library does not open MUSIC');
+assert.equal(opened,0,'Unavailable main Radio transport never redirects to the Music selector');
+
+
 console.log('PASS: guest PLAY, saved song order, no forced code/store redirect, restricted receipt, expired 33:33 Gate, native transport.');
