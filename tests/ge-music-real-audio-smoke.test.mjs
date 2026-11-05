@@ -56,6 +56,9 @@ try{
  await page.reload({waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>!!window.GEMusicV5?.open&&!!window.GEMusicV5Bridge,{timeout:20000});
  await page.evaluate(()=>window.GEMusicV5.open());
+ // The current MUSIC window opens its album browser by default. Select SONGS
+ // explicitly before searching for an individual track's PLAY control.
+ await page.evaluate(()=>document.querySelector('#geMusicV5Host')?.shadowRoot?.querySelector('[data-tab="songs"]')?.click());
  await page.waitForFunction(()=>window.GEMusicV5.state().loaded&&
   typeof document.querySelector('#geInlineMusicFrame')?.contentWindow?.GEPlayLibraryQueue==='function',
   {timeout:20000});
