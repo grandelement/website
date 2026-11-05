@@ -7,6 +7,21 @@ const sw=readFileSync('radio/sw.js','utf8');
 const home=readFileSync('sw.js','utf8');
 const must=(source,regex,reason)=>assert.match(source,regex,'OFFLINE REGRESSION: '+reason);
 must(radio,/async function ensureOfflineLaunchAssets\(\)/,'offline shell saver missing');
+must(radio,/async function finishOfflineSetupWithDialog\(\)/,
+  'Finish Offline Setup must show a visible repair/progress dialog');
+must(radio,/askIncompleteOfflineChoice\(currentAudit,\{setupOnly:true\}\)/,
+  'complete saved music must offer Finish Setup, Start Over and Cancel');
+must(radio,/if\(choice==='setup'\)\{\s*await finishOfflineSetupWithDialog\(\)/,
+  'Finish Setup tap must run the visible repair routine');
+must(radio,/function inspectOfflineLaunchAssets\(\)/,
+  'offline repair must report missing files and worker readiness');
+must(radio,/onProgress\(\{stage,completed,total,failures:failures\.slice\(\)\}\)/,
+  'offline repair must provide progress updates');
+must(radio,/showOfflineAccessNotice\(\)/,
+  'expired offline access must be explained visibly without deleting files');
+must(radio,/#geOfflineDecision button\[hidden\]\{display:none!important\}/,
+  'offline dialog loading buttons must actually hide on iPhone');
+
 
 must(radio,/id="geOfflineDecision"[^>]*role="dialog"/,'offline recovery choice dialog missing');
 must(radio,/if\(isEnabled\(\) && !\(currentAudit\?\.missingSongs>0\)\)/,
