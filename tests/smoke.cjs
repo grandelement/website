@@ -59,4 +59,12 @@ assert(!home.includes('.workers.dev'),'Public homepage must not require a Cloudf
 assert(vault.includes('GE_EVENT_BATCH_SIZE=25'),'Vault event batching missing');
 assert(vault.includes('geEventCooldownUntil'),'Vault outage circuit breaker missing');
 assert(dj.includes('ge-radio-sync.grandelement.workers.dev'),'DJ backend is still required; do not silently remove its bridge');
+assert(dj.includes('geBoardMeterPauseUntil'),'DJ meter outage backoff missing');
+assert(dj.includes('meterActive?850:5000'),'DJ active/idle network pacing missing');
+assert(!dj.includes('setInterval(pushBoardFastMeter,120)'),'DJ remote meter still polls 8+ times each second');
+assert(vault.includes("SCORE_RETRY_AFTER_KEY"),'Vault score outage cooldown missing');
+assert(vault.includes('pending.slice(0,10)'),'Legacy scores must migrate in bounded batches');
+assert(!vault.includes('local.slice(0,100)'),'Legacy score 100-request burst has returned');
+assert(home.includes('20261105-score-backoff-v2'),'Website must load latest Vault client');
+
 console.log('PASS:',checked,'JavaScript scripts parsed;',approved.length,'Radio Master tracks verified; GitHub public publisher and Vault protections checked.');
