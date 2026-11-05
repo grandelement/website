@@ -3430,6 +3430,16 @@ html.ge-safari-desktop-request .geMerchFlyby{--ge-merch-size:clamp(92px,8vw,118p
 .geMerchFlyby .geMerchArt{animation-duration:var(--ge-merch-spin,48s);animation-direction:var(--ge-merch-direction,normal)}
 .geMerchFlyby--hat .geMerchArt{animation-duration:var(--ge-merch-hat-spin,54s)}
 html.ge-merch-no-spin .geMerchFlyby .geMerchArt{animation:none!important}
+/* The scheduler controls each entrance; never repeat on a fixed CSS clock. */
+.geMerchFlyby{animation-iteration-count:1;animation-play-state:paused;animation-delay:0s!important;opacity:0}
+.geMerchFlyby.ge-merch-flying{animation-play-state:running}
+.geMerchFlyby--hat{--ge-merch-factor:.5625}
+@keyframes geMerchFlybyTransit{
+  0%{transform:translate3d(-135%,8vh,0);opacity:0}
+  5%{opacity:.98}
+  90%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:.98}
+  100%{transform:translate3d(calc(100vw + 150%),-9vh,0);opacity:0}
+}
 html.ge-merch-hidden #geMerchFlybys{display:none!important}
 html.ge-merch-hat-only .geMerchFlyby--shirt{display:none!important}
 body.game-mode-active #geMerchFlybys,
@@ -4116,6 +4126,32 @@ body.ge-home-radio-ready #mini #geHomeRadioLink{
     </a>
   </div>
 
+  <script id="ge-merch-random-scheduler">
+  (()=>{
+    const items=[...document.querySelectorAll('#geMerchFlybys .geMerchFlyby')];
+    if(items.length!==2)return;
+    let last=-1,timer=null;
+    const randomDelay=()=>45000+Math.random()*30000;
+    const permitted=()=>!document.documentElement.classList.contains('ge-merch-hidden');
+    const next=()=>{
+      if(!permitted()){timer=setTimeout(next,randomDelay());return}
+      const quantity=Number(window.GE_SITE_CONFIG?.merchandise?.quantity??2);
+      const choices=quantity===1?[1]:[0,1];
+      const index=choices.length===1?choices[0]:(last===0?1:0);
+      last=index;
+      const el=items[index];
+      el.classList.remove('ge-merch-flying');
+      el.style.animation='none';
+      void el.offsetWidth;
+      el.style.animation='';
+      el.classList.add('ge-merch-flying');
+      timer=setTimeout(next,randomDelay());
+    };
+    // Begin soon, then randomly space consecutive entrances 45–75 seconds apart.
+    timer=setTimeout(next,3000+Math.random()*9000);
+    addEventListener('pagehide',()=>clearTimeout(timer),{once:true});
+  })();
+  </script>
   <canvas id="autopilotTrails" aria-hidden="true"></canvas>
   <button id="autopilotSpirit" type="button" aria-label="Start Autopilot"><span class="autoSpiritLabel">AUTOPILOT</span></button>
   <div id="autopilotHUD" aria-live="polite">
