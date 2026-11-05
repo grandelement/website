@@ -647,6 +647,8 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div class="lockSub">BACK ROOM</div>
     <label><span>PASSWORD</span><input id="gatePassword" type="password" autocomplete="current-password"></label>
     <button id="gateEnter" type="button">ENTER BACK ROOM</button>
+    <button id="gateLocal" type="button">OPEN LOCAL EDITOR</button>
+    <p class="lockMsg">Cloudflare unavailable? Local editing works without signing in. Publishing and private Vault controls remain locked.</p>
     <div id="gateMessage" class="lockMsg"></div>
   </div>
 </div>
@@ -1417,23 +1419,32 @@ async function enterBackroom(){
   try{
     const h=await api('/health',{method:'GET'});const hd=await h.json().catch(()=>({}));
     if(!h.ok||!hd.configured){
-      $('gateMessage').textContent='Private publisher is not ready. Back Room stays locked.';
+      $('gateMessage').textContent=h.status===429||h.status===503?'Cloudflare publisher limit reached. Use OPEN LOCAL EDITOR to save drafts until service returns.':'Private publisher is not ready. Use OPEN LOCAL EDITOR for public settings.';
       return;
     }
     const r=await api('/login',{method:'POST',body:JSON.stringify({password:pass})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||typeof d.token!=='string'||!d.token){
-      $('gateMessage').textContent='Private publisher sign-in failed.';
+      $('gateMessage').textContent=r.status===429||r.status===503?'Publisher rate limit reached. Use OPEN LOCAL EDITOR.':'Publisher sign-in failed. Check password, or use OPEN LOCAL EDITOR.';
       return;
     }
     setToken(d.token);serverAuthenticated=true;
   }catch(_e){
-    $('gateMessage').textContent='Private publisher unavailable. Back Room stays locked; no local bypass.';
+    $('gateMessage').textContent='Cloudflare publisher unavailable. Use OPEN LOCAL EDITOR to work without publishing.';
     return;
   }
   $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');$('gatePassword').value='';
   await bootBackroom();
 }
+async function openLocalEditor(){
+  // Offline-safe public configuration editor only. Never create a publisher token.
+  serverAuthenticated=false;setToken('');
+  $('lockScreen').classList.add('hidden');$('backroomMain').classList.remove('hidden');
+  $('gatePassword').value='';
+  try{await bootBackroom();setStatus('LOCAL EDITOR · Save drafts on this device. Publishing and private Vault access require the publisher.');}
+  catch(error){setStatus('LOCAL EDITOR · Could not load the public configuration. Check connection and reload.');}
+}
+$('gateLocal').addEventListener('click',()=>void openLocalEditor());
 function lock(){setToken('');serverAuthenticated=false;$('backroomMain').classList.add('hidden');$('lockScreen').classList.remove('hidden');$('gatePassword').focus()}
 async function restorePublisherSession(){
   // A genuine publisher session can be reused until its server expiry.
