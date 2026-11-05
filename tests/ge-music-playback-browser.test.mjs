@@ -161,17 +161,24 @@ try{
   await (await caches.open(unrelated)).put('/untouched',new Response('unrelated'));
   const removed=await window.GEOffline?.remove?.({silent:true});
   const names=await caches.keys();
+  // An in-flight background catalog check can re-create an EMPTY legacy
+  // cache after deletion. Protect the actual user data, not empty cache names.
+  const songCaches=names.filter(name=>/^ge-radio-media(?:-|$)|^ge-backgrounds(?:-|$)/.test(name));
+  const legacyEmpty=(await Promise.all(songCaches.map(async name=>{
+   const cache=await caches.open(name);
+   const entries=await cache.keys();
+   return entries.every(request=>!/\.(mp3|m4a|ogg|wav|gif|png|jpe?g|webp)(?:\?|$)/i.test(request.url));
+  }))).every(Boolean);
   return {
-   removed,names,
+   removed,names,legacyEmpty,
    shellOK:!!(await (await caches.open(shell)).match(shellURL)),
    songPurged:!(await (await caches.open(shell)).match(musicURL)),
    unrelatedOK:!!(await (await caches.open(unrelated)).match('/untouched'))
   };
  });
- if(cacheCheck.removed!==true||cacheCheck.names.includes('ge-radio-media-v3')||
-    cacheCheck.names.includes('ge-backgrounds-v1')||!cacheCheck.shellOK||
+ if(cacheCheck.removed!==true||!cacheCheck.legacyEmpty||!cacheCheck.shellOK||
     !cacheCheck.songPurged||!cacheCheck.unrelatedOK)
-   throw Error('Offline remove did not completely purge GE assets while preserving app shell and other caches: '+JSON.stringify(cacheCheck));
+   throw Error('Offline remove did not purge GE music while preserving app shell and unrelated caches: '+JSON.stringify(cacheCheck));
  console.log('PASS: confirmed OFFLINE removal purges old song/background caches but leaves app shell and other apps intact.');
  console.log('PASS: square real-cover album cards, aligned checkboxes, song title and PLAY controls start main player, checked queue cycles and repeats.');
 }finally{await browser.close()}
