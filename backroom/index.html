@@ -2438,7 +2438,7 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
-  let accessVaultPlaylists=[],accessVaultLoaded=false,accessDefaultsPending=false;
+  let accessVaultPlaylists=[],accessVaultLoaded=false,accessDefaultsPending=false,accessVaultLoadError='';
   let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
   const create=(tag,text='',className='')=>{
@@ -3141,11 +3141,13 @@ const backroomVaultManagers=(()=>{
         ...p,source:'VAULT',tracks:Array.isArray(p.tracks)?p.tracks.slice()
           .sort((a,b)=>(Number(a.position)||0)-(Number(b.position)||0)):[]
       }));
-      accessVaultLoaded=true;accessPlaylistOptions();renderAccessCodes();
+      accessVaultLoaded=true;accessVaultLoadError='';accessPlaylistOptions();renderAccessCodes();
       return true;
     }catch(error){
-      accessVaultLoaded=false;accessVaultPlaylists=[];accessPlaylistOptions();
-      accessStatus('LIVE VAULT PLAYLISTS NOT LOADED · '+String(error.message||error)+
+      accessVaultLoaded=false;accessVaultPlaylists=[];
+      accessVaultLoadError=String(error.message||error);
+      accessPlaylistOptions();
+      accessStatus('LIVE VAULT PLAYLISTS NOT LOADED · '+accessVaultLoadError+
         ' · Existing access codes and DJ playlists are unchanged.');
       return false;
     }
@@ -3170,8 +3172,8 @@ const backroomVaultManagers=(()=>{
     select.disabled=!source.length;
     const host=$('brAccessPlaylistChoices'),priorScroll=host.scrollTop;host.replaceChildren();
     if(!accessVaultLoaded){
-      host.appendChild(create('p','LOADING LIVE DJ PLAYLISTS… This list loads automatically.','sub'));
-      $('brAccessPlaylistNotice').textContent='LIVE DJ VAULT · CONNECTING AUTOMATICALLY';
+      host.appendChild(create('p',accessVaultLoadError?'LIVE DJ PLAYLIST CONNECTION ERROR · '+accessVaultLoadError:'LOADING LIVE DJ PLAYLISTS… This list loads automatically.','sub'));
+      $('brAccessPlaylistNotice').textContent=accessVaultLoadError?'VAULT PLAYLISTS UNAVAILABLE · Existing playlists and access codes were not changed.':'LIVE DJ VAULT · CONNECTING AUTOMATICALLY';
       return;
     }
     $('brAccessPlaylistNotice').textContent='LIVE VAULT · '+accessVaultPlaylists.length+
