@@ -8591,14 +8591,26 @@ function geOpenQuickSongPanel(){
     if(url===(geInlineMusicActive?gePlaylistQuickPath:state.currentURL))item.setAttribute('aria-current','true');
     item.addEventListener('click',()=>{
       geCloseQuickSongPanel();
-      if(geInlineMusicActive){
-        const frame=geInlineMusicFrame?.contentWindow;
-        if(frame?.GEJumpLibraryQueue?.(index)){gePlaylistQuickPath=url;gePlaylistQuickUpdate();}
-        return;
+      // Always play the EXACT selected song through the gated preview.
+      // playURL() redirects public users to the default queue, which caused
+      // unrelated songs (including Fire / Alignment) to start instead.
+      geInlineMusicInit();
+      const frame=geInlineMusicFrame?.contentWindow;
+      const selectedPath=canonicalSongPath(url);
+      let started=false;
+      try{
+        if(geInlineMusicActive&&gePlaylistQuickQueue.length&&
+           canonicalSongPath(gePlaylistQuickQueue[index])===selectedPath){
+          started=frame?.GEJumpLibraryQueue?.(index)===true;
+        }
+        if(!started)started=frame?.GEPlayLibraryTrack?.(selectedPath)===true;
+      }catch(error){console.warn('Exact song selection failed',error)}
+      if(started){
+        gePlaylistQuickPath=url;
+        gePlaylistQuickUpdate();
+      }else{
+        setStatus('Selected song not ready. Try again after the music library loads.');
       }
-      gePlaylistQuickClear();
-      if(state.live||state.livePreparing)exitLiveMode('Personal song selected.');
-      void playURL(url,{record:state.shuffle,backgroundChange:true,userAction:true});
     });
     geQuickSongPanel.appendChild(item);
   }
