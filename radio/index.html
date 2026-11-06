@@ -8413,13 +8413,14 @@ function syncMainTransport(){
   }
 }
 function geRetryPendingMainMusic(){
-  if(!gePendingMainMusicDirection)return;
+  if(geInlineMusicActive||!gePendingMainMusicDirection)return;
   const direction=gePendingMainMusicDirection;
   gePendingMainMusicDirection='';
   if(!geInlineMusicActive)startMainMusicLibrary(direction);
 }
 window.addEventListener('ge-music-catalog-ready',geRetryPendingMainMusic);
 function startMainMusicLibrary(direction='all'){
+  if(geInlineMusicActive)return false;
   // A first PLAY during the manifest or iframe load must not be silently
   // discarded. Retry when both protected Music components are ready.
   // RADIO remains independent, and the 33:33 Gate is never bypassed.
@@ -8594,6 +8595,13 @@ function geOpenQuickSongPanel(){
       // Always play the EXACT selected song through the gated preview.
       // playURL() redirects public users to the default queue, which caused
       // unrelated songs (including Fire / Alignment) to start instead.
+      // An explicit song choice supersedes any queued auto-PLAY retry.
+      // Silence the separate legacy Radio audio element before the preview
+      // transport starts, preventing two recordings from playing together.
+      gePendingMainMusicDirection='';
+      ++state.playToken;
+      if(state.live||state.livePreparing)exitLiveMode('Selected song.');
+      requestUserPause();
       geInlineMusicInit();
       const frame=geInlineMusicFrame?.contentWindow;
       const selectedPath=canonicalSongPath(url);
@@ -8606,6 +8614,7 @@ function geOpenQuickSongPanel(){
         if(!started)started=frame?.GEPlayLibraryTrack?.(selectedPath)===true;
       }catch(error){console.warn('Exact song selection failed',error)}
       if(started){
+        geInlineMusicCurrentPath=selectedPath;
         gePlaylistQuickPath=url;
         gePlaylistQuickUpdate();
       }else{
