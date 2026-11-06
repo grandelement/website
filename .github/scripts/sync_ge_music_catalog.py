@@ -40,8 +40,14 @@ def albums_on_disk():
         if not files:
             raise ValueError(f"Album folder has no audio files: {name}")
         tracks = []
-        seen_numbers = set()
+        seen_filenames = set()
         for path in files:
+            # Track numbers are display/order hints, not unique identifiers.
+            # Aether_01-The Journey I/II/III are three distinct real files.
+            filename_key = path.name.casefold()
+            if filename_key in seen_filenames:
+                raise ValueError(f"Duplicate audio filename in {name}: {path.name}")
+            seen_filenames.add(filename_key)
             stem = path.stem
             if album != "Singles":
                 prefix = re.escape(album)
@@ -50,9 +56,8 @@ def albums_on_disk():
                     raise ValueError(f"Bad filename (album_01_Title): {path}")
                 number = int(match.group(1))
                 title = match.group(2).replace("_", " ").strip()
-                if number <= 0 or number in seen_numbers:
-                    raise ValueError(f"Duplicate/invalid track number in {name}: {number}")
-                seen_numbers.add(number)
+                if number <= 0:
+                    raise ValueError(f"Invalid track number in {name}: {path}")
             else:
                 match = re.fullmatch(r"Singles_(.+)", stem, re.I)
                 if not match:
