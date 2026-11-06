@@ -7643,13 +7643,14 @@ syncRadioOfflineAccessUI();
 let geInlineMusicPanel=null,geInlineMusicBackdrop=null,geInlineMusicFrame=null;
 let geInlineMusicActive=false,geInlineMusicPaused=true,geInlineMusicTitle='',geInlineMusicCurrentPath='';
 let gePendingMainMusicDirection='';
-let gePlaylistQuickQueue=[],gePlaylistQuickLabels=[],gePlaylistQuickPath='',gePlaylistQuickName='';
+let gePlaylistQuickQueue=[],gePlaylistQuickLabels=[],gePlaylistQuickPath='',gePlaylistQuickName='',gePlaylistQuickIsCustom=false;
 function gePlaylistQuickDismiss(){
  const pane=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
  if(pane)pane.hidden=true;
  if(button)button.setAttribute('aria-expanded','false');
 }
 function gePlaylistQuickClear(){
+ gePlaylistQuickIsCustom=false;
  gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
  gePlaylistQuickDismiss();
  const strip=$('gePlaylistQuick');if(strip)strip.hidden=true;
@@ -7665,6 +7666,7 @@ function gePlaylistQuickUpdate(){
 }
 function gePlaylistQuickSet(playlist,paths,details){
  const custom=!!details?.custom&&paths.length>0;
+ gePlaylistQuickIsCustom=custom;
  if(!paths.length){gePlaylistQuickClear();return;}
  gePlaylistQuickQueue=paths.slice();
  gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
@@ -7842,13 +7844,8 @@ function geInlineMusicInit(){
       geInlineMusicGateAutoOpened=false;
     }
   });
-  for(const [id,action] of [['playBtn','toggle'],['nextBtn','next'],['prevBtn','previous']]){
-    $(id)?.addEventListener('click',event=>{
-      if(!geInlineMusicActive)return;
-      event.preventDefault();event.stopImmediatePropagation();
-      geInlineMusicSend(action);
-    },true);
-  }
+  // The ordinary transport handlers already route these same buttons to
+  // the protected music player; no duplicate capture-phase listeners.
   // Title continues to open the very same MUSIC list, even during a personal preview.
   $('liveBtn')?.addEventListener('click',()=>{
     if(geInlineMusicActive)geInlineMusicStop();
@@ -7879,6 +7876,7 @@ function geShowMainPlaylistPlayer(){
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
+ shuffleEnabled:()=>state.shuffle,
  showMainPlayer:()=>geShowMainPlaylistPlayer(),
  play:(input,orderedPaths,playlistName='',playlistDetails=null)=>{
   const path=canonicalSongPath(input);
@@ -7896,8 +7894,8 @@ window.GEMusicV5Bridge={
   if(typeof frame?.GEPlayLibraryQueue!=='function')
     return {ok:false,message:'Playlist engine is preparing. Tap PLAY again.'};
   try{
+   frame.GESetMusicQueueShuffle?.(state.shuffle);
    const ok=frame.GEPlayLibraryQueue(queue,path,playlistName);
-   if(ok)frame.GESetMusicQueueShuffle?.(state.shuffle);
    if(ok)gePlaylistQuickSet(playlistName,queue,playlistDetails);
    return ok?{ok:true}:{ok:false,message:'The complete playlist cannot be previewed yet.'};
   }catch(error){return {ok:false,message:'Could not start this song preview.'}}
@@ -8167,8 +8165,8 @@ function updateMediaSession(url){
     const safe=(action,handler)=>{ try{ navigator.mediaSession.setActionHandler(action,handler); }catch(_e){} };
     safe('previoustrack',()=>previousTrack(true));
     safe('nexttrack',()=>nextTrack(true));
-    safe('play',()=>resumeAudio());
-    safe('pause',()=>requestUserPause());
+    safe('play',()=>geInlineMusicActive?geInlineMusicSend('play'):resumeAudio());
+    safe('pause',()=>geInlineMusicActive?geInlineMusicSend('pause'):requestUserPause());
   }catch(_e){}
 }
 function updateCurrentRow(){window.GEMusicV5?.refresh?.();}
@@ -8568,9 +8566,11 @@ function geCloseQuickSongPanel(){
   titleBtn.setAttribute('aria-expanded','false');
 }
 function geOpenQuickSongPanel(){
-  const tracks=geInlineMusicActive&&gePlaylistQuickQueue.length
+  // The main song selector stays in album order; shuffle affects playback only.
+  const tracks=geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length
     ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
-    :allowedCatalog().filter(url=>!isLegacy(url)&&!isSingles(url)).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
+    :allowedCatalog().filter(url=>!isLegacy(url)&&!isSingles(url))
+      .slice().sort(orderedSort).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
   heading.className='geQuickSongHeading';
@@ -8607,15 +8607,24 @@ function geOpenQuickSongPanel(){
       const selectedPath=canonicalSongPath(url);
       let started=false;
       try{
-        if(geInlineMusicActive&&gePlaylistQuickQueue.length&&
+        if(geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length&&
            canonicalSongPath(gePlaylistQuickQueue[index])===selectedPath){
           started=frame?.GEJumpLibraryQueue?.(index)===true;
+        }else{
+          // SELECT A SONG sets the active track without destroying the main
+          // album-order queue, so NEXT and PREV continue from that exact song.
+          const mainPaths=allowedCatalog().filter(song=>!isLegacy(song)&&!isSingles(song))
+            .slice().sort(orderedSort).map(canonicalSongPath);
+          if(mainPaths.includes(selectedPath)){
+            frame?.GESetMusicQueueShuffle?.(state.shuffle);
+            started=frame?.GEPlayLibraryQueue?.(mainPaths,selectedPath,'MAIN PLAYER PLAYLIST')===true;
+            if(started)gePlaylistQuickSet('MAIN PLAYER PLAYLIST',mainPaths,{custom:false});
+          }
         }
-        if(!started)started=frame?.GEPlayLibraryTrack?.(selectedPath)===true;
       }catch(error){console.warn('Exact song selection failed',error)}
       if(started){
         geInlineMusicCurrentPath=selectedPath;
-        gePlaylistQuickPath=url;
+        gePlaylistQuickPath=selectedPath;
         gePlaylistQuickUpdate();
       }else{
         setStatus('Selected song not ready. Try again after the music library loads.');
