@@ -4405,15 +4405,20 @@ html.ge-radio-ui body.view-ship #musicGroup > #liveStatus.show {
   white-space:nowrap!important;grid-area:auto!important;
   opacity:0!important;pointer-events:none!important;
 }
-/* RELOAD stays coded, but is removed from all visible control layouts.
-   The authorized SUN LAB control uses the same former slot. */
-html.ge-radio-ui body #bottomActions #reloadBtn,
-html.ge-radio-ui body #bottomActions #reloadBtn:not([hidden]),
-html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
-  display:none!important;position:absolute!important;width:0!important;
-  height:0!important;margin:0!important;padding:0!important;
-  border:0!important;pointer-events:none!important;
+/* Reload Library remains visible; the existing reload handler checks access. */
+html.ge-radio-ui body #bottomActions #reloadBtn:not([hidden]){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ position:static!important;width:auto!important;height:auto!important;
+ min-height:36px!important;margin:0!important;padding:6px 8px!important;
+ border:1px solid #72bdec!important;pointer-events:auto!important;
+ opacity:1!important;clip-path:none!important;
 }
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]:not([hidden]){
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ position:static!important;width:auto!important;height:auto!important;
+ min-height:36px!important;pointer-events:auto!important;
+}
+
 @media (orientation:portrait) and (max-width:700px){
   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
@@ -7568,8 +7573,8 @@ function syncRadioOfflineAccessUI(){
     if(!permissions.offline)offlineButton.textContent='OFFLINE';
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
-  // Reload remains implemented but its owner-facing button is intentionally hidden.
-  setUtility($('reloadBtn'),false);
+  // Restore Reload Library for access codes with reload permission.
+  setUtility($('reloadBtn'),permissions.reload);
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -7586,7 +7591,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
