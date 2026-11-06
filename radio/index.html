@@ -6307,7 +6307,7 @@ function savePersonalSongSelection(){
   try{localStorage.setItem(GE_SONG_PICK_KEY,
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
-function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)).slice().sort(orderedSort);}
+function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)&&!isLegacy(url)&&!isSingles(url)).slice().sort(orderedSort);}
 // Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
 async function loadFrozenAutoSongs(){
@@ -8535,7 +8535,7 @@ function geCloseQuickSongPanel(){
 function geOpenQuickSongPanel(){
   const tracks=geInlineMusicActive&&gePlaylistQuickQueue.length
     ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
-    :selectableSongs().map(url=>({url,title:displayTitle(url,!state.shuffle)}));
+    :(geInlineMusicActive ? [] : allowedCatalog()).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
   heading.className='geQuickSongHeading';
