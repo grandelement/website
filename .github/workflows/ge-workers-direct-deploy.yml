@@ -12,6 +12,7 @@ on:
         options:
           - vault
           - backroom
+          - radio-relay
           - both
 
 permissions:
@@ -108,3 +109,12 @@ jobs:
                   raise SystemExit(f'Github playlist API route check failed: expected 401 without login, received HTTP {e.code}')
           print('Verified: GitHub playlist route exists and is protected by owner session.')
           PY
+
+      - name: Deploy GE Radio DJ Relay
+        if: ${{ inputs.service == 'radio-relay' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ge-radio-sync
+          command: deploy
