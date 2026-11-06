@@ -944,7 +944,9 @@ function showAlbums(){
   tile.append(button,play,labelEl);wall.appendChild(tile);
  }
 }
+let geTrackRequestSerial=0;
 async function startTrack(t){
+ const requestSerial=++geTrackRequestSerial;
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
  const grant=musicSession();
  if(grant&&!ownerPreview()&&grant.restricted&&!grant.allowed.includes(t.path)){
@@ -976,6 +978,9 @@ async function startTrack(t){
    }).catch(()=>{if(currentTrack===t)audio.pause()});
   }
   await started;
+  // A previous play() Promise can settle after a newer selection. Never
+  // publish stale metadata or change the current UI from that old request.
+  if(requestSerial!==geTrackRequestSerial||currentTrack!==t)return;
   musicNotice('');
   geRadioEmbedNotify('ge-radio-music-playback-started',{title:label(t)});
  }catch(error){
