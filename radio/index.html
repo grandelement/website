@@ -6650,8 +6650,10 @@ function updateRadioStartupCue(){
   // Do not light RADIO for a mere "loading" event or HTTP 200 HTML.
   // The actual BLITZ MP3 response must deliver audio bytes, or the native
   // audio player must advance before we show a live signal.
-  const playing=(state.live||state.livePreparing)&&!audio.paused&&
-    (radio2.active?observedRadio2Progress:observedRadio1Progress);
+  const recentForwardAudio=radio2.active?
+    (observedRadio2Progress&&Date.now()-lastRadio2Progress<6000):
+    (observedRadio1Progress&&Date.now()-lastRadio1Progress<6000);
+  const playing=(state.live||state.livePreparing)&&!audio.paused&&recentForwardAudio;
   // Host-side signal proof does not mean Safari is playing audible radio.
   const connected=!!(playing&&!audio.muted);
   // ReadyState/canplay may fire for an audio response that never plays.
@@ -6679,7 +6681,7 @@ function liveStreamConfigured(){
   return /^https?:\/\//i.test(String(CONFIG.LIVE_STREAM_URL||'').trim());
 }
 let lastRadio1Progress=Date.now(),lastRadio1Time=NaN,observedRadio1Progress=false;
-let lastRadio2Time=NaN,observedRadio2Progress=false;
+let lastRadio2Time=NaN,observedRadio2Progress=false,lastRadio2Progress=0;
 function markRadio1Attempt(){
   lastRadio1Progress=Date.now();lastRadio1Time=NaN;observedRadio1Progress=false;
   liveState.signalReady=false;
@@ -6964,7 +6966,7 @@ async function preloadStaticRadio(){
     console.warn('GE local radio clocks are unavailable',failure);return null;
    }
   }
- })();
+ })().finally(()=>{if(!geStaticProgram)geStaticLoading=null;});
  return geStaticLoading;
 }
 function staticRadioBegin(program,shouldPlay){
@@ -8657,12 +8659,15 @@ audio.addEventListener('timeupdate',()=>{
   const t=Number(audio.currentTime);
   if(!Number.isFinite(t))return;
   if(radio2.active){
-    if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15&&!observedRadio2Progress){
+    if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15){
+      lastRadio2Progress=Date.now();
+      if(!observedRadio2Progress){
       observedRadio2Progress=true;
       syncMainTransport();
       setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+' · CONNECTED');
       setStatus('Grand Element Radio · local synchronized playlist active');
       updateRadioStartupCue();
+      }
     }
     lastRadio2Time=t;return;
   }
@@ -8701,6 +8706,20 @@ setInterval(()=>{
   if(state.live&&!audio.paused&&!document.hidden&&!radio2.active)
     confirmRadio1ForwardTime(Number(audio.currentTime));
 },900);
+setInterval(()=>{
+  // If audio stops advancing, extinguish the connected indicator even when
+  // Safari continues reporting an old "playing" state.
+  if(!(state.live||state.livePreparing)||audio.paused||document.hidden)return;
+  if(radio2.active){
+   if(observedRadio2Progress&&Date.now()-lastRadio2Progress>6000){
+    observedRadio2Progress=false;updateRadioStartupCue();
+    setLiveStatus('BANGERS · AUDIO STALLED · RECONNECTING');
+    radio2PlayCurrent();
+   }
+  }else if(observedRadio1Progress&&Date.now()-lastRadio1Progress>6000){
+   updateRadioStartupCue();
+  }
+},2500);
 setInterval(()=>{
   // ReadyState alone cannot prove a live MP3 stream is progressing. Only
   // apply this watch after actual time progress was observed, and never
