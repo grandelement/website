@@ -11944,20 +11944,19 @@ try{
 if(geDjOneTimeCode){
  verify(geDjOneTimeCode).then(function(){
   geDjOneTimeCode='';
-  geBoardHeartbeat();
-  if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();
+  if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}
   return true;
  }).catch(function(e){
   geDjOneTimeCode='';
   $('loginStatus').textContent=(e&&e.message)||'Original DJ connection unavailable.';
  });
 }else if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
- verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(e){
+ verify('').then(function(){if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}return true}).catch(function(e){
   // Never call a radio outage an expired Back Room session.
   $('loginStatus').textContent=(e&&e.message)||'DJ radio connection unavailable.';
  });
 }else if(djTrustedId&&djTrustedToken){
- verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(e){
+ verify('').then(function(){if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}return true}).catch(function(e){
   // A 502/503 is an unavailable radio, not proof that trusted device access expired.
   if(e&&(e.status===401||e.status===403)){
    djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
