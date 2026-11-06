@@ -1,4 +1,16 @@
 # GE RADIO / MUSIC — PROTECTED WORKING STANDARD
+
+## Owner update — 2026-11-06 (supersedes the old BLITZ-only playback requirement)
+- The owner reported that BLITZ Radio 1 no longer connects reliably and that BLITZ / Cloudflare limits make continuous provider streaming unacceptable. Preserve the RADIO button, 33:33 Gate, Vault access and original Music UI while providing an independent fallback.
+- The Radio page currently selects a **static, time-synchronized Bangers clock** as its first radio source. Read the original 33-song Bangers order from `playlists/registry.json` and the measured durations from `radio/track-durations.json`. Stream audio directly from public music files. Do not poll BLITZ metadata/FFT/cameras, wake BLITZ, or call the Cloudflare Radio 2 worker in this mode.
+- If Bangers cannot load, the original `radio/sync-playlist.json` is the **GE Backup** clock; its 50-song rotation must NOT be mislabeled Bangers. Do not modify BLITZ's active DJ controller, Radio 2's permanent stored program, or a user's private playlist on this fallback.
+- The Radio indicator must only become red after the current media element's playback time genuinely advances; it must extinguish within seconds of a stall. HTTP 200, `canplay`, or old playback state cannot imply connection.
+- The old deleted Aether Journey path was replaced by the real `Aether_01-The Journey I.mp3` in Bangers to restore its 33-song size. Journey II, Journey III and the other new recordings belong in the general MUSIC library and must not be silently added to the curated station rotation.
+- The catalog's GitHub Action regenerates `radio/manifest.json`, `radio/track-durations.json`, and `support/catalog.json`. Display numbers are not unique identifiers; three distinct Journey recordings can share track number 01.
+- **This is an emergency provider-avoidance route, not proof of production-scale hosting.** The current audio catalog exceeds 1 GB. An independent, provisioned streaming/audio host with adequate bandwidth and valid music delivery must replace GitHub Pages as the long-term distribution origin. A 99% provider-traffic reduction has NOT been measured.
+- Existing BLITZ-only QA expectations below reflect the superseded historical mode. They must be revised to test the new static Bangers route, real media playback, Gate continuity, offline entitlements and exact playlist order rather than merely changing assertions to green.
+- Preserve the previous sections as historical protections for music, Vault, user rights, control placement, and backup recovery where they do not conflict with the new radio source decision.
+
 Status: protected baseline established 2026-10-28
 Scope: Grand Element home, public BLITZ Radio 1, stored Radio 2 infrastructure, GE Music library, playlists, Gate and Back Room integration.
 
