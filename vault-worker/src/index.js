@@ -2449,7 +2449,9 @@ async function accessAdminChange(request,env){
     if(experience?.error)return json({ok:false,error:experience.error},400);
     // GitHub playlist IDs are references to the saved song snapshot only.
     // A reference without explicit tracks must not grant mutable blanket access.
-    if(assignments.playlist_ids.some(x=>/^playlist_[a-z0-9]+$/i.test(x))&&!assignments.track_paths.length)
+    // All newly assigned playlists must use immutable song snapshots.
+    // GitHub playlist IDs may be legacy hex IDs or newer playlist_ IDs.
+    if(assignments.playlist_ids.length&&!assignments.track_paths.length)
       return json({ok:false,error:"Load the GitHub playlist songs before issuing this code."},400);
     const requested=String(body.requested_code||"").trim().toUpperCase();
     if(requested&&(!/^[A-Z0-9\s-]{4,100}$/.test(requested)||
@@ -2510,15 +2512,14 @@ async function accessAdminChange(request,env){
     const experience=normalizedCodeExperience(body);
     if(experience?.error)return json({ok:false,error:experience.error},400);
     for(const playlistId of assignments.playlist_ids){
-      if(/^playlist_[a-z0-9]+$/i.test(playlistId)){
-        if(!assignments.track_paths.length)return json({ok:false,error:"Load the GitHub playlist songs before saving."},400);
-        // This is a reference to the GitHub playlist master, not a D1 grant.
-        // The immutable track snapshot is always the actual entitlement.
+      if(assignments.track_paths.length){
+        // Immutable song snapshot is the entitlement. Keep the exact GitHub ID
+        // regardless of its format; do not require a duplicate D1 playlist.
         continue;
       }
-      // Older D1 playlist references remain valid for backward compatibility.
+      // Preserve older D1-only grants without inventing a new permission.
       const match=await env.VAULT_DB.prepare("SELECT id FROM playlists WHERE id=?").bind(playlistId).first();
-      if(!match)return json({ok:false,error:"One legacy D1 playlist no longer exists."},400);
+      if(!match)return json({ok:false,error:"Load the playlist songs before saving. No permissions were changed."},400);
     }
     // Editing never replaces the secret, clears existing usage, or restarts elapsed time.
     const expiry=mode==="fixed"?fixed:mode==="activation"&&existing.activated_at?existing.activated_at+seconds
