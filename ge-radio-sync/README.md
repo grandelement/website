@@ -38,3 +38,14 @@
 Cloudflare Worker/Durable Object creation and its secret have **not** been completed in the account. The existing GE Vault Worker source and its administrative deployment configuration are not in the connected GitHub repository. Do not falsely claim the new player controls real listeners, that the Worker is live, or that this changes the blocked Blitz container.
 
 The safe next step is to connect/provision the **free** GE Radio Worker, verify its published manifest, and then release tested static UI to production \`main\` without rebuilding Blitz.
+
+
+## GE Back Room owner DJ sign-in (staged, not yet live)
+
+The GE iMac DJ page can send the existing Back Room session to this Worker. The relay verifies it against the Back Room publisher `/session` endpoint. Once verified, the relay forwards a server-side BLITZ credential to the existing radio control API. The password is never sent to the browser by this bridge.
+
+**Deployment prerequisite:** Add encrypted Cloudflare Worker secret `BLITZ_DJ_PASSWORD` to `ge-radio-sync`, equal to the current BLITZ `DJ_PASSWORD`. Never commit the value. Deploy the radio relay from GitHub Actions workflow **GE Studios Workers — direct Cloudflare deploy**, option **radio-relay**. The existing Back Room publisher Worker must be available at its current URL.
+
+**Test:** Sign in at `https://grandelement.com/backroom/` and, in the same browser tab/session origin, open `https://grandelement.com/dj/imac.html`, select CONNECT TO BLITZ. Verify `/control/status` and a harmless read-only DJ control call. Existing DJ code and trusted-device sign-in remain available when the Back Room session is absent.
+
+**Important:** This is an interim bridge. BLITZ still requires `DJ_PASSWORD` on its server. Do not delete it until the radio server is migrated to accept verified owner assertions and that change is deployed and tested. GitHub source commits alone do not deploy Cloudflare or BLITZ.
