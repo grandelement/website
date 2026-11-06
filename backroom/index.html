@@ -2563,8 +2563,8 @@ const backroomVaultManagers=(()=>{
   let playlistChoiceIds=new Set();
   let accessSelectedPlaylistIds=new Set();
   let playlistLoaded=false,accessLoaded=false,codeRows=[],selectedViewPlaylistId='',legacyLoveAudit=null;
-  // Access Codes reads the ORIGINAL BLITZ DJ playlist source. GitHub's
-  // owner-curated registry is separately maintained in the Music editor.
+  // The GitHub registry is the single playlist master for Access Codes.
+  // The legacy BLITZ list is a separate radio source, never an access-code master.
   let accessDJPlaylists=[],accessDJLoaded=false,accessDJSource='',accessDJError='',accessDefaultsPending=false;
   let revealedKeyRecordId='';
   const status=(id,text)=>{const el=$(id);if(el)el.textContent=String(text||'')};
@@ -3108,6 +3108,8 @@ const backroomVaultManagers=(()=>{
       const old=playlistEditingId;
       playlists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string');
       playlistLoaded=true;
+      // The Access Codes editor displays the SAME GitHub playlists as Music.
+      applyDJAccessPlaylists(playlists,'GITHUB · SHARED PLAYLIST MASTER');
       const found=playlists.find(p=>p.id===old)||playlists.find(p=>p.name.toLowerCase()==='bangers')||playlists[0];
       if(preserveEditor)renderPlaylistChooser();
       else editPlaylist(found?.id||'');
@@ -3251,8 +3253,8 @@ const backroomVaultManagers=(()=>{
     return'Active';
   }
   function selectedCode(){return codeRows.find(x=>String(x.id)===selectedCodeId)||null;}
-  // Convert original /control/playlists rows (paths[]) and the identical
-  // /v1/playlists D1 rows (tracks[]) into one read-only Access Codes view.
+  // Convert GitHub playlist registry tracks into the Access Codes checklist.
+  // A selected playlist is snapshotted to explicit song permissions on save.
   // No copies are saved, deleted, or made public by this conversion.
   function normalizeDJAccessPlaylist(p){
     if(!p||typeof p.id!=='string'||typeof p.name!=='string')return null;
@@ -3268,27 +3270,18 @@ const backroomVaultManagers=(()=>{
   }
   function accessPlaylistSource(){return accessDJLoaded?accessDJPlaylists:[];}
   function applyDJAccessPlaylists(items,source,warning=''){
-    if(!Array.isArray(items))throw Error('Original DJ did not return a playlist list.');
+    if(!Array.isArray(items))throw Error('GitHub did not return a playlist list.');
     accessDJPlaylists=items.map(normalizeDJAccessPlaylist).filter(Boolean);
     accessDJLoaded=true;accessDJSource=source;accessDJError=warning;
     accessPlaylistOptions();renderAccessCodes();
   }
   async function refreshDJAccessPlaylists(){
-    try{
-      // Use the EXACT original DJ Booth playlist reader, not a second store.
-      const saved=await geDJApi('/control/playlists');
-      if(!Array.isArray(saved?.items))throw Error('Original DJ returned an invalid playlist list.');
-      applyDJAccessPlaylists(saved.items,
-        saved.vault_source?'ORIGINAL DJ BOOTH · VAULT':'ORIGINAL DJ BOOTH · LIVE/RECOVERY',
-        saved.vault_error?'DJ Vault: '+String(saved.vault_error):'');
+    // The original DJ backend must not hold the Access Codes checklist hostage.
+    if(playlistLoaded){
+      applyDJAccessPlaylists(playlists,'GITHUB · SHARED PLAYLIST MASTER');
       return true;
-    }catch(error){
-      accessDJLoaded=false;accessDJPlaylists=[];accessDJSource='';
-      accessDJError='ORIGINAL DJ BOOTH NOT CONNECTED · '+String(error.message||error)+
-        ' · Sign in to the original DJ Booth to load its playlists.';
-      accessPlaylistOptions();
-      return false;
     }
+    return refreshPlaylists();
   }
   function accessPlaylistOptions(){
     const source=accessPlaylistSource(),select=$('brAccessPlaylist'),current=select.value;
@@ -3296,7 +3289,7 @@ const backroomVaultManagers=(()=>{
       accessSelectedPlaylistIds=new Set(source.map(p=>p.id));
       accessDefaultsPending=false;
     }
-    select.replaceChildren(new Option('ORIGINAL DJ PLAYLIST',''));
+    select.replaceChildren(new Option('GITHUB PLAYLIST',''));
     for(const p of source)select.appendChild(new Option(p.name,p.id));
     select.value=[...select.options].some(o=>o.value===current)?current:'';
     select.disabled=!source.length;
@@ -3309,16 +3302,16 @@ const backroomVaultManagers=(()=>{
     const host=$('brAccessPlaylistChoices'),priorScroll=host.scrollTop;host.replaceChildren();
     if(!accessDJLoaded){
       host.appendChild(create('p',accessDJError?'DJ PLAYLIST CONNECTION ERROR · '+accessDJError:
-        'LOADING ORIGINAL DJ PLAYLISTS AUTOMATICALLY…','sub'));
-      $('brAccessPlaylistNotice').textContent=accessDJError?'ORIGINAL DJ PLAYLISTS UNAVAILABLE · Saved codes are unchanged.':
-        'ORIGINAL DJ BOOTH · CONNECTING AUTOMATICALLY';
+        'LOADING GITHUB PLAYLISTS AUTOMATICALLY…','sub'));
+      $('brAccessPlaylistNotice').textContent=accessDJError?'GITHUB PLAYLISTS UNAVAILABLE · Saved codes are unchanged.':
+        'GITHUB PLAYLISTS · CONNECTING AUTOMATICALLY';
       return;
     }
     $('brAccessPlaylistNotice').textContent=accessDJSource+
       ' · CHECKED = ALLOWED · UNCHECKED = DENIED · SAVE CODE TO APPLY'+
       (accessDJError?' · '+accessDJError:'');
     if(!source.length){
-      host.appendChild(create('p','Original DJ Booth returned no saved playlists. No playlists were created or erased.','sub'));
+      host.appendChild(create('p','GitHub returned no saved playlists. No playlists were created or erased.','sub'));
       return;
     }
     for(const p of source){
@@ -3326,7 +3319,7 @@ const backroomVaultManagers=(()=>{
       label.style.cssText='display:flex;align-items:center;gap:10px;min-height:51px;padding:9px;margin:4px 0;border:1px solid #315776;border-radius:9px;background:#0a2539';
       const box=document.createElement('input');box.type='checkbox';
       box.checked=accessSelectedPlaylistIds.has(p.id);
-      box.setAttribute('aria-label','Allow original DJ playlist '+p.name);
+      box.setAttribute('aria-label','Allow GitHub playlist '+p.name);
       box.addEventListener('change',()=>{
         box.checked?accessSelectedPlaylistIds.add(p.id):accessSelectedPlaylistIds.delete(p.id);
         accessDefaultsPending=false;accessPlaylistOptions();
@@ -3338,7 +3331,7 @@ const backroomVaultManagers=(()=>{
     host.scrollTop=priorScroll;
     const unavailable=[...accessSelectedPlaylistIds].filter(id=>!source.some(p=>p.id===id));
     if(unavailable.length)host.appendChild(create('p',
-      unavailable.length+' older saved playlist permission(s) are not in the current DJ list. They are not removed unless you deliberately change and save permissions.','sub'));
+      unavailable.length+' older saved playlist permission(s) are not in the current GitHub list. They remain unchanged unless you deliberately edit and save permissions.','sub'));
   }
   function accessSongOptions(){
     const host=$('brAccessSongChecklist'),query=String($('brAccessSongSearch').value||'').trim().toLowerCase();
@@ -3553,7 +3546,7 @@ const backroomVaultManagers=(()=>{
       (love.length?love.map(r=>r.label+' ['+r.id+'] '+statusCode(r)).join(' / '):'NOT FOUND IN RETURNED LIST · D1 AUDIT UNAVAILABLE');
     host.textContent='PRIVATE VAULT: '+codeRows.length+' SAVED RECORD(S) · LOVE: '+
       loveState+
-      ' · ORIGINAL DJ PLAYLISTS: '+(accessDJLoaded?accessDJPlaylists.length:'NOT CONNECTED')+
+      ' · GITHUB PLAYLISTS: '+(accessDJLoaded?accessDJPlaylists.length:'NOT CONNECTED')+
       ' ('+playlistNames+') · MUSIC CATALOG: '+catalog.length+' TRACK(S).';
   }
   function renderAccessCodes(){
@@ -3666,18 +3659,18 @@ const backroomVaultManagers=(()=>{
     const changed=selected.length!==previous.length||selected.some(id=>!appliedPlaylistIds.has(id));
     // Editing a name or duration must not revoke an old playlist while the DJ is offline.
     if(!changed)return {playlist_ids:previous,track_paths:assignedSongPaths.slice()};
-    if(!accessDJLoaded)throw Error('Original DJ playlists are not connected. Saved permissions were not changed.');
+    if(!accessDJLoaded)throw Error('GitHub playlists are not connected. Saved permissions were not changed.');
     const available=accessPlaylistSource(),chosen=available.filter(p=>selected.includes(p.id));
-    if(chosen.length!==selected.length)throw Error('A selected playlist is not in the original DJ list. Reconnect before saving.');
+    if(chosen.length!==selected.length)throw Error('A selected playlist is not in the GitHub library. Reconnect before saving.');
     const oldSongs=new Set(available.filter(p=>appliedPlaylistIds.has(p.id))
       .flatMap(p=>p.tracks.map(t=>t.track_path)));
     const manual=assignedSongPaths.filter(path=>!oldSongs.has(path));
     const tracks=chosen.flatMap(p=>p.tracks.map(t=>t.track_path));
-    if(selected.length&&!tracks.length)throw Error('Selected original DJ playlists have no songs.');
+    if(selected.length&&!tracks.length)throw Error('Selected GitHub playlists have no songs.');
     const paths=[...new Set([...manual,...tracks])];
     if(paths.length>250)throw Error('Access Codes can grant at most 250 selected songs.');
     const missing=tracks.filter(path=>!catalog.some(t=>t.track_path===path));
-    if(missing.length)throw Error('Original DJ playlist songs missing from GE catalog: '+missing.length+'. Check catalog synchronization before saving.');
+    if(missing.length)throw Error('GitHub playlist songs missing from GE catalog: '+missing.length+'. Check catalog synchronization before saving.');
     return {playlist_ids:selected,track_paths:paths};
   }
   function codePayload(){
@@ -3701,7 +3694,7 @@ const backroomVaultManagers=(()=>{
     const mode=$('brAccessMode').value,raw=$('brAccessFixed').value;
     const fixed=mode==='fixed'?Math.floor(new Date(raw).getTime()/1000):null;
     if(mode==='fixed'&&!Number.isFinite(fixed))throw Error('Choose a valid expiration date.');
-    if(!existing&&!accessDJLoaded)throw Error('Original DJ playlists must load before creating a new access code.');
+    if(!existing&&!accessDJLoaded)throw Error('GitHub playlists must load before creating a new access code.');
     const assignments=selectedAccessAssignments();
     return {label,display_name:displayName,scopes,duration_mode:mode,duration_hours:Number($('brAccessHours').value),
       fixed_expires_at:fixed,max_uses:Number($('brAccessMaxUses').value),
@@ -3925,29 +3918,28 @@ const backroomVaultManagers=(()=>{
       return false;
     }
     reconnectInProgress=true;
-    vaultIndicator('CHECKING','Checking saved Access Codes and original BLITZ DJ playlists.');
+    vaultIndicator('CHECKING','Checking saved Access Codes in Vault and shared playlists in GitHub.');
     const button=$('brVaultConnection');button.disabled=true;
     $('brAccessSearch').value='';
-    accessStatus('CONNECTING TO PRIVATE ACCESS CODES AND ORIGINAL DJ BOOTH…');
+    accessStatus('CONNECTING TO PRIVATE ACCESS CODES AND GITHUB PLAYLISTS…');
     try{
-      const results=await Promise.allSettled([refreshCodes(),refreshPlaylists(),refreshDJAccessPlaylists()]);
+      // Both lists are independent: one outage must not hide the other.
+      const results=await Promise.allSettled([refreshCodes(),refreshPlaylists()]);
       const codesOk=results[0].status==='fulfilled'&&results[0].value===true;
       const githubOk=results[1].status==='fulfilled'&&results[1].value===true;
-      const djOk=results[2].status==='fulfilled'&&results[2].value===true;
       const errors=results.filter(r=>r.status==='rejected').map(r=>String(r.reason?.message||r.reason));
       if(errors.length)accessStatus('CONNECTION ERROR · '+errors.join(' · '));
       try{renderAccessCodes();updateSourceAudit()}catch(error){accessStatus('DISPLAY ERROR · '+String(error.message||error));}
-      const verified=codesOk&&djOk;
+      const verified=codesOk&&githubOk;
       const codesText=codesOk?'CODES: '+codeRows.length:'CODES: UNAVAILABLE';
-      const djText='DJ PLAYLISTS: '+(djOk?accessDJPlaylists.length:'UNAVAILABLE');
+      const playlistText='GITHUB PLAYLISTS: '+(githubOk?playlists.length:'UNAVAILABLE');
       const checkedAt='CHECKED '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
       summary.hidden=false;
-      summary.textContent=codesText+' · '+djText+' · '+checkedAt;
-      vaultIndicator(verified?'CONNECTED':(codesOk||djOk)?'PARTIAL':'OFFLINE',
-        codesText+'; '+djText+'; GITHUB MUSIC: '+(githubOk?'CONNECTED':'UNAVAILABLE')+
-        (accessDJError?'; '+accessDJError:''));
-      accessStatus(codesText+' · '+djText+
-        (verified?' · '+accessDJSource:' · ORIGINAL DJ CONNECTION UNVERIFIED')+
+      summary.textContent=codesText+' · '+playlistText+' · '+checkedAt;
+      vaultIndicator(verified?'CONNECTED':(codesOk||githubOk)?'PARTIAL':'OFFLINE',
+        codesText+'; '+playlistText+(accessDJError?'; '+accessDJError:''));
+      accessStatus(codesText+' · '+playlistText+
+        (verified?' · PRIVATE VAULT + GITHUB VERIFIED':' · CHECK CONNECTION DETAILS')+
         (accessDJError?' · '+accessDJError:''));
       return verified;
     }catch(error){
@@ -4578,7 +4570,7 @@ const backroomVaultManagers=(()=>{
     openTab(current);
     // Connect on Back Room open as well, not just when the user finds PLAYLISTS.
     if(authReady()&&current!=='playlists'&&current!=='access')
-      void Promise.allSettled([refreshPlaylists(),refreshDJAccessPlaylists()]);
+      void refreshPlaylists();
   }
   return{init};
 })();
