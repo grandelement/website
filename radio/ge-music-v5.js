@@ -1782,15 +1782,14 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
     !LEGACY_ALBUMS.has(t.album)&&t.album!=='Singles'&&
     (!access?.restricted||access.allowed.includes(t.path)));
   if(!permitted.length){say('No playable non-Legacy songs are in the library.');return false}
+  // Keep the album-order queue stable. Shuffle selects a random starting
+  // track and the preview engine shuffles NEXT, not the song list itself.
   const queue=permitted.map(t=>t.path);
-  for(let i=queue.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [queue[i],queue[j]]=[queue[j],queue[i]];
-  }
-  const first=state.tracks.find(t=>t.path===queue[0]);
+  const shuffle=window.GEMusicV5Bridge?.shuffleEnabled?.()!==false;
+  const first=permitted[shuffle?Math.floor(Math.random()*permitted.length):0];
   return playTrack(first,queue,true,true);
  },
- refresh:()=>{if(state.open)render()},reloadLibrary:()=>void fetchCatalog(),
+ refresh:()=>{if(state.open)render()},reloadLibrary:()=>fetchCatalog(),
  reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 // Load at startup rather than making the listener press PLAY twice while
