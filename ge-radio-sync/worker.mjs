@@ -133,7 +133,21 @@ async function authorizedDj(request,env){
 // BLITZ v167 intentionally emits no CORS headers on private /control routes.
 // The Worker forwards only authenticated DJ control requests to a FIXED host.
 // It never embeds, stores, or logs the short DJ password or device credentials.
-async function relayBlitzControl(request){
+// Owner Back Room sessions are verified by the existing publisher Worker.
+// A server-side BLITZ credential is never exposed to the DJ browser.
+async function verifiedBackroomOwner(request,env){
+  const auth=request.headers.get("Authorization")||"";
+  if(!/^Bearer [A-Za-z0-9_.-]{20,4096}$/.test(auth))return false;
+  try{
+    const response=await fetch("https://ge-backroom-publisher.grandelement.workers.dev/session",{
+      method:"GET",headers:{"Authorization":auth},cache:"no-store",redirect:"error"
+    });
+    if(!response.ok)return false;
+    const result=await response.json();
+    return result.ok===true;
+  }catch(_){return false}
+}
+async function relayBlitzControl(request,env){
   const origin=request.headers.get("Origin");
   if(origin&&!GOOD_ORIGINS.has(origin))return json({ok:false,error:"Unapproved GE DJ origin."},403,request);
   const input=new URL(request.url);
@@ -147,6 +161,12 @@ async function relayBlitzControl(request){
   for(const name of allowed){
     const value=request.headers.get(name);
     if(value&&value.length<=1024)auth.set(name,value);
+  }
+  const owner=await verifiedBackroomOwner(request,env);
+  if(owner){
+    if(!env.BLITZ_DJ_PASSWORD)return json({ok:false,error:"Owner DJ bridge is not configured in Cloudflare."},503,request);
+    auth.delete("X-GE-DJ-Device-ID");auth.delete("X-GE-DJ-Device-Token");
+    auth.set("X-GE-DJ-Key",String(env.BLITZ_DJ_PASSWORD));
   }
   if(!auth.has("X-GE-DJ-Key")||auth.get("X-GE-DJ-Key")===""){
     if(!auth.has("X-GE-DJ-Device-ID")||!auth.has("X-GE-DJ-Device-Token"))
@@ -311,7 +331,7 @@ export default {
  async fetch(request,env){
   const path=new URL(request.url).pathname,now=Date.now();
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request)});
-  if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request);
+  if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request,env);
   if(path==="/v1/dj-uploads"||path==="/v1/dj-uploads/file"||path==="/v1/dj-uploads/artwork")return gePrivateUploads(request,env);
   if(path==="/v1/program"&&request.method==="GET"){
     try{const p=await program(env);return json({ok:true,server_now_ms:now,program:p},200,request);}
