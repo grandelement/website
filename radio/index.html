@@ -9652,9 +9652,13 @@ async function registerServiceWorker(){
     const missing=Math.max(0,Number(audit?.missingSongs)||0);
     const lastFocus=document.activeElement;
     title.textContent=setupOnly?'Finish Offline Setup':'Offline Downloads';
+    const missingNames=(audit?.missing||[]).filter(item=>item.type==='song')
+      .map(item=>{try{return decodeURIComponent(new URL(item.url).pathname.split('/').pop());}catch(_){return 'Unknown song';}})
+      .slice(0,15);
     detail.textContent=setupOnly
       ?saved+' of '+total+' songs saved on this device.\nThe offline Radio webpage needs repair. The music will be kept.'
-      :saved+' of '+total+' songs saved on this device.\n'+missing+' songs still need downloading.';
+      :saved+' of '+total+' songs saved on this device.\n'+missing+' songs still need downloading.'+
+        (missingNames.length?'\nMissing files:\n'+missingNames.join('\n'):'');
     resume.textContent=setupOnly?'FINISH SETUP':'RESUME '+missing+' SONG'+(missing===1?'':'S');
     restart.textContent='START OVER';
     cancel.textContent='CANCEL';
@@ -10527,18 +10531,16 @@ async function registerServiceWorker(){
 
   (async()=>{
     try{
-      const planned=await scanApprovedPlan();
-      if(planned){
-        // A completed or partial offline download belongs to the listener.
-        // On each visit, check its status but NEVER launch download/permission
-        // dialogs, retry missing backgrounds, or start a new fetch automatically.
-        // Migrate older approved plans that had autoResume=true, preserving every
-        // cached song and the manually resumable asset list.
-        if(planned.plan.autoResume) await setOfflinePlanAutoResume(false);
-        return;
+      // Online startup must audit the LATEST inventory, not a months-old
+      // saved download plan that keeps showing "Resume 10 Songs".
+      if(navigator.onLine!==false){
+        try{await scanExistingAssets();return;}
+        catch(error){console.warn('Fresh offline audit unavailable',error);}
       }
-      await scanExistingAssets();
-    }catch(_e){}
+      // Offline or unavailable GitHub: show saved plan status only.
+      const planned=await scanApprovedPlan();
+      if(planned?.plan?.autoResume)await setOfflinePlanAutoResume(false);
+    }catch(error){console.warn('Offline status scan failed',error);}
   })();
 
   // Read-only offline diagnostics. No network, no cache clearing and no
@@ -10652,10 +10654,9 @@ async function refreshTemplateAssetsForOffline(){
   return {refreshed,failed};
 }
 
-// Manual library updater.
-// Reload Library means UPDATE + RESET TO NORMAL RADIO.
-// Shared links remain exact snapshots when opened, but pressing Reload Library
-// leaves that snapshot and returns to the normal randomized station defaults.
+// Manual music library updater.
+// RELOAD updates the catalog, master approvals, and available artwork.
+// It MUST NOT start audio, change the user's mode or reset the active queue.
 $('reloadBtn').addEventListener('click',async()=>{
   const button=$('reloadBtn');
   const original=button.textContent;
@@ -10675,19 +10676,13 @@ $('reloadBtn').addEventListener('click',async()=>{
 
     // Read the actual repository tree. This is what detects new files,
     // deleted files, and same-filename replacements by Git blob SHA.
-    let library=null;
-    try{
-      const tree=await fetchRepositoryTree();
-      library=libraryFromRepositoryTree(tree);
-    }catch(error){
-      console.warn('GitHub tree reload failed; using manifests.',error);
-    }
-
-    if(library && library.catalog.length){
-      state.catalog=library.catalog.slice().sort(orderedSort);
-    }else{
-      state.catalog=(await loadMusicManifest(true)).sort(orderedSort);
-    }
+    const tree=await fetchRepositoryTree();
+    const library=libraryFromRepositoryTree(tree);
+    if(!library?.catalog?.length)throw Error('GitHub library scan found no songs');
+    state.catalog=library.catalog.slice().sort(orderedSort);
+    // Radio Master approval is a separate config file: refreshing the audio
+    // inventory alone can never make a newly approved album playable.
+    if(!(await loadFrozenAutoSongs()))throw Error('Radio Master approval list did not refresh');
 
     let freshBackgrounds=[];
     if(library && library.backgrounds.length){
@@ -10711,7 +10706,10 @@ $('reloadBtn').addEventListener('click',async()=>{
       saveMediaShaMap(library.shaMap);
     }
 
-    try{window.GEMusicV5?.reloadLibrary?.();}catch(error){console.warn('Music catalog reload failed',error);}
+    try{await window.GEMusicV5?.reloadLibrary?.();}catch(error){
+      console.warn('Music catalog reload failed',error);
+      throw Error('Protected Music catalog failed to reload');
+    }
 
     // Refresh the template/cockpit shell without clearing any previously downloaded music.
     let templateResult={refreshed:0,failed:0};
@@ -10727,62 +10725,26 @@ $('reloadBtn').addEventListener('click',async()=>{
     const newImages=freshBackgrounds.filter(name=>!previousBackgrounds.has(name)).length;
     const removedImages=[...previousBackgrounds].filter(name=>!freshBackgrounds.includes(name)).length;
 
-    // -------- RESET THE RADIO TO ITS NORMAL DEFAULT STATE --------
-    // A shared URL is only the saved snapshot that opened the radio.
-    // Once Reload Library is pressed, remove that snapshot from the address.
-    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
-
-    state.shuffle=true;
-    state.legacy=false;
-    state.history=[];
-    state.historyPos=-1;
-    state.recent=[];
-    state.pendingAfterStation=null;
-    state.upNext=[];
-    state.stationCountdown=randomInt(CONFIG.STATION_ID_MIN_SONGS,CONFIG.STATION_ID_MAX_SONGS);
-
+    // Preserve current PLAY/PAUSE, selected song, ALBUM/SHUFFLE mode and
+    // background settings. A catalog refresh is never a playback request.
+    rebuildQueue(state.currentURL);
     syncModeButtons();
-    rebuildQueue('');
-
-    if(window.GEBackgrounds?.resetDefaults){
-      window.GEBackgrounds.resetDefaults();
-    }
-
-    // Preserve the listener's Hide Text preference across a library/template reload.
-    document.body.classList.remove('hud-hidden');
-
-    const start=pickWeightedShuffle();
-    if(start){
-      recordHistory(start);
-      // forceReload is important if the random song happens to be a file that
-      // was just replaced while keeping the same filename.
-      await playURL(start,{
-        record:false,
-        backgroundChange:false,
-        userAction:true,
-        forceReload:true
-      });
-    }
 
     const totalChanges=
       newSongs+removedSongs+newImages+removedImages+
       mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed+templateResult.refreshed;
 
-    button.textContent=totalChanges?`Updated ${totalChanges}`:'Reset & Ready';
+    button.textContent=totalChanges?`Updated ${totalChanges}`:'Library Current';
 
     setStatus(
-      `Radio reset. ${newSongs} new song${newSongs===1?'':'s'}, `+
+      `Library updated without changing playback. ${newSongs} new song${newSongs===1?'':'s'}, `+
       `${removedSongs} removed song${removedSongs===1?'':'s'}, `+
       `${mediaResult.refreshed} replaced file${mediaResult.refreshed===1?'':'s'} refreshed, `+
       `${newImages} new image${newImages===1?'':'s'}, `+
       `${templateResult.refreshed} template asset${templateResult.refreshed===1?'':'s'} refreshed.`
     );
 
-    setTimeout(()=>{
-      const next=new URL(location.pathname,location.href);
-      next.searchParams.set('_ge_template',String(Date.now()));
-      location.replace(next.href);
-    },700);
+    setTimeout(()=>{if(button.textContent!=='Updating...')button.textContent=original;},2400);
   }catch(error){
     console.error('GE reload/reset failed',error);
     setStatus('Library update could not finish. Check the Internet connection and try again.');
