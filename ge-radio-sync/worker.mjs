@@ -165,10 +165,14 @@ async function relayBlitzControl(request,env){
     const value=request.headers.get(name);
     if(value&&value.length<=1024)auth.set(name,value);
   }
+  // Respect existing BLITZ DJ credentials. A Back Room session must not
+  // replace the original DJ code or an already trusted device with a
+  // potentially stale server-side secret.
   const owner=await verifiedBackroomOwner(request,env);
-  if(owner){
+  const directKey=!!auth.get("X-GE-DJ-Key");
+  const trustedDevice=!!auth.get("X-GE-DJ-Device-ID")&&!!auth.get("X-GE-DJ-Device-Token");
+  if(owner&&!directKey&&!trustedDevice){
     if(!env.BLITZ_DJ_PASSWORD)return json({ok:false,error:"Owner DJ bridge is not configured in Cloudflare."},503,request);
-    auth.delete("X-GE-DJ-Device-ID");auth.delete("X-GE-DJ-Device-Token");
     auth.set("X-GE-DJ-Key",String(env.BLITZ_DJ_PASSWORD));
   }
   if(!auth.has("X-GE-DJ-Key")||auth.get("X-GE-DJ-Key")===""){
