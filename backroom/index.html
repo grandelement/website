@@ -1356,14 +1356,18 @@ function geDJAuthHeaders(){
     id=localStorage.getItem('geDjTrustedIdV1')||'';
     trusted=localStorage.getItem('geDjTrustedTokenV1')||'';
   }catch(_e){}
-  if(pass||cachedPassword)headers['X-GE-DJ-Key']=pass||cachedPassword;
+  // Back Room is the owner identity for the radio relay.
+  // Keep existing DJ credentials as a fallback only when no owner session exists.
+  const ownerSession=(function(){try{return sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||''}catch(_e){return ''}})();
+  if(ownerSession)headers['Authorization']='Bearer '+ownerSession;
+  else if(pass||cachedPassword)headers['X-GE-DJ-Key']=pass||cachedPassword;
   if(id&&trusted){headers['X-GE-DJ-Device-ID']=id;headers['X-GE-DJ-Device-Token']=trusted;}
   return headers;
 }
 async function geDJApi(path,payload){
   const headers=geDJAuthHeaders();
-  if(!headers['X-GE-DJ-Key']&&!headers['X-GE-DJ-Device-Token'])
-    throw Error('DJ sign-in needed · enter DJ password above, or sign in to the original DJ Booth in this browser.');
+  if(!headers['Authorization']&&!headers['X-GE-DJ-Key']&&!headers['X-GE-DJ-Device-Token'])
+    throw Error('Radio authorization needed · sign in to Back Room, or use the original DJ code.');
   if(payload!==undefined)headers['Content-Type']='application/json';
   const response=await fetch('https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy'+path,{
     method:payload===undefined?'GET':'POST',headers,cache:'no-store',
