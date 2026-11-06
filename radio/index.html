@@ -4734,6 +4734,31 @@ html body #shipStage [data-proxy="legacyBtn"] {
 #geOfflineDecision button[hidden]{display:none!important}
 #geOfflineDecision button:focus-visible{outline:3px solid #a1e9ff!important;outline-offset:2px!important}
 </style>
+<style id="ge-radio-offline-sunlab-compact-20261106">
+/* Offline owns catalog refresh. Keep the mobile utility controls in two rows. */
+html.ge-radio-ui body #bottomActions #reloadBtn,
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
+ display:none!important;position:absolute!important;width:0!important;
+ height:0!important;pointer-events:none!important;
+}
+@media (orientation:portrait) and (max-width:700px){
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,minmax(36px,auto))!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #sunLabBtn:not([hidden]){
+  grid-area:2/1/3/2!important;display:flex!important;position:static!important;
+  min-width:0!important;min-height:36px!important;
+  align-items:center!important;justify-content:center!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions .bc-btn{
+  grid-area:2/2/3/3!important;
+ }
+ html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions #offlineBtn{
+  grid-area:2/3/3/4!important;
+ }
+}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -5199,7 +5224,7 @@ html body #shipStage [data-proxy="legacyBtn"] {
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="reloadBtn" type="button">Reload Library</button>
+    <button id="reloadBtn" type="button" hidden>Reload Library</button>
     <button id="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
@@ -7581,7 +7606,7 @@ function syncRadioOfflineAccessUI(){
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
   // Restore Reload Library for access codes with reload permission.
-  setUtility($('reloadBtn'),true); // Public catalog refresh; protected offline downloads remain separately gated.
+  setUtility($('reloadBtn'),false); // Offline performs its own fresh catalog check.
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -7598,7 +7623,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),true);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
@@ -10292,6 +10317,30 @@ async function registerServiceWorker(){
       // A stale Vault grant is reported visibly, without touching saved songs.
       await showOfflineAccessNotice();
       return;
+    }
+
+    // Always check the published manifest and GitHub tree before deciding
+    // whether the offline library is complete. Never erase saved songs here.
+    if(navigator.onLine!==false){
+      panel.style.display='block';
+      text.textContent='Checking latest music library before offline download…';
+      try{
+        const fresh=await loadMusicManifest(true);
+        if(!fresh.length)throw Error('Published music manifest is empty');
+        const tree=await fetchRepositoryTree();
+        const latest=libraryFromRepositoryTree(tree);
+        if(!latest.catalog.length)throw Error('GitHub music library is empty');
+        const manifestPaths=new Set(fresh.map(canonicalSongPath));
+        const missing=latest.catalog.filter(url=>!manifestPaths.has(canonicalSongPath(url)));
+        if(missing.length)throw Error(missing.length+' GitHub tracks are missing from the published manifest');
+        state.catalog=latest.catalog.slice().sort(orderedSort);
+        rebuildQueue(state.currentURL);
+        window.GEMusicV5?.reloadLibrary?.();
+      }catch(error){
+        text.textContent='Offline update stopped: '+String(error?.message||error)+'. Existing downloads were kept.';
+        setStatus('Cannot verify the complete current music library. No download started.');
+        return;
+      }
     }
 
     // Partial music resumes; complete music with a missing webpage offers
