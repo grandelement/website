@@ -139,9 +139,12 @@ async function verifiedBackroomOwner(request,env){
   const auth=request.headers.get("Authorization")||"";
   if(!/^Bearer [A-Za-z0-9_.-]{20,4096}$/.test(auth))return false;
   try{
-    const response=await fetch("https://ge-backroom-publisher.grandelement.workers.dev/session",{
+    // Same-account Workers must use the private service binding.
+    // Public workers.dev fetches can fail without reaching the Publisher.
+    if(!env.GE_BACKROOM_PUBLISHER?.fetch)return false;
+    const response=await env.GE_BACKROOM_PUBLISHER.fetch(new Request("https://ge-backroom-publisher.grandelement.workers.dev/session",{
       method:"GET",headers:{"Authorization":auth},cache:"no-store",redirect:"error"
-    });
+    }));
     if(!response.ok)return false;
     const result=await response.json();
     return result.ok===true;
