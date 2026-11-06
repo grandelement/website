@@ -7719,7 +7719,9 @@ async function loadAnalytics(){if($('analyticsStart')&&$('analyticsBottomStart')
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function headers(extra){
  const h=Object.assign({},extra||{});
- if(key)h['X-GE-DJ-Key']=key;
+ const ownerToken=(function(){try{return sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||''}catch(e){return ''}})();
+ if(ownerToken)h['Authorization']='Bearer '+ownerToken;
+ else if(key)h['X-GE-DJ-Key']=key;
  if(djTrustedId&&djTrustedToken){h['X-GE-DJ-Device-ID']=djTrustedId;h['X-GE-DJ-Device-Token']=djTrustedToken}
  return h
 }
@@ -11844,7 +11846,9 @@ document.querySelectorAll('#geStationTabs a').forEach(function(link){
  })
 });
 window.__GE_DJ_BOOT_OK=true;
-if(djTrustedId&&djTrustedToken){
+if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
+ verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){ $('loginStatus').textContent='Back Room session expired. Sign in to Back Room again.' });
+}else if(djTrustedId&&djTrustedToken){
  verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
  })
