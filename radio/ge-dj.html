@@ -7220,6 +7220,8 @@ function installTouchMixer(rootSelector,gridSelector){
 let syncTouchFaders=function(){};
 let key='',djTrustedId='',djTrustedToken='',status=null,library=[],targetSlot='',crossDirty=false,crossSaving=false,poller=0,radioMeterPoller=0,radioMeterBusy=false;
 try{djTrustedId=localStorage.getItem('geDjTrustedIdV1')||'';djTrustedToken=localStorage.getItem('geDjTrustedTokenV1')||''}catch(e){}
+// Prevent stale remote actions and microphone capture on initial DJ load.
+let geDjInitialSharedControlSeen=false,geDjBoardCommandsArmed=false;
 let geUxSessionId='',geUxFlushTimer=0,geUxStarting=false;
 let geUxPending={clicks:{},changes:{},transitions:{},backtracks:{},repeats:{},errors:{}};
 let geUxRecentViews=[],geUxLastClick={key:'',at:0,count:0,burst:false};
@@ -7936,7 +7938,7 @@ async function verify(k){
  document.body.classList.add('geAuthenticated');
  $('lock').classList.add('hide');
  geVerifyRunningDjBuild().catch(function(){});
- maybeAskGeLayout();
+ // Layout is automatically detected; do not show a layout modal on login.
  await loadDjPermanentState();await loadFxPresets().catch(function(e){console.warn('DJ FX preset load:',e)});
  render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});
  await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll();startGeUxSession()
@@ -7974,7 +7976,7 @@ async function geDjEnter(useLegacy){
    await ensureAudio();await verify('');
   }
   $('password').value='';
-  if(!GE_IS_IPHONE5)await autoConnectDeviceMedia();
+  // Never start microphone or camera on password entry.
   $('loginStatus').textContent='';
  }catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}
  finally{button.disabled=false}
@@ -8036,6 +8038,12 @@ function queueItems(){const a=[];if(status&&status.next&&status.next.slot)a.push
 function applySharedDjControls(){
  const shared=status&&status.dj_controls;if(!shared)return;
  const rev=Number(shared.revision||0);
+ // On cold start, do not replay a stale remote ON AIR command.
+ if(!geDjInitialSharedControlSeen){
+  geDjInitialSharedControlSeen=true;
+  djControlRevisionSeen=rev;
+  return;
+ }
  if(rev<=djControlRevisionSeen||document.body.classList.contains('geFaderDragging'))return;
  djControlRevisionSeen=rev;
  if(shared.mic_level!=null){settings.mic.level=Number(shared.mic_level);if($('mixMicLevel'))$('mixMicLevel').value=String(shared.mic_level);if($('mixMicRead'))$('mixMicRead').textContent=Math.round(Number(shared.mic_level))+'%';applyChannel('mic')}
@@ -8174,7 +8182,9 @@ async function geBoardHeartbeat(){
   const d=await r.json().catch(function(){return {}});
   if(r.ok&&d.ok){
    if(status)status.dj_boards=d.boards||status.dj_boards;
-   if(d.commands&&d.commands.length)await handleDjBoardCommands(d.commands)
+   // Discard stale remote commands queued before the DJ opened.
+   if(d.commands&&d.commands.length&&geDjBoardCommandsArmed)await handleDjBoardCommands(d.commands);
+   geDjBoardCommandsArmed=true;
   }
  }catch(e){}finally{boardHeartbeatBusy=false}
 }
@@ -11924,7 +11934,7 @@ if(new URLSearchParams(location.search).get('player')==='1')$('gePlayer').textCo
 document.addEventListener('pointerdown',function gePrimeDj(){
  if(key||djTrustedId)warmDjSources().catch(function(){});
  requestBoardWakeLock();
- if((key||djTrustedId)&&!GE_IS_IPHONE5&&!geTrackLive(micStream))autoConnectDeviceMedia().catch(function(){})
+ // Touching the page does not start microphone capture.
 },{once:true,capture:true});
 document.querySelectorAll('#geStationTabs a').forEach(function(link){
  link.addEventListener('click',function(e){
@@ -11944,19 +11954,19 @@ try{
 if(geDjOneTimeCode){
  verify(geDjOneTimeCode).then(function(){
   geDjOneTimeCode='';
-  if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}
+  // Login does not start device capture or broadcast.
   return true;
  }).catch(function(e){
   geDjOneTimeCode='';
   $('loginStatus').textContent=(e&&e.message)||'Original DJ connection unavailable.';
  });
 }else if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
- verify('').then(function(){if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}return true}).catch(function(e){
+ verify('').then(function(){return true}).catch(function(e){
   // Never call a radio outage an expired Back Room session.
   $('loginStatus').textContent=(e&&e.message)||'DJ radio connection unavailable.';
  });
 }else if(djTrustedId&&djTrustedToken){
- verify('').then(function(){if(status){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia()}return true}).catch(function(e){
+ verify('').then(function(){return true}).catch(function(e){
   // A 502/503 is an unavailable radio, not proof that trusted device access expired.
   if(e&&(e.status===401||e.status===403)){
    djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
@@ -11965,7 +11975,7 @@ if(geDjOneTimeCode){
  })
 }else{
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
- if(saved)verify(saved).then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
+ if(saved)verify(saved).then(function(){return true}).catch(function(){sessionStorage.removeItem('geDjPassword')})
 }
 </script><script src="https://grandelement.com/radio/ge-imac-studio.js?v=1"></script>
 <script src="https://grandelement.com/radio/ge-vault-drilldown.js?v=1"></script>
