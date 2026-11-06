@@ -986,11 +986,11 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
    </details>
    <details class="brAccessCategory" id="brAccessMusicCategory"><summary>MUSIC · PLAYLISTS</summary>
     <div class="brAccessPlaylistSelectRow" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:7px 0 9px;padding:8px;border:1px solid #315776;border-radius:9px">
-      <label class="check"><input type="checkbox" id="brAccessPlaylistAll" aria-label="Allow all original DJ playlists"><span>ALL PLAYLISTS</span></label>
+      <label class="check"><input type="checkbox" id="brAccessPlaylistAll" aria-label="Allow all GitHub playlists"><span>ALL PLAYLISTS</span></label>
       <span id="brAccessPlaylistCount" role="status" aria-live="polite">CONNECTING…</span>
     </div>
-    <div id="brAccessPlaylistChoices" role="group" aria-label="Original BLITZ DJ playlists to grant" class="brAccessSongChecklist" style="max-height:min(48vh,540px);min-height:55px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y"></div>
-    <p class="brAccessNotice" id="brAccessPlaylistNotice" role="status">Connecting to the original DJ Booth playlist store…</p>
+    <div id="brAccessPlaylistChoices" role="group" aria-label="GitHub shared playlists to grant" class="brAccessSongChecklist" style="max-height:min(48vh,540px);min-height:55px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y"></div>
+    <p class="brAccessNotice" id="brAccessPlaylistNotice" role="status">Loading playlists from the GitHub master…</p>
     <button type="button" id="brAccessLoadPlaylists" hidden>LOAD CHECKED PLAYLISTS</button>
     <div hidden aria-hidden="true">
       <button type="button" id="brAccessOpenPlaylists">OPEN PLAYLISTS</button>
@@ -4767,7 +4767,8 @@ async function bootBackroom(){
   }
 }
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-// No automatic Cloudflare request when opening the public Back Room.
+// Revalidate an existing owner session automatically; public visitors stay locked.
+if(token())void restorePublisherSession();
 $('gatePassword').focus();
 })();
 </script>
