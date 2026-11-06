@@ -367,6 +367,7 @@ function saveDevice(id,token){
  }
 }
 function forget(){deviceId="";deviceToken="";key="";try{localStorage.removeItem(TRUST_ID);localStorage.removeItem(TRUST_TOKEN)}catch(e){}}
+function ownerSession(){try{return sessionStorage.getItem("GE_BACKROOM_PUBLISH_SESSION_V1")||""}catch(e){return ""}}
 function request(method,path,body,callback){
  var xhr=new XMLHttpRequest();xhr.open(method,API+path,true);xhr.timeout=18000;
  xhr.setRequestHeader("Accept","application/json");
@@ -471,7 +472,7 @@ listener.onpause=function(){if(!userWantsRadio)stateRadio("RADIO 1 · Paused")};
 listener.onwaiting=function(){if(userWantsRadio)stateRadio("RADIO 1 · Buffering live audio…")};
 listener.onerror=function(){if(userWantsRadio)reconnectRadio()};
 listener.onstalled=function(){if(userWantsRadio&&!radioReconnectTimer)reconnectRadio()};
-el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input){text("error","Enter the DJ code.");return}signIn(input)};
+el("enter").onclick=function(){var input=el("password").value;el("password").value="";if(!input&&!ownerSession()){text("error","Sign into GE Back Room first, or enter the DJ code.");return}signIn(input)};
 el("retryTrusted").onclick=function(){if(deviceToken)signIn("");else text("error","Enter the DJ code to remember this device again.")};
 el("connectBlitz").onclick=function(){
  el("blitzPanel").style.display="block";
@@ -534,7 +535,7 @@ w.GEImacClassic={
 getSaved();
 text("connection","GE STUDIO READY · RADIO 1 OPTIONAL");
 text("trustedStatus",deviceToken?"SAVED BLITZ AUTHORIZATION AVAILABLE · Radio connection optional":"GE STUDIO LOCAL · NO RADIO SIGN-IN REQUIRED");
-text("gateStatus",deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLITZ if needed.":"RADIO NOT CONNECTED · Only enter a code when connecting to BLITZ.");
+text("gateStatus",ownerSession()?"BACK ROOM SIGN-IN FOUND · Press CONNECT TO BLITZ.":deviceToken?"SAVED RADIO DEVICE READY · Press CONNECT TO BLITZ if needed.":"RADIO NOT CONNECTED · Sign in through GE Back Room or use existing DJ code.");
 })();
 </script>
 <script src="https://grandelement.com/dj/imac-mixer.js?v=7"></script>
