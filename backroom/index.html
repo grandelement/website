@@ -2646,6 +2646,38 @@ const backroomVaultManagers=(()=>{
     }
     return data;
   }
+  // Read the public GitHub playlist master without routing through Cloudflare.
+  // This is READ ONLY. Playlist edits still require the protected Publisher.
+  async function directGithubPlaylistRead(){
+    const locations=[
+      '../playlists/registry.json',
+      'https://raw.githubusercontent.com/grandelement/website/main/playlists/registry.json'
+    ];
+    const errors=[];
+    for(const url of locations){
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),6500);
+      try{
+        const response=await fetch(url,{method:'GET',cache:'no-store',signal:controller.signal});
+        if(!response.ok)throw Error('HTTP '+response.status);
+        const registry=await response.json();
+        if(registry?.format!=='ge-playlist-registry-v1'||!Array.isArray(registry.playlists))
+          throw Error('unexpected playlist format');
+        const items=registry.playlists.map(p=>{
+          if(!p||typeof p.id!=='string'||typeof p.name!=='string'||!Array.isArray(p.songs))
+            throw Error('invalid playlist entry');
+          return {id:p.id,name:p.name,active:false,locked:false,
+            metadata_json:JSON.stringify({source:'ge-github',
+              public:p.visibility==='published',visibility:p.visibility||'unlisted'}),
+            tracks:p.songs.map((track_path,position)=>({track_path,position}))};
+        });
+        return {ok:true,storage:'GITHUB',items,source:'GITHUB · DIRECT READ'};
+      }catch(error){
+        errors.push(String(error?.message||error));
+      }finally{clearTimeout(timeout)}
+    }
+    throw Error('Direct GitHub playlist read failed: '+errors.join(' / '));
+  }
   function playlistCopy(row){
     const paths=Array.isArray(row?.paths)?row.paths:(row?.tracks||[]).map(x=>x.track_path||x.path);
     let metadata={};try{metadata=row?.metadata||JSON.parse(row?.metadata_json||'{}')}catch(_e){}
@@ -3102,25 +3134,42 @@ const backroomVaultManagers=(()=>{
     const preserveEditor=playlistHasUnsavedEdits();
     playlistStatus('LOADING GITHUB PLAYLISTS…');
     try{
-      const result=await githubPlaylistAction();
+      let result,readSource='GITHUB · DIRECT READ';
+      try{
+        result=await directGithubPlaylistRead();
+      }catch(directError){
+        // If GitHub Pages/CDN is unreachable, use the protected Publisher.
+        // Neither failure may alter the current Vault codes or saved playlists.
+        try{
+          result=await githubPlaylistAction();
+          readSource='GITHUB · OWNER PUBLISHER';
+        }catch(publisherError){
+          throw Error('GitHub playlist read unavailable · '+String(directError?.message||directError)+
+            ' · Publisher: '+String(publisherError?.message||publisherError));
+        }
+      }
       if(!Array.isArray(result.items))throw Error('GitHub did not return a playlist list.');
       const old=playlistEditingId;
       playlists=result.items.filter(p=>p&&typeof p.id==='string'&&typeof p.name==='string');
       playlistLoaded=true;
+      accessDJError='';
       // The Access Codes editor displays the SAME GitHub playlists as Music.
       applyDJAccessPlaylists(playlists,'GITHUB · SHARED PLAYLIST MASTER');
       const found=playlists.find(p=>p.id===old)||playlists.find(p=>p.name.toLowerCase()==='bangers')||playlists[0];
       if(preserveEditor)renderPlaylistChooser();
       else editPlaylist(found?.id||'');
       renderPlaylistViewer();renderCatalog();renderDJAlbumChoices();accessPlaylistOptions();renderAccessCodes();
-      const msg='GITHUB · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':'');
+      const msg=readSource+' · '+playlists.length+' PLAYLIST'+(playlists.length===1?'':'S')+(preserveEditor?' · UNSAVED EDITS PRESERVED':'');
       playlistStatus(msg+(!playlists.some(p=>String(p.name).trim().toLowerCase()==='bangers')?
         ' · BANGERS NOT FOUND IN SHARED LIBRARY':''));
       $('brDJPlaylistStatus').textContent=msg;return true;
     }catch(e){
       playlistLoaded=false;
-      const msg='GITHUB PLAYLIST CONNECTION FAILED · '+String(e.message||e);
+      accessDJLoaded=false;
+      accessDJError=String(e.message||e);
+      const msg='GITHUB PLAYLIST CONNECTION FAILED · '+accessDJError;
       playlistStatus(msg);$('brDJPlaylistStatus').textContent=msg;
+      accessPlaylistOptions();
       const indicator=$('brVaultConnection');
       if(indicator){indicator.textContent='PLAYLISTS · GITHUB UNAVAILABLE';indicator.dataset.state='offline';indicator.title=msg;}
       renderPlaylistViewer();return false;
@@ -3715,6 +3764,16 @@ const backroomVaultManagers=(()=>{
       return;
     }
     const button=$(isEdit?'brAccessSave':'brAccessIssue');
+    // A saved code is never issued against unknown playlist permissions.
+    // Load directly from GitHub on SAVE if initial Back Room startup failed.
+    if(!accessDJLoaded){
+      accessStatus('CHECKING GITHUB PLAYLISTS BEFORE SAVE…');
+      const ready=await refreshDJAccessPlaylists();
+      if(!ready){
+        accessStatus('NOT SAVED · GitHub playlists could not load. Existing access codes and playlists are unchanged. '+accessDJError);
+        return;
+      }
+    }
     let payload;
     try{payload=codePayload()}catch(e){accessStatus('NOT SAVED · '+String(e.message||e));return;}
     if(isEdit&&!editingCodeId)return;
