@@ -4,23 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>GE DJ</title>
+<title>GE DJ · Sign In</title>
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:#050b12;color:#e7f6ff;font:16px/1.45 Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
 main{width:min(480px,100%);border:1px solid #34536b;border-radius:16px;background:#0b1725;padding:24px}
 h1{margin:0 0 6px;font-size:29px;letter-spacing:2px}
-p{color:#9fbfd3;font-size:13px;letter-spacing:.7px;margin:0 0 24px}
-a{display:flex;align-items:center;justify-content:center;text-align:center;min-height:64px;width:100%;padding:16px 12px;background:#123951;border:2px solid #5aaad0;border-radius:11px;color:white;font-weight:900;font-size:18px;text-decoration:none}
-a:hover,a:focus-visible{background:#1a5777;outline:2px solid #b1e9ff;outline-offset:3px}
+p{color:#9fbfd3;font-size:13px;letter-spacing:.7px;margin:0 0 20px}
+input{display:block;width:100%;min-height:56px;margin:0 0 12px;padding:13px 14px;border:1px solid #5c829b;border-radius:10px;background:#050e16;color:#fff;font-size:18px}
+button{display:block;width:100%;min-height:64px;padding:15px 12px;background:#123951;border:2px solid #5aaad0;border-radius:11px;color:white;font-weight:900;font-size:18px;cursor:pointer}
+button:hover,button:focus-visible{background:#1a5777;outline:2px solid #b1e9ff;outline-offset:3px}
+button:disabled{opacity:.65;cursor:wait}
+#status{margin:12px 0 0;min-height:22px;color:#ffb1b1;letter-spacing:0;font-size:14px;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <main>
 <h1>GE DJ</h1>
 <p>GRAND ELEMENT · RADIO CONTROL</p>
-<a href="/radio/ge-dj.html">OPEN DJ BOOTH</a>
+<form id="login">
+<input id="password" type="password" autocomplete="current-password" placeholder="DJ password" aria-label="DJ password" required>
+<button id="enter" type="submit">OPEN DJ BOOTH</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
 </main>
+<script>
+(function(){
+"use strict";
+var PUBLISHER="https://ge-backroom-publisher.grandelement.workers.dev";
+var RELAY="https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy";
+var SESSION="GE_BACKROOM_PUBLISH_SESSION_V1";
+var HANDOFF="GE_DJ_BOOT_PASS_V1";
+var BOOTH="/radio/ge-dj.html";
+var form=document.getElementById("login"),pass=document.getElementById("password");
+var button=document.getElementById("enter"),status=document.getElementById("status");
+var busy=false;
+function message(s){status.textContent=String(s||"")}
+function go(){location.replace(BOOTH)}
+function token(){try{return sessionStorage.getItem(SESSION)||""}catch(e){return ""}}
+function remember(name,value){try{sessionStorage.setItem(name,value);return true}catch(e){return false}}
+function clear(name){try{sessionStorage.removeItem(name)}catch(e){}}
+async function readJson(r){try{return await r.json()}catch(e){return {}}}
+async function currentSession(){
+ var t=token();if(!t)return false;
+ try{
+  var r=await fetch(PUBLISHER+"/session",{method:"GET",headers:{"Authorization":"Bearer "+t},cache:"no-store"});
+  var data=await readJson(r);
+  return r.ok&&data.ok===true;
+ }catch(e){return false}
+}
+// A live Back Room session works in this SAME tab on Windows, Mac, iPhone, iPad.
+currentSession().then(function(ok){if(ok)go()});
+form.addEventListener("submit",async function(event){
+ event.preventDefault();if(busy)return;
+ var password=pass.value;if(!password){message("Enter your password.");return}
+ busy=true;button.disabled=true;message("Checking DJ access...");
+ try{
+  var r=await fetch(PUBLISHER+"/login",{
+   method:"POST",headers:{"Content-Type":"application/json"},
+   cache:"no-store",body:JSON.stringify({password:password})
+  });
+  var data=await readJson(r);
+  if(r.ok&&data.ok===true&&data.token){
+   if(!remember(SESSION,String(data.token)))throw new Error("Browser session storage is blocked. Allow site storage.");
+   clear(HANDOFF);pass.value="";go();return;
+  }
+  // Only try the existing original BLITZ DJ code after a definite
+  // password mismatch; never disclose a Back Room password during an outage.
+  if(r.status!==401)throw new Error("Back Room sign-in unavailable (HTTP "+r.status+"). No password was changed.");
+  var dj=await fetch(RELAY+"/control/status",{
+   method:"GET",headers:{"X-GE-DJ-Key":password,"Accept":"application/json"},cache:"no-store"
+  });
+  if(!dj.ok){
+   if(dj.status===401||dj.status===403)throw new Error("Password not accepted by Back Room or original DJ.");
+   throw new Error("Radio server unavailable (HTTP "+dj.status+"). Your password has not been reset.");
+  }
+  if(!remember(HANDOFF,password))throw new Error("Browser session storage is blocked. Allow site storage.");
+  clear(SESSION);pass.value="";go();
+ }catch(e){message(e&&e.message||"DJ sign-in connection failed.")}
+ finally{busy=false;button.disabled=false}
+});
+})();
+</script>
 </body>
 </html>
