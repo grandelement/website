@@ -5829,7 +5829,7 @@ const state = {
     label.textContent=(c.label||'LIVE CAMERA')+(liveVideo.cameras.length>1?' · '+(liveVideo.cameras.findIndex(x=>x.id===c.id)+1)+'/'+liveVideo.cameras.length:'');
   }
   async function poll(){
-    if(!state.live){
+    if(GE_STATIC_RADIO_PRIMARY||!state.live){
       setActive(false);
       return;
     }
@@ -8093,7 +8093,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   }
 
   async function poll(){
-    if(inFlight||radio2.active||(state.live!==true&&state.livePreparing!==true))return;
+    if(GE_STATIC_RADIO_PRIMARY||inFlight||radio2.active||(state.live!==true&&state.livePreparing!==true))return;
     inFlight=true;
     try{
       const url=new URL(endpoint,location.href);
@@ -8107,6 +8107,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
   }
 
   function start(){
+    if(GE_STATIC_RADIO_PRIMARY)return;
     if(timer)clearInterval(timer);
     void poll();
     timer=setInterval(()=>{void poll();},Math.max(5,Number(GATE_CONFIG.liveMetadataPollSeconds)||10)*1000);
@@ -11480,7 +11481,7 @@ Vector ${vector}. ${pair[1]}.`;
   // never interrupts the native <audio> player or its Gate/volume.
   let geBlitzSpectrumAt=0,geBlitzSpectrumRequestAt=0,geBlitzSpectrumPending=false;
   async function pollBlitzSpectrum(){
-    if(!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
+    if(GE_STATIC_RADIO_PRIMARY||!GE_IOS_AUDIO||!state.live||document.hidden||audio.paused||geBlitzSpectrumPending)return;
     const now=performance.now();
     if(now-geBlitzSpectrumRequestAt<225)return;
     geBlitzSpectrumRequestAt=now;
@@ -13240,7 +13241,7 @@ Vector ${vector}. ${pair[1]}.`;
     return String(first?.title||data?.now_playing?.song?.text||data?.now_playing?.song?.title||data?.song?.text||data?.song?.title||data?.title||'').trim();
   }
   async function pollLiveMetadata(){
-    if((gs.expired&&!authorized())||!state.live||radio2.active||!GATE_CONFIG.liveMetadataURL)return;
+    if(GE_STATIC_RADIO_PRIMARY||(gs.expired&&!authorized())||!state.live||radio2.active||!GATE_CONFIG.liveMetadataURL)return;
     try{
       const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
       const title=extractLiveTitle(await response.json());if(!title)return;
