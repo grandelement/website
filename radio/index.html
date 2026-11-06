@@ -6399,7 +6399,9 @@ function loadSongLoves(){
 const songLoves=loadSongLoves();
 function currentLoveSong(){
   if(state.live||state.livePreparing){
-    const meta=String(window.GELiveMetadata?.getTitle?.()||'').trim();
+    const meta=radio2.active?
+      radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||''):
+      String(window.GELiveMetadata?.getTitle?.()||'').trim();
     if(!meta||/^grand element radio$/i.test(meta))return null;
     // LIVE returns Album • Song; use the song identity across both modes.
     const pieces=meta.split(' • ');
@@ -6652,20 +6654,19 @@ function updateRadioStartupCue(){
     (radio2.active?observedRadio2Progress:observedRadio1Progress);
   // Host-side signal proof does not mean Safari is playing audible radio.
   const connected=!!(playing&&!audio.muted);
-  const signalReady=!!((state.live||state.livePreparing)&&
-    (liveState.signalReady||observedRadio1Progress||(radio2.active&&observedRadio2Progress))&&
-    !radioTimedOut&&!audio.error);
-  document.body.classList.toggle('ge-radio-signal-ready',signalReady);
-  document.body.classList.toggle('ge-radio-audible',!!connected);
-  // Keep acknowledgment after a voluntary pause, but only show steady red
-  // after actual forward progress confirmed the Radio 1 signal.
-  document.body.classList.toggle('ge-radio-verified',!!liveState.hadVerifiedStream);
+  // ReadyState/canplay may fire for an audio response that never plays.
+  // No connection color until this native player actually advances.
+  const signalReady=connected;
+  document.body.classList.toggle('ge-radio-signal-ready',connected);
+  document.body.classList.toggle('ge-radio-audible',connected);
+  document.body.classList.toggle('ge-radio-verified',connected);
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.toggle('radio-start-cue',signalReady&&!connected);
     button.textContent='RADIO';
-    button.setAttribute('aria-label',connected?'BLITZ Radio 1 playing':
-      signalReady?'BLITZ Radio 1 signal ready, tap Play to listen':'Connect or retry BLITZ Radio 1');
+    const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
+    button.setAttribute('aria-label',connected?source+' playing':
+      signalReady?source+' ready, tap Play to listen':'Connect or retry '+(GE_STATIC_RADIO_PRIMARY?'GE Radio':source));
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
   }
   const shipPlayButton=$('shipPlay');
@@ -6816,7 +6817,10 @@ function clearLiveReconnect(){
 
 // Owner-directed public playback: BLITZ Radio 1 exclusively. Old Radio 2
 // infrastructure remains intact but is never selected by this public player.
-const GE_RADIO2_DISABLED=true;
+// Primary station is the public, same-origin Bangers clock: no BLITZ stream
+// and no Cloudflare radio-rotation Worker request per listener.
+const GE_RADIO2_DISABLED=false;
+const GE_STATIC_RADIO_PRIMARY=true;
 let geRadio1RetryTimer=0,geRadio1RetryAttempts=0;
 // The live BLITZ /wake-radio route still returns 404. Never redirect a
 // listener to that broken route. Their RADIO tap always retries MP3 here.
@@ -6909,6 +6913,103 @@ function radio2ProgramKind(program){
       program?.tracks?.length===50)return 'backup';
   return '';
 }
+const GE_STATIC_REGISTRY='../playlists/registry.json';
+const GE_STATIC_DURATIONS='./track-durations.json';
+let geStaticProgram=null,geStaticLoading=null;
+// Public, unlisted Bangers contains the exact owner-approved song order.
+// The duration catalog is measured by ffprobe during publishing.
+async function fetchStaticBangers(){
+ const [rr,dr]=await Promise.all([
+  fetch(GE_STATIC_REGISTRY,{cache:'no-store'}),
+  fetch(GE_STATIC_DURATIONS,{cache:'no-store'})
+ ]);
+ if(!rr.ok||!dr.ok)throw Error('Bangers playlist or duration file unavailable');
+ const [registry,durations]=await Promise.all([rr.json(),dr.json()]);
+ const bangers=Array.isArray(registry?.playlists)?
+   registry.playlists.find(p=>String(p?.name||'').toLowerCase()==='bangers'):null;
+ const measured=new Map((Array.isArray(durations?.tracks)?durations.tracks:[])
+   .filter(t=>t?.kind==='song'&&Number(t.duration_ms)>1000)
+   .map(t=>[String(t.path),t]));
+ if(!bangers||!Array.isArray(bangers.songs)||bangers.songs.length<3)
+  throw Error('Bangers is not in the published playlist registry');
+ const tracks=bangers.songs.map(path=>{
+  const entry=measured.get(path);
+  if(!entry)throw Error('Bangers requires measured audio for '+String(path).split('/').pop());
+  return {path,url:'/'+String(path).split('/').map(encodeURIComponent).join('/'),
+    title:entry.title,album:entry.album,duration_ms:Number(entry.duration_ms),kind:'song'};
+ });
+ const cycle=tracks.reduce((total,track)=>total+track.duration_ms,0);
+ if(!Number.isSafeInteger(cycle)||cycle<10000||!tracks.every(radio2ValidTrack))
+   throw Error('Bangers has an invalid audio path or schedule duration');
+ return {format:'ge-radio-clock-v1',playlist_name:'Bangers',
+   playlist_id:String(bangers.id),playlist_hash:'ge-static-bangers-v1',
+   epoch_utc_ms:1767225600000,cycle_duration_ms:cycle,tracks};
+}
+async function preloadStaticRadio(){
+ if(geStaticProgram)return geStaticProgram;
+ if(geStaticLoading)return geStaticLoading;
+ geStaticLoading=(async()=>{
+  try{geStaticProgram=await fetchStaticBangers();return geStaticProgram}
+  catch(error){
+   console.warn('GE Bangers local clock failed; checking same-origin backup',error);
+   try{
+    const response=await fetch('./sync-playlist.json',{cache:'no-store'});
+    if(!response.ok)throw Error('Backup clock HTTP '+response.status);
+    const backup=await response.json();
+    if(!radio2ProgramKind(backup)||!Array.isArray(backup.tracks)||
+      backup.tracks.length<3||!backup.tracks.every(radio2ValidTrack))
+      throw Error('Invalid backup clock');
+    geStaticProgram=backup;return backup;
+   }catch(failure){
+    console.warn('GE local radio clocks are unavailable',failure);return null;
+   }
+  }
+ })();
+ return geStaticLoading;
+}
+function staticRadioBegin(program,shouldPlay){
+ if(!program||!(state.live||state.livePreparing))return;
+ clearRadioWatch();clearLiveReconnect();clearRadio1Retry();
+ radioTimedOut=false;radioReconnectFailures=0;
+ radio2.program=program;radio2.kind=radio2ProgramKind(program);
+ radio2.offset=0;radio2.active=true;radio2.loading=false;
+ state.live=true;state.livePreparing=false;
+ syncModeButtons();updateRadioStartupCue();
+ setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+
+   (shouldPlay?' · CONNECTING…':' · READY · TAP RADIO TO PLAY'));
+ if(shouldPlay)radio2PlayCurrent();
+}
+function startStaticRadio({deferPlay=false,userGesture=false}={}){
+ if(window.GEGate?.isExpiredLocked?.()){window.GEGate.restore?.();return Promise.resolve();}
+ if(window.GEIAmStudio?.isRadioSuspended?.())return Promise.resolve();
+ if(navigator.onLine===false){
+  setLiveStatus('GE RADIO · INTERNET CONNECTION REQUIRED');return Promise.resolve();
+ }
+ if(!state.live&&!state.livePreparing){
+  liveState.returnURL=!isStationID(state.currentURL)?state.currentURL:'';
+  liveState.returnTime=Number(audio.currentTime)||0;
+ }
+ liveState.wantedPlayback=!deferPlay;
+ if(userGesture)liveState.userActivated=true;
+ state.live=true;state.livePreparing=false;syncModeButtons();
+ if(radio2.active){
+  if(!deferPlay)radio2PlayCurrent();
+  return Promise.resolve();
+ }
+ if(geStaticProgram){
+  staticRadioBegin(geStaticProgram,!deferPlay);
+  return Promise.resolve();
+ }
+ setLiveStatus('GE RADIO · LOADING BANGERS…');
+ return preloadStaticRadio().then(program=>{
+  if(!state.live)return;
+  if(program)staticRadioBegin(program,!deferPlay);
+  else {
+   state.livePreparing=false;updateRadioStartupCue();
+   setLiveStatus('GE RADIO UNAVAILABLE · TAP MUSIC FOR SONGS');
+  }
+ });
+}
 function radio2PlayCurrent(){
   if(!radio2.active||!state.live||window.GEIAmStudio?.isRadioSuspended?.())return;
   const slot=radio2Current();
@@ -6926,7 +7027,8 @@ function radio2PlayCurrent(){
     refreshLoveButton();
     try{window.GEVault?.setTrackMetadata?.(audio,{
       track_id:slot.track.path||url,title:radio2.title,
-      album:slot.track.album||'',artist:'Grand Element',source:radio2.kind==='bangers'?'ge-radio2-bangers':'ge-radio2-backup',live:true
+      album:slot.track.album||'',artist:'Grand Element',
+      source:GE_STATIC_RADIO_PRIMARY?'ge-static-bangers-clock':'ge-radio2-backup',live:true
     });}catch(_e){}
     liveState.internalReset=true;
     try{audio.pause();}catch(_e){}
@@ -6948,7 +7050,7 @@ function radio2PlayCurrent(){
     setLiveMediaSession();
     try{window.GEVault?.radio?.('radio_failover_song',{
       track_id:slot.track.path||url,track_title:radio2.title,
-      album:slot.track.album||'',source:'radio_2',playlist_id:radio2Label()
+      album:slot.track.album||'',source:GE_STATIC_RADIO_PRIMARY?'ge_static_radio':'radio_2',playlist_id:radio2Label()
     });}catch(_e){}
   }else if(audio.readyState>=1&&Math.abs((Number(audio.currentTime)||0)-slot.seconds)>7){
     // This is a synchronized radio clock, not a personal playlist.
@@ -6975,9 +7077,9 @@ async function switchToRadio2(reason='radio1_unavailable'){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8500);
   try{
     const sent=Date.now();
-    const response=await fetch(RADIO2_PROGRAM,{cache:'no-store',signal:controller.signal});
-    if(!response.ok)throw new Error('Radio 2 program HTTP '+response.status);
-    const data=await response.json(),received=Date.now(),program=data&&data.program;
+    const program=await preloadStaticRadio();
+    if(!program)throw Error('Local Bangers / backup clock unavailable');
+    const received=Date.now(),data={ok:true,program,server_now_ms:received};
     const kind=radio2ProgramKind(program);
     if(!data?.ok||program?.format!=='ge-radio-clock-v1'||!kind||
       !Array.isArray(program.tracks)||program.tracks.length<3||
@@ -7068,6 +7170,7 @@ function activateRadioOnUserGesture(){
   }catch(error){radioPlayFailure(error);return false;}
 }
 function requestRadioStart({deferPlay=false,userGesture=false}={}){
+  if(GE_STATIC_RADIO_PRIMARY)return startStaticRadio({deferPlay,userGesture});
   // On iPhone, a trusted tap MUST NOT enter the asynchronous reconnection
   // worker after native play(). That would cancel playback's user activation.
   if(userGesture&&(state.live||state.livePreparing)&&!radio2.active){
@@ -8557,8 +8660,8 @@ audio.addEventListener('timeupdate',()=>{
     if(Number.isFinite(lastRadio2Time)&&t>lastRadio2Time+.15&&!observedRadio2Progress){
       observedRadio2Progress=true;
       syncMainTransport();
-      setLiveStatus('RADIO 2 · CONNECTED');
-      setStatus('Grand Element Radio 2 · stream active');
+      setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+' · CONNECTED');
+      setStatus('Grand Element Radio · local synchronized playlist active');
       updateRadioStartupCue();
     }
     lastRadio2Time=t;return;
@@ -13661,7 +13764,7 @@ gateTestBtn?.addEventListener('click',()=>{
   registerServiceWorker();
   // Listener arrival may wake a sleeping host via an actual browser iframe
   // navigation. Keep the MP3 connection automatic, without a button press.
-  if(!offlinePlaybackMode())wakeBlitzFromPageVisit();
+  if(!offlinePlaybackMode()){void preloadStaticRadio();if(!GE_STATIC_RADIO_PRIMARY)wakeBlitzFromPageVisit();}
   // An offline bookmark must open the cached music, never dial live BLITZ.
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
   if(!offlinePlaybackMode())void requestRadioStart({deferPlay:qrArrival});
