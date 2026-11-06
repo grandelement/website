@@ -8292,7 +8292,9 @@ async function advanceFromEnded(){
 }
 function nextTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('next');return;}
-  if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('next');return;}
+  if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
+    setStatus('Select or PLAY a song before pressing NEXT.');return;
+  }
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('next');
     return; // Lock-screen actions use the same protected music queue.
@@ -8304,7 +8306,9 @@ function nextTrack(userAction=false){
 }
 function previousTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('previous');return;}
-  if(userAction&&!offlinePlaybackMode()){startMainMusicLibrary('previous');return;}
+  if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
+    setStatus('Select or PLAY a song before pressing PREV.');return;
+  }
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('previous');
     return;
@@ -8523,17 +8527,8 @@ $('shuffleBtn').addEventListener('click',()=>{
   titleBtn.textContent=anchor?displayTitle(anchor,!state.shuffle):'Choose a track';
   fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
   window.GELoudness?.scanNextFive?.();
-  // If the station is silent, SHUFFLE becomes the reliable iPhone fallback.
-  // The song starts directly in this button's user-gesture handler.
-  if(audio.paused){
-    const next=state.shuffle?pickWeightedShuffle():allowedCatalog()[0];
-    if(next){
-      setLiveStatus('PLAYER • starting an album song while Radio is unavailable.');
-      void playURL(next,{record:state.shuffle,backgroundChange:true,userAction:true});
-    }else{
-      setLiveStatus('PLAYER • no downloaded or online songs available. Check connection.');
-    }
-  }
+  // ALBUM/SHUFFLE changes ordering only. It never starts another audio source.
+  setStatus('Player order: '+(state.shuffle?'SHUFFLE':'ALBUM')+'.');
 });
 $('legacyBtn').addEventListener('click',()=>{
   if(!geRadioUtilityAllowed('legacy')){geOpenMusicSelection();return;}
@@ -8542,10 +8537,8 @@ $('legacyBtn').addEventListener('click',()=>{
   state.legacy=!state.legacy;
   rebuildQueue(anchor);
   syncModeButtons();
-  if(anchor && !allowedCatalog().includes(anchor)){
-    const fallback=allowedCatalog()[0]||'';
-    if(fallback) playURL(fallback,{record:state.shuffle,backgroundChange:true,userAction:true});
-  }
+  // A Legacy visibility change must not interrupt or start another song.
+  if(anchor && !allowedCatalog().includes(anchor))setStatus('Choose a permitted song to continue.');
 });
 /* Compact original-style quick song picker. Preserve catalog names and MUSIC editor. */
 const geQuickSongPanel=document.createElement('div');
@@ -13940,12 +13933,11 @@ gateTestBtn?.addEventListener('click',()=>{
 
   if(qrArrival)window.GEQRIntroAudioReady=true;
 
-  // If the LIVE host is unavailable, leave the normal player ready rather than
-  // trapping the page without audio.
+  // Prepare the catalog without AUTO-PLAYING a different music source.
+  // Only the listener's PLAY or SELECT A SONG command may start recordings.
   if(!state.live && !state.livePreparing && start){
-    // Never start a fallback catalog song under the QR movie.
-    if(qrArrival)setStatus('Radio is ready. Tap Play after the introduction.');
-    else await playURL(start,{record:false,backgroundChange:false});
+    setStatus(qrArrival?'Radio is ready. Tap Play after the introduction.':
+      'Music ready. Press PLAY or select a song.');
   }else if(!state.live && !state.livePreparing && !start){
     titleBtn.textContent='No music files found';
     setStatus('RADIO could not connect and no playable library track was found.');
