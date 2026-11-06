@@ -9886,7 +9886,10 @@ async function registerServiceWorker(){
         saveMediaShaMap(library.shaMap||{});
         rebuildQueue(state.currentURL);
       }
-    }catch(_e){}
+    }catch(error){
+      throw new Error('Cannot refresh the GitHub song list: '+String(error?.message||error));
+    }
+    if(!library?.catalog?.length)throw new Error('GitHub returned no playable music');
     return {sizeMap,library};
   }
 
@@ -10370,8 +10373,9 @@ async function registerServiceWorker(){
     // Refresh from caches, but never remove music to reinitialize download.
     let prepared;
     try{
-      const planned=await scanApprovedPlan();
-      prepared=planned || await scanExistingAssets();
+      // Rebuild from the live repository on every explicit Offline click.
+      // A cached approved plan is a snapshot and must not freeze new albums.
+      prepared=await scanExistingAssets();
     }catch(error){
       panel.style.display='block';
       text.textContent='Offline scan failed: '+String(error?.message||error)+'. Existing downloads were not cleared.';
