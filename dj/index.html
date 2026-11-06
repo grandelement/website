@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>GE DJ · Sign In</title>
+<title>GE DJ</title>
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:#050b12;color:#e7f6ff;font:16px/1.45 Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
+html,body{margin:0;width:100%;min-height:100%;background:#050b12;color:#e7f6ff;font:16px/1.45 Arial,Helvetica,sans-serif}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 main{width:min(480px,100%);border:1px solid #34536b;border-radius:16px;background:#0b1725;padding:24px}
 h1{margin:0 0 6px;font-size:29px;letter-spacing:2px}
 p{color:#9fbfd3;font-size:13px;letter-spacing:.7px;margin:0 0 20px}
@@ -17,18 +18,22 @@ button{display:block;width:100%;min-height:64px;padding:15px 12px;background:#12
 button:hover,button:focus-visible{background:#1a5777;outline:2px solid #b1e9ff;outline-offset:3px}
 button:disabled{opacity:.65;cursor:wait}
 #status{margin:12px 0 0;min-height:22px;color:#ffb1b1;letter-spacing:0;font-size:14px;overflow-wrap:anywhere}
+#booth[hidden],#gate[hidden]{display:none!important}
+#booth{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;border:0;background:#05070a}
+body.open{padding:0;overflow:hidden}
 </style>
 </head>
 <body>
-<main>
+<main id="gate">
 <h1>GE DJ</h1>
 <p>GRAND ELEMENT · RADIO CONTROL</p>
 <form id="login">
 <input id="password" type="password" autocomplete="current-password" placeholder="DJ password" aria-label="DJ password" required>
-<button id="enter" type="submit">OPEN DJ BOOTH</button>
+<button id="enter" type="submit">OPEN DJ</button>
 </form>
 <p id="status" role="status" aria-live="polite"></p>
 </main>
+<iframe id="booth" title="GE DJ booth" allow="microphone; camera; autoplay; fullscreen" allowfullscreen hidden></iframe>
 <script>
 (function(){
 "use strict";
@@ -36,29 +41,22 @@ var PUBLISHER="https://ge-backroom-publisher.grandelement.workers.dev";
 var RELAY="https://ge-radio-sync.grandelement.workers.dev/v1/dj-proxy";
 var SESSION="GE_BACKROOM_PUBLISH_SESSION_V1";
 var HANDOFF="GE_DJ_BOOT_PASS_V1";
-var BOOTH="/radio/ge-dj.html";
 var form=document.getElementById("login"),pass=document.getElementById("password");
 var button=document.getElementById("enter"),status=document.getElementById("status");
+var gate=document.getElementById("gate"),booth=document.getElementById("booth");
 var busy=false;
 function message(s){status.textContent=String(s||"")}
-function go(){location.replace(BOOTH)}
-function token(){try{return sessionStorage.getItem(SESSION)||""}catch(e){return ""}}
 function remember(name,value){try{sessionStorage.setItem(name,value);return true}catch(e){return false}}
 function clear(name){try{sessionStorage.removeItem(name)}catch(e){}}
 async function readJson(r){try{return await r.json()}catch(e){return {}}}
-async function currentSession(){
- var t=token();if(!t)return false;
- try{
-  var r=await fetch(PUBLISHER+"/session",{method:"GET",headers:{"Authorization":"Bearer "+t},cache:"no-store"});
-  var data=await readJson(r);
-  return r.ok&&data.ok===true;
- }catch(e){return false}
+function enter(){
+ // Do not redirect the browser. The one DJ console stays under /dj/.
+ gate.hidden=true;document.body.classList.add("open");
+ booth.hidden=false;booth.src="/radio/ge-dj.html";
 }
-// A live Back Room session works in this SAME tab on Windows, Mac, iPhone, iPad.
-currentSession().then(function(ok){if(ok)go()});
 form.addEventListener("submit",async function(event){
  event.preventDefault();if(busy)return;
- var password=pass.value;if(!password){message("Enter your password.");return}
+ var password=pass.value;if(!password){message("Enter your DJ password.");return}
  busy=true;button.disabled=true;message("Checking DJ access...");
  try{
   var r=await fetch(PUBLISHER+"/login",{
@@ -67,22 +65,22 @@ form.addEventListener("submit",async function(event){
   });
   var data=await readJson(r);
   if(r.ok&&data.ok===true&&data.token){
-   if(!remember(SESSION,String(data.token)))throw new Error("Browser session storage is blocked. Allow site storage.");
-   clear(HANDOFF);pass.value="";go();return;
+   if(!remember(SESSION,String(data.token)))throw new Error("Browser storage is blocked. Allow storage for grandelement.com.");
+   clear(HANDOFF);pass.value="";enter();return;
   }
-  // Only try the existing original BLITZ DJ code after a definite
-  // password mismatch; never disclose a Back Room password during an outage.
-  if(r.status!==401)throw new Error("Back Room sign-in unavailable (HTTP "+r.status+"). No password was changed.");
+  // The original DJ code is tried only after a definite Back Room password
+  // rejection; never disclose a Back Room password during an outage.
+  if(r.status!==401)throw new Error("Back Room sign-in unavailable (HTTP "+r.status+"). Password unchanged.");
   var dj=await fetch(RELAY+"/control/status",{
    method:"GET",headers:{"X-GE-DJ-Key":password,"Accept":"application/json"},cache:"no-store"
   });
   if(!dj.ok){
    if(dj.status===401||dj.status===403)throw new Error("Password not accepted by Back Room or original DJ.");
-   throw new Error("Radio server unavailable (HTTP "+dj.status+"). Your password has not been reset.");
+   throw new Error("BLITZ radio unavailable (HTTP "+dj.status+"). Password unchanged.");
   }
-  if(!remember(HANDOFF,password))throw new Error("Browser session storage is blocked. Allow site storage.");
-  clear(SESSION);pass.value="";go();
- }catch(e){message(e&&e.message||"DJ sign-in connection failed.")}
+  if(!remember(HANDOFF,password))throw new Error("Browser storage is blocked. Allow storage for grandelement.com.");
+  clear(SESSION);pass.value="";enter();
+ }catch(e){message(e&&e.message||"DJ sign-in request failed.")}
  finally{busy=false;button.disabled=false}
 });
 })();
