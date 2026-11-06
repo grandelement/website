@@ -119,3 +119,36 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ge-radio-sync
           command: deploy
+
+      - name: Check GE Access Codes readiness without reading private codes
+        if: ${{ inputs.service == 'backroom' || inputs.service == 'both' || inputs.service == 'owner-services' }}
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error
+          url='https://ge-backroom-publisher.grandelement.workers.dev/health?diagnose=access-codes'
+          try:
+              with urllib.request.urlopen(url, timeout=20) as r:
+                  status=r.status; data=json.load(r)
+          except urllib.error.HTTPError as e:
+              status=e.code; data=json.load(e)
+          safe={k:data.get(k) for k in ('ok','access_codes_readable','upstream_http_status','publisher_configured','vault_service_bound')}
+          print('Access Codes health HTTP',status,json.dumps(safe,sort_keys=True))
+          if not data.get('access_codes_readable'):
+              print('WARNING: Access Codes need Vault/Publisher service binding, matching token or additive D1 migration. No codes were changed.')
+          PY
+
+      - name: Verify DJ relay private owner connection is configured
+        if: ${{ inputs.service == 'radio-relay' || inputs.service == 'owner-services' }}
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request,urllib.error
+          url='https://ge-radio-sync.grandelement.workers.dev/v1/dj-health'
+          try:
+              with urllib.request.urlopen(url, timeout=20) as r:
+                  status=r.status;data=json.load(r)
+          except urllib.error.HTTPError as e:
+              status=e.code;data=json.load(e)
+          print('DJ relay readiness HTTP',status,json.dumps(data,sort_keys=True))
+          if not (data.get('publisher_service_bound') and data.get('blitz_dj_secret_configured')):
+              raise SystemExit('DJ relay is not ready: missing private Publisher binding or BLITZ_DJ_PASSWORD. Existing secrets were not changed.')
+          PY
