@@ -6860,7 +6860,7 @@ a.geReleaseLink{display:inline-flex;align-items:center;justify-content:center;mi
  </div>
  <div class="geScaleControls" id="geScaleControls"><button type="button" id="geLayoutBtn" class="geUtilityAction" aria-label="Choose device layout">LAYOUT</button><button type="button" id="geArrange" class="geUtilityAction" aria-label="Arrange controls">ARRANGE</button><button type="button" id="geUndo" class="geUtilityAction" aria-label="Undo last console adjustment" disabled>↶ UNDO</button><button type="button" id="gePlayer" class="geUtilityAction geDesktopOnly" aria-label="Open DJ player window">PLAYER</button></div>
 </div>
-<div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Live radio control. Enter once on this device; Studio and DJ pass the session to each other when opened from either surface.</div><input id="password" type="password" autocomplete="current-password" placeholder="DJ password"><button id="enter">ENTER DJ BOOTH</button><div class="loginStatus" id="loginStatus"></div></div></div>
+<div class="lock" id="lock"><div class="login"><h1>GE DJ</h1><div class="note">Use your GE Back Room password to enter this DJ Booth. If you opened the booth from Back Room in the same tab, no password is needed.</div><input id="password" type="password" autocomplete="current-password" placeholder="Back Room password"><button id="enter" type="button">SIGN IN WITH BACK ROOM</button><button id="enterLegacy" type="button" style="margin-top:8px;background:#152736;border:1px solid #57738b">USE ORIGINAL DJ CODE INSTEAD</button><div class="loginStatus" id="loginStatus" role="status" aria-live="polite"></div></div></div>
 <div class="modal geLayoutModal" id="geLayoutModal" aria-hidden="true"><div class="modalBox"><div class="modalHead"><b>CHOOSE THIS DEVICE LAYOUT</b><button id="geLayoutClose" type="button">CLOSE</button></div><div class="note" id="geLayoutDetected">AUTO-DETECTED DEVICE</div><div class="geLayoutChoices"><button type="button" data-ge-layout="iphone5"><b>iPHONE 5</b><span>SMALLEST / COMPACT</span></button><button type="button" data-ge-layout="iphone"><b>iPHONE</b><span>STANDARD PHONE</span></button><button type="button" data-ge-layout="ipad"><b>iPAD</b><span>TABLET CONSOLE</span></button><button type="button" data-ge-layout="desktop"><b>COMPUTER</b><span>FULL CONSOLE</span></button><button type="button" data-ge-layout="imac"><b>iMAC STUDIO</b><span>ABLETON · FOCUSRITE · SONG DRAFTS</span></button></div></div></div>
 <div class="wrap">
   <div class="top"><div class="brand">GE DJ <span style="color:var(--accent)" id="geDjBuildLabel">GE WEB · v174</span></div><div class="statusPill" id="statusPill">CONNECTING</div></div>
@@ -7720,8 +7720,8 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
 function headers(extra){
  const h=Object.assign({},extra||{});
  const ownerToken=(function(){try{return sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||''}catch(e){return ''}})();
- if(ownerToken)h['Authorization']='Bearer '+ownerToken;
- else if(key)h['X-GE-DJ-Key']=key;
+ if(key)h['X-GE-DJ-Key']=key;
+ else if(ownerToken)h['Authorization']='Bearer '+ownerToken;
  if(djTrustedId&&djTrustedToken){h['X-GE-DJ-Device-ID']=djTrustedId;h['X-GE-DJ-Device-Token']=djTrustedToken}
  return h
 }
@@ -7873,7 +7873,18 @@ async function rememberDjDevice(){
 }
 async function verify(k){
  key=String(k||'');
- const r=await api('/control/status');if(!r.ok)throw new Error('Password was not accepted.');
+ const r=await api('/control/status');
+ if(!r.ok){
+   let msg=r.status===401?'DJ code or session was rejected.':'DJ radio connection failed (HTTP '+r.status+').';
+   const ownerToken=(function(){try{return !key&&(sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||'')}catch(e){return ''}})();
+   if(ownerToken&&r.status===401){
+     try{
+       const check=await fetch('https://ge-backroom-publisher.grandelement.workers.dev/session',{method:'GET',headers:{'Authorization':'Bearer '+ownerToken},cache:'no-store'});
+       msg=check.ok?'Back Room login verified, but the radio bridge was rejected. Check the Cloudflare BLITZ_DJ_PASSWORD secret and current Worker deployment.':'Back Room session expired. Sign in again.';
+     }catch(e){msg='Radio bridge rejected the connection. Back Room session check was unavailable.'}
+   }
+   throw new Error(msg);
+ }
  status=await r.json();
  if(key)await rememberDjDevice();
  document.body.classList.add('geAuthenticated');
@@ -7884,15 +7895,46 @@ async function verify(k){
  render();warmDjSources().catch(function(e){console.warn('DJ source warm-up:',e)});
  await loadLibrary();await loadPlaylists();await refreshDevices();await loadDjInputProfile();updateLineSourceLabel();applyEmbedMode();startPoll();startRadioMeterPoll();startGeUxSession()
 }
-$('enter').onclick=async function(){
+async function geDjOwnerLogin(password){
+ if(!password){
+  try{if(sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1'))return}catch(e){}
+  throw new Error('Enter your Back Room password.');
+ }
+ const r=await fetch('https://ge-backroom-publisher.grandelement.workers.dev/login',{
+  method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+  body:JSON.stringify({password:password})
+ });
+ const result=await r.json().catch(function(){return {}});
+ if(!r.ok||!result.ok||!result.token){
+  if(r.status===401)throw new Error('Back Room password not accepted. The original DJ code uses the separate button below.');
+  throw new Error('Back Room login service unavailable (HTTP '+r.status+').');
+ }
+ try{sessionStorage.setItem('GE_BACKROOM_PUBLISH_SESSION_V1',result.token)}
+ catch(e){throw new Error('Browser session storage is disabled. Allow storage for grandelement.com.')}
+}
+async function geDjEnter(useLegacy){
+ const button=$(useLegacy?'enterLegacy':'enter');
+ if(button.disabled)return;
+ button.disabled=true;
+ const password=$('password').value;
  try{
-  $('loginStatus').textContent='CONNECTING…';
-  await ensureAudio();
-  await verify($('password').value);
+  $('loginStatus').textContent=useLegacy?'VERIFYING ORIGINAL DJ CODE…':'VERIFYING BACK ROOM LOGIN…';
+  if(useLegacy){
+   if(!password)throw new Error('Enter the original DJ code.');
+   await ensureAudio();await verify(password);
+  }else{
+   await geDjOwnerLogin(password);
+   key='';
+   await ensureAudio();await verify('');
+  }
+  $('password').value='';
   if(!GE_IS_IPHONE5)await autoConnectDeviceMedia();
-  $('loginStatus').textContent=''
+  $('loginStatus').textContent='';
  }catch(e){$('loginStatus').textContent=e.message||'Could not connect.'}
-};
+ finally{button.disabled=false}
+}
+$('enter').onclick=function(){return geDjEnter(false)};
+$('enterLegacy').onclick=function(){return geDjEnter(true)};
 $('password').addEventListener('keydown',function(e){if(e.key==='Enter')$('enter').click()});
 
 let nowProgressRAF=0;
