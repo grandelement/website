@@ -41,7 +41,11 @@ assert.match(radioHtml,/Vault did not accept this key/);
 assert.match(radioHtml,/A saved code NAME is not necessarily the actual RADIO KEY/);
 assert.match(html,/id='brAccessShowActualKey'/);
 assert.match(html,/VAULT CHECK FAILED/);
-assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\),refreshDJAccessPlaylists\(\)\]\)/);
+assert.match(html,/Promise\.allSettled\(\[refreshCodes\(\),refreshPlaylists\(\)\]\)/);
+assert.match(html,/applyDJAccessPlaylists\(playlists,'GITHUB · SHARED PLAYLIST MASTER'\)/,
+  'Access Codes must use the same GitHub playlist registry as Music');
+assert.match(html,/if\(token\(\)\)void restorePublisherSession\(\)/,
+  'a valid existing Back Room session should automatically restore on reload');
 console.log('PASS: clear radio-key generation, one-time copy, replacement and selection-safe editing');
 
 assert.match(html,/function selectedAccessAssignments\(\)/);
