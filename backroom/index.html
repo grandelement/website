@@ -3130,12 +3130,13 @@ const backroomVaultManagers=(()=>{
     return name!==prior.name||
       JSON.stringify(chosen)!==JSON.stringify((prior.tracks||[]).map(t=>String(t.track_path||'')));
   }
-  async function refreshPlaylists(){
+  async function refreshPlaylists(preferPublisher=false){
     const preserveEditor=playlistHasUnsavedEdits();
     playlistStatus('LOADING GITHUB PLAYLISTS…');
     try{
       let result,readSource='GITHUB · DIRECT READ';
       try{
+        if(preferPublisher)throw Error('Publisher readback required after a playlist write');
         result=await directGithubPlaylistRead();
       }catch(directError){
         // If GitHub Pages/CDN is unreachable, use the protected Publisher.
@@ -3197,7 +3198,9 @@ const backroomVaultManagers=(()=>{
       const saved=String(result.id||id);
       if(!saved||!result.commit_sha)throw Error('GitHub did not confirm the saved playlist commit.');
       playlistEditingId=saved;
-      const reloaded=await refreshPlaylists();
+      // After a save, use the authenticated Publisher readback. GitHub Pages
+      // may still serve an older registry while its deployment catches up.
+      const reloaded=await refreshPlaylists(true);
       if(!reloaded){
         playlistTracks=pendingTracks;
         $('brPlaylistName').value=name;
@@ -3233,7 +3236,10 @@ const backroomVaultManagers=(()=>{
       await githubPlaylistAction({action:'delete',id});
       playlistEditingId='';if(selectedViewPlaylistId===id)selectedViewPlaylistId='';
       editPlaylist('');
-      await refreshPlaylists();renderPlaylistViewer();playlistStatus('DELETED FROM GITHUB PLAYLIST FILE · '+p.name);
+      const checked=await refreshPlaylists(true);
+      renderPlaylistViewer();
+      playlistStatus(checked?'DELETED FROM GITHUB PLAYLIST FILE · '+p.name:
+        'GITHUB DELETE COMMITTED · PUBLISHER READBACK UNAVAILABLE · Do not delete again.');
     }catch(e){playlistStatus('GITHUB DELETE FAILED · '+String(e.message||e))}
   }
   function renderDJAlbumChoices(){
