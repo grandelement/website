@@ -22,7 +22,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:true,expandedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,expandedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -1778,18 +1778,17 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
     say('Loading songs. Tap PLAY when the library is ready.');
     return false;
   }
-  const permitted=access?.restricted
-   ?state.tracks.filter(t=>access.allowed.includes(t.path)):state.tracks;
-  const checked=direction==='all'?[]:
-   ((direction==='next'||direction==='previous')?[]:
-   selectedTracks().filter(t=>permitted.some(p=>p.path===t.path)));
-  // Main PLAY means ALL permitted songs. Explicit playlist operations still
-  // honor the checked song order and the verified Vault access scope.
-  const tracks=checked.length?checked:permitted;
-  if(!tracks.length){say('No playable songs are in the library.');return false}
-  const index=direction==='previous'?tracks.length-1:
-   direction==='next'?Math.min(1,tracks.length-1):0;
-  return playTrack(tracks[index],tracks.map(t=>t.path),true,checked.length===0);
+  const permitted=state.tracks.filter(t=>
+    !LEGACY_ALBUMS.has(t.album)&&t.album!=='Singles'&&
+    (!access?.restricted||access.allowed.includes(t.path)));
+  if(!permitted.length){say('No playable non-Legacy songs are in the library.');return false}
+  const queue=permitted.map(t=>t.path);
+  for(let i=queue.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [queue[i],queue[j]]=[queue[j],queue[i]];
+  }
+  const first=state.tracks.find(t=>t.path===queue[0]);
+  return playTrack(first,queue,true,true);
  },
  refresh:()=>{if(state.open)render()},reloadLibrary:()=>void fetchCatalog(),
  reportPlayback:message=>say(message),
