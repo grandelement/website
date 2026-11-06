@@ -7883,7 +7883,9 @@ async function verify(k){
        msg=check.ok?'Back Room login verified, but the radio bridge was rejected. Check the Cloudflare BLITZ_DJ_PASSWORD secret and current Worker deployment.':'Back Room session expired. Sign in again.';
      }catch(e){msg='Radio bridge rejected the connection. Back Room session check was unavailable.'}
    }
-   throw new Error(msg);
+   const failure=new Error(msg);
+   failure.status=r.status;
+   throw failure;
  }
  status=await r.json();
  if(key)await rememberDjDevice();
@@ -11889,10 +11891,17 @@ document.querySelectorAll('#geStationTabs a').forEach(function(link){
 });
 window.__GE_DJ_BOOT_OK=true;
 if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
- verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){ $('loginStatus').textContent='Back Room session expired. Sign in to Back Room again.' });
+ verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(e){
+  // Never call a radio outage an expired Back Room session.
+  $('loginStatus').textContent=(e&&e.message)||'DJ radio connection unavailable.';
+ });
 }else if(djTrustedId&&djTrustedToken){
- verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(){
-  djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
+ verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(e){
+  // A 502/503 is an unavailable radio, not proof that trusted device access expired.
+  if(e&&(e.status===401||e.status===403)){
+   djTrustedId='';djTrustedToken='';try{localStorage.removeItem('geDjTrustedIdV1');localStorage.removeItem('geDjTrustedTokenV1')}catch(e){}
+  }
+  $('loginStatus').textContent=(e&&e.message)||'DJ radio connection unavailable.';
  })
 }else{
  const saved=sessionStorage.getItem('geDjPassword')||localStorage.getItem('geDjPassword');
