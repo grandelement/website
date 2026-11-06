@@ -334,6 +334,13 @@ export default {
  async fetch(request,env){
   const path=new URL(request.url).pathname,now=Date.now();
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request)});
+  if(path==="/v1/dj-health"&&request.method==="GET"){
+    const publisher_service_bound=!!env.GE_BACKROOM_PUBLISHER?.fetch;
+    const blitz_dj_secret_configured=!!env.BLITZ_DJ_PASSWORD;
+    return json({ok:publisher_service_bound&&blitz_dj_secret_configured,
+      publisher_service_bound,blitz_dj_secret_configured},
+      publisher_service_bound&&blitz_dj_secret_configured?200:503,request);
+  }
   if(path.startsWith("/v1/dj-proxy/"))return relayBlitzControl(request,env);
   if(path==="/v1/dj-uploads"||path==="/v1/dj-uploads/file"||path==="/v1/dj-uploads/artwork")return gePrivateUploads(request,env);
   if(path==="/v1/program"&&request.method==="GET"){
