@@ -4405,14 +4405,18 @@ html.ge-radio-ui body.view-ship #musicGroup > #liveStatus.show {
   white-space:nowrap!important;grid-area:auto!important;
   opacity:0!important;pointer-events:none!important;
 }
-/* RELOAD stays coded, but is removed from all visible control layouts.
-   The authorized SUN LAB control uses the same former slot. */
-html.ge-radio-ui body #bottomActions #reloadBtn,
-html.ge-radio-ui body #bottomActions #reloadBtn:not([hidden]),
-html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
-  display:none!important;position:absolute!important;width:0!important;
-  height:0!important;margin:0!important;padding:0!important;
-  border:0!important;pointer-events:none!important;
+/* Restore the existing access-controlled Reload Library utility.
+   Hidden means unauthorized; authorized buttons keep their normal layout. */
+html.ge-radio-ui body #bottomActions #reloadBtn[hidden],
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{
+  display:none!important;
+}
+html.ge-radio-ui body.ge-offline-entitled #bottomActions #reloadBtn:not([hidden]){
+  display:flex!important;position:static!important;width:auto!important;
+  height:auto!important;min-height:36px!important;margin:0!important;
+  padding:6px 8px!important;border:1px solid #72bdec!important;
+  clip-path:none!important;opacity:1!important;pointer-events:auto!important;
+  align-items:center!important;justify-content:center!important;
 }
 @media (orientation:portrait) and (max-width:700px){
   html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
@@ -6307,7 +6311,7 @@ function savePersonalSongSelection(){
   try{localStorage.setItem(GE_SONG_PICK_KEY,
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
-function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)).slice().sort(orderedSort);}
+function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)&&!isLegacy(url)&&!isSingles(url)).slice().sort(orderedSort);}
 // Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
 async function loadFrozenAutoSongs(){
@@ -7568,8 +7572,8 @@ function syncRadioOfflineAccessUI(){
     if(!permissions.offline)offlineButton.textContent='OFFLINE';
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
-  // Reload remains implemented but its owner-facing button is intentionally hidden.
-  setUtility($('reloadBtn'),false);
+  // The existing Reload Library button is available to authorized codes.
+  setUtility($('reloadBtn'),permissions.reload);
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -7586,7 +7590,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.reload);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
@@ -8535,7 +8539,7 @@ function geCloseQuickSongPanel(){
 function geOpenQuickSongPanel(){
   const tracks=geInlineMusicActive&&gePlaylistQuickQueue.length
     ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
-    :selectableSongs().map(url=>({url,title:displayTitle(url,!state.shuffle)}));
+    :(geInlineMusicActive ? [] : allowedCatalog()).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
   heading.className='geQuickSongHeading';
@@ -10617,6 +10621,12 @@ $('reloadBtn').addEventListener('click',async()=>{
         offlineActive:!!window.GEOffline?.isActive?.()
       });
       saveMediaShaMap(library.shaMap);
+    }
+
+    // Refresh the protected Music catalog as well; the Radio manifest alone
+    // does not update the separate MUSIC selector/preview queue.
+    try{window.GEMusicV5?.reloadLibrary?.();}catch(error){
+      console.warn('Protected music library refresh failed',error);
     }
 
     // Refresh the template/cockpit shell without clearing any previously downloaded music.
