@@ -4735,12 +4735,9 @@ html body #shipStage [data-proxy="legacyBtn"] {
 #geOfflineDecision button:focus-visible{outline:3px solid #a1e9ff!important;outline-offset:2px!important}
 </style>
 <style id="ge-radio-offline-sunlab-compact-20261106">
-/* Offline owns catalog refresh. Keep the mobile utility controls in two rows. */
-html.ge-radio-ui body #bottomActions #reloadBtn,
-html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
- display:none!important;position:absolute!important;width:0!important;
- height:0!important;pointer-events:none!important;
-}
+/* Explicit Reload Library is retained; Offline also refreshes automatically. */
+html.ge-radio-ui body #bottomActions #reloadBtn[hidden],
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{display:none!important;}
 @media (orientation:portrait) and (max-width:700px){
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #bottomActions{
   grid-template-columns:repeat(3,minmax(0,1fr))!important;
@@ -5224,7 +5221,7 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"]{
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="reloadBtn" type="button" hidden>Reload Library</button>
+    <button id="reloadBtn" type="button">Reload Library</button>
     <button id="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
@@ -7606,7 +7603,7 @@ function syncRadioOfflineAccessUI(){
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
   // Restore Reload Library for access codes with reload permission.
-  setUtility($('reloadBtn'),false); // Offline performs its own fresh catalog check.
+  setUtility($('reloadBtn'),true); // Explicit fresh scan remains available after uploads.
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -7623,7 +7620,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),false);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),true);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
