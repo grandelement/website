@@ -7871,10 +7871,54 @@ async function rememberDjDevice(){
   }
  }catch(e){}
 }
+// Back Room ownership and the BLITZ radio connection are independent.
+ // A radio outage must not lock the owner out of the local DJ console.
+async function geOpenVerifiedOwnerOffline(){
+ var t='';try{t=sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||''}catch(e){}
+ if(!t)return false;
+ try{
+  const check=await fetch('https://ge-backroom-publisher.grandelement.workers.dev/session',{
+   method:'GET',headers:{'Authorization':'Bearer '+t},cache:'no-store'
+  });
+  if(!check.ok)return false;
+  const owner=await check.json().catch(function(){return {}});
+  if(owner.ok!==true)return false;
+ }catch(e){return false}
+ document.body.classList.add('geAuthenticated');
+ $('lock').classList.add('hide');
+ $('loginStatus').textContent='';
+ $('statusPill').textContent='RADIO OFFLINE';
+ if($('diagSummary'))$('diagSummary').textContent='BLITZ CONNECTION UNAVAILABLE';
+ if($('nowTitle'))$('nowTitle').textContent='RADIO CONNECTION OFFLINE';
+ if($('nowMeta'))$('nowMeta').textContent='DJ console is open. Radio controls require BLITZ to reconnect.';
+ geVerifyRunningDjBuild().catch(function(){});
+ applyEmbedMode();
+ refreshDevices().catch(function(){});
+ updateLineSourceLabel();
+ // Reconnect automatically without erasing device tokens or asking for passwords.
+ if(!window.__GE_DJ_RECONNECT_TIMER){
+  window.__GE_DJ_RECONNECT_TIMER=setInterval(async function(){
+   try{
+    const probe=await api('/control/status');
+    if(!probe.ok)return;
+    clearInterval(window.__GE_DJ_RECONNECT_TIMER);
+    window.__GE_DJ_RECONNECT_TIMER=null;
+    await verify('');
+   }catch(e){}
+  },10000);
+ }
+ return true;
+}
 async function verify(k){
  key=String(k||'');
- const r=await api('/control/status');
+ let r;
+ try{r=await api('/control/status')}
+ catch(e){
+  if(!key&&await geOpenVerifiedOwnerOffline())return;
+  throw new Error('Radio connection unavailable. BLITZ is not responding.');
+ }
  if(!r.ok){
+  if(!key&&await geOpenVerifiedOwnerOffline())return;
    let msg=r.status===401?'DJ code or session was rejected.':'DJ radio connection failed (HTTP '+r.status+').';
    const ownerToken=(function(){try{return !key&&(sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')||'')}catch(e){return ''}})();
    if(ownerToken&&r.status===401){
@@ -11890,7 +11934,24 @@ document.querySelectorAll('#geStationTabs a').forEach(function(link){
  })
 });
 window.__GE_DJ_BOOT_OK=true;
-if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
+// /dj/ checks the password once, and hands an original DJ code to this
+// same-tab page only for the initial connection. Never put passwords in URLs.
+let geDjOneTimeCode='';
+try{
+ geDjOneTimeCode=sessionStorage.getItem('GE_DJ_BOOT_PASS_V1')||'';
+ sessionStorage.removeItem('GE_DJ_BOOT_PASS_V1');
+}catch(e){}
+if(geDjOneTimeCode){
+ verify(geDjOneTimeCode).then(function(){
+  geDjOneTimeCode='';
+  geBoardHeartbeat();
+  if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();
+  return true;
+ }).catch(function(e){
+  geDjOneTimeCode='';
+  $('loginStatus').textContent=(e&&e.message)||'Original DJ connection unavailable.';
+ });
+}else if((function(){try{return !!sessionStorage.getItem('GE_BACKROOM_PUBLISH_SESSION_V1')}catch(e){return false}})()){
  verify('').then(function(){geBoardHeartbeat();if(!GE_IS_IPHONE5)return autoConnectDeviceMedia();return true}).catch(function(e){
   // Never call a radio outage an expired Back Room session.
   $('loginStatus').textContent=(e&&e.message)||'DJ radio connection unavailable.';
