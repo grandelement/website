@@ -26,7 +26,7 @@ function init(){
  if(!main||!header||!radio||!drive)return;
  var top=node("nav","geDeviceNav");
  top.setAttribute("aria-label","GE DJ device navigation");
- var links=[["iMAC · THIS DEVICE","/dj/imac.html"],["DJ BOOTH / DEVICES","/radio/ge-dj.html"],["STUDIO","/studio/"],["BLITZ FALLBACK","https://radio.grandelement.blitz.cloud/dj/"]];
+ var links=[["iMAC · THIS DEVICE","/dj/imac.html"],["DJ BOOTH / DEVICES","/dj/"],["STUDIO","/studio/"],["BLITZ FALLBACK","https://radio.grandelement.blitz.cloud/dj/"]];
  for(var i=0;i<links.length;i++){var a=node("a",i===0?"active":"",links[i][0]);a.href=links[i][1];top.appendChild(a)}
  main.insertBefore(top,header);header.getElementsByTagName("p")[0].style.display="none";
  /* Persistent compact upload status immediately below the device row. */
@@ -69,13 +69,13 @@ function init(){
  var meters=radio.querySelector(".geMeters");move(meters,mx);
  var gain=by("liveGain"),gainLabel=d.querySelector('label[for="liveGain"]'),gainRead=by("liveGainRead");
  move(gainLabel,mx);move(gain,mx);move(gainRead,mx);
- var mixlink=node("a","link","OPEN FULL DJ MIXER");mixlink.href="/radio/ge-dj.html";mx.appendChild(mixlink);
+ var mixlink=node("a","link","OPEN FULL DJ MIXER");mixlink.href="/dj/";mx.appendChild(mixlink);
  help(mx,"Mixer","Connect Soundflower (2ch) in Studio first. This page shows the iMac stereo meters and live input gain. The full DJ Booth contains the expanded mixer.");
  diagnostics(mx,"Mixer",["meterStatus","leftDb","rightDb","liveGainRead","channelReadout"]);
  fx.appendChild(node("p",null,"Advanced DJ effects and stem controls are in the full GE DJ Booth. No effects are inserted into the live iMac audio path from this tab."));
  var effectsControls=by("radioControls");
  if(effectsControls){move(effectsControls,fx);fx.getElementsByTagName("p")[0].textContent="BLITZ music transitions. Fade, skip and stop controls activate after connecting Radio 1. Live studio audio remains protected.";}
- var fxlink=node("a","link","ADVANCED DJ EFFECTS");fxlink.href="/radio/ge-dj.html";fx.appendChild(fxlink);
+ var fxlink=node("a","link","ADVANCED DJ EFFECTS");fxlink.href="/dj/";fx.appendChild(fxlink);
  help(fx,"Effects","Use the full GE DJ Booth for filters, EQ, stems and deck effects. This classic iMac console keeps the existing Soundflower audio route unchanged.");
  diagnostics(fx,"Effects",["connection","liveStatus","meterStatus"]);
  mixer.appendChild(mx);effects.appendChild(fx);
