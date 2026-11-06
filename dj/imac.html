@@ -371,7 +371,8 @@ function ownerSession(){try{return sessionStorage.getItem("GE_BACKROOM_PUBLISH_S
 function request(method,path,body,callback){
  var xhr=new XMLHttpRequest();xhr.open(method,API+path,true);xhr.timeout=18000;
  xhr.setRequestHeader("Accept","application/json");
- if(key)xhr.setRequestHeader("X-GE-DJ-Key",key);
+ if(ownerSession())xhr.setRequestHeader("Authorization","Bearer "+ownerSession());
+ else if(key)xhr.setRequestHeader("X-GE-DJ-Key",key);
  if(deviceId&&deviceToken){xhr.setRequestHeader("X-GE-DJ-Device-ID",deviceId);xhr.setRequestHeader("X-GE-DJ-Device-Token",deviceToken)}
  if(body!==null)xhr.setRequestHeader("Content-Type","application/json");
  xhr.onreadystatechange=function(){
