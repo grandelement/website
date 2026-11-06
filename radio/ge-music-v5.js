@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.20-20261104-GUEST-PLAY-GATE-ONLY';
+const BUILD='GE-MUSIC-V7.21-20261106-REFRESH-REAL-SONG-INVENTORY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -59,6 +59,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
  padding:5px 8px;border:1px solid #5898c7;border-radius:8px;background:#10314d;
  color:#eaffff;font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
 .filterRow .songSelectAll[hidden]{display:none!important}
+.filterRow .reloadCatalogBtn{min-height:42px;width:43px;padding:5px;font-size:22px;flex:0 0 43px;border-color:#72bdec;background:#10314d;color:#ecfaff}
+.filterRow .reloadCatalogBtn:disabled{opacity:.55}
 .filterRow .songSelectAll input{width:18px;height:18px;min-width:18px;margin:0;accent-color:#48baff}
 .filterRow select{width:100%;min-width:0;min-height:42px;padding:8px 10px;border:1px solid #5898c7;border-radius:9px;background:#10314d;color:#ecfaff;font-size:clamp(13px,3.5vw,16px);font-weight:750}
 .filterRow select[hidden]{display:none!important}
@@ -545,7 +547,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
- <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
+ <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
@@ -728,13 +730,17 @@ async function fetchCatalog(){
    {cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
   if(response.ok){
    const data=await response.json();
-   const previousCount=new Set(all).size;
-   if(Array.isArray(data.tree)&&!data.truncated)for(const item of data.tree){
-    if(item?.type!=='blob')continue;
-    const path=canonical(item.path);
-    if(path)all.push(path);
+   if(Array.isArray(data.tree)&&!data.truncated){
+    const real=[];
+    for(const item of data.tree){
+     if(item?.type!=='blob')continue;
+     const path=canonical(item.path);
+     if(path)real.push(path);
+    }
+    // A successful, complete tree REPLACES the older cached manifest list.
+    // Merging left deleted tracks (e.g. the old Aether Journey) in the player.
+    if(real.length)publishCatalog(real,true);
    }
-   if(new Set(all).size!==previousCount || !state.loaded)publishCatalog(all,true);
   }
  }catch(_){/* Keep the static manifest when discovery is unavailable. */}
  if(!state.loaded)publishCatalog(all,true);
@@ -1688,6 +1694,17 @@ el('.buySelected').addEventListener('click',()=>{
 el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
+el('.reloadCatalogBtn').addEventListener('click',async()=>{
+ const button=el('.reloadCatalogBtn');
+ if(state.loading)return;
+ state.loading=true;button.disabled=true;
+ say('Refreshing current published songs…');
+ try{
+  await fetchCatalog();void loadPublished();void loadFanPlaylists();
+  say('LIBRARY UPDATED · '+state.tracks.length+' CURRENT SONGS');
+ }catch(error){say('LIBRARY UPDATE FAILED · '+String(error?.message||error))}
+ finally{state.loading=false;button.disabled=false}
+});
 el('.selectAllSongs').addEventListener('change',event=>{
  const access=musicAccessActive(),allowed=access?.restricted?new Set(access.allowed):null;
  const rows=allowed?state.tracks.filter(t=>allowed.has(t.path)):state.tracks;
@@ -1774,7 +1791,8 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
    direction==='next'?Math.min(1,tracks.length-1):0;
   return playTrack(tracks[index],tracks.map(t=>t.path),true,checked.length===0);
  },
- refresh:()=>{if(state.open)render()},reportPlayback:message=>say(message),
+ refresh:()=>{if(state.open)render()},reloadLibrary:()=>void fetchCatalog(),
+ reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 // Load at startup rather than making the listener press PLAY twice while
 // the library downloads its manifest and initializes the music queue.
