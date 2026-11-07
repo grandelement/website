@@ -8451,7 +8451,18 @@ function startMainMusicLibrary(direction='all'){
 }
 function startPlayerPlaylist(){
   const songs=playerPlaylist().map(canonicalSongPath);
-  if(!songs.length){setStatus('PLAYER playlist unavailable. Reload Library to retry.');return false;}
+  if(!songs.length){
+    // The catalog and the audio engine load independently. Start catalog loading
+    // immediately and keep the next user tap synchronous for iOS Safari.
+    if(!geQuickSongCatalogRetry){
+      geQuickSongCatalogRetry=true;
+      void loadMusicManifest().then(paths=>{
+        if(paths.length&&!state.catalog.length)state.catalog=applyKnownMediaVersions(paths.sort(orderedSort),loadMediaShaMap()).sort(orderedSort);
+      }).catch(error=>console.warn('PLAYER catalog load failed',error))
+        .finally(()=>{geQuickSongCatalogRetry=false;});
+    }
+    setStatus('Loading PLAYER songs. Tap PLAY again when ready.');return false;
+  }
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
   if(typeof frame?.GEPlayLibraryQueue!=='function'){setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;}
@@ -8459,6 +8470,7 @@ function startPlayerPlaylist(){
   frame.GESetMusicQueueShuffle?.(state.shuffle);
   const ok=frame.GEPlayLibraryQueue(songs,start,'PLAYER');
   if(ok)gePlaylistQuickSet('PLAYER',songs,{custom:false});
+  else setStatus('PLAYER could not start. Check the music file or access gate.');
   return !!ok;
 }
 playBtn?.addEventListener('click',()=>{
@@ -8606,7 +8618,7 @@ function geOpenQuickSongPanel(){
     })();
   }
   // The main song selector stays in album order; shuffle affects playback only.
-  const tracks=playerPlaylist().filter(url=>!isLegacy(url)&&!isSingles(url))
+  const tracks=selectableSongs()
       .slice().sort(orderedSort).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
@@ -8653,19 +8665,13 @@ function geOpenQuickSongPanel(){
       const selectedPath=canonicalSongPath(url);
       let started=false;
       try{
-        if(geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length&&
-           canonicalSongPath(gePlaylistQuickQueue[index])===selectedPath){
-          started=frame?.GEJumpLibraryQueue?.(index)===true;
-        }else{
-          // SELECT A SONG sets the active track without destroying the main
-          // album-order queue, so NEXT and PREV continue from that exact song.
-          const mainPaths=playerPlaylist().filter(song=>!isLegacy(song)&&!isSingles(song))
-            .slice().sort(orderedSort).map(canonicalSongPath);
-          if(mainPaths.includes(selectedPath)){
-            frame?.GESetMusicQueueShuffle?.(state.shuffle);
-            started=frame?.GEPlayLibraryQueue?.(mainPaths,selectedPath,'MAIN PLAYER PLAYLIST')===true;
-            if(started)gePlaylistQuickSet('MAIN PLAYER PLAYLIST',mainPaths,{custom:false});
-          }
+        // A visitor's explicit song selection is never limited to the default PLAYER list.
+        // Use one direct published file path and keep NEXT/PREV within the full catalog.
+        const fullQueue=selectableSongs().map(canonicalSongPath);
+        if(fullQueue.includes(selectedPath)){
+          frame?.GESetMusicQueueShuffle?.(state.shuffle);
+          started=frame?.GEPlayLibraryQueue?.(fullQueue,selectedPath,'SONG CATALOG')===true;
+          if(started)gePlaylistQuickSet('SONG CATALOG',fullQueue,{custom:false});
         }
       }catch(error){console.warn('Exact song selection failed',error)}
       if(started){
