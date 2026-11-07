@@ -332,6 +332,18 @@ function geRadioEmbedPlaybackState(){
 }
 if(GE_ANY_MUSIC_EMBED){
  for(const name of ['playing','pause','ended','error'])audio.addEventListener(name,geRadioEmbedPlaybackState);
+ // Media events reveal failures that occur after audio.play() has resolved.
+ // Always report the real media error instead of silently displaying a song title.
+ for(const eventName of ['loadstart','loadedmetadata','canplay','waiting','stalled','playing','error']){
+  audio.addEventListener(eventName,()=>{
+   const details={event:eventName,mediaError:audio.error?.code||0,networkState:audio.networkState,
+    readyState:audio.readyState,sourceHost:(()=>{try{return new URL(audio.currentSrc||audio.src).host}catch(_){return ''}})()};
+   geRadioEmbedNotify('ge-radio-music-playback-signal',details);
+   if(eventName==='error')geRadioEmbedNotify('ge-radio-music-playback-error',{
+    reason:'MediaElementError',message:'Audio file failed to load or decode (media code '+(audio.error?.code||0)+').',
+    mediaError:audio.error?.code||0,networkState:audio.networkState,readyState:audio.readyState});
+  });
+ }
  window.addEventListener('message',event=>{
   if(event.source!==window.parent||event.origin!==location.origin)return;
   const msg=event.data;
