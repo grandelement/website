@@ -7804,6 +7804,7 @@ function geInlineMusicInit(){
       }
     }catch(error){console.warn('Preview audio stays in its own document',error);}
     geRetryPendingMainMusic();
+    if(geQuickSongPanel&&!geQuickSongPanel.hidden)geOpenQuickSongPanel();
   });
   geInlineMusicPanel.append(head,geInlineMusicFrame);
   document.body.append(geInlineMusicBackdrop,geInlineMusicPanel);
@@ -8566,6 +8567,8 @@ function geCloseQuickSongPanel(){
 }
 let geQuickSongCatalogRetry=false;
 function geOpenQuickSongPanel(){
+  // Begin loading the protected playback engine before the listener taps a track.
+  geInlineMusicInit();
   // Opening before asynchronous boot completes must not leave a permanently empty list.
   // Recover the published catalog without touching the currently playing transport.
   if(!state.catalog.length && !geQuickSongCatalogRetry){
@@ -8600,6 +8603,12 @@ function geOpenQuickSongPanel(){
     msg.textContent=!state.catalog.length?(geQuickSongCatalogRetry?'Loading song list…':'Music library unavailable. Tap Reload Library to retry.'):'No eligible songs available in the music library.';
     geQuickSongPanel.appendChild(msg);
   }
+  if(tracks.length&&typeof geInlineMusicFrame?.contentWindow?.GEPlayLibraryQueue!=='function'){
+    const waiting=document.createElement('div');
+    waiting.className='geQuickSongEmpty';
+    waiting.textContent='Preparing music player…';
+    geQuickSongPanel.appendChild(waiting);
+  }
   for(const [index,track] of tracks.entries()){
     const url=track.url;
     const item=document.createElement('button');
@@ -8607,6 +8616,9 @@ function geOpenQuickSongPanel(){
     item.className='geQuickSongItem';
     item.textContent=track.title;
     item.setAttribute('aria-label','Play '+item.textContent);
+    const engineReady=typeof geInlineMusicFrame?.contentWindow?.GEPlayLibraryQueue==='function';
+    item.disabled=!engineReady;
+    if(!engineReady)item.title='Preparing music player…';
     if(url===(geInlineMusicActive?gePlaylistQuickPath:state.currentURL))item.setAttribute('aria-current','true');
     item.addEventListener('click',()=>{
       geCloseQuickSongPanel();
