@@ -945,7 +945,19 @@ function showAlbums(){
  }
 }
 let geTrackRequestSerial=0;
-async function startTrack(t){
+async // AETHER files exist in GitHub but can be absent from a published Pages build.
+// Use their repository-backed audio URLs rather than treating a catalog entry
+// as proof that /ge-music/ was deployed. Keep the original local URL for
+// every other album so previously working recordings are unchanged.
+function geAudioSourceURL(t){
+ const path=cleanMusicPath(t?.path);
+ if(/^ge-music\\/music\\/Grand Element - 2026 - Aether\\//i.test(path)){
+  return 'https://raw.githubusercontent.com/grandelement/website/main/'+
+   path.split('/').map(encodeURIComponent).join('/');
+ }
+ return new URL(t.url,location.origin).href;
+}
+function startTrack(t){
  const requestSerial=++geTrackRequestSerial;
  if(!valid(t)){musicNotice('This song is unavailable.');return;}
  const grant=musicSession();
@@ -964,7 +976,7 @@ async function startTrack(t){
  audio.removeAttribute('src');
  audio.load();
  currentTrack=t;audio.crossOrigin='anonymous';audio.autoplay=false;
- const requestedURL=new URL(t.url,location.origin).href;
+ const requestedURL=geAudioSourceURL(t);
  audio.src=requestedURL;audio.preload='auto';audio.muted=false;
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.
@@ -988,7 +1000,7 @@ async function startTrack(t){
   // A resolved play() request is not proof the requested recording loaded.
   // Never announce the new title as PLAYING while an old source is audible.
   const actualURL=audio.currentSrc||audio.src;
-  if(new URL(actualURL,location.origin).pathname!==new URL(requestedURL).pathname){
+  if(new URL(actualURL,location.origin).href!==new URL(requestedURL).href){
    audio.pause();
    throw new Error('SelectedSourceMismatch');
   }
