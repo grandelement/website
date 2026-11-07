@@ -7059,7 +7059,9 @@ function radio2PlayCurrent(){
     radio2.index=slot.index;radio2.url=url;
     radio2.title=String(slot.track.title||'').trim();
     state.currentURL=url;
-    titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'Grand Element Radio 2',slot.track.album||'');
+    // Selecting the stream URL is not proof that Safari played its audio.
+    // Show the track title only after real forward-time progress.
+    titleBtn.textContent='Connecting to Grand Element Radio…';
     refreshLoveButton();
     try{window.GEVault?.setTrackMetadata?.(audio,{
       track_id:slot.track.path||url,title:radio2.title,
@@ -7083,7 +7085,7 @@ function radio2PlayCurrent(){
     };
     if(audio.readyState>=1)seek();
     else audio.addEventListener('loadedmetadata',seek,{once:true});
-    setLiveMediaSession();
+    // iPhone lock-screen metadata also waits for verified audio progress.
     try{window.GEVault?.radio?.('radio_failover_song',{
       track_id:slot.track.path||url,track_title:radio2.title,
       album:slot.track.album||'',source:GE_STATIC_RADIO_PRIMARY?'ge_static_radio':'radio_2',playlist_id:radio2Label()
@@ -7503,6 +7505,7 @@ function exitLiveMode(message='RADIO ended.'){
     updateMediaSession(state.currentURL);
   }else{
     state.currentURL='';
+    if(!geInlineMusicActive)titleBtn.textContent='Select a song';
   }
 
   syncModeButtons();
@@ -8721,6 +8724,10 @@ audio.addEventListener('timeupdate',()=>{
       lastRadio2Progress=Date.now();
       if(!observedRadio2Progress){
       observedRadio2Progress=true;
+      titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'Grand Element Radio',
+        radio2.program?.tracks?.[radio2.index]?.album||'');
+      refreshLoveButton();
+      setLiveMediaSession();
       syncMainTransport();
       setLiveStatus((radio2.kind==='bangers'?'BANGERS':'GE BACKUP')+' · CONNECTED');
       setStatus('Grand Element Radio · local synchronized playlist active');
@@ -13831,21 +13838,24 @@ gateTestBtn?.addEventListener('click',()=>{
   syncModeButtons();
   refreshLoveButton();
   registerServiceWorker();
-  // Listener arrival may wake a sleeping host via an actual browser iframe
-  // navigation. Keep the MP3 connection automatic, without a button press.
-  if(!offlinePlaybackMode()){void preloadStaticRadio();if(!GE_STATIC_RADIO_PRIMARY)wakeBlitzFromPageVisit();}
-  // An offline bookmark must open the cached music, never dial live BLITZ.
+  // Prefetch only playlist metadata. Never select a RADIO source or request
+  // audio until the listener actually presses RADIO. This avoids showing a
+  // station title for an inaudible browser-blocked autoplay attempt.
+  if(!offlinePlaybackMode())void preloadStaticRadio();
   const qrArrival=new URLSearchParams(location.search).get('qr')==='1';
-  if(!offlinePlaybackMode())void requestRadioStart({deferPlay:qrArrival});
-  else setStatus('OFFLINE · loading saved Grand Element songs');
+  if(offlinePlaybackMode())setStatus('OFFLINE · loading saved Grand Element songs');
+  else{
+    setLiveStatus('',false);
+    setStatus('Music library loading. Press PLAY or RADIO when ready.');
+  }
   // Recheck a signed, revocable Vault grant from this browser after every
   // reload, including VPN changes. No code or password is stored.
   void window.GERestoreRadioDevice?.();
   void window.GELoudness?.initialize?.();
   const sharedLiveRequested=new URLSearchParams(location.search).get(CONFIG.LIVE_SHARE_PARAM||'live')==='1';
   if(sharedLiveRequested){
-    // Preserve connection/progress/errors instead of hiding them with a generic label.
-    setStatus('Grand Element Radio · checking live station');
+    // Shared live links may suggest the station, but never autoplay its audio.
+    setStatus('Grand Element Radio · tap RADIO to connect.');
   }
 
   await loadFrozenAutoSongs();
@@ -13912,35 +13922,25 @@ gateTestBtn?.addEventListener('click',()=>{
     if(window.GEOffline?.audit) await window.GEOffline.audit();
   }catch(_e){}
 
-  const start=matchingStartSong() || (state.shuffle ? pickWeightedShuffle() : (allowedCatalog()[0] || ''));
-
-  // LIVE is the default first source. Prepare one normal player track underneath
-  // it so turning LIVE off immediately returns to the regular Grand Element player.
-  if(start){
-    // Do not replace the live stream with a catalog song while it connects.
-    if(state.live||state.livePreparing)liveState.returnURL=start;
-    else state.currentURL=start;
-    if(state.shuffle) recordHistory(start);
-    if(!state.live&&!state.livePreparing){
-      titleBtn.textContent=displayTitle(start,!state.shuffle);
+  // A shared ?song= URL is an explicit song choice; an ordinary visit is not.
+  // Do not invent a current playing song or radio title from playlist metadata.
+  const requestedSong=matchingStartSong();
+  if(!state.live&&!state.livePreparing&&!geInlineMusicActive){
+    if(requestedSong){
+      state.currentURL=requestedSong;
+      titleBtn.textContent=displayTitle(requestedSong,!state.shuffle);
       updateCurrentRow();
+    }else{
+      state.currentURL='';
+      titleBtn.textContent='Select a song';
     }
-    fillShuffleLookahead(CONFIG.LOUDNESS_LOOKAHEAD||5);
-    window.GELoudness?.scanNextFive?.();
-  }else if(!state.live&&!state.livePreparing){
-    state.currentURL='';
   }
-
   if(qrArrival)window.GEQRIntroAudioReady=true;
-
-  // Prepare the catalog without AUTO-PLAYING a different music source.
-  // Only the listener's PLAY or SELECT A SONG command may start recordings.
-  if(!state.live && !state.livePreparing && start){
-    setStatus(qrArrival?'Radio is ready. Tap Play after the introduction.':
-      'Music ready. Press PLAY or select a song.');
-  }else if(!state.live && !state.livePreparing && !start){
-    titleBtn.textContent='No music files found';
-    setStatus('RADIO could not connect and no playable library track was found.');
+  if(!state.live&&!state.livePreparing&&!geInlineMusicActive){
+    setStatus(state.catalog.length
+      ?(qrArrival?'Radio ready. Tap PLAY or RADIO after the introduction.':
+        'Music ready. Tap PLAY or select a song. Tap RADIO for the station.')
+      :'No music files found. Use Reload Library to check for new music.');
   }
 
   try{window.GEShip?.syncAll();}catch(_e){}
