@@ -8564,7 +8564,26 @@ function geCloseQuickSongPanel(){
   geQuickSongBackdrop.hidden=true;
   titleBtn.setAttribute('aria-expanded','false');
 }
+let geQuickSongCatalogRetry=false;
 function geOpenQuickSongPanel(){
+  // Opening before asynchronous boot completes must not leave a permanently empty list.
+  // Recover the published catalog without touching the currently playing transport.
+  if(!state.catalog.length && !geQuickSongCatalogRetry){
+    geQuickSongCatalogRetry=true;
+    void (async()=>{
+      try{
+        const songs=await loadMusicManifest();
+        if(songs.length&&!state.catalog.length){
+          state.catalog=applyKnownMediaVersions(songs.sort(orderedSort),loadMediaShaMap()).sort(orderedSort);
+          rebuildQueue(state.currentURL);
+        }
+      }catch(error){console.warn('Song picker catalog unavailable',error);}
+      finally{
+        geQuickSongCatalogRetry=false;
+        if(!geQuickSongPanel.hidden)geOpenQuickSongPanel();
+      }
+    })();
+  }
   // The main song selector stays in album order; shuffle affects playback only.
   const tracks=geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length
     ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
@@ -8578,7 +8597,7 @@ function geOpenQuickSongPanel(){
   if(!tracks.length){
     const msg=document.createElement('div');
     msg.className='geQuickSongEmpty';
-    msg.textContent=!state.catalog.length?'Music library has not loaded. Please reload the library.':!approvedAutoReady?'Approved song list is unavailable. Song selection is paused to protect the approved catalog.':'No eligible songs available in the music library.';
+    msg.textContent=!state.catalog.length?(geQuickSongCatalogRetry?'Loading song list…':'Music library unavailable. Tap Reload Library to retry.'):'No eligible songs available in the music library.';
     geQuickSongPanel.appendChild(msg);
   }
   for(const [index,track] of tracks.entries()){
