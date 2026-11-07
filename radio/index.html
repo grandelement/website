@@ -16,6 +16,19 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script id="ge-playback-error-capture">
+// Runs before the main Radio scripts, so even early startup failures are captured.
+window.__GE_PLAYER_ERRORS=[];
+window.addEventListener('error',function(e){
+  window.__GE_PLAYER_ERRORS.push({kind:'error',at:Date.now(),message:String(e.message||'Unknown'),file:String(e.filename||'').split('?')[0],line:e.lineno||0,col:e.colno||0});
+  if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
+});
+window.addEventListener('unhandledrejection',function(e){
+  var x=e.reason;
+  window.__GE_PLAYER_ERRORS.push({kind:'rejection',at:Date.now(),message:String(x&&x.message||x||'Unknown')});
+  if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
+});
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script id="ge-radio-first-style">document.documentElement.classList.add('ge-radio-ui');</script>
 <script id="ge-safari-request-website-mode">
@@ -7792,7 +7805,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v721-async-player-repair';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v722-radio-debug';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
@@ -7835,8 +7848,11 @@ function geInlineMusicInit(){
       }
       geInlineMusicSyncTransport();
     }else if(data.type==='ge-radio-music-playback-error'){
-      geInlineMusicPaused=true;geInlineMusicSyncTransport();
+      geInlineMusicPaused=true;geInlineMusicActive=false;geInlineMusicSyncTransport();
+      setStatus(String(data.message||'MUSIC playback failed.'));
       window.GEMusicV5?.reportPlayback?.(String(data.message||'MUSIC playback failed.'));
+    }else if(data.type==='ge-radio-music-playback-requested'){
+      window.GEPlaybackDebug?.record?.('music-request', {path:data.path,sourceHost:data.sourceHost});
     }else if(data.type==='ge-radio-music-playback-started'){
       geInlineMusicPaused=false;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
@@ -7877,6 +7893,9 @@ function geShowMainPlaylistPlayer(){
   $('titleBtn')?.scrollIntoView?.({block:'start',behavior:'auto'});
 }
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
+// Prepare the music iframe on page load, not on the first song tap.
+// This keeps the selection tap in the same iPhone user gesture as audio.play().
+window.addEventListener('load',()=>{try{geInlineMusicInit();}catch(error){console.error('GE player initialization failed',error);}}, {once:true});
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
  shuffleEnabled:()=>state.shuffle,
@@ -14151,6 +14170,186 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   document.addEventListener('keydown',function(event){
     if(!popup.hidden&&event.key==='Escape'){event.preventDefault();dismiss();}
   });
+})();
+</script>
+<script id="ge-radio-temporary-debug">
+(function(){
+'use strict';
+var BUILD='20261107-v722',events=[],lastChecks=[],lastStarted=0,ui={};
+var FIRE='ge-music/music/Grand Element - 2024 - Fire/Fire_01_Alignment.mp3';
+var NEXUS='ge-music/music/Grand Element - 2026 - Aether/Aether_05-Nexus.mp3';
+function redact(value){
+ return String(value==null?'':value).replace(/([?&](?:token|code|key|auth|access)[=])[^&\s]+/ig,'$1[REDACTED]')
+ .replace(/((?:token|code|key|secret|password)\s*[:=]\s*)[^\s,;}]+/ig,'$1[REDACTED]').slice(0,450);
+}
+function record(type,info){
+ events.push({when:new Date().toISOString(),type:redact(type),info:info||null});
+ if(events.length>70)events.shift();
+ if(ui.report&&!ui.panel.hidden)paint();
+}
+window.GEPlaybackDebug={record:record,version:BUILD};
+function cleanURL(input){
+ if(!input)return '';
+ try{var u=new URL(String(input),location.href);return u.origin+u.pathname;}
+ catch(e){return redact(input);}
+}
+function mediaState(a){
+ if(!a)return {exists:false};
+ return {exists:true,ownerDocument:a.ownerDocument===document?'radio':'embedded',paused:a.paused,
+  muted:a.muted,volume:a.volume,currentTime:Number(a.currentTime)||0,duration:Number.isFinite(a.duration)?a.duration:null,
+  readyState:a.readyState,networkState:a.networkState,errorCode:a.error?a.error.code:null,
+  source:cleanURL(a.currentSrc||a.src),seeking:a.seeking,ended:a.ended};
+}
+function getFrame(){
+ try{return document.getElementById('geInlineMusicFrame');}catch(e){return null;}
+}
+function snapshot(){
+ var frame=getFrame(),fw=null,doc=null,embed=null;
+ try{fw=frame&&frame.contentWindow;doc=frame&&frame.contentDocument;embed=fw&&fw.GEGetMusicTransport&&fw.GEGetMusicTransport();}catch(e){}
+ var gate={},local=null,session=null,auth=null;
+ try{local=JSON.parse(localStorage.getItem('GE_PLAYER_LISTENING_V2_3333')||'null');}catch(e){}
+ try{session=JSON.parse(sessionStorage.getItem('GE_MUSIC_SESSION_V1')||'null');}catch(e){}
+ try{var g=window.GEGate&&window.GEGate.getState&&window.GEGate.getState();gate={radioLocked:!!(window.GEGate&&window.GEGate.isExpiredLocked&&window.GEGate.isExpiredLocked()),active:!!g?.active,expired:!!g?.expired};}catch(e){gate.error=redact(e);}
+ try{var x=fw&&fw.GEAudioGain&&fw.GEAudioGain.getStatus&&fw.GEAudioGain.getStatus();if(x)gate.audioGain={active:!!x.active,blocked:!!x.blocked,error:redact(x.lastError||'')};}catch(e){}
+ try{auth=fw&&fw.GEPlaybackDiagnostics&&fw.GEPlaybackDiagnostics();}catch(e){}
+ var ua=String(navigator.userAgent||'').slice(0,280);
+ var resources=[];
+ try{resources=performance.getEntriesByType('resource').filter(function(x){return /preview-lab|ge-music|ge-playback|manifest\.json/i.test(x.name);}).slice(-18).map(function(x){return {url:cleanURL(x.name),durationMs:Math.round(x.duration),transferSize:x.transferSize||0,responseStatus:x.responseStatus||0};});}catch(e){}
+ var boot=window.__GE_PLAYER_ERRORS||[];
+ return {time:new Date().toISOString(),build:BUILD,radioURL:location.origin+location.pathname,userAgent:ua,
+  online:navigator.onLine,documentVisibility:document.visibilityState,secureContext:window.isSecureContext,
+  iframe:{exists:!!frame,src:frame?cleanURL(frame.src):'',readyState:doc?.readyState||'not loaded',title:doc?.title||'',
+    playQueueFunction:typeof fw?.GEPlayLibraryQueue,playTrackFunction:typeof fw?.GEPlayLibraryTrack,
+    transportFunction:typeof fw?.GEGetMusicTransport},
+  mainAudio:mediaState(document.getElementById('player')),musicAudio:mediaState(embed||doc?.getElementById('audio')),
+  access:{previewExpired:!!local?.expired,previewUsedSeconds:Math.round(Number(local?.used)||0),
+    gate:gate,previewPlaybackEngineAuthState:auth||'unavailable',sessionPresenceNotDisclosed:'Access tokens and codes are never copied'},
+  publishedManifestCount:(function(){try{var z=window.GEMusicV5?.state?.();return z?.total||z?.songCount||null;}catch(e){return 'unavailable: '+redact(e?.message||e);}})(),
+  startupErrors:boot.slice(-30).map(function(x){return {kind:x.kind,at:x.at,message:redact(x.message),file:cleanURL(x.file||''),line:x.line,col:x.col};}),
+  resources:resources};
+}
+async function probe(name,url){
+ var c=new AbortController(),tm=setTimeout(function(){c.abort();},9000),result={name:name,url:cleanURL(url)};
+ try{
+  var r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',headers:{'Range':'bytes=0-1023'},signal:c.signal});
+  result.httpStatus=r.status;result.responseType=r.type;result.contentType=r.headers.get('content-type')||'';
+  result.contentRange=r.headers.get('content-range')||'';
+  result.contentLength=r.headers.get('content-length')||'';
+  result.acceptRanges=r.headers.get('accept-ranges')||'';
+  result.finalURL=cleanURL(r.url);
+  if(r.ok&&r.body&&r.body.getReader){
+   var reader=r.body.getReader(),part=await reader.read(),chunk=part.value||new Uint8Array();
+   result.firstBytesHex=Array.from(chunk.slice(0,12)).map(function(b){return b.toString(16).padStart(2,'0');}).join(' ');
+   var textStart=String.fromCharCode.apply(null,Array.from(chunk.slice(0,40))).toLowerCase();
+   result.audioHeader=chunk[0]===73&&chunk[1]===68&&chunk[2]===51?'ID3/MP3':
+    chunk[0]===255&&(chunk[1]&224)===224?'MPEG audio frame':
+    /<html|<!doctype/.test(textStart)?'HTML ERROR INSTEAD OF AUDIO':'unrecognized';
+   await reader.cancel().catch(function(){});
+  }else if(!r.ok){result.error='Non-success HTTP status';}
+ }catch(e){result.error=redact(e?.name||'FetchError')+': '+redact(e?.message||e);}
+ finally{clearTimeout(tm);c.abort();}
+ return result;
+}
+function pathURL(path){return location.origin+'/'+path.split('/').map(encodeURIComponent).join('/');}
+function githubURL(path){return 'https://raw.githubusercontent.com/grandelement/website/main/'+path.split('/').map(encodeURIComponent).join('/');}
+async function serviceInfo(){
+ var out={supported:'serviceWorker' in navigator,controller:null,registrations:[],caches:[]};
+ try{out.controller=cleanURL(navigator.serviceWorker?.controller?.scriptURL);
+  var regs=await navigator.serviceWorker.getRegistrations();
+  out.registrations=regs.map(function(r){return {scope:cleanURL(r.scope),active:cleanURL(r.active?.scriptURL),state:r.active?.state||null};});
+ }catch(e){out.error=redact(e);}
+ try{if(window.caches)out.caches=(await caches.keys()).slice(0,40);}catch(e){out.cacheError=redact(e);}
+ return out;
+}
+function paint(){
+ if(!ui.report)return;
+ var obj={test:'GE Radio diagnostics (no private codes or tokens)',version:BUILD,at:new Date().toISOString(),
+  snapshot:snapshot(),httpTests:lastChecks,events:events.slice(-50),serviceWorker:ui.service||'pending'};
+ ui.report.value=JSON.stringify(obj,null,2);
+}
+async function run(){
+ lastStarted=Date.now();lastChecks=[];
+ ui.status.textContent='Testing player, file delivery and caches…';
+ paint();
+ var all=[
+  ['FIRE on website',pathURL(FIRE)],
+  ['NEXUS on website',pathURL(NEXUS)],
+  ['NEXUS direct GitHub',githubURL(NEXUS)],
+  ['player HTML',new URL('./preview-lab.html?ge_debug='+lastStarted,location.href).href],
+  ['music manifest',new URL('./manifest.json?ge_debug='+lastStarted,location.href).href]
+ ];
+ var results=await Promise.all(all.map(function(item){return probe(item[0],item[1]);}));
+ lastChecks=results;
+ ui.service=await serviceInfo();
+ ui.status.textContent='Checks finished. Tap COPY REPORT and paste it into ChatGPT.';
+ record('diagnostics-finished',{checks:results.map(function(r){return r.name+': '+(r.httpStatus||r.error||'unknown')+(r.audioHeader?' '+r.audioHeader:'');})});
+ paint();
+}
+function testSong(path){
+ var frame=getFrame(),fw=frame?.contentWindow;
+ if(typeof fw?.GEPlayLibraryQueue!=='function'){
+  record('test-play-failed',{reason:'GEPlayLibraryQueue unavailable',iframeReadyState:frame?.contentDocument?.readyState||''});
+  ui.status.textContent='Player function unavailable. Copy the report.';
+  paint();return;
+ }
+ try{
+  var granted=fw.GEPlayLibraryQueue([path],path,'DIAGNOSTIC TAP');
+  record('test-play-invoked',{song:path,result:granted});
+  ui.status.textContent=granted?'Player received the tap; collecting audio events…':'Player refused the selected song.';
+  paint();
+  setTimeout(function(){record('audio-after-one-second',{song:path,musicAudio:snapshot().musicAudio});},1000);
+  setTimeout(function(){record('audio-after-three-seconds',{song:path,musicAudio:snapshot().musicAudio});},3000);
+ }catch(e){record('test-play-error',{message:redact(e?.message||e)});ui.status.textContent='Player threw an error. Copy the report.';}
+}
+async function copy(){
+ paint();
+ var value=ui.report.value;
+ try{await navigator.clipboard.writeText(value);ui.status.textContent='Copied. Paste the report into ChatGPT.';}
+ catch(e){
+  ui.report.focus();ui.report.select();
+  try{document.execCommand('copy');ui.status.textContent='Report selected/copied. Paste it into ChatGPT.';}
+  catch(x){ui.status.textContent='Select all report text, then copy and paste it into ChatGPT.';}
+ }
+}
+function button(text,fn){
+ var el=document.createElement('button');el.type='button';el.textContent=text;
+ el.addEventListener('click',function(ev){ev.stopPropagation();fn();});return el;
+}
+function mount(){
+ if(document.getElementById('geDebugOpen'))return;
+ var css=document.createElement('style');css.id='geDebugStyle';
+ css.textContent='#geDebugOpen{position:fixed!important;right:10px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;z-index:2147483647!important;background:#ffcb2e!important;color:#111!important;border:2px solid #111!important;border-radius:9px!important;padding:10px 14px!important;font:700 13px system-ui!important;box-shadow:0 2px 15px #000!important;min-width:80px!important;min-height:42px!important;opacity:1!important;display:block!important;pointer-events:auto!important}'+
+ '#geDebugPanel{position:fixed!important;z-index:2147483647!important;inset:auto 6px calc(62px + env(safe-area-inset-bottom)) auto!important;width:min(96vw,540px)!important;max-height:78dvh!important;overflow:auto!important;background:#09151e!important;color:#f4f8ff!important;border:2px solid #ffd146!important;border-radius:12px!important;padding:12px!important;box-shadow:0 5px 30px #000!important;font:13px system-ui!important;pointer-events:auto!important}'+
+ '#geDebugPanel[hidden]{display:none!important}#geDebugPanel button{background:#e3eaf2!important;color:#081019!important;border-radius:7px!important;border:0!important;padding:9px!important;margin:2px!important;font:700 12px system-ui!important;min-height:36px!important;opacity:1!important}'+
+ '#geDebugPanel textarea{width:100%!important;min-height:245px!important;height:39dvh!important;background:#03080e!important;color:#c6ffda!important;font:11px/1.3 monospace!important;border:1px solid #566!important;padding:8px!important;white-space:pre!important;user-select:text!important}'+
+ '#geDebugPanel p{margin:6px 0!important;line-height:1.4!important;color:#f4f8ff!important}';
+ document.head.appendChild(css);
+ var open=button('DEBUG',function(){ui.panel.hidden=!ui.panel.hidden;if(!ui.panel.hidden){paint();void run();}});
+ open.id='geDebugOpen';open.setAttribute('aria-label','Open Radio playback debugging report');
+ var panel=document.createElement('section');panel.id='geDebugPanel';panel.hidden=true;panel.setAttribute('aria-label','Radio playback diagnostics');
+ panel.addEventListener('click',function(e){e.stopPropagation();});
+ var title=document.createElement('strong');title.textContent='RADIO / MUSIC DEBUG — '+BUILD;
+ var note=document.createElement('p');note.textContent='Temporary repair diagnostics. No access codes or session tokens are copied.';
+ var tools=document.createElement('div');
+ tools.append(button('RUN CHECKS',function(){void run();}),button('TEST NEXUS',function(){testSong(NEXUS);}),
+  button('TEST FIRE',function(){testSong(FIRE);}),button('COPY REPORT',function(){void copy();}),
+  button('CLOSE',function(){panel.hidden=true;}));
+ var status=document.createElement('p');status.textContent='Opening the panel runs delivery tests.';
+ var report=document.createElement('textarea');report.readOnly=true;report.setAttribute('aria-label','Copyable radio diagnostics report');
+ panel.append(title,note,tools,status,report);
+ document.body.append(open,panel);
+ ui={panel:panel,open:open,status:status,report:report,service:null};
+ paint();
+}
+window.addEventListener('message',function(e){
+ if(e.origin!==location.origin)return;
+ if(e.source!==getFrame()?.contentWindow)return;
+ var d=e.data||{},types=['ge-radio-music-playback-error','ge-radio-music-playback-started','ge-radio-music-playback-requested','ge-radio-music-playback-signal','ge-radio-music-state','ge-radio-music-gate'];
+ if(types.indexOf(d.type)<0)return;
+ record(d.type,{event:redact(d.event||''),sourceHost:redact(d.sourceHost||''),reason:redact(d.reason||''),message:redact(d.message||''),mediaError:d.mediaError||0,readyState:d.readyState,networkState:d.networkState,path:redact(d.path||''),paused:d.paused});
+});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
+else mount();
 })();
 </script>
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
