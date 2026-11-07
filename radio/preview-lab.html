@@ -959,25 +959,28 @@ function geAudioSourceURL(t){
 }
 async function startTrack(t){
  const requestSerial=++geTrackRequestSerial;
- if(!valid(t)){musicNotice('This song is unavailable.');return;}
+ if(!valid(t)){musicNotice('This song is unavailable.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'InvalidTrack',message:'Selected song is not valid.'});return;}
  const grant=musicSession();
  if(grant&&!ownerPreview()&&grant.restricted&&!grant.allowed.includes(t.path)){
-  musicNotice('This code does not include the selected song.');return;
+  musicNotice('This code does not include the selected song.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'RestrictedAccess',message:'Access code does not include this song.'});return;
  }
- if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');return;}
+ if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'GateLocked',message:'33:33 listening is complete. Music access is required.'});return;}
  if(GE_RADIO_MUSIC_EMBED){
   // Synchronous, same-origin handoff retains iPhone's Play user gesture.
   try{window.parent.GEInlineMusic?.beforePlay?.(label(t))}catch(_e){}
  }
  stopCounting();
- // A new selection must terminate the previous media request, not merely
- // replace its label while the old recording keeps playing.
+ // Setting src replaces the old media resource. Avoid the extra load() call:
+ // iOS Safari can reject the subsequent play if the gesture is interrupted.
  audio.pause();
- audio.removeAttribute('src');
- audio.load();
- currentTrack=t;audio.crossOrigin='anonymous';audio.autoplay=false;
+ currentTrack=t;audio.autoplay=false;
+ // Do not require CORS for cross-origin MP3 playback. The recording can play
+ // natively even if its host does not permit Web Audio inspection.
+ if(new URL(geAudioSourceURL(t)).origin===location.origin)audio.crossOrigin='anonymous';
+ else audio.removeAttribute('crossorigin');
  const requestedURL=geAudioSourceURL(t);
  audio.src=requestedURL;audio.preload='auto';audio.muted=false;
+ geRadioEmbedNotify('ge-radio-music-playback-requested',{path:cleanMusicPath(t.path),sourceHost:new URL(requestedURL).host});
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.
  audio.playsInline=true;
@@ -1018,7 +1021,7 @@ async function startTrack(t){
     :'The recording could not start. Check the connection or song file.';
   musicNotice(detail);
   say(detail);
-  geRadioEmbedNotify('ge-radio-music-playback-error',{reason,message:detail});
+  geRadioEmbedNotify('ge-radio-music-playback-error',{reason,message:detail,mediaError:audio.error?.code||0,networkState:audio.networkState,readyState:audio.readyState});
  }
 }
 function chooseTrack(t){
