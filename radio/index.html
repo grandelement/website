@@ -5476,7 +5476,8 @@ if($('geLogo')) $('geLogo').src=absolute(CONFIG.LOGO_SRC);
 
 function setStatus(text){
   const value=String(text||'');
-  statusEl.textContent=/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback)$/i.test(value)?'':value;
+  if(/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback|Checking latest music library before offline download…|Grand Element Radio · checking)$/i.test(value))return;
+  if(statusEl.textContent!==value)statusEl.textContent=value;
 }
 function setPressed(button,on){ if(button) button.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 function absolute(path){ return new URL(path, location.href).href; }
@@ -6342,6 +6343,7 @@ function savePersonalSongSelection(){
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
 function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)&&!isLegacy(url)&&!isSingles(url)).slice().sort(orderedSort);}
+function playerPlaylist(){return selectableSongs().filter(url=>/Grand Element - 20(?:1[0-9]|2[0-9]) - /i.test(decodeURIComponent(canonicalSongPath(url))));}
 // Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
 async function loadFrozenAutoSongs(){
@@ -7741,7 +7743,7 @@ function geInlineMusicSyncTransport(){
   const playButton=$('playBtn');
   if(playButton)playButton.textContent=geInlineMusicPaused?'Play':'Pause';
   const seek=$('playerSeek');
-  if(seek){seek.disabled=true;seek.value='0';}
+  if(seek){const a=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();const d=Number(a?.duration);seek.disabled=!Number.isFinite(d)||d<=0;seek.value=seek.disabled?'0':String(Math.max(0,Math.min(1000,(Number(a?.currentTime)||0)/d*1000)));}
 }
 function geInlineMusicHide(){
   if(geInlineMusicPanel?.classList.contains('ge-gate-active'))return;
@@ -7802,7 +7804,10 @@ function geInlineMusicInit(){
         document.body.appendChild(previewAudio);
       }
     }catch(error){console.warn('Preview audio stays in its own document',error);}
+    const musicAudio=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+    if(musicAudio&&!musicAudio.dataset.geParentSeekSync){musicAudio.dataset.geParentSeekSync='yes';['timeupdate','durationchange','loadedmetadata','seeked','play','pause'].forEach(e=>musicAudio.addEventListener(e,geInlineMusicSyncTransport));}
     geRetryPendingMainMusic();
+    if(geQuickSongPanel&&!geQuickSongPanel.hidden)geOpenQuickSongPanel();
   });
   geInlineMusicPanel.append(head,geInlineMusicFrame);
   document.body.append(geInlineMusicBackdrop,geInlineMusicPanel);
@@ -7847,12 +7852,7 @@ function geInlineMusicInit(){
       geInlineMusicGateAutoOpened=false;
     }
   });
-  // The ordinary transport handlers already route these same buttons to
-  // the protected music player; no duplicate capture-phase listeners.
-  // Title continues to open the very same MUSIC list, even during a personal preview.
-  $('liveBtn')?.addEventListener('click',()=>{
-    if(geInlineMusicActive)geInlineMusicStop();
-  },true);
+  // RADIO and MUSIC switching is handled by the single RADIO click handler below.
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&geInlineMusicPanel?.classList.contains('ge-open')){
       event.preventDefault();geInlineMusicHide();
@@ -8449,6 +8449,18 @@ function startMainMusicLibrary(direction='all'){
   }
   return !!started;
 }
+function startPlayerPlaylist(){
+  const songs=playerPlaylist().map(canonicalSongPath);
+  if(!songs.length){setStatus('PLAYER playlist unavailable. Reload Library to retry.');return false;}
+  geInlineMusicInit();
+  const frame=geInlineMusicFrame?.contentWindow;
+  if(typeof frame?.GEPlayLibraryQueue!=='function'){setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;}
+  const start=state.shuffle?songs[Math.floor(Math.random()*songs.length)]:songs[0];
+  frame.GESetMusicQueueShuffle?.(state.shuffle);
+  const ok=frame.GEPlayLibraryQueue(songs,start,'PLAYER');
+  if(ok)gePlaylistQuickSet('PLAYER',songs,{custom:false});
+  return !!ok;
+}
 playBtn?.addEventListener('click',()=>{
   state.userStarted=true;
   // A running personalized song queue retains true PLAY/PAUSE behavior.
@@ -8476,9 +8488,10 @@ playBtn?.addEventListener('click',()=>{
   // PLAY starts the complete permitted song library in the protected shuffle
   // player, independent of the MUSIC selector. NEXT/PREV use that same queue.
   // The existing 33:33 preview and verified Music access remain enforced.
-  startMainMusicLibrary('all');
+  startPlayerPlaylist();
 });
 playerSeek?.addEventListener('input',()=>{
+  if(geInlineMusicActive){const a=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();const d=Number(a?.duration);if(Number.isFinite(d)&&d>0)a.currentTime=d*(Number(playerSeek.value)||0)/1000;return;}
   if(!geOwnerDemoEnabled())return;
   const d=Number(audio.duration);
   if(Number.isFinite(d)&&d>0&&!state.live)audio.currentTime=d*(Number(playerSeek.value)||0)/1000;
@@ -8486,6 +8499,7 @@ playerSeek?.addEventListener('input',()=>{
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
+  if(geInlineMusicActive)geInlineMusicStop();
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
@@ -8567,11 +8581,32 @@ function geCloseQuickSongPanel(){
   geQuickSongBackdrop.hidden=true;
   titleBtn.setAttribute('aria-expanded','false');
 }
+let geQuickSongCatalogRetry=false;
+let geQuickSongCatalogAttempted=false;
 function geOpenQuickSongPanel(){
+  // Begin loading the protected playback engine before the listener taps a track.
+  geInlineMusicInit();
+  // Opening before asynchronous boot completes must not leave a permanently empty list.
+  // Recover the published catalog without touching the currently playing transport.
+  if(!state.catalog.length && !geQuickSongCatalogRetry && !geQuickSongCatalogAttempted){
+    geQuickSongCatalogRetry=true;
+    geQuickSongCatalogAttempted=true;
+    void (async()=>{
+      try{
+        const songs=await loadMusicManifest();
+        if(songs.length&&!state.catalog.length){
+          state.catalog=applyKnownMediaVersions(songs.sort(orderedSort),loadMediaShaMap()).sort(orderedSort);
+          rebuildQueue(state.currentURL);
+        }
+      }catch(error){console.warn('Song picker catalog unavailable',error);}
+      finally{
+        geQuickSongCatalogRetry=false;
+        if(!geQuickSongPanel.hidden)geOpenQuickSongPanel();
+      }
+    })();
+  }
   // The main song selector stays in album order; shuffle affects playback only.
-  const tracks=geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length
-    ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
-    :allowedCatalog().filter(url=>!isLegacy(url)&&!isSingles(url))
+  const tracks=playerPlaylist().filter(url=>!isLegacy(url)&&!isSingles(url))
       .slice().sort(orderedSort).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
@@ -8581,8 +8616,14 @@ function geOpenQuickSongPanel(){
   if(!tracks.length){
     const msg=document.createElement('div');
     msg.className='geQuickSongEmpty';
-    msg.textContent='No songs available in the music library.';
+    msg.textContent=!state.catalog.length?(geQuickSongCatalogRetry?'Loading song list…':'Music library unavailable. Tap Reload Library to retry.'):'No eligible songs available in the music library.';
     geQuickSongPanel.appendChild(msg);
+  }
+  if(tracks.length&&typeof geInlineMusicFrame?.contentWindow?.GEPlayLibraryQueue!=='function'){
+    const waiting=document.createElement('div');
+    waiting.className='geQuickSongEmpty';
+    waiting.textContent='Preparing music player…';
+    geQuickSongPanel.appendChild(waiting);
   }
   for(const [index,track] of tracks.entries()){
     const url=track.url;
@@ -8591,6 +8632,9 @@ function geOpenQuickSongPanel(){
     item.className='geQuickSongItem';
     item.textContent=track.title;
     item.setAttribute('aria-label','Play '+item.textContent);
+    const engineReady=typeof geInlineMusicFrame?.contentWindow?.GEPlayLibraryQueue==='function';
+    item.disabled=!engineReady;
+    if(!engineReady)item.title='Preparing music player…';
     if(url===(geInlineMusicActive?gePlaylistQuickPath:state.currentURL))item.setAttribute('aria-current','true');
     item.addEventListener('click',()=>{
       geCloseQuickSongPanel();
@@ -8615,7 +8659,7 @@ function geOpenQuickSongPanel(){
         }else{
           // SELECT A SONG sets the active track without destroying the main
           // album-order queue, so NEXT and PREV continue from that exact song.
-          const mainPaths=allowedCatalog().filter(song=>!isLegacy(song)&&!isSingles(song))
+          const mainPaths=playerPlaylist().filter(song=>!isLegacy(song)&&!isSingles(song))
             .slice().sort(orderedSort).map(canonicalSongPath);
           if(mainPaths.includes(selectedPath)){
             frame?.GESetMusicQueueShuffle?.(state.shuffle);
