@@ -1,0 +1,35 @@
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const root=new URL('../',import.meta.url);
+const read=async path=>readFile(new URL(path,root),'utf8');
+const radio=await read('radio/index.html');
+const preview=await read('radio/preview-lab.html');
+const manifest=JSON.parse(await read('radio/manifest.json'));
+const files=manifest.files;
+assert(Array.isArray(files)&&files.length>0,'Catalog must contain songs');
+assert.equal(new Set(files).size,files.length,'Duplicate music paths');
+assert(files.some(p=>/Intergy/.test(p)),'INTERGY missing');
+assert(files.some(p=>/Aether/.test(p)),'AETHER missing');
+assert(radio.includes('function playerPlaylist()'),'PLAYER playlist missing');
+assert(radio.includes('function geOpenQuickSongPanel()'),'Song selector missing');
+assert(radio.includes("const tracks=selectableSongs()"),'Song selector must include full non-LEGACY catalog');
+assert(radio.includes("frame?.GEPlayLibraryQueue?.(fullQueue,selectedPath"),'Direct song selection missing');
+assert(radio.includes("startPlayerPlaylist();"),'PLAY must use PLAYER playlist');
+assert(radio.includes("geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.()"),'Progress must read actual music audio');
+assert(preview.includes('window.GEGetMusicTransport=()=>audio'),'Music transport connection missing');
+assert(preview.includes('if(isLocked()){renderGate()'),'Gate enforcement missing');
+console.log('PASS: catalog, PLAYER, song selection, transport and gate wiring');
+if(process.argv.includes('--live')){
+ const origin=process.env.GE_SITE_URL;
+ assert(origin&&/^https:\/\//.test(origin),'GE_SITE_URL must be an HTTPS URL');
+ const base=new URL(origin);
+ const page=await fetch(new URL('/radio/',base),{signal:AbortSignal.timeout(15000)});
+ assert(page.ok,'Live RADIO unavailable: HTTP '+page.status);
+ const body=await page.text();
+ assert(body.includes('playerSeek')&&body.includes('playBtn'),'Live RADIO controls missing');
+ const catalog=await fetch(new URL('/radio/manifest.json',base),{signal:AbortSignal.timeout(15000)});
+ assert(catalog.ok,'Live manifest unavailable: HTTP '+catalog.status);
+ const live=await catalog.json();
+ assert(Array.isArray(live.files)&&live.files.length>0,'Live catalog empty');
+ console.log('PASS: live RADIO and manifest reachable');
+}
