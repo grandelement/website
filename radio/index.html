@@ -8572,7 +8572,7 @@ function geOpenQuickSongPanel(){
   // The main song selector stays in album order; shuffle affects playback only.
   const tracks=geInlineMusicActive&&gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length
     ?gePlaylistQuickQueue.map((url,i)=>({url,title:gePlaylistQuickLabels[i]}))
-    :allowedCatalog().filter(url=>!isLegacy(url)&&!isSingles(url))
+    :selectableSongs().filter(url=>!isLegacy(url)&&!isSingles(url))
       .slice().sort(orderedSort).map(url=>({url,title:displayTitle(url,!state.shuffle)}));
   geQuickSongPanel.replaceChildren();
   const heading=document.createElement('div');
@@ -8616,7 +8616,7 @@ function geOpenQuickSongPanel(){
         }else{
           // SELECT A SONG sets the active track without destroying the main
           // album-order queue, so NEXT and PREV continue from that exact song.
-          const mainPaths=allowedCatalog().filter(song=>!isLegacy(song)&&!isSingles(song))
+          const mainPaths=selectableSongs().filter(song=>!isLegacy(song)&&!isSingles(song))
             .slice().sort(orderedSort).map(canonicalSongPath);
           if(mainPaths.includes(selectedPath)){
             frame?.GESetMusicQueueShuffle?.(state.shuffle);
