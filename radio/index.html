@@ -7344,9 +7344,9 @@ async function resumeLiveAtEdge(){
   clearLiveReconnect();
   state.playToken++;
   state.currentURL=CONFIG.LIVE_STREAM_URL;
-  titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
+  titleBtn.textContent='Connecting to Grand Element Radio…';
   updateCurrentRow();
-  setLiveMediaSession();
+  // A selected stream is not yet verified audible audio.
   setLiveStatus('RADIO 1 · CONNECTING…',true);
   setStatus('Returning to the current Grand Element Radio broadcast…');
   radioReconnectFailures=0;
@@ -7416,9 +7416,9 @@ async function enterLiveMode({deferPlay=false}={}){
   // One host, many listeners: every device receives this same continuous stream URL.
   // Keep the existing single <audio> element. No playlist reconstruction and no duration scan.
   state.currentURL=CONFIG.LIVE_STREAM_URL;
-  titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||CONFIG.LIVE_STREAM_TITLE||'Grand Element Radio';
+  titleBtn.textContent='Connecting to Grand Element Radio…';
   updateCurrentRow();
-  setLiveMediaSession();
+  // A selected stream is not yet verified audible audio.
   // Prepare BLITZ as native audio. Its platform currently rejects
   // cross-origin media requests with 503; the gate's native fallback remains.
   audio.autoplay=false;
@@ -8101,6 +8101,7 @@ window.GELive={enter:enterLiveMode,exit:exitLiveMode,resume:resumeRadio,resumeAt
     title=String(title||'').trim();
     if(!title||(state.live!==true&&state.livePreparing!==true)||radio2.active)return;
     lastTitle=title;
+    if(!observedRadio1Progress||audio.paused)return;
     titleBtn.textContent=radioDisplayMetadataTitle(title);
     refreshLoveButton();
     try{
@@ -8508,8 +8509,13 @@ $('shuffleBtn').addEventListener('click',()=>{
   state.shuffle=!state.shuffle;
   if(state.live||state.livePreparing){
     syncModeButtons();
-    if(radio2.active)titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||'');
-    else if(window.GELiveMetadata?.getTitle?.())titleBtn.textContent=window.GELiveMetadata.getTitle();
+    const verified=!audio.paused&&!audio.muted&&
+      (radio2.active?observedRadio2Progress:observedRadio1Progress);
+    if(verified&&radio2.active)
+      titleBtn.textContent=radioDisplayMetadataTitle(radio2.title||'',radio2.program?.tracks?.[radio2.index]?.album||'');
+    else if(verified&&window.GELiveMetadata?.getTitle?.())
+      titleBtn.textContent=window.GELiveMetadata.getTitle();
+    else titleBtn.textContent='Connecting to Grand Element Radio…';
     setStatus('Personal music '+(state.shuffle?'SHUFFLE':'ALBUM')+' order · Radio continues unchanged.');
     return;
   }
@@ -8759,6 +8765,8 @@ function confirmRadio1ForwardTime(t){
     if(GE_RADIO2_DISABLED)clearRadio1Retry();
     showRadioWakeLink(false);
     if(first){
+      titleBtn.textContent=window.GELiveMetadata?.getTitle?.()||'Grand Element Radio';
+      setLiveMediaSession();
       clearRadioWatch();
       setLiveStatus('RADIO 1 · CONNECTED');
       setStatus('Grand Element Radio · stream active');
@@ -13302,7 +13310,7 @@ Vector ${vector}. ${pair[1]}.`;
       const response=await fetch(GATE_CONFIG.liveMetadataURL,{cache:'no-store'});if(!response.ok)return;
       const title=extractLiveTitle(await response.json());if(!title)return;
       syncListening();liveStationID=stationTitle(title);wasCountable=countableNow();
-      if(state.live){
+      if(state.live&&observedRadio1Progress&&!audio.paused){
         window.GEVault?.setTrackMetadata?.(audio,{
           track_id:'live:'+title,
           title,
