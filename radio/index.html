@@ -8297,7 +8297,7 @@ async function advanceFromEnded(){
 function nextTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('next');return;}
   if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
-    setStatus('Select or PLAY a song before pressing NEXT.');return;
+    startPlayerPlaylist();return;
   }
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('next');
@@ -8311,7 +8311,7 @@ function nextTrack(userAction=false){
 function previousTrack(userAction=false){
   if(geInlineMusicActive){geInlineMusicSend('previous');return;}
   if(userAction&&!offlinePlaybackMode()&&!geOwnerDemoEnabled()){
-    setStatus('Select or PLAY a song before pressing PREV.');return;
+    startPlayerPlaylist();return;
   }
   if(!geOwnerDemoEnabled()&&!(offlinePlaybackMode()&&geRadioUtilityAllowed('offline')&&window.GEOffline?.isActive?.())){
     if(userAction)startMainMusicLibrary('previous');
@@ -8465,7 +8465,9 @@ function startPlayerPlaylist(){
   }
   geInlineMusicInit();
   const frame=geInlineMusicFrame?.contentWindow;
-  if(typeof frame?.GEPlayLibraryQueue!=='function'){setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;}
+  if(typeof frame?.GEPlayLibraryQueue!=='function'){
+    setStatus('PLAYER is preparing. Tap PLAY again shortly.');return false;
+  }
   const start=state.shuffle?songs[Math.floor(Math.random()*songs.length)]:songs[0];
   frame.GESetMusicQueueShuffle?.(state.shuffle);
   const ok=frame.GEPlayLibraryQueue(songs,start,'PLAYER');
