@@ -958,8 +958,14 @@ async function startTrack(t){
   try{window.parent.GEInlineMusic?.beforePlay?.(label(t))}catch(_e){}
  }
  stopCounting();
- currentTrack=t;audio.pause();audio.crossOrigin='anonymous';audio.autoplay=false;
- audio.src=new URL(t.url,location.origin).href;audio.preload='auto';audio.muted=false;
+ // A new selection must terminate the previous media request, not merely
+ // replace its label while the old recording keeps playing.
+ audio.pause();
+ audio.removeAttribute('src');
+ audio.load();
+ currentTrack=t;audio.crossOrigin='anonymous';audio.autoplay=false;
+ const requestedURL=new URL(t.url,location.origin).href;
+ audio.src=requestedURL;audio.preload='auto';audio.muted=false;
  // On iOS Safari, invoke play() directly from the tap rather than forcing
  // a separate load() cycle that can interrupt the gesture-bound playback.
  audio.playsInline=true;
@@ -978,13 +984,23 @@ async function startTrack(t){
    }).catch(()=>{if(currentTrack===t)audio.pause()});
   }
   await started;
+  if(requestSerial!==geTrackRequestSerial||currentTrack!==t)return;
+  // A resolved play() request is not proof the requested recording loaded.
+  // Never announce the new title as PLAYING while an old source is audible.
+  const actualURL=audio.currentSrc||audio.src;
+  if(new URL(actualURL,location.origin).pathname!==new URL(requestedURL).pathname){
+   audio.pause();
+   throw new Error('SelectedSourceMismatch');
+  }
   // A previous play() Promise can settle after a newer selection. Never
   // publish stale metadata or change the current UI from that old request.
   if(requestSerial!==geTrackRequestSerial||currentTrack!==t)return;
   musicNotice('');
   geRadioEmbedNotify('ge-radio-music-playback-started',{title:label(t)});
  }catch(error){
-  const reason=String(error?.name||'PlaybackError').slice(0,80);
+  if(requestSerial!==geTrackRequestSerial||currentTrack!==t)return;
+  audio.pause();
+  const reason=String(error?.name||error?.message||'PlaybackError').slice(0,80);
   const detail=/NotAllowedError/.test(reason)
     ?'iPhone blocked audio. Tap PLAY again.'
     :'The recording could not start. Check the connection or song file.';
