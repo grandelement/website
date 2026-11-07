@@ -16,6 +16,19 @@ LIVE no longer rebuilds the station from 85 local files. The LIVE button now tun
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script id="ge-playback-error-capture">
+// Runs before the main Radio scripts, so even early startup failures are captured.
+window.__GE_PLAYER_ERRORS=[];
+window.addEventListener('error',function(e){
+  window.__GE_PLAYER_ERRORS.push({kind:'error',at:Date.now(),message:String(e.message||'Unknown'),file:String(e.filename||'').split('?')[0],line:e.lineno||0,col:e.colno||0});
+  if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
+});
+window.addEventListener('unhandledrejection',function(e){
+  var x=e.reason;
+  window.__GE_PLAYER_ERRORS.push({kind:'rejection',at:Date.now(),message:String(x&&x.message||x||'Unknown')});
+  if(window.__GE_PLAYER_ERRORS.length>80)window.__GE_PLAYER_ERRORS.shift();
+});
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script id="ge-radio-first-style">document.documentElement.classList.add('ge-radio-ui');</script>
 <script id="ge-safari-request-website-mode">
@@ -7792,7 +7805,7 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v721-async-player-repair';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v722-radio-debug';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
@@ -7835,8 +7848,11 @@ function geInlineMusicInit(){
       }
       geInlineMusicSyncTransport();
     }else if(data.type==='ge-radio-music-playback-error'){
-      geInlineMusicPaused=true;geInlineMusicSyncTransport();
+      geInlineMusicPaused=true;geInlineMusicActive=false;geInlineMusicSyncTransport();
+      setStatus(String(data.message||'MUSIC playback failed.'));
       window.GEMusicV5?.reportPlayback?.(String(data.message||'MUSIC playback failed.'));
+    }else if(data.type==='ge-radio-music-playback-requested'){
+      window.GEPlaybackDebug?.record?.('music-request', {path:data.path,sourceHost:data.sourceHost});
     }else if(data.type==='ge-radio-music-playback-started'){
       geInlineMusicPaused=false;
       if(data.title)geInlineMusicTitle=String(data.title).slice(0,180);
@@ -7877,6 +7893,9 @@ function geShowMainPlaylistPlayer(){
   $('titleBtn')?.scrollIntoView?.({block:'start',behavior:'auto'});
 }
 window.GEInlineMusic={active:()=>geInlineMusicActive,paused:()=>geInlineMusicPaused,sync:geInlineMusicSyncTransport,beforePlay:geInlineMusicBeforePlay};
+// Prepare the music iframe on page load, not on the first song tap.
+// This keeps the selection tap in the same iPhone user gesture as audio.play().
+window.addEventListener('load',()=>{try{geInlineMusicInit();}catch(error){console.error('GE player initialization failed',error);}}, {once:true});
 window.GEMusicV5Bridge={
  prepare:()=>geInlineMusicInit(),
  shuffleEnabled:()=>state.shuffle,
@@ -14153,6 +14172,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   });
 })();
 </script>
+<script defer src="./ge-playback-debug.js?v=20261107-v1"></script>
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
 </body>
 </html>
