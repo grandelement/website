@@ -6,6 +6,15 @@ const browser=await puppeteer.launch({
 try{
   const page=await browser.newPage();
   const errors=[];
+  // Simulate Safari rejecting autoplay. Merely opening the page must not
+  // call audio.play(), select RADIO or claim a song is playing.
+  await page.evaluateOnNewDocument(()=>{
+    window.__geRadioPlayAttempts=0;
+    HTMLMediaElement.prototype.play=function(){
+      window.__geRadioPlayAttempts++;
+      return Promise.reject(new DOMException('Autoplay blocked for test','NotAllowedError'));
+    };
+  });
   page.on('pageerror',error=>errors.push(String(error?.message||error).slice(0,180)));
   await page.goto('http://127.0.0.1:8765/radio/',{waitUntil:'domcontentloaded',timeout:30000});
   try{
@@ -15,6 +24,30 @@ try{
   }
   if(errors.length)throw new Error('Radio JavaScript boot failed: '+JSON.stringify(errors.slice(-8)));
   console.log('PASS: fresh browser initializes Sun Lab and real Gate controller with zero JavaScript exceptions');
+  await page.waitForFunction(()=>document.querySelector('#titleBtn')?.textContent?.trim()==='Select a song',{timeout:20000});
+  const idle=await page.evaluate(()=>({
+    title:document.querySelector('#titleBtn')?.textContent?.trim(),
+    radioPressed:document.querySelector('#liveBtn')?.getAttribute('aria-pressed'),
+    radioAudible:document.body.classList.contains('ge-radio-audible'),
+    source:document.querySelector('#player')?.getAttribute('src')||'',
+    audioCalls:window.__geRadioPlayAttempts
+  }));
+  if(idle.title!=='Select a song'||idle.radioPressed!=='false'||
+    idle.radioAudible||idle.source||idle.audioCalls!==0)
+    throw new Error('Radio autoplayed or displayed a phantom title on arrival: '+JSON.stringify(idle));
+  console.log('PASS: idle Radio loads catalog without autoplay or a false track title');
+  // A manual RADIO tap is the only event that can select the station.
+  await page.click('#liveBtn');
+  await page.waitForFunction(()=>document.querySelector('#liveBtn')?.getAttribute('aria-pressed')==='true',{timeout:12000});
+  const blocked=await page.evaluate(()=>({
+    title:document.querySelector('#titleBtn')?.textContent?.trim(),
+    attempts:window.__geRadioPlayAttempts,
+    connected:document.body.classList.contains('ge-radio-audible')
+  }));
+  // A blocked or not-yet-connected stream must still show no song title.
+  if(blocked.connected||(!blocked.title?.includes('Connecting')&&blocked.title!=='Select a song'))
+    throw new Error('Radio displayed a song before verified playback: '+JSON.stringify(blocked));
+  console.log('PASS: manual RADIO selection does not falsely display a playing song when audio is blocked');
   // Radio 27: a real phone-sized viewport must never horizontally crop or
   // offset the main transport. This regression runs on every Radio HTML push.
   const phone=await browser.newPage();
