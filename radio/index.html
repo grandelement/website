@@ -5476,7 +5476,8 @@ if($('geLogo')) $('geLogo').src=absolute(CONFIG.LOGO_SRC);
 
 function setStatus(text){
   const value=String(text||'');
-  statusEl.textContent=/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback)$/i.test(value)?'':value;
+  if(/^(?:Connecting to Grand Element Radio|Grand Element Radio · checking live station|Grand Element Radio · checking playback|Checking latest music library before offline download…|Grand Element Radio · checking)$/i.test(value))return;
+  if(statusEl.textContent!==value)statusEl.textContent=value;
 }
 function setPressed(button,on){ if(button) button.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 function absolute(path){ return new URL(path, location.href).href; }
@@ -8581,7 +8582,7 @@ function geOpenQuickSongPanel(){
   if(!tracks.length){
     const msg=document.createElement('div');
     msg.className='geQuickSongEmpty';
-    msg.textContent='No songs available in the music library.';
+    msg.textContent=!state.catalog.length?'Music library has not loaded. Please reload the library.':!approvedAutoReady?'Approved song list is unavailable. Song selection is paused to protect the approved catalog.':'No eligible songs available in the music library.';
     geQuickSongPanel.appendChild(msg);
   }
   for(const [index,track] of tracks.entries()){
