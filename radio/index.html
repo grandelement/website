@@ -7848,12 +7848,7 @@ function geInlineMusicInit(){
       geInlineMusicGateAutoOpened=false;
     }
   });
-  // The ordinary transport handlers already route these same buttons to
-  // the protected music player; no duplicate capture-phase listeners.
-  // Title continues to open the very same MUSIC list, even during a personal preview.
-  $('liveBtn')?.addEventListener('click',()=>{
-    if(geInlineMusicActive)geInlineMusicStop();
-  },true);
+  // RADIO and MUSIC switching is handled by the single RADIO click handler below.
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&geInlineMusicPanel?.classList.contains('ge-open')){
       event.preventDefault();geInlineMusicHide();
@@ -8487,6 +8482,7 @@ playerSeek?.addEventListener('input',()=>{
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
+  if(geInlineMusicActive)geInlineMusicStop();
   state.userStarted=true;
   gePendingMainMusicDirection='';
   liveState.userActivated=true;
