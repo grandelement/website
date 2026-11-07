@@ -14224,7 +14224,7 @@ function snapshot(){
   mainAudio:mediaState(document.getElementById('player')),musicAudio:mediaState(embed||doc?.getElementById('audio')),
   access:{previewExpired:!!local?.expired,previewUsedSeconds:Math.round(Number(local?.used)||0),
     gate:gate,previewPlaybackEngineAuthState:auth||'unavailable',sessionPresenceNotDisclosed:'Access tokens and codes are never copied'},
-  publishedManifestCount:window.GEMusicV5?.state?.().total||null,
+  publishedManifestCount:(function(){try{var z=window.GEMusicV5?.state?.();return z?.total||z?.songCount||null;}catch(e){return 'unavailable: '+redact(e?.message||e);}})(),
   startupErrors:boot.slice(-30).map(function(x){return {kind:x.kind,at:x.at,message:redact(x.message),file:cleanURL(x.file||''),line:x.line,col:x.col};}),
   resources:resources};
 }
@@ -14344,9 +14344,9 @@ function mount(){
 window.addEventListener('message',function(e){
  if(e.origin!==location.origin)return;
  if(e.source!==getFrame()?.contentWindow)return;
- var d=e.data||{},types=['ge-radio-music-playback-error','ge-radio-music-playback-started','ge-radio-music-playback-requested','ge-radio-music-state','ge-radio-music-gate'];
+ var d=e.data||{},types=['ge-radio-music-playback-error','ge-radio-music-playback-started','ge-radio-music-playback-requested','ge-radio-music-playback-signal','ge-radio-music-state','ge-radio-music-gate'];
  if(types.indexOf(d.type)<0)return;
- record(d.type,{reason:redact(d.reason||''),message:redact(d.message||''),mediaError:d.mediaError||0,readyState:d.readyState,networkState:d.networkState,path:redact(d.path||''),paused:d.paused});
+ record(d.type,{event:redact(d.event||''),sourceHost:redact(d.sourceHost||''),reason:redact(d.reason||''),message:redact(d.message||''),mediaError:d.mediaError||0,readyState:d.readyState,networkState:d.networkState,path:redact(d.path||''),paused:d.paused});
 });
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
 else mount();
