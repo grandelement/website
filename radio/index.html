@@ -8566,13 +8566,15 @@ function geCloseQuickSongPanel(){
   titleBtn.setAttribute('aria-expanded','false');
 }
 let geQuickSongCatalogRetry=false;
+let geQuickSongCatalogAttempted=false;
 function geOpenQuickSongPanel(){
   // Begin loading the protected playback engine before the listener taps a track.
   geInlineMusicInit();
   // Opening before asynchronous boot completes must not leave a permanently empty list.
   // Recover the published catalog without touching the currently playing transport.
-  if(!state.catalog.length && !geQuickSongCatalogRetry){
+  if(!state.catalog.length && !geQuickSongCatalogRetry && !geQuickSongCatalogAttempted){
     geQuickSongCatalogRetry=true;
+    geQuickSongCatalogAttempted=true;
     void (async()=>{
       try{
         const songs=await loadMusicManifest();
