@@ -978,7 +978,7 @@ async function startTrack(t){
  const requestSerial=++geTrackRequestSerial;
  if(!valid(t)){musicNotice('This song is unavailable.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'InvalidTrack',message:'Selected song is not valid.'});return;}
  const grant=musicSession();
- if(grant&&!ownerPreview()&&grant.restricted&&!grant.allowed.includes(t.path)){
+ if(grant&&!ownerPreview()&&grant.restricted&&!grant.allowed.includes(t.path)&&isLocked()){
   musicNotice('This code does not include the selected song.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'RestrictedAccess',message:'Access code does not include this song.'});return;
  }
  if(isLocked()){renderGate();say('33:33 listening complete. Enter the Gate code to continue.');geRadioEmbedNotify('ge-radio-music-playback-error',{reason:'GateLocked',message:'33:33 listening is complete. Music access is required.'});return;}
@@ -1007,7 +1007,7 @@ async function startTrack(t){
   // Safari requires play() in the original user's gesture. Do not await Vault
   // verification first: the code was already redeemed for this session.
   const started=audio.play();
-  if(grant&&!ownerPreview()){
+  if(grant&&!ownerPreview()&&(!grant.restricted||grant.allowed.includes(t.path))){
    void verifyMusicTrack(t).then(ok=>{
     if(!ok&&currentTrack===t){
      audio.pause();
@@ -1148,7 +1148,7 @@ async function resume(){
  if(!currentTrack){musicNotice('Choose a song to play.');return;}
  const grant=musicSession();
  if(grant&&!ownerPreview()){
-  if(grant.restricted&&!grant.allowed.includes(currentTrack.path)){
+  if(grant.restricted&&!grant.allowed.includes(currentTrack.path)&&isLocked()){
    musicNotice('This code does not include this song.');return;
   }
  }
@@ -1156,7 +1156,7 @@ async function resume(){
  // Begin in the click handler; revalidate the signed receipt in parallel.
  try{
   const playing=audio.paused?audio.play():Promise.resolve();
-  if(grant&&!ownerPreview()){
+  if(grant&&!ownerPreview()&&(!grant.restricted||grant.allowed.includes(currentTrack.path))){
    const target=currentTrack;
    void verifyMusicTrack(target).then(ok=>{
     if(!ok&&target===currentTrack)audio.pause();
