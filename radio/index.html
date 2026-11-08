@@ -70,7 +70,7 @@ window.addEventListener('unhandledrejection',function(e){
   const viewport=document.querySelector('meta[name="viewport"]');
   function applyViewport(){
     if(!viewport)return;
-    if(requestedDesktop){
+    if(requestedDesktop&&!phoneHardware){
       viewport.content='width=1160,initial-scale=1,viewport-fit=cover';
     }else if(layout==='mobile'&&phoneHardware){
       // Safari's "Request Desktop Website" can use a Macintosh user-agent
@@ -4777,68 +4777,250 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{display
 }
 </style>
 
-<style id="ge-radio-small-iphone-no-overlap-20261108">
-/* Short iPhones cannot fit a fixed sun, player, backgrounds and utility rows
-   in one Safari viewport. Keep every control in normal flow and scroll instead
-   of stacking absolute panels over the playback buttons. */
-@media (orientation:portrait) and (max-width:700px) and (max-height:740px){
- html.ge-radio-ui:has(body.view-player.portrait-player:not(.iam-studio-open)){
-  height:auto!important;max-height:none!important;overflow-x:hidden!important;
-  overflow-y:auto!important;overscroll-behavior-y:auto!important;
- }
+<style id="ge-radio-unified-phone-layout-20261108">
+/* Single phone layout contract. Normal document flow, not fixed screen slots.
+   Portrait controls and short landscape controls remain reachable by scrolling.
+   Targets actual phone layouts, not desktop, Ship, or I AM Studio. */
+@media (orientation:portrait) and (max-width:820px) {
+ html.ge-radio-ui {height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important}
  html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open){
-  position:relative!important;inset:auto!important;
-  height:auto!important;min-height:100dvh!important;max-height:none!important;
+  position:relative!important;inset:auto!important;left:auto!important;top:auto!important;
+  display:block!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;
+  height:auto!important;min-height:100vh!important;min-height:100dvh!important;max-height:none!important;
+  margin:0!important;overflow-x:hidden!important;overflow-y:visible!important;
+  overscroll-behavior-y:auto!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) > .wrap {
+  position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  transform:none!important;box-sizing:border-box!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:100vh!important;min-height:100dvh!important;max-height:none!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;
+  justify-content:flex-start!important;overflow:visible!important;
+  gap:8px!important;margin:0 auto!important;
+  padding:max(10px,env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom))!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header{
+  position:relative!important;inset:auto!important;transform:none!important;box-sizing:border-box!important;
+  width:100%!important;max-width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  flex:0 0 auto!important;display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:center!important;text-align:center!important;
+  gap:3px!important;padding:0!important;margin:0 auto 3px!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap {
+  position:relative!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;
+  width:clamp(120px,20vh,185px)!important;width:clamp(120px,20dvh,185px)!important;
+  height:clamp(120px,20vh,185px)!important;height:clamp(120px,20dvh,185px)!important;
+  min-width:0!important;min-height:0!important;max-width:185px!important;max-height:185px!important;
+  margin:0 auto 6px!important;overflow:visible!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header h1,
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header .tag {
+  position:static!important;inset:auto!important;transform:none!important;
+  width:100%!important;max-width:100%!important;height:auto!important;min-height:0!important;
+  margin:0!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;
+  line-height:1.2!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header h1 {font-size:clamp(17px,4.6vw,22px)!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) header .tag{font-size:clamp(12px,3.3vw,15px)!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #titleBtn,
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #playerSeekWrap,
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
+  position:relative!important;inset:auto!important;transform:none!important;
+  box-sizing:border-box!important;flex:0 0 auto!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  margin:2px auto!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #titleBtn{
+  min-height:42px!important;height:auto!important;max-height:none!important;
+  padding:8px 12px!important;font-size:clamp(13px,3.8vw,17px)!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #playerSeekWrap{
+  height:auto!important;min-height:24px!important;display:flex!important;align-items:center!important
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
+  display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(44px,auto)!important;gap:6px!important;align-items:stretch!important;
+  height:auto!important;min-height:0!important;overflow:visible!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > button{
+  box-sizing:border-box!important;min-width:0!important;width:100%!important;
+  min-height:44px!important;height:auto!important;max-height:none!important;
+  margin:0!important;padding:7px 4px!important;line-height:1.15!important;
+  font-size:clamp(12px,3.3vw,16px)!important;white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #prevBtn{grid-area:1/1/2/3!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #playBtn{grid-area:1/3/2/5!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #nextBtn{grid-area:1/5/2/7!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #shuffleBtn{grid-area:2/1/3/3!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #liveBtn{grid-area:2/3/3/5!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #musicGroup > #geMusicV5Button{grid-area:2/5/3/7!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow:not([hidden]){
+  position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;
+  display:flex!important;flex:0 0 auto!important;width:100%!important;
+  height:auto!important;min-height:64px!important;margin:6px auto!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
+  position:relative!important;inset:auto!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;
+  transform:none!important;display:flex!important;flex-direction:column!important;
+  box-sizing:border-box!important;flex:0 0 auto!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  gap:8px!important;margin:6px auto 0!important;padding:0!important;
+  background:transparent!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup,
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
+  position:relative!important;inset:auto!important;transform:none!important;
+  box-sizing:border-box!important;display:flex!important;flex-direction:column!important;
+  flex:0 0 auto!important;width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:7px!important;gap:6px!important;overflow:visible!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row{
+  box-sizing:border-box!important;display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:minmax(44px,auto)!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  gap:5px!important;margin:0!important;align-items:stretch!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > *{
+  box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+  width:100%!important;height:auto!important;min-height:44px!important;max-height:none!important;
+  margin:0!important;padding:7px 3px!important;align-self:stretch!important;
+  font-size:clamp(11px,3.1vw,14px)!important;line-height:1.17!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #bgPrev{grid-area:1/1/2/2!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #bgOff{grid-area:1/2/2/3!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #bgNext{grid-area:1/3/2/4!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #bgPer{grid-area:2/1/3/2!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #bgShuf{grid-area:2/2/3/3!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup .bg-row > #hudCombined{grid-area:2/3/3/4!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:none!important;grid-auto-rows:minmax(44px,auto)!important;
+  grid-auto-flow:row!important;align-items:stretch!important;gap:6px!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions > *{
+  box-sizing:border-box!important;position:relative!important;inset:auto!important;transform:none!important;
+  grid-area:auto!important;grid-row:auto!important;grid-column:auto!important;
+  min-width:0!important;max-width:100%!important;width:100%!important;
+  min-height:44px!important;height:auto!important;max-height:none!important;
+  margin:0!important;padding:7px 4px!important;font-size:clamp(11px,2.9vw,14px)!important;
+  line-height:1.2!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #accessLaunchBtn{order:1!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #contactLaunchBtn{order:2!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #shareBtn{order:3!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #sunLabBtn{order:4!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > .bc-btn{order:5!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #offlineBtn{order:6!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #reloadBtn{order:7!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #installBtn{order:8!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #bottomActions > #arrangeBtn{order:9!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions > [hidden]{display:none!important}
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) > .wrap > footer,
+ html.ge-radio-ui:is(.ge-radio-iphone-locked,.ge-mobile-device) body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #radioCopyright{
+  position:relative!important;inset:auto!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;
+  transform:none!important;display:block!important;visibility:visible!important;
+  flex:0 0 auto!important;width:100%!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;margin:3px auto 0!important;
+  padding:0 4px!important;text-align:center!important;white-space:normal!important;
+  line-height:1.25!important;font-size:clamp(10px,2.5vw,12px)!important;
+ }
+}
+/* Phone landscape: scroll instead of fixing controls to a crop of the viewport.
+   Ship view and I AM Studio keep their existing specialized stages. */
+@media (orientation:landscape) and (max-height:650px) and (max-width:1100px){
+ html.ge-radio-ui{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important}
+ html.ge-radio-ui body.view-player:not(.iam-studio-open){
+  position:relative!important;inset:auto!important;height:auto!important;
+  min-height:100vh!important;min-height:100dvh!important;max-height:none!important;
   overflow-x:hidden!important;overflow-y:visible!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap{
-  position:relative!important;height:auto!important;min-height:100dvh!important;
-  max-height:none!important;overflow:visible!important;
-  display:flex!important;flex-direction:column!important;align-items:center!important;
-  justify-content:flex-start!important;gap:8px!important;
-  padding:10px 10px 22px!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) header{
-  position:relative!important;flex:0 0 auto!important;height:auto!important;
-  min-height:0!important;margin:0 auto 4px!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) header .logo-wrap{
-  width:clamp(116px,22dvh,150px)!important;height:clamp(116px,22dvh,150px)!important;
-  min-height:0!important;max-width:150px!important;margin:0 auto 4px!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #titleBtn,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #playerSeekWrap,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #musicGroup{
-  position:relative!important;flex:0 0 auto!important;margin-block:2px!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #iamLaunchRow:not([hidden]){
-  position:relative!important;inset:auto!important;top:auto!important;left:auto!important;
-  transform:none!important;height:auto!important;min-height:64px!important;
-  margin:6px auto!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #geDesktopUtilityStrip{
-  position:relative!important;inset:auto!important;left:auto!important;right:auto!important;
-  top:auto!important;bottom:auto!important;transform:none!important;
-  width:100%!important;height:auto!important;max-width:100%!important;
-  margin:8px auto 0!important;display:flex!important;flex-direction:column!important;
-  flex:0 0 auto!important;gap:6px!important;
- }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) > .wrap{
   position:relative!important;inset:auto!important;transform:none!important;
-  width:100%!important;height:auto!important;min-height:0!important;
+  width:100%!important;max-width:100%!important;min-height:100vh!important;min-height:100dvh!important;
+  height:auto!important;max-height:none!important;overflow:visible!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;
+  gap:8px!important;padding:10px 12px calc(20px + env(safe-area-inset-bottom))!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) header{
+  position:relative!important;inset:auto!important;transform:none!important;
+  flex:0 0 auto!important;width:100%!important;height:auto!important;min-height:0!important;
+  margin:0 auto!important;gap:3px!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) header .logo-wrap{
+  width:clamp(105px,27vh,156px)!important;height:clamp(105px,27vh,156px)!important;
+  min-height:0!important;max-height:156px!important;margin:0 auto 3px!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) header h1,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) header .tag{
+  position:static!important;inset:auto!important;transform:none!important;
+  margin:0!important;white-space:normal!important;text-align:center!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip{
+  display:flex!important;position:relative!important;inset:auto!important;transform:none!important;
+  flex-direction:column!important;width:100%!important;max-width:800px!important;height:auto!important;
+  margin:8px auto!important;gap:7px!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #bgGroup,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
+  position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;max-width:100%!important;height:auto!important;min-height:0!important;
   margin:0!important;flex:0 0 auto!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
-  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  grid-auto-rows:minmax(38px,auto)!important;gap:5px!important;
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions{
+  display:flex!important;flex-wrap:wrap!important;align-items:stretch!important;justify-content:center!important;
+  gap:7px!important;
  }
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > footer,
- html.ge-radio-ui body.view-player.portrait-player:not(.iam-studio-open) > .wrap > #radioCopyright{
-  position:relative!important;inset:auto!important;bottom:auto!important;
-  left:auto!important;right:auto!important;margin:5px auto 0!important;
-  width:100%!important;transform:none!important;
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #bottomActions > *{
+  position:relative!important;grid-area:auto!important;min-width:112px!important;
+  width:auto!important;max-width:100%!important;min-height:44px!important;height:auto!important;
+  margin:0!important;white-space:normal!important;
  }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) > .wrap > footer,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) > .wrap > #radioCopyright{
+  position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;margin:5px auto 0!important;
+ }
+}
+/* Shared compact overlays: no clipped close button, list, keyboard, or Gate. */
+@media (max-width:820px), (max-height:650px){
+ #geInlineMusicPanel:not(.ge-gate-active){
+  position:fixed!important;left:8px!important;right:8px!important;
+  top:max(7px,env(safe-area-inset-top))!important;bottom:max(7px,env(safe-area-inset-bottom))!important;
+  transform:none!important;width:auto!important;max-width:none!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  display:flex!important;flex-direction:column!important;overflow:hidden!important;
+ }
+ #geInlineMusicPanel:not(.ge-gate-active) .geMusicModalHead{
+  flex:0 0 auto!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+  min-width:0!important;gap:8px!important;align-items:center!important;
+ }
+ #geInlineMusicPanel:not(.ge-gate-active) .geMusicModalHead strong{
+  min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ #geInlineMusicPanel:not(.ge-gate-active) #geInlineMusicFrame{
+  display:block!important;flex:1 1 auto!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+ }
+ #geRadioContactPanel.open{
+  box-sizing:border-box!important;left:50%!important;width:calc(100vw - 20px)!important;
+  max-width:480px!important;max-height:calc(100vh - 24px)!important;
+  max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+ }
+ #geGatePanel{
+  box-sizing:border-box!important;width:calc(100vw - 24px)!important;max-width:440px!important;
+  max-height:calc(100vh - 24px)!important;max-height:calc(100dvh - 24px)!important;
+  overflow-y:auto!important;overscroll-behavior:contain!important;
+ }
+ #geOfflineDecision .ge-offline-choice-card{max-height:calc(100vh - 24px)!important;max-height:calc(100dvh - 24px)!important;overflow-y:auto!important}
+ #sunLabPanel.show{box-sizing:border-box!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 16px)!important;max-height:calc(100dvh - 16px)!important;overflow-y:auto!important}
+ #shipArrivalContact.open{box-sizing:border-box!important;min-width:0!important;width:min(94vw,690px)!important;max-height:90%!important;overflow-y:auto!important}
+}
+@media (orientation:landscape) and (max-height:520px){
+ #geGatePanel{top:50%!important;transform:translate(-50%,-50%)!important}
+ #geInlineMusicPanel:not(.ge-gate-active){top:4px!important;bottom:4px!important}
 }
 </style>
 </head>
