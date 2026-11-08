@@ -14608,6 +14608,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 <script defer src="./ge-music-v5.js?v=20261108-v732-offline-ready-sync"></script>
 <style id="ge-offline-readiness-20261108">
 #geOfflineReadiness[hidden]{display:none!important}
+#geOfflineDecision #geOfflineStatusOpen{min-height:44px!important}
+#geOfflineDecision #geOfflineReadiness{box-sizing:border-box;max-width:100%;min-width:0;margin:0!important;overflow-wrap:anywhere;word-break:normal}
 #geOfflineStatusOpen{min-height:40px;padding:7px 10px;border:1px solid #a7c5db;border-radius:9px;background:#203f58;color:#fff;font:700 12px system-ui,sans-serif;cursor:pointer}
 #geOfflineReadiness{box-sizing:border-box;max-width:min(760px,92vw);margin:5px auto 8px;padding:7px 10px;border:1px solid rgba(180,203,225,.48);border-radius:9px;background:rgba(9,27,44,.88);color:#f4f8ff;font:700 12px/1.4 system-ui,sans-serif;text-align:center}
 #geOfflineReadiness button{border:1px solid #a7c5db;border-radius:7px;background:#203f58;color:white;font:inherit;padding:3px 9px;margin-left:8px;cursor:pointer}
@@ -14625,23 +14627,31 @@ const refresh=document.createElement('button');refresh.type='button';refresh.tex
 const details=document.createElement('span');details.id='geOfflineReadinessDetails';
 bar.append(label,refresh,details);
 function mount(){
- // Keep diagnostics out of the song/player area. They are optional,
- // accessible from the same utility strip as GO OFFLINE.
- const offline=document.getElementById('offlineBtn');
- if(!offline?.parentNode){document.body.append(bar);bar.hidden=true;return;}
+ // The status control belongs INSIDE the existing Go Offline dialog,
+ // not in the Radio player or its utility button grid.
+ const dialog=document.getElementById('geOfflineDecision');
+ const cancel=document.getElementById('geOfflineCancel');
+ if(!dialog||!cancel)return;
  const opener=document.createElement('button');
  opener.type='button';opener.id='geOfflineStatusOpen';
- opener.textContent='Offline Status';
+ opener.textContent='OFFLINE STATUS';
  opener.setAttribute('aria-controls','geOfflineReadiness');
  opener.setAttribute('aria-expanded','false');
- offline.insertAdjacentElement('afterend',opener);
- offline.parentNode.insertBefore(bar,opener.nextSibling);
+ cancel.insertAdjacentElement('beforebegin',opener);
+ opener.insertAdjacentElement('afterend',bar);
  bar.hidden=true;
- opener.addEventListener('click',()=>{
+ opener.addEventListener('click',event=>{
+  event.stopPropagation();
   const show=bar.hidden;
-  bar.hidden=!show;opener.setAttribute('aria-expanded',String(show));
+  bar.hidden=!show;
+  opener.setAttribute('aria-expanded',String(show));
   if(show)void check();
  });
+ // The dialog is reused for download, repair, and access prompts.
+ // Close the diagnostic panel between dialog sessions.
+ new MutationObserver(()=>{
+  if(dialog.hidden){bar.hidden=true;opener.setAttribute('aria-expanded','false');}
+ }).observe(dialog,{attributes:true,attributeFilter:['hidden']});
 }
 function playlists(){
  try{
