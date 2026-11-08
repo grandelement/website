@@ -14606,6 +14606,80 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 });
 </script>
 <script defer src="./ge-music-v5.js?v=20261108-v731-offline-user-playlist-cache"></script>
+<style id="ge-offline-readiness-20261108">
+#geOfflineReadiness{box-sizing:border-box;max-width:min(760px,92vw);margin:5px auto 8px;padding:7px 10px;border:1px solid rgba(180,203,225,.48);border-radius:9px;background:rgba(9,27,44,.88);color:#f4f8ff;font:700 12px/1.4 system-ui,sans-serif;text-align:center}
+#geOfflineReadiness button{border:1px solid #a7c5db;border-radius:7px;background:#203f58;color:white;font:inherit;padding:3px 9px;margin-left:8px;cursor:pointer}
+#geOfflineReadinessDetails{display:block;margin-top:4px;font-weight:500}
+</style>
+<script id="ge-offline-readiness-controller-20261108">
+(()=>{
+'use strict';
+const cachePrefix='GE_MUSIC_FAN_PLAYLISTS_OFFLINE_V1:';
+const tokenKey='GE_MUSIC_FAN_VAULT_KEY_V1';
+const bar=document.createElement('div');bar.id='geOfflineReadiness';
+bar.setAttribute('role','status');bar.setAttribute('aria-live','polite');
+const label=document.createElement('span');
+const refresh=document.createElement('button');refresh.type='button';refresh.textContent='CHECK';
+const details=document.createElement('span');details.id='geOfflineReadinessDetails';
+bar.append(label,refresh,details);
+function mount(){
+ const host=document.getElementById('gePlaylistQuick');
+ if(host?.parentNode)host.parentNode.insertBefore(bar,host);
+ else document.body.append(bar);
+}
+function playlists(){
+ try{
+  const key=localStorage.getItem(tokenKey);
+  const raw=key?localStorage.getItem(cachePrefix+key):null;
+  const data=raw?JSON.parse(raw):null;
+  return Array.isArray(data?.items)?data.items:null;
+ }catch(_){return null}
+}
+async function check(){
+ label.textContent='CHECKING OFFLINE FILES…';refresh.disabled=true;
+ const list=playlists();
+ let shell=false,media=0,selected=0;
+ try{
+  if('caches' in window){
+   const keys=await caches.keys();
+   for(const name of keys){
+    if(!name.startsWith('ge-radio-shell-')&&!name.startsWith('ge-radio-media-'))continue;
+    const cache=await caches.open(name);
+    if(name.startsWith('ge-radio-shell-')){
+     const page=await cache.match(new URL('./index.html',location.href),{ignoreSearch:true});
+     const music=await cache.match(new URL('./ge-music-v5.js',location.href),{ignoreSearch:true});
+     const preview=await cache.match(new URL('./preview-lab.html',location.href),{ignoreSearch:true});
+     if(page&&music&&preview)shell=true;
+    }
+    if(name.startsWith('ge-radio-media-')){
+     for(const request of await cache.keys()){
+      const path=new URL(request.url).pathname;
+      if(/^\/ge-music\/music\/.+\.(mp3|m4a|ogg|wav)$/i.test(path)){
+       media++;
+       if(list?.some(p=>p.songs?.some(song=>('/'+song)===decodeURIComponent(path))))selected++;
+      }
+     }
+    }
+   }
+  }
+ }catch(_){}
+ const sw=!!navigator.serviceWorker?.controller;
+ const playlistText=list===null?'playlists not stored locally':list.length+' user playlists stored locally';
+ const shellText=shell&&sw?'website files ready':'website files not fully ready';
+ const audioText=media+' cached songs'+(list?.length?' · '+selected+' playlist songs cached':'');
+ label.textContent=(shell&&sw&&list!==null?'OFFLINE LIBRARY READY':'OFFLINE SETUP INCOMPLETE')+' · '+(navigator.onLine?'ONLINE':'OFFLINE');
+ details.textContent=shellText+' · '+playlistText+' · '+audioText;
+ refresh.disabled=false;
+}
+refresh.addEventListener('click',()=>void check());
+window.addEventListener('online',()=>void check());
+window.addEventListener('offline',()=>void check());
+window.addEventListener('GE_FAN_PLAYLIST_CACHE_UPDATED',()=>void check());
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{mount();void check()},{once:true});
+else{mount();void check()}
+})();
+</script>
+
 <script defer src="./ge-purchase-demo.js?v=20261028-checkout-demo-v1"></script>
 <script id="ge-background-audio-hardening">
 (()=>{
