@@ -636,6 +636,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   grid-column:1!important;grid-row:3!important;padding:3px 12px 9px!important;
  }
 }
+.selectionActions .offlineSelected{background:linear-gradient(135deg,#123e3c,#145e57)!important;border-color:#68c9b6!important;color:#e0fff6!important;font-weight:850!important}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -652,7 +653,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="clearSelected">CLEAR</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -735,6 +736,7 @@ function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
  el('.playSelected').disabled=count===0;
+  el('.offlineSelected').disabled=count===0;
   el('.buySelected').disabled=count===0;
   el('.buySelected').setAttribute('aria-label','Review purchase of '+count+' checked song'+(count===1?'':'s'));
  el('.arrangePlay').disabled=count===0;
@@ -1769,8 +1771,12 @@ el('.accessToggle').addEventListener('click',()=>{
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
  if(opened)el('.musicCodeInput').focus();
 });
-el('.clearSelected').addEventListener('click',()=>{
- state.selected.clear();saveSelected();say('CHECKED SONGS CLEARED.');render();
+el('.offlineSelected').addEventListener('click',()=>{
+ const tracks=selectedTracks();
+ if(!tracks.length){say('CHECK SONGS TO DOWNLOAD OFFLINE FIRST.');return;}
+ const paths=tracks.map(track=>track.path);
+ window.parent.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
+ say('REQUESTING OFFLINE DOWNLOAD FOR '+paths.length+' CHECKED SONGS…');
 });
 el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.quickPlaylistName').addEventListener('input',event=>{state.playlistDraftName=event.target.value.slice(0,100)});
