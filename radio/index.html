@@ -14663,9 +14663,17 @@ async function check(){
    }
   }
  }catch(_){}
- const sw=!!navigator.serviceWorker?.controller;
+ // A newly installed worker may not control this tab until navigation.
+ // Its ready registration and saved shell are still useful offline.
+ let sw=!!navigator.serviceWorker?.controller;
+ try{
+  if(!sw&&navigator.serviceWorker){
+   const registration=await navigator.serviceWorker.getRegistration('./');
+   sw=!!(registration?.active);
+  }
+ }catch(_){}
  const playlistText=list===null?'playlists not stored locally':list.length+' user playlists stored locally';
- const shellText=shell&&sw?'website files ready':'website files not fully ready';
+ const shellText=shell&&sw?'website files ready':!sw?'offline worker not active':!shell?'website files incomplete':'website files ready';
  const audioText=media+' cached songs'+(list?.length?' · '+selected+' playlist songs cached':'');
  label.textContent=(shell&&sw&&list!==null?'OFFLINE LIBRARY READY':'OFFLINE SETUP INCOMPLETE')+' · '+(navigator.onLine?'ONLINE':'OFFLINE');
  details.textContent=shellText+' · '+playlistText+' · '+audioText;
