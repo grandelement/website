@@ -4972,12 +4972,9 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{display
   display:none!important;
  }
 }
-/* Diagnostics remain accessible without covering the copyright or controls. */
-#geDebugOpen{
- bottom:auto!important;
- top:calc(86px + env(safe-area-inset-top))!important;
- right:8px!important;
-}
+/* Diagnostics live among the bottom utility buttons and are access-controlled. */
+#geDebugOpen{position:static!important;inset:auto!important;z-index:auto!important;box-shadow:none!important;}
+#geDebugOpen[hidden]{display:none!important;}
 </style>
 <style id="ge-radio-title-pill-content-fit-20261108">
 /* The selected-song bubble hugs the text instead of filling the entire row.
@@ -7896,6 +7893,8 @@ function syncRadioOfflineAccessUI(){
   setUtility($('reloadBtn'),true); // Explicit fresh scan remains available after uploads.
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
+  setUtility($('geDebugOpen'),permissions.sunLab||localTest);
+  if(!(permissions.sunLab||localTest)){const panel=$('geDebugPanel');if(panel)panel.hidden=true;}
   setUtility($('iamLaunchRow'),permissions.iam);
   // A previously opened I AM studio never persists after a permission loss.
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
@@ -14600,14 +14599,14 @@ function button(text,fn){
 function mount(){
  if(document.getElementById('geDebugOpen'))return;
  var css=document.createElement('style');css.id='geDebugStyle';
- css.textContent='#geDebugOpen{position:fixed!important;right:8px!important;top:calc(86px + env(safe-area-inset-top))!important;bottom:auto!important;z-index:2147483647!important;background:#ffcb2e!important;color:#111!important;border:2px solid #111!important;border-radius:9px!important;padding:10px 14px!important;font:700 13px system-ui!important;box-shadow:0 2px 15px #000!important;min-width:80px!important;min-height:42px!important;opacity:1!important;display:block!important;pointer-events:auto!important}'+
+ css.textContent='#geDebugOpen{position:static!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:auto!important;background:#ffcb2e!important;color:#111!important;border:2px solid #111!important;border-radius:9px!important;padding:10px 14px!important;font:700 13px system-ui!important;box-shadow:0 2px 15px #000!important;min-width:80px!important;min-height:42px!important;opacity:1!important;pointer-events:auto!important}#geDebugOpen[hidden]{display:none!important}'+
  '#geDebugPanel{position:fixed!important;z-index:2147483647!important;inset:auto 6px calc(62px + env(safe-area-inset-bottom)) auto!important;width:min(96vw,540px)!important;max-height:78dvh!important;overflow:auto!important;background:#09151e!important;color:#f4f8ff!important;border:2px solid #ffd146!important;border-radius:12px!important;padding:12px!important;box-shadow:0 5px 30px #000!important;font:13px system-ui!important;pointer-events:auto!important}'+
  '#geDebugPanel[hidden]{display:none!important}#geDebugPanel button{background:#e3eaf2!important;color:#081019!important;border-radius:7px!important;border:0!important;padding:9px!important;margin:2px!important;font:700 12px system-ui!important;min-height:36px!important;opacity:1!important}'+
  '#geDebugPanel textarea{width:100%!important;min-height:245px!important;height:39dvh!important;background:#03080e!important;color:#c6ffda!important;font:11px/1.3 monospace!important;border:1px solid #566!important;padding:8px!important;white-space:pre!important;user-select:text!important}'+
  '#geDebugPanel p{margin:6px 0!important;line-height:1.4!important;color:#f4f8ff!important}';
  document.head.appendChild(css);
  var open=button('DEBUG',function(){ui.panel.hidden=!ui.panel.hidden;if(!ui.panel.hidden){paint();void run();}});
- open.id='geDebugOpen';open.setAttribute('aria-label','Open Radio playback debugging report');
+ open.id='geDebugOpen';open.hidden=true;open.setAttribute('aria-label','Open Radio playback debugging report');
  var panel=document.createElement('section');panel.id='geDebugPanel';panel.hidden=true;panel.setAttribute('aria-label','Radio playback diagnostics');
  panel.addEventListener('click',function(e){e.stopPropagation();});
  var title=document.createElement('strong');title.textContent='RADIO / MUSIC DEBUG — '+BUILD;
@@ -14619,8 +14618,10 @@ function mount(){
  var status=document.createElement('p');status.textContent='Opening the panel runs delivery tests.';
  var report=document.createElement('textarea');report.readOnly=true;report.setAttribute('aria-label','Copyable radio diagnostics report');
  panel.append(title,note,tools,status,report);
- document.body.append(open,panel);
+ (document.getElementById('bottomActions')||document.body).appendChild(open);
+ document.body.appendChild(panel);
  ui={panel:panel,open:open,status:status,report:report,service:null};
+ if(typeof syncRadioOfflineAccessUI==='function')syncRadioOfflineAccessUI();
  paint();
 }
 window.addEventListener('message',function(e){
