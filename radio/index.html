@@ -14255,7 +14255,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 
   var x=0,y=0,scale=1,dragging=false,moved=false;
   var sx=0,sy=0,ox=0,oy=0,lx=0,ly=0,lt=0,vx=0,vy=0;
-  var pinchDistance=0,pinchScale=1,raf=0;
+  var pinchDistance=0,pinchScale=1,raf=0,lastFrame=0,samples=[];
 
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   function apply(){
@@ -14263,7 +14263,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     sun.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,0) scale('+scale.toFixed(3)+')';
   }
   function activity(){if(window.GEHUD&&window.GEHUD.sunActivity)window.GEHUD.sunActivity();}
-  function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}
+  function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}lastFrame=0;}
   function wrap(){
     var left=Number(sun.dataset.baseLeft||0),top=Number(sun.dataset.baseTop||0);
     var w=(Number(sun.dataset.baseWidth||sun.offsetWidth)||sun.offsetWidth)*scale;
@@ -14276,12 +14276,16 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   }
   function inertia(){
     stop();
-    function step(){
-      x+=vx;y+=vy;vx*=.955;vy*=.955;wrap();apply();
-      if(Math.abs(vx)>.08||Math.abs(vy)>.08){activity();raf=requestAnimationFrame(step);}
-      else{raf=0;activity();}
+    function step(time){
+      var frames=lastFrame?Math.min(3,Math.max(.25,(time-lastFrame)/16.667)):1;
+      lastFrame=time;
+      x+=vx*frames;y+=vy*frames;
+      var friction=Math.pow(.975,frames);vx*=friction;vy*=friction;
+      wrap();apply();
+      if(Math.hypot(vx,vy)>.12){activity();raf=requestAnimationFrame(step);}
+      else{raf=0;lastFrame=0;activity();}
     }
-    if(Math.abs(vx)>.18||Math.abs(vy)>.18)raf=requestAnimationFrame(step);
+    if(Math.hypot(vx,vy)>.18)raf=requestAnimationFrame(step);
   }
   function dist(t){
     if(!t||t.length<2)return 0;
@@ -14289,17 +14293,28 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
     return Math.sqrt(dx*dx+dy*dy);
   }
   function begin(px,py){
-    stop();dragging=true;moved=false;sx=px;sy=py;ox=x;oy=y;lx=px;ly=py;lt=Date.now();vx=vy=0;activity();
+    stop();dragging=true;moved=false;sx=px;sy=py;ox=x;oy=y;lx=px;ly=py;lt=performance.now();vx=vy=0;samples=[{x:px,y:py,t:lt}];activity();
   }
   function move(px,py){
     if(!dragging)return;
-    var now=Date.now(),dt=Math.max(8,now-lt);
+    var now=performance.now(),dt=Math.max(1,now-lt);
     var dx=px-sx,dy=py-sy;if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
-    x=ox+dx;y=oy+dy;vx=(px-lx)/(dt/16);vy=(py-ly)/(dt/16);lx=px;ly=py;lt=now;
+    x=ox+dx;y=oy+dy;
+    samples.push({x:px,y:py,t:now});
+    while(samples.length>2&&now-samples[0].t>90)samples.shift();
+    var first=samples[0],elapsed=Math.max(1,now-first.t);
+    vx=(px-first.x)*16.667/elapsed;vy=(py-first.y)*16.667/elapsed;
+    lx=px;ly=py;lt=now;
     wrap();apply();activity();
   }
   function end(){
-    if(!dragging)return;dragging=false;vx=clamp(vx,-7,7);vy=clamp(vy,-7,7);inertia();activity();
+    if(!dragging)return;dragging=false;
+    // A paused finger is not a fling. Preserve fast releases without the old
+    // 7px/frame cap that made every quick swipe move at the same slow speed.
+    if(performance.now()-lt>110){vx=0;vy=0;}
+    var speed=Math.hypot(vx,vy),maxSpeed=90;
+    if(speed>maxSpeed){vx*=maxSpeed/speed;vy*=maxSpeed/speed;}
+    samples=[];inertia();activity();
   }
 
   sun.addEventListener('pointerdown',function(e){
