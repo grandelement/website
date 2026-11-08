@@ -10358,15 +10358,13 @@ async function registerServiceWorker(){
       CONFIG.LOGO_SRC,CONFIG.MUSIC_MANIFEST,CONFIG.IMAGE_MANIFEST
     ].map(url=>({url:absolute(url),type:'shell',size:0}));
 
+    // Save every playable catalog song, including singles and newer albums.
+    // Keep the existing preferred album order; don't silently omit music.
     const core=state.catalog
-      .filter(url=>(isCore(url) || isFeaturedSingle(url)) && !isSingles(url))
-      .sort(songOrder)
+      .slice().sort(songOrder)
       .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
 
-    const legacy=state.catalog
-      .filter(url=>isLegacy(url) && !isSingles(url))
-      .sort(songOrder)
-      .map(url=>({url,type:'song',size:sizeMap[urlToRepoPath(url)]||0}));
+    const legacy=[];
 
     const stations=CONFIG.STATION_ID_FILES.map(number=>{
       const url=absolute(`${CONFIG.MUSIC_BASE}clips/GE Station Identification - ${number}.m4a`);
@@ -10444,6 +10442,15 @@ async function registerServiceWorker(){
         }
       }
 
+      // A cached response is not proof of a complete MP3. Reject empty
+      // entries and known short bodies; preserve other cached files.
+      if(hit && item.type==='song'){
+        try{
+          const length=Number(hit.headers.get('content-length'))||0;
+          if(!hit.ok || (item.size>0 && length>0 && length<item.size) ||
+             (length===0 && (await hit.clone().blob()).size===0)) hit=null;
+        }catch(_e){hit=null;}
+      }
       if(hit){
         existingBytes+=item.size||Number(hit.headers.get('content-length'))||0;
         if(item.type==='song'){ songs.add(item.url); cachedSongs++; }
@@ -10569,7 +10576,7 @@ async function registerServiceWorker(){
         });
         setStatus('Offline library is current.');
       }
-      return {added:0,failed:0,total:audit.totalSongs,complete:true,musicComplete:true};
+      return {added:0,failed:0,total:audit.totalSongs,complete:offlineLaunchReady,musicComplete:true};
     }
 
     abortController=new AbortController();
@@ -10715,7 +10722,7 @@ async function registerServiceWorker(){
 
     return {
       added:completedFiles,failed,failedFiles,storageFull,total:missingSongFiles.length,
-      complete:audit.complete,musicComplete:audit.musicComplete,
+      complete:audit.musicComplete&&offlineLaunchReady,musicComplete:audit.musicComplete,
       cachedSongs:audit.cachedSongs,totalSongs:audit.totalSongs
     };
   }
