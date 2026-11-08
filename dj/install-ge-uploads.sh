@@ -21,12 +21,18 @@ fi
 mkdir -p "$BASE" "$AGENTS"
 echo "Downloading GE upload helper..."
 curl --fail --location --silent --show-error "$URL" --output "$HELPER"
+echo "Downloading GitHub Radio publisher..."
+curl --fail --location --silent --show-error "https://raw.githubusercontent.com/grandelement/website/main/dj/ge-radio-github.py" --output "$BASE/ge-radio-github.py"
+if [ ! -s "$BASE/ge-radio-github.py" ]; then
+  echo "STOP: GitHub Radio publisher did not download."
+  exit 1
+fi
 if [ ! -s "$HELPER" ]; then
   echo "STOP: The helper did not download."
   exit 1
 fi
 # Check syntax before registering with launchd.
-if ! /usr/bin/python -m py_compile "$HELPER"; then
+if ! /usr/bin/python -m py_compile "$HELPER" "$BASE/ge-radio-github.py"; then
   echo "STOP: Could not check the helper. Nothing was started."
   exit 1
 fi
@@ -44,12 +50,12 @@ plistlib.writePlist({
     "StandardErrorPath": "/tmp/ge-studios-uploads-error.log",
 }, filename)
 PY
-chmod 600 "$HELPER" "$PLIST"
+chmod 600 "$HELPER" "$BASE/ge-radio-github.py" "$PLIST"
 launchctl unload "$PLIST" >/dev/null 2>&1 || true
 launchctl load -w "$PLIST"
 echo ""
 echo "GE STUDIOS UPLOAD HELPER INSTALLED."
 echo "Starts at login and automatically restarts if it stops (30-second throttle)."
 echo "Open https://grandelement.com/dj/imac.html in Firefox."
-echo "Use UPLOAD DRAFT or UPLOAD FINAL; conversion is optional."
+echo "Use UPLOAD RADIO for GitHub; DRAFTS and FINALS continue to use Google Drive.\nTo activate RADIO, save a fine-grained GitHub token (Contents read/write for grandelement/website)\nin ~/Library/Application Support/GEStudios/github-radio-token and run chmod 600 on it."
 echo "If there is a problem, see /tmp/ge-studios-uploads-error.log"
