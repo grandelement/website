@@ -14607,6 +14607,8 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 </script>
 <script defer src="./ge-music-v5.js?v=20261108-v732-offline-ready-sync"></script>
 <style id="ge-offline-readiness-20261108">
+#geOfflineReadiness[hidden]{display:none!important}
+#geOfflineStatusOpen{min-height:40px;padding:7px 10px;border:1px solid #a7c5db;border-radius:9px;background:#203f58;color:#fff;font:700 12px system-ui,sans-serif;cursor:pointer}
 #geOfflineReadiness{box-sizing:border-box;max-width:min(760px,92vw);margin:5px auto 8px;padding:7px 10px;border:1px solid rgba(180,203,225,.48);border-radius:9px;background:rgba(9,27,44,.88);color:#f4f8ff;font:700 12px/1.4 system-ui,sans-serif;text-align:center}
 #geOfflineReadiness button{border:1px solid #a7c5db;border-radius:7px;background:#203f58;color:white;font:inherit;padding:3px 9px;margin-left:8px;cursor:pointer}
 #geOfflineReadinessDetails{display:block;margin-top:4px;font-weight:500}
@@ -14623,9 +14625,23 @@ const refresh=document.createElement('button');refresh.type='button';refresh.tex
 const details=document.createElement('span');details.id='geOfflineReadinessDetails';
 bar.append(label,refresh,details);
 function mount(){
- const host=document.getElementById('gePlaylistQuick');
- if(host?.parentNode)host.parentNode.insertBefore(bar,host);
- else document.body.append(bar);
+ // Keep diagnostics out of the song/player area. They are optional,
+ // accessible from the same utility strip as GO OFFLINE.
+ const offline=document.getElementById('offlineBtn');
+ if(!offline?.parentNode){document.body.append(bar);bar.hidden=true;return;}
+ const opener=document.createElement('button');
+ opener.type='button';opener.id='geOfflineStatusOpen';
+ opener.textContent='Offline Status';
+ opener.setAttribute('aria-controls','geOfflineReadiness');
+ opener.setAttribute('aria-expanded','false');
+ offline.insertAdjacentElement('afterend',opener);
+ offline.parentNode.insertBefore(bar,opener.nextSibling);
+ bar.hidden=true;
+ opener.addEventListener('click',()=>{
+  const show=bar.hidden;
+  bar.hidden=!show;opener.setAttribute('aria-expanded',String(show));
+  if(show)void check();
+ });
 }
 function playlists(){
  try{
