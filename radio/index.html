@@ -8064,13 +8064,27 @@ function geInlineMusicInit(){
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
   geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v723-native-iframe-audio';
-  // Keep the preview document's licensed gate and transport while giving
-  // iOS its audio element in the TOP document. The same element and listeners
-  // survive DOM adoption; the separate Radio audio element is not touched.
+  // Keep the preview document's licensed gate and transport, but mount
+  // MUSIC's audio element in the top document BEFORE any track starts.
+  // Safari can suspend media owned by an embedded frame in the background.
+  // The iframe retains its JS references, access checks and queue controls.
   geInlineMusicFrame.addEventListener('load',()=>{
-    // Keep the Music audio element in its own iframe document.
-    // Moving a live media element between documents can interrupt iOS playback.
     const musicAudio=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
+    if(musicAudio&&musicAudio.ownerDocument!==document){
+      // Never adopt a playing element: changing its document mid-playback
+      // would interrupt listening. This runs at initial iframe load.
+      if(musicAudio.paused&&!musicAudio.currentSrc){
+        let mount=$('geMusicNativeAudioMount');
+        if(!mount){
+          mount=document.createElement('div');
+          mount.id='geMusicNativeAudioMount';
+          mount.style.cssText='position:absolute;width:1px;height:1px;overflow:hidden;pointer-events:none;opacity:0';
+          document.body.append(mount);
+        }
+        try{mount.append(document.adoptNode(musicAudio));}
+        catch(error){console.warn('Music native audio mount unavailable',error);}
+      }
+    }
     if(musicAudio&&!musicAudio.dataset.geParentSeekSync){musicAudio.dataset.geParentSeekSync='yes';['timeupdate','durationchange','loadedmetadata','seeked','play','pause'].forEach(e=>musicAudio.addEventListener(e,geInlineMusicSyncTransport));}
     geRetryPendingMainMusic();
     if(geQuickSongPanel&&!geQuickSongPanel.hidden)geOpenQuickSongPanel();
