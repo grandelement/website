@@ -75,16 +75,23 @@ window.addEventListener('unhandledrejection',function(e){
     }else if(layout==='mobile'&&phoneHardware){
       // Safari's "Request Desktop Website" can use a Macintosh user-agent
       // and desktop CSS width even on an iPhone. Use its real screen width.
-      const w=Number(screen.width)||390,h=Number(screen.height)||844;
-      const landscape=window.matchMedia?.('(orientation: landscape)').matches===true;
-      const width=Math.round(landscape?Math.max(w,h):Math.min(w,h));
-      viewport.content='width='+width+',initial-scale=1,viewport-fit=cover';
+      // Follow Safari's current visual viewport on rotation. Physical screen
+      // dimensions can be stale or swapped during iOS orientation changes.
+      viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }else{
       viewport.content='width=device-width,initial-scale=1,viewport-fit=cover';
     }
   }
   applyViewport();
-  window.addEventListener?.('orientationchange',applyViewport,{passive:true});
+  window.addEventListener?.('orientationchange',()=>{
+    applyViewport();
+    // Rotation can preserve the old landscape horizontal scroll offset.
+    // Recenter the radio UI after Safari settles its new viewport.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(layout==='mobile'&&window.scrollX!==0)window.scrollTo({left:0,top:window.scrollY,behavior:'instant'});
+    }));
+  },{passive:true});
+  window.addEventListener?.('resize',applyViewport,{passive:true});
   window.GEDeviceView={
     get mode(){return html.dataset.geDeviceLayout},
     get preference(){return html.dataset.geDevicePreference},
