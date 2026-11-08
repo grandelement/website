@@ -1477,7 +1477,7 @@ function render(){
     const description=elem('div','albumDescription');
     description.append(elem('strong','',name),elem('small','','Grand Element'),elem('p','',albumDescriptions[name]||'Explore this Grand Element recording.'),elem('small','',rows.length+' SONGS'));
     const playAlbum=elem('button','albumPlayButton','▶ PLAY ALBUM');playAlbum.type='button';
-    playAlbum.addEventListener('click',()=>{if(rows.length)void playTrack(rows[0],true,rows.map(t=>t.path));});
+    playAlbum.addEventListener('click',()=>{if(rows.length)playTrack(rows[0],rows.map(t=>t.path),true);});
     const actions=elem('div','albumRowActions');actions.append(playAlbum,albumButton);
     wrapper.append(description,actions);
     const tile=wrapper.querySelector('.album');
