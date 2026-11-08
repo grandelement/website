@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.23-20261108-FLEXIBLE-FILENAMES';
+const BUILD='GE-MUSIC-V7.24-20261108-ONE-CLICK-FRESH-LIBRARY';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -760,7 +760,8 @@ function albumActions(album,tracks){
  return actions;
 }
 function elem(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
-async function fetchCatalog(){
+async function fetchCatalog(options={}){
+ const strict=!!options.strict;
  const all=[];
  const publishCatalog=(paths,final=false)=>{
   const unique=[...new Set(paths)].map(details);
@@ -788,7 +789,7 @@ async function fetchCatalog(){
    for(const item of rows){const path=canonical(key==='files'?item:item?.path);if(path)all.push(path)}
   }catch(error){console.warn('MUSIC V5 catalog source',file,error)}
  }
- if(all.length)publishCatalog(all);
+ if(all.length&&!strict)publishCatalog(all);
  // Discover newly uploaded recordings in the background without holding
  // the entire published song list hostage to GitHub's remote response.
  // New paths join MUSIC only; Radio Bangers/master approval stays separate.
@@ -807,11 +808,13 @@ async function fetchCatalog(){
     }
     // A successful, complete tree REPLACES the older cached manifest list.
     // Merging left deleted tracks (e.g. the old Aether Journey) in the player.
-    if(real.length)publishCatalog(real,true);
+    if(real.length){publishCatalog(real,true);return {ok:true,count:real.length,source:'github'};}
    }
   }
- }catch(_){/* Keep the static manifest when discovery is unavailable. */}
+ }catch(error){if(strict)throw new Error('GitHub scan unavailable: '+String(error?.message||error));}
+ if(strict)throw new Error('GitHub did not return a complete nonempty music inventory. Existing library preserved.');
  if(!state.loaded)publishCatalog(all,true);
+ return {ok:state.loaded,count:state.tracks.length,source:'manifest'};
 }
 function readMine(){
  try{const rows=JSON.parse(localStorage.getItem(myKey)||'[]');return Array.isArray(rows)?rows.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.songs)).slice(0,100):[]}
@@ -1767,11 +1770,12 @@ el('.reloadCatalogBtn').addEventListener('click',async()=>{
  const button=el('.reloadCatalogBtn');
  if(state.loading)return;
  state.loading=true;button.disabled=true;
- say('Refreshing current published songs…');
+ say('SCANNING GITHUB · BUILDING FRESH LIBRARY…');
  try{
-  await fetchCatalog();void loadPublished();void loadFanPlaylists();
-  say('LIBRARY UPDATED · '+state.tracks.length+' CURRENT SONGS');
- }catch(error){say('LIBRARY UPDATE FAILED · '+String(error?.message||error))}
+  const result=await fetchCatalog({strict:true});
+  void loadPublished();void loadFanPlaylists();
+  say('LIBRARY REBUILT FROM GITHUB · '+result.count+' CURRENT SONGS');
+ }catch(error){say('GITHUB SCAN FAILED · OLD LIBRARY KEPT · '+String(error?.message||error))}
  finally{state.loading=false;button.disabled=false}
 });
 el('.selectAllSongs').addEventListener('change',event=>{
