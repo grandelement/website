@@ -1898,7 +1898,7 @@ root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
  if(b.dataset.tab==='albums')setView('albums');
  else if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
- else setView('ge-playlists');
+ else setView('user-playlists');
 }));
 
 root.querySelector('.musicCodeUnlock').addEventListener('click',()=>void redeemMusicCode());
