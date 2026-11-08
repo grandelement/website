@@ -4975,6 +4975,11 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{display
 /* Diagnostics live among the bottom utility buttons and are access-controlled. */
 #geDebugOpen{position:static!important;inset:auto!important;z-index:auto!important;box-shadow:none!important;}
 #geDebugOpen[hidden]{display:none!important;}
+
+/* Owner-only developer tools. The hidden attribute wins over all layout rules. */
+html.ge-radio-ui body #bottomActions #reloadBtn[hidden],
+html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden],
+html.ge-radio-ui body #bottomActions #geDebugOpen[hidden]{display:none!important;visibility:hidden!important;pointer-events:none!important}
 </style>
 <style id="ge-radio-title-pill-content-fit-20261108">
 /* The selected-song bubble hugs the text instead of filling the entire row.
@@ -7890,11 +7895,11 @@ function syncRadioOfflineAccessUI(){
     else if(offlineButton.textContent==='OFFLINE')offlineButton.textContent='Go Offline';
   }
   // Restore Reload Library for access codes with reload permission.
-  setUtility($('reloadBtn'),true); // Explicit fresh scan remains available after uploads.
+  setUtility($('reloadBtn'),permissions.sunLab); // Owner-only developer utility.
   setUtility($('legacyBtn'),permissions.legacy);
   setUtility($('sunLabBtn'),permissions.sunLab);
-  setUtility($('geDebugOpen'),permissions.sunLab||localTest);
-  if(!(permissions.sunLab||localTest)){const panel=$('geDebugPanel');if(panel)panel.hidden=true;}
+  setUtility($('geDebugOpen'),permissions.sunLab);
+  if(!permissions.sunLab){const panel=$('geDebugPanel');if(panel)panel.hidden=true;}
   setUtility($('iamLaunchRow'),permissions.iam);
   // A previously opened I AM studio never persists after a permission loss.
   if(!permissions.iam&&document.body.classList.contains('iam-studio-open'))
@@ -7909,7 +7914,7 @@ function syncRadioOfflineAccessUI(){
       'Manage offline music':'Offline locked. Enter an access code');
     shipOffline.textContent=permissions.offline?'Go Offline':'OFFLINE';
   }
-  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),true);
+  setUtility(document.querySelector('#shipStage [data-proxy="reloadBtn"]'),permissions.sunLab);
   setUtility(document.querySelector('#shipStage [data-proxy="legacyBtn"]'),permissions.legacy);
   if($('accessLaunchBtn')){
     $('accessLaunchBtn').hidden=false;
@@ -11003,6 +11008,11 @@ async function refreshTemplateAssetsForOffline(){
 // RELOAD updates the catalog, master approvals, and available artwork.
 // It MUST NOT start audio, change the user's mode or reset the active queue.
 $('reloadBtn').addEventListener('click',async()=>{
+  if(!geRadioSunLabAllowed()){
+    syncRadioOfflineAccessUI();
+    setStatus('RELOAD LIBRARY requires a verified developer access code.');
+    return;
+  }
   const button=$('reloadBtn');
   const original=button.textContent;
   button.disabled=true;
@@ -14605,7 +14615,7 @@ function mount(){
  '#geDebugPanel textarea{width:100%!important;min-height:245px!important;height:39dvh!important;background:#03080e!important;color:#c6ffda!important;font:11px/1.3 monospace!important;border:1px solid #566!important;padding:8px!important;white-space:pre!important;user-select:text!important}'+
  '#geDebugPanel p{margin:6px 0!important;line-height:1.4!important;color:#f4f8ff!important}';
  document.head.appendChild(css);
- var open=button('DEBUG',function(){ui.panel.hidden=!ui.panel.hidden;if(!ui.panel.hidden){paint();void run();}});
+ var open=button('DEBUG',function(){if(typeof geRadioSunLabAllowed!=='function'||!geRadioSunLabAllowed()){ui.panel.hidden=true;return;}ui.panel.hidden=!ui.panel.hidden;if(!ui.panel.hidden){paint();void run();}});
  open.id='geDebugOpen';open.hidden=true;open.setAttribute('aria-label','Open Radio playback debugging report');
  var panel=document.createElement('section');panel.id='geDebugPanel';panel.hidden=true;panel.setAttribute('aria-label','Radio playback diagnostics');
  panel.addEventListener('click',function(e){e.stopPropagation();});
