@@ -1839,7 +1839,13 @@ el('.offlineSelected').addEventListener('click',()=>{
  if(!tracks.length){say('CHECK SONGS TO DOWNLOAD OFFLINE FIRST.');return;}
  const paths=tracks.map(track=>track.path);
  window.parent.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
- say('REQUESTING OFFLINE DOWNLOAD FOR '+paths.length+' CHECKED SONGS…');
+ say('OFFLINE DOWNLOAD REQUESTED FOR '+paths.length+' SONGS · WAIT FOR CONFIRMATION.');
+});
+// The parent offline controller owns Cache Storage. Its status must be shown
+// in MUSIC rather than treating a posted request as a completed download.
+window.addEventListener('message',event=>{
+ if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_STATUS')return;
+ if(typeof event.data.message==='string')say(event.data.message.slice(0,260));
 });
 el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.quickPlaylistName').addEventListener('input',event=>{state.playlistDraftName=event.target.value.slice(0,100)});
@@ -1890,7 +1896,8 @@ el('.selectAllSongs').addEventListener('change',event=>{
 el('.playlistFilter').addEventListener('change',event=>setView(event.target.value));
 root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
  const access=musicAccessActive();
- if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
+ if(b.dataset.tab==='albums')setView('albums');
+ else if(b.dataset.tab==='songs')setView(access?.restricted?'access-code':'all');
  else setView('ge-playlists');
 }));
 
