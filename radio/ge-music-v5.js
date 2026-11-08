@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.22-20261107-VERTICAL-REAL-ALBUMS';
+const BUILD='GE-MUSIC-V7.23-20261108-FLEXIBLE-FILENAMES';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -689,8 +689,11 @@ function canonical(input){const s=String(input||'').replace(/^\/+/, '');try{cons
 function details(path){
  const pieces=path.split('/'),folder=pieces[2]||'',file=pieces.slice(3).join('/');
  const album=folder.replace(/^Grand Element - \d{4} - /,'').trim()||folder;
- const title=file.replace(/\.(mp3|m4a|wav|ogg)$/i,'').replace(/^.*?_\d+[_-]?\s*/,'').replace(/_/g,' ');
- const m=file.match(/_(\d+)[_-]/);
+ const stem=file.replace(/\.(mp3|m4a|wav|ogg)$/i,'');
+ // Track number is an ordering hint; the full GitHub path remains the playback ID.
+ // Recognize both DJ-generated and hand-uploaded separators.
+ const m=stem.match(/(?:^|[ _-])(\d{1,3})(?=[ _-]|$)/);
+ const title=(m?stem.slice(m.index+m[0].length):stem).replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
  return{path,album,title:title||file,number:m?Number(m[1]):999};
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
