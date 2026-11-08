@@ -3936,6 +3936,30 @@ body.view-player:not(.iam-studio-open) #liveStatus.show{
    Preserve status text and layout for diagnostics, but hide the old banner. */
 body #liveStatus,body #liveStatus.show{display:none!important}
 </style>
+<style id="ge-playlist-live-reorder-20261108">
+/* Reorder controls stay inside the existing scrollable queue; song taps still play. */
+#gePlaylistQuickSongs .ge-playlist-reorder-row{
+ display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+ align-items:stretch!important;gap:6px!important;margin-bottom:6px!important;
+}
+#gePlaylistQuickSongs .ge-playlist-reorder-row>button{
+ min-width:0!important;margin:0!important;
+}
+#gePlaylistQuickSongs .ge-playlist-reorder-buttons{
+ display:flex!important;gap:4px!important;align-items:stretch!important;
+}
+#gePlaylistQuickSongs .ge-playlist-reorder-buttons button{
+ min-width:38px!important;min-height:46px!important;
+ margin:0!important;padding:6px!important;
+ background:rgba(31,95,133,.88)!important;color:#f5fbff!important;
+ border:1px solid rgba(144,211,247,.65)!important;
+ border-radius:10px!important;font-size:18px!important;
+ touch-action:manipulation!important;
+}
+#gePlaylistQuickSongs .ge-playlist-reorder-buttons button:disabled{
+ opacity:.3!important;
+}
+</style>
 <style id="ge-playlist-quick-main-style">
 /* Playlist reference belongs to the existing RADIO player, not to an iframe. */
 #gePlaylistQuick[hidden],#gePlaylistQuickSongs[hidden]{display:none!important}
@@ -8019,6 +8043,27 @@ function gePlaylistQuickUpdate(){
   item.setAttribute('aria-current',active?'true':'false');
  }
 }
+function gePlaylistQuickMove(from,step){
+ const to=from+step,queue=gePlaylistQuickQueue;
+ if(to<0||to>=queue.length)return;
+ const frame=geInlineMusicFrame?.contentWindow;
+ // Only reorder when the real protected player accepts the new order.
+ // Do not change the displayed order if the iframe queue is unavailable.
+ if(typeof frame?.GEMoveLibraryQueueTrack!=='function'||
+    !frame.GEMoveLibraryQueueTrack(from,to))return;
+ const path=queue.splice(from,1)[0],label=gePlaylistQuickLabels.splice(from,1)[0];
+ queue.splice(to,0,path);gePlaylistQuickLabels.splice(to,0,label);
+ gePlaylistQuickSet(gePlaylistQuickName,queue,{custom:true,labels:gePlaylistQuickLabels,currentPath:gePlaylistQuickPath});
+ const list=$('gePlaylistQuickSongs');
+ if(list){
+  list.hidden=false;
+  $('gePlaylistQuickToggle')?.setAttribute('aria-expanded','true');
+  const button=list.querySelector('[data-move-index="'+to+'"][data-move-step="'+step+'"]');
+  button?.focus({preventScroll:true});
+  const row=list.querySelector('[data-playlist-index="'+to+'"]');
+  row?.scrollIntoView({block:'nearest',behavior:'instant'});
+ }
+}
 function gePlaylistQuickSet(playlist,paths,details){
  const custom=!!details?.custom&&paths.length>0;
  gePlaylistQuickIsCustom=custom;
@@ -8026,25 +8071,37 @@ function gePlaylistQuickSet(playlist,paths,details){
  gePlaylistQuickQueue=paths.slice();
  gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
  gePlaylistQuickName=String(playlist||'CURRENT PLAYLIST').trim().slice(0,100)||'CURRENT PLAYLIST';
- gePlaylistQuickPath=paths[0]||'';
+ gePlaylistQuickPath=(details?.currentPath&&paths.includes(details.currentPath)?details.currentPath:paths[0])||'';
  const strip=$('gePlaylistQuick'),toggle=$('gePlaylistQuickToggle'),list=$('gePlaylistQuickSongs');
  if(!strip||!toggle||!list)return;
  toggle.textContent=gePlaylistQuickName+' · '+paths.length+' SONGS ▾';
  toggle.setAttribute('aria-label','Show songs in '+gePlaylistQuickName);
  list.replaceChildren();
  gePlaylistQuickQueue.forEach((path,i)=>{
+  const row=document.createElement('div');
+  row.className='ge-playlist-reorder-row';
   const b=document.createElement('button');
   b.type='button';b.dataset.playlistIndex=String(i);
   b.textContent=(i+1)+'. '+gePlaylistQuickLabels[i];
-  b.setAttribute('aria-current',i===0?'true':'false');
+  b.setAttribute('aria-current',path===gePlaylistQuickPath?'true':'false');
   b.addEventListener('click',()=>{
    const frame=geInlineMusicFrame?.contentWindow;
-   // A direct same-origin call preserves the iPhone user gesture.
    if(typeof frame?.GEJumpLibraryQueue==='function'&&frame.GEJumpLibraryQueue(i)){
     gePlaylistQuickPath=path;gePlaylistQuickUpdate();gePlaylistQuickDismiss();
    }
   });
-  list.append(b);
+  row.append(b);
+  const moves=document.createElement('div');moves.className='ge-playlist-reorder-buttons';
+  for(const [step,arrow,label] of [[-1,'▲','up'],[1,'▼','down']]){
+   const move=document.createElement('button');
+   move.type='button';move.textContent=arrow;
+   move.dataset.moveIndex=String(i);move.dataset.moveStep=String(step);
+   move.setAttribute('aria-label','Move '+gePlaylistQuickLabels[i]+' '+label);
+   move.disabled=(i+step<0||i+step>=gePlaylistQuickQueue.length);
+   move.addEventListener('click',()=>gePlaylistQuickMove(i,step));
+   moves.append(move);
+  }
+  row.append(moves);list.append(row);
  });
  gePlaylistQuickDismiss();strip.hidden=!custom;
 }
