@@ -8029,7 +8029,7 @@ function gePlaylistQuickDismiss(){
  if(button)button.setAttribute('aria-expanded','false');
 }
 function gePlaylistQuickClear(){
- gePlaylistQuickIsCustom=false;
+ gePlaylistQuickIsCustom=false;gePlaylistQuickIdentity=null;
  gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
  gePlaylistQuickDismiss();
  const strip=$('gePlaylistQuick');if(strip)strip.hidden=true;
@@ -8043,6 +8043,39 @@ function gePlaylistQuickUpdate(){
   item.setAttribute('aria-current',active?'true':'false');
  }
 }
+let gePlaylistQuickIdentity=null,gePlaylistQuickSaving=false,gePlaylistQuickSavePending=false;
+function gePlaylistQuickPersist(){
+ if(!gePlaylistQuickIdentity||!['fan','user'].includes(gePlaylistQuickIdentity.source))return;
+ gePlaylistQuickSavePending=true;
+ if(gePlaylistQuickSaving)return;
+ gePlaylistQuickSaving=true;
+ void (async()=>{
+  while(gePlaylistQuickSavePending){
+   gePlaylistQuickSavePending=false;
+   const paths=gePlaylistQuickQueue.slice(),identity={...gePlaylistQuickIdentity};
+   const frame=geInlineMusicFrame?.contentWindow;
+   try{
+    if(typeof frame?.GEPersistLiveUserPlaylistOrder!=='function')throw Error('Vault save controller is unavailable');
+    const saved=await frame.GEPersistLiveUserPlaylistOrder(identity,paths);
+    // Do not replace identity when the listener has started another playlist.
+    if(gePlaylistQuickIdentity?.id===identity.id&&gePlaylistQuickIdentity?.name===identity.name){
+     gePlaylistQuickIdentity=saved;
+     if(!gePlaylistQuickSavePending){
+      const button=$('gePlaylistQuickToggle');
+      if(button)button.title='Playlist order saved and verified in your Fan Vault';
+     }
+    }
+   }catch(error){
+    console.warn('Playlist reorder was not saved',error);
+    if(!gePlaylistQuickSavePending){
+     const button=$('gePlaylistQuickToggle');
+     if(button)button.title='ORDER NOT SAVED · '+String(error?.message||error);
+     window.alert('Playlist order was changed for this session but NOT saved. '+String(error?.message||error));
+    }
+   }
+  }
+ })().finally(()=>{gePlaylistQuickSaving=false;if(gePlaylistQuickSavePending)gePlaylistQuickPersist();});
+}
 function gePlaylistQuickMove(from,step){
  const to=from+step,queue=gePlaylistQuickQueue;
  if(to<0||to>=queue.length)return;
@@ -8053,6 +8086,7 @@ function gePlaylistQuickMove(from,step){
     !frame.GEMoveLibraryQueueTrack(from,to))return;
  const path=queue.splice(from,1)[0],label=gePlaylistQuickLabels.splice(from,1)[0];
  queue.splice(to,0,path);gePlaylistQuickLabels.splice(to,0,label);
+ gePlaylistQuickPersist();
  gePlaylistQuickSet(gePlaylistQuickName,queue,{custom:true,labels:gePlaylistQuickLabels,currentPath:gePlaylistQuickPath});
  const list=$('gePlaylistQuickSongs');
  if(list){
@@ -8071,6 +8105,7 @@ function gePlaylistQuickSet(playlist,paths,details){
  gePlaylistQuickQueue=paths.slice();
  gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
  gePlaylistQuickName=String(playlist||'CURRENT PLAYLIST').trim().slice(0,100)||'CURRENT PLAYLIST';
+ if(Object.prototype.hasOwnProperty.call(details||{},'playlistIdentity'))gePlaylistQuickIdentity=details.playlistIdentity;
  gePlaylistQuickPath=(details?.currentPath&&paths.includes(details.currentPath)?details.currentPath:paths[0])||'';
  const strip=$('gePlaylistQuick'),toggle=$('gePlaylistQuickToggle'),list=$('gePlaylistQuickSongs');
  if(!strip||!toggle||!list)return;
