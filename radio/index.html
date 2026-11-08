@@ -9138,6 +9138,10 @@ audio.addEventListener('ended',()=>{
   advanceFromEnded();
 });
 audio.addEventListener('playing',()=>{
+  // Configure native background media playback for every GE music mode,
+  // not only live radio or when the page is already hidden.
+  try{if('audioSession' in navigator && !document.body.classList.contains('iam-studio-open'))navigator.audioSession.type='playback';}catch(_e){}
+  try{if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';}catch(_e){}
   if(state.live||state.livePreparing){
     // Do not cancel the connection watchdog before forward-time evidence.
     // Safari can fire "playing" while producing silence.
