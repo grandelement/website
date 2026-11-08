@@ -3936,6 +3936,20 @@ body.view-player:not(.iam-studio-open) #liveStatus.show{
    Preserve status text and layout for diagnostics, but hide the old banner. */
 body #liveStatus,body #liveStatus.show{display:none!important}
 </style>
+<style id="ge-playlist-vault-save-status-20261108">
+#gePlaylistQuickSaveStatus{
+ box-sizing:border-box!important;
+ width:100%!important;
+ padding:4px 10px!important;
+ color:#e0f8ff!important;
+ background:rgba(4,28,43,.88)!important;
+ border:1px solid rgba(111,189,226,.52)!important;
+ border-radius:9px!important;
+ font-size:12px!important;font-weight:800!important;
+ text-align:center!important;
+}
+#gePlaylistQuickSaveStatus[hidden]{display:none!important}
+</style>
 <style id="ge-playlist-live-reorder-20261108">
 /* Reorder controls stay inside the existing scrollable queue; song taps still play. */
 #gePlaylistQuickSongs .ge-playlist-reorder-row{
@@ -8029,7 +8043,7 @@ function gePlaylistQuickDismiss(){
  if(button)button.setAttribute('aria-expanded','false');
 }
 function gePlaylistQuickClear(){
- gePlaylistQuickIsCustom=false;gePlaylistQuickIdentity=null;
+ gePlaylistQuickIsCustom=false;gePlaylistQuickIdentity=null;gePlaylistQuickShowSaveMessage('');
  gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
  gePlaylistQuickDismiss();
  const strip=$('gePlaylistQuick');if(strip)strip.hidden=true;
@@ -8044,9 +8058,25 @@ function gePlaylistQuickUpdate(){
  }
 }
 let gePlaylistQuickIdentity=null,gePlaylistQuickSaving=false,gePlaylistQuickSavePending=false;
+let gePlaylistQuickSaveMessage='';
+function gePlaylistQuickShowSaveMessage(message){
+ gePlaylistQuickSaveMessage=message;
+ let label=$('gePlaylistQuickSaveStatus');
+ const strip=$('gePlaylistQuick');
+ if(!label&&strip){
+  label=document.createElement('div');
+  label.id='gePlaylistQuickSaveStatus';
+  label.setAttribute('role','status');
+  label.setAttribute('aria-live','polite');
+  strip.append(label);
+ }
+ if(label){label.textContent=message;label.hidden=!message;}
+}
+
 function gePlaylistQuickPersist(){
  if(!gePlaylistQuickIdentity||!['fan','user'].includes(gePlaylistQuickIdentity.source))return;
  gePlaylistQuickSavePending=true;
+ gePlaylistQuickShowSaveMessage('SAVING NEW ORDER…');
  if(gePlaylistQuickSaving)return;
  gePlaylistQuickSaving=true;
  void (async()=>{
@@ -8062,6 +8092,7 @@ function gePlaylistQuickPersist(){
      if(!gePlaylistQuickSavePending){
       const button=$('gePlaylistQuickToggle');
       if(button)button.title='Playlist order saved and verified in your Fan Vault';
+      gePlaylistQuickShowSaveMessage('ORDER SAVED TO FAN VAULT ✓');
      }
     }
    }catch(error){
@@ -8069,6 +8100,7 @@ function gePlaylistQuickPersist(){
     if(!gePlaylistQuickSavePending){
      const button=$('gePlaylistQuickToggle');
      if(button)button.title='ORDER NOT SAVED · '+String(error?.message||error);
+     gePlaylistQuickShowSaveMessage('ORDER NOT SAVED · TRY AGAIN');
      window.alert('Playlist order was changed for this session but NOT saved. '+String(error?.message||error));
     }
    }
@@ -8104,7 +8136,7 @@ function gePlaylistQuickSet(playlist,paths,details){
  gePlaylistQuickQueue=paths.slice();
  gePlaylistQuickLabels=paths.map((path,i)=>String(details?.labels?.[i]||path.split('/').pop()).slice(0,180));
  gePlaylistQuickName=String(playlist||'CURRENT PLAYLIST').trim().slice(0,100)||'CURRENT PLAYLIST';
- if(Object.prototype.hasOwnProperty.call(details||{},'playlistIdentity'))gePlaylistQuickIdentity=details.playlistIdentity;
+ if(Object.prototype.hasOwnProperty.call(details||{},'playlistIdentity')){gePlaylistQuickIdentity=details.playlistIdentity;gePlaylistQuickShowSaveMessage('');}
  gePlaylistQuickPath=(details?.currentPath&&paths.includes(details.currentPath)?details.currentPath:paths[0])||'';
  const strip=$('gePlaylistQuick'),toggle=$('gePlaylistQuickToggle'),list=$('gePlaylistQuickSongs');
  if(!strip||!toggle||!list)return;
