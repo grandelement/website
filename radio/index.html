@@ -8053,10 +8053,9 @@ function gePlaylistQuickPersist(){
   while(gePlaylistQuickSavePending){
    gePlaylistQuickSavePending=false;
    const paths=gePlaylistQuickQueue.slice(),identity={...gePlaylistQuickIdentity};
-   const frame=geInlineMusicFrame?.contentWindow;
    try{
-    if(typeof frame?.GEPersistLiveUserPlaylistOrder!=='function')throw Error('Vault save controller is unavailable');
-    const saved=await frame.GEPersistLiveUserPlaylistOrder(identity,paths);
+    if(typeof window.GEPersistLiveUserPlaylistOrder!=='function')throw Error('Vault save controller is unavailable');
+    const saved=await window.GEPersistLiveUserPlaylistOrder(identity,paths);
     // Do not replace identity when the listener has started another playlist.
     if(gePlaylistQuickIdentity?.id===identity.id&&gePlaylistQuickIdentity?.name===identity.name){
      gePlaylistQuickIdentity=saved;
