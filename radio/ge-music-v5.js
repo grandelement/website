@@ -935,17 +935,51 @@ async function fanVaultRequest(method='GET',body=null){
  if(!response.ok||data.ok!==true)throw Error(data.error||'Fan Vault HTTP '+response.status);
  return data;
 }
+// Offline copy of this browser's OWN Fan Vault playlist metadata only.
+ // Key by the existing private fan token so another listener on the same
+ // device cannot accidentally inherit this user's cached playlist list.
+const fanOfflineCachePrefix='GE_MUSIC_FAN_PLAYLISTS_OFFLINE_V1:';
+function fanOfflineCacheKey(){
+ const key=fanVaultKey();
+ return key?fanOfflineCachePrefix+key:'';
+}
+function normalizeFanPlaylistRows(items){
+ return (Array.isArray(items)?items:[]).filter(p=>p&&typeof p.id==='string'&&
+  typeof p.name==='string'&&Array.isArray(p.songs)).slice(0,150).map(p=>({
+   id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'fan'
+  }));
+}
+function cacheFanPlaylistRows(items){
+ try{
+  const key=fanOfflineCacheKey();
+  if(key)localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),items:normalizeFanPlaylistRows(items)}));
+ }catch(error){console.warn('Fan playlist offline cache unavailable',error);}
+}
+function readCachedFanPlaylistRows(){
+ try{
+  const key=fanOfflineCacheKey();
+  if(!key)return null;
+  const data=JSON.parse(localStorage.getItem(key)||'null');
+  return data&&Array.isArray(data.items)?normalizeFanPlaylistRows(data.items):null;
+ }catch(_){return null;}
+}
 async function loadFanPlaylists(){
+ // Show the last confirmed playlist names and track order immediately.
+ // An offline network error must never clear the last good copy.
+ const cached=readCachedFanPlaylistRows();
+ if(cached!==null){
+  state.fanLists=cached;
+  if(state.open)render();
+ }
  try{
   const data=await fanVaultRequest();
-  state.fanLists=(data.items||[]).filter(p=>p&&typeof p.id==='string'&&
-   typeof p.name==='string'&&Array.isArray(p.songs)).map(p=>({
-    id:p.id,name:p.name,songs:p.songs.map(canonical).filter(Boolean),source:'fan'
-   }));
+  state.fanLists=normalizeFanPlaylistRows(data.items);
+  cacheFanPlaylistRows(state.fanLists);
   if(state.open)render();
  }catch(_){
-  // Never imply that an unavailable Vault is empty or delete cached records.
-  if(state.open)say('FAN VAULT OFFLINE · SAVED PLAYLISTS UNVERIFIED.');
+  if(state.open)say(cached!==null
+   ?'OFFLINE · SHOWING YOUR LAST SAVED FAN VAULT PLAYLISTS. SONG AUDIO MUST BE DOWNLOADED SEPARATELY.'
+   :'FAN VAULT OFFLINE · NO PLAYLIST COPY STORED ON THIS DEVICE YET. CONNECT ONCE TO SYNC.');
  }
 }
 async function saveFanArrangement(name,tracks){
@@ -962,6 +996,7 @@ async function saveFanArrangement(name,tracks){
   if(!saved||saved.name!==name||!Array.isArray(saved.songs)||saved.songs.join('\n')!==tracks.join('\n'))
     throw Error('Vault save returned but the exact song order could not be verified.');
   state.fanLists=verified.items.map(p=>({id:p.id,name:p.name,songs:p.songs,source:'fan'}));
+  cacheFanPlaylistRows(state.fanLists);
   state.activePlaylist={source:'fan',origin:'vault',id:data.id,name};
   state.playlistDraftName=name;
   saveSelected();
@@ -993,6 +1028,7 @@ async function persistLiveUserOrder(identity,paths){
  if(!saved||!Array.isArray(saved.songs)||saved.songs.join('\n')!==songs.join('\n'))
   throw Error('Vault did not verify the new order.');
  state.fanLists=check.items.map(p=>({id:p.id,name:p.name,songs:p.songs,source:'fan'}));
+ cacheFanPlaylistRows(state.fanLists);
  state.activePlaylist={source:'fan',origin:'vault',id:saved.id,name};
  state.playlistDraftName=name;
  state.selected=new Set(songs);saveSelected();
