@@ -607,6 +607,69 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPlanetGrid .albumRowActions .album b{display:none!important}
 @media(min-width:700px){.albumPlanetGrid .albumBrowseRow{grid-template-columns:minmax(160px,260px) minmax(0,1fr)!important}.albumPlanetGrid .albumDescription strong{font-size:25px}}
 
+/* GE MUSIC mobile card safety: artwork must never overlap album details.
+   Overrides legacy grid rules without touching audio, playlist, or access logic. */
+@media(max-width:699px){
+ .albumPlanetGrid .albumBrowseRow{
+  display:grid!important;
+  position:relative!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto auto auto!important;
+  align-items:stretch!important;
+  gap:0!important;
+  overflow:hidden!important;
+  min-height:0!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > button.album{
+  position:relative!important;
+  grid-column:1!important;
+  grid-row:1!important;
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  max-height:none!important;
+  aspect-ratio:16/9!important;
+  overflow:hidden!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > button.album .albumCover{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  object-fit:contain!important;
+  border-radius:0!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > .albumDescription{
+  position:relative!important;
+  grid-column:1!important;
+  grid-row:2!important;
+  display:flex!important;
+  padding:10px 13px 5px!important;
+  min-width:0!important;
+  z-index:1!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > .albumRowActions{
+  position:relative!important;
+  grid-column:1!important;
+  grid-row:3!important;
+  padding:5px 13px 12px!important;
+  min-width:0!important;
+  z-index:1!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > .albumPickerCompact{
+  position:absolute!important;
+  top:12px!important;
+  left:12px!important;
+  z-index:8!important;
+ }
+}
+
 /* Mobile album jackets: full square artwork, connected vertically, no crop. */
 @media(max-width:699px){
  .albumPlanetGrid{gap:2px!important}
@@ -1492,7 +1555,7 @@ function render(){
   legacyButton.type='button';
   legacyButton.setAttribute('aria-expanded',String(state.showLegacyAlbums));
   legacyButton.addEventListener('click',()=>{state.showLegacyAlbums=!state.showLegacyAlbums;render()});
-  const shownNames=(state.showLegacyAlbums?[...current,...earlier]:current).filter(name=>!term||name.toLowerCase().includes(term)||state.tracks.some(t=>t.album===name&&filterTrack(t)));
+  const shownNames=(state.showLegacyAlbums?[...current.filter(name=>name!=='Singles'),...earlier,'Singles'].filter(name=>names.includes(name)):[...current.filter(name=>name!=='Singles'),...current.filter(name=>name==='Singles')]).filter(name=>!term||name.toLowerCase().includes(term)||state.tracks.some(t=>t.album===name&&filterTrack(t)));
   for(const name of shownNames){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
