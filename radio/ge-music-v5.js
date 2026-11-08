@@ -971,6 +971,35 @@ async function saveFanArrangement(name,tracks){
  }catch(error){say('USER PLAYLIST NOT SAVED · '+String(error.message||error))}
  finally{state.savingShared=false;render()}
 }
+// Radio's inline playlist arrows may update only a confirmed USER playlist.
+ // Never turn an unsaved selection or a GE-published playlist into an implicit edit.
+async function persistLiveUserOrder(identity,paths){
+ if(!identity||!['fan','user'].includes(identity.source))throw Error('This is not a saved USER PLAYLIST. Use MUSIC SAVE first.');
+ const name=String(identity.name||'').trim().slice(0,100);
+ const songs=paths.map(canonical);
+ if(!name||!songs.length||songs.some(p=>!p)||new Set(songs).size!==songs.length)
+  throw Error('Invalid playlist name or song order.');
+ // Re-read the current Vault record before writing; never trust a stale identity.
+ const verified=await fanVaultRequest();
+ const existing=(verified.items||[]).find(p=>p.id===identity.id&&p.name===name);
+ if(identity.source==='fan'&&!existing)throw Error('Original Vault playlist not found. No changes saved.');
+ if(identity.source==='user'&&!readMine().some(p=>p.id===identity.id&&p.name===name))
+  throw Error('Original device playlist not found. No changes saved.');
+ const id=existing?.id||'';
+ const result=await fanVaultRequest('POST',{id,name,songs,
+  anon_id:String(window.GEVault?.anonId||'').slice(0,120)});
+ const check=await fanVaultRequest();
+ const saved=(check.items||[]).find(p=>p.id===result.id&&p.name===name);
+ if(!saved||!Array.isArray(saved.songs)||saved.songs.join('\n')!==songs.join('\n'))
+  throw Error('Vault did not verify the new order.');
+ state.fanLists=check.items.map(p=>({id:p.id,name:p.name,songs:p.songs,source:'fan'}));
+ state.activePlaylist={source:'fan',origin:'vault',id:saved.id,name};
+ state.playlistDraftName=name;
+ state.selected=new Set(songs);saveSelected();
+ recordPlaylistInteraction('control_change',{control:'fan_playlist_reorder',playlist_id:saved.id,song_count:songs.length,storage:'GE_VAULT_D1'});
+ return {id:saved.id,name,source:'fan'};
+}
+window.GEPersistLiveUserPlaylistOrder=persistLiveUserOrder;
 const playlistPublisher='https://ge-backroom-publisher.grandelement.workers.dev';
 function publisherSession(){
  // Guest access codes never authorize editing or saving shared playlists.
@@ -1210,7 +1239,7 @@ function playTrack(track,queueOverride,showPlayer=false,shuffleAll=false){
   const song=known.get(path);
   return song?song.title+' — '+song.album:path.split('/').pop().replace(/\.(mp3|m4a|ogg|wav)$/i,'');
  });
- const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels,allLibrary:!!shuffleAll});
+ const outcome=window.GEMusicV5Bridge?.play?.(track.path,queue,playlistName,{custom,labels,allLibrary:!!shuffleAll,playlistIdentity:state.activePlaylist?{source:state.activePlaylist.source,id:state.activePlaylist.id,name:state.activePlaylist.name}:null});
  if(outcome?.ok){
   if(showPlayer){
    // Use ONLY the existing main Radio player. The Gate/audio controller
