@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.21-20261106-REFRESH-REAL-SONG-INVENTORY';
+const BUILD='GE-MUSIC-V7.22-20261107-VERTICAL-REAL-ALBUMS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -12,6 +12,7 @@ const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
 const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
 const LEGACY_ALBUMS=new Set(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
+const albumDescriptions={Aether:'Energy, consciousness and the unseen connections between us.',Intergy:'Solo electronic grooves, piano, analog synth and rhythm.', 'Sessions I':'Original Grand Element full-band studio sessions.', 'Sessions II':'Further recordings from the original band sessions.',Trio:'A stripped-back studio trio with keys, guitar and drums.',Live:'Live performances from the Grand Element trio.','Fundamental Groove':'Instrumental grooves built around rhythm and movement.',Love:'A collection exploring love and connection.',Soul:'Instrumental reflections on soul and feeling.',Spirit:'Music exploring spirit and atmosphere.',Fire:'Rhythm, energy and intensity.',Singles:'Individual Grand Element recordings.'};
 // Representative hues visually checked against all 11 JPG covers in
 // ge-images/images. These are NOT the unrelated GOLF_PLANETS gameplay colors.
 const albumColors={'Fundamental Groove':'#b94754','Trio':'#a86b3d','Live':'#829343','Sessions I':'#388c76','Sessions II':'#2e9bb1','Intergy':'#635293','Love':'#9b357d','Soul':'#c84cba','Spirit':'#d29482','Fire':'#dbca64','Aether':'#bfc4cd','Singles':'#6e9bb5'};
@@ -586,11 +587,31 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .scroll{padding:8px 6px 24px!important}
 }
 
+/* GE vertical album library: authentic jacket art, near-connected rows. */
+.browse{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+.browse button{min-width:0!important;font-size:clamp(10px,3vw,15px)!important;padding:7px 2px!important}
+.albumPlanetGrid{display:flex!important;flex-direction:column!important;gap:3px!important;padding:2px 0 12px!important}
+.albumPlanetGrid .albumBrowseRow{display:grid!important;position:relative!important;grid-template-columns:minmax(0,48%) minmax(0,1fr)!important;grid-template-rows:1fr auto!important;gap:4px 9px!important;aspect-ratio:auto!important;height:auto!important;min-height:0!important;width:100%!important;padding:4px!important;border:1px solid #28a9f5!important;border-radius:10px!important;overflow:visible!important;background:linear-gradient(110deg,#0a2a4c,#061322)!important}
+.albumPlanetGrid .albumBrowseRow .album{display:block!important;position:relative!important;grid-column:1!important;grid-row:1 / span 2!important;inset:auto!important;width:100%!important;height:auto!important;aspect-ratio:1!important;min-height:0!important;padding:0!important;overflow:hidden!important}
+.albumPlanetGrid .albumBrowseRow .albumCover{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:6px!important}
+.albumPlanetGrid .albumBrowseRow .album b,.albumPlanetGrid .albumBrowseRow .album small{display:none!important}
+.albumPlanetGrid .albumBrowseRow .albumPickerCompact{z-index:5!important;top:9px!important;left:9px!important}
+.albumPlanetGrid .albumDescription{grid-column:2;grid-row:1;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;padding:4px 2px 0}
+.albumPlanetGrid .albumDescription strong{font-size:clamp(16px,4.4vw,23px);line-height:1.1;overflow-wrap:anywhere}
+.albumPlanetGrid .albumDescription small{font-size:clamp(10px,2.9vw,13px);color:#9edbff}
+.albumPlanetGrid .albumDescription p{font-size:clamp(11px,3vw,14px);line-height:1.25;margin:2px 0;color:#e4f4ff}
+.albumPlanetGrid .albumRowActions{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:0 2px 4px}
+.albumPlanetGrid .albumRowActions button{flex:1 1 auto;min-height:34px!important;padding:5px!important;font-size:clamp(10px,2.7vw,12px)!important;border:1px solid #72ceff!important;border-radius:7px!important;color:#fff!important;background:#104a78!important}
+.albumPlanetGrid .albumRowActions .album{position:static!important;inset:auto!important;display:block!important;width:auto!important;height:auto!important;aspect-ratio:auto!important;min-height:34px!important;overflow:visible!important}
+.albumPlanetGrid .albumRowActions .album small{display:block!important;position:static!important;font-size:11px!important;color:#fff!important}
+.albumPlanetGrid .albumRowActions .album b{display:none!important}
+@media(min-width:700px){.albumPlanetGrid .albumBrowseRow{grid-template-columns:minmax(160px,260px) minmax(0,1fr)!important}.albumPlanetGrid .albumDescription strong{font-size:25px}}
+
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
  <div class="header"><div class="brand" aria-label="Grand Element Music">MUSIC</div><div class="geHeaderActions"><span class="geCodeIdentity" role="status" aria-live="polite" hidden></span><button type="button" class="accessToggle" aria-expanded="false">ACCESS CODE</button><button class="close" type="button">CLOSE</button></div></div>
- <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="songs" aria-pressed="true">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
+ <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
    <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
@@ -1293,7 +1314,7 @@ function setView(view){
 }
 function activeCategory(){
  return state.view==='user-playlists'||state.view==='ge-playlists'||state.view==='playlist-order'||
-        state.view.startsWith('vault:')||state.view.startsWith('local:')?'playlists':'songs';
+        state.view.startsWith('vault:')||state.view.startsWith('local:')?'playlists':state.view==='albums'?'albums':'songs';
 }
 function card(parent,title,detail,action,album=''){
  const b=elem('button','album');
@@ -1373,7 +1394,7 @@ function render(){
  const songView=state.view==='access-code'?'all':state.view;
  songFilter.value=[...songFilter.options].some(o=>o.value===songView)?songView:'all';
  playlistFilter.value=state.view==='ge-playlists'?'ge-playlists':state.view==='user-playlists'?'user-playlists':'playlist-order';
- el('.search').placeholder=cat==='songs'?'Find a song or album':'Find a playlist or checked song';
+ el('.search').placeholder=cat==='albums'?'Find an album':cat==='songs'?'Find a song or album':'Find a playlist or checked song';
  const previous=scroller.scrollTop;
  el('.window').classList.toggle('arranging',state.arranging);
  // Playlist editor appears under PLAYLISTS (and in ARRANGE), not SONGS.
@@ -1424,12 +1445,7 @@ function render(){
  arrangeBtn.setAttribute('aria-pressed',String(state.arranging));
  arrangeBtn.title=state.arranging?'Finish arranging':'Hold and drag a song row to reorder';
  if(!state.loaded){scroller.append(elem('p','empty','Loading the published Grand Element catalog…'));return}
- if(state.view==='albums'&&term){
-  // Album-search returns individual matching song titles, not album-only cards.
-  const results=state.tracks.filter(filterTrack);
-  for(const track of results)appendSong(scroller,track);
-  if(!results.length)scroller.append(elem('p','empty','No songs match that search.'));
- }else if(state.view==='albums'){
+ if(state.view==='albums'){
   const grid=elem('div','albumPlanetGrid');scroller.append(grid);
   const names=[...new Set(state.tracks.map(t=>t.album))];
   const current=names.filter(name=>!LEGACY_ALBUMS.has(name));
@@ -1439,7 +1455,7 @@ function render(){
   legacyButton.type='button';
   legacyButton.setAttribute('aria-expanded',String(state.showLegacyAlbums));
   legacyButton.addEventListener('click',()=>{state.showLegacyAlbums=!state.showLegacyAlbums;render()});
-  const shownNames=state.showLegacyAlbums?[...current,...earlier]:current;
+  const shownNames=(state.showLegacyAlbums?[...current,...earlier]:current).filter(name=>!term||name.toLowerCase().includes(term)||state.tracks.some(t=>t.album===name&&filterTrack(t)));
   for(const name of shownNames){
     const rows=state.tracks.filter(t=>t.album===name);
     if(term&&!name.toLowerCase().includes(term)&&!rows.some(filterTrack))continue;
@@ -1458,6 +1474,12 @@ function render(){
       if(state.expandedAlbum)el('.expandedAlbumSongs')?.scrollIntoView({block:'nearest',behavior:'auto'});
     });
     wrapper.append(albumButton);
+    const description=elem('div','albumDescription');
+    description.append(elem('strong','',name),elem('small','','Grand Element'),elem('p','',albumDescriptions[name]||'Explore this Grand Element recording.'),elem('small','',rows.length+' SONGS'));
+    const playAlbum=elem('button','albumPlayButton','▶ PLAY ALBUM');playAlbum.type='button';
+    playAlbum.addEventListener('click',()=>{if(rows.length)void playTrack(rows[0],true,rows.map(t=>t.path));});
+    const actions=elem('div','albumRowActions');actions.append(playAlbum,albumButton);
+    wrapper.append(description,actions);
     const tile=wrapper.querySelector('.album');
     if(tile){
       const cover=document.createElement('img');
@@ -1468,7 +1490,7 @@ function render(){
       cover.onerror=()=>{cover.hidden=true};
       tile.prepend(cover);
     }
-    wrapper.append(albumActions(name,rows));grid.append(wrapper);
+    grid.append(wrapper);
   }
   if(state.expandedAlbum){
    const expanded=elem('div','expandedAlbumSongs');
