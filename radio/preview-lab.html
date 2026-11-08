@@ -1138,6 +1138,21 @@ window.GEPlayLibraryQueue=function(paths,startPath,playlistName=''){
  void startTrack(tracks[idx]);
  return true;
 };
+// Reorder the active MUSIC queue without reloading audio or changing access.
+ // This is a live listening order, not a silent rewrite of the saved playlist.
+window.GEMoveLibraryQueueTrack=function(from,to){
+ if(!playingSelected||!Number.isInteger(from)||!Number.isInteger(to)||
+    from<0||to<0||from>=albumTracks.length||to>=albumTracks.length)return false;
+ if(from===to)return true;
+ const playing=albumTracks[trackIndex]||currentTrack;
+ const [moved]=albumTracks.splice(from,1);
+ albumTracks.splice(to,0,moved);
+ selectedSongs=albumTracks.slice();
+ trackIndex=playing?albumTracks.indexOf(playing):trackIndex;
+ if(geMusicQueueShuffle)geRebuildShuffleVisitOrder(trackIndex);
+ else{geShuffleVisitOrder=[];geShuffleVisitPos=-1;}
+ return true;
+};
 // Jump within the original playlist queue using the same licensed player.
 window.GEJumpLibraryQueue=function(index){
  if(!playingSelected||!Number.isInteger(index)||index<0||index>=albumTracks.length)return false;
