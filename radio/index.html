@@ -10305,9 +10305,10 @@ async function registerServiceWorker(){
     const safe=Math.max(0,Math.min(100,Number(percent)||0));
     bar.style.width=`${safe}%`;
     const totalText=totalBytes>0 ? `${formatBytes(doneBytes)} / ${formatBytes(totalBytes)}` : '';
-    const speedText=speed>0 ? formatSpeed(speed) : 'calculating speed';
-    const etaText=Number.isFinite(eta) ? `${formatETA(eta)} left` : 'estimating time';
-    text.textContent=`${Math.round(safe)}%${totalText?` • ${totalText}`:''} • ${speedText} • ${etaText}`+(line2?'\\n'+line2:'');
+    // Display measured information only; never show calculating/estimating placeholders.
+    const speedText=speed>0 ? ' • '+formatSpeed(speed) : '';
+    const etaText=Number.isFinite(eta) ? ' • '+formatETA(eta)+' left' : '';
+    text.textContent=`${Math.round(safe)}%${totalText?` • ${totalText}`:''}${speedText}${etaText}`+(line2?'\n'+line2:'');
   }
 
   function songDownloadRank(url){
