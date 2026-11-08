@@ -542,6 +542,50 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .albumPlanetGrid .albumBrowseRow .albumPickerCompact{width:33px!important;height:33px!important;min-width:33px!important;max-width:33px!important}
 }
 
+
+/* Unified phone and small-screen library sizing. Shadow DOM rules are isolated
+   from Radio; keep one scroll area, buttons reachable, and the CLOSE visible. */
+@media(max-width:820px), (max-height:580px){
+ .window{
+  box-sizing:border-box!important;left:50%!important;
+  top:max(5px,env(safe-area-inset-top))!important;
+  bottom:max(5px,env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  width:calc(100vw - 12px)!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  display:flex!important;flex-direction:column!important;overflow:hidden!important;
+ }
+ .window.arranging{top:max(3px,env(safe-area-inset-top))!important;bottom:max(3px,env(safe-area-inset-bottom))!important}
+ .header,.tools{min-width:0!important;flex:0 0 auto!important}
+ .header .brand{min-width:0!important;overflow-wrap:anywhere!important}
+ .header .close{flex:0 0 auto!important;min-height:44px!important}
+ .scroll{
+  flex:1 1 0!important;height:0!important;min-height:0!important;min-width:0!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+ }
+ .browse{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-width:0!important}
+ .browse button{min-width:0!important;min-height:44px!important;white-space:normal!important;overflow-wrap:anywhere!important}
+ .filterRow,.musicCodeTools{min-width:0!important;flex-wrap:wrap!important}
+ .filterRow select,.filterRow input,.musicCodeTools input{max-width:100%!important;min-width:0!important}
+ .song,.songActions,.albumBrowseRow,.selectionBar{min-width:0!important;max-width:100%!important}
+ .song .songInfo,.song .songTitlePlay{min-width:0!important;overflow-wrap:anywhere!important}
+}
+@media(max-height:520px) and (orientation:landscape){
+ .header{padding:4px 8px!important}
+ .tools{padding:4px 8px!important}
+ .scroll{padding:6px 8px 18px!important}
+ .window{border-radius:9px!important}
+}
+@media(max-width:360px){
+ .header{gap:4px!important;padding:6px!important}
+ .header .brand{font-size:12px!important}
+ .header .close{min-width:60px!important;padding:6px!important}
+ .tools{padding:6px!important}
+ .filterRow{gap:4px!important}
+ .scroll{padding:8px 6px 24px!important}
+}
+
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
