@@ -43,7 +43,7 @@ window.addEventListener('unhandledrejection',function(e){
   const macUA=/Macintosh/i.test(ua)&&!/iPhone|iPod/i.test(ua);
   const touch=Number(navigator.maxTouchPoints||0)>0;
   const shortSide=Math.min(Number(screen.width)||9999,Number(screen.height)||9999);
-  const phoneHardware=shortSide<=600&&(mobileUA||macUA&&touch||typeof navigator.standalone==='boolean');
+  const phoneHardware=shortSide<=600; // Physical phone size wins over spoofed desktop Safari UA.
   const tabletHardware=touch&&macUA&&shortSide<=1100;
   const desktopUA=/Windows NT|Macintosh|X11|CrOS|Linux x86_64/i.test(ua);
   let preference='auto';
@@ -57,15 +57,15 @@ window.addEventListener('unhandledrejection',function(e){
       if(saved==='mobile'||saved==='desktop')preference=saved;
     }
   }catch(_){}
-  const layout=preference==='auto'?
-    (phoneHardware||tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
+  const layout=phoneHardware?'mobile':preference==='auto'?
+    (tabletHardware||mobileUA?'mobile':desktopUA?'desktop':'mobile'):preference;
   const html=document.documentElement;
   html.dataset.geDeviceLayout=layout;
   html.dataset.geDevicePreference=preference;
   html.classList.toggle('ge-mobile-device',layout==='mobile');
   html.classList.toggle('ge-desktop-device',layout==='desktop');
   // Virtual desktop rendering is an OPT-IN, never a Safari user-agent guess.
-  const requestedDesktop=preference==='desktop'&&(phoneHardware||tabletHardware);
+  const requestedDesktop=preference==='desktop'&&!phoneHardware&&tabletHardware;
   html.classList.toggle('ge-safari-desktop-request',requestedDesktop);
   const viewport=document.querySelector('meta[name="viewport"]');
   function applyViewport(){
