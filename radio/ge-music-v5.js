@@ -952,7 +952,7 @@ function normalizeFanPlaylistRows(items){
 function cacheFanPlaylistRows(items){
  try{
   const key=fanOfflineCacheKey();
-  if(key)localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),items:normalizeFanPlaylistRows(items)}));
+  if(key){localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),items:normalizeFanPlaylistRows(items)}));window.dispatchEvent(new Event('GE_FAN_PLAYLIST_CACHE_UPDATED'));}
  }catch(error){console.warn('Fan playlist offline cache unavailable',error);}
 }
 function readCachedFanPlaylistRows(){
