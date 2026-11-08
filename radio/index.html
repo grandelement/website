@@ -4098,16 +4098,15 @@ html.ge-radio-ui body.view-player #bottomActions #legacyBtn[hidden]{
     const portrait=window.matchMedia?.('(orientation: portrait) and (max-width:700px)').matches===true;
     const vv=window.visualViewport;
     const height=Math.round(vv?.height||window.innerHeight||0);
-    // One coordinate system follows the *visible* Safari frame as its bars
-    // rise or fall; never enable document scrolling to recover bottom buttons.
+    // The visual viewport is the currently usable area, not the full physical
+    // screen. Measure all devices; never crop document content to this height.
+    const width=Math.round(vv?.width||window.innerWidth||0);
+    const top=Math.max(0,Math.round(vv?.offsetTop||0));
     root.classList.toggle('ge-radio-iphone-locked',portrait);
-    if(portrait&&height>0){
-      root.style.setProperty('--ge-radio-visible-h',height+'px');
-      root.style.setProperty('--ge-radio-visible-top',Math.max(0,Math.round(vv?.offsetTop||0))+'px');
-    }else{
-      root.style.removeProperty('--ge-radio-visible-h');
-      root.style.removeProperty('--ge-radio-visible-top');
-    }
+    if(height>0)root.style.setProperty('--ge-radio-visible-h',height+'px');
+    if(width>0)root.style.setProperty('--ge-radio-visible-w',width+'px');
+    root.style.setProperty('--ge-radio-visible-top',top+'px');
+    root.style.setProperty('--ge-radio-visible-bottom',Math.max(0,Math.round((window.innerHeight||height)-height-top))+'px');
     root.classList.toggle('ge-safari-browser-compact',!standalone&&portrait&&height>0&&height<820);
   }
   adapt();
@@ -4943,6 +4942,36 @@ html.ge-radio-ui body #shipOwnerActions [data-proxy="reloadBtn"][hidden]{display
   position:relative!important;inset:auto!important;transform:none!important;
   display:block!important;width:100%!important;max-width:100%!important;
   margin:4px auto 0!important;line-height:1.25!important;text-align:center!important;
+ }
+}
+</style>
+<style id="ge-radio-fluid-viewport-contract-20261108">
+/* Fluid units and visual-viewport measurements work across phone brands.
+   Natural flow is essential: viewport height is a MINIMUM, never a clip. */
+@media (max-width:820px), (max-height:650px){
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) > .wrap{
+  box-sizing:border-box!important;
+  width:100%!important;max-width:100%!important;
+  min-height:var(--ge-radio-visible-h,100dvh)!important;
+  height:auto!important;max-height:none!important;
+  overflow:visible!important;
+  padding-left:max(10px,env(safe-area-inset-left))!important;
+  padding-right:max(10px,env(safe-area-inset-right))!important;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom))!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions{
+  box-sizing:border-box!important;max-width:100%!important;min-width:0!important;
+ }
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #musicGroup button,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bgGroup button,
+ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions button{
+  box-sizing:border-box!important;min-width:0!important;max-width:100%!important;
+  min-height:44px!important;height:auto!important;line-height:1.2!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+  padding:clamp(6px,1.5vw,12px)!important;
+  font-size:clamp(12px,3.3vw,17px)!important;
  }
 }
 </style>
