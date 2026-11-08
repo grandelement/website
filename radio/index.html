@@ -9747,6 +9747,20 @@ async function registerServiceWorker(){
   let currentAudit=null;
   let activePlan=null;
   let offlineLaunchReady=false;
+  let selectedOfflinePaths=null;
+  // The Music library can request a smaller checked-song download.
+  window.addEventListener('message',event=>{
+    if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_SELECTED')return;
+    const paths=event.data.paths;
+    if(!Array.isArray(paths)||!paths.length)return;
+    selectedOfflinePaths=new Set(paths.map(canonicalSongPath).filter(Boolean));
+    if(!selectedOfflinePaths.size)return;
+    if(button.classList.contains('downloading')){
+      setStatus('Finish or stop the current download before starting checked songs.');
+      return;
+    }
+    button.click();
+  });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
   const OFFLINE_LAUNCH_FILES=[
@@ -10813,7 +10827,7 @@ async function registerServiceWorker(){
     // Partial music resumes; complete music with a missing webpage offers
     // Finish Setup / Start Over / Cancel, then a visible repair/diagnostic view.
     let requestedRestart=false;
-    if(isEnabled() && !(currentAudit?.missingSongs>0)){
+    if(!selectedOfflinePaths && isEnabled() && !(currentAudit?.missingSongs>0)){
       if(!offlineLaunchReady){
         const choice=await askIncompleteOfflineChoice(currentAudit,{setupOnly:true});
         if(choice==='cancel')return;
@@ -10840,6 +10854,16 @@ async function registerServiceWorker(){
       // Rebuild from the live repository on every explicit Offline click.
       // A cached approved plan is a snapshot and must not freeze new albums.
       prepared=await scanExistingAssets();
+      if(selectedOfflinePaths?.size){
+        const wanted=selectedOfflinePaths;
+        const scoped=prepared.assets.filter(item=>item.type!=='song'||wanted.has(canonicalSongPath(item.url)));
+        if(!scoped.some(item=>item.type==='song')){
+          setStatus('No checked songs matched the published catalog. Nothing downloaded.');
+          selectedOfflinePaths=null;return;
+        }
+        prepared={assets:scoped,audit:await auditAssets(scoped,{copyExisting:true})};
+        currentAudit=prepared.audit;
+      }
     }catch(error){
       panel.style.display='block';
       text.textContent='Offline scan failed: '+String(error?.message||error)+'. Existing downloads were not cleared.';
@@ -10925,6 +10949,7 @@ async function registerServiceWorker(){
       text.textContent='Could not finish offline download: '+String(error?.message||error)+'. Saved files were kept.';
       setStatus('Offline download interrupted. Your existing files were kept.');
     }finally{
+      selectedOfflinePaths=null;
       abortController=null;
       button.classList.remove('downloading');
       button.disabled=false;
