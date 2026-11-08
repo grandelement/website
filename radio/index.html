@@ -7805,18 +7805,13 @@ function geInlineMusicInit(){
   geInlineMusicFrame.title='Grand Element albums and playlist editor';
   geInlineMusicFrame.allow='autoplay';
   // Load once; never reload on a subsequent MUSIC click.
-  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v722-radio-debug';
+  geInlineMusicFrame.src='./preview-lab.html?embed=radio&accesschain=20261107-v723-native-iframe-audio';
   // Keep the preview document's licensed gate and transport while giving
   // iOS its audio element in the TOP document. The same element and listeners
   // survive DOM adoption; the separate Radio audio element is not touched.
   geInlineMusicFrame.addEventListener('load',()=>{
-    try{
-      const previewAudio=geInlineMusicFrame.contentDocument?.getElementById('audio');
-      if(previewAudio&&previewAudio.ownerDocument!==document){
-        previewAudio.style.display='none';
-        document.body.appendChild(previewAudio);
-      }
-    }catch(error){console.warn('Preview audio stays in its own document',error);}
+    // Keep the Music audio element in its own iframe document.
+    // Moving a live media element between documents can interrupt iOS playback.
     const musicAudio=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();
     if(musicAudio&&!musicAudio.dataset.geParentSeekSync){musicAudio.dataset.geParentSeekSync='yes';['timeupdate','durationchange','loadedmetadata','seeked','play','pause'].forEach(e=>musicAudio.addEventListener(e,geInlineMusicSyncTransport));}
     geRetryPendingMainMusic();
