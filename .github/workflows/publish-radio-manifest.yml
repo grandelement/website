@@ -1,0 +1,41 @@
+name: Publish GE Radio music manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ge-music/music/**'
+      - 'ge-music/clips/**'
+      - 'scripts/build-radio-manifest.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ge-radio-manifest-main
+  cancel-in-progress: false
+
+jobs:
+  refresh-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout music repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Generate inventory from committed audio
+        run: python3 scripts/build-radio-manifest.py
+      - name: Publish manifest only when changed
+        run: |
+          if git diff --quiet -- radio/manifest.json; then
+            echo "No manifest changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add radio/manifest.json
+          git commit -m "Auto-refresh GE Radio music manifest"
+          git pull --rebase origin main
+          git push origin HEAD:main
