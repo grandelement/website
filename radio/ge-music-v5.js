@@ -10,7 +10,7 @@ const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_
   testPurchaseKey='GE_MUSIC_TEST_PURCHASES_V1',
   musicSessionKey='GE_MUSIC_CODE_SESSION_V1',
   musicSessionEndpoint='https://vault.grandelement.com/v1/public/access/music-session';
-const albumOrder=['Singles','Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove'];
+const albumOrder=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
 const LEGACY_ALBUMS=new Set(['Fundamental Groove','Trio','Live','Sessions I','Sessions II']);
 const albumDescriptions={Aether:'Energy, consciousness and the unseen connections between us.',Intergy:'Solo electronic grooves, piano, analog synth and rhythm.', 'Sessions I':'Original Grand Element full-band studio sessions.', 'Sessions II':'Further recordings from the original band sessions.',Trio:'A stripped-back studio trio with keys, guitar and drums.',Live:'Live performances from the Grand Element trio.','Fundamental Groove':'Instrumental grooves built around rhythm and movement.',Love:'A collection exploring love and connection.',Soul:'Instrumental reflections on soul and feeling.',Spirit:'Music exploring spirit and atmosphere.',Fire:'Rhythm, energy and intensity.',Singles:'Individual Grand Element recordings.'};
 // Representative hues visually checked against all 11 JPG covers in
@@ -607,6 +607,35 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .albumPlanetGrid .albumRowActions .album b{display:none!important}
 @media(min-width:700px){.albumPlanetGrid .albumBrowseRow{grid-template-columns:minmax(160px,260px) minmax(0,1fr)!important}.albumPlanetGrid .albumDescription strong{font-size:25px}}
 
+/* Mobile album jackets: full square artwork, connected vertically, no crop. */
+@media(max-width:699px){
+ .albumPlanetGrid{gap:2px!important}
+ .albumPlanetGrid .albumBrowseRow{
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:auto auto auto!important;gap:0!important;
+  padding:0!important;overflow:hidden!important;border-radius:8px!important;
+ }
+ .albumPlanetGrid .albumBrowseRow > .album{
+  display:block!important;grid-column:1!important;grid-row:1!important;
+  width:100%!important;height:auto!important;aspect-ratio:1/1!important;
+  min-height:0!important;max-height:none!important;margin:0!important;
+  padding:0!important;border:0!important;border-radius:0!important;
+ }
+ .albumPlanetGrid .albumBrowseRow .albumCover{
+  display:block!important;position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;object-fit:contain!important;
+  border-radius:0!important;
+ }
+ .albumPlanetGrid .albumBrowseRow .albumPickerCompact{
+  position:absolute!important;top:12px!important;left:12px!important;z-index:6!important;
+ }
+ .albumPlanetGrid .albumDescription{
+  grid-column:1!important;grid-row:2!important;padding:7px 12px 3px!important;
+ }
+ .albumPlanetGrid .albumRowActions{
+  grid-column:1!important;grid-row:3!important;padding:3px 12px 9px!important;
+ }
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1454,8 +1483,8 @@ function render(){
  if(state.view==='albums'){
   const grid=elem('div','albumPlanetGrid');scroller.append(grid);
   const names=[...new Set(state.tracks.map(t=>t.album))];
-  const current=names.filter(name=>!LEGACY_ALBUMS.has(name));
-  const earlier=names.filter(name=>LEGACY_ALBUMS.has(name));
+  const current=names.filter(name=>!LEGACY_ALBUMS.has(name)).sort((a,b)=>rank(a)-rank(b));
+  const earlier=names.filter(name=>LEGACY_ALBUMS.has(name)).sort((a,b)=>rank(a)-rank(b));
   const legacyButton=elem('button','legacyToggle',
    state.showLegacyAlbums?'LEGACY · HIDE OLDER ALBUMS':'LEGACY · SHOW OLDER ALBUMS');
   legacyButton.type='button';
@@ -1477,7 +1506,7 @@ function render(){
     albumButton.addEventListener('click',()=>{
       state.expandedAlbum=state.expandedAlbum===name?'':name;
       render();
-      if(state.expandedAlbum)el('.expandedAlbumSongs')?.scrollIntoView({block:'nearest',behavior:'auto'});
+      // Keep the album in view; do not jump the user to the playlist or footer.\n      if(state.expandedAlbum)requestAnimationFrame(()=>{const selected=[...el('.albumPlanetGrid').children].find(row=>row.querySelector('.albumDescription strong')?.textContent===name);selected?.scrollIntoView({block:'start',behavior:'auto'});});
     });
     wrapper.append(albumButton);
     const description=elem('div','albumDescription');
