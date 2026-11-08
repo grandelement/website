@@ -8235,6 +8235,11 @@ function reconnectLiveStream(){
   }
   if(document.hidden){
     liveState.backgroundReconnectNeeded=true;
+    // Do not tear down the live stream while backgrounded. Preserve native
+    // playback and try to resume it once; Safari may deny background starts.
+    if(liveState.wantedPlayback&&!recentUserPause()&&audio.paused&&!audio.error){
+      try{const p=audio.play();if(p&&typeof p.catch==='function')p.catch(()=>{});}catch(_e){}
+    }
     return;
   }
   clearLiveReconnect();
@@ -9188,6 +9193,16 @@ audio.addEventListener('pause',()=>{
     // background playback. Just remember that Safari interrupted it; repair on return.
     liveState.backgroundReconnectNeeded=true;
     liveState.needsFreshEdge=false;
+    // A hidden-page pause is not an intentional user pause. Ask the SAME
+    // native media element to resume without replacing its source or waiting
+    // for Safari to foreground the page. Avoid a retry loop if iOS refuses.
+    if(!audio.ended && !audio.error && !window.GEIAmStudio?.isMusicStopped?.()){
+      try{
+        if('audioSession' in navigator)navigator.audioSession.type='playback';
+        const resume=audio.play();
+        if(resume&&typeof resume.catch==='function')resume.catch(()=>{});
+      }catch(_e){}
+    }
     return;
   }
 
