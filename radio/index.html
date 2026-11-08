@@ -5083,6 +5083,11 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open):not(.ge-radio-audible) #
  }
 }
 </style>
+<style id="ge-offline-music-only-placement">
+/* Download selection lives inside MUSIC. Retain a visible STOP control only
+   while an existing full-library download is actively running. */
+html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn:not(.downloading){display:none!important}
+</style>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
@@ -10949,9 +10954,14 @@ async function registerServiceWorker(){
       text.textContent='Could not finish offline download: '+String(error?.message||error)+'. Saved files were kept.';
       setStatus('Offline download interrupted. Your existing files were kept.');
     }finally{
+      const wasScoped=!!selectedOfflinePaths;
       selectedOfflinePaths=null;
       abortController=null;
       button.classList.remove('downloading');
+      // A checked-song download is not proof that the entire catalog is saved.
+      if(wasScoped){
+        try{await scanExistingAssets()}catch(_e){}
+      }
       button.disabled=false;
       reflectButton(currentAudit);
     }
