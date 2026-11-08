@@ -5,6 +5,7 @@
 # The DJ webpage transfers file bytes to this Mac, then rclone uploads to Drive.
 from __future__ import print_function
 import errno
+import imp
 import json
 import math
 import struct
@@ -235,7 +236,22 @@ def process_job(job_id, source, workdir, original_name, kind, convert,
             upload_name = os.path.splitext(original_name)[0] + ".mp3"
         else:
             upload_name = original_name
+        if kind == "radio" and not upload_name.lower().endswith(".mp3"):
+            raise RuntimeError("RADIO REQUIRES MP3: select 320 KBPS MP3.")
         actual_size = os.path.getsize(source)
+        if kind == "radio":
+            publisher_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ge-radio-github.py")
+            if not os.path.isfile(publisher_path):
+                raise RuntimeError("GITHUB NOT CONNECTED: install updated ge-radio-github.py beside upload helper.")
+            publisher = imp.load_source("ge_radio_github", publisher_path)
+            def report_github(**changes):
+                job_update(job_id, **changes)
+            published_path = publisher.publish(source, upload_name, report_github)
+            job_update(job_id, phase="complete", percent=100,
+                       detail="GITHUB UPLOAD COMPLETE: " + published_path +
+                              ". Radio manifest refresh runs automatically.",
+                       name=upload_name)
+            return
         job_update(job_id, file_size_bytes=actual_size,
                    mp3_mode="320" if convert else "original")
         folder = {"final": "Finals", "draft": "Drafts", "session": "Sessions", "radio":"Radio"}[kind]
@@ -715,12 +731,12 @@ class Handler(BaseHTTPRequestHandler):
             return reconnect_google_start(self)
         if parsed.path != "/upload":
             return self.response(404, {"ok": False, "error": "Not found"})
-        if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
-            return self.response(503, {"ok": False, "error": "rclone or Google Drive config missing on iMac"})
         params = parse_qs(parsed.query)
         kind = params.get("kind", [""])[0]
+        if kind != "radio" and (not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG)):
+            return self.response(503, {"ok": False, "error": "rclone or Google Drive config missing on iMac"})
         name = safe_name(params.get("name", [""])[0])
-        convert = params.get("convert", ["0"])[0] == "1"
+        convert = params.get("convert", ["0"])[0] == "1" or kind == "radio"
         cover_token = params.get("cover", [""])[0]
         if cover_token and not re.match(r"^[a-f0-9]{32}$", cover_token):
             return self.response(400, {"ok": False, "error": "Invalid cover image token"})
@@ -780,12 +796,8 @@ class Handler(BaseHTTPRequestHandler):
         self.response(202, {"ok": True, "id": job_id})
 
 if __name__ == "__main__":
-    if not os.path.isfile(RCLONE):
-        print("Rclone not found at: " + RCLONE)
-        sys.exit(1)
-    if not os.path.isfile(CONFIG):
-        print("Google Drive config not found at: " + CONFIG)
-        sys.exit(1)
+    if not os.path.isfile(RCLONE) or not os.path.isfile(CONFIG):
+        print("Google Drive unavailable; DRAFTS/FINALS require rclone. RADIO can use GitHub.")
     server = ThreadingServer((HOST, PORT), Handler)
     print("GE STUDIOS UPLOAD HELPER READY on http://127.0.0.1:%d" % PORT)
     print("Open the GE DJ Booth in Firefox. Leave this Terminal window open.")
