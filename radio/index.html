@@ -9753,6 +9753,17 @@ async function registerServiceWorker(){
   let activePlan=null;
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
+  // Relay real offline-controller progress to the open MUSIC window.
+  // Posting a download request alone is not evidence that files were saved.
+  const reportMusicOffline=message=>{
+    const frame=document.querySelector('#geMusicV5Frame, iframe[data-ge-music], iframe.geMusicV5Frame');
+    const target=window;
+    target.postMessage({type:'GE_MUSIC_OFFLINE_STATUS',message:String(message||'')},location.origin);
+  };
+  new MutationObserver(()=>{
+    const message=String(text?.textContent||'').trim();
+    if(message&&selectedOfflinePaths)reportMusicOffline(message);
+  }).observe(text,{childList:true,characterData:true,subtree:true});
   // The Music library can request a smaller checked-song download.
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_SELECTED')return;
@@ -9760,6 +9771,7 @@ async function registerServiceWorker(){
     if(!Array.isArray(paths)||!paths.length)return;
     selectedOfflinePaths=new Set(paths.map(canonicalSongPath).filter(Boolean));
     if(!selectedOfflinePaths.size)return;
+    reportMusicOffline('CHECKING '+selectedOfflinePaths.size+' SELECTED SONGS FOR OFFLINE SAVING…');
     if(button.classList.contains('downloading')){
       setStatus('Finish or stop the current download before starting checked songs.');
       return;
