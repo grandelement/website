@@ -1435,7 +1435,7 @@ function render(){
  const previous=scroller.scrollTop;
  el('.window').classList.toggle('arranging',state.arranging);
  // Playlist editor appears under PLAYLISTS (and in ARRANGE), not SONGS.
- el('.gePlaylistBar').hidden=cat!=='playlists'&&!state.arranging;
+ el('.gePlaylistBar').hidden=true; // Use one playlist editor: the permanent bottom bar.
  // The playlist selector remains available as internal input to LOAD.
  const picker=el('.arrangePlaylistSelect'),priorKey=picker.value;
  const collections=[
@@ -1552,14 +1552,6 @@ function render(){
   // Connection summary is already shown above the scroll area.
   // Do not waste scrolling space by repeating it as another full row.
   const shown=visibleSharedLists().filter(p=>!term||p.name.toLowerCase().includes(term));
-  for(const personal of state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term))){
-   card(scroller,personal.name,'MY PLAYLIST',()=>{
-    state.selected=new Set(personal.songs);saveSelected();
-    state.activePlaylist={source:'fan',origin:'vault',id:personal.id,name:personal.name};
-    state.playlistDraftName=personal.name;
-    setView('playlist-order');
-   });
-  }
   for(const p of shown)card(scroller,p.name,p.visibility==='unlisted'?
     'UNLISTED · CODE REQUIRED TO PLAY':'OPEN PLAYLIST',()=>{
    state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'ge',origin:p.source||'github',visibility:p.visibility||'published',id:p.id,name:p.name};state.playlistDraftName=p.name;
@@ -1569,7 +1561,16 @@ function render(){
   if(!visibleSharedLists().length&&!state.playlistsLoading)scroller.append(elem('p','empty',
    'NO PLAYLISTS AVAILABLE. REFRESH OR ENTER AN ASSIGNED CODE.'));
  }else if(state.view==='user-playlists'){
-  scroller.append(elem('div','section','USER PLAYLISTS · THIS DEVICE ONLY'));
+  scroller.append(elem('div','section','USER PLAYLISTS · FAN VAULT & THIS DEVICE'));
+  const personal=state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term));
+  for(const p of personal){
+    card(scroller,p.name,'USER PLAYLIST · FAN VAULT',()=>{
+      state.selected=new Set(p.songs);saveSelected();
+      state.activePlaylist={source:'fan',origin:'vault',id:p.id,name:p.name};
+      state.playlistDraftName=p.name;
+      setView('playlist-order');
+    });
+  }
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
    card(scroller,p.name,'OPEN PLAYLIST',()=>{
@@ -1578,8 +1579,7 @@ function render(){
      setView('playlist-order');
    });
   }
-  if(!local.length)scroller.append(elem('p','empty','Check songs under ALL SONGS, then SAVE USER PLAYLIST. Saved only on this device until fan account synchronization is ready.'));
-  else scroller.append(elem('p','empty','Saved on this device only. Permanent fan playlist and analytics syncing is not connected yet.'));
+  if(!local.length&&!personal.length)scroller.append(elem('p','empty','Check songs under SONGS, enter a playlist name, then SAVE. Your playlist is stored in your private Fan Vault.'));
  }else if(state.view==='access-code'&&state.accessView==='playlist'){
   breadcrumb('YOUR ASSIGNED PLAYLISTS','all');
   const allowed=new Set(musicAccessActive()?.allowed||[]);
