@@ -10691,8 +10691,10 @@ async function registerServiceWorker(){
       const remaining=Math.max(0,audit.totalBytes-doneBytes);
 
       let line2='Offline music is available on this device.';
-      if(audit.missing.length){
-        line2+=` ${audit.missing.length} file${audit.missing.length===1?'':'s'} still missing.`;
+      if(audit.missingSongs){
+        line2+=` ${audit.missingSongs} song${audit.missingSongs===1?'':'s'} still missing.`;
+      }else if(!offlineLaunchReady){
+        line2+=' Offline player setup still needs verification.';
       }
       if(storageFull){
         line2+=' iPhone storage limit reached. Existing songs were kept.';
@@ -10703,11 +10705,11 @@ async function registerServiceWorker(){
       }
 
       renderProgress({
-        percent:audit.complete?100:percent,
-        doneBytes:audit.complete?audit.totalBytes:doneBytes,
+        percent:audit.musicComplete?100:Math.min(percent,99),
+        doneBytes:audit.musicComplete?audit.totalBytes:doneBytes,
         totalBytes:audit.totalBytes,
         speed,
-        eta:audit.complete?0:(speed>0?remaining/speed:NaN),
+        eta:audit.musicComplete?0:(speed>0?remaining/speed:NaN),
         line2
       });
 
