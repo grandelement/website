@@ -4306,7 +4306,7 @@ body.ge-radio-signal-ready:not(.ge-radio-audible) #shipStage button[data-proxy="
 #gePlaylistQuickSongs{
  box-sizing:border-box!important;max-height:min(48dvh,420px)!important;
  overflow-y:scroll!important;overflow-x:hidden!important;
- touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;
+ touch-action:none!important;-webkit-overflow-scrolling:touch!important;
  overscroll-behavior:contain!important;pointer-events:auto!important;
  background:rgba(5,22,38,.95)!important;border:1px solid rgba(94,173,222,.72)!important;padding:8px!important
 }
@@ -8048,9 +8048,38 @@ function gePlaylistQuickSet(playlist,paths,details){
  });
  gePlaylistQuickDismiss();strip.hidden=!custom;
 }
-// Prevent document-level gesture controls from swallowing iPhone list scrolling.
-for(const type of ['touchstart','touchmove','wheel']){
- $('gePlaylistQuickSongs')?.addEventListener(type,event=>event.stopPropagation(),{passive:true});
+// iPhone playlist scroll: keep the dropdown independent of Radio page gestures.
+// Use a deliberate single-finger scroll fallback because iOS Safari may ignore
+// native overflow scrolling when the parent Radio dashboard is gesture-locked.
+{
+ const list=$('gePlaylistQuickSongs');
+ let dragY=null,dragTop=0,dragMoved=false;
+ list?.addEventListener('touchstart',event=>{
+   event.stopPropagation();
+   if(event.touches.length!==1){dragY=null;return;}
+   dragY=event.touches[0].clientY;
+   dragTop=list.scrollTop;
+   dragMoved=false;
+ },{passive:true});
+ list?.addEventListener('touchmove',event=>{
+   event.stopPropagation();
+   if(dragY===null||event.touches.length!==1)return;
+   const delta=event.touches[0].clientY-dragY;
+   if(Math.abs(delta)>5)dragMoved=true;
+   if(dragMoved){
+     list.scrollTop=Math.max(0,Math.min(list.scrollHeight-list.clientHeight,dragTop-delta));
+     if(event.cancelable)event.preventDefault();
+   }
+ },{passive:false});
+ for(const type of ['touchend','touchcancel']){
+   list?.addEventListener(type,event=>{event.stopPropagation();dragY=null;},{passive:true});
+ }
+ list?.addEventListener('wheel',event=>event.stopPropagation(),{passive:true});
+ list?.addEventListener('click',event=>{
+   if(!dragMoved)return;
+   event.preventDefault();event.stopImmediatePropagation();
+   dragMoved=false;
+ },true);
 }
 $('gePlaylistQuickToggle')?.addEventListener('click',()=>{
  const list=$('gePlaylistQuickSongs'),button=$('gePlaylistQuickToggle');
