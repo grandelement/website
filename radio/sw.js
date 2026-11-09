@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.08-music-offline-v97';;;;
+const VERSION='2026.11.08-music-offline-v98';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -10,9 +10,12 @@ const SHELL=[
   './index.html',
   './preview-lab.html',
   './ge-music-v5.js',
+  './ge-purchase-demo.js',
+  '../ge-vault-client.js',
   '../ge-accessibility.js',
   '../ge-accessibility.css',
   './track-durations.json',
+  './loudness.json',
   './manifest.json',
   './iam-private-studio.js',
   './ge-gate-audio.js',
