@@ -2082,6 +2082,15 @@ function preloadCatalog(){
   }
 }
 window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibrary,
+ acceptRadioCatalog:(urls)=>{
+  const paths=[...new Set((Array.isArray(urls)?urls:[]).map(canonical).filter(Boolean))];
+  if(!paths.length)throw Error('Radio supplied no playable songs');
+  const unique=paths.map(details).sort((a,b)=>rank(a.album)-rank(b.album)||a.album.localeCompare(b.album)||a.number-b.number||a.title.localeCompare(b.title));
+  state.tracks=unique;state.loaded=true;state.loading=false;
+  updateMeta();render();
+  showCatalogSource('RADIO SHARED CATALOG',unique.length);
+  return unique.length;
+ },
  playAll:(direction='play')=>{
   // PLAY never demands a code or redirects a guest before the real 33:33 Gate.
   // Vault receipts still restrict assigned songs and the preview player
