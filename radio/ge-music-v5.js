@@ -1786,11 +1786,26 @@ function render(){
   }
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
-   card(scroller,p.name,'OPEN PLAYLIST',()=>{
+   const row=elem('div','userPlaylistRow');
+   card(row,p.name,'DEVICE PLAYLIST',()=>{
      state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'user',id:p.id,name:p.name};state.playlistDraftName=p.name;
      recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'user_local_device',song_count:p.songs.length});
      setView('playlist-order');
    });
+   const del=elem('button','userPlaylistDelete','DELETE');
+   del.type='button';del.setAttribute('aria-label','Delete device playlist '+p.name);
+   del.addEventListener('click',()=>{
+    if(!window.confirm('Delete device playlist "'+p.name+'"? This cannot be undone.'))return;
+    const remaining=readMine().filter(item=>item.id!==p.id);
+    try{
+     localStorage.setItem(myKey,JSON.stringify(remaining));
+     if(readMine().some(item=>item.id===p.id))throw Error('Delete not verified');
+     if(state.activePlaylist?.source==='user'&&state.activePlaylist.id===p.id)state.activePlaylist=null;
+     say('DEVICE PLAYLIST DELETED · '+p.name);
+    }catch(error){say('DELETE FAILED · '+String(error.message||error))}
+    render();
+   });
+   row.append(del);scroller.append(row);
   }
   if(!local.length&&!personal.length)scroller.append(elem('p','empty','Check songs under SONGS, enter a playlist name, then SAVE. Your playlist is stored in your private Fan Vault.'));
  }else if(state.view==='access-code'&&state.accessView==='playlist'){
