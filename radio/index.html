@@ -11452,6 +11452,18 @@ $('reloadBtn').addEventListener('click',async()=>{
       newSongs+removedSongs+newImages+removedImages+
       mediaResult.refreshed+mediaResult.addedOffline+mediaResult.removed+templateResult.refreshed;
 
+    // Propagate the verified song inventory to other open Radio/MUSIC tabs.
+    // The shared signal contains public track paths only, never access tokens or fan data.
+    try{
+      const sharedPaths=library.catalog.map(url=>{
+        const pathname=new URL(url,location.href).pathname;
+        const i=pathname.indexOf('/ge-music/music/');
+        return i>=0?pathname.slice(i+1):'';
+      }).filter(Boolean);
+      localStorage.setItem('GE_SHARED_LIBRARY_REVISION',JSON.stringify({
+        version:1,at:Date.now(),paths:sharedPaths
+      }));
+    }catch(error){console.warn('Cross-tab library signal unavailable',error)}
     button.textContent=totalChanges?`Updated ${totalChanges}`:'Library Current';
 
     setStatus(
@@ -11473,6 +11485,21 @@ $('reloadBtn').addEventListener('click',async()=>{
   }
 });
 
+
+// Keep other open tabs in sync when an authorized Radio reload completes.
+window.addEventListener('storage',event=>{
+  if(event.key!=='GE_SHARED_LIBRARY_REVISION'||!event.newValue)return;
+  try{
+    const packet=JSON.parse(event.newValue);
+    if(packet.version!==1||!Array.isArray(packet.paths)||!packet.paths.length)return;
+    const paths=packet.paths.filter(p=>typeof p==='string'&&p.startsWith('ge-music/music/'));
+    if(!paths.length)return;
+    state.catalog=paths.map(p=>new URL('../'+p,location.href).href).sort(orderedSort);
+    rebuildQueue(state.currentURL);
+    window.GEMusicV5?.acceptRadioCatalog?.(paths);
+    setStatus('Shared music library updated from another open tab.');
+  }catch(error){console.warn('Cross-tab library update failed',error)}
+});
 
 // Landscape Ship View controller.
 (function createShipView(){
