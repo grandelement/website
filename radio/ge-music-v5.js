@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.25-20261109-CATALOG-REFRESH-FIX';
+const BUILD='GE-MUSIC-V7.26-20261109-SINGLE-MASTER-MANIFEST';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -919,42 +919,23 @@ async function fetchCatalog(options={}){
    try{window.dispatchEvent(new CustomEvent('ge-music-catalog-ready',{detail:{count:unique.length}}))}catch(_){}
   }else if(final)say('The published library could not be loaded. Check network and refresh.');
  };
- // First use the published, same-origin manifest so Radio PLAY works quickly
- // even if GitHub's optional tree API is slow or temporarily unavailable.
- for(const [file,key] of [['./manifest.json','files'],['./track-durations.json','tracks']]){
-  try{
-   const response=await fetch(file+'?musicv3='+BUILD,{cache:'no-store'});
-   if(!response.ok)continue;
-   const data=await response.json(),rows=Array.isArray(data[key])?data[key]:[];
-   for(const item of rows){const path=canonical(key==='files'?item:item?.path);if(path)all.push(path)}
-  }catch(error){console.warn('MUSIC V5 catalog source',file,error)}
- }
- if(all.length&&!strict)publishCatalog(all);
- // Discover newly uploaded recordings in the background without holding
- // the entire published song list hostage to GitHub's remote response.
- // New paths join MUSIC only; Radio Bangers/master approval stays separate.
+ // One authoritative song inventory: the published master manifest.
+ // Playlists and Radio selections are filters, never separate inventories.
  try{
-  const response=await fetch(
-   'https://api.github.com/repos/grandelement/website/git/trees/main?recursive=1',
-   {cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-  if(response.ok){
-   const data=await response.json();
-   if(Array.isArray(data.tree)&&!data.truncated){
-    const real=[];
-    for(const item of data.tree){
-     if(item?.type!=='blob')continue;
-     const path=canonical(item.path);
-     if(path)real.push(path);
-    }
-    // A successful, complete tree REPLACES the older cached manifest list.
-    // Merging left deleted tracks (e.g. the old Aether Journey) in the player.
-    if(real.length){publishCatalog(real,true);return {ok:true,count:real.length,source:'github'};}
-   }
-  }
- }catch(error){if(strict)throw new Error('GitHub scan unavailable: '+String(error?.message||error));}
- if(strict)throw new Error('GitHub did not return a complete nonempty music inventory. Existing library preserved.');
- if(!state.loaded)publishCatalog(all,true);
- return {ok:state.loaded,count:state.tracks.length,source:'manifest'};
+  const response=await fetch('./manifest.json?ge_master='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('Master manifest HTTP '+response.status);
+  const data=await response.json();
+  const rows=Array.isArray(data)?data:Array.isArray(data.files)?data.files:[];
+  for(const item of rows){const path=canonical(item);if(path)all.push(path)}
+  if(!all.length)throw Error('Master manifest has no playable songs');
+  publishCatalog(all,true);
+  return {ok:true,count:state.tracks.length,source:'master-manifest'};
+ }catch(error){
+  if(strict)throw error;
+  if(!state.loaded)publishCatalog([],true);
+  console.warn('Master music manifest unavailable; keeping last loaded library',error);
+  return {ok:state.loaded,count:state.tracks.length,source:'previous-library'};
+ }
 }
 function readMine(){
  try{const rows=JSON.parse(localStorage.getItem(myKey)||'[]');return Array.isArray(rows)?rows.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.songs)).slice(0,100):[]}
@@ -1954,12 +1935,29 @@ el('.accessToggle').addEventListener('click',()=>{
  panel.hidden=!opened;el('.accessToggle').setAttribute('aria-expanded',String(opened));
  if(opened)el('.musicCodeInput').focus();
 });
+// Both offline entry points use the same Radio cache controller.
+ // MUSIC supplies only the checked-song filter, never a second downloader.
+const musicOfflineDialog=document.createElement('dialog');
+musicOfflineDialog.setAttribute('aria-label','Offline download choices');
+musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
+musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="cancel">CANCEL</button></div>';
+document.body.append(musicOfflineDialog);
+musicOfflineDialog.addEventListener('click',event=>{
+ const action=event.target.closest('button')?.dataset.action;
+ if(!action)return;
+ musicOfflineDialog.close();
+ if(action==='cancel')return;
+ if(action==='checked'){
+  const paths=selectedTracks().map(track=>track.path);
+  if(!paths.length){say('CHECK SONGS FIRST.');return;}
+  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
+ }else{
+  window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);
+ }
+});
 el('.offlineSelected').addEventListener('click',()=>{
- const tracks=selectedTracks();
- if(!tracks.length){say('CHECK SONGS TO DOWNLOAD OFFLINE FIRST.');return;}
- const paths=tracks.map(track=>track.path);
- window.parent.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
- say('OFFLINE DOWNLOAD REQUESTED FOR '+paths.length+' SONGS · WAIT FOR CONFIRMATION.');
+ musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent=selectedTracks().length+' songs checked. Choose what to save on this device.';
+ if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
 });
 // The parent offline controller owns Cache Storage. Its status must be shown
 // in MUSIC rather than treating a posted request as a completed download.
