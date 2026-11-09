@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.26-20261109-SINGLE-MASTER-MANIFEST';
+const BUILD='GE-MUSIC-V7.27-20261109-VISIBLE-MASTER-DIAGNOSTIC';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -837,6 +837,11 @@ function details(path){
 }
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
+function showCatalogSource(source,count){
+ const label='MUSIC V7.27 · '+source+' · '+count+' SONGS';
+ state.notice=label;
+ notice.textContent=label;
+}
 function selectedTracks(){
  const byPath=new Map(state.tracks.map(track=>[track.path,track]));
  return [...state.selected].map(path=>byPath.get(path)).filter(Boolean);
@@ -929,10 +934,12 @@ async function fetchCatalog(options={}){
   for(const item of rows){const path=canonical(item);if(path)all.push(path)}
   if(!all.length)throw Error('Master manifest has no playable songs');
   publishCatalog(all,true);
+  showCatalogSource('MASTER MANIFEST',state.tracks.length);
   return {ok:true,count:state.tracks.length,source:'master-manifest'};
  }catch(error){
   if(strict)throw error;
   if(!state.loaded)publishCatalog([],true);
+  showCatalogSource('MASTER UNAVAILABLE / PREVIOUS LIST',state.tracks.length);
   console.warn('Master music manifest unavailable; keeping last loaded library',error);
   return {ok:state.loaded,count:state.tracks.length,source:'previous-library'};
  }
