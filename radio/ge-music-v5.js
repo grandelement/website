@@ -760,21 +760,80 @@ button:disabled{opacity:.5;cursor:not-allowed}
  .window:not(.arranging) .scroll{padding-left:5px!important;padding-right:5px!important}
 }
 
-/* Album starfield focus layout */
-.scroll.geAlbumUniverse{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center/cover!important}
-.geAlbumUniverse .albumPlanetGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;padding:12px 8px 28px!important}
-.geAlbumUniverse .albumPlanetGrid .albumBrowseRow{order:2!important;grid-column:auto!important;aspect-ratio:1!important;border-radius:50%!important;min-height:0!important;overflow:hidden!important;box-shadow:0 0 18px #5bbaff77!important}
-.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .album,.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumCover{border-radius:50%!important}
-.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumDescription,.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumRowActions{display:none!important}
-.geAlbumUniverse .albumPlanetGrid .albumBrowseRow.geAlbumFocused{order:0!important;grid-column:1/-1!important;width:min(70vw,350px)!important;justify-self:center!important;margin:12px auto!important;border:2px solid #c5edff!important;box-shadow:0 0 35px #77caffbb!important}
-.geAlbumUniverse .albumPlanetGrid .albumBrowseRow.geAlbumFocused .album b{display:none!important}
-.geAlbumUniverse .geAlbumFeature{order:1;grid-column:1/-1;display:grid;grid-template-columns:1fr 1.2fr;gap:12px;padding:6px 10px 18px;animation:geAlbumFade .65s ease both}
-.geAlbumUniverse .geAlbumFeature h2{font-size:clamp(23px,6vw,34px);margin:0;line-height:1.1}
-.geAlbumUniverse .geAlbumFeature small{color:#b7dfff}
-.geAlbumUniverse .geAlbumFeature p{font-size:clamp(13px,3.4vw,17px);line-height:1.4;margin:0 0 10px}
-.geAlbumUniverse .geAlbumFeature button{font-size:12px;min-height:36px;margin:3px}
+/* Canonical album universe: one selected cover, title and story, surrounding catalog. */
+.scroll.geAlbumUniverse{
+ background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center center/cover fixed!important;
+ background-attachment:local!important;
+}
+.geAlbumUniverse .albumPlanetGrid{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:14px!important;padding:18px 12px 36px!important;align-items:start!important;
+}
+.geAlbumUniverse .albumPlanetGrid > .albumBrowseRow{
+ order:3!important;grid-column:auto!important;grid-row:auto!important;
+ display:block!important;position:relative!important;aspect-ratio:1!important;
+ min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;
+ border:1px solid rgba(167,218,255,.65)!important;border-radius:12px!important;
+ overflow:hidden!important;background:#061523!important;
+ box-shadow:0 0 16px rgba(85,186,255,.3)!important;
+ transition:box-shadow .35s ease,border-color .35s ease!important;
+}
+.geAlbumUniverse .albumPlanetGrid > .albumBrowseRow > .album{
+ display:flex!important;grid-area:auto!important;position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;min-height:0!important;
+ margin:0!important;padding:0!important;border:0!important;
+ border-radius:10px!important;overflow:hidden!important;
+ align-items:center!important;justify-content:center!important;
+ background:transparent!important;
+}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumCover{
+ display:block!important;position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;max-width:none!important;
+ max-height:none!important;object-fit:contain!important;border-radius:8px!important;
+}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .album b,
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .countHint,
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumDescription,
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumRowActions{display:none!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumPickerCompact{
+ position:absolute!important;top:4px!important;left:4px!important;z-index:3!important;
+ width:26px!important;height:26px!important;padding:0!important;
+ background:rgba(0,10,24,.75)!important;border-radius:6px!important;
+}
+.geAlbumUniverse .albumPlanetGrid > .albumBrowseRow.geAlbumFocused{
+ order:0!important;grid-column:1/-1!important;
+ width:min(76vw,390px)!important;max-width:100%!important;
+ justify-self:center!important;margin:8px auto 0!important;
+ border:2px solid #d4f1ff!important;border-radius:14px!important;
+ box-shadow:0 0 45px rgba(95,187,255,.65)!important;
+}
+.geAlbumUniverse .geAlbumFeature{
+ order:1!important;grid-column:1/-1!important;display:grid!important;
+ grid-template-columns:1fr!important;gap:10px!important;
+ padding:8px 14px 24px!important;margin:0 auto 8px!important;
+ width:min(100%,680px)!important;box-sizing:border-box!important;
+ text-align:center!important;background:rgba(1,9,25,.68)!important;
+ border-radius:14px!important;backdrop-filter:blur(6px)!important;
+ animation:geAlbumFade .65s ease .12s both!important;
+}
+.geAlbumUniverse .geAlbumFeature h2{
+ font-size:clamp(25px,6vw,38px)!important;line-height:1.1!important;
+ margin:0 0 5px!important;color:#fff!important;
+}
+.geAlbumUniverse .geAlbumFeature small{color:#b7dfff!important}
+.geAlbumUniverse .geAlbumFeature p{
+ font-size:clamp(14px,3.5vw,18px)!important;line-height:1.5!important;
+ margin:0 0 12px!important;color:#e7f4ff!important;
+}
+.geAlbumUniverse .geAlbumFeature button{font-size:13px!important;min-height:38px!important;margin:3px!important}
 @keyframes geAlbumFade{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
-@media(min-width:850px){.geAlbumUniverse .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+@media(min-width:850px){
+ .geAlbumUniverse .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+ .geAlbumUniverse .geAlbumFeature{
+  grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)!important;
+  text-align:left!important;align-items:center!important;
+ }
+}
 @media(prefers-reduced-motion:reduce){.geAlbumUniverse *{animation:none!important;transition:none!important}}
 </style>
 <div class="backdrop"></div>
