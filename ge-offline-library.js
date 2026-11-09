@@ -4,7 +4,7 @@
 const ROOT=new URL('./',location.href), CACHE='GE_SHARED_OFFLINE_V2';
 const CORE=['./','index.html','sw.js','manifest.webmanifest','config/site-live.json',
  'ge-vault-client.js','ge-dream.js','ge-accessibility.js','ge-accessibility.css',
- 'radio/','radio/index.html','radio/sw.js','radio/website-live.js','radio/ge-home-gate-stop.js',
+ 'radio/','radio/index.html','radio/offline-player.html','radio/sw.js','radio/website-live.js','radio/ge-home-gate-stop.js',
  'radio/ge-music-v5.js','radio/ge-purchase-demo.js','radio/manifest.json',
  'radio/ge-gate-audio.js','radio/ge-gate-settings.js','radio/iam-private-studio.js',
  'radio/track-durations.json','radio/loudness.json','radio/manifest.webmanifest',
