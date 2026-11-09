@@ -2,11 +2,11 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V4_OFFLINE_BOOT_20261109';
+const SITE_SHELL='GE_SITE_SHELL_V5_FULL_LIBRARY_20261109';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
-const SHELL=['./','./index.html','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
+const SHELL=['./','./index.html','./ge-offline-library.js','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
 async function fromAnyCache(request){
   return (await caches.match(request,{ignoreSearch:true}))||null;
