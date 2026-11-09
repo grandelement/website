@@ -1816,7 +1816,16 @@ function open(){
   if(access.radioPlaylistId)state.accessPlaylistFilter=access.radioPlaylistId;
  }
  musicAccessStatus();
- if(!state.loaded&&!state.loading){state.loading=true;void fetchCatalog()}
+ // Every MUSIC opening refreshes the authoritative GitHub inventory.
+ // Do not let a previously loaded manifest hide newly uploaded songs.
+ if(navigator.onLine!==false&&!state.loading){
+  state.loading=true;
+  void fetchCatalog().catch(error=>console.warn('MUSIC live catalog refresh',error))
+   .finally(()=>{state.loading=false;});
+ }else if(!state.loaded&&!state.loading){
+  state.loading=true;
+  void fetchCatalog().finally(()=>{state.loading=false;});
+ }
  void loadPublished();void loadFanPlaylists();render();scroller.scrollTop=0;root.querySelector('[data-tab="'+activeCategory()+'"]').focus();
 }
 function close(){
