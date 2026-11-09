@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.28-20261109-MASTER-RECONCILIATION';
+const BUILD='GE-MUSIC-V7.29-20261109-UNIFIED-RELOAD';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2011,6 +2011,14 @@ el('.arrangePlay').addEventListener('click',()=>void playCheckedSongs(true));
 
 el('.songFilter').addEventListener('change',event=>setView(event.target.value));
 el('.reloadCatalogBtn').addEventListener('click',async()=>{
+ // Use the full Radio reload pipeline when this session has permission.
+ // That pipeline updates Radio, MUSIC, playlists, assets and offline media.
+ const radioReload=document.getElementById('reloadBtn');
+ if(radioReload&&!radioReload.hidden&&!radioReload.disabled){
+   radioReload.click();
+   say('RELOADING SHARED RADIO AND MUSIC LIBRARY…');
+   return;
+ }
  const button=el('.reloadCatalogBtn');
  if(state.loading)return;
  state.loading=true;button.disabled=true;
