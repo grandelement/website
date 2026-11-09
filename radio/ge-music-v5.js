@@ -2079,6 +2079,7 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
   return playTrack(first,queue,true,true);
  },
  refresh:()=>{if(state.open)render()},reloadLibrary:()=>fetchCatalog(),
+ syncUserPlaylists:loadFanPlaylists,
  reportPlayback:message=>say(message),
  build:BUILD,state:()=>({loaded:state.loaded,open:state.open,count:state.selected.size,arranging:state.arranging})};
 // Load at startup rather than making the listener press PLAY twice while
