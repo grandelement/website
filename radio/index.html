@@ -5439,7 +5439,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
        crossorigin because its host currently returns 503 for Origin requests.
        Same-origin GE song playback can still opt in to Web Audio separately. -->
   <audio id="player" preload="none" playsinline></audio>
-  <div id="playerSeekWrap"><span id="geSongPosition" class="geSongIndex" aria-label="Current song number">00</span><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"><span id="geSongTotal" class="geSongIndex" aria-label="Total songs">00</span></div>
+  <div id="playerSeekWrap"><span id="geSongPosition" class="geSongIndex" aria-label="Elapsed playback time">0:00</span><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"><span id="geSongTotal" class="geSongIndex" aria-label="Total song duration">0:00</span></div>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
@@ -6779,14 +6779,17 @@ function allowedCatalog(){
   return state.catalog.filter(url=>approvedAutoPaths.has(canonicalSongPath(url))).sort(orderedSort);
 }
 function syncSongPosition(){
-  const custom=gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length>0;
-  const queue=custom?gePlaylistQuickQueue:(state.queue||[]).filter(url=>!isStationID(url));
-  const current=custom?gePlaylistQuickPath:canonicalSongPath(state.currentURL||'');
-  const index=queue.findIndex(url=>canonicalSongPath(url)===canonicalSongPath(current));
-  const format=n=>String(Math.max(0,n)).padStart(2,'0');
+  // Seek bar labels always show elapsed / duration, never playlist indexes.
+  const a=geInlineMusicActive?geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.():audio;
+  const elapsed=Number(a?.currentTime),duration=Number(a?.duration);
+  const format=seconds=>{
+    if(!Number.isFinite(seconds)||seconds<0)return '0:00';
+    const n=Math.floor(seconds);
+    return Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+  };
   const left=$('geSongPosition'),right=$('geSongTotal');
-  if(left)left.textContent=format(index>=0?index+1:0);
-  if(right)right.textContent=format(queue.length);
+  if(left)left.textContent=format(elapsed);
+  if(right)right.textContent=format(duration);
 }
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
@@ -8266,6 +8269,7 @@ function geInlineMusicSyncTransport(){
   if(playButton)playButton.textContent=geInlineMusicPaused?'Play':'Pause';
   const seek=$('playerSeek');
   if(seek){const a=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();const d=Number(a?.duration);seek.disabled=!Number.isFinite(d)||d<=0;seek.value=seek.disabled?'0':String(Math.max(0,Math.min(1000,(Number(a?.currentTime)||0)/d*1000)));}
+  syncSongPosition();
 }
 function geInlineMusicHide(){
   if(geInlineMusicPanel?.classList.contains('ge-gate-active'))return;
@@ -8960,6 +8964,7 @@ function syncMainTransport(){
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
     playerSeek.value=playerSeek.disabled?'0':String(Math.max(0,Math.min(1000,t/d*1000)));
   }
+  syncSongPosition();
 }
 function geRetryPendingMainMusic(){
   if(geInlineMusicActive||!gePendingMainMusicDirection)return;
