@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.32-20261109-FOOTER-DELETE';
+const BUILD='GE-MUSIC-V7.33-20261109-PLAYLIST-ROW-ACTIONS';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -207,8 +207,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playlistActionsBar [data-action=clear]{background:#092a43;border-color:#559dcb}
 .playlistActionsBar [data-action=save]{background:#125784;border-color:#87ccf6;color:#fff;font-weight:850}
 .arrangeDock{display:none;flex:0 0 auto;background:#06243b;border-bottom:1px solid #4b91bd;padding:8px 10px;gap:7px}
-.userPlaylistRow{display:flex;align-items:stretch;gap:8px;margin-bottom:8px}
+.userPlaylistRow{display:flex;align-items:stretch;gap:6px;margin-bottom:8px;min-width:0;touch-action:pan-y}
 .userPlaylistRow>.album{flex:1;min-width:0}
+.userPlaylistEdit{flex:0 0 auto;align-self:stretch;background:#174e79;border:1px solid #8fcdf8;color:#fff;padding:8px 10px;border-radius:8px;font-weight:800}
+.userPlaylistRow.swiped .userPlaylistEdit,.userPlaylistRow.swiped .userPlaylistDelete{box-shadow:0 0 0 2px #9cdaff}
+@media(max-width:420px){.userPlaylistRow{gap:4px}.userPlaylistRow>.album{padding:8px 7px;font-size:12px}.userPlaylistEdit,.userPlaylistDelete{font-size:11px;padding:7px 6px}}
 .userPlaylistDelete{flex:0 0 auto;align-self:stretch;background:#542936;border:1px solid #e7a0ab;color:#fff;padding:8px 12px;border-radius:8px;font-weight:800}
 .arrangeTitle{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .arrangeTitleActions{display:flex;align-items:center;gap:7px;margin-left:auto}
@@ -1777,43 +1780,58 @@ function render(){
    'NO PLAYLISTS AVAILABLE. REFRESH OR ENTER AN ASSIGNED CODE.'));
  }else if(state.view==='user-playlists'){
   scroller.append(elem('div','section','USER PLAYLISTS · FAN VAULT & THIS DEVICE'));
-  const personal=state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term));
-  for(const p of personal){
-    const row=elem('div','userPlaylistRow');
-    card(row,p.name,'USER PLAYLIST · FAN VAULT',()=>{
-      state.selected=new Set(p.songs);saveSelected();
-      state.activePlaylist={source:'fan',origin:'vault',id:p.id,name:p.name};
-      state.playlistDraftName=p.name;
-      setView('playlist-order');
-    });
-    const del=elem('button','userPlaylistDelete','DELETE');
-    del.type='button';del.setAttribute('aria-label','Delete user playlist '+p.name);
-    del.addEventListener('click',()=>void deleteFanPlaylist(p));
-    row.append(del);scroller.append(row);
-  }
-  const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
-  for(const p of local){
+  // User playlists have visible EDIT/DELETE actions and optional left-swipe emphasis.
+  // Swipe never deletes anything: deletion always requires explicit confirmation.
+  function userPlaylistRow(p,source){
    const row=elem('div','userPlaylistRow');
-   card(row,p.name,'DEVICE PLAYLIST',()=>{
-     state.selected=new Set(p.songs);saveSelected();state.activePlaylist={source:'user',id:p.id,name:p.name};state.playlistDraftName=p.name;
-     recordPlaylistInteraction('playlist_view',{playlist_id:p.id,playlist_source:'user_local_device',song_count:p.songs.length});
-     setView('playlist-order');
-   });
+   const openPlaylist=(edit=false)=>{
+    state.selected=new Set(p.songs.map(canonical).filter(Boolean));saveSelected();
+    state.activePlaylist={source,origin:source==='fan'?'vault':'local',id:p.id,name:p.name};
+    state.playlistDraftName=p.name;
+    setView('playlist-order');
+    gePlaylistEditMode=edit;
+    render();scroller.scrollTop=0;
+   };
+   card(row,p.name,source==='fan'?'USER PLAYLIST · FAN VAULT':'DEVICE PLAYLIST',()=>openPlaylist(false));
+   const edit=elem('button','userPlaylistEdit','EDIT');
+   edit.type='button';edit.setAttribute('aria-label','Edit user playlist '+p.name);
+   edit.addEventListener('click',()=>openPlaylist(true));
    const del=elem('button','userPlaylistDelete','DELETE');
-   del.type='button';del.setAttribute('aria-label','Delete device playlist '+p.name);
+   del.type='button';del.setAttribute('aria-label','Delete user playlist '+p.name);
    del.addEventListener('click',()=>{
+    if(source==='fan'){void deleteFanPlaylist(p);return}
     if(!window.confirm('Delete device playlist "'+p.name+'"? This cannot be undone.'))return;
-    const remaining=readMine().filter(item=>item.id!==p.id);
     try{
-     localStorage.setItem(myKey,JSON.stringify(remaining));
+     localStorage.setItem(myKey,JSON.stringify(readMine().filter(item=>item.id!==p.id)));
      if(readMine().some(item=>item.id===p.id))throw Error('Delete not verified');
-     if(state.activePlaylist?.source==='user'&&state.activePlaylist.id===p.id)state.activePlaylist=null;
+     if(state.activePlaylist?.source==='user'&&state.activePlaylist.id===p.id){
+      state.activePlaylist=null;state.playlistDraftName='';
+     }
      say('DEVICE PLAYLIST DELETED · '+p.name);
     }catch(error){say('DELETE FAILED · '+String(error.message||error))}
     render();
    });
-   row.append(del);scroller.append(row);
+   row.append(edit,del);
+   let touchX=0,touchY=0;
+   row.addEventListener('touchstart',event=>{
+    if(event.touches.length!==1)return;
+    touchX=event.touches[0].clientX;touchY=event.touches[0].clientY;
+   },{passive:true});
+   row.addEventListener('touchend',event=>{
+    if(event.changedTouches.length!==1)return;
+    const dx=event.changedTouches[0].clientX-touchX;
+    const dy=event.changedTouches[0].clientY-touchY;
+    if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5){
+     row.classList.toggle('swiped',dx<0);
+     if(dx<0)edit.focus({preventScroll:true});
+    }
+   },{passive:true});
+   scroller.append(row);
   }
+  const personal=state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term));
+  for(const p of personal)userPlaylistRow(p,'fan');
+  const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
+  for(const p of local)userPlaylistRow(p,'user');
   if(!local.length&&!personal.length)scroller.append(elem('p','empty','Check songs under SONGS, enter a playlist name, then SAVE. Your playlist is stored in your private Fan Vault.'));
  }else if(state.view==='access-code'&&state.accessView==='playlist'){
   breadcrumb('YOUR ASSIGNED PLAYLISTS','all');
