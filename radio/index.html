@@ -11073,20 +11073,9 @@ async function registerServiceWorker(){
       }
     }
 
-    // Partial music resumes; complete music with a missing webpage offers
-    // Finish Setup / Start Over / Cancel, then a visible repair/diagnostic view.
+    // Audit the current cache before choosing Ready, Resume or Setup.
+    // Never use the previous audit to skip newly uploaded music.
     let requestedRestart=false;
-    if(!selectedOfflinePaths && isEnabled() && currentAudit && !(currentAudit.missingSongs>0)){
-      if(!offlineLaunchReady){
-        const choice=await askIncompleteOfflineChoice(currentAudit,{setupOnly:true});
-        if(choice==='cancel')return;
-        if(choice==='setup'){
-          await finishOfflineSetupWithDialog();
-          return;
-        }
-        requestedRestart=choice==='restart';
-      }
-    }
 
     // Refresh from caches, but never remove music to reinitialize download.
     let prepared;
