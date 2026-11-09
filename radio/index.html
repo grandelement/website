@@ -7936,15 +7936,25 @@ const GE_OFFLINE_DEVICE_GRANT_KEY='GE_VAULT_OFFLINE_DEVICE_GRANT_V1';
 // The one browser may play its own downloaded songs while disconnected under
 // a previously Vault-verified, still-unexpired device grant. No other scope
 // is granted here and no access code is cached.
+// Verified once online, usable without Vault/network checks while offline.
+// This is local playback permission only; it never unlocks online utilities.
+const GE_OFFLINE_LOCAL_ENTITLEMENT='GE_RADIO_OFFLINE_ENTITLEMENT_V2';
 function geOfflineDeviceGrantValid(){
   if(!offlinePlaybackMode())return false;
   try{
+    const id=String(window.GEVault?.anonId||'');
+    if(!id)return false;
+    const receipt=JSON.parse(localStorage.getItem(GE_OFFLINE_LOCAL_ENTITLEMENT)||'null');
+    if(receipt?.verified===true&&receipt.device_id===id)return true;
+    // Upgrade previously verified device grants without contacting Vault.
     const grant=JSON.parse(localStorage.getItem(GE_OFFLINE_DEVICE_GRANT_KEY)||'null');
     const device=JSON.parse(localStorage.getItem('GE_VAULT_RADIO_DEVICE_SESSION_V1')||'null');
-    const id=String(window.GEVault?.anonId||'');
-    return !!id&&grant?.offline===true&&grant.device_id===id&&
-      device?.device_id===id&&typeof device.token==='string'&&device.token.length>20&&
-      Number(grant.until)>Date.now()&&Number(device.until)>Date.now();
+    if(grant?.offline===true&&grant.device_id===id&&device?.device_id===id&&
+       typeof device.token==='string'&&device.token.length>20){
+      localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({verified:true,device_id:id,source:'verified-device-grant'}));
+      return true;
+    }
+    return false;
   }catch(_){return false}
 }
 function geRadioUtilityAllowed(feature){
@@ -14190,9 +14200,14 @@ Vector ${vector}. ${pair[1]}.`;
         }));
         // Save only this verified device's offline permission, not the key.
         if(grantedScopes.includes('offline')||result.capabilities?.sun_lab===true)
+          {
           localStorage.setItem(GE_OFFLINE_DEVICE_GRANT_KEY,JSON.stringify({
             device_id:geRememberedDeviceId(),offline:true,until:Number(device.expires_at)*1000
           }));
+          localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
+            verified:true,device_id:geRememberedDeviceId(),source:'vault-verified'
+          }));
+          }
         else localStorage.removeItem(GE_OFFLINE_DEVICE_GRANT_KEY);
       }
       try{window.dispatchEvent(new CustomEvent('ge-access-experience-updated'))}catch(_e){}
