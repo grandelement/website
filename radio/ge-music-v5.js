@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.27-20261109-VISIBLE-MASTER-DIAGNOSTIC';
+const BUILD='GE-MUSIC-V7.28-20261109-MASTER-RECONCILIATION';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -838,7 +838,7 @@ function details(path){
 const rank=name=>{const i=albumOrder.indexOf(name);return i<0?999:i};
 function say(s){state.notice=s;notice.textContent=s||''}
 function showCatalogSource(source,count){
- const label='MUSIC V7.27 · '+source+' · '+count+' SONGS';
+ const label='MUSIC V7.28 · '+source+' · '+count+' SONGS';
  state.notice=label;
  notice.textContent=label;
 }
@@ -924,25 +924,40 @@ async function fetchCatalog(options={}){
    try{window.dispatchEvent(new CustomEvent('ge-music-catalog-ready',{detail:{count:unique.length}}))}catch(_){}
   }else if(final)say('The published library could not be loaded. Check network and refresh.');
  };
- // One authoritative song inventory: the published master manifest.
- // Playlists and Radio selections are filters, never separate inventories.
- try{
-  const response=await fetch('./manifest.json?ge_master='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('Master manifest HTTP '+response.status);
+ // The committed master manifest is authoritative. Check the published copy
+ // too, but never replace a newer GitHub manifest with an older CDN snapshot.
+ const sources=[
+  'https://raw.githubusercontent.com/grandelement/website/main/radio/manifest.json',
+  './manifest.json'
+ ];
+ const results=await Promise.allSettled(sources.map(async url=>{
+  const response=await fetch(url+(url.includes('?')?'&':'?')+'ge_master='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error(url+' HTTP '+response.status);
   const data=await response.json();
   const rows=Array.isArray(data)?data:Array.isArray(data.files)?data.files:[];
-  for(const item of rows){const path=canonical(item);if(path)all.push(path)}
-  if(!all.length)throw Error('Master manifest has no playable songs');
-  publishCatalog(all,true);
-  showCatalogSource('MASTER MANIFEST',state.tracks.length);
+  const paths=[...new Set(rows.map(canonical).filter(Boolean))];
+  if(!paths.length)throw Error(url+' has no playable songs');
+  return {url,paths};
+ }));
+ const valid=results.filter(item=>item.status==='fulfilled').map(item=>item.value);
+ if(valid.length){
+  // Prefer the GitHub master when present; same-origin copy is an offline
+  // fallback. Report disagreement explicitly rather than silently hiding songs.
+  const chosen=valid.find(item=>item.url===sources[0])||valid[0];
+  publishCatalog(chosen.paths,true);
+  const mismatch=valid.length===2&&
+   (valid[0].paths.length!==valid[1].paths.length||
+    valid[0].paths.some(path=>!valid[1].paths.includes(path)));
+  showCatalogSource(mismatch?'MASTER / PUBLISHED MISMATCH':'MASTER MANIFEST',state.tracks.length);
+  if(mismatch)console.warn('GE MUSIC: Published manifest differs from GitHub master',valid.map(x=>({source:x.url,count:x.paths.length})));
   return {ok:true,count:state.tracks.length,source:'master-manifest'};
- }catch(error){
-  if(strict)throw error;
-  if(!state.loaded)publishCatalog([],true);
-  showCatalogSource('MASTER UNAVAILABLE / PREVIOUS LIST',state.tracks.length);
-  console.warn('Master music manifest unavailable; keeping last loaded library',error);
-  return {ok:state.loaded,count:state.tracks.length,source:'previous-library'};
  }
+ const failure=results.map(item=>item.status==='rejected'?String(item.reason):'').filter(Boolean).join('; ');
+ if(strict)throw Error(failure||'Master manifest unavailable');
+ if(!state.loaded)publishCatalog([],true);
+ showCatalogSource('MASTER UNAVAILABLE / PREVIOUS LIST',state.tracks.length);
+ console.warn('Master music manifest unavailable; preserving loaded songs',failure);
+ return {ok:state.loaded,count:state.tracks.length,source:'previous-library'};
 }
 function readMine(){
  try{const rows=JSON.parse(localStorage.getItem(myKey)||'[]');return Array.isArray(rows)?rows.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.songs)).slice(0,100):[]}
