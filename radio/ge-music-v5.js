@@ -1662,6 +1662,7 @@ function render(){
  el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
  el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
  const cat=activeCategory();
+ el('.scroll').classList.toggle('geAlbumUniverse',cat==='albums');
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
  root.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===cat)));
@@ -1795,7 +1796,7 @@ function render(){
     selected?.classList.add('geAlbumFocused');
     const feature=elem('div','geAlbumFeature'),left=elem('div',''),right=elem('div','');
     left.append(elem('h2','',focus));
-    const year=albumTracks.map(t=>String(t.path||'').match(/Grand Element - (\\d{4}) - /)?.[1]).find(Boolean);
+    const year=albumTracks.map(t=>String(t.path||'').match(/Grand Element - (\d{4}) - /)?.[1]).find(Boolean);
     if(year)left.append(elem('small','','Released '+year));
     right.append(elem('p','',albumDescriptions[focus]||'Explore this Grand Element recording.'));
     const view=elem('button','','VIEW SONGS');
