@@ -23,7 +23,7 @@ function applyAlbumStyle(element,name){
  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
  element.style.background='linear-gradient(90deg,rgba('+r+','+g+','+b+',.32),rgba('+r+','+g+','+b+',.13))';
 }
-const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,expandedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
+const state={open:false,loading:false,loaded:false,tracks:[],view:'all',term:'',showLegacyAlbums:false,expandedAlbum:'',focusedAlbum:'',selected:new Set(),publicLists:[],fanLists:[],assignedLists:[],accessView:'order',accessPlaylistFilter:'',activePlaylist:null,playlistDraftName:'',savingShared:false,arranging:false,arrangeReturnView:'checked',notice:'',playlistsLoading:false,playlistMessage:'CONNECTING TO GITHUB PLAYLISTS…',musicAccess:null,redeemBusy:false};
 try{
  const saved=JSON.parse(sessionStorage.getItem(musicSessionKey)||'null');
  if(saved&&saved.token&&Number(saved.until)>Date.now()&&Array.isArray(saved.allowed))
@@ -759,6 +759,23 @@ button:disabled{opacity:.5;cursor:not-allowed}
  }
  .window:not(.arranging) .scroll{padding-left:5px!important;padding-right:5px!important}
 }
+
+/* Album starfield focus layout */
+.scroll.geAlbumUniverse{background:#020817 url('../ge-images/images/stars%20backgrounds/1.jpeg') center/cover!important}
+.geAlbumUniverse .albumPlanetGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;padding:12px 8px 28px!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow{order:2!important;grid-column:auto!important;aspect-ratio:1!important;border-radius:50%!important;min-height:0!important;overflow:hidden!important;box-shadow:0 0 18px #5bbaff77!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .album,.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumCover{border-radius:50%!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumDescription,.geAlbumUniverse .albumPlanetGrid .albumBrowseRow .albumRowActions{display:none!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow.geAlbumFocused{order:0!important;grid-column:1/-1!important;width:min(70vw,350px)!important;justify-self:center!important;margin:12px auto!important;border:2px solid #c5edff!important;box-shadow:0 0 35px #77caffbb!important}
+.geAlbumUniverse .albumPlanetGrid .albumBrowseRow.geAlbumFocused .album b{display:none!important}
+.geAlbumUniverse .geAlbumFeature{order:1;grid-column:1/-1;display:grid;grid-template-columns:1fr 1.2fr;gap:12px;padding:6px 10px 18px;animation:geAlbumFade .65s ease both}
+.geAlbumUniverse .geAlbumFeature h2{font-size:clamp(23px,6vw,34px);margin:0;line-height:1.1}
+.geAlbumUniverse .geAlbumFeature small{color:#b7dfff}
+.geAlbumUniverse .geAlbumFeature p{font-size:clamp(13px,3.4vw,17px);line-height:1.4;margin:0 0 10px}
+.geAlbumUniverse .geAlbumFeature button{font-size:12px;min-height:36px;margin:3px}
+@keyframes geAlbumFade{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:850px){.geAlbumUniverse .albumPlanetGrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+@media(prefers-reduced-motion:reduce){.geAlbumUniverse *{animation:none!important;transition:none!important}}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
@@ -1740,9 +1757,16 @@ function render(){
     albumButton.setAttribute('aria-label','View songs on '+name+' album');
     albumButton.append(elem('b','',name),elem('small','countHint','VIEW SONGS'));
     albumButton.addEventListener('click',()=>{
-      state.expandedAlbum=state.expandedAlbum===name?'':name;
-      render();
-      // Keep the album in view; do not jump the user to the playlist or footer.\n      if(state.expandedAlbum)requestAnimationFrame(()=>{const selected=[...el('.albumPlanetGrid').children].find(row=>row.querySelector('.albumDescription strong')?.textContent===name);selected?.scrollIntoView({block:'start',behavior:'auto'});});
+      const before=wrapper.getBoundingClientRect();
+      state.focusedAlbum=name;state.expandedAlbum='';render();
+      requestAnimationFrame(()=>{
+        const focused=el('.albumPlanetGrid').querySelector('.geAlbumFocused');
+        if(!focused)return;
+        const after=focused.getBoundingClientRect();
+        if(after.width&&window.matchMedia('(prefers-reduced-motion: no-preference)').matches)
+          focused.animate([{transform:'translate('+(before.left-after.left)+'px,'+(before.top-after.top)+'px) scale('+(before.width/after.width)+')',opacity:.75},{transform:'none',opacity:1}],{duration:650,easing:'cubic-bezier(.2,.8,.2,1)'});
+        focused.scrollIntoView({block:'center',behavior:'smooth'});
+      });
     });
     wrapper.append(albumButton);
     const description=elem('div','albumDescription');
@@ -1761,7 +1785,24 @@ function render(){
       cover.onerror=()=>{cover.hidden=true};
       tile.prepend(cover);
     }
+    if(state.focusedAlbum===name)wrapper.classList.add('geAlbumFocused');
     grid.append(wrapper);
+  }
+  if(!shownNames.includes(state.focusedAlbum))state.focusedAlbum=shownNames[0]||'';
+  if(state.focusedAlbum){
+    const focus=state.focusedAlbum,albumTracks=state.tracks.filter(t=>t.album===focus);
+    const selected=[...grid.children].find(row=>row.querySelector('.albumDescription strong')?.textContent===focus);
+    selected?.classList.add('geAlbumFocused');
+    const feature=elem('div','geAlbumFeature'),left=elem('div',''),right=elem('div','');
+    left.append(elem('h2','',focus));
+    const year=albumTracks.map(t=>String(t.path||'').match(/Grand Element - (\\d{4}) - /)?.[1]).find(Boolean);
+    if(year)left.append(elem('small','','Released '+year));
+    right.append(elem('p','',albumDescriptions[focus]||'Explore this Grand Element recording.'));
+    const view=elem('button','','VIEW SONGS');
+    view.addEventListener('click',()=>{state.expandedAlbum=focus;render();requestAnimationFrame(()=>el('.expandedAlbumSongs')?.scrollIntoView({block:'start',behavior:'smooth'}))});
+    const play=elem('button','','▶ PLAY ALBUM');
+    play.addEventListener('click',()=>{if(albumTracks.length)playTrack(albumTracks[0],albumTracks.map(t=>t.path),true)});
+    right.append(view,play);feature.append(left,right);grid.append(feature);
   }
   if(state.expandedAlbum){
    const expanded=elem('div','expandedAlbumSongs');
