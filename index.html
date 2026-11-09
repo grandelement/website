@@ -19,6 +19,75 @@ Preserve together:
 -->
 <html lang="en">
 <head>
+<script id="ge-offline-boot-recovery-v1">
+/* Independent offline boot and recovery. Runs before the large GE application. */
+(function(){
+  if(!('serviceWorker' in navigator)||!window.isSecureContext)return;
+  var root=new URL('./',location.href);
+  // Register immediately, not after the large application finishes loading.
+  navigator.serviceWorker.register(new URL('sw.js',root).href,{scope:root.pathname}).catch(function(e){
+    console.warn('GE offline auto-loader registration:',e);
+  });
+  function ready(){
+    if(!document.body)return;
+    var host=document.createElement('div');
+    host.id='ge-offline-rescue';
+    host.setAttribute('role','region');
+    host.setAttribute('aria-label','Offline site recovery');
+    host.style.cssText='display:none;position:fixed;z-index:2147483646;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:480px;margin:auto;padding:15px;background:#071421;color:#eaf5ff;border:1px solid #55b9e6;border-radius:14px;box-shadow:0 10px 36px #000;font:14px system-ui,sans-serif';
+    host.innerHTML='<div style="font-weight:800;font-size:17px;margin-bottom:7px">GE STUDIOS · OFFLINE</div>'+
+      '<div id="ge-offline-rescue-status" role="status" style="line-height:1.5;margin-bottom:12px">Checking saved website…</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button id="ge-rescue-load" type="button">LOAD SAVED SITE</button>'+
+      '<button id="ge-rescue-files" type="button">OFFLINE FILES</button>'+
+      '<button id="ge-rescue-clear" type="button">DELETE OFFLINE FILES</button>'+
+      '<button id="ge-rescue-hide" type="button">HIDE</button></div>';
+    document.body.appendChild(host);
+    Array.prototype.forEach.call(host.querySelectorAll('button'),function(b){
+      b.style.cssText='padding:10px 11px;border-radius:9px;border:1px solid #76c4ee;background:#09283d;color:white;font-weight:700;min-height:42px';
+    });
+    var status=host.querySelector('#ge-offline-rescue-status');
+    function show(msg){host.style.display='block';status.textContent=msg;}
+    function appStarted(){
+      var sun=document.querySelector('.sunWrap,.sun,.planet');
+      if(!sun)return false;
+      var rect=sun.getBoundingClientRect();
+      return rect.width>0&&rect.height>0&&getComputedStyle(sun).visibility!=='hidden';
+    }
+    async function check(){
+      if(navigator.onLine){host.style.display='none';return;}
+      if(appStarted()){host.style.display='none';return;}
+      show('The saved website did not start. You can reload the saved site or manage offline files here.');
+    }
+    host.querySelector('#ge-rescue-load').onclick=function(){
+      // Force a local navigation, served by the existing service worker when offline.
+      var target=new URL('index.html',root);
+      target.searchParams.set('ge_offline_load','1');
+      location.assign(target.href);
+    };
+    host.querySelector('#ge-rescue-files').onclick=function(){
+      var panel=document.getElementById('offlinePanel');
+      if(panel){panel.classList.add('show');panel.setAttribute('aria-hidden','false');host.style.display='none';}
+      else show('Offline settings did not load. Use DELETE OFFLINE FILES here, or reconnect to repair the app.');
+    };
+    host.querySelector('#ge-rescue-clear').onclick=async function(){
+      if(!confirm('Delete downloaded GE offline files? Your music purchases, high scores and settings are not deleted.'))return;
+      try{
+        var names=await caches.keys(),targets=names.filter(function(n){return n==='GE_SHARED_OFFLINE_V2'||n.indexOf('GE_SITE_SHELL_')===0;});
+        await Promise.all(targets.map(function(n){return caches.delete(n);}));
+        try{localStorage.removeItem('GE_OFFLINE_READY');}catch(_){}
+        show('GE website and optional offline cache deleted. Reconnect to download a new offline copy. Radio music cache was preserved.');
+      }catch(e){show('Unable to delete offline cache: '+String(e.message||e));}
+    };
+    host.querySelector('#ge-rescue-hide').onclick=function(){host.style.display='none';};
+    window.addEventListener('online',check);
+    window.addEventListener('offline',function(){setTimeout(check,1200);});
+    setTimeout(check,3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});
+  else ready();
+})();
+</script>
 <meta charset="utf-8" />
 <!-- Match GE Radio: lock accidental iPhone page pinch/double-tap zoom; keep per-panel scrolling and deliberate GE text/button sizing. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
