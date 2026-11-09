@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.31-20261109-USER-PLAYLIST-DELETE';
+const BUILD='GE-MUSIC-V7.32-20261109-FOOTER-DELETE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -366,6 +366,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .quickPlaylistRow{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 100%}
 .quickPlaylistRow input{flex:1 1 0;min-width:0;border:1px solid #6dbbe9;border-radius:8px;background:#081e30;color:#fff;padding:7px 9px;min-height:36px;font-size:13px}
 .quickPlaylistRow button{min-height:36px;min-width:56px;padding:5px 8px;font-size:12px}
+.quickPlaylistRow .quickPlaylistDelete{background:#542936;border:1px solid #e7a0ab;color:#fff;min-width:64px}
+.quickPlaylistRow .quickPlaylistDelete:disabled{opacity:.42;cursor:not-allowed}
+@media(max-width:390px){.quickPlaylistRow{gap:4px}.quickPlaylistRow button{min-width:48px;padding:5px 5px;font-size:11px}.quickPlaylistRow .quickPlaylistDelete{min-width:57px}}
 .selectionBar{flex-wrap:wrap;min-width:0;gap:6px;padding:7px 9px max(8px,env(safe-area-inset-bottom))}
 .selectionBar .checkedCount{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .selectionBar .selectionActions{flex:0 0 auto;min-width:0}
@@ -769,7 +772,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  </div>
  <div class="scroll" role="region" aria-label="Scrollable Grand Element music collection" tabindex="0"></div>
  <div class="gePlaylistPicker" hidden><section class="gePlaylistDialog" role="dialog" aria-modal="true" aria-label="Load a saved playlist"><div class="gePlaylistDialogHead"><strong>LOAD PLAYLIST</strong><button type="button" class="gePlaylistPickerClose" aria-label="Close playlist list">CLOSE</button></div><div class="gePlaylistTabs"><button type="button" class="gePlaylistTabGE" aria-pressed="true">GE PLAYLISTS</button><button type="button" class="gePlaylistTabUser" aria-pressed="false">USER PLAYLISTS</button></div><div class="gePlaylistItems" role="group" aria-label="Saved playlists"></div><button class="gePlaylistConfirm" type="button" disabled>LOAD SELECTED</button><div class="gePlaylistPickerStatus" role="status" aria-live="polite"></div></section></div>
- <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
+ <div class="selectionBar" aria-label="Checked song controls"><div class="quickPlaylistRow"><input class="quickPlaylistName" type="text" maxlength="100" autocomplete="off" placeholder="Name your playlist" aria-label="Playlist name"><button class="quickPlaylistDelete" type="button" aria-label="Delete current user playlist" disabled>DELETE</button><button class="quickPlaylistLoad" type="button">LOAD</button><button class="quickPlaylistSave" type="button">SAVE</button></div><strong class="checkedCount" aria-live="polite">CHECKED SONGS · 0</strong><div class="selectionActions"><button type="button" class="offlineSelected" aria-label="Download checked songs for offline listening">OFFLINE</button><button type="button" class="arrangeBtn" aria-pressed="false" hidden>ARRANGE</button><button type="button" class="buySelected buyBtn" disabled aria-label="Buy checked songs">BUY</button><button type="button" class="playSelected" disabled aria-label="Play checked songs">▶ PLAY</button></div></div>
 
 </section>`;
 document.body.appendChild(host);
@@ -1681,6 +1684,10 @@ function render(){
  const term=state.term.toLowerCase().trim();
  const filterTrack=t=>(t.title+' '+t.album).toLowerCase().includes(term);
  notice.textContent=state.arranging?'':state.notice;
+ const quickDelete=el('.quickPlaylistDelete');
+ const activeUser=state.activePlaylist;
+ quickDelete.disabled=!activeUser||!['fan','user'].includes(activeUser.source);
+ quickDelete.title=quickDelete.disabled?'Load a USER playlist to delete it':'Delete '+activeUser.name;
  const quickName=el('.quickPlaylistName');
  if(document.activeElement!==quickName&&quickName.value!==state.playlistDraftName)quickName.value=state.playlistDraftName;
  el('.quickPlaylistSave').disabled=state.savingShared||!state.selected.size;
@@ -2049,6 +2056,26 @@ window.addEventListener('message',event=>{
 el('.arrangeSave').addEventListener('click',saveArrangement);
 el('.quickPlaylistName').addEventListener('input',event=>{state.playlistDraftName=event.target.value.slice(0,100)});
 el('.quickPlaylistLoad').addEventListener('click',()=>void openPlaylistPicker());
+el('.quickPlaylistDelete').addEventListener('click',async()=>{
+ const active=state.activePlaylist;
+ if(!active||!['fan','user'].includes(active.source)){say('LOAD A USER PLAYLIST BEFORE DELETING.');return}
+ if(active.source==='fan'){
+  const playlist=state.fanLists.find(p=>p.id===active.id);
+  if(!playlist){say('USER PLAYLIST NOT FOUND.');return}
+  await deleteFanPlaylist(playlist);
+  return;
+ }
+ const playlist=readMine().find(p=>p.id===active.id);
+ if(!playlist){say('DEVICE PLAYLIST NOT FOUND.');return}
+ if(!window.confirm('Delete device playlist "'+playlist.name+'"? This cannot be undone.'))return;
+ try{
+  localStorage.setItem(myKey,JSON.stringify(readMine().filter(p=>p.id!==playlist.id)));
+  if(readMine().some(p=>p.id===playlist.id))throw Error('Delete not verified');
+  state.activePlaylist=null;state.playlistDraftName='';
+  say('DEVICE PLAYLIST DELETED · '+playlist.name);
+ }catch(error){say('DELETE FAILED · '+String(error.message||error))}
+ render();
+});
 el('.quickPlaylistSave').addEventListener('click',()=>{
  state.playlistDraftName=el('.quickPlaylistName').value.trim().slice(0,100);
  void saveSharedArrangement();
