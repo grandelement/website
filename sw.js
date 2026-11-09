@@ -2,14 +2,29 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V5_FULL_LIBRARY_20261109';
+const SITE_SHELL='GE_SITE_SHELL_V6_RECOVERY_20261109';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
 const SHELL=['./','./index.html','./ge-offline-library.js','./config/site-live.json','./ge-vault-client.js','./ge-dream.js','./radio/website-live.js','./radio/ge-home-gate-stop.js','./radio/manifest.json','./ge-accessibility.js','./ge-accessibility.css','./manifest.webmanifest'];
 
+async function validHomepage(response){
+  if(!response||!response.ok)return false;
+  try{
+    const html=await response.clone().text();
+    return html.includes('<html') && html.includes('id="offlinePanel"') &&
+      html.includes('id="gameOfflineBtn"') && html.includes('</html>');
+  }catch(_){return false;}
+}
 async function fromAnyCache(request){
+  // Prefer the newest verified shell, not an older cache with a blank/partial HTML.
+  const current=await caches.open(SITE_SHELL);
+  const direct=await current.match(request,{ignoreSearch:true});
+  if(direct)return direct;
   return (await caches.match(request,{ignoreSearch:true}))||null;
+}
+function offlineRecovery(){
+  return new Response('<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GE Studios Offline Recovery</title><style>body{background:#071421;color:#e8f4ff;font:16px system-ui;padding:24px;line-height:1.5}button{background:#13476a;color:white;border:1px solid #75c6ee;border-radius:10px;padding:14px;margin:8px 4px 8px 0;font:inherit}p{max-width:560px}</style></head><body><h1>GRAND ELEMENT · OFFLINE</h1><p>The full saved website is unavailable on this device. Reconnect once and open the website to restore the offline files. Your Radio downloads and settings are preserved.</p><button onclick="location.reload()">TRY SAVED SITE</button><button onclick="location.href=\'/\'">HOME</button><button onclick="if(confirm(\'Delete GE website offline cache?\'))caches.keys().then(a=>Promise.all(a.filter(n=>n.startsWith(\'GE_SITE_SHELL_\')||n===\'GE_SHARED_OFFLINE_V2\').map(n=>caches.delete(n)))).then(()=>document.querySelector(\'p\').textContent=\'Offline website cache cleared. Reconnect to download again.\')">DELETE OFFLINE FILES</button></body></html>',{status:200,headers:{'Content-Type':'text/html;charset=utf-8','Cache-Control':'no-store'}});
 }
 async function installShell(){
   const cache=await caches.open(SITE_SHELL);
@@ -62,54 +77,60 @@ async function partialResponse(request,response){
 }
 function urlIsHome(value){const u=new URL(value);return u.pathname===HOME.pathname||u.pathname===HOME_INDEX.pathname;}
 async function navigation(request){
+  const url=new URL(request.url);
+  const isHome=urlIsHome(url.href);
   try{
     const response=await fetch(request);
     if(response.ok){
-      // Fresh HTML on every online visit; retain the last valid offline copy.
-      const cache=await caches.open(SITE_SHELL);
-      // Cache HTML only when it is an actual GE application, not a partial
-      // hosting response. Keep the last known good offline page otherwise.
-      if(urlIsHome(request.url)){
-        const html=await response.clone().text();
-        if(html.includes('ge-offline-boot-recovery-v1')&&html.includes('id="offlinePanel"')){
-          await cache.put(request.url,response.clone());
+      // Never promote a partial homepage into the device's offline backup.
+      if(isHome){
+        if(await validHomepage(response)){
+          const cache=await caches.open(SITE_SHELL);
           await cache.put(HOME.href,response.clone());
           await cache.put(HOME_INDEX.href,response.clone());
+        }else{
+          const cached=await verifiedHome();
+          if(cached)return cached;
+          return offlineRecovery();
         }
       }else{
+        const cache=await caches.open(SITE_SHELL);
         await cache.put(request.url,response.clone());
       }
     }else if(response.status>=500){
-      // A hosting outage must not replace a previously working homepage.
-      const saved=await fromAnyCache(request);
+      const saved=isHome?await verifiedHome():await fromAnyCache(request);
       if(saved)return saved;
     }
     return response;
   }catch(_e){
+    if(isHome){
+      const saved=await verifiedHome();
+      return saved||offlineRecovery();
+    }
     const saved=await fromAnyCache(request);
     if(saved)return saved;
-    const pathname=new URL(request.url).pathname;
-    // Bare /radio bookmarks cannot enter the child /radio/ worker scope
-    // without a network redirect. Serve the cached Radio application directly.
-    if(pathname==='/radio'||pathname==='/radio/'||pathname==='/radio/index.html'){
-      const page=await fromAnyCache(new URL('/radio/index.html',HOME).href)||
-        await fromAnyCache(new URL('/radio/',HOME).href);
-      if(page){
-        // /radio lacks a trailing slash, so relative JavaScript, styles and
-        // music URLs would point to / instead of /radio/. Redirect locally
-        // into the saved /radio/ page; no network or download is required.
-        if(pathname==='/radio')return Response.redirect(new URL('/radio/',HOME).href,302);
-        return page;
-      }
+    if(url.pathname.endsWith('/radio')){
+      return Response.redirect(new URL('radio/',HOME).href,302);
     }
-    if(pathname===HOME.pathname||pathname===HOME_INDEX.pathname){
-      const base=await fromAnyCache(HOME.href)||await fromAnyCache(HOME_INDEX.href);
-      if(base)return base;
-    }
-    return new Response('Grand Element is not available offline yet. Open the site online and choose MAKE AVAILABLE OFFLINE.',{
-      status:503,headers:{'Content-Type':'text/plain;charset=utf-8'}
-    });
+    return offlineRecovery();
   }
+}
+async function verifiedHome(){
+  const current=await caches.open(SITE_SHELL);
+  for(const key of [HOME.href,HOME_INDEX.href]){
+    const r=await current.match(key,{ignoreSearch:true});
+    if(await validHomepage(r))return r;
+  }
+  // During migration, recover a known-good older cached shell.
+  const keys=await caches.keys();
+  for(const name of keys.filter(n=>n.startsWith('GE_SITE_SHELL_')||n==='GE_SHARED_OFFLINE_V2').reverse()){
+    const cache=await caches.open(name);
+    for(const key of [HOME.href,HOME_INDEX.href]){
+      const r=await cache.match(key,{ignoreSearch:true});
+      if(await validHomepage(r))return r;
+    }
+  }
+  return null;
 }
 async function asset(request,url){
   const range=request.headers.get('range');
