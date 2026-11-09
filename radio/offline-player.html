@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08121f"><title>GE Studios · Offline Music</title>
+<style>body{margin:0;background:#08121f;color:#eef5ff;font:16px system-ui,sans-serif;padding:18px;max-width:800px;margin:auto}h1{font-size:24px}button,a{border:1px solid #507c9d;background:#16334d;color:#fff;border-radius:9px;padding:11px 13px;font:inherit;text-decoration:none;display:inline-block;margin:3px}button:disabled{opacity:.5}#songs button{display:block;width:100%;text-align:left;margin:4px 0}#songs button.active{background:#285b80}audio{width:100%;margin:16px 0}small{color:#adc5da}#status{margin:12px 0;white-space:pre-wrap}#songs{margin-top:16px;max-height:55vh;overflow:auto}#save{display:none}</style></head><body>
+<h1>GRAND ELEMENT · OFFLINE MUSIC</h1>
+<p id="status" role="status">Reading downloaded music from this device…</p>
+<a href="./">RADIO</a><button id="rescan">FIND SAVED SONGS</button><button id="prev">PREVIOUS</button><button id="next">NEXT</button>
+<audio id="player" controls playsinline preload="metadata"></audio>
+<div id="now"></div><a id="save" download>DOWNLOAD THIS SONG TO FILES</a>
+<small>Works without internet after this page and the songs are saved on this same Safari or Home Screen installation. Exported files can be transferred to another device. iOS may ask where to save.</small>
+<div id="songs"></div>
+<script>
+(async function(){
+'use strict';
+const status=document.getElementById('status'),audio=document.getElementById('player'),songsBox=document.getElementById('songs'),save=document.getElementById('save');
+const entitlement='GE_RADIO_OFFLINE_ENTITLEMENT_V2',grantKey='GE_VAULT_OFFLINE_DEVICE_GRANT_V1';
+let songs=[],index=-1,objectURL='';
+function verified(){
+ try{
+  const receipt=JSON.parse(localStorage.getItem(entitlement)||'null');
+  const grant=JSON.parse(localStorage.getItem(grantKey)||'null');
+  const device=JSON.parse(localStorage.getItem('GE_VAULT_RADIO_DEVICE_SESSION_V1')||'null');
+  const id=String(localStorage.getItem('ge_vault_anon_id')||'');
+  // An offline player may use a prior locally verified entitlement. No Vault request.
+  if(receipt?.verified===true&&receipt.device_id)return true;
+  return grant?.offline===true&&grant.device_id&&device?.device_id===grant.device_id&&typeof device.token==='string';
+ }catch(_){return false}
+}
+function name(url){try{return decodeURIComponent(new URL(url).pathname.split('/').pop()).replace(/\.(mp3|m4a|ogg|wav)$/i,'')}catch(_){return url}}
+async function scan(){
+ songs=[];index=-1;songsBox.replaceChildren();status.textContent='Checking local music files…';
+ if(!('caches' in window)){status.textContent='Offline storage unavailable in this browser.';return}
+ if(!verified()){status.textContent='This installation needs one online access-code verification before offline listening. Saved songs are not deleted.';return}
+ const found=new Map();
+ for(const cacheName of await caches.keys()){
+  const cache=await caches.open(cacheName);
+  for(const request of await cache.keys()){
+   const u=new URL(request.url);
+   if(u.origin!==location.origin)continue;
+   const path=decodeURIComponent(u.pathname);
+   if(!/\/ge-music\/music\/.*\.(mp3|m4a|ogg|wav)$/i.test(path))continue;
+   if(!found.has(path))found.set(path,request.url);
+  }
+ }
+ songs=[...found.values()].sort((a,b)=>name(a).localeCompare(name(b)));
+ status.textContent=songs.length?songs.length+' saved songs available locally. Tap a song to play.':'No saved songs found in this installation. Reconnect and download music here first.';
+ songs.forEach((url,i)=>{const b=document.createElement('button');b.textContent=name(url);b.onclick=()=>play(i);songsBox.appendChild(b)});
+}
+async function play(i){
+ if(!songs.length)return;
+ index=(i+songs.length)%songs.length;
+ const url=songs[index];let response=await caches.match(url,{ignoreSearch:true});
+ if(!response){status.textContent='Song missing from offline storage.';return}
+ if(objectURL)URL.revokeObjectURL(objectURL);
+ const blob=await response.blob();
+ objectURL=URL.createObjectURL(blob);
+ audio.src=objectURL;document.getElementById('now').textContent=name(url);
+ save.href=objectURL;save.download=decodeURIComponent(new URL(url).pathname.split('/').pop());save.style.display='inline-block';
+ [...songsBox.children].forEach((b,n)=>b.classList.toggle('active',n===index));
+ audio.play().catch(()=>{status.textContent='Tap Play in the audio player to start listening.'});
+}
+document.getElementById('rescan').onclick=scan;
+document.getElementById('prev').onclick=()=>play(index<=0?songs.length-1:index-1);
+document.getElementById('next').onclick=()=>play(index+1);
+audio.addEventListener('ended',()=>play(index+1));
+window.addEventListener('offline',()=>{if(songs.length)status.textContent='Offline · playing from this device only.'});
+await scan();
+})();
+</script></body></html>
