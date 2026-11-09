@@ -15389,5 +15389,47 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #geDesktopUtilityStrip #
  justify-content:center!important;align-items:center!important;z-index:auto!important;
 }
 </style>
+<style id="ge-isolated-utility-row-v4">
+/* Separate the second row from decades of conflicting #bottomActions rules. */
+html body.view-player #geUtilityFixedRow{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:8px!important;width:100%!important;box-sizing:border-box!important;
+ margin:8px 0 0!important;padding:0!important;align-items:stretch!important;
+}
+html body.view-player #geUtilityFixedRow > *{
+ grid-area:auto!important;grid-column:auto!important;grid-row:auto!important;
+ position:static!important;float:none!important;transform:none!important;
+ display:flex!important;box-sizing:border-box!important;
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ height:auto!important;min-height:42px!important;margin:0!important;
+ padding:8px 4px!important;justify-self:stretch!important;align-self:stretch!important;
+ justify-content:center!important;align-items:center!important;
+ font-size:clamp(12px,3vw,16px)!important;
+}
+html body.view-player #geUtilityFixedRow > #reloadBtn[hidden]{visibility:hidden!important;display:flex!important;pointer-events:none!important}
+html body.view-player #geUtilityFixedRow > #sunLabBtn{visibility:visible!important;opacity:1!important}
+html body.view-player #geUtilityFixedRow > .bc-btn{background:#cb381f!important;color:#fff!important;border-radius:12px!important;font-weight:800!important}
+html body.view-player #bottomActions{grid-template-rows:minmax(42px,auto)!important}
+</style>
+<script id="ge-isolated-utility-row-v4">
+(function(){
+ function mount(){
+  var actions=document.getElementById('bottomActions');
+  if(!actions)return;
+  var reload=document.getElementById('reloadBtn');
+  var support=actions.querySelector('.bc-btn');
+  var sun=document.getElementById('sunLabBtn');
+  if(!reload||!support||!sun)return;
+  var row=document.getElementById('geUtilityFixedRow');
+  if(!row){row=document.createElement('div');row.id='geUtilityFixedRow';actions.insertAdjacentElement('afterend',row);}
+  row.append(reload,support,sun);
+  sun.hidden=false;sun.removeAttribute('aria-hidden');sun.textContent='SUN LAB';
+  var offline=document.getElementById('offlineBtn');
+  if(offline){offline.hidden=true;offline.style.setProperty('display','none','important')}
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
+ window.addEventListener('load',mount,{once:true});
+})();
+</script>
 </body>
 </html>
