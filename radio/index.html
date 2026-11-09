@@ -11416,9 +11416,17 @@ $('reloadBtn').addEventListener('click',async()=>{
       saveMediaShaMap(library.shaMap);
     }
 
-    try{await window.GEMusicV5?.reloadLibrary?.();}catch(error){
-      console.warn('Music catalog reload failed',error);
-      throw Error('Protected Music catalog failed to reload');
+    // Radio and MUSIC must display the SAME verified repository inventory.
+    // Do not independently reload MUSIC from a potentially older manifest.
+    try{
+      if(typeof window.GEMusicV5?.acceptRadioCatalog!=='function')
+        throw Error('MUSIC shared catalog bridge unavailable');
+      const musicCount=window.GEMusicV5.acceptRadioCatalog(library.catalog);
+      if(musicCount!==library.catalog.length)
+        throw Error('Radio/MUSIC song count mismatch: '+library.catalog.length+' vs '+musicCount);
+    }catch(error){
+      console.warn('Radio/MUSIC catalog sync failed',error);
+      throw Error('Radio and MUSIC library synchronization failed: '+String(error?.message||error));
     }
 
     // Refresh the template/cockpit shell without clearing any previously downloaded music.
@@ -14660,7 +14668,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261109-v737-master-reconciliation"></script>
+<script defer src="./ge-music-v5.js?v=20261109-v738-radio-shared-catalog"></script>
 <style id="ge-radio-hide-manual-reload-20261108">
 #reloadBtn,#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
