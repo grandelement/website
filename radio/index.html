@@ -9934,6 +9934,15 @@ async function registerServiceWorker(){
     const message=String(text?.textContent||'').trim();
     if(message&&selectedOfflinePaths)reportMusicOffline(message);
   }).observe(text,{childList:true,characterData:true,subtree:true});
+  // MUSIC and Radio share this one offline cache/download controller.
+  window.addEventListener('message',event=>{
+    if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_ALL')return;
+    if(button.classList.contains('downloading')||button.disabled){
+      reportMusicOffline('An offline operation is already running.');return;
+    }
+    selectedOfflinePaths=null;
+    button.click();
+  });
   // The Music library can request a smaller checked-song download.
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_SELECTED')return;
@@ -14651,7 +14660,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261109-v734-live-master-refresh"></script>
+<script defer src="./ge-music-v5.js?v=20261109-v735-master-manifest-offline-dialog"></script>
 <style id="ge-radio-hide-manual-reload-20261108">
 #reloadBtn,#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
