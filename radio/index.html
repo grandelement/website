@@ -3984,7 +3984,7 @@ body #liveStatus,body #liveStatus.show{display:none!important}
   border:1px solid rgba(255,255,255,.72)!important;background:rgba(252,253,255,.80)!important;
   color:#101923!important;font-size:clamp(12px,3.4vw,15px);font-weight:800;text-align:center;
   backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);white-space:normal!important;overflow-wrap:anywhere;word-break:normal;overflow:visible;text-overflow:clip;line-height:1.35;touch-action:manipulation}
-#gePlaylistQuickSongs{position:absolute;z-index:100;left:0;right:0;top:calc(100% + 4px);max-height:min(50dvh,430px);
+#gePlaylistQuickSongs{position:absolute;z-index:100;left:50%;right:auto;transform:translateX(-50%);width:min(92vw,460px);box-sizing:border-box;top:calc(100% + 4px);max-height:min(50dvh,430px);
   overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:5px;
   background:rgba(247,251,255,.96);border:1px solid rgba(9,32,54,.55);border-radius:10px;
   box-shadow:0 12px 26px rgba(0,0,0,.55)}
@@ -3992,6 +3992,9 @@ body #liveStatus,body #liveStatus.show{display:none!important}
   margin:0 0 3px;background:rgba(255,255,255,.78)!important;border:1px solid #bbc8d4!important;
   border-radius:7px!important;color:#142434!important;text-align:left;font-size:14px;
   white-space:normal;overflow-wrap:anywhere;line-height:1.25}
+#gePlaylistQuickSongs .ge-playlist-reorder-row{grid-template-columns:minmax(0,1fr) auto!important}
+#gePlaylistQuickSongs .ge-playlist-reorder-row>button{min-width:0!important;overflow-wrap:break-word!important;word-break:normal!important}
+#gePlaylistQuickSongs .ge-playlist-reorder-buttons{flex:0 0 auto!important}
 #gePlaylistQuickSongs button[aria-current="true"]{background:#d7ebfa!important;
   border-color:#386996!important;font-weight:850}
 </style>
@@ -6776,9 +6779,10 @@ function allowedCatalog(){
   return state.catalog.filter(url=>approvedAutoPaths.has(canonicalSongPath(url))).sort(orderedSort);
 }
 function syncSongPosition(){
-  const queue=(state.queue||[]).filter(url=>!isStationID(url));
-  const current=canonicalSongPath(state.currentURL||'');
-  const index=queue.findIndex(url=>canonicalSongPath(url)===current);
+  const custom=gePlaylistQuickIsCustom&&gePlaylistQuickQueue.length>0;
+  const queue=custom?gePlaylistQuickQueue:(state.queue||[]).filter(url=>!isStationID(url));
+  const current=custom?gePlaylistQuickPath:canonicalSongPath(state.currentURL||'');
+  const index=queue.findIndex(url=>canonicalSongPath(url)===canonicalSongPath(current));
   const format=n=>String(Math.max(0,n)).padStart(2,'0');
   const left=$('geSongPosition'),right=$('geSongTotal');
   if(left)left.textContent=format(index>=0?index+1:0);
@@ -8057,6 +8061,7 @@ function gePlaylistQuickDismiss(){
 function gePlaylistQuickClear(){
  gePlaylistQuickIsCustom=false;gePlaylistQuickIdentity=null;gePlaylistQuickShowSaveMessage('');
  gePlaylistQuickQueue=[];gePlaylistQuickLabels=[];gePlaylistQuickPath='';gePlaylistQuickName='';
+ syncSongPosition();
  gePlaylistQuickDismiss();
  const strip=$('gePlaylistQuick');if(strip)strip.hidden=true;
 }
@@ -8184,6 +8189,7 @@ function gePlaylistQuickSet(playlist,paths,details){
  if(!details?.keepOpen)gePlaylistQuickDismiss();
  else{list.hidden=false;toggle.setAttribute('aria-expanded','true');}
  strip.hidden=!custom;
+ syncSongPosition();
 }
 // iPhone playlist scroll: keep the dropdown independent of Radio page gestures.
 // Use a deliberate single-finger scroll fallback because iOS Safari may ignore
