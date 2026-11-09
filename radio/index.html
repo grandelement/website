@@ -5176,6 +5176,60 @@ document.addEventListener('DOMContentLoaded',function(){
   }
 });
 </script>
+<style id="ge-radio-album-title-colors-v1">
+#titleBtn[data-ge-album-color]{background:var(--ge-album-bg)!important;border-color:var(--ge-album-border)!important;color:#fff!important;text-shadow:0 1px 3px #000b!important}
+#gePlaylistQuickSongs button[data-ge-album-color]{background:var(--ge-album-bg)!important;border-color:var(--ge-album-border)!important;color:#fff!important;text-shadow:0 1px 2px #000b!important}
+#gePlaylistQuickSongs button[data-ge-album-color][aria-current="true"]{outline:2px solid #fff!important;outline-offset:-3px}
+</style>
+<script id="ge-radio-album-title-colors-v1">
+document.addEventListener('DOMContentLoaded',function(){
+ const title=document.getElementById('titleBtn'),list=document.getElementById('gePlaylistQuickSongs');
+ if(!title||!list)return;
+ const albums=['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles'];
+ const fallback={Aether:[35,91,170],Fire:[179,64,30],Spirit:[105,66,163],Soul:[35,116,107],Love:[157,52,100],Intergy:[43,101,156],'Sessions II':[127,72,130],'Sessions I':[79,103,142],Live:[137,79,47],Trio:[52,114,109],'Fundamental Groove':[118,97,36],Singles:[81,103,129]};
+ const cache=new Map();
+ function albumFor(text){
+  const value=String(text||'').trim().replace(/^\\d+\\s*[.:-]\\s*/,'');
+  return albums.find(a=>value.toLowerCase().startsWith(a.toLowerCase()+' •')||value.toLowerCase().startsWith(a.toLowerCase()+' -')||value.toLowerCase()===a.toLowerCase())||'';
+ }
+ function cssColor(rgb){
+  // Darken light album art for readable white song titles.
+  const [r,g,b]=rgb;
+  const scale=Math.min(.83,110/Math.max(1,.2126*r+.7152*g+.0722*b));
+  const x=[r,g,b].map(n=>Math.round(n*scale));
+  return {bg:'rgba('+x.join(',')+',.93)',border:'rgb('+rgb.join(',')+')'};
+ }
+ function apply(el,album){
+  if(!album){el.removeAttribute('data-ge-album-color');return}
+  const color=cssColor(cache.get(album)||fallback[album]||[48,87,118]);
+  el.dataset.geAlbumColor=album;
+  el.style.setProperty('--ge-album-bg',color.bg);
+  el.style.setProperty('--ge-album-border',color.border);
+ }
+ function update(){
+  apply(title,albumFor(title.textContent));
+  for(const button of list.querySelectorAll('button'))apply(button,albumFor(button.textContent));
+ }
+ // Use each album's real artwork when available, with stable fallbacks.
+ albums.forEach(album=>{
+  const image=new Image();
+  image.onload=function(){
+   try{
+    const canvas=document.createElement('canvas');canvas.width=16;canvas.height=16;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,16,16);
+    const pixels=ctx.getImageData(0,0,16,16).data;let r=0,g=0,b=0,n=0;
+    for(let i=0;i<pixels.length;i+=4){if(pixels[i+3]<200)continue;r+=pixels[i];g+=pixels[i+1];b+=pixels[i+2];n++}
+    if(n){cache.set(album,[Math.round(r/n),Math.round(g/n),Math.round(b/n)]);update()}
+   }catch(_){}
+  };
+  image.src='../ge-images/images/Grand Element - '+encodeURIComponent(album)+'.jpg';
+ });
+ const observer=new MutationObserver(update);
+ observer.observe(title,{childList:true,characterData:true,subtree:true});
+ observer.observe(list,{childList:true,subtree:true,characterData:true});
+ update();
+});
+</script>
 </head>
 <body class="ge-radio-initializing">
 <script id="ge-radio-first-paint-mode">
