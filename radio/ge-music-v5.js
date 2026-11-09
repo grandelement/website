@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.33-20261109-PLAYLIST-ROW-ACTIONS';
+const BUILD='GE-MUSIC-V7.34-20261109-DELETE-ROUTE-FALLBACK';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -1050,7 +1050,23 @@ async function deleteFanPlaylist(playlist){
  say('DELETING USER PLAYLIST · '+playlist.name+'…');
  try{
   // Deletion must be confirmed by the authoritative Fan Vault, not merely hidden locally.
-  await fanVaultRequest('DELETE',{id:playlist.id});
+  // Try the collection API first, then the REST resource URL if collection DELETE
+  // is not routed. Never report success without a fresh verified GET.
+  try{
+   await fanVaultRequest('DELETE',{id:playlist.id});
+  }catch(error){
+   if(!/not found|HTTP 404/i.test(String(error?.message||error)))throw error;
+   const key=fanVaultKey();
+   if(!key)throw Error('Missing Fan Vault session key');
+   const response=await fetch(fanVaultEndpoint+'/'+encodeURIComponent(playlist.id),{
+    method:'DELETE',cache:'no-store',
+    headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'}
+   });
+   if(!response.ok){
+    const data=await response.json().catch(()=>({}));
+    throw Error('Fan Vault delete endpoint unavailable ('+response.status+'): '+(data.error||'Server must implement playlist deletion'));
+   }
+  }
   const verified=await fanVaultRequest();
   if((verified.items||[]).some(p=>p.id===playlist.id))throw Error('Vault still contains this playlist. Delete not verified.');
   state.fanLists=normalizeFanPlaylistRows(verified.items);
