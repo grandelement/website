@@ -5607,7 +5607,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
 
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
-    <button id="reloadBtn" type="button">Reload Library</button>
+    <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">Reload Library</button>
     <button id="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
@@ -9951,12 +9951,13 @@ async function registerServiceWorker(){
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
   // These must survive next to the songs in this browser's Cache Storage.
   const OFFLINE_LAUNCH_FILES=[
-    './index.html','./manifest.webmanifest','./ge-music-v5.js',
+    './index.html','./preview-lab.html','./manifest.webmanifest','./sw.js','./ge-music-v5.js',
     './iam-private-studio.js','./ge-gate-audio.js','./ge-gate-settings.js',
     './ge-purchase-demo.js','../ge-vault-client.js',
     '../ge-accessibility.js','../ge-accessibility.css',
     './manifest.json','./track-durations.json','../config/site-live.json',
-    './cockpit-landscape.png'
+    './cockpit-landscape.png','./loudness.json','../ge-images/img/manifest.json',
+    '../ge-images/images/ge-logo-2.jpg'
   ];
   let lastOfflineSetupReport=null;
   async function inspectOfflineLaunchAssets(){
@@ -10027,7 +10028,10 @@ async function registerServiceWorker(){
       progress('Saving offline webpage file '+(complete+1)+' of '+OFFLINE_LAUNCH_FILES.length+'…',complete);
       try{
         const exists=await caches.match(url,{ignoreSearch:true});
-        if(!exists?.ok){
+        // Refresh the actual launcher and player code while online: an older
+        // cached copy must not make the new offline bundle appear complete.
+        const refreshCore=['./index.html','./preview-lab.html','./ge-music-v5.js','./sw.js'].includes(file);
+        if(refreshCore||!exists?.ok){
           const controller=new AbortController();
           const cancel=()=>controller.abort();
           let timeout=0;
@@ -10477,6 +10481,45 @@ async function registerServiceWorker(){
     });
   }
 
+  // An enabled, fully downloaded Offline button opens the existing controls.
+  // It must never accidentally turn OFF offline mode or ask to delete music.
+  async function showOfflineReadyDialog(){
+    const dialog=$('geOfflineDecision'),title=$('geOfflineDecisionTitle');
+    const detail=$('geOfflineDecisionDetail'),repair=$('geOfflineResume');
+    const restart=$('geOfflineRestart'),close=$('geOfflineCancel');
+    if(!dialog||!title||!detail||!repair||!restart||!close)return;
+    if(dialog.parentElement!==document.body)document.body.appendChild(dialog);
+    const previousFocus=document.activeElement;
+    title.textContent='Offline Library';
+    detail.textContent=(currentAudit?.cachedSongs||0)+' songs saved in this browser. Your saved files will be kept. Tap OFFLINE STATUS to view the website and playlist checks, or VERIFY / REPAIR to check missing page files.';
+    repair.textContent='VERIFY / REPAIR WEBSITE';
+    repair.hidden=false;
+    restart.hidden=true;
+    close.textContent='CLOSE';
+    dialog.hidden=false;
+    const action=await new Promise(resolve=>{
+      let done=false;
+      const finish=choice=>{
+        if(done)return;done=true;
+        dialog.hidden=true;
+        repair.removeEventListener('click',onRepair);
+        close.removeEventListener('click',onClose);
+        document.removeEventListener('keydown',onKey,true);
+        restart.hidden=false;
+        try{previousFocus?.focus?.();}catch(_e){}
+        resolve(choice);
+      };
+      const onRepair=()=>finish('repair');
+      const onClose=()=>finish('close');
+      const onKey=e=>{if(e.key==='Escape'){e.preventDefault();finish('close')}};
+      repair.addEventListener('click',onRepair);
+      close.addEventListener('click',onClose);
+      document.addEventListener('keydown',onKey,true);
+      repair.focus();
+    });
+    if(action==='repair')await finishOfflineSetupWithDialog();
+  }
+
   // The offline Music library is complete when every *song* is cached.
   // Missing optional backgrounds, extra station IDs or duplicated shell URLs
   // must not ask someone to re-download the same music on every visit.
@@ -10876,6 +10919,12 @@ async function registerServiceWorker(){
     // Count songs saved in earlier GE cache generations as genuinely saved.
     audit=await auditAssets(assets,{copyExisting:true});
     await verifyOfflineLaunchAssets();
+    // A finished download includes a final website check. Repair missing
+    // launcher files without discarding any audio or prompting to start over.
+    if(!wasAborted && !offlineLaunchReady && navigator.onLine!==false){
+      try{await ensureOfflineLaunchAssets();}
+      catch(error){console.warn('Final offline page repair not completed:',error);}
+    }
     setEnabled(audit.cachedSongs>0);
     reflectButton(audit);
 
@@ -10987,6 +11036,11 @@ async function registerServiceWorker(){
       return;
     }
 
+    if(!selectedOfflinePaths && isEnabled() && offlineLaunchReady && currentAudit?.musicComplete){
+      await showOfflineReadyDialog();
+      return;
+    }
+
     // Always check the published manifest and GitHub tree before deciding
     // whether the offline library is complete. Never erase saved songs here.
     if(navigator.onLine!==false){
@@ -11024,13 +11078,7 @@ async function registerServiceWorker(){
         }
         requestedRestart=choice==='restart';
       }else{
-        if(!confirm('Turn OFFLINE off on this device? Saved music is kept unless you separately confirm deletion.'))return;
-        if(confirm('DELETE ALL downloaded GE songs and backgrounds from this device?\n\nOK = permanently remove files\nCancel = keep downloaded files')){
-          await remove();
-        }else{
-          setEnabled(false);button.textContent='Go Offline';
-          setStatus('Offline off. Existing downloaded songs were kept.');
-        }
+        await showOfflineReadyDialog();
         return;
       }
     }
@@ -14606,6 +14654,9 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
 });
 </script>
 <script defer src="./ge-music-v5.js?v=20261108-v732-offline-ready-sync"></script>
+<style id="ge-radio-hide-manual-reload-20261108">
+#reloadBtn,#shipStage [data-proxy="reloadBtn"]{display:none!important}
+</style>
 <style id="ge-offline-readiness-20261108">
 #geOfflineReadiness[hidden]{display:none!important}
 #geOfflineDecision #geOfflineStatusOpen{min-height:44px!important}
@@ -14668,15 +14719,15 @@ async function check(){
  try{
   if('caches' in window){
    const keys=await caches.keys();
+   const [page,music,preview]=await Promise.all([
+    caches.match(new URL('./index.html',location.href),{ignoreSearch:true}),
+    caches.match(new URL('./ge-music-v5.js',location.href),{ignoreSearch:true}),
+    caches.match(new URL('./preview-lab.html',location.href),{ignoreSearch:true})
+   ]);
+   shell=!!(page?.ok&&music?.ok&&preview?.ok);
    for(const name of keys){
-    if(!name.startsWith('ge-radio-shell-')&&!name.startsWith('ge-radio-media-'))continue;
+    if(!name.startsWith('ge-radio-media-'))continue;
     const cache=await caches.open(name);
-    if(name.startsWith('ge-radio-shell-')){
-     const page=await cache.match(new URL('./index.html',location.href),{ignoreSearch:true});
-     const music=await cache.match(new URL('./ge-music-v5.js',location.href),{ignoreSearch:true});
-     const preview=await cache.match(new URL('./preview-lab.html',location.href),{ignoreSearch:true});
-     if(page&&music&&preview)shell=true;
-    }
     if(name.startsWith('ge-radio-media-')){
      for(const request of await cache.keys()){
       const path=new URL(request.url).pathname;
