@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.08-music-offline-v99';
+const VERSION='2026.11.09-offline-standalone-v100';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -9,6 +9,7 @@ const SHELL=[
   './',
   './index.html',
   './preview-lab.html',
+  './offline-player.html',
   './ge-music-v5.js',
   './ge-purchase-demo.js',
   '../ge-vault-client.js',
