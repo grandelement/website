@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.24-20261108-ONE-CLICK-FRESH-LIBRARY';
+const BUILD='GE-MUSIC-V7.25-20261109-CATALOG-REFRESH-FIX';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -2057,7 +2057,8 @@ function preloadCatalog(){
   // Never open a purchase screen, start audio or bypass the existing Gate.
   if(!state.loaded&&!state.loading){
     state.loading=true;
-    void fetchCatalog();
+    void fetchCatalog().catch(error=>console.warn('MUSIC preload catalog',error))
+      .finally(()=>{state.loading=false;});
   }
 }
 window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibrary,
