@@ -2003,7 +2003,7 @@ el('.reloadCatalogBtn').addEventListener('click',async()=>{
  try{
   const result=await fetchCatalog({strict:true});
   void loadPublished();void loadFanPlaylists();
-  say('LIBRARY REBUILT FROM GITHUB · '+result.count+' CURRENT SONGS');
+  showCatalogSource(result.source==='master-manifest'?'MASTER MANIFEST':'PREVIOUS LIBRARY',result.count);
  }catch(error){say('GITHUB SCAN FAILED · OLD LIBRARY KEPT · '+String(error?.message||error))}
  finally{state.loading=false;button.disabled=false}
 });
