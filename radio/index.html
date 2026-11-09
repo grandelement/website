@@ -9939,13 +9939,15 @@ async function registerServiceWorker(){
     if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_SELECTED')return;
     const paths=event.data.paths;
     if(!Array.isArray(paths)||!paths.length)return;
-    selectedOfflinePaths=new Set(paths.map(canonicalSongPath).filter(Boolean));
-    if(!selectedOfflinePaths.size)return;
-    reportMusicOffline('CHECKING '+selectedOfflinePaths.size+' SELECTED SONGS FOR OFFLINE SAVING…');
-    if(button.classList.contains('downloading')){
-      setStatus('Finish or stop the current download before starting checked songs.');
+    if(button.classList.contains('downloading')||button.disabled){
+      reportMusicOffline('A download or offline check is already running. Finish it before requesting another playlist.');
+      setStatus('Finish the current offline operation before selecting another playlist.');
       return;
     }
+    const wanted=new Set(paths.map(canonicalSongPath).filter(Boolean));
+    if(!wanted.size)return;
+    selectedOfflinePaths=wanted;
+    reportMusicOffline('CHECKING '+wanted.size+' SELECTED SONGS FOR OFFLINE SAVING…');
     button.click();
   });
   const OFFLINE_PLAN_URL=absolute('./__ge-offline-plan-v1.json');
@@ -11044,10 +11046,8 @@ async function registerServiceWorker(){
       return;
     }
 
-    if(!selectedOfflinePaths && isEnabled() && offlineLaunchReady && currentAudit?.musicComplete){
-      await showOfflineReadyDialog();
-      return;
-    }
+    // A previous complete audit is not proof that newly uploaded songs are cached.
+    // Revalidate the live manifest and saved files before declaring Offline Ready.
 
     // Always check the published manifest and GitHub tree before deciding
     // whether the offline library is complete. Never erase saved songs here.
@@ -11065,7 +11065,7 @@ async function registerServiceWorker(){
         if(missing.length)throw Error(missing.length+' GitHub tracks are missing from the published manifest');
         state.catalog=latest.catalog.slice().sort(orderedSort);
         rebuildQueue(state.currentURL);
-        window.GEMusicV5?.reloadLibrary?.();
+        await window.GEMusicV5?.reloadLibrary?.();
       }catch(error){
         text.textContent='Offline update stopped: '+String(error?.message||error)+'. Existing downloads were kept.';
         setStatus('Cannot verify the complete current music library. No download started.');
@@ -11076,7 +11076,7 @@ async function registerServiceWorker(){
     // Partial music resumes; complete music with a missing webpage offers
     // Finish Setup / Start Over / Cancel, then a visible repair/diagnostic view.
     let requestedRestart=false;
-    if(!selectedOfflinePaths && isEnabled() && !(currentAudit?.missingSongs>0)){
+    if(!selectedOfflinePaths && isEnabled() && currentAudit && !(currentAudit.missingSongs>0)){
       if(!offlineLaunchReady){
         const choice=await askIncompleteOfflineChoice(currentAudit,{setupOnly:true});
         if(choice==='cancel')return;
@@ -11085,9 +11085,6 @@ async function registerServiceWorker(){
           return;
         }
         requestedRestart=choice==='restart';
-      }else{
-        await showOfflineReadyDialog();
-        return;
       }
     }
 
@@ -11119,6 +11116,10 @@ async function registerServiceWorker(){
     if(prepared.audit.musicComplete || prepared.audit.requiredReady || prepared.audit.complete){
       if(!requestedRestart){
         // Reuse the songs; repair only app files and worker if necessary.
+        if(!selectedOfflinePaths && offlineLaunchReady){
+          await showOfflineReadyDialog();
+          return;
+        }
         if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
         setEnabled(true);
         reflectButton(prepared.audit);
@@ -14661,7 +14662,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261108-v733-complete-offline-and-albums"></script>
+<script defer src="./ge-music-v5.js?v=20261109-v734-live-master-refresh"></script>
 <style id="ge-radio-hide-manual-reload-20261108">
 #reloadBtn,#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
