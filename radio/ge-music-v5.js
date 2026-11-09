@@ -2077,6 +2077,26 @@ musicOfflineDialog.addEventListener('click',event=>{
   window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);
  }
 });
+// Compact offline download telemetry, positioned above MUSIC's bottom actions.
+const geOfflineMeter=document.createElement('div');
+geOfflineMeter.className='geMusicOfflineMeter';
+geOfflineMeter.setAttribute('role','status');
+geOfflineMeter.setAttribute('aria-live','off');
+geOfflineMeter.innerHTML='<div class="geMusicOfflineTrack"><div class="geMusicOfflineFill"></div></div><div class="geMusicOfflineNumbers"><span class="geMusicOfflinePercent">0%</span><span class="geMusicOfflineRate"></span><span class="geMusicOfflineTime"></span></div>';
+const geOfflineMeterStyle=document.createElement('style');
+geOfflineMeterStyle.textContent='.geMusicOfflineMeter{display:none;flex:0 0 auto;padding:7px 10px 5px;background:#071e30;border-top:1px solid #477b9c;color:#eaf7ff;font:700 12px system-ui}.geMusicOfflineMeter.active{display:block}.geMusicOfflineTrack{height:12px;border:1px solid #60b3d4;border-radius:10px;overflow:hidden;background:#06121e}.geMusicOfflineFill{height:100%;width:0;background:linear-gradient(90deg,#13bba5,#51d8f7);transition:width .2s}.geMusicOfflineNumbers{display:flex;justify-content:space-between;gap:8px;margin-top:4px}.geMusicOfflineNumbers span{white-space:nowrap}';
+document.head.append(geOfflineMeterStyle);
+el('.selectionActions').parentElement.insertBefore(geOfflineMeter,el('.selectionActions'));
+window.addEventListener('message',event=>{
+ if(event.origin!==location.origin||event.data?.type!=='GE_MUSIC_OFFLINE_PROGRESS')return;
+ const p=event.data;
+ const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
+ geOfflineMeter.classList.add('active');
+ geOfflineMeter.querySelector('.geMusicOfflineFill').style.width=percent+'%';
+ geOfflineMeter.querySelector('.geMusicOfflinePercent').textContent=Math.round(percent)+'%';
+ geOfflineMeter.querySelector('.geMusicOfflineRate').textContent=p.speed>0?p.rate:'';
+ geOfflineMeter.querySelector('.geMusicOfflineTime').textContent=Number.isFinite(p.eta)?p.remaining:'';
+});
 el('.offlineSelected').addEventListener('click',()=>{
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent=selectedTracks().length+' songs checked. Choose what to save on this device.';
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
