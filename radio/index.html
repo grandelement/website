@@ -661,7 +661,9 @@ button.soul-reflection-dot,.soul-reflection-dot{width:18px!important;height:18px
 </style>
 <style id="ge-ui-pass-1">
 #player{display:none!important}
-#playerSeekWrap{width:min(760px,94vw);margin:2px auto 7px}
+#playerSeekWrap{width:min(760px,94vw);margin:2px auto 7px;display:flex;align-items:center;gap:10px}
+#playerSeekWrap .geSongIndex{min-width:2ch;flex:0 0 auto;text-align:center;font-weight:850;font-size:15px;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 1px 4px #000}
+#playerSeekWrap #playerSeek{flex:1 1 auto;min-width:0}
 #playerSeek{width:100%;min-height:24px;accent-color:#7adfff}
 #musicGroup{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:7px!important;width:min(760px,96vw)!important}
 #prevBtn,#playBtn,#nextBtn{grid-row:1!important;grid-column:span 2!important;min-height:48px!important}
@@ -5434,7 +5436,7 @@ html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineB
        crossorigin because its host currently returns 503 for Origin requests.
        Same-origin GE song playback can still opt in to Web Audio separately. -->
   <audio id="player" preload="none" playsinline></audio>
-  <div id="playerSeekWrap"><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"></div>
+  <div id="playerSeekWrap"><span id="geSongPosition" class="geSongIndex" aria-label="Current song number">00</span><input id="playerSeek" type="range" min="0" max="1000" value="0" step="1" aria-label="Song position"><span id="geSongTotal" class="geSongIndex" aria-label="Total songs">00</span></div>
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
@@ -6773,10 +6775,20 @@ function allowedCatalog(){
   // Use the current recording under an approved path. New tracks stay excluded.
   return state.catalog.filter(url=>approvedAutoPaths.has(canonicalSongPath(url))).sort(orderedSort);
 }
+function syncSongPosition(){
+  const queue=(state.queue||[]).filter(url=>!isStationID(url));
+  const current=canonicalSongPath(state.currentURL||'');
+  const index=queue.findIndex(url=>canonicalSongPath(url)===current);
+  const format=n=>String(Math.max(0,n)).padStart(2,'0');
+  const left=$('geSongPosition'),right=$('geSongTotal');
+  if(left)left.textContent=format(index>=0?index+1:0);
+  if(right)right.textContent=format(queue.length);
+}
 function rebuildQueue(anchor=state.currentURL){
   state.queue = allowedCatalog();
   if(anchor && !state.queue.includes(anchor) && !isStationID(anchor)) anchor='';
   window.GEMusicV5?.refresh?.();
+  syncSongPosition();
   return anchor;
 }
 function syncModeButtons(){
@@ -8715,6 +8727,7 @@ async function playURL(url,{record=false,backgroundChange=false,userAction=false
   const sunEQTrackChanged=state.currentURL!==url;
   loveAudioPlaying=false;
   state.currentURL=url;
+  syncSongPosition();
   if(sunEQTrackChanged)window.GERandomizeSunEQMap?.();
   titleBtn.textContent=displayTitle(url,!state.shuffle);
   refreshLoveButton();
