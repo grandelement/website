@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.29-20261109-UNIFIED-RELOAD';
+const BUILD='GE-MUSIC-V7.30-20261109-PLAYLIST-EDIT';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -208,6 +208,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playlistActionsBar [data-action=save]{background:#125784;border-color:#87ccf6;color:#fff;font-weight:850}
 .arrangeDock{display:none;flex:0 0 auto;background:#06243b;border-bottom:1px solid #4b91bd;padding:8px 10px;gap:7px}
 .arrangeTitle{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.arrangeTitleActions{display:flex;align-items:center;gap:7px;margin-left:auto}
+.arrangeTitleActions .arrangeEdit{background:#294967;border-color:#9ed8fa}
+.arrangeTitleActions .arrangeDone{background:#176a9d;border-color:#a6e4ff}
+@media(max-width:380px){.arrangeTitle strong{font-size:13px}.arrangeTitleActions{gap:4px}.arrangeTitleActions button{padding:7px 9px}}
 .arrangeTitle strong{font-size:clamp(14px,3.8vw,18px);font-weight:900;color:#e9faff;letter-spacing:.05em}
 .arrangeTitle button{min-height:35px;background:#176a9d;border-color:#a6e4ff}
 .arrangeCurrent{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 9px}
@@ -753,7 +757,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
  <div class="tools"><div class="musicCodeTools" hidden><label for="geMusicV5Code">ACCESS CODE</label><input id="geMusicV5Code" class="musicCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter code" aria-label="GE Music access code"><button class="musicCodeUnlock" type="button">UNLOCK</button><button class="musicCodeClear" type="button" title="Clear active code" aria-label="Clear active Music code" hidden>×</button></div><div class="musicCodeState" role="status" aria-live="polite" hidden></div><nav class="browse" aria-label="Music workspaces"><button type="button" data-tab="albums" aria-pressed="true">ALBUMS</button><button type="button" data-tab="songs" aria-pressed="false">SONGS</button><button type="button" data-tab="playlists" aria-pressed="false">PLAYLISTS</button></nav><input class="search" type="search" placeholder="Find a song, album, or playlist" aria-label="Search music or playlists">
  <div class="playlistActionsBar" aria-label="Playlist saving controls"><button data-action="clear" type="button">CLEAR</button><button data-action="save" type="button">SAVE PLAYLIST</button></div><div class="filterRow"><select class="songFilter" aria-label="Filter songs"><option value="all">ALL SONGS</option><option value="checked">CHECKED SONGS</option><option value="albums">BROWSE ALBUMS</option></select><label class="songSelectAll"><input class="selectAllSongs" type="checkbox" aria-label="Select all available songs">SELECT ALL</label><button type="button" class="reloadCatalogBtn" title="Reload music library from published files" aria-label="Reload music library">⟳</button><select class="playlistFilter" aria-label="Filter playlists" hidden><option value="user-playlists">USER PLAYLISTS</option><option value="ge-playlists">GE PLAYLISTS</option><option value="playlist-order">CHECKED SONGS · ARRANGE</option></select></div><div class="notice" role="status" aria-live="polite"></div></div>
  <div class="arrangeDock" aria-label="Arrange playlist workspace">
-   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></div>
+   <div class="arrangeTitle"><strong class="arrangeCount">ARRANGE · 0 SONGS</strong><span class="arrangeTitleActions"><button type="button" class="arrangeEdit" aria-pressed="false" aria-label="Edit playlist songs">EDIT</button><button type="button" class="arrangeDone" aria-label="Play this playlist in the Music player">PLAY</button></span></div>
    <div class="arrangeCurrent"><label for="geArrangeCurrentName">CURRENT PLAYLIST</label><input id="geArrangeCurrentName" class="arrangeCurrentName" type="text" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Name this playlist" aria-label="Current playlist name, editable before saving"><small class="arrangeSource" role="status">NEW PLAYLIST · THIS DEVICE</small></div>
     <div class="arrangeLoad"><select class="arrangePlaylistSelect" aria-label="Load an existing playlist to arrange"><option value="">LOAD A SAVED PLAYLIST…</option></select><button type="button" class="arrangeLoadBtn">LOAD</button></div>
    <div class="arrangeCommands"><button type="button" class="arrangeSave">SAVE PLAYLIST</button><button type="button" class="arrangePlay">PLAY</button><button type="button" class="arrangeBuy buyBtn">BUY SELECTED</button></div>
@@ -1521,7 +1525,7 @@ document.addEventListener('mouseup',()=>{if(dragSession?.kind==='mouse')finishDr
 // album or playlist replaces content inside the SAME scroll surface.
 function setView(view){
  if(dragSession)finishDrag(false);
- state.view=view;state.arranging=view==='playlist-order';
+ state.view=view;state.arranging=view==='playlist-order';if(view!=='playlist-order')gePlaylistEditMode=false;
  if(state.arranging)state.arrangeReturnView='checked';
  state.term='';el('.search').value='';
  render();scroller.scrollTop=0;
@@ -1544,6 +1548,10 @@ function breadcrumb(label,back){
  scroller.append(wrapper);
 }
 function chosenSongs(){
+ if(state.view==='playlist-order'&&gePlaylistEditMode){
+   const access=musicAccessActive();
+   return access?.restricted?state.tracks.filter(t=>new Set(access.allowed).has(t.path)):state.tracks;
+ }
  if(state.view==='checked'||state.view==='playlist-order'){
    const lookup=new Map(state.tracks.map(t=>[t.path,t]));
    return [...state.selected].map(path=>lookup.get(path)).filter(Boolean);
@@ -1591,6 +1599,8 @@ function albumSelectAll(parent,album,tracks,compact=false){
 }
 function render(){
  if(!state.open)return;
+ el('.arrangeEdit').textContent=gePlaylistEditMode?'DONE':'EDIT';
+ el('.arrangeEdit').setAttribute('aria-pressed',String(gePlaylistEditMode));
  const cat=activeCategory();
  const access=musicAccessActive();
  // Keep code scope but remove redundant MY ORDER / BY ALBUM / PLAYLISTS controls.
@@ -1767,6 +1777,9 @@ function render(){
   if(!named.length)scroller.append(elem('p','empty','Your songs were selected individually. Choose MY ORDER.'));
  }else{
   const chosen=chosenSongs();
+  if(state.view==='playlist-order'&&gePlaylistEditMode){
+   scroller.append(elem('p','section','EDIT PLAYLIST · CHECK SONGS TO ADD OR REMOVE · DONE TO RETURN TO ARRANGE'));
+  }
   const shown=chosen.filter(filterTrack);
   if(state.view==='test-purchases'){
     scroller.append(elem('div','section','TEST PURCHASES · NOT PAID · THIS DEVICE ONLY'));
@@ -1858,6 +1871,11 @@ function exitArrange(){
  render();scroller.scrollTop=0;
 }
 el('.arrangeDone').addEventListener('click',()=>void playCheckedSongs(true));
+let gePlaylistEditMode=false;
+el('.arrangeEdit').addEventListener('click',()=>{
+ gePlaylistEditMode=!gePlaylistEditMode;
+ render();scroller.scrollTop=0;
+});
 function loadSelectedPlaylistKey(key){
  if(!key){
   const msg=state.playlistsLoading?'Playlists are still loading.':
