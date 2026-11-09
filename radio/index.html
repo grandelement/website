@@ -6738,6 +6738,12 @@ function playerPlaylist(){return selectableSongs().filter(url=>/Grand Element - 
 // Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
 async function loadFrozenAutoSongs(){
+  if(offlinePlaybackMode()){
+    // Fully local startup. Do not request the online master list when disconnected.
+    approvedAutoPaths=new Set([...offlineAvailability.songs].map(canonicalSongPath).filter(Boolean));
+    approvedAutoReady=approvedAutoPaths.size>0;
+    return approvedAutoReady;
+  }
   try{
     const response=await fetch('../config/site-live.json?radio-master='+Date.now(),{cache:'no-store'});
     if(!response.ok)throw Error('GE Radio Master Song List unavailable');
@@ -8892,6 +8898,13 @@ function previousTrack(userAction=false){
 
 async function loadMusicManifest(forceFresh=false){
   const cacheKey='GE_MUSIC_LIST_CLEAN_V1';
+  if(offlinePlaybackMode()){
+    try{
+      const cached=JSON.parse(localStorage.getItem(cacheKey)||'[]');
+      if(Array.isArray(cached)&&cached.length)return cached;
+    }catch(_e){}
+    return [...offlineAvailability.songs];
+  }
   try{
     const manifestURL=new URL(absolute(CONFIG.MUSIC_MANIFEST));
     if(forceFresh) manifestURL.searchParams.set('_ge_reload',String(Date.now()));
