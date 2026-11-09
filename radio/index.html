@@ -10657,6 +10657,13 @@ async function registerServiceWorker(){
     const speedText=speed>0 ? ' • '+formatSpeed(speed) : '';
     const etaText=Number.isFinite(eta) ? ' • '+formatETA(eta)+' left' : '';
     text.textContent=`${Math.round(safe)}%${totalText?` • ${totalText}`:''}${speedText}${etaText}`+(line2?'\n'+line2:'');
+    // MUSIC shows only percent, transfer rate and remaining time.
+    window.postMessage({
+      type:'GE_MUSIC_OFFLINE_PROGRESS',percent:safe,speed,
+      rate:speed>0?formatSpeed(speed):'',
+      eta:Number.isFinite(eta)?eta:null,
+      remaining:Number.isFinite(eta)?formatETA(eta)+' left':''
+    },location.origin);
   }
 
   function songDownloadRank(url){
