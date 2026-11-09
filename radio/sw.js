@@ -1,7 +1,7 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.08-music-offline-v98';
+const VERSION='2026.11.08-music-offline-v99';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -35,7 +35,11 @@ const SHELL=[
   './manifest.json',
   '../config/site-live.json',
   './loudness.json',
-  '../ge-images/img/manifest.json'
+  '../ge-images/img/manifest.json',
+  // Album artwork is optional for service-worker installation, but should
+  // be ready when MUSIC is opened offline after a full download.
+  ...['Aether','Fire','Spirit','Soul','Love','Intergy','Sessions II','Sessions I','Live','Trio','Fundamental Groove','Singles']
+    .map(name=>'../ge-images/images/Grand Element - '+encodeURIComponent(name)+'.jpg')
 ];
 
 async function fetchFresh(requestOrURL){
