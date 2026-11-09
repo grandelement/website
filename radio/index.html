@@ -8138,7 +8138,9 @@ function gePlaylistQuickMove(from,step){
  const path=queue.splice(from,1)[0],label=gePlaylistQuickLabels.splice(from,1)[0];
  queue.splice(to,0,path);gePlaylistQuickLabels.splice(to,0,label);
  gePlaylistQuickPersist();
+ const previousScroll=$('gePlaylistQuickSongs')?.scrollTop||0;
  gePlaylistQuickSet(gePlaylistQuickName,queue,{custom:true,labels:gePlaylistQuickLabels,currentPath:gePlaylistQuickPath,keepOpen:true});
+ if($('gePlaylistQuickSongs'))$('gePlaylistQuickSongs').scrollTop=previousScroll;
  const list=$('gePlaylistQuickSongs');
  if(list){
   list.hidden=false;
@@ -8184,7 +8186,14 @@ function gePlaylistQuickSet(playlist,paths,details){
    move.dataset.moveIndex=String(i);move.dataset.moveStep=String(step);
    move.setAttribute('aria-label','Move '+gePlaylistQuickLabels[i]+' '+label);
    move.disabled=(i+step<0||i+step>=gePlaylistQuickQueue.length);
-   move.addEventListener('click',()=>gePlaylistQuickMove(i,step));
+   // Reordering is an in-panel action: never let it trigger an outside-click
+   // dismissal, and preserve the dropdown's scroll position across rebuilds.
+   move.addEventListener('pointerdown',event=>event.stopPropagation());
+   move.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    gePlaylistQuickMove(i,step);
+   });
    moves.append(move);
   }
   row.append(moves);list.append(row);
