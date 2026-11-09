@@ -2,7 +2,7 @@
    Owns the homepage/website scope; radio/sw.js continues to own /radio/.
    The manually downloaded library lives in GE_SHARED_OFFLINE_V2. */
 'use strict';
-const SITE_SHELL='GE_SITE_SHELL_V3_CONTINUITY_20261105';
+const SITE_SHELL='GE_SITE_SHELL_V4_OFFLINE_BOOT_20261109';
 const SHARED_LIBRARY='GE_SHARED_OFFLINE_V2';
 const HOME=new URL('./',self.registration.scope);
 const HOME_INDEX=new URL('index.html',HOME);
@@ -15,6 +15,14 @@ async function installShell(){
   const cache=await caches.open(SITE_SHELL);
   const response=await fetch(HOME.href,{cache:'reload'});
   if(!response.ok)throw new Error('Unable to cache Grand Element homepage');
+  // The page may respond 200 with an incomplete deploy; never install that
+  // as the offline application. Validate its core UI and recovery bootstrap.
+  const html=await response.clone().text();
+  if(!html.includes('id="offlinePanel"')||
+     !html.includes('ge-offline-boot-recovery-v1')||
+     !html.includes('id="gameOfflineBtn"')){
+    throw new Error('Grand Element homepage is incomplete; retaining previous offline worker');
+  }
   await cache.put(HOME.href,response.clone());
   await cache.put(HOME_INDEX.href,response.clone());
   await Promise.allSettled(SHELL.slice(2).map(async path=>{
@@ -52,13 +60,25 @@ async function partialResponse(request,response){
   headers.set('Accept-Ranges','bytes');
   return new Response(body,{status:206,headers});
 }
+function urlIsHome(value){const u=new URL(value);return u.pathname===HOME.pathname||u.pathname===HOME_INDEX.pathname;}
 async function navigation(request){
   try{
     const response=await fetch(request);
     if(response.ok){
       // Fresh HTML on every online visit; retain the last valid offline copy.
       const cache=await caches.open(SITE_SHELL);
-      await cache.put(request.url,response.clone());
+      // Cache HTML only when it is an actual GE application, not a partial
+      // hosting response. Keep the last known good offline page otherwise.
+      if(urlIsHome(request.url)){
+        const html=await response.clone().text();
+        if(html.includes('ge-offline-boot-recovery-v1')&&html.includes('id="offlinePanel"')){
+          await cache.put(request.url,response.clone());
+          await cache.put(HOME.href,response.clone());
+          await cache.put(HOME_INDEX.href,response.clone());
+        }
+      }else{
+        await cache.put(request.url,response.clone());
+      }
     }else if(response.status>=500){
       // A hosting outage must not replace a previously working homepage.
       const saved=await fromAnyCache(request);
