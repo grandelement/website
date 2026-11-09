@@ -5696,13 +5696,13 @@ document.addEventListener('DOMContentLoaded',function(){
   <div id="supportText">Support the project below.</div>
   <div id="bottomActions">
     <button id="reloadBtn" type="button" hidden aria-hidden="true" tabindex="-1">Reload Library</button>
-    <button id="offlineBtn" type="button" aria-label="Offline locked. Enter an access code">Go Offline</button>
+    <button id="offlineBtn" type="button" hidden aria-hidden="true" tabindex="-1">Go Offline</button>
     <button id="shareBtn" type="button">Share</button>
     <button id="contactLaunchBtn" type="button" aria-label="Contact Grand Element">CONTACT</button>
     <a class="bc-btn" href="../support/" target="_blank" rel="noopener noreferrer" aria-label="Support Grand Element at the GE Store"><span>SUPPORT</span></a>
     <button id="accessLaunchBtn" type="button" aria-label="Enter your Inner Frequency access code">CODE</button>
     <button id="arrangeBtn" type="button" hidden>Arrange Buttons</button>
-    <button id="sunLabBtn" type="button" hidden>Sun Lab</button>
+    <button id="sunLabBtn" type="button">SUN LAB</button>
     <button id="installBtn">Install App</button>
   </div>
   </div><!-- geDesktopUtilityStrip; display:contents on mobile -->
@@ -15298,6 +15298,32 @@ else mount();
 })();
 </script>
 <script defer src="../ge-accessibility.js?v=20261029-locked-viewport-v3"></script>
-<a id="geOfflineStandaloneLink" href="./offline-player.html" style="position:fixed;bottom:env(safe-area-inset-bottom, 0px);left:8px;z-index:100000;background:#08273d;color:#fff;border:1px solid #5a8dad;border-radius:7px;padding:6px 9px;font:12px system-ui;text-decoration:none">OFFLINE MUSIC</a>
+<style id="ge-final-sunlab-slot-v2">
+/* Radio bottom-right is exclusively SUN LAB, regardless of entitlement state. */
+html body.view-player #bottomActions #offlineBtn,
+html body.view-player #shipStage [data-proxy="offlineBtn"],
+html body #geOfflineStandaloneLink{display:none!important;visibility:hidden!important}
+html body.view-player #bottomActions #sunLabBtn{
+ display:flex!important;visibility:visible!important;opacity:1!important;
+ grid-column:3!important;grid-row:2!important;grid-area:2 / 3 / 3 / 4!important;
+ align-items:center!important;justify-content:center!important;
+ width:100%!important;min-height:48px!important;
+ font-size:clamp(12px,3.2vw,17px)!important;
+ background:rgba(9,34,68,.83)!important;
+ border:1px solid #67b8e5!important;color:#fff!important;
+}
+</style>
+<script id="ge-final-sunlab-slot-v2">
+(function(){
+ function fix(){
+  var sun=document.getElementById('sunLabBtn');
+  var offline=document.getElementById('offlineBtn');
+  if(offline){offline.hidden=true;offline.style.setProperty('display','none','important');}
+  if(sun){sun.hidden=false;sun.removeAttribute('aria-hidden');sun.removeAttribute('tabindex');sun.textContent='SUN LAB';}
+  var extra=document.getElementById('geOfflineStandaloneLink');if(extra)extra.remove();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fix,{once:true});else fix();
+})();
+</script>
 </body>
 </html>
