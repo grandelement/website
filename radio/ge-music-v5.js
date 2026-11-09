@@ -700,6 +700,52 @@ button:disabled{opacity:.5;cursor:not-allowed}
  }
 }
 .selectionActions .offlineSelected{background:linear-gradient(135deg,#123e3c,#145e57)!important;border-color:#68c9b6!important;color:#e0fff6!important;font-weight:850!important}
+
+/* Album browser: centered edge-to-edge within the MUSIC content window.
+   Preserve the album checkbox, title, details, and PLAY ALBUM controls. */
+.window .albumPlanetGrid{
+ box-sizing:border-box!important;
+ display:flex!important;
+ flex-direction:column!important;
+ align-items:stretch!important;
+ justify-content:flex-start!important;
+ width:100%!important;
+ max-width:none!important;
+ min-width:0!important;
+ margin-left:auto!important;
+ margin-right:auto!important;
+ padding-left:0!important;
+ padding-right:0!important;
+}
+.window .albumPlanetGrid > .albumBrowseRow{
+ box-sizing:border-box!important;
+ width:100%!important;
+ max-width:100%!important;
+ min-width:0!important;
+ margin:0 auto!important;
+ justify-self:stretch!important;
+}
+@media(max-width:699px){
+ .window .albumPlanetGrid > .albumBrowseRow{grid-template-columns:minmax(0,1fr)!important}
+ .window .albumPlanetGrid > .albumBrowseRow > button.album{
+  box-sizing:border-box!important;
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  aspect-ratio:1 / 1!important;
+  margin:0 auto!important;
+  overflow:hidden!important;
+ }
+ .window .albumPlanetGrid > .albumBrowseRow > button.album > img.albumCover{
+  position:absolute!important;inset:0!important;
+  display:block!important;width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;
+  object-fit:contain!important;object-position:center!important;
+ }
+ .window:not(.arranging) .scroll{padding-left:5px!important;padding-right:5px!important}
+}
 </style>
 <div class="backdrop"></div>
 <section class="window" role="dialog" aria-modal="true" aria-label="Grand Element music library">
