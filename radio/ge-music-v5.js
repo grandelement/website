@@ -3,7 +3,7 @@
    Published songs and GE DJ playlists remain source-of-truth. */
 (()=>{
 'use strict';
-const BUILD='GE-MUSIC-V7.30-20261109-PLAYLIST-EDIT';
+const BUILD='GE-MUSIC-V7.31-20261109-USER-PLAYLIST-DELETE';
 const button=document.getElementById('geMusicV5Button');
 if(!button)return;
 const store='GE_MUSIC_V3_SELECTION_20261024',myKey='GE_MUSIC_PERSONAL_PLAYLISTS_V1',fanPlaylistKey='GE_MUSIC_FAN_VAULT_KEY_V1',workingKey='GE_MUSIC_WORKING_PLAYLIST_V1',
@@ -207,6 +207,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playlistActionsBar [data-action=clear]{background:#092a43;border-color:#559dcb}
 .playlistActionsBar [data-action=save]{background:#125784;border-color:#87ccf6;color:#fff;font-weight:850}
 .arrangeDock{display:none;flex:0 0 auto;background:#06243b;border-bottom:1px solid #4b91bd;padding:8px 10px;gap:7px}
+.userPlaylistRow{display:flex;align-items:stretch;gap:8px;margin-bottom:8px}
+.userPlaylistRow>.album{flex:1;min-width:0}
+.userPlaylistDelete{flex:0 0 auto;align-self:stretch;background:#542936;border:1px solid #e7a0ab;color:#fff;padding:8px 12px;border-radius:8px;font-weight:800}
 .arrangeTitle{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .arrangeTitleActions{display:flex;align-items:center;gap:7px;margin-left:auto}
 .arrangeTitleActions .arrangeEdit{background:#294967;border-color:#9ed8fa}
@@ -1035,6 +1038,24 @@ async function loadFanPlaylists(){
    :'FAN VAULT OFFLINE · NO PLAYLIST COPY STORED ON THIS DEVICE YET. CONNECT ONCE TO SYNC.');
  }
 }
+async function deleteFanPlaylist(playlist){
+ if(!playlist?.id||!state.fanLists.some(p=>p.id===playlist.id))return;
+ if(!window.confirm('Delete USER playlist "'+playlist.name+'"? This cannot be undone.'))return;
+ say('DELETING USER PLAYLIST · '+playlist.name+'…');
+ try{
+  // Deletion must be confirmed by the authoritative Fan Vault, not merely hidden locally.
+  await fanVaultRequest('DELETE',{id:playlist.id});
+  const verified=await fanVaultRequest();
+  if((verified.items||[]).some(p=>p.id===playlist.id))throw Error('Vault still contains this playlist. Delete not verified.');
+  state.fanLists=normalizeFanPlaylistRows(verified.items);
+  cacheFanPlaylistRows(state.fanLists);
+  if(state.activePlaylist?.source==='fan'&&state.activePlaylist.id===playlist.id){
+   state.activePlaylist=null;state.playlistDraftName='';
+  }
+  say('USER PLAYLIST DELETED · '+playlist.name);
+ }catch(error){say('DELETE FAILED · '+String(error.message||error))}
+ render();
+}
 async function saveFanArrangement(name,tracks){
  const active=state.activePlaylist;
  const previous=state.fanLists.find(p=>p.name.toLowerCase()===name.toLowerCase());
@@ -1751,12 +1772,17 @@ function render(){
   scroller.append(elem('div','section','USER PLAYLISTS · FAN VAULT & THIS DEVICE'));
   const personal=state.fanLists.filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of personal){
-    card(scroller,p.name,'USER PLAYLIST · FAN VAULT',()=>{
+    const row=elem('div','userPlaylistRow');
+    card(row,p.name,'USER PLAYLIST · FAN VAULT',()=>{
       state.selected=new Set(p.songs);saveSelected();
       state.activePlaylist={source:'fan',origin:'vault',id:p.id,name:p.name};
       state.playlistDraftName=p.name;
       setView('playlist-order');
     });
+    const del=elem('button','userPlaylistDelete','DELETE');
+    del.type='button';del.setAttribute('aria-label','Delete user playlist '+p.name);
+    del.addEventListener('click',()=>void deleteFanPlaylist(p));
+    row.append(del);scroller.append(row);
   }
   const local=readMine().filter(p=>!term||p.name.toLowerCase().includes(term));
   for(const p of local){
