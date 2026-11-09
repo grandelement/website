@@ -9898,7 +9898,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261108-music-offline-v97',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261108-music-offline-v98',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -10063,7 +10063,15 @@ async function registerServiceWorker(){
       progress('Checked '+complete+' of '+OFFLINE_LAUNCH_FILES.length+' offline webpage files.',complete);
     }
     const checked=await inspectOfflineLaunchAssets();
+    // Save this browser's Fan Vault playlist names and song order as part
+    // of a complete offline preparation. Failure leaves the prior copy safe.
+    if(!signal?.aborted && typeof window.GEMusicV5?.syncUserPlaylists==='function'){
+      try{
+        await bounded(window.GEMusicV5.syncUserPlaylists(),7000,'User playlist sync');
+      }catch(error){console.warn('Offline user playlist sync unavailable:',error);}
+    }
     lastOfflineSetupReport={...checked,failures,aborted:!!signal?.aborted};
+    try{window.dispatchEvent(new Event('GE_FAN_PLAYLIST_CACHE_UPDATED'))}catch(_e){}
     return checked.ready;
   }
 
@@ -14653,7 +14661,7 @@ document.getElementById('sunLabAllMusicTest')?.addEventListener('click',()=>{
   geOpenMusicSelection();
 });
 </script>
-<script defer src="./ge-music-v5.js?v=20261108-v732-offline-ready-sync"></script>
+<script defer src="./ge-music-v5.js?v=20261108-v733-complete-offline-and-albums"></script>
 <style id="ge-radio-hide-manual-reload-20261108">
 #reloadBtn,#shipStage [data-proxy="reloadBtn"]{display:none!important}
 </style>
