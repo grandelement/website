@@ -2180,7 +2180,8 @@ musicOfflineDialog.addEventListener('click',event=>{
      const cache=await caches.open(cacheName);
      for(const request of await cache.keys()){
       const url=new URL(request.url);
-      if(url.origin!==location.origin||!/^\\/ge-music\\/music\\/.*\\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(decodeURIComponent(url.pathname)))continue;
+      const audioPath=decodeURIComponent(url.pathname).toLowerCase();
+      if(url.origin!==location.origin||!audioPath.startsWith('/ge-music/music/')||!['.mp3','.m4a','.aac','.wav','.ogg','.flac'].some(ext=>audioPath.endsWith(ext)))continue;
       try{if(await cache.delete(request))removed++;else failed++;}catch(_){failed++;}
      }
     }
