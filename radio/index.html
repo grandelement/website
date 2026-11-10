@@ -7944,7 +7944,17 @@ function syncRadioOfflineAccessUI(){
   // Restore Reload Library for access codes with reload permission.
   setUtility($('reloadBtn'),geRadioUtilityAllowed('reload')); // Verified Reload scope.
   setUtility($('legacyBtn'),permissions.legacy);
-  setUtility($('sunLabBtn'),permissions.sunLab);
+  // Keep SUN LAB in the third footer slot for everyone; entry remains gated.
+  const sunLabUtility=$('sunLabBtn');
+  if(sunLabUtility){
+    sunLabUtility.hidden=false;
+    sunLabUtility.removeAttribute('hidden');
+    sunLabUtility.setAttribute('aria-hidden','false');
+    sunLabUtility.tabIndex=0;
+    sunLabUtility.classList.toggle('ge-sunlab-locked',!permissions.sunLab);
+    sunLabUtility.setAttribute('aria-label',permissions.sunLab?'Open Sun Lab':'Sun Lab requires an access code');
+    sunLabUtility.title=permissions.sunLab?'Open Sun Lab':'Enter CODE to unlock Sun Lab';
+  }
   setUtility($('geDebugOpen'),geRadioUtilityAllowed('debug'));
   if(!geRadioUtilityAllowed('debug')){const panel=$('geDebugPanel');if(panel)panel.hidden=true;}
   setUtility($('iamLaunchRow'),permissions.iam);
@@ -11917,7 +11927,7 @@ window.addEventListener('storage',event=>{
     document.querySelectorAll('.sunlab-modebtn').forEach(btn=>{if(btn.dataset.bound)return;btn.dataset.bound='1';btn.addEventListener('click',()=>chooseSunMode(btn.dataset.sunMode));});
     if(sunLabBtn&&!sunLabBtn.dataset.bound){
       sunLabBtn.dataset.bound='1';
-      sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed())return;const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
+      sunLabBtn.addEventListener('click',()=>{if(!geRadioSunLabAllowed()){if(typeof window.GEGate?.openCodeEntry==='function')window.GEGate.openCodeEntry();else $('accessLaunchBtn')?.click();return;}const opening=!!sunLabPanel?.hidden;if(opening){saveCurrentSunMode();if(!sunLabEditMode){sunLabEditMode='waterfall';sunLab={...SUN_MODE_DEFAULTS.waterfall,...(sunModeProfiles.waterfall||{})};applySunLabUI();setSunModeVisibility('waterfall');ensureSunEQ(sunLab.waveType);}}setPanelVisible(opening);});
       $('sunLabSave')?.addEventListener('click',()=>{
         saveCurrentSunMode();saveSunModeProfiles();saveSunLab();
         const button=$('sunLabSave');if(button){button.textContent='SAVED ✓';setTimeout(()=>{button.textContent='SAVE';},1800);}
