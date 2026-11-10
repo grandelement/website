@@ -1,3 +1,4 @@
+<!-- GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2 -->
 <!--
 GE RADIO REBUILD 07 — PROTECTED THROTTLE + RECOVERED SUN LAB
 Maintenance rule:
@@ -5004,19 +5005,6 @@ html.ge-radio-ui #shipStage button[data-proxy="liveBtn"]:not([aria-pressed="true
  }
 }
 </style>
-<style id="ge-offline-music-only-placement">
-/* Download selection lives inside MUSIC. Retain a visible STOP control only
-   while an existing full-library download is actively running. */
-html.ge-radio-ui body.view-player:not(.iam-studio-open) #bottomActions #offlineBtn:not(.downloading){display:none!important}
-</style>
-<style id="ge-radio-sunlab-replaces-offline-20261109">
-/* The player utility grid shows SUN LAB instead of the old Go Offline control.
-   Offline downloads remain accessible from the dedicated offline music flow. */
-html body #bottomActions #offlineBtn{display:none!important}
-html body #shipOwnerActions [data-proxy="offlineBtn"]{display:none!important}
-@media(max-width:819px){
-}
-</style>
 <style id="ge-radio-album-title-colors-v1">
 #titleBtn[data-ge-album-color]{background:var(--ge-album-bg)!important;border-color:var(--ge-album-border)!important;color:#fff!important;text-shadow:0 1px 3px #000b!important}
 #gePlaylistQuickSongs button[data-ge-album-color]{background:var(--ge-album-bg)!important;border-color:var(--ge-album-border)!important;color:#fff!important;text-shadow:0 1px 2px #000b!important}
@@ -7941,11 +7929,13 @@ function syncRadioOfflineAccessUI(){
     element.setAttribute('aria-hidden',allowed?'false':'true');
     element.tabIndex=allowed?0:-1;
   };
-  // Always display OFFLINE. Vault permission still guards actual downloads.
+  // The former Go Offline action is retained internally for download logic,
+  // but it must never appear in the Radio utility controls.
   const offlineButton=$('offlineBtn');
   if(offlineButton){
-    offlineButton.hidden=false;
-    offlineButton.tabIndex=0;
+    offlineButton.hidden=true;
+    offlineButton.setAttribute('aria-hidden','true');
+    offlineButton.tabIndex=-1;
     offlineButton.classList.toggle('ge-offline-locked',!permissions.offline);
     offlineButton.setAttribute('aria-disabled',String(!permissions.offline));
     offlineButton.setAttribute('aria-label',permissions.offline?
@@ -7966,8 +7956,9 @@ function syncRadioOfflineAccessUI(){
     $('iamExitBtn')?.click();
   const shipOffline=document.querySelector('#shipStage [data-proxy="offlineBtn"]');
   if(shipOffline){
-    shipOffline.hidden=false;
-    shipOffline.tabIndex=0;
+    shipOffline.hidden=true;
+    shipOffline.setAttribute('aria-hidden','true');
+    shipOffline.tabIndex=-1;
     shipOffline.classList.toggle('ge-offline-locked',!permissions.offline);
     shipOffline.setAttribute('aria-disabled',String(!permissions.offline));
     shipOffline.setAttribute('aria-label',permissions.offline?
