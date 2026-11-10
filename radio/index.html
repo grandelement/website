@@ -10638,9 +10638,21 @@ async function registerServiceWorker(){
         rebuildQueue(state.currentURL);
       }
     }catch(error){
-      throw new Error('Cannot refresh the GitHub song list: '+String(error?.message||error));
+      // A public GitHub API 401/rate-limit must not prevent the existing published
+      // song manifest from being downloaded. Never clear the last saved catalog.
+      console.warn('GitHub inventory unavailable; using published music manifest',error);
     }
-    if(!library?.catalog?.length)throw new Error('GitHub returned no playable music');
+    if(!library?.catalog?.length){
+      const manifestSongs=await loadMusicManifest(true);
+      const playable=[...new Set(manifestSongs.filter(url=>canonicalSongPath(url)&&!isStationID(url)))].sort(orderedSort);
+      if(!playable.length){
+        const known=state.catalog.filter(url=>canonicalSongPath(url)&&!isStationID(url));
+        if(!known.length)throw new Error('Neither the GitHub inventory nor published music manifest is available.');
+        library={catalog:[...new Set(known)].sort(orderedSort),backgrounds:[],shaMap:loadMediaShaMap()};
+      }else library={catalog:playable,backgrounds:[],shaMap:loadMediaShaMap()};
+      state.catalog=library.catalog.slice();
+      rebuildQueue(state.currentURL);
+    }
     return {sizeMap,library};
   }
 
@@ -10688,7 +10700,10 @@ async function registerServiceWorker(){
     for(const name of names){
       try{
         const cache=await caches.open(name);
-        const hit=await cache.match(url,{ignoreSearch:false});
+        const hit=await cache.match(url,{ignoreSearch:false}) ||
+          // Older GE downloads used versioned URLs. An unversioned manifest
+          // entry can reuse those same full audio bytes without redownloading.
+          (!new URL(url).searchParams.has('v')?await cache.match(url,{ignoreSearch:true}):null);
         if(hit) return {name,response:hit};
       }catch(_e){}
     }
@@ -11099,15 +11114,23 @@ async function registerServiceWorker(){
       try{
         const fresh=await loadMusicManifest(true);
         if(!fresh.length)throw Error('Published music manifest is empty');
-        const tree=await fetchRepositoryTree();
-        const latest=libraryFromRepositoryTree(tree);
-        if(!latest.catalog.length)throw Error('GitHub music library is empty');
+        // The published manifest is a valid download source on its own.
+        // GitHub API may return 401 or rate-limit on phones.
+        let latest=[];
+        try{
+          const tree=await fetchRepositoryTree();
+          latest=libraryFromRepositoryTree(tree).catalog;
+        }catch(error){console.warn('Using published manifest for offline download',error);}
         const manifestPaths=new Set(fresh.map(canonicalSongPath));
-        const missing=latest.catalog.filter(url=>!manifestPaths.has(canonicalSongPath(url)));
-        if(missing.length)throw Error(missing.length+' GitHub tracks are missing from the published manifest');
-        state.catalog=latest.catalog.slice().sort(orderedSort);
+        // If GitHub lists newer tracks, include them rather than blocking all
+        // downloads on a temporarily stale published manifest.
+        const combined=[...new Map([...fresh,...latest]
+          .filter(url=>canonicalSongPath(url))
+          .map(url=>[canonicalSongPath(url),url])).values()];
+        if(!combined.length)throw Error('No downloadable music is published');
+        state.catalog=combined.sort(orderedSort);
         rebuildQueue(state.currentURL);
-        await window.GEMusicV5?.reloadLibrary?.();
+        try{await window.GEMusicV5?.reloadLibrary?.();}catch(_e){}
       }catch(error){
         text.textContent='Offline update stopped: '+String(error?.message||error)+'. Existing downloads were kept.';
         setStatus('Cannot verify the complete current music library. No download started.');
