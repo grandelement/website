@@ -139,8 +139,8 @@ async function githubCredential(env){
 async function github(env,path,init={}){
   const owner=env.GITHUB_OWNER||'grandelement';
   const repo=env.GITHUB_REPO||'website';
-  const credential=await githubCredential(env);
-  return fetch('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/contents/'+path,{
+  const url='https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/contents/'+path;
+  const send=credential=>fetch(url,{
     ...init,
     headers:{
       'Accept':'application/vnd.github+json',
@@ -150,6 +150,14 @@ async function github(env,path,init={}){
       ...(init.headers||{})
     }
   });
+  // An installation token can be revoked before its nominal expiry.
+  // On a GitHub 401, refresh it ONCE; never retry a rejected legacy PAT.
+  let response=await send(await githubCredential(env));
+  if(response.status===401&&env.GITHUB_APP_ID&&env.GITHUB_APP_INSTALLATION_ID&&env.GITHUB_APP_PRIVATE_KEY){
+    appTokenCache=null;
+    response=await send(await githubCredential(env));
+  }
+  return response;
 }
 async function publishLive(env,cfg){
   const branch=env.GITHUB_BRANCH||'main';
