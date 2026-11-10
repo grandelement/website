@@ -9949,6 +9949,25 @@ async function registerServiceWorker(){
   let activePlan=null;
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
+  // Store the offline playback receipt only after an authorized online
+  // public setting or a verified, unexpired Vault access scope is confirmed.
+  // This receipt unlocks already-saved audio locally, never Vault or purchases.
+  function persistOfflinePlaybackReceipt(){
+    if(navigator.onLine===false)return;
+    try{
+      const session=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+      const verified=!!session&&session.verifiedFor==='radio'&&
+        Number(session.until)>Date.now()&&Array.isArray(session.scopes)&&
+        session.scopes.includes('offline')&&
+        (session.scopes.includes('radio')||session.scopes.includes('website'));
+      if(!verified&&!publicPlayerProfile.scopes.includes('offline'))return;
+      const id=String(window.GEVault?.anonId||localStorage.getItem('ge_vault_anon_id')||'');
+      if(!id)return;
+      localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
+        verified:true,device_id:id,source:verified?'verified-radio-scope':'public-offline-scope',saved_at:Date.now()
+      }));
+    }catch(_e){}
+  }
   // Relay real offline-controller progress to the open MUSIC window.
   // Posting a download request alone is not evidence that files were saved.
   const reportMusicOffline=message=>{
@@ -10876,6 +10895,7 @@ async function registerServiceWorker(){
       return {added:0,failed:0,total:0,complete:false,musicComplete:false};
     }
     if(!audit.missingSongs){
+      persistOfflinePlaybackReceipt();
       // A complete song cache is not a complete offline website.
       if(navigator.onLine!==false)await ensureOfflineLaunchAssets();
       else await verifyOfflineLaunchAssets();
@@ -10994,6 +11014,7 @@ async function registerServiceWorker(){
       catch(error){console.warn('Final offline page repair not completed:',error);}
     }
     setEnabled(audit.cachedSongs>0);
+    if(audit.cachedSongs>0)persistOfflinePlaybackReceipt();
     reflectButton(audit);
 
     if(activePlan){
@@ -11177,6 +11198,7 @@ async function registerServiceWorker(){
         }
         if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
         setEnabled(true);
+        if(prepared.audit.cachedSongs>0)persistOfflinePlaybackReceipt();
         reflectButton(prepared.audit);
         setStatus(offlineLaunchReady
           ?'OFFLINE READY · player and saved songs verified in this browser.'
