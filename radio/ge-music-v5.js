@@ -2357,9 +2357,12 @@ window.GEMusicV5={open,close,preload:preloadCatalog,showTestLibrary:openTestLibr
   }
   const publicDefault=Array.isArray(window.GEPublicPlayerPlaylistPaths)?
     new Set(window.GEPublicPlayerPlaylistPaths):new Set();
+  const approvedMaster=Array.isArray(window.GEPublicPlayerApprovedPaths)?
+    new Set(window.GEPublicPlayerApprovedPaths):null;
   const permitted=state.tracks.filter(t=>
     !LEGACY_ALBUMS.has(t.album)&&t.album!=='Singles'&&
     (!access?.restricted||access.allowed.includes(t.path))&&
+    (!approvedMaster?.size||approvedMaster.has(t.path))&&
     (!publicDefault.size||publicDefault.has(t.path)));
   if(!permitted.length){
     say(publicDefault.size?'No available songs in the default Player playlist. Check the Master approvals.':
