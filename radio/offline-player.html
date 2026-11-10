@@ -7,13 +7,51 @@
 <audio id="player" controls playsinline preload="metadata"></audio>
 <div id="now"></div><a id="save" download>DOWNLOAD THIS SONG TO FILES</a>
 <small>Works without internet after this page and the songs are saved on this same Safari or Home Screen installation. Exported files can be transferred to another device. iOS may ask where to save.</small>
-<div id="songs"></div>
+<label for="playlist">PLAYLIST</label> <select id="playlist" aria-label="Saved playlist"><option value="all">ALL DOWNLOADED SONGS</option></select><div id="songs"></div>
 <script>
 (async function(){
 'use strict';
 const status=document.getElementById('status'),audio=document.getElementById('player'),songsBox=document.getElementById('songs'),save=document.getElementById('save');
 const entitlement='GE_RADIO_OFFLINE_ENTITLEMENT_V2',grantKey='GE_VAULT_OFFLINE_DEVICE_GRANT_V1';
-let songs=[],index=-1,objectURL='';
+let songs=[],allSongs=[],index=-1,objectURL='',savedPlaylists=[];
+const playlistSelect=document.getElementById('playlist');
+function normalizedPath(value){
+ try{return decodeURIComponent(new URL(value,location.origin+'/').pathname).replace(/^\\/+/, '');}catch(_){return String(value||'').replace(/^\\/+/, '');}
+}
+async function cachedPlaylists(){
+ const url=new URL('../playlists/registry.json',location.href).href;
+ let response=await caches.match(url,{ignoreSearch:true});
+ // Only refresh the playlist registry when connected; never depend on it offline.
+ if(navigator.onLine){
+  try{
+   const fresh=await fetch(url,{cache:'no-store'});
+   if(fresh.ok){
+    const data=await fresh.clone().json();
+    if(Array.isArray(data.playlists)){
+     const cache=await caches.open('GE_OFFLINE_PLAYLIST_REGISTRY_V1');
+     await cache.put(url,fresh.clone());
+     response=fresh;
+    }
+   }
+  }catch(_){}
+ }
+ if(!response)return [];
+ try{const data=await response.json();return Array.isArray(data.playlists)?data.playlists:[];}catch(_){return [];}
+}
+function showPlaylist(){
+ const selected=playlistSelect.value;
+ if(selected==='all')songs=[...allSongs];
+ else{
+  const p=savedPlaylists.find(p=>String(p.id)===selected);
+  const byPath=new Map(allSongs.map(url=>[normalizedPath(url),url]));
+  songs=(p?.songs||[]).map(path=>byPath.get(normalizedPath(path))).filter(Boolean);
+ }
+ index=-1;songsBox.replaceChildren();
+ songs.forEach((url,i)=>{const b=document.createElement('button');b.textContent=name(url);b.onclick=()=>play(i);songsBox.appendChild(b)});
+ const label=selected==='all'?'downloaded songs':'songs saved from this playlist';
+ status.textContent=songs.length?songs.length+' '+label+' available locally. Tap a song to play.':'No locally saved songs in this selection. Your downloads were not deleted.';
+}
+playlistSelect.addEventListener('change',showPlaylist);
 function verified(){
  try{
   const receipt=JSON.parse(localStorage.getItem(entitlement)||'null');
@@ -41,9 +79,19 @@ async function scan(){
    if(!found.has(path))found.set(path,request.url);
   }
  }
- songs=[...found.values()].sort((a,b)=>name(a).localeCompare(name(b)));
- status.textContent=songs.length?songs.length+' saved songs available locally. Tap a song to play.':'No saved songs found in this installation. Reconnect and download music here first.';
- songs.forEach((url,i)=>{const b=document.createElement('button');b.textContent=name(url);b.onclick=()=>play(i);songsBox.appendChild(b)});
+ allSongs=[...found.values()].sort((a,b)=>name(a).localeCompare(name(b)));
+ savedPlaylists=await cachedPlaylists();
+ playlistSelect.replaceChildren();
+ const allOption=document.createElement('option');allOption.value='all';allOption.textContent='ALL DOWNLOADED SONGS';playlistSelect.appendChild(allOption);
+ for(const p of savedPlaylists){
+  if(!p||!Array.isArray(p.songs))continue;
+  const option=document.createElement('option');option.value=String(p.id);
+  const available=new Set(allSongs.map(normalizedPath));
+  const count=p.songs.filter(path=>available.has(normalizedPath(path))).length;
+  option.textContent=String(p.name||'Playlist')+' ('+count+' saved)';
+  playlistSelect.appendChild(option);
+ }
+ showPlaylist();
 }
 async function play(i){
  if(!songs.length)return;
