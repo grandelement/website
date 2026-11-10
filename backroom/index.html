@@ -410,6 +410,12 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 .brReadableLabel strong{font-size:1.12em;font-weight:1000;letter-spacing:.035em;color:#fff}
 .brReadableLabel small{font-size:.9em;font-weight:650;color:#a8cce2}
 .brMerchHelp{font-size:12px;color:#b4d9ec;margin:8px 0}
+
+/* Hide the obsolete PLAYER profile controls, not their stored settings or handlers. */
+#backroomMain .brPlayerControlsHidden > .backroomQuickLinks,
+#backroomMain .brPlayerControlsHidden > p,
+#backroomMain .brPlayerControlsHidden > #brPublicPlayerProfile,
+#backroomMain .brPlayerControlsHidden > #brMusicRadioMaster {display:none!important}
 </style>
 <style id="br-access-compact-ui">
 #brPanel-access .brAccessTop{display:grid;gap:8px;margin-bottom:10px}
@@ -890,7 +896,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
 </section>
 
-<section data-br-tab="radio">
+<section data-br-tab="radio" class="brPlayerControlsHidden">
   <h2>RADIO CONTROL</h2>
   <p>RADIO 1 is BLITZ Primary. RADIO 2 is its Cloudflare backup. Both belong to one GE DJ Booth, using Bangers as the intended station playlist.</p>
   <div class="backroomQuickLinks">
@@ -1221,8 +1227,9 @@ function installBackroomTabs(){
     const control=document.createElement('button');control.type='button';control.dataset.accessView=view;control.textContent=label;
     control.addEventListener('click',()=>activate(view));accessSubnav.appendChild(control);
   }
-  nav.insertAdjacentElement('afterend',accessSubnav);
   const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
+  // Keep PLAYER / CODES / FANS immediately under the main tab divider, above all content.
+  nav.insertAdjacentElement('afterend',accessSubnav);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
