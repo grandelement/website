@@ -1,7 +1,8 @@
 /* Grand Element Radio service worker */
 'use strict';
 
-const VERSION='2026.11.09-offline-standalone-v100';
+const VERSION='2026.11.10-canonical-utility-v101';
+const UI_MARKER='GE_RADIO_UI_BUILD_20261110_CANONICAL_UTILITIES_V2';
 const SHELL_CACHE=`ge-radio-shell-${VERSION}`;
 const MEDIA_CACHE='ge-radio-media-v4'; // preserve the listener's existing downloaded music
 
@@ -47,7 +48,7 @@ async function fetchFresh(requestOrURL){
   return fetch(requestOrURL,{cache:'no-store'});
 }
 
-async function isValidRadioHTML(response){
+async function isValidRadioHTML(response,{requireCurrent=false}={}){
   if(!response || !response.ok) return false;
   try{
     const text=await response.clone().text();
@@ -55,7 +56,8 @@ async function isValidRadioHTML(response){
     return head.includes('<!doctype html') &&
            head.includes('<title>grand element radio</title>') &&
            text.includes('id="shipStage"') &&
-           text.includes('id="player"');
+           text.includes('id="player"') &&
+           (!requireCurrent || text.includes(UI_MARKER));
   }catch(_e){
     return false;
   }
@@ -65,7 +67,7 @@ async function fetchValidatedIndex(tag='recovery'){
   const url=new URL('./index.html',self.location.href);
   url.searchParams.set('_ge_'+tag,VERSION+'-'+Date.now());
   const response=await fetch(url.href,{cache:'no-store'});
-  if(!(await isValidRadioHTML(response))) throw new Error('Fetched index.html is not the Grand Element Radio app');
+  if(!(await isValidRadioHTML(response,{requireCurrent:true}))) throw new Error('Radio UI build is outdated or incomplete');
   return response;
 }
 
@@ -192,7 +194,7 @@ async function navigationResponse(request){
   try{
     const network=await fetch(request,{cache:'no-store',signal:controller.signal});
     clearTimeout(timeout);
-    if(await isValidRadioHTML(network)){
+    if(await isValidRadioHTML(network,{requireCurrent:true})){
       const cache=await caches.open(SHELL_CACHE);
       await cache.put('./index.html',network.clone()).catch(()=>{});
       await cache.put('./',network.clone()).catch(()=>{});
