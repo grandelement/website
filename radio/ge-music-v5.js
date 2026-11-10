@@ -939,7 +939,7 @@ function updateMeta(){
  const count=state.loaded?selectedTracks().length:state.selected.size;
  el('.checkedCount').textContent='CHECKED SONGS · '+count;
  el('.playSelected').disabled=count===0;
-  el('.offlineSelected').disabled=count===0;
+  el('.offlineSelected').disabled=false;
   el('.buySelected').disabled=count===0;
   el('.buySelected').setAttribute('aria-label','Review purchase of '+count+' checked song'+(count===1?'':'s'));
  el('.arrangePlay').disabled=count===0;
@@ -2163,13 +2163,31 @@ el('.accessToggle').addEventListener('click',()=>{
 const musicOfflineDialog=document.createElement('dialog');
 musicOfflineDialog.setAttribute('aria-label','Offline download choices');
 musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
-musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
+musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="playlist">DOWNLOAD CURRENT PLAYLIST</button><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="update">UPDATE / RESUME OFFLINE</button><button type="button" data-action="status">OFFLINE STATUS</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
 document.body.append(musicOfflineDialog);
 musicOfflineDialog.addEventListener('click',event=>{
  const action=event.target.closest('button')?.dataset.action;
  if(!action)return;
  musicOfflineDialog.close();
  if(action==='cancel')return;
+ if(action==='status'){
+  void (async()=>{
+   try{
+    const result=await window.GEOffline?.diagnose?.();
+    if(!result){say('OFFLINE STATUS UNAVAILABLE · Open RADIO once online.');return;}
+    say('OFFLINE STATUS · '+result.savedSongCount+' SONGS SAVED · PLAYER '+(result.cachedAppShell?'CACHED':'NOT CACHED')+' · SERVICE WORKER '+(result.serviceWorkerRegistered?'ACTIVE':'NOT READY')+' · '+(result.readyToTestDisconnected?'READY FOR AIRPLANE MODE TEST':'SETUP INCOMPLETE'));
+   }catch(error){say('OFFLINE STATUS ERROR · '+String(error?.message||error))}
+  })();
+  return;
+ }
+ if(action==='playlist'){
+  if(!state.activePlaylist){say('LOAD A PLAYLIST FIRST.');return;}
+  const paths=selectedTracks().map(track=>track.path);
+  if(!paths.length){say('CURRENT PLAYLIST HAS NO SONGS.');return;}
+  window.postMessage({type:'GE_MUSIC_OFFLINE_SELECTED',paths},location.origin);
+  return;
+ }
+ if(action==='update'){window.postMessage({type:'GE_MUSIC_OFFLINE_ALL'},location.origin);return;}
  if(action==='remove'){
   void (async()=>{
    if(!window.confirm('REMOVE OFFLINE MUSIC from this device? This deletes downloaded song files only. Vault accounts, purchases and playlists will not be deleted.'))return;
@@ -2222,6 +2240,7 @@ window.addEventListener('message',event=>{
 });
 el('.offlineSelected').addEventListener('click',()=>{
  musicOfflineDialog.querySelector('.geOfflineSelectionCount').textContent=selectedTracks().length+' songs checked. Choose what to save on this device.';
+ musicOfflineDialog.querySelector('[data-action=playlist]').disabled=!state.activePlaylist;
  if(!musicOfflineDialog.open)musicOfflineDialog.showModal();
 });
 // The parent offline controller owns Cache Storage. Its status must be shown
