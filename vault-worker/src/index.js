@@ -2165,7 +2165,8 @@ async function accessCodeHash(raw, env) {
   // use the same keyed HMAC and require a longer minimum for online safety.
   // Owner-chosen codes (TEST1, TEST2, LOVE) share the existing keyed hash namespace.
   // Short codes are less secure; owners should limit their scopes and uses.
-  if (!/^[A-Z0-9]{4,64}$/.test(code)) return null;
+  // Retire the historic global credential. Only Back Room-issued keys are valid.
+  if (code==="LOVE" || !/^[A-Z0-9]{4,64}$/.test(code)) return null;
   if (!String(env.VAULT_HASH_KEY || "").trim()) throw new Error("Vault code hashing secret is not configured.");
   return hmacHex("ge-access-v1:" + code, env.VAULT_HASH_KEY);
 }
@@ -2324,7 +2325,7 @@ async function ensureAccessCodeTables(env){
 async function ensureLegacyLoveRecord(env){
   const hash=await accessCodeHash("LOVE",env);
   const existing=await env.VAULT_DB.prepare("SELECT id,scopes_json,label FROM access_codes WHERE code_hash=?").bind(hash).first();
-  // New I AM is opt-in. Do not turn it on for the historical LOVE record.
+  // Retired migration: never invoke this for new access grants.
   const allScopes=JSON.stringify([...GE_ACCESS_SCOPES].filter(scope=>scope!=="iam"));
   if(existing){
     // Correct the original mistaken Radio-only import, but never revive or
@@ -2373,7 +2374,6 @@ function codeExperienceStatement(env,codeId,x,t){
 async function accessAdminGet(request, env) {
   if (!accessCodesAuthorized(request, env)) return json({ok:false,error:"Unauthorized"},401);
   await ensureAccessCodeTables(env);
-  await ensureLegacyLoveRecord(env);
   await ensureAccessCodeDisplayNames(env);
   const loveHash=await accessCodeHash("LOVE",env);
   const [policy,rows,loveRecord]=await Promise.all([
@@ -2613,7 +2613,6 @@ async function accessMusicSession(request,env){
   if(action==="redeem"){
     // The original all-access LOVE code must also work on Music's session
     // endpoint, not only the Radio Gate endpoint.
-    if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
     const hash=await accessCodeHash(body.code,env);
     if(!hash)return json({ok:false,error:"Invalid Music code."},403);
     row=await env.VAULT_DB.prepare(query+" WHERE a.code_hash=?").bind(hash).first();
@@ -2632,7 +2631,7 @@ async function accessMusicSession(request,env){
       return json({ok:false,error:"Music session invalid."},403);
     row=await env.VAULT_DB.prepare(query+" WHERE a.id=?").bind(codeId).first();
   }else return json({ok:false,error:"Unknown Music session action."},400);
-  if(!row||!row.enabled||row.revoked_at||row.deleted_at)
+  if(!row||row.id==="access_legacy_love_v1"||!row.enabled||row.revoked_at||row.deleted_at)
     return json({ok:false,error:"Music access code inactive."},403);
   const scopes=JSON.parse(row.scopes_json||"[]");
   const playlistIds=JSON.parse(row.playlist_ids_json||"[]");
@@ -2722,7 +2721,7 @@ async function accessRestoreDevice(request,env){
   const row=await env.VAULT_DB.prepare(
     "SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE a.id=?"
   ).bind(parts[1]).first();
-  if(!row||!row.enabled||row.revoked_at||row.deleted_at)
+  if(!row||row.id==="access_legacy_love_v1"||!row.enabled||row.revoked_at||row.deleted_at)
     return json({ok:false,error:"Access revoked."},403);
   const t=now(),expiration=row.duration_mode==="fixed"?row.fixed_expires_at:
     row.duration_mode==="activation"?row.expires_at:
@@ -2766,11 +2765,10 @@ async function accessRedeem(request,env){
   // Backwards-compatible first use: migrate the historic LOVE code into the
   // same D1 table BEFORE checking it, without requiring an owner to sign in
   // first. The migration never revives a revoked/suspended/deleted code.
-  if(accessNormalizeCode(body.code)==="LOVE")await ensureLegacyLoveRecord(env);
   const hash=await accessCodeHash(body.code,env);
   if(!hash)return json({ok:false,error:"Invalid or expired code."},403);
   const row=await env.VAULT_DB.prepare("SELECT a.*,COALESCE(c.playlist_ids_json,'[]') AS playlist_ids_json,COALESCE(c.track_paths_json,'[]') AS track_paths_json,d.deleted_at,x.games_enabled AS experience_games_enabled,x.autopilot_enabled AS experience_autopilot_enabled,x.radio_playlist_id AS experience_radio_playlist_id FROM access_codes a LEFT JOIN access_code_content c ON c.code_id=a.id LEFT JOIN access_code_deletions d ON d.code_id=a.id LEFT JOIN access_code_experience x ON x.code_id=a.id WHERE a.code_hash=?").bind(hash).first();
-  if(!row||!row.enabled||row.revoked_at||row.deleted_at)return json({ok:false,error:"Invalid or expired code."},403);
+  if(!row||row.id==="access_legacy_love_v1"||!row.enabled||row.revoked_at||row.deleted_at)return json({ok:false,error:"Invalid or expired code."},403);
   const scope=String(body.scope||"radio");
   const scopes=JSON.parse(row.scopes_json||"[]");
   if(!scopes.includes(scope)&&!scopes.includes("website"))return json({ok:false,error:"Code does not permit this content."},403);
