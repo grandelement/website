@@ -227,7 +227,8 @@ requireText(radio,/ge-radio-offline-always-visible-20261031/,'Always-visible OFF
 requireText(radio,/shipOffline\.hidden=false/,'Ship OFFLINE control must remain visible');
 requireText(radio,/setUtility\(\$\('reloadBtn'\),false\)/,'Reload control must remain hidden until re-enabled by owner');
 requireText(radio,/const verified=!!r&&r.verifiedFor==='radio'/,'Offline and Reload must require a verified Vault radio receipt');
-assert.ok(radio.includes("((feature==='offline'||feature==='reload')&&r.sunLab===true)"),'Verified original LOVE must restore its Offline and Reload tools');
+assert.ok(radio.includes("return verified&&r.scopes.includes(feature);"),'Offline and Reload must use their own verified scopes');
+assert.ok(!radio.includes("r.sunLab===true"),'Sun Lab must not grant Offline or Reload');
 assert.ok(radio.includes('return new URL(CONFIG.LIVE_STREAM_URL,location.href).href;'),'Radio must request the canonical BLITZ mount');
 assert.ok(homeRadio.includes('return STREAM;'),'Homepage must request the canonical BLITZ mount');
 assert.ok(!radio.includes("searchParams.set('_ge_live_edge'"),'Radio mount must not have proxy-breaking cache-busting query');
@@ -247,12 +248,13 @@ requireText(radio,/bottom:calc\(39px \+ env\(safe-area-inset-bottom\)\)/,'Bottom
 requireText(radio,/#iamLaunchRow\[hidden\]/,'IAM defaults off until a code grants it');
 requireText(radio,/sunLab:result\.capabilities\?\.sun_lab===true/,'Sun Lab must use authenticated Vault capability');
 requireText(radio,/permissions\.iam,?/,'IAM must be checked before display');
-requireText(radio,/geRadioSunLabAllowed/,'LOVE Sun Lab permission must be independently checked');
+requireText(radio,/geRadioSunLabAllowed/,'Sun Lab permission must be independently checked');
 const vaultAccess=read('vault-worker/src/index.js');
-requireText(vaultAccess,/capabilities:\{sun_lab:sunLabAuthorized\}/,'Original LOVE Sun Lab grant must originate in Vault');
-requireText(vaultAccess,/"reload","iam"\]/,'I AM must be an independently opt-in Vault scope');
+requireText(vaultAccess,/capabilities:\{sun_lab:sunLabAuthorized\}/,'Sun Lab scope grant must originate in Vault');
+requireText(vaultAccess,/"reload","sunlab","debug","iam"\]/,'I AM must be an independently opt-in Vault scope');
 const backroomAccess=read('backroom/index.html');
 requireText(backroomAccess,/name="brAccessScope" value="iam"/,'Back Room IAM scope selector missing');
+requireText(backroomAccess,/name="brAccessScope" value="sunlab"/,'Back Room Sun Lab toggle missing');
 requireText(music,/class="selectAllSongs"/,'Music select all must remain available');
 requireText(radio,/id="geMusicV5Button"/,'Music open control must remain in Radio');
 requireText(radio,/id="geGate"/,'Music Gate must remain');
