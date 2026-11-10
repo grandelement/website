@@ -704,6 +704,41 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
 #brMusicRadioMaster[open]>summary{margin-bottom:5px}
 #brMusicRadioMaster .brMasterToolbar{gap:5px}
 </style>
+<style id="br-access-player-ux-20261110">
+/* ACCESS > PLAYER, CODES, FANS always precedes its content, including on iPhone. */
+#backroomMain #brAccessViews:not([hidden]){
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;margin:8px 0 12px!important;padding:0 0 10px!important;
+  border-bottom:1px solid #295779!important;
+}
+#backroomMain #brAccessViews button{
+  min-height:46px!important;font-size:clamp(13px,3.8vw,17px)!important;
+  font-weight:900!important;white-space:nowrap;
+}
+#backroomMain #brPanel-radio #brPublicPlayerProfile{display:none!important}
+#backroomMain #brPanel-radio .backroomQuickLinks,
+#backroomMain #brPanel-radio > section[data-br-tab="radio"] > p{display:none!important}
+#backroomMain #brGeneralPublicAccess{
+  display:block!important;margin:0!important;padding:12px!important;
+  border:1px solid #366f90!important;border-radius:11px!important;
+  background:#061b2a!important;
+}
+#backroomMain #brGeneralPublicChecks{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;
+}
+#backroomMain #brGeneralPublicChecks label{
+  min-height:45px!important;padding:8px 4px!important;
+  justify-content:flex-start!important;font-size:clamp(11px,3.2vw,14px)!important;
+  overflow-wrap:anywhere;
+}
+#backroomMain #brGeneralPublicStatus{
+  font-size:13px!important;line-height:1.45!important;overflow-wrap:anywhere;
+}
+@media(max-width:380px){
+  #backroomMain #brGeneralPublicChecks{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -1241,8 +1276,9 @@ function installBackroomTabs(){
     const control=document.createElement('button');control.type='button';control.dataset.accessView=view;control.textContent=label;
     control.addEventListener('click',()=>{accessView=view;activate(view)});accessSubnav.appendChild(control);
   }
+  // ACCESS subtabs belong directly BELOW main tabs and ABOVE all panel content.
   nav.insertAdjacentElement('afterend',accessSubnav);
-  const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';nav.insertAdjacentElement('afterend',panelHost);
+  const panelHost=document.createElement('div');panelHost.id='backroomTabPanels';accessSubnav.insertAdjacentElement('afterend',panelHost);
   // Every tab owns its own panel. The PLAYLISTS tab embeds the original DJ Booth controls.
   for(const category of panelCategories){
     const panel=document.createElement('div');panel.className='backroomTabPanel';panel.id='brPanel-'+category;
@@ -1341,6 +1377,9 @@ function installBackroomTabs(){
   // Keep the legacy playlist panel for compatibility; its working editor belongs to MUSIC.
   const musicPlaylistEditor=$('brDJPlaylistEditor');
   if(musicPlaylistEditor)panels.get('music')?.prepend(musicPlaylistEditor);
+  // Master song approval is a MUSIC tool, not an extra ACCESS/PLAYER section.
+  const masterApprovals=$('brMusicRadioMaster');
+  if(masterApprovals)panels.get('music')?.appendChild(masterApprovals);
   function activate(tab,focus=false){
     if(tab==='playlists')tab='music';
     if(!panels.has(tab))tab='welcome';
@@ -2165,11 +2204,21 @@ async function brPublicPlayerLoad(){
   brPublicPlayerLoaded=true;
   status.textContent='PUBLIC PROFILE LOADED · '+(dropdown.selectedOptions[0]?.textContent||'MASTER SONGS')+
     ' · '+(data.profile?.scopes?.length||0)+' PUBLIC FEATURES';
- }catch(error){brPublicPlayerLoaded=false;status.textContent='PROFILE NOT LOADED · '+String(error.message||error)}
+ }catch(error){
+   brPublicPlayerLoaded=false;
+   const detail=String(error.message||error);
+   status.textContent=/HTTP 401/.test(detail)
+     ?'GITHUB AUTHORIZATION REJECTED (401) · The Back Room Publisher GitHub credential needs repair in Cloudflare. LOAD and SAVE are blocked. No settings were changed. '+detail
+     :'PROFILE NOT LOADED · '+detail;
+ }
  finally{brPublicPlayerBusy=false}
 }
 async function brPublicPlayerSave(){
- if(brPublicPlayerBusy||!brPublicPlayerLoaded)return;
+ if(brPublicPlayerBusy)return;
+ if(!brPublicPlayerLoaded){
+   $('brPublicPlayerStatus').textContent='CANNOT SAVE · Current published settings have not loaded. Repair the Publisher connection to GitHub, then REFRESH.';
+   return;
+ }
  if(!token()){$('brPublicPlayerStatus').textContent='SIGN IN TO BACK ROOM FIRST.';return}
  const profile={
    playlistId:$('brPublicPlaylist').value,
@@ -2190,7 +2239,7 @@ async function brPublicPlayerSave(){
 }
 // Reuse the actual public-profile inputs/API in a compact GENERAL SCREEN control.
 const generalChecks=$('brGeneralPublicChecks');
-for(const scope of ['sunlab','reload','debug']){
+for(const scope of ['sunlab','offline','reload','debug','legacy','iam']){
   const input=document.querySelector('#brPublicPlayerProfile input[name="brPublicScope"][value="'+scope+'"]');
   if(input?.closest('label'))generalChecks.appendChild(input.closest('label'));
 }
