@@ -52,7 +52,7 @@ async function isValidRadioHTML(response,{requireCurrent=false}={}){
   if(!response || !response.ok) return false;
   try{
     const text=await response.clone().text();
-    const head=text.slice(0,4000).toLowerCase();
+    const head=text.slice(0,24000).toLowerCase();
     return head.includes('<!doctype html') &&
            head.includes('<title>grand element radio</title>') &&
            text.includes('id="shipStage"') &&
