@@ -15024,9 +15024,11 @@ async function probe(name,url){
    var reader=r.body.getReader(),part=await reader.read(),chunk=part.value||new Uint8Array();
    result.firstBytesHex=Array.from(chunk.slice(0,12)).map(function(b){return b.toString(16).padStart(2,'0');}).join(' ');
    var textStart=String.fromCharCode.apply(null,Array.from(chunk.slice(0,40))).toLowerCase();
-   result.audioHeader=chunk[0]===73&&chunk[1]===68&&chunk[2]===51?'ID3/MP3':
-    chunk[0]===255&&(chunk[1]&224)===224?'MPEG audio frame':
-    /<html|<!doctype/.test(textStart)?'HTML ERROR INSTEAD OF AUDIO':'unrecognized';
+   var contentType=(result.contentType||'').toLowerCase();
+   result.fileType=/text\/html/.test(contentType)||/<html|<!doctype/.test(textStart)?'HTML document':
+    /application\/json|\+json/.test(contentType)||/^\s*[\{\[]/.test(textStart)?'JSON manifest':
+    chunk[0]===73&&chunk[1]===68&&chunk[2]===51?'ID3/MP3':
+    chunk[0]===255&&(chunk[1]&224)===224?'MPEG audio frame':'Unknown file type';
    await reader.cancel().catch(function(){});
   }else if(!r.ok){result.error='Non-success HTTP status';}
  }catch(e){result.error=redact(e?.name||'FetchError')+': '+redact(e?.message||e);}
@@ -15062,7 +15064,7 @@ async function run(){
  lastChecks=results;
  ui.service=await serviceInfo();
  ui.status.textContent='Checks finished. Tap COPY REPORT and paste it into ChatGPT.';
- record('diagnostics-finished',{checks:results.map(function(r){return r.name+': '+(r.httpStatus||r.error||'unknown')+(r.audioHeader?' '+r.audioHeader:'');})});
+ record('diagnostics-finished',{checks:results.map(function(r){return r.name+': '+(r.httpStatus||r.error||'unknown')+(r.fileType?' '+r.fileType:'');})});
  paint();
 }
 function testSong(path){
