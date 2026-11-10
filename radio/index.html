@@ -10285,6 +10285,7 @@ async function registerServiceWorker(){
   async function showPreDownloadEstimate(prepared){
     const {audit}=prepared;
     const bytes=remainingBytes(audit);
+    const sizeUnknown=bytes<=0&&audit.missingSongs>0;
     button.disabled=true;
     const previous=button.textContent;
     button.textContent='Checking Speed...';
@@ -10292,9 +10293,9 @@ async function registerServiceWorker(){
     text.textContent='Checking current download speed…';
 
     const speed=await estimateConnectionSpeed();
-    const eta=speed>0 && bytes>0 ? bytes/speed : NaN;
+    const eta=!sizeUnknown&&speed>0&&bytes>0 ? bytes/speed : NaN;
     const done=Math.max(0,audit.totalBytes-bytes);
-    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : 0;
+    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : audit.totalSongs>0?100*audit.cachedSongs/audit.totalSongs:0;
 
     renderProgress({
       percent,
@@ -10315,7 +10316,7 @@ async function registerServiceWorker(){
       speed,
       approved:confirm(
         `Grand Element Radio offline download\n\n`+
-        `Remaining: ${formatBytes(bytes)}\n`+
+        `Remaining: ${sizeUnknown?'Size not published ('+audit.missingSongs+' songs)':formatBytes(bytes)}\n`+
         `${estimate}\n\n`+
         `All music downloads before backgrounds. Start now?`
       )
@@ -10935,6 +10936,7 @@ async function registerServiceWorker(){
     let quotaStoppedOptional=false;
     let lastKnownTotal=audit.totalBytes;
     let baseBytes=audit.existingBytes;
+    const sizesUnknown=audit.totalBytes<=0;
 
     // Save the app before large songs can exhaust iPhone browser storage.
     await ensureOfflineLaunchAssets();
@@ -10948,7 +10950,7 @@ async function registerServiceWorker(){
       // Always display which song is being downloaded before that wait.
       if(!quiet){
         renderProgress({
-          percent:lastKnownTotal>0?(baseBytes+downloadedBytes)/lastKnownTotal*100:0,
+          percent:sizesUnknown?Math.min(99,100*(audit.cachedSongs+completedFiles)/audit.totalSongs):lastKnownTotal>0?(baseBytes+downloadedBytes)/lastKnownTotal*100:0,
           doneBytes:baseBytes+downloadedBytes,totalBytes:lastKnownTotal,
           speed:initialSpeed,eta:NaN,
           line2:'Downloading song '+(completedFiles+failed+1)+' of '+missingSongFiles.length+'…'
@@ -10969,11 +10971,11 @@ async function registerServiceWorker(){
           const speed=measured>0?measured:initialSpeed;
           const doneBytes=baseBytes+transferred;
           const remaining=Math.max(0,lastKnownTotal-doneBytes);
-          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
+          const percent=sizesUnknown?Math.min(99,100*(audit.cachedSongs+completedFiles)/audit.totalSongs):lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
           if(!quiet){
             renderProgress({
               percent,doneBytes,totalBytes:lastKnownTotal,speed,
-              eta:speed>0?remaining/speed:NaN,
+              eta:sizesUnknown?(completedFiles>0?Math.max(0,audit.totalSongs-audit.cachedSongs-completedFiles)*(elapsed/completedFiles):NaN):speed>0?remaining/speed:NaN,
               line2:'Saving music for offline listening…'
             });
           }
@@ -11026,7 +11028,7 @@ async function registerServiceWorker(){
       const speed=downloadedBytes/elapsed;
       const missingBytes=audit.missing.reduce((sum,item)=>sum+(item.size||0),0);
       const doneBytes=Math.max(0,audit.totalBytes-missingBytes);
-      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
+      const percent=sizesUnknown&&audit.totalSongs>0?100*audit.cachedSongs/audit.totalSongs:audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
       const remaining=Math.max(0,audit.totalBytes-doneBytes);
 
       let line2='Offline music is available on this device.';
