@@ -2153,7 +2153,7 @@ async function adminExport(env) {
 /* All Radio Gate codes live in D1, including migrated legacy LOVE. */
 // Offline, Legacy and Reload are optional owner-selected controls, not
 // independent entry grants. Radio Gate must still validate a radio/website scope.
-const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload","debug","iam"]);
+const GE_ACCESS_SCOPES = new Set(["website","radio","music","albums","games","offline","legacy","reload","sunlab","debug","iam"]);
 function accessNormalizeCode(raw) {
   // Preserve all previously issued GE-XXXX 32-hex secrets. Only remove a GE
   // prefix when followed by a separator, not from owner codes like GENTLE123.
@@ -2750,7 +2750,7 @@ async function accessRestoreDevice(request,env){
     anon_id:deviceId,scope:"radio"
   });
   return json({ok:true,scope:"radio",scopes,expires_at:expiration||null,
-    capabilities:{sun_lab:row.id==="access_legacy_love_v1"},
+    capabilities:{sun_lab:scopes.includes("sunlab")},
     experience:{games_enabled:row.experience_games_enabled!==0,
       autopilot_enabled:row.experience_autopilot_enabled!==0,
       radio_playlist_id:String(row.experience_radio_playlist_id||"")},
@@ -2820,10 +2820,9 @@ async function accessRedeem(request,env){
       display_name:await codeListenerDisplayName(env,row.id)};
   }
   // A browser receipt is a convenience, not server-enforced paid-content access.
-  // The authentic historic LOVE record alone restores SUN LAB. This is
-  // server-verified, never inferred from the code text in browser JavaScript.
-  const sunLabAuthorized=scope==="radio"&&row.id==="access_legacy_love_v1"&&
-    accessNormalizeCode(body.code)==="LOVE";
+  // Sun Lab is an independent, owner-selected access-code scope.
+  // A current verified Radio grant is required; no code name is special.
+  const sunLabAuthorized=scope==="radio"&&scopes.includes("sunlab");
   const device_session=scope==="radio"
     ?await accessDeviceGrant(env,row,deviceId,expires):null;
   return json({ok:true,scope,scopes,expires_at:expires||null,
