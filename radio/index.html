@@ -9924,7 +9924,7 @@ $('installBtn').addEventListener('click',async()=>{
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    const registration=await navigator.serviceWorker.register('./sw.js?v=20261110-unified-access-player-v105',{scope:'./',updateViaCache:'none'});
+    const registration=await navigator.serviceWorker.register('./sw.js?v=20261110-unified-access-player-v106',{scope:'./',updateViaCache:'none'});
     try{ await registration.update(); }catch(_e){}
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller){
@@ -9949,6 +9949,25 @@ async function registerServiceWorker(){
   let activePlan=null;
   let offlineLaunchReady=false;
   let selectedOfflinePaths=null;
+  // Store the offline playback receipt only after an authorized online
+  // public setting or a verified, unexpired Vault access scope is confirmed.
+  // This receipt unlocks already-saved audio locally, never Vault or purchases.
+  function persistOfflinePlaybackReceipt(){
+    if(navigator.onLine===false)return;
+    try{
+      const session=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
+      const verified=!!session&&session.verifiedFor==='radio'&&
+        Number(session.until)>Date.now()&&Array.isArray(session.scopes)&&
+        session.scopes.includes('offline')&&
+        (session.scopes.includes('radio')||session.scopes.includes('website'));
+      if(!verified&&!publicPlayerProfile.scopes.includes('offline'))return;
+      const id=String(window.GEVault?.anonId||localStorage.getItem('ge_vault_anon_id')||'');
+      if(!id)return;
+      localStorage.setItem(GE_OFFLINE_LOCAL_ENTITLEMENT,JSON.stringify({
+        verified:true,device_id:id,source:verified?'verified-radio-scope':'public-offline-scope',saved_at:Date.now()
+      }));
+    }catch(_e){}
+  }
   // Relay real offline-controller progress to the open MUSIC window.
   // Posting a download request alone is not evidence that files were saved.
   const reportMusicOffline=message=>{
@@ -9989,6 +10008,7 @@ async function registerServiceWorker(){
   // These must survive next to the songs in this browser's Cache Storage.
   const OFFLINE_LAUNCH_FILES=[
     './index.html','./preview-lab.html','./manifest.webmanifest','./sw.js','./ge-music-v5.js',
+    './offline-player.html','./offline.webmanifest','../playlists/registry.json',
     './iam-private-studio.js','./ge-gate-audio.js','./ge-gate-settings.js',
     './ge-purchase-demo.js','../ge-vault-client.js',
     '../ge-accessibility.js','../ge-accessibility.css',
@@ -10265,6 +10285,7 @@ async function registerServiceWorker(){
   async function showPreDownloadEstimate(prepared){
     const {audit}=prepared;
     const bytes=remainingBytes(audit);
+    const sizeUnknown=bytes<=0&&audit.missingSongs>0;
     button.disabled=true;
     const previous=button.textContent;
     button.textContent='Checking Speed...';
@@ -10272,9 +10293,9 @@ async function registerServiceWorker(){
     text.textContent='Checking current download speed…';
 
     const speed=await estimateConnectionSpeed();
-    const eta=speed>0 && bytes>0 ? bytes/speed : NaN;
+    const eta=!sizeUnknown&&speed>0&&bytes>0 ? bytes/speed : NaN;
     const done=Math.max(0,audit.totalBytes-bytes);
-    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : 0;
+    const percent=audit.totalBytes>0 ? done/audit.totalBytes*100 : audit.totalSongs>0?100*audit.cachedSongs/audit.totalSongs:0;
 
     renderProgress({
       percent,
@@ -10295,7 +10316,7 @@ async function registerServiceWorker(){
       speed,
       approved:confirm(
         `Grand Element Radio offline download\n\n`+
-        `Remaining: ${formatBytes(bytes)}\n`+
+        `Remaining: ${sizeUnknown?'Size not published ('+audit.missingSongs+' songs)':formatBytes(bytes)}\n`+
         `${estimate}\n\n`+
         `All music downloads before backgrounds. Start now?`
       )
@@ -10638,9 +10659,21 @@ async function registerServiceWorker(){
         rebuildQueue(state.currentURL);
       }
     }catch(error){
-      throw new Error('Cannot refresh the GitHub song list: '+String(error?.message||error));
+      // A public GitHub API 401/rate-limit must not prevent the existing published
+      // song manifest from being downloaded. Never clear the last saved catalog.
+      console.warn('GitHub inventory unavailable; using published music manifest',error);
     }
-    if(!library?.catalog?.length)throw new Error('GitHub returned no playable music');
+    if(!library?.catalog?.length){
+      const manifestSongs=await loadMusicManifest(true);
+      const playable=[...new Set(manifestSongs.filter(url=>canonicalSongPath(url)&&!isStationID(url)))].sort(orderedSort);
+      if(!playable.length){
+        const known=state.catalog.filter(url=>canonicalSongPath(url)&&!isStationID(url));
+        if(!known.length)throw new Error('Neither the GitHub inventory nor published music manifest is available.');
+        library={catalog:[...new Set(known)].sort(orderedSort),backgrounds:[],shaMap:loadMediaShaMap()};
+      }else library={catalog:playable,backgrounds:[],shaMap:loadMediaShaMap()};
+      state.catalog=library.catalog.slice();
+      rebuildQueue(state.currentURL);
+    }
     return {sizeMap,library};
   }
 
@@ -10688,7 +10721,10 @@ async function registerServiceWorker(){
     for(const name of names){
       try{
         const cache=await caches.open(name);
-        const hit=await cache.match(url,{ignoreSearch:false});
+        const hit=await cache.match(url,{ignoreSearch:false}) ||
+          // Older GE downloads used versioned URLs. An unversioned manifest
+          // entry can reuse those same full audio bytes without redownloading.
+          (!new URL(url).searchParams.has('v')?await cache.match(url,{ignoreSearch:true}):null);
         if(hit) return {name,response:hit};
       }catch(_e){}
     }
@@ -10860,6 +10896,7 @@ async function registerServiceWorker(){
       return {added:0,failed:0,total:0,complete:false,musicComplete:false};
     }
     if(!audit.missingSongs){
+      persistOfflinePlaybackReceipt();
       // A complete song cache is not a complete offline website.
       if(navigator.onLine!==false)await ensureOfflineLaunchAssets();
       else await verifyOfflineLaunchAssets();
@@ -10899,6 +10936,7 @@ async function registerServiceWorker(){
     let quotaStoppedOptional=false;
     let lastKnownTotal=audit.totalBytes;
     let baseBytes=audit.existingBytes;
+    const sizesUnknown=audit.totalBytes<=0;
 
     // Save the app before large songs can exhaust iPhone browser storage.
     await ensureOfflineLaunchAssets();
@@ -10912,7 +10950,7 @@ async function registerServiceWorker(){
       // Always display which song is being downloaded before that wait.
       if(!quiet){
         renderProgress({
-          percent:lastKnownTotal>0?(baseBytes+downloadedBytes)/lastKnownTotal*100:0,
+          percent:sizesUnknown?Math.min(99,100*(audit.cachedSongs+completedFiles)/audit.totalSongs):lastKnownTotal>0?(baseBytes+downloadedBytes)/lastKnownTotal*100:0,
           doneBytes:baseBytes+downloadedBytes,totalBytes:lastKnownTotal,
           speed:initialSpeed,eta:NaN,
           line2:'Downloading song '+(completedFiles+failed+1)+' of '+missingSongFiles.length+'…'
@@ -10933,11 +10971,11 @@ async function registerServiceWorker(){
           const speed=measured>0?measured:initialSpeed;
           const doneBytes=baseBytes+transferred;
           const remaining=Math.max(0,lastKnownTotal-doneBytes);
-          const percent=lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
+          const percent=sizesUnknown?Math.min(99,100*(audit.cachedSongs+completedFiles)/audit.totalSongs):lastKnownTotal>0?(doneBytes/lastKnownTotal*100):0;
           if(!quiet){
             renderProgress({
               percent,doneBytes,totalBytes:lastKnownTotal,speed,
-              eta:speed>0?remaining/speed:NaN,
+              eta:sizesUnknown?(completedFiles>0?Math.max(0,audit.totalSongs-audit.cachedSongs-completedFiles)*(elapsed/completedFiles):NaN):speed>0?remaining/speed:NaN,
               line2:'Saving music for offline listening…'
             });
           }
@@ -10978,6 +11016,7 @@ async function registerServiceWorker(){
       catch(error){console.warn('Final offline page repair not completed:',error);}
     }
     setEnabled(audit.cachedSongs>0);
+    if(audit.cachedSongs>0)persistOfflinePlaybackReceipt();
     reflectButton(audit);
 
     if(activePlan){
@@ -10989,7 +11028,7 @@ async function registerServiceWorker(){
       const speed=downloadedBytes/elapsed;
       const missingBytes=audit.missing.reduce((sum,item)=>sum+(item.size||0),0);
       const doneBytes=Math.max(0,audit.totalBytes-missingBytes);
-      const percent=audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
+      const percent=sizesUnknown&&audit.totalSongs>0?100*audit.cachedSongs/audit.totalSongs:audit.totalBytes>0?(doneBytes/audit.totalBytes*100):0;
       const remaining=Math.max(0,audit.totalBytes-doneBytes);
 
       let line2='Offline music is available on this device.';
@@ -11099,15 +11138,23 @@ async function registerServiceWorker(){
       try{
         const fresh=await loadMusicManifest(true);
         if(!fresh.length)throw Error('Published music manifest is empty');
-        const tree=await fetchRepositoryTree();
-        const latest=libraryFromRepositoryTree(tree);
-        if(!latest.catalog.length)throw Error('GitHub music library is empty');
+        // The published manifest is a valid download source on its own.
+        // GitHub API may return 401 or rate-limit on phones.
+        let latest=[];
+        try{
+          const tree=await fetchRepositoryTree();
+          latest=libraryFromRepositoryTree(tree).catalog;
+        }catch(error){console.warn('Using published manifest for offline download',error);}
         const manifestPaths=new Set(fresh.map(canonicalSongPath));
-        const missing=latest.catalog.filter(url=>!manifestPaths.has(canonicalSongPath(url)));
-        if(missing.length)throw Error(missing.length+' GitHub tracks are missing from the published manifest');
-        state.catalog=latest.catalog.slice().sort(orderedSort);
+        // If GitHub lists newer tracks, include them rather than blocking all
+        // downloads on a temporarily stale published manifest.
+        const combined=[...new Map([...fresh,...latest]
+          .filter(url=>canonicalSongPath(url))
+          .map(url=>[canonicalSongPath(url),url])).values()];
+        if(!combined.length)throw Error('No downloadable music is published');
+        state.catalog=combined.sort(orderedSort);
         rebuildQueue(state.currentURL);
-        await window.GEMusicV5?.reloadLibrary?.();
+        try{await window.GEMusicV5?.reloadLibrary?.();}catch(_e){}
       }catch(error){
         text.textContent='Offline update stopped: '+String(error?.message||error)+'. Existing downloads were kept.';
         setStatus('Cannot verify the complete current music library. No download started.');
@@ -11153,6 +11200,7 @@ async function registerServiceWorker(){
         }
         if(!offlineLaunchReady)await finishOfflineSetupWithDialog();
         setEnabled(true);
+        if(prepared.audit.cachedSongs>0)persistOfflinePlaybackReceipt();
         reflectButton(prepared.audit);
         setStatus(offlineLaunchReady
           ?'OFFLINE READY · player and saved songs verified in this browser.'
