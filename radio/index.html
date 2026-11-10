@@ -6648,14 +6648,33 @@ function savePersonalSongSelection(){
     JSON.stringify({enabled:personalSongMode,songs:[...selectedSongURLs]}));}catch(_e){}
 }
 function selectableSongs(){return state.catalog.filter(url=>canonicalSongPath(url)&&!isLegacy(url)&&!isSingles(url)).slice().sort(orderedSort);}
-function playerPlaylist(){return selectableSongs().filter(url=>/Grand Element - 20(?:1[0-9]|2[0-9]) - /i.test(decodeURIComponent(canonicalSongPath(url))));}
+function playerPlaylist(){
+  const songs=selectableSongs().filter(url=>/Grand Element - 20(?:1[0-9]|2[0-9]) - /i.test(decodeURIComponent(canonicalSongPath(url))));
+  if(!publicPlayerPlaylistPaths.size)return songs;
+  return songs.filter(url=>publicPlayerPlaylistPaths.has(canonicalSongPath(url)));
+}
 // Automatic Radio/Shuffle approval is by stable song PATH, not a frozen audio blob.
 let approvedAutoPaths=new Set(),approvedAutoReady=false;
+const GE_PUBLIC_PLAYER_CACHE='GE_PUBLIC_PLAYER_PROFILE_V1';
+const PUBLIC_PLAYER_ALLOWED=new Set(['sunlab','offline','reload','debug','legacy','iam']);
+let publicPlayerProfile={playlistId:'',scopes:[]},publicPlayerPlaylistPaths=new Set();
+function applyPublicPlayerProfile(profile,playlistPaths=[]){
+  const scopes=Array.isArray(profile?.scopes)?profile.scopes.filter(scope=>PUBLIC_PLAYER_ALLOWED.has(scope)):[];
+  publicPlayerProfile={playlistId:String(profile?.playlistId||''),scopes:[...new Set(scopes)]};
+  publicPlayerPlaylistPaths=new Set(playlistPaths.filter(p=>GE_MUSIC_SONG_ROOT.test(p)&&approvedAutoPaths.has(p)));
+  window.GEPublicPlayerPlaylistPaths=[...publicPlayerPlaylistPaths];
+  window.GEPublicPlayerProfile=publicPlayerProfile;
+  syncRadioOfflineAccessUI();
+}
 async function loadFrozenAutoSongs(){
   if(offlinePlaybackMode()){
     // Fully local startup. Do not request the online master list when disconnected.
     approvedAutoPaths=new Set([...offlineAvailability.songs].map(canonicalSongPath).filter(Boolean));
     approvedAutoReady=approvedAutoPaths.size>0;
+    try{
+      const cached=JSON.parse(localStorage.getItem(GE_PUBLIC_PLAYER_CACHE)||'null');
+      applyPublicPlayerProfile(cached?.profile||{},cached?.paths||[]);
+    }catch(_e){}
     return approvedAutoReady;
   }
   try{
@@ -6671,6 +6690,20 @@ async function loadFrozenAutoSongs(){
       unique.add(path);
     }
     approvedAutoPaths=unique;approvedAutoReady=true;
+    const profile=data?.music?.publicPlayer||{};
+    let playlistPaths=[];
+    if(profile.playlistId){
+      try{
+        const registryResponse=await fetch('../playlists/registry.json?public-player='+Date.now(),{cache:'no-store'});
+        if(!registryResponse.ok)throw Error('Player playlist registry HTTP '+registryResponse.status);
+        const registry=await registryResponse.json();
+        const match=(registry?.playlists||[]).find(item=>item.id===profile.playlistId);
+        if(match&&Array.isArray(match.songs))playlistPaths=match.songs;
+        else console.warn('Default public Player playlist is missing:',profile.playlistId);
+      }catch(error){console.warn('Default Player playlist unavailable; using approved Master list:',error)}
+    }
+    applyPublicPlayerProfile(profile,playlistPaths);
+    try{localStorage.setItem(GE_PUBLIC_PLAYER_CACHE,JSON.stringify({profile:publicPlayerProfile,paths:[...publicPlayerPlaylistPaths]}))}catch(_e){}
     return true;
   }catch(error){
     approvedAutoPaths=new Set();approvedAutoReady=false;
@@ -7879,6 +7912,7 @@ function geOfflineDeviceGrantValid(){
 }
 function geRadioUtilityAllowed(feature){
   if(geRadioLocalTestAccess())return true;
+  if(publicPlayerProfile.scopes.includes(feature))return true;
   if(feature==='offline'&&geOfflineDeviceGrantValid())return true;
   try{
     const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
@@ -7891,7 +7925,7 @@ function geRadioUtilityAllowed(feature){
 // The original LOVE grant comes from an authenticated Vault redemption,
 // never from typing the word LOVE or a locally guessed listener identity.
 function geRadioSunLabAllowed(){
-  if(geRadioLocalTestAccess())return true;
+  if(geRadioLocalTestAccess()||publicPlayerProfile.scopes.includes('sunlab'))return true;
   try{
     const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     return !!receipt&&receipt.verifiedFor==='radio'&&
@@ -7901,6 +7935,7 @@ function geRadioSunLabAllowed(){
 // I AM is opt-in even for local demos and historic LOVE. A saved code with
 // the 'iam' permission is required before the button can become available.
 function geRadioIAMAllowed(){
+  if(publicPlayerProfile.scopes.includes('iam'))return true;
   try{
     const receipt=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     return !!receipt&&receipt.verifiedFor==='radio'&&
