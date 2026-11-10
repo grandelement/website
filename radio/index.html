@@ -5355,7 +5355,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
   <div id="musicGroup">
     <button id="prevBtn">Prev</button>
-    <button id="playBtn">Play</button>
+    <button id="playBtn" aria-label="Play selected music">PLAYER</button>
     <button id="nextBtn">Next</button>
     <button class="tgl" id="shuffleBtn" aria-pressed="true">Shuffle</button>
     <button class="tgl" id="liveBtn" aria-pressed="true">RADIO</button>
@@ -7060,10 +7060,9 @@ function updateRadioStartupCue(){
   const buttons=[$('liveBtn'),...document.querySelectorAll('#shipStage [data-proxy="liveBtn"]')].filter(Boolean);
   for(const button of buttons){
     button.classList.toggle('radio-start-cue',signalReady&&!connected);
-    button.textContent='RADIO';
+    button.textContent=(state.live||state.livePreparing)?'STOP':'RADIO';
     const source=radio2.active?(radio2.kind==='bangers'?'GE Bangers Radio':'GE backup radio'):'BLITZ Radio 1';
-    button.setAttribute('aria-label',connected?source+' playing':
-      signalReady?source+' ready, tap Play to listen':'Connect or retry '+(GE_STATIC_RADIO_PRIMARY?'GE Radio':source));
+    button.setAttribute('aria-label',(state.live||state.livePreparing)?'Stop '+source:'Start '+source);
     button.setAttribute('aria-busy',String((state.live||state.livePreparing)&&!signalReady));
   }
   const shipPlayButton=$('shipPlay');
@@ -8251,7 +8250,7 @@ function geInlineMusicSyncTransport(){
   gePlaylistQuickUpdate();
   if(geInlineMusicTitle)titleBtn.textContent=geInlineMusicDisplayTitle();
   const playButton=$('playBtn');
-  if(playButton)playButton.textContent=geInlineMusicPaused?'Play':'Pause';
+  if(playButton)playButton.textContent='PLAYER';
   const seek=$('playerSeek');
   if(seek){const a=geInlineMusicFrame?.contentWindow?.GEGetMusicTransport?.();const d=Number(a?.duration);seek.disabled=!Number.isFinite(d)||d<=0;seek.value=seek.disabled?'0':String(Math.max(0,Math.min(1000,(Number(a?.currentTime)||0)/d*1000)));}
   syncSongPosition();
@@ -8949,8 +8948,7 @@ function syncMainTransport(){
   // Its PAUSE label belongs only to music playback actually in progress.
   if(window.GEInlineMusic?.active?.()){window.GEInlineMusic.sync();return;}
   const radioSelected=state.live||state.livePreparing;
-  if(playBtn)playBtn.textContent=radioSelected?'Play':
-    (geOwnerDemoEnabled()?(audio.paused||audio.muted?'Play':'Pause'):'Play');
+  if(playBtn)playBtn.textContent='PLAYER';
   if(playerSeek){
     const d=Number(audio.duration),t=Number(audio.currentTime)||0;
     playerSeek.disabled=!Number.isFinite(d)||d<=0||state.live;
@@ -9054,6 +9052,13 @@ playerSeek?.addEventListener('input',()=>{
 ['play','pause','timeupdate','loadedmetadata','durationchange','emptied'].forEach(name=>audio.addEventListener(name,syncMainTransport));
 syncMainTransport();
 $('liveBtn').addEventListener('click',()=>{
+  // RADIO is a true start/stop control, including while connecting.
+  if(state.live||state.livePreparing){
+    exitLiveMode('RADIO STOPPED');
+    requestUserPause();
+    updateRadioStartupCue();
+    return;
+  }
   if(geInlineMusicActive)geInlineMusicStop();
   state.userStarted=true;
   gePendingMainMusicDirection='';
