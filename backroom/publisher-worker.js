@@ -326,6 +326,92 @@ async function saveGithubPlaylistRegistry(env,registry,sha){
   }
   return String(saved.commit?.sha||'');
 }
+// The Public Player and Master List share the same owner session and server-side
+// GitHub App credential as GE playlists. Never ask a browser for a GitHub PAT.
+async function handlePlayerProfile(request,env,cors){
+  if(!(await verifySession(env,bearer(request))))
+    return json({ok:false,error:'Owner login required. Sign in to Back Room.'},401,cors);
+  try{
+    const branch=env.GITHUB_BRANCH||'main';
+    const path='config/site-live.json';
+    const source=await github(env,path+'?ref='+encodeURIComponent(branch),{method:'GET'});
+    if(!source.ok)throw Error('Could not read current published GE settings (HTTP '+source.status+').');
+    const file=await source.json();
+    const current=JSON.parse(decodeGithubText(file.content||''));
+    if(!validConfig(current))throw Error('Published GE settings are invalid; no changes made.');
+    const music=current.music||{};
+    const prior=music.publicPlayer||{};
+    const currentProfile={
+      playlistId:String(prior.playlistId||''),
+      scopes:Array.isArray(prior.scopes)?prior.scopes.filter(x=>PUBLIC_PLAYER_SCOPE_SET.has(x)):[]
+    };
+    const {registry}=await readGithubPlaylistRegistry(env);
+    const playlists=registry.playlists.map(p=>({
+      id:String(p.id||''),name:String(p.name||''),visibility:String(p.visibility||'unlisted'),
+      songCount:Array.isArray(p.songs)?p.songs.length:0
+    }));
+    if(request.method==='GET'){
+      return json({ok:true,profile:currentProfile,playlists,
+        masterSongPaths:Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[]},200,cors);
+    }
+    if(request.method!=='POST')return json({ok:false,error:'Unsupported method.'},405,cors);
+    const body=await request.json().catch(()=>null);
+    if(!body||typeof body!=='object')return json({ok:false,error:'Invalid settings.'},400,cors);
+    const next=structuredClone(current);
+    next.music={...music};
+    if(body.action==='save_master'){
+      const old=Array.isArray(music.radioMasterSongPaths)?music.radioMasterSongPaths:[];
+      const expected=body.expectedMasterSongPaths;
+      if(!Array.isArray(expected)||JSON.stringify(expected)!==JSON.stringify(old))
+        return json({ok:false,error:'Master List changed since loading. Reload before saving.'},409,cors);
+      const selected=body.masterSongPaths;
+      if(!Array.isArray(selected)||selected.length<1||selected.length>10000||
+         selected.some(p=>!playlistSongPath(p))||new Set(selected).size!==selected.length)
+        return json({ok:false,error:'The selected Master List contains invalid or duplicate song paths.'},400,cors);
+      const manifestResponse=await github(env,'radio/manifest.json?ref='+encodeURIComponent(branch),{method:'GET'});
+      if(!manifestResponse.ok)throw Error('Music catalog cannot be verified. Nothing was saved.');
+      const manifestFile=await manifestResponse.json();
+      const manifest=JSON.parse(decodeGithubText(manifestFile.content||''));
+      const available=new Set(Array.isArray(manifest.files)?manifest.files:[]);
+      if(selected.some(p=>!available.has(p)))
+        return json({ok:false,error:'Some selected songs are not in the published music manifest. Refresh first.'},409,cors);
+      next.music.radioMasterSongPaths=selected;
+      next.music.radioMasterRevision=(Number(music.radioMasterRevision)||0)+1;
+    }else if(body.action==='save_profile'){
+      const incoming=body.profile||{};
+      const playlistId=String(incoming.playlistId||'');
+      const scopes=incoming.scopes;
+      if(playlistId&&!playlists.some(p=>p.id===playlistId))
+        return json({ok:false,error:'That playlist was not found. Refresh playlists and try again.'},409,cors);
+      if(!Array.isArray(scopes)||scopes.some(x=>!PUBLIC_PLAYER_SCOPE_SET.has(x)))
+        return json({ok:false,error:'Invalid public feature selection.'},400,cors);
+      next.music.publicPlayer={playlistId,scopes:[...new Set(scopes)]};
+    }else return json({ok:false,error:'Unknown player settings action.'},400,cors);
+    // Reuse current file SHA: concurrent owner commits fail safely instead of overwriting.
+    next.version=Math.max(1,Number(next.version)||1);
+    next.publishedAt=new Date().toISOString();
+    const content=JSON.stringify(next,null,2)+'\n';
+    if(content.length>250000)throw Error('Public configuration exceeds the GitHub limit.');
+    const update=await github(env,path,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:body.action==='save_master'?'Back Room: update approved Player Master List':'Back Room: update public Player profile',
+        content:utf8B64(content),sha:file.sha,branch
+      })
+    });
+    const result=await update.json().catch(()=>({}));
+    if(!update.ok){
+      if(update.status===409||update.status===422)
+        return json({ok:false,error:'Published settings changed during your edit. Reload before saving again.'},409,cors);
+      throw Error('GitHub refused player save (HTTP '+update.status+'): '+String(result.message||'Unknown error'));
+    }
+    return json({ok:true,commit:String(result.commit?.sha||''),profile:next.music.publicPlayer||currentProfile,
+      masterSongPaths:next.music.radioMasterSongPaths||[]},200,cors);
+  }catch(error){
+    return json({ok:false,error:String(error?.message||error)},502,cors);
+  }
+}
+const PUBLIC_PLAYER_SCOPE_SET=new Set(['sunlab','offline','reload','debug','legacy','iam']);
 async function handleGithubPlaylists(request,env,cors){
   if(!(await verifySession(env,bearer(request))))
     return json({ok:false,error:'Owner login required. Sign in to Back Room.'},401,cors);
@@ -534,6 +620,10 @@ export default {
       }
     }
 
+
+    if(url.pathname==='/manage/player-profile'&&['GET','POST'].includes(request.method)){
+      return handlePlayerProfile(request,env,cors);
+    }
 
     if(url.pathname==='/manage/github-playlists'&&['GET','POST'].includes(request.method)){
       return handleGithubPlaylists(request,env,cors);
