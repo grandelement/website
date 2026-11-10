@@ -2352,9 +2352,9 @@ body:not(.ge-offline-entitled) #bottomActions #accessLaunchBtn{min-width:104px!i
 .ship-eq-ring-base{stroke:rgba(92,206,255,.72);stroke-width:1.5;fill:none}
 .ship-eq-ring-inner{stroke:rgba(49,136,209,.5);stroke-width:1;fill:rgba(0,24,55,.18);stroke-dasharray:4 7}
 #shipEQOrbStatus{font-size:clamp(8px,.64vw,12px);font-weight:750;letter-spacing:.04em;color:#b7e8ff;text-align:center}
-body.view-ship.ge-offline-entitled #shipSunLabBtn,
+body.view-ship.ge-sunlab-entitled #shipSunLabBtn,
 body.view-ship.ge-offline-entitled #shipGateTestBtn{display:inline-flex!important;align-items:center;justify-content:center}
-body:not(.ge-offline-entitled) #shipSunLabBtn,
+body:not(.ge-sunlab-entitled) #shipSunLabBtn,
 body:not(.ge-offline-entitled) #shipGateTestBtn{display:none!important}
 body.view-ship .sunlab-panel.show{position:fixed!important;left:50%!important;right:auto!important;top:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:min(94vw,900px)!important;height:50dvh!important;max-height:50dvh!important;min-height:0!important;border-radius:18px 18px 0 0!important;z-index:15000!important;padding:8px 13px max(8px,env(safe-area-inset-bottom))!important}
 body.view-ship .sunlab-panel.show #sunLabGrid{min-height:0!important;overflow-y:auto!important}
@@ -7884,11 +7884,8 @@ function geRadioUtilityAllowed(feature){
     const r=JSON.parse(sessionStorage.getItem('GE_VAULT_SCOPED_ACCESS_V1')||'null');
     const verified=!!r&&r.verifiedFor==='radio'&&Number(r.until)>Date.now()&&
       Array.isArray(r.scopes)&&(r.scopes.includes('radio')||r.scopes.includes('website'));
-    // The Vault grants sunLab only to the verified original LOVE record.
-    // That original all-access grant also restores OFFLINE and RELOAD.
-    // Other codes continue to require their explicit Vault scopes.
-    return verified&&(r.scopes.includes(feature)||
-      ((feature==='offline'||feature==='reload')&&r.sunLab===true));
+    // Offline, Reload and Sun Lab are independent server-granted scopes.
+    return verified&&r.scopes.includes(feature);
   }catch(_){return false}
 }
 // The original LOVE grant comes from an authenticated Vault redemption,
@@ -14104,7 +14101,7 @@ Vector ${vector}. ${pair[1]}.`;
     const validUntil=expires>0?expires*1000:(Date.now()+60*60*1000);
     if(validUntil<=Date.now())return false;
     const grantedScopes=Array.isArray(result.scopes)
-      ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload','iam'].includes(scope)):[];
+      ?result.scopes.filter(scope=>['website','radio','music','albums','games','offline','legacy','reload','sunlab','debug','iam'].includes(scope)):[];
     if(!grantedScopes.includes('radio')&&!grantedScopes.includes('website'))return false;
     try{
       sessionStorage.setItem(GE_VAULT_RADIO_SESSION_KEY,String(validUntil));
@@ -14136,7 +14133,7 @@ Vector ${vector}. ${pair[1]}.`;
           token:device.token,device_id:geRememberedDeviceId(),until:Number(device.expires_at)*1000
         }));
         // Save only this verified device's offline permission, not the key.
-        if(grantedScopes.includes('offline')||result.capabilities?.sun_lab===true)
+        if(grantedScopes.includes('offline'))
           {
           localStorage.setItem(GE_OFFLINE_DEVICE_GRANT_KEY,JSON.stringify({
             device_id:geRememberedDeviceId(),offline:true,until:Number(device.expires_at)*1000
