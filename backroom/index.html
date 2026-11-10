@@ -674,6 +674,26 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
  #backroomMain .backroomTabs button[data-tab]{min-height:31px!important;height:32px!important;font-size:clamp(10.5px,3vw,14px)!important}
 }
 </style>
+<style id="br-public-profile-compact-20261110">
+#brPublicPlayerProfile{width:100%;max-width:none;margin:2px 0 7px;padding:6px!important;
+ background:transparent!important;border:0!important;box-shadow:none!important}
+#brPublicPlayerProfile .brPlayerProfileHeader{display:flex;gap:5px;align-items:center;justify-content:space-between;margin:0 0 7px}
+#brPublicPlayerProfile .brPlayerProfileHeader strong{margin-right:auto;font-size:14px}
+#brPublicPlayerProfile .brPlayerProfileHeader button{min-height:33px;padding:5px 8px;font-size:12px}
+#brPublicPlayerProfile > label{display:grid;gap:3px;font-size:12px;font-weight:800}
+#brPublicPlayerProfile #brPublicPlaylist{min-height:40px;width:100%;font-size:15px}
+#brPublicPlayerProfile .brPublicScopeChecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:8px 0 3px}
+#brPublicPlayerProfile .brPublicScopeChecks label{display:flex;align-items:center;gap:4px;
+ border:1px solid #2b5369;border-radius:6px;padding:5px 6px;font-size:12px;min-height:30px}
+#brPublicPlayerProfile .brPublicScopeChecks input{width:17px;height:17px;flex:0 0 17px}
+#brPublicPlayerStatus{margin:2px 0;color:#add9e9;font-size:11px;line-height:1.3}
+#brMusicRadioMaster{width:100%;max-width:none!important;border:0!important;background:transparent!important;
+ padding:0!important;margin:4px 0!important}
+#brMusicRadioMaster>summary{cursor:pointer;border:1px solid #356e8a;border-radius:6px;
+ background:#082b40;padding:7px;font-size:13px;font-weight:800}
+#brMusicRadioMaster[open]>summary{margin-bottom:5px}
+#brMusicRadioMaster .brMasterToolbar{gap:5px}
+</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -879,7 +899,22 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
   </div>
   <p><strong>MAIN PLAYER PLAYLIST</strong> controls the default website music player. Select the enabled songs from Intergy through AETHER. Legacy songs are available only when explicitly selected elsewhere.</p>
   <!-- Shared Radio Master editor; uses the same published config as player and access codes. -->
-  <div id="brMusicRadioMaster">
+  <section id="brPublicPlayerProfile" aria-label="Public Player profile">
+    <div class="brPlayerProfileHeader"><strong>PUBLIC PLAYER PROFILE</strong><button id="brPublicPlayerLoad" type="button">REFRESH</button><button id="brPublicPlayerSave" type="button" class="primary">SAVE PROFILE</button></div>
+    <label for="brPublicPlaylist"><span>DEFAULT PLAYER PLAYLIST</span>
+      <select id="brPublicPlaylist"><option value="">MASTER SONGS · DEFAULT</option></select>
+    </label>
+    <div class="brPublicScopeChecks" role="group" aria-label="Public Player permissions">
+      <label class="check"><input type="checkbox" value="sunlab" name="brPublicScope"><span>SUN LAB</span></label>
+      <label class="check"><input type="checkbox" value="offline" name="brPublicScope"><span>OFFLINE</span></label>
+      <label class="check"><input type="checkbox" value="reload" name="brPublicScope"><span>RELOAD</span></label>
+      <label class="check"><input type="checkbox" value="debug" name="brPublicScope"><span>DEBUG</span></label>
+      <label class="check"><input type="checkbox" value="legacy" name="brPublicScope"><span>LEGACY</span></label>
+      <label class="check"><input type="checkbox" value="iam" name="brPublicScope"><span>I AM</span></label>
+    </div>
+    <p id="brPublicPlayerStatus" role="status">PUBLIC FEATURES ARE OFF UNLESS CHECKED. Codes still use their own permissions.</p>
+  </section>
+  <details id="brMusicRadioMaster"><summary>MASTER SONG APPROVALS</summary>
   <section id="brMasterSection" aria-label="Master Song List">
     <div class="brMasterToolbar">
       <button type="button" id="brMasterRefresh">LOAD</button>
@@ -890,7 +925,7 @@ input[type=text],input[type=email],input[type=number],input[type=password],selec
     <div id="brMasterStatus" class="brCompactStatus" role="status" aria-live="polite">Loading saved Master List…</div>
     <div id="brMasterSongs" role="group" aria-label="All songs; checked songs are approved for Radio and automatic Shuffle"></div>
   </section>
-  </div>
+  </details>
   <p>The DJ Booth separately controls live BLITZ playback and its BANGERS station playlist.</p>
 
 </section>
@@ -1301,6 +1336,7 @@ function installBackroomTabs(){
     }
     if(tab==='scores')window.GE_BACKROOM_SHOW_SCORES?.();
     if(tab==='music')window.GE_BACKROOM_SHOW_MUSIC?.();
+    if(tab==='radio'){window.GE_BACKROOM_MASTER_LOAD?.();window.GE_BACKROOM_SHOW_PLAYER_PROFILE?.();}
     for(const button of tabButtons){const active=button.dataset.tab===topTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;if(active&&focus)button.focus({preventScroll:true});}
     try{sessionStorage.setItem('GE_BACKROOM_ACTIVE_TAB_V1',tab)}catch(_e){}
     window.GE_BACKROOM_TAB_SELECTED?.(tab);
@@ -1970,7 +2006,7 @@ $('save').onclick=saveDraft;
 $('reset').onclick=async()=>{localStorage.removeItem(WORK_KEY);cfg=await repoLive();populate();saveDraft();setStatus('RESET TO CURRENT LIVE WEBSITE')};
 
 let brMasterCatalog=[],brMasterLoaded=false,brMasterDirty=false,brMasterBusy=false,
-    brMasterSavedSignature='',brMasterLastCommit='';
+    brMasterSavedSignature='',brMasterLastCommit='',brMasterSavedPaths=[];
 const brMasterRoot=/^ge-music\/music\/.+\.(mp3|m4a|wav|ogg)$/i;
 function brMasterAlbum(path){
  const folder=String(path).split('/')[2]||'';
@@ -2052,6 +2088,7 @@ async function brMasterLoadPublished(force=false){
   brMasterLoaded=true;cfg.music=cfg.music||{};
   cfg.music.radioMasterSongPaths=[...new Set(approvals)].sort();
   brMasterSavedSignature=brMasterSignature(approvals);
+  brMasterSavedPaths=approvals.slice();
   brMasterDirty=false;brMasterRender();
   const missing=approvals.filter(path=>!brMasterCatalog.includes(path)).length;
   brMasterMessage('MASTER LOADED · '+brMasterCatalog.length+' SONGS'+
@@ -2063,32 +2100,78 @@ async function brMasterLoadPublished(force=false){
 async function brMasterSavePublished(){
  if(brMasterBusy||!brMasterLoaded)return;
  const selected=[...new Set(cfg.music?.radioMasterSongPaths||[])].filter(p=>brMasterCatalog.includes(p)).sort();
- if(!selected.length){brMasterMessage('NOT SAVED · Radio / Shuffle Master cannot be empty');return}
+ if(!selected.length){brMasterMessage('NOT SAVED · Master Song List cannot be empty');return}
  if(!brMasterDirty){brMasterMessage('ALREADY SAVED · '+selected.length+' SONGS');return}
- if(!$('brGithubToken').value.trim()){
-  brMasterMessage('GITHUB TOKEN REQUIRED · Enter a fine-grained token in Back Room Settings (Contents: write).');
-  return;
- }
- if(!confirm('PUBLISH '+selected.length+' APPROVED RADIO / SHUFFLE SONGS TO GITHUB?\n\nOther public settings, DJ playlists and private Vault records will not change.'))return;
+ if(!token()){brMasterMessage('SIGN IN TO BACK ROOM FIRST. No separate GitHub token is needed.');return}
+ if(!confirm('SAVE '+selected.length+' APPROVED PLAYER SONGS?\n\nYour playlists and private Vault records will not change.'))return;
  brMasterBusy=true;$('brMasterSave').disabled=true;
- brMasterMessage('SAVING RADIO MASTER DIRECTLY TO GITHUB…');
+ brMasterMessage('SAVING MASTER WITH YOUR BACK ROOM LOGIN…');
  try{
-  const result=await geGithubCommit(remote=>{
-   if(brMasterSignature(remote?.music?.radioMasterSongPaths)!==brMasterSavedSignature)
-     throw Error('MASTER CHANGED ON GITHUB · Reload Master before saving');
-   return {...remote,music:{...(remote.music||{}),
-    radioMasterSongPaths:selected,
-    radioMasterRevision:(Number(remote.music?.radioMasterRevision)||0)+1}};
-  },'Back Room: save approved Radio and Shuffle Master directly to GitHub');
-  brMasterSavedSignature=brMasterSignature(selected);
-  brMasterLastCommit=result.commit||'';
-  brMasterDirty=false;
+  const response=await api('/manage/player-profile',{method:'POST',timeoutMs:25000,
+    body:JSON.stringify({action:'save_master',masterSongPaths:selected,
+      expectedMasterSongPaths:brMasterSavedPaths})});
+  const result=await response.json();
+  if(!response.ok||result.ok!==true)throw Error(result.error||'Master save failed');
+  brMasterSavedPaths=selected.slice();brMasterSavedSignature=brMasterSignature(selected);
+  brMasterLastCommit=result.commit||'';brMasterDirty=false;
   cfg.music.radioMasterSongPaths=selected;
   brMasterRender();
-  brMasterMessage((result.unchanged?'ALREADY LIVE':'SAVED TO GITHUB')+' · '+selected.length+' SONGS'+(result.commit?' · '+result.commit.slice(0,10):''));
+  brMasterMessage('SAVED THROUGH BACK ROOM · '+selected.length+' SONGS'+
+    (result.commit?' · '+result.commit.slice(0,10):''));
  }catch(error){brMasterMessage('NOT SAVED · '+String(error.message||error))}
  finally{brMasterBusy=false;$('brMasterSave').disabled=false}
 }
+
+let brPublicPlayerLoaded=false,brPublicPlayerBusy=false;
+async function brPublicPlayerLoad(){
+ if(brPublicPlayerBusy)return;
+ brPublicPlayerBusy=true;
+ const status=$('brPublicPlayerStatus');
+ status.textContent='LOADING PUBLIC PLAYER PROFILE…';
+ try{
+  const response=await api('/manage/player-profile',{timeoutMs:25000});
+  const data=await response.json();
+  if(!response.ok||data.ok!==true)throw Error(data.error||'Public profile unavailable');
+  const dropdown=$('brPublicPlaylist'),previous=data.profile?.playlistId||'';
+  dropdown.replaceChildren(new Option('MASTER SONGS · DEFAULT',''));
+  for(const item of data.playlists||[]){
+    if(!item.id||!item.songCount)continue;
+    dropdown.appendChild(new Option(item.name+' · '+item.songCount+' SONGS'+
+      (item.visibility==='published'?'':' · UNLISTED'),item.id));
+  }
+  dropdown.value=[...dropdown.options].some(o=>o.value===previous)?previous:'';
+  for(const input of document.querySelectorAll('[name="brPublicScope"]'))
+    input.checked=!!data.profile?.scopes?.includes(input.value);
+  brPublicPlayerLoaded=true;
+  status.textContent='PUBLIC PROFILE LOADED · '+(dropdown.selectedOptions[0]?.textContent||'MASTER SONGS')+
+    ' · '+(data.profile?.scopes?.length||0)+' PUBLIC FEATURES';
+ }catch(error){brPublicPlayerLoaded=false;status.textContent='PROFILE NOT LOADED · '+String(error.message||error)}
+ finally{brPublicPlayerBusy=false}
+}
+async function brPublicPlayerSave(){
+ if(brPublicPlayerBusy||!brPublicPlayerLoaded)return;
+ if(!token()){$('brPublicPlayerStatus').textContent='SIGN IN TO BACK ROOM FIRST.';return}
+ const profile={
+   playlistId:$('brPublicPlaylist').value,
+   scopes:[...document.querySelectorAll('[name="brPublicScope"]:checked')].map(box=>box.value)
+ };
+ if(!confirm('PUBLISH PUBLIC PLAYER SETTINGS?\n\nChecked features will be available to everyone without a code.'))return;
+ brPublicPlayerBusy=true;$('brPublicPlayerSave').disabled=true;
+ $('brPublicPlayerStatus').textContent='SAVING PUBLIC PLAYER PROFILE…';
+ try{
+  const response=await api('/manage/player-profile',{method:'POST',timeoutMs:25000,
+    body:JSON.stringify({action:'save_profile',profile})});
+  const saved=await response.json();
+  if(!response.ok||saved.ok!==true)throw Error(saved.error||'Profile save failed');
+  $('brPublicPlayerStatus').textContent='PUBLIC PROFILE SAVED TO GITHUB'+
+    (saved.commit?' · '+saved.commit.slice(0,10):'');
+ }catch(error){$('brPublicPlayerStatus').textContent='PROFILE NOT SAVED · '+String(error.message||error)}
+ finally{brPublicPlayerBusy=false;$('brPublicPlayerSave').disabled=false}
+}
+$('brPublicPlayerLoad').addEventListener('click',()=>void brPublicPlayerLoad());
+$('brPublicPlayerSave').addEventListener('click',()=>void brPublicPlayerSave());
+window.GE_BACKROOM_SHOW_PLAYER_PROFILE=()=>{if(!brPublicPlayerLoaded)void brPublicPlayerLoad()};
+
 $('brMasterRefresh').addEventListener('click',()=>void brMasterLoadPublished());
 $('brMasterSave').addEventListener('click',()=>void brMasterSavePublished());
 $('brMasterSearch').addEventListener('input',brMasterRender);
