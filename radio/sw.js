@@ -11,6 +11,8 @@ const SHELL=[
   './index.html',
   './preview-lab.html',
   './offline-player.html',
+  './offline.webmanifest',
+  '../playlists/registry.json',
   './ge-music-v5.js',
   './ge-purchase-demo.js',
   '../ge-vault-client.js',
