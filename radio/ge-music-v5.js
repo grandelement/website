@@ -2163,13 +2163,34 @@ el('.accessToggle').addEventListener('click',()=>{
 const musicOfflineDialog=document.createElement('dialog');
 musicOfflineDialog.setAttribute('aria-label','Offline download choices');
 musicOfflineDialog.style.cssText='position:fixed;z-index:2147483647;inset:0;margin:auto;width:min(92vw,440px);max-height:80vh;overflow:auto;border:2px solid #68c9b6;border-radius:14px;background:#10232c;color:white;padding:22px;font:16px system-ui;box-shadow:0 0 0 100vmax #000a';
-musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="cancel">CANCEL</button></div>';
+musicOfflineDialog.innerHTML='<h2 style="margin:0 0 14px">OFFLINE DOWNLOADS</h2><p class="geOfflineSelectionCount"></p><div style="display:grid;gap:12px"><button type="button" data-action="checked">DOWNLOAD CHECKED SONGS</button><button type="button" data-action="all">DOWNLOAD FULL MUSIC LIBRARY</button><button type="button" data-action="remove">REMOVE OFFLINE MUSIC</button><button type="button" data-action="cancel">CANCEL</button></div>';
 document.body.append(musicOfflineDialog);
 musicOfflineDialog.addEventListener('click',event=>{
  const action=event.target.closest('button')?.dataset.action;
  if(!action)return;
  musicOfflineDialog.close();
  if(action==='cancel')return;
+ if(action==='remove'){
+  void (async()=>{
+   if(!window.confirm('REMOVE OFFLINE MUSIC from this device? This deletes downloaded song files only. Vault accounts, purchases and playlists will not be deleted.'))return;
+   if(!('caches' in window)){say('OFFLINE STORAGE IS NOT AVAILABLE.');return;}
+   let removed=0,failed=0;
+   try{
+    for(const cacheName of await caches.keys()){
+     const cache=await caches.open(cacheName);
+     for(const request of await cache.keys()){
+      const url=new URL(request.url);
+      if(url.origin!==location.origin||!/^\\/ge-music\\/music\\/.*\\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(decodeURIComponent(url.pathname)))continue;
+      try{if(await cache.delete(request))removed++;else failed++;}catch(_){failed++;}
+     }
+    }
+    try{localStorage.removeItem('GE_OFFLINE_READY');}catch(_){}
+    say(failed?'REMOVED '+removed+' OFFLINE SONG FILES · '+failed+' COULD NOT BE REMOVED.':'REMOVED '+removed+' OFFLINE SONG FILES. PLAYLISTS AND VAULT PRESERVED.');
+    geOfflineMeter.classList.remove('active');
+   }catch(error){say('REMOVE OFFLINE FAILED · '+String(error.message||error));}
+  })();
+  return;
+ }
  if(action==='checked'){
   const paths=selectedTracks().map(track=>track.path);
   if(!paths.length){say('CHECK SONGS FIRST.');return;}
